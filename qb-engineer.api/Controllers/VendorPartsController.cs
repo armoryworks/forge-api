@@ -116,4 +116,19 @@ public class VendorPartsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new GetVendorPartPriceTierHistoryQuery(vendorPartId), ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Bought-parts effort PR4 — variance check for the off-tier prompt.
+    /// Single-call evaluation of every line on a draft PO so the UI shows
+    /// one consolidated prompt instead of one-per-line. See
+    /// <see cref="CheckTierVarianceHandler"/> for resolution rules.
+    /// </summary>
+    [HttpPost("check-tier-variance")]
+    public async Task<ActionResult<CheckTierVarianceResponseModel>> CheckTierVariance(
+        [FromBody] CheckTierVarianceRequestModel request,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new CheckTierVarianceQuery(request.VendorId, request.Lines), ct);
+        return Ok(result);
+    }
 }

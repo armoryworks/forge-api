@@ -402,6 +402,23 @@ public static partial class SeedData
             Log.Information("Seeded company profile settings");
         }
 
+        // Bought-parts effort PR4 — purchasing thresholds. Tenant-wide
+        // default for the off-tier price-variance prompt at PO line entry;
+        // per-vendor override on `Vendor.OffTierVariancePct` falls back to
+        // this when null. 5% is the design-memo default — wide enough to
+        // ignore rounding noise, tight enough to catch real surprises.
+        if (!await db.SystemSettings.AnyAsync(s => s.Key == "purchasing.offTierVariancePct"))
+        {
+            db.SystemSettings.Add(new SystemSetting
+            {
+                Key = "purchasing.offTierVariancePct",
+                Value = "5",
+                Description = "Default off-tier price variance percent that triggers the PO-line off-tier prompt. Per-vendor override on Vendor.OffTierVariancePct.",
+            });
+            await db.SaveChangesAsync();
+            Log.Information("Seeded purchasing.offTierVariancePct = 5");
+        }
+
         // ── Training Modules & Paths ──────────────────────────────────────
         await SeedTrainingAsync(db);
         await SeedAdditionalTrainingPathsAsync(db);

@@ -98,10 +98,30 @@ public class ReceiveItemsHandler(
                     break;
 
                 case FreightAllocationMethod.ByWeight:
-                    // Per-part weight not in this PR — fall back to
-                    // ByExtendedValue. PR4 will populate Part.WeightLb /
-                    // Part.WeightUom and re-enable the genuine weighted split.
-                    goto case FreightAllocationMethod.ByExtendedValue;
+                    // Bought-parts effort PR4 — weighted split using
+                    // Part.WeightEach (canonical SI = grams). Falls back
+                    // to ByExtendedValue if any part on the receipt has
+                    // no weight populated, since a partial weight set
+                    // would silently mis-allocate. Both branches treat
+                    // qty × weight per line consistently.
+                    var totalWeight = newRecords.Sum(t => (t.line.Part?.WeightEach ?? 0m) * t.rec.QuantityReceived);
+                    var allHaveWeight = newRecords.All(t => t.line.Part?.WeightEach is > 0);
+                    if (allHaveWeight && totalWeight > 0m)
+                    {
+                        foreach (var (_, line, rec) in newRecords)
+                        {
+                            var lineWeight = (line.Part?.WeightEach ?? 0m) * rec.QuantityReceived;
+                            rec.AllocatedFreight = Math.Round(actualFreight.Value * (lineWeight / totalWeight), 4);
+                        }
+                    }
+                    else
+                    {
+                        // Mixed-weight receipt — quietly fall back. The buyer
+                        // can set weights in the part identity cluster and
+                        // re-receive, or pick Manual for this shipment.
+                        goto case FreightAllocationMethod.ByExtendedValue;
+                    }
+                    break;
 
                 case FreightAllocationMethod.ByExtendedValue:
                 default:

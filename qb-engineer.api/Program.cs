@@ -386,6 +386,12 @@ try
         options.Cookie.IsEssential = true;
     });
 
+    // Bought-parts effort PR3 — landed-cost foundation. Database-only services
+    // (no external integration), so they live outside the mock/real branch
+    // and register unconditionally.
+    builder.Services.AddScoped<ITariffResolver, TariffResolver>();
+    builder.Services.AddScoped<IPartLandedCostService, PartLandedCostService>();
+
     var storageProvider = builder.Configuration.GetValue<string>("Storage:Provider") ?? "minio";
     builder.Services.Configure<LocalStorageOptions>(builder.Configuration.GetSection(LocalStorageOptions.SectionName));
 
@@ -483,13 +489,6 @@ try
         // Currency: real CurrencyService reads currency.base from system_settings
         // (FX methods still stubbed; base currency is the only piece in use today)
         builder.Services.AddScoped<ICurrencyService, CurrencyService>();
-        // Bought-parts effort PR3 — landed-cost foundation. TariffResolver
-        // reads from tariff_rates with an SCD-2 effective-window pick;
-        // empty table = 0% duty on every part until admin imports rates.
-        // PartLandedCostService rolls up receipt history into the cost
-        // surface consumed by the part Cost tab.
-        builder.Services.AddScoped<ITariffResolver, TariffResolver>();
-        builder.Services.AddScoped<IPartLandedCostService, PartLandedCostService>();
         builder.Services.AddSingleton<ILocalizationService, MockLocalizationService>();
         builder.Services.AddScoped<IPlantContextService, MockPlantContextService>();
         // IoT, E-Commerce, BI — mock for now until real integrations built
