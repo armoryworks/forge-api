@@ -50,6 +50,10 @@ appsettings.*.local.json
 *.log
 logs/
 
+# ─── Test runner artifacts ───
+test-results/
+TestResults/
+
 # ─── OS ───
 .DS_Store
 Thumbs.db
