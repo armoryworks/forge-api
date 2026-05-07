@@ -5,6 +5,8 @@ using QBEngineer.Api.Features.PurchaseOrders;
 using QBEngineer.Core.Entities;
 using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
+using QBEngineer.Data.Context;
+using QBEngineer.Tests.Helpers;
 
 namespace QBEngineer.Tests.Handlers.PurchaseOrders;
 
@@ -13,13 +15,19 @@ public class CreatePurchaseOrderHandlerTests
     private readonly Mock<IPurchaseOrderRepository> _poRepo = new();
     private readonly Mock<IVendorRepository> _vendorRepo = new();
     private readonly Mock<IPartRepository> _partRepo = new();
+    private readonly AppDbContext _db = TestDbContextFactory.Create();
     private readonly CreatePurchaseOrderHandler _handler;
 
     private readonly Faker _faker = new();
 
     public CreatePurchaseOrderHandlerTests()
     {
-        _handler = new CreatePurchaseOrderHandler(_poRepo.Object, _vendorRepo.Object, _partRepo.Object, Mock.Of<IBarcodeService>(), Mock.Of<MediatR.IMediator>(), Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>());
+        _handler = new CreatePurchaseOrderHandler(
+            _poRepo.Object, _vendorRepo.Object, _partRepo.Object,
+            Mock.Of<IBarcodeService>(),
+            Mock.Of<MediatR.IMediator>(),
+            Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>(),
+            _db);
     }
 
     [Fact]
@@ -188,5 +196,92 @@ public class CreatePurchaseOrderHandlerTests
         // Assert
         result.LineCount.Should().Be(2);
         result.TotalOrdered.Should().Be(8);
+    }
+
+    [Fact]
+    public async Task Handle_NoVendorPart_DefaultsToFobOriginAndUsd()
+    {
+        // Bought-parts PR2.5: when no preferred VendorPart row exists for the
+        // (vendor, part) and the caller didn't pass header values, the PO
+        // should default to FOB_Origin / USD via the entity's defaults.
+        var vendorId = 1;
+        var partId = 2;
+        var vendor = new Vendor { Id = vendorId, CompanyName = "Vendor" };
+        var part = new Part { Id = partId, PartNumber = "P-001", Description = "Part" };
+        _vendorRepo.Setup(r => r.FindAsync(vendorId, It.IsAny<CancellationToken>())).ReturnsAsync(vendor);
+        _poRepo.Setup(r => r.GenerateNextPONumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("PO-0001");
+        _partRepo.Setup(r => r.FindAsync(partId, It.IsAny<CancellationToken>())).ReturnsAsync(part);
+
+        var command = new CreatePurchaseOrderCommand(
+            vendorId, null, null,
+            [new CreatePurchaseOrderLineModel(partId, null, 1, 10m, null)]);
+
+        await _handler.Handle(command, CancellationToken.None);
+
+        _poRepo.Verify(r => r.AddAsync(It.Is<PurchaseOrder>(po =>
+            po.Incoterm == QBEngineer.Core.Enums.Incoterm.FOB_Origin
+            && po.QuoteCurrency == "USD"
+            && po.EstimatedFreight == null
+        ), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_VendorPartExists_DefaultsFromPreferred()
+    {
+        // When a VendorPart row exists for (vendor, part), the PO defaults
+        // pull Incoterm + Currency from that row when the caller doesn't
+        // supply them.
+        var vendorId = 7;
+        var partId = 9;
+        var vendor = new Vendor { Id = vendorId, CompanyName = "Vendor" };
+        var part = new Part { Id = partId, PartNumber = "P-009", Description = "Part" };
+        _db.VendorParts.Add(new VendorPart
+        {
+            VendorId = vendorId,
+            PartId = partId,
+            Currency = "EUR",
+            Incoterm = QBEngineer.Core.Enums.Incoterm.DAP,
+        });
+        await _db.SaveChangesAsync();
+
+        _vendorRepo.Setup(r => r.FindAsync(vendorId, It.IsAny<CancellationToken>())).ReturnsAsync(vendor);
+        _poRepo.Setup(r => r.GenerateNextPONumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("PO-0042");
+        _partRepo.Setup(r => r.FindAsync(partId, It.IsAny<CancellationToken>())).ReturnsAsync(part);
+
+        var command = new CreatePurchaseOrderCommand(
+            vendorId, null, null,
+            [new CreatePurchaseOrderLineModel(partId, null, 1, 10m, null)]);
+
+        await _handler.Handle(command, CancellationToken.None);
+
+        _poRepo.Verify(r => r.AddAsync(It.Is<PurchaseOrder>(po =>
+            po.Incoterm == QBEngineer.Core.Enums.Incoterm.DAP
+            && po.QuoteCurrency == "EUR"
+        ), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_CallerOverridesHeaderFields_UsesProvidedValues()
+    {
+        var vendorId = 1;
+        var partId = 2;
+        var vendor = new Vendor { Id = vendorId, CompanyName = "Vendor" };
+        var part = new Part { Id = partId, PartNumber = "P-001", Description = "Part" };
+        _vendorRepo.Setup(r => r.FindAsync(vendorId, It.IsAny<CancellationToken>())).ReturnsAsync(vendor);
+        _poRepo.Setup(r => r.GenerateNextPONumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("PO-0001");
+        _partRepo.Setup(r => r.FindAsync(partId, It.IsAny<CancellationToken>())).ReturnsAsync(part);
+
+        var command = new CreatePurchaseOrderCommand(
+            vendorId, null, null,
+            [new CreatePurchaseOrderLineModel(partId, null, 1, 10m, null)],
+            QBEngineer.Core.Enums.Incoterm.CIF, 25.00m, "GBP");
+
+        await _handler.Handle(command, CancellationToken.None);
+
+        _poRepo.Verify(r => r.AddAsync(It.Is<PurchaseOrder>(po =>
+            po.Incoterm == QBEngineer.Core.Enums.Incoterm.CIF
+            && po.QuoteCurrency == "GBP"
+            && po.EstimatedFreight == 25.00m
+        ), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

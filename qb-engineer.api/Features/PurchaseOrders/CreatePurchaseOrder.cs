@@ -2,12 +2,14 @@ using System.Security.Claims;
 
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using QBEngineer.Api.Features.DomainEvents;
 using QBEngineer.Api.Validation;
 using QBEngineer.Core.Entities;
 using QBEngineer.Core.Enums;
 using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
+using QBEngineer.Data.Context;
 
 namespace QBEngineer.Api.Features.PurchaseOrders;
 
@@ -15,7 +17,14 @@ public record CreatePurchaseOrderCommand(
     int VendorId,
     int? JobId,
     string? Notes,
-    List<CreatePurchaseOrderLineModel> Lines) : IRequest<PurchaseOrderListItemModel>;
+    List<CreatePurchaseOrderLineModel> Lines,
+    // Bought-parts effort PR2.5 — header fields. All optional: when omitted,
+    // we default Incoterm + QuoteCurrency from the preferred VendorPart of
+    // the first line's part. EstimatedFreight stays null when the buyer
+    // doesn't yet have a freight quote (distinct from $0 = free shipping).
+    Incoterm? Incoterm = null,
+    decimal? EstimatedFreight = null,
+    string? QuoteCurrency = null) : IRequest<PurchaseOrderListItemModel>;
 
 public class CreatePurchaseOrderValidator : AbstractValidator<CreatePurchaseOrderCommand>
 {
@@ -31,6 +40,13 @@ public class CreatePurchaseOrderValidator : AbstractValidator<CreatePurchaseOrde
             line.RuleFor(l => l.Quantity).GreaterThan(0m);
             line.RuleFor(l => l.UnitPrice).GreaterThanOrEqualTo(0m);
         });
+        RuleFor(x => x.EstimatedFreight)
+            .GreaterThanOrEqualTo(0m)
+            .When(x => x.EstimatedFreight.HasValue);
+        RuleFor(x => x.QuoteCurrency)
+            .Length(3)
+            .When(x => !string.IsNullOrEmpty(x.QuoteCurrency))
+            .WithMessage("QuoteCurrency must be a 3-letter ISO-4217 code");
     }
 }
 
@@ -40,7 +56,8 @@ public class CreatePurchaseOrderHandler(
     IPartRepository partRepo,
     IBarcodeService barcodeService,
     IMediator mediator,
-    IHttpContextAccessor httpContextAccessor)
+    IHttpContextAccessor httpContextAccessor,
+    AppDbContext db)
     : IRequestHandler<CreatePurchaseOrderCommand, PurchaseOrderListItemModel>
 {
     public async Task<PurchaseOrderListItemModel> Handle(CreatePurchaseOrderCommand request, CancellationToken cancellationToken)
@@ -53,12 +70,37 @@ public class CreatePurchaseOrderHandler(
 
         var poNumber = await poRepo.GenerateNextPONumberAsync(cancellationToken);
 
+        // Bought-parts PR2.5 — derive Incoterm/QuoteCurrency defaults from
+        // the preferred VendorPart for the first line's (vendor, part) when
+        // not supplied by the caller. Falls back to entity defaults when no
+        // VendorPart row exists yet (FOB_Origin / USD).
+        Incoterm? defaultIncoterm = null;
+        string? defaultCurrency = null;
+        if (request.Lines.Count > 0
+            && (!request.Incoterm.HasValue || string.IsNullOrEmpty(request.QuoteCurrency)))
+        {
+            var firstPartId = request.Lines[0].PartId;
+            var vp = await db.VendorParts
+                .AsNoTracking()
+                .Where(x => x.VendorId == request.VendorId && x.PartId == firstPartId)
+                .Select(x => new { x.Incoterm, x.Currency })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (vp != null)
+            {
+                defaultIncoterm = vp.Incoterm;
+                defaultCurrency = vp.Currency;
+            }
+        }
+
         var po = new PurchaseOrder
         {
             PONumber = poNumber,
             VendorId = request.VendorId,
             JobId = request.JobId,
             Notes = request.Notes,
+            Incoterm = request.Incoterm ?? defaultIncoterm ?? Incoterm.FOB_Origin,
+            EstimatedFreight = request.EstimatedFreight,
+            QuoteCurrency = request.QuoteCurrency ?? defaultCurrency ?? "USD",
         };
 
         for (var i = 0; i < request.Lines.Count; i++)

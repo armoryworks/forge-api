@@ -15,4 +15,11 @@ public record PurchaseOrderListItemModel(
     decimal TotalReceived,
     DateTimeOffset? ExpectedDeliveryDate,
     bool IsBlanket,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    // Bought-parts effort PR2.5 — vendor-min soft-warning surface. True when
+    // the vendor's MinOrderAmount is set AND the PO total (line value +
+    // EstimatedFreight) falls below it. Used by the list to render a small
+    // warning chip alongside the row so the buyer sees the issue without
+    // opening the PO. Re-computed in the detail handler so the two views
+    // can't drift.
+    bool BelowVendorMinimum = false);

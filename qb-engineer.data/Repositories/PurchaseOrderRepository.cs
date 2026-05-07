@@ -93,6 +93,9 @@ public class PurchaseOrderRepository(AppDbContext db) : IPurchaseOrderRepository
         ordered = ordered.ThenBy(po => po.Id);
 
         // — Page slice + projection —
+        // Bought-parts effort PR2.5 — BelowVendorMinimum is computed in the
+        // projection (line value + EstimatedFreight vs Vendor.MinOrderAmount)
+        // so the list can render a warning chip without a second round trip.
         var items = await ordered
             .Skip(query.Skip)
             .Take(query.EffectivePageSize)
@@ -109,7 +112,12 @@ public class PurchaseOrderRepository(AppDbContext db) : IPurchaseOrderRepository
                 po.Lines.Sum(l => l.ReceivedQuantity),
                 po.ExpectedDeliveryDate,
                 po.IsBlanket,
-                po.CreatedAt))
+                po.CreatedAt,
+                po.Vendor.MinOrderAmount.HasValue
+                    && po.Vendor.MinOrderAmount.Value > 0m
+                    && po.Lines.Sum(l => l.OrderedQuantity * l.UnitPrice)
+                        + (po.EstimatedFreight ?? 0m)
+                        < po.Vendor.MinOrderAmount.Value))
             .ToListAsync(ct);
 
         return new PagedResponse<PurchaseOrderListItemModel>(

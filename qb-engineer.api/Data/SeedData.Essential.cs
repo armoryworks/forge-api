@@ -252,6 +252,26 @@ public static partial class SeedData
             Log.Information("Seeded state withholding reference data (51 entries)");
         }
 
+        // Bought-parts effort PR2.5 — quote currencies. Seeds the seven most
+        // common ISO-4217 codes for use as the QuoteCurrency dropdown source
+        // on PurchaseOrder + VendorPart. Admin-extensible via the standard
+        // reference-data UI; per-group idempotent so re-running on an
+        // existing install is safe.
+        if (!await db.ReferenceData.AnyAsync(r => r.GroupCode == "currency"))
+        {
+            db.ReferenceData.AddRange(
+                new ReferenceData { IsSeedData = true, GroupCode = "currency", Code = "USD", Label = "USD — US Dollar", SortOrder = 1 },
+                new ReferenceData { IsSeedData = true, GroupCode = "currency", Code = "EUR", Label = "EUR — Euro", SortOrder = 2 },
+                new ReferenceData { IsSeedData = true, GroupCode = "currency", Code = "GBP", Label = "GBP — British Pound", SortOrder = 3 },
+                new ReferenceData { IsSeedData = true, GroupCode = "currency", Code = "CAD", Label = "CAD — Canadian Dollar", SortOrder = 4 },
+                new ReferenceData { IsSeedData = true, GroupCode = "currency", Code = "MXN", Label = "MXN — Mexican Peso", SortOrder = 5 },
+                new ReferenceData { IsSeedData = true, GroupCode = "currency", Code = "JPY", Label = "JPY — Japanese Yen", SortOrder = 6 },
+                new ReferenceData { IsSeedData = true, GroupCode = "currency", Code = "CNY", Label = "CNY — Chinese Yuan", SortOrder = 7 }
+            );
+            await db.SaveChangesAsync();
+            Log.Information("Seeded currency reference data (7 entries)");
+        }
+
         // Compliance Form Templates
         if (!await db.ComplianceFormTemplates.AnyAsync())
         {
