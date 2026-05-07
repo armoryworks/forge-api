@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using QBEngineer.Core.Enums;
+using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
 using QBEngineer.Data.Context;
 
@@ -8,11 +9,11 @@ namespace QBEngineer.Api.Features.Quality;
 
 public record GetGagesDueQuery(int DaysAhead = 30) : IRequest<List<GageResponseModel>>;
 
-public class GetGagesDueHandler(AppDbContext db) : IRequestHandler<GetGagesDueQuery, List<GageResponseModel>>
+public class GetGagesDueHandler(AppDbContext db, IClock clock) : IRequestHandler<GetGagesDueQuery, List<GageResponseModel>>
 {
     public async Task<List<GageResponseModel>> Handle(GetGagesDueQuery request, CancellationToken cancellationToken)
     {
-        var cutoff = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(request.DaysAhead));
+        var cutoff = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddDays(request.DaysAhead));
 
         return await db.Gages.AsNoTracking()
             .Where(g => g.Status != GageStatus.Retired &&

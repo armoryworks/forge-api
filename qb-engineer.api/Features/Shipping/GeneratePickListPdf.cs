@@ -13,7 +13,8 @@ public record GeneratePickListPdfQuery(int WaveId) : IRequest<byte[]>;
 
 public class GeneratePickListPdfHandler(
     AppDbContext db,
-    ISystemSettingRepository settings) : IRequestHandler<GeneratePickListPdfQuery, byte[]>
+    ISystemSettingRepository settings,
+    IClock clock) : IRequestHandler<GeneratePickListPdfQuery, byte[]>
 {
     public async Task<byte[]> Handle(GeneratePickListPdfQuery request, CancellationToken ct)
     {
@@ -27,7 +28,7 @@ public class GeneratePickListPdfHandler(
         var companySetting = await settings.FindByKeyAsync("company_name", ct);
         var companyName = companySetting?.Value ?? "QB Engineer";
 
-        var document = new PickListPdfDocument(wave, companyName);
+        var document = new PickListPdfDocument(wave, companyName, clock.UtcNow);
         return document.GeneratePdf();
     }
 }

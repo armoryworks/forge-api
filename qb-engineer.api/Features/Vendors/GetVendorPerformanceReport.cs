@@ -12,13 +12,14 @@ public record GetVendorPerformanceReportQuery(DateOnly? DateFrom, DateOnly? Date
 
 public class GetVendorPerformanceReportHandler(
     AppDbContext db,
-    IVendorScorecardService scorecardService)
+    IVendorScorecardService scorecardService,
+    IClock clock)
     : IRequestHandler<GetVendorPerformanceReportQuery, List<VendorComparisonRowModel>>
 {
     public async Task<List<VendorComparisonRowModel>> Handle(
         GetVendorPerformanceReportQuery request, CancellationToken cancellationToken)
     {
-        var dateTo = request.DateTo ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var dateTo = request.DateTo ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
         var dateFrom = request.DateFrom ?? dateTo.AddMonths(-12);
 
         var vendors = await db.Vendors

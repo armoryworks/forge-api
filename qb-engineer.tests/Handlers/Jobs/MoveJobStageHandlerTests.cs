@@ -10,6 +10,7 @@ using QBEngineer.Core.Entities;
 using QBEngineer.Core.Enums;
 using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
+using QBEngineer.Integrations;
 
 namespace QBEngineer.Tests.Handlers.Jobs;
 
@@ -42,6 +43,7 @@ public class MoveJobStageHandlerTests
             _mediator.Object,
             _boardHub.Object,
             Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>(),
+            new SystemClock(),
             Mock.Of<ILogger<MoveJobStageHandler>>());
     }
 

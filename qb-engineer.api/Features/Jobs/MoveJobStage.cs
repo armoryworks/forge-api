@@ -27,6 +27,7 @@ public class MoveJobStageHandler(
     IMediator mediator,
     IHubContext<BoardHub> boardHub,
     IHttpContextAccessor httpContext,
+    IClock clock,
     ILogger<MoveJobStageHandler> logger) : IRequestHandler<MoveJobStageCommand, JobDetailResponseModel>
 {
     public async Task<JobDetailResponseModel> Handle(MoveJobStageCommand request, CancellationToken cancellationToken)
@@ -62,7 +63,7 @@ public class MoveJobStageHandler(
         var lastStage = allStages.OrderByDescending(s => s.SortOrder).FirstOrDefault();
         if (lastStage is not null && lastStage.Id == request.StageId)
         {
-            job.CompletedDate = DateTime.UtcNow;
+            job.CompletedDate = clock.UtcNow;
         }
         else if (job.CompletedDate.HasValue && targetStage.SortOrder < (lastStage?.SortOrder ?? int.MaxValue))
         {

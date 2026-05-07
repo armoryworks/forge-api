@@ -6,7 +6,9 @@ using Microsoft.EntityFrameworkCore;
 using QBEngineer.Api.Features.ShopFloor;
 using QBEngineer.Core.Entities;
 using QBEngineer.Core.Enums;
+using QBEngineer.Core.Interfaces;
 using QBEngineer.Data.Context;
+using QBEngineer.Integrations;
 using QBEngineer.Tests.Helpers;
 
 namespace QBEngineer.Tests.Handlers.ShopFloor;
@@ -20,7 +22,7 @@ public class CompleteJobHandlerTests
     public CompleteJobHandlerTests()
     {
         _db = TestDbContextFactory.Create();
-        _handler = new CompleteJobHandler(_db);
+        _handler = new CompleteJobHandler(_db, new SystemClock());
     }
 
     [Fact]

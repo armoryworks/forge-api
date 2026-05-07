@@ -7,7 +7,7 @@ using QBEngineer.Data.Context;
 
 namespace QBEngineer.Data.Services;
 
-public class AtpService(AppDbContext db) : IAtpService
+public class AtpService(AppDbContext db, IClock clock) : IAtpService
 {
     public async Task<AtpResult> CalculateAtpAsync(int partId, decimal quantity, CancellationToken ct = default)
     {
@@ -48,7 +48,7 @@ public class AtpService(AppDbContext db) : IAtpService
         DateOnly? earliestDate = null;
         if (canFulfill)
         {
-            earliestDate = DateOnly.FromDateTime(DateTime.UtcNow);
+            earliestDate = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
         }
         else
         {
@@ -71,7 +71,7 @@ public class AtpService(AppDbContext db) : IAtpService
 
     public async Task<DateOnly?> GetEarliestAvailableDateAsync(int partId, decimal quantity, CancellationToken ct = default)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
         var horizon = today.AddDays(180);
 
         var timeline = await GetAtpTimelineAsync(partId, today, horizon, ct);

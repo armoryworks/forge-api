@@ -2,13 +2,14 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using QBEngineer.Core.Interfaces;
 using QBEngineer.Data.Context;
 
 namespace QBEngineer.Api.Features.ShopFloor;
 
 public record CompleteJobCommand(int JobId) : IRequest;
 
-public class CompleteJobHandler(AppDbContext db) : IRequestHandler<CompleteJobCommand>
+public class CompleteJobHandler(AppDbContext db, IClock clock) : IRequestHandler<CompleteJobCommand>
 {
     public async Task Handle(CompleteJobCommand request, CancellationToken ct)
     {
@@ -24,7 +25,7 @@ public class CompleteJobHandler(AppDbContext db) : IRequestHandler<CompleteJobCo
             ?? throw new InvalidOperationException("No stages found for track type");
 
         job.CurrentStageId = lastStage.Id;
-        job.CompletedDate = DateTime.UtcNow;
+        job.CompletedDate = clock.UtcNow;
 
         await db.SaveChangesAsync(ct);
     }

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using QBEngineer.Core.Entities;
 using QBEngineer.Core.Enums;
+using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
 using QBEngineer.Data.Context;
 
@@ -20,7 +21,7 @@ public class CreateFmeaValidator : AbstractValidator<CreateFmeaCommand>
     }
 }
 
-public class CreateFmeaHandler(AppDbContext db)
+public class CreateFmeaHandler(AppDbContext db, IClock clock)
     : IRequestHandler<CreateFmeaCommand, FmeaResponseModel>
 {
     public async Task<FmeaResponseModel> Handle(
@@ -53,7 +54,7 @@ public class CreateFmeaHandler(AppDbContext db)
             Status = FmeaStatus.Draft,
             PreparedBy = req.PreparedBy,
             Responsibility = req.Responsibility,
-            OriginalDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            OriginalDate = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime),
             RevisionNumber = 1,
             Notes = req.Notes,
             PpapSubmissionId = req.PpapSubmissionId,

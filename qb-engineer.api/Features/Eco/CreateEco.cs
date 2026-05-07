@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using QBEngineer.Core.Entities;
+using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
 using QBEngineer.Data.Context;
 
@@ -24,7 +25,7 @@ public class CreateEcoValidator : AbstractValidator<CreateEcoCommand>
     }
 }
 
-public class CreateEcoHandler(AppDbContext db, IHttpContextAccessor httpContext)
+public class CreateEcoHandler(AppDbContext db, IHttpContextAccessor httpContext, IClock clock)
     : IRequestHandler<CreateEcoCommand, EcoResponseModel>
 {
     public async Task<EcoResponseModel> Handle(CreateEcoCommand request, CancellationToken cancellationToken)
@@ -32,7 +33,7 @@ public class CreateEcoHandler(AppDbContext db, IHttpContextAccessor httpContext)
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         // Generate ECO number
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
         var prefix = $"ECO-{today:yyyyMMdd}-";
         var lastNumber = await db.EngineeringChangeOrders
             .AsNoTracking()

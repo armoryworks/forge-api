@@ -7,6 +7,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
 using QBEngineer.Core.Enums;
+using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
 using QBEngineer.Data.Context;
 
@@ -18,7 +19,8 @@ public record ExportReportResult(byte[] Content, string ContentType, string File
 
 public class ExportReportHandler(
     AppDbContext db,
-    IMediator mediator) : IRequestHandler<ExportReportQuery, ExportReportResult>
+    IMediator mediator,
+    IClock clock) : IRequestHandler<ExportReportQuery, ExportReportResult>
 {
     public async Task<ExportReportResult> Handle(ExportReportQuery request, CancellationToken cancellationToken)
     {
@@ -41,7 +43,7 @@ public class ExportReportHandler(
         {
             ReportExportFormat.Csv => ExportToCsv(runResult, report.Name),
             ReportExportFormat.Xlsx => ExportToXlsx(runResult, report.Name),
-            ReportExportFormat.Pdf => ExportToPdf(runResult, report.Name),
+            ReportExportFormat.Pdf => ExportToPdf(runResult, report.Name, clock.UtcNow),
             _ => throw new InvalidOperationException($"Unsupported export format: {request.Format}"),
         };
     }
@@ -131,9 +133,9 @@ public class ExportReportHandler(
             $"{reportName}.xlsx");
     }
 
-    private static ExportReportResult ExportToPdf(RunReportResponseModel result, string reportName)
+    private static ExportReportResult ExportToPdf(RunReportResponseModel result, string reportName, DateTimeOffset generatedAt)
     {
-        var document = new ReportPdfDocument(result, reportName);
+        var document = new ReportPdfDocument(result, reportName, generatedAt);
         return new ExportReportResult(
             document.GeneratePdf(),
             "application/pdf",

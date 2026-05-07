@@ -8,13 +8,13 @@ namespace QBEngineer.Api.Features.Vendors;
 public record GetVendorScorecardQuery(int VendorId, DateOnly? DateFrom, DateOnly? DateTo)
     : IRequest<VendorScorecardResponseModel>;
 
-public class GetVendorScorecardHandler(IVendorScorecardService scorecardService)
+public class GetVendorScorecardHandler(IVendorScorecardService scorecardService, IClock clock)
     : IRequestHandler<GetVendorScorecardQuery, VendorScorecardResponseModel>
 {
     public async Task<VendorScorecardResponseModel> Handle(
         GetVendorScorecardQuery request, CancellationToken cancellationToken)
     {
-        var dateTo = request.DateTo ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var dateTo = request.DateTo ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
         var dateFrom = request.DateFrom ?? dateTo.AddMonths(-12);
 
         var scorecard = await scorecardService.CalculateScorecardAsync(

@@ -469,12 +469,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
 
     public override int SaveChanges()
     {
+        NormalizeDateTimes();
         SetTimestamps();
         return base.SaveChanges();
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        NormalizeDateTimes();
         SetTimestamps();
 
         if (_isCapturingAudit || SuppressAudit)
@@ -803,6 +805,60 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     {
         // "SalesOrder" → "Sales Order"
         return FormatPropertyName(typeName);
+    }
+
+    /// <summary>
+    /// Walks the change tracker and forces every Added/Modified entity's
+    /// DateTime / DateTime? property to <c>DateTimeKind.Utc</c>. Postgres
+    /// <c>timestamptz</c> via Npgsql 6+ rejects DateTimes with
+    /// <c>Kind != Utc</c> by throwing <c>InvalidCastException</c> at save
+    /// time — which catches the most egregious bugs but produces an
+    /// uninformative error and surfaces only at save (not at the bug
+    /// site). This pre-pass converts <c>Kind=Unspecified</c> values
+    /// (the default when constructing a DateTime from local components
+    /// or when JSON-deserializing a date-only string) to UTC and
+    /// converts <c>Kind=Local</c> values via <see cref="DateTime.ToUniversalTime"/>.
+    /// Effectively the project's "always UTC at the boundary" rule
+    /// becomes a real invariant rather than an aspiration.
+    ///
+    /// <para>Reflection-based — runs over every property typed
+    /// <see cref="DateTime"/> or <see cref="Nullable{DateTime}"/> on
+    /// every Added/Modified entity. Cost is proportional to the change
+    /// set size, which in practice is small (single entity per request
+    /// in most paths). Caches per-CLR-type property lists in
+    /// <see cref="_dateTimePropertyCache"/> so subsequent saves on the
+    /// same type don't re-reflect.</para>
+    /// </summary>
+    private void NormalizeDateTimes()
+    {
+        foreach (var entry in ChangeTracker.Entries()
+                     .Where(entry => entry.State == EntityState.Added || entry.State == EntityState.Modified))
+        {
+            var props = GetDateTimeProperties(entry.Entity.GetType());
+            foreach (var prop in props)
+            {
+                var raw = prop.GetValue(entry.Entity);
+                if (raw == null) continue;
+                var dt = (DateTime)raw;
+                if (dt.Kind == DateTimeKind.Utc) continue;
+                var utc = dt.Kind == DateTimeKind.Local
+                    ? dt.ToUniversalTime()
+                    : DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                prop.SetValue(entry.Entity, utc);
+            }
+        }
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, System.Reflection.PropertyInfo[]> _dateTimePropertyCache = new();
+
+    private static System.Reflection.PropertyInfo[] GetDateTimeProperties(Type type)
+    {
+        return _dateTimePropertyCache.GetOrAdd(type, t =>
+            t.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+                .Where(p =>
+                    p.CanRead && p.CanWrite &&
+                    (p.PropertyType == typeof(DateTime) || p.PropertyType == typeof(DateTime?)))
+                .ToArray());
     }
 
     private void SetTimestamps()

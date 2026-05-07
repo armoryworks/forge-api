@@ -10,11 +10,13 @@ public class ReportPdfDocument : IDocument
 {
     private readonly RunReportResponseModel _result;
     private readonly string _reportName;
+    private readonly DateTimeOffset _generatedAt;
 
-    public ReportPdfDocument(RunReportResponseModel result, string reportName)
+    public ReportPdfDocument(RunReportResponseModel result, string reportName, DateTimeOffset generatedAt)
     {
         _result = result;
         _reportName = reportName;
+        _generatedAt = generatedAt;
     }
 
     public void Compose(IDocumentContainer container)
@@ -41,7 +43,7 @@ public class ReportPdfDocument : IDocument
                 row.RelativeItem().Text(_reportName).Bold().FontSize(16);
                 row.ConstantItem(200).AlignRight().Column(right =>
                 {
-                    right.Item().Text($"Generated: {DateTime.UtcNow:MMM dd, yyyy HH:mm} UTC").FontSize(8).FontColor(Colors.Grey.Darken1);
+                    right.Item().Text($"Generated: {_generatedAt:MMM dd, yyyy HH:mm} UTC").FontSize(8).FontColor(Colors.Grey.Darken1);
                     right.Item().Text($"{_result.TotalCount} records").FontSize(8).FontColor(Colors.Grey.Darken1);
                 });
             });

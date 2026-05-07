@@ -10,11 +10,13 @@ public class PickListPdfDocument : IDocument
 {
     private readonly PickWave _wave;
     private readonly string _companyName;
+    private readonly DateTimeOffset _generatedAt;
 
-    public PickListPdfDocument(PickWave wave, string companyName)
+    public PickListPdfDocument(PickWave wave, string companyName, DateTimeOffset generatedAt)
     {
         _wave = wave;
         _companyName = companyName;
+        _generatedAt = generatedAt;
     }
 
     public void Compose(IDocumentContainer container)
@@ -66,7 +68,7 @@ public class PickListPdfDocument : IDocument
                 {
                     right.Item().Text($"Total Lines: {_wave.TotalLines}").FontSize(9);
                     right.Item().Text($"Picked: {_wave.PickedLines}").FontSize(9);
-                    right.Item().Text($"Date: {DateTime.UtcNow:MMM dd, yyyy}").FontSize(9);
+                    right.Item().Text($"Date: {_generatedAt:MMM dd, yyyy}").FontSize(9);
                 });
             });
 

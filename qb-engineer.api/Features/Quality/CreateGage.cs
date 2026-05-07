@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using QBEngineer.Core.Entities;
 using QBEngineer.Core.Enums;
+using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
 using QBEngineer.Data.Context;
 
@@ -19,7 +20,7 @@ public class CreateGageValidator : AbstractValidator<CreateGageCommand>
     }
 }
 
-public class CreateGageHandler(AppDbContext db) : IRequestHandler<CreateGageCommand, GageResponseModel>
+public class CreateGageHandler(AppDbContext db, IClock clock) : IRequestHandler<CreateGageCommand, GageResponseModel>
 {
     public async Task<GageResponseModel> Handle(CreateGageCommand request, CancellationToken cancellationToken)
     {
@@ -41,7 +42,7 @@ public class CreateGageHandler(AppDbContext db) : IRequestHandler<CreateGageComm
             RangeSpec = request.Request.RangeSpec?.Trim(),
             Resolution = request.Request.Resolution?.Trim(),
             Notes = request.Request.Notes?.Trim(),
-            NextCalibrationDue = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(request.Request.CalibrationIntervalDays)),
+            NextCalibrationDue = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddDays(request.Request.CalibrationIntervalDays)),
         };
 
         db.Gages.Add(gage);

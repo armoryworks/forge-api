@@ -5,7 +5,7 @@ using QBEngineer.Core.Models;
 
 namespace QBEngineer.Integrations;
 
-public class MockCopqService(ILogger<MockCopqService> logger) : ICopqService
+public class MockCopqService(ILogger<MockCopqService> logger, IClock clock) : ICopqService
 {
     public Task<CopqReportResponseModel> GenerateReportAsync(DateOnly periodStart, DateOnly periodEnd, CancellationToken ct)
     {
@@ -41,7 +41,7 @@ public class MockCopqService(ILogger<MockCopqService> logger) : ICopqService
     {
         logger.LogInformation("[MockCopq] GetTrend for {Months} months", months);
         var result = new List<CopqTrendPointResponseModel>();
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
         for (var i = months - 1; i >= 0; i--)
         {
             var period = today.AddMonths(-i);
