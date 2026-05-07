@@ -48,4 +48,11 @@ public class WorkingCalendar : BaseAuditableEntity
     /// it falls on a Saturday the observed date is the prior Friday).
     /// </summary>
     public ICollection<Holiday> Holidays { get; set; } = new List<Holiday>();
+
+    /// <summary>
+    /// Shifts effort — calendar-scoped shifts. Drives hours-of-operation
+    /// (union of shift windows = "we're open"), capacity for finite MRP,
+    /// and (future) payroll premium application on clock events.
+    /// </summary>
+    public ICollection<Shift> Shifts { get; set; } = new List<Shift>();
 }

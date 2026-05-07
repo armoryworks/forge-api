@@ -391,6 +391,9 @@ try
     // and register unconditionally.
     builder.Services.AddScoped<ITariffResolver, TariffResolver>();
     builder.Services.AddScoped<IPartLandedCostService, PartLandedCostService>();
+    // Shifts effort — calendar-bound shift helpers (per-week capacity,
+    // within-shift checks). Database-only, registered unconditionally.
+    builder.Services.AddScoped<IShiftService, ShiftService>();
 
     var storageProvider = builder.Configuration.GetValue<string>("Storage:Provider") ?? "minio";
     builder.Services.Configure<LocalStorageOptions>(builder.Configuration.GetSection(LocalStorageOptions.SectionName));

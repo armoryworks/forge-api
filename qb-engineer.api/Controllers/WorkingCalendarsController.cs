@@ -81,4 +81,32 @@ public class WorkingCalendarsController(IMediator mediator) : ControllerBase
         await mediator.Send(new DeleteHolidayCommand(id, holidayId));
         return NoContent();
     }
+
+    // Shifts effort — calendar-bound shift CRUD. Nested under the calendar
+    // since shifts are owned by their calendar (cascade delete; no
+    // standalone existence). Read path is via Get(id) on this controller —
+    // the response embeds the shifts list + computed weekly capacity.
+
+    [HttpPost("{id:int}/shifts")]
+    public async Task<ActionResult<CalendarShiftResponseModel>> AddShift(
+        int id, CalendarShiftRequestModel request)
+    {
+        var result = await mediator.Send(new AddCalendarShiftCommand(id, request));
+        return Created(string.Empty, result);
+    }
+
+    [HttpPut("{id:int}/shifts/{shiftId:int}")]
+    public async Task<ActionResult<CalendarShiftResponseModel>> UpdateShift(
+        int id, int shiftId, CalendarShiftRequestModel request)
+    {
+        var result = await mediator.Send(new UpdateCalendarShiftCommand(id, shiftId, request));
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:int}/shifts/{shiftId:int}")]
+    public async Task<IActionResult> DeleteShift(int id, int shiftId)
+    {
+        await mediator.Send(new DeleteCalendarShiftCommand(id, shiftId));
+        return NoContent();
+    }
 }
