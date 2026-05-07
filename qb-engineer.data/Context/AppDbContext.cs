@@ -197,6 +197,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     // Company Locations
     public DbSet<CompanyLocation> CompanyLocations => Set<CompanyLocation>();
 
+    // Working calendars (PR 1 — bought-parts effort) — drives every business-day
+    // helper in the system. Tenant has a default; CompanyLocation may override.
+    public DbSet<WorkingCalendar> WorkingCalendars => Set<WorkingCalendar>();
+    public DbSet<Holiday> Holidays => Set<Holiday>();
+
     // Compliance & Document Signing
     public DbSet<ComplianceFormTemplate> ComplianceFormTemplates => Set<ComplianceFormTemplate>();
     public DbSet<ComplianceFormSubmission> ComplianceFormSubmissions => Set<ComplianceFormSubmission>();

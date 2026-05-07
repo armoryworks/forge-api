@@ -257,6 +257,8 @@ try
     builder.Services.AddScoped<IPartRepository, PartRepository>();
     // Phase 3 H4 / WU-20 — BOM revision auto-snapshot service.
     builder.Services.AddScoped<IBomRevisionService, BomRevisionService>();
+    // Bought-parts effort PR1 — business-day calendar service.
+    builder.Services.AddScoped<IWorkingCalendarService, WorkingCalendarService>();
     builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
     builder.Services.AddScoped<ILeadRepository, LeadRepository>();
     builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();

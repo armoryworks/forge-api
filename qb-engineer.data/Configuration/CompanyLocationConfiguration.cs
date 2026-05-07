@@ -21,5 +21,13 @@ public class CompanyLocationConfiguration : IEntityTypeConfiguration<CompanyLoca
         builder.HasIndex(e => e.IsDefault)
             .HasFilter("is_default = true")
             .IsUnique();
+
+        // SetNull on calendar delete — losing the override falls back to
+        // the tenant default. Never cascade a calendar delete into the
+        // location itself.
+        builder.HasOne(e => e.WorkingCalendar)
+            .WithMany()
+            .HasForeignKey(e => e.WorkingCalendarId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
