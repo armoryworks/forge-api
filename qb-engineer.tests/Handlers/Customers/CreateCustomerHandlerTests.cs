@@ -5,19 +5,22 @@ using Moq;
 using QBEngineer.Api.Features.Customers;
 using QBEngineer.Core.Entities;
 using QBEngineer.Core.Interfaces;
+using QBEngineer.Data.Context;
+using QBEngineer.Tests.Helpers;
 
 namespace QBEngineer.Tests.Handlers.Customers;
 
 public class CreateCustomerHandlerTests
 {
     private readonly Mock<ICustomerRepository> _customerRepo = new();
+    private readonly AppDbContext _db = TestDbContextFactory.Create();
     private readonly CreateCustomerHandler _handler;
 
     private readonly Faker _faker = new();
 
     public CreateCustomerHandlerTests()
     {
-        _handler = new CreateCustomerHandler(_customerRepo.Object);
+        _handler = new CreateCustomerHandler(_customerRepo.Object, _db);
     }
 
     [Fact]

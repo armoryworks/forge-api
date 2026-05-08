@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using QBEngineer.Core.Enums;
 using QBEngineer.Core.Models;
 using QBEngineer.Data.Context;
+using QBEngineer.Data.Extensions;
 
 namespace QBEngineer.Api.Features.Customers;
 
@@ -40,11 +41,30 @@ public class UpdateContactInteractionHandler(AppDbContext db)
                 && ci.Contact.CustomerId == request.CustomerId, cancellationToken)
             ?? throw new KeyNotFoundException($"Interaction {request.InteractionId} not found for customer {request.CustomerId}");
 
-        interaction.Type = Enum.Parse<InteractionType>(request.Type, true);
-        interaction.Subject = request.Subject;
-        interaction.Body = request.Body;
-        interaction.InteractionDate = request.InteractionDate;
-        interaction.DurationMinutes = request.DurationMinutes;
+        var changedFields = new List<string>();
+        var newType = Enum.Parse<InteractionType>(request.Type, true);
+        if (newType != interaction.Type) { interaction.Type = newType; changedFields.Add("type"); }
+        if (request.Subject != interaction.Subject) { interaction.Subject = request.Subject; changedFields.Add("subject"); }
+        if (request.Body != interaction.Body) { interaction.Body = request.Body; changedFields.Add("body"); }
+        if (request.InteractionDate != interaction.InteractionDate)
+        {
+            interaction.InteractionDate = request.InteractionDate;
+            changedFields.Add("interactionDate");
+        }
+        if (request.DurationMinutes != interaction.DurationMinutes)
+        {
+            interaction.DurationMinutes = request.DurationMinutes;
+            changedFields.Add("durationMinutes");
+        }
+
+        if (changedFields.Count > 0)
+        {
+            db.LogActivityAt(
+                "interaction-updated",
+                $"Updated interaction ({interaction.Subject}) — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}",
+                ("Customer", request.CustomerId),
+                ("Contact", interaction.ContactId));
+        }
 
         await db.SaveChangesAsync(cancellationToken);
 

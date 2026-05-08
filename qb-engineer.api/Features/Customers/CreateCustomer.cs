@@ -4,6 +4,8 @@ using QBEngineer.Core.Entities;
 using QBEngineer.Core.Enums;
 using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
+using QBEngineer.Data.Context;
+using QBEngineer.Data.Extensions;
 
 namespace QBEngineer.Api.Features.Customers;
 
@@ -107,7 +109,7 @@ public class CreateCustomerValidator : AbstractValidator<CreateCustomerCommand>
     }
 }
 
-public class CreateCustomerHandler(ICustomerRepository repo)
+public class CreateCustomerHandler(ICustomerRepository repo, AppDbContext db)
     : IRequestHandler<CreateCustomerCommand, CustomerListItemModel>
 {
     public async Task<CustomerListItemModel> Handle(CreateCustomerCommand request, CancellationToken cancellationToken)
@@ -134,6 +136,15 @@ public class CreateCustomerHandler(ICustomerRepository repo)
 
         await repo.AddAsync(customer, cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);
+
+        var displayLabel = string.IsNullOrWhiteSpace(customer.CompanyName)
+            ? customer.Name
+            : $"{customer.Name} ({customer.CompanyName})";
+        db.LogActivityAt(
+            "created",
+            $"Created customer: {displayLabel}",
+            ("Customer", customer.Id));
+        await db.SaveChangesAsync(cancellationToken);
 
         return new CustomerListItemModel(
             customer.Id,

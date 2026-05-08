@@ -1,10 +1,10 @@
-using System.Security.Claims;
-
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using QBEngineer.Core.Interfaces;
 using QBEngineer.Data.Context;
+using QBEngineer.Data.Extensions;
 
 namespace QBEngineer.Api.Features.Customers;
 
@@ -18,7 +18,7 @@ public class PlaceCreditHoldValidator : AbstractValidator<PlaceCreditHoldCommand
     }
 }
 
-public class PlaceCreditHoldHandler(AppDbContext db, IHttpContextAccessor httpContext) : IRequestHandler<PlaceCreditHoldCommand>
+public class PlaceCreditHoldHandler(AppDbContext db, IClock clock) : IRequestHandler<PlaceCreditHoldCommand>
 {
     public async Task Handle(PlaceCreditHoldCommand request, CancellationToken ct)
     {
@@ -26,12 +26,18 @@ public class PlaceCreditHoldHandler(AppDbContext db, IHttpContextAccessor httpCo
             .FirstOrDefaultAsync(c => c.Id == request.CustomerId, ct)
             ?? throw new KeyNotFoundException($"Customer {request.CustomerId} not found");
 
-        var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userId = db.CurrentUserId
+            ?? throw new InvalidOperationException("PlaceCreditHold requires an authenticated caller.");
 
         customer.IsOnCreditHold = true;
         customer.CreditHoldReason = request.Reason;
-        customer.CreditHoldAt = DateTimeOffset.UtcNow;
+        customer.CreditHoldAt = clock.UtcNow;
         customer.CreditHoldById = userId;
+
+        db.LogActivityAt(
+            "credit-hold-placed",
+            $"Credit hold placed: {request.Reason}",
+            ("Customer", customer.Id));
 
         await db.SaveChangesAsync(ct);
     }

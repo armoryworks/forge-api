@@ -4,6 +4,8 @@ using QBEngineer.Core.Entities;
 using QBEngineer.Core.Enums;
 using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
+using QBEngineer.Data.Context;
+using QBEngineer.Data.Extensions;
 
 namespace QBEngineer.Api.Features.CustomerAddresses;
 
@@ -33,7 +35,10 @@ public class CreateCustomerAddressValidator : AbstractValidator<CreateCustomerAd
     }
 }
 
-public class CreateCustomerAddressHandler(ICustomerAddressRepository repo, ICustomerRepository customerRepo)
+public class CreateCustomerAddressHandler(
+    ICustomerAddressRepository repo,
+    ICustomerRepository customerRepo,
+    AppDbContext db)
     : IRequestHandler<CreateCustomerAddressCommand, CustomerAddressResponseModel>
 {
     public async Task<CustomerAddressResponseModel> Handle(CreateCustomerAddressCommand request, CancellationToken cancellationToken)
@@ -58,6 +63,15 @@ public class CreateCustomerAddressHandler(ICustomerAddressRepository repo, ICust
         };
 
         await repo.AddAsync(address, cancellationToken);
+
+        // Address has semantics (default flag, billing/shipping type) so the
+        // collection doesn't qualify for the self-auditing-data exception —
+        // log on the customer.
+        db.LogActivityAt(
+            "address-added",
+            $"Added {addressType} address: {address.Label} — {address.Line1}, {address.City}, {address.State}{(address.IsDefault ? " (default)" : "")}",
+            ("Customer", request.CustomerId));
+
         await repo.SaveChangesAsync(cancellationToken);
 
         return new CustomerAddressResponseModel(

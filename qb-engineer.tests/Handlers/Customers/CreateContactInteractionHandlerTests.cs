@@ -1,8 +1,4 @@
-using System.Security.Claims;
-
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
-using Moq;
 
 using QBEngineer.Api.Features.Customers;
 using QBEngineer.Core.Entities;
@@ -14,7 +10,6 @@ namespace QBEngineer.Tests.Handlers.Customers;
 public class CreateContactInteractionHandlerTests
 {
     private readonly Data.Context.AppDbContext _db;
-    private readonly Mock<IHttpContextAccessor> _httpContext = new();
     private readonly CreateContactInteractionHandler _handler;
 
     private const int TestUserId = 1;
@@ -22,18 +17,14 @@ public class CreateContactInteractionHandlerTests
     public CreateContactInteractionHandlerTests()
     {
         _db = TestDbContextFactory.Create();
-        SetupHttpContext(TestUserId);
-        _handler = new CreateContactInteractionHandler(_db, _httpContext.Object);
+        _db.CurrentUserId = TestUserId;
+        _handler = new CreateContactInteractionHandler(_db);
     }
 
-    private void SetupHttpContext(int userId)
-    {
-        var claims = new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) };
-        var identity = new ClaimsIdentity(claims, "test");
-        var principal = new ClaimsPrincipal(identity);
-        var httpContext = new DefaultHttpContext { User = principal };
-        _httpContext.Setup(h => h.HttpContext).Returns(httpContext);
-    }
+    // CurrentUserId is set on the AppDbContext directly — middleware does
+    // this in production. Tests just assign the field and update it after
+    // seeding a user so the handler picks up the right principal.
+    private void SetupCurrentUser(int userId) => _db.CurrentUserId = userId;
 
     private async Task<(ApplicationUser user, Customer customer, Contact contact)> SeedData()
     {
@@ -44,7 +35,7 @@ public class CreateContactInteractionHandlerTests
         };
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
-        SetupHttpContext(user.Id);
+        SetupCurrentUser(user.Id);
 
         var customer = new Customer { Name = "Acme Corp" };
         _db.Customers.Add(customer);
@@ -120,7 +111,7 @@ public class CreateContactInteractionHandlerTests
         };
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
-        SetupHttpContext(user.Id);
+        SetupCurrentUser(user.Id);
 
         var customer = new Customer { Name = "Empty Co" };
         _db.Customers.Add(customer);

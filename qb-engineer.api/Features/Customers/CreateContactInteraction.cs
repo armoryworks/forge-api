@@ -1,14 +1,12 @@
-using System.Security.Claims;
-
 using FluentValidation;
 using MediatR;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using QBEngineer.Core.Entities;
 using QBEngineer.Core.Enums;
 using QBEngineer.Core.Models;
 using QBEngineer.Data.Context;
+using QBEngineer.Data.Extensions;
 
 namespace QBEngineer.Api.Features.Customers;
 
@@ -32,13 +30,18 @@ public class CreateContactInteractionValidator : AbstractValidator<CreateContact
     }
 }
 
-public class CreateContactInteractionHandler(AppDbContext db, IHttpContextAccessor httpContext)
+public class CreateContactInteractionHandler(AppDbContext db)
     : IRequestHandler<CreateContactInteractionCommand, ContactInteractionResponseModel>
 {
     public async Task<ContactInteractionResponseModel> Handle(
         CreateContactInteractionCommand request, CancellationToken cancellationToken)
     {
-        var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        // CurrentUserId is set by middleware on every authenticated request;
+        // null only happens for system / Hangfire callers, who aren't expected
+        // to log interactions. Treat unauthenticated reach here as a 401-class
+        // bug and fail loudly rather than silently writing UserId=0.
+        var userId = db.CurrentUserId
+            ?? throw new InvalidOperationException("CreateContactInteraction requires an authenticated caller.");
 
         // If no contactId, get the primary contact for the customer
         int contactId;
@@ -72,6 +75,17 @@ public class CreateContactInteractionHandler(AppDbContext db, IHttpContextAccess
         };
 
         db.ContactInteractions.Add(interaction);
+
+        // ContactInteraction is transactional, but per the activity-logging
+        // indexing-points convention we still log the event on both anchors
+        // (Customer + Contact) so the customer's activity tab shows that an
+        // interaction was recorded. The Subject is the human-readable hook.
+        db.LogActivityAt(
+            "interaction-logged",
+            $"Logged {interaction.Type.ToString().ToLowerInvariant()}: {interaction.Subject}",
+            ("Customer", request.CustomerId),
+            ("Contact", contactId));
+
         await db.SaveChangesAsync(cancellationToken);
 
         // Load navigation for response

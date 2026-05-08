@@ -3,6 +3,8 @@ using MediatR;
 using QBEngineer.Core.Entities;
 using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
+using QBEngineer.Data.Context;
+using QBEngineer.Data.Extensions;
 
 namespace QBEngineer.Api.Features.Customers;
 
@@ -27,7 +29,7 @@ public class CreateContactValidator : AbstractValidator<CreateContactCommand>
     }
 }
 
-public class CreateContactHandler(ICustomerRepository repo)
+public class CreateContactHandler(ICustomerRepository repo, AppDbContext db)
     : IRequestHandler<CreateContactCommand, ContactResponseModel>
 {
     public async Task<ContactResponseModel> Handle(CreateContactCommand request, CancellationToken cancellationToken)
@@ -48,6 +50,16 @@ public class CreateContactHandler(ICustomerRepository repo)
 
         customer.Contacts.Add(contact);
         await repo.SaveChangesAsync(cancellationToken);
+
+        // Indexing-points rule — Contact bridges Customer ↔ a person, so the
+        // create event is logged on both anchors. Future cross-customer
+        // contact moves will pivot here.
+        db.LogActivityAt(
+            "contact-added",
+            $"Added contact: {contact.LastName}, {contact.FirstName}{(string.IsNullOrEmpty(contact.Role) ? "" : $" ({contact.Role})")}{(contact.IsPrimary ? " — primary" : "")}",
+            ("Customer", customer.Id),
+            ("Contact", contact.Id));
+        await db.SaveChangesAsync(cancellationToken);
 
         return new ContactResponseModel(
             contact.Id, contact.FirstName, contact.LastName,

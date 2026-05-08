@@ -2,6 +2,8 @@ using FluentValidation;
 using MediatR;
 using QBEngineer.Core.Enums;
 using QBEngineer.Core.Interfaces;
+using QBEngineer.Data.Context;
+using QBEngineer.Data.Extensions;
 
 namespace QBEngineer.Api.Features.CustomerAddresses;
 
@@ -33,7 +35,7 @@ public class UpdateCustomerAddressValidator : AbstractValidator<UpdateCustomerAd
     }
 }
 
-public class UpdateCustomerAddressHandler(ICustomerAddressRepository repo)
+public class UpdateCustomerAddressHandler(ICustomerAddressRepository repo, AppDbContext db)
     : IRequestHandler<UpdateCustomerAddressCommand>
 {
     public async Task Handle(UpdateCustomerAddressCommand request, CancellationToken cancellationToken)
@@ -41,15 +43,30 @@ public class UpdateCustomerAddressHandler(ICustomerAddressRepository repo)
         var address = await repo.FindAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Address {request.Id} not found");
 
-        address.Label = request.Label;
-        address.AddressType = Enum.Parse<AddressType>(request.AddressType, true);
-        address.Line1 = request.Line1;
-        address.Line2 = request.Line2;
-        address.City = request.City;
-        address.State = request.State;
-        address.PostalCode = request.PostalCode;
-        address.Country = request.Country;
-        address.IsDefault = request.IsDefault;
+        var changedFields = new List<string>();
+        var newType = Enum.Parse<AddressType>(request.AddressType, true);
+
+        if (request.Label != address.Label) { address.Label = request.Label; changedFields.Add("label"); }
+        if (newType != address.AddressType) { address.AddressType = newType; changedFields.Add("addressType"); }
+        if (request.Line1 != address.Line1) { address.Line1 = request.Line1; changedFields.Add("line1"); }
+        if (request.Line2 != address.Line2) { address.Line2 = request.Line2; changedFields.Add("line2"); }
+        if (request.City != address.City) { address.City = request.City; changedFields.Add("city"); }
+        if (request.State != address.State) { address.State = request.State; changedFields.Add("state"); }
+        if (request.PostalCode != address.PostalCode) { address.PostalCode = request.PostalCode; changedFields.Add("postalCode"); }
+        if (request.Country != address.Country) { address.Country = request.Country; changedFields.Add("country"); }
+        if (request.IsDefault != address.IsDefault)
+        {
+            address.IsDefault = request.IsDefault;
+            changedFields.Add(address.IsDefault ? "set-default" : "cleared-default");
+        }
+
+        if (changedFields.Count > 0)
+        {
+            db.LogActivityAt(
+                "address-updated",
+                $"Updated address ({address.Label}) — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}",
+                ("Customer", address.CustomerId));
+        }
 
         await repo.SaveChangesAsync(cancellationToken);
     }

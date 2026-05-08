@@ -1,6 +1,8 @@
 using FluentValidation;
 using MediatR;
 using QBEngineer.Core.Interfaces;
+using QBEngineer.Data.Context;
+using QBEngineer.Data.Extensions;
 
 namespace QBEngineer.Api.Features.Customers;
 
@@ -26,7 +28,7 @@ public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
     }
 }
 
-public class UpdateCustomerHandler(ICustomerRepository repo, IClock clock)
+public class UpdateCustomerHandler(ICustomerRepository repo, AppDbContext db, IClock clock)
     : IRequestHandler<UpdateCustomerCommand>
 {
     public async Task Handle(UpdateCustomerCommand request, CancellationToken cancellationToken)
@@ -34,20 +36,57 @@ public class UpdateCustomerHandler(ICustomerRepository repo, IClock clock)
         var customer = await repo.FindAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Customer {request.Id} not found");
 
-        if (request.Name is not null) customer.Name = request.Name;
-        if (request.CompanyName is not null) customer.CompanyName = request.CompanyName;
-        if (request.Email is not null) customer.Email = request.Email;
-        if (request.Phone is not null) customer.Phone = request.Phone;
+        // Rollup rule — collect changed-field markers as we apply patches so
+        // one activity row summarises the whole save instead of one per field.
+        var changedFields = new List<string>();
+
+        if (request.Name is not null && request.Name != customer.Name)
+        {
+            customer.Name = request.Name;
+            changedFields.Add("name");
+        }
+        if (request.CompanyName is not null && request.CompanyName != customer.CompanyName)
+        {
+            customer.CompanyName = request.CompanyName;
+            changedFields.Add("companyName");
+        }
+        if (request.Email is not null && request.Email != customer.Email)
+        {
+            customer.Email = request.Email;
+            changedFields.Add("email");
+        }
+        if (request.Phone is not null && request.Phone != customer.Phone)
+        {
+            customer.Phone = request.Phone;
+            changedFields.Add("phone");
+        }
 
         // Phase 3 H2 / WU-12: stamp/clear DeactivationDate on lifecycle change.
         if (request.IsActive.HasValue && request.IsActive.Value != customer.IsActive)
         {
             customer.IsActive = request.IsActive.Value;
             customer.DeactivationDate = customer.IsActive ? null : clock.UtcNow;
+            changedFields.Add(customer.IsActive ? "reactivated" : "deactivated");
         }
 
-        if (request.IsTaxExempt.HasValue) customer.IsTaxExempt = request.IsTaxExempt.Value;
-        if (request.TaxExemptionId is not null) customer.TaxExemptionId = request.TaxExemptionId;
+        if (request.IsTaxExempt.HasValue && request.IsTaxExempt.Value != customer.IsTaxExempt)
+        {
+            customer.IsTaxExempt = request.IsTaxExempt.Value;
+            changedFields.Add("isTaxExempt");
+        }
+        if (request.TaxExemptionId is not null && request.TaxExemptionId != customer.TaxExemptionId)
+        {
+            customer.TaxExemptionId = request.TaxExemptionId;
+            changedFields.Add("taxExemptionId");
+        }
+
+        if (changedFields.Count > 0)
+        {
+            db.LogActivityAt(
+                "updated",
+                $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}",
+                ("Customer", customer.Id));
+        }
 
         await repo.SaveChangesAsync(cancellationToken);
     }
