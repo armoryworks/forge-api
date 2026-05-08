@@ -10,7 +10,16 @@ namespace QBEngineer.Api.Controllers;
 [ApiController]
 [Route("api/v1/customers/{customerId:int}/addresses")]
 [Authorize(Roles = "Admin,Manager,OfficeManager,PM")]
-[RequiresCapability("CAP-MD-CUSTOMERS")]
+// Wave 5 — multi-address management (Addresses tab + CRUD) gated behind
+// CAP-MD-CUSTOMER-ADDRESSES. Default ON; admins toggle off when every
+// customer has one address used for both billing and shipping (the
+// single-address shape lives on the customer record itself, written by
+// CreateCustomer → customer.Addresses.Add at create time).
+//
+// CAP-MD-CUSTOMER-ADDRESSES depends on CAP-MD-CUSTOMERS (dependency edge
+// in CapabilityCatalogRelations), so the customer master is implicitly
+// required — only one decorator at the controller level.
+[RequiresCapability("CAP-MD-CUSTOMER-ADDRESSES")]
 public class CustomerAddressesController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

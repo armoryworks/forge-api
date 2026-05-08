@@ -89,7 +89,13 @@ public class CustomersController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    // ─── Contacts ───
+    // Wave 5 — multi-contact-per-customer is gated behind CAP-MD-CUSTOMER-CONTACTS
+    // for shops that only deal with one buyer per company. Default ON; admins
+    // toggle off to hide the Contacts tab + drop the contact CRUD surface.
+
     [HttpPost("{id:int}/contacts")]
+    [RequiresCapability("CAP-MD-CUSTOMER-CONTACTS")]
     public async Task<ActionResult<ContactResponseModel>> CreateContact(int id, CreateContactRequestModel request)
     {
         var result = await mediator.Send(new CreateContactCommand(
@@ -98,6 +104,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}/contacts/{contactId:int}")]
+    [RequiresCapability("CAP-MD-CUSTOMER-CONTACTS")]
     public async Task<ActionResult<ContactResponseModel>> UpdateContact(int id, int contactId, UpdateContactRequestModel request)
     {
         var result = await mediator.Send(new UpdateContactCommand(
@@ -106,6 +113,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}/contacts/{contactId:int}")]
+    [RequiresCapability("CAP-MD-CUSTOMER-CONTACTS")]
     public async Task<IActionResult> DeleteContact(int id, int contactId)
     {
         await mediator.Send(new DeleteContactCommand(id, contactId));
@@ -113,8 +121,12 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     // ─── Contact Interactions ───
+    // Wave 5 — interaction logging (call/email/meeting/note timeline) is
+    // CAP-MD-CUSTOMER-INTERACTIONS. Default OFF; small shops opt in when
+    // they need CRM activity tracking.
 
     [HttpGet("{id:int}/interactions")]
+    [RequiresCapability("CAP-MD-CUSTOMER-INTERACTIONS")]
     public async Task<ActionResult<List<ContactInteractionResponseModel>>> GetInteractions(
         int id, [FromQuery] int? contactId)
     {
@@ -123,6 +135,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/interactions")]
+    [RequiresCapability("CAP-MD-CUSTOMER-INTERACTIONS")]
     public async Task<ActionResult<ContactInteractionResponseModel>> CreateInteraction(
         int id, [FromBody] ContactInteractionRequestModel request)
     {
@@ -133,6 +146,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id:int}/interactions/{interactionId:int}")]
+    [RequiresCapability("CAP-MD-CUSTOMER-INTERACTIONS")]
     public async Task<ActionResult<ContactInteractionResponseModel>> UpdateInteraction(
         int id, int interactionId, [FromBody] ContactInteractionRequestModel request)
     {
@@ -143,6 +157,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}/interactions/{interactionId:int}")]
+    [RequiresCapability("CAP-MD-CUSTOMER-INTERACTIONS")]
     public async Task<IActionResult> DeleteInteraction(int id, int interactionId)
     {
         await mediator.Send(new DeleteContactInteractionCommand(id, interactionId));
@@ -171,8 +186,12 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     // ─── Credit Management ───
+    // Wave 5 — credit policy + hold workflow gated behind CAP-O2C-CREDIT-LIMITS.
+    // Default OFF for COD / prepaid shops where the credit-status card and
+    // place/release-hold actions would be noise.
 
     [HttpGet("{id:int}/credit-status")]
+    [RequiresCapability("CAP-O2C-CREDIT-LIMITS")]
     public async Task<ActionResult<CreditStatusResponseModel>> GetCreditStatus(int id, CancellationToken ct = default)
     {
         var result = await mediator.Send(new GetCreditStatusQuery(id), ct);
@@ -180,6 +199,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/credit-hold")]
+    [RequiresCapability("CAP-O2C-CREDIT-LIMITS")]
     public async Task<IActionResult> PlaceCreditHold(int id, [FromBody] PlaceCreditHoldRequestModel request)
     {
         await mediator.Send(new PlaceCreditHoldCommand(id, request.Reason));
@@ -187,6 +207,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/credit-release")]
+    [RequiresCapability("CAP-O2C-CREDIT-LIMITS")]
     public async Task<IActionResult> ReleaseCreditHold(int id)
     {
         await mediator.Send(new ReleaseCreditHoldCommand(id));
@@ -194,6 +215,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("credit-risk-report")]
+    [RequiresCapability("CAP-O2C-CREDIT-LIMITS")]
     public async Task<ActionResult<List<CreditStatusResponseModel>>> GetCreditRiskReport(CancellationToken ct = default)
     {
         var result = await mediator.Send(new GetCreditRiskReportQuery(), ct);
