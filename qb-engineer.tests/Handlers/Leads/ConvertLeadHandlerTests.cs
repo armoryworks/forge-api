@@ -7,6 +7,7 @@ using QBEngineer.Api.Features.Leads;
 using QBEngineer.Core.Entities;
 using QBEngineer.Core.Enums;
 using QBEngineer.Core.Interfaces;
+using QBEngineer.Core.Models;
 using QBEngineer.Data.Context;
 using QBEngineer.Tests.Helpers;
 
@@ -52,7 +53,7 @@ public class ConvertLeadHandlerTests
     {
         var lead = await SeedLead();
 
-        var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, false), CancellationToken.None);
+        var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, new ConvertLeadRequestModel(CreateJob: false)), CancellationToken.None);
 
         var customer = await _db.Customers.FirstAsync(c => c.Id == result.CustomerId);
         customer.CompanyName.Should().Be("Acme Co");
@@ -69,7 +70,7 @@ public class ConvertLeadHandlerTests
     {
         var lead = await SeedLead();
 
-        var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, false), CancellationToken.None);
+        var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, new ConvertLeadRequestModel(CreateJob: false)), CancellationToken.None);
 
         lead.Status.Should().Be(LeadStatus.Converted);
         lead.ConvertedCustomerId.Should().Be(result.CustomerId);
@@ -80,7 +81,7 @@ public class ConvertLeadHandlerTests
     {
         var lead = await SeedLead();
 
-        var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, false), CancellationToken.None);
+        var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, new ConvertLeadRequestModel(CreateJob: false)), CancellationToken.None);
 
         // Indexing-points rule — the conversion event is the canonical
         // Lead↔Customer bridge, so it must surface on BOTH activity tabs.
@@ -104,7 +105,7 @@ public class ConvertLeadHandlerTests
     {
         var lead = await SeedLead(status: LeadStatus.Converted);
 
-        var act = () => _handler.Handle(new ConvertLeadCommand(lead.Id, false), CancellationToken.None);
+        var act = () => _handler.Handle(new ConvertLeadCommand(lead.Id, new ConvertLeadRequestModel(CreateJob: false)), CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already*");
     }
@@ -114,7 +115,7 @@ public class ConvertLeadHandlerTests
     {
         var lead = await SeedLead(status: LeadStatus.Lost);
 
-        var act = () => _handler.Handle(new ConvertLeadCommand(lead.Id, false), CancellationToken.None);
+        var act = () => _handler.Handle(new ConvertLeadCommand(lead.Id, new ConvertLeadRequestModel(CreateJob: false)), CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*lost*");
     }
@@ -124,7 +125,7 @@ public class ConvertLeadHandlerTests
     {
         var lead = await SeedLead(contactName: null);
 
-        var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, false), CancellationToken.None);
+        var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, new ConvertLeadRequestModel(CreateJob: false)), CancellationToken.None);
 
         var contacts = await _db.Contacts.Where(c => c.CustomerId == result.CustomerId).ToListAsync();
         contacts.Should().BeEmpty();
@@ -154,7 +155,9 @@ public class ConvertLeadHandlerTests
         if (string.IsNullOrWhiteSpace(input))
         {
             var emptyLead = await SeedLead(contactName: input);
-            var emptyResult = await _handler.Handle(new ConvertLeadCommand(emptyLead.Id, false), CancellationToken.None);
+            var emptyResult = await _handler.Handle(
+                new ConvertLeadCommand(emptyLead.Id, new ConvertLeadRequestModel(CreateJob: false)),
+                CancellationToken.None);
             var emptyContacts = await _db.Contacts.Where(c => c.CustomerId == emptyResult.CustomerId).ToListAsync();
             emptyContacts.Should().BeEmpty();
             return;
@@ -162,10 +165,100 @@ public class ConvertLeadHandlerTests
 
         var lead = await SeedLead(contactName: input);
 
-        var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, false), CancellationToken.None);
+        var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, new ConvertLeadRequestModel(CreateJob: false)), CancellationToken.None);
 
         var contact = await _db.Contacts.FirstAsync(c => c.CustomerId == result.CustomerId);
         contact.FirstName.Should().Be(expectedFirst);
         contact.LastName.Should().Be(expectedLast);
+    }
+
+    // Wave 2 — richer-payload coverage. The convert-lead stepper sends the
+    // customer-required fields (credit limit, tax exemption, currency,
+    // billing/shipping addresses) so the resulting Customer is fully
+    // populated rather than a shell record needing follow-up patches.
+
+    [Fact]
+    public async Task Handle_RichPayload_PopulatesCustomerFields()
+    {
+        var lead = await SeedLead();
+
+        var data = new ConvertLeadRequestModel(
+            CreateJob: false,
+            CreditLimit: 50_000m,
+            IsTaxExempt: true,
+            TaxExemptionId: "EX-12345",
+            DefaultCurrency: "USD");
+
+        var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, data), CancellationToken.None);
+
+        var customer = await _db.Customers.FirstAsync(c => c.Id == result.CustomerId);
+        customer.CreditLimit.Should().Be(50_000m);
+        customer.IsTaxExempt.Should().BeTrue();
+        customer.TaxExemptionId.Should().Be("EX-12345");
+        customer.DefaultCurrency.Should().Be("USD");
+    }
+
+    [Fact]
+    public async Task Handle_WithBillingAndShippingAddresses_PersistsBothAsCustomerAddresses()
+    {
+        var lead = await SeedLead();
+
+        var billing = new AddressInput("100 Main St", null, "Boston", "MA", "02108", "US");
+        var shipping = new AddressInput("250 Wharf St", "Suite 4", "Boston", "MA", "02110", "US");
+        var data = new ConvertLeadRequestModel(
+            CreateJob: false,
+            BillingAddress: billing,
+            ShippingAddress: shipping);
+
+        var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, data), CancellationToken.None);
+
+        var addresses = await _db.CustomerAddresses
+            .Where(a => a.CustomerId == result.CustomerId)
+            .ToListAsync();
+        addresses.Should().HaveCount(2);
+        addresses.Should().Contain(a => a.AddressType == AddressType.Billing && a.Line1 == "100 Main St");
+        addresses.Should().Contain(a => a.AddressType == AddressType.Shipping && a.Line1 == "250 Wharf St");
+    }
+
+    [Fact]
+    public async Task Handle_OnlyBillingAddress_PersistsOneAddressAndSkipsShipping()
+    {
+        var lead = await SeedLead();
+
+        var billing = new AddressInput("100 Main St", null, "Boston", "MA", "02108", "US");
+        var data = new ConvertLeadRequestModel(
+            CreateJob: false,
+            BillingAddress: billing,
+            ShippingAddress: null);
+
+        var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, data), CancellationToken.None);
+
+        var addresses = await _db.CustomerAddresses
+            .Where(a => a.CustomerId == result.CustomerId)
+            .ToListAsync();
+        addresses.Should().HaveCount(1);
+        addresses[0].AddressType.Should().Be(AddressType.Billing);
+    }
+
+    [Fact]
+    public async Task Handle_NoOptionalFields_LeavesCustomerInPriorMinimalShape()
+    {
+        // Backwards-compat — the old { createJob: false } payload should
+        // still yield the same minimal customer the pre-Wave-2 handler did.
+        var lead = await SeedLead();
+
+        var result = await _handler.Handle(
+            new ConvertLeadCommand(lead.Id, new ConvertLeadRequestModel(CreateJob: false)),
+            CancellationToken.None);
+
+        var customer = await _db.Customers.FirstAsync(c => c.Id == result.CustomerId);
+        customer.CreditLimit.Should().BeNull();
+        customer.IsTaxExempt.Should().BeFalse();
+        customer.TaxExemptionId.Should().BeNull();
+        customer.DefaultCurrency.Should().BeNull();
+        var addresses = await _db.CustomerAddresses
+            .Where(a => a.CustomerId == result.CustomerId)
+            .ToListAsync();
+        addresses.Should().BeEmpty();
     }
 }

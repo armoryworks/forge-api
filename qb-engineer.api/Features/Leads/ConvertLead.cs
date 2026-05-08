@@ -1,3 +1,4 @@
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,7 +12,50 @@ using QBEngineer.Data.Extensions;
 
 namespace QBEngineer.Api.Features.Leads;
 
-public record ConvertLeadCommand(int LeadId, bool CreateJob) : IRequest<ConvertLeadResponseModel>;
+public record ConvertLeadCommand(int LeadId, ConvertLeadRequestModel Data) : IRequest<ConvertLeadResponseModel>;
+
+public class ConvertLeadCommandValidator : AbstractValidator<ConvertLeadCommand>
+{
+    public ConvertLeadCommandValidator()
+    {
+        RuleFor(x => x.LeadId).GreaterThan(0);
+
+        // Mirror the bounds CreateCustomer validates so a lead-conversion can't
+        // produce a customer that direct-create wouldn't have accepted.
+        RuleFor(x => x.Data.CreditLimit)
+            .InclusiveBetween(0m, 1_000_000_000m)
+            .When(x => x.Data.CreditLimit.HasValue)
+            .WithMessage("Credit limit must be between 0 and 1,000,000,000.");
+
+        RuleFor(x => x.Data.DefaultCurrency)
+            .Matches(@"^[A-Z]{3}$")
+            .When(x => !string.IsNullOrEmpty(x.Data.DefaultCurrency))
+            .WithMessage("Currency must be a 3-letter ISO 4217 code (e.g. USD).");
+
+        RuleFor(x => x.Data.TaxExemptionId).MaximumLength(50);
+        RuleFor(x => x.Data.TaxExemptionId)
+            .NotEmpty().When(x => x.Data.IsTaxExempt == true)
+            .WithMessage("Tax-exempt customers require an exemption ID on file.");
+
+        // Address blocks: same all-or-nothing rule CreateCustomer enforces.
+        // Skipping the block entirely is fine; including it requires the
+        // four core fields to be populated.
+        When(x => x.Data.BillingAddress is not null, () =>
+        {
+            RuleFor(x => x.Data.BillingAddress!.Street).NotEmpty().MaximumLength(200);
+            RuleFor(x => x.Data.BillingAddress!.City).NotEmpty().MaximumLength(100);
+            RuleFor(x => x.Data.BillingAddress!.State).NotEmpty().MaximumLength(100);
+            RuleFor(x => x.Data.BillingAddress!.Postal).NotEmpty().MaximumLength(20);
+        });
+        When(x => x.Data.ShippingAddress is not null, () =>
+        {
+            RuleFor(x => x.Data.ShippingAddress!.Street).NotEmpty().MaximumLength(200);
+            RuleFor(x => x.Data.ShippingAddress!.City).NotEmpty().MaximumLength(100);
+            RuleFor(x => x.Data.ShippingAddress!.State).NotEmpty().MaximumLength(100);
+            RuleFor(x => x.Data.ShippingAddress!.Postal).NotEmpty().MaximumLength(20);
+        });
+    }
+}
 
 public class ConvertLeadHandler(
     ILeadRepository leadRepo,
@@ -29,16 +73,34 @@ public class ConvertLeadHandler(
         if (lead.Status is LeadStatus.Lost)
             throw new InvalidOperationException("Cannot convert a lost lead.");
 
-        // Create customer from lead. Provenance is captured via the
-        // bidirectional Lead.ConvertedCustomerId / Customer.SourceLead pair
-        // wired below — no second FK column needed on Customer.
+        var data = request.Data;
+
+        // Create customer from lead — basic identity fields carry over from
+        // Lead, the optional richer fields come from the stepper. Provenance
+        // is captured via the bidirectional Lead.ConvertedCustomerId /
+        // Customer.SourceLead pair set below.
         var customer = new Customer
         {
             Name = lead.CompanyName,
             CompanyName = lead.CompanyName,
             Email = lead.Email,
             Phone = lead.Phone,
+            // Wave 2 — richer carry-over from the convert stepper.
+            CreditLimit = data.CreditLimit,
+            IsTaxExempt = data.IsTaxExempt ?? false,
+            TaxExemptionId = data.TaxExemptionId,
+            DefaultTaxCodeId = data.DefaultTaxCodeId,
+            DefaultCurrency = data.DefaultCurrency,
         };
+
+        // Capture addresses on the customer's Addresses collection so a
+        // single SaveChanges persists customer + addresses together. Mirrors
+        // the create-customer pattern.
+        if (data.BillingAddress is not null)
+            customer.Addresses.Add(MapAddress(data.BillingAddress, AddressType.Billing, label: "Billing"));
+        if (data.ShippingAddress is not null)
+            customer.Addresses.Add(MapAddress(data.ShippingAddress, AddressType.Shipping, label: "Shipping"));
+
         db.Customers.Add(customer);
         await db.SaveChangesAsync(cancellationToken);
 
@@ -85,7 +147,7 @@ public class ConvertLeadHandler(
 
         // Optionally create a job
         int? jobId = null;
-        if (request.CreateJob)
+        if (data.CreateJob)
         {
             // Find default track type
             var defaultTrackType = await db.Set<TrackType>()
@@ -109,6 +171,20 @@ public class ConvertLeadHandler(
 
         return new ConvertLeadResponseModel(customer.Id, jobId);
     }
+
+    private static CustomerAddress MapAddress(AddressInput input, AddressType type, string label) =>
+        new()
+        {
+            Label = label,
+            AddressType = type,
+            Line1 = input.Street,
+            Line2 = input.Line2,
+            City = input.City,
+            State = input.State,
+            PostalCode = input.Postal,
+            Country = string.IsNullOrWhiteSpace(input.Country) ? "US" : input.Country!,
+            IsDefault = true,
+        };
 
     /// <summary>
     /// Parse a free-form contact name into (firstName, lastName). Defensive

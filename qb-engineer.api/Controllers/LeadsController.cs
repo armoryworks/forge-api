@@ -46,9 +46,9 @@ public class LeadsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/convert")]
-    public async Task<ActionResult<ConvertLeadResponseModel>> ConvertLead(int id, [FromQuery] bool createJob = false)
+    public async Task<ActionResult<ConvertLeadResponseModel>> ConvertLead(int id, [FromBody] ConvertLeadRequestModel request)
     {
-        var result = await mediator.Send(new ConvertLeadCommand(id, createJob));
+        var result = await mediator.Send(new ConvertLeadCommand(id, request));
         return Ok(result);
     }
 
