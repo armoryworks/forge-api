@@ -36,7 +36,7 @@ public record UpdateIntegrationSettingsCommand(
 
 public class UpdateIntegrationSettingsHandler(
     ISettingsService settings,
-    GetIntegrationSettingsHandler getHandler,
+    IMediator mediator,
     IOptions<SmtpOptions> smtpOptions,
     IOptions<MinioOptions> minioOptions,
     IOptions<UspsOptions> uspsOptions,
@@ -78,7 +78,7 @@ public class UpdateIntegrationSettingsHandler(
         // phase 1m.
         PropagateToIOptions(request.Provider, appliedValues);
 
-        var current = await getHandler.Handle(new GetIntegrationSettingsQuery(), ct);
+        var current = await mediator.Send(new GetIntegrationSettingsQuery(), ct);
         return current.Integrations.First(i =>
             string.Equals(i.Provider, request.Provider, StringComparison.OrdinalIgnoreCase));
     }
