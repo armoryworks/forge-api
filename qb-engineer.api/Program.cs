@@ -1297,6 +1297,10 @@ try
         "communication-sync",
         job => job.SyncAllConnectedAsync(CancellationToken.None),
         "*/15 * * * *"); // Every 15 minutes — drives ICommunicationSyncProvider.SyncRecentAsync
+    RecurringJob.AddOrUpdate<LeadFollowUpReminderJob>(
+        "lead-followup-reminders",
+        job => job.RunAsync(CancellationToken.None),
+        Cron.Daily(7)); // 7 AM UTC daily — pairs with the existing daily-digest cadence
 
     // Accounting sync jobs
     RecurringJob.AddOrUpdate<SyncQueueProcessorJob>(

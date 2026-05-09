@@ -166,6 +166,22 @@ public class CommunicationMatcher(AppDbContext db) : ICommunicationMatcher
                 verb,
                 $"{comm.Kind} {comm.Direction.ToString().ToLowerInvariant()} ({comm.ProviderId}): {preview}",
                 ("Lead", target.LeadId.Value));
+
+            // Phase 1j.1 — auto-progression. A `New` lead that gets its first
+            // comm hit transitions to `Contacted` — the rep doesn't need to
+            // remember to flip the chip. Only on the New→Contacted edge:
+            // we never auto-advance past Contacted (that's a judgment call
+            // the rep owns). Lost / Converted are filtered earlier in
+            // ResolveMatchAsync, so they can't reach here.
+            var lead = await db.Leads.FirstOrDefaultAsync(l => l.Id == target.LeadId.Value, ct);
+            if (lead is not null && lead.Status == LeadStatus.New)
+            {
+                lead.Status = LeadStatus.Contacted;
+                db.LogActivityAt(
+                    "status-auto-advanced",
+                    $"Status auto-advanced: New → Contacted (first communication received)",
+                    ("Lead", target.LeadId.Value));
+            }
             return null;
         }
 
