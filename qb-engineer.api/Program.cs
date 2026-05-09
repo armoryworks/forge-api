@@ -409,6 +409,15 @@ try
     builder.Services.AddScoped<QBEngineer.Core.Interfaces.Communications.ICommunicationSyncProvider,
         QBEngineer.Integrations.Communications.MockVoiceSyncProvider>();
 
+    // Wave 8 — Twilio webhook signature verifier. Reads Twilio:AuthToken
+    // from appsettings; when null the verifier accepts anything (dev /
+    // mock posture matching the rest of the integration adapters).
+    builder.Services.Configure<QBEngineer.Core.Models.TwilioOptions>(
+        builder.Configuration.GetSection("Twilio"));
+    builder.Services.AddScoped<
+        QBEngineer.Api.Features.Communications.ITwilioSignatureVerifier,
+        QBEngineer.Api.Features.Communications.TwilioSignatureVerifier>();
+
     var storageProvider = builder.Configuration.GetValue<string>("Storage:Provider") ?? "minio";
     builder.Services.Configure<LocalStorageOptions>(builder.Configuration.GetSection(LocalStorageOptions.SectionName));
 

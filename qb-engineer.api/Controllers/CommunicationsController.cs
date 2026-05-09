@@ -97,6 +97,48 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
         return Ok(result);
     }
 
+    /// <summary>
+    /// Twilio voice webhook endpoint — receives form-urlencoded status
+    /// callbacks. Configured at the Twilio side as the Voice Status
+    /// Callback URL on the relevant phone number(s).
+    ///
+    /// Authentication is per-request via the X-Twilio-Signature HMAC
+    /// header, NOT JWT — Twilio doesn't carry a user identity. Therefore
+    /// AllowAnonymous + signature verification handles auth.
+    /// </summary>
+    [HttpPost("webhook/twilio")]
+    [AllowAnonymous]
+    [Consumes("application/x-www-form-urlencoded")]
+    public async Task<ActionResult<CommunicationMatchResult>> TwilioWebhook(
+        [FromForm] IFormCollection form,
+        [FromServices] ITwilioSignatureVerifier verifier,
+        [FromServices] Microsoft.Extensions.Logging.ILogger<CommunicationsController> log,
+        CancellationToken ct)
+    {
+        if (!snapshots.Current.IsEnabled("CAP-EXT-VOIP-SYNC"))
+        {
+            throw new CapabilityDisabledException("CAP-EXT-VOIP-SYNC");
+        }
+
+        var fields = form.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToString());
+        var fullUrl = $"{Request.Scheme}://{Request.Host}{Request.Path}{Request.QueryString}";
+        var signature = Request.Headers["X-Twilio-Signature"].ToString();
+
+        if (verifier.IsConfigured && !verifier.Verify(fullUrl, fields, signature))
+        {
+            log.LogWarning(
+                "Twilio webhook signature verification FAILED for CallSid={CallSid}",
+                fields.GetValueOrDefault("CallSid", "?"));
+            return Unauthorized(new { error = "twilio-signature-mismatch" });
+        }
+
+        var result = await mediator.Send(new IngestTwilioWebhookCommand(fields), ct);
+        // Always return 200 to Twilio — non-2xx triggers their retry loop
+        // which would re-deliver the same call status, even when the
+        // matcher legitimately found no match (cold-pitch number).
+        return Ok(result);
+    }
+
     private void EnsureKindEnabled(CommunicationKind kind)
     {
         var capability = kind == CommunicationKind.Email ? "CAP-EXT-EMAIL-SYNC" : "CAP-EXT-VOIP-SYNC";
