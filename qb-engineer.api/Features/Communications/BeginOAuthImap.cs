@@ -37,11 +37,11 @@ public class BeginOAuthImapHandler(
         var userId = db.CurrentUserId
             ?? throw new InvalidOperationException("BeginOAuthImap requires an authenticated caller.");
 
-        if (!oauth.IsProviderConfigured(request.ProviderKey))
+        if (!await oauth.IsProviderConfiguredAsync(request.ProviderKey, cancellationToken))
         {
             throw new InvalidOperationException(
                 $"OAuth provider '{request.ProviderKey}' is not configured on this install. "
-                + "Admin must set OAuthImap:{Provider}:ClientId + ClientSecret in appsettings.");
+                + "An admin must set the credentials under Admin → Settings → Email — OAuth.");
         }
 
         // 256-bit random, hex-encoded → 64 hex chars. URL-safe without
@@ -57,7 +57,7 @@ public class BeginOAuthImapHandler(
         });
         await db.SaveChangesAsync(cancellationToken);
 
-        var url = oauth.BuildAuthorizeUrl(request.ProviderKey, state);
+        var url = await oauth.BuildAuthorizeUrlAsync(request.ProviderKey, state, cancellationToken);
         return new BeginOAuthImapResult(url, state);
     }
 }

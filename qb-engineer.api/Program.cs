@@ -417,15 +417,19 @@ try
     builder.Services.AddScoped<QBEngineer.Core.Interfaces.Communications.ICommunicationSyncProvider,
         QBEngineer.Api.Features.Communications.ImapEmailSyncProvider>();
 
-    // Phase 1k.2 — OAuth-IMAP token broker. ClientId/Secret per-provider
-    // bind from appsettings.OAuthImap.{Google,Microsoft}; when unset the
-    // begin-handler returns a friendly 409. RedirectUri is the SPA
-    // callback page registered with each provider's developer console.
-    builder.Services.Configure<QBEngineer.Core.Models.Communications.OAuthImapOptions>(
-        builder.Configuration.GetSection("OAuthImap"));
+    // Phase 1k.2 + 1m — OAuth-IMAP token broker. ClientId / ClientSecret /
+    // RedirectUri now come from ISettingsService (admin-managed via
+    // /admin/settings UI); no IOptions binding needed.
     builder.Services.AddHttpClient<
         QBEngineer.Api.Features.Communications.IImapOAuthService,
         QBEngineer.Api.Features.Communications.ImapOAuthService>();
+
+    // Phase 1m — descriptor-driven admin settings. Scoped per-request so
+    // the in-memory cache is fresh on each request without manual
+    // invalidation; secret values seal/unseal via Data Protection API
+    // (purpose: "settings.secret").
+    builder.Services.AddScoped<QBEngineer.Core.Settings.ISettingsService,
+        QBEngineer.Api.Features.Settings.SettingsService>();
 
     // Wave 8 — Twilio webhook signature verifier. Reads Twilio:AuthToken
     // from appsettings; when null the verifier accepts anything (dev /

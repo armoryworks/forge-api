@@ -5,11 +5,11 @@ using System.Text.Json;
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 
 using QBEngineer.Api.Features.Communications;
 using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models.Communications;
+using QBEngineer.Core.Settings;
 
 namespace QBEngineer.Tests.Handlers.Communications;
 
@@ -30,46 +30,55 @@ public class ImapOAuthServiceTests
 
     private readonly FixedClock _clock = new(new DateTimeOffset(2026, 5, 9, 12, 0, 0, TimeSpan.Zero));
 
-    private ImapOAuthService MakeService(StubHttpHandler? handler = null, OAuthImapOptions? options = null)
+    /// <summary>
+    /// Phase 1m — service now reads creds from <see cref="ISettingsService"/>
+    /// instead of <c>IOptions&lt;OAuthImapOptions&gt;</c>. Tests inject a
+    /// dictionary-backed fake.
+    /// </summary>
+    private ImapOAuthService MakeService(
+        StubHttpHandler? handler = null,
+        Dictionary<string, string?>? settingsBag = null)
     {
-        var opts = options ?? new OAuthImapOptions
+        var bag = settingsBag ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
         {
-            RedirectUri = Redirect,
-            Google = new() { ClientId = GoogleClientId, ClientSecret = GoogleSecret },
-            Microsoft = new() { ClientId = MsClientId, ClientSecret = MsSecret },
+            [OAuthImapSettings.KeyRedirectUri] = Redirect,
+            [OAuthImapSettings.KeyGoogleClientId] = GoogleClientId,
+            [OAuthImapSettings.KeyGoogleClientSecret] = GoogleSecret,
+            [OAuthImapSettings.KeyMicrosoftClientId] = MsClientId,
+            [OAuthImapSettings.KeyMicrosoftClientSecret] = MsSecret,
         };
         var http = new HttpClient(handler ?? new StubHttpHandler());
         return new ImapOAuthService(
-            http, Options.Create(opts), _clock, NullLogger<ImapOAuthService>.Instance);
+            http, new StubSettingsService(bag), _clock, NullLogger<ImapOAuthService>.Instance);
     }
 
     [Fact]
-    public void IsProviderConfigured_RequiresBothCredAndRedirect()
+    public async Task IsProviderConfigured_RequiresBothCredAndRedirect()
     {
         var configured = MakeService();
-        configured.IsProviderConfigured("google").Should().BeTrue();
-        configured.IsProviderConfigured("microsoft").Should().BeTrue();
-        configured.IsProviderConfigured("yahoo").Should().BeFalse(); // unknown
+        (await configured.IsProviderConfiguredAsync("google", CancellationToken.None)).Should().BeTrue();
+        (await configured.IsProviderConfiguredAsync("microsoft", CancellationToken.None)).Should().BeTrue();
+        (await configured.IsProviderConfiguredAsync("yahoo", CancellationToken.None)).Should().BeFalse(); // unknown
 
-        var noClientId = MakeService(options: new OAuthImapOptions
+        var noClientId = MakeService(settingsBag: new(StringComparer.OrdinalIgnoreCase)
         {
-            RedirectUri = Redirect,
-            Google = new() { ClientId = null, ClientSecret = "x" },
+            [OAuthImapSettings.KeyRedirectUri] = Redirect,
+            [OAuthImapSettings.KeyGoogleClientSecret] = "x",
         });
-        noClientId.IsProviderConfigured("google").Should().BeFalse();
+        (await noClientId.IsProviderConfiguredAsync("google", CancellationToken.None)).Should().BeFalse();
 
-        var noRedirect = MakeService(options: new OAuthImapOptions
+        var noRedirect = MakeService(settingsBag: new(StringComparer.OrdinalIgnoreCase)
         {
-            RedirectUri = string.Empty,
-            Google = new() { ClientId = "x", ClientSecret = "y" },
+            [OAuthImapSettings.KeyGoogleClientId] = "x",
+            [OAuthImapSettings.KeyGoogleClientSecret] = "y",
         });
-        noRedirect.IsProviderConfigured("google").Should().BeFalse();
+        (await noRedirect.IsProviderConfiguredAsync("google", CancellationToken.None)).Should().BeFalse();
     }
 
     [Fact]
-    public void BuildAuthorizeUrl_ContainsAllRequiredParams_Google()
+    public async Task BuildAuthorizeUrl_ContainsAllRequiredParams_Google()
     {
-        var url = MakeService().BuildAuthorizeUrl("google", "state-abc");
+        var url = await MakeService().BuildAuthorizeUrlAsync("google", "state-abc", CancellationToken.None);
 
         url.Should().StartWith(ImapOAuthProvider.Google.AuthorizeUrl);
         url.Should().Contain($"client_id={GoogleClientId}");
@@ -84,9 +93,9 @@ public class ImapOAuthServiceTests
     }
 
     [Fact]
-    public void BuildAuthorizeUrl_ContainsAllRequiredParams_Microsoft()
+    public async Task BuildAuthorizeUrl_ContainsAllRequiredParams_Microsoft()
     {
-        var url = MakeService().BuildAuthorizeUrl("microsoft", "state-xyz");
+        var url = await MakeService().BuildAuthorizeUrlAsync("microsoft", "state-xyz", CancellationToken.None);
 
         url.Should().StartWith(ImapOAuthProvider.Microsoft.AuthorizeUrl);
         url.Should().Contain("IMAP.AccessAsUser.All");
@@ -94,10 +103,10 @@ public class ImapOAuthServiceTests
     }
 
     [Fact]
-    public void BuildAuthorizeUrl_ThrowsForUnknownProvider()
+    public async Task BuildAuthorizeUrl_ThrowsForUnknownProvider()
     {
-        var act = () => MakeService().BuildAuthorizeUrl("yahoo", "state");
-        act.Should().Throw<InvalidOperationException>().WithMessage("*Unknown OAuth provider*");
+        var act = async () => await MakeService().BuildAuthorizeUrlAsync("yahoo", "state", CancellationToken.None);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Unknown OAuth provider*");
     }
 
     [Fact]
@@ -235,6 +244,27 @@ public class ImapOAuthServiceTests
     private sealed class FixedClock(DateTimeOffset now) : IClock
     {
         public DateTimeOffset UtcNow { get; } = now;
+    }
+
+    private sealed class StubSettingsService(Dictionary<string, string?> bag) : ISettingsService
+    {
+        public Task<string?> GetStringAsync(string key, CancellationToken ct = default)
+            => Task.FromResult(bag.TryGetValue(key, out var v) ? v : null);
+
+        public async Task<bool> GetBoolAsync(string key, CancellationToken ct = default)
+            => string.Equals(await GetStringAsync(key, ct), "true", StringComparison.OrdinalIgnoreCase);
+
+        public async Task<int> GetIntAsync(string key, CancellationToken ct = default)
+            => int.TryParse(await GetStringAsync(key, ct), out var v) ? v : 0;
+
+        public Task SetAsync(string key, string? value, CancellationToken ct = default)
+        {
+            bag[key] = value;
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyDictionary<string, string?>> GetGroupAsync(string group, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyDictionary<string, string?>>(bag);
     }
 
     private sealed class StubHttpHandler : HttpMessageHandler

@@ -21,16 +21,17 @@ namespace QBEngineer.Api.Features.Communications;
 /// </summary>
 public interface IImapOAuthService
 {
-    /// <summary>True when the install has both ClientId and ClientSecret
-    /// configured for the named provider.</summary>
-    bool IsProviderConfigured(string providerKey);
+    /// <summary>Phase 1m — async because credentials now come from
+    /// <c>ISettingsService</c>, allowing admins to configure them at
+    /// runtime through the admin UI rather than appsettings.</summary>
+    Task<bool> IsProviderConfiguredAsync(string providerKey, CancellationToken ct);
 
     /// <summary>
     /// Build the provider's authorize URL. State token is generated +
-    /// persisted by the caller (the begin-handler) and threaded in here
-    /// — this method is pure URL construction, no I/O.
+    /// persisted by the caller (the begin-handler) and threaded in here.
+    /// Async because client_id + redirect_uri are read from settings.
     /// </summary>
-    string BuildAuthorizeUrl(string providerKey, string state);
+    Task<string> BuildAuthorizeUrlAsync(string providerKey, string state, CancellationToken ct);
 
     Task<OAuthTokenResult> ExchangeCodeForTokensAsync(
         string providerKey, string code, CancellationToken ct);

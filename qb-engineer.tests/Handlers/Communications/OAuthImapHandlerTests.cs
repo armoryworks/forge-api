@@ -196,10 +196,11 @@ public class OAuthImapHandlerTests
             new("a", "r", DateTimeOffset.UtcNow, "x@y.com");
         public Exception? ThrowOnExchange { get; set; }
 
-        public bool IsProviderConfigured(string providerKey) => IsConfigured;
+        public Task<bool> IsProviderConfiguredAsync(string providerKey, CancellationToken ct)
+            => Task.FromResult(IsConfigured);
 
-        public string BuildAuthorizeUrl(string providerKey, string state)
-            => $"https://provider/auth?state={state}";
+        public Task<string> BuildAuthorizeUrlAsync(string providerKey, string state, CancellationToken ct)
+            => Task.FromResult($"https://provider/auth?state={state}");
 
         public Task<OAuthTokenResult> ExchangeCodeForTokensAsync(
             string providerKey, string code, CancellationToken ct)

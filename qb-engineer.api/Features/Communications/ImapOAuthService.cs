@@ -4,25 +4,26 @@ using System.Text.Json.Serialization;
 using System.Web;
 
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models.Communications;
+using QBEngineer.Core.Settings;
 
 namespace QBEngineer.Api.Features.Communications;
 
 /// <summary>
-/// Wave 8 phase 1k.2 — production <see cref="IImapOAuthService"/> backed
-/// by HttpClient against Google's and Microsoft's OAuth 2.0 token
-/// endpoints.
+/// Wave 8 phase 1k.2 + phase 1m — production <see cref="IImapOAuthService"/>
+/// backed by HttpClient against Google's and Microsoft's OAuth 2.0
+/// token endpoints. Credentials read at request-time from
+/// <see cref="ISettingsService"/>; admin populates them via the
+/// /admin/settings UI rather than appsettings.json.
 ///
 /// Email address discovery:
 ///   - Google returns <c>id_token</c> in the token response (when
 ///     openid scope is requested) AND/OR exposes a /userinfo endpoint.
 ///     We rely on the id_token's <c>email</c> claim for the simple
 ///     Gmail-only flow we ship; the openid scope was added to make
-///     this possible without a second round-trip. For users who declined
-///     the email scope we fall back to a tokeninfo lookup.
+///     this possible without a second round-trip.
 ///   - Microsoft's id_token (v2.0 endpoint) carries <c>preferred_username</c>
 ///     which is the user's email.
 ///
@@ -32,41 +33,44 @@ namespace QBEngineer.Api.Features.Communications;
 /// </summary>
 public class ImapOAuthService(
     HttpClient http,
-    IOptions<OAuthImapOptions> options,
+    ISettingsService settings,
     IClock clock,
     ILogger<ImapOAuthService> logger) : IImapOAuthService
 {
-    private readonly OAuthImapOptions _options = options.Value;
-
-    public bool IsProviderConfigured(string providerKey)
+    public async Task<bool> IsProviderConfiguredAsync(string providerKey, CancellationToken ct)
     {
-        var creds = ResolveCredentials(providerKey);
-        return creds is not null && creds.IsConfigured && !string.IsNullOrEmpty(_options.RedirectUri);
+        var (clientId, clientSecret) = await GetCredentialsAsync(providerKey, ct);
+        var redirectUri = await settings.GetStringAsync(OAuthImapSettings.KeyRedirectUri, ct);
+        return !string.IsNullOrEmpty(clientId)
+            && !string.IsNullOrEmpty(clientSecret)
+            && !string.IsNullOrEmpty(redirectUri);
     }
 
-    public string BuildAuthorizeUrl(string providerKey, string state)
+    public async Task<string> BuildAuthorizeUrlAsync(string providerKey, string state, CancellationToken ct)
     {
         var provider = ImapOAuthProvider.FromKey(providerKey)
             ?? throw new InvalidOperationException($"Unknown OAuth provider: {providerKey}");
-        var creds = ResolveCredentials(providerKey)
-            ?? throw new InvalidOperationException($"OAuth credentials not configured for provider {providerKey}");
+        var (clientId, _) = await GetCredentialsAsync(providerKey, ct);
+        var redirectUri = await settings.GetStringAsync(OAuthImapSettings.KeyRedirectUri, ct);
+        if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(redirectUri))
+        {
+            throw new InvalidOperationException(
+                $"OAuth credentials not configured for provider {providerKey}. "
+                + "Set them under Admin → Settings → Email — OAuth.");
+        }
 
-        // Include openid + email + profile alongside the IMAP scope so
-        // the id_token carries the user's email — saves us a userinfo
-        // round-trip after the code exchange. (Microsoft already includes
-        // these in the documented scope; Google needs them appended.)
         var scope = providerKey == "google"
             ? $"{provider.Scope} openid email profile"
             : provider.Scope;
 
         var qs = HttpUtility.ParseQueryString(string.Empty);
-        qs["client_id"] = creds.ClientId!;
-        qs["redirect_uri"] = _options.RedirectUri;
+        qs["client_id"] = clientId;
+        qs["redirect_uri"] = redirectUri;
         qs["response_type"] = "code";
         qs["scope"] = scope;
         qs["state"] = state;
-        qs["access_type"] = "offline"; // Google: required for refresh_token
-        qs["prompt"] = "consent";       // Force re-consent so refresh_token is always returned
+        qs["access_type"] = "offline";
+        qs["prompt"] = "consent";
         return $"{provider.AuthorizeUrl}?{qs}";
     }
 
@@ -75,16 +79,21 @@ public class ImapOAuthService(
     {
         var provider = ImapOAuthProvider.FromKey(providerKey)
             ?? throw new InvalidOperationException($"Unknown OAuth provider: {providerKey}");
-        var creds = ResolveCredentials(providerKey)
-            ?? throw new InvalidOperationException($"OAuth credentials not configured for provider {providerKey}");
+        var (clientId, clientSecret) = await GetCredentialsAsync(providerKey, ct);
+        var redirectUri = await settings.GetStringAsync(OAuthImapSettings.KeyRedirectUri, ct);
+        if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret) || string.IsNullOrEmpty(redirectUri))
+        {
+            throw new InvalidOperationException(
+                $"OAuth credentials not configured for provider {providerKey}.");
+        }
 
         var form = new Dictionary<string, string>
         {
             ["grant_type"] = "authorization_code",
             ["code"] = code,
-            ["client_id"] = creds.ClientId!,
-            ["client_secret"] = creds.ClientSecret!,
-            ["redirect_uri"] = _options.RedirectUri,
+            ["client_id"] = clientId,
+            ["client_secret"] = clientSecret,
+            ["redirect_uri"] = redirectUri,
         };
 
         var response = await PostFormAsync(provider.TokenUrl, form, ct);
@@ -92,10 +101,6 @@ public class ImapOAuthService(
 
         if (string.IsNullOrEmpty(tokens.AccessToken) || string.IsNullOrEmpty(tokens.RefreshToken))
         {
-            // Refresh token absent typically means the user previously
-            // consented and the provider isn't re-issuing one. We force
-            // prompt=consent in the authorize URL above to avoid that;
-            // if it still happens, surface a friendly error.
             throw new InvalidOperationException(
                 "OAuth provider returned no refresh token. Try disconnecting any prior consent for this app and re-authorizing.");
         }
@@ -113,15 +118,19 @@ public class ImapOAuthService(
     {
         var provider = ImapOAuthProvider.FromKey(providerKey)
             ?? throw new InvalidOperationException($"Unknown OAuth provider: {providerKey}");
-        var creds = ResolveCredentials(providerKey)
-            ?? throw new InvalidOperationException($"OAuth credentials not configured for provider {providerKey}");
+        var (clientId, clientSecret) = await GetCredentialsAsync(providerKey, ct);
+        if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
+        {
+            throw new InvalidOperationException(
+                $"OAuth credentials not configured for provider {providerKey}.");
+        }
 
         var form = new Dictionary<string, string>
         {
             ["grant_type"] = "refresh_token",
             ["refresh_token"] = refreshToken,
-            ["client_id"] = creds.ClientId!,
-            ["client_secret"] = creds.ClientSecret!,
+            ["client_id"] = clientId,
+            ["client_secret"] = clientSecret,
         };
 
         var response = await PostFormAsync(provider.TokenUrl, form, ct);
@@ -137,12 +146,25 @@ public class ImapOAuthService(
         return new OAuthRefreshResult(tokens.AccessToken, tokens.RefreshToken, expiresAt);
     }
 
-    private OAuthProviderCredentials? ResolveCredentials(string providerKey) => providerKey?.ToLowerInvariant() switch
+    /// <summary>
+    /// Pull (ClientId, ClientSecret) for the named provider out of
+    /// settings. Returns (null, null) when unset; caller branches on
+    /// the IsProviderConfigured check upstream.
+    /// </summary>
+    private async Task<(string? ClientId, string? ClientSecret)> GetCredentialsAsync(
+        string providerKey, CancellationToken ct)
     {
-        "google" => _options.Google,
-        "microsoft" => _options.Microsoft,
-        _ => null,
-    };
+        return providerKey?.ToLowerInvariant() switch
+        {
+            "google" => (
+                await settings.GetStringAsync(OAuthImapSettings.KeyGoogleClientId, ct),
+                await settings.GetStringAsync(OAuthImapSettings.KeyGoogleClientSecret, ct)),
+            "microsoft" => (
+                await settings.GetStringAsync(OAuthImapSettings.KeyMicrosoftClientId, ct),
+                await settings.GetStringAsync(OAuthImapSettings.KeyMicrosoftClientSecret, ct)),
+            _ => (null, null),
+        };
+    }
 
     private async Task<HttpResponseMessage> PostFormAsync(
         string url, IDictionary<string, string> form, CancellationToken ct)
@@ -175,8 +197,6 @@ public class ImapOAuthService(
         try
         {
             var jwt = new JwtSecurityTokenHandler().ReadJwtToken(idToken);
-            // Google: "email"
-            // Microsoft: "preferred_username" or "email"
             var email = jwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value
                 ?? jwt.Claims.FirstOrDefault(c => c.Type == "preferred_username")?.Value;
             return email;
@@ -189,12 +209,6 @@ public class ImapOAuthService(
 
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max] + "…";
 
-    /// <summary>
-    /// Provider token-endpoint response shape. Both Google and Microsoft
-    /// follow the OAuth 2.0 form here; refresh_token is optional on
-    /// refresh responses (many providers omit it = "reuse the one you
-    /// already have"), so it's nullable.
-    /// </summary>
     private sealed class TokenResponse
     {
         [JsonPropertyName("access_token")] public string AccessToken { get; set; } = string.Empty;
