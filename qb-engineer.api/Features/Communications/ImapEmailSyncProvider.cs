@@ -45,10 +45,18 @@ public class ImapEmailSyncProvider(
     ICommunicationMatcher matcher,
     IDataProtectionProvider dataProtection,
     IImapClientFactory clientFactory,
+    IImapOAuthService oauthService,
+    QBEngineer.Core.Interfaces.IClock clock,
     ILogger<ImapEmailSyncProvider> logger) : ICommunicationSyncProvider
 {
     private const string ProtectorPurpose = "communication-sync.imap";
     private const int MaxMessagesPerTick = 100;
+
+    /// <summary>Refresh access tokens that expire within this window.
+    /// 5 minutes is conservative — most providers honour tokens up to
+    /// the exact expiry, but token issuance has clock drift.</summary>
+    private static readonly TimeSpan AccessTokenRefreshWindow = TimeSpan.FromMinutes(5);
+
     private readonly IDataProtector _protector = dataProtection.CreateProtector(ProtectorPurpose);
 
     public string ProviderId => "imap";
@@ -89,26 +97,38 @@ public class ImapEmailSyncProvider(
             return 0;
         }
 
-        string password;
-        try
-        {
-            password = _protector.Unprotect(connection.AccessToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex,
-                "ImapEmailSyncProvider: failed to unprotect AccessToken on connection {Id} — re-connect may be needed",
-                connectionId);
-            return 0;
-        }
-
         var (lastUidValidity, lastUid) = ParseCheckpoint(connection.LastSyncedExternalId);
 
         await using var client = clientFactory.Create();
         try
         {
             await client.ConnectAsync(config.Host, config.Port, config.UseSsl, ct);
-            await client.AuthenticateAsync(config.Username, password, ct);
+
+            // Phase 1k.2 — branch on AuthMethod. Password path unchanged
+            // from phase 1g; OAuth path refreshes the access_token if
+            // expiring within AccessTokenRefreshWindow, then SASL
+            // OAUTHBEARER authenticates with the bearer token.
+            if (config.AuthMethod == "oauth")
+            {
+                var bearer = await EnsureFreshAccessTokenAsync(connection, config, ct);
+                await client.AuthenticateOAuthAsync(config.Username, bearer, ct);
+            }
+            else
+            {
+                string password;
+                try
+                {
+                    password = _protector.Unprotect(connection.AccessToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex,
+                        "ImapEmailSyncProvider: failed to unprotect AccessToken on connection {Id} — re-connect may be needed",
+                        connectionId);
+                    return 0;
+                }
+                await client.AuthenticateAsync(config.Username, password, ct);
+            }
 
             var folder = await client.OpenFolderAsync(config.Mailbox, ct);
             var uidValidity = folder.UidValidity;
@@ -189,6 +209,59 @@ public class ImapEmailSyncProvider(
         => Task.CompletedTask; // IMAP is polling-only.
 
     /// <summary>
+    /// Phase 1k.2 — refresh the OAuth access token if it's within the
+    /// refresh window, then return the (possibly fresh) access token in
+    /// plaintext for the SASL OAUTHBEARER auth step. Refresh-token
+    /// rotation: when the provider returns a new refresh_token, persist
+    /// it (Microsoft does this; Google generally doesn't but the contract
+    /// allows for either).
+    /// </summary>
+    private async Task<string> EnsureFreshAccessTokenAsync(
+        QBEngineer.Core.Entities.CommunicationSyncConfig connection,
+        ImapConnectionConfig config,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(connection.AccessToken))
+        {
+            throw new InvalidOperationException("OAuth connection has no access token — re-authorize.");
+        }
+        if (string.IsNullOrEmpty(connection.RefreshToken))
+        {
+            throw new InvalidOperationException("OAuth connection has no refresh token — re-authorize.");
+        }
+        if (string.IsNullOrEmpty(config.OAuthProvider))
+        {
+            throw new InvalidOperationException("OAuth connection ConfigJson is missing the OAuthProvider field.");
+        }
+
+        var needsRefresh =
+            connection.AccessTokenExpiresAt is null
+            || connection.AccessTokenExpiresAt.Value - clock.UtcNow <= AccessTokenRefreshWindow;
+
+        if (!needsRefresh)
+        {
+            return _protector.Unprotect(connection.AccessToken);
+        }
+
+        var refreshToken = _protector.Unprotect(connection.RefreshToken);
+        var refreshed = await oauthService.RefreshAccessTokenAsync(config.OAuthProvider, refreshToken, ct);
+
+        connection.AccessToken = _protector.Protect(refreshed.AccessToken);
+        if (!string.IsNullOrEmpty(refreshed.NewRefreshToken))
+        {
+            connection.RefreshToken = _protector.Protect(refreshed.NewRefreshToken);
+        }
+        connection.AccessTokenExpiresAt = refreshed.AccessTokenExpiresAt;
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation(
+            "ImapEmailSyncProvider: refreshed access_token for connection {Id} ({Provider})",
+            connection.Id, config.OAuthProvider);
+
+        return refreshed.AccessToken;
+    }
+
+    /// <summary>
     /// Parse <see cref="Core.Entities.CommunicationSyncConfig.LastSyncedExternalId"/>
     /// as "UIDVALIDITY:LASTUID". Returns (null, 0) for first-time syncs.
     /// </summary>
@@ -263,6 +336,14 @@ public interface IImapClientWrapper : IAsyncDisposable
     bool IsConnected { get; }
     Task ConnectAsync(string host, int port, bool useSsl, CancellationToken ct);
     Task AuthenticateAsync(string username, string password, CancellationToken ct);
+
+    /// <summary>
+    /// Phase 1k.2 — SASL OAUTHBEARER authentication for OAuth-IMAP. The
+    /// access token is the plaintext bearer (already-refreshed by the
+    /// caller); MailKit handles the OAUTHBEARER mechanism handshake.
+    /// </summary>
+    Task AuthenticateOAuthAsync(string username, string accessToken, CancellationToken ct);
+
     Task<IImapFolderWrapper> OpenFolderAsync(string mailbox, CancellationToken ct);
     Task DisconnectAsync(bool quit, CancellationToken ct);
 }
@@ -291,6 +372,16 @@ public class ImapClientFactory : IImapClientFactory
 
         public Task AuthenticateAsync(string username, string password, CancellationToken ct)
             => _client.AuthenticateAsync(username, password, ct);
+
+        public Task AuthenticateOAuthAsync(string username, string accessToken, CancellationToken ct)
+        {
+            // MailKit's SASL OAUTHBEARER mechanism consumes a SaslMechanism.
+            // SaslMechanismOAuthBearer wraps user+token and emits the
+            // RFC 7628 client-initial-response when the IMAP server
+            // advertises AUTH=OAUTHBEARER.
+            var sasl = new MailKit.Security.SaslMechanismOAuthBearer(username, accessToken);
+            return _client.AuthenticateAsync(sasl, ct);
+        }
 
         public async Task<IImapFolderWrapper> OpenFolderAsync(string mailbox, CancellationToken ct)
         {

@@ -83,6 +83,39 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
     }
 
     /// <summary>
+    /// Phase 1k.2 — OAuth-IMAP authorize-flow initiation. Returns the
+    /// authorize URL the SPA opens (popup or new tab). The provider
+    /// redirects back to the SPA's callback page, which posts the
+    /// (code, state) pair to <see cref="CompleteOAuthImap"/>.
+    /// </summary>
+    [HttpPost("oauth/imap/{provider}/begin")]
+    public async Task<ActionResult<BeginOAuthImapResult>> BeginOAuthImap(
+        string provider, CancellationToken ct)
+    {
+        EnsureKindEnabled(CommunicationKind.Email);
+        var result = await mediator.Send(new BeginOAuthImapCommand(provider), ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Phase 1k.2 — OAuth-IMAP authorize-flow completion. Exchanges the
+    /// authorization code for access + refresh tokens, persists the
+    /// connection. Authenticated user must match the state token's owner
+    /// (CSRF guard inside the handler).
+    /// </summary>
+    [HttpPost("oauth/imap/{provider}/complete")]
+    public async Task<ActionResult<CommunicationSyncConfigResponseModel>> CompleteOAuthImap(
+        string provider, [FromBody] CompleteOAuthImapBody body, CancellationToken ct)
+    {
+        EnsureKindEnabled(CommunicationKind.Email);
+        var result = await mediator.Send(
+            new CompleteOAuthImapCommand(provider, body.Code, body.State), ct);
+        return CreatedAtAction(nameof(GetConnections), null, result);
+    }
+
+    public sealed record CompleteOAuthImapBody(string Code, string State);
+
+    /// <summary>
     /// Trigger a one-shot sync for the user's connection. The Hangfire
     /// recurring job (every 15 min) handles the unattended path; this
     /// endpoint is the "Sync now" affordance for impatient users right

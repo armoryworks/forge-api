@@ -50,6 +50,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<Contact> Contacts => Set<Contact>();
     public DbSet<ContactInteraction> ContactInteractions => Set<ContactInteraction>();
     public DbSet<CommunicationSyncConfig> CommunicationSyncConfigs => Set<CommunicationSyncConfig>();
+    public DbSet<OAuthStateToken> OAuthStateTokens => Set<OAuthStateToken>();
     public DbSet<Part> Parts => Set<Part>();
     public DbSet<PartPrice> PartPrices => Set<PartPrice>();
     public DbSet<BOMEntry> BOMEntries => Set<BOMEntry>();

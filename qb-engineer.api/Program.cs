@@ -409,12 +409,23 @@ try
     builder.Services.AddScoped<QBEngineer.Core.Interfaces.Communications.ICommunicationSyncProvider,
         QBEngineer.Integrations.Communications.MockVoiceSyncProvider>();
 
-    // Wave 8 — IMAP universal email adapter (MailKit). Plain-creds today;
-    // OAuth-IMAP (SASL OAUTHBEARER) is a follow-on phase.
+    // Wave 8 — IMAP universal email adapter (MailKit). Supports plain
+    // creds (App Password / Yahoo / Fastmail / custom) AND OAuth-IMAP
+    // (SASL OAUTHBEARER for Gmail / Microsoft 365).
     builder.Services.AddScoped<QBEngineer.Api.Features.Communications.IImapClientFactory,
         QBEngineer.Api.Features.Communications.ImapClientFactory>();
     builder.Services.AddScoped<QBEngineer.Core.Interfaces.Communications.ICommunicationSyncProvider,
         QBEngineer.Api.Features.Communications.ImapEmailSyncProvider>();
+
+    // Phase 1k.2 — OAuth-IMAP token broker. ClientId/Secret per-provider
+    // bind from appsettings.OAuthImap.{Google,Microsoft}; when unset the
+    // begin-handler returns a friendly 409. RedirectUri is the SPA
+    // callback page registered with each provider's developer console.
+    builder.Services.Configure<QBEngineer.Core.Models.Communications.OAuthImapOptions>(
+        builder.Configuration.GetSection("OAuthImap"));
+    builder.Services.AddHttpClient<
+        QBEngineer.Api.Features.Communications.IImapOAuthService,
+        QBEngineer.Api.Features.Communications.ImapOAuthService>();
 
     // Wave 8 — Twilio webhook signature verifier. Reads Twilio:AuthToken
     // from appsettings; when null the verifier accepts anything (dev /

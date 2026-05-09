@@ -166,6 +166,9 @@ public class ConnectImapHandlerTests
             return Task.CompletedTask;
         }
 
+        public Task AuthenticateOAuthAsync(string username, string accessToken, CancellationToken ct)
+            => Task.CompletedTask;
+
         public Task<IImapFolderWrapper> OpenFolderAsync(string mailbox, CancellationToken ct)
             => Task.FromResult<IImapFolderWrapper>(new StubFolder());
 
