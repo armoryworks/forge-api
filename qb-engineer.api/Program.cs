@@ -1277,6 +1277,10 @@ try
         "cleanup-stale-workflow-runs",
         job => job.CleanupStaleEntitylessRunsAsync(CancellationToken.None),
         Cron.Daily(4)); // 4 AM UTC daily — auto-abandon entity-less drafts >24h idle
+    RecurringJob.AddOrUpdate<CommunicationSyncJob>(
+        "communication-sync",
+        job => job.SyncAllConnectedAsync(CancellationToken.None),
+        "*/15 * * * *"); // Every 15 minutes — drives ICommunicationSyncProvider.SyncRecentAsync
 
     // Accounting sync jobs
     RecurringJob.AddOrUpdate<SyncQueueProcessorJob>(

@@ -67,6 +67,19 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
     }
 
     /// <summary>
+    /// Trigger a one-shot sync for the user's connection. The Hangfire
+    /// recurring job (every 15 min) handles the unattended path; this
+    /// endpoint is the "Sync now" affordance for impatient users right
+    /// after they connect a mailbox / phone.
+    /// </summary>
+    [HttpPost("connections/{id:int}/sync")]
+    public async Task<ActionResult<SyncCommunicationConnectionResult>> SyncConnection(int id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new SyncCommunicationConnectionCommand(id), ct);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Generic ingest endpoint — drives the matcher from a JSON payload.
     /// Same shape provider adapters translate to before calling
     /// <see cref="QBEngineer.Core.Interfaces.Communications.ICommunicationMatcher"/>.
