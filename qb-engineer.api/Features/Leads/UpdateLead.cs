@@ -78,6 +78,19 @@ public class UpdateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequest
             lead.LostReason = data.LostReason.Trim();
             changedFields.Add("lostReason");
         }
+        // Wave 7 — engagement-shape reclassification. Surface the new shape
+        // by name in the rollup since it changes how the lead is queued in
+        // the team's sales motion (matches the status-rename treatment above).
+        if (data.EngagementShape.HasValue && data.EngagementShape.Value != lead.EngagementShape)
+        {
+            lead.EngagementShape = data.EngagementShape.Value;
+            changedFields.Add($"engagementShape: {lead.EngagementShape}");
+        }
+        if (data.CustomFieldValues is not null && data.CustomFieldValues != lead.CustomFieldValues)
+        {
+            lead.CustomFieldValues = data.CustomFieldValues;
+            changedFields.Add("customFieldValues");
+        }
 
         if (changedFields.Count > 0)
         {

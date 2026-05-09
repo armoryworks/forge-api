@@ -39,14 +39,22 @@ public class CreateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequest
             Notes = data.Notes?.Trim(),
             FollowUpDate = data.FollowUpDate,
             CreatedBy = userId,
+            // Wave 7 — engagement-shape axis from the New Lead fork dialog.
+            // Default Unknown round-trips for the "Quick add" path that
+            // skips the fork.
+            EngagementShape = data.EngagementShape,
+            CustomFieldValues = data.CustomFieldValues,
         };
 
         await repo.AddAsync(lead, cancellationToken);
 
         // Repo.AddAsync already saved (gives us lead.Id). Log + flush.
+        var shapeFragment = lead.EngagementShape == Core.Enums.LeadEngagementShape.Unknown
+            ? ""
+            : $" [{lead.EngagementShape}]";
         db.LogActivityAt(
             "created",
-            $"Created lead: {lead.CompanyName}{(string.IsNullOrEmpty(lead.ContactName) ? "" : $" — {lead.ContactName}")}{(string.IsNullOrEmpty(lead.Source) ? "" : $" (source: {lead.Source})")}",
+            $"Created lead: {lead.CompanyName}{(string.IsNullOrEmpty(lead.ContactName) ? "" : $" — {lead.ContactName}")}{(string.IsNullOrEmpty(lead.Source) ? "" : $" (source: {lead.Source})")}{shapeFragment}",
             ("Lead", lead.Id));
         await db.SaveChangesAsync(cancellationToken);
 

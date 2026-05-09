@@ -9,7 +9,6 @@ namespace QBEngineer.Api.Mappers;
 public static partial class LeadMapper
 {
     [MapperIgnoreSource(nameof(Lead.ConvertedCustomer))]
-    [MapperIgnoreSource(nameof(Lead.CustomFieldValues))]
     [MapperIgnoreSource(nameof(Lead.CreatedBy))]
     [MapperIgnoreSource(nameof(BaseAuditableEntity.DeletedAt))]
     [MapperIgnoreSource(nameof(BaseAuditableEntity.DeletedBy))]

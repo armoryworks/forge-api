@@ -15,4 +15,8 @@ public record LeadResponseModel(
     string? LostReason,
     int? ConvertedCustomerId,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    // Wave 7 — engagement-shape classification axis. Optional default for
+    // wire-compat with pre-Wave-7 callers / fixtures.
+    LeadEngagementShape EngagementShape = LeadEngagementShape.Unknown,
+    string? CustomFieldValues = null);

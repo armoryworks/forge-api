@@ -53,5 +53,6 @@ public class LeadRepository(AppDbContext db) : ILeadRepository
     private static LeadResponseModel ToResponseModel(Lead l) => new(
         l.Id, l.CompanyName, l.ContactName, l.Email, l.Phone, l.Source,
         l.Status, l.Notes, l.FollowUpDate, l.LostReason,
-        l.ConvertedCustomerId, l.CreatedAt, l.UpdatedAt);
+        l.ConvertedCustomerId, l.CreatedAt, l.UpdatedAt,
+        l.EngagementShape, l.CustomFieldValues);
 }
