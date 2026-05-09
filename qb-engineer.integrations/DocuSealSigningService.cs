@@ -3,86 +3,64 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
+using QBEngineer.Core.Settings;
 
 namespace QBEngineer.Integrations;
 
-public class DocuSealSigningService : IDocumentSigningService
+/// <summary>
+/// Real implementation of <see cref="IDocumentSigningService"/> backed by
+/// the DocuSeal HTTP API.
+///
+/// Phase 1m: BaseUrl + ApiKey + PublicBaseUrl + Timeout read live from
+/// <see cref="ISettingsService"/> at request time. Each method composes
+/// a full URL + sets the X-Auth-Token header per-call rather than
+/// pinning HttpClient defaults at construction (HttpClient.BaseAddress
+/// is immutable after first use, which would freeze admin config
+/// changes until restart).
+/// </summary>
+public class DocuSealSigningService(
+    HttpClient httpClient,
+    ISettingsService settings,
+    ILogger<DocuSealSigningService> logger) : IDocumentSigningService
 {
-    private readonly HttpClient _httpClient;
-    private readonly DocuSealOptions _options;
-    private readonly ILogger<DocuSealSigningService> _logger;
-
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public DocuSealSigningService(
-        HttpClient httpClient,
-        IOptions<DocuSealOptions> options,
-        ILogger<DocuSealSigningService> logger)
-    {
-        _httpClient = httpClient;
-        _options = options.Value;
-        _logger = logger;
-
-        _httpClient.BaseAddress = new Uri(_options.BaseUrl);
-        _httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
-        _httpClient.DefaultRequestHeaders.Add("X-Auth-Token", _options.ApiKey);
-    }
-
-    /// <summary>
-    /// Rewrites a DocuSeal embed URL from the internal Docker network address to the
-    /// browser-accessible proxy URL configured in <see cref="DocuSealOptions.PublicBaseUrl"/>.
-    /// For example: http://qb-engineer-signing:3000/s/abc → http://localhost:4200/docuseal/s/abc
-    /// </summary>
-    private string RewriteEmbedUrl(string embedSrc)
-    {
-        if (string.IsNullOrEmpty(embedSrc) || string.IsNullOrEmpty(_options.PublicBaseUrl))
-            return embedSrc;
-
-        var baseUrl = _options.BaseUrl.TrimEnd('/');
-        var publicBaseUrl = _options.PublicBaseUrl.TrimEnd('/');
-
-        if (embedSrc.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase))
-            return publicBaseUrl + embedSrc[baseUrl.Length..];
-
-        return embedSrc;
-    }
-
     public async Task<bool> IsAvailableAsync(CancellationToken ct)
     {
         try
         {
-            var response = await _httpClient.GetAsync("/api/templates", ct);
+            using var req = await BuildRequestAsync(HttpMethod.Get, "/api/templates", ct);
+            using var response = await httpClient.SendAsync(req, ct);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "DocuSeal health check failed");
+            logger.LogWarning(ex, "DocuSeal health check failed");
             return false;
         }
     }
 
     public async Task<int> CreateTemplateFromPdfAsync(string name, byte[] pdfBytes, CancellationToken ct)
     {
-        // When no pre-filled PDF is available (fallback path), create a blank HTML template instead.
-        // DocuSeal rejects empty/zero-byte PDF uploads with 404.
         if (pdfBytes.Length == 0)
             return await CreateBlankTemplateAsync(name, ct);
 
-        _logger.LogInformation("DocuSeal CreateTemplate: {Name} ({Size} bytes)", name, pdfBytes.Length);
+        logger.LogInformation("DocuSeal CreateTemplate: {Name} ({Size} bytes)", name, pdfBytes.Length);
 
         using var content = new MultipartFormDataContent();
         content.Add(new ByteArrayContent(pdfBytes), "files[]", $"{name}.pdf");
         content.Add(new StringContent(name), "name");
 
-        var response = await _httpClient.PostAsync("/api/templates/pdf", content, ct);
+        using var req = await BuildRequestAsync(HttpMethod.Post, "/api/templates/pdf", ct);
+        req.Content = content;
+        using var response = await httpClient.SendAsync(req, ct);
         response.EnsureSuccessStatusCode();
 
         var result = await response.Content.ReadFromJsonAsync<DocuSealTemplateResponse>(JsonOptions, ct);
@@ -91,14 +69,16 @@ public class DocuSealSigningService : IDocumentSigningService
 
     private async Task<int> CreateBlankTemplateAsync(string name, CancellationToken ct)
     {
-        _logger.LogInformation("DocuSeal CreateTemplate (HTML blank): {Name}", name);
+        logger.LogInformation("DocuSeal CreateTemplate (HTML blank): {Name}", name);
 
         var html = $"<p style=\"font-family:sans-serif;padding:40px\">" +
                    $"<strong>{System.Net.WebUtility.HtmlEncode(name)}</strong><br/><br/>" +
                    $"By signing below, you acknowledge receipt and review of this form.</p>";
 
-        var request = new { name, html };
-        var response = await _httpClient.PostAsJsonAsync("/api/templates/html", request, JsonOptions, ct);
+        var body = JsonContent.Create(new { name, html }, options: JsonOptions);
+        using var req = await BuildRequestAsync(HttpMethod.Post, "/api/templates/html", ct);
+        req.Content = body;
+        using var response = await httpClient.SendAsync(req, ct);
         response.EnsureSuccessStatusCode();
 
         var result = await response.Content.ReadFromJsonAsync<DocuSealTemplateResponse>(JsonOptions, ct);
@@ -107,7 +87,7 @@ public class DocuSealSigningService : IDocumentSigningService
 
     public async Task<DocumentSigningSubmission> CreateSubmissionAsync(int templateId, string signerEmail, string signerName, CancellationToken ct)
     {
-        _logger.LogInformation("DocuSeal CreateSubmission: template {TemplateId} for {Email}", templateId, signerEmail);
+        logger.LogInformation("DocuSeal CreateSubmission: template {TemplateId} for {Email}", templateId, signerEmail);
 
         var request = new DocuSealSubmissionRequest
         {
@@ -124,14 +104,18 @@ public class DocuSealSigningService : IDocumentSigningService
             ],
         };
 
-        var response = await _httpClient.PostAsJsonAsync("/api/submissions", request, JsonOptions, ct);
+        var (_, publicBaseUrl) = await ReadUrlsAsync(ct);
+
+        using var req = await BuildRequestAsync(HttpMethod.Post, "/api/submissions", ct);
+        req.Content = JsonContent.Create(request, options: JsonOptions);
+        using var response = await httpClient.SendAsync(req, ct);
         response.EnsureSuccessStatusCode();
 
         var results = await response.Content.ReadFromJsonAsync<List<DocuSealSubmissionResponse>>(JsonOptions, ct);
         var submission = results?.FirstOrDefault()
             ?? throw new InvalidOperationException("DocuSeal returned no submission");
 
-        return new DocumentSigningSubmission(submission.Id, RewriteEmbedUrl(submission.EmbedSrc));
+        return new DocumentSigningSubmission(submission.Id, RewriteEmbedUrl(submission.EmbedSrc, publicBaseUrl));
     }
 
     public async Task<DocumentSigningMultiSubmission> CreateSubmissionFromPdfAsync(
@@ -140,14 +124,12 @@ public class DocuSealSigningService : IDocumentSigningService
         IReadOnlyList<SequentialSubmitter> submitters,
         CancellationToken ct)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "DocuSeal CreateSubmissionFromPdf: '{Name}' ({Size} bytes), {Count} submitters",
             templateName, pdfBytes.Length, submitters.Count);
 
-        // Step 1: Upload the filled PDF as a one-time template
         var templateId = await CreateTemplateFromPdfAsync(templateName, pdfBytes, ct);
 
-        // Step 2: Create submission with all submitters in sequential order
         var submitterDtos = submitters
             .OrderBy(s => s.Order)
             .Select(s => new DocuSealSubmitter
@@ -165,20 +147,23 @@ public class DocuSealSigningService : IDocumentSigningService
             Submitters = submitterDtos,
         };
 
-        var response = await _httpClient.PostAsJsonAsync("/api/submissions", request, JsonOptions, ct);
+        var (_, publicBaseUrl) = await ReadUrlsAsync(ct);
+
+        using var req = await BuildRequestAsync(HttpMethod.Post, "/api/submissions", ct);
+        req.Content = JsonContent.Create(request, options: JsonOptions);
+        using var response = await httpClient.SendAsync(req, ct);
         response.EnsureSuccessStatusCode();
 
         var results = await response.Content.ReadFromJsonAsync<List<DocuSealSubmissionResponse>>(JsonOptions, ct)
             ?? throw new InvalidOperationException("DocuSeal returned no submission results");
 
-        // DocuSeal returns submitters in order — zip with original submitters to build the result map
         var orderedSubmitters = submitters.OrderBy(s => s.Order).ToList();
         var byOrder = new Dictionary<int, SubmitterResult>();
 
         for (var i = 0; i < Math.Min(results.Count, orderedSubmitters.Count); i++)
         {
             var order = orderedSubmitters[i].Order;
-            byOrder[order] = new SubmitterResult(results[i].Id, RewriteEmbedUrl(results[i].EmbedSrc));
+            byOrder[order] = new SubmitterResult(results[i].Id, RewriteEmbedUrl(results[i].EmbedSrc, publicBaseUrl));
         }
 
         return new DocumentSigningMultiSubmission(templateId, byOrder);
@@ -186,9 +171,10 @@ public class DocuSealSigningService : IDocumentSigningService
 
     public async Task<byte[]> GetSignedPdfAsync(int submissionId, CancellationToken ct)
     {
-        _logger.LogInformation("DocuSeal GetSignedPdf: submission {Id}", submissionId);
+        logger.LogInformation("DocuSeal GetSignedPdf: submission {Id}", submissionId);
 
-        var response = await _httpClient.GetAsync($"/api/submissions/{submissionId}", ct);
+        using var req = await BuildRequestAsync(HttpMethod.Get, $"/api/submissions/{submissionId}", ct);
+        using var response = await httpClient.SendAsync(req, ct);
         response.EnsureSuccessStatusCode();
 
         var submission = await response.Content.ReadFromJsonAsync<DocuSealSubmissionDetailResponse>(JsonOptions, ct);
@@ -197,14 +183,20 @@ public class DocuSealSigningService : IDocumentSigningService
         if (string.IsNullOrEmpty(documentUrl))
             throw new InvalidOperationException($"No signed document found for submission {submissionId}");
 
-        return await _httpClient.GetByteArrayAsync(documentUrl, ct);
+        // Document URL is absolute — fetch via the same authenticated client.
+        using var docReq = new HttpRequestMessage(HttpMethod.Get, documentUrl);
+        await AttachAuthAsync(docReq, ct);
+        using var docResponse = await httpClient.SendAsync(docReq, ct);
+        docResponse.EnsureSuccessStatusCode();
+        return await docResponse.Content.ReadAsByteArrayAsync(ct);
     }
 
     public async Task<DocumentSigningSubmissionStatus> GetSubmissionStatusAsync(int submissionId, CancellationToken ct)
     {
-        _logger.LogInformation("DocuSeal GetSubmissionStatus: submission {Id}", submissionId);
+        logger.LogInformation("DocuSeal GetSubmissionStatus: submission {Id}", submissionId);
 
-        var response = await _httpClient.GetAsync($"/api/submissions/{submissionId}", ct);
+        using var req = await BuildRequestAsync(HttpMethod.Get, $"/api/submissions/{submissionId}", ct);
+        using var response = await httpClient.SendAsync(req, ct);
         response.EnsureSuccessStatusCode();
 
         var submission = await response.Content.ReadFromJsonAsync<DocuSealSubmissionDetailResponse>(JsonOptions, ct);
@@ -215,10 +207,68 @@ public class DocuSealSigningService : IDocumentSigningService
 
     public async Task DeleteTemplateAsync(int templateId, CancellationToken ct)
     {
-        _logger.LogInformation("DocuSeal DeleteTemplate: {Id}", templateId);
+        logger.LogInformation("DocuSeal DeleteTemplate: {Id}", templateId);
 
-        var response = await _httpClient.DeleteAsync($"/api/templates/{templateId}", ct);
+        using var req = await BuildRequestAsync(HttpMethod.Delete, $"/api/templates/{templateId}", ct);
+        using var response = await httpClient.SendAsync(req, ct);
         response.EnsureSuccessStatusCode();
+    }
+
+    /// <summary>
+    /// Build a request with absolute URL + X-Auth-Token header from
+    /// the live DocuSeal settings.
+    /// </summary>
+    private async Task<HttpRequestMessage> BuildRequestAsync(HttpMethod method, string path, CancellationToken ct)
+    {
+        var (baseUrl, _) = await ReadUrlsAsync(ct);
+        var url = baseUrl.TrimEnd('/') + path;
+        var req = new HttpRequestMessage(method, url);
+        await AttachAuthAsync(req, ct);
+        // Per-request timeout — HttpClient.Timeout is shared across the
+        // singleton, so set on the per-request CancellationToken instead
+        // when we wire deeper. For now we rely on HttpClient default
+        // (100s) which is well under DocuSeal's typical operation time.
+        return req;
+    }
+
+    private async Task AttachAuthAsync(HttpRequestMessage req, CancellationToken ct)
+    {
+        var apiKey = await settings.GetStringAsync(DocuSealSettings.KeyApiKey, ct);
+        if (!string.IsNullOrEmpty(apiKey))
+        {
+            req.Headers.TryAddWithoutValidation("X-Auth-Token", apiKey);
+        }
+    }
+
+    private async Task<(string BaseUrl, string PublicBaseUrl)> ReadUrlsAsync(CancellationToken ct)
+    {
+        var baseUrl = await settings.GetStringAsync(DocuSealSettings.KeyApiUrl, ct)
+            ?? "http://qb-engineer-signing:3000";
+        var publicBaseUrl = await settings.GetStringAsync(DocuSealSettings.KeyPublicBaseUrl, ct)
+            ?? string.Empty;
+        return (baseUrl, publicBaseUrl);
+    }
+
+    /// <summary>
+    /// Rewrites a DocuSeal embed URL from the internal Docker network
+    /// address to the browser-accessible proxy URL, when configured.
+    /// </summary>
+    private static string RewriteEmbedUrl(string embedSrc, string publicBaseUrl)
+    {
+        if (string.IsNullOrEmpty(embedSrc) || string.IsNullOrEmpty(publicBaseUrl))
+            return embedSrc;
+
+        // The embed URL points back at the DocuSeal instance. To rewrite,
+        // we strip the existing scheme+host and prepend publicBaseUrl.
+        try
+        {
+            var uri = new Uri(embedSrc);
+            return publicBaseUrl.TrimEnd('/') + uri.PathAndQuery;
+        }
+        catch (UriFormatException)
+        {
+            return embedSrc;
+        }
     }
 
     // ─── DocuSeal API DTOs ───

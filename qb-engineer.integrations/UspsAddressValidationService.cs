@@ -1,17 +1,26 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
+using QBEngineer.Core.Settings;
 
 namespace QBEngineer.Integrations;
 
+/// <summary>
+/// Real implementation of <see cref="IAddressValidationService"/> backed by
+/// the USPS Addresses API v3 (OAuth client-credentials).
+///
+/// Phase 1m: ConsumerKey + ConsumerSecret read live from
+/// <see cref="ISettingsService"/> at request time. The cached access
+/// token is invalidated whenever the credential pair changes — admins
+/// rotating keys in /admin/integrations don't have to wait for the
+/// existing token to expire.
+/// </summary>
 public class UspsAddressValidationService : IAddressValidationService
 {
     private const string TokenUrl = "https://apis.usps.com/oauth2/v3/token";
@@ -24,19 +33,23 @@ public class UspsAddressValidationService : IAddressValidationService
     };
 
     private readonly HttpClient _httpClient;
-    private readonly UspsOptions _options;
+    private readonly ISettingsService _settings;
     private readonly ILogger<UspsAddressValidationService> _logger;
 
     private string? _accessToken;
     private DateTimeOffset _tokenExpiry = DateTimeOffset.MinValue;
+    /// <summary>Cached credential pair the current access token was minted
+    /// against. When the live (key, secret) differ — admin rotated the
+    /// creds — we discard the token and re-auth.</summary>
+    private (string? Key, string? Secret) _tokenCreds;
 
     public UspsAddressValidationService(
         HttpClient httpClient,
-        IOptions<UspsOptions> options,
+        ISettingsService settings,
         ILogger<UspsAddressValidationService> logger)
     {
         _httpClient = httpClient;
-        _options = options.Value;
+        _settings = settings;
         _logger = logger;
     }
 
@@ -100,24 +113,21 @@ public class UspsAddressValidationService : IAddressValidationService
 
             var messages = new List<string>();
 
-            // DPV confirmation from additionalInfo
             var dpv = result.AdditionalInfo?.DPVConfirmation;
             var isValid = dpv switch
             {
-                "Y" => true,  // Confirmed for primary + secondary
-                "D" => true,  // Confirmed primary only, secondary missing
-                "S" => false, // Primary confirmed, secondary not confirmed
-                "N" => false, // Not confirmed / not deliverable
-                _ => true,    // No DPV data — address standardized successfully
+                "Y" => true,
+                "D" => true,
+                "S" => false,
+                "N" => false,
+                _ => true,
             };
 
             if (dpv == "D")
                 messages.Add("Address confirmed but apartment/suite number may be missing.");
-
             if (dpv == "S")
                 messages.Add("Address found but apartment/suite number could not be confirmed.");
 
-            // Include corrections info
             if (result.Corrections is { Count: > 0 })
             {
                 foreach (var correction in result.Corrections)
@@ -127,7 +137,6 @@ public class UspsAddressValidationService : IAddressValidationService
                 }
             }
 
-            // Include warnings
             if (result.Warnings is { Count: > 0 })
                 messages.AddRange(result.Warnings);
 
@@ -173,16 +182,32 @@ public class UspsAddressValidationService : IAddressValidationService
 
     private async Task EnsureAccessTokenAsync(CancellationToken ct)
     {
-        if (_accessToken != null && DateTimeOffset.UtcNow < _tokenExpiry)
+        var consumerKey = await _settings.GetStringAsync(UspsSettings.KeyConsumerKey, ct);
+        var consumerSecret = await _settings.GetStringAsync(UspsSettings.KeyConsumerSecret, ct);
+
+        if (string.IsNullOrEmpty(consumerKey) || string.IsNullOrEmpty(consumerSecret))
+        {
+            throw new InvalidOperationException(
+                "USPS credentials are not configured. Set Consumer Key + Consumer Secret under Admin → Integrations → USPS.");
+        }
+
+        // Token cache is keyed by the credential pair so admin rotation
+        // immediately invalidates a stale token.
+        var liveCreds = (consumerKey, consumerSecret);
+        if (_accessToken != null
+            && DateTimeOffset.UtcNow < _tokenExpiry
+            && _tokenCreds == liveCreds)
+        {
             return;
+        }
 
         _logger.LogInformation("[USPS] Requesting OAuth access token");
 
         var content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["grant_type"] = "client_credentials",
-            ["client_id"] = _options.ConsumerKey,
-            ["client_secret"] = _options.ConsumerSecret,
+            ["client_id"] = consumerKey,
+            ["client_secret"] = consumerSecret,
             ["scope"] = "addresses",
         });
 
@@ -193,7 +218,8 @@ public class UspsAddressValidationService : IAddressValidationService
             ?? throw new InvalidOperationException("Failed to parse USPS token response");
 
         _accessToken = tokenResponse.AccessToken;
-        _tokenExpiry = DateTimeOffset.UtcNow.AddSeconds(tokenResponse.ExpiresIn - 60); // Refresh 60s early
+        _tokenExpiry = DateTimeOffset.UtcNow.AddSeconds(tokenResponse.ExpiresIn - 60);
+        _tokenCreds = liveCreds;
 
         _logger.LogInformation("[USPS] OAuth token acquired, expires in {ExpiresIn}s", tokenResponse.ExpiresIn);
     }
@@ -237,8 +263,6 @@ public class UspsAddressValidationService : IAddressValidationService
         var clean = zip.Replace(" ", "").Trim();
         return clean.Length > 5 ? clean[5..] : string.Empty;
     }
-
-    // Response models matching USPS Addresses API v3 OpenAPI spec
 
     private sealed class UspsTokenResponse
     {

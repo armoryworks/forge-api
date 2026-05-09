@@ -1,30 +1,30 @@
 using MailKit.Net.Smtp;
 
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 using MimeKit;
 
 using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
+using QBEngineer.Core.Settings;
 
 namespace QBEngineer.Integrations;
 
-public class SmtpEmailService : IEmailService
+/// <summary>
+/// Real implementation of <see cref="IEmailService"/> backed by MailKit's
+/// <see cref="SmtpClient"/>. Phase 1m: host/port/credentials/from-fields
+/// read live from <see cref="ISettingsService"/> at send time. Each
+/// SendAsync opens a fresh SMTP connection (matches pre-1m behaviour
+/// which constructed a new <c>SmtpClient</c> per send anyway).
+/// </summary>
+public class SmtpEmailService(ISettingsService settings, ILogger<SmtpEmailService> logger) : IEmailService
 {
-    private readonly SmtpOptions _options;
-    private readonly ILogger<SmtpEmailService> _logger;
-
-    public SmtpEmailService(IOptions<SmtpOptions> options, ILogger<SmtpEmailService> logger)
-    {
-        _options = options.Value;
-        _logger = logger;
-    }
-
     public async Task SendAsync(EmailMessage message, CancellationToken ct = default)
     {
+        var s = await ReadAsync(ct);
+
         var mime = new MimeMessage();
-        mime.From.Add(new MailboxAddress(_options.FromName, _options.FromAddress));
+        mime.From.Add(new MailboxAddress(s.FromName, s.FromAddress));
         mime.To.Add(MailboxAddress.Parse(message.To));
         mime.Subject = message.Subject;
 
@@ -45,35 +45,74 @@ public class SmtpEmailService : IEmailService
         mime.Body = builder.ToMessageBody();
 
         using var client = new SmtpClient();
-        await client.ConnectAsync(_options.Host, _options.Port, _options.UseSsl, ct);
+        await client.ConnectAsync(s.Host, s.Port, s.UseSsl, ct);
 
-        if (!string.IsNullOrEmpty(_options.Username))
-            await client.AuthenticateAsync(_options.Username, _options.Password ?? string.Empty, ct);
+        if (!string.IsNullOrEmpty(s.Username))
+            await client.AuthenticateAsync(s.Username, s.Password ?? string.Empty, ct);
 
         await client.SendAsync(mime, ct);
         await client.DisconnectAsync(true, ct);
 
-        _logger.LogInformation("Email sent to {To}: {Subject}", message.To, message.Subject);
+        logger.LogInformation("Email sent to {To}: {Subject}", message.To, message.Subject);
     }
 
     public async Task<bool> TestConnectionAsync(CancellationToken ct)
     {
         try
         {
+            var s = await ReadAsync(ct);
             using var client = new SmtpClient();
-            await client.ConnectAsync(_options.Host, _options.Port, _options.UseSsl, ct);
+            await client.ConnectAsync(s.Host, s.Port, s.UseSsl, ct);
 
-            if (!string.IsNullOrEmpty(_options.Username))
-                await client.AuthenticateAsync(_options.Username, _options.Password ?? string.Empty, ct);
+            if (!string.IsNullOrEmpty(s.Username))
+                await client.AuthenticateAsync(s.Username, s.Password ?? string.Empty, ct);
 
             await client.DisconnectAsync(true, ct);
-            _logger.LogInformation("[SMTP] Connection test succeeded");
+            logger.LogInformation("[SMTP] Connection test succeeded");
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "[SMTP] Connection test failed");
+            logger.LogWarning(ex, "[SMTP] Connection test failed");
             return false;
         }
     }
+
+    private async Task<SmtpResolved> ReadAsync(CancellationToken ct)
+    {
+        var host = await settings.GetStringAsync(SmtpSettings.KeyHost, ct);
+        var portStr = await settings.GetStringAsync(SmtpSettings.KeyPort, ct);
+        var useSslStr = await settings.GetStringAsync(SmtpSettings.KeyUseSsl, ct);
+        var username = await settings.GetStringAsync(SmtpSettings.KeyUsername, ct);
+        var password = await settings.GetStringAsync(SmtpSettings.KeyPassword, ct);
+        var fromAddress = await settings.GetStringAsync(SmtpSettings.KeyFromAddress, ct);
+        var fromName = await settings.GetStringAsync(SmtpSettings.KeyFromName, ct);
+
+        if (string.IsNullOrEmpty(host))
+        {
+            throw new InvalidOperationException(
+                "SMTP is not configured. Set host/port + credentials under Admin → Integrations → SMTP.");
+        }
+
+        var port = int.TryParse(portStr, out var p) ? p : 587;
+        var useSsl = bool.TryParse(useSslStr, out var ssl) ? ssl : true;
+
+        return new SmtpResolved(
+            Host: host,
+            Port: port,
+            UseSsl: useSsl,
+            Username: username,
+            Password: password,
+            FromAddress: fromAddress ?? "noreply@qbengineer.local",
+            FromName: fromName ?? "QB Engineer");
+    }
+
+    private sealed record SmtpResolved(
+        string Host,
+        int Port,
+        bool UseSsl,
+        string? Username,
+        string? Password,
+        string FromAddress,
+        string FromName);
 }

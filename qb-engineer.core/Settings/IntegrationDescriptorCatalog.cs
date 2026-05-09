@@ -163,8 +163,8 @@ public static class IntegrationDescriptorCatalog
             Description: "USPS Addresses API v3 for address verification (free with Business account).",
             Icon: "local_post_office",
             Category: "service",
-            FieldKeys: [UspsSettings.KeyMode, UspsSettings.KeyUserId],
-            IsConfiguredCheckKey: UspsSettings.KeyUserId,
+            FieldKeys: [UspsSettings.KeyMode, UspsSettings.KeyConsumerKey, UspsSettings.KeyConsumerSecret],
+            IsConfiguredCheckKey: UspsSettings.KeyConsumerKey,
             LogoUrl: "https://logo.clearbit.com/usps.com",
             SetupSteps:
             [

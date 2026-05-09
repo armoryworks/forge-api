@@ -3,61 +3,54 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
+using QBEngineer.Core.Settings;
 
 namespace QBEngineer.Integrations;
 
-public class OllamaAiService : IAiService
+/// <summary>
+/// Real implementation of <see cref="IAiService"/> backed by Ollama.
+/// Phase 1m: BaseUrl + model names + timeouts read live from
+/// <see cref="ISettingsService"/> at request time. Each call composes
+/// the absolute URL itself rather than using HttpClient.BaseAddress
+/// (which is immutable after first use).
+/// </summary>
+public class OllamaAiService(
+    HttpClient httpClient,
+    ISettingsService settings,
+    ILogger<OllamaAiService> logger) : IAiService
 {
-    private readonly HttpClient _httpClient;
-    private readonly AiOptions _options;
-    private readonly ILogger<OllamaAiService> _logger;
-
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public OllamaAiService(
-        HttpClient httpClient,
-        IOptions<AiOptions> options,
-        ILogger<OllamaAiService> logger)
-    {
-        _httpClient = httpClient;
-        _options = options.Value;
-        _logger = logger;
-
-        _httpClient.BaseAddress = new Uri(_options.BaseUrl);
-        // Use the longer of the two timeouts (vision calls can take much longer)
-        _httpClient.Timeout = TimeSpan.FromSeconds(
-            Math.Max(_options.TimeoutSeconds, _options.VisionTimeoutSeconds));
-    }
-
     public Task<string> GenerateTextAsync(string prompt, CancellationToken ct)
         => GenerateTextAsync(prompt, null, null, ct);
 
     public async Task<string> GenerateTextAsync(string prompt, string? systemPrompt, double? temperature, CancellationToken ct)
     {
-        _logger.LogInformation("Ollama GenerateText ({Model}): {Prompt}",
-            _options.Model, prompt.Length > 80 ? prompt[..80] + "..." : prompt);
+        var c = await ReadAsync(ct);
+        logger.LogInformation("Ollama GenerateText ({Model}): {Prompt}",
+            c.ChatModel, prompt.Length > 80 ? prompt[..80] + "..." : prompt);
 
         var request = new OllamaGenerateRequest
         {
-            Model = _options.Model,
+            Model = c.ChatModel,
             Prompt = prompt,
             Stream = false,
             System = systemPrompt,
             Options = temperature.HasValue ? new OllamaGenerateOptions { Temperature = temperature.Value } : null,
         };
 
-        var response = await _httpClient.PostAsJsonAsync("/api/generate", request, JsonOptions, ct);
+        using var timed = LinkedTimeout(ct, c.TimeoutSeconds);
+        var response = await httpClient.PostAsJsonAsync(c.BaseUrl + "/api/generate", request, JsonOptions, timed.Token);
         response.EnsureSuccessStatusCode();
 
-        var result = await response.Content.ReadFromJsonAsync<OllamaGenerateResponse>(JsonOptions, ct);
+        var result = await response.Content.ReadFromJsonAsync<OllamaGenerateResponse>(JsonOptions, timed.Token);
         return result?.Response ?? string.Empty;
     }
 
@@ -77,10 +70,8 @@ public class OllamaAiService : IAiService
 
     public async Task<List<AiSearchResult>> SmartSearchAsync(string naturalLanguageQuery, CancellationToken ct)
     {
-        _logger.LogInformation("Ollama SmartSearch: {Query}", naturalLanguageQuery);
+        logger.LogInformation("Ollama SmartSearch: {Query}", naturalLanguageQuery);
 
-        // Smart search uses the LLM to interpret the query and generate structured search terms.
-        // Without pgvector/RAG, we extract keywords the caller can use for full-text search.
         var prompt = $"""
             You are a search assistant for a manufacturing operations platform. Given a natural language query, extract the most relevant search keywords.
             Return ONLY a JSON array of keyword strings, nothing else. Example: ["keyword1", "keyword2"]
@@ -89,59 +80,56 @@ public class OllamaAiService : IAiService
             """;
 
         var response = await GenerateTextAsync(prompt, ct);
-
-        // For now, return empty results — full RAG/pgvector search is a future enhancement.
-        // The keywords could be used by the caller to feed into existing full-text search.
-        _logger.LogInformation("Ollama SmartSearch keywords: {Response}", response);
+        logger.LogInformation("Ollama SmartSearch keywords: {Response}", response);
         return [];
     }
 
     public async Task<float[]> GetEmbeddingAsync(string text, CancellationToken ct)
     {
-        _logger.LogInformation("Ollama GetEmbedding ({Length} chars)", text.Length);
+        var c = await ReadAsync(ct);
+        logger.LogInformation("Ollama GetEmbedding ({Length} chars)", text.Length);
 
         var request = new OllamaEmbeddingRequest
         {
-            Model = _options.EmbeddingModel,
+            Model = c.EmbeddingModel,
             Prompt = text,
         };
 
-        var response = await _httpClient.PostAsJsonAsync("/api/embeddings", request, JsonOptions, ct);
+        using var timed = LinkedTimeout(ct, c.TimeoutSeconds);
+        var response = await httpClient.PostAsJsonAsync(c.BaseUrl + "/api/embeddings", request, JsonOptions, timed.Token);
         response.EnsureSuccessStatusCode();
 
-        var result = await response.Content.ReadFromJsonAsync<OllamaEmbeddingResponse>(JsonOptions, ct);
+        var result = await response.Content.ReadFromJsonAsync<OllamaEmbeddingResponse>(JsonOptions, timed.Token);
         return result?.Embedding ?? [];
     }
 
     public async Task<string> GenerateWithImageAsync(string prompt, byte[] imageBytes, string? systemPrompt, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(_options.VisionModel))
-            throw new NotSupportedException("No vision model configured in Ollama options (VisionModel is empty)");
+        var c = await ReadAsync(ct);
+        if (string.IsNullOrEmpty(c.VisionModel))
+            throw new NotSupportedException("No vision model configured (Admin → Integrations → AI → Vision Model)");
 
-        _logger.LogInformation("Ollama GenerateWithImage ({Model}): prompt={PromptLen} chars, image={ImageSize} bytes",
-            _options.VisionModel, prompt.Length, imageBytes.Length);
+        logger.LogInformation("Ollama GenerateWithImage ({Model}): prompt={PromptLen} chars, image={ImageSize} bytes",
+            c.VisionModel, prompt.Length, imageBytes.Length);
 
         var imageBase64 = Convert.ToBase64String(imageBytes);
 
         var request = new OllamaVisionRequest
         {
-            Model = _options.VisionModel,
+            Model = c.VisionModel,
             Prompt = prompt,
             Stream = false,
             System = systemPrompt,
             Images = [imageBase64],
         };
 
-        // Vision inference is slow — use a longer timeout than the default HttpClient.Timeout
-        using var visionCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        visionCts.CancelAfter(TimeSpan.FromSeconds(_options.VisionTimeoutSeconds));
-
-        var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, "/api/generate")
+        using var visionCts = LinkedTimeout(ct, c.VisionTimeoutSeconds);
+        var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, c.BaseUrl + "/api/generate")
         {
             Content = JsonContent.Create(request, options: JsonOptions),
         };
 
-        var response = await _httpClient.SendAsync(httpRequestMessage, HttpCompletionOption.ResponseContentRead, visionCts.Token);
+        var response = await httpClient.SendAsync(httpRequestMessage, HttpCompletionOption.ResponseContentRead, visionCts.Token);
         response.EnsureSuccessStatusCode();
 
         var result = await response.Content.ReadFromJsonAsync<OllamaGenerateResponse>(JsonOptions, visionCts.Token);
@@ -150,22 +138,23 @@ public class OllamaAiService : IAiService
 
     public async IAsyncEnumerable<string> GenerateTextStreamAsync(string prompt, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
     {
-        _logger.LogInformation("Ollama GenerateTextStream ({Model}): {Prompt}",
-            _options.Model, prompt.Length > 80 ? prompt[..80] + "..." : prompt);
+        var c = await ReadAsync(ct);
+        logger.LogInformation("Ollama GenerateTextStream ({Model}): {Prompt}",
+            c.ChatModel, prompt.Length > 80 ? prompt[..80] + "..." : prompt);
 
         var request = new OllamaGenerateRequest
         {
-            Model = _options.Model,
+            Model = c.ChatModel,
             Prompt = prompt,
             Stream = true,
         };
 
-        var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/generate")
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, c.BaseUrl + "/api/generate")
         {
             Content = JsonContent.Create(request, options: JsonOptions),
         };
 
-        using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, ct);
+        using var response = await httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, ct);
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
@@ -183,7 +172,7 @@ public class OllamaAiService : IAiService
             }
             catch (JsonException ex)
             {
-                _logger.LogWarning(ex, "Failed to parse Ollama stream line: {Line}", line);
+                logger.LogWarning(ex, "Failed to parse Ollama stream line: {Line}", line);
                 continue;
             }
 
@@ -200,18 +189,45 @@ public class OllamaAiService : IAiService
     {
         try
         {
-            var response = await _httpClient.GetAsync("/api/tags", ct);
+            var c = await ReadAsync(ct);
+            using var timed = LinkedTimeout(ct, c.TimeoutSeconds);
+            var response = await httpClient.GetAsync(c.BaseUrl + "/api/tags", timed.Token);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Ollama health check failed");
+            logger.LogWarning(ex, "Ollama health check failed");
             return false;
         }
     }
 
-    // ─── Ollama API DTOs ───
+    private async Task<AiResolved> ReadAsync(CancellationToken ct)
+    {
+        var baseUrl = await settings.GetStringAsync(AiSettings.KeyBaseUrl, ct) ?? "http://qb-engineer-ai:11434";
+        var chat = await settings.GetStringAsync(AiSettings.KeyChatModel, ct) ?? "gemma3:4b";
+        var emb = await settings.GetStringAsync(AiSettings.KeyEmbeddingModel, ct) ?? "all-minilm:l6-v2";
+        var vis = await settings.GetStringAsync(AiSettings.KeyVisionModel, ct) ?? "llava:7b";
+        var t1 = int.TryParse(await settings.GetStringAsync(AiSettings.KeyTimeoutSeconds, ct), out var t) ? t : 120;
+        var t2 = int.TryParse(await settings.GetStringAsync(AiSettings.KeyVisionTimeoutSeconds, ct), out var vt) ? vt : 600;
+        return new AiResolved(baseUrl.TrimEnd('/'), chat, emb, vis, t1, t2);
+    }
 
+    private static CancellationTokenSource LinkedTimeout(CancellationToken outer, int timeoutSeconds)
+    {
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(outer);
+        cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+        return cts;
+    }
+
+    private sealed record AiResolved(
+        string BaseUrl,
+        string ChatModel,
+        string EmbeddingModel,
+        string? VisionModel,
+        int TimeoutSeconds,
+        int VisionTimeoutSeconds);
+
+    // ─── Ollama API DTOs ───
     private sealed class OllamaGenerateRequest
     {
         public string Model { get; set; } = string.Empty;
