@@ -409,6 +409,13 @@ try
     builder.Services.AddScoped<QBEngineer.Core.Interfaces.Communications.ICommunicationSyncProvider,
         QBEngineer.Integrations.Communications.MockVoiceSyncProvider>();
 
+    // Wave 8 — IMAP universal email adapter (MailKit). Plain-creds today;
+    // OAuth-IMAP (SASL OAUTHBEARER) is a follow-on phase.
+    builder.Services.AddScoped<QBEngineer.Api.Features.Communications.IImapClientFactory,
+        QBEngineer.Api.Features.Communications.ImapClientFactory>();
+    builder.Services.AddScoped<QBEngineer.Core.Interfaces.Communications.ICommunicationSyncProvider,
+        QBEngineer.Api.Features.Communications.ImapEmailSyncProvider>();
+
     // Wave 8 — Twilio webhook signature verifier. Reads Twilio:AuthToken
     // from appsettings; when null the verifier accepts anything (dev /
     // mock posture matching the rest of the integration adapters).

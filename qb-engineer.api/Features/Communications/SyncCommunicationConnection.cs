@@ -63,7 +63,7 @@ public class SyncCommunicationConnectionHandler(
         int eventCount;
         try
         {
-            eventCount = await provider.SyncRecentAsync(connection.UserId, cancellationToken);
+            eventCount = await provider.SyncRecentAsync(connection.Id, cancellationToken);
         }
         catch (Exception ex)
         {

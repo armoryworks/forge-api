@@ -38,7 +38,7 @@ public class MockEmailSyncProvider(
 
     /// <summary>Returns a single canned event so dev can verify the matcher
     /// + ContactInteraction flow without standing up a real mailbox.</summary>
-    public async Task<int> SyncRecentAsync(int userId, CancellationToken ct)
+    public async Task<int> SyncRecentAsync(int connectionId, CancellationToken ct)
     {
         var canned = new InboundCommunication(
             ProviderId: ProviderId,
@@ -104,7 +104,7 @@ public class MockVoiceSyncProvider(
         return Task.FromResult(true);
     }
 
-    public async Task<int> SyncRecentAsync(int userId, CancellationToken ct)
+    public async Task<int> SyncRecentAsync(int connectionId, CancellationToken ct)
     {
         var canned = new InboundCommunication(
             ProviderId: ProviderId,

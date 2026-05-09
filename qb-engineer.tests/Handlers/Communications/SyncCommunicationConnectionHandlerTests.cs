@@ -110,10 +110,9 @@ public class SyncCommunicationConnectionHandlerTests
 
         result.EventCount.Should().Be(1);
         stub.SyncCalls.Should().Be(1);
-        // The provider receives the row owner's userId, not the (null)
-        // caller — so the matcher attributions stay correct under
-        // Hangfire-driven syncs.
-        stub.LastSyncedUserId.Should().Be(99);
+        // Provider receives the connection id; it can read the row's UserId
+        // off the AppDbContext when it needs matcher attribution context.
+        stub.LastSyncedConnectionId.Should().Be(foreignConfig.Id);
     }
 
     [Fact]
@@ -141,14 +140,14 @@ public class SyncCommunicationConnectionHandlerTests
         public string ProviderId { get; } = providerId;
         public CommunicationKind Kind { get; } = kind;
         public int SyncCalls { get; private set; }
-        public int? LastSyncedUserId { get; private set; }
+        public int? LastSyncedConnectionId { get; private set; }
 
         public Task<string?> StartAuthAsync(int userId, CancellationToken ct) => Task.FromResult<string?>(null);
         public Task<bool> CompleteAuthAsync(int userId, string code, CancellationToken ct) => Task.FromResult(true);
-        public Task<int> SyncRecentAsync(int userId, CancellationToken ct)
+        public Task<int> SyncRecentAsync(int connectionId, CancellationToken ct)
         {
             SyncCalls++;
-            LastSyncedUserId = userId;
+            LastSyncedConnectionId = connectionId;
             return Task.FromResult(eventCount);
         }
         public Task IngestWebhookEventAsync(string rawPayload, CancellationToken ct) => Task.CompletedTask;

@@ -38,11 +38,17 @@ public interface ICommunicationSyncProvider
     /// in CommunicationSyncConfig. Returns true on success.</summary>
     Task<bool> CompleteAuthAsync(int userId, string code, CancellationToken ct);
 
-    /// <summary>Pull recent communications for a user (polling-based
-    /// adapters). Returns the count of newly-matched ContactInteractions.
+    /// <summary>
+    /// Pull recent communications for a single connection (polling-based
+    /// adapters). The argument is the <see cref="Entities.CommunicationSyncConfig.Id"/>
+    /// — the provider reads its per-connection config (host/mailbox/uid-
+    /// checkpoint/encrypted creds) directly off the row, and updates
+    /// <see cref="Entities.CommunicationSyncConfig.LastSyncedExternalId"/>
+    /// when applicable. Returns the count of newly-matched events.
     /// Webhook-driven adapters can return 0 / no-op — they ingest via
-    /// <see cref="IngestWebhookEventAsync"/> instead.</summary>
-    Task<int> SyncRecentAsync(int userId, CancellationToken ct);
+    /// <see cref="IngestWebhookEventAsync"/> instead.
+    /// </summary>
+    Task<int> SyncRecentAsync(int connectionId, CancellationToken ct);
 
     /// <summary>Process a single inbound webhook payload. Provider-specific
     /// shape; the adapter parses and translates into one or more
