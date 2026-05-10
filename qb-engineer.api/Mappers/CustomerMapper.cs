@@ -43,6 +43,8 @@ public static partial class CustomerMapper
     [MapperIgnoreSource(nameof(Customer.IsAerospace))]
     [MapperIgnoreSource(nameof(Customer.IsAutomotive))]
     [MapperIgnoreSource(nameof(Customer.IsItarControlled))]
+    [MapperIgnoreSource(nameof(Customer.IsReferenceOk))]
+    [MapperIgnoreSource(nameof(Customer.ReferenceNotes))]
     [MapperIgnoreSource(nameof(BaseAuditableEntity.CreatedAt))]
     [MapperIgnoreSource(nameof(BaseAuditableEntity.UpdatedAt))]
     [MapperIgnoreSource(nameof(BaseAuditableEntity.DeletedAt))]

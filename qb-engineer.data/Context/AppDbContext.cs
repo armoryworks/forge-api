@@ -76,6 +76,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<AssignmentRule> AssignmentRules => Set<AssignmentRule>();
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<AccountContact> AccountContacts => Set<AccountContact>();
+    public DbSet<SampleShipment> SampleShipments => Set<SampleShipment>();
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<RecurringExpense> RecurringExpenses => Set<RecurringExpense>();
     public DbSet<Asset> Assets => Set<Asset>();

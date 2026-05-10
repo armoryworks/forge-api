@@ -77,6 +77,13 @@ public class Customer : BaseAuditableEntity, IActiveAware
     /// <summary>ITAR-controlled (defense). Gates export-control clearance on every related lead.</summary>
     public bool IsItarControlled { get; set; }
 
+    // ── Phase 1r / Batch 16 — reference-customer consent ──
+    /// <summary>True when this customer has consented to be used as a reference for prospects in their industry.</summary>
+    public bool IsReferenceOk { get; set; }
+
+    /// <summary>Free-text notes about reference use (e.g. "ok for aerospace prospects only, no defense").</summary>
+    public string? ReferenceNotes { get; set; }
+
     public ICollection<Contact> Contacts { get; set; } = [];
     public ICollection<Job> Jobs { get; set; } = [];
     public ICollection<CustomerAddress> Addresses { get; set; } = [];

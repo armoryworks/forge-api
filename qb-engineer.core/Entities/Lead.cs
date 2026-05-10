@@ -63,6 +63,12 @@ public class Lead : BaseAuditableEntity
     /// <summary>Phase 1r / Batch 14 — ITAR/EAR clearance for regulated-tech engagements.</summary>
     public ExportControlClearance ExportControl { get; set; } = ExportControlClearance.NotApplicable;
 
+    /// <summary>Phase 1r / Batch 16 — engineer brought in for technical questions; primary owner stays AssignedToUserId.</summary>
+    public int? SecondaryOwnerUserId { get; set; }
+
+    /// <summary>Phase 1r / Batch 16 — RFQ part class for win/loss-by-commodity reports (e.g. "machining-stainless", "injection-plastic").</summary>
+    public string? PartClassCode { get; set; }
+
     public Customer? ConvertedCustomer { get; set; }
     public OutreachCampaign? Campaign { get; set; }
     public LeadSource? LeadSource { get; set; }

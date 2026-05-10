@@ -54,4 +54,8 @@ public record LeadResponseModel(
     DateTimeOffset? NdaSignedAt = null,
     DateTimeOffset? NdaExpiresAt = null,
     /// <summary>Phase 1r / Batch 14 — ITAR/EAR clearance state.</summary>
-    ExportControlClearance ExportControl = ExportControlClearance.NotApplicable);
+    ExportControlClearance ExportControl = ExportControlClearance.NotApplicable,
+    /// <summary>Phase 1r / Batch 16 — engineer handoff secondary owner.</summary>
+    int? SecondaryOwnerUserId = null,
+    /// <summary>Phase 1r / Batch 16 — RFQ part-class code for win/loss-by-commodity reports.</summary>
+    string? PartClassCode = null);

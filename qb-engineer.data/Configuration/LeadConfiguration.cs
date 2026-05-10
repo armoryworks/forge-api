@@ -68,5 +68,10 @@ public class LeadConfiguration : IEntityTypeConfiguration<Lead>
         builder.Property(e => e.NdaState).HasConversion<string>().HasMaxLength(40);
         builder.Property(e => e.ExportControl).HasConversion<string>().HasMaxLength(40);
         builder.HasIndex(e => e.CapabilityFit);
+
+        // Phase 1r / Batch 16 — engineer handoff + win/loss-by-class.
+        builder.Property(e => e.PartClassCode).HasMaxLength(100);
+        builder.HasIndex(e => e.SecondaryOwnerUserId);
+        builder.HasIndex(e => e.PartClassCode);
     }
 }
