@@ -62,5 +62,11 @@ public class LeadConfiguration : IEntityTypeConfiguration<Lead>
             .HasForeignKey(e => e.AccountId)
             .OnDelete(DeleteBehavior.SetNull);
         builder.HasIndex(e => e.AccountId);
+
+        // Phase 1r / Batches 13-14 — mfg compliance state machines.
+        builder.Property(e => e.CapabilityFit).HasConversion<string>().HasMaxLength(40);
+        builder.Property(e => e.NdaState).HasConversion<string>().HasMaxLength(40);
+        builder.Property(e => e.ExportControl).HasConversion<string>().HasMaxLength(40);
+        builder.HasIndex(e => e.CapabilityFit);
     }
 }

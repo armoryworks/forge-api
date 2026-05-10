@@ -46,4 +46,12 @@ public record LeadResponseModel(
     /// <summary>Phase 1r / Batch 11 — rep ownership; null = unassigned.</summary>
     int? AssignedToUserId = null,
     /// <summary>Phase 1r / Batch 12 — optional account FK for multi-contact groupings.</summary>
-    int? AccountId = null);
+    int? AccountId = null,
+    /// <summary>Phase 1r / Batch 13 — capability-fit gate.</summary>
+    CapabilityFitStatus CapabilityFit = CapabilityFitStatus.NotAssessed,
+    /// <summary>Phase 1r / Batch 14 — NDA lifecycle state.</summary>
+    NdaState NdaState = NdaState.None,
+    DateTimeOffset? NdaSignedAt = null,
+    DateTimeOffset? NdaExpiresAt = null,
+    /// <summary>Phase 1r / Batch 14 — ITAR/EAR clearance state.</summary>
+    ExportControlClearance ExportControl = ExportControlClearance.NotApplicable);

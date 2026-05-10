@@ -59,6 +59,24 @@ public class Customer : BaseAuditableEntity, IActiveAware
     /// </summary>
     public Lead? SourceLead { get; set; }
 
+    // ── Phase 1r / Batch 15 — regulated-industry flags ──
+    // Drive auto-flag-to-QA-team workflow on lead/customer creation
+    // and gate certain technical exchanges. Each boolean signals
+    // "this customer operates under this regime"; the cert/audit
+    // workflow tied to each is a separate UI surface.
+
+    /// <summary>FDA-regulated (medical device, pharma, etc.). Triggers QA review of cap fit.</summary>
+    public bool IsFdaRegulated { get; set; }
+
+    /// <summary>AS9100 (aerospace) certified work. Affects part documentation requirements.</summary>
+    public bool IsAerospace { get; set; }
+
+    /// <summary>IATF 16949 (automotive). Affects PPAP requirements + traceability rigor.</summary>
+    public bool IsAutomotive { get; set; }
+
+    /// <summary>ITAR-controlled (defense). Gates export-control clearance on every related lead.</summary>
+    public bool IsItarControlled { get; set; }
+
     public ICollection<Contact> Contacts { get; set; } = [];
     public ICollection<Job> Jobs { get; set; } = [];
     public ICollection<CustomerAddress> Addresses { get; set; } = [];

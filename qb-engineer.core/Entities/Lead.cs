@@ -52,6 +52,17 @@ public class Lead : BaseAuditableEntity
     /// <summary>Phase 1r / Batch 12 — optional FK to a multi-contact Account. Null = legacy flat-lead shape.</summary>
     public int? AccountId { get; set; }
 
+    /// <summary>Phase 1r / Batch 13 — "can we actually make this?" gate, distinct from sales lost-reasons.</summary>
+    public CapabilityFitStatus CapabilityFit { get; set; } = CapabilityFitStatus.NotAssessed;
+
+    /// <summary>Phase 1r / Batch 14 — NDA lifecycle state. Gates the technical-detail UI sections.</summary>
+    public NdaState NdaState { get; set; } = NdaState.None;
+    public DateTimeOffset? NdaSignedAt { get; set; }
+    public DateTimeOffset? NdaExpiresAt { get; set; }
+
+    /// <summary>Phase 1r / Batch 14 — ITAR/EAR clearance for regulated-tech engagements.</summary>
+    public ExportControlClearance ExportControl { get; set; } = ExportControlClearance.NotApplicable;
+
     public Customer? ConvertedCustomer { get; set; }
     public OutreachCampaign? Campaign { get; set; }
     public LeadSource? LeadSource { get; set; }
