@@ -25,4 +25,7 @@ public record UpdateLeadRequestModel(
     NdaState? NdaState = null,
     DateTimeOffset? NdaSignedAt = null,
     DateTimeOffset? NdaExpiresAt = null,
-    ExportControlClearance? ExportControl = null);
+    ExportControlClearance? ExportControl = null,
+    // Phase 1r / Batch 12 — multi-contact B2B parent grouping. Setting null
+    // explicitly clears the link (lead becomes flat / unaffiliated).
+    int? AccountId = null);

@@ -790,6 +790,10 @@ try
     builder.Services.AddScoped<ComplianceFormSyncJob>();
     builder.Services.AddScoped<ReorderAnalysisJob>();
     builder.Services.AddScoped<StaleWorkflowRunCleanupJob>();
+    // Phase 1r — lead/customer recompute jobs.
+    builder.Services.AddScoped<ComputeLeadIcpScoresJob>();
+    builder.Services.AddScoped<RecomputeLeadSourceQualityJob>();
+    builder.Services.AddScoped<MarkStaleSamplesJob>();
 
     // Health checks
     builder.Services.AddHealthChecks()
@@ -1479,6 +1483,21 @@ try
         "recalculate-vendor-scorecards",
         job => job.RecalculateAsync(CancellationToken.None),
         Cron.Monthly(1, 4)); // 1st of each month at 4 AM UTC
+
+    // Phase 1r — lead/customer nightly recomputes. Staggered so they
+    // don't all hammer the DB at the same minute.
+    RecurringJob.AddOrUpdate<ComputeLeadIcpScoresJob>(
+        "compute-lead-icp-scores",
+        job => job.RunAsync(CancellationToken.None),
+        Cron.Daily(2, 15)); // 2:15 AM UTC daily
+    RecurringJob.AddOrUpdate<RecomputeLeadSourceQualityJob>(
+        "recompute-lead-source-quality",
+        job => job.RunAsync(CancellationToken.None),
+        Cron.Daily(2, 30)); // 2:30 AM UTC daily
+    RecurringJob.AddOrUpdate<MarkStaleSamplesJob>(
+        "mark-stale-samples",
+        job => job.RunAsync(CancellationToken.None),
+        Cron.Daily(2, 45)); // 2:45 AM UTC daily
 
     // Auto-PO demand projection
     RecurringJob.AddOrUpdate<AutoPurchaseOrderJob>(

@@ -122,6 +122,11 @@ public class UpdateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequest
             lead.ExportControl = data.ExportControl.Value;
             changedFields.Add($"exportControl: {lead.ExportControl}");
         }
+        if (data.AccountId != lead.AccountId)
+        {
+            lead.AccountId = data.AccountId;
+            changedFields.Add(lead.AccountId.HasValue ? $"accountId: {lead.AccountId}" : "accountId: cleared");
+        }
 
         if (changedFields.Count > 0)
         {

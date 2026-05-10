@@ -151,6 +151,20 @@ public class ReportsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Phase 1r / Batch 16 — win/loss by RFQ part-class. Optional date range
+    /// scopes the cohort; omitted = all-time. Capability gated under
+    /// CAP-O2C-LEAD since the part-class taxonomy is a lead-intake field.
+    /// </summary>
+    [HttpGet("win-loss-by-class")]
+    [RequiresCapability("CAP-O2C-LEAD")]
+    public async Task<ActionResult<List<WinLossByClassReportItem>>> GetWinLossByClass(
+        [FromQuery] DateTimeOffset? start, [FromQuery] DateTimeOffset? end)
+    {
+        var result = await mediator.Send(new GetWinLossByClassReportQuery(start, end));
+        return Ok(result);
+    }
+
     [HttpGet("shipping-summary")]
     public async Task<ActionResult<List<ShippingSummaryReportItem>>> GetShippingSummary(
         [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end)
