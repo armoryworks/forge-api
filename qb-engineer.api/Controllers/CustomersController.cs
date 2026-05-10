@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using QBEngineer.Api.Capabilities;
 using QBEngineer.Api.Features.Activity;
 using QBEngineer.Api.Features.Customers;
+using QBEngineer.Api.Features.OutreachPreferences;
 using QBEngineer.Core.Models;
 
 namespace QBEngineer.Api.Controllers;
@@ -118,6 +119,30 @@ public class CustomersController(IMediator mediator) : ControllerBase
     {
         await mediator.Send(new DeleteContactCommand(id, contactId));
         return NoContent();
+    }
+
+    // ─── Phase 1r — Contact outreach preferences ───
+    // 0..1:1 sidecar carrying per-channel opt-outs + cooldown windows.
+    // GET returns null when no row exists (default "no opt-outs"); PUT
+    // upserts and emits a rolled-up activity-log row indexed at both
+    // Contact and Customer (per the activity-logging indexing-points
+    // rule).
+
+    [HttpGet("{id:int}/contacts/{contactId:int}/outreach-preferences")]
+    [RequiresCapability("CAP-MD-CUSTOMER-CONTACTS")]
+    public async Task<ActionResult<OutreachPreferencesResponseModel?>> GetContactOutreachPreferences(int id, int contactId)
+    {
+        var result = await mediator.Send(new GetContactOutreachPreferencesQuery(contactId));
+        return Ok(result);
+    }
+
+    [HttpPut("{id:int}/contacts/{contactId:int}/outreach-preferences")]
+    [RequiresCapability("CAP-MD-CUSTOMER-CONTACTS")]
+    public async Task<ActionResult<OutreachPreferencesResponseModel>> UpdateContactOutreachPreferences(
+        int id, int contactId, [FromBody] UpdateOutreachPreferencesRequest request)
+    {
+        var result = await mediator.Send(new UpdateContactOutreachPreferencesCommand(contactId, request));
+        return Ok(result);
     }
 
     // ─── Contact Interactions ───

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using QBEngineer.Api.Capabilities;
 using QBEngineer.Api.Features.Activity;
 using QBEngineer.Api.Features.Leads;
+using QBEngineer.Api.Features.OutreachPreferences;
 using QBEngineer.Core.Enums;
 using QBEngineer.Core.Models;
 
@@ -63,6 +64,27 @@ public class LeadsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<ActivityResponseModel>>> GetLeadActivity(int id)
     {
         var result = await mediator.Send(new GetEntityActivityQuery("Lead", id));
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Phase 1r — outreach-preference sidecar reads. Returns 200 with the
+    /// preferences row, or 200 + null body when no row exists. Treating
+    /// "no row" as 404 would be misleading: the absence is the default
+    /// state for most leads, not an error.
+    /// </summary>
+    [HttpGet("{id:int}/outreach-preferences")]
+    public async Task<ActionResult<OutreachPreferencesResponseModel?>> GetOutreachPreferences(int id)
+    {
+        var result = await mediator.Send(new GetLeadOutreachPreferencesQuery(id));
+        return Ok(result);
+    }
+
+    [HttpPut("{id:int}/outreach-preferences")]
+    public async Task<ActionResult<OutreachPreferencesResponseModel>> UpdateOutreachPreferences(
+        int id, [FromBody] UpdateOutreachPreferencesRequest request)
+    {
+        var result = await mediator.Send(new UpdateLeadOutreachPreferencesCommand(id, request));
         return Ok(result);
     }
 }

@@ -48,6 +48,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<JobActivityLog> JobActivityLogs => Set<JobActivityLog>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Contact> Contacts => Set<Contact>();
+    public DbSet<ContactOutreachPreferences> ContactOutreachPreferences => Set<ContactOutreachPreferences>();
     public DbSet<CustomerPortalAccess> CustomerPortalAccesses => Set<CustomerPortalAccess>();
     public DbSet<ContactInteraction> ContactInteractions => Set<ContactInteraction>();
     public DbSet<CommunicationSyncConfig> CommunicationSyncConfigs => Set<CommunicationSyncConfig>();
@@ -67,6 +68,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<BinContent> BinContents => Set<BinContent>();
     public DbSet<BinMovement> BinMovements => Set<BinMovement>();
     public DbSet<Lead> Leads => Set<Lead>();
+    public DbSet<LeadOutreachPreferences> LeadOutreachPreferences => Set<LeadOutreachPreferences>();
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<RecurringExpense> RecurringExpenses => Set<RecurringExpense>();
     public DbSet<Asset> Assets => Set<Asset>();

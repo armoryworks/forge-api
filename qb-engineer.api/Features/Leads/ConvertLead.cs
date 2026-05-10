@@ -125,6 +125,40 @@ public class ConvertLeadHandler(
             db.Contacts.Add(primaryContact);
         }
 
+        // Phase 1r — outreach-preference carryover. If the lead has a
+        // suppression sidecar (per-channel opt-outs, cooldown), create
+        // a parallel row on the new primary contact so the suppression
+        // signals don't reset at conversion. Uses the navigation
+        // property so EF fixes up the FK when both rows persist in the
+        // same SaveChanges. No-op when there's no preferences row or
+        // no primary contact.
+        if (primaryContact is not null)
+        {
+            var leadPrefs = await db.LeadOutreachPreferences
+                .FirstOrDefaultAsync(p => p.LeadId == lead.Id, cancellationToken);
+            if (leadPrefs is not null && (
+                leadPrefs.EmailOptOut || leadPrefs.CallOptOut || leadPrefs.SmsOptOut ||
+                leadPrefs.CooldownUntil != null))
+            {
+                db.ContactOutreachPreferences.Add(new ContactOutreachPreferences
+                {
+                    Contact = primaryContact,
+                    EmailOptOut = leadPrefs.EmailOptOut,
+                    EmailOptOutAt = leadPrefs.EmailOptOutAt,
+                    EmailOptOutSource = leadPrefs.EmailOptOutSource,
+                    CallOptOut = leadPrefs.CallOptOut,
+                    CallOptOutAt = leadPrefs.CallOptOutAt,
+                    CallOptOutSource = leadPrefs.CallOptOutSource,
+                    SmsOptOut = leadPrefs.SmsOptOut,
+                    SmsOptOutAt = leadPrefs.SmsOptOutAt,
+                    SmsOptOutSource = leadPrefs.SmsOptOutSource,
+                    CooldownUntil = leadPrefs.CooldownUntil,
+                    CooldownReasonCode = leadPrefs.CooldownReasonCode,
+                    CooldownNotes = leadPrefs.CooldownNotes,
+                });
+            }
+        }
+
         // Update lead — close it out, link to the new customer.
         lead.Status = LeadStatus.Converted;
         lead.ConvertedCustomerId = customer.Id;
