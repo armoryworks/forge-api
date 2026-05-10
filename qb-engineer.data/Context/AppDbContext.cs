@@ -48,6 +48,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<JobActivityLog> JobActivityLogs => Set<JobActivityLog>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Contact> Contacts => Set<Contact>();
+    public DbSet<CustomerPortalAccess> CustomerPortalAccesses => Set<CustomerPortalAccess>();
     public DbSet<ContactInteraction> ContactInteractions => Set<ContactInteraction>();
     public DbSet<CommunicationSyncConfig> CommunicationSyncConfigs => Set<CommunicationSyncConfig>();
     public DbSet<OAuthStateToken> OAuthStateTokens => Set<OAuthStateToken>();

@@ -294,6 +294,7 @@ try
     builder.Services.AddSingleton<IImageService, ImageService>();
     builder.Services.AddSingleton<ITokenEncryptionService, TokenEncryptionService>();
     builder.Services.AddSingleton<ITokenService, JwtTokenService>();
+    builder.Services.AddSingleton<IPortalAuthService, PortalAuthService>();
     builder.Services.AddSingleton<ISessionStore, SessionStore>();
     builder.Services.AddScoped<ISystemAuditWriter, SystemAuditWriter>();
     // Phase 3 / WU-06 / C1 — role-template rollup expansion at auth time.
