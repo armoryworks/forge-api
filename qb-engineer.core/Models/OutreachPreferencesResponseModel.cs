@@ -39,3 +39,21 @@ public record UpdateOutreachPreferencesRequest(
     DateTimeOffset? CooldownUntil,
     string? CooldownReasonCode,
     string? CooldownNotes);
+
+/// <summary>
+/// Compact Lead + suppression-prefs join row for the /leads/suppression
+/// list page. Includes the active flags + cooldown so each row's status
+/// chips render without a second query per row.
+/// </summary>
+public record SuppressedLeadSummaryModel(
+    int LeadId,
+    string CompanyName,
+    string? ContactName,
+    string? Email,
+    string? Phone,
+    bool EmailOptOut,
+    bool CallOptOut,
+    bool SmsOptOut,
+    DateTimeOffset? CooldownUntil,
+    string? CooldownReasonCode,
+    DateTimeOffset PrefsUpdatedAt);

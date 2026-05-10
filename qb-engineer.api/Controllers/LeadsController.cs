@@ -84,6 +84,14 @@ public class LeadsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Phase 1r — list leads with active suppression (any channel opt-out
+    /// or future cooldown) for the bulk DNC-management UI.
+    /// </summary>
+    [HttpGet("suppression")]
+    public async Task<ActionResult<List<SuppressedLeadSummaryModel>>> ListSuppressed()
+        => Ok(await mediator.Send(new ListSuppressedLeadsQuery()));
+
     [HttpPut("{id:int}/outreach-preferences")]
     public async Task<ActionResult<OutreachPreferencesResponseModel>> UpdateOutreachPreferences(
         int id, [FromBody] UpdateOutreachPreferencesRequest request)
