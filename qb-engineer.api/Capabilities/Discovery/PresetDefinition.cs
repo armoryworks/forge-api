@@ -1,3 +1,5 @@
+using QBEngineer.Api.Capabilities.Discovery.Bundles;
+
 namespace QBEngineer.Api.Capabilities.Discovery;
 
 /// <summary>
@@ -15,6 +17,14 @@ namespace QBEngineer.Api.Capabilities.Discovery;
 /// the preset is applied. PRESET-CUSTOM has an empty list (no defaults
 /// added; per 4B Open Question 5 / 4F-decisions-log, Custom inherits the
 /// 41 catalog defaults from <see cref="CapabilityCatalog"/> at apply time).
+///
+/// <para><b>Pro Services rollout (Artifact 5):</b> presets also carry
+/// optional per-layer seed bundles (terminology, reference data, track
+/// types, roles, report visibility, folder maps, workflow definitions,
+/// dashboards). Existing presets (01-07 + Custom) leave all bundles null;
+/// apply-preset skips bundle steps when null. PRESET-08 / PRESET-09 fill
+/// in the bundles. See <c>docs/pro-services-rollout/phase-1-analysis/
+/// 05-preset-format-extension.md</c> for the full schema rationale.</para>
 /// </summary>
 public record PresetDefinition(
     string Id,
@@ -22,4 +32,12 @@ public record PresetDefinition(
     string ShortDescription,
     string TargetProfile,
     IReadOnlyList<string> EnabledCapabilities,
-    bool IsCustom = false);
+    bool IsCustom = false,
+    TerminologyBundle? TerminologyBundle = null,
+    ReferenceDataBundle? ReferenceDataBundle = null,
+    TrackTypeBundle? TrackTypeBundle = null,
+    RoleBundle? RoleBundle = null,
+    ReportVisibilityBundle? ReportVisibilityBundle = null,
+    FolderMapBundle? FolderMapBundle = null,
+    WorkflowDefinitionBundle? WorkflowDefinitionBundle = null,
+    DashboardBundle? DashboardBundle = null);
