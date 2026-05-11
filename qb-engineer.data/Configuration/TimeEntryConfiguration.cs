@@ -34,5 +34,15 @@ public class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
             .WithMany()
             .HasForeignKey(t => t.WorkCenterId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // Pro Services rollout — billable / non-billable split. FK columns
+        // only; nav properties omitted to keep the read surface light.
+        // IsBillable defaults to true at the DB level so the backfill for
+        // existing rows preserves manufacturing semantics (all existing
+        // entries are treated as billable for cost-rollup purposes).
+        builder.Property(t => t.IsBillable).HasDefaultValue(true);
+        builder.Property(t => t.BillRate).HasPrecision(10, 2);
+        builder.Property(t => t.BillRateCurrency).HasMaxLength(3);
+        builder.HasIndex(t => t.ActivityTypeId);
     }
 }

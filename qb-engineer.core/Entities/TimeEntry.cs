@@ -29,6 +29,16 @@ public class TimeEntry : BaseAuditableEntity
     public decimal LaborCost { get; set; }
     public decimal BurdenCost { get; set; }
 
+    // Pro Services — billable / non-billable split. Gated by
+    // CAP-PS-TIME-BILLABLE at the UI / API surface; columns are
+    // write-anytime. Default IsBillable = true preserves manufacturing
+    // semantics (all existing entries treated as billable for
+    // cost-rollup purposes).
+    public bool IsBillable { get; set; } = true;
+    public decimal? BillRate { get; set; }
+    public string? BillRateCurrency { get; set; }
+    public int? ActivityTypeId { get; set; }  // FK → reference_data (group: time_activity_type)
+
     // Navigation
     public Job? Job { get; set; }
     public Operation? Operation { get; set; }
