@@ -109,7 +109,10 @@ public class CreateCustomerValidator : AbstractValidator<CreateCustomerCommand>
     }
 }
 
-public class CreateCustomerHandler(ICustomerRepository repo, AppDbContext db)
+public class CreateCustomerHandler(
+    ICustomerRepository repo,
+    AppDbContext db,
+    ICloudFolderAutoCreator folderAutoCreator)
     : IRequestHandler<CreateCustomerCommand, CustomerListItemModel>
 {
     public async Task<CustomerListItemModel> Handle(CreateCustomerCommand request, CancellationToken cancellationToken)
@@ -145,6 +148,18 @@ public class CreateCustomerHandler(ICustomerRepository repo, AppDbContext db)
             $"Created customer: {displayLabel}",
             ("Customer", customer.Id));
         await db.SaveChangesAsync(cancellationToken);
+
+        // Pro Services rollout (D2 dual-path) — best-effort cloud folder
+        // auto-anchor when CAP-EXT-CLOUD-STORAGE is enabled and the active
+        // FolderMapBundle has a "Customer" suggestion. No-op otherwise.
+        await folderAutoCreator.AutoCreateAsync(
+            entityType: "Customer",
+            entityId: customer.Id,
+            tokenContext: new Dictionary<string, string>
+            {
+                ["Customer"] = displayLabel,
+            },
+            cancellationToken);
 
         return new CustomerListItemModel(
             customer.Id,

@@ -44,7 +44,8 @@ public class CreateJobHandler(
     IHubContext<BoardHub> boardHub,
     IBarcodeService barcodeService,
     IHttpContextAccessor httpContextAccessor,
-    AppDbContext db) : IRequestHandler<CreateJobCommand, JobDetailResponseModel>
+    AppDbContext db,
+    ICloudFolderAutoCreator folderAutoCreator) : IRequestHandler<CreateJobCommand, JobDetailResponseModel>
 {
     public async Task<JobDetailResponseModel> Handle(CreateJobCommand request, CancellationToken cancellationToken)
     {
@@ -110,6 +111,31 @@ public class CreateJobHandler(
         var userId = int.Parse(httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
         if (userId > 0)
             await mediator.Publish(new JobCreatedEvent(job.Id, userId), cancellationToken);
+
+        // Pro Services rollout (D2 dual-path) — best-effort cloud folder
+        // auto-anchor when CAP-EXT-CLOUD-STORAGE is enabled and the active
+        // FolderMapBundle has a "Job" suggestion. Parent {Customer} context
+        // is loaded only when a customer is linked; the path resolver
+        // leaves unmatched tokens literal so a Job without a customer
+        // still gets a folder anchored at the resolvable subpath.
+        var tokenContext = new Dictionary<string, string>
+        {
+            ["Job"] = job.JobNumber,
+        };
+        if (job.CustomerId is int custId)
+        {
+            var customerName = await db.Customers
+                .AsNoTracking()
+                .Where(c => c.Id == custId)
+                .Select(c => string.IsNullOrWhiteSpace(c.CompanyName) ? c.Name : $"{c.Name} ({c.CompanyName})")
+                .FirstOrDefaultAsync(cancellationToken);
+            if (!string.IsNullOrEmpty(customerName))
+            {
+                tokenContext["Customer"] = customerName;
+            }
+        }
+        await folderAutoCreator.AutoCreateAsync(
+            entityType: "Job", entityId: job.Id, tokenContext, cancellationToken);
 
         return result;
     }

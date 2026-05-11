@@ -682,50 +682,50 @@ try
         builder.Services.AddScoped<IMessagingIntegrationService, DiscordMessagingService>();
         builder.Services.AddScoped<IMessagingIntegrationService, GoogleChatMessagingService>();
 
-        // Cloud storage providers — Google Drive / OneDrive / Dropbox land
-        // here per the Pro Services rollout. DI registers all configured
-        // providers (one per provider whose options are populated);
-        // CloudStorageResolver picks the right one per CloudStorageProvider
-        // row at runtime.
-        //
-        // The mock provider is always registered as a fallback. All
-        // registrations are Scoped so IEnumerable injection in
-        // CloudStorageResolver resolves them consistently (mock state is
-        // per-scope, which is fine because folder operations are
-        // per-request).
-        builder.Services.AddScoped<ICloudStorageIntegrationService, MockCloudStorageIntegrationService>();
-        builder.Services.AddScoped<ICloudStorageResolver, CloudStorageResolver>();
-
-        // Folder auto-create flow (per D2 dual-path: sync best-effort here;
-        // outbox retry is a Phase 3a follow-up). Token manager handles the
-        // encrypt/decrypt boundary + proactive refresh for the real
-        // providers (mock pass-through).
-        builder.Services.AddSingleton<IFolderPathResolver, FolderPathResolver>();
-        builder.Services.AddScoped<ICloudStorageTokenManager, CloudStorageTokenManager>();
-        builder.Services.AddScoped<ICloudFolderAutoCreator, CloudFolderAutoCreator>();
-
-        var googleDriveOptions = builder.Configuration.GetSection("GoogleDrive").Get<GoogleDriveOptions>();
-        if (googleDriveOptions?.IsConfigured == true)
-        {
-            builder.Services.Configure<GoogleDriveOptions>(builder.Configuration.GetSection("GoogleDrive"));
-            builder.Services.AddScoped<ICloudStorageIntegrationService, GoogleDriveCloudStorageService>();
-        }
-
-        var oneDriveOptions = builder.Configuration.GetSection("OneDrive").Get<OneDriveOptions>();
-        if (oneDriveOptions?.IsConfigured == true)
-        {
-            builder.Services.Configure<OneDriveOptions>(builder.Configuration.GetSection("OneDrive"));
-            builder.Services.AddScoped<ICloudStorageIntegrationService, OneDriveCloudStorageService>();
-        }
-
-        var dropboxOptions = builder.Configuration.GetSection("Dropbox").Get<DropboxOptions>();
-        if (dropboxOptions?.IsConfigured == true)
-        {
-            builder.Services.Configure<DropboxOptions>(builder.Configuration.GetSection("Dropbox"));
-            builder.Services.AddScoped<ICloudStorageIntegrationService, DropboxCloudStorageService>();
-        }
     }
     builder.Services.AddScoped<IGitHubIssueService, GitHubIssueService>();
+
+    // ── Cloud storage substrate (always-on; not gated by MockIntegrations) ──
+    // Per the Pro Services rollout D9 / Artifact 4. Handlers throughout the
+    // app depend on ICloudFolderAutoCreator regardless of mock-vs-real mode,
+    // so the substrate must always be registered. Real Google Drive /
+    // OneDrive / Dropbox providers slot in when their options sections
+    // have populated credentials; otherwise only the mock is active.
+    //
+    // All ICloudStorageIntegrationService registrations are Scoped so
+    // IEnumerable injection in CloudStorageResolver resolves them
+    // consistently (mock state is per-scope, which is fine because folder
+    // operations are per-request).
+    builder.Services.AddScoped<ICloudStorageIntegrationService, MockCloudStorageIntegrationService>();
+    builder.Services.AddScoped<ICloudStorageResolver, CloudStorageResolver>();
+
+    // Folder auto-create flow (per D2 dual-path: sync best-effort; outbox
+    // retry is a Phase 3a follow-up). Token manager handles the encrypt/
+    // decrypt boundary + proactive refresh.
+    builder.Services.AddSingleton<IFolderPathResolver, FolderPathResolver>();
+    builder.Services.AddScoped<ICloudStorageTokenManager, CloudStorageTokenManager>();
+    builder.Services.AddScoped<ICloudFolderAutoCreator, CloudFolderAutoCreator>();
+
+    var googleDriveOptions = builder.Configuration.GetSection("GoogleDrive").Get<GoogleDriveOptions>();
+    if (googleDriveOptions?.IsConfigured == true)
+    {
+        builder.Services.Configure<GoogleDriveOptions>(builder.Configuration.GetSection("GoogleDrive"));
+        builder.Services.AddScoped<ICloudStorageIntegrationService, GoogleDriveCloudStorageService>();
+    }
+
+    var oneDriveOptions = builder.Configuration.GetSection("OneDrive").Get<OneDriveOptions>();
+    if (oneDriveOptions?.IsConfigured == true)
+    {
+        builder.Services.Configure<OneDriveOptions>(builder.Configuration.GetSection("OneDrive"));
+        builder.Services.AddScoped<ICloudStorageIntegrationService, OneDriveCloudStorageService>();
+    }
+
+    var dropboxOptions = builder.Configuration.GetSection("Dropbox").Get<DropboxOptions>();
+    if (dropboxOptions?.IsConfigured == true)
+    {
+        builder.Services.Configure<DropboxOptions>(builder.Configuration.GetSection("Dropbox"));
+        builder.Services.AddScoped<ICloudStorageIntegrationService, DropboxCloudStorageService>();
+    }
 
     // Resilient HTTP clients
     builder.Services.AddResilientHttpClients();

@@ -35,7 +35,21 @@ public class CreateJobHandlerTests
 
         _db = TestDbContextFactory.Create();
 
-        _handler = new CreateJobHandler(_jobRepo.Object, _trackRepo.Object, _mediator.Object, _boardHub.Object, Mock.Of<IBarcodeService>(), Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>(), _db);
+        _handler = new CreateJobHandler(
+            _jobRepo.Object, _trackRepo.Object, _mediator.Object, _boardHub.Object,
+            Mock.Of<IBarcodeService>(),
+            Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>(),
+            _db,
+            new NoOpCloudFolderAutoCreator());
+    }
+
+    /// <summary>Test-only no-op folder auto-creator.</summary>
+    private sealed class NoOpCloudFolderAutoCreator : ICloudFolderAutoCreator
+    {
+        public Task<EntityCloudLink?> AutoCreateAsync(
+            string entityType, int entityId,
+            IReadOnlyDictionary<string, string> tokenContext,
+            CancellationToken ct) => Task.FromResult<EntityCloudLink?>(null);
     }
 
     [Fact]

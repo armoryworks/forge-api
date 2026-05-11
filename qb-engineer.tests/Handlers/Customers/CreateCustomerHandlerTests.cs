@@ -20,7 +20,21 @@ public class CreateCustomerHandlerTests
 
     public CreateCustomerHandlerTests()
     {
-        _handler = new CreateCustomerHandler(_customerRepo.Object, _db);
+        _handler = new CreateCustomerHandler(
+            _customerRepo.Object, _db, new NoOpCloudFolderAutoCreator());
+    }
+
+    /// <summary>
+    /// Test-only no-op folder auto-creator. The handler invokes it after
+    /// persisting; for unit tests we don't exercise the cloud-storage
+    /// path so a null-returning stub keeps the test focused.
+    /// </summary>
+    private sealed class NoOpCloudFolderAutoCreator : ICloudFolderAutoCreator
+    {
+        public Task<EntityCloudLink?> AutoCreateAsync(
+            string entityType, int entityId,
+            IReadOnlyDictionary<string, string> tokenContext,
+            CancellationToken ct) => Task.FromResult<EntityCloudLink?>(null);
     }
 
     [Fact]

@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using QBEngineer.Core.Entities;
+using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
 using QBEngineer.Data.Context;
 
@@ -22,7 +23,9 @@ public class CreateDeliverableValidator : AbstractValidator<CreateDeliverableCom
     }
 }
 
-public class CreateDeliverableHandler(AppDbContext db)
+public class CreateDeliverableHandler(
+    AppDbContext db,
+    ICloudFolderAutoCreator folderAutoCreator)
     : IRequestHandler<CreateDeliverableCommand, DeliverableResponseModel>
 {
     public async Task<DeliverableResponseModel> Handle(CreateDeliverableCommand command, CancellationToken ct)
@@ -42,6 +45,36 @@ public class CreateDeliverableHandler(AppDbContext db)
         };
         db.Deliverables.Add(d);
         await db.SaveChangesAsync(ct);
+
+        // Pro Services rollout (D2 dual-path) — best-effort cloud folder
+        // auto-anchor. Loads parent Customer + Job names for token
+        // resolution when those links are populated; otherwise the
+        // resolver leaves the unmatched tokens literal.
+        var tokenContext = new Dictionary<string, string>
+        {
+            ["Deliverable"] = d.Name,
+        };
+        if (d.JobId is int jobId)
+        {
+            var jobNumber = await db.Jobs
+                .AsNoTracking()
+                .Where(j => j.Id == jobId)
+                .Select(j => j.JobNumber)
+                .FirstOrDefaultAsync(ct);
+            if (!string.IsNullOrEmpty(jobNumber)) tokenContext["Job"] = jobNumber;
+        }
+        if (d.CustomerId is int custId)
+        {
+            var customerName = await db.Customers
+                .AsNoTracking()
+                .Where(c => c.Id == custId)
+                .Select(c => string.IsNullOrWhiteSpace(c.CompanyName) ? c.Name : $"{c.Name} ({c.CompanyName})")
+                .FirstOrDefaultAsync(ct);
+            if (!string.IsNullOrEmpty(customerName)) tokenContext["Customer"] = customerName;
+        }
+        await folderAutoCreator.AutoCreateAsync(
+            entityType: "Deliverable", entityId: d.Id, tokenContext, ct);
+
         return MapResponse(d);
     }
 

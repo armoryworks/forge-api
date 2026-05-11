@@ -1,5 +1,8 @@
 using QBEngineer.Api.Features.Deliverables;
+using QBEngineer.Core.Entities;
+using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
+using QBEngineer.Data.Context;
 using QBEngineer.Tests.Helpers;
 
 namespace QBEngineer.Tests.Features;
@@ -11,11 +14,26 @@ namespace QBEngineer.Tests.Features;
 /// </summary>
 public class DeliverableHandlersTests
 {
+    /// <summary>
+    /// Test-only no-op folder auto-creator. Returns null without touching
+    /// any cloud service. Used by Create tests so we don't need to wire
+    /// the full cloud-storage stack to exercise CRUD semantics.
+    /// </summary>
+    private sealed class NoOpFolderAutoCreator : ICloudFolderAutoCreator
+    {
+        public Task<EntityCloudLink?> AutoCreateAsync(
+            string entityType, int entityId,
+            IReadOnlyDictionary<string, string> tokenContext,
+            CancellationToken ct) => Task.FromResult<EntityCloudLink?>(null);
+    }
+
+    private static CreateDeliverableHandler NewCreate(AppDbContext db) =>
+        new(db, new NoOpFolderAutoCreator());
     [Fact]
     public async Task Create_Persists_Deliverable_In_Draft_Status()
     {
         using var db = TestDbContextFactory.Create();
-        var handler = new CreateDeliverableHandler(db);
+        var handler = NewCreate(db);
         var result = await handler.Handle(new CreateDeliverableCommand(
             new CreateDeliverableRequestModel(
                 Name: "Discovery Report",
@@ -41,7 +59,7 @@ public class DeliverableHandlersTests
     {
         using var db = TestDbContextFactory.Create();
         db.CurrentUserId = 17;
-        var created = await new CreateDeliverableHandler(db).Handle(
+        var created = await NewCreate(db).Handle(
             new CreateDeliverableCommand(new CreateDeliverableRequestModel(
                 "Final Deliverable", null, JobId: 5, null, null,
                 DeliverableTypeId: 1, null, null, null)),
@@ -71,7 +89,7 @@ public class DeliverableHandlersTests
     {
         using var db = TestDbContextFactory.Create();
         db.CurrentUserId = 17;
-        var created = await new CreateDeliverableHandler(db).Handle(
+        var created = await NewCreate(db).Handle(
             new CreateDeliverableCommand(new CreateDeliverableRequestModel(
                 "Doc", null, 1, null, null, 1, null, null, null)),
             CancellationToken.None);
@@ -95,7 +113,7 @@ public class DeliverableHandlersTests
     public async Task Delete_Soft_Deletes_The_Row()
     {
         using var db = TestDbContextFactory.Create();
-        var created = await new CreateDeliverableHandler(db).Handle(
+        var created = await NewCreate(db).Handle(
             new CreateDeliverableCommand(new CreateDeliverableRequestModel(
                 "Doc", null, 1, null, null, 1, null, null, null)),
             CancellationToken.None);
@@ -113,7 +131,7 @@ public class DeliverableHandlersTests
     public async Task List_Filters_By_JobId()
     {
         using var db = TestDbContextFactory.Create();
-        var createHandler = new CreateDeliverableHandler(db);
+        var createHandler = NewCreate(db);
         await createHandler.Handle(new CreateDeliverableCommand(new CreateDeliverableRequestModel(
             "Job-1 Deliverable", null, 1, null, null, 1, null, null, null)), CancellationToken.None);
         await createHandler.Handle(new CreateDeliverableCommand(new CreateDeliverableRequestModel(
