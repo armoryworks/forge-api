@@ -260,6 +260,24 @@ public static class CapabilityCatalogRelations
         new("CAP-EXT-EMAIL-SYNC", "CAP-MD-CUSTOMERS"),
         new("CAP-EXT-VOIP-SYNC", "CAP-IDEN-USERS"),
         new("CAP-EXT-VOIP-SYNC", "CAP-MD-CUSTOMERS"),
+
+        // ── Pro Services rollout (Phase 2) — cloud storage ──
+        // Each provider depends on the umbrella; providers are NOT mutually
+        // exclusive (hybrid storage explicitly supported per D9).
+        new("CAP-EXT-CLOUD-STORAGE-GDRIVE", "CAP-EXT-CLOUD-STORAGE"),
+        new("CAP-EXT-CLOUD-STORAGE-ONEDRIVE", "CAP-EXT-CLOUD-STORAGE"),
+        new("CAP-EXT-CLOUD-STORAGE-DROPBOX", "CAP-EXT-CLOUD-STORAGE"),
+
+        // ── Pro Services rollout (Phase 3a) — PS area ──
+        // CAP-PS-ENGAGEMENT has no hard dependency on identity / MD layers —
+        // it operates on Job which is already gated by CAP-EXT-KANBAN.
+        // Sub-capabilities depend on CAP-PS-ENGAGEMENT (the engagement
+        // primitive) and on whatever functional pre-reqs they layer on.
+        new("CAP-PS-RETAINER", "CAP-O2C-RECURRING"),
+        new("CAP-PS-RETAINER", "CAP-PS-ENGAGEMENT"),
+        new("CAP-PS-PROJECT-COST", "CAP-PS-ENGAGEMENT"),
+        new("CAP-PS-UTILIZATION", "CAP-PS-ENGAGEMENT"),
+        new("CAP-PS-UTILIZATION", "CAP-PS-TIME-BILLABLE"),
     };
 
     /// <summary>
