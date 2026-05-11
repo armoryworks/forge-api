@@ -199,3 +199,29 @@ public class DeleteAccountContactHandler(AppDbContext db) : IRequestHandler<Dele
         await db.SaveChangesAsync(ct);
     }
 }
+
+/// <summary>
+/// Soft-delete an Account. Refuses when leads still reference it to keep
+/// the back-link intact for audit history — same defensive pattern as
+/// LeadSource. Admins can null-out the account on the referencing leads
+/// (or wait for them to convert / be lost) and retry.
+/// </summary>
+public record DeleteAccountCommand(int Id) : IRequest;
+
+public class DeleteAccountHandler(AppDbContext db) : IRequestHandler<DeleteAccountCommand>
+{
+    public async Task Handle(DeleteAccountCommand request, CancellationToken ct)
+    {
+        var account = await db.Accounts.FirstOrDefaultAsync(a => a.Id == request.Id, ct)
+            ?? throw new KeyNotFoundException($"Account {request.Id} not found.");
+
+        var leadCount = await db.Leads.AsNoTracking().CountAsync(l => l.AccountId == account.Id, ct);
+        if (leadCount > 0)
+            throw new InvalidOperationException(
+                $"Cannot delete account — {leadCount} lead(s) reference it. Unassign the account on each lead first.");
+
+        account.DeletedAt = DateTimeOffset.UtcNow;
+        db.LogActivityAt("account-deleted", $"Deleted account '{account.Name}'.", ("Account", account.Id));
+        await db.SaveChangesAsync(ct);
+    }
+}

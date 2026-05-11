@@ -33,6 +33,14 @@ public class AccountsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<AccountResponseModel>> Update(int id, [FromBody] UpdateAccountRequest request)
         => Ok(await mediator.Send(new UpdateAccountCommand(id, request)));
 
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        await mediator.Send(new DeleteAccountCommand(id));
+        return NoContent();
+    }
+
     // ── Contacts ──────────────────────────────────────────────────
 
     [HttpGet("{id:int}/contacts")]

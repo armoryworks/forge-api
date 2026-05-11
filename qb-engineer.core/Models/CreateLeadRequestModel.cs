@@ -15,4 +15,8 @@ public record CreateLeadRequestModel(
     // payload without forcing a value at creation. CustomFieldValues stays
     // free-form JSONB; the fork's per-shape specialised fields land there.
     LeadEngagementShape EngagementShape = LeadEngagementShape.Unknown,
-    string? CustomFieldValues = null);
+    string? CustomFieldValues = null,
+    // Phase 1r / Batch 12 — optional B2B parent account at intake. Lets
+    // the fork dialog group new leads under an existing Account without a
+    // follow-up edit. Null = unaffiliated (legacy flat-lead shape).
+    int? AccountId = null);

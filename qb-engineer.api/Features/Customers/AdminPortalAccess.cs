@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using QBEngineer.Core.Entities;
 using QBEngineer.Core.Models;
 using QBEngineer.Data.Context;
 using QBEngineer.Data.Extensions;
@@ -28,6 +29,66 @@ public class ListPortalAccessHandler(AppDbContext db) : IRequestHandler<ListPort
                 c.FirstName, c.LastName, c.Email,
                 a.IsEnabled, a.LastLoginAt, a.CreatedAt)
         ).ToListAsync(ct);
+    }
+}
+
+/// <summary>
+/// Phase 1r — provision a new portal-access row for an existing Contact.
+/// Idempotent: if the contact already has a row, return it (enabled or
+/// disabled — admin can flip via the toggle endpoint). Requires the
+/// contact to have an Email, since email is the portal login identifier.
+/// </summary>
+public record CreatePortalAccessCommand(int ContactId) : IRequest<PortalAccessRowModel>;
+
+public class CreatePortalAccessHandler(AppDbContext db) : IRequestHandler<CreatePortalAccessCommand, PortalAccessRowModel>
+{
+    public async Task<PortalAccessRowModel> Handle(CreatePortalAccessCommand request, CancellationToken ct)
+    {
+        var contact = await db.Contacts.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == request.ContactId, ct)
+            ?? throw new KeyNotFoundException($"Contact {request.ContactId} not found.");
+
+        if (string.IsNullOrWhiteSpace(contact.Email))
+            throw new InvalidOperationException(
+                "Contact has no email address. Portal access uses email as the login identifier.");
+
+        var existing = await db.CustomerPortalAccesses
+            .FirstOrDefaultAsync(a => a.ContactId == request.ContactId, ct);
+        if (existing is not null)
+        {
+            // Idempotent: surface the existing row instead of failing. Admin
+            // flips IsEnabled via the toggle endpoint if needed.
+            var customerNameExisting = await db.Customers.AsNoTracking()
+                .Where(c => c.Id == existing.CustomerId)
+                .Select(c => c.Name).FirstAsync(ct);
+            return new PortalAccessRowModel(
+                existing.Id, existing.ContactId, existing.CustomerId, customerNameExisting,
+                contact.FirstName, contact.LastName, contact.Email,
+                existing.IsEnabled, existing.LastLoginAt, existing.CreatedAt);
+        }
+
+        var access = new CustomerPortalAccess
+        {
+            ContactId = contact.Id,
+            CustomerId = contact.CustomerId,
+            IsEnabled = true,
+        };
+        db.CustomerPortalAccesses.Add(access);
+
+        db.LogActivityAt(
+            "portal-access-provisioned",
+            $"Portal access provisioned for {contact.FirstName} {contact.LastName}.",
+            ("Contact", contact.Id), ("Customer", contact.CustomerId));
+
+        await db.SaveChangesAsync(ct);
+
+        var customerName = await db.Customers.AsNoTracking()
+            .Where(c => c.Id == contact.CustomerId)
+            .Select(c => c.Name).FirstAsync(ct);
+        return new PortalAccessRowModel(
+            access.Id, access.ContactId, access.CustomerId, customerName,
+            contact.FirstName, contact.LastName, contact.Email,
+            access.IsEnabled, access.LastLoginAt, access.CreatedAt);
     }
 }
 

@@ -44,6 +44,7 @@ public class CreateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequest
             // skips the fork.
             EngagementShape = data.EngagementShape,
             CustomFieldValues = data.CustomFieldValues,
+            AccountId = data.AccountId,
         };
 
         await repo.AddAsync(lead, cancellationToken);

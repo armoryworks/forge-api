@@ -148,6 +148,14 @@ public class CustomersController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<PortalAccessRowModel>>> ListPortalAccess()
         => Ok(await mediator.Send(new ListPortalAccessQuery()));
 
+    [HttpPost("portal-access")]
+    [RequiresCapability("CAP-EXT-CUSTOMER-PORTAL")]
+    public async Task<ActionResult<PortalAccessRowModel>> CreatePortalAccess([FromBody] CreatePortalAccessRequest request)
+    {
+        var result = await mediator.Send(new CreatePortalAccessCommand(request.ContactId));
+        return Created($"/api/v1/customers/portal-access/{result.AccessId}", result);
+    }
+
     [HttpPut("portal-access/{accessId:int}/enabled")]
     [RequiresCapability("CAP-EXT-CUSTOMER-PORTAL")]
     public async Task<IActionResult> SetPortalAccessEnabled(int accessId, [FromBody] SetPortalAccessEnabledRequest request)
@@ -284,3 +292,4 @@ public class CustomersController(IMediator mediator) : ControllerBase
 }
 
 public record SetPortalAccessEnabledRequest(bool Enabled);
+public record CreatePortalAccessRequest(int ContactId);
