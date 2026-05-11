@@ -163,7 +163,10 @@ public class SignOnboardingFormHandler(
             db.ComplianceFormSubmissions.Add(submission);
         }
 
-        submission.FormDataJson = formDataJson;
+        // FormDataJson is a Postgres `json` column — empty string is not valid
+        // JSON and the insert/update fails with 22P02 (reported 2026-05-10 from
+        // the mock-DocuSeal path which passes string.Empty).
+        submission.FormDataJson = string.IsNullOrWhiteSpace(formDataJson) ? "{}" : formDataJson;
         submission.DocuSealSubmissionId = docuSealSubmitterId;
         submission.DocuSealSubmitUrl = embedUrl;
         submission.Status = ComplianceSubmissionStatus.Pending;
