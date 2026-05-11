@@ -697,8 +697,11 @@ try
         builder.Services.AddScoped<ICloudStorageResolver, CloudStorageResolver>();
 
         // Folder auto-create flow (per D2 dual-path: sync best-effort here;
-        // outbox retry is a Phase 3a follow-up).
+        // outbox retry is a Phase 3a follow-up). Token manager handles the
+        // encrypt/decrypt boundary + proactive refresh for the real
+        // providers (mock pass-through).
         builder.Services.AddSingleton<IFolderPathResolver, FolderPathResolver>();
+        builder.Services.AddScoped<ICloudStorageTokenManager, CloudStorageTokenManager>();
         builder.Services.AddScoped<ICloudFolderAutoCreator, CloudFolderAutoCreator>();
 
         var googleDriveOptions = builder.Configuration.GetSection("GoogleDrive").Get<GoogleDriveOptions>();

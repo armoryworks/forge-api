@@ -29,17 +29,20 @@ public class CloudFolderAutoCreator : ICloudFolderAutoCreator
     private readonly AppDbContext _db;
     private readonly IFolderPathResolver _pathResolver;
     private readonly ICloudStorageResolver _providerResolver;
+    private readonly ICloudStorageTokenManager _tokenManager;
     private readonly ILogger<CloudFolderAutoCreator> _logger;
 
     public CloudFolderAutoCreator(
         AppDbContext db,
         IFolderPathResolver pathResolver,
         ICloudStorageResolver providerResolver,
+        ICloudStorageTokenManager tokenManager,
         ILogger<CloudFolderAutoCreator> logger)
     {
         _db = db;
         _pathResolver = pathResolver;
         _providerResolver = providerResolver;
+        _tokenManager = tokenManager;
         _logger = logger;
     }
 
@@ -68,8 +71,9 @@ public class CloudFolderAutoCreator : ICloudFolderAutoCreator
             var path = _pathResolver.Resolve(suggestion.PathTemplate, tokenContext);
 
             // 3. Find an active CloudStorageProvider row + pick the matching service.
+            //    Tracked load (NOT AsNoTracking) — the token manager may mutate
+            //    the row to persist a refreshed access token.
             var providerRow = await _db.CloudStorageProviders
-                .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.IsActive, ct);
             if (providerRow is null)
             {
@@ -86,10 +90,9 @@ public class CloudFolderAutoCreator : ICloudFolderAutoCreator
                 return null;
             }
 
-            // 4. Sync best-effort folder creation (EnsureExists keeps the call idempotent on retry).
-            var folderName = ExtractLastSegment(path);
-            var parentExternalId = providerRow.RootFolderId;
-            var token = ResolveAccessToken(providerRow);
+            // 4. Resolve a valid access token via the token manager (handles
+            //    decrypt + proactive refresh-if-near-expiry + persist rotation).
+            var token = await _tokenManager.GetValidAccessTokenAsync(providerRow, ct);
             if (string.IsNullOrEmpty(token))
             {
                 _logger.LogWarning(
@@ -98,12 +101,32 @@ public class CloudFolderAutoCreator : ICloudFolderAutoCreator
                 return null;
             }
 
-            var folder = await service.CreateFolderAsync(
-                token,
-                new CreateFolderRequest(folderName, parentExternalId, EnsureExists: true),
-                ct);
+            // 5. Sync best-effort folder creation (EnsureExists keeps the call
+            //    idempotent on retry). If the call 401s — meaning the token
+            //    expired between the manager check and the call, or was revoked
+            //    server-side — log and surface; subsequent runs of the auto-
+            //    creator will pick up the rotated token from the manager.
+            var folderName = ExtractLastSegment(path);
+            var parentExternalId = providerRow.RootFolderId;
+            CloudFolder folder;
+            try
+            {
+                folder = await service.CreateFolderAsync(
+                    token,
+                    new CreateFolderRequest(folderName, parentExternalId, EnsureExists: true),
+                    ct);
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                _logger.LogWarning(ex,
+                    "CloudFolderAutoCreator: provider {Code} returned 401 on CreateFolder — token may be revoked; skipping",
+                    providerRow.ProviderCode);
+                providerRow.LastError = "Provider returned 401 on CreateFolder — admin may need to reconnect.";
+                await _db.SaveChangesAsync(ct);
+                return null;
+            }
 
-            // 5. Optionally create subfolders. Failures here are non-fatal.
+            // 6. Optionally create subfolders. Failures here are non-fatal.
             foreach (var sub in suggestion.SubfolderNames)
             {
                 try
@@ -166,31 +189,6 @@ public class CloudFolderAutoCreator : ICloudFolderAutoCreator
         if (string.IsNullOrWhiteSpace(path)) return string.Empty;
         var segments = path.TrimEnd('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
         return segments.Length == 0 ? string.Empty : segments[^1];
-    }
-
-    /// <summary>
-    /// Resolve the access token for the provider — for service-account mode
-    /// it's on the row; for per-user mode it lives on
-    /// <see cref="UserCloudStorageLink"/>. Today the auto-create flow only
-    /// resolves the service-account path; per-user folder creation
-    /// requires a user context that's not always available in handler
-    /// flows (e.g. system-initiated background jobs). Per-user-mode
-    /// installs should configure a service-account on the same provider
-    /// row as a fallback for system flows; Phase 3a tightens this.
-    /// </summary>
-    private string? ResolveAccessToken(CloudStorageProvider providerRow)
-    {
-        // Mock provider doesn't actually need an access token — the mock
-        // ignores it. Treat the placeholder string as "auth not required."
-        if (string.Equals(providerRow.ProviderCode, "mock", StringComparison.OrdinalIgnoreCase))
-        {
-            return "mock-token";
-        }
-        // For real providers, return whatever the row has (decrypted at
-        // a higher layer — today this returns the encrypted blob, which
-        // the provider will choke on; that's the gap Phase 3a fills with
-        // explicit ITokenEncryptionService integration).
-        return providerRow.OAuthTokenEncrypted;
     }
 
     private Guid? ResolveCreatedByUserGuid()

@@ -155,11 +155,27 @@ public class CloudFolderAutoCreatorTests
         var resolver = new CloudStorageResolver(
             new QBEngineer.Core.Interfaces.ICloudStorageIntegrationService[] { mockProvider },
             NullLogger<CloudStorageResolver>.Instance);
+        // Token manager wiring for tests: the mock provider's tokens are
+        // pass-through, so the token manager returns "mock-token" without
+        // touching encryption. PassThroughTokenEncryptionService doesn't
+        // actually encrypt — it returns plaintext.
+        var encryption = new PassThroughTokenEncryptionService();
+        var tokenManager = new CloudStorageTokenManager(
+            db, encryption, resolver,
+            NullLogger<CloudStorageTokenManager>.Instance);
         return new CloudFolderAutoCreator(
             db,
             new FolderPathResolver(),
             resolver,
+            tokenManager,
             NullLogger<CloudFolderAutoCreator>.Instance);
+    }
+
+    /// <summary>Test-only no-op encryption: plaintext in, plaintext out.</summary>
+    private sealed class PassThroughTokenEncryptionService : QBEngineer.Core.Interfaces.ITokenEncryptionService
+    {
+        public string Encrypt(string plainText) => plainText;
+        public string Decrypt(string cipherText) => cipherText;
     }
 
     private static async Task SeedFolderMapAsync(
