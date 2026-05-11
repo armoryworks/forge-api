@@ -684,14 +684,17 @@ try
 
         // Cloud storage providers — Google Drive / OneDrive / Dropbox land
         // here per the Pro Services rollout. DI registers all configured
-        // providers (one per provider whose options are populated); a
-        // future MultiCloudStorageService resolver will pick the right
-        // one per CloudStorageProvider row at runtime.
+        // providers (one per provider whose options are populated);
+        // CloudStorageResolver picks the right one per CloudStorageProvider
+        // row at runtime.
         //
-        // The mock provider is always registered as a fallback (Singleton
-        // because it holds in-memory state). The real providers are added
-        // alongside it when their credentials are configured.
-        builder.Services.AddSingleton<ICloudStorageIntegrationService, MockCloudStorageIntegrationService>();
+        // The mock provider is always registered as a fallback. All
+        // registrations are Scoped so IEnumerable injection in
+        // CloudStorageResolver resolves them consistently (mock state is
+        // per-scope, which is fine because folder operations are
+        // per-request).
+        builder.Services.AddScoped<ICloudStorageIntegrationService, MockCloudStorageIntegrationService>();
+        builder.Services.AddScoped<ICloudStorageResolver, CloudStorageResolver>();
 
         var googleDriveOptions = builder.Configuration.GetSection("GoogleDrive").Get<GoogleDriveOptions>();
         if (googleDriveOptions?.IsConfigured == true)
