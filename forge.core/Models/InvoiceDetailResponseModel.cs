@@ -1,0 +1,27 @@
+namespace Forge.Core.Models;
+
+public record InvoiceDetailResponseModel(
+    int Id,
+    string InvoiceNumber,
+    int CustomerId,
+    string CustomerName,
+    int? SalesOrderId,
+    string? SalesOrderNumber,
+    int? ShipmentId,
+    string? ShipmentNumber,
+    string Status,
+    DateTimeOffset InvoiceDate,
+    DateTimeOffset DueDate,
+    string? CreditTerms,
+    decimal TaxRate,
+    decimal Subtotal,
+    decimal TaxAmount,
+    decimal Total,
+    decimal AmountPaid,
+    decimal BalanceDue,
+    string? CustomerPO,
+    string? Notes,
+    List<InvoiceLineResponseModel> Lines,
+    List<PaymentApplicationResponseModel> PaymentApplications,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);

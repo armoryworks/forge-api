@@ -1,5 +1,0 @@
-namespace QBEngineer.Core.Models;
-
-public record UpdateOperationMaterialRequestModel(
-    decimal? Quantity,
-    string? Notes);

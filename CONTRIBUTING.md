@@ -1,27 +1,27 @@
-# Contributing to qb-engineer-server
+# Contributing to forge-api
 
 For project-wide guidelines (branch model, PR conventions, code style),
 see the umbrella repo:
-**https://github.com/danielhokanson/qb-engineer/blob/main/CONTRIBUTING.md**
+**https://github.com/danielhokanson/forge/blob/main/CONTRIBUTING.md**
 
 ## Repo-specific setup
 
 You'll need .NET 9 SDK and Docker (for Postgres).
 
 ```bash
-git clone https://github.com/danielhokanson/qb-engineer-server.git
-cd qb-engineer-server
+git clone https://github.com/danielhokanson/forge-api.git
+cd forge-api
 
 # Start a Postgres for local dev (port 5432):
-docker run -d --name qb-engineer-db \
+docker run -d --name forge \
   -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=qb_engineer \
+  -e POSTGRES_DB=forge \
   -p 5432:5432 \
   postgres:17
 
 # Restore + run
 dotnet restore
-dotnet run --project qb-engineer.api
+dotnet run --project forge.api
 ```
 
 API will start at http://localhost:5000. EF migrations auto-apply on
@@ -42,8 +42,8 @@ mocks for the database layer.
 
 ```bash
 dotnet ef migrations add MyMigrationName \
-  --project qb-engineer.data \
-  --startup-project qb-engineer.api
+  --project forge.data \
+  --startup-project forge.api
 ```
 
 The "host was aborted" error at the end is expected — that's just
@@ -52,7 +52,7 @@ created.
 
 ## Per-repo conventions
 
-See [`docs/coding-standards.md` in the umbrella repo](https://github.com/danielhokanson/qb-engineer/blob/main/docs/coding-standards.md)
+See [`docs/coding-standards.md` in the umbrella repo](https://github.com/danielhokanson/forge/blob/main/docs/coding-standards.md)
 for .NET-specific patterns: MediatR handlers, FluentValidation, Fluent
 API for entity configuration, no try/catch in controllers, no "DTO"
 suffix.
@@ -60,5 +60,5 @@ suffix.
 ## Where to file what
 
 - **API endpoint bug, business logic bug, EF/migration issue** → here
-- **UI rendering bug** → file in qb-engineer-ui
-- **Cross-cutting design discussion** → file in qb-engineer (umbrella)
+- **UI rendering bug** → file in forge-ui
+- **Cross-cutting design discussion** → file in forge (umbrella)

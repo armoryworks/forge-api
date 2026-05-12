@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="forge.api/forge.api.csproj" />
+  <Project Path="forge.core/forge.core.csproj" />
+  <Project Path="forge.data/forge.data.csproj" />
+  <Project Path="forge.integrations/forge.integrations.csproj" />
+  <Project Path="forge.tests/forge.tests.csproj" />
+</Solution>

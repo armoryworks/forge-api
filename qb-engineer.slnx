@@ -1,7 +1,0 @@
-<Solution>
-  <Project Path="qb-engineer.api/qb-engineer.api.csproj" />
-  <Project Path="qb-engineer.core/qb-engineer.core.csproj" />
-  <Project Path="qb-engineer.data/qb-engineer.data.csproj" />
-  <Project Path="qb-engineer.integrations/qb-engineer.integrations.csproj" />
-  <Project Path="qb-engineer.tests/qb-engineer.tests.csproj" />
-</Solution>

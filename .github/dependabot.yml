@@ -1,4 +1,4 @@
-# Dependabot config for qb-engineer-server
+# Dependabot config for forge-api
 #
 # Weekly updates against develop. NuGet groups by category to reduce PR noise.
 
@@ -35,7 +35,7 @@ updates:
         update-types: ["minor", "patch"]
 
   - package-ecosystem: "docker"
-    directory: "/qb-engineer.api"
+    directory: "/forge.api"
     schedule:
       interval: "weekly"
       day: "monday"

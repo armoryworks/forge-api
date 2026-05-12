@@ -1,0 +1,26 @@
+namespace Forge.Core.Models;
+
+public record SalesOrderDetailResponseModel(
+    int Id,
+    string OrderNumber,
+    int CustomerId,
+    string CustomerName,
+    int? QuoteId,
+    string? QuoteNumber,
+    int? ShippingAddressId,
+    int? BillingAddressId,
+    string Status,
+    string? CreditTerms,
+    DateTimeOffset? ConfirmedDate,
+    DateTimeOffset? RequestedDeliveryDate,
+    string? CustomerPO,
+    string? Notes,
+    decimal TaxRate,
+    decimal Subtotal,
+    decimal TaxAmount,
+    decimal Total,
+    List<SalesOrderLineResponseModel> Lines,
+    List<SalesOrderShipmentModel> Shipments,
+    List<SalesOrderReturnModel> Returns,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);

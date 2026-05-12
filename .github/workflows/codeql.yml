@@ -1,4 +1,4 @@
-# CodeQL static analysis for qb-engineer-server
+# CodeQL static analysis for forge-api
 #
 # Scans the C# code for known vulnerability patterns. Findings appear in
 # the Security tab. Free for public repos.

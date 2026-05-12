@@ -1,4 +1,4 @@
-# PR + push CI for qb-engineer-server
+# PR + push CI for forge-api
 #
 # Runs on: every PR into develop or main, every push to develop or main.
 # Steps: restore, build (analyzers run during build), unit + integration tests.
@@ -31,7 +31,7 @@ jobs:
         image: postgres:17
         env:
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: qb_engineer_test
+          POSTGRES_DB: forge_test
         ports:
           - 5432:5432
         options: >-
@@ -41,7 +41,7 @@ jobs:
           --health-retries 5
 
     env:
-      ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=qb_engineer_test;Username=postgres;Password=postgres"
+      ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=forge_test;Username=postgres;Password=postgres"
       MockIntegrations: "true"
 
     steps:

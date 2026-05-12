@@ -1,0 +1,1589 @@
+using System.Text;
+using System.Text.Json.Serialization;
+using FluentValidation;
+using MediatR;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.IdentityModel.Tokens;
+using Forge.Api.Authentication;
+using Forge.Api.Authorization;
+using Forge.Api.Behaviors;
+using Forge.Api.Data;
+using Forge.Api.Hubs;
+using Forge.Api.Middleware;
+using Forge.Api.Services;
+using Microsoft.Extensions.Options;
+using Forge.Core.Interfaces;
+using Forge.Core.Models;
+using Forge.Data.Context;
+using Forge.Data.Repositories;
+using Forge.Data.Services;
+using Forge.Integrations;
+using Forge.Integrations.Builders;
+using System.Threading.RateLimiting;
+using Hangfire;
+using Hangfire.Dashboard;
+using Hangfire.PostgreSql;
+using Forge.Api.Features.AutoPo;
+using Forge.Api.Jobs;
+using QuestPDF.Infrastructure;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Forge.Api.HealthChecks;
+using Scalar.AspNetCore;
+using Forge.Api.Extensions;
+using Forge.Api.Validation;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Mvc;
+using Serilog;
+
+QuestPDF.Settings.License = LicenseType.Community;
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
+
+try
+{
+    var builder = WebApplication.CreateBuilder(args);
+
+    // Load secrets file (gitignored)
+    builder.Configuration.AddJsonFile("appsettings.Secrets.json", optional: true, reloadOnChange: true);
+
+    // Serilog
+    builder.Host.UseSerilog((context, services, config) =>
+    {
+        config
+            .ReadFrom.Configuration(context.Configuration)
+            .ReadFrom.Services(services)
+            .WriteTo.Console()
+            .Enrich.FromLogContext()
+            .Enrich.WithProperty("Application", "forge-api")
+            .Enrich.WithProperty("Environment", context.HostingEnvironment.EnvironmentName);
+
+        var seqUrl = context.Configuration["Seq:ServerUrl"];
+        if (!string.IsNullOrWhiteSpace(seqUrl))
+        {
+            var seqApiKey = context.Configuration["Seq:ApiKey"];
+            config.WriteTo.Seq(seqUrl, apiKey: string.IsNullOrWhiteSpace(seqApiKey) ? null : seqApiKey);
+        }
+    });
+
+    // Clock abstraction — MockClock in development (controllable via /api/v1/dev/clock),
+    // SystemClock in production.
+    var useMockClock = builder.Environment.IsDevelopment();
+    if (useMockClock)
+    {
+        var mockClock = new MockClock();
+        builder.Services.AddSingleton<MockClock>(mockClock);
+        builder.Services.AddSingleton<IClock>(mockClock);
+        Log.Information("Clock: MockClock (development) — controllable via POST /api/v1/dev/clock");
+    }
+    else
+    {
+        builder.Services.AddSingleton<IClock, SystemClock>();
+    }
+
+    // EF Core + PostgreSQL (with pgvector for AI embeddings)
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseNpgsql(
+            builder.Configuration.GetConnectionString("DefaultConnection"),
+            npgsqlOptions => npgsqlOptions.UseVector()));
+
+    // ASP.NET Identity
+    builder.Services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
+    {
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequiredLength = 8;
+        options.User.RequireUniqueEmail = true;
+    })
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+    // JWT Authentication
+    var jwtKey = builder.Configuration["Jwt:Key"] ?? "dev-secret-key-change-in-production-min-32-chars!!";
+    var authBuilder = builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "forge",
+            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "forge-ui",
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        };
+
+        // SignalR sends JWT via query string (WebSocket can't use headers)
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    (path.StartsWithSegments("/hubs") || path.StartsWithSegments("/api/v1/downloads")))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = async context =>
+            {
+                // Check session store — rejects tokens from previous container instances
+                // Tokens without a JTI are pre-session-validation and must be rejected
+                var jti = context.Principal?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)?.Value;
+                if (string.IsNullOrEmpty(jti))
+                {
+                    context.Fail("Token missing session identifier.");
+                    return;
+                }
+
+                var sessionStore = context.HttpContext.RequestServices.GetRequiredService<ISessionStore>();
+                if (!await sessionStore.ValidateSessionAsync(jti))
+                {
+                    context.Fail("Session is no longer valid.");
+                    return;
+                }
+
+                var userManager = context.HttpContext.RequestServices
+                    .GetRequiredService<UserManager<ApplicationUser>>();
+                var userId = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (userId == null || await userManager.FindByIdAsync(userId) == null)
+                {
+                    context.Fail("User no longer exists.");
+                }
+            }
+        };
+    });
+
+    // BI API-key auth scheme (Phase 3 / WU-04 / A3) — used by /api/v1/bi/*
+    // endpoints for third-party BI tool access. Issuance/revocation stay on
+    // JWT (Admin role); keys cannot issue keys.
+    authBuilder.AddScheme<BiApiKeyAuthenticationOptions, BiApiKeyAuthenticationHandler>(
+        BiApiKeyAuthenticationOptions.SchemeName,
+        options =>
+        {
+            options.AuditUseEvents =
+                builder.Configuration.GetValue("BiApiKey:AuditUseEvents", defaultValue: false);
+        });
+
+    // SSO Configuration (optional — each provider independently enabled)
+    var ssoOptions = builder.Configuration.GetSection("Sso").Get<SsoOptions>() ?? new SsoOptions();
+    builder.Services.Configure<SsoOptions>(builder.Configuration.GetSection("Sso"));
+    var anySsoEnabled = ssoOptions.Google.Enabled || ssoOptions.Microsoft.Enabled || ssoOptions.Oidc.Enabled;
+
+    if (anySsoEnabled)
+    {
+        // Add a temporary cookie scheme for the OAuth redirect flow
+        // (JWT is the default auth scheme; this cookie is only used during SSO round-trip)
+        authBuilder.AddCookie("SsoExternalCookie", options =>
+        {
+            options.Cookie.Name = "qbe-sso-ext";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+            options.ExpireTimeSpan = TimeSpan.FromMinutes(10);
+        });
+    }
+
+    if (ssoOptions.Google.Enabled)
+    {
+        authBuilder.AddGoogle(options =>
+        {
+            options.ClientId = ssoOptions.Google.ClientId;
+            options.ClientSecret = ssoOptions.Google.ClientSecret;
+            options.SignInScheme = "SsoExternalCookie";
+        });
+        Log.Information("SSO: Google authentication enabled");
+    }
+
+    if (ssoOptions.Microsoft.Enabled)
+    {
+        authBuilder.AddMicrosoftAccount(options =>
+        {
+            options.ClientId = ssoOptions.Microsoft.ClientId;
+            options.ClientSecret = ssoOptions.Microsoft.ClientSecret;
+            options.SignInScheme = "SsoExternalCookie";
+        });
+        Log.Information("SSO: Microsoft authentication enabled");
+    }
+
+    if (ssoOptions.Oidc.Enabled)
+    {
+        authBuilder.AddOpenIdConnect(options =>
+        {
+            options.Authority = ssoOptions.Oidc.Authority;
+            options.ClientId = ssoOptions.Oidc.ClientId;
+            options.ClientSecret = ssoOptions.Oidc.ClientSecret;
+            options.ResponseType = "code";
+            options.SaveTokens = true;
+            options.GetClaimsFromUserInfoEndpoint = true;
+            options.Scope.Add("email");
+            options.Scope.Add("profile");
+            options.SignInScheme = "SsoExternalCookie";
+        });
+        Log.Information("SSO: OIDC authentication enabled ({DisplayName})", ssoOptions.Oidc.DisplayName ?? "Generic");
+    }
+
+    builder.Services.AddAuthorization();
+
+    // SignalR
+    builder.Services.AddSignalR();
+
+    // Repositories
+    builder.Services.AddScoped<IJobRepository, JobRepository>();
+    builder.Services.AddScoped<ISubtaskRepository, SubtaskRepository>();
+    builder.Services.AddScoped<IActivityLogRepository, ActivityLogRepository>();
+    builder.Services.AddScoped<ITrackTypeRepository, TrackTypeRepository>();
+    builder.Services.AddScoped<IReferenceDataRepository, ReferenceDataRepository>();
+    builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+    builder.Services.AddScoped<IUserRepository, UserRepository>();
+    builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
+    builder.Services.AddScoped<IPartRepository, PartRepository>();
+    // Phase 3 H4 / WU-20 — BOM revision auto-snapshot service.
+    builder.Services.AddScoped<IBomRevisionService, BomRevisionService>();
+    // Bought-parts effort PR1 — business-day calendar service.
+    builder.Services.AddScoped<IWorkingCalendarService, WorkingCalendarService>();
+    builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
+    builder.Services.AddScoped<ILeadRepository, LeadRepository>();
+    builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
+    builder.Services.AddScoped<IAssetRepository, AssetRepository>();
+    builder.Services.AddScoped<ITimeTrackingRepository, TimeTrackingRepository>();
+    builder.Services.AddScoped<IWorkCenterContext, WorkCenterContext>();
+    builder.Services.AddScoped<IUserPreferenceRepository, UserPreferenceRepository>();
+    builder.Services.AddScoped<IFileRepository, FileRepository>();
+    builder.Services.AddScoped<IJobLinkRepository, JobLinkRepository>();
+    builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+    builder.Services.AddScoped<ITerminologyRepository, TerminologyRepository>();
+    builder.Services.AddScoped<IReportRepository, ReportRepository>();
+    builder.Services.AddScoped<ISankeyReportRepository, SankeyReportRepository>();
+    builder.Services.AddScoped<ISearchRepository, SearchRepository>();
+    builder.Services.AddScoped<IPlanningCycleRepository, PlanningCycleRepository>();
+    builder.Services.AddScoped<IVendorRepository, VendorRepository>();
+    builder.Services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
+    builder.Services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();
+    builder.Services.AddScoped<IQuoteRepository, QuoteRepository>();
+    builder.Services.AddScoped<IShipmentRepository, ShipmentRepository>();
+    builder.Services.AddScoped<ICustomerAddressRepository, CustomerAddressRepository>();
+    builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+    builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+    builder.Services.AddScoped<IPriceListRepository, PriceListRepository>();
+    builder.Services.AddScoped<IRecurringOrderRepository, RecurringOrderRepository>();
+    builder.Services.AddScoped<ISystemSettingRepository, SystemSettingRepository>();
+    builder.Services.AddScoped<ISyncQueueRepository, SyncQueueRepository>();
+    builder.Services.AddScoped<IStatusEntryRepository, StatusEntryRepository>();
+    builder.Services.AddScoped<IReportBuilderRepository, ReportBuilderRepository>();
+    builder.Services.AddScoped<IEmbeddingRepository, EmbeddingRepository>();
+    builder.Services.AddScoped<IBarcodeService, BarcodeService>();
+    builder.Services.AddSingleton<ICsvExportService, CsvExportService>();
+    builder.Services.AddSingleton<IImageService, ImageService>();
+    builder.Services.AddSingleton<ITokenEncryptionService, TokenEncryptionService>();
+    builder.Services.AddSingleton<IPiiProtector, PiiProtector>();
+    builder.Services.AddSingleton<ITokenService, JwtTokenService>();
+    builder.Services.AddSingleton<IPortalAuthService, PortalAuthService>();
+    builder.Services.AddSingleton<ISessionStore, SessionStore>();
+    builder.Services.AddScoped<ISystemAuditWriter, SystemAuditWriter>();
+    // Phase 3 / WU-06 / C1 — role-template rollup expansion at auth time.
+    builder.Services.AddScoped<IRoleClaimsExpander, RoleClaimsExpander>();
+    builder.Services.AddMemoryCache();
+
+    // Phase 4 Phase-A — capability gating infrastructure.
+    builder.Services.AddSingleton<Forge.Api.Capabilities.ICapabilitySnapshotProvider,
+                                  Forge.Api.Capabilities.CapabilitySnapshotProvider>();
+    builder.Services.AddScoped<Forge.Api.Capabilities.ICapabilityCatalogSeeder,
+                               Forge.Api.Capabilities.CapabilityCatalogSeeder>();
+
+    // Workflow Pattern Phase 3 — DSL evaluator + seeder. Singleton evaluator
+    // (stateless, reflection-cached); the empty custom-function registry is
+    // injected by default and can be replaced in a later phase.
+    builder.Services.AddSingleton<Forge.Api.Workflows.IPredicateCustomFunctionRegistry,
+                                  Forge.Api.Workflows.EmptyPredicateCustomFunctionRegistry>();
+    builder.Services.AddSingleton<Forge.Api.Workflows.PredicateEvaluator>();
+    builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowSubstrateSeeder,
+                               Forge.Api.Workflows.WorkflowSubstrateSeeder>();
+    builder.Services.AddScoped<Forge.Api.Workflows.IEntityReadinessService,
+                               Forge.Api.Workflows.EntityReadinessService>();
+    builder.Services.AddScoped<Forge.Api.Workflows.IEntityReadinessLoader,
+                               Forge.Api.Workflows.PartReadinessLoader>();
+
+    // Workflow per-entity-type adapters. Phase 3 wires the Part variant;
+    // later phases register customer / quote / vendor / etc.
+    builder.Services.AddScoped<Forge.Api.Workflows.PartWorkflowAdapter>();
+    builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowEntityCreator>(
+        sp => sp.GetRequiredService<Forge.Api.Workflows.PartWorkflowAdapter>());
+    builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowFieldApplier>(
+        sp => sp.GetRequiredService<Forge.Api.Workflows.PartWorkflowAdapter>());
+    builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowEntityPromoter>(
+        sp => sp.GetRequiredService<Forge.Api.Workflows.PartWorkflowAdapter>());
+    builder.Services.AddScoped<IClockEventTypeService, ClockEventTypeService>();
+    builder.Services.AddScoped<IUserIntegrationService, UserIntegrationService>();
+    builder.Services.AddScoped<IMrpService, MrpService>();
+    builder.Services.AddScoped<IPartSourcingResolver, PartSourcingResolver>();
+    builder.Services.AddScoped<IPartPricingResolver, PartPricingResolver>();
+    builder.Services.AddScoped<IAtpService, AtpService>();
+    builder.Services.AddScoped<IForecastService, ForecastService>();
+    builder.Services.AddScoped<ISchedulingService, SchedulingService>();
+    builder.Services.AddScoped<IJobCostService, JobCostService>();
+    builder.Services.AddScoped<ISpcService, SpcService>();
+    builder.Services.AddScoped<INcrCapaService, NcrCapaService>();
+    builder.Services.AddScoped<IUomService, UomService>();
+    builder.Services.AddScoped<IApprovalService, ApprovalService>();
+    builder.Services.AddScoped<ICreditManagementService, CreditManagementService>();
+    builder.Services.AddScoped<IVendorScorecardService, VendorScorecardService>();
+    builder.Services.AddScoped<IRfqService, RfqService>();
+    builder.Services.AddScoped<IOvertimeService, OvertimeService>();
+    builder.Services.AddScoped<PurchaseOrderGenerator>();
+    builder.Services.AddHttpContextAccessor();
+
+    // Data Protection (OAuth token encryption, key storage in PostgreSQL)
+    builder.Services.AddDataProtection()
+        .PersistKeysToDbContext<AppDbContext>()
+        .SetApplicationName("forge");
+
+    // Integration services (mock or real based on config).
+    //
+    // Phase 1m.4 — per-integration Mock/Real/Disabled toggle. The global
+    // MockIntegrations flag still drives the legacy ~30 services (PDF,
+    // EDI, CPQ, projection layers, etc.) since those don't have admin-
+    // managed descriptors yet. The 5 cluster-B services that DO have
+    // descriptors (storage/SMTP/AI/USPS/DocuSeal) consult the bootstrap
+    // helper for their per-integration mode.
+    //
+    // Mode resolution: read at startup from system_settings via plain
+    // ADO.NET. Admin saves persist; restart picks up new modes. (Live
+    // mode-switching would require factory-based service resolution
+    // which is a deeper refactor — admins get a "restart required"
+    // toast in the meantime.)
+    var useMocks = builder.Configuration.GetValue<bool>("MockIntegrations");
+    var integrationMode = Forge.Api.Bootstrap.IntegrationModeBootstrap.Load(builder.Configuration);
+    builder.Services.Configure<MinioOptions>(builder.Configuration.GetSection(MinioOptions.SectionName));
+    builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+    builder.Services.Configure<QuickBooksOptions>(builder.Configuration.GetSection(QuickBooksOptions.SectionName));
+    builder.Services.Configure<AiOptions>(builder.Configuration.GetSection(AiOptions.SectionName));
+    builder.Services.Configure<UspsOptions>(builder.Configuration.GetSection(UspsOptions.SectionName));
+    builder.Services.Configure<DocuSealOptions>(builder.Configuration.GetSection(DocuSealOptions.SectionName));
+    // Shipping carrier options
+    builder.Services.Configure<UpsOptions>(builder.Configuration.GetSection(UpsOptions.SectionName));
+    builder.Services.Configure<FedExOptions>(builder.Configuration.GetSection(FedExOptions.SectionName));
+    builder.Services.Configure<DhlOptions>(builder.Configuration.GetSection(DhlOptions.SectionName));
+    builder.Services.Configure<StampsOptions>(builder.Configuration.GetSection(StampsOptions.SectionName));
+    // Accounting provider options
+    builder.Services.Configure<XeroOptions>(builder.Configuration.GetSection(XeroOptions.SectionName));
+    builder.Services.Configure<FreshBooksOptions>(builder.Configuration.GetSection(FreshBooksOptions.SectionName));
+    builder.Services.Configure<SageOptions>(builder.Configuration.GetSection(SageOptions.SectionName));
+    builder.Services.Configure<NetSuiteOptions>(builder.Configuration.GetSection(NetSuiteOptions.SectionName));
+    builder.Services.Configure<WaveOptions>(builder.Configuration.GetSection(WaveOptions.SectionName));
+    builder.Services.Configure<ZohoOptions>(builder.Configuration.GetSection(ZohoOptions.SectionName));
+
+    // QuickBooks token service (always registered — handles OAuth token lifecycle)
+    builder.Services.AddScoped<IQuickBooksTokenService, QuickBooksTokenService>();
+
+    // Session (used for OAuth state parameter)
+    builder.Services.AddDistributedMemoryCache();
+    builder.Services.AddSession(options =>
+    {
+        options.IdleTimeout = TimeSpan.FromMinutes(10);
+        options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
+    });
+
+    // Bought-parts effort PR3 — landed-cost foundation. Database-only services
+    // (no external integration), so they live outside the mock/real branch
+    // and register unconditionally.
+    builder.Services.AddScoped<ITariffResolver, TariffResolver>();
+    builder.Services.AddScoped<IPartLandedCostService, PartLandedCostService>();
+    // Shifts effort — calendar-bound shift helpers (per-week capacity,
+    // within-shift checks). Database-only, registered unconditionally.
+    builder.Services.AddScoped<IShiftService, ShiftService>();
+
+    // Wave 8 — communication sync. Matcher is the single shared implementation
+    // across all provider adapters; scoped because it depends on AppDbContext.
+    // Provider adapters are scoped (Mock today; IMAP / Gmail / Microsoft Graph /
+    // Twilio / etc. land as additional scoped registrations as they're built).
+    // Both Mock providers register unconditionally for now since no real
+    // adapter exists yet — once IMAP lands they'll move under the useMocks
+    // branch like the rest of the integration adapters.
+    builder.Services.AddScoped<Forge.Core.Interfaces.Communications.ICommunicationMatcher,
+        Forge.Api.Features.Communications.CommunicationMatcher>();
+    builder.Services.AddScoped<Forge.Core.Interfaces.Communications.ICommunicationSyncProvider,
+        Forge.Integrations.Communications.MockEmailSyncProvider>();
+    builder.Services.AddScoped<Forge.Core.Interfaces.Communications.ICommunicationSyncProvider,
+        Forge.Integrations.Communications.MockVoiceSyncProvider>();
+
+    // Wave 8 — IMAP universal email adapter (MailKit). Supports plain
+    // creds (App Password / Yahoo / Fastmail / custom) AND OAuth-IMAP
+    // (SASL OAUTHBEARER for Gmail / Microsoft 365).
+    builder.Services.AddScoped<Forge.Api.Features.Communications.IImapClientFactory,
+        Forge.Api.Features.Communications.ImapClientFactory>();
+    builder.Services.AddScoped<Forge.Core.Interfaces.Communications.ICommunicationSyncProvider,
+        Forge.Api.Features.Communications.ImapEmailSyncProvider>();
+
+    // Phase 1k.2 + 1m — OAuth-IMAP token broker. ClientId / ClientSecret /
+    // RedirectUri now come from ISettingsService (admin-managed via
+    // /admin/settings UI); no IOptions binding needed.
+    builder.Services.AddHttpClient<
+        Forge.Api.Features.Communications.IImapOAuthService,
+        Forge.Api.Features.Communications.ImapOAuthService>();
+
+    // Phase 1m — descriptor-driven admin settings. Scoped per-request so
+    // the in-memory cache is fresh on each request without manual
+    // invalidation; secret values seal/unseal via Data Protection API
+    // (purpose: "settings.secret").
+    builder.Services.AddScoped<Forge.Core.Settings.ISettingsService,
+        Forge.Api.Features.Settings.SettingsService>();
+
+    // Wave 8 + Phase 1m — Twilio webhook signature verifier. AuthToken
+    // now comes from ISettingsService (admin-managed); when unset the
+    // verifier accepts anything.
+    builder.Services.AddScoped<
+        Forge.Api.Features.Communications.ITwilioSignatureVerifier,
+        Forge.Api.Features.Communications.TwilioSignatureVerifier>();
+
+    var storageProvider = builder.Configuration.GetValue<string>("Storage:Provider") ?? "minio";
+    builder.Services.Configure<LocalStorageOptions>(builder.Configuration.GetSection(LocalStorageOptions.SectionName));
+
+    if (useMocks)
+    {
+        builder.Services.AddSingleton<IStorageService, MockStorageService>();
+        builder.Services.AddSingleton<IAccountingService, MockAccountingService>();
+        builder.Services.AddSingleton<IShippingService, MockShippingService>();
+        builder.Services.AddSingleton<IAddressValidationService, MockAddressValidationService>();
+        builder.Services.AddSingleton<IAiService, MockAiService>();
+        builder.Services.AddSingleton<IEmailService, MockEmailService>();
+        builder.Services.AddSingleton<IDocumentSigningService, MockDocumentSigningService>();
+        builder.Services.AddSingleton<IPdfJsExtractorService, MockPdfJsExtractorService>();
+        builder.Services.AddSingleton<IFormDefinitionParser, FormDefinitionParser>();
+        builder.Services.AddSingleton<IFormDefinitionVerifier, FormDefinitionVerifier>();
+        builder.Services.AddSingleton<IFormRendererService, MockFormRendererService>();
+        builder.Services.AddSingleton<IImageComparisonService, MockImageComparisonService>();
+        builder.Services.AddSingleton<IWalkthroughGeneratorService, MockWalkthroughGeneratorService>();
+        builder.Services.AddSingleton<IPdfFormFillService, MockPdfFormFillService>();
+        builder.Services.AddSingleton<IEdiService, MockEdiService>();
+        builder.Services.AddSingleton<IEdiTransportService, MockEdiTransportService>();
+        builder.Services.AddSingleton<ICpqService, MockCpqService>();
+        builder.Services.AddSingleton<ICurrencyService, MockCurrencyService>();
+        builder.Services.AddSingleton<ILocalizationService, MockLocalizationService>();
+        builder.Services.AddScoped<IPlantContextService, MockPlantContextService>();
+        builder.Services.AddSingleton<IMachineDataService, MockMachineDataService>();
+        builder.Services.AddSingleton<IECommerceService, MockECommerceService>();
+        builder.Services.AddSingleton<IBiService, MockBiService>();
+        builder.Services.AddSingleton<IConsignmentService, MockConsignmentService>();
+        builder.Services.AddSingleton<IAbcClassificationService, MockAbcClassificationService>();
+        builder.Services.AddSingleton<IPickWaveService, MockPickWaveService>();
+        builder.Services.AddSingleton<IDropShipService, MockDropShipService>();
+        builder.Services.AddSingleton<IBackToBackService, MockBackToBackService>();
+        builder.Services.AddSingleton<IKanbanReplenishmentService, MockKanbanReplenishmentService>();
+        builder.Services.AddSingleton<IProjectAccountingService, MockProjectAccountingService>();
+        builder.Services.AddSingleton<ICopqService, MockCopqService>();
+        builder.Services.AddSingleton<IPredictiveMaintenanceService, MockPredictiveMaintenanceService>();
+        Log.Information("MockIntegrations=true — using in-memory storage and mock services");
+    }
+    else
+    {
+        if (storageProvider == "local")
+        {
+            builder.Services.AddSingleton<IStorageService, LocalFileStorageService>();
+            Log.Information("Storage provider: local filesystem ({RootPath})",
+                builder.Configuration.GetValue<string>("LocalStorage:RootPath") ?? "/app/storage");
+        }
+        else
+        {
+            builder.Services.AddSingleton<IStorageService, MinioStorageService>();
+            Log.Information("Storage provider: MinIO");
+        }
+        builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
+        // Accounting providers — all implementations registered; factory resolves active one from system settings
+        builder.Services.AddScoped<IAccountingService, LocalAccountingService>();
+        builder.Services.AddScoped<IAccountingService, QuickBooksAccountingService>();
+        builder.Services.AddScoped<IAccountingService, XeroAccountingService>();
+        builder.Services.AddScoped<IAccountingService, FreshBooksAccountingService>();
+        builder.Services.AddScoped<IAccountingService, SageAccountingService>();
+        builder.Services.AddScoped<IAccountingService, NetSuiteAccountingService>();
+        builder.Services.AddScoped<IAccountingService, WaveAccountingService>();
+        builder.Services.AddScoped<IAccountingService, ZohoAccountingService>();
+        // Shipping: all configured carriers registered; MultiCarrierShippingService aggregates them
+        builder.Services.AddSingleton<IShippingCarrierService, UpsShippingService>();
+        builder.Services.AddSingleton<IShippingCarrierService, FedExShippingService>();
+        builder.Services.AddSingleton<IShippingCarrierService, UspsShippingService>();
+        builder.Services.AddSingleton<IShippingCarrierService, DhlShippingService>();
+        builder.Services.AddSingleton<IShippingService, MultiCarrierShippingService>();
+        // Address validation: USPS Addresses API v3 (OAuth 2.0) when credentials configured, otherwise mock
+        var uspsKey = builder.Configuration.GetSection(UspsOptions.SectionName)["ConsumerKey"];
+        if (!string.IsNullOrEmpty(uspsKey))
+        {
+            builder.Services.AddHttpClient<IAddressValidationService, UspsAddressValidationService>();
+            Log.Information("USPS Addresses API v3 address validation enabled");
+        }
+        else
+        {
+            builder.Services.AddSingleton<IAddressValidationService, MockAddressValidationService>();
+            Log.Information("USPS credentials not configured — using mock address validation");
+        }
+        builder.Services.AddHttpClient<IAiService, OllamaAiService>();
+        builder.Services.AddHttpClient<IDocumentSigningService, DocuSealSigningService>();
+        builder.Services.AddSingleton<IPdfJsExtractorService, PdfJsExtractorService>();
+        builder.Services.AddSingleton<IFormDefinitionParser, FormDefinitionParser>();
+        builder.Services.AddScoped<IFormDefinitionVerifier, FormDefinitionVerifier>();
+        builder.Services.AddSingleton<IFormRendererService, PuppeteerFormRendererService>();
+        builder.Services.AddSingleton<IImageComparisonService, SkiaImageComparisonService>();
+        builder.Services.AddSingleton<IWalkthroughGeneratorService, PuppeteerWalkthroughGeneratorService>();
+        builder.Services.AddSingleton<IPdfFormFillService, PdfSharpFormFillService>();
+        // EDI: mock for now — real providers (AS2/SFTP) can be added per trading partner
+        builder.Services.AddSingleton<IEdiService, MockEdiService>();
+        builder.Services.AddSingleton<IEdiTransportService, MockEdiTransportService>();
+        // CPQ, Localization, Plant — mock for now until real engines built
+        builder.Services.AddSingleton<ICpqService, MockCpqService>();
+        // Currency: real CurrencyService reads currency.base from system_settings
+        // (FX methods still stubbed; base currency is the only piece in use today)
+        builder.Services.AddScoped<ICurrencyService, CurrencyService>();
+        builder.Services.AddSingleton<ILocalizationService, MockLocalizationService>();
+        builder.Services.AddScoped<IPlantContextService, MockPlantContextService>();
+        // IoT, E-Commerce, BI — mock for now until real integrations built
+        builder.Services.AddSingleton<IMachineDataService, MockMachineDataService>();
+        builder.Services.AddSingleton<IECommerceService, MockECommerceService>();
+        builder.Services.AddSingleton<IBiService, MockBiService>();
+        // Consignment, ABC, Pick Wave, Drop Ship — mock for now until real engines built
+        builder.Services.AddSingleton<IConsignmentService, MockConsignmentService>();
+        builder.Services.AddSingleton<IAbcClassificationService, MockAbcClassificationService>();
+        builder.Services.AddSingleton<IPickWaveService, MockPickWaveService>();
+        builder.Services.AddSingleton<IDropShipService, MockDropShipService>();
+        // Back-to-back, Kanban Replenishment, Project Accounting — mock for now until real engines built
+        builder.Services.AddSingleton<IBackToBackService, MockBackToBackService>();
+        builder.Services.AddSingleton<IKanbanReplenishmentService, MockKanbanReplenishmentService>();
+        builder.Services.AddSingleton<IProjectAccountingService, MockProjectAccountingService>();
+        // COPQ and Predictive Maintenance — mock for now until real engines built
+        builder.Services.AddSingleton<ICopqService, MockCopqService>();
+        builder.Services.AddSingleton<IPredictiveMaintenanceService, MockPredictiveMaintenanceService>();
+    }
+
+    // Phase 1m.4 — per-integration Mock/Real override. Applied AFTER the
+    // global if/else block, so per-integration modes set in the admin
+    // UI (Admin → Integrations → {provider} → Mode) take precedence over
+    // the global MockIntegrations flag for the 5 cluster-B services that
+    // have descriptor entries.
+    //
+    // Storage / Email / AI / Address Validation / DocuSeal each get
+    // their stored mode resolved (with fallback to the global flag),
+    // existing registrations are removed, and the resolved impl is
+    // registered. RemoveAll on a missing service is a no-op so this
+    // block is safe regardless of which branch ran above.
+    Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions
+        .RemoveAll<IEmailService>(builder.Services);
+    builder.Services.AddSingleton<IEmailService>(integrationMode.IsMock("smtp")
+        ? sp => new MockEmailService(sp.GetRequiredService<ILogger<MockEmailService>>())
+        : sp => new SmtpEmailService(sp.GetRequiredService<Forge.Core.Settings.ISettingsService>(),
+                                     sp.GetRequiredService<ILogger<SmtpEmailService>>()));
+
+    Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions
+        .RemoveAll<IAddressValidationService>(builder.Services);
+    if (integrationMode.IsMock("usps"))
+    {
+        builder.Services.AddSingleton<IAddressValidationService, MockAddressValidationService>();
+    }
+    else
+    {
+        builder.Services.AddHttpClient<IAddressValidationService, UspsAddressValidationService>();
+    }
+
+    Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions
+        .RemoveAll<IDocumentSigningService>(builder.Services);
+    if (integrationMode.IsMock("docuseal"))
+    {
+        builder.Services.AddSingleton<IDocumentSigningService, MockDocumentSigningService>();
+    }
+    else
+    {
+        builder.Services.AddHttpClient<IDocumentSigningService, DocuSealSigningService>();
+    }
+
+    Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions
+        .RemoveAll<IAiService>(builder.Services);
+    if (integrationMode.IsMock("ai"))
+    {
+        builder.Services.AddSingleton<IAiService, MockAiService>();
+    }
+    else
+    {
+        builder.Services.AddHttpClient<IAiService, OllamaAiService>();
+    }
+
+    // Storage: don't override when storageProvider == "local" (separate
+    // hard-coded selection — local storage isn't an integration mode).
+    if (storageProvider != "local")
+    {
+        Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions
+            .RemoveAll<IStorageService>(builder.Services);
+        if (integrationMode.IsMock("minio"))
+        {
+            builder.Services.AddSingleton<IStorageService, MockStorageService>();
+        }
+        else
+        {
+            builder.Services.AddSingleton<IStorageService, MinioStorageService>();
+        }
+    }
+
+    Log.Information("Integration modes: smtp={Smtp}, usps={Usps}, docuseal={Doc}, ai={Ai}, minio={Minio}",
+        integrationMode.Resolve("smtp"), integrationMode.Resolve("usps"),
+        integrationMode.Resolve("docuseal"), integrationMode.Resolve("ai"),
+        integrationMode.Resolve("minio"));
+
+    // Integration outbox (always real — provides durable queue + idempotency for all outbound integrations)
+    builder.Services.AddScoped<IIntegrationOutboxService, IntegrationOutboxService>();
+    builder.Services.AddScoped<IntegrationOutboxDispatcherJob>();
+
+    // MFA service (always real — no mock needed)
+    builder.Services.AddScoped<IMfaService, MfaService>();
+
+    // OEE service
+    builder.Services.AddScoped<IOeeService, OeeService>();
+
+    // Form definition builders — hardcoded definitions for known government forms
+    // (registered outside mock/real block since builders work with extraction data, not external APIs)
+    builder.Services.AddSingleton<IFormDefinitionBuilder, W4FormDefinitionBuilder>();
+    builder.Services.AddSingleton<IFormDefinitionBuilder, I9FormDefinitionBuilder>();
+    builder.Services.AddSingleton<IStateFormDefinitionBuilder, IdahoW4FormDefinitionBuilder>();
+    builder.Services.AddSingleton<IFormDefinitionBuilderFactory, FormDefinitionBuilderFactory>();
+
+    // Accounting provider factory — resolves active provider from system settings
+    builder.Services.AddScoped<IAccountingProviderFactory, AccountingProviderFactory>();
+
+    // User integration providers (calendar, messaging, cloud storage, GitHub)
+    if (useMocks)
+    {
+        builder.Services.AddSingleton<ICalendarIntegrationService, MockCalendarIntegrationService>();
+        builder.Services.AddSingleton<IMessagingIntegrationService, MockMessagingIntegrationService>();
+        builder.Services.AddSingleton<ICloudStorageIntegrationService, MockCloudStorageIntegrationService>();
+    }
+    else
+    {
+        // Calendar providers
+        builder.Services.AddScoped<ICalendarIntegrationService, GoogleCalendarService>();
+        builder.Services.AddScoped<ICalendarIntegrationService, OutlookCalendarService>();
+        builder.Services.AddScoped<ICalendarIntegrationService, IcsCalendarFeedService>();
+
+        // Messaging providers (webhook-based)
+        builder.Services.AddScoped<IMessagingIntegrationService, SlackMessagingService>();
+        builder.Services.AddScoped<IMessagingIntegrationService, TeamsMessagingService>();
+        builder.Services.AddScoped<IMessagingIntegrationService, DiscordMessagingService>();
+        builder.Services.AddScoped<IMessagingIntegrationService, GoogleChatMessagingService>();
+
+    }
+    builder.Services.AddScoped<IGitHubIssueService, GitHubIssueService>();
+
+    // ── Cloud storage substrate (always-on; not gated by MockIntegrations) ──
+    // Per the Pro Services rollout D9 / Artifact 4. Handlers throughout the
+    // app depend on ICloudFolderAutoCreator regardless of mock-vs-real mode,
+    // so the substrate must always be registered. Real Google Drive /
+    // OneDrive / Dropbox providers slot in when their options sections
+    // have populated credentials; otherwise only the mock is active.
+    //
+    // All ICloudStorageIntegrationService registrations are Scoped so
+    // IEnumerable injection in CloudStorageResolver resolves them
+    // consistently (mock state is per-scope, which is fine because folder
+    // operations are per-request).
+    builder.Services.AddScoped<ICloudStorageIntegrationService, MockCloudStorageIntegrationService>();
+    builder.Services.AddScoped<ICloudStorageResolver, CloudStorageResolver>();
+
+    // Folder auto-create flow (per D2 dual-path: sync best-effort; outbox
+    // retry is a Phase 3a follow-up). Token manager handles the encrypt/
+    // decrypt boundary + proactive refresh.
+    builder.Services.AddSingleton<IFolderPathResolver, FolderPathResolver>();
+    builder.Services.AddScoped<ICloudStorageTokenManager, CloudStorageTokenManager>();
+    builder.Services.AddScoped<ICloudFolderAutoCreator, CloudFolderAutoCreator>();
+
+    var googleDriveOptions = builder.Configuration.GetSection("GoogleDrive").Get<GoogleDriveOptions>();
+    if (googleDriveOptions?.IsConfigured == true)
+    {
+        builder.Services.Configure<GoogleDriveOptions>(builder.Configuration.GetSection("GoogleDrive"));
+        builder.Services.AddScoped<ICloudStorageIntegrationService, GoogleDriveCloudStorageService>();
+    }
+
+    var oneDriveOptions = builder.Configuration.GetSection("OneDrive").Get<OneDriveOptions>();
+    if (oneDriveOptions?.IsConfigured == true)
+    {
+        builder.Services.Configure<OneDriveOptions>(builder.Configuration.GetSection("OneDrive"));
+        builder.Services.AddScoped<ICloudStorageIntegrationService, OneDriveCloudStorageService>();
+    }
+
+    var dropboxOptions = builder.Configuration.GetSection("Dropbox").Get<DropboxOptions>();
+    if (dropboxOptions?.IsConfigured == true)
+    {
+        builder.Services.Configure<DropboxOptions>(builder.Configuration.GetSection("Dropbox"));
+        builder.Services.AddScoped<ICloudStorageIntegrationService, DropboxCloudStorageService>();
+    }
+
+    // Resilient HTTP clients
+    builder.Services.AddResilientHttpClients();
+
+    // MediatR
+    builder.Services.AddMediatR(cfg =>
+    {
+        cfg.RegisterServicesFromAssemblyContaining<Program>();
+        cfg.NotificationPublisherType = typeof(Forge.Api.Behaviors.ResilientNotificationPublisher);
+    });
+    builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+    builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+    builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Forge.Api.Behaviors.CapabilityGateBehavior<,>));
+
+    // Domain Events — dead letter queue + backward scheduling
+    builder.Services.AddScoped<Forge.Api.Features.DomainEvents.DomainEventFailureService>();
+    builder.Services.AddScoped<Forge.Api.Services.BackwardSchedulingService>();
+    builder.Services.AddScoped<IBackwardSchedulingService>(sp => sp.GetRequiredService<Forge.Api.Services.BackwardSchedulingService>());
+
+    // Controllers + OpenAPI
+    builder.Services.AddControllers()
+        .AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            options.JsonSerializerOptions.Converters.Add(new Forge.Api.Converters.FlexibleDateOnlyConverter());
+        });
+
+    // Custom model-binding error envelope (Phase 3 H6) — replaces ASP.NET Core's
+    // default "JSON value could not be converted..." text with structured errors.
+    builder.Services.Configure<ApiBehaviorOptions>(options =>
+    {
+        options.InvalidModelStateResponseFactory = CustomInvalidModelStateResponseFactory.Create();
+    });
+
+    builder.Services.AddOpenApi();
+
+    // CORS — read allowed origins from CORS_ORIGINS env var (comma-separated),
+    // plus internal Docker service names that are always needed.
+    var corsOrigins = new List<string>
+    {
+        "http://localhost:4200",
+        "http://localhost:4201",
+        "http://localhost:80",
+        "http://localhost",
+        "http://forge-ui",
+        "http://forge-ui:80",
+    };
+    var envOrigins = builder.Configuration["CORS_ORIGINS"];
+    if (!string.IsNullOrWhiteSpace(envOrigins))
+    {
+        foreach (var origin in envOrigins.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!corsOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+                corsOrigins.Add(origin);
+        }
+    }
+    builder.Services.AddCors(options =>
+    {
+        options.AddDefaultPolicy(policy =>
+        {
+            policy.WithOrigins(corsOrigins.ToArray())
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        });
+    });
+
+    // Hangfire
+    // EnableLongPolling switches job pickup from tight 15s DB polls to PG LISTEN/NOTIFY —
+    // big idle-CPU win. QueuePollInterval is only the fallback if notifications miss.
+    // WorkerCount of 2 is plenty: the vast majority of our recurring jobs are daily cron.
+    builder.Services.AddHangfire(config => config
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UsePostgreSqlStorage(
+            c => c.UseNpgsqlConnection(
+                builder.Configuration.GetConnectionString("DefaultConnection") ?? string.Empty),
+            new PostgreSqlStorageOptions
+            {
+                EnableLongPolling = true,
+                QueuePollInterval = TimeSpan.FromSeconds(60),
+            }));
+    builder.Services.AddHangfireServer(options =>
+    {
+        options.Queues = ["default"];
+        options.WorkerCount = 2;
+    });
+    builder.Services.AddScoped<RecurringOrderJob>();
+    builder.Services.AddScoped<OverdueInvoiceJob>();
+    builder.Services.AddScoped<ScheduledTaskJob>();
+    builder.Services.AddScoped<DailyDigestJob>();
+    builder.Services.AddTransient<DatabaseBackupJob>();
+    builder.Services.AddScoped<SyncQueueProcessorJob>();
+    builder.Services.AddScoped<CustomerSyncJob>();
+    builder.Services.AddScoped<AccountingCacheSyncJob>();
+    builder.Services.AddScoped<OrphanDetectionJob>();
+    builder.Services.AddScoped<ItemSyncJob>();
+    builder.Services.AddScoped<RecurringExpenseJob>();
+    builder.Services.AddScoped<DocumentIndexJob>();
+    builder.Services.AddScoped<OverdueMaintenanceJob>();
+    builder.Services.AddScoped<ComplianceFormSyncJob>();
+    builder.Services.AddScoped<ReorderAnalysisJob>();
+    builder.Services.AddScoped<StaleWorkflowRunCleanupJob>();
+    // Phase 1r — lead/customer recompute jobs.
+    builder.Services.AddScoped<ComputeLeadIcpScoresJob>();
+    builder.Services.AddScoped<RecomputeLeadSourceQualityJob>();
+    builder.Services.AddScoped<MarkStaleSamplesJob>();
+
+    // Health checks
+    builder.Services.AddHealthChecks()
+        .AddNpgSql(builder.Configuration.GetConnectionString("DefaultConnection") ?? string.Empty,
+            name: "postgresql")
+        .AddHangfire(options => { options.MinimumAvailableServers = 1; }, name: "hangfire")
+        .AddCheck<MinioHealthCheck>("minio")
+        .AddCheck<SignalRHealthCheck>("signalr");
+
+    // Rate limiting — disabled in Development (simulation, E2E tests need unrestricted access)
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+        {
+            // In Development, disable all rate limiting
+            if (builder.Environment.IsDevelopment())
+                return RateLimitPartition.GetNoLimiter("dev");
+
+            var path = ctx.Request.Path.Value ?? string.Empty;
+            if (path.StartsWith("/hubs/", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+                || path.Equals("/api/v1/version", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/api/v1/dev/", StringComparison.OrdinalIgnoreCase))
+                return RateLimitPartition.GetNoLimiter("infra");
+
+            // Bypass rate limiting for loopback (E2E tests, local dev tools)
+            var ip = ctx.Connection.RemoteIpAddress;
+            if (ip != null && System.Net.IPAddress.IsLoopback(ip))
+                return RateLimitPartition.GetNoLimiter("loopback");
+
+            return RateLimitPartition.GetFixedWindowLimiter(
+                ctx.User?.Identity?.Name ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 2000,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                });
+        });
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    });
+
+    var app = builder.Build();
+
+    // ── Database initialization ──────────────────────────────────────────
+    // All database lifecycle events are logged at Warning or higher for traceability.
+    // If the database is ever unexpectedly wiped, these logs (persisted in Seq) provide
+    // a full audit trail of what happened and why.
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        Log.Information("[DB-LIFECYCLE] Database initialization starting. Provider: {Provider}",
+            db.Database.ProviderName);
+
+        if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
+        {
+            Log.Information("[DB-LIFECYCLE] In-memory provider detected — using EnsureCreated (test mode)");
+            await db.Database.EnsureCreatedAsync();
+        }
+        else
+        {
+            var forceRecreate = builder.Configuration.GetValue<bool>("RECREATE_DB");
+            var seedDemoDataFlag = builder.Configuration.GetValue<bool>("SEED_DEMO_DATA");
+            var canConnect = await db.Database.CanConnectAsync();
+
+            Log.Information(
+                "[DB-LIFECYCLE] Config: RECREATE_DB={RecreateDb}, SEED_DEMO_DATA={SeedDemo}, CanConnect={CanConnect}",
+                forceRecreate, seedDemoDataFlag, canConnect);
+
+            if (forceRecreate)
+            {
+                // Manual escape hatch — set RECREATE_DB=true to force a wipe (dev use only)
+                Log.Warning(
+                    "[DB-LIFECYCLE] ⚠ RECREATE_DB=true — DELETING entire database and recreating from migrations. " +
+                    "This destroys ALL data. If this was not intentional, check your .env file.");
+                await db.Database.EnsureDeletedAsync();
+                Log.Warning("[DB-LIFECYCLE] Database deleted successfully. Will recreate via MigrateAsync.");
+            }
+            else if (canConnect)
+            {
+                // DB exists — verify migrations history is intact
+                IEnumerable<string> applied;
+                bool historyTableMissing = false;
+                try
+                {
+                    applied = await db.Database.GetAppliedMigrationsAsync();
+                }
+                catch (Exception ex)
+                {
+                    // __EFMigrationsHistory table missing entirely
+                    applied = [];
+                    historyTableMissing = true;
+                    Log.Warning(
+                        "[DB-LIFECYCLE] __EFMigrationsHistory table not found: {Error}. " +
+                        "This can happen if the database was created without EF migrations.",
+                        ex.Message);
+                }
+
+                var appliedList = applied.ToList();
+                var pendingMigrations = (await db.Database.GetPendingMigrationsAsync()).ToList();
+                var allMigrations = db.Database.GetMigrations().ToList();
+
+                Log.Information(
+                    "[DB-LIFECYCLE] Migration state: {Applied} applied, {Pending} pending, {Total} total in assembly",
+                    appliedList.Count, pendingMigrations.Count, allMigrations.Count);
+
+                if (!appliedList.Any())
+                {
+                    // No migration history but DB exists. Check if there's actual data.
+                    bool hasExistingData = false;
+                    try { hasExistingData = await db.Jobs.AnyAsync(); }
+                    catch { /* table doesn't exist — fresh DB, nothing to recover */ }
+
+                    if (hasExistingData)
+                    {
+                        // Schema exists with data but no migrations history.
+                        // Self-heal: verify each migration's schema changes against information_schema,
+                        // mark verified ones as applied, leave unverified ones pending for MigrateAsync().
+                        Log.Warning(
+                            "[DB-LIFECYCLE] ⚠ SELF-HEALING: Database has existing data but NO migration history. " +
+                            "History table missing: {HistoryMissing}. Verifying each migration's schema " +
+                            "changes against information_schema to recover...",
+                            historyTableMissing);
+
+                        if (historyTableMissing)
+                        {
+                            Log.Information("[DB-LIFECYCLE] Creating __EFMigrationsHistory table");
+                            await db.Database.ExecuteSqlRawAsync(
+                                """
+                                CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+                                    "MigrationId" character varying(150) NOT NULL,
+                                    "ProductVersion" character varying(32) NOT NULL,
+                                    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+                                )
+                                """);
+                        }
+
+                        var migrationsAssembly = ((IInfrastructure<IServiceProvider>)db).Instance.GetRequiredService<IMigrationsAssembly>();
+                        var efVersion = typeof(DbContext).Assembly.GetName().Version?.ToString() ?? "9.0.3";
+                        var verified = 0;
+                        var pending = 0;
+
+                        foreach (var (migrationId, typeInfo) in migrationsAssembly.Migrations)
+                        {
+                            var migration = (Migration)Activator.CreateInstance(typeInfo.AsType())!;
+                            var isApplied = await Forge.Data.Migrations.MigrationSchemaVerifier
+                                .IsMigrationApplied(db, migration, migrationId);
+
+                            if (isApplied)
+                            {
+                                await db.Database.ExecuteSqlRawAsync(
+                                    """
+                                    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+                                    VALUES ({0}, {1})
+                                    ON CONFLICT ("MigrationId") DO NOTHING
+                                    """,
+                                    migrationId, efVersion);
+                                verified++;
+                                Log.Debug("[DB-LIFECYCLE] Migration {MigrationId}: schema verified ✓", migrationId);
+                            }
+                            else
+                            {
+                                pending++;
+                                Log.Warning(
+                                    "[DB-LIFECYCLE] Migration {MigrationId}: schema NOT verified — will be applied by MigrateAsync",
+                                    migrationId);
+                            }
+                        }
+
+                        Log.Information(
+                            "[DB-LIFECYCLE] Self-healing complete: {Verified} migrations verified, {Pending} pending",
+                            verified, pending);
+                    }
+                    else
+                    {
+                        Log.Information(
+                            "[DB-LIFECYCLE] No existing data found — fresh database, all migrations will be applied");
+                    }
+                }
+                else
+                {
+                    Log.Information(
+                        "[DB-LIFECYCLE] Migration history intact. Applied: [{AppliedMigrations}]",
+                        string.Join(", ", appliedList.TakeLast(5)));
+                    if (pendingMigrations.Any())
+                    {
+                        Log.Information(
+                            "[DB-LIFECYCLE] Pending migrations to apply: [{PendingMigrations}]",
+                            string.Join(", ", pendingMigrations));
+                    }
+                }
+            }
+            else
+            {
+                Log.Information("[DB-LIFECYCLE] Cannot connect to database — MigrateAsync will create it");
+            }
+
+            // Apply all pending migrations (creates DB from scratch if it doesn't exist)
+            Log.Information("[DB-LIFECYCLE] Running MigrateAsync...");
+            await db.Database.MigrateAsync();
+            Log.Information("[DB-LIFECYCLE] Database migrations applied successfully");
+
+            // Seed essential data idempotently (roles, track types, reference data).
+            // Demo data (users, customers, jobs, etc.) only seeded when SEED_DEMO_DATA=true.
+            var seedDemoData = builder.Configuration.GetValue<bool>("SEED_DEMO_DATA");
+            Log.Information("[DB-LIFECYCLE] Running seed data (demo={SeedDemo})...", seedDemoData);
+            await SeedData.SeedAsync(scope.ServiceProvider, seedDemoData);
+            Log.Information("[DB-LIFECYCLE] Seed data complete");
+
+            // Seed built-in AI assistants (idempotent)
+            await Forge.Api.Features.AiAssistants.SeedAiAssistants.EnsureSeededAsync(db);
+
+            // Phase 4 Phase-A — seed the capability catalog (idempotent), then
+            // hydrate the singleton snapshot. Must run AFTER migrations and
+            // before the middleware pipeline serves any request.
+            var capabilitySeeder = scope.ServiceProvider.GetRequiredService<Forge.Api.Capabilities.ICapabilityCatalogSeeder>();
+            await capabilitySeeder.SeedAsync();
+            var capabilitySnapshots = app.Services.GetRequiredService<Forge.Api.Capabilities.ICapabilitySnapshotProvider>();
+            await capabilitySnapshots.RefreshAsync();
+            Log.Information("[CAPABILITY-SEED] Snapshot hydrated: {Count} capabilities ({Enabled} enabled)",
+                capabilitySnapshots.Current.EnabledByCode.Count,
+                capabilitySnapshots.Current.EnabledByCode.Count(kv => kv.Value));
+
+            // Workflow Pattern Phase 3 — seed entity readiness validators +
+            // workflow definitions. Idempotent stable-id upsert. Runs after
+            // migrations and the capability seeder so cross-feature seeds
+            // share the same audit-suppression posture.
+            var workflowSeeder = scope.ServiceProvider.GetRequiredService<Forge.Api.Workflows.IWorkflowSubstrateSeeder>();
+            await workflowSeeder.SeedAsync();
+
+            // Demo-data export mode — dump business entities to JSON and exit
+            // before the web host starts. Triggered by EXPORT_DEMO_DATA env var
+            // (path to output directory). Used by the disposable export stack.
+            var exportDir = Environment.GetEnvironmentVariable("EXPORT_DEMO_DATA");
+            if (!string.IsNullOrWhiteSpace(exportDir))
+            {
+                Log.Information("[EXPORT] EXPORT_DEMO_DATA set — exporting to {Dir} and exiting", exportDir);
+                await DemoDataExporter.ExportAsync(db, exportDir, CancellationToken.None);
+                Log.Information("[EXPORT] Export complete — shutting down");
+                await Log.CloseAndFlushAsync();
+                return;
+            }
+
+            // Auto-extract form definitions for templates that have IsAutoSync + SourceUrl but no FormDefinitionVersion yet
+            var templatesNeedingExtraction = await db.ComplianceFormTemplates
+                .Where(t => t.IsAutoSync && t.SourceUrl != null && !t.FormDefinitionVersions.Any())
+                .ToListAsync();
+
+            if (templatesNeedingExtraction.Count > 0)
+            {
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+                foreach (var tmpl in templatesNeedingExtraction)
+                {
+                    try
+                    {
+                        Log.Information("Auto-extracting form definition for template {TemplateId} ({Name})",
+                            tmpl.Id, tmpl.Name);
+                        await mediator.Send(new Forge.Api.Features.ComplianceForms.ExtractFormDefinitionCommand(tmpl.Id));
+                        Log.Information("Form definition extracted successfully for template {TemplateId}", tmpl.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warning(ex, "Auto-extraction failed for template {TemplateId} ({Name}) — admin can extract manually",
+                            tmpl.Id, tmpl.Name);
+                    }
+                }
+            }
+        }
+    }
+
+    // Storage bucket/directory initialization (skip when using mock storage)
+    if (!useMocks)
+    {
+        using var scope = app.Services.CreateScope();
+        var storageService = scope.ServiceProvider.GetRequiredService<IStorageService>();
+        var minioOpts = scope.ServiceProvider.GetRequiredService<IOptions<MinioOptions>>().Value;
+
+        try
+        {
+            await storageService.EnsureBucketExistsAsync(minioOpts.JobFilesBucket, CancellationToken.None);
+            await storageService.EnsureBucketExistsAsync(minioOpts.ReceiptsBucket, CancellationToken.None);
+            await storageService.EnsureBucketExistsAsync(minioOpts.EmployeeDocsBucket, CancellationToken.None);
+            await storageService.EnsureBucketExistsAsync(minioOpts.PiiDocsBucket, CancellationToken.None);
+            Log.Information("Storage buckets/directories verified ({Provider})", storageProvider);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Storage initialization failed — file storage unavailable until provider is reachable");
+        }
+    }
+
+    // Middleware pipeline
+    var forwardedHeadersOptions = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+            | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+            | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedHost,
+    };
+    forwardedHeadersOptions.KnownNetworks.Clear();
+    forwardedHeadersOptions.KnownProxies.Clear();
+    app.UseForwardedHeaders(forwardedHeadersOptions);
+    app.UseMiddleware<SecurityHeadersMiddleware>();
+    app.UseSerilogRequestLogging();
+    app.UseMiddleware<ExceptionHandlingMiddleware>();
+    app.UseCors();
+    app.UseRateLimiter();
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.MapOpenApi();
+        app.MapScalarApiReference(options =>
+        {
+            options.WithTitle("QB Engineer API");
+            options.WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+        });
+
+        // ── Dev-only: clock control for E2E simulation ─────────────────────
+        // Admin-role gated so external simulations (or curl) must authenticate
+        // before altering server time on a shared/public dev deployment.
+        var devClock = app.Services.GetRequiredService<MockClock>();
+
+        app.MapPost("/api/v1/dev/clock", (ClockSetRequest req) =>
+        {
+            devClock.Set(req.Now);
+            return Results.Ok(new { now = devClock.UtcNow });
+        }).RequireAuthorization(p => p.RequireRole("Admin"));
+
+        app.MapGet("/api/v1/dev/clock", () =>
+            Results.Ok(new { now = devClock.UtcNow }))
+            .RequireAuthorization(p => p.RequireRole("Admin"));
+
+        app.MapDelete("/api/v1/dev/clock", () =>
+        {
+            devClock.Set(DateTimeOffset.UtcNow);
+            return Results.Ok(new { now = devClock.UtcNow });
+        }).RequireAuthorization(p => p.RequireRole("Admin"));
+
+        // ── Dev-only: simulation state summary ─────────────────────────────
+        app.MapGet("/api/v1/dev/simulation-state", async (AppDbContext db) =>
+        {
+            var jobsByStage = await db.Jobs
+                .Where(j => j.DeletedAt == null)
+                .Include(j => j.CurrentStage)
+                .GroupBy(j => j.CurrentStage != null ? j.CurrentStage.Name : "Unknown")
+                .Select(g => new { Stage = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Stage, x => x.Count);
+
+            var now = devClock.UtcNow;
+            return Results.Ok(new
+            {
+                openLeads       = await db.Leads.CountAsync(l => l.DeletedAt == null
+                                    && l.Status != Forge.Core.Enums.LeadStatus.Converted
+                                    && l.Status != Forge.Core.Enums.LeadStatus.Lost),
+                openQuotes      = await db.Quotes.CountAsync(q => q.DeletedAt == null
+                                    && q.Status == Forge.Core.Enums.QuoteStatus.Draft),
+                openSalesOrders = await db.SalesOrders.CountAsync(so => so.DeletedAt == null
+                                    && so.Status != Forge.Core.Enums.SalesOrderStatus.Completed
+                                    && so.Status != Forge.Core.Enums.SalesOrderStatus.Cancelled),
+                jobsByStage,
+                unpaidInvoices  = await db.Invoices.CountAsync(i => i.DeletedAt == null
+                                    && i.Status != Forge.Core.Enums.InvoiceStatus.Paid
+                                    && i.Status != Forge.Core.Enums.InvoiceStatus.Voided),
+                overduePos      = await db.PurchaseOrders.CountAsync(po => po.DeletedAt == null
+                                    && po.Status == Forge.Core.Enums.PurchaseOrderStatus.Submitted
+                                    && po.ExpectedDeliveryDate < now),
+                activeTimers    = await db.ClockEvents.CountAsync(ce =>
+                                    ce.EventType == Forge.Core.Enums.ClockEventType.ClockIn
+                                    && !db.ClockEvents.Any(ce2 => ce2.UserId == ce.UserId
+                                        && ce2.EventType == Forge.Core.Enums.ClockEventType.ClockOut
+                                        && ce2.Timestamp > ce.Timestamp)),
+                pendingExpenses = await db.Expenses.CountAsync(e => e.DeletedAt == null
+                                    && e.Status == Forge.Core.Enums.ExpenseStatus.Pending),
+            });
+        }).RequireAuthorization(p => p.RequireRole("Admin"));
+
+        // ── Dev-only: force-fire a Hangfire job synchronously ─────────────
+        // Lets E2E tests advance the clock then trigger a notification job
+        // immediately, instead of waiting for the next Hangfire tick.
+        // Phase 3 / WU-05 / B1.
+        app.MapPost("/api/v1/dev/jobs/run/{jobName}", async (string jobName, IServiceProvider sp, CancellationToken ct) =>
+        {
+            // Whitelist of jobs that can be force-fired (job class name → entry method).
+            // Restricted to the Hangfire job classes registered in this app.
+            var jobMap = new Dictionary<string, (Type Type, string Method)>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["RecurringOrderJob"]              = (typeof(RecurringOrderJob),              "GenerateDueOrdersAsync"),
+                ["RecurringExpenseJob"]            = (typeof(RecurringExpenseJob),            "GenerateDueExpensesAsync"),
+                ["OverdueInvoiceJob"]              = (typeof(OverdueInvoiceJob),              "MarkOverdueInvoicesAsync"),
+                ["UninvoicedJobNudgeJob"]          = (typeof(UninvoicedJobNudgeJob),          "NudgeUninvoicedJobsAsync"),
+                ["ScheduledTaskJob"]               = (typeof(ScheduledTaskJob),               "RunDueTasksAsync"),
+                ["DailyDigestJob"]                 = (typeof(DailyDigestJob),                 "SendDailyDigestAsync"),
+                ["OverdueMaintenanceJob"]          = (typeof(OverdueMaintenanceJob),          "CheckOverdueMaintenanceAsync"),
+                ["DatabaseBackupJob"]              = (typeof(DatabaseBackupJob),              "RunBackupAsync"),
+                ["IntegrationOutboxDispatcherJob"] = (typeof(IntegrationOutboxDispatcherJob), "DispatchPendingAsync"),
+                ["SyncQueueProcessorJob"]          = (typeof(SyncQueueProcessorJob),          "ProcessQueueAsync"),
+                ["CustomerSyncJob"]                = (typeof(CustomerSyncJob),                "SyncCustomersAsync"),
+                ["AccountingCacheSyncJob"]         = (typeof(AccountingCacheSyncJob),         "RefreshCacheAsync"),
+                ["OrphanDetectionJob"]             = (typeof(OrphanDetectionJob),             "DetectOrphansAsync"),
+                ["ItemSyncJob"]                    = (typeof(ItemSyncJob),                    "SyncItemsAsync"),
+                ["DocumentIndexJob"]               = (typeof(DocumentIndexJob),               "IndexRecentlyUpdatedAsync"),
+                ["ComplianceFormSyncJob"]          = (typeof(ComplianceFormSyncJob),          "SyncFederalFormsAsync"),
+                ["CheckI9OverdueJob"]              = (typeof(CheckI9OverdueJob),              "CheckOverdueSection2Async"),
+                ["CheckI9ReverificationJob"]       = (typeof(CheckI9ReverificationJob),       "CheckReverificationDueAsync"),
+                ["CheckMismatchedClockEventsJob"]  = (typeof(CheckMismatchedClockEventsJob),  "CheckMismatchedEventsAsync"),
+                ["ReorderAnalysisJob"]             = (typeof(ReorderAnalysisJob),             "RunAnalysisAsync"),
+                ["EventReminderJob"]               = (typeof(EventReminderJob),               "SendRemindersAsync"),
+                ["MrpRunJob"]                      = (typeof(MrpRunJob),                      "ExecuteNightlyRunAsync"),
+                ["PollEdiInboundJob"]              = (typeof(PollEdiInboundJob),              "PollAllPartnersAsync"),
+                ["CheckApprovalEscalationsJob"]    = (typeof(CheckApprovalEscalationsJob),    "ExecuteAsync"),
+                ["CheckCreditReviewsDueJob"]       = (typeof(CheckCreditReviewsDueJob),       "ExecuteAsync"),
+                ["RecalculateVendorScorecardsJob"] = (typeof(RecalculateVendorScorecardsJob), "RecalculateAsync"),
+                ["AutoPurchaseOrderJob"]           = (typeof(AutoPurchaseOrderJob),           "Execute"),
+                ["InvoicePastDueCheckJob"]         = (typeof(InvoicePastDueCheckJob),         "Execute"),
+                ["QuoteExpiringCheckJob"]          = (typeof(QuoteExpiringCheckJob),          "Execute"),
+                ["CheckInventoryLevelsJob"]        = (typeof(CheckInventoryLevelsJob),        "Execute"),
+                ["CheckJobCostOverrunJob"]         = (typeof(CheckJobCostOverrunJob),         "Execute"),
+            };
+
+            if (!jobMap.TryGetValue(jobName, out var entry))
+            {
+                return Results.NotFound(new { error = $"Unknown job '{jobName}'", available = jobMap.Keys.OrderBy(k => k) });
+            }
+
+            using var scope = sp.CreateScope();
+            // Some jobs are registered explicitly; others are constructed by Hangfire's
+            // activator on demand. ActivatorUtilities.GetServiceOrCreateInstance covers both.
+            var job = ActivatorUtilities.GetServiceOrCreateInstance(scope.ServiceProvider, entry.Type);
+
+            var method = entry.Type.GetMethod(entry.Method)
+                ?? throw new InvalidOperationException($"Method {entry.Method} not found on {entry.Type.Name}");
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                // Job entry methods take an optional CancellationToken parameter
+                var paramCount = method.GetParameters().Length;
+                var args = paramCount == 1 ? new object[] { ct } : Array.Empty<object>();
+                var result = method.Invoke(job, args);
+                if (result is Task task)
+                {
+                    await task;
+                }
+                sw.Stop();
+                return Results.Ok(new { job = jobName, elapsedMs = sw.ElapsedMilliseconds });
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                Log.Warning(ex, "Dev job-run failed for {Job}", jobName);
+                var inner = ex is System.Reflection.TargetInvocationException tie ? tie.InnerException ?? ex : ex;
+                return Results.Problem(inner.Message, statusCode: 500, title: $"Job {jobName} failed");
+            }
+        }).RequireAuthorization(p => p.RequireRole("Admin"));
+
+        // ── Dev-only: report-test-data seeding (Phase 3 / WU-16 / H7) ─────
+        // Phase 1 found 11 Reports cases couldn't be graded because the seed
+        // had no source data for the reports to aggregate. This endpoint
+        // populates representative data per category — sentinel-prefixed
+        // (RT-SEED-) for traceability and clean removal. Idempotent.
+        app.MapPost("/api/v1/dev/seed-report-test-data",
+            async (Forge.Api.Features.Dev.SeedReportTestDataRequest req, AppDbContext db, IClock clock, CancellationToken ct) =>
+        {
+            var scope = Forge.Api.Features.Dev.SeedScopeParser.Parse(req?.Scope);
+            if (scope == Forge.Api.Features.Dev.SeedScope.None)
+                return Results.BadRequest(new { error = "Unknown scope. Valid: all, completed-jobs, ncrs, work-centers, pm-schedules, mrp-exceptions, real-receipts, lot-consumption, finished-serials." });
+
+            var seeder = new Forge.Api.Features.Dev.SeedReportTestData(db, clock);
+            var seeded = await seeder.SeedAsync(scope, ct);
+            return Results.Ok(new { scope = req!.Scope, seeded });
+        }).RequireAuthorization(p => p.RequireRole("Admin"));
+
+        app.MapPost("/api/v1/dev/seed-report-test-data/cleanup",
+            async (AppDbContext db, IClock clock, CancellationToken ct) =>
+        {
+            var seeder = new Forge.Api.Features.Dev.SeedReportTestData(db, clock);
+            var removed = await seeder.CleanupAsync(ct);
+            return Results.Ok(new { removed });
+        }).RequireAuthorization(p => p.RequireRole("Admin"));
+    }
+
+    app.UseRouting();
+    app.UseSession();
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    // Phase 4 Phase-A — capability gating. Runs after UseRouting so the
+    // endpoint metadata is resolved, after auth so we know who the user is
+    // (audit + role hint), and before the controller body so a write never
+    // reaches the DB on a disabled capability. Wired but not yet applied to
+    // any endpoint; Phase B is the gating slice.
+    app.UseMiddleware<Forge.Api.Capabilities.CapabilityGateMiddleware>();
+
+    // Sets AppDbContext.CurrentUserId from authenticated claims so
+    // automatic activity-log + audit-log writes can attribute the actor.
+    // Must run AFTER UseAuthentication / UseAuthorization. (Phase 3 / WU-03 / A2)
+    app.UseMiddleware<AuditContextMiddleware>();
+
+    app.MapControllers();
+    app.MapGet("/api/v1/version", async () =>
+    {
+        var appVersion = Environment.GetEnvironmentVariable("APP_VERSION") ?? "dev";
+        var gitCommit = Environment.GetEnvironmentVariable("GIT_COMMIT") ?? string.Empty;
+
+        // In dev, fall back to running git if the env var wasn't set at build time
+        if (string.IsNullOrEmpty(gitCommit))
+        {
+            try
+            {
+                using var proc = new System.Diagnostics.Process();
+                proc.StartInfo = new System.Diagnostics.ProcessStartInfo("git", "rev-parse HEAD")
+                {
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = "/app",
+                };
+                proc.Start();
+                gitCommit = (await proc.StandardOutput.ReadToEndAsync()).Trim();
+                await proc.WaitForExitAsync();
+            }
+            catch
+            {
+                gitCommit = string.Empty;
+            }
+        }
+
+        var shortCommit = gitCommit.Length >= 7 ? gitCommit[..7] : gitCommit;
+        return Results.Ok(new
+        {
+            version = appVersion,
+            gitCommit,
+            shortCommit,
+            buildLabel = string.IsNullOrEmpty(shortCommit) ? appVersion : $"{appVersion} ({shortCommit})",
+        });
+    }).AllowAnonymous();
+
+    app.MapHealthChecks("/api/v1/health", new HealthCheckOptions
+    {
+        ResponseWriter = async (context, report) =>
+        {
+            context.Response.ContentType = "application/json";
+            var result = new
+            {
+                status = report.Status.ToString(),
+                checks = report.Entries.Select(e => new
+                {
+                    name = e.Key,
+                    status = e.Value.Status.ToString(),
+                    description = e.Value.Description,
+                    duration = e.Value.Duration.TotalMilliseconds
+                }),
+                totalDuration = report.TotalDuration.TotalMilliseconds
+            };
+            await context.Response.WriteAsJsonAsync(result);
+        }
+    });
+
+    // Hangfire dashboard + recurring jobs
+    app.MapHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        Authorization = new[] { new HangfireAdminAuthorizationFilter() },
+    });
+    RecurringJob.AddOrUpdate<IntegrationOutboxDispatcherJob>(
+        "integration-outbox-dispatcher",
+        job => job.DispatchPendingAsync(CancellationToken.None),
+        "* * * * *"); // Every 1 minute — drains pending email/integration queue
+    RecurringJob.AddOrUpdate<RecurringOrderJob>(
+        "generate-recurring-orders",
+        job => job.GenerateDueOrdersAsync(CancellationToken.None),
+        Cron.Daily(6)); // 6 AM UTC daily
+    RecurringJob.AddOrUpdate<RecurringExpenseJob>(
+        "generate-recurring-expenses",
+        job => job.GenerateDueExpensesAsync(CancellationToken.None),
+        Cron.Daily(5)); // 5 AM UTC daily
+    RecurringJob.AddOrUpdate<OverdueInvoiceJob>(
+        "mark-overdue-invoices",
+        job => job.MarkOverdueInvoicesAsync(CancellationToken.None),
+        Cron.Daily(1)); // 1 AM UTC daily
+    RecurringJob.AddOrUpdate<UninvoicedJobNudgeJob>(
+        "nudge-uninvoiced-jobs",
+        job => job.NudgeUninvoicedJobsAsync(CancellationToken.None),
+        Cron.Daily(8)); // 8 AM UTC daily
+    RecurringJob.AddOrUpdate<ScheduledTaskJob>(
+        "run-scheduled-tasks",
+        job => job.RunDueTasksAsync(CancellationToken.None),
+        "*/15 * * * *"); // Every 15 minutes
+    RecurringJob.AddOrUpdate<DailyDigestJob>(
+        "send-daily-digest",
+        job => job.SendDailyDigestAsync(CancellationToken.None),
+        Cron.Daily(7)); // 7 AM UTC daily
+    RecurringJob.AddOrUpdate<OverdueMaintenanceJob>(
+        "check-overdue-maintenance",
+        job => job.CheckOverdueMaintenanceAsync(CancellationToken.None),
+        Cron.Daily(2)); // 2 AM UTC daily
+    RecurringJob.AddOrUpdate<DatabaseBackupJob>(
+        "database-backup",
+        job => job.RunBackupAsync(CancellationToken.None),
+        Cron.Daily(3)); // 3 AM UTC daily
+    RecurringJob.AddOrUpdate<StaleWorkflowRunCleanupJob>(
+        "cleanup-stale-workflow-runs",
+        job => job.CleanupStaleEntitylessRunsAsync(CancellationToken.None),
+        Cron.Daily(4)); // 4 AM UTC daily — auto-abandon entity-less drafts >24h idle
+    RecurringJob.AddOrUpdate<CommunicationSyncJob>(
+        "communication-sync",
+        job => job.SyncAllConnectedAsync(CancellationToken.None),
+        "*/15 * * * *"); // Every 15 minutes — drives ICommunicationSyncProvider.SyncRecentAsync
+    RecurringJob.AddOrUpdate<LeadFollowUpReminderJob>(
+        "lead-followup-reminders",
+        job => job.RunAsync(CancellationToken.None),
+        Cron.Daily(7)); // 7 AM UTC daily — pairs with the existing daily-digest cadence
+
+    // Accounting sync jobs
+    RecurringJob.AddOrUpdate<SyncQueueProcessorJob>(
+        "sync-queue-processor",
+        job => job.ProcessQueueAsync(CancellationToken.None),
+        "*/2 * * * *"); // Every 2 minutes
+    RecurringJob.AddOrUpdate<CustomerSyncJob>(
+        "customer-sync",
+        job => job.SyncCustomersAsync(CancellationToken.None),
+        "0 */4 * * *"); // Every 4 hours
+    RecurringJob.AddOrUpdate<AccountingCacheSyncJob>(
+        "accounting-cache-sync",
+        job => job.RefreshCacheAsync(CancellationToken.None),
+        "0 */6 * * *"); // Every 6 hours
+    RecurringJob.AddOrUpdate<OrphanDetectionJob>(
+        "orphan-detection",
+        job => job.DetectOrphansAsync(CancellationToken.None),
+        "0 3 * * *"); // Daily at 3 AM
+    RecurringJob.AddOrUpdate<ItemSyncJob>(
+        "item-sync",
+        job => job.SyncItemsAsync(CancellationToken.None),
+        "0 */4 * * *"); // Every 4 hours
+    RecurringJob.AddOrUpdate<DocumentIndexJob>(
+        "document-index",
+        job => job.IndexRecentlyUpdatedAsync(CancellationToken.None),
+        "*/30 * * * *"); // Every 30 minutes
+    RecurringJob.AddOrUpdate<DocumentIndexJob>(
+        "documentation-index",
+        job => job.IndexDocumentationAsync(CancellationToken.None),
+        Cron.Daily(3)); // Daily at 3 AM — docs change rarely; startup job handles initial index
+
+    // Index documentation once on startup (AI may not be ready immediately — Hangfire retries)
+    BackgroundJob.Enqueue<DocumentIndexJob>(job => job.IndexDocumentationAsync(CancellationToken.None));
+
+    RecurringJob.AddOrUpdate<ComplianceFormSyncJob>(
+        "compliance-form-sync",
+        job => job.SyncFederalFormsAsync(CancellationToken.None),
+        Cron.Weekly(DayOfWeek.Sunday, 4)); // Sunday 4 AM UTC
+    RecurringJob.AddOrUpdate<CheckI9OverdueJob>(
+        "check-i9-section2-overdue",
+        job => job.CheckOverdueSection2Async(CancellationToken.None),
+        Cron.Daily(9)); // 9 AM UTC daily
+    RecurringJob.AddOrUpdate<CheckI9ReverificationJob>(
+        "check-i9-reverification",
+        job => job.CheckReverificationDueAsync(CancellationToken.None),
+        Cron.Weekly(DayOfWeek.Monday, 9)); // Monday 9 AM UTC weekly
+    RecurringJob.AddOrUpdate<CheckMismatchedClockEventsJob>(
+        "check-mismatched-clock-events",
+        job => job.CheckMismatchedEventsAsync(CancellationToken.None),
+        Cron.Daily(22)); // 10 PM UTC daily
+    RecurringJob.AddOrUpdate<ReorderAnalysisJob>(
+        "reorder-analysis",
+        job => job.RunAnalysisAsync(CancellationToken.None),
+        Cron.Daily(2)); // 2 AM UTC daily
+    RecurringJob.AddOrUpdate<EventReminderJob>(
+        "event-reminders",
+        job => job.SendRemindersAsync(CancellationToken.None),
+        "*/15 * * * *"); // Every 15 minutes
+    RecurringJob.AddOrUpdate<MrpRunJob>(
+        "mrp-nightly-run",
+        job => job.ExecuteNightlyRunAsync(CancellationToken.None),
+        Cron.Daily(3)); // 3 AM UTC daily
+    RecurringJob.AddOrUpdate<PollEdiInboundJob>(
+        "edi-inbound-poll",
+        job => job.PollAllPartnersAsync(CancellationToken.None),
+        "*/30 * * * *"); // Every 30 minutes
+    RecurringJob.AddOrUpdate<CheckApprovalEscalationsJob>(
+        "approval-escalations",
+        job => job.ExecuteAsync(CancellationToken.None),
+        Cron.Hourly); // Every hour
+    RecurringJob.AddOrUpdate<CheckCreditReviewsDueJob>(
+        "check-credit-reviews-due",
+        job => job.ExecuteAsync(CancellationToken.None),
+        Cron.Daily(6)); // 6 AM UTC daily
+    RecurringJob.AddOrUpdate<RecalculateVendorScorecardsJob>(
+        "recalculate-vendor-scorecards",
+        job => job.RecalculateAsync(CancellationToken.None),
+        Cron.Monthly(1, 4)); // 1st of each month at 4 AM UTC
+
+    // Phase 1r — lead/customer nightly recomputes. Staggered so they
+    // don't all hammer the DB at the same minute.
+    RecurringJob.AddOrUpdate<ComputeLeadIcpScoresJob>(
+        "compute-lead-icp-scores",
+        job => job.RunAsync(CancellationToken.None),
+        Cron.Daily(2, 15)); // 2:15 AM UTC daily
+    RecurringJob.AddOrUpdate<RecomputeLeadSourceQualityJob>(
+        "recompute-lead-source-quality",
+        job => job.RunAsync(CancellationToken.None),
+        Cron.Daily(2, 30)); // 2:30 AM UTC daily
+    RecurringJob.AddOrUpdate<MarkStaleSamplesJob>(
+        "mark-stale-samples",
+        job => job.RunAsync(CancellationToken.None),
+        Cron.Daily(2, 45)); // 2:45 AM UTC daily
+
+    // Auto-PO demand projection
+    RecurringJob.AddOrUpdate<AutoPurchaseOrderJob>(
+        "auto-purchase-order",
+        job => job.Execute(CancellationToken.None),
+        Cron.Daily(6, 0)); // 6 AM UTC daily
+
+    // Domain event scheduled checks
+    RecurringJob.AddOrUpdate<InvoicePastDueCheckJob>(
+        "invoice-past-due-check",
+        job => job.Execute(CancellationToken.None),
+        Cron.Daily(7)); // 7 AM UTC daily
+    RecurringJob.AddOrUpdate<QuoteExpiringCheckJob>(
+        "quote-expiring-check",
+        job => job.Execute(CancellationToken.None),
+        Cron.Daily(7)); // 7 AM UTC daily
+    RecurringJob.AddOrUpdate<CheckInventoryLevelsJob>(
+        "check-inventory-levels",
+        job => job.Execute(CancellationToken.None),
+        Cron.Daily(4)); // 4 AM UTC daily
+    RecurringJob.AddOrUpdate<CheckJobCostOverrunJob>(
+        "check-job-cost-overrun",
+        job => job.Execute(CancellationToken.None),
+        Cron.Daily(5)); // 5 AM UTC daily
+
+    // SignalR Hubs
+    app.MapHub<BoardHub>("/hubs/board");
+    app.MapHub<NotificationHub>("/hubs/notifications");
+    app.MapHub<TimerHub>("/hubs/timer");
+    app.MapHub<ChatHub>("/hubs/chat");
+
+    Log.Information("QB Engineer API starting on {Urls}", string.Join(", ", app.Urls));
+    await app.RunAsync();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}
+
+// Make Program accessible to integration tests via WebApplicationFactory
+public partial class Program { }
+
+// Dev-only request model for the clock control endpoint
+internal sealed record ClockSetRequest(DateTimeOffset Now);

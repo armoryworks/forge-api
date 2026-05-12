@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\forge.core\forge.core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+<PackageReference Include="MailKit" Version="4.16.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="9.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.0" />
+    <PackageReference Include="Minio" Version="7.0.0" />
+<PackageReference Include="Microsoft.Playwright" Version="1.50.0" />
+    <PackageReference Include="PuppeteerSharp" Version="24.39.0" />
+    <PackageReference Include="SkiaSharp" Version="3.116.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.116.1" />
+    <PackageReference Include="PDFsharp" Version="6.2.4" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>Forge.Integrations</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Skip auto-download of Playwright browsers — we provide ExecutablePath at runtime -->
+    <PlaywrightSkipInstall>true</PlaywrightSkipInstall>
+  </PropertyGroup>
+
+</Project>
+
