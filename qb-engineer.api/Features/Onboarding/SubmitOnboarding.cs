@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+using QBEngineer.Api.Services;
 using QBEngineer.Core.Entities;
 using QBEngineer.Core.Enums;
 using QBEngineer.Core.Interfaces;
@@ -33,7 +34,8 @@ public class SubmitOnboardingHandler(
     AppDbContext db,
     IMediator mediator,
     IDocumentSigningService signingService,
-    IConfiguration configuration)
+    IConfiguration configuration,
+    IPiiProtector pii)
     : IRequestHandler<SubmitOnboardingCommand, OnboardingSubmitResultModel>
 {
     private bool IsMock => configuration.GetValue<bool>("MockIntegrations");
@@ -46,6 +48,10 @@ public class SubmitOnboardingHandler(
         // This JSON is passed to FillAndSubmitFormForSigningCommand.
         // Each template's AcroFieldMapJson maps a subset of these keys to AcroForm field names.
         var formData = BuildFormDataDictionary(m);
+        // Backfill SSN / bank routing / bank account from the encrypted draft
+        // when the wizard sent them blank (the user already supplied them in
+        // an earlier step + the "Securely stored" indicator was shown).
+        await OnboardingPiiMerge.MergeStoredPiiAsync(db, pii, request.UserId, formData, ct);
         var formDataJson = JsonSerializer.Serialize(formData);
 
         // ── 2. Load templates for forms that need PDF fill + signing ─────────
@@ -347,7 +353,7 @@ public class SubmitOnboardingHandler(
         return $"{m.FirstName} {m.LastName}";
     }
 
-    internal static string FormatSsn(string raw)
+    public static string FormatSsn(string raw)
     {
         var digits = new string(raw.Where(char.IsDigit).ToArray());
         if (digits.Length == 9)

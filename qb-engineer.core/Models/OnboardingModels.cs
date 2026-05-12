@@ -150,3 +150,107 @@ public record SignOnboardingFormResultModel(
 public record OnboardingPolicyDocsModel(
     string? WorkersCompDocUrl,
     string? HandbookDocUrl);
+
+// ── Server-side draft persistence ─────────────────────────────────────────
+//
+// Per-step Save on the wizard writes whatever fields the user has filled in
+// to the real tables (EmployeeProfile, IdentityDocument). Sensitive
+// identifiers — SSN, bank routing/account, I-9 doc numbers — go through
+// IPiiProtector and land in *_protected columns; they are NEVER echoed back
+// in the GET status payload. Instead the status carries Has* flags so the
+// wizard can render a "Securely stored — re-enter to overwrite" indicator
+// next to fields that are intentionally blank for security reasons.
+
+/// <summary>
+/// Partial onboarding draft. Every field is optional — the handler upserts
+/// the non-null subset. Sensitive fields are encrypted on write; passing
+/// null preserves the existing ciphertext (the user hasn't re-entered).
+/// </summary>
+public record SaveOnboardingDraftRequestModel(
+    // Step 1 — Personal
+    string? FirstName,
+    string? MiddleName,
+    string? LastName,
+    DateTimeOffset? DateOfBirth,
+    string? Ssn,
+    string? Email,
+    string? Phone,
+
+    // Step 2 — Address
+    string? Street1,
+    string? Street2,
+    string? City,
+    string? AddressState,
+    string? ZipCode,
+
+    // Step 5 — I-9 (identity-document details persisted; PDF-only fields stay client-side)
+    string? I9DocumentChoice,
+    string? I9ListAType,
+    string? I9ListADocNumber,
+    string? I9ListAAuthority,
+    DateTimeOffset? I9ListAExpiry,
+    int? I9ListAFileAttachmentId,
+    string? I9ListBType,
+    string? I9ListBDocNumber,
+    string? I9ListBAuthority,
+    DateTimeOffset? I9ListBExpiry,
+    int? I9ListBFileAttachmentId,
+    string? I9ListCType,
+    string? I9ListCDocNumber,
+    string? I9ListCAuthority,
+    DateTimeOffset? I9ListCExpiry,
+    int? I9ListCFileAttachmentId,
+
+    // Step 6 — Direct Deposit
+    string? BankName,
+    string? RoutingNumber,
+    string? AccountNumber,
+    string? AccountType
+);
+
+/// <summary>
+/// Echoed draft state. Sensitive fields are represented only by their Has*
+/// boolean — never the plaintext or ciphertext. Used to repopulate the
+/// wizard on reload + drive the "Securely stored" indicator.
+/// </summary>
+public record OnboardingDraftStatusModel(
+    // Step 1
+    string? FirstName,
+    string? MiddleName,
+    string? LastName,
+    DateTimeOffset? DateOfBirth,
+    string? Email,
+    string? Phone,
+    bool HasSsn,
+
+    // Step 2
+    string? Street1,
+    string? Street2,
+    string? City,
+    string? AddressState,
+    string? ZipCode,
+
+    // Step 5 (I-9 doc detail; doc numbers represented only by Has*)
+    string? I9DocumentChoice,
+    string? I9ListAType,
+    string? I9ListAAuthority,
+    DateTimeOffset? I9ListAExpiry,
+    int? I9ListAFileAttachmentId,
+    bool HasListADocNumber,
+    string? I9ListBType,
+    string? I9ListBAuthority,
+    DateTimeOffset? I9ListBExpiry,
+    int? I9ListBFileAttachmentId,
+    bool HasListBDocNumber,
+    string? I9ListCType,
+    string? I9ListCAuthority,
+    DateTimeOffset? I9ListCExpiry,
+    int? I9ListCFileAttachmentId,
+    bool HasListCDocNumber,
+
+    // Step 6
+    string? BankName,
+    string? AccountType,
+    bool HasBankRouting,
+    bool HasBankAccount
+);

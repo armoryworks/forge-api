@@ -12,6 +12,10 @@ public class IdentityDocumentConfiguration : IEntityTypeConfiguration<IdentityDo
         builder.Ignore(e => e.IsDeleted);
 
         builder.Property(e => e.Notes).HasMaxLength(500);
+        builder.Property(e => e.DocumentName).HasMaxLength(200);
+        builder.Property(e => e.IssuingAuthority).HasMaxLength(200);
+        // DocumentNumberProtected — IPiiProtector ciphertext, variable length.
+        builder.Property(e => e.DocumentNumberProtected);
 
         builder.HasIndex(e => e.UserId);
         builder.HasIndex(e => e.VerifiedById);

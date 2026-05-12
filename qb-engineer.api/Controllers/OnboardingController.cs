@@ -86,6 +86,36 @@ public class OnboardingController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
+    /// Server-side onboarding draft — partial save. Each step's Continue posts
+    /// the fields the user filled in. Sensitive identifiers (SSN, bank
+    /// routing/account, I-9 doc numbers) are encrypted via IPiiProtector
+    /// before being written; passing null leaves the existing ciphertext
+    /// alone (so a re-visit doesn't wipe previously stored values). Replaces
+    /// the localStorage draft we previously used — see fix(6c5eae1) for the
+    /// security rationale.
+    /// </summary>
+    [HttpPost("draft")]
+    public async Task<ActionResult<OnboardingDraftStatusModel>> SaveDraft(
+        [FromBody] SaveOnboardingDraftRequestModel model, CancellationToken ct)
+    {
+        var result = await mediator.Send(new SaveOnboardingDraftCommand(GetUserId(), model), ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Current onboarding-draft state for the calling user. Non-sensitive
+    /// values come back verbatim; sensitive identifiers are represented only
+    /// by Has* booleans (no plaintext / no ciphertext) so the wizard can
+    /// render a "Securely stored — re-enter to overwrite" indicator.
+    /// </summary>
+    [HttpGet("draft")]
+    public async Task<ActionResult<OnboardingDraftStatusModel>> GetDraft(CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetOnboardingDraftStatusQuery(GetUserId()), ct);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Self-service bypass: marks the current user as onboarded without completing the wizard.
     /// Creates an EmployeeProfile if one doesn't exist and sets OnboardingBypassedAt.
     /// </summary>

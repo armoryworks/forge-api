@@ -55,5 +55,18 @@ public class EmployeeProfile : BaseAuditableEntity
 
     // Set when user self-certifies onboarding complete without going through the wizard
     public DateTimeOffset? OnboardingBypassedAt { get; set; }
+
+    // ── Sensitive identifiers (ASP.NET Data Protection ciphertext) ─────────
+    // These columns store ciphertext only — never readable as plaintext from
+    // the DB without the active DP key chain. The application reads them
+    // through IPiiProtector at the seams that need plaintext (PDF fill /
+    // DocuSeal submission). Never project these to a client-facing response
+    // model. NULL means "not yet entered"; the UI uses presence to render
+    // the "Securely stored — re-enter to overwrite" indicator.
+    public string? SsnProtected { get; set; }
+    public string? BankName { get; set; }
+    public string? BankRoutingProtected { get; set; }
+    public string? BankAccountProtected { get; set; }
+    public string? BankAccountType { get; set; }
 }
 

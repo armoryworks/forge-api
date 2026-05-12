@@ -3,6 +3,7 @@ using System.Text.Json;
 using MediatR;
 
 using Microsoft.EntityFrameworkCore;
+using QBEngineer.Api.Services;
 using QBEngineer.Core.Enums;
 using QBEngineer.Core.Interfaces;
 using QBEngineer.Core.Models;
@@ -26,14 +27,15 @@ public record PreviewOnboardingPdfCommand(
 public class PreviewOnboardingPdfHandler(
     AppDbContext db,
     IStorageService storageService,
-    IPdfFormFillService pdfFormFillService)
+    IPdfFormFillService pdfFormFillService,
+    IPiiProtector pii)
     : IRequestHandler<PreviewOnboardingPdfCommand, PreviewOnboardingPdfResultModel>
 {
     public async Task<PreviewOnboardingPdfResultModel> Handle(
         PreviewOnboardingPdfCommand request, CancellationToken ct)
     {
         if (!Enum.TryParse<ComplianceFormType>(request.Model.FormType, out var formType))
-            throw new ArgumentException($"Unknown form type: {request.Model.FormType}");
+            throw new KeyNotFoundException($"Unknown form type: {request.Model.FormType}");
 
         var template = await db.ComplianceFormTemplates
             .Include(t => t.FilledPdfTemplate)
@@ -50,6 +52,9 @@ public class PreviewOnboardingPdfHandler(
 
         // Build form-data JSON the same way the submit handler does
         var formData = SubmitOnboardingHandler.BuildFormDataDictionary(request.Model.FormData);
+        // Backfill SSN / bank from the encrypted draft so the preview renders
+        // with the right values when the wizard sent those fields blank.
+        await OnboardingPiiMerge.MergeStoredPiiAsync(db, pii, request.UserId, formData, ct);
         var formDataJson = JsonSerializer.Serialize(formData);
 
         // Load blank government PDF from MinIO

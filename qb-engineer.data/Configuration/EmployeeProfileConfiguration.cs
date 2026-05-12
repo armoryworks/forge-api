@@ -50,5 +50,14 @@ public class EmployeeProfileConfiguration : IEntityTypeConfiguration<EmployeePro
         builder.Property(e => e.EmployeeNumber).HasMaxLength(50);
         builder.Property(e => e.HourlyRate).HasPrecision(10, 2);
         builder.Property(e => e.SalaryAmount).HasPrecision(12, 2);
+
+        // Sensitive identifiers — ciphertext from IPiiProtector. Stored as
+        // text (no fixed length — DP envelope length varies with payload +
+        // key rotation). Never indexed.
+        builder.Property(e => e.SsnProtected);
+        builder.Property(e => e.BankName).HasMaxLength(200);
+        builder.Property(e => e.BankRoutingProtected);
+        builder.Property(e => e.BankAccountProtected);
+        builder.Property(e => e.BankAccountType).HasMaxLength(20);
     }
 }

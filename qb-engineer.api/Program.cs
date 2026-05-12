@@ -293,6 +293,7 @@ try
     builder.Services.AddSingleton<ICsvExportService, CsvExportService>();
     builder.Services.AddSingleton<IImageService, ImageService>();
     builder.Services.AddSingleton<ITokenEncryptionService, TokenEncryptionService>();
+    builder.Services.AddSingleton<IPiiProtector, PiiProtector>();
     builder.Services.AddSingleton<ITokenService, JwtTokenService>();
     builder.Services.AddSingleton<IPortalAuthService, PortalAuthService>();
     builder.Services.AddSingleton<ISessionStore, SessionStore>();

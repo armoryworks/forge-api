@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
+using QBEngineer.Api.Services;
 using QBEngineer.Core.Entities;
 using QBEngineer.Core.Enums;
 using QBEngineer.Core.Interfaces;
@@ -37,7 +38,8 @@ public class SignOnboardingFormHandler(
     IPdfFormFillService pdfFormFillService,
     IDocumentSigningService signingService,
     IOptions<MinioOptions> minioOptions,
-    IConfiguration configuration)
+    IConfiguration configuration,
+    IPiiProtector pii)
     : IRequestHandler<SignOnboardingFormCommand, SignOnboardingFormResultModel>
 {
     private bool IsMock => configuration.GetValue<bool>("MockIntegrations");
@@ -71,6 +73,10 @@ public class SignOnboardingFormHandler(
         {
             // ── Full path: fill PDF → DocuSeal ──────────────────────────────
             var formData = SubmitOnboardingHandler.BuildFormDataDictionary(m);
+            // Backfill SSN / bank from the encrypted draft so the filled PDF
+            // gets the real values when the wizard intentionally sent them
+            // blank (the user already supplied them earlier).
+            await OnboardingPiiMerge.MergeStoredPiiAsync(db, pii, request.UserId, formData, ct);
             var formDataJson = JsonSerializer.Serialize(formData);
 
             byte[] blankPdfBytes;
