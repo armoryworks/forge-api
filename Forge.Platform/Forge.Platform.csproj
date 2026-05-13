@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>Forge.Platform</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!--
+    Forge.Platform — cross-cutting foundation referenced by every vertical.
+    Eventually hosts: BaseEntity / BaseAuditableEntity, IClock + SystemClock,
+    ICurrentUser, MediatR pipeline behaviors, global exception middleware,
+    workflow / capability infrastructure, EntityNote, ActivityLog,
+    AuditLogEntry, SystemSetting, FileAttachment, terminology entries.
+
+    AppDbContext stays in forge.data during the Phase C transition
+    (moving it requires splitting it across verticals via partials or
+    interface-segregated DbSets — deferred to a later pass).
+  -->
+
+</Project>

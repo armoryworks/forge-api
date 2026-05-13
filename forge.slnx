@@ -4,4 +4,18 @@
   <Project Path="forge.data/forge.data.csproj" />
   <Project Path="forge.integrations/forge.integrations.csproj" />
   <Project Path="forge.tests/forge.tests.csproj" />
+  <Project Path="Forge.Platform/Forge.Platform.csproj" />
+  <Project Path="Forge.Identity/Forge.Identity.csproj" />
+  <Project Path="Forge.MasterData/Forge.MasterData.csproj" />
+  <Project Path="Forge.Sales/Forge.Sales.csproj" />
+  <Project Path="Forge.Procurement/Forge.Procurement.csproj" />
+  <Project Path="Forge.Production/Forge.Production.csproj" />
+  <Project Path="Forge.Inventory/Forge.Inventory.csproj" />
+  <Project Path="Forge.Quality/Forge.Quality.csproj" />
+  <Project Path="Forge.Maintenance/Forge.Maintenance.csproj" />
+  <Project Path="Forge.People/Forge.People.csproj" />
+  <Project Path="Forge.Insights/Forge.Insights.csproj" />
+  <Project Path="Forge.Operations/Forge.Operations.csproj" />
+  <Project Path="Forge.Database/Forge.Database.csproj" />
+  <Project Path="Forge.Host/Forge.Host.csproj" />
 </Solution>
