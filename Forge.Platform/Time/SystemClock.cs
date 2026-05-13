@@ -1,6 +1,4 @@
-using Forge.Core.Interfaces;
-
-namespace Forge.Integrations;
+namespace Forge.Platform.Time;
 
 /// <summary>Real-time clock — delegates to DateTimeOffset.UtcNow.</summary>
 public sealed class SystemClock : IClock

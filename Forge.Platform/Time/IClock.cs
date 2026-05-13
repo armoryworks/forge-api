@@ -1,4 +1,4 @@
-namespace Forge.Core.Interfaces;
+namespace Forge.Platform.Time;
 
 /// <summary>
 /// Abstraction over system time. Inject this instead of DateTimeOffset.UtcNow

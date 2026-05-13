@@ -12,4 +12,18 @@
     <PackageReference Include="Riok.Mapperly" Version="4.3.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Forge.Platform\Forge.Platform.csproj" />
+  </ItemGroup>
+
+  <!--
+    Phase C transition implicit usings — keeps existing entity files
+    (which all inherit BaseEntity) compiling without per-file `using
+    Forge.Platform.Entities;` additions. Same for IClock consumers.
+  -->
+  <ItemGroup>
+    <Using Include="Forge.Platform.Entities" />
+    <Using Include="Forge.Platform.Time" />
+  </ItemGroup>
+
 </Project>

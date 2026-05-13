@@ -23,7 +23,7 @@ public class ReorderAnalysisJobMigrationTests
 {
     private static readonly DateTimeOffset FixedNow = new(2026, 4, 30, 12, 0, 0, TimeSpan.Zero);
 
-    private sealed class FixedClock : Core.Interfaces.IClock
+    private sealed class FixedClock : Forge.Platform.Time.IClock
     {
         public DateTimeOffset UtcNow => FixedNow;
     }

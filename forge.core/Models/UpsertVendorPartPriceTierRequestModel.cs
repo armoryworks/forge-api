@@ -13,7 +13,7 @@ namespace Forge.Core.Models;
 /// <para><c>Currency</c> is intentionally NOT on this model — it lives on
 /// the parent <c>VendorPart</c> now and is snapshotted into the tier row
 /// at insert time. <c>EffectiveFrom</c> is optional; the handler defaults
-/// it to <see cref="Forge.Core.Interfaces.IClock.UtcNow"/> when
+/// it to <see cref="Forge.Platform.Time.IClock.UtcNow"/> when
 /// omitted (matches the UI's "default to today" behavior).</para>
 /// </summary>
 public record UpsertVendorPartPriceTierRequestModel(

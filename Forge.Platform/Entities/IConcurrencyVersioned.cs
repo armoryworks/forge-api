@@ -1,4 +1,4 @@
-namespace Forge.Core.Entities;
+namespace Forge.Platform.Entities;
 
 /// <summary>
 /// Marker for transactional entities that support optimistic locking via
