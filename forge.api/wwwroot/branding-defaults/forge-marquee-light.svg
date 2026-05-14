@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 75" width="170" height="75" role="img" aria-label="Forge — MES, MRP, ERP">
+  <!--
+    Forge — marquee lockup, light variant.
+    Same construction as forge-wordmark-light.svg's filter strategy:
+    f-shadow for the dark wordmark, f-amber-shadow (deeper navy) for
+    the amber shield, rule, and tagline.
+  -->
+  <defs>
+    <filter id="f-shadow" x="-20%" y="-300%" width="140%" height="700%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1.2" flood-color="#0f172a" flood-opacity="0.22"/>
+    </filter>
+
+    <filter id="f-amber-shadow" x="-20%" y="-300%" width="140%" height="700%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#0f172a" flood-opacity="0.38"/>
+    </filter>
+
+    <path id="f-shield" d="M 200,25 C 257,50.1 323.2,58.1 390,60 C 374.5,107.7 382.1,162.4 374.9,212.6 C 361.1,309.5 325.5,336.5 251.7,388.6 L 200,425 L 148.3,388.6 C 74.5,336.5 38.9,309.5 25.1,212.6 C 17.9,162.4 25.5,107.7 10,60 C 76.8,58.1 143,50.1 200,25 Z"/>
+    <path id="f-inner"  d="M 200,99 C 235.9,114.8 277.6,119.8 319.7,121 C 309.9,151.1 314.7,185.6 310.2,217.2 C 301.5,278.2 279.1,295.3 232.6,328 L 200,351 L 167.4,328 C 120.9,295.3 98.5,278.2 89.8,217.2 C 85.3,185.6 90.1,151.1 80.3,121 C 122.4,119.8 164.1,114.8 200,99 Z"/>
+    <clipPath id="f-leftHalf"><rect x="0" y="0" width="200" height="470"/></clipPath>
+    <clipPath id="f-rightHalf"><rect x="200" y="0" width="200" height="470"/></clipPath>
+    <g id="f-W" transform="translate(106 300) scale(0.2 -0.2)">
+      <path d="M963 599V681H662V599L675 597C721 597 749 583 749 549C749 544 749 539 748 534L651 206L559 537C556 548 555 557 555 564C555 585 567 592 600 596L624 599V681H312V599C348 598 360 587 376 544L409 453L331 213L244 540C241 551 239 561 239 569C239 587 249 597 281 599V681H-20V599C27 597 45 577 64 517L228 0H357L456 311L549 0H680L836 480C867 575 880 588 947 597Z"/>
+    </g>
+
+    <mask id="f-outerRightMask" maskUnits="userSpaceOnUse" x="0" y="0" width="400" height="470">
+      <rect x="0" y="0" width="400" height="470" fill="white"/>
+      <g clip-path="url(#f-rightHalf)">
+        <use href="#f-inner" fill="black"/>
+        <use href="#f-W"     fill="white"/>
+      </g>
+    </mask>
+
+    <mask id="f-innerLeftMask" maskUnits="userSpaceOnUse" x="0" y="0" width="400" height="470">
+      <rect x="0" y="0" width="400" height="470" fill="black"/>
+      <g clip-path="url(#f-leftHalf)">
+        <use href="#f-inner" fill="white"/>
+        <use href="#f-W"     fill="black"/>
+      </g>
+    </mask>
+  </defs>
+
+  <g filter="url(#f-amber-shadow)">
+    <g transform="translate(2 5) scale(0.14)">
+      <g clip-path="url(#f-rightHalf)">
+        <use href="#f-shield" fill="#f59e0b" mask="url(#f-outerRightMask)"/>
+      </g>
+      <use href="#f-inner"  fill="#f59e0b" mask="url(#f-innerLeftMask)"/>
+      <use href="#f-shield" fill="none" stroke="#f59e0b" stroke-width="6" stroke-linejoin="miter" stroke-miterlimit="4"/>
+      <use href="#f-inner"  fill="none" stroke="#f59e0b" stroke-width="4" stroke-linejoin="miter" stroke-miterlimit="4"/>
+    </g>
+  </g>
+
+  <text x="72" y="39"
+        font-family="'Space Grotesk', 'Inter', system-ui, -apple-system, sans-serif"
+        font-weight="700"
+        font-size="28"
+        fill="#0f172a"
+        letter-spacing="-0.3"
+        textLength="85"
+        lengthAdjust="spacing"
+        filter="url(#f-shadow)">Forge</text>
+
+  <rect x="72" y="46" width="85" height="1.5" fill="#f59e0b" filter="url(#f-amber-shadow)"/>
+
+  <text x="72" y="60"
+        font-family="'IBM Plex Mono', Consolas, Monaco, monospace"
+        font-weight="500"
+        font-size="9"
+        fill="#b45309"
+        letter-spacing="1.4"
+        textLength="85"
+        lengthAdjust="spacingAndGlyphs"
+        filter="url(#f-amber-shadow)">MES/MRP/ERP</text>
+</svg>

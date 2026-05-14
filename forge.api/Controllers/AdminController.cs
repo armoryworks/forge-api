@@ -214,6 +214,52 @@ public class AdminController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    // ── Branding lockups (public read — login screen needs them pre-auth) ──
+    // GET serves the admin-uploaded file if present, else the bundled Forge default
+    // from wwwroot/branding-defaults/. The {kind} segment is "wordmark" or "marquee".
+    // The optional ?theme=light query swaps the default to the light variant.
+
+    [AllowAnonymous]
+    [HttpGet("branding/{kind}")]
+    public async Task<IActionResult> GetLockup(string kind, [FromQuery] string? theme = null)
+    {
+        if (!Enum.TryParse<LockupKind>(kind, ignoreCase: true, out var parsedKind))
+            return BadRequest("kind must be 'wordmark', 'marquee', or 'favicon'");
+
+        var parsedTheme = string.Equals(theme, "light", StringComparison.OrdinalIgnoreCase)
+            ? LockupTheme.Light
+            : LockupTheme.Dark;
+
+        var result = await mediator.Send(new GetLockupQuery(parsedKind, parsedTheme));
+        if (result == null) return NotFound();
+        return File(result.Stream, result.ContentType);
+    }
+
+    [HttpPost("branding/{kind}")]
+    [RequestSizeLimit(5 * 1024 * 1024)]
+    public async Task<IActionResult> UploadLockup(string kind, IFormFile file)
+    {
+        if (!Enum.TryParse<LockupKind>(kind, ignoreCase: true, out var parsedKind))
+            return BadRequest("kind must be 'wordmark', 'marquee', or 'favicon'");
+
+        if (file.Length == 0) return BadRequest("No file provided");
+        if (!file.ContentType.StartsWith("image/")) return BadRequest("File must be an image");
+
+        await using var stream = file.OpenReadStream();
+        await mediator.Send(new UploadLockupCommand(parsedKind, stream, file.ContentType));
+        return NoContent();
+    }
+
+    [HttpDelete("branding/{kind}")]
+    public async Task<IActionResult> DeleteLockup(string kind)
+    {
+        if (!Enum.TryParse<LockupKind>(kind, ignoreCase: true, out var parsedKind))
+            return BadRequest("kind must be 'wordmark', 'marquee', or 'favicon'");
+
+        await mediator.Send(new DeleteLockupCommand(parsedKind));
+        return NoContent();
+    }
+
     // ── System Settings ──
 
     [HttpGet("system-settings")]

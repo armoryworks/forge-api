@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Forge favicon — default. Shield-only mark from armory-works-logo.svg,
+  served as the dynamic favicon at /api/v1/admin/branding/favicon.
+  Admin can upload a custom favicon (PNG, SVG, or .ico) via POST to
+  the same endpoint; that override wins until deleted.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 470" width="400" height="470">
+  <defs>
+    <path id="shield" d="M 200.0,25.0 C 257.0,50.1 323.2,58.1 390.0,60.0 C 374.5,107.7 382.1,162.4 374.9,212.6 C 361.1,309.5 325.5,336.5 251.7,388.6 L 200.0,425.0 L 148.3,388.6 C 74.5,336.5 38.9,309.5 25.1,212.6 C 17.9,162.4 25.5,107.7 10.0,60.0 C 76.8,58.1 143.0,50.1 200.0,25.0 Z"/>
+    <path id="inner" d="M 200.0,99.0 C 235.9,114.8 277.6,119.8 319.7,121.0 C 309.9,151.1 314.7,185.6 310.2,217.2 C 301.5,278.2 279.1,295.3 232.6,328.0 L 200.0,351.0 L 167.4,328.0 C 120.9,295.3 98.5,278.2 89.8,217.2 C 85.3,185.6 90.1,151.1 80.3,121.0 C 122.4,119.8 164.1,114.8 200.0,99.0 Z"/>
+    <clipPath id="leftHalf"><rect x="0" y="0" width="200" height="470"/></clipPath>
+    <clipPath id="rightHalf"><rect x="200" y="0" width="200" height="470"/></clipPath>
+    <g id="W" transform="translate(106.00 300.00) scale(0.2 -0.2)"><path d="M963 599V681H662V599L675 597C721 597 749 583 749 549C749 544 749 539 748 534L651 206L559 537C556 548 555 557 555 564C555 585 567 592 600 596L624 599V681H312V599C348 598 360 587 376 544L409 453L331 213L244 540C241 551 239 561 239 569C239 587 249 597 281 599V681H-20V599C27 597 45 577 64 517L228 0H357L456 311L549 0H680L836 480C867 575 880 588 947 597Z"/></g>
+    <mask id="outerRightMask" maskUnits="userSpaceOnUse" x="0" y="0" width="400" height="470">
+      <rect x="0" y="0" width="400" height="470" fill="white"/>
+      <g clip-path="url(#rightHalf)">
+        <use href="#inner" fill="black"/>
+        <use href="#W" fill="white"/>
+      </g>
+    </mask>
+    <mask id="innerLeftMask" maskUnits="userSpaceOnUse" x="0" y="0" width="400" height="470">
+      <rect x="0" y="0" width="400" height="470" fill="black"/>
+      <g clip-path="url(#leftHalf)">
+        <use href="#inner" fill="white"/>
+        <use href="#W" fill="black"/>
+      </g>
+    </mask>
+  </defs>
+  <g clip-path="url(#rightHalf)">
+    <use href="#shield" fill="#f59e0b" mask="url(#outerRightMask)"/>
+  </g>
+  <use href="#inner" fill="#f59e0b" mask="url(#innerLeftMask)"/>
+  <use href="#shield" fill="none" stroke="#f59e0b" stroke-width="6" stroke-linejoin="miter" stroke-miterlimit="4"/>
+  <use href="#inner" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linejoin="miter" stroke-miterlimit="4"/>
+</svg>
