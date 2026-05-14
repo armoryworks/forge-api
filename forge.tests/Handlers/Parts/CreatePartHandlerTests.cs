@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Forge.Api.Features.Parts;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;

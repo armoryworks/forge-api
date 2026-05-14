@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;

@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Communications;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Communications;

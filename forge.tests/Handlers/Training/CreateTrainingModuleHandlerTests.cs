@@ -1,7 +1,6 @@
 using Bogus;
 using FluentAssertions;
 using Forge.Api.Features.Training;
-using Forge.Core.Enums;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Training;

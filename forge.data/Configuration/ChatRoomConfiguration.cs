@@ -17,7 +17,7 @@ public class ChatRoomConfiguration : IEntityTypeConfiguration<ChatRoom>
             .HasConversion<string>()
             .HasMaxLength(20);
 
-        builder.HasOne<Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(r => r.CreatedById)
             .OnDelete(DeleteBehavior.Restrict);

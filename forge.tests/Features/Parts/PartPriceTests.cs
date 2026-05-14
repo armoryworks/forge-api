@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Tests.Capabilities;

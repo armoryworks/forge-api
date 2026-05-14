@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Services;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 

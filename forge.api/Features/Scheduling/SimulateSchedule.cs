@@ -1,6 +1,5 @@
 using MediatR;
 
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 

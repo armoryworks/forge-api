@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 
 namespace Forge.Data.Configuration;
 
@@ -14,7 +13,7 @@ public class FollowUpTaskConfiguration : IEntityTypeConfiguration<FollowUpTask>
         builder.Property(e => e.Description).HasMaxLength(2000);
         builder.Property(e => e.SourceEntityType).HasMaxLength(100);
 
-        builder.HasOne<Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.AssignedToUserId)
             .OnDelete(DeleteBehavior.Restrict);

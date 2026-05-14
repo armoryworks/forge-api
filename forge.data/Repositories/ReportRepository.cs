@@ -165,7 +165,7 @@ public class ReportRepository(AppDbContext db) : IReportRepository
     {
         // Calculate average time jobs spend at each stage based on activity log stage moves
         var stageMoves = await db.Set<Forge.Core.Entities.JobActivityLog>()
-            .Where(a => a.Action == Forge.Core.Enums.ActivityAction.StageMoved)
+            .Where(a => a.Action == Forge.Platform.Enums.ActivityAction.StageMoved)
             .OrderBy(a => a.JobId).ThenBy(a => a.CreatedAt)
             .ToListAsync(ct);
 
@@ -324,8 +324,8 @@ public class ReportRepository(AppDbContext db) : IReportRepository
             .Include(i => i.Customer)
             .Include(i => i.Lines)
             .Include(i => i.PaymentApplications)
-            .Where(i => i.Status != Forge.Core.Enums.InvoiceStatus.Voided
-                && i.Status != Forge.Core.Enums.InvoiceStatus.Draft)
+            .Where(i => i.Status != Forge.Platform.Enums.InvoiceStatus.Voided
+                && i.Status != Forge.Platform.Enums.InvoiceStatus.Draft)
             .ToListAsync(ct);
 
         return invoices
@@ -363,8 +363,8 @@ public class ReportRepository(AppDbContext db) : IReportRepository
             .Include(i => i.Lines)
             .Include(i => i.PaymentApplications)
             .Where(i => i.InvoiceDate >= startUtc && i.InvoiceDate <= endUtc
-                && i.Status != Forge.Core.Enums.InvoiceStatus.Voided
-                && i.Status != Forge.Core.Enums.InvoiceStatus.Draft)
+                && i.Status != Forge.Platform.Enums.InvoiceStatus.Voided
+                && i.Status != Forge.Platform.Enums.InvoiceStatus.Draft)
             .ToListAsync(ct);
 
         if (groupBy == "customer")
@@ -402,8 +402,8 @@ public class ReportRepository(AppDbContext db) : IReportRepository
         var invoices = await db.Invoices
             .Include(i => i.Lines)
             .Where(i => i.InvoiceDate >= startUtc && i.InvoiceDate <= endUtc
-                && i.Status != Forge.Core.Enums.InvoiceStatus.Voided
-                && i.Status != Forge.Core.Enums.InvoiceStatus.Draft)
+                && i.Status != Forge.Platform.Enums.InvoiceStatus.Voided
+                && i.Status != Forge.Platform.Enums.InvoiceStatus.Draft)
             .ToListAsync(ct);
 
         var totalRevenue = invoices.Sum(i => i.Subtotal);
@@ -414,7 +414,7 @@ public class ReportRepository(AppDbContext db) : IReportRepository
         // Expenses by category
         var rawExpenses = await db.Expenses
             .Where(e => e.ExpenseDate >= startUtc && e.ExpenseDate <= endUtc
-                && e.Status == Forge.Core.Enums.ExpenseStatus.Approved)
+                && e.Status == Forge.Platform.Enums.ExpenseStatus.Approved)
             .Select(e => new { e.Category, e.Amount })
             .ToListAsync(ct);
 
@@ -498,7 +498,7 @@ public class ReportRepository(AppDbContext db) : IReportRepository
     public async Task<List<TimeInStageReportItem>> GetTimeInStageAsync(int? trackTypeId, CancellationToken ct)
     {
         var stageMoves = await db.Set<Forge.Core.Entities.JobActivityLog>()
-            .Where(a => a.Action == Forge.Core.Enums.ActivityAction.StageMoved)
+            .Where(a => a.Action == Forge.Platform.Enums.ActivityAction.StageMoved)
             .OrderBy(a => a.JobId).ThenBy(a => a.CreatedAt)
             .ToListAsync(ct);
 
@@ -625,7 +625,7 @@ public class ReportRepository(AppDbContext db) : IReportRepository
             .ToListAsync(ct);
 
         var rawBinContents = await db.BinContents
-            .Where(b => b.EntityType == "part" && b.Status == Forge.Core.Enums.BinContentStatus.Stored)
+            .Where(b => b.EntityType == "part" && b.Status == Forge.Platform.Enums.BinContentStatus.Stored)
             .Select(b => new { b.EntityId, b.Quantity })
             .ToListAsync(ct);
 

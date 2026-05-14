@@ -1,7 +1,6 @@
 using FluentAssertions;
 
 using Forge.Api.Services;
-using Forge.Core.Enums;
 
 namespace Forge.Tests.Services;
 

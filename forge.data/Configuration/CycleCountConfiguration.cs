@@ -18,7 +18,7 @@ public class CycleCountConfiguration : IEntityTypeConfiguration<CycleCount>
             .HasForeignKey(e => e.LocationId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.CountedById)
             .OnDelete(DeleteBehavior.Restrict);

@@ -1,5 +1,4 @@
 using Forge.Api.Capabilities.Discovery.Bundles;
-using Forge.Core.Enums;
 
 namespace Forge.Api.Capabilities.Discovery;
 

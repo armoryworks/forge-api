@@ -34,7 +34,7 @@ public class PpapSubmissionConfiguration : IEntityTypeConfiguration<PpapSubmissi
             .OnDelete(DeleteBehavior.Restrict);
 
         // FK-only ApplicationUser reference
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.PswSignedByUserId)
             .OnDelete(DeleteBehavior.Restrict);

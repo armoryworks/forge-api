@@ -23,31 +23,31 @@ public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
 
         // Estimates → Quotes (converted)
         var estimateToQuote = await quotesQuery
-            .Where(q => q.Type == Core.Enums.QuoteType.Estimate && q.Status == Core.Enums.QuoteStatus.ConvertedToQuote)
+            .Where(q => q.Type == QuoteType.Estimate && q.Status == QuoteStatus.ConvertedToQuote)
             .CountAsync(ct);
         if (estimateToQuote > 0)
             flows.Add(new SankeyFlowItem("Estimates", "Quotes", estimateToQuote));
 
         // Estimates that didn't convert
         var estimatesDead = await quotesQuery
-            .Where(q => q.Type == Core.Enums.QuoteType.Estimate &&
-                        (q.Status == Core.Enums.QuoteStatus.Declined || q.Status == Core.Enums.QuoteStatus.Expired))
+            .Where(q => q.Type == QuoteType.Estimate &&
+                        (q.Status == QuoteStatus.Declined || q.Status == QuoteStatus.Expired))
             .CountAsync(ct);
         if (estimatesDead > 0)
             flows.Add(new SankeyFlowItem("Estimates", "Lost", estimatesDead));
 
         // Quotes → Accepted
         var quotesAccepted = await quotesQuery
-            .Where(q => q.Type == Core.Enums.QuoteType.Quote &&
-                        (q.Status == Core.Enums.QuoteStatus.Accepted || q.Status == Core.Enums.QuoteStatus.ConvertedToOrder))
+            .Where(q => q.Type == QuoteType.Quote &&
+                        (q.Status == QuoteStatus.Accepted || q.Status == QuoteStatus.ConvertedToOrder))
             .CountAsync(ct);
         if (quotesAccepted > 0)
             flows.Add(new SankeyFlowItem("Quotes", "Sales Orders", quotesAccepted));
 
         // Quotes → Declined/Expired
         var quotesLost = await quotesQuery
-            .Where(q => q.Type == Core.Enums.QuoteType.Quote &&
-                        (q.Status == Core.Enums.QuoteStatus.Declined || q.Status == Core.Enums.QuoteStatus.Expired))
+            .Where(q => q.Type == QuoteType.Quote &&
+                        (q.Status == QuoteStatus.Declined || q.Status == QuoteStatus.Expired))
             .CountAsync(ct);
         if (quotesLost > 0)
             flows.Add(new SankeyFlowItem("Quotes", "Lost", quotesLost));
@@ -63,16 +63,16 @@ public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
 
         // Invoices → Paid
         var invoicesPaid = await invoicesQuery
-            .Where(i => i.Status == Core.Enums.InvoiceStatus.Paid)
+            .Where(i => i.Status == InvoiceStatus.Paid)
             .CountAsync(ct);
         if (invoicesPaid > 0)
             flows.Add(new SankeyFlowItem("Invoices", "Payments Received", invoicesPaid));
 
         // Invoices → Outstanding
         var invoicesOutstanding = await invoicesQuery
-            .Where(i => i.Status == Core.Enums.InvoiceStatus.Sent ||
-                        i.Status == Core.Enums.InvoiceStatus.Overdue ||
-                        i.Status == Core.Enums.InvoiceStatus.PartiallyPaid)
+            .Where(i => i.Status == InvoiceStatus.Sent ||
+                        i.Status == InvoiceStatus.Overdue ||
+                        i.Status == InvoiceStatus.PartiallyPaid)
             .CountAsync(ct);
         if (invoicesOutstanding > 0)
             flows.Add(new SankeyFlowItem("Invoices", "Outstanding", invoicesOutstanding));
@@ -333,9 +333,9 @@ public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
         DateTimeOffset? start, DateTimeOffset? end, CancellationToken ct)
     {
         var query = db.Invoices.AsNoTracking()
-            .Where(i => i.Status == Core.Enums.InvoiceStatus.Paid ||
-                        i.Status == Core.Enums.InvoiceStatus.Sent ||
-                        i.Status == Core.Enums.InvoiceStatus.PartiallyPaid);
+            .Where(i => i.Status == InvoiceStatus.Paid ||
+                        i.Status == InvoiceStatus.Sent ||
+                        i.Status == InvoiceStatus.PartiallyPaid);
         if (start.HasValue) query = query.Where(i => i.CreatedAt >= start.Value);
         if (end.HasValue) query = query.Where(i => i.CreatedAt <= end.Value);
 

@@ -21,7 +21,7 @@ public class PredictionFeedbackConfiguration : IEntityTypeConfiguration<Predicti
             .OnDelete(DeleteBehavior.Cascade);
 
         // FK-only ApplicationUser reference
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.RecordedByUserId)
             .OnDelete(DeleteBehavior.Restrict);

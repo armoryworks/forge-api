@@ -1,4 +1,3 @@
-using Forge.Core.Enums;
 
 namespace Forge.Core.Entities;
 
@@ -41,9 +40,9 @@ public class PurchaseOrder : BaseAuditableEntity, IConcurrencyVersioned
     /// Commercial term governing this PO's freight + insurance + duty
     /// allocation. Defaults from the preferred VendorPart's Incoterm at
     /// PO creation; overridable per PO when a vendor offers a one-off
-    /// arrangement. See <see cref="Enums.Incoterm"/>.
+    /// arrangement. See <see cref="Incoterm"/>.
     /// </summary>
-    public Enums.Incoterm Incoterm { get; set; } = Enums.Incoterm.FOB_Origin;
+    public Incoterm Incoterm { get; set; } = Incoterm.FOB_Origin;
 
     /// <summary>
     /// Buyer's freight estimate at PO time — drives PO total + cash-flow

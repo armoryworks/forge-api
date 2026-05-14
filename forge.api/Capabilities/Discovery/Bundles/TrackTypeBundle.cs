@@ -1,4 +1,3 @@
-using Forge.Core.Enums;
 
 namespace Forge.Api.Capabilities.Discovery.Bundles;
 

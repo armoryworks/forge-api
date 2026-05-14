@@ -9,7 +9,7 @@ namespace Forge.Core.Models;
 public record ReceiveItemsRequestModel(
     List<ReceiveLineModel> Lines,
     decimal? ActualFreight = null,
-    Enums.FreightAllocationMethod FreightAllocationMethod = Enums.FreightAllocationMethod.ByExtendedValue);
+    FreightAllocationMethod FreightAllocationMethod = FreightAllocationMethod.ByExtendedValue);
 
 // ManualFreight populated only when AllocationMethod is Manual; ignored otherwise.
 public record ReceiveLineModel(

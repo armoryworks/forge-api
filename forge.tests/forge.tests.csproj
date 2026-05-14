@@ -30,11 +30,15 @@
     <ProjectReference Include="..\forge.core\forge.core.csproj" />
     <ProjectReference Include="..\forge.data\forge.data.csproj" />
     <ProjectReference Include="..\Forge.Platform\Forge.Platform.csproj" />
+    <ProjectReference Include="..\Forge.Identity\Forge.Identity.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Forge.Platform.Entities" />
     <Using Include="Forge.Platform.Time" />
+    <Using Include="Forge.Platform.Enums" />
+    <Using Include="Forge.Identity.Entities" />
+    <Using Include="Forge.Identity.Interfaces" />
   </ItemGroup>
 
   <ItemGroup>

@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Http;
 
 using Forge.Api.Features.Notifications;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 

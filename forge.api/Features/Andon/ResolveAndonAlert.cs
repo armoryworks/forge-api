@@ -4,7 +4,6 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 

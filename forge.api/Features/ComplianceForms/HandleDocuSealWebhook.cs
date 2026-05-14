@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -38,7 +37,7 @@ public class HandleDocuSealWebhookHandler(
 
         // ── I-9 Section 1 submitter event (employee signed, employer has not yet) ──────
         if (request.IsSubmitterEvent
-            && submission.Template.FormType == Forge.Core.Enums.ComplianceFormType.I9
+            && submission.Template.FormType == Forge.Platform.Enums.ComplianceFormType.I9
             && submission.I9Section1SignedAt is null)
         {
             submission.I9Section1SignedAt = request.CompletedAt ?? DateTimeOffset.UtcNow;
@@ -62,7 +61,7 @@ public class HandleDocuSealWebhookHandler(
         }
 
         // ── I-9 Section 2: all submitters signed — capture Section 2 timestamp ──────────
-        if (submission.Template.FormType == Forge.Core.Enums.ComplianceFormType.I9)
+        if (submission.Template.FormType == Forge.Platform.Enums.ComplianceFormType.I9)
         {
             submission.I9Section2SignedAt = request.CompletedAt ?? DateTimeOffset.UtcNow;
         }

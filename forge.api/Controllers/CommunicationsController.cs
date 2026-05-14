@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Communications;
-using Forge.Core.Enums;
 using Forge.Core.Models.Communications;
 
 namespace Forge.Api.Controllers;

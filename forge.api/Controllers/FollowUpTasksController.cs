@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Features.FollowUpTasks;
-using Forge.Core.Enums;
 
 namespace Forge.Api.Controllers;
 

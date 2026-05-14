@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.DataProtection;
 
 using Forge.Api.Features.Communications;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Communications;
 using Forge.Tests.Helpers;

@@ -1,6 +1,5 @@
 using FluentAssertions;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Data.Repositories;
 using Forge.Tests.Helpers;
 

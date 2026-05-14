@@ -219,7 +219,7 @@ public class CreatePurchaseOrderHandlerTests
         await _handler.Handle(command, CancellationToken.None);
 
         _poRepo.Verify(r => r.AddAsync(It.Is<PurchaseOrder>(po =>
-            po.Incoterm == Forge.Core.Enums.Incoterm.FOB_Origin
+            po.Incoterm == Forge.Platform.Enums.Incoterm.FOB_Origin
             && po.QuoteCurrency == "USD"
             && po.EstimatedFreight == null
         ), It.IsAny<CancellationToken>()), Times.Once);
@@ -240,7 +240,7 @@ public class CreatePurchaseOrderHandlerTests
             VendorId = vendorId,
             PartId = partId,
             Currency = "EUR",
-            Incoterm = Forge.Core.Enums.Incoterm.DAP,
+            Incoterm = Forge.Platform.Enums.Incoterm.DAP,
         });
         await _db.SaveChangesAsync();
 
@@ -255,7 +255,7 @@ public class CreatePurchaseOrderHandlerTests
         await _handler.Handle(command, CancellationToken.None);
 
         _poRepo.Verify(r => r.AddAsync(It.Is<PurchaseOrder>(po =>
-            po.Incoterm == Forge.Core.Enums.Incoterm.DAP
+            po.Incoterm == Forge.Platform.Enums.Incoterm.DAP
             && po.QuoteCurrency == "EUR"
         ), It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -274,12 +274,12 @@ public class CreatePurchaseOrderHandlerTests
         var command = new CreatePurchaseOrderCommand(
             vendorId, null, null,
             [new CreatePurchaseOrderLineModel(partId, null, 1, 10m, null)],
-            Forge.Core.Enums.Incoterm.CIF, 25.00m, "GBP");
+            Forge.Platform.Enums.Incoterm.CIF, 25.00m, "GBP");
 
         await _handler.Handle(command, CancellationToken.None);
 
         _poRepo.Verify(r => r.AddAsync(It.Is<PurchaseOrder>(po =>
-            po.Incoterm == Forge.Core.Enums.Incoterm.CIF
+            po.Incoterm == Forge.Platform.Enums.Incoterm.CIF
             && po.QuoteCurrency == "GBP"
             && po.EstimatedFreight == 25.00m
         ), It.IsAny<CancellationToken>()), Times.Once);

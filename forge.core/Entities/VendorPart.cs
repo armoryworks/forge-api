@@ -105,7 +105,7 @@ public class VendorPart : BaseAuditableEntity
     /// <para>Defaults to FOB-Origin (the most common US-domestic case)
     /// when the vendor doesn't specify.</para>
     /// </summary>
-    public Enums.Incoterm Incoterm { get; set; } = Enums.Incoterm.FOB_Origin;
+    public Incoterm Incoterm { get; set; } = Incoterm.FOB_Origin;
 
     public string? Notes { get; set; }
 

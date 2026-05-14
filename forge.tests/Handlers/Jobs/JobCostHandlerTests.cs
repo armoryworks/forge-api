@@ -4,7 +4,6 @@ using Forge.Api.Features.Admin;
 using Forge.Api.Features.Jobs;
 using Forge.Api.Services;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Jobs;

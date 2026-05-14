@@ -23,10 +23,10 @@ public class SoftDeleteAutoStampTests
             PartNumber = "PRT-00001",
             Name = "Test Part",
             Revision = "A",
-            ProcurementSource = Core.Enums.ProcurementSource.Buy,
-            InventoryClass = Core.Enums.InventoryClass.Component,
-            Status = Core.Enums.PartStatus.Active,
-            TraceabilityType = Core.Enums.TraceabilityType.None,
+            ProcurementSource = ProcurementSource.Buy,
+            InventoryClass = InventoryClass.Component,
+            Status = PartStatus.Active,
+            TraceabilityType = TraceabilityType.None,
         };
         db.Parts.Add(part);
         await db.SaveChangesAsync();
@@ -50,10 +50,10 @@ public class SoftDeleteAutoStampTests
             PartNumber = "PRT-00002",
             Name = "Test Part 2",
             Revision = "A",
-            ProcurementSource = Core.Enums.ProcurementSource.Buy,
-            InventoryClass = Core.Enums.InventoryClass.Component,
-            Status = Core.Enums.PartStatus.Active,
-            TraceabilityType = Core.Enums.TraceabilityType.None,
+            ProcurementSource = ProcurementSource.Buy,
+            InventoryClass = InventoryClass.Component,
+            Status = PartStatus.Active,
+            TraceabilityType = TraceabilityType.None,
         };
         db.Parts.Add(part);
         await db.SaveChangesAsync();
@@ -80,10 +80,10 @@ public class SoftDeleteAutoStampTests
             PartNumber = "PRT-00003",
             Name = "Test Part 3",
             Revision = "A",
-            ProcurementSource = Core.Enums.ProcurementSource.Buy,
-            InventoryClass = Core.Enums.InventoryClass.Component,
-            Status = Core.Enums.PartStatus.Active,
-            TraceabilityType = Core.Enums.TraceabilityType.None,
+            ProcurementSource = ProcurementSource.Buy,
+            InventoryClass = InventoryClass.Component,
+            Status = PartStatus.Active,
+            TraceabilityType = TraceabilityType.None,
         };
         db.Parts.Add(part);
         await db.SaveChangesAsync();
@@ -106,10 +106,10 @@ public class SoftDeleteAutoStampTests
             PartNumber = "PRT-00004",
             Name = "Test Part 4",
             Revision = "A",
-            ProcurementSource = Core.Enums.ProcurementSource.Buy,
-            InventoryClass = Core.Enums.InventoryClass.Component,
-            Status = Core.Enums.PartStatus.Active,
-            TraceabilityType = Core.Enums.TraceabilityType.None,
+            ProcurementSource = ProcurementSource.Buy,
+            InventoryClass = InventoryClass.Component,
+            Status = PartStatus.Active,
+            TraceabilityType = TraceabilityType.None,
         };
         db.Parts.Add(part);
         await db.SaveChangesAsync();

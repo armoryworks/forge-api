@@ -3,7 +3,6 @@ using FluentAssertions;
 using Moq;
 using Forge.Api.Features.PlanningCycles;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 
 namespace Forge.Tests.Handlers.PlanningCycles;

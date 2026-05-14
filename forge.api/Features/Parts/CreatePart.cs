@@ -3,7 +3,6 @@ using System.Text.Json;
 using FluentValidation;
 using MediatR;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;

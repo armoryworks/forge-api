@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Scanner;
-using Forge.Core.Enums;
 using Forge.Core.Models;
 
 namespace Forge.Api.Controllers;

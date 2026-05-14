@@ -2,7 +2,6 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 

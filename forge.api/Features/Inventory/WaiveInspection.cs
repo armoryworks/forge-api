@@ -3,7 +3,6 @@ using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 
-using Forge.Core.Enums;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Inventory;

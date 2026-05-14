@@ -5,7 +5,6 @@ using FluentValidation.Results;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 

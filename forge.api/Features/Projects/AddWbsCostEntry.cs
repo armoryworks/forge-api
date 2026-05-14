@@ -35,10 +35,10 @@ public class AddWbsCostEntryHandler(AppDbContext db, IClock clock) : IRequestHan
         // Update element actuals
         switch (req.Category)
         {
-            case Core.Enums.WbsCostCategory.Labor:
+            case WbsCostCategory.Labor:
                 element.ActualLabor += req.Amount;
                 break;
-            case Core.Enums.WbsCostCategory.Material:
+            case WbsCostCategory.Material:
                 element.ActualMaterial += req.Amount;
                 break;
             default:

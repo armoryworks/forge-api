@@ -34,7 +34,7 @@ public class GenerateWalkthroughStepsHandler(
             .FirstOrDefaultAsync(m => m.Id == request.ModuleId && m.DeletedAt == null, ct)
             ?? throw new KeyNotFoundException($"Training module {request.ModuleId} not found.");
 
-        if (module.ContentType != Forge.Core.Enums.TrainingContentType.Walkthrough)
+        if (module.ContentType != Forge.Platform.Enums.TrainingContentType.Walkthrough)
             throw new InvalidOperationException(
                 $"Module {request.ModuleId} is type '{module.ContentType}' — only Walkthrough modules can have AI-generated steps.");
 

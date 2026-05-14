@@ -159,7 +159,7 @@ public static class CustomInvalidModelStateResponseFactory
         // supplied string is not a member. The outer wrapper ("could not be
         // converted to <RequestModel>") is unhelpful too; the inner exception's
         // first line is the same shape but on the actual enum type. (Phase 3 F6.)
-        if (cleaned.Contains("could not be converted to Forge.Core.Enums.", StringComparison.Ordinal))
+        if (cleaned.Contains("could not be converted to Forge.Platform.Enums.", StringComparison.Ordinal))
         {
             return "Value is not one of the allowed values";
         }

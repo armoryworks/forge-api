@@ -14,7 +14,7 @@ public class AnnouncementAcknowledgmentConfiguration : IEntityTypeConfiguration<
             .HasForeignKey(a => a.AnnouncementId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne<Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(a => a.UserId)
             .OnDelete(DeleteBehavior.Cascade);

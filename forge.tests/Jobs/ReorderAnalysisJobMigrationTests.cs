@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Forge.Api.Jobs;
 using Forge.Api.Services;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Integrations;
 using Forge.Tests.Helpers;
 

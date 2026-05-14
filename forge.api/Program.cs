@@ -1199,27 +1199,27 @@ try
             return Results.Ok(new
             {
                 openLeads       = await db.Leads.CountAsync(l => l.DeletedAt == null
-                                    && l.Status != Forge.Core.Enums.LeadStatus.Converted
-                                    && l.Status != Forge.Core.Enums.LeadStatus.Lost),
+                                    && l.Status != Forge.Platform.Enums.LeadStatus.Converted
+                                    && l.Status != Forge.Platform.Enums.LeadStatus.Lost),
                 openQuotes      = await db.Quotes.CountAsync(q => q.DeletedAt == null
-                                    && q.Status == Forge.Core.Enums.QuoteStatus.Draft),
+                                    && q.Status == Forge.Platform.Enums.QuoteStatus.Draft),
                 openSalesOrders = await db.SalesOrders.CountAsync(so => so.DeletedAt == null
-                                    && so.Status != Forge.Core.Enums.SalesOrderStatus.Completed
-                                    && so.Status != Forge.Core.Enums.SalesOrderStatus.Cancelled),
+                                    && so.Status != Forge.Platform.Enums.SalesOrderStatus.Completed
+                                    && so.Status != Forge.Platform.Enums.SalesOrderStatus.Cancelled),
                 jobsByStage,
                 unpaidInvoices  = await db.Invoices.CountAsync(i => i.DeletedAt == null
-                                    && i.Status != Forge.Core.Enums.InvoiceStatus.Paid
-                                    && i.Status != Forge.Core.Enums.InvoiceStatus.Voided),
+                                    && i.Status != Forge.Platform.Enums.InvoiceStatus.Paid
+                                    && i.Status != Forge.Platform.Enums.InvoiceStatus.Voided),
                 overduePos      = await db.PurchaseOrders.CountAsync(po => po.DeletedAt == null
-                                    && po.Status == Forge.Core.Enums.PurchaseOrderStatus.Submitted
+                                    && po.Status == Forge.Platform.Enums.PurchaseOrderStatus.Submitted
                                     && po.ExpectedDeliveryDate < now),
                 activeTimers    = await db.ClockEvents.CountAsync(ce =>
-                                    ce.EventType == Forge.Core.Enums.ClockEventType.ClockIn
+                                    ce.EventType == Forge.Platform.Enums.ClockEventType.ClockIn
                                     && !db.ClockEvents.Any(ce2 => ce2.UserId == ce.UserId
-                                        && ce2.EventType == Forge.Core.Enums.ClockEventType.ClockOut
+                                        && ce2.EventType == Forge.Platform.Enums.ClockEventType.ClockOut
                                         && ce2.Timestamp > ce.Timestamp)),
                 pendingExpenses = await db.Expenses.CountAsync(e => e.DeletedAt == null
-                                    && e.Status == Forge.Core.Enums.ExpenseStatus.Pending),
+                                    && e.Status == Forge.Platform.Enums.ExpenseStatus.Pending),
             });
         }).RequireAuthorization(p => p.RequireRole("Admin"));
 

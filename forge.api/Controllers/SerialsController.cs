@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Serials;
-using Forge.Core.Enums;
 using Forge.Core.Models;
 
 namespace Forge.Api.Controllers;

@@ -190,7 +190,7 @@ public class UpdatePartHandler(
                 {
                     var item = new AccountingItem(
                         part.ExternalId, part.PartNumber, part.Name,
-                        "NonInventory", null, null, part.PartNumber, part.Status == Core.Enums.PartStatus.Active);
+                        "NonInventory", null, null, part.PartNumber, part.Status == PartStatus.Active);
                     var payload = JsonSerializer.Serialize(item);
                     await syncQueue.EnqueueAsync("Part", part.Id, "UpdateItem", payload, cancellationToken);
                     logger.LogInformation("Enqueued UpdateItem sync for Part {PartId}", part.Id);

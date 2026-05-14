@@ -2,7 +2,6 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 

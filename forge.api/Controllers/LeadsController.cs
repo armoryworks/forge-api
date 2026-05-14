@@ -9,7 +9,6 @@ using Forge.Api.Features.Leads;
 using Forge.Api.Features.Leads.BulkIntake;
 using Forge.Api.Features.Leads.Queue;
 using Forge.Api.Features.OutreachPreferences;
-using Forge.Core.Enums;
 using Forge.Core.Models;
 
 namespace Forge.Api.Controllers;

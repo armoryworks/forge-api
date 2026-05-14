@@ -4,7 +4,6 @@ using Moq;
 
 using Forge.Api.Jobs;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 using Forge.Tests.Helpers;

@@ -34,7 +34,7 @@ public class MaintenancePredictionConfiguration : IEntityTypeConfiguration<Maint
             .OnDelete(DeleteBehavior.SetNull);
 
         // FK-only ApplicationUser reference
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.AcknowledgedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
