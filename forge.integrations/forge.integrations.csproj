@@ -8,6 +8,7 @@
   <ItemGroup>
     <Using Include="Forge.Platform.Entities" />
     <Using Include="Forge.Platform.Time" />
+    <Using Include="Forge.Platform.Enums" />
   </ItemGroup>
 
   <ItemGroup>

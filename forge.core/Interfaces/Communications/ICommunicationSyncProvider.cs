@@ -1,4 +1,3 @@
-using Forge.Core.Enums;
 using Forge.Core.Models.Communications;
 
 namespace Forge.Core.Interfaces.Communications;

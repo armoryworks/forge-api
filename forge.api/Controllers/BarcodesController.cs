@@ -2,7 +2,6 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Features.Barcodes;
-using Forge.Core.Enums;
 
 namespace Forge.Api.Controllers;
 

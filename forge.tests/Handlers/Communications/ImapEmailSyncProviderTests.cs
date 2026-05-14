@@ -3,7 +3,6 @@ using MailKit;
 using MimeKit;
 
 using Forge.Api.Features.Communications;
-using Forge.Core.Enums;
 using Forge.Core.Models.Communications;
 
 namespace Forge.Tests.Handlers.Communications;

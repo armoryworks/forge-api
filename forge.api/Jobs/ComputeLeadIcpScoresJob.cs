@@ -68,7 +68,7 @@ public class ComputeLeadIcpScoresJob(
         var startedAt = clock.UtcNow;
 
         var leadIds = await db.Leads.AsNoTracking()
-            .Where(l => l.Status != Core.Enums.LeadStatus.Converted && l.Status != Core.Enums.LeadStatus.Lost)
+            .Where(l => l.Status != LeadStatus.Converted && l.Status != LeadStatus.Lost)
             .Select(l => l.Id)
             .ToListAsync(ct);
 

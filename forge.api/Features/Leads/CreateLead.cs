@@ -50,7 +50,7 @@ public class CreateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequest
         await repo.AddAsync(lead, cancellationToken);
 
         // Repo.AddAsync already saved (gives us lead.Id). Log + flush.
-        var shapeFragment = lead.EngagementShape == Core.Enums.LeadEngagementShape.Unknown
+        var shapeFragment = lead.EngagementShape == LeadEngagementShape.Unknown
             ? ""
             : $" [{lead.EngagementShape}]";
         db.LogActivityAt(

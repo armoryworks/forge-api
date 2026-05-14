@@ -3,7 +3,6 @@ using FluentAssertions;
 using Moq;
 using Forge.Api.Features.SalesOrders;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 
@@ -165,7 +164,7 @@ public class CreateSalesOrderHandlerTests
 
         // Assert
         _orderRepo.Verify(r => r.AddAsync(It.Is<SalesOrder>(so =>
-            so.CreditTerms == Core.Enums.CreditTerms.Net30
+            so.CreditTerms == CreditTerms.Net30
         ), It.IsAny<CancellationToken>()), Times.Once);
     }
 

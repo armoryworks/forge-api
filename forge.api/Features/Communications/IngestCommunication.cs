@@ -1,7 +1,6 @@
 using FluentValidation;
 using MediatR;
 
-using Forge.Core.Enums;
 using Forge.Core.Interfaces.Communications;
 using Forge.Core.Models.Communications;
 

@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -97,7 +96,7 @@ public class CreateJobHandler(
         await jobRepo.SaveChangesAsync(cancellationToken);
 
         await barcodeService.CreateBarcodeAsync(
-            Core.Enums.BarcodeEntityType.Job, job.Id, job.JobNumber, cancellationToken);
+            BarcodeEntityType.Job, job.Id, job.JobNumber, cancellationToken);
 
         var result = await mediator.Send(new GetJobByIdQuery(job.Id), cancellationToken);
 

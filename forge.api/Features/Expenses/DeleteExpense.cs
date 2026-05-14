@@ -1,5 +1,4 @@
 using MediatR;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 
 namespace Forge.Api.Features.Expenses;

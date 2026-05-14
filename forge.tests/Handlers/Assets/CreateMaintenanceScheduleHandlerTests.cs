@@ -17,7 +17,7 @@ public class CreateMaintenanceScheduleHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
 
-        var asset = new Asset { Name = "CNC Mill", AssetType = Core.Enums.AssetType.Machine };
+        var asset = new Asset { Name = "CNC Mill", AssetType = AssetType.Machine };
         db.Assets.Add(asset);
         await db.SaveChangesAsync();
 
@@ -49,7 +49,7 @@ public class CreateMaintenanceScheduleHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
 
-        var asset = new Asset { Name = "Lathe", AssetType = Core.Enums.AssetType.Machine };
+        var asset = new Asset { Name = "Lathe", AssetType = AssetType.Machine };
         db.Assets.Add(asset);
         await db.SaveChangesAsync();
 
@@ -97,7 +97,7 @@ public class CreateMaintenanceScheduleHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
 
-        var asset = new Asset { Name = "Press", AssetType = Core.Enums.AssetType.Machine };
+        var asset = new Asset { Name = "Press", AssetType = AssetType.Machine };
         db.Assets.Add(asset);
         await db.SaveChangesAsync();
 
@@ -123,7 +123,7 @@ public class CreateMaintenanceScheduleHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
 
-        var asset = new Asset { Name = "Compressor", AssetType = Core.Enums.AssetType.Machine };
+        var asset = new Asset { Name = "Compressor", AssetType = AssetType.Machine };
         db.Assets.Add(asset);
         await db.SaveChangesAsync();
 

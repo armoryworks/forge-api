@@ -9,7 +9,6 @@ using Forge.Api.Features.IntegrationOutbox;
 using Forge.Api.Features.ReferenceData;
 using Forge.Api.Features.ShiftAssignments;
 using Forge.Api.Features.TrackTypes;
-using Forge.Core.Enums;
 using Forge.Core.Models;
 
 namespace Forge.Api.Controllers;

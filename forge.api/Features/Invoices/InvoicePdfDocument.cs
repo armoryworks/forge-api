@@ -186,14 +186,14 @@ public class InvoicePdfDocument : IDocument
         });
     }
 
-    private static string FormatCreditTerms(Core.Enums.CreditTerms terms) => terms switch
+    private static string FormatCreditTerms(CreditTerms terms) => terms switch
     {
-        Core.Enums.CreditTerms.DueOnReceipt => "Due on Receipt",
-        Core.Enums.CreditTerms.Net15 => "Net 15",
-        Core.Enums.CreditTerms.Net30 => "Net 30",
-        Core.Enums.CreditTerms.Net45 => "Net 45",
-        Core.Enums.CreditTerms.Net60 => "Net 60",
-        Core.Enums.CreditTerms.Net90 => "Net 90",
+        CreditTerms.DueOnReceipt => "Due on Receipt",
+        CreditTerms.Net15 => "Net 15",
+        CreditTerms.Net30 => "Net 30",
+        CreditTerms.Net45 => "Net 45",
+        CreditTerms.Net60 => "Net 60",
+        CreditTerms.Net90 => "Net 90",
         _ => terms.ToString()
     };
 }

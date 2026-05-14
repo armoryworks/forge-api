@@ -3,7 +3,6 @@ using QuestPDF.Infrastructure;
 
 using Forge.Api.Features.Customers;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Data.Context;
 using Forge.Tests.Helpers;
 

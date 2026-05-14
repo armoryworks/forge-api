@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Moq;
 using Forge.Api.Features.CustomerReturns;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.CustomerReturns;

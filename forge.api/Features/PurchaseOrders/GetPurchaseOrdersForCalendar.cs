@@ -1,6 +1,5 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 

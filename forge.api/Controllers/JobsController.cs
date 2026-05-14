@@ -444,5 +444,5 @@ public record MaterialIssueRequest(
     int? BinContentId,
     int? StorageLocationId,
     string? LotNumber,
-    Core.Enums.MaterialIssueType IssueType = Core.Enums.MaterialIssueType.Issue,
+    MaterialIssueType IssueType = MaterialIssueType.Issue,
     string? Notes = null);

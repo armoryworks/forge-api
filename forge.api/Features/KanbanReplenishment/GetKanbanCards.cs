@@ -26,7 +26,7 @@ public class GetKanbanCardsHandler(AppDbContext db) : IRequestHandler<GetKanbanC
         if (query.PartId.HasValue)
             q = q.Where(c => c.PartId == query.PartId.Value);
 
-        if (!string.IsNullOrEmpty(query.Status) && Enum.TryParse<Core.Enums.KanbanCardStatus>(query.Status, true, out var status))
+        if (!string.IsNullOrEmpty(query.Status) && Enum.TryParse<KanbanCardStatus>(query.Status, true, out var status))
             q = q.Where(c => c.Status == status);
 
         var totalCount = await q.CountAsync(cancellationToken);

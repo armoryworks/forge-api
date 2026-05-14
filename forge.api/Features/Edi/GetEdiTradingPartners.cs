@@ -38,7 +38,7 @@ public class GetEdiTradingPartnersHandler(AppDbContext db)
                 PartnerId = g.Key,
                 Count = g.Count(),
                 LastAt = g.Max(t => t.ReceivedAt),
-                ErrorCount = g.Count(t => t.Status == Core.Enums.EdiTransactionStatus.Error)
+                ErrorCount = g.Count(t => t.Status == EdiTransactionStatus.Error)
             })
             .ToDictionaryAsync(s => s.PartnerId, cancellationToken);
 

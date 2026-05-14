@@ -1,5 +1,4 @@
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Data.Context;
 
 namespace Forge.Tests.Reports;

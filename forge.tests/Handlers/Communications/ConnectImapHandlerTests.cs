@@ -8,7 +8,6 @@ using MimeKit;
 using Microsoft.AspNetCore.DataProtection;
 
 using Forge.Api.Features.Communications;
-using Forge.Core.Enums;
 using Forge.Core.Models.Communications;
 using Forge.Tests.Helpers;
 

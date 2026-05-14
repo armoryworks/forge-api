@@ -4,7 +4,6 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 
 using Forge.Api.Features.DomainEvents;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 
 namespace Forge.Api.Features.PurchaseOrders;

@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 
 namespace Forge.Data.Configuration;
 

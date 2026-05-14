@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Models.Communications;
 using Forge.Data.Context;
 using Forge.Data.Extensions;

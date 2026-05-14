@@ -4,7 +4,6 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 
-using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 

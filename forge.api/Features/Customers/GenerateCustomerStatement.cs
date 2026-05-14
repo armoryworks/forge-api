@@ -22,8 +22,8 @@ public class GenerateCustomerStatementHandler(AppDbContext db)
             .Include(i => i.Lines)
             .Include(i => i.PaymentApplications)
             .Where(i => i.CustomerId == request.CustomerId
-                && i.Status != Forge.Core.Enums.InvoiceStatus.Voided
-                && i.Status != Forge.Core.Enums.InvoiceStatus.Draft)
+                && i.Status != Forge.Platform.Enums.InvoiceStatus.Voided
+                && i.Status != Forge.Platform.Enums.InvoiceStatus.Draft)
             .ToListAsync(ct);
 
         var payments = await db.Payments

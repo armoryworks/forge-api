@@ -3,7 +3,6 @@ using System.Security.Claims;
 using MediatR;
 
 using Forge.Api.Features.DomainEvents;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 
 namespace Forge.Api.Features.Shipments;

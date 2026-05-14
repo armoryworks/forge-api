@@ -3,7 +3,6 @@ using FluentAssertions;
 using Moq;
 using Forge.Api.Features.Quotes;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 
 namespace Forge.Tests.Handlers.Quotes;

@@ -2,7 +2,6 @@ using FluentAssertions;
 
 using Forge.Api.Features.Mrp;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Mrp;
