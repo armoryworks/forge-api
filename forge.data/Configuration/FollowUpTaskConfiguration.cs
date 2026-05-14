@@ -13,7 +13,7 @@ public class FollowUpTaskConfiguration : IEntityTypeConfiguration<FollowUpTask>
         builder.Property(e => e.Description).HasMaxLength(2000);
         builder.Property(e => e.SourceEntityType).HasMaxLength(100);
 
-        builder.HasOne<Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.AssignedToUserId)
             .OnDelete(DeleteBehavior.Restrict);

@@ -9,6 +9,32 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Forge.Platform\Forge.Platform.csproj" />
+    <!--
+      Phase C DAG dependency — Forge.Identity → forge.core for CompanyLocation,
+      RoleTemplate, IActiveAware, and the types the cloud-storage interfaces
+      reference. Retargets to Forge.MasterData once that vertical migrates.
+    -->
+    <ProjectReference Include="..\forge.core\forge.core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.3" />
+  </ItemGroup>
+
+  <!--
+    Phase C transition implicit usings — keeps the moved entity / config /
+    interface files compiling without per-file `using` churn. Mirrors the
+    pattern on forge.core / forge.data / forge.api.
+  -->
+  <ItemGroup>
+    <Using Include="Forge.Platform.Entities" />
+    <Using Include="Forge.Platform.Time" />
+    <Using Include="Forge.Platform.Enums" />
+    <Using Include="Forge.Core.Entities" />
+    <Using Include="Forge.Core.Interfaces" />
+    <Using Include="Forge.Identity.Entities" />
+    <Using Include="Forge.Identity.Interfaces" />
   </ItemGroup>
 
 </Project>

@@ -61,17 +61,17 @@ public class NonConformanceConfiguration : IEntityTypeConfiguration<NonConforman
             .OnDelete(DeleteBehavior.SetNull);
 
         // FK-only ApplicationUser references
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.DetectedById)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.ContainmentById)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.DispositionById)
             .OnDelete(DeleteBehavior.Restrict);

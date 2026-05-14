@@ -3526,7 +3526,7 @@ namespace Forge.Data.Migrations
                     b.ToTable("job_subtasks");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.KioskTerminal", b =>
+            modelBuilder.Entity("KioskTerminal", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -8257,7 +8257,7 @@ namespace Forge.Data.Migrations
                     b.ToTable("training_progress");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.UserIntegration", b =>
+            modelBuilder.Entity("UserIntegration", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -8340,7 +8340,7 @@ namespace Forge.Data.Migrations
                     b.ToTable("user_integrations");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.UserPreference", b =>
+            modelBuilder.Entity("UserPreference", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -8390,7 +8390,7 @@ namespace Forge.Data.Migrations
                     b.ToTable("user_preferences");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.UserScanIdentifier", b =>
+            modelBuilder.Entity("UserScanIdentifier", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -8558,7 +8558,7 @@ namespace Forge.Data.Migrations
                     b.ToTable("vendors");
                 });
 
-            modelBuilder.Entity("Forge.Data.Context.ApplicationUser", b =>
+            modelBuilder.Entity("ApplicationUser", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -8730,7 +8730,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<int>", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -8740,7 +8740,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<int>", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -8757,7 +8757,7 @@ namespace Forge.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_asp_net_user_roles_asp_net_roles_role_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -8767,7 +8767,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<int>", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -8853,7 +8853,7 @@ namespace Forge.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .HasConstraintName("fk_barcodes__storage_locations_storage_location_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -8923,14 +8923,14 @@ namespace Forge.Data.Migrations
                         .HasForeignKey("FileAttachmentId")
                         .HasConstraintName("fk_chat_messages__file_attachments_file_attachment_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("RecipientId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_chat_messages__asp_net_users_recipient_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("SenderId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -8944,7 +8944,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.ChatRoom", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -8961,7 +8961,7 @@ namespace Forge.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_chat_room_members_chat_rooms_chat_room_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -9093,7 +9093,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.CycleCount", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("CountedById")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -9144,7 +9144,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.EntityNote", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -9360,7 +9360,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.JobNote", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -9426,7 +9426,7 @@ namespace Forge.Data.Migrations
                     b.Navigation("Job");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.KioskTerminal", b =>
+            modelBuilder.Entity("KioskTerminal", b =>
                 {
                     b.HasOne("Forge.Core.Entities.Team", "Team")
                         .WithMany()
@@ -9997,7 +9997,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.Quote", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("AssignedToId")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -10244,7 +10244,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.SavedReport", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -10334,7 +10334,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.StatusEntry", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("SetById")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -10388,7 +10388,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.TrainingModule", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -10397,7 +10397,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.TrainingPathEnrollment", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("AssignedByUserId")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -10410,7 +10410,7 @@ namespace Forge.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_training_path_enrollments_training_paths_path_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -10450,7 +10450,7 @@ namespace Forge.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_training_progress_training_modules_module_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -10460,9 +10460,9 @@ namespace Forge.Data.Migrations
                     b.Navigation("Module");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.UserPreference", b =>
+            modelBuilder.Entity("UserPreference", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -10470,9 +10470,9 @@ namespace Forge.Data.Migrations
                         .HasConstraintName("fk_user_preferences__asp_net_users_user_id");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.UserScanIdentifier", b =>
+            modelBuilder.Entity("UserScanIdentifier", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -10480,7 +10480,7 @@ namespace Forge.Data.Migrations
                         .HasConstraintName("fk_user_scan_identifiers__asp_net_users_user_id");
                 });
 
-            modelBuilder.Entity("Forge.Data.Context.ApplicationUser", b =>
+            modelBuilder.Entity("ApplicationUser", b =>
                 {
                     b.HasOne("Forge.Core.Entities.CompanyLocation", "WorkLocation")
                         .WithMany()

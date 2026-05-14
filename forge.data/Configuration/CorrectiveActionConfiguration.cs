@@ -35,27 +35,27 @@ public class CorrectiveActionConfiguration : IEntityTypeConfiguration<Corrective
         builder.HasIndex(e => e.SourceEntityId);
 
         // FK-only ApplicationUser references
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.OwnerId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.ClosedById)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.RootCauseAnalyzedById)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.VerifiedById)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.EffectivenessCheckedById)
             .OnDelete(DeleteBehavior.Restrict);

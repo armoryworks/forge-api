@@ -34,7 +34,7 @@ public class SpcMeasurementConfiguration : IEntityTypeConfiguration<SpcMeasureme
             .HasForeignKey(e => e.JobId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.MeasuredById)
             .OnDelete(DeleteBehavior.Restrict);

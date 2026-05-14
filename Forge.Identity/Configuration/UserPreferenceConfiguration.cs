@@ -1,9 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Forge.Core.Entities;
-using Forge.Data.Context;
 
-namespace Forge.Data.Configuration;
+namespace Forge.Identity.Configuration;
 
 public class UserPreferenceConfiguration : IEntityTypeConfiguration<UserPreference>
 {

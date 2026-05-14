@@ -21,7 +21,7 @@ public class AnnouncementConfiguration : IEntityTypeConfiguration<Announcement>
             .HasConversion<string>()
             .HasMaxLength(20);
 
-        builder.HasOne<Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(a => a.CreatedById)
             .OnDelete(DeleteBehavior.Restrict);

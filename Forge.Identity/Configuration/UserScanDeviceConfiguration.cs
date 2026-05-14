@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 using Forge.Core.Entities;
 
-namespace Forge.Data.Configuration;
+namespace Forge.Identity.Configuration;
 
 public class UserScanDeviceConfiguration : IEntityTypeConfiguration<UserScanDevice>
 {
@@ -12,7 +12,7 @@ public class UserScanDeviceConfiguration : IEntityTypeConfiguration<UserScanDevi
         builder.Property(e => e.DeviceId).HasMaxLength(200);
         builder.Property(e => e.DeviceName).HasMaxLength(200);
 
-        builder.HasOne<Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Cascade);

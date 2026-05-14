@@ -82,7 +82,7 @@ public class GetEmployeeDetailHandler(AppDbContext db, UserManager<ApplicationUs
                 .FirstOrDefaultAsync(ct);
         }
 
-        var scanTypes = await db.Set<Forge.Core.Entities.UserScanIdentifier>()
+        var scanTypes = await db.Set<UserScanIdentifier>()
             .Where(s => s.UserId == user.Id && s.IsActive && s.DeletedAt == null)
             .Select(s => s.IdentifierType)
             .ToListAsync(ct);

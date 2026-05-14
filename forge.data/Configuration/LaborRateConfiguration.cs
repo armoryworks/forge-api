@@ -16,7 +16,7 @@ public class LaborRateConfiguration : IEntityTypeConfiguration<LaborRate>
 
         builder.HasIndex(e => new { e.UserId, e.EffectiveFrom });
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Cascade);

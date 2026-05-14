@@ -1,7 +1,7 @@
 using Forge.Core.Entities;
 using Forge.Core.Models;
 
-namespace Forge.Core.Interfaces;
+namespace Forge.Identity.Interfaces;
 
 public interface IUserPreferenceRepository
 {

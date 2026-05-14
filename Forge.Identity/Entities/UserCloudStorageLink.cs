@@ -1,4 +1,4 @@
-namespace Forge.Core.Entities;
+namespace Forge.Identity.Entities;
 
 /// <summary>
 /// Pro Services rollout (Artifact 4 §3.3 / D3) — per-user OAuth link to a

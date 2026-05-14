@@ -23,12 +23,12 @@ public class CapaTaskConfiguration : IEntityTypeConfiguration<CapaTask>
             .OnDelete(DeleteBehavior.Cascade);
 
         // FK-only ApplicationUser references
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.AssigneeId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.CompletedById)
             .OnDelete(DeleteBehavior.Restrict);

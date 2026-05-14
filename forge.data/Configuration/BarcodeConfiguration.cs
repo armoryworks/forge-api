@@ -24,7 +24,7 @@ public class BarcodeConfiguration : IEntityTypeConfiguration<Barcode>
         builder.HasIndex(e => e.AssetId);
         builder.HasIndex(e => e.StorageLocationId);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Cascade);

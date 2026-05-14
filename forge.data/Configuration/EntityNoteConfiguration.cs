@@ -13,7 +13,7 @@ public class EntityNoteConfiguration : IEntityTypeConfiguration<EntityNote>
         builder.Property(x => x.EntityType).IsRequired().HasMaxLength(50);
         builder.Property(x => x.Text).IsRequired().HasMaxLength(4000);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(x => x.CreatedBy)
             .OnDelete(DeleteBehavior.SetNull);

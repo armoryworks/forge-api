@@ -17,7 +17,7 @@ public class JobNoteConfiguration : IEntityTypeConfiguration<JobNote>
             .HasForeignKey(x => x.JobId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(x => x.CreatedBy)
             .OnDelete(DeleteBehavior.SetNull);

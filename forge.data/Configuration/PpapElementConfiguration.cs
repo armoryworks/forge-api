@@ -21,7 +21,7 @@ public class PpapElementConfiguration : IEntityTypeConfiguration<PpapElement>
             .OnDelete(DeleteBehavior.Cascade);
 
         // FK-only ApplicationUser reference
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.AssignedToUserId)
             .OnDelete(DeleteBehavior.Restrict);

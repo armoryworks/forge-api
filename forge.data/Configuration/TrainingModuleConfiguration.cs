@@ -23,7 +23,7 @@ public class TrainingModuleConfiguration : IEntityTypeConfiguration<TrainingModu
         builder.HasIndex(e => e.IsOnboardingRequired);
         builder.HasIndex(e => e.CreatedByUserId);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.CreatedByUserId)
             .OnDelete(DeleteBehavior.SetNull);

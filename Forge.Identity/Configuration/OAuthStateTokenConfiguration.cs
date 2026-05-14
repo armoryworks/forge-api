@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 using Forge.Core.Entities;
 
-namespace Forge.Data.Configuration;
+namespace Forge.Identity.Configuration;
 
 /// <summary>
 /// Wave 8 phase 1k.2 — EF config for <see cref="OAuthStateToken"/>.

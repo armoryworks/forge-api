@@ -14,12 +14,12 @@ public class TrainingPathEnrollmentConfiguration : IEntityTypeConfiguration<Trai
         builder.HasIndex(e => e.UserId);
         builder.HasIndex(e => e.AssignedByUserId);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.AssignedByUserId)
             .OnDelete(DeleteBehavior.SetNull);

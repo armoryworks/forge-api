@@ -24,7 +24,7 @@ public class GetAdminUsersHandler(AppDbContext db, UserManager<ApplicationUser> 
             .ToListAsync(cancellationToken);
 
         // Batch-load scan identifier types per user
-        var scanTypes = await db.Set<Forge.Core.Entities.UserScanIdentifier>()
+        var scanTypes = await db.Set<UserScanIdentifier>()
             .Where(s => s.IsActive && s.DeletedAt == null)
             .GroupBy(s => s.UserId)
             .Select(g => new

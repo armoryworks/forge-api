@@ -35,7 +35,7 @@ public class FmeaItemConfiguration : IEntityTypeConfiguration<FmeaItem>
             .OnDelete(DeleteBehavior.SetNull);
 
         // FK-only ApplicationUser reference
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.ResponsibleUserId)
             .OnDelete(DeleteBehavior.Restrict);
