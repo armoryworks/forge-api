@@ -1,0 +1,119 @@
+# Release workflow for forge-api — multi-arch manifest stitcher.
+# Same pattern as forge-ui's release-manifest.yml — see comments there.
+
+name: Release manifest
+
+on:
+  workflow_run:
+    workflows: ["Release amd64", "Release arm64"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Explicit semver to merge (default: compute from HEAD of main)"
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: release-manifest-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  manifest:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+
+      - name: Compute version
+        id: version
+        run: |
+          set -euo pipefail
+          if [[ -n "${{ github.event.inputs.version }}" ]]; then
+            version="${{ github.event.inputs.version }}"
+            IFS='.' read -r major minor _ <<< "$version"
+            minor_tag="${major}.${minor}"
+            sha_tag=""
+          else
+            base=$(tr -d '[:space:]' < VERSION 2>/dev/null || echo "0.0.0")
+            IFS='.' read -r major minor base_patch <<< "$base"
+            anchor=$(git log -1 --format=%H -- VERSION 2>/dev/null || echo "")
+            if [[ -z "$anchor" ]]; then
+              distance=0
+            else
+              distance=$(git rev-list --count "${anchor}..HEAD")
+            fi
+            patch=$((base_patch + distance))
+            version="${major}.${minor}.${patch}"
+            minor_tag="${major}.${minor}"
+            sha_short=$(git rev-parse --short HEAD)
+            sha_tag="main-${sha_short}"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "minor=${minor_tag}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=${sha_tag}" >> "$GITHUB_OUTPUT"
+          echo "Computed manifest version: ${version} (minor=${minor_tag} sha_tag=${sha_tag})"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Stitch per-arch images into manifest list
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          MINOR:   ${{ steps.version.outputs.minor }}
+          SHA_TAG: ${{ steps.version.outputs.sha_tag }}
+        run: |
+          set -euo pipefail
+          IMG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+
+          sources=()
+          for arch in amd64 arm64; do
+            src="${IMG}:${VERSION}-${arch}"
+            if docker buildx imagetools inspect "$src" >/dev/null 2>&1; then
+              sources+=("$src")
+              echo "found:   $src"
+            else
+              echo "missing: $src (skipping)"
+            fi
+          done
+
+          if [[ ${#sources[@]} -eq 0 ]]; then
+            echo "No per-arch images found for version ${VERSION}; nothing to stitch."
+            exit 0
+          fi
+
+          dest_tags=("${IMG}:${VERSION}" "${IMG}:${MINOR}")
+          if [[ -n "${SHA_TAG}" ]]; then
+            dest_tags+=("${IMG}:latest" "${IMG}:${SHA_TAG}")
+          fi
+
+          tag_args=()
+          for t in "${dest_tags[@]}"; do tag_args+=("-t" "$t"); done
+
+          echo "Creating manifest list under: ${dest_tags[*]}"
+          echo "Sources: ${sources[*]}"
+          docker buildx imagetools create "${tag_args[@]}" "${sources[@]}"
+
+      - name: Inspect resulting :latest
+        if: steps.version.outputs.sha_tag != ''
+        run: |
+          docker buildx imagetools inspect "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" || true
