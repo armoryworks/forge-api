@@ -2,14 +2,14 @@
 
 For project-wide guidelines (branch model, PR conventions, code style),
 see the umbrella repo:
-**https://github.com/danielhokanson/forge/blob/main/CONTRIBUTING.md**
+**https://github.com/armoryworks/forge/blob/main/CONTRIBUTING.md**
 
 ## Repo-specific setup
 
 You'll need .NET 9 SDK and Docker (for Postgres).
 
 ```bash
-git clone https://github.com/danielhokanson/forge-api.git
+git clone https://github.com/armoryworks/forge-api.git
 cd forge-api
 
 # Start a Postgres for local dev (port 5432):
@@ -52,7 +52,7 @@ created.
 
 ## Per-repo conventions
 
-See [`docs/coding-standards.md` in the umbrella repo](https://github.com/danielhokanson/forge/blob/main/docs/coding-standards.md)
+See [`docs/coding-standards.md` in the umbrella repo](https://github.com/armoryworks/forge/blob/main/docs/coding-standards.md)
 for .NET-specific patterns: MediatR handlers, FluentValidation, Fluent
 API for entity configuration, no try/catch in controllers, no "DTO"
 suffix.
