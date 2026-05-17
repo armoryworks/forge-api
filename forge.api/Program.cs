@@ -515,10 +515,17 @@ try
         }
         else
         {
-            builder.Services.AddSingleton<IStorageService, MinioStorageService>();
+            // Scoped: MinioStorageService consumes scoped ISettingsService
+            // (which depends on AppDbContext). Per-request MinioClient
+            // construction is cheap; the per-instance cache still avoids
+            // rebuilding within a single request.
+            builder.Services.AddScoped<IStorageService, MinioStorageService>();
             Log.Information("Storage provider: MinIO");
         }
-        builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
+        // Scoped: SmtpEmailService consumes scoped ISettingsService.
+        // SmtpClient is constructed fresh per SendAsync anyway, so there
+        // is no per-instance state worth sharing across requests.
+        builder.Services.AddScoped<IEmailService, SmtpEmailService>();
         // Accounting providers — all implementations registered; factory resolves active one from system settings
         builder.Services.AddScoped<IAccountingService, LocalAccountingService>();
         builder.Services.AddScoped<IAccountingService, QuickBooksAccountingService>();
@@ -596,7 +603,9 @@ try
     // block is safe regardless of which branch ran above.
     Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions
         .RemoveAll<IEmailService>(builder.Services);
-    builder.Services.AddSingleton<IEmailService>(integrationMode.IsMock("smtp")
+    // Scoped: SmtpEmailService consumes scoped ISettingsService. The mock
+    // is stateless so Scoped is equally fine there.
+    builder.Services.AddScoped<IEmailService>(integrationMode.IsMock("smtp")
         ? sp => new MockEmailService(sp.GetRequiredService<ILogger<MockEmailService>>())
         : sp => new SmtpEmailService(sp.GetRequiredService<Forge.Core.Settings.ISettingsService>(),
                                      sp.GetRequiredService<ILogger<SmtpEmailService>>()));
@@ -646,7 +655,10 @@ try
         }
         else
         {
-            builder.Services.AddSingleton<IStorageService, MinioStorageService>();
+            // Scoped: see comment on the equivalent registration in the
+            // not-mocks branch above — MinioStorageService consumes scoped
+            // ISettingsService.
+            builder.Services.AddScoped<IStorageService, MinioStorageService>();
         }
     }
 
