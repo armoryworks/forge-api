@@ -141,6 +141,7 @@ public static class IntegrationDescriptorCatalog
             [
                 MinioSettings.KeyMode,
                 MinioSettings.KeyEndpoint,
+                MinioSettings.KeyPublicEndpoint,
                 MinioSettings.KeyAccessKey,
                 MinioSettings.KeySecretKey,
                 MinioSettings.KeyBucket,
@@ -152,8 +153,8 @@ public static class IntegrationDescriptorCatalog
             [
                 "MinIO is already running locally via Docker — no external account or sign-up is needed.",
                 "Open the MinIO console at http://localhost:9001 (default login: minioadmin / minioadmin) to browse buckets.",
-                "The endpoint is pre-configured. The Docker container IS the sandbox — these defaults work for local dev.",
-                "For production, swap Endpoint to your real MinIO / S3 host and rotate the access keys.",
+                "Internal Endpoint is what the API uses (forge-storage:9000 in Docker). Public Endpoint is what end-user browsers use to download files via presigned URLs — set this to your public hostname or reverse-proxy URL in production.",
+                "For production, swap Endpoints to your real MinIO / S3 host and rotate the access keys.",
             ]),
 
         // ── Address validation ────────────────────────────────────

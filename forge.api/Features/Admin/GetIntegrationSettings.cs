@@ -48,7 +48,11 @@ public class GetIntegrationSettingsHandler(ISettingsService settings)
                     Value: display,
                     IsSensitive: descriptor.IsSecret,
                     IsRequired: descriptor.IsRequired,
-                    InputType: MapInputType(descriptor)));
+                    InputType: MapInputType(descriptor),
+                    Choices: descriptor.Choices?
+                        .Select(c => new IntegrationSettingChoice(c.Value, c.Label))
+                        .ToList(),
+                    Description: descriptor.Description));
             }
 
             // Default IsConfigured rule: the IsConfiguredCheckKey has a

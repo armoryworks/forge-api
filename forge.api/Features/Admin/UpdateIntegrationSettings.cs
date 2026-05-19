@@ -1,8 +1,10 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 using Forge.Core.Models;
 using Forge.Core.Settings;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Admin;
 
@@ -37,6 +39,7 @@ public record UpdateIntegrationSettingsCommand(
 
 public class UpdateIntegrationSettingsHandler(
     ISettingsService settings,
+    AppDbContext db,
     IMediator mediator,
     IOptions<SmtpOptions> smtpOptions,
     IOptions<MinioOptions> minioOptions,
@@ -57,30 +60,47 @@ public class UpdateIntegrationSettingsHandler(
 
         var allowedKeys = integration.FieldKeys.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        // Atomic save: wrap every per-field SetAsync in one DB transaction
+        // so a validation failure on field N doesn't leave fields 1..N-1
+        // half-persisted. Previously, an enum-validator throw mid-loop (e.g.
+        // when minio.mode arrived with the wrong case from a free-text input
+        // before the dropdown landed) would rollback nothing — earlier
+        // fields had already been SaveChanges'd in their own transactions.
         var appliedValues = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in request.Settings)
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        try
         {
-            if (!allowedKeys.Contains(key))
+            foreach (var (key, value) in request.Settings)
             {
-                throw new InvalidOperationException(
-                    $"Setting '{key}' is not part of integration '{request.Provider}'.");
+                if (!allowedKeys.Contains(key))
+                {
+                    throw new InvalidOperationException(
+                        $"Setting '{key}' is not part of integration '{request.Provider}'.");
+                }
+
+                var descriptor = SettingDescriptorCatalog.FindByKey(key);
+                if (descriptor is null) continue;
+
+                if (descriptor.IsSecret && IsMaskedSecret(value)) continue;
+
+                var normalized = string.IsNullOrEmpty(value) ? null : value;
+                await settings.SetAsync(key, normalized, ct);
+                appliedValues[key] = normalized;
             }
-
-            var descriptor = SettingDescriptorCatalog.FindByKey(key);
-            if (descriptor is null) continue;
-
-            if (descriptor.IsSecret && IsMaskedSecret(value)) continue;
-
-            var normalized = string.IsNullOrEmpty(value) ? null : value;
-            await settings.SetAsync(key, normalized, ct);
-            appliedValues[key] = normalized;
+            await tx.CommitAsync(ct);
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
         }
 
         // Propagate to IOptions singletons so consuming services pick
-        // up the change without a process restart. Integrations whose
-        // services aren't in this list (carriers, accounting providers)
-        // continue to require a restart — same behaviour as before
-        // phase 1m.
+        // up the change without a process restart. Only runs after the
+        // transaction commits — partial in-memory state on rollback is
+        // worse than the old behaviour. Integrations whose services aren't
+        // in this list (carriers, accounting providers) continue to require
+        // a restart — same behaviour as before phase 1m.
         PropagateToIOptions(request.Provider, appliedValues);
 
         var current = await mediator.Send(new GetIntegrationSettingsQuery(), ct);
@@ -138,6 +158,11 @@ public class UpdateIntegrationSettingsHandler(
     {
         var o = minioOptions.Value;
         if (applied.TryGetValue(MinioSettings.KeyEndpoint, out var ep) && ep is not null) o.Endpoint = ep;
+        // Public endpoint (browser-facing) — distinct from Internal Endpoint
+        // (API-facing). Presigned download URLs are built against this value
+        // so end-user browsers can reach MinIO at whatever public hostname
+        // / reverse-proxy is configured for the deployment.
+        if (applied.TryGetValue(MinioSettings.KeyPublicEndpoint, out var pep) && pep is not null) o.PublicEndpoint = pep;
         if (applied.TryGetValue(MinioSettings.KeyAccessKey, out var ak) && ak is not null) o.AccessKey = ak;
         if (applied.TryGetValue(MinioSettings.KeySecretKey, out var sk) && sk is not null) o.SecretKey = sk;
         if (applied.TryGetValue(MinioSettings.KeyUseSsl, out var ssl) && bool.TryParse(ssl, out var s)) o.UseSsl = s;
