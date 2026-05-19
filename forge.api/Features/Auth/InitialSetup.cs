@@ -60,7 +60,14 @@ public class InitialSetupHandler(
 {
     public async Task<LoginResponse> Handle(InitialSetupCommand request, CancellationToken cancellationToken)
     {
-        if (userManager.Users.Any())
+        // Setup is "completed" iff an Admin already exists. Counting ALL
+        // users (pre-fix) tripped immediately to "completed" because the
+        // LeadIntake first-boot bootstrap creates its headless service
+        // user before any human admin gets a chance to sign up. Filter
+        // by Admin role so the setup wizard correctly allows the first
+        // admin creation even when other (non-admin) users exist.
+        var existingAdmins = await userManager.GetUsersInRoleAsync("Admin");
+        if (existingAdmins.Count > 0)
             throw new InvalidOperationException("Setup has already been completed.");
 
         // Create roles
