@@ -10,8 +10,16 @@ namespace Forge.Api.Features.VendorParts;
 /// </summary>
 internal static class VendorPartMapper
 {
-    public static VendorPartResponseModel ToResponse(VendorPart vp) =>
-        new(
+    public static VendorPartResponseModel ToResponse(VendorPart vp)
+    {
+        // When the vendor IS the manufacturer we don't store ManufacturerName
+        // (the column is null) — readers see the vendor's company name. Keeps
+        // a single source of truth and avoids drift on vendor renames.
+        var effectiveMfrName = vp.IsManufacturer
+            ? (vp.Vendor?.CompanyName ?? vp.ManufacturerName)
+            : vp.ManufacturerName;
+
+        return new VendorPartResponseModel(
             Id: vp.Id,
             VendorId: vp.VendorId,
             VendorCompanyName: vp.Vendor?.CompanyName ?? string.Empty,
@@ -19,7 +27,7 @@ internal static class VendorPartMapper
             PartNumber: vp.Part?.PartNumber ?? string.Empty,
             PartName: vp.Part?.Name ?? string.Empty,
             VendorPartNumber: vp.VendorPartNumber,
-            ManufacturerName: vp.ManufacturerName,
+            ManufacturerName: effectiveMfrName,
             VendorMpn: vp.VendorMpn,
             LeadTimeDays: vp.LeadTimeDays,
             MinOrderQty: vp.MinOrderQty,
@@ -38,7 +46,9 @@ internal static class VendorPartMapper
                 .ToList(),
             CreatedAt: vp.CreatedAt,
             UpdatedAt: vp.UpdatedAt,
-            Currency: vp.Currency);
+            Currency: vp.Currency,
+            IsManufacturer: vp.IsManufacturer);
+    }
 
     public static VendorPartPriceTierResponseModel ToTierResponse(VendorPartPriceTier t) =>
         new(

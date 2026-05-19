@@ -13,6 +13,12 @@ public record VendorPartResponseModel(
     string PartNumber,
     string PartName,
     string? VendorPartNumber,
+    /// <summary>
+    /// Effective OEM brand. When <see cref="IsManufacturer"/> is true this
+    /// is the vendor's own company name (the stored ManufacturerName column
+    /// is null in that case to avoid drift). Otherwise it's whatever was
+    /// entered for this distributor's OEM claim.
+    /// </summary>
     string? ManufacturerName,
     string? VendorMpn,
     int? LeadTimeDays,
@@ -29,4 +35,6 @@ public record VendorPartResponseModel(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     /// <summary>ISO-4217 currency this vendor quotes in. Tier rows snapshot this value at insert time.</summary>
-    string Currency);
+    string Currency,
+    /// <summary>True when the vendor IS the part's manufacturer (direct-from-OEM source).</summary>
+    bool IsManufacturer = false);

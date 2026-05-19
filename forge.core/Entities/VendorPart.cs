@@ -66,6 +66,20 @@ public class VendorPart : BaseAuditableEntity
     public string? HtsCode { get; set; }
 
     /// <summary>
+    /// This vendor IS the part's manufacturer (direct-from-OEM source), not a
+    /// distributor reselling someone else's part. When true:
+    ///   - <see cref="ManufacturerName"/> is left null in storage; readers
+    ///     substitute the vendor's company name. Avoids drift if the vendor
+    ///     is later renamed.
+    ///   - <see cref="VendorPartNumber"/> and <see cref="VendorMpn"/> carry
+    ///     the same identifier (the vendor's catalog # IS the MPN). The
+    ///     create / update handlers mirror them at write time so legacy
+    ///     readers that look at only one column still see the value.
+    /// Defaults false (distributor / unknown).
+    /// </summary>
+    public bool IsManufacturer { get; set; }
+
+    /// <summary>
     /// Approved-vendor-list (AVL) flag — engineering or quality has signed
     /// off on this vendor as a valid source. Defaults true on direct user
     /// creation; admin tooling can revoke.

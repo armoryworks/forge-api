@@ -21,4 +21,11 @@ public record UpdateVendorPartRequestModel(
     DateTimeOffset? LastQuotedDate,
     string? Notes,
     /// <summary>ISO-4217 currency code. Null = leave existing unchanged.</summary>
-    string? Currency = null);
+    string? Currency = null,
+    /// <summary>
+    /// True when the vendor IS the part's manufacturer (direct-from-OEM).
+    /// Toggling from false → true clears ManufacturerName (rendered from
+    /// vendor on read) and mirrors VendorPartNumber ↔ VendorMpn to whichever
+    /// is non-empty.
+    /// </summary>
+    bool IsManufacturer = false);

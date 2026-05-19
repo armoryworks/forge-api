@@ -65,6 +65,51 @@ public class UpdateVendorPartHandler(AppDbContext db)
             vp.VendorMpn = body.VendorMpn.Trim();
             changedFields.Add("vendorMpn");
         }
+
+        // Direct-from-MFR flag. Track the flip itself, then normalize the
+        // PN/MPN/ManufacturerName fields per the contract below. We apply
+        // the normalization AFTER the raw per-field patches above so the
+        // flag wins when both are present in the same request (the natural
+        // case: user ticks the box, the dialog also sends the values it
+        // had visible).
+        if (body.IsManufacturer != vp.IsManufacturer)
+        {
+            vp.IsManufacturer = body.IsManufacturer;
+            changedFields.Add("isManufacturer");
+        }
+        if (vp.IsManufacturer)
+        {
+            // ManufacturerName is derived from Vendor.CompanyName on read,
+            // so the stored column must be null. If a caller sent a value
+            // it'd be overwritten silently, but the activity log already
+            // recorded the manufacturerName change above (if any) — leave
+            // that breadcrumb in place.
+            if (vp.ManufacturerName is not null)
+            {
+                vp.ManufacturerName = null;
+                if (!changedFields.Contains("manufacturerName"))
+                    changedFields.Add("manufacturerName");
+            }
+
+            // Mirror PN ↔ MPN to a single identifier. Prefer VendorPartNumber
+            // if set, otherwise VendorMpn. Whichever differed after this
+            // collapses to the same value gets a changedFields entry.
+            var single = !string.IsNullOrWhiteSpace(vp.VendorPartNumber)
+                ? vp.VendorPartNumber
+                : vp.VendorMpn;
+            if (vp.VendorPartNumber != single)
+            {
+                vp.VendorPartNumber = single;
+                if (!changedFields.Contains("vendorPartNumber"))
+                    changedFields.Add("vendorPartNumber");
+            }
+            if (vp.VendorMpn != single)
+            {
+                vp.VendorMpn = single;
+                if (!changedFields.Contains("vendorMpn"))
+                    changedFields.Add("vendorMpn");
+            }
+        }
         if (body.LeadTimeDays.HasValue && body.LeadTimeDays.Value != vp.LeadTimeDays)
         {
             vp.LeadTimeDays = body.LeadTimeDays.Value;

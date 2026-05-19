@@ -64,13 +64,31 @@ public class CreateVendorPartHandler(AppDbContext db)
         if (duplicate)
             throw new InvalidOperationException("VendorPart already exists for this vendor + part.");
 
+        // Normalize PN/MPN/ManufacturerName per the IsManufacturer contract:
+        //   - vendor IS manufacturer → ManufacturerName stays null (readers
+        //     render Vendor.CompanyName), and VendorPartNumber + VendorMpn
+        //     mirror to whichever one the caller supplied (a single identifier).
+        //   - vendor is distributor → all three fields stored as provided.
+        var vendorPartNumber = body.VendorPartNumber?.Trim();
+        var vendorMpn = body.VendorMpn?.Trim();
+        var manufacturerName = body.ManufacturerName?.Trim();
+        if (body.IsManufacturer)
+        {
+            manufacturerName = null;
+            var single = !string.IsNullOrWhiteSpace(vendorPartNumber)
+                ? vendorPartNumber
+                : vendorMpn;
+            vendorPartNumber = single;
+            vendorMpn = single;
+        }
+
         var vp = new VendorPart
         {
             VendorId = body.VendorId,
             PartId = body.PartId,
-            VendorPartNumber = body.VendorPartNumber?.Trim(),
-            ManufacturerName = body.ManufacturerName?.Trim(),
-            VendorMpn = body.VendorMpn?.Trim(),
+            VendorPartNumber = vendorPartNumber,
+            ManufacturerName = manufacturerName,
+            VendorMpn = vendorMpn,
             LeadTimeDays = body.LeadTimeDays,
             MinOrderQty = body.MinOrderQty,
             PackSize = body.PackSize,
@@ -78,6 +96,7 @@ public class CreateVendorPartHandler(AppDbContext db)
             HtsCode = body.HtsCode?.Trim(),
             IsApproved = body.IsApproved,
             IsPreferred = body.IsPreferred,
+            IsManufacturer = body.IsManufacturer,
             Certifications = body.Certifications,
             LastQuotedDate = body.LastQuotedDate,
             Notes = body.Notes,

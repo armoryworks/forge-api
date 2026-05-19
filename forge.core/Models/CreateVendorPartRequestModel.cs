@@ -21,4 +21,10 @@ public record CreateVendorPartRequestModel(
     DateTimeOffset? LastQuotedDate,
     string? Notes,
     /// <summary>ISO-4217 currency code. Optional; defaults to "USD".</summary>
-    string? Currency = null);
+    string? Currency = null,
+    /// <summary>
+    /// True when the vendor IS the part's manufacturer (direct-from-OEM).
+    /// Handler normalizes: ManufacturerName cleared (rendered from vendor on
+    /// read) and VendorPartNumber / VendorMpn mirrored to a single identifier.
+    /// </summary>
+    bool IsManufacturer = false);

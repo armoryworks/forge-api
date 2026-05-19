@@ -226,6 +226,123 @@ public class VendorPartCrudTests(CapabilityTestWebApplicationFactory factory)
     }
 
     [Fact]
+    public async Task Create_WithIsManufacturer_DerivesMfrNameAndMirrorsPnMpn()
+    {
+        var client = AuthenticatedClient();
+        var (vendorId, partId) = await SeedVendorAndPartAsync(
+            "DirectMFR Corp", "P-VP-MFR", "OemWidget");
+
+        var body = new CreateVendorPartRequestModel(
+            VendorId: vendorId,
+            PartId: partId,
+            VendorPartNumber: "DM-9001",
+            // Caller still might fill ManufacturerName from a UI auto-fill — the
+            // handler must ignore it when IsManufacturer is true.
+            ManufacturerName: "TYPO This Should Be Discarded",
+            VendorMpn: null,
+            LeadTimeDays: 14,
+            MinOrderQty: null,
+            PackSize: null,
+            CountryOfOrigin: "US",
+            HtsCode: null,
+            IsApproved: true,
+            IsPreferred: false,
+            Certifications: null,
+            LastQuotedDate: null,
+            Notes: null,
+            Currency: "USD",
+            IsManufacturer: true);
+
+        var resp = await client.PostAsJsonAsync("/api/v1/vendor-parts", body);
+        resp.StatusCode.Should().Be(HttpStatusCode.Created);
+        var result = (await resp.Content.ReadFromJsonAsync<VendorPartResponseModel>())!;
+
+        result.IsManufacturer.Should().BeTrue();
+        result.ManufacturerName.Should().Be("DirectMFR Corp",
+            "manufacturer name is derived from the vendor's company name on read");
+        result.VendorPartNumber.Should().Be("DM-9001");
+        result.VendorMpn.Should().Be("DM-9001",
+            "with IsManufacturer=true the vendor's catalog # IS the MPN");
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var row = await db.VendorParts.AsNoTracking().FirstAsync(vp => vp.Id == result.Id);
+        row.ManufacturerName.Should().BeNull(
+            "the column is left null so vendor renames automatically propagate");
+        row.VendorPartNumber.Should().Be("DM-9001");
+        row.VendorMpn.Should().Be("DM-9001");
+    }
+
+    [Fact]
+    public async Task Update_SettingIsManufacturer_CollapsesPnMpnAndClearsMfrName()
+    {
+        var client = AuthenticatedClient();
+        var (vendorId, partId) = await SeedVendorAndPartAsync(
+            "Becomes MFR", "P-VP-FLIP", "FlipWidget");
+
+        // Start as a distributor row with distinct PN, MPN, and an explicit
+        // ManufacturerName different from the vendor's name.
+        var createBody = new CreateVendorPartRequestModel(
+            VendorId: vendorId,
+            PartId: partId,
+            VendorPartNumber: "DIST-SKU",
+            ManufacturerName: "SomeOtherMfr",
+            VendorMpn: "OEM-123",
+            LeadTimeDays: 14,
+            MinOrderQty: null,
+            PackSize: null,
+            CountryOfOrigin: "US",
+            HtsCode: null,
+            IsApproved: true,
+            IsPreferred: false,
+            Certifications: null,
+            LastQuotedDate: null,
+            Notes: null,
+            Currency: "USD",
+            IsManufacturer: false);
+        var createResp = await client.PostAsJsonAsync("/api/v1/vendor-parts", createBody);
+        createResp.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = (await createResp.Content.ReadFromJsonAsync<VendorPartResponseModel>())!;
+        created.IsManufacturer.Should().BeFalse();
+        created.ManufacturerName.Should().Be("SomeOtherMfr");
+
+        // Flip IsManufacturer → true. The update handler must:
+        //   1. Null out the stored ManufacturerName (read substitutes vendor)
+        //   2. Mirror VendorPartNumber ↔ VendorMpn to a single identifier
+        var updateBody = new UpdateVendorPartRequestModel(
+            VendorPartNumber: null,                // leave alone — handler normalizes
+            ManufacturerName: null,
+            VendorMpn: null,
+            LeadTimeDays: null,
+            MinOrderQty: null,
+            PackSize: null,
+            CountryOfOrigin: null,
+            HtsCode: null,
+            IsApproved: true,
+            IsPreferred: false,
+            Certifications: null,
+            LastQuotedDate: null,
+            Notes: null,
+            Currency: null,
+            IsManufacturer: true);
+        var updResp = await client.PutAsJsonAsync($"/api/v1/vendor-parts/{created.Id}", updateBody);
+        updResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var updated = (await updResp.Content.ReadFromJsonAsync<VendorPartResponseModel>())!;
+
+        updated.IsManufacturer.Should().BeTrue();
+        updated.ManufacturerName.Should().Be("Becomes MFR",
+            "derived from the vendor's company name now that IsManufacturer is true");
+        updated.VendorPartNumber.Should().Be("DIST-SKU");
+        updated.VendorMpn.Should().Be("DIST-SKU",
+            "MPN mirrors VendorPartNumber when IsManufacturer flips on");
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var row = await db.VendorParts.AsNoTracking().FirstAsync(vp => vp.Id == created.Id);
+        row.ManufacturerName.Should().BeNull("stored column is null when derived");
+    }
+
+    [Fact]
     public async Task UpsertPriceTier_CreatesNewTier()
     {
         var client = AuthenticatedClient();

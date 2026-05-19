@@ -27,6 +27,11 @@ public class VendorPartConfiguration : IEntityTypeConfiguration<VendorPart>
         builder.Property(e => e.Certifications).HasColumnType("jsonb");
         builder.Property(e => e.Currency).HasMaxLength(3).HasDefaultValue("USD").IsRequired();
 
+        // Direct-from-MFR flag. Default false so distributor-source rows
+        // (the common case) don't get tagged "from manufacturer" implicitly
+        // when the column was added.
+        builder.Property(e => e.IsManufacturer).HasDefaultValue(false);
+
         builder.Property(e => e.MinOrderQty).HasPrecision(18, 4);
         builder.Property(e => e.PackSize).HasPrecision(18, 4);
 
