@@ -1,8 +1,10 @@
 using System.Security.Claims;
 
 using MediatR;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Forge.Api.Authentication;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Activity;
 using Forge.Api.Features.Leads;
@@ -14,9 +16,20 @@ using Forge.Core.Models;
 
 namespace Forge.Api.Controllers;
 
+// Controller-level auth accepts BOTH the standard JWT bearer scheme AND the
+// user-bound SystemApiKey scheme so that headless intake clients (using a
+// service user in the LeadIntake role) can hit the narrow GET / GET{id} /
+// POST surface needed for outbox-style lead relay. Methods that should NOT
+// be reachable by intake clients carry an extra per-method
+// [Authorize(Roles = "Admin,Manager,PM")] — composition is AND, so the
+// LeadIntake role fails the per-method check and gets 403 even though it
+// satisfies the controller-level grant. See docs/api-key-integrations.md.
 [ApiController]
 [Route("api/v1/leads")]
-[Authorize(Roles = "Admin,Manager,PM")]
+[Authorize(
+    AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme + ","
+                            + SystemApiKeyAuthenticationOptions.SchemeName,
+    Roles = "Admin,Manager,PM,LeadIntake")]
 [RequiresCapability("CAP-O2C-LEAD")]
 public class LeadsController(IMediator mediator) : ControllerBase
 {
@@ -44,6 +57,7 @@ public class LeadsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id:int}")]
+    [Authorize(Roles = "Admin,Manager,PM")] // intake clients excluded
     public async Task<ActionResult<LeadResponseModel>> UpdateLead(int id, [FromBody] UpdateLeadRequestModel request)
     {
         var result = await mediator.Send(new UpdateLeadCommand(id, request));
@@ -51,6 +65,7 @@ public class LeadsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/convert")]
+    [Authorize(Roles = "Admin,Manager,PM")] // intake clients excluded
     public async Task<ActionResult<ConvertLeadResponseModel>> ConvertLead(int id, [FromBody] ConvertLeadRequestModel request)
     {
         var result = await mediator.Send(new ConvertLeadCommand(id, request));
@@ -58,6 +73,7 @@ public class LeadsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin,Manager,PM")] // intake clients excluded
     public async Task<IActionResult> DeleteLead(int id)
     {
         await mediator.Send(new DeleteLeadCommand(id));
@@ -65,6 +81,7 @@ public class LeadsController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{id:int}/activity")]
+    [Authorize(Roles = "Admin,Manager,PM")] // intake clients excluded
     public async Task<ActionResult<List<ActivityResponseModel>>> GetLeadActivity(int id)
     {
         var result = await mediator.Send(new GetEntityActivityQuery("Lead", id));
@@ -78,6 +95,7 @@ public class LeadsController(IMediator mediator) : ControllerBase
     /// state for most leads, not an error.
     /// </summary>
     [HttpGet("{id:int}/outreach-preferences")]
+    [Authorize(Roles = "Admin,Manager,PM")] // intake clients excluded
     public async Task<ActionResult<OutreachPreferencesResponseModel?>> GetOutreachPreferences(int id)
     {
         var result = await mediator.Send(new GetLeadOutreachPreferencesQuery(id));
@@ -89,10 +107,12 @@ public class LeadsController(IMediator mediator) : ControllerBase
     /// or future cooldown) for the bulk DNC-management UI.
     /// </summary>
     [HttpGet("suppression")]
+    [Authorize(Roles = "Admin,Manager,PM")] // intake clients excluded
     public async Task<ActionResult<List<SuppressedLeadSummaryModel>>> ListSuppressed()
         => Ok(await mediator.Send(new ListSuppressedLeadsQuery()));
 
     [HttpPut("{id:int}/outreach-preferences")]
+    [Authorize(Roles = "Admin,Manager,PM")] // intake clients excluded
     public async Task<ActionResult<OutreachPreferencesResponseModel>> UpdateOutreachPreferences(
         int id, [FromBody] UpdateOutreachPreferencesRequest request)
     {
@@ -107,6 +127,7 @@ public class LeadsController(IMediator mediator) : ControllerBase
     /// before the operator clicks "import N rows" on the commit endpoint.
     /// </summary>
     [HttpPost("bulk-intake/preview")]
+    [Authorize(Roles = "Admin,Manager,PM")] // intake clients excluded — interactive bulk-import only
     public async Task<ActionResult<BulkLeadIntakeResponseModel>> BulkIntakePreview(
         [FromBody] BulkLeadIntakeRequest request)
     {
@@ -115,6 +136,7 @@ public class LeadsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("bulk-intake/commit")]
+    [Authorize(Roles = "Admin,Manager,PM")] // intake clients excluded — interactive bulk-import only
     public async Task<ActionResult<BulkLeadIntakeResponseModel>> BulkIntakeCommit(
         [FromBody] BulkLeadIntakeRequest request)
     {
@@ -129,6 +151,7 @@ public class LeadsController(IMediator mediator) : ControllerBase
     /// InProgress; subsequent disposition POSTs advance from there.
     /// </summary>
     [HttpPost("queue/pull")]
+    [Authorize(Roles = "Admin,Manager,PM")] // intake clients excluded — interactive worker queue only
     public async Task<ActionResult<List<QueueLeadResponseModel>>> PullQueue([FromBody] PullQueueRequest request)
     {
         var userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : 0;
@@ -137,6 +160,7 @@ public class LeadsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/queue/disposition")]
+    [Authorize(Roles = "Admin,Manager,PM")] // intake clients excluded
     public async Task<IActionResult> DispositionLead(int id, [FromBody] DispositionLeadRequest request)
     {
         await mediator.Send(new DispositionLeadCommand(id, request));

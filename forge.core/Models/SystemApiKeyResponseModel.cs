@@ -1,0 +1,16 @@
+namespace Forge.Core.Models;
+
+public record SystemApiKeyResponseModel
+{
+    public int Id { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string KeyPrefix { get; init; } = string.Empty;
+    public int UserId { get; init; }
+    public string? UserEmail { get; init; }
+    public bool IsActive { get; init; }
+    public DateTimeOffset? LastUsedAt { get; init; }
+    public DateTimeOffset? ExpiresAt { get; init; }
+    public List<string>? Scopes { get; init; }
+    public List<string>? AllowedIps { get; init; }
+    public DateTimeOffset CreatedAt { get; init; }
+}

@@ -23,9 +23,18 @@ public static partial class SeedData
         // (Controller, IT Admin, Procurement, Production Manager, Production
         // Planner) cover small-shop personas the original 6 missed. Existing
         // role names are unchanged for backward compatibility.
+        //
+        // LeadIntake is a HEADLESS, single-purpose sync role. It is NEVER
+        // assigned to a human; it is bound to a seeded service user
+        // (lead-intake-system@forge.local) and authenticated via the
+        // SystemApiKey scheme (X-Forge-Api-Key header). Grants are scoped to
+        // Lead.Create + Lead.Read only — for outbox-style relay of external
+        // contact-form submissions and per-row idempotency checks. See
+        // docs/api-key-integrations.md.
         string[] roles = [
             "Admin", "Manager", "Engineer", "PM", "ProductionWorker", "OfficeManager",
             "Controller", "IT Admin", "Procurement", "Production Manager", "Production Planner",
+            "LeadIntake",
         ];
         foreach (var role in roles)
         {

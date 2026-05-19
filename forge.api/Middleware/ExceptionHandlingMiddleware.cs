@@ -1,8 +1,10 @@
+using System.Security.Authentication;
 using System.Text.Json;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Auth;
 using Forge.Api.Workflows;
 
 namespace Forge.Api.Middleware;
@@ -136,6 +138,52 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 Title = "Unauthorized",
                 Detail = ex.Message,
                 Type = "https://tools.ietf.org/html/rfc9110#section-15.5.2"
+            };
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
+        catch (AuthenticationException ex)
+        {
+            // External-token validation failures (e.g. bad Google id_token
+            // in the SSO token-exchange flow). The caller IS unauthenticated
+            // — they presented a credential that didn't verify — so 401 is
+            // the correct status. Message goes back verbatim so the caller
+            // can distinguish "expired" / "wrong audience" / "bad signature"
+            // when debugging; no internal details surface.
+            logger.LogWarning(ex, "External authentication failed — returning 401");
+
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Authentication failed",
+                Detail = ex.Message,
+                Type = "https://tools.ietf.org/html/rfc9110#section-15.5.2"
+            };
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
+        catch (SsoDomainNotPermittedException ex)
+        {
+            // The provider authenticated the user successfully, but this
+            // install's per-provider AllowedDomains policy excludes their
+            // email domain. 403 is the correct status (authenticated but
+            // not authorized).
+            logger.LogInformation(
+                "[SSO] {Provider}: domain '{Domain}' not in AllowedDomains — returning 403",
+                ex.Provider, ex.EmailDomain);
+
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = "Domain not permitted",
+                Detail = ex.Message,
+                Type = "https://tools.ietf.org/html/rfc9110#section-15.5.4"
             };
 
             await context.Response.WriteAsJsonAsync(problem);

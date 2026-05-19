@@ -195,6 +195,19 @@ try
                 builder.Configuration.GetValue("BiApiKey:AuditUseEvents", defaultValue: false);
         });
 
+    // System (user-bound) API-key auth scheme. Distinct from the BI scheme
+    // above: this one authenticates AS a real ApplicationUser, so the
+    // CurrentUserId / audit / activity rows attribute correctly and the
+    // user's role grants drive [Authorize(Roles = ...)] downstream. Header:
+    // X-Forge-Api-Key. Issuance still requires JWT + Admin role.
+    authBuilder.AddScheme<SystemApiKeyAuthenticationOptions, SystemApiKeyAuthenticationHandler>(
+        SystemApiKeyAuthenticationOptions.SchemeName,
+        options =>
+        {
+            options.AuditUseEvents =
+                builder.Configuration.GetValue("SystemApiKey:AuditUseEvents", defaultValue: false);
+        });
+
     // SSO Configuration (optional — each provider independently enabled)
     var ssoOptions = builder.Configuration.GetSection("Sso").Get<SsoOptions>() ?? new SsoOptions();
     builder.Services.Configure<SsoOptions>(builder.Configuration.GetSection("Sso"));
@@ -309,6 +322,10 @@ try
     builder.Services.AddSingleton<ITokenService, JwtTokenService>();
     builder.Services.AddSingleton<IPortalAuthService, PortalAuthService>();
     builder.Services.AddSingleton<ISessionStore, SessionStore>();
+    // External-provider id_token validator (Google JWKS). Singleton so the
+    // OpenIdConnect ConfigurationManager's signing-key cache survives across
+    // requests — instantiating per-request would fetch JWKS on every call.
+    builder.Services.AddSingleton<IExternalIdTokenValidator, GoogleIdTokenValidator>();
     builder.Services.AddScoped<ISystemAuditWriter, SystemAuditWriter>();
     // Phase 3 / WU-06 / C1 — role-template rollup expansion at auth time.
     builder.Services.AddScoped<IRoleClaimsExpander, RoleClaimsExpander>();
@@ -1068,6 +1085,12 @@ try
             Log.Information("[DB-LIFECYCLE] Running seed data (demo={SeedDemo})...", seedDemoData);
             await SeedData.SeedAsync(scope.ServiceProvider, seedDemoData);
             Log.Information("[DB-LIFECYCLE] Seed data complete");
+
+            // Bootstrap the headless lead-intake service identity + one-time
+            // API key. Runs after the main seed so the LeadIntake role exists.
+            // Idempotent — issues a key only on a fresh install. See
+            // SeedData.LeadIntake.cs and docs/api-key-integrations.md.
+            await SeedData.SeedLeadIntakeBootstrapAsync(scope.ServiceProvider);
 
             // Seed built-in AI assistants (idempotent)
             await Forge.Api.Features.AiAssistants.SeedAiAssistants.EnsureSeededAsync(db);

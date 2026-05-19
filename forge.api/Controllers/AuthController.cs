@@ -158,6 +158,38 @@ public class AuthController(IMediator mediator) : ControllerBase
         return Challenge(properties, scheme);
     }
 
+    /// <summary>
+    /// Token-for-token exchange. Caller presents a fresh external-provider
+    /// id_token (today: Google) and receives a Forge JWT bound to the
+    /// matched <c>ApplicationUser</c>. The id_token IS the credential —
+    /// validated server-side against the provider's JWKS + the configured
+    /// client id (audience). The browser-based OAuth flow is NOT involved.
+    ///
+    /// Intended for federated client apps (deployed alongside Forge) whose
+    /// users already authenticated via the same IdP. The returned Forge JWT
+    /// is used with the standard <c>Authorization: Bearer ...</c> on
+    /// subsequent calls — Forge's actions are attributed to the real user,
+    /// not to a service identity. Audit / activity rows therefore show the
+    /// real person, the same as a browser-flow login would.
+    ///
+    /// Errors map via the standard middleware:
+    ///   - 400 — request shape invalid (FluentValidation).
+    ///   - 401 — id_token validation failed (bad signature, expired,
+    ///     wrong audience, unverified email).
+    ///   - 404 / 401 — no matching ApplicationUser
+    ///     (<see cref="InvalidOperationException"/> from
+    ///     <see cref="SsoCallbackHandler"/>).
+    /// </summary>
+    [HttpPost("sso/token-exchange")]
+    [AllowAnonymous]
+    public async Task<ActionResult<LoginResponse>> SsoTokenExchange(
+        [FromBody] SsoTokenExchangeRequestModel request)
+    {
+        var result = await mediator.Send(
+            new ExchangeSsoTokenCommand(request.Provider, request.IdToken));
+        return Ok(result);
+    }
+
     [HttpGet("sso/{provider}/callback")]
     [AllowAnonymous]
     public async Task<IActionResult> SsoCallback(string provider)
@@ -181,6 +213,15 @@ public class AuthController(IMediator mediator) : ControllerBase
             await HttpContext.SignOutAsync("SsoExternalCookie");
 
             return Redirect($"/sso/callback?sso_token={loginResponse.Token}");
+        }
+        catch (SsoDomainNotPermittedException)
+        {
+            // Per-install AllowedDomains policy excludes this email's domain.
+            // Redirect to the SSO landing with a distinct error code so the
+            // UI can render a tailored "your account isn't permitted" message
+            // (vs the generic "no account found" path below).
+            await HttpContext.SignOutAsync("SsoExternalCookie");
+            return Redirect("/sso/callback?error=domain_not_permitted");
         }
         catch (InvalidOperationException)
         {

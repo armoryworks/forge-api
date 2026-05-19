@@ -1,9 +1,11 @@
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 using Forge.Api.Services;
 using Forge.Core.Interfaces;
+using Forge.Core.Models;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Auth;
@@ -15,10 +17,16 @@ public class SsoCallbackHandler(
     ITokenService tokenService,
     ISessionStore sessionStore,
     IHttpContextAccessor httpContext,
-    IRoleClaimsExpander roleClaimsExpander) : IRequestHandler<SsoCallbackCommand, LoginResponse>
+    IRoleClaimsExpander roleClaimsExpander,
+    IOptionsMonitor<SsoOptions> ssoOptions) : IRequestHandler<SsoCallbackCommand, LoginResponse>
 {
     public async Task<LoginResponse> Handle(SsoCallbackCommand request, CancellationToken cancellationToken)
     {
+        // Per-install email-domain allow-list. Enforced uniformly here so
+        // both the browser-OAuth callback and the token-exchange endpoint
+        // honor the same policy. Empty list = no restriction.
+        EnforceAllowedDomains(request.Provider, request.Email);
+
         // Find user by SSO identity link
         ApplicationUser? user = request.Provider switch
         {
@@ -72,5 +80,30 @@ public class SsoCallbackHandler(
             new AuthUserResponseModel(
                 user.Id, user.Email!, user.FirstName, user.LastName,
                 user.Initials, user.AvatarColor, roles.ToArray(), false));
+    }
+
+    private void EnforceAllowedDomains(string provider, string email)
+    {
+        var allowed = provider switch
+        {
+            "google" => ssoOptions.CurrentValue.Google.AllowedDomains,
+            "microsoft" => ssoOptions.CurrentValue.Microsoft.AllowedDomains,
+            "oidc" => ssoOptions.CurrentValue.Oidc.AllowedDomains,
+            _ => null,
+        };
+        if (allowed is null || allowed.Count == 0)
+            return;
+
+        // Email syntactic validation lives upstream (token validator,
+        // OAuth provider); here we only need to split on the last '@'.
+        var at = email.LastIndexOf('@');
+        var domain = at >= 0 && at < email.Length - 1
+            ? email[(at + 1)..]
+            : string.Empty;
+
+        var permitted = allowed.Any(d =>
+            string.Equals(d, domain, StringComparison.OrdinalIgnoreCase));
+        if (!permitted)
+            throw new SsoDomainNotPermittedException(provider, domain);
     }
 }

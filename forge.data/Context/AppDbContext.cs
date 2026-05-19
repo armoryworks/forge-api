@@ -362,6 +362,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     // BI API Keys
     public DbSet<BiApiKey> BiApiKeys => Set<BiApiKey>();
 
+    // System (user-bound) API Keys — used by headless integrations that
+    // authenticate AS a real ApplicationUser (vs the unbound BiApiKey
+    // synthetic-role pattern). See SystemApiKey docstring.
+    public DbSet<SystemApiKey> SystemApiKeys => Set<SystemApiKey>();
+
     // Consignment Inventory
     public DbSet<ConsignmentAgreement> ConsignmentAgreements => Set<ConsignmentAgreement>();
     public DbSet<ConsignmentTransaction> ConsignmentTransactions => Set<ConsignmentTransaction>();
