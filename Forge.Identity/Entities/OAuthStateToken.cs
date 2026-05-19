@@ -1,4 +1,4 @@
-namespace Forge.Core.Entities;
+namespace Forge.Identity.Entities;
 
 /// <summary>
 /// Wave 8 phase 1k.2 — short-lived state token tying an in-flight OAuth

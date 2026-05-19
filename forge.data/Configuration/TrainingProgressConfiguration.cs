@@ -17,7 +17,7 @@ public class TrainingProgressConfiguration : IEntityTypeConfiguration<TrainingPr
         builder.HasIndex(e => e.Status);
         builder.HasIndex(e => e.ModuleId);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Cascade);

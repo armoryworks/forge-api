@@ -1,6 +1,6 @@
 using Forge.Core.Entities;
 
-namespace Forge.Core.Interfaces;
+namespace Forge.Identity.Interfaces;
 
 /// <summary>
 /// Pro Services rollout — resolves a usable (decrypted, non-expired)

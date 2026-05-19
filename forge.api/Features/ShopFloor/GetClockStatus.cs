@@ -7,8 +7,6 @@ using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
-using ApplicationUser = Forge.Data.Context.ApplicationUser;
-
 namespace Forge.Api.Features.ShopFloor;
 
 public record ClockWorkerModel(

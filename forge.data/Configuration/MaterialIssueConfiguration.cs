@@ -37,7 +37,7 @@ public class MaterialIssueConfiguration : IEntityTypeConfiguration<MaterialIssue
             .HasForeignKey(e => e.OperationId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.IssuedById)
             .OnDelete(DeleteBehavior.Restrict);

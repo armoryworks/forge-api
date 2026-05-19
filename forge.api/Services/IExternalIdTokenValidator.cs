@@ -22,7 +22,7 @@ public interface IExternalIdTokenValidator
 /// <summary>Trusted claims extracted from a validated external id_token.</summary>
 /// <param name="Subject">
 /// The provider's stable subject identifier (<c>sub</c> claim). Maps to
-/// <see cref="Forge.Data.Context.ApplicationUser.GoogleId"/> etc.
+/// <see cref="ApplicationUser.GoogleId"/> etc.
 /// </param>
 /// <param name="Email">
 /// The user's email per the <c>email</c> claim.

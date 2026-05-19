@@ -96,7 +96,7 @@ public class UpdateAdminUserHandler(
         var hasPendingToken = user.SetupToken != null
             && user.SetupTokenExpiresAt.HasValue
             && user.SetupTokenExpiresAt.Value > DateTimeOffset.UtcNow;
-        var userScans = await db.Set<Forge.Core.Entities.UserScanIdentifier>()
+        var userScans = await db.Set<UserScanIdentifier>()
             .Where(s => s.UserId == user.Id && s.IsActive && s.DeletedAt == null)
             .Select(s => s.IdentifierType)
             .ToListAsync(cancellationToken);

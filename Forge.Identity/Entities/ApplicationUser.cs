@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 
-namespace Forge.Data.Context;
+namespace Forge.Identity.Entities;
 
 public class ApplicationUser : IdentityUser<int>, IActiveAware
 {

@@ -1,6 +1,6 @@
 using Forge.Core.Enums;
 
-namespace Forge.Core.Entities;
+namespace Forge.Identity.Entities;
 
 public class UserMfaDevice : BaseAuditableEntity
 {

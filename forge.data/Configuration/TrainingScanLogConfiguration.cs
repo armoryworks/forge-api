@@ -13,7 +13,7 @@ public class TrainingScanLogConfiguration : IEntityTypeConfiguration<TrainingSca
             .HasConversion<string>()
             .HasMaxLength(20);
 
-        builder.HasOne<Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Restrict);

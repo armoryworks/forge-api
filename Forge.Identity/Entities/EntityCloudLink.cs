@@ -1,4 +1,4 @@
-namespace Forge.Core.Entities;
+namespace Forge.Identity.Entities;
 
 /// <summary>
 /// Pro Services rollout (Artifact 4 §3.4 / D9) — per-entity link to a

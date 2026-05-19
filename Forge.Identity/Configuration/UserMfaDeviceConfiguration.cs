@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 
-namespace Forge.Data.Configuration;
+namespace Forge.Identity.Configuration;
 
 public class UserMfaDeviceConfiguration : IEntityTypeConfiguration<UserMfaDevice>
 {

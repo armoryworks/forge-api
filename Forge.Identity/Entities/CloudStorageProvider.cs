@@ -1,6 +1,6 @@
 using Forge.Core.Enums;
 
-namespace Forge.Core.Entities;
+namespace Forge.Identity.Entities;
 
 /// <summary>
 /// Pro Services rollout (Artifact 4 §3.2 / D9) — install-level configured

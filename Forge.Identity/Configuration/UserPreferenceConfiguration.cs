@@ -1,9 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Forge.Core.Entities;
-using Forge.Data.Context;
 
-namespace Forge.Data.Configuration;
+namespace Forge.Identity.Configuration;
 
 public class UserPreferenceConfiguration : IEntityTypeConfiguration<UserPreference>
 {
@@ -19,6 +18,9 @@ public class UserPreferenceConfiguration : IEntityTypeConfiguration<UserPreferen
         builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.UserId)
+            // Pin pre-move constraint name (assembly relocation shifted EF's
+            // default FK-name generation — keep the live DB constraint stable).
+            .HasConstraintName("fk_user_preferences__asp_net_users_user_id")
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

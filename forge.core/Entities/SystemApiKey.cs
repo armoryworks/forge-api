@@ -9,7 +9,7 @@ namespace Forge.Core.Entities;
 ///     for read-only BI exports where the audit trail doesn't need to
 ///     attribute back to a real person.
 ///   - <c>SystemApiKey</c> is <b>user-bound</b> — every key references an
-///     <see cref="Forge.Data.Context.ApplicationUser"/> via <see cref="UserId"/>.
+///     <c>ApplicationUser</c> via <see cref="UserId"/>.
 ///     The authentication handler hydrates the principal AS that user, so
 ///     <c>AppDbContext.CurrentUserId</c>, audit logs, activity logs, and
 ///     <c>[Authorize(Roles = ...)]</c> checks all see the real user with
@@ -21,7 +21,7 @@ namespace Forge.Core.Entities;
 /// <c>docs/api-key-integrations.md</c> for the issuance and consumer
 /// contract.
 ///
-/// FK-only pattern (no <see cref="Forge.Data.Context.ApplicationUser"/> nav
+/// FK-only pattern (no <c>ApplicationUser</c> nav
 /// property) — Core cannot reference Data.
 /// </summary>
 public class SystemApiKey : BaseAuditableEntity
@@ -44,7 +44,7 @@ public class SystemApiKey : BaseAuditableEntity
     public string KeyPrefix { get; set; } = string.Empty;
 
     /// <summary>
-    /// FK to <see cref="Forge.Data.Context.ApplicationUser"/>. The key
+    /// FK to <c>ApplicationUser</c>. The key
     /// authenticates AS this user — the principal that the auth handler
     /// builds carries the user's id, email, and role grants.
     /// </summary>

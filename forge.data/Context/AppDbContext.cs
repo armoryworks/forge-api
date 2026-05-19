@@ -467,6 +467,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
         builder.HasPostgresExtension("vector");
 
         builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        // Phase C — the Identity vertical's IEntityTypeConfiguration<T> classes
+        // live in the Forge.Identity assembly, so scan it too (ApplicationUser
+        // is the marker type for that assembly).
+        builder.ApplyConfigurationsFromAssembly(typeof(ApplicationUser).Assembly);
 
         // Apply snake_case naming convention for all tables and columns
         foreach (var entity in builder.Model.GetEntityTypes())

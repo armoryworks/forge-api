@@ -3,11 +3,15 @@
   <ItemGroup>
     <ProjectReference Include="..\forge.core\forge.core.csproj" />
     <ProjectReference Include="..\Forge.Platform\Forge.Platform.csproj" />
+    <!-- Phase C — cloud-storage services use the Identity cloud-link entities + interfaces. -->
+    <ProjectReference Include="..\Forge.Identity\Forge.Identity.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Forge.Platform.Entities" />
     <Using Include="Forge.Platform.Time" />
+    <Using Include="Forge.Identity.Entities" />
+    <Using Include="Forge.Identity.Interfaces" />
   </ItemGroup>
 
   <ItemGroup>

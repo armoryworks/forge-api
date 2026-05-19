@@ -18,7 +18,7 @@ namespace Forge.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.9")
+                .HasAnnotation("ProductVersion", "10.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
@@ -85,7 +85,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("RunId")
                         .HasDatabaseName("ix_abc_classifications_run_id");
 
-                    b.ToTable("abc_classifications");
+                    b.ToTable("abc_classifications", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.AbcClassificationRun", b =>
@@ -139,7 +139,7 @@ namespace Forge.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_abc_classification_runs");
 
-                    b.ToTable("abc_classification_runs");
+                    b.ToTable("abc_classification_runs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Account", b =>
@@ -236,7 +236,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("OwnerUserId")
                         .HasDatabaseName("ix_accounts_owner_user_id");
 
-                    b.ToTable("accounts");
+                    b.ToTable("accounts", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.AccountContact", b =>
@@ -305,7 +305,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("AccountId")
                         .HasDatabaseName("ix_account_contacts_account_id");
 
-                    b.ToTable("account_contacts");
+                    b.ToTable("account_contacts", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ActivityLog", b =>
@@ -371,7 +371,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("EntityType", "EntityId")
                         .HasDatabaseName("ix_activity_logs_entity_type_entity_id");
 
-                    b.ToTable("activity_logs");
+                    b.ToTable("activity_logs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.AiAssistant", b =>
@@ -473,7 +473,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("IsActive", "SortOrder")
                         .HasDatabaseName("ix_ai_assistants_is_active_sort_order");
 
-                    b.ToTable("ai_assistants");
+                    b.ToTable("ai_assistants", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.AndonAlert", b =>
@@ -558,7 +558,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkCenterId")
                         .HasDatabaseName("ix_andon_alerts_work_center_id");
 
-                    b.ToTable("andon_alerts");
+                    b.ToTable("andon_alerts", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Announcement", b =>
@@ -656,7 +656,7 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_announcements_severity_scope")
                         .HasFilter("deleted_at IS NULL");
 
-                    b.ToTable("announcements");
+                    b.ToTable("announcements", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.AnnouncementAcknowledgment", b =>
@@ -690,7 +690,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_announcement_acknowledgments_announcement_id_user_id");
 
-                    b.ToTable("announcement_acknowledgments");
+                    b.ToTable("announcement_acknowledgments", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.AnnouncementTeam", b =>
@@ -709,7 +709,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("TeamId")
                         .HasDatabaseName("ix_announcement_teams_team_id");
 
-                    b.ToTable("announcement_teams");
+                    b.ToTable("announcement_teams", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.AnnouncementTemplate", b =>
@@ -768,7 +768,7 @@ namespace Forge.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_announcement_templates");
 
-                    b.ToTable("announcement_templates");
+                    b.ToTable("announcement_templates", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ApprovalDecision", b =>
@@ -823,7 +823,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("RequestId")
                         .HasDatabaseName("ix_approval_decisions_request_id");
 
-                    b.ToTable("approval_decisions");
+                    b.ToTable("approval_decisions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ApprovalRequest", b =>
@@ -900,7 +900,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("EntityType", "EntityId")
                         .HasDatabaseName("ix_approval_requests_entity_type_entity_id");
 
-                    b.ToTable("approval_requests");
+                    b.ToTable("approval_requests", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ApprovalStep", b =>
@@ -971,7 +971,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkflowId")
                         .HasDatabaseName("ix_approval_steps_workflow_id");
 
-                    b.ToTable("approval_steps");
+                    b.ToTable("approval_steps", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ApprovalWorkflow", b =>
@@ -1033,7 +1033,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("IsActive")
                         .HasDatabaseName("ix_approval_workflows_is_active");
 
-                    b.ToTable("approval_workflows");
+                    b.ToTable("approval_workflows", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Asset", b =>
@@ -1168,7 +1168,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkCenterId")
                         .HasDatabaseName("ix_assets_work_center_id");
 
-                    b.ToTable("assets");
+                    b.ToTable("assets", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.AssignmentRule", b =>
@@ -1226,7 +1226,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("IsActive", "Priority")
                         .HasDatabaseName("ix_assignment_rules_is_active_priority");
 
-                    b.ToTable("assignment_rules");
+                    b.ToTable("assignment_rules", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.AuditLogEntry", b =>
@@ -1290,7 +1290,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("EntityType", "EntityId")
                         .HasDatabaseName("ix_audit_log_entries_entity_type_entity_id");
 
-                    b.ToTable("audit_log_entries");
+                    b.ToTable("audit_log_entries", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.AutoPoSuggestion", b =>
@@ -1362,7 +1362,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PartId", "Status")
                         .HasDatabaseName("ix_auto_po_suggestions_part_id_status");
 
-                    b.ToTable("auto_po_suggestions");
+                    b.ToTable("auto_po_suggestions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.BOMEntry", b =>
@@ -1449,7 +1449,7 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_bomentries_vendor_id")
                         .HasFilter("vendor_id IS NOT NULL");
 
-                    b.ToTable("bomentries");
+                    b.ToTable("bomentries", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Barcode", b =>
@@ -1552,7 +1552,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_barcodes_value");
 
-                    b.ToTable("barcodes");
+                    b.ToTable("barcodes", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.BiApiKey", b =>
@@ -1627,7 +1627,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("KeyPrefix")
                         .HasDatabaseName("ix_bi_api_keys_key_prefix");
 
-                    b.ToTable("bi_api_keys");
+                    b.ToTable("bi_api_keys", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.BinContent", b =>
@@ -1713,7 +1713,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("LocationId", "EntityType", "EntityId")
                         .HasDatabaseName("ix_bin_contents_location_id_entity_type_entity_id");
 
-                    b.ToTable("bin_contents");
+                    b.ToTable("bin_contents", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.BinMovement", b =>
@@ -1796,7 +1796,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("EntityType", "EntityId")
                         .HasDatabaseName("ix_bin_movements_entity_type_entity_id");
 
-                    b.ToTable("bin_movements");
+                    b.ToTable("bin_movements", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.BomRevision", b =>
@@ -1855,7 +1855,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_bom_revisions_part_id_revision_number");
 
-                    b.ToTable("bom_revisions");
+                    b.ToTable("bom_revisions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.BomRevisionEntry", b =>
@@ -1937,7 +1937,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PartId")
                         .HasDatabaseName("ix_bom_revision_entries_part_id");
 
-                    b.ToTable("bom_revision_entries");
+                    b.ToTable("bom_revision_entries", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CalibrationRecord", b =>
@@ -2013,7 +2013,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("GageId")
                         .HasDatabaseName("ix_calibration_records_gage_id");
 
-                    b.ToTable("calibration_records");
+                    b.ToTable("calibration_records", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CapaTask", b =>
@@ -2084,7 +2084,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_capa_tasks_status");
 
-                    b.ToTable("capa_tasks");
+                    b.ToTable("capa_tasks", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Capability", b =>
@@ -2170,7 +2170,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_capabilities_code");
 
-                    b.ToTable("capabilities");
+                    b.ToTable("capabilities", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CapabilityConfig", b =>
@@ -2230,7 +2230,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_capability_configs_capability_id");
 
-                    b.ToTable("capability_configs");
+                    b.ToTable("capability_configs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ChatMessage", b =>
@@ -2329,7 +2329,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("SenderId", "RecipientId", "CreatedAt")
                         .HasDatabaseName("ix_chat_messages_sender_id_recipient_id_created_at");
 
-                    b.ToTable("chat_messages");
+                    b.ToTable("chat_messages", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ChatMessageMention", b =>
@@ -2370,7 +2370,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("EntityType", "EntityId")
                         .HasDatabaseName("ix_chat_message_mentions_entity_type_entity_id");
 
-                    b.ToTable("chat_message_mentions");
+                    b.ToTable("chat_message_mentions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ChatRoom", b =>
@@ -2453,7 +2453,7 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_chat_rooms_team_id")
                         .HasFilter("team_id IS NOT NULL");
 
-                    b.ToTable("chat_rooms");
+                    b.ToTable("chat_rooms", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ChatRoomMember", b =>
@@ -2523,7 +2523,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_chat_room_members_chat_room_id_user_id");
 
-                    b.ToTable("chat_room_members");
+                    b.ToTable("chat_room_members", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ClockEvent", b =>
@@ -2584,10 +2584,10 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId", "Timestamp")
                         .HasDatabaseName("ix_clock_events_user_id_timestamp");
 
-                    b.ToTable("clock_events");
+                    b.ToTable("clock_events", (string)null);
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.CloudStorageProvider", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.CloudStorageProvider", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -2671,7 +2671,7 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_cloud_storage_providers_provider_code_is_active")
                         .HasFilter("is_active = true AND deleted_at IS NULL");
 
-                    b.ToTable("cloud_storage_providers");
+                    b.ToTable("cloud_storage_providers", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CommunicationSyncConfig", b =>
@@ -2774,7 +2774,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId", "Kind", "ProviderId")
                         .HasDatabaseName("ix_communication_sync_configs_user_id_kind_provider_id");
 
-                    b.ToTable("communication_sync_configs");
+                    b.ToTable("communication_sync_configs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CompanyLocation", b =>
@@ -2874,7 +2874,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkingCalendarId")
                         .HasDatabaseName("ix_company_locations_working_calendar_id");
 
-                    b.ToTable("company_locations");
+                    b.ToTable("company_locations", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ComplianceFormSubmission", b =>
@@ -3002,7 +3002,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId", "TemplateId")
                         .HasDatabaseName("ix_compliance_form_submissions_user_id_template_id");
 
-                    b.ToTable("compliance_form_submissions");
+                    b.ToTable("compliance_form_submissions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ComplianceFormTemplate", b =>
@@ -3120,7 +3120,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("ManualOverrideFileId")
                         .HasDatabaseName("ix_compliance_form_templates_manual_override_file_id");
 
-                    b.ToTable("compliance_form_templates");
+                    b.ToTable("compliance_form_templates", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ConfiguratorOption", b =>
@@ -3192,7 +3192,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("ConfiguratorId")
                         .HasDatabaseName("ix_configurator_options_configurator_id");
 
-                    b.ToTable("configurator_options");
+                    b.ToTable("configurator_options", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ConsignmentAgreement", b =>
@@ -3291,7 +3291,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("VendorId")
                         .HasDatabaseName("ix_consignment_agreements_vendor_id");
 
-                    b.ToTable("consignment_agreements");
+                    b.ToTable("consignment_agreements", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ConsignmentTransaction", b =>
@@ -3359,7 +3359,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PurchaseOrderId")
                         .HasDatabaseName("ix_consignment_transactions_purchase_order_id");
 
-                    b.ToTable("consignment_transactions");
+                    b.ToTable("consignment_transactions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Contact", b =>
@@ -3428,7 +3428,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("CustomerId")
                         .HasDatabaseName("ix_contacts_customer_id");
 
-                    b.ToTable("contacts");
+                    b.ToTable("contacts", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ContactInteraction", b =>
@@ -3498,7 +3498,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_contact_interactions_user_id");
 
-                    b.ToTable("contact_interactions");
+                    b.ToTable("contact_interactions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ContactOutreachPreferences", b =>
@@ -3594,7 +3594,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("CooldownUntil")
                         .HasDatabaseName("ix_contact_outreach_preferences_cooldown_until");
 
-                    b.ToTable("contact_outreach_preferences");
+                    b.ToTable("contact_outreach_preferences", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ControlledDocument", b =>
@@ -3690,7 +3690,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_controlled_documents_status");
 
-                    b.ToTable("controlled_documents");
+                    b.ToTable("controlled_documents", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CorrectiveAction", b =>
@@ -3891,7 +3891,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("VerifiedById")
                         .HasDatabaseName("ix_corrective_actions_verified_by_id");
 
-                    b.ToTable("corrective_actions");
+                    b.ToTable("corrective_actions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CostCalculation", b =>
@@ -3969,7 +3969,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("EntityType", "EntityId")
                         .HasDatabaseName("ix_cost_calculations_entity_type_entity_id");
 
-                    b.ToTable("cost_calculations");
+                    b.ToTable("cost_calculations", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CostCalculationInputs", b =>
@@ -4036,7 +4036,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_cost_calculation_inputs_cost_calculation_id");
 
-                    b.ToTable("cost_calculation_inputs");
+                    b.ToTable("cost_calculation_inputs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CostingProfile", b =>
@@ -4103,7 +4103,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_costing_profiles_code");
 
-                    b.ToTable("costing_profiles");
+                    b.ToTable("costing_profiles", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CreditHold", b =>
@@ -4181,7 +4181,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PlacedById")
                         .HasDatabaseName("ix_credit_holds_placed_by_id");
 
-                    b.ToTable("credit_holds");
+                    b.ToTable("credit_holds", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Currency", b =>
@@ -4237,7 +4237,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("IsActive")
                         .HasDatabaseName("ix_currencies_is_active");
 
-                    b.ToTable("currencies");
+                    b.ToTable("currencies", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Customer", b =>
@@ -4393,7 +4393,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("IsTaxExempt")
                         .HasDatabaseName("ix_customers_is_tax_exempt");
 
-                    b.ToTable("customers");
+                    b.ToTable("customers", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CustomerAddress", b =>
@@ -4480,7 +4480,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("CustomerId")
                         .HasDatabaseName("ix_customer_addresses_customer_id");
 
-                    b.ToTable("customer_addresses");
+                    b.ToTable("customer_addresses", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CustomerPortalAccess", b =>
@@ -4547,7 +4547,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("OneTimeTokenHash")
                         .HasDatabaseName("ix_customer_portal_accesses_one_time_token_hash");
 
-                    b.ToTable("customer_portal_accesses");
+                    b.ToTable("customer_portal_accesses", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CustomerReturn", b =>
@@ -4644,7 +4644,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_customer_returns_status");
 
-                    b.ToTable("customer_returns");
+                    b.ToTable("customer_returns", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CycleCount", b =>
@@ -4704,7 +4704,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("LocationId", "CountedAt")
                         .HasDatabaseName("ix_cycle_counts_location_id_counted_at");
 
-                    b.ToTable("cycle_counts");
+                    b.ToTable("cycle_counts", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CycleCountLine", b =>
@@ -4756,7 +4756,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("CycleCountId")
                         .HasDatabaseName("ix_cycle_count_lines_cycle_count_id");
 
-                    b.ToTable("cycle_count_lines");
+                    b.ToTable("cycle_count_lines", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Deliverable", b =>
@@ -4861,7 +4861,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_deliverables_status");
 
-                    b.ToTable("deliverables");
+                    b.ToTable("deliverables", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.DemandForecast", b =>
@@ -4950,7 +4950,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_demand_forecasts_status");
 
-                    b.ToTable("demand_forecasts");
+                    b.ToTable("demand_forecasts", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.DiscoveryRun", b =>
@@ -5032,7 +5032,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("RunByUserId")
                         .HasDatabaseName("ix_discovery_runs_run_by_user_id");
 
-                    b.ToTable("discovery_runs");
+                    b.ToTable("discovery_runs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.DocumentEmbedding", b =>
@@ -5101,7 +5101,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("EntityType", "EntityId")
                         .HasDatabaseName("ix_document_embeddings_entity_type_entity_id");
 
-                    b.ToTable("document_embeddings");
+                    b.ToTable("document_embeddings", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.DocumentRevision", b =>
@@ -5167,7 +5167,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_document_revisions_document_id_revision_number");
 
-                    b.ToTable("document_revisions");
+                    b.ToTable("document_revisions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.DomainEventFailure", b =>
@@ -5236,7 +5236,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_domain_event_failures_status");
 
-                    b.ToTable("domain_event_failures");
+                    b.ToTable("domain_event_failures", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.DowntimeLog", b =>
@@ -5337,7 +5337,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkCenterId")
                         .HasDatabaseName("ix_downtime_logs_work_center_id");
 
-                    b.ToTable("downtime_logs");
+                    b.ToTable("downtime_logs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ECommerceIntegration", b =>
@@ -5429,7 +5429,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Platform")
                         .HasDatabaseName("ix_ecommerce_integrations_platform");
 
-                    b.ToTable("ecommerce_integrations");
+                    b.ToTable("ecommerce_integrations", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ECommerceOrderSync", b =>
@@ -5497,7 +5497,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_ecommerce_order_syncs_integration_id_external_order_id");
 
-                    b.ToTable("ecommerce_order_syncs");
+                    b.ToTable("ecommerce_order_syncs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.EcoAffectedItem", b =>
@@ -5547,7 +5547,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("EcoId")
                         .HasDatabaseName("ix_eco_affected_items_eco_id");
 
-                    b.ToTable("eco_affected_items");
+                    b.ToTable("eco_affected_items", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.EdiMapping", b =>
@@ -5619,7 +5619,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("TradingPartnerId", "TransactionSet")
                         .HasDatabaseName("ix_edi_mappings_trading_partner_id_transaction_set");
 
-                    b.ToTable("edi_mappings");
+                    b.ToTable("edi_mappings", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.EdiTradingPartner", b =>
@@ -5750,7 +5750,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("QualifierId", "QualifierValue")
                         .HasDatabaseName("ix_edi_trading_partners_qualifier_id_qualifier_value");
 
-                    b.ToTable("edi_trading_partners");
+                    b.ToTable("edi_trading_partners", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.EdiTransaction", b =>
@@ -5894,7 +5894,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("RelatedEntityType", "RelatedEntityId")
                         .HasDatabaseName("ix_edi_transactions_related_entity_type_related_entity_id");
 
-                    b.ToTable("edi_transactions");
+                    b.ToTable("edi_transactions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.EmployeeProfile", b =>
@@ -6180,7 +6180,7 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_employee_profiles_user_id")
                         .HasFilter("user_id IS NOT NULL");
 
-                    b.ToTable("employee_profiles");
+                    b.ToTable("employee_profiles", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.EngineeringChangeOrder", b =>
@@ -6292,7 +6292,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_engineering_change_orders_status");
 
-                    b.ToTable("engineering_change_orders");
+                    b.ToTable("engineering_change_orders", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.EntityCapabilityRequirement", b =>
@@ -6373,10 +6373,10 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_entity_capability_requirements_entity_type_capability_code_~");
 
-                    b.ToTable("entity_capability_requirements");
+                    b.ToTable("entity_capability_requirements", (string)null);
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.EntityCloudLink", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.EntityCloudLink", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -6455,7 +6455,7 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_entity_cloud_links_entity_type_entity_id_provider_id")
                         .HasFilter("deleted_at IS NULL");
 
-                    b.ToTable("entity_cloud_links");
+                    b.ToTable("entity_cloud_links", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.EntityNote", b =>
@@ -6587,7 +6587,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_entity_readiness_validators_entity_type_validator_id");
 
-                    b.ToTable("entity_readiness_validators");
+                    b.ToTable("entity_readiness_validators", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Event", b =>
@@ -6678,7 +6678,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("StartTime")
                         .HasDatabaseName("ix_events_start_time");
 
-                    b.ToTable("events");
+                    b.ToTable("events", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.EventAttendee", b =>
@@ -6718,7 +6718,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_event_attendees_event_id_user_id");
 
-                    b.ToTable("event_attendees");
+                    b.ToTable("event_attendees", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ExchangeRate", b =>
@@ -6768,7 +6768,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_exchange_rates_from_currency_id_to_currency_id_effective_da~");
 
-                    b.ToTable("exchange_rates");
+                    b.ToTable("exchange_rates", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Expense", b =>
@@ -6872,7 +6872,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_expenses_user_id");
 
-                    b.ToTable("expenses");
+                    b.ToTable("expenses", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.FileAttachment", b =>
@@ -6975,7 +6975,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("EntityType", "EntityId")
                         .HasDatabaseName("ix_file_attachments_entity_type_entity_id");
 
-                    b.ToTable("file_attachments");
+                    b.ToTable("file_attachments", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.FmeaAnalysis", b =>
@@ -7081,7 +7081,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_fmea_analyses_status");
 
-                    b.ToTable("fmea_analyses");
+                    b.ToTable("fmea_analyses", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.FmeaItem", b =>
@@ -7205,7 +7205,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("ResponsibleUserId")
                         .HasDatabaseName("ix_fmea_items_responsible_user_id");
 
-                    b.ToTable("fmea_items");
+                    b.ToTable("fmea_items", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.FollowUpTask", b =>
@@ -7301,7 +7301,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("SourceEntityType", "SourceEntityId")
                         .HasDatabaseName("ix_follow_up_tasks_source_entity_type_source_entity_id");
 
-                    b.ToTable("follow_up_tasks");
+                    b.ToTable("follow_up_tasks", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ForecastOverride", b =>
@@ -7346,7 +7346,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("DemandForecastId")
                         .HasDatabaseName("ix_forecast_overrides_demand_forecast_id");
 
-                    b.ToTable("forecast_overrides");
+                    b.ToTable("forecast_overrides", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.FormDefinitionVersion", b =>
@@ -7445,7 +7445,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("TemplateId", "EffectiveDate")
                         .HasDatabaseName("ix_form_definition_versions_template_id_effective_date");
 
-                    b.ToTable("form_definition_versions", t =>
+                    b.ToTable("form_definition_versions", null, t =>
                         {
                             t.HasCheckConstraint("ck_form_definition_versions_scope", "template_id IS NOT NULL OR state_code IS NOT NULL");
                         });
@@ -7571,7 +7571,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_gages_status");
 
-                    b.ToTable("gages");
+                    b.ToTable("gages", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Holiday", b =>
@@ -7614,7 +7614,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkingCalendarId", "ObservedDate")
                         .HasDatabaseName("ix_holidays_working_calendar_id_observed_date");
 
-                    b.ToTable("holidays");
+                    b.ToTable("holidays", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.IcpDimension", b =>
@@ -7671,7 +7671,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("IcpRubricId")
                         .HasDatabaseName("ix_icp_dimensions_icp_rubric_id");
 
-                    b.ToTable("icp_dimensions");
+                    b.ToTable("icp_dimensions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.IcpRubric", b =>
@@ -7729,7 +7729,7 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_icp_rubrics_is_default")
                         .HasFilter("is_default = true AND deleted_at IS NULL");
 
-                    b.ToTable("icp_rubrics");
+                    b.ToTable("icp_rubrics", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.IdentityDocument", b =>
@@ -7812,7 +7812,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("VerifiedById")
                         .HasDatabaseName("ix_identity_documents_verified_by_id");
 
-                    b.ToTable("identity_documents");
+                    b.ToTable("identity_documents", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.IntegrationOutboxEntry", b =>
@@ -8013,7 +8013,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_inter_plant_transfers_transfer_number");
 
-                    b.ToTable("inter_plant_transfers");
+                    b.ToTable("inter_plant_transfers", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.InterPlantTransferLine", b =>
@@ -8065,7 +8065,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("TransferId")
                         .HasDatabaseName("ix_inter_plant_transfer_lines_transfer_id");
 
-                    b.ToTable("inter_plant_transfer_lines");
+                    b.ToTable("inter_plant_transfer_lines", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Invoice", b =>
@@ -8187,7 +8187,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_invoices_status");
 
-                    b.ToTable("invoices");
+                    b.ToTable("invoices", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.InvoiceLine", b =>
@@ -8236,7 +8236,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PartId")
                         .HasDatabaseName("ix_invoice_lines_part_id");
 
-                    b.ToTable("invoice_lines");
+                    b.ToTable("invoice_lines", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Job", b =>
@@ -8500,7 +8500,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("TrackTypeId", "CurrentStageId")
                         .HasDatabaseName("ix_jobs_track_type_id_current_stage_id");
 
-                    b.ToTable("jobs");
+                    b.ToTable("jobs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.JobActivityLog", b =>
@@ -8572,7 +8572,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkCenterId")
                         .HasDatabaseName("ix_job_activity_logs_work_center_id");
 
-                    b.ToTable("job_activity_logs");
+                    b.ToTable("job_activity_logs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.JobLink", b =>
@@ -8609,7 +8609,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("TargetJobId")
                         .HasDatabaseName("ix_job_links_target_job_id");
 
-                    b.ToTable("job_links");
+                    b.ToTable("job_links", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.JobNote", b =>
@@ -8707,7 +8707,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_job_parts_job_id_part_id");
 
-                    b.ToTable("job_parts");
+                    b.ToTable("job_parts", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.JobStage", b =>
@@ -8791,7 +8791,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("TrackTypeId", "SortOrder")
                         .HasDatabaseName("ix_job_stages_track_type_id_sort_order");
 
-                    b.ToTable("job_stages");
+                    b.ToTable("job_stages", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.JobSubtask", b =>
@@ -8855,7 +8855,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("JobId")
                         .HasDatabaseName("ix_job_subtasks_job_id");
 
-                    b.ToTable("job_subtasks");
+                    b.ToTable("job_subtasks", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.KanbanCard", b =>
@@ -8981,7 +8981,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkCenterId")
                         .HasDatabaseName("ix_kanban_cards_work_center_id");
 
-                    b.ToTable("kanban_cards");
+                    b.ToTable("kanban_cards", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.KanbanTriggerLog", b =>
@@ -9060,10 +9060,10 @@ namespace Forge.Data.Migrations
                     b.HasIndex("TriggeredByUserId")
                         .HasDatabaseName("ix_kanban_trigger_logs_triggered_by_user_id");
 
-                    b.ToTable("kanban_trigger_logs");
+                    b.ToTable("kanban_trigger_logs", (string)null);
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.KioskTerminal", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.KioskTerminal", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -9129,7 +9129,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkCenterId")
                         .HasDatabaseName("ix_kiosk_terminals_work_center_id");
 
-                    b.ToTable("kiosk_terminals");
+                    b.ToTable("kiosk_terminals", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.LaborRate", b =>
@@ -9179,7 +9179,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId", "EffectiveFrom")
                         .HasDatabaseName("ix_labor_rates_user_id_effective_from");
 
-                    b.ToTable("labor_rates");
+                    b.ToTable("labor_rates", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Lead", b =>
@@ -9362,7 +9362,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("SecondaryOwnerUserId")
                         .HasDatabaseName("ix_leads_secondary_owner_user_id");
 
-                    b.ToTable("leads");
+                    b.ToTable("leads", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.LeadOutreachPreferences", b =>
@@ -9458,7 +9458,7 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_lead_outreach_preferences_lead_id")
                         .HasFilter("deleted_at IS NULL");
 
-                    b.ToTable("lead_outreach_preferences");
+                    b.ToTable("lead_outreach_preferences", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.LeadSource", b =>
@@ -9523,7 +9523,7 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_lead_sources_code")
                         .HasFilter("deleted_at IS NULL");
 
-                    b.ToTable("lead_sources");
+                    b.ToTable("lead_sources", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.LeaveBalance", b =>
@@ -9575,7 +9575,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_leave_balances_user_id_policy_id");
 
-                    b.ToTable("leave_balances");
+                    b.ToTable("leave_balances", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.LeavePolicy", b =>
@@ -9643,7 +9643,7 @@ namespace Forge.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_leave_policies");
 
-                    b.ToTable("leave_policies");
+                    b.ToTable("leave_policies", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.LeaveRequest", b =>
@@ -9729,7 +9729,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_leave_requests_user_id");
 
-                    b.ToTable("leave_requests");
+                    b.ToTable("leave_requests", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.LotRecord", b =>
@@ -9817,7 +9817,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PurchaseOrderLineId")
                         .HasDatabaseName("ix_lot_records_purchase_order_line_id");
 
-                    b.ToTable("lot_records");
+                    b.ToTable("lot_records", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.MachineConnection", b =>
@@ -9908,7 +9908,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkCenterId")
                         .HasDatabaseName("ix_machine_connections_work_center_id");
 
-                    b.ToTable("machine_connections");
+                    b.ToTable("machine_connections", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.MachineDataPoint", b =>
@@ -9959,7 +9959,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("TagId", "Timestamp")
                         .HasDatabaseName("ix_machine_data_points_tag_id_timestamp");
 
-                    b.ToTable("machine_data_points");
+                    b.ToTable("machine_data_points", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.MachineTag", b =>
@@ -10028,7 +10028,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("ConnectionId")
                         .HasDatabaseName("ix_machine_tags_connection_id");
 
-                    b.ToTable("machine_tags");
+                    b.ToTable("machine_tags", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.MaintenanceLog", b =>
@@ -10073,7 +10073,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("MaintenanceScheduleId")
                         .HasDatabaseName("ix_maintenance_logs_maintenance_schedule_id");
 
-                    b.ToTable("maintenance_logs");
+                    b.ToTable("maintenance_logs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.MaintenancePrediction", b =>
@@ -10177,7 +10177,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkCenterId")
                         .HasDatabaseName("ix_maintenance_predictions_work_center_id");
 
-                    b.ToTable("maintenance_predictions");
+                    b.ToTable("maintenance_predictions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.MaintenanceSchedule", b =>
@@ -10257,7 +10257,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("NextDueAt")
                         .HasDatabaseName("ix_maintenance_schedules_next_due_at");
 
-                    b.ToTable("maintenance_schedules");
+                    b.ToTable("maintenance_schedules", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.MasterSchedule", b =>
@@ -10321,7 +10321,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_master_schedules_status");
 
-                    b.ToTable("master_schedules");
+                    b.ToTable("master_schedules", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.MasterScheduleLine", b =>
@@ -10364,7 +10364,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PartId")
                         .HasDatabaseName("ix_master_schedule_lines_part_id");
 
-                    b.ToTable("master_schedule_lines");
+                    b.ToTable("master_schedule_lines", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.MaterialIssue", b =>
@@ -10469,10 +10469,10 @@ namespace Forge.Data.Migrations
                     b.HasIndex("StorageLocationId")
                         .HasDatabaseName("ix_material_issues_storage_location_id");
 
-                    b.ToTable("material_issues");
+                    b.ToTable("material_issues", (string)null);
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.MfaRecoveryCode", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.MfaRecoveryCode", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -10529,7 +10529,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId", "IsUsed")
                         .HasDatabaseName("ix_mfa_recovery_codes_user_id_is_used");
 
-                    b.ToTable("mfa_recovery_codes");
+                    b.ToTable("mfa_recovery_codes", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.MlModel", b =>
@@ -10633,7 +10633,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkCenterId")
                         .HasDatabaseName("ix_ml_models_work_center_id");
 
-                    b.ToTable("ml_models");
+                    b.ToTable("ml_models", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.MrpDemand", b =>
@@ -10694,7 +10694,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PartId")
                         .HasDatabaseName("ix_mrp_demands_part_id");
 
-                    b.ToTable("mrp_demands");
+                    b.ToTable("mrp_demands", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.MrpException", b =>
@@ -10758,7 +10758,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("ResolvedByUserId")
                         .HasDatabaseName("ix_mrp_exceptions_resolved_by_user_id");
 
-                    b.ToTable("mrp_exceptions");
+                    b.ToTable("mrp_exceptions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.MrpPlannedOrder", b =>
@@ -10857,7 +10857,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_mrp_planned_orders_status");
 
-                    b.ToTable("mrp_planned_orders");
+                    b.ToTable("mrp_planned_orders", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.MrpRun", b =>
@@ -10953,7 +10953,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_mrp_runs_status");
 
-                    b.ToTable("mrp_runs");
+                    b.ToTable("mrp_runs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.MrpSupply", b =>
@@ -11004,7 +11004,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PartId")
                         .HasDatabaseName("ix_mrp_supplies_part_id");
 
-                    b.ToTable("mrp_supplies");
+                    b.ToTable("mrp_supplies", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.NonConformance", b =>
@@ -11214,7 +11214,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("VendorId")
                         .HasDatabaseName("ix_non_conformances_vendor_id");
 
-                    b.ToTable("non_conformances");
+                    b.ToTable("non_conformances", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Notification", b =>
@@ -11313,10 +11313,10 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId", "IsDismissed", "CreatedAt")
                         .HasDatabaseName("ix_notifications_user_id_is_dismissed_created_at");
 
-                    b.ToTable("notifications");
+                    b.ToTable("notifications", (string)null);
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.OAuthStateToken", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.OAuthStateToken", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -11355,7 +11355,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_oauth_state_tokens_user_id");
 
-                    b.ToTable("oauth_state_tokens");
+                    b.ToTable("oauth_state_tokens", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Operation", b =>
@@ -11516,7 +11516,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkCenterId")
                         .HasDatabaseName("ix_operations_work_center_id");
 
-                    b.ToTable("operations");
+                    b.ToTable("operations", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.OperationMaterial", b =>
@@ -11571,7 +11571,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("OperationId")
                         .HasDatabaseName("ix_operation_materials_operation_id");
 
-                    b.ToTable("operation_materials");
+                    b.ToTable("operation_materials", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.OutreachCampaign", b =>
@@ -11645,7 +11645,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("OwnerUserId")
                         .HasDatabaseName("ix_outreach_campaigns_owner_user_id");
 
-                    b.ToTable("outreach_campaigns");
+                    b.ToTable("outreach_campaigns", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.OvertimeRule", b =>
@@ -11725,7 +11725,7 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_overtime_rules_is_default")
                         .HasFilter("is_default = true AND deleted_at IS NULL");
 
-                    b.ToTable("overtime_rules");
+                    b.ToTable("overtime_rules", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Part", b =>
@@ -12067,7 +12067,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("ProcurementSource", "InventoryClass")
                         .HasDatabaseName("ix_parts_procurement_source_inventory_class");
 
-                    b.ToTable("parts");
+                    b.ToTable("parts", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PartAlternate", b =>
@@ -12150,7 +12150,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_part_alternates_part_id_alternate_part_id");
 
-                    b.ToTable("part_alternates");
+                    b.ToTable("part_alternates", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PartPrice", b =>
@@ -12205,7 +12205,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PartId", "EffectiveTo")
                         .HasDatabaseName("ix_part_prices_part_id_effective_to");
 
-                    b.ToTable("part_prices");
+                    b.ToTable("part_prices", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PartRevision", b =>
@@ -12271,7 +12271,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_part_revisions_part_id_revision");
 
-                    b.ToTable("part_revisions");
+                    b.ToTable("part_revisions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PayStub", b =>
@@ -12362,7 +12362,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_pay_stubs_user_id");
 
-                    b.ToTable("pay_stubs");
+                    b.ToTable("pay_stubs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PayStubDeduction", b =>
@@ -12399,7 +12399,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PayStubId")
                         .HasDatabaseName("ix_pay_stub_deductions_pay_stub_id");
 
-                    b.ToTable("pay_stub_deductions");
+                    b.ToTable("pay_stub_deductions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Payment", b =>
@@ -12498,7 +12498,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_payments_payment_number");
 
-                    b.ToTable("payments");
+                    b.ToTable("payments", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PaymentApplication", b =>
@@ -12532,7 +12532,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PaymentId")
                         .HasDatabaseName("ix_payment_applications_payment_id");
 
-                    b.ToTable("payment_applications");
+                    b.ToTable("payment_applications", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PerformanceReview", b =>
@@ -12628,7 +12628,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_performance_reviews_cycle_id_employee_id");
 
-                    b.ToTable("performance_reviews");
+                    b.ToTable("performance_reviews", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PickLine", b =>
@@ -12714,7 +12714,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WaveId")
                         .HasDatabaseName("ix_pick_lines_wave_id");
 
-                    b.ToTable("pick_lines");
+                    b.ToTable("pick_lines", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PickWave", b =>
@@ -12798,7 +12798,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_pick_waves_wave_number");
 
-                    b.ToTable("pick_waves");
+                    b.ToTable("pick_waves", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PlanningCycle", b =>
@@ -12859,7 +12859,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_planning_cycles_status");
 
-                    b.ToTable("planning_cycles");
+                    b.ToTable("planning_cycles", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PlanningCycleEntry", b =>
@@ -12905,7 +12905,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_planning_cycle_entries_planning_cycle_id_job_id");
 
-                    b.ToTable("planning_cycle_entries");
+                    b.ToTable("planning_cycle_entries", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Plant", b =>
@@ -12980,7 +12980,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("IsActive")
                         .HasDatabaseName("ix_plants_is_active");
 
-                    b.ToTable("plants");
+                    b.ToTable("plants", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PpapElement", b =>
@@ -13037,7 +13037,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_ppap_elements_submission_id_element_number");
 
-                    b.ToTable("ppap_elements");
+                    b.ToTable("ppap_elements", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PpapSubmission", b =>
@@ -13150,7 +13150,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_ppap_submissions_submission_number");
 
-                    b.ToTable("ppap_submissions");
+                    b.ToTable("ppap_submissions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PredictionFeedback", b =>
@@ -13197,7 +13197,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("RecordedByUserId")
                         .HasDatabaseName("ix_prediction_feedbacks_recorded_by_user_id");
 
-                    b.ToTable("prediction_feedbacks");
+                    b.ToTable("prediction_feedbacks", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PriceList", b =>
@@ -13262,7 +13262,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("CustomerId")
                         .HasDatabaseName("ix_price_lists_customer_id");
 
-                    b.ToTable("price_lists");
+                    b.ToTable("price_lists", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PriceListEntry", b =>
@@ -13333,7 +13333,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_price_list_entries_price_list_id_part_id_min_quantity");
 
-                    b.ToTable("price_list_entries");
+                    b.ToTable("price_list_entries", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ProductConfiguration", b =>
@@ -13417,7 +13417,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("QuoteId")
                         .HasDatabaseName("ix_product_configurations_quote_id");
 
-                    b.ToTable("product_configurations");
+                    b.ToTable("product_configurations", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ProductConfigurator", b =>
@@ -13486,7 +13486,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("IsActive")
                         .HasDatabaseName("ix_product_configurators_is_active");
 
-                    b.ToTable("product_configurators");
+                    b.ToTable("product_configurators", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ProductionRun", b =>
@@ -13608,7 +13608,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkCenterId")
                         .HasDatabaseName("ix_production_runs_work_center_id");
 
-                    b.ToTable("production_runs");
+                    b.ToTable("production_runs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Project", b =>
@@ -13732,7 +13732,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_projects_status");
 
-                    b.ToTable("projects");
+                    b.ToTable("projects", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PurchaseOrder", b =>
@@ -13895,7 +13895,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("VendorId")
                         .HasDatabaseName("ix_purchase_orders_vendor_id");
 
-                    b.ToTable("purchase_orders");
+                    b.ToTable("purchase_orders", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PurchaseOrderLine", b =>
@@ -13971,7 +13971,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UomId")
                         .HasDatabaseName("ix_purchase_order_lines_uom_id");
 
-                    b.ToTable("purchase_order_lines");
+                    b.ToTable("purchase_order_lines", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PurchaseOrderRelease", b =>
@@ -14053,7 +14053,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_purchase_order_releases_purchase_order_id_release_number");
 
-                    b.ToTable("purchase_order_releases");
+                    b.ToTable("purchase_order_releases", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.QcChecklistItem", b =>
@@ -14094,7 +14094,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("TemplateId")
                         .HasDatabaseName("ix_qc_checklist_items_template_id");
 
-                    b.ToTable("qc_checklist_items");
+                    b.ToTable("qc_checklist_items", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.QcChecklistTemplate", b =>
@@ -14147,7 +14147,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PartId")
                         .HasDatabaseName("ix_qc_checklist_templates_part_id");
 
-                    b.ToTable("qc_checklist_templates");
+                    b.ToTable("qc_checklist_templates", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.QcInspection", b =>
@@ -14226,7 +14226,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("TemplateId")
                         .HasDatabaseName("ix_qc_inspections_template_id");
 
-                    b.ToTable("qc_inspections");
+                    b.ToTable("qc_inspections", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.QcInspectionResult", b =>
@@ -14275,7 +14275,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("InspectionId")
                         .HasDatabaseName("ix_qc_inspection_results_inspection_id");
 
-                    b.ToTable("qc_inspection_results");
+                    b.ToTable("qc_inspection_results", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Quote", b =>
@@ -14425,7 +14425,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Type")
                         .HasDatabaseName("ix_quotes_type");
 
-                    b.ToTable("quotes");
+                    b.ToTable("quotes", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.QuoteLine", b =>
@@ -14479,7 +14479,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("QuoteId")
                         .HasDatabaseName("ix_quote_lines_quote_id");
 
-                    b.ToTable("quote_lines");
+                    b.ToTable("quote_lines", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ReceivingInspection", b =>
@@ -14558,7 +14558,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("ReceivingRecordId")
                         .HasDatabaseName("ix_receiving_inspections_receiving_record_id");
 
-                    b.ToTable("receiving_inspections");
+                    b.ToTable("receiving_inspections", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ReceivingRecord", b =>
@@ -14668,7 +14668,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("StorageLocationId")
                         .HasDatabaseName("ix_receiving_records_storage_location_id");
 
-                    b.ToTable("receiving_records");
+                    b.ToTable("receiving_records", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.RecurringExpense", b =>
@@ -14767,7 +14767,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_recurring_expenses_user_id");
 
-                    b.ToTable("recurring_expenses");
+                    b.ToTable("recurring_expenses", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.RecurringOrder", b =>
@@ -14842,7 +14842,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("ShippingAddressId")
                         .HasDatabaseName("ix_recurring_orders_shipping_address_id");
 
-                    b.ToTable("recurring_orders");
+                    b.ToTable("recurring_orders", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.RecurringOrderLine", b =>
@@ -14891,7 +14891,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("RecurringOrderId")
                         .HasDatabaseName("ix_recurring_order_lines_recurring_order_id");
 
-                    b.ToTable("recurring_order_lines");
+                    b.ToTable("recurring_order_lines", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ReferenceData", b =>
@@ -14961,7 +14961,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_reference_data_group_code_code");
 
-                    b.ToTable("reference_data");
+                    b.ToTable("reference_data", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ReorderSuggestion", b =>
@@ -15090,7 +15090,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PartId", "Status")
                         .HasDatabaseName("ix_reorder_suggestions_part_id_status");
 
-                    b.ToTable("reorder_suggestions");
+                    b.ToTable("reorder_suggestions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ReportSchedule", b =>
@@ -15166,7 +15166,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("SavedReportId")
                         .HasDatabaseName("ix_report_schedules_saved_report_id");
 
-                    b.ToTable("report_schedules");
+                    b.ToTable("report_schedules", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.RequestForQuote", b =>
@@ -15265,7 +15265,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_request_for_quotes_status");
 
-                    b.ToTable("request_for_quotes");
+                    b.ToTable("request_for_quotes", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Reservation", b =>
@@ -15334,7 +15334,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("SalesOrderLineId")
                         .HasDatabaseName("ix_reservations_sales_order_line_id");
 
-                    b.ToTable("reservations");
+                    b.ToTable("reservations", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ReviewCycle", b =>
@@ -15388,7 +15388,7 @@ namespace Forge.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_review_cycles");
 
-                    b.ToTable("review_cycles");
+                    b.ToTable("review_cycles", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.RfqVendorResponse", b =>
@@ -15483,7 +15483,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_rfq_vendor_responses_rfq_id_vendor_id");
 
-                    b.ToTable("rfq_vendor_responses");
+                    b.ToTable("rfq_vendor_responses", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.RoleTemplate", b =>
@@ -15543,7 +15543,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_role_templates_name");
 
-                    b.ToTable("role_templates");
+                    b.ToTable("role_templates", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.SalesOrder", b =>
@@ -15668,7 +15668,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_sales_orders_status");
 
-                    b.ToTable("sales_orders");
+                    b.ToTable("sales_orders", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.SalesOrderLine", b =>
@@ -15734,7 +15734,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UomId")
                         .HasDatabaseName("ix_sales_order_lines_uom_id");
 
-                    b.ToTable("sales_order_lines");
+                    b.ToTable("sales_order_lines", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.SalesTaxRate", b =>
@@ -15827,7 +15827,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("StateCode", "EffectiveTo")
                         .HasDatabaseName("ix_sales_tax_rates_state_code_effective_to");
 
-                    b.ToTable("sales_tax_rates");
+                    b.ToTable("sales_tax_rates", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.SampleShipment", b =>
@@ -15924,7 +15924,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_sample_shipments_status");
 
-                    b.ToTable("sample_shipments");
+                    b.ToTable("sample_shipments", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.SavedReport", b =>
@@ -16025,7 +16025,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_saved_reports_user_id");
 
-                    b.ToTable("saved_reports");
+                    b.ToTable("saved_reports", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ScanActionLog", b =>
@@ -16150,7 +16150,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_scan_action_logs_user_id");
 
-                    b.ToTable("scan_action_logs");
+                    b.ToTable("scan_action_logs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ScheduleMilestone", b =>
@@ -16200,7 +16200,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("SalesOrderLineId")
                         .HasDatabaseName("ix_schedule_milestones_sales_order_line_id");
 
-                    b.ToTable("schedule_milestones");
+                    b.ToTable("schedule_milestones", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ScheduleRun", b =>
@@ -16269,7 +16269,7 @@ namespace Forge.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_schedule_runs");
 
-                    b.ToTable("schedule_runs");
+                    b.ToTable("schedule_runs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ScheduledOperation", b =>
@@ -16382,7 +16382,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkCenterId", "ScheduledStart")
                         .HasDatabaseName("ix_scheduled_operations_work_center_id_scheduled_start");
 
-                    b.ToTable("scheduled_operations");
+                    b.ToTable("scheduled_operations", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ScheduledTask", b =>
@@ -16466,7 +16466,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("TrackTypeId")
                         .HasDatabaseName("ix_scheduled_tasks_track_type_id");
 
-                    b.ToTable("scheduled_tasks");
+                    b.ToTable("scheduled_tasks", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.SerialHistory", b =>
@@ -16523,7 +16523,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("SerialNumberId")
                         .HasDatabaseName("ix_serial_histories_serial_number_id");
 
-                    b.ToTable("serial_histories");
+                    b.ToTable("serial_histories", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.SerialNumber", b =>
@@ -16637,7 +16637,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_serial_numbers_status");
 
-                    b.ToTable("serial_numbers");
+                    b.ToTable("serial_numbers", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Shift", b =>
@@ -16716,7 +16716,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkingCalendarId")
                         .HasDatabaseName("ix_shifts_working_calendar_id");
 
-                    b.ToTable("shifts");
+                    b.ToTable("shifts", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ShiftAssignment", b =>
@@ -16766,7 +16766,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId", "EffectiveFrom")
                         .HasDatabaseName("ix_shift_assignments_user_id_effective_from");
 
-                    b.ToTable("shift_assignments");
+                    b.ToTable("shift_assignments", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Shipment", b =>
@@ -16895,7 +16895,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_shipments_status");
 
-                    b.ToTable("shipments");
+                    b.ToTable("shipments", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ShipmentLine", b =>
@@ -16980,7 +16980,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("ShipmentId")
                         .HasDatabaseName("ix_shipment_lines_shipment_id");
 
-                    b.ToTable("shipment_lines");
+                    b.ToTable("shipment_lines", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ShipmentPackage", b =>
@@ -17038,7 +17038,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("ShipmentId")
                         .HasDatabaseName("ix_shipment_packages_shipment_id");
 
-                    b.ToTable("shipment_packages");
+                    b.ToTable("shipment_packages", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.SpcCharacteristic", b =>
@@ -17146,7 +17146,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PartId")
                         .HasDatabaseName("ix_spc_characteristics_part_id");
 
-                    b.ToTable("spc_characteristics");
+                    b.ToTable("spc_characteristics", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.SpcControlLimit", b =>
@@ -17261,7 +17261,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("CharacteristicId", "IsActive")
                         .HasDatabaseName("ix_spc_control_limits_characteristic_id_is_active");
 
-                    b.ToTable("spc_control_limits");
+                    b.ToTable("spc_control_limits", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.SpcMeasurement", b =>
@@ -17363,7 +17363,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("CharacteristicId", "SubgroupNumber")
                         .HasDatabaseName("ix_spc_measurements_characteristic_id_subgroup_number");
 
-                    b.ToTable("spc_measurements");
+                    b.ToTable("spc_measurements", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.SpcOocEvent", b =>
@@ -17442,7 +17442,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_spc_ooc_events_status");
 
-                    b.ToTable("spc_ooc_events");
+                    b.ToTable("spc_ooc_events", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.StatusEntry", b =>
@@ -17544,7 +17544,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("EntityType", "EntityId", "EndedAt")
                         .HasDatabaseName("ix_status_entries_entity_type_entity_id_ended_at");
 
-                    b.ToTable("status_entries");
+                    b.ToTable("status_entries", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.StorageLocation", b =>
@@ -17615,7 +17615,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("ParentId")
                         .HasDatabaseName("ix_storage_locations_parent_id");
 
-                    b.ToTable("storage_locations");
+                    b.ToTable("storage_locations", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.SubcontractOrder", b =>
@@ -17733,7 +17733,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("VendorId")
                         .HasDatabaseName("ix_subcontract_orders_vendor_id");
 
-                    b.ToTable("subcontract_orders");
+                    b.ToTable("subcontract_orders", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.SupportedLanguage", b =>
@@ -17786,7 +17786,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("IsActive")
                         .HasDatabaseName("ix_supported_languages_is_active");
 
-                    b.ToTable("supported_languages");
+                    b.ToTable("supported_languages", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.SyncQueueEntry", b =>
@@ -17930,7 +17930,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_system_api_keys_user_id");
 
-                    b.ToTable("system_api_keys");
+                    b.ToTable("system_api_keys", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.SystemSetting", b =>
@@ -17966,7 +17966,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_system_settings_key");
 
-                    b.ToTable("system_settings");
+                    b.ToTable("system_settings", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.TariffRate", b =>
@@ -18030,7 +18030,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("HtsCode", "CountryOfOrigin", "EffectiveFrom")
                         .HasDatabaseName("ix_tariff_rates_hts_code_country_of_origin_effective_from");
 
-                    b.ToTable("tariff_rates");
+                    b.ToTable("tariff_rates", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.TaxDocument", b =>
@@ -18102,7 +18102,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId", "TaxYear")
                         .HasDatabaseName("ix_tax_documents_user_id_tax_year");
 
-                    b.ToTable("tax_documents");
+                    b.ToTable("tax_documents", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Team", b =>
@@ -18153,7 +18153,7 @@ namespace Forge.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_teams");
 
-                    b.ToTable("teams");
+                    b.ToTable("teams", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.TerminologyEntry", b =>
@@ -18214,7 +18214,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("SourcePresetId")
                         .HasDatabaseName("ix_terminology_entries_source_preset_id");
 
-                    b.ToTable("terminology_entries");
+                    b.ToTable("terminology_entries", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.TimeCorrectionLog", b =>
@@ -18295,7 +18295,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("TimeEntryId")
                         .HasDatabaseName("ix_time_correction_logs_time_entry_id");
 
-                    b.ToTable("time_correction_logs");
+                    b.ToTable("time_correction_logs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.TimeEntry", b =>
@@ -18427,7 +18427,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId", "Date")
                         .HasDatabaseName("ix_time_entries_user_id_date");
 
-                    b.ToTable("time_entries");
+                    b.ToTable("time_entries", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.TrackType", b =>
@@ -18499,7 +18499,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_track_types_code");
 
-                    b.ToTable("track_types");
+                    b.ToTable("track_types", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.TrainingModule", b =>
@@ -18603,7 +18603,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_training_modules_slug");
 
-                    b.ToTable("training_modules");
+                    b.ToTable("training_modules", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.TrainingPath", b =>
@@ -18678,7 +18678,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_training_paths_slug");
 
-                    b.ToTable("training_paths");
+                    b.ToTable("training_paths", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.TrainingPathEnrollment", b =>
@@ -18742,7 +18742,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_training_path_enrollments_user_id_path_id");
 
-                    b.ToTable("training_path_enrollments");
+                    b.ToTable("training_path_enrollments", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.TrainingPathModule", b =>
@@ -18795,7 +18795,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("PathId", "Position")
                         .HasDatabaseName("ix_training_path_modules_path_id_position");
 
-                    b.ToTable("training_path_modules");
+                    b.ToTable("training_path_modules", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.TrainingProgress", b =>
@@ -18883,7 +18883,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_training_progress_user_id_module_id");
 
-                    b.ToTable("training_progress");
+                    b.ToTable("training_progress", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.TrainingScanLog", b =>
@@ -18960,7 +18960,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId", "ScannedAt")
                         .HasDatabaseName("ix_training_scan_logs_user_id_scanned_at");
 
-                    b.ToTable("training_scan_logs");
+                    b.ToTable("training_scan_logs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.TranslatedLabel", b =>
@@ -19020,7 +19020,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_translated_labels_key_language_code");
 
-                    b.ToTable("translated_labels");
+                    b.ToTable("translated_labels", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.UnitOfMeasure", b =>
@@ -19081,7 +19081,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_units_of_measure_code");
 
-                    b.ToTable("units_of_measure");
+                    b.ToTable("units_of_measure", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.UomConversion", b =>
@@ -19127,10 +19127,10 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_uom_conversions_from_uom_id_to_uom_id_part_id");
 
-                    b.ToTable("uom_conversions");
+                    b.ToTable("uom_conversions", (string)null);
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.UserCloudStorageLink", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.UserCloudStorageLink", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -19199,10 +19199,10 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_user_cloud_storage_links_user_id_provider_id")
                         .HasFilter("deleted_at IS NULL");
 
-                    b.ToTable("user_cloud_storage_links");
+                    b.ToTable("user_cloud_storage_links", (string)null);
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.UserIntegration", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.UserIntegration", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -19282,10 +19282,10 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_user_integrations_user_id_provider_id")
                         .HasFilter("deleted_at IS NULL");
 
-                    b.ToTable("user_integrations");
+                    b.ToTable("user_integrations", (string)null);
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.UserMfaDevice", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.UserMfaDevice", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -19386,10 +19386,10 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_user_mfa_devices_user_id_is_default")
                         .HasFilter("is_default = true AND deleted_at IS NULL");
 
-                    b.ToTable("user_mfa_devices");
+                    b.ToTable("user_mfa_devices", (string)null);
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.UserPreference", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.UserPreference", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -19436,10 +19436,10 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_user_preferences_user_id_key");
 
-                    b.ToTable("user_preferences");
+                    b.ToTable("user_preferences", (string)null);
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.UserScanDevice", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.UserScanDevice", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -19481,10 +19481,10 @@ namespace Forge.Data.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_user_scan_devices_user_id");
 
-                    b.ToTable("user_scan_devices");
+                    b.ToTable("user_scan_devices", (string)null);
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.UserScanIdentifier", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.UserScanIdentifier", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -19540,7 +19540,7 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_user_scan_identifiers_identifier_type_identifier_value")
                         .HasFilter("deleted_at IS NULL");
 
-                    b.ToTable("user_scan_identifiers");
+                    b.ToTable("user_scan_identifiers", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Vendor", b =>
@@ -19668,7 +19668,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("CompanyName")
                         .HasDatabaseName("ix_vendors_company_name");
 
-                    b.ToTable("vendors");
+                    b.ToTable("vendors", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.VendorPart", b =>
@@ -19795,7 +19795,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_vendor_parts_vendor_id_part_id");
 
-                    b.ToTable("vendor_parts");
+                    b.ToTable("vendor_parts", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.VendorPartPriceTier", b =>
@@ -19853,7 +19853,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("VendorPartId", "MinQuantity")
                         .HasDatabaseName("ix_vendor_part_price_tiers_vendor_part_id_min_quantity");
 
-                    b.ToTable("vendor_part_price_tiers");
+                    b.ToTable("vendor_part_price_tiers", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.VendorScorecard", b =>
@@ -19981,7 +19981,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("VendorId", "PeriodStart")
                         .HasDatabaseName("ix_vendor_scorecards_vendor_id_period_start");
 
-                    b.ToTable("vendor_scorecards");
+                    b.ToTable("vendor_scorecards", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.WbsCostEntry", b =>
@@ -20055,7 +20055,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("SourceEntityType", "SourceEntityId")
                         .HasDatabaseName("ix_wbs_cost_entries_source_entity_type_source_entity_id");
 
-                    b.ToTable("wbs_cost_entries");
+                    b.ToTable("wbs_cost_entries", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.WbsElement", b =>
@@ -20177,7 +20177,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_wbs_elements_project_id_code");
 
-                    b.ToTable("wbs_elements");
+                    b.ToTable("wbs_elements", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.WebhookDelivery", b =>
@@ -20246,7 +20246,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("SubscriptionId")
                         .HasDatabaseName("ix_webhook_deliveries_subscription_id");
 
-                    b.ToTable("webhook_deliveries");
+                    b.ToTable("webhook_deliveries", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.WebhookSubscription", b =>
@@ -20330,7 +20330,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("IsActive")
                         .HasDatabaseName("ix_webhook_subscriptions_is_active");
 
-                    b.ToTable("webhook_subscriptions");
+                    b.ToTable("webhook_subscriptions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.WorkCenter", b =>
@@ -20433,7 +20433,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("CompanyLocationId")
                         .HasDatabaseName("ix_work_centers_company_location_id");
 
-                    b.ToTable("work_centers");
+                    b.ToTable("work_centers", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.WorkCenterCalendar", b =>
@@ -20470,7 +20470,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_work_center_calendars_work_center_id_date");
 
-                    b.ToTable("work_center_calendars");
+                    b.ToTable("work_center_calendars", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.WorkCenterQualification", b =>
@@ -20505,7 +20505,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("WorkCenterId")
                         .HasDatabaseName("ix_work_center_qualifications_work_center_id");
 
-                    b.ToTable("work_center_qualifications");
+                    b.ToTable("work_center_qualifications", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.WorkCenterShift", b =>
@@ -20539,7 +20539,7 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_work_center_shifts_work_center_id_shift_id");
 
-                    b.ToTable("work_center_shifts");
+                    b.ToTable("work_center_shifts", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.WorkflowDefinition", b =>
@@ -20609,7 +20609,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("EntityType")
                         .HasDatabaseName("ix_workflow_definitions_entity_type");
 
-                    b.ToTable("workflow_definitions");
+                    b.ToTable("workflow_definitions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.WorkflowRun", b =>
@@ -20716,7 +20716,7 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_workflow_runs_entity_type_entity_id")
                         .HasFilter("\"entity_id\" IS NOT NULL");
 
-                    b.ToTable("workflow_runs");
+                    b.ToTable("workflow_runs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.WorkflowRunEntity", b =>
@@ -20746,7 +20746,7 @@ namespace Forge.Data.Migrations
                     b.HasIndex("EntityType", "EntityId")
                         .HasDatabaseName("ix_workflow_run_entities_entity_type_entity_id");
 
-                    b.ToTable("workflow_run_entities");
+                    b.ToTable("workflow_run_entities", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.WorkingCalendar", b =>
@@ -20810,10 +20810,10 @@ namespace Forge.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_working_calendars_name");
 
-                    b.ToTable("working_calendars");
+                    b.ToTable("working_calendars", (string)null);
                 });
 
-            modelBuilder.Entity("Forge.Data.Context.ApplicationUser", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.ApplicationUser", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -21016,7 +21016,7 @@ namespace Forge.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_data_protection_keys");
 
-                    b.ToTable("data_protection_keys");
+                    b.ToTable("data_protection_keys", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<int>", b =>
@@ -21238,7 +21238,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.Announcement", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -21263,7 +21263,7 @@ namespace Forge.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_announcement_acknowledgments_announcements_announcement_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -21460,7 +21460,7 @@ namespace Forge.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .HasConstraintName("fk_barcodes__storage_locations_storage_location_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -21596,7 +21596,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.CapaTask", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("AssigneeId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -21610,7 +21610,7 @@ namespace Forge.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_capa_tasks__corrective_actions_capa_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("CompletedById")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -21649,14 +21649,14 @@ namespace Forge.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_chat_messages_chat_messages_parent_message_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("RecipientId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_chat_messages__asp_net_users_recipient_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("SenderId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -21684,7 +21684,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.ChatRoom", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -21715,7 +21715,7 @@ namespace Forge.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_chat_room_members_chat_messages_last_read_message_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -21738,7 +21738,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.CommunicationSyncConfig", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -21918,32 +21918,32 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.CorrectiveAction", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("ClosedById")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_corrective_actions__asp_net_users_closed_by_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("EffectivenessCheckedById")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_corrective_actions__asp_net_users_effectiveness_checked_by_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("OwnerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_corrective_actions__asp_net_users_owner_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("RootCauseAnalyzedById")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_corrective_actions__asp_net_users_root_cause_analyzed_by_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("VerifiedById")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -22061,7 +22061,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.CycleCount", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("CountedById")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -22288,9 +22288,9 @@ namespace Forge.Data.Migrations
                     b.Navigation("TradingPartner");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.EntityCloudLink", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.EntityCloudLink", b =>
                 {
-                    b.HasOne("Forge.Core.Entities.CloudStorageProvider", "Provider")
+                    b.HasOne("Forge.Identity.Entities.CloudStorageProvider", "Provider")
                         .WithMany("EntityLinks")
                         .HasForeignKey("ProviderId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -22302,7 +22302,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.EntityNote", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -22406,7 +22406,7 @@ namespace Forge.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_fmea_items_fmea_analyses_fmea_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("ResponsibleUserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -22419,7 +22419,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.FollowUpTask", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("AssignedToUserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -22723,7 +22723,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.JobNote", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -22838,7 +22838,7 @@ namespace Forge.Data.Migrations
                     b.Navigation("KanbanCard");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.KioskTerminal", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.KioskTerminal", b =>
                 {
                     b.HasOne("Forge.Core.Entities.Team", "Team")
                         .WithMany()
@@ -22860,7 +22860,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.LaborRate", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -23025,7 +23025,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.MaintenancePrediction", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("AcknowledgedByUserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -23098,7 +23098,7 @@ namespace Forge.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_material_issues_bin_contents_bin_content_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("IssuedById")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -23277,7 +23277,7 @@ namespace Forge.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_non_conformances_corrective_actions_capa_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("ContainmentById")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -23289,14 +23289,14 @@ namespace Forge.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_non_conformances_customers_customer_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("DetectedById")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_non_conformances__asp_net_users_detected_by_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("DispositionById")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -23678,7 +23678,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.PpapElement", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("AssignedToUserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -23710,7 +23710,7 @@ namespace Forge.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_ppap_submissions_parts_part_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("PswSignedByUserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -23730,7 +23730,7 @@ namespace Forge.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_prediction_feedbacks_maintenance_predictions_prediction_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("RecordedByUserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -24016,7 +24016,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.Quote", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("AssignedToId")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -24347,7 +24347,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.SavedReport", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -24638,7 +24638,7 @@ namespace Forge.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_spc_measurements_jobs_job_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("MeasuredById")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -24652,7 +24652,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.SpcOocEvent", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("AcknowledgedById")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -24685,7 +24685,7 @@ namespace Forge.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_status_entries_operations_operation_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("SetById")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -24753,7 +24753,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.SystemApiKey", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -24813,7 +24813,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.TrainingModule", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -24822,7 +24822,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.TrainingPathEnrollment", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("AssignedByUserId")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -24835,7 +24835,7 @@ namespace Forge.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_training_path_enrollments_training_paths_path_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -24875,7 +24875,7 @@ namespace Forge.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_training_progress_training_modules_module_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -24887,7 +24887,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.TrainingScanLog", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -24924,16 +24924,16 @@ namespace Forge.Data.Migrations
                     b.Navigation("ToUom");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.UserCloudStorageLink", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.UserCloudStorageLink", b =>
                 {
-                    b.HasOne("Forge.Core.Entities.CloudStorageProvider", "Provider")
+                    b.HasOne("Forge.Identity.Entities.CloudStorageProvider", "Provider")
                         .WithMany("UserLinks")
                         .HasForeignKey("ProviderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_user_cloud_storage_links_cloud_storage_providers_provider_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -24943,9 +24943,9 @@ namespace Forge.Data.Migrations
                     b.Navigation("Provider");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.UserPreference", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.UserPreference", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -24953,9 +24953,9 @@ namespace Forge.Data.Migrations
                         .HasConstraintName("fk_user_preferences__asp_net_users_user_id");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.UserScanDevice", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.UserScanDevice", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -24963,9 +24963,9 @@ namespace Forge.Data.Migrations
                         .HasConstraintName("fk_user_scan_devices__asp_net_users_user_id");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.UserScanIdentifier", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.UserScanIdentifier", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -25095,13 +25095,13 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.WorkCenterQualification", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("QualifiedById")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_work_center_qualifications__asp_net_users_qualified_by_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -25151,7 +25151,7 @@ namespace Forge.Data.Migrations
                     b.Navigation("Run");
                 });
 
-            modelBuilder.Entity("Forge.Data.Context.ApplicationUser", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.ApplicationUser", b =>
                 {
                     b.HasOne("Forge.Core.Entities.RoleTemplate", "RoleTemplate")
                         .WithMany()
@@ -25182,7 +25182,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<int>", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -25192,7 +25192,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<int>", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -25209,7 +25209,7 @@ namespace Forge.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_asp_net_user_roles_asp_net_roles_role_id");
 
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -25219,7 +25219,7 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<int>", b =>
                 {
-                    b.HasOne("Forge.Data.Context.ApplicationUser", null)
+                    b.HasOne("Forge.Identity.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -25283,7 +25283,7 @@ namespace Forge.Data.Migrations
                     b.Navigation("Messages");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.CloudStorageProvider", b =>
+            modelBuilder.Entity("Forge.Identity.Entities.CloudStorageProvider", b =>
                 {
                     b.Navigation("EntityLinks");
 

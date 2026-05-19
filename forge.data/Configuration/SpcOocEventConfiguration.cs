@@ -29,7 +29,7 @@ public class SpcOocEventConfiguration : IEntityTypeConfiguration<SpcOocEvent>
             .HasForeignKey(e => e.MeasurementId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+        builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(e => e.AcknowledgedById)
             .OnDelete(DeleteBehavior.SetNull);
