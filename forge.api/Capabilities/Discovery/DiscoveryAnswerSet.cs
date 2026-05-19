@@ -127,13 +127,41 @@ public class DiscoveryAnswerSet
         return false;
     }
 
-    /// <summary>Q-O4 → regulated flag. true unless "no" or unanswered.</summary>
-    public bool Regulated
+    /// <summary>
+    /// Q-O4 → regulated flag. True when ANY cert selection is present
+    /// (medical / aerospace / automotive / food / pharma / other). The
+    /// explicit "no, none of these apply" answer (or unanswered) → false.
+    ///
+    /// Multi-choice contract: comma-joined values. A user who picks both
+    /// "no" and a cert (contradictory input) is treated as regulated —
+    /// any cert wins over "no" because under-recommending the Regulated
+    /// preset is the worse failure mode than over-recommending it.
+    /// </summary>
+    public bool Regulated => Regulations.Count > 0;
+
+    /// <summary>
+    /// Q-O4 → list of selected regulation/cert tokens (medical, aerospace,
+    /// automotive, food, pharma, other). Empty when only "no" or
+    /// unanswered. Multi-choice can return multiple — businesses serving
+    /// multiple regulated markets (medical + aerospace, food + pharma) are
+    /// common.
+    /// </summary>
+    public IReadOnlyList<string> Regulations
     {
         get
         {
-            var raw = Get("Q-O4") ?? string.Empty;
-            return !string.IsNullOrEmpty(raw) && !string.Equals(raw, "no", StringComparison.Ordinal);
+            var raw = Get("Q-O4");
+            if (string.IsNullOrEmpty(raw)) return Array.Empty<string>();
+
+            var list = new List<string>();
+            foreach (var token in raw.Split(','))
+            {
+                var t = token.Trim();
+                if (t.Length == 0) continue;
+                if (string.Equals(t, "no", StringComparison.OrdinalIgnoreCase)) continue;
+                list.Add(t);
+            }
+            return list;
         }
     }
 

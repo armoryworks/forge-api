@@ -94,18 +94,18 @@ public static class DiscoveryQuestionCatalog
         Id: "Q-O4",
         Stage: DiscoveryStage.Opening,
         Category: DiscoveryCategory.Opening,
-        Type: DiscoveryQuestionType.YesNoWithDetail,
-        Text: "Are you in a regulated industry — medical devices, aerospace, automotive, food, pharma — or do you carry a quality certification like ISO 13485, AS9100, IATF 16949, FDA, or FSMA?",
-        WhyAsking: "Regulation is orthogonal to size. If yes, we recommend the Regulated Manufacturer preset regardless of headcount.",
+        Type: DiscoveryQuestionType.MultiChoice,
+        Text: "Are you in a regulated industry, or do you carry quality certifications? Check every box that applies — many businesses serve multiple regulated markets (e.g. medical AND aerospace, or food AND pharma).",
+        WhyAsking: "Regulation is orthogonal to size — a small shop with FDA QSR or AS9100 obligations has the same compliance overhead as a large one. ANY certification selected here recommends the Regulated Manufacturer preset regardless of headcount. Capturing all applicable certs (not just the first one) lets the install pre-populate compliance documents and audit trails for each.",
         Choices:
         [
             new("no", "No, none of these apply"),
-            new("medical", "Yes — medical devices (ISO 13485, FDA QSR)"),
-            new("aerospace", "Yes — aerospace (AS9100)"),
-            new("automotive", "Yes — automotive (IATF 16949)"),
-            new("food", "Yes — food (FSMA, GMP)"),
-            new("pharma", "Yes — pharma (cGMP)"),
-            new("other", "Yes — something else"),
+            new("medical", "Medical devices (ISO 13485, FDA QSR)"),
+            new("aerospace", "Aerospace (AS9100)"),
+            new("automotive", "Automotive (IATF 16949)"),
+            new("food", "Food (FSMA, GMP)"),
+            new("pharma", "Pharma (cGMP)"),
+            new("other", "Something else (specify in the audit-walkthrough free-text below)"),
         ]);
 
     private static readonly DiscoveryQuestion QO5 = new(

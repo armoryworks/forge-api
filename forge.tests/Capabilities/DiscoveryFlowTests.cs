@@ -308,6 +308,57 @@ public class DiscoveryFlowTests
     }
 
     [Fact]
+    public async Task Preview_QO4_MultiChoice_MedicalAndAerospace_Routes_To_PRESET05()
+    {
+        // Q-O4 became multi-choice — businesses serving multiple regulated
+        // markets (medical + aerospace, food + pharma, etc.) can now check
+        // all applicable certs. ANY cert selection still triggers the
+        // Regulated Manufacturer preset override regardless of headcount.
+        var client = AuthenticatedClient();
+        var body = new
+        {
+            answers = new[]
+            {
+                new { questionId = "Q-O1", value = "3-10" },
+                new { questionId = "Q-O3", value = "make" },
+                new { questionId = "Q-O4", value = "medical,aerospace" },
+                new { questionId = "Q-O5", value = "1" },
+            },
+        };
+        var response = await client.PostAsJsonAsync("/api/v1/discovery/preview", body);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<RecommendationResponseRow>();
+        Assert.NotNull(result);
+        Assert.Equal("PRESET-05", result!.PresetId);
+    }
+
+    [Fact]
+    public async Task Preview_QO4_OnlyNo_DoesNotTriggerRegulated()
+    {
+        // Regression pin: "no" alone (the explicit not-regulated answer)
+        // must NOT trigger PRESET-05. Multi-choice contract preserves this —
+        // empty cert list (after stripping "no") means not regulated.
+        var client = AuthenticatedClient();
+        var body = new
+        {
+            answers = new[]
+            {
+                new { questionId = "Q-O1", value = "3-10" },
+                new { questionId = "Q-O3", value = "make" },
+                new { questionId = "Q-O4", value = "no" },
+                new { questionId = "Q-O5", value = "1" },
+            },
+        };
+        var response = await client.PostAsJsonAsync("/api/v1/discovery/preview", body);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<RecommendationResponseRow>();
+        Assert.NotNull(result);
+        Assert.NotEqual("PRESET-05", result!.PresetId);
+    }
+
+    [Fact]
     public async Task Preview_QO3_MultiChoice_ResellPlusMake_Routes_Same_As_Legacy_Both()
     {
         // Backward-compat: pre-multi-select Q-O3 used single value "both"
