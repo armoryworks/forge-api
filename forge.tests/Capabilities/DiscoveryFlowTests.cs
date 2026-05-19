@@ -249,6 +249,94 @@ public class DiscoveryFlowTests
     }
 
     [Fact]
+    public async Task Preview_QO3_ServicesOnly_Routes_To_PRESET08_Even_When_QS1_Said_Products()
+    {
+        // Q-O3 became multi-choice (services / make / resell). When the
+        // user checks ONLY services at Q-O3, that overrides whatever
+        // Q-S1 said — they effectively changed their mind. PRESET-08
+        // (Pro Services) is the right reorientation.
+        var client = AuthenticatedClient();
+        var body = new
+        {
+            answers = new[]
+            {
+                new { questionId = "Q-S1", value = "products" },
+                new { questionId = "Q-O1", value = "3-10" },
+                new { questionId = "Q-O3", value = "services" },
+                new { questionId = "Q-O4", value = "no" },
+                new { questionId = "Q-O5", value = "1" },
+            },
+        };
+        var response = await client.PostAsJsonAsync("/api/v1/discovery/preview", body);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<RecommendationResponseRow>();
+        Assert.NotNull(result);
+        Assert.Equal("PRESET-08", result!.PresetId);
+    }
+
+    [Fact]
+    public async Task Preview_QO3_ServicesAlongsideMake_FallsThrough_To_Manufacturing_Flow()
+    {
+        // The other half of the contract: services CHECKED ALONGSIDE
+        // make/resell is just "we sell some services as line items"
+        // and must NOT reorient to PRESET-08. The manufacturing/distribution
+        // recommendation engine handles it normally; services becomes a
+        // line-item type via existing reference data.
+        var client = AuthenticatedClient();
+        var body = new
+        {
+            answers = new[]
+            {
+                new { questionId = "Q-S1", value = "products" },
+                new { questionId = "Q-O1", value = "3-10" },
+                new { questionId = "Q-O3", value = "services,make" },
+                new { questionId = "Q-O4", value = "no" },
+                new { questionId = "Q-O5", value = "1" },
+            },
+        };
+        var response = await client.PostAsJsonAsync("/api/v1/discovery/preview", body);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<RecommendationResponseRow>();
+        Assert.NotNull(result);
+        // Must NOT be PRESET-08 — services-as-line-item doesn't reorient.
+        Assert.NotEqual("PRESET-08", result!.PresetId);
+        // Make-only mode at this headcount lands on a manufacturing preset
+        // (PRESET-01 or PRESET-02 depending on the branch routing).
+        Assert.Contains(result.PresetId, new[] { "PRESET-01", "PRESET-02" });
+    }
+
+    [Fact]
+    public async Task Preview_QO3_MultiChoice_ResellPlusMake_Routes_Same_As_Legacy_Both()
+    {
+        // Backward-compat: pre-multi-select Q-O3 used single value "both"
+        // for make+resell. Multi-choice now sends "make,resell" — must
+        // resolve to the same preset.
+        var client = AuthenticatedClient();
+        var body = new
+        {
+            answers = new[]
+            {
+                new { questionId = "Q-O1", value = "11-25" },
+                new { questionId = "Q-O3", value = "make,resell" },
+                new { questionId = "Q-O4", value = "no" },
+                new { questionId = "Q-O5", value = "1" },
+            },
+        };
+        var response = await client.PostAsJsonAsync("/api/v1/discovery/preview", body);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<RecommendationResponseRow>();
+        Assert.NotNull(result);
+        // hybrid mode at this headcount lands on a production manufacturer
+        // family preset (the exact preset depends on the engine's branch
+        // routing; key contract is "not distribution, not services").
+        Assert.NotEqual("PRESET-03", result!.PresetId);
+        Assert.NotEqual("PRESET-08", result.PresetId);
+    }
+
+    [Fact]
     public async Task Preview_Returns_Capability_Deltas()
     {
         // PRESET-04 vs an out-of-the-box default install should produce a

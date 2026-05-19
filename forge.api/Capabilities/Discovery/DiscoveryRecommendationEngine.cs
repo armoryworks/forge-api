@@ -110,6 +110,44 @@ public static class DiscoveryRecommendationEngine
                 ]);
         }
 
+        // ── Step 0.6: Q-O3 services-only → PRESET-08 ────────────────────
+        // Q-O3 became multi-choice (services / make / resell) so businesses
+        // can check whatever combinations actually apply. Services ALONE
+        // (no make, no resell) is the only Q-O3 signal worth a preset
+        // reorientation here — it means the user effectively changed
+        // their mind at Q-O3 about what their business actually does,
+        // overriding the Q-S1=products answer that brought them here.
+        //
+        // Services checked ALONGSIDE make or resell is just "we sell some
+        // services as line items" — falls through to the manufacturing /
+        // distribution flow. The existing capability stack handles
+        // services-as-line-item via service_uom + time_billable_status
+        // reference data without needing a Hybrid preset.
+        if (answers.ServicesOnly)
+        {
+            return new DiscoveryRecommendation(
+                PresetId: "PRESET-08",
+                Confidence: 1.0,
+                ConfidenceLabel: "high",
+                Rationale: "You checked Services only at Q-O3 — your business is professional services even " +
+                           "though Q-S1 said Products. Q-O3 is the finer-grained signal so we honor it: " +
+                           "Pro Services is the right starting point. Task-based work organization (Epic / " +
+                           "Project / Story / Bug / Spike), billable hours, retainers, and deliverable tracking " +
+                           "— without the manufacturing capabilities a service shop never uses.",
+                Factors: [new DiscoveryRecommendationFactor("Q-O3", "Services only (no make/resell) → Pro Services")],
+                Alternatives:
+                [
+                    new DiscoveryAlternative(
+                        PresetId: "PRESET-09",
+                        PresetName: "Hybrid (Make + Service)",
+                        DistinguishingRationale: "If you ALSO make or resell physical products, go back to Q-O3 and check those boxes too — that routes you through the manufacturing flow with services as line items."),
+                    new DiscoveryAlternative(
+                        PresetId: "PRESET-CUSTOM",
+                        PresetName: "Custom",
+                        DistinguishingRationale: "Skip the preset and configure each capability directly."),
+                ]);
+        }
+
         // ── Step 1: Compute base candidate ──────────────────────────────
         var headcount = answers.HeadcountBucket;
         var mode = answers.Mode;

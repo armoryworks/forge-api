@@ -62,11 +62,46 @@ public class DiscoveryAnswerSet
         }
     }
 
-    /// <summary>Q-O3 → mode variable. Returns "production" / "distribution" / "hybrid".</summary>
+    /// <summary>
+    /// Q-O3 → presence-of-make. Q-O3 is multi-choice with comma-joined
+    /// values; the legacy single-choice "make" / "both" answers also match
+    /// (backward compat — pre-multi-select sessions still resolve correctly).
+    /// </summary>
+    public bool HasMake => HasQO3Selection("make") || HasQO3Selection("both");
+
+    /// <summary>Q-O3 → presence-of-resell. Same compat as <see cref="HasMake"/>.</summary>
+    public bool HasResell => HasQO3Selection("resell") || HasQO3Selection("both");
+
+    /// <summary>
+    /// Q-O3 → presence-of-services. Only the multi-choice era exposes this;
+    /// services was previously expressed only via Q-S1.
+    /// </summary>
+    public bool HasServices => HasQO3Selection("services");
+
+    /// <summary>
+    /// True when Q-O3 has services selected AND no product axis (make/resell).
+    /// This is THE signal worth a preset reorientation — services-as-the-
+    /// whole-business. Services + make/resell is just "we sell some services
+    /// as line items" and routes through the existing manufacturing flow.
+    /// </summary>
+    public bool ServicesOnly => HasServices && !HasMake && !HasResell;
+
+    /// <summary>
+    /// Q-O3 → mode variable for the manufacturing-flow downstream routing.
+    /// "production" / "distribution" / "hybrid". Services presence is
+    /// handled separately by the engine (see <see cref="ServicesOnly"/>);
+    /// this property only cares about the make/resell axis.
+    /// </summary>
     public string Mode
     {
         get
         {
+            if (HasMake && HasResell) return "hybrid";
+            if (HasMake) return "production";
+            if (HasResell) return "distribution";
+
+            // Legacy single-choice fallback. Sessions captured before the
+            // multi-choice migration stored raw "make" / "resell" / "both".
             var raw = Get("Q-O3") ?? string.Empty;
             return raw switch
             {
@@ -76,6 +111,20 @@ public class DiscoveryAnswerSet
                 _ => "production",
             };
         }
+    }
+
+    private bool HasQO3Selection(string key)
+    {
+        var raw = Get("Q-O3");
+        if (string.IsNullOrEmpty(raw)) return false;
+        // Multi-choice values are comma-joined. Tolerate whitespace around
+        // commas in case future clients send a "make, resell" shape.
+        foreach (var token in raw.Split(','))
+        {
+            if (string.Equals(token.Trim(), key, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 
     /// <summary>Q-O4 → regulated flag. true unless "no" or unanswered.</summary>

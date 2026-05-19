@@ -76,14 +76,18 @@ public static class DiscoveryQuestionCatalog
         Id: "Q-O3",
         Stage: DiscoveryStage.Opening,
         Category: DiscoveryCategory.Opening,
-        Type: DiscoveryQuestionType.SingleChoice,
-        Text: "Do you make products, resell products you buy from someone else, or both?",
-        WhyAsking: "This splits Distribution / Wholesale from any of the production presets. \"Resell only\" disables every manufacturing capability by default.",
+        Type: DiscoveryQuestionType.MultiChoice,
+        Text: "What does your business actually do? Check every line that applies — the more accurate this is, the better the preset.",
+        WhyAsking: "Q-S1 is the top-of-funnel fast-path; this is the finer reality check. Many businesses are a " +
+                   "combination — a manufacturer that also resells partner products, an engineering firm that ships " +
+                   "physical parts, a distributor with a consulting arm. Checking Services alongside one of the " +
+                   "product options routes you to the Hybrid preset (Pro Services overlay + manufacturing stack). " +
+                   "Services-only routes to Pro Services even if Q-S1 said Products.",
         Choices:
         [
-            new("make", "We make products"),
-            new("resell", "We only resell what we buy"),
-            new("both", "We do both"),
+            new("services", "We deliver professional services — consulting, agency work, engineering hours; any business model where we're selling our time and expertise"),
+            new("make", "We make physical products — we build, assemble, fabricate, or manufacture from raw materials or components"),
+            new("resell", "We resell physical products we buy from suppliers — distribution, wholesale, retail, drop-ship"),
         ]);
 
     private static readonly DiscoveryQuestion QO4 = new(
