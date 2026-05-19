@@ -1,11 +1,13 @@
 using System.Text;
 using System.Text.Json;
 
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 
@@ -26,6 +28,7 @@ public class AccountingController(
     ISystemSettingRepository settingRepository,
     ITokenEncryptionService tokenEncryption,
     IHttpClientFactory httpClientFactory,
+    IMediator mediator,
     ILogger<AccountingController> logger) : ControllerBase
 {
     // ─── Accounting Mode ───
@@ -132,23 +135,22 @@ public class AccountingController(
 
     [HttpGet("quickbooks/authorize")]
     [Authorize(Roles = "Admin")]
-    public IActionResult GetAuthorizationUrl()
+    public async Task<IActionResult> GetAuthorizationUrl(CancellationToken ct)
     {
-        var opts = qbOptions.Value;
-        if (string.IsNullOrEmpty(opts.ClientId))
-            return BadRequest(new { message = "QuickBooks is not configured. Set ClientId and ClientSecret in appsettings." });
-
-        var state = Guid.NewGuid().ToString("N");
-        HttpContext.Session.SetString("qb_oauth_state", state);
-
-        var authUrl = $"{opts.AuthorizationEndpoint}" +
-            $"?client_id={Uri.EscapeDataString(opts.ClientId)}" +
-            $"&redirect_uri={Uri.EscapeDataString(opts.RedirectUri)}" +
-            $"&response_type=code" +
-            $"&scope={Uri.EscapeDataString(opts.Scopes)}" +
-            $"&state={state}";
-
-        return Ok(new { authorizationUrl = authUrl });
+        // Thin dispatch — all per-provider URL-build logic lives in the
+        // unified InitiateAccountingOAuthCommand handler. Any other call
+        // site that needs to start a QB OAuth flow can dispatch the same
+        // command (e.g. accounting-screen reconnect prompts when a token
+        // refresh fails).
+        try
+        {
+            var result = await mediator.Send(new InitiateAccountingOAuthCommand("quickbooks"), ct);
+            return Ok(new { authorizationUrl = result.AuthorizationUrl });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet("quickbooks/callback")]
@@ -214,23 +216,17 @@ public class AccountingController(
 
     [HttpGet("xero/authorize")]
     [Authorize(Roles = "Admin")]
-    public IActionResult GetXeroAuthorizationUrl()
+    public async Task<IActionResult> GetXeroAuthorizationUrl(CancellationToken ct)
     {
-        var opts = xeroOptions.Value;
-        if (string.IsNullOrEmpty(opts.ClientId))
-            return BadRequest(new { message = "Xero is not configured. Set ClientId and ClientSecret in appsettings." });
-
-        var state = Guid.NewGuid().ToString("N");
-        HttpContext.Session.SetString("xero_oauth_state", state);
-
-        var authUrl = $"{opts.AuthorizationEndpoint}" +
-            $"?client_id={Uri.EscapeDataString(opts.ClientId)}" +
-            $"&redirect_uri={Uri.EscapeDataString(opts.RedirectUri)}" +
-            $"&response_type=code" +
-            $"&scope={Uri.EscapeDataString(opts.Scopes)}" +
-            $"&state={state}";
-
-        return Ok(new { authorizationUrl = authUrl });
+        try
+        {
+            var result = await mediator.Send(new InitiateAccountingOAuthCommand("xero"), ct);
+            return Ok(new { authorizationUrl = result.AuthorizationUrl });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet("xero/callback")]
@@ -310,22 +306,17 @@ public class AccountingController(
 
     [HttpGet("freshbooks/authorize")]
     [Authorize(Roles = "Admin")]
-    public IActionResult GetFreshBooksAuthorizationUrl()
+    public async Task<IActionResult> GetFreshBooksAuthorizationUrl(CancellationToken ct)
     {
-        var opts = freshBooksOptions.Value;
-        if (string.IsNullOrEmpty(opts.ClientId))
-            return BadRequest(new { message = "FreshBooks is not configured. Set ClientId and ClientSecret in appsettings." });
-
-        var state = Guid.NewGuid().ToString("N");
-        HttpContext.Session.SetString("freshbooks_oauth_state", state);
-
-        var authUrl = $"{opts.AuthorizationEndpoint}" +
-            $"?client_id={Uri.EscapeDataString(opts.ClientId)}" +
-            $"&redirect_uri={Uri.EscapeDataString(opts.RedirectUri)}" +
-            $"&response_type=code" +
-            $"&state={state}";
-
-        return Ok(new { authorizationUrl = authUrl });
+        try
+        {
+            var result = await mediator.Send(new InitiateAccountingOAuthCommand("freshbooks"), ct);
+            return Ok(new { authorizationUrl = result.AuthorizationUrl });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet("freshbooks/callback")]
@@ -404,23 +395,17 @@ public class AccountingController(
 
     [HttpGet("sage/authorize")]
     [Authorize(Roles = "Admin")]
-    public IActionResult GetSageAuthorizationUrl()
+    public async Task<IActionResult> GetSageAuthorizationUrl(CancellationToken ct)
     {
-        var opts = sageOptions.Value;
-        if (string.IsNullOrEmpty(opts.ClientId))
-            return BadRequest(new { message = "Sage is not configured. Set ClientId and ClientSecret in appsettings." });
-
-        var state = Guid.NewGuid().ToString("N");
-        HttpContext.Session.SetString("sage_oauth_state", state);
-
-        var authUrl = $"{opts.AuthorizationEndpoint}" +
-            $"?client_id={Uri.EscapeDataString(opts.ClientId)}" +
-            $"&redirect_uri={Uri.EscapeDataString(opts.RedirectUri)}" +
-            $"&response_type=code" +
-            $"&state={state}" +
-            $"&country={Uri.EscapeDataString(opts.CountryCode)}";
-
-        return Ok(new { authorizationUrl = authUrl });
+        try
+        {
+            var result = await mediator.Send(new InitiateAccountingOAuthCommand("sage"), ct);
+            return Ok(new { authorizationUrl = result.AuthorizationUrl });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet("sage/callback")]
@@ -484,24 +469,17 @@ public class AccountingController(
 
     [HttpGet("zoho/authorize")]
     [Authorize(Roles = "Admin")]
-    public IActionResult GetZohoAuthorizationUrl()
+    public async Task<IActionResult> GetZohoAuthorizationUrl(CancellationToken ct)
     {
-        var opts = zohoOptions.Value;
-        if (string.IsNullOrEmpty(opts.ClientId))
-            return BadRequest(new { message = "Zoho is not configured. Set ClientId and ClientSecret in appsettings." });
-
-        var state = Guid.NewGuid().ToString("N");
-        HttpContext.Session.SetString("zoho_oauth_state", state);
-
-        var authUrl = $"{opts.AuthorizationEndpoint}" +
-            $"?client_id={Uri.EscapeDataString(opts.ClientId)}" +
-            $"&redirect_uri={Uri.EscapeDataString(opts.RedirectUri)}" +
-            $"&response_type=code" +
-            $"&scope={Uri.EscapeDataString(opts.Scopes)}" +
-            $"&access_type=offline" +
-            $"&state={state}";
-
-        return Ok(new { authorizationUrl = authUrl });
+        try
+        {
+            var result = await mediator.Send(new InitiateAccountingOAuthCommand("zoho"), ct);
+            return Ok(new { authorizationUrl = result.AuthorizationUrl });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet("zoho/callback")]
