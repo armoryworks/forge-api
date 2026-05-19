@@ -176,13 +176,23 @@ public class UpdateIntegrationSettingsHandler(
     private void ApplyUsps(Dictionary<string, string?> applied)
     {
         var o = uspsOptions.Value;
-        // UspsOptions has ConsumerKey + ConsumerSecret in legacy code, but the
-        // descriptor only declares a single user-id field today. Mirror the
-        // value into ConsumerKey for service-side compatibility until the
-        // USPS service migrates off IOptions.
-        if (applied.TryGetValue(UspsSettings.KeyUserId, out var uid) && uid is not null)
+        // KeyUserId is a legacy alias for KeyConsumerKey (both point at the
+        // same DB key today — see UspsSettings.cs). The TryGetValue below
+        // therefore covers either name on the wire.
+        if (applied.TryGetValue(UspsSettings.KeyConsumerKey, out var ck) && ck is not null)
         {
-            o.ConsumerKey = uid;
+            o.ConsumerKey = ck;
+        }
+        // Pre-fix: ConsumerSecret was declared in the descriptor and
+        // serialised to the admin UI, but ApplyUsps ignored it on save.
+        // The DB row persisted, the running service kept the stale value
+        // until the next API restart — a silent gap that looked like
+        // "I saved my secret, why doesn't validation work?". Now hot-
+        // reloads to match every other secret field on every other
+        // descriptor-driven integration.
+        if (applied.TryGetValue(UspsSettings.KeyConsumerSecret, out var cs) && cs is not null)
+        {
+            o.ConsumerSecret = cs;
         }
     }
 
@@ -205,6 +215,10 @@ public class UpdateIntegrationSettingsHandler(
         if (applied.TryGetValue(AiSettings.KeyVisionModel, out var vm) && vm is not null) o.VisionModel = vm;
         if (applied.TryGetValue(AiSettings.KeyTimeoutSeconds, out var ts) && int.TryParse(ts, out var t)) o.TimeoutSeconds = t;
         if (applied.TryGetValue(AiSettings.KeyVisionTimeoutSeconds, out var vts) && int.TryParse(vts, out var vt)) o.VisionTimeoutSeconds = vt;
+        // DocsPath drives IndexDocumentation (the Hangfire RAG-index job).
+        // Hot-reload here so an admin can re-point the index at a new
+        // mounted directory without restarting the API.
+        if (applied.TryGetValue(AiSettings.KeyDocsPath, out var dp) && dp is not null) o.DocsPath = dp;
     }
 
     // ── Shipping carriers ─────────────────────────────────────────────
@@ -250,13 +264,16 @@ public class UpdateIntegrationSettingsHandler(
     {
         var o = stampsOptions.Value;
         // Stamps descriptor uses username/password/integration-id; the
-        // options model has ApiKey + AccountId + Environment. Map
-        // integration-id → ApiKey, username → AccountId (closest
-        // available fields). Until a real Stamps service ships, this
-        // captures the credentials without a restart so when the service
-        // does land it picks them up immediately.
+        // options model has ApiKey + AccountId + Password + Environment.
+        // Map integration-id → ApiKey, username → AccountId, password →
+        // Password (closest available fields). Until a real Stamps
+        // service ships (the SwsimV111 SOAP wrapper), this captures the
+        // credentials without a restart so when the service does land
+        // it picks them up immediately — and the password is no longer
+        // silently dropped on the floor.
         if (applied.TryGetValue("stamps.integration-id", out var iid) && iid is not null) o.ApiKey = iid;
         if (applied.TryGetValue("stamps.username", out var user) && user is not null) o.AccountId = user;
+        if (applied.TryGetValue("stamps.password", out var pw) && pw is not null) o.Password = pw;
         if (applied.TryGetValue("stamps.mode", out var mode) && mode is not null) o.Environment = mode;
     }
 

@@ -218,6 +218,7 @@ public static class IntegrationDescriptorCatalog
                 AiSettings.KeyVisionModel,
                 AiSettings.KeyTimeoutSeconds,
                 AiSettings.KeyVisionTimeoutSeconds,
+                AiSettings.KeyDocsPath,
             ],
             IsConfiguredCheckKey: AiSettings.KeyBaseUrl,
             LogoUrl: "https://logo.clearbit.com/ollama.com",

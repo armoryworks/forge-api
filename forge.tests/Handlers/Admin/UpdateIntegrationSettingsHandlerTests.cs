@@ -26,6 +26,57 @@ namespace Forge.Tests.Handlers.Admin;
 /// </summary>
 public class UpdateIntegrationSettingsHandlerTests
 {
+    /// <summary>
+    /// Shared options instances exposed to tests that assert post-save
+    /// propagation across multiple integrations. The MinIO-specific
+    /// overload below remains for backwards compatibility with the
+    /// earlier tests.
+    /// </summary>
+    private static UpdateIntegrationSettingsHandler MakeHandler(
+        AppDbContextLike db,
+        out MinioOptions minio,
+        out UspsOptions usps,
+        out AiOptions ai,
+        out StampsOptions stamps)
+    {
+        var dp = new EphemeralDataProtectionProvider();
+        var settings = new SettingsService(db.Db, dp);
+        minio = new MinioOptions();
+        usps = new UspsOptions();
+        ai = new AiOptions();
+        stamps = new StampsOptions();
+
+        var mediator = new Mock<IMediator>();
+        mediator
+            .Setup(m => m.Send(It.IsAny<GetIntegrationSettingsQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IntegrationSettingsResult(
+                ShowSandboxGuides: true,
+                Integrations: IntegrationDescriptorCatalog.All
+                    .Select(d => new IntegrationStatusModel(
+                        Provider: d.Provider,
+                        Name: d.Name,
+                        Description: d.Description,
+                        Icon: d.Icon,
+                        IsConfigured: false,
+                        Fields: new(),
+                        Category: d.Category))
+                    .ToList()));
+
+        return new UpdateIntegrationSettingsHandler(
+            settings,
+            db.Db,
+            mediator.Object,
+            Options.Create(new SmtpOptions()),
+            Options.Create(minio),
+            Options.Create(usps),
+            Options.Create(new DocuSealOptions()),
+            Options.Create(ai),
+            Options.Create(new UpsOptions()),
+            Options.Create(new FedExOptions()),
+            Options.Create(new DhlOptions()),
+            Options.Create(stamps));
+    }
+
     private static UpdateIntegrationSettingsHandler MakeHandler(
         AppDbContextLike db,
         out MinioOptions minio)
@@ -190,6 +241,76 @@ public class UpdateIntegrationSettingsHandlerTests
 
         dbScope.Db.SystemSettings.Should().BeEmpty(
             "cross-provider writes are refused without partial persist");
+    }
+
+    [Fact]
+    public async Task Handle_Usps_PropagatesConsumerSecret_OnSave()
+    {
+        // Regression: pre-fix ApplyUsps mirrored KeyUserId into ConsumerKey
+        // only. ConsumerSecret persisted to DB but the running singleton
+        // kept the stale value until the next process restart — silently
+        // breaking USPS OAuth client-credentials renewal until someone
+        // bounced the API container.
+        using var dbScope = new AppDbContextLike();
+        var handler = MakeHandler(dbScope, out _, out var usps, out _, out _);
+
+        await handler.Handle(new UpdateIntegrationSettingsCommand(
+            Provider: "usps",
+            Settings: new Dictionary<string, string>
+            {
+                [UspsSettings.KeyConsumerKey] = "test-key",
+                [UspsSettings.KeyConsumerSecret] = "test-secret",
+            }),
+            CancellationToken.None);
+
+        usps.ConsumerKey.Should().Be("test-key");
+        usps.ConsumerSecret.Should().Be("test-secret",
+            "ConsumerSecret must hot-reload on save like every other secret field");
+    }
+
+    [Fact]
+    public async Task Handle_Ai_PropagatesDocsPath_OnSave()
+    {
+        using var dbScope = new AppDbContextLike();
+        var handler = MakeHandler(dbScope, out _, out _, out var ai, out _);
+
+        await handler.Handle(new UpdateIntegrationSettingsCommand(
+            Provider: "ai",
+            Settings: new Dictionary<string, string>
+            {
+                [AiSettings.KeyDocsPath] = "/mnt/forge-docs",
+            }),
+            CancellationToken.None);
+
+        ai.DocsPath.Should().Be("/mnt/forge-docs",
+            "DocsPath drives the Hangfire RAG-index job — admin re-pointing the docs " +
+            "directory must take effect without restarting the API");
+    }
+
+    [Fact]
+    public async Task Handle_Stamps_PropagatesPassword_OnSave()
+    {
+        // Even though the real Stamps SwsimV111 service isn't built yet,
+        // the Password field must round-trip to StampsOptions so the
+        // service picks the credential up the moment it ships. Pre-fix
+        // ApplyStamps silently dropped the password on the floor.
+        using var dbScope = new AppDbContextLike();
+        var handler = MakeHandler(dbScope, out _, out _, out _, out var stamps);
+
+        await handler.Handle(new UpdateIntegrationSettingsCommand(
+            Provider: "stamps",
+            Settings: new Dictionary<string, string>
+            {
+                ["stamps.username"] = "test-user",
+                ["stamps.password"] = "test-pass",
+                ["stamps.integration-id"] = "test-int-id",
+            }),
+            CancellationToken.None);
+
+        stamps.AccountId.Should().Be("test-user");
+        stamps.Password.Should().Be("test-pass",
+            "Stamps password must round-trip even though the Stamps service is incomplete");
+        stamps.ApiKey.Should().Be("test-int-id");
     }
 
     [Fact]

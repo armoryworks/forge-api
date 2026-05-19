@@ -11,6 +11,7 @@ public static class AiSettings
     public const string KeyVisionModel = "ai.vision-model";
     public const string KeyTimeoutSeconds = "ai.timeout-seconds";
     public const string KeyVisionTimeoutSeconds = "ai.vision-timeout-seconds";
+    public const string KeyDocsPath = "ai.docs-path";
 
     public static IReadOnlyList<SettingDescriptor> Descriptors =>
     [
@@ -41,5 +42,9 @@ public static class AiSettings
             DefaultValue: "600",
             Description: "Vision calls process images and run noticeably slower.",
             SortOrder: 15),
+        new(KeyDocsPath, Group, "Documentation Path", SettingDataType.String,
+            DefaultValue: "/app/docs",
+            Description: "Filesystem path the documentation-indexing job reads markdown from to build the RAG index. Default /app/docs matches the Docker image layout — set this when docs are mounted elsewhere.",
+            SortOrder: 20),
     ];
 }

@@ -26,9 +26,14 @@ public static class ShippingSettings
         new("fedex.client-secret", Group, "FedEx Client Secret", SettingDataType.Secret, IsSecret: true, SortOrder: 211),
         new("fedex.account-number", Group, "FedEx Account Number", SettingDataType.String, SortOrder: 212),
 
-        // DHL — API key
+        // DHL — API key (DHL Express MyDHL API). Sandbox-vs-production is
+        // gated by the API key tier DHL issues, not a per-call URL flip —
+        // so the Mode toggle here only controls the service-registration
+        // choice (mock impl vs real impl) the way the other carriers do,
+        // not a runtime environment switch.
         new("dhl.mode", Group, "DHL Mode", SettingDataType.Enum,
             DefaultValue: IntegrationModeChoices.Disabled,
+            Description: "Mock returns canned rates. Real calls DHL Express MyDHL API. DHL sandbox-vs-production is gated by the API key tier DHL issues — there is no per-request URL switch.",
             Choices: IntegrationModeChoices.All, SortOrder: 300),
         new("dhl.api-key", Group, "DHL API Key", SettingDataType.Secret, IsSecret: true, SortOrder: 310),
         new("dhl.account-number", Group, "DHL Account Number", SettingDataType.String, SortOrder: 311),
