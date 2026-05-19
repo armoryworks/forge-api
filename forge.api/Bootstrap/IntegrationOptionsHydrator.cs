@@ -31,6 +31,13 @@ namespace Forge.Api.Bootstrap;
 public class IntegrationOptionsHydrator(
     ISettingsService settings,
     IOptions<GoogleDriveOptions> googleDriveOptions,
+    IOptions<QuickBooksOptions> quickBooksOptions,
+    IOptions<XeroOptions> xeroOptions,
+    IOptions<FreshBooksOptions> freshBooksOptions,
+    IOptions<SageOptions> sageOptions,
+    IOptions<NetSuiteOptions> netSuiteOptions,
+    IOptions<WaveOptions> waveOptions,
+    IOptions<ZohoOptions> zohoOptions,
     ILogger<IntegrationOptionsHydrator> logger)
 {
     public async Task HydrateAsync(CancellationToken ct = default)
@@ -46,6 +53,82 @@ public class IntegrationOptionsHydrator(
         if (!string.IsNullOrEmpty(driveCs)) { googleDriveOptions.Value.ClientSecret = driveCs; driveTouched = true; }
         if (!string.IsNullOrEmpty(driveSc)) { googleDriveOptions.Value.Scopes = driveSc; driveTouched = true; }
         if (driveTouched) providersHydrated++;
+
+        // ── QuickBooks Online ──────────────────────────────────────────
+        var qbCi = await settings.GetStringAsync("quickbooks.client-id", ct);
+        var qbCs = await settings.GetStringAsync("quickbooks.client-secret", ct);
+        var qbMode = await settings.GetStringAsync("quickbooks.mode", ct);
+        var qbTouched = false;
+        if (!string.IsNullOrEmpty(qbCi)) { quickBooksOptions.Value.ClientId = qbCi; qbTouched = true; }
+        if (!string.IsNullOrEmpty(qbCs)) { quickBooksOptions.Value.ClientSecret = qbCs; qbTouched = true; }
+        if (!string.IsNullOrEmpty(qbMode))
+        {
+            // Map IntegrationModeChoices to QuickBooksOptions.Environment.
+            quickBooksOptions.Value.Environment = string.Equals(qbMode, "Real", StringComparison.OrdinalIgnoreCase)
+                ? "production" : "sandbox";
+            qbTouched = true;
+        }
+        if (qbTouched) providersHydrated++;
+
+        // ── Xero ───────────────────────────────────────────────────────
+        var xeroCi = await settings.GetStringAsync("xero.client-id", ct);
+        var xeroCs = await settings.GetStringAsync("xero.client-secret", ct);
+        var xeroTouched = false;
+        if (!string.IsNullOrEmpty(xeroCi)) { xeroOptions.Value.ClientId = xeroCi; xeroTouched = true; }
+        if (!string.IsNullOrEmpty(xeroCs)) { xeroOptions.Value.ClientSecret = xeroCs; xeroTouched = true; }
+        if (xeroTouched) providersHydrated++;
+
+        // ── FreshBooks ─────────────────────────────────────────────────
+        var fbCi = await settings.GetStringAsync("freshbooks.client-id", ct);
+        var fbCs = await settings.GetStringAsync("freshbooks.client-secret", ct);
+        var fbTouched = false;
+        if (!string.IsNullOrEmpty(fbCi)) { freshBooksOptions.Value.ClientId = fbCi; fbTouched = true; }
+        if (!string.IsNullOrEmpty(fbCs)) { freshBooksOptions.Value.ClientSecret = fbCs; fbTouched = true; }
+        if (fbTouched) providersHydrated++;
+
+        // ── Sage ───────────────────────────────────────────────────────
+        var sageCi = await settings.GetStringAsync("sage.client-id", ct);
+        var sageCs = await settings.GetStringAsync("sage.client-secret", ct);
+        var sageCc = await settings.GetStringAsync("sage.country-code", ct);
+        var sageTouched = false;
+        if (!string.IsNullOrEmpty(sageCi)) { sageOptions.Value.ClientId = sageCi; sageTouched = true; }
+        if (!string.IsNullOrEmpty(sageCs)) { sageOptions.Value.ClientSecret = sageCs; sageTouched = true; }
+        if (!string.IsNullOrEmpty(sageCc)) { sageOptions.Value.CountryCode = sageCc; sageTouched = true; }
+        if (sageTouched) providersHydrated++;
+
+        // ── NetSuite (Token-Based Auth) ────────────────────────────────
+        var nsAi = await settings.GetStringAsync("netsuite.account-id", ct);
+        var nsCk = await settings.GetStringAsync("netsuite.consumer-key", ct);
+        var nsCs = await settings.GetStringAsync("netsuite.consumer-secret", ct);
+        var nsTi = await settings.GetStringAsync("netsuite.token-id", ct);
+        var nsTs = await settings.GetStringAsync("netsuite.token-secret", ct);
+        var nsTouched = false;
+        if (!string.IsNullOrEmpty(nsAi)) { netSuiteOptions.Value.AccountId = nsAi; nsTouched = true; }
+        if (!string.IsNullOrEmpty(nsCk)) { netSuiteOptions.Value.ConsumerKey = nsCk; nsTouched = true; }
+        if (!string.IsNullOrEmpty(nsCs)) { netSuiteOptions.Value.ConsumerSecret = nsCs; nsTouched = true; }
+        if (!string.IsNullOrEmpty(nsTi)) { netSuiteOptions.Value.TokenId = nsTi; nsTouched = true; }
+        if (!string.IsNullOrEmpty(nsTs)) { netSuiteOptions.Value.TokenSecret = nsTs; nsTouched = true; }
+        if (nsTouched) providersHydrated++;
+
+        // ── Wave (personal access token) ───────────────────────────────
+        var waveAt = await settings.GetStringAsync("wave.access-token", ct);
+        var waveBi = await settings.GetStringAsync("wave.business-id", ct);
+        var waveTouched = false;
+        if (!string.IsNullOrEmpty(waveAt)) { waveOptions.Value.AccessToken = waveAt; waveTouched = true; }
+        if (!string.IsNullOrEmpty(waveBi)) { waveOptions.Value.BusinessId = waveBi; waveTouched = true; }
+        if (waveTouched) providersHydrated++;
+
+        // ── Zoho Books ─────────────────────────────────────────────────
+        var zohoCi = await settings.GetStringAsync("zoho.client-id", ct);
+        var zohoCs = await settings.GetStringAsync("zoho.client-secret", ct);
+        var zohoOi = await settings.GetStringAsync("zoho.organization-id", ct);
+        var zohoDc = await settings.GetStringAsync("zoho.data-center", ct);
+        var zohoTouched = false;
+        if (!string.IsNullOrEmpty(zohoCi)) { zohoOptions.Value.ClientId = zohoCi; zohoTouched = true; }
+        if (!string.IsNullOrEmpty(zohoCs)) { zohoOptions.Value.ClientSecret = zohoCs; zohoTouched = true; }
+        if (!string.IsNullOrEmpty(zohoOi)) { zohoOptions.Value.OrganizationId = zohoOi; zohoTouched = true; }
+        if (!string.IsNullOrEmpty(zohoDc)) { zohoOptions.Value.DataCenter = zohoDc; zohoTouched = true; }
+        if (zohoTouched) providersHydrated++;
 
         logger.LogInformation(
             "[INTEGRATION-HYDRATE] Hydrated {Count} integration options from system_settings",

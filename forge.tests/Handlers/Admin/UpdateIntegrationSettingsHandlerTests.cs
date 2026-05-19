@@ -77,7 +77,14 @@ public class UpdateIntegrationSettingsHandlerTests
             Options.Create(new UpsOptions()),
             Options.Create(new FedExOptions()),
             Options.Create(new DhlOptions()),
-            Options.Create(stamps));
+            Options.Create(stamps),
+            Options.Create(new QuickBooksOptions()),
+            Options.Create(new XeroOptions()),
+            Options.Create(new FreshBooksOptions()),
+            Options.Create(new SageOptions()),
+            Options.Create(new NetSuiteOptions()),
+            Options.Create(new WaveOptions()),
+            Options.Create(new ZohoOptions()));
     }
 
     private static UpdateIntegrationSettingsHandler MakeHandler(
@@ -123,7 +130,14 @@ public class UpdateIntegrationSettingsHandlerTests
             Options.Create(new UpsOptions()),
             Options.Create(new FedExOptions()),
             Options.Create(new DhlOptions()),
-            Options.Create(new StampsOptions()));
+            Options.Create(new StampsOptions()),
+            Options.Create(new QuickBooksOptions()),
+            Options.Create(new XeroOptions()),
+            Options.Create(new FreshBooksOptions()),
+            Options.Create(new SageOptions()),
+            Options.Create(new NetSuiteOptions()),
+            Options.Create(new WaveOptions()),
+            Options.Create(new ZohoOptions()));
     }
 
     [Fact]
@@ -316,6 +330,95 @@ public class UpdateIntegrationSettingsHandlerTests
         gdrive.ClientSecret.Should().Be("drive-secret");
         gdrive.Scopes.Should().Be("https://www.googleapis.com/auth/drive",
             "Scopes must round-trip so admin can switch drive.file ↔ drive without redeploying");
+    }
+
+    [Fact]
+    public async Task Handle_QuickBooks_PropagatesClientCredentials_AndMapsModeToEnvironment()
+    {
+        // QB descriptor was theatrical pre-fix — saves persisted but the
+        // running QuickBooksOptions kept appsettings.json values, so the
+        // OAuth /authorize endpoint used the wrong ClientId.
+        using var dbScope = new AppDbContextLike();
+        var handler = MakeHandler(dbScope, out _);
+        var qb = new QuickBooksOptions();
+        // Re-construct with a known QB options so we can assert against it.
+        var dp = new EphemeralDataProtectionProvider();
+        var ss = new SettingsService(dbScope.Db, dp);
+        var mediator = new Mock<IMediator>();
+        mediator.Setup(m => m.Send(It.IsAny<GetIntegrationSettingsQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IntegrationSettingsResult(true,
+                IntegrationDescriptorCatalog.All
+                    .Select(d => new IntegrationStatusModel(d.Provider, d.Name, d.Description, d.Icon, false, new(), d.Category))
+                    .ToList()));
+        var h = new UpdateIntegrationSettingsHandler(
+            ss, dbScope.Db, mediator.Object,
+            Options.Create(new SmtpOptions()), Options.Create(new MinioOptions()),
+            Options.Create(new UspsOptions()), Options.Create(new DocuSealOptions()),
+            Options.Create(new AiOptions()), Options.Create(new GoogleDriveOptions()),
+            Options.Create(new UpsOptions()), Options.Create(new FedExOptions()),
+            Options.Create(new DhlOptions()), Options.Create(new StampsOptions()),
+            Options.Create(qb),
+            Options.Create(new XeroOptions()), Options.Create(new FreshBooksOptions()),
+            Options.Create(new SageOptions()), Options.Create(new NetSuiteOptions()),
+            Options.Create(new WaveOptions()), Options.Create(new ZohoOptions()));
+
+        await h.Handle(new UpdateIntegrationSettingsCommand(
+            Provider: "quickbooks",
+            Settings: new Dictionary<string, string>
+            {
+                ["quickbooks.mode"] = "Real",
+                ["quickbooks.client-id"] = "ABabc...",
+                ["quickbooks.client-secret"] = "qb-shh",
+            }),
+            CancellationToken.None);
+
+        qb.ClientId.Should().Be("ABabc...");
+        qb.ClientSecret.Should().Be("qb-shh");
+        qb.Environment.Should().Be("production",
+            "Real mode must map to QuickBooksOptions.Environment = production " +
+            "(sandbox is for Mock/Disabled)");
+    }
+
+    [Fact]
+    public async Task Handle_Wave_PropagatesAccessTokenAndBusinessId_NotGenericClientIdSecret()
+    {
+        // Pre-fix descriptor wrongly exposed wave.client-id / wave.client-secret
+        // (ProviderBlock template); WaveOptions has neither. The descriptor
+        // now exposes wave.access-token + wave.business-id which actually
+        // match the options model.
+        using var dbScope = new AppDbContextLike();
+        var dp = new EphemeralDataProtectionProvider();
+        var ss = new SettingsService(dbScope.Db, dp);
+        var wave = new WaveOptions();
+        var mediator = new Mock<IMediator>();
+        mediator.Setup(m => m.Send(It.IsAny<GetIntegrationSettingsQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IntegrationSettingsResult(true,
+                IntegrationDescriptorCatalog.All
+                    .Select(d => new IntegrationStatusModel(d.Provider, d.Name, d.Description, d.Icon, false, new(), d.Category))
+                    .ToList()));
+        var h = new UpdateIntegrationSettingsHandler(
+            ss, dbScope.Db, mediator.Object,
+            Options.Create(new SmtpOptions()), Options.Create(new MinioOptions()),
+            Options.Create(new UspsOptions()), Options.Create(new DocuSealOptions()),
+            Options.Create(new AiOptions()), Options.Create(new GoogleDriveOptions()),
+            Options.Create(new UpsOptions()), Options.Create(new FedExOptions()),
+            Options.Create(new DhlOptions()), Options.Create(new StampsOptions()),
+            Options.Create(new QuickBooksOptions()),
+            Options.Create(new XeroOptions()), Options.Create(new FreshBooksOptions()),
+            Options.Create(new SageOptions()), Options.Create(new NetSuiteOptions()),
+            Options.Create(wave), Options.Create(new ZohoOptions()));
+
+        await h.Handle(new UpdateIntegrationSettingsCommand(
+            Provider: "wave",
+            Settings: new Dictionary<string, string>
+            {
+                ["wave.access-token"] = "wv-token-xyz",
+                ["wave.business-id"] = "biz_abc123",
+            }),
+            CancellationToken.None);
+
+        wave.AccessToken.Should().Be("wv-token-xyz");
+        wave.BusinessId.Should().Be("biz_abc123");
     }
 
     [Fact]

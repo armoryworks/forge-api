@@ -38,23 +38,45 @@ public static class AccountingSettings
 
         // Sage
         ..ProviderBlock("sage", "Sage", sortBase: 400),
+        new("sage.country-code", Group, "Sage Country Code", SettingDataType.String,
+            DefaultValue: "US",
+            Description: "Two-letter Sage region code (US / GB / DE / FR / ES …).",
+            SortOrder: 405),
 
-        // NetSuite — uses Token-Based Authentication, distinct shape
+        // NetSuite — uses Token-Based Authentication, distinct shape (no OAuth)
         new("netsuite.mode", Group, "NetSuite Mode", SettingDataType.Enum,
             DefaultValue: IntegrationModeChoices.Disabled,
             Choices: IntegrationModeChoices.All, SortOrder: 500),
-        new("netsuite.account-id", Group, "NetSuite Account ID", SettingDataType.String, SortOrder: 510),
+        new("netsuite.account-id", Group, "NetSuite Account ID", SettingDataType.String,
+            Description: "NetSuite account ID, e.g. 1234567 or 1234567_SB1 for sandbox.",
+            SortOrder: 510),
         new("netsuite.consumer-key", Group, "NetSuite Consumer Key", SettingDataType.String, SortOrder: 511),
         new("netsuite.consumer-secret", Group, "NetSuite Consumer Secret", SettingDataType.Secret, IsSecret: true, SortOrder: 512),
         new("netsuite.token-id", Group, "NetSuite Token ID", SettingDataType.String, SortOrder: 513),
         new("netsuite.token-secret", Group, "NetSuite Token Secret", SettingDataType.Secret, IsSecret: true, SortOrder: 514),
 
-        // Wave
-        ..ProviderBlock("wave", "Wave", sortBase: 600),
+        // Wave — personal access token (not OAuth client/secret). Pre-fix
+        // descriptor used the generic ProviderBlock which exposes ClientId
+        // + ClientSecret fields that WaveOptions doesn't carry — admin
+        // saves were persisted but the Wave service couldn't pick them
+        // up because the property names don't exist.
+        new("wave.mode", Group, "Wave Mode", SettingDataType.Enum,
+            DefaultValue: IntegrationModeChoices.Disabled,
+            Choices: IntegrationModeChoices.All, SortOrder: 600),
+        new("wave.access-token", Group, "Wave Access Token", SettingDataType.Secret, IsSecret: true,
+            Description: "Wave personal access token (or OAuth2 access token). Generated at developer.waveapps.com.",
+            SortOrder: 610),
+        new("wave.business-id", Group, "Wave Business ID", SettingDataType.String,
+            Description: "Wave businessId — the GraphQL business node ID to scope queries to.",
+            SortOrder: 611),
 
         // Zoho
         ..ProviderBlock("zoho", "Zoho Books", sortBase: 700),
         new("zoho.organization-id", Group, "Zoho Organization ID", SettingDataType.String, SortOrder: 705),
+        new("zoho.data-center", Group, "Zoho Data Center", SettingDataType.String,
+            DefaultValue: "com",
+            Description: "Zoho region: com (US), eu, in, com.au, jp. Drives the OAuth + API base URLs.",
+            SortOrder: 706),
     ];
 
     /// <summary>Common Mode + ClientId + ClientSecret triplet used by

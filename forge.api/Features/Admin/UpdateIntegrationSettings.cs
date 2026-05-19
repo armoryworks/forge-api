@@ -50,7 +50,14 @@ public class UpdateIntegrationSettingsHandler(
     IOptions<UpsOptions> upsOptions,
     IOptions<FedExOptions> fedExOptions,
     IOptions<DhlOptions> dhlOptions,
-    IOptions<StampsOptions> stampsOptions)
+    IOptions<StampsOptions> stampsOptions,
+    IOptions<QuickBooksOptions> quickBooksOptions,
+    IOptions<XeroOptions> xeroOptions,
+    IOptions<FreshBooksOptions> freshBooksOptions,
+    IOptions<SageOptions> sageOptions,
+    IOptions<NetSuiteOptions> netSuiteOptions,
+    IOptions<WaveOptions> waveOptions,
+    IOptions<ZohoOptions> zohoOptions)
     : IRequestHandler<UpdateIntegrationSettingsCommand, IntegrationStatusModel>
 {
     public async Task<IntegrationStatusModel> Handle(UpdateIntegrationSettingsCommand request, CancellationToken ct)
@@ -142,6 +149,27 @@ public class UpdateIntegrationSettingsHandler(
                 break;
             case "stamps":
                 ApplyStamps(applied);
+                break;
+            case "quickbooks":
+                ApplyQuickBooks(applied);
+                break;
+            case "xero":
+                ApplyXero(applied);
+                break;
+            case "freshbooks":
+                ApplyFreshBooks(applied);
+                break;
+            case "sage":
+                ApplySage(applied);
+                break;
+            case "netsuite":
+                ApplyNetSuite(applied);
+                break;
+            case "wave":
+                ApplyWave(applied);
+                break;
+            case "zoho":
+                ApplyZoho(applied);
                 break;
         }
     }
@@ -290,6 +318,88 @@ public class UpdateIntegrationSettingsHandler(
         if (applied.TryGetValue("stamps.username", out var user) && user is not null) o.AccountId = user;
         if (applied.TryGetValue("stamps.password", out var pw) && pw is not null) o.Password = pw;
         if (applied.TryGetValue("stamps.mode", out var mode) && mode is not null) o.Environment = mode;
+    }
+
+    // ── Accounting providers ──────────────────────────────────────────
+    // All 7 accounting providers bind IOptions<T>; admin saves through
+    // /admin/integrations land in system_settings, and the Apply* methods
+    // below hot-reload the running singleton so service calls (incl. the
+    // existing AccountingController OAuth /authorize endpoints) pick up
+    // the new credentials without a process restart.
+    //
+    // Realm / tenant / account / organisation IDs that come back from
+    // OAuth callbacks (e.g. QuickBooks RealmId) are NOT applied here —
+    // they're persisted by the OAuth-completion path on the controller
+    // (or the future unified OAuth handler), not by an admin save.
+
+    private void ApplyQuickBooks(Dictionary<string, string?> applied)
+    {
+        var o = quickBooksOptions.Value;
+        if (applied.TryGetValue("quickbooks.client-id", out var ci) && ci is not null) o.ClientId = ci;
+        if (applied.TryGetValue("quickbooks.client-secret", out var cs) && cs is not null) o.ClientSecret = cs;
+        if (applied.TryGetValue("quickbooks.mode", out var mode) && mode is not null)
+        {
+            // QuickBooksOptions.Environment is "sandbox" / "production" —
+            // map Mock-Real-Disabled by Real => production, anything else => sandbox.
+            o.Environment = string.Equals(mode, IntegrationModeChoices.Real, StringComparison.OrdinalIgnoreCase)
+                ? "production"
+                : "sandbox";
+        }
+    }
+
+    private void ApplyXero(Dictionary<string, string?> applied)
+    {
+        var o = xeroOptions.Value;
+        if (applied.TryGetValue("xero.client-id", out var ci) && ci is not null) o.ClientId = ci;
+        if (applied.TryGetValue("xero.client-secret", out var cs) && cs is not null) o.ClientSecret = cs;
+    }
+
+    private void ApplyFreshBooks(Dictionary<string, string?> applied)
+    {
+        var o = freshBooksOptions.Value;
+        if (applied.TryGetValue("freshbooks.client-id", out var ci) && ci is not null) o.ClientId = ci;
+        if (applied.TryGetValue("freshbooks.client-secret", out var cs) && cs is not null) o.ClientSecret = cs;
+    }
+
+    private void ApplySage(Dictionary<string, string?> applied)
+    {
+        var o = sageOptions.Value;
+        if (applied.TryGetValue("sage.client-id", out var ci) && ci is not null) o.ClientId = ci;
+        if (applied.TryGetValue("sage.client-secret", out var cs) && cs is not null) o.ClientSecret = cs;
+        if (applied.TryGetValue("sage.country-code", out var cc) && cc is not null) o.CountryCode = cc;
+    }
+
+    private void ApplyNetSuite(Dictionary<string, string?> applied)
+    {
+        // NetSuite uses Token-Based Authentication — no client_id/secret
+        // OAuth flow. All 5 credentials are admin-entered + persisted.
+        var o = netSuiteOptions.Value;
+        if (applied.TryGetValue("netsuite.account-id", out var ai) && ai is not null) o.AccountId = ai;
+        if (applied.TryGetValue("netsuite.consumer-key", out var ck) && ck is not null) o.ConsumerKey = ck;
+        if (applied.TryGetValue("netsuite.consumer-secret", out var cs) && cs is not null) o.ConsumerSecret = cs;
+        if (applied.TryGetValue("netsuite.token-id", out var ti) && ti is not null) o.TokenId = ti;
+        if (applied.TryGetValue("netsuite.token-secret", out var ts) && ts is not null) o.TokenSecret = ts;
+    }
+
+    private void ApplyWave(Dictionary<string, string?> applied)
+    {
+        // Wave uses a personal access token (or OAuth-issued bearer) —
+        // admin pastes it directly. No client-id/secret flow. Pre-fix
+        // descriptor wrongly used ProviderBlock (client-id/secret keys);
+        // those keys are now removed from AccountingSettings and replaced
+        // with wave.access-token + wave.business-id.
+        var o = waveOptions.Value;
+        if (applied.TryGetValue("wave.access-token", out var at) && at is not null) o.AccessToken = at;
+        if (applied.TryGetValue("wave.business-id", out var bi) && bi is not null) o.BusinessId = bi;
+    }
+
+    private void ApplyZoho(Dictionary<string, string?> applied)
+    {
+        var o = zohoOptions.Value;
+        if (applied.TryGetValue("zoho.client-id", out var ci) && ci is not null) o.ClientId = ci;
+        if (applied.TryGetValue("zoho.client-secret", out var cs) && cs is not null) o.ClientSecret = cs;
+        if (applied.TryGetValue("zoho.organization-id", out var oi) && oi is not null) o.OrganizationId = oi;
+        if (applied.TryGetValue("zoho.data-center", out var dc) && dc is not null) o.DataCenter = dc;
     }
 
     private static bool IsMaskedSecret(string value)

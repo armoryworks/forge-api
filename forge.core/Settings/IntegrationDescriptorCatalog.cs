@@ -337,7 +337,11 @@ public static class IntegrationDescriptorCatalog
             Description: "QuickBooks Online accounting — connected via OAuth. Existing primary accounting integration.",
             Icon: "receipt_long",
             Category: "accounting",
-            FieldKeys: ["quickbooks.mode", "quickbooks.client-id", "quickbooks.client-secret", "quickbooks.realm-id"],
+            // Note: quickbooks.realm-id is set by the OAuth callback (Intuit
+            // returns the connected Realm/Company ID after the user authorises
+            // their company) — NOT admin-entered. Kept out of FieldKeys so the
+            // admin UI doesn't pretend to take it as input.
+            FieldKeys: ["quickbooks.mode", "quickbooks.client-id", "quickbooks.client-secret"],
             IsConfiguredCheckKey: "quickbooks.client-id",
             LogoUrl: "https://logo.clearbit.com/quickbooks.intuit.com",
             SetupSteps:
@@ -391,7 +395,7 @@ public static class IntegrationDescriptorCatalog
             Description: "Sage Business Cloud Accounting.",
             Icon: "business",
             Category: "accounting",
-            FieldKeys: ["sage.mode", "sage.client-id", "sage.client-secret"],
+            FieldKeys: ["sage.mode", "sage.client-id", "sage.client-secret", "sage.country-code"],
             IsConfiguredCheckKey: "sage.client-id",
             LogoUrl: "https://logo.clearbit.com/sage.com",
             SetupSteps:
@@ -436,8 +440,11 @@ public static class IntegrationDescriptorCatalog
             Description: "Free small-business accounting.",
             Icon: "waves",
             Category: "accounting",
-            FieldKeys: ["wave.mode", "wave.client-id", "wave.client-secret"],
-            IsConfiguredCheckKey: "wave.client-id",
+            // Wave uses a personal access token (or OAuth2 bearer), NOT
+            // a client-id/secret pair — descriptor + propagation now
+            // reflect that.
+            FieldKeys: ["wave.mode", "wave.access-token", "wave.business-id"],
+            IsConfiguredCheckKey: "wave.access-token",
             LogoUrl: "https://logo.clearbit.com/waveapps.com",
             SetupSteps:
             [
@@ -454,7 +461,7 @@ public static class IntegrationDescriptorCatalog
             Description: "Zoho Books accounting and invoicing.",
             Icon: "menu_book",
             Category: "accounting",
-            FieldKeys: ["zoho.mode", "zoho.client-id", "zoho.client-secret", "zoho.organization-id"],
+            FieldKeys: ["zoho.mode", "zoho.client-id", "zoho.client-secret", "zoho.organization-id", "zoho.data-center"],
             IsConfiguredCheckKey: "zoho.client-id",
             LogoUrl: "https://logo.clearbit.com/zoho.com",
             SetupSteps:
