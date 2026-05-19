@@ -50,7 +50,20 @@ public class CompleteWorkflowRunHandler(
             ?? throw new InvalidOperationException(
                 $"Workflow definition '{run.DefinitionId}' missing — run is orphaned.");
         var defSteps = WorkflowStepHelper.ParseSteps(def.StepsJson);
-        var requiredSteps = defSteps.Where(s => s.Required).ToList();
+
+        // Contextual gating: which gates does THIS completion enforce?
+        //   • Guided — every required step's gates (the full path the user
+        //     walked, so all are "in context").
+        //   • Express — only the first step's gates (basics). The express
+        //     form collects basics-level fields only; sourcing / inventory /
+        //     cost live in steps the express form never renders, so gating on
+        //     them would block on fields the user has no way to fill here.
+        //     Those are deferred — the part promotes to Active and the user
+        //     finishes the rest on the detail page or by switching to Guided.
+        var isExpress = string.Equals(run.Mode, "express", StringComparison.OrdinalIgnoreCase);
+        var requiredSteps = isExpress
+            ? defSteps.Take(1).ToList()
+            : defSteps.Where(s => s.Required).ToList();
         var requiredGateIds = requiredSteps
             .SelectMany(s => s.CompletionGates)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);

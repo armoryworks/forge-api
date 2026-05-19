@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Forge.Api.Capabilities;
+using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Data.Context;
 using Forge.Tests.Helpers;
 using Serilog;
@@ -92,6 +94,21 @@ public class CapabilityTestWebApplicationFactory : WebApplicationFactory<Program
         // freshly-bootstrapped install.
         var workflowSeeder = scope.ServiceProvider.GetRequiredService<Forge.Api.Workflows.IWorkflowSubstrateSeeder>();
         workflowSeeder.SeedAsync().GetAwaiter().GetResult();
+
+        // Units of measure — production seeds these in SeedEssentialDataAsync,
+        // a hook the in-memory test host skips. The part-workflow inventory
+        // gate + default-stock-UoM-at-creation logic resolve 'ea' by code, so
+        // the integration tests need the base units present to mirror a
+        // freshly-bootstrapped install.
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        if (!db.UnitsOfMeasure.Any())
+        {
+            db.UnitsOfMeasure.AddRange(
+                new UnitOfMeasure { Code = "ea", Name = "Each", Category = UomCategory.Count, IsBaseUnit = true, DecimalPlaces = 0 },
+                new UnitOfMeasure { Code = "kg", Name = "Kilogram", Category = UomCategory.Weight, IsBaseUnit = true },
+                new UnitOfMeasure { Code = "mm", Name = "Millimeter", Category = UomCategory.Length });
+            db.SaveChanges();
+        }
 
         return host;
     }

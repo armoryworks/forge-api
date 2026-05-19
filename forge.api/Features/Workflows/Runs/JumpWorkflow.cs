@@ -95,10 +95,12 @@ public class JumpWorkflowHandler(
                         BlockingStepId: step.Id,
                         BlockingStepLabelKey: step.LabelKey);
                 }).ToList();
-                var firstStepName = steps[currentIdx];
+                // Message stays generic — internal step IDs / labelKeys are
+                // NOT user-facing. The client renders the actionable text by
+                // translating BlockingStepLabelKey on each missing row.
                 throw new WorkflowMissingValidatorsException(
                     payloadAll,
-                    $"Finish '{firstStepName.LabelKey}' before moving on.");
+                    "Finish the current step before moving on.");
             }
 
             var missing = await readiness.GetMissingValidatorsAsync(run.EntityType, run.EntityId.Value, ct);
@@ -109,6 +111,8 @@ public class JumpWorkflowHandler(
                 {
                     if (!failing.Contains(gate)) continue;
                     var blockingStep = steps[i];
+                    // Generic message — client translates BlockingStepLabelKey
+                    // per missing row for the user-facing "Finish 'X'" text.
                     throw new WorkflowMissingValidatorsException(
                         missing.Where(m => blockingStep.CompletionGates.Contains(m.ValidatorId, StringComparer.OrdinalIgnoreCase))
                             .Select(m => new MissingValidatorResponseModel(
@@ -116,7 +120,7 @@ public class JumpWorkflowHandler(
                                 BlockingStepId: blockingStep.Id,
                                 BlockingStepLabelKey: blockingStep.LabelKey))
                             .ToList(),
-                        $"Finish '{blockingStep.LabelKey}' before moving on.");
+                        "Finish the current step before moving on.");
                 }
             }
         }

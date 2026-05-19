@@ -475,46 +475,40 @@ public class WorkflowRunLifecycleTests(CapabilityTestWebApplicationFactory facto
     }
 
     [Fact]
-    public async Task Complete_MissingValidators_ScopedToRunDefinition()
+    public async Task Complete_Express_EnforcesOnlyBasicsGate_DefersRest()
     {
+        // Contextual gating: in EXPRESS mode completion enforces only the
+        // first step's gates (basics). Buy-Raw's guided path also wants
+        // sourcing / inventory / cost, but the express form never collects
+        // those — gating on them would block on fields not in context. They
+        // are deferred; express promotes the part with just name + axes.
         var client = AuthenticatedClient();
-        // Buy-Raw express workflow only gates on hasBasics + hasCost.
-        // Start one with a name (so basics partially fills) but no cost
-        // override — the missing list should NOT include hasBom or hasRouting
-        // because they aren't gates of this definition.
         var initial = JsonDocument.Parse(
-            """{"name":"ScopeTest","procurementSource":"Buy","inventoryClass":"Raw"}""").RootElement;
+            """{"name":"ExpressDefer","procurementSource":"Buy","inventoryClass":"Raw"}""").RootElement;
         var body = new StartWorkflowRunRequestModel(
             "Part", "part-buy-raw-v1", "express", initial);
         var startResp = await client.PostAsJsonAsync("/api/v1/workflows", body);
         startResp.EnsureSuccessStatusCode();
         var run = (await startResp.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
 
-        // Materialize via the workflow's first step (basics).
         await client.PatchAsJsonAsync(
             $"/api/v1/workflows/{run.Id}/step",
             new PatchWorkflowStepRequestModel("basics", initial));
 
         var resp = await client.PostAsync($"/api/v1/workflows/{run.Id}/complete", null);
-        resp.StatusCode.Should().Be(HttpStatusCode.Conflict);
-        var jsonBody = await resp.Content.ReadAsStringAsync();
-        using var doc = JsonDocument.Parse(jsonBody);
-        var missingIds = doc.RootElement.GetProperty("missing")
-            .EnumerateArray()
-            .Select(m => m.GetProperty("validatorId").GetString())
-            .ToList();
-        missingIds.Should().Contain("hasCost");
-        missingIds.Should().NotContain("hasBom");
-        missingIds.Should().NotContain("hasRouting");
+        resp.StatusCode.Should().Be(HttpStatusCode.OK,
+            "express enforces only the basics gate; sourcing/inventory/cost are deferred");
+        var completed = (await resp.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
+        completed.CompletedAt.Should().NotBeNull();
     }
 
     [Fact]
-    public async Task Complete_BeforeMaterialization_MissingScopedToRunDefinition()
+    public async Task Complete_Express_BeforeMaterialization_BlocksOnBasicsOnly()
     {
+        // Express + no entity yet → only the basics gate is enforced, and it
+        // can't pass because nothing's been created. The missing list is
+        // basics-scoped, NOT the full guided gate set.
         var client = AuthenticatedClient();
-        // Same as above but without a step patch — the entity isn't created
-        // yet. The pre-materialization branch should also scope to the run's
-        // gates instead of dumping the full entity-type validator catalog.
         var initial = JsonDocument.Parse("""{"name":"NoMatHere"}""").RootElement;
         var body = new StartWorkflowRunRequestModel(
             "Part", "part-buy-raw-v1", "express", initial);
@@ -530,8 +524,44 @@ public class WorkflowRunLifecycleTests(CapabilityTestWebApplicationFactory facto
             .EnumerateArray()
             .Select(m => m.GetProperty("validatorId").GetString())
             .ToList();
-        // Buy-Raw (B1) gates on hasBasics + hasSourcing + hasInventory + hasCost.
-        missingIds.Should().BeEquivalentTo(new[] { "hasBasics", "hasSourcing", "hasInventory", "hasCost" });
+        missingIds.Should().BeEquivalentTo(new[] { "hasBasics" },
+            "express scopes the gate set to the basics step only");
+    }
+
+    [Fact]
+    public async Task Complete_Guided_EnforcesAllRequiredStepGates_ScopedToDefinition()
+    {
+        // GUIDED Buy-Raw enforces every required step's gate. After
+        // materializing with just name + axes, hasInventory is already
+        // satisfied (new parts default StockUomId to the seeded 'each' unit),
+        // so the missing list is sourcing + cost — NOT inventory, and NOT the
+        // hasBom/hasRouting gates that don't belong to this definition.
+        var client = AuthenticatedClient();
+        var initial = JsonDocument.Parse(
+            """{"name":"GuidedScope","procurementSource":"Buy","inventoryClass":"Raw"}""").RootElement;
+        var body = new StartWorkflowRunRequestModel(
+            "Part", "part-buy-raw-v1", "guided", initial);
+        var startResp = await client.PostAsJsonAsync("/api/v1/workflows", body);
+        startResp.EnsureSuccessStatusCode();
+        var run = (await startResp.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
+
+        await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/step",
+            new PatchWorkflowStepRequestModel("basics", initial));
+
+        var resp = await client.PostAsync($"/api/v1/workflows/{run.Id}/complete", null);
+        resp.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        var jsonBody = await resp.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(jsonBody);
+        var missingIds = doc.RootElement.GetProperty("missing")
+            .EnumerateArray()
+            .Select(m => m.GetProperty("validatorId").GetString())
+            .ToList();
+        missingIds.Should().Contain("hasSourcing");
+        missingIds.Should().Contain("hasCost");
+        missingIds.Should().NotContain("hasInventory", "new parts default to the seeded 'each' stock UoM");
+        missingIds.Should().NotContain("hasBom");
+        missingIds.Should().NotContain("hasRouting");
     }
 
     [Fact]

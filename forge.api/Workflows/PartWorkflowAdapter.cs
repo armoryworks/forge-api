@@ -61,6 +61,17 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo)
         var defaultBinId = ReadIntOrDefault(initialData, "defaultBinId");
         var sourcePartId = ReadIntOrDefault(initialData, "sourcePartId");
 
+        // Stock UoM: honor an explicit id/code in the payload, otherwise
+        // default new parts to the base Count unit ('ea'). Pre-filling this
+        // means the hasInventory gate (fieldPresent stockUomId) is satisfied
+        // out of the box — express mode never collects a UoM, and in guided
+        // the inventory step shows it pre-selected and editable. Null only if
+        // the UoM table isn't seeded yet (older installs); the inventory step
+        // can still set it later.
+        var stockUomId = ReadIntOrDefault(initialData, "stockUomId")
+            ?? await ResolveUomIdAsync(ReadStringOrDefault(initialData, "stockUomCode"), ct)
+            ?? await ResolveUomIdAsync("ea", ct);
+
         // Phase-4 deferred-materialization: the workflow only calls this once
         // the user has submitted the first step's fields, so `name` should
         // always be present. If it isn't, we surface a 400 rather than save a
@@ -111,6 +122,7 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo)
             IsConfigurable = isConfigurable,
             DefaultBinId = defaultBinId,
             SourcePartId = sourcePartId,
+            StockUomId = stockUomId,
         };
         db.Parts.Add(part);
         // Defer SaveChanges to the orchestrating handler (single transaction).

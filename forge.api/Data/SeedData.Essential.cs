@@ -272,6 +272,37 @@ public static partial class SeedData
             Log.Information("Seeded currency reference data (7 entries)");
         }
 
+        // Units of Measure — the stock/purchase/sales UoM dropdowns and the
+        // part-workflow inventory step resolve a UoM by code. Without these
+        // rows the inventory-step UoM picker offers values the server can't
+        // resolve (ResolveUomIdAsync returns null), so the hasInventory gate
+        // never passes. Codes here MUST match the picker option values.
+        // 'ea' (each) is the base Count unit and the default for new parts.
+        if (!await db.UnitsOfMeasure.AnyAsync())
+        {
+            db.UnitsOfMeasure.AddRange(
+                new UnitOfMeasure { Code = "ea", Name = "Each", Symbol = "ea", Category = UomCategory.Count, DecimalPlaces = 0, IsBaseUnit = true, SortOrder = 1 },
+                new UnitOfMeasure { Code = "pr", Name = "Pair", Symbol = "pr", Category = UomCategory.Count, DecimalPlaces = 0, SortOrder = 2 },
+                new UnitOfMeasure { Code = "dz", Name = "Dozen", Symbol = "dz", Category = UomCategory.Count, DecimalPlaces = 0, SortOrder = 3 },
+                new UnitOfMeasure { Code = "box", Name = "Box", Symbol = "box", Category = UomCategory.Count, DecimalPlaces = 0, SortOrder = 4 },
+                new UnitOfMeasure { Code = "cs", Name = "Case", Symbol = "cs", Category = UomCategory.Count, DecimalPlaces = 0, SortOrder = 5 },
+                new UnitOfMeasure { Code = "kg", Name = "Kilogram", Symbol = "kg", Category = UomCategory.Weight, DecimalPlaces = 3, IsBaseUnit = true, SortOrder = 10 },
+                new UnitOfMeasure { Code = "g", Name = "Gram", Symbol = "g", Category = UomCategory.Weight, DecimalPlaces = 2, SortOrder = 11 },
+                new UnitOfMeasure { Code = "lb", Name = "Pound", Symbol = "lb", Category = UomCategory.Weight, DecimalPlaces = 3, SortOrder = 12 },
+                new UnitOfMeasure { Code = "oz", Name = "Ounce", Symbol = "oz", Category = UomCategory.Weight, DecimalPlaces = 2, SortOrder = 13 },
+                new UnitOfMeasure { Code = "m", Name = "Meter", Symbol = "m", Category = UomCategory.Length, DecimalPlaces = 3, IsBaseUnit = true, SortOrder = 20 },
+                new UnitOfMeasure { Code = "cm", Name = "Centimeter", Symbol = "cm", Category = UomCategory.Length, DecimalPlaces = 2, SortOrder = 21 },
+                new UnitOfMeasure { Code = "mm", Name = "Millimeter", Symbol = "mm", Category = UomCategory.Length, DecimalPlaces = 2, SortOrder = 22 },
+                new UnitOfMeasure { Code = "ft", Name = "Foot", Symbol = "ft", Category = UomCategory.Length, DecimalPlaces = 3, SortOrder = 23 },
+                new UnitOfMeasure { Code = "in", Name = "Inch", Symbol = "in", Category = UomCategory.Length, DecimalPlaces = 3, SortOrder = 24 },
+                new UnitOfMeasure { Code = "L", Name = "Liter", Symbol = "L", Category = UomCategory.Volume, DecimalPlaces = 3, IsBaseUnit = true, SortOrder = 30 },
+                new UnitOfMeasure { Code = "mL", Name = "Milliliter", Symbol = "mL", Category = UomCategory.Volume, DecimalPlaces = 2, SortOrder = 31 },
+                new UnitOfMeasure { Code = "gal", Name = "Gallon", Symbol = "gal", Category = UomCategory.Volume, DecimalPlaces = 3, SortOrder = 32 }
+            );
+            await db.SaveChangesAsync();
+            Log.Information("Seeded units of measure (17 entries)");
+        }
+
         // Compliance Form Templates
         if (!await db.ComplianceFormTemplates.AnyAsync())
         {
