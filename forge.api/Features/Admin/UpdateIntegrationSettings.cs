@@ -46,6 +46,7 @@ public class UpdateIntegrationSettingsHandler(
     IOptions<UspsOptions> uspsOptions,
     IOptions<DocuSealOptions> docuSealOptions,
     IOptions<AiOptions> aiOptions,
+    IOptions<GoogleDriveOptions> googleDriveOptions,
     IOptions<UpsOptions> upsOptions,
     IOptions<FedExOptions> fedExOptions,
     IOptions<DhlOptions> dhlOptions,
@@ -127,6 +128,9 @@ public class UpdateIntegrationSettingsHandler(
             case "ai":
                 ApplyAi(applied);
                 break;
+            case "gdrive":
+                ApplyGoogleDrive(applied);
+                break;
             case "ups":
                 ApplyUps(applied);
                 break;
@@ -204,6 +208,17 @@ public class UpdateIntegrationSettingsHandler(
         if (applied.TryGetValue(DocuSealSettings.KeyApiKey, out var key) && key is not null) o.ApiKey = key;
         if (applied.TryGetValue(DocuSealSettings.KeyWebhookSecret, out var ws) && ws is not null) o.WebhookSecret = ws;
         if (applied.TryGetValue(DocuSealSettings.KeyTimeoutSeconds, out var t) && int.TryParse(t, out var ts)) o.TimeoutSeconds = ts;
+    }
+
+    private void ApplyGoogleDrive(Dictionary<string, string?> applied)
+    {
+        var o = googleDriveOptions.Value;
+        if (applied.TryGetValue(GoogleDriveSettings.KeyClientId, out var ci) && ci is not null) o.ClientId = ci;
+        if (applied.TryGetValue(GoogleDriveSettings.KeyClientSecret, out var cs) && cs is not null) o.ClientSecret = cs;
+        if (applied.TryGetValue(GoogleDriveSettings.KeyScopes, out var sc) && sc is not null) o.Scopes = sc;
+        // Note: gdrive.mode flips DI registration of ICloudStorageIntegrationService
+        // at startup (Mock vs Real). Mode changes require an API restart to swap
+        // the registration; the UI surfaces this via the "restart required" toast.
     }
 
     private void ApplyAi(Dictionary<string, string?> applied)

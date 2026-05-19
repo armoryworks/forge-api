@@ -37,7 +37,8 @@ public class UpdateIntegrationSettingsHandlerTests
         out MinioOptions minio,
         out UspsOptions usps,
         out AiOptions ai,
-        out StampsOptions stamps)
+        out StampsOptions stamps,
+        out GoogleDriveOptions gdrive)
     {
         var dp = new EphemeralDataProtectionProvider();
         var settings = new SettingsService(db.Db, dp);
@@ -45,6 +46,7 @@ public class UpdateIntegrationSettingsHandlerTests
         usps = new UspsOptions();
         ai = new AiOptions();
         stamps = new StampsOptions();
+        gdrive = new GoogleDriveOptions();
 
         var mediator = new Mock<IMediator>();
         mediator
@@ -71,6 +73,7 @@ public class UpdateIntegrationSettingsHandlerTests
             Options.Create(usps),
             Options.Create(new DocuSealOptions()),
             Options.Create(ai),
+            Options.Create(gdrive),
             Options.Create(new UpsOptions()),
             Options.Create(new FedExOptions()),
             Options.Create(new DhlOptions()),
@@ -116,6 +119,7 @@ public class UpdateIntegrationSettingsHandlerTests
             Options.Create(new UspsOptions()),
             Options.Create(new DocuSealOptions()),
             Options.Create(new AiOptions()),
+            Options.Create(new GoogleDriveOptions()),
             Options.Create(new UpsOptions()),
             Options.Create(new FedExOptions()),
             Options.Create(new DhlOptions()),
@@ -252,7 +256,7 @@ public class UpdateIntegrationSettingsHandlerTests
         // breaking USPS OAuth client-credentials renewal until someone
         // bounced the API container.
         using var dbScope = new AppDbContextLike();
-        var handler = MakeHandler(dbScope, out _, out var usps, out _, out _);
+        var handler = MakeHandler(dbScope, out _, out var usps, out _, out _, out _);
 
         await handler.Handle(new UpdateIntegrationSettingsCommand(
             Provider: "usps",
@@ -272,7 +276,7 @@ public class UpdateIntegrationSettingsHandlerTests
     public async Task Handle_Ai_PropagatesDocsPath_OnSave()
     {
         using var dbScope = new AppDbContextLike();
-        var handler = MakeHandler(dbScope, out _, out _, out var ai, out _);
+        var handler = MakeHandler(dbScope, out _, out _, out var ai, out _, out _);
 
         await handler.Handle(new UpdateIntegrationSettingsCommand(
             Provider: "ai",
@@ -288,6 +292,33 @@ public class UpdateIntegrationSettingsHandlerTests
     }
 
     [Fact]
+    public async Task Handle_GoogleDrive_PropagatesClientCredentials_OnSave()
+    {
+        // Drive moved off appsettings.json (per the "zero config-file
+        // modification" rule); admin saves are now the canonical surface.
+        // ApplyGoogleDrive must hot-reload ClientId / ClientSecret / Scopes
+        // onto IOptions<GoogleDriveOptions> so the running service picks
+        // them up without a restart.
+        using var dbScope = new AppDbContextLike();
+        var handler = MakeHandler(dbScope, out _, out _, out _, out _, out var gdrive);
+
+        await handler.Handle(new UpdateIntegrationSettingsCommand(
+            Provider: "gdrive",
+            Settings: new Dictionary<string, string>
+            {
+                [GoogleDriveSettings.KeyClientId] = "abc.apps.googleusercontent.com",
+                [GoogleDriveSettings.KeyClientSecret] = "drive-secret",
+                [GoogleDriveSettings.KeyScopes] = "https://www.googleapis.com/auth/drive",
+            }),
+            CancellationToken.None);
+
+        gdrive.ClientId.Should().Be("abc.apps.googleusercontent.com");
+        gdrive.ClientSecret.Should().Be("drive-secret");
+        gdrive.Scopes.Should().Be("https://www.googleapis.com/auth/drive",
+            "Scopes must round-trip so admin can switch drive.file ↔ drive without redeploying");
+    }
+
+    [Fact]
     public async Task Handle_Stamps_PropagatesPassword_OnSave()
     {
         // Even though the real Stamps SwsimV111 service isn't built yet,
@@ -295,7 +326,7 @@ public class UpdateIntegrationSettingsHandlerTests
         // service picks the credential up the moment it ships. Pre-fix
         // ApplyStamps silently dropped the password on the floor.
         using var dbScope = new AppDbContextLike();
-        var handler = MakeHandler(dbScope, out _, out _, out _, out var stamps);
+        var handler = MakeHandler(dbScope, out _, out _, out _, out var stamps, out _);
 
         await handler.Handle(new UpdateIntegrationSettingsCommand(
             Provider: "stamps",

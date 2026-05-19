@@ -157,6 +157,32 @@ public static class IntegrationDescriptorCatalog
                 "For production, swap Endpoints to your real MinIO / S3 host and rotate the access keys.",
             ]),
 
+        // ── Cloud storage (per-engagement folder auto-create) ─────
+        new(
+            Provider: "gdrive",
+            Name: "Google Drive",
+            Description: "Per-engagement folder auto-create on the Drive of the connecting user. Powers the Pro Services preset's customer/engagement folder taxonomy.",
+            Icon: "folder_shared",
+            Category: "service",
+            FieldKeys:
+            [
+                GoogleDriveSettings.KeyMode,
+                GoogleDriveSettings.KeyClientId,
+                GoogleDriveSettings.KeyClientSecret,
+                GoogleDriveSettings.KeyScopes,
+            ],
+            IsConfiguredCheckKey: GoogleDriveSettings.KeyClientId,
+            LogoUrl: "https://logo.clearbit.com/google.com",
+            SetupSteps:
+            [
+                "Open Google Cloud Console (console.cloud.google.com) and select or create a project.",
+                "Enable the Google Drive API: APIs & Services → Library → 'Google Drive API' → Enable.",
+                "Configure the OAuth consent screen (Internal for Workspace, External for personal Google accounts). Add the drive.file scope (or drive if you want full access — drive.file is recommended for least-privilege).",
+                "Credentials → Create credentials → OAuth Client ID → Web application. Add this Forge install's public URL + /auth/sso/google/callback as an Authorized redirect URI.",
+                "Copy the Client ID + Client Secret into the fields below. Save. Each user then connects their own Drive via Account → Integrations.",
+            ],
+            SignupUrl: "https://console.cloud.google.com/apis/credentials"),
+
         // ── Address validation ────────────────────────────────────
         new(
             Provider: "usps",

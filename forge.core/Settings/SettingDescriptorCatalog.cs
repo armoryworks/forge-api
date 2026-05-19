@@ -44,6 +44,7 @@ public static class SettingDescriptorCatalog
         list.AddRange(AiSettings.Descriptors);
         list.AddRange(DocuSealSettings.Descriptors);
         list.AddRange(MinioSettings.Descriptors);
+        list.AddRange(GoogleDriveSettings.Descriptors);
         list.AddRange(AccountingSettings.Descriptors);
         list.AddRange(ShippingSettings.Descriptors);
         return list;

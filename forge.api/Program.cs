@@ -329,6 +329,10 @@ try
     builder.Services.AddScoped<ISystemAuditWriter, SystemAuditWriter>();
     // Phase 3 / WU-06 / C1 — role-template rollup expansion at auth time.
     builder.Services.AddScoped<IRoleClaimsExpander, RoleClaimsExpander>();
+    // Startup-only: pulls admin-saved integration settings out of system_settings
+    // into the IOptions<T> singletons so a restart doesn't reset them to
+    // appsettings.json defaults. See IntegrationOptionsHydrator docs.
+    builder.Services.AddScoped<Forge.Api.Bootstrap.IntegrationOptionsHydrator>();
     builder.Services.AddMemoryCache();
 
     // Phase 4 Phase-A — capability gating infrastructure.
@@ -748,10 +752,18 @@ try
     builder.Services.AddScoped<ICloudStorageTokenManager, CloudStorageTokenManager>();
     builder.Services.AddScoped<ICloudFolderAutoCreator, CloudFolderAutoCreator>();
 
-    var googleDriveOptions = builder.Configuration.GetSection("GoogleDrive").Get<GoogleDriveOptions>();
-    if (googleDriveOptions?.IsConfigured == true)
+    // Google Drive — descriptor-driven (gdrive.mode + gdrive.client-id +
+    // gdrive.client-secret + gdrive.scopes via system_settings). The
+    // appsettings.json "GoogleDrive" section is still bound so the
+    // singleton has a defined initial state, but admin saves through the
+    // /admin/integrations dialog are canonical: PropagateToIOptions →
+    // ApplyGoogleDrive hot-reloads the singleton on save, and
+    // IntegrationOptionsHydrator (post-migrate startup step) pulls the
+    // persisted values into the singleton on every boot so a restart
+    // doesn't reset to appsettings defaults.
+    builder.Services.Configure<GoogleDriveOptions>(builder.Configuration.GetSection("GoogleDrive"));
+    if (!integrationMode.IsMock("gdrive"))
     {
-        builder.Services.Configure<GoogleDriveOptions>(builder.Configuration.GetSection("GoogleDrive"));
         builder.Services.AddScoped<ICloudStorageIntegrationService, GoogleDriveCloudStorageService>();
     }
 
@@ -1091,6 +1103,14 @@ try
             // Idempotent — issues a key only on a fresh install. See
             // SeedData.LeadIntake.cs and docs/api-key-integrations.md.
             await SeedData.SeedLeadIntakeBootstrapAsync(scope.ServiceProvider);
+
+            // Hydrate IOptions<T> singletons with admin-saved settings from
+            // system_settings. Without this, every restart resets integration
+            // options to appsettings.json defaults (typically empty), forcing
+            // operators to re-save through the admin UI on every boot.
+            var hydrator = scope.ServiceProvider
+                .GetRequiredService<Forge.Api.Bootstrap.IntegrationOptionsHydrator>();
+            await hydrator.HydrateAsync();
 
             // Seed built-in AI assistants (idempotent)
             await Forge.Api.Features.AiAssistants.SeedAiAssistants.EnsureSeededAsync(db);
