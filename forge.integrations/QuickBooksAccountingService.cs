@@ -11,8 +11,24 @@ using Forge.Core.Models;
 
 namespace Forge.Integrations;
 
+/// <summary>
+/// QuickBooks Online accounting provider.
+///
+/// Phase 2e migration: token retrieval now flows through
+/// <see cref="IExternalIdentityResolver"/> instead of injecting
+/// <see cref="IQuickBooksTokenService"/> + <see cref="IOptions{T}"/> directly.
+/// The resolver internally delegates to <c>IQuickBooksTokenService</c> for
+/// the actual fetch/refresh, so behaviour is identical — but downstream
+/// services now have a uniform contract for "give me a token for {provider}
+/// to act on behalf of {caller}" that works the same for every provider.
+///
+/// <see cref="QuickBooksOptions"/> is still injected because the service
+/// needs the provider's <c>BaseApiUrl</c> (environment-dependent) and the
+/// admin-saved values flow through it. Token + RealmId come from the
+/// resolver's <see cref="ResolvedExternalIdentity"/>.
+/// </summary>
 public class QuickBooksAccountingService(
-    IQuickBooksTokenService tokenService,
+    IExternalIdentityResolver identityResolver,
     IHttpClientFactory httpClientFactory,
     IOptions<QuickBooksOptions> options,
     ILogger<QuickBooksAccountingService> logger) : IAccountingService
@@ -423,7 +439,13 @@ public class QuickBooksAccountingService(
 
     public async Task<AccountingSyncStatus> GetSyncStatusAsync(CancellationToken ct)
     {
-        var isConnected = await tokenService.IsConnectedAsync(ct);
+        // "Connected" = the resolver can hand us a usable token. Equivalent
+        // to the pre-migration `tokenService.IsConnectedAsync` — the
+        // resolver internally checks token presence + non-expiry of the
+        // refresh token, so we don't need to repeat that logic here.
+        var identity = await identityResolver.ResolveAsync(
+            "quickbooks", userId: null, TokenResolutionPolicy.InstallOnly, ct);
+        var isConnected = identity is not null;
         return new AccountingSyncStatus(isConnected, isConnected ? DateTimeOffset.UtcNow : null, 0, 0);
     }
 
@@ -497,21 +519,32 @@ public class QuickBooksAccountingService(
 
     private async Task<(HttpClient? Client, string RealmId)> GetAuthenticatedClientAsync(CancellationToken ct)
     {
-        var accessToken = await tokenService.GetValidAccessTokenAsync(ct);
-        if (accessToken is null)
+        // Single chokepoint for QB auth — every QueryAsync / GetEntityAsync
+        // / PostEntityAsync routes through here. Resolver hands back a
+        // fresh access token (it transparently refreshes if the cached
+        // one is near expiry) AND the RealmId (which QB's REST surface
+        // scopes every call by). InstallOnly policy is correct here:
+        // QB is one-company-per-install; per-user tokens are incoherent
+        // for it.
+        var identity = await identityResolver.ResolveAsync(
+            "quickbooks", userId: null, TokenResolutionPolicy.InstallOnly, ct);
+
+        if (identity is null)
         {
             logger.LogWarning("[QuickBooks] No valid access token available");
             return (null, string.Empty);
         }
 
-        var token = await tokenService.GetTokenAsync(ct);
-        if (token is null) return (null, string.Empty);
+        var realmId = identity.RealmOrTenantId
+            ?? throw new InvalidOperationException(
+                "QuickBooks identity returned without a RealmId — this should be impossible " +
+                "for a successfully connected QB install.");
 
         var client = httpClientFactory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", identity.AccessToken);
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-        return (client, token.RealmId);
+        return (client, realmId);
     }
 
     private static object BuildDocumentPayload(AccountingDocument document)
