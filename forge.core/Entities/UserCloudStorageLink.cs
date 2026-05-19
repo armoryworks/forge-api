@@ -6,10 +6,17 @@ namespace Forge.Core.Entities;
 /// (user, provider) pair.
 ///
 /// <para>Tokens encrypted at rest via <c>ITokenEncryptionService</c>.</para>
+///
+/// <para><b>UserId is <c>int</c></b> to match <c>ApplicationUser.Id</c>
+/// (ASP.NET Identity's int-keyed primary key on the users table). The
+/// pre-Phase-2c column was <c>Guid</c> — an Artifact 4 mistake that
+/// never matched the actual user keyspace — but no code wrote rows
+/// against it, so the refactor was a clean int-conversion. See migration
+/// <c>UserCloudStorageLinkUserIdToInt</c>.</para>
 /// </summary>
 public class UserCloudStorageLink : BaseAuditableEntity
 {
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
 
     public int ProviderId { get; set; }
 

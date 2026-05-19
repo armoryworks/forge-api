@@ -127,7 +127,7 @@ public class CloudStorageTokenManagerTests
             expiresIn: TimeSpan.FromHours(1));
         var link = new UserCloudStorageLink
         {
-            UserId = Guid.NewGuid(),
+            UserId = 1,
             ProviderId = provider.Id,
             OAuthTokenEncrypted = "user-access-token",
             RefreshTokenEncrypted = "user-refresh-token",
@@ -158,7 +158,7 @@ public class CloudStorageTokenManagerTests
             expiresIn: TimeSpan.FromHours(1));
         var link = new UserCloudStorageLink
         {
-            UserId = Guid.NewGuid(),
+            UserId = 1,
             ProviderId = provider.Id,
             OAuthTokenEncrypted = "expired-user-access",
             RefreshTokenEncrypted = "old-user-refresh",
