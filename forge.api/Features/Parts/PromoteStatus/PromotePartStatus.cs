@@ -64,24 +64,40 @@ public class PromotePartStatusHandler(
                                       && r.AbandonedAt == null, ct);
 
         var missing = await readiness.GetMissingValidatorsAsync(EntityType, request.PartId, ct);
+
+        // When a run is in flight, scope readiness to the run's required-step
+        // gates AND build a validator-id → first-required-step map so the 409
+        // envelope can name the step the user still needs to finish.
+        var firstBlockingStep = new Dictionary<string, WorkflowStepDefinition>(StringComparer.OrdinalIgnoreCase);
         if (run is not null)
         {
             var def = await db.WorkflowDefinitions.AsNoTracking()
                 .FirstOrDefaultAsync(d => d.DefinitionId == run.DefinitionId, ct);
             if (def is not null)
             {
-                var requiredGateIds = WorkflowStepHelper.ParseSteps(def.StepsJson)
+                var requiredSteps = WorkflowStepHelper.ParseSteps(def.StepsJson)
                     .Where(s => s.Required)
+                    .ToList();
+                var requiredGateIds = requiredSteps
                     .SelectMany(s => s.CompletionGates)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
                 missing = [.. missing.Where(m => requiredGateIds.Contains(m.ValidatorId))];
+                foreach (var step in requiredSteps)
+                    foreach (var gate in step.CompletionGates)
+                        firstBlockingStep.TryAdd(gate, step);
             }
         }
 
         if (missing.Count > 0)
         {
-            var payload = missing.Select(m => new MissingValidatorResponseModel(
-                m.ValidatorId, m.DisplayNameKey, m.MissingMessageKey)).ToList();
+            var payload = missing.Select(m =>
+            {
+                firstBlockingStep.TryGetValue(m.ValidatorId, out var step);
+                return new MissingValidatorResponseModel(
+                    m.ValidatorId, m.DisplayNameKey, m.MissingMessageKey,
+                    BlockingStepId: step?.Id,
+                    BlockingStepLabelKey: step?.LabelKey);
+            }).ToList();
             throw new WorkflowMissingValidatorsException(
                 payload,
                 $"Cannot promote Part {request.PartId} to {request.Body.TargetStatus} — readiness validators not satisfied.");

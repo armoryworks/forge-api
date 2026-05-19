@@ -236,6 +236,59 @@ public class WorkflowRunLifecycleTests(CapabilityTestWebApplicationFactory facto
     }
 
     [Fact]
+    public async Task Jump_ForwardBeforeMaterialization_409EnvelopeNamesBlockingStep()
+    {
+        // Forward jump without materialization → the 409 envelope must name
+        // the FIRST step the user has to finish (basics), not just emit a
+        // generic "an earlier step is incomplete" message.
+        var client = AuthenticatedClient();
+        var run = await StartRunAsync(client, """{"name":"NameTheStep"}""");
+
+        var jumpResp = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/jump",
+            new JumpWorkflowRequestModel("bom"));
+        jumpResp.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var jsonBody = await jumpResp.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(jsonBody);
+        var rows = doc.RootElement.GetProperty("missing").EnumerateArray().ToList();
+        rows.Should().NotBeEmpty();
+        rows.Should().OnlyContain(r =>
+            r.GetProperty("blockingStepId").GetString() == "basics",
+            "the only step between currentIdx and target is the still-incomplete basics step");
+        rows.Should().OnlyContain(r =>
+            !string.IsNullOrEmpty(r.GetProperty("blockingStepLabelKey").GetString()),
+            "blockingStepLabelKey lets the UI render the step name in the user's language");
+    }
+
+    [Fact]
+    public async Task Jump_ForwardWithEntity_409EnvelopeNamesBlockingStep()
+    {
+        // Materialize via basics, then try to jump past bom (whose hasBom
+        // gate is unmet because we never added any BOM rows). The envelope
+        // must name 'bom' as the blocking step, not the destination step.
+        var client = AuthenticatedClient();
+        var initial = JsonDocument.Parse(
+            """{"name":"JumpBlocked","procurementSource":"Make","inventoryClass":"Subassembly"}""").RootElement;
+        var run = await StartRunAsync(client, initial.GetRawText());
+        await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/step",
+            new PatchWorkflowStepRequestModel("basics", initial));
+
+        var jumpResp = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/jump",
+            new JumpWorkflowRequestModel("routing"));
+        jumpResp.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var jsonBody = await jumpResp.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(jsonBody);
+        var rows = doc.RootElement.GetProperty("missing").EnumerateArray().ToList();
+        rows.Should().NotBeEmpty();
+        rows.Should().OnlyContain(r => r.GetProperty("blockingStepId").GetString() == "bom",
+            "bom is the still-incomplete step between current (bom) and target (routing)");
+    }
+
+    [Fact]
     public async Task Mode_Toggle_PersistsChange()
     {
         var client = AuthenticatedClient();

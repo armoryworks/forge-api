@@ -67,27 +67,38 @@ public class JumpWorkflowHandler(
             // we'd be jumping over — irrelevant validators (e.g. hasBom on a
             // raw-material workflow that doesn't gate on BOM) stay hidden.
             //
-            // Message text is intentionally generic — internal step IDs
-            // ('sourcing', 'vendorParts', etc.) are NOT user-facing. The
-            // carousel already shows the user where they are and what's
-            // locked; the missing-validators list gives the actionable detail
-            // via translated DisplayNameKey + MissingMessageKey.
+            // Each row carries BlockingStepId/LabelKey so the UI can render
+            // "Finish 'Basics' first" instead of a generic "an earlier step
+            // is incomplete" — internal step IDs ('sourcing' etc.) stay
+            // hidden behind the translated LabelKey.
             if (run.EntityId is null)
             {
-                var blockingGateIds = steps
-                    .Take(targetIdx)
-                    .Skip(currentIdx)
-                    .SelectMany(s => s.CompletionGates)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                // Map every blocked validator id back to the FIRST step it
+                // gates within the jump range. That step is the one the user
+                // has to finish first; later steps may also reference the
+                // same validator but the first is the actionable one.
+                var firstBlockingStep = new Dictionary<string, WorkflowStepDefinition>(StringComparer.OrdinalIgnoreCase);
+                for (var i = currentIdx; i < targetIdx; i++)
+                    foreach (var gate in steps[i].CompletionGates)
+                        firstBlockingStep.TryAdd(gate, steps[i]);
+
+                var blockingGateIds = firstBlockingStep.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var blockingValidators = await db.EntityReadinessValidators
                     .AsNoTracking()
                     .Where(v => v.EntityType == run.EntityType && blockingGateIds.Contains(v.ValidatorId))
                     .ToListAsync(ct);
-                var payloadAll = blockingValidators.Select(v => new MissingValidatorResponseModel(
-                    v.ValidatorId, v.DisplayNameKey, v.MissingMessageKey)).ToList();
+                var payloadAll = blockingValidators.Select(v =>
+                {
+                    var step = firstBlockingStep[v.ValidatorId];
+                    return new MissingValidatorResponseModel(
+                        v.ValidatorId, v.DisplayNameKey, v.MissingMessageKey,
+                        BlockingStepId: step.Id,
+                        BlockingStepLabelKey: step.LabelKey);
+                }).ToList();
+                var firstStepName = steps[currentIdx];
                 throw new WorkflowMissingValidatorsException(
                     payloadAll,
-                    "Can't move forward yet — finish the current step first.");
+                    $"Finish '{firstStepName.LabelKey}' before moving on.");
             }
 
             var missing = await readiness.GetMissingValidatorsAsync(run.EntityType, run.EntityId.Value, ct);
@@ -95,13 +106,18 @@ public class JumpWorkflowHandler(
             for (var i = currentIdx; i < targetIdx; i++)
             {
                 foreach (var gate in steps[i].CompletionGates)
-                    if (failing.Contains(gate))
-                        throw new WorkflowMissingValidatorsException(
-                            missing.Where(m => steps[i].CompletionGates.Contains(m.ValidatorId, StringComparer.OrdinalIgnoreCase))
-                                .Select(m => new MissingValidatorResponseModel(
-                                    m.ValidatorId, m.DisplayNameKey, m.MissingMessageKey))
-                                .ToList(),
-                            "Can't jump ahead — an earlier required step is still incomplete.");
+                {
+                    if (!failing.Contains(gate)) continue;
+                    var blockingStep = steps[i];
+                    throw new WorkflowMissingValidatorsException(
+                        missing.Where(m => blockingStep.CompletionGates.Contains(m.ValidatorId, StringComparer.OrdinalIgnoreCase))
+                            .Select(m => new MissingValidatorResponseModel(
+                                m.ValidatorId, m.DisplayNameKey, m.MissingMessageKey,
+                                BlockingStepId: blockingStep.Id,
+                                BlockingStepLabelKey: blockingStep.LabelKey))
+                            .ToList(),
+                        $"Finish '{blockingStep.LabelKey}' before moving on.");
+                }
             }
         }
 

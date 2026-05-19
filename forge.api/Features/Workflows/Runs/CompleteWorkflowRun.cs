@@ -49,10 +49,19 @@ public class CompleteWorkflowRunHandler(
             .FirstOrDefaultAsync(d => d.DefinitionId == run.DefinitionId, ct)
             ?? throw new InvalidOperationException(
                 $"Workflow definition '{run.DefinitionId}' missing — run is orphaned.");
-        var requiredGateIds = WorkflowStepHelper.ParseSteps(def.StepsJson)
-            .Where(s => s.Required)
+        var defSteps = WorkflowStepHelper.ParseSteps(def.StepsJson);
+        var requiredSteps = defSteps.Where(s => s.Required).ToList();
+        var requiredGateIds = requiredSteps
             .SelectMany(s => s.CompletionGates)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // For each validator id, record the FIRST required step that gates on
+        // it. Lets the 409 envelope say "Finish 'Sourcing' first" instead of
+        // a generic readiness-failure message.
+        var firstBlockingStep = new Dictionary<string, WorkflowStepDefinition>(StringComparer.OrdinalIgnoreCase);
+        foreach (var step in requiredSteps)
+            foreach (var gate in step.CompletionGates)
+                firstBlockingStep.TryAdd(gate, step);
 
         // Deferred materialization: the entity hasn't been created yet, which
         // means the user hasn't completed the first step. Surface this as a
@@ -63,8 +72,14 @@ public class CompleteWorkflowRunHandler(
                 .AsNoTracking()
                 .Where(v => v.EntityType == run.EntityType && requiredGateIds.Contains(v.ValidatorId))
                 .ToListAsync(ct);
-            var payloadAll = defValidators.Select(v => new MissingValidatorResponseModel(
-                v.ValidatorId, v.DisplayNameKey, v.MissingMessageKey)).ToList();
+            var payloadAll = defValidators.Select(v =>
+            {
+                firstBlockingStep.TryGetValue(v.ValidatorId, out var step);
+                return new MissingValidatorResponseModel(
+                    v.ValidatorId, v.DisplayNameKey, v.MissingMessageKey,
+                    BlockingStepId: step?.Id,
+                    BlockingStepLabelKey: step?.LabelKey);
+            }).ToList();
             throw new WorkflowMissingValidatorsException(
                 payloadAll,
                 $"Cannot complete workflow {run.Id} — entity has not been created yet.");
@@ -76,8 +91,14 @@ public class CompleteWorkflowRunHandler(
             .ToList();
         if (requiredMissing.Count > 0)
         {
-            var payload = requiredMissing.Select(m => new MissingValidatorResponseModel(
-                m.ValidatorId, m.DisplayNameKey, m.MissingMessageKey)).ToList();
+            var payload = requiredMissing.Select(m =>
+            {
+                firstBlockingStep.TryGetValue(m.ValidatorId, out var step);
+                return new MissingValidatorResponseModel(
+                    m.ValidatorId, m.DisplayNameKey, m.MissingMessageKey,
+                    BlockingStepId: step?.Id,
+                    BlockingStepLabelKey: step?.LabelKey);
+            }).ToList();
             throw new WorkflowMissingValidatorsException(
                 payload,
                 $"Cannot complete workflow {run.Id} — readiness validators not satisfied.");
