@@ -329,18 +329,19 @@ public class PresetBrowserTests
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        // Terminology — Job → Task, Customer → Client, Work Center → Consultant.
-        // (The agile/scrum rename — Track Type also gets renamed to Task Type
-        // since each TaskType has its own status set.)
+        // Terminology — Job → Engagement (the services-firm bill-worthy unit
+        // of work), Customer kept as "Customer", Work Center → Consultant.
+        // Track Type renamed to "Task Type" since each task type has its own
+        // status set (Epic, Project, Story, Bug, Spike).
         var jobRename = await db.TerminologyEntries
             .FirstOrDefaultAsync(t => t.Key == "entity_job");
         Assert.NotNull(jobRename);
-        Assert.Equal("Task", jobRename!.Label);
+        Assert.Equal("Engagement", jobRename!.Label);
         Assert.Equal("PRESET-08", jobRename.SourcePresetId);
 
         var customerRename = await db.TerminologyEntries
             .FirstOrDefaultAsync(t => t.Key == "entity_customer");
-        Assert.Equal("Client", customerRename?.Label);
+        Assert.Equal("Customer", customerRename?.Label);
 
         var workCenterRename = await db.TerminologyEntries
             .FirstOrDefaultAsync(t => t.Key == "entity_work_center");
@@ -409,7 +410,7 @@ public class PresetBrowserTests
             db.TerminologyEntries.Add(new Forge.Core.Entities.TerminologyEntry
             {
                 Key = "entity_job",
-                Label = "WorkOrder",  // admin's preference, distinct from "Task" (the PRESET-08 default)
+                Label = "WorkOrder",  // admin's preference, distinct from "Engagement" (the PRESET-08 default)
                 IsAdminEdited = true,
             });
             await db.SaveChangesAsync();
@@ -425,7 +426,7 @@ public class PresetBrowserTests
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var jobLabel = await db.TerminologyEntries
                 .FirstAsync(t => t.Key == "entity_job");
-            Assert.Equal("WorkOrder", jobLabel.Label);
+            Assert.Equal("WorkOrder", jobLabel.Label); // not "Engagement"
             Assert.True(jobLabel.IsAdminEdited);
         }
     }

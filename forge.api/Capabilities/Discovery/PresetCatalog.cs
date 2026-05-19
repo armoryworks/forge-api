@@ -284,9 +284,10 @@ public static class PresetCatalog
 
     // ─── Pro Services rollout (Phase 2 foundations) ──────────────────────────
     // PRESET-08 (Pro Services) and PRESET-09 (Hybrid) carry full bundles.
-    // Terminology (Job → Project, Customer → Client, Work Center → Consultant)
-    // per user direction. Apply pipeline (ApplyPresetHandler) reads non-null
-    // bundles and seeds each layer per its conflict policy.
+    // Terminology (Job → Engagement, Customer kept as Customer, Work Center →
+    // Consultant, Planning Cycle → Sprint) per services-industry standard
+    // usage. Apply pipeline (ApplyPresetHandler) reads non-null bundles and
+    // seeds each layer per its conflict policy.
 
     public static PresetDefinition Preset08_ProServices { get; } = new(
         Id: "PRESET-08",
@@ -313,16 +314,18 @@ public static class PresetCatalog
                 "CAP-QC-COMPLIANCE-FORMS", // per D7 — NDAs / MSAs apply to services
             ]),
         // ── Terminology overlay (full) ──
-        // Per the agile / scrum mental model: Job becomes Task (the work-
-        // tracking primitive); Track Type becomes Task Type (Epic, Project,
-        // Story, Bug, Spike — each with its own stage set per the
-        // TrackTypeBundle below).
+        // Services-firm vocabulary: Job → Engagement (the standard bill-worthy
+        // unit of professional-services work), Customer kept as "Customer"
+        // (dominant industry usage). Track Type stays as "Task Type" since
+        // the five rendered tracks (Epic, Project, Story, Bug, Spike) are
+        // agile-flavored task categories underneath engagements. Work Center
+        // → Consultant and Planning Cycle → Sprint remain.
         TerminologyBundle: new TerminologyBundle(
             Labels: new Dictionary<string, string>
             {
-                ["entity_job"] = "Task",
+                ["entity_job"] = "Engagement",
                 ["entity_track_type"] = "Task Type",
-                ["entity_customer"] = "Client",
+                ["entity_customer"] = "Customer",
                 ["entity_work_center"] = "Consultant",
                 ["entity_planning_cycle"] = "Sprint",
                 ["status_in_production"] = "In Progress",
