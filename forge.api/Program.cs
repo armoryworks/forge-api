@@ -426,6 +426,15 @@ try
     // QuickBooks token service (always registered — handles OAuth token lifecycle)
     builder.Services.AddScoped<IQuickBooksTokenService, QuickBooksTokenService>();
 
+    // External identity resolver + store — unified read/write contract for
+    // third-party access tokens. Today only QuickBooks is fully routed; other
+    // providers (Drive, Calendar, Gmail-OAuth, Xero / FreshBooks / Sage /
+    // Zoho / NetSuite) keep using their existing token plumbing and will
+    // migrate onto this surface in Phase 2 follow-up commits. See
+    // ExternalIdentityResolver / ExternalIdentityStore class docs.
+    builder.Services.AddScoped<IExternalIdentityResolver, ExternalIdentityResolver>();
+    builder.Services.AddScoped<IExternalIdentityStore, ExternalIdentityStore>();
+
     // Session (used for OAuth state parameter)
     builder.Services.AddDistributedMemoryCache();
     builder.Services.AddSession(options =>
