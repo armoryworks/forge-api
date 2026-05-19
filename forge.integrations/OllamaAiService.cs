@@ -160,9 +160,12 @@ public class OllamaAiService(
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new System.IO.StreamReader(stream);
 
-        while (!reader.EndOfStream && !ct.IsCancellationRequested)
+        // CA2024: don't poll the blocking EndOfStream in an async method —
+        // ReadLineAsync returns null at end of stream, so loop on that.
+        while (!ct.IsCancellationRequested)
         {
             var line = await reader.ReadLineAsync(ct);
+            if (line is null) break; // end of stream
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             OllamaGenerateResponse? chunk = null;

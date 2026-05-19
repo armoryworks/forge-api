@@ -1,6 +1,6 @@
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
 # Use Debian-based SDK so pwsh + Playwright install work (Alpine lacks glibc)
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy csproj files and restore (cached layer)
@@ -17,18 +17,21 @@ RUN dotnet publish forge.api/forge.api.csproj -c Release -o /app/publish \
 
 # Install Playwright browsers in the build stage so they land in /root/.cache/ms-playwright
 # pwsh is pre-installed in the .NET SDK image
+# libasound2 was renamed libasound2t64 on the Ubuntu 24.04 base the .NET 10
+# images ship on (the time_t transition). The bare name is now an ambiguous
+# virtual package, so name the real one explicitly.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 \
-    libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 \
+    libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2t64 \
     && rm -rf /var/lib/apt/lists/* \
     && pwsh /app/publish/playwright.ps1 install chromium \
     && pwsh /app/publish/playwright.ps1 install ffmpeg
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
 # Install Chromium (PuppeteerSharp fallback) + ffmpeg (AI video muxing).
-# wget is required by the HEALTHCHECK below — aspnet:9.0 base image doesn't
+# wget is required by the HEALTHCHECK below — the aspnet base image doesn't
 # ship it and Docker's container-level probe was reporting "unhealthy" on
 # every interval despite the API responding 200 to /api/v1/health.
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -41,7 +44,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxdamage1 \
     libxrandr2 \
     libgbm1 \
-    libasound2 \
+    libasound2t64 \
     libpangocairo-1.0-0 \
     libgtk-3-0 \
     ffmpeg \

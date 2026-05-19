@@ -1210,7 +1210,8 @@ try
             | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
             | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedHost,
     };
-    forwardedHeadersOptions.KnownNetworks.Clear();
+    // ASPDEPR005: KnownNetworks is obsolete in .NET 10 — use KnownIPNetworks.
+    forwardedHeadersOptions.KnownIPNetworks.Clear();
     forwardedHeadersOptions.KnownProxies.Clear();
     app.UseForwardedHeaders(forwardedHeadersOptions);
     app.UseMiddleware<SecurityHeadersMiddleware>();

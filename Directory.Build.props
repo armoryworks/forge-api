@@ -1,0 +1,23 @@
+<Project>
+
+  <!--
+    Solution-wide build properties.
+
+    NU1608 suppression — EFCore.BulkExtensions.MIT (the free MIT-licensed
+    meta-package we use for bulk operations) bundles a multi-provider set
+    that includes Pomelo.EntityFrameworkCore.MySql 9.0.0, which caps
+    Microsoft.EntityFrameworkCore.Relational at <= 9.0.999. We target EF Core
+    10 and use PostgreSQL (Npgsql) only — the MySQL provider is never loaded,
+    so the transitive EF-version mismatch is benign at runtime.
+
+    Pomelo has no EF Core 10 release yet. Switching to the provider-specific
+    EFCore.BulkExtensions.PostgreSql package would drop the MySQL transitive
+    but changes the license to the commercial tier — we deliberately stay on
+    the MIT variant. Remove this suppression once Pomelo ships an EF Core 10
+    build (or BulkExtensions.MIT drops MySQL from the meta-package).
+  -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);NU1608</NoWarn>
+  </PropertyGroup>
+
+</Project>
