@@ -350,8 +350,15 @@ public static class DiscoveryRecommendationEngine
     {
         var count = 0;
 
-        var qd1 = answers.Get("Q-D1");
-        if (qd1 == "lots" || qd1 == "serials" || qd1 == "both")
+        // Q-D1 became multi-choice (lots / serials checkboxes). Any
+        // non-empty selection is a traceability signal — including legacy
+        // single-value answers ("lots" / "serials" / "both") for sessions
+        // captured before the migration. Empty or legacy "neither" means
+        // no tracking.
+        var qd1 = (answers.Get("Q-D1") ?? string.Empty).Trim();
+        var tracks = qd1.Length > 0
+            && !string.Equals(qd1, "neither", StringComparison.OrdinalIgnoreCase);
+        if (tracks)
         {
             count++;
             factors.Add(new DiscoveryRecommendationFactor("Q-D1",

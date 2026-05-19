@@ -321,15 +321,13 @@ public static class DiscoveryQuestionCatalog
         Id: "Q-D1",
         Stage: DiscoveryStage.Diagnostic,
         Category: DiscoveryCategory.Diagnostic,
-        Type: DiscoveryQuestionType.SingleChoice,
-        Text: "Do you track parts by lot number, by serial number, both, or neither?",
-        WhyAsking: "Disambiguates the Regulated Manufacturer baseline (recall depends on at least one of lot or serial). Production-preset shops without compliance pressure may still want lot or serial for customer demand.",
+        Type: DiscoveryQuestionType.MultiChoice,
+        Text: "How do you track parts for traceability? Check whichever applies — leave both unchecked if you don't track either.",
+        WhyAsking: "Lot vs serial aren't a graded scale — they're independent axes. Many shops track lots (for raw-material recall) AND serials (for finished-goods warranty). Disambiguates the Regulated Manufacturer baseline; ANY traceability axis counts as a soft regulation signal.",
         Choices:
         [
-            new("neither", "Neither"),
-            new("lots", "Lot only"),
-            new("serials", "Serial only"),
-            new("both", "Both"),
+            new("lots", "We track by lot number (raw-material batches, paint lots, etc.)"),
+            new("serials", "We track by serial number (individually-identified units, often for warranty or recall)"),
         ]);
 
     private static readonly DiscoveryQuestion QD2 = new(
@@ -359,15 +357,13 @@ public static class DiscoveryQuestionCatalog
         Id: "Q-D4",
         Stage: DiscoveryStage.Diagnostic,
         Category: DiscoveryCategory.Diagnostic,
-        Type: DiscoveryQuestionType.SingleChoice,
-        Text: "Do your shop-floor or warehouse workers have email accounts and personal logins, or do they share a kiosk or terminal? And do you run shifts, or is everyone on a single schedule?",
-        WhyAsking: "Two follow-ups bundled: kiosk auth need, and whether shifts apply. Both feed capability defaults.",
+        Type: DiscoveryQuestionType.MultiChoice,
+        Text: "Tell us about your shop floor / warehouse access patterns. Check what applies — leave unchecked for the defaults (everyone has email, single schedule).",
+        WhyAsking: "Kiosk auth vs personal logins, and shift-scheduling vs single-schedule, are independent axes. Either combination is realistic — email logins on multi-shift, or kiosks on single-shift. Multi-choice captures the truth instead of cramming four real states into one option list.",
         Choices:
         [
-            new("email-single", "Everyone has email; single schedule"),
-            new("email-shifts", "Everyone has email; multiple shifts"),
-            new("kiosk-single", "Shared terminal / kiosk; single schedule"),
-            new("kiosk-shifts", "Shared terminal / kiosk; multiple shifts"),
+            new("kiosk", "Shop-floor / warehouse workers share a terminal or kiosk (no individual email logins)"),
+            new("shifts", "We run multiple shifts (not everyone on one schedule)"),
         ]);
 
     private static readonly DiscoveryQuestion QD5 = new(
