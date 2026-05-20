@@ -85,6 +85,29 @@ public class VendorPartsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    // ── CSV bulk import: dry-run preview + apply ──────────────────────────
+    // Two-step flow mirroring the price-list-entry importer. Preview is
+    // read-only; apply upserts by (vendorId, partId). Scoped under the vendor
+    // since you import a single vendor's catalog at a time.
+
+    [HttpPost("/api/v1/vendors/{vendorId:int}/vendor-parts/import-preview")]
+    [RequestSizeLimit(5 * 1024 * 1024)]
+    public async Task<ActionResult<VendorPartImportPreviewResponseModel>> PreviewImport(
+        int vendorId, IFormFile file, CancellationToken ct)
+    {
+        var result = await mediator.Send(new PreviewVendorPartImportCommand(vendorId, file), ct);
+        return Ok(result);
+    }
+
+    [HttpPost("/api/v1/vendors/{vendorId:int}/vendor-parts/import-apply")]
+    [RequestSizeLimit(5 * 1024 * 1024)]
+    public async Task<ActionResult<VendorPartImportResultResponseModel>> ApplyImport(
+        int vendorId, IFormFile file, CancellationToken ct)
+    {
+        var result = await mediator.Send(new ApplyVendorPartImportCommand(vendorId, file), ct);
+        return Ok(result);
+    }
+
     // ── Price tier routes ─────────────────────────────────────────────────
 
     [HttpPost("{vendorPartId:int}/price-tiers")]
