@@ -43,12 +43,11 @@
     <ProjectReference Include="..\forge.core\forge.core.csproj" />
     <ProjectReference Include="..\forge.data\forge.data.csproj" />
     <ProjectReference Include="..\forge.integrations\forge.integrations.csproj" />
-    <ProjectReference Include="..\Forge.Platform\Forge.Platform.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="Forge.Platform.Entities" />
-    <Using Include="Forge.Platform.Time" />
+    <Using Include="Forge.Core.Entities" />
+    <Using Include="Forge.Core.Interfaces" />
   </ItemGroup>
 
   <ItemGroup>

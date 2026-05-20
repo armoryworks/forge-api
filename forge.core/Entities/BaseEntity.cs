@@ -1,4 +1,4 @@
-namespace Forge.Platform.Entities;
+namespace Forge.Core.Entities;
 
 public abstract class BaseEntity
 {

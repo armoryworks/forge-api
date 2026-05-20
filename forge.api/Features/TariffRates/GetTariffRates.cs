@@ -11,7 +11,7 @@ namespace Forge.Api.Features.TariffRates;
 /// (active + closed) ordered by HTS / country / EffectiveFrom DESC so the
 /// admin sees the most-recent rate per (HtsCode, CountryOfOrigin) at the
 /// top of each natural group. Soft-deleted rows are filtered out by the
-/// global query filter on <see cref="Forge.Platform.Entities.BaseEntity"/>.
+/// global query filter on <see cref="Forge.Core.Entities.BaseEntity"/>.
 /// </summary>
 public record GetTariffRatesQuery() : IRequest<List<TariffRateResponseModel>>;
 

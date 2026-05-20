@@ -1,4 +1,4 @@
-namespace Forge.Platform.Time;
+namespace Forge.Integrations;
 
 /// <summary>
 /// Controllable clock for simulation and testing.

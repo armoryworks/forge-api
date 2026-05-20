@@ -46,7 +46,7 @@ public class ImapEmailSyncProvider(
     IDataProtectionProvider dataProtection,
     IImapClientFactory clientFactory,
     IImapOAuthService oauthService,
-    Forge.Platform.Time.IClock clock,
+    Forge.Core.Interfaces.IClock clock,
     ILogger<ImapEmailSyncProvider> logger) : ICommunicationSyncProvider
 {
     private const string ProtectorPurpose = "communication-sync.imap";

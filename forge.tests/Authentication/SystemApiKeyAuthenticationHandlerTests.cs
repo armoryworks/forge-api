@@ -20,9 +20,9 @@ using Forge.Tests.Helpers;
 
 // SystemClock lives in both Microsoft.AspNetCore.Authentication (legacy
 // abstraction, still referenced by the auth scheme infrastructure) and
-// Forge.Platform.Time (our IClock implementation). The handler under test
+// Forge.Core.Interfaces (our IClock implementation). The handler under test
 // takes IClock, so we want the Forge one.
-using SystemClock = Forge.Platform.Time.SystemClock;
+using SystemClock = Forge.Integrations.SystemClock;
 
 namespace Forge.Tests.Authentication;
 
