@@ -722,7 +722,12 @@ try
     {
         builder.Services.AddSingleton<ICalendarIntegrationService, MockCalendarIntegrationService>();
         builder.Services.AddSingleton<IMessagingIntegrationService, MockMessagingIntegrationService>();
-        builder.Services.AddSingleton<ICloudStorageIntegrationService, MockCloudStorageIntegrationService>();
+        // NOTE: the mock cloud-storage provider is registered unconditionally
+        // by the always-on substrate block below (Scoped), so it must NOT be
+        // re-registered here — a second registration makes
+        // IEnumerable<ICloudStorageIntegrationService> yield two "mock"
+        // services and CloudStorageResolver's ToDictionary throws on the
+        // duplicate code, 500-ing every handler that touches storage.
     }
     else
     {

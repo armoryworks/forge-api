@@ -18,8 +18,15 @@ public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db) : I
 
         var data = await repo.GetDashboardDataAsync(cancellationToken);
 
+        // Onboarding "Getting Started" completion counts. Cheap COUNTs; the
+        // global soft-delete query filter excludes deleted rows. Surfaced so
+        // the dashboard banner keys step completion off real customer /
+        // track-type counts instead of unrelated kanban stage counts.
+        var customerCount = await db.Customers.CountAsync(cancellationToken);
+        var trackTypeCount = await db.TrackTypes.CountAsync(cancellationToken);
+
         if (data.ProductionTrack is null)
-            return EmptyDashboard();
+            return EmptyDashboard(customerCount, trackTypeCount);
 
         var stages = data.ProductionTrack.Stages
             .Where(s => s.IsActive)
@@ -128,11 +135,14 @@ public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db) : I
             hoursLabel,
             totalHoursValue > 0 ? "up" : "neutral");
 
-        return new DashboardResponseModel(tasks, stageCounts, teamMembers, activity, deadlines, kpis);
+        return new DashboardResponseModel(tasks, stageCounts, teamMembers, activity, deadlines, kpis,
+            customerCount, trackTypeCount);
     }
 
-    private static DashboardResponseModel EmptyDashboard() => new([], [], [], [], [],
-        new DashboardKPIsResponseModel(0, 0, 0, 0, "0h", "neutral"));
+    private static DashboardResponseModel EmptyDashboard(int customerCount = 0, int trackTypeCount = 0) =>
+        new([], [], [], [], [],
+            new DashboardKPIsResponseModel(0, 0, 0, 0, "0h", "neutral"),
+            customerCount, trackTypeCount);
 
     private static string GenerateDisplayTime(int index)
     {

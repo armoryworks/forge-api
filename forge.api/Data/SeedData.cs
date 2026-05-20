@@ -698,8 +698,10 @@ public static partial class SeedData
             pmorris.Id, lwilson.Id, cthompson.Id, bkelly.Id);
 
         // ── Job Number Sequence ───────────────────────────────────────────
-        // Create the job_number_seq sequence used by JobRepository.GenerateNextJobNumberAsync.
-        // Start value is derived from the highest existing J-XXXX job number + 1.
+        // The job_number_seq sequence is created by SeedEssentialDataAsync
+        // (always-run, so clean installs work too). Here we just advance it
+        // past the demo jobs we seeded so the next created job doesn't reuse a
+        // J-XXXX number. Derived from the highest existing J-XXXX job number.
         var maxJobNum = await db.Jobs
             .Where(j => j.JobNumber != null && j.JobNumber.StartsWith("J-"))
             .Select(j => j.JobNumber)
@@ -708,13 +710,14 @@ public static partial class SeedData
             .Select(jn => int.TryParse(jn.Replace("J-", ""), out var n) ? n : 0)
             .DefaultIfEmpty(0)
             .Max();
-        var startWith = maxNum + 1;
-        // DDL doesn't support parameterized queries — value is a safe integer from our own MAX()
+        if (maxNum > 0)
+        {
+            // setval doesn't support parameterized queries — value is a safe integer from our own MAX()
 #pragma warning disable EF1002
-        await db.Database.ExecuteSqlRawAsync(
-            $"CREATE SEQUENCE IF NOT EXISTS job_number_seq START WITH {startWith}");
+            await db.Database.ExecuteSqlRawAsync($"SELECT setval('job_number_seq', {maxNum})");
 #pragma warning restore EF1002
-        Log.Information("Ensured job_number_seq (next value: {NextVal})", maxNum + 1);
+            Log.Information("Advanced job_number_seq (next value: {NextVal})", maxNum + 1);
+        }
 
         Log.Information("Database seeding complete");
     }

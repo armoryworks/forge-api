@@ -31,7 +31,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             {
                 Status = StatusCodes.Status400BadRequest,
                 Title = "Validation failed",
-                Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1"
+                Type = "about:blank"
             };
 
             await context.Response.WriteAsJsonAsync(problem);
@@ -46,7 +46,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 Status = StatusCodes.Status404NotFound,
                 Title = "Not found",
                 Detail = ex.Message,
-                Type = "https://tools.ietf.org/html/rfc9110#section-15.5.5"
+                Type = "about:blank"
             };
 
             await context.Response.WriteAsJsonAsync(problem);
@@ -66,7 +66,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 status = StatusCodes.Status409Conflict,
                 title = "Readiness validators not satisfied",
                 detail = ex.Message,
-                type = "https://tools.ietf.org/html/rfc9110#section-15.5.10",
+                type = "about:blank",
                 code = "workflow-readiness-missing",
                 missing = ex.Missing,
             };
@@ -86,7 +86,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             {
                 Status = StatusCodes.Status500InternalServerError,
                 Title = "An error occurred",
-                Type = "https://tools.ietf.org/html/rfc9110#section-15.6.1"
+                Type = "about:blank"
             };
 
             await context.Response.WriteAsJsonAsync(problem);
@@ -102,7 +102,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 Status = StatusCodes.Status409Conflict,
                 Title = "Conflict",
                 Detail = ex.Message,
-                Type = "https://tools.ietf.org/html/rfc9110#section-15.5.10"
+                Type = "about:blank"
             };
 
             await context.Response.WriteAsJsonAsync(problem);
@@ -137,7 +137,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 Status = StatusCodes.Status401Unauthorized,
                 Title = "Unauthorized",
                 Detail = ex.Message,
-                Type = "https://tools.ietf.org/html/rfc9110#section-15.5.2"
+                Type = "about:blank"
             };
 
             await context.Response.WriteAsJsonAsync(problem);
@@ -160,7 +160,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 Status = StatusCodes.Status401Unauthorized,
                 Title = "Authentication failed",
                 Detail = ex.Message,
-                Type = "https://tools.ietf.org/html/rfc9110#section-15.5.2"
+                Type = "about:blank"
             };
 
             await context.Response.WriteAsJsonAsync(problem);
@@ -183,7 +183,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 Status = StatusCodes.Status403Forbidden,
                 Title = "Domain not permitted",
                 Detail = ex.Message,
-                Type = "https://tools.ietf.org/html/rfc9110#section-15.5.4"
+                Type = "about:blank"
             };
 
             await context.Response.WriteAsJsonAsync(problem);
@@ -199,7 +199,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             {
                 Status = StatusCodes.Status500InternalServerError,
                 Title = "An error occurred",
-                Type = "https://tools.ietf.org/html/rfc9110#section-15.6.1"
+                Type = "about:blank"
             };
 
             await context.Response.WriteAsJsonAsync(problem);

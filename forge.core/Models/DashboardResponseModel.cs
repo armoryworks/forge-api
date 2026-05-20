@@ -6,4 +6,6 @@ public record DashboardResponseModel(
     List<TeamMemberResponseModel> Team,
     List<ActivityEntryResponseModel> Activity,
     List<DeadlineEntryResponseModel> Deadlines,
-    DashboardKPIsResponseModel Kpis);
+    DashboardKPIsResponseModel Kpis,
+    int CustomerCount,
+    int TrackTypeCount);

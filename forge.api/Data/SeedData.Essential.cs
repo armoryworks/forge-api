@@ -477,6 +477,16 @@ public static partial class SeedData
         // ── Pillar 2 follow-up — Part MaterialSpec / ValuationClass ───────
         await SeedPartMaterialSpecsAsync(db);
         await SeedPartValuationClassesAsync(db);
+
+        // ── Job Number Sequence (essential) ───────────────────────────────
+        // JobRepository.GenerateNextJobNumberAsync reads nextval('job_number_seq').
+        // Created here (always-run) so job creation works on clean installs —
+        // not only when demo data is seeded. Idempotent; the demo path advances
+        // it past seeded jobs via setval. Without this, job creation 500s on
+        // every SEED_DEMO_DATA=false install with: relation "job_number_seq"
+        // does not exist.
+        await db.Database.ExecuteSqlRawAsync("CREATE SEQUENCE IF NOT EXISTS job_number_seq START WITH 1");
+        Log.Information("Ensured job_number_seq exists");
     }
 
     /// <summary>

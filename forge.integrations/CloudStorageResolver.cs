@@ -31,7 +31,21 @@ public class CloudStorageResolver : ICloudStorageResolver
     {
         _logger = logger;
         var list = services.ToList();
-        _byCode = list.ToDictionary(s => s.ProviderCode, StringComparer.OrdinalIgnoreCase);
+
+        // Defensive de-dupe: a provider code maps to exactly one service. A
+        // duplicate registration (e.g. mock registered in two DI blocks) must
+        // never throw here — that would 500 every handler that touches
+        // storage. Keep the first per code, warn on the rest.
+        _byCode = new Dictionary<string, ICloudStorageIntegrationService>(StringComparer.OrdinalIgnoreCase);
+        foreach (var svc in list)
+        {
+            if (!_byCode.TryAdd(svc.ProviderCode, svc))
+            {
+                _logger.LogWarning(
+                    "Duplicate cloud-storage provider code '{Code}' registered — ignoring extra ({Type}).",
+                    svc.ProviderCode, svc.GetType().Name);
+            }
+        }
 
         // Default: the first non-mock service if any real provider is
         // registered, otherwise the mock. Lookup-order in DI registration
