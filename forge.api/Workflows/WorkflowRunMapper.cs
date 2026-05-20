@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 using Forge.Core.Entities;
 using Forge.Core.Models;
 
@@ -18,5 +20,13 @@ internal static class WorkflowRunMapper
         row.AbandonedAt,
         row.AbandonedReason,
         row.LastActivityAt,
-        row.Version);
+        row.Version,
+        ParseDraftPayload(row.DraftPayload));
+
+    private static JsonNode? ParseDraftPayload(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        try { return JsonNode.Parse(raw); }
+        catch (System.Text.Json.JsonException) { return null; }
+    }
 }

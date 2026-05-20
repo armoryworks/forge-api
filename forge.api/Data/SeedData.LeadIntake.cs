@@ -34,7 +34,14 @@ namespace Forge.Api.Data;
 public static partial class SeedData
 {
     private const string LeadIntakeUserEmail = "lead-intake-system@forge.local";
-    private const string LeadIntakeRoleName = "LeadIntake";
+
+    /// <summary>
+    /// Role granted to headless service identities (e.g. the lead-intake
+    /// integration principal). Exposed so consumers like the employee roster
+    /// can exclude these non-human accounts from people-facing lists without
+    /// hard-coding the literal.
+    /// </summary>
+    public const string LeadIntakeRoleName = "LeadIntake";
 
     public static async Task SeedLeadIntakeBootstrapAsync(IServiceProvider services)
     {

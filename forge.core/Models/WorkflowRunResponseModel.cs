@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 namespace Forge.Core.Models;
 
 /// <summary>
@@ -19,4 +21,10 @@ public record WorkflowRunResponseModel(
     DateTimeOffset? AbandonedAt,
     string? AbandonedReason,
     DateTimeOffset LastActivityAt,
-    uint Version);
+    uint Version,
+    // The in-flight initial payload (camelCase keys, e.g. procurementSource /
+    // inventoryClass) held until the entity materializes. Surfaced so list
+    // pages can render entity-less draft "ghost" rows that reflect the user's
+    // actual picker selections instead of generic defaults. Null once EntityId
+    // is stamped (the column is cleared at materialization).
+    JsonNode? DraftPayload);

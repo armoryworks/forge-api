@@ -3,6 +3,7 @@ using Moq;
 
 using Microsoft.AspNetCore.Identity;
 
+using Forge.Api.Data;
 using Forge.Api.Features.Employees;
 using Forge.Core.Entities;
 using Forge.Core.Models;
@@ -20,6 +21,12 @@ public class GetEmployeeListHandlerTests
         var store = new Mock<IUserStore<ApplicationUser>>();
         _userManager = new Mock<UserManager<ApplicationUser>>(
             store.Object, null!, null!, null!, null!, null!, null!, null!, null!);
+
+        // The handler excludes service identities (LeadIntake role) from the
+        // roster. Default to no service users so existing assertions hold;
+        // a dedicated test overrides this to verify the exclusion.
+        _userManager.Setup(u => u.GetUsersInRoleAsync(It.IsAny<string>()))
+            .ReturnsAsync([]);
     }
 
     [Fact]
@@ -98,5 +105,32 @@ public class GetEmployeeListHandlerTests
         // Assert (Phase 3 F7-broad / WU-22 — paged envelope)
         result.Items.Should().HaveCount(1);
         result.Items.First().FirstName.Should().Be("Admin");
+    }
+
+    [Fact]
+    public async Task Handle_ExcludesServiceIdentities_FromRosterAndCount()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var human = new ApplicationUser { Id = 1, FirstName = "Dan", LastName = "Hokanson", Initials = "DH", AvatarColor = "#4f46e5", Email = "dan@test.com", UserName = "dan", IsActive = true };
+        var service = new ApplicationUser { Id = 2, FirstName = "Lead Intake", LastName = "Service", Initials = "LI", AvatarColor = "#64748b", Email = "lead-intake-system@forge.local", UserName = "lead-intake-system@forge.local", IsActive = true };
+        db.Users.AddRange(human, service);
+        await db.SaveChangesAsync();
+
+        _userManager.Setup(u => u.GetRolesAsync(It.IsAny<ApplicationUser>()))
+            .ReturnsAsync(["Engineer"]);
+        _userManager.Setup(u => u.GetUsersInRoleAsync(SeedData.LeadIntakeRoleName))
+            .ReturnsAsync([service]);
+
+        var handler = new GetEmployeeListHandler(db, _userManager.Object);
+        var query = new GetEmployeeListQuery(new EmployeeListQuery(), null, true);
+
+        // Act
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        // Assert — service identity is absent from both the page and the total.
+        result.Items.Should().HaveCount(1);
+        result.Items.First().LastName.Should().Be("Hokanson");
+        result.TotalCount.Should().Be(1);
     }
 }

@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Data;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -31,6 +32,16 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
             .Include(u => u.WorkLocation)
             .AsNoTracking()
             .AsQueryable();
+
+        // Exclude headless service identities (e.g. the lead-intake integration
+        // principal) from the people roster — they are API/SSO principals, not
+        // employees, and showing them confuses the headcount. Done DB-side
+        // before count/paging so totals stay accurate.
+        var serviceUserIds = (await userManager.GetUsersInRoleAsync(SeedData.LeadIntakeRoleName))
+            .Select(u => u.Id)
+            .ToList();
+        if (serviceUserIds.Count > 0)
+            users = users.Where(u => !serviceUserIds.Contains(u.Id));
 
         // Manager restriction: only see users in same team
         if (!request.CallerIsAdmin && request.CallerUserId.HasValue)
