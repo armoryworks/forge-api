@@ -11,7 +11,7 @@ namespace Forge.Api.Features.Scanner;
 public record UnpairScanDeviceCommand(int DeviceId) : IRequest;
 
 public class UnpairScanDeviceHandler(
-    AppDbContext db,
+    IIdentityDbContext db,
     IHttpContextAccessor httpContext)
     : IRequestHandler<UnpairScanDeviceCommand>
 {

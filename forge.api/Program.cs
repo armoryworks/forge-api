@@ -108,6 +108,11 @@ try
             .ConfigureWarnings(w =>
                 w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
+    // Phase C — per-vertical DbContext interfaces resolve to the single
+    // AppDbContext scope. Identity handlers depend on IIdentityDbContext so
+    // they can later move into Forge.Identity without a forge.data cycle.
+    builder.Services.AddScoped<IIdentityDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+
     // ASP.NET Identity
     builder.Services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
     {

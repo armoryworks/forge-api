@@ -8,7 +8,7 @@ using Forge.Core.Interfaces;
 
 namespace Forge.Data.Context;
 
-public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>, int>, IDataProtectionKeyContext
+public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>, int>, IDataProtectionKeyContext, IIdentityDbContext
 {
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 

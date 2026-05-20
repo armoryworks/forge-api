@@ -12,7 +12,7 @@ namespace Forge.Api.Features.Scanner;
 public record GetScanDevicesQuery : IRequest<List<ScanDeviceResponseModel>>;
 
 public class GetScanDevicesHandler(
-    AppDbContext db,
+    IIdentityDbContext db,
     IHttpContextAccessor httpContext)
     : IRequestHandler<GetScanDevicesQuery, List<ScanDeviceResponseModel>>
 {

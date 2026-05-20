@@ -24,7 +24,7 @@ public class PairScanDeviceCommandValidator : AbstractValidator<PairScanDeviceCo
 }
 
 public class PairScanDeviceHandler(
-    AppDbContext db,
+    IIdentityDbContext db,
     IClock clock,
     IHttpContextAccessor httpContext)
     : IRequestHandler<PairScanDeviceCommand, ScanDeviceResponseModel>
