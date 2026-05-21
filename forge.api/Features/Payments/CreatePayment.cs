@@ -68,8 +68,11 @@ public class CreatePaymentHandler(IPaymentRepository repo, ICustomerRepository c
                 var invoice = await invoiceRepo.FindWithDetailsAsync(app.InvoiceId, cancellationToken)
                     ?? throw new KeyNotFoundException($"Invoice {app.InvoiceId} not found");
 
-                var balanceDue = invoice.Lines.Sum(l => l.Quantity * l.UnitPrice) * (1 + invoice.TaxRate)
-                    - invoice.PaymentApplications.Sum(pa => pa.Amount);
+                // F-027: consume the canonical Invoice.BalanceDue rather than re-deriving the
+                // money formula here. The two were numerically equal only while
+                // InvoiceLine.LineTotal == Quantity * UnitPrice; a single source of truth keeps
+                // payment validation and the invoice's reported balance from drifting apart.
+                var balanceDue = invoice.BalanceDue;
 
                 if (app.Amount > balanceDue)
                     throw new InvalidOperationException(
