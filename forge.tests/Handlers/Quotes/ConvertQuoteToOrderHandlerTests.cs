@@ -212,4 +212,83 @@ public class ConvertQuoteToOrderHandlerTests
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*already been converted*");
     }
+
+    // ── INV-SO1 / REQ-SO-01 ──────────────────────────────────────────────────
+
+    [Fact]
+    public async Task PriceLock_AllSoLinesPreserveExactQuoteUnitPrice_InvSo1()
+    {
+        // Asserts INV-SO1: every SO line's UnitPrice must equal the originating
+        // quote line's UnitPrice exactly — no rounding, no override, no drift.
+        var quoteId = _faker.Random.Int(1, 100);
+        var quoteLines = Enumerable.Range(1, 5).Select(i => new QuoteLine
+        {
+            QuoteId = quoteId,
+            Description = _faker.Commerce.ProductName(),
+            Quantity = _faker.Random.Decimal(1m, 100m),
+            UnitPrice = _faker.Random.Decimal(0.01m, 9999.99m),
+            LineNumber = i,
+        }).ToList();
+
+        var quote = new Quote
+        {
+            Id = quoteId,
+            CustomerId = 1,
+            Status = QuoteStatus.Accepted,
+            TaxRate = 0.08m,
+            Customer = new Customer { Id = 1, Name = "LockCo" },
+        };
+        foreach (var ql in quoteLines)
+            quote.Lines.Add(ql);
+
+        _quoteRepo.Setup(r => r.FindWithDetailsAsync(quoteId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(quote);
+        _orderRepo.Setup(r => r.GenerateNextOrderNumberAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync("SO-LOCK-01");
+
+        SalesOrder? captured = null;
+        _orderRepo.Setup(r => r.AddAsync(It.IsAny<SalesOrder>(), It.IsAny<CancellationToken>()))
+            .Callback<SalesOrder, CancellationToken>((o, _) => captured = o);
+
+        await _handler.Handle(new ConvertQuoteToOrderCommand(quoteId), CancellationToken.None);
+
+        captured.Should().NotBeNull();
+        captured!.Lines.Should().HaveCount(quoteLines.Count);
+
+        // Every SO line must carry the exact UnitPrice from the corresponding quote line.
+        var ordered = captured.Lines.OrderBy(l => l.LineNumber).ToList();
+        for (var i = 0; i < quoteLines.Count; i++)
+        {
+            ordered[i].UnitPrice.Should().Be(quoteLines[i].UnitPrice,
+                $"SO line {i + 1} must preserve the quote line UnitPrice (INV-SO1)");
+        }
+    }
+
+    [Theory]
+    [InlineData(QuoteStatus.Draft)]
+    [InlineData(QuoteStatus.Sent)]
+    [InlineData(QuoteStatus.Declined)]
+    [InlineData(QuoteStatus.Expired)]
+    [InlineData(QuoteStatus.ConvertedToOrder)]
+    public async Task NonAcceptedQuote_ThrowsInvalidOperationException_AllNonAcceptedStates(QuoteStatus status)
+    {
+        // Asserts that the guard on line 19-20 of ConvertQuoteToOrder.cs fires for
+        // every non-Accepted status — not only Draft (REQ-SO-01 pre-condition).
+        var quoteId = _faker.Random.Int(1, 100);
+        var quote = new Quote
+        {
+            Id = quoteId,
+            CustomerId = 1,
+            Status = status,
+            Customer = new Customer { Id = 1, Name = "Test" },
+        };
+
+        _quoteRepo.Setup(r => r.FindWithDetailsAsync(quoteId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(quote);
+
+        var act = () => _handler.Handle(new ConvertQuoteToOrderCommand(quoteId), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Accepted*");
+    }
 }
