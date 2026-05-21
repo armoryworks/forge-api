@@ -14,8 +14,11 @@ public class CancelPurchaseOrderHandler(IPurchaseOrderRepository repo)
         var po = await repo.FindAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Purchase order {request.Id} not found");
 
-        if (po.Status == PurchaseOrderStatus.Received || po.Status == PurchaseOrderStatus.Closed)
-            throw new InvalidOperationException("Cannot cancel a received or closed purchase order");
+        // F-033: source-state whitelist — only pre-receipt POs may be cancelled;
+        // re-cancel of Cancelled is a silent duplicate; PartiallyReceived/Received/Closed have committed stock
+        if (po.Status is not (PurchaseOrderStatus.Draft or PurchaseOrderStatus.Submitted or PurchaseOrderStatus.Acknowledged))
+            throw new InvalidOperationException(
+                $"Cannot cancel a purchase order in status {po.Status}. Allowed: Draft, Submitted, Acknowledged.");
 
         po.Status = PurchaseOrderStatus.Cancelled;
         await repo.SaveChangesAsync(cancellationToken);

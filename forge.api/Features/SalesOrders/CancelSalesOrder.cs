@@ -14,8 +14,11 @@ public class CancelSalesOrderHandler(ISalesOrderRepository repo)
         var order = await repo.FindAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Sales order {request.Id} not found");
 
-        if (order.Status == SalesOrderStatus.Shipped || order.Status == SalesOrderStatus.Completed)
-            throw new InvalidOperationException("Cannot cancel shipped or completed orders");
+        // F-033: source-state whitelist — only open/in-flight orders may be cancelled;
+        // re-cancel of Cancelled is a silent duplicate; InProduction/Shipped/Completed are committed
+        if (order.Status is not (SalesOrderStatus.Draft or SalesOrderStatus.Confirmed or SalesOrderStatus.PartiallyShipped))
+            throw new InvalidOperationException(
+                $"Cannot cancel a sales order in status {order.Status}. Allowed: Draft, Confirmed, PartiallyShipped.");
 
         order.Status = SalesOrderStatus.Cancelled;
 
