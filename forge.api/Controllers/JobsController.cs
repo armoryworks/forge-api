@@ -376,7 +376,9 @@ public class JobsController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new GetJobHistoryQuery(id), ct));
 
     // Job Costing
+    // F-038: per-job P&L (quoted price, labor/material actuals, margin) is not for production workers.
     [HttpGet("{id:int}/cost-summary")]
+    [Authorize(Roles = "Admin,Manager,Engineer,PM,Controller,OfficeManager")]
     public async Task<ActionResult<JobCostSummaryModel>> GetCostSummary(int id, CancellationToken ct)
         => Ok(await mediator.Send(new GetJobCostSummaryQuery(id), ct));
 
