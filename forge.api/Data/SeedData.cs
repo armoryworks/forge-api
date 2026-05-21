@@ -730,7 +730,13 @@ public static partial class SeedData
     {
         var existing = await userManager.FindByEmailAsync(email);
         if (existing is not null)
+        {
+            // Always re-apply the seed password so reseeds are idempotent regardless
+            // of how the account was originally created (setup wizard vs. seed).
+            await userManager.RemovePasswordAsync(existing);
+            await userManager.AddPasswordAsync(existing, password);
             return existing;
+        }
 
         var user = new ApplicationUser
         {
