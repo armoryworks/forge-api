@@ -21,6 +21,7 @@ public class LoginHandlerTests
     private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
     private readonly Mock<ISystemAuditWriter> _auditWriterMock;
     private readonly Mock<IRoleClaimsExpander> _roleClaimsExpanderMock;
+    private readonly Mock<IMfaPreAuthTokenService> _mfaPreAuthMock;
     private readonly AppDbContext _db;
     private readonly LoginHandler _handler;
     private readonly Faker _faker = new();
@@ -45,12 +46,15 @@ public class LoginHandlerTests
             .Setup(x => x.GetEffectiveRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<string>());
 
+        _mfaPreAuthMock = new Mock<IMfaPreAuthTokenService>();
+
         _db = TestDbContextFactory.Create();
         _handler = new LoginHandler(
             _userManagerMock.Object, _signInManagerMock.Object, _tokenServiceMock.Object,
             _sessionStoreMock.Object, _httpContextAccessorMock.Object, _db,
             _auditWriterMock.Object,
-            _roleClaimsExpanderMock.Object);
+            _roleClaimsExpanderMock.Object,
+            _mfaPreAuthMock.Object);
     }
 
     [Fact]
@@ -195,5 +199,41 @@ public class LoginHandlerTests
         // Password check must never happen for inactive users.
         _signInManagerMock.Verify(x => x.CheckPasswordSignInAsync(
             It.IsAny<ApplicationUser>(), It.IsAny<string>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    // ── F-054 MFA issuance ──────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Handle_MfaEnabledUser_ReturnsPendingToken_NotFullJwt()
+    {
+        // An MFA-enrolled user who passes the password check must receive a
+        // single-purpose MFA-pending token — NOT a full access JWT. The full JWT
+        // is only minted after the second factor (via the MFA endpoints).
+        var user = new ApplicationUser
+        {
+            Id = 6, Email = _faker.Internet.Email(),
+            FirstName = _faker.Name.FirstName(), LastName = _faker.Name.LastName(),
+            IsActive = true, MfaEnabled = true,
+        };
+        _userManagerMock.Setup(x => x.FindByEmailAsync(user.Email)).ReturnsAsync(user);
+        _signInManagerMock.Setup(x => x.CheckPasswordSignInAsync(user, "ValidPassword1!", true))
+            .ReturnsAsync(SignInResult.Success);
+        _mfaPreAuthMock.Setup(x => x.Issue(user.Id)).Returns("mfa-pending-token-xyz");
+
+        var result = await _handler.Handle(new LoginCommand(user.Email, "ValidPassword1!"), CancellationToken.None);
+
+        result.MfaRequired.Should().BeTrue();
+        result.MfaPendingToken.Should().Be("mfa-pending-token-xyz");
+        result.Token.Should().BeEmpty();
+
+        // No full access JWT and no session at the login step for an MFA user.
+        _tokenServiceMock.Verify(x => x.GenerateToken(
+            It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<IList<string>>(),
+            It.IsAny<TimeSpan?>(), It.IsAny<IDictionary<string, string>?>()), Times.Never);
+        _sessionStoreMock.Verify(x => x.CreateSessionAsync(
+            It.IsAny<int>(), It.IsAny<string>(), It.IsAny<DateTimeOffset>(),
+            It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 }

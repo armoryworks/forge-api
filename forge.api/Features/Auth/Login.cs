@@ -25,7 +25,7 @@ public record AuthUserResponseModel(
 
 public record LoginCommand(string Email, string Password) : IRequest<LoginResponse>;
 
-public record LoginResponse(string Token, DateTimeOffset ExpiresAt, AuthUserResponseModel User, bool MfaRequired = false, int? MfaUserId = null);
+public record LoginResponse(string Token, DateTimeOffset ExpiresAt, AuthUserResponseModel User, bool MfaRequired = false, string? MfaPendingToken = null);
 
 public class LoginValidator : AbstractValidator<LoginCommand>
 {
@@ -48,7 +48,8 @@ public class LoginHandler(
     IHttpContextAccessor httpContext,
     AppDbContext db,
     ISystemAuditWriter auditWriter,
-    IRoleClaimsExpander roleClaimsExpander)
+    IRoleClaimsExpander roleClaimsExpander,
+    IMfaPreAuthTokenService mfaPreAuth)
     : IRequestHandler<LoginCommand, LoginResponse>
 {
     public async Task<LoginResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -98,12 +99,16 @@ public class LoginHandler(
         // Check if MFA is required
         if (user.MfaEnabled)
         {
+            // F-054: the password check has now passed — issue a single-purpose
+            // MFA-pending token as proof of the first factor. /mfa/challenge
+            // requires this token, so the password can no longer be skipped by
+            // calling the MFA endpoints directly with a raw userId.
             return new LoginResponse(
                 Token: string.Empty,
                 ExpiresAt: DateTimeOffset.MinValue,
                 User: null!,
                 MfaRequired: true,
-                MfaUserId: user.Id);
+                MfaPendingToken: mfaPreAuth.Issue(user.Id));
         }
 
         // WU-06 / C1 — combine identity roles with any roles included via

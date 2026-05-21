@@ -305,7 +305,7 @@ public class AuthController(IMediator mediator) : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<MfaChallengeResponseModel>> CreateMfaChallenge([FromBody] MfaChallengeRequest request)
     {
-        var result = await mediator.Send(new CreateMfaChallengeCommand(request.UserId));
+        var result = await mediator.Send(new CreateMfaChallengeCommand(request.MfaPendingToken));
         return Ok(result);
     }
 
@@ -345,4 +345,6 @@ public class AuthController(IMediator mediator) : ControllerBase
 }
 
 public record BeginMfaSetupRequest(string? DeviceName);
-public record MfaChallengeRequest(int UserId);
+// F-054: challenge is gated on the MFA-pending token (proof the password step
+// passed), not a caller-supplied userId. The bound userId is read from the token.
+public record MfaChallengeRequest(string MfaPendingToken);

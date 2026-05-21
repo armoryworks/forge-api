@@ -122,7 +122,13 @@ try
     .AddDefaultTokenProviders();
 
     // JWT Authentication
-    var jwtKey = builder.Configuration["Jwt:Key"] ?? "dev-secret-key-change-in-production-min-32-chars!!";
+    // F-053: fail fast if the JWT key is absent/blank/too short — never fall back to a
+    // committed default. The empty/whitespace guard is required because appsettings.json
+    // no longer ships a key, so Configuration["Jwt:Key"] is "" (not null) when JWT_KEY is unset.
+    var jwtKey = builder.Configuration["Jwt:Key"];
+    if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
+        throw new InvalidOperationException(
+            "JWT_KEY is required and must be at least 32 characters. Set the Jwt:Key configuration value or the JWT_KEY environment variable.");
     var authBuilder = builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -310,7 +316,6 @@ try
     builder.Services.AddScoped<IPriceListRepository, PriceListRepository>();
     builder.Services.AddScoped<IRecurringOrderRepository, RecurringOrderRepository>();
     builder.Services.AddScoped<ISystemSettingRepository, SystemSettingRepository>();
-    builder.Services.AddScoped<ISyncQueueRepository, SyncQueueRepository>();
     builder.Services.AddScoped<IStatusEntryRepository, StatusEntryRepository>();
     builder.Services.AddScoped<IReportBuilderRepository, ReportBuilderRepository>();
     builder.Services.AddScoped<IEmbeddingRepository, EmbeddingRepository>();
@@ -320,6 +325,7 @@ try
     builder.Services.AddSingleton<ITokenEncryptionService, TokenEncryptionService>();
     builder.Services.AddSingleton<IPiiProtector, PiiProtector>();
     builder.Services.AddSingleton<ITokenService, JwtTokenService>();
+    builder.Services.AddSingleton<IMfaPreAuthTokenService, MfaPreAuthTokenService>();
     builder.Services.AddSingleton<IPortalAuthService, PortalAuthService>();
     builder.Services.AddSingleton<ISessionStore, SessionStore>();
     // External-provider id_token validator (Google JWKS). Singleton so the
@@ -377,6 +383,7 @@ try
     builder.Services.AddScoped<IUomService, UomService>();
     builder.Services.AddScoped<IApprovalService, ApprovalService>();
     builder.Services.AddScoped<ICreditManagementService, CreditManagementService>();
+    builder.Services.AddScoped<InventoryReliefService>();  // BE-1 / F-030
     builder.Services.AddScoped<IVendorScorecardService, VendorScorecardService>();
     builder.Services.AddScoped<IRfqService, RfqService>();
     builder.Services.AddScoped<IOvertimeService, OvertimeService>();
@@ -887,7 +894,6 @@ try
     builder.Services.AddScoped<ScheduledTaskJob>();
     builder.Services.AddScoped<DailyDigestJob>();
     builder.Services.AddTransient<DatabaseBackupJob>();
-    builder.Services.AddScoped<SyncQueueProcessorJob>();
     builder.Services.AddScoped<CustomerSyncJob>();
     builder.Services.AddScoped<AccountingCacheSyncJob>();
     builder.Services.AddScoped<OrphanDetectionJob>();
@@ -1312,7 +1318,6 @@ try
                 ["OverdueMaintenanceJob"]          = (typeof(OverdueMaintenanceJob),          "CheckOverdueMaintenanceAsync"),
                 ["DatabaseBackupJob"]              = (typeof(DatabaseBackupJob),              "RunBackupAsync"),
                 ["IntegrationOutboxDispatcherJob"] = (typeof(IntegrationOutboxDispatcherJob), "DispatchPendingAsync"),
-                ["SyncQueueProcessorJob"]          = (typeof(SyncQueueProcessorJob),          "ProcessQueueAsync"),
                 ["CustomerSyncJob"]                = (typeof(CustomerSyncJob),                "SyncCustomersAsync"),
                 ["AccountingCacheSyncJob"]         = (typeof(AccountingCacheSyncJob),         "RefreshCacheAsync"),
                 ["OrphanDetectionJob"]             = (typeof(OrphanDetectionJob),             "DetectOrphansAsync"),
@@ -1530,10 +1535,6 @@ try
         Cron.Daily(7)); // 7 AM UTC daily — pairs with the existing daily-digest cadence
 
     // Accounting sync jobs
-    RecurringJob.AddOrUpdate<SyncQueueProcessorJob>(
-        "sync-queue-processor",
-        job => job.ProcessQueueAsync(CancellationToken.None),
-        "*/2 * * * *"); // Every 2 minutes
     RecurringJob.AddOrUpdate<CustomerSyncJob>(
         "customer-sync",
         job => job.SyncCustomersAsync(CancellationToken.None),

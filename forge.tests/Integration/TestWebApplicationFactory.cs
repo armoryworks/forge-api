@@ -20,6 +20,8 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
     {
         builder.UseSetting("MockIntegrations", "true");
         builder.UseSetting("ConnectionStrings:DefaultConnection", "Host=localhost;Database=test_unused");
+        // F-053: appsettings no longer ships a Jwt:Key; supply a test key so the app boots.
+        builder.UseSetting("Jwt:Key", "integration-test-jwt-signing-key-with-32plus-chars!!");
 
         builder.ConfigureServices(services =>
         {

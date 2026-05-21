@@ -43,8 +43,10 @@ public class JwtTokenService(IConfiguration config) : ITokenService
         foreach (var role in roles)
             claims.Add(new Claim(ClaimTypes.Role, role));
 
+        // F-053: no committed fallback key — the signing key must be configured.
         var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(config["Jwt:Key"] ?? "dev-secret-key-change-in-production-min-32-chars!!"));
+            Encoding.UTF8.GetBytes(config["Jwt:Key"]
+                ?? throw new InvalidOperationException("Jwt:Key is required to sign tokens.")));
 
         var token = new JwtSecurityToken(
             issuer: config["Jwt:Issuer"] ?? "forge",
