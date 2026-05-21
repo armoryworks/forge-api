@@ -27,8 +27,13 @@ public class ReceiveItemsHandler(
         var po = await repo.FindWithDetailsAsync(request.PurchaseOrderId, cancellationToken)
             ?? throw new KeyNotFoundException($"Purchase order {request.PurchaseOrderId} not found");
 
-        if (po.Status == PurchaseOrderStatus.Closed || po.Status == PurchaseOrderStatus.Cancelled)
-            throw new InvalidOperationException("Cannot receive items on a closed or cancelled purchase order");
+        // F-033: source-state whitelist — Draft POs haven't been sent to vendor
+        if (po.Status != PurchaseOrderStatus.Submitted &&
+            po.Status != PurchaseOrderStatus.Acknowledged &&
+            po.Status != PurchaseOrderStatus.PartiallyReceived)
+            throw new InvalidOperationException(
+                $"Cannot receive items on a purchase order in status {po.Status}. " +
+                "Allowed: Submitted, Acknowledged, PartiallyReceived.");
 
         // Bought-parts effort PR3 — receipt-level freight capture. All
         // ReceivingRecords created in this call share a ReceiptNumber and

@@ -70,9 +70,10 @@ public class CreatePaymentHandler(IPaymentRepository repo, ICustomerRepository c
                 var invoice = await invoiceRepo.FindWithDetailsAsync(app.InvoiceId, cancellationToken)
                     ?? throw new KeyNotFoundException($"Invoice {app.InvoiceId} not found");
 
-                // F-027: consume the canonical Invoice.BalanceDue (Total − AmountPaid) rather than
-                // re-deriving the money formula here, so payment validation can't drift from the
-                // invoice's reported balance once line-level discounts land.
+                // F-027: consume the canonical Invoice.BalanceDue rather than re-deriving the
+                // money formula here. The two were numerically equal only while
+                // InvoiceLine.LineTotal == Quantity * UnitPrice; a single source of truth keeps
+                // payment validation and the invoice's reported balance from drifting apart.
                 var balanceDue = invoice.BalanceDue;
 
                 if (app.Amount > balanceDue)

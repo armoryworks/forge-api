@@ -181,6 +181,64 @@ public class CreatePaymentHandlerTests
             .WithMessage($"*Customer {customerId}*");
     }
 
+    // F-027 anti-drift guard: the over-application threshold must be exactly
+    // invoice.BalanceDue (the canonical money formula), not a re-derivation that
+    // could silently diverge. Uses a non-trivial balance — tax + an existing
+    // partial payment — so a handler that forgot tax or prior applications fails.
+    // BalanceDue = Subtotal(500) * (1 + 0.08) - alreadyPaid(140) = 400.
+    [Fact]
+    public async Task Handle_BalanceGuard_AcceptsExactlyInvoiceBalanceDue_AndRejectsOneCentMore()
+    {
+        var customerId = _faker.Random.Int(1, 100);
+        var customer = new Customer { Id = customerId, Name = "Test" };
+        var invoiceId = _faker.Random.Int(1, 100);
+
+        _customerRepo.Setup(r => r.FindAsync(customerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(customer);
+        _paymentRepo.Setup(r => r.GenerateNextPaymentNumberAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync("PMT-0027");
+
+        Invoice BuildInvoice()
+        {
+            var inv = new Invoice
+            {
+                Id = invoiceId,
+                InvoiceNumber = "INV-0027",
+                CustomerId = customerId,
+                TaxRate = 0.08m,
+                Status = InvoiceStatus.Sent,
+            };
+            inv.Lines.Add(new InvoiceLine { Quantity = 3, UnitPrice = 100m, Description = "A", LineNumber = 1 });
+            inv.Lines.Add(new InvoiceLine { Quantity = 1, UnitPrice = 200m, Description = "B", LineNumber = 2 });
+            inv.PaymentApplications.Add(new PaymentApplication { InvoiceId = invoiceId, Amount = 140m });
+            return inv;
+        }
+
+        var probe = BuildInvoice();
+        probe.BalanceDue.Should().Be(400m, "test arithmetic must track the canonical formula");
+
+        // One cent over the canonical balance is rejected.
+        var overInvoice = BuildInvoice();
+        _invoiceRepo.Setup(r => r.FindWithDetailsAsync(invoiceId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(overInvoice);
+        var overCommand = new CreatePaymentCommand(
+            customerId, "Check", 400.01m, DateTime.UtcNow, null, null,
+            [new(invoiceId, 400.01m)]);
+        await FluentActions.Awaiting(() => _handler.Handle(overCommand, CancellationToken.None))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*exceeds*balance*");
+
+        // Exactly the canonical balance is accepted and clears the invoice.
+        var exactInvoice = BuildInvoice();
+        _invoiceRepo.Setup(r => r.FindWithDetailsAsync(invoiceId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(exactInvoice);
+        var exactCommand = new CreatePaymentCommand(
+            customerId, "Check", 400m, DateTime.UtcNow, null, null,
+            [new(invoiceId, 400m)]);
+        var result = await _handler.Handle(exactCommand, CancellationToken.None);
+        result.AppliedAmount.Should().Be(400m);
+        exactInvoice.Status.Should().Be(InvoiceStatus.Paid);
+    }
+
     [Fact]
     public async Task Handle_ApplicationExceedsBalance_ThrowsInvalidOperationException()
     {

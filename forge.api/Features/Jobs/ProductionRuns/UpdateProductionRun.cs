@@ -54,6 +54,10 @@ public class UpdateProductionRunHandler(AppDbContext db) : IRequestHandler<Updat
 
         var newStatus = Enum.Parse<ProductionRunStatus>(request.Status, true);
 
+        if (request.CompletedQuantity + request.ScrapQuantity > run.TargetQuantity)
+            throw new InvalidOperationException(
+                $"Completed quantity ({request.CompletedQuantity}) + scrap ({request.ScrapQuantity}) cannot exceed target quantity ({run.TargetQuantity}).");
+
         run.CompletedQuantity = request.CompletedQuantity;
         run.ScrapQuantity = request.ScrapQuantity;
         run.Notes = request.Notes;

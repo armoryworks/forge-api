@@ -171,4 +171,48 @@ public class ReceiveItemsHandlerTests
         _addedRecords.Single().ActualFreight.Should().BeNull();
         _addedRecords.Single().AllocatedFreight.Should().BeNull();
     }
+
+    // ── F-033: source-state whitelist guard ───────────────────────────────────
+
+    [Theory]
+    [InlineData(PurchaseOrderStatus.Submitted)]        // PO sent to vendor — receivable
+    [InlineData(PurchaseOrderStatus.PartiallyReceived)] // partially in — still receivable
+    public async Task Handle_WhitelistStatus_Processes(PurchaseOrderStatus status)
+    {
+        var po = PoWith(estimatedFreight: null, (1, 10, qty: 5m, unitPrice: 10m));
+        po.Status = status;
+        _repo.Setup(r => r.FindWithDetailsAsync(po.Id, It.IsAny<CancellationToken>())).ReturnsAsync(po);
+
+        // Act — must not throw; the guard passes and the handler runs to completion
+        await _handler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 5m, StorageLocationId: null, Notes: null) }),
+            CancellationToken.None);
+
+        _capturedRepo.Verify(r => r.AddReceivingRecordAsync(
+            It.IsAny<ReceivingRecord>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(PurchaseOrderStatus.Draft)]      // F-033: NEW block — PO not yet sent to vendor
+    [InlineData(PurchaseOrderStatus.Received)]   // all lines fully received — over-receive via status guard
+    [InlineData(PurchaseOrderStatus.Closed)]
+    [InlineData(PurchaseOrderStatus.Cancelled)]
+    public async Task Handle_NonReceivableStatus_ThrowsInvalidOperation(PurchaseOrderStatus status)
+    {
+        var po = PoWith(estimatedFreight: null, (1, 10, qty: 5m, unitPrice: 10m));
+        po.Status = status;
+        _repo.Setup(r => r.FindWithDetailsAsync(po.Id, It.IsAny<CancellationToken>())).ReturnsAsync(po);
+
+        var act = () => _handler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 5m, StorageLocationId: null, Notes: null) }),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Allowed: Submitted, Acknowledged, PartiallyReceived*");
+
+        _capturedRepo.Verify(r => r.AddReceivingRecordAsync(
+            It.IsAny<ReceivingRecord>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

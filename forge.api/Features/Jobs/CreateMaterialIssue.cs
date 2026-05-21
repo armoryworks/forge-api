@@ -36,6 +36,15 @@ public class CreateMaterialIssueHandler(AppDbContext db)
     public async Task<MaterialIssueResponseModel> Handle(
         CreateMaterialIssueCommand request, CancellationToken cancellationToken)
     {
+        // INV-SF2 / F-033: source-state guard — archived jobs are closed to material transactions
+        var job = await db.Jobs.AsNoTracking()
+            .FirstOrDefaultAsync(j => j.Id == request.JobId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Job {request.JobId} not found");
+
+        if (job.IsArchived)
+            throw new InvalidOperationException(
+                $"Cannot issue material to archived job {request.JobId}.");
+
         // Get unit cost from last PO line for this part, or zero
         var unitCost = await db.PurchaseOrderLines
             .AsNoTracking()

@@ -78,7 +78,9 @@ public class CreateAdminUserHandler(
         await barcodeService.CreateBarcodeAsync(
             BarcodeEntityType.User, user.Id, $"{user.Id:D6}", cancellationToken);
 
-        // Generate short setup code (XXXX-XXXX) — easy to read aloud or write down
+        // Generate short setup code (XXXX-XXXX) — easy to read aloud or write down.
+        // The plaintext token is returned to the caller (admin) once and never stored;
+        // only its SHA-256 hash is persisted so a DB breach cannot impersonate enrollees.
         const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I to avoid confusion
         var bytes = RandomNumberGenerator.GetBytes(8);
         var code = new char[8];
@@ -86,7 +88,7 @@ public class CreateAdminUserHandler(
             code[i] = chars[bytes[i] % chars.Length];
         var token = $"{new string(code, 0, 4)}-{new string(code, 4, 4)}";
 
-        user.SetupToken = token;
+        user.SetupToken = HashSetupToken(token); // F-035: store hash, not plaintext
         user.SetupTokenExpiresAt = DateTimeOffset.UtcNow.AddDays(7);
         user.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -136,5 +138,13 @@ public class CreateAdminUserHandler(
         var first = string.IsNullOrEmpty(firstName) ? "" : firstName[..1].ToUpper();
         var last = string.IsNullOrEmpty(lastName) ? "" : lastName[..1].ToUpper();
         return first + last;
+    }
+
+    internal static string HashSetupToken(string token)
+    {
+        var normalized = token.Trim().ToUpperInvariant();
+        var hashBytes = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(normalized));
+        return Convert.ToHexString(hashBytes);
     }
 }

@@ -22,6 +22,13 @@ public class ReturnMaterialIssueHandler(AppDbContext db)
             .FirstOrDefaultAsync(m => m.Id == request.IssueId && m.JobId == request.JobId, cancellationToken)
             ?? throw new KeyNotFoundException($"MaterialIssue {request.IssueId} not found for job {request.JobId}");
 
+        // INV-SF2 / F-033: source-state guard — archived jobs are closed to material transactions
+        var job = await db.Jobs.AsNoTracking()
+            .FirstOrDefaultAsync(j => j.Id == request.JobId, cancellationToken);
+        if (job?.IsArchived == true)
+            throw new InvalidOperationException(
+                $"Cannot return material to archived job {request.JobId}.");
+
         if (original.IssueType != MaterialIssueType.Issue)
             throw new InvalidOperationException("Only issued materials can be returned");
 

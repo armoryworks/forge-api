@@ -27,7 +27,9 @@ public class DashboardController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    // F-037: company-wide margin is exec/management data — not for low-trust roles.
     [HttpGet("margin-summary")]
+    [Authorize(Roles = "Admin,Manager,Controller,OfficeManager,PM")]
     public async Task<ActionResult<MarginSummaryResponseModel>> GetMarginSummary()
     {
         var result = await mediator.Send(new GetMarginSummaryQuery());

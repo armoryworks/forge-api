@@ -17,6 +17,8 @@ public class ShipmentLine : BaseEntity
     public bool IsHazmat { get; set; }
     public string? HandlingInstructions { get; set; }
     public string? SerialNumbers { get; set; }
+    // BE-1 / F-030: set exactly once when inventory is relieved for this line (idempotency guard).
+    public DateTimeOffset? InventoryRelievedAt { get; set; }
 
     public Shipment Shipment { get; set; } = null!;
     public SalesOrderLine? SalesOrderLine { get; set; }

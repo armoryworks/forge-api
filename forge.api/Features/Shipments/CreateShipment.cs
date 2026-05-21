@@ -80,6 +80,7 @@ public class CreateShipmentHandler(IShipmentRepository shipmentRepo, ISalesOrder
                 shipment.Lines.Add(new ShipmentLine
                 {
                     SalesOrderLineId = line.SalesOrderLineId,
+                    PartId = orderLine.PartId,
                     Quantity = line.Quantity,
                     Notes = line.Notes,
                 });
