@@ -32,9 +32,9 @@ public class CompleteSetupHandler(
 {
     public async Task<LoginResponse> Handle(CompleteSetupCommand request, CancellationToken cancellationToken)
     {
-        var normalizedToken = request.Token.Trim().ToUpperInvariant();
+        var tokenHash = Admin.CreateAdminUserHandler.HashSetupToken(request.Token);
         var users = userManager.Users
-            .Where(u => u.SetupToken == normalizedToken && u.SetupTokenExpiresAt > DateTimeOffset.UtcNow);
+            .Where(u => u.SetupToken == tokenHash && u.SetupTokenExpiresAt > DateTimeOffset.UtcNow);
 
         var user = users.FirstOrDefault()
             ?? throw new InvalidOperationException("Invalid or expired setup token");

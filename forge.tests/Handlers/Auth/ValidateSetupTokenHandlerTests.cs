@@ -31,7 +31,9 @@ public class ValidateSetupTokenHandlerTests
             Email = _faker.Internet.Email(),
             FirstName = _faker.Name.FirstName(),
             LastName = _faker.Name.LastName(),
-            SetupToken = token,
+            // F-052: tokens are stored hashed; the handler hashes the submitted
+            // token before comparing, so the stored value must be the hash too.
+            SetupToken = Forge.Api.Features.Admin.CreateAdminUserHandler.HashSetupToken(token),
             SetupTokenExpiresAt = DateTimeOffset.UtcNow.AddHours(24),
         };
 
@@ -72,7 +74,8 @@ public class ValidateSetupTokenHandlerTests
             Email = _faker.Internet.Email(),
             FirstName = _faker.Name.FirstName(),
             LastName = _faker.Name.LastName(),
-            SetupToken = token,
+            // F-052: store the hash so this test fails ONLY on expiry, not a hash mismatch.
+            SetupToken = Forge.Api.Features.Admin.CreateAdminUserHandler.HashSetupToken(token),
             SetupTokenExpiresAt = DateTimeOffset.UtcNow.AddHours(-1),
         };
 
