@@ -33,7 +33,7 @@ public class QuoteRepository(AppDbContext db) : IQuoteRepository
                 q.Customer.Name,
                 q.Status.ToString(),
                 q.Lines.Count,
-                q.Lines.Sum(l => l.Quantity * l.UnitPrice),
+                q.Lines.Sum(l => l.Quantity * l.UnitPrice) * (1 + q.TaxRate),
                 q.ExpirationDate,
                 q.CreatedAt))
             .ToListAsync(ct);
