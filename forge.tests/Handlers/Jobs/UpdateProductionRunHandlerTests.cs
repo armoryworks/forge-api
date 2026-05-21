@@ -47,15 +47,16 @@ public class UpdateProductionRunHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task Handle_CompletedQuantityExceedsTarget_ThrowsInvalidOperation_F049()
+    public async Task Handle_CompletedPlusScrapExceedsTarget_ThrowsInvalidOperation_F049()
     {
+        // 8 good + 3 scrap = 11 > targetQty 10 — must reject
         var run = await SeedRunAsync(targetQty: 10);
 
         var act = () => _handler.Handle(new UpdateProductionRunCommand(
             JobId: run.JobId,
             RunId: run.Id,
-            CompletedQuantity: 11,
-            ScrapQuantity: 0,
+            CompletedQuantity: 8,
+            ScrapQuantity: 3,
             Status: ProductionRunStatus.InProgress.ToString(),
             Notes: null,
             SetupTimeMinutes: null,
@@ -66,21 +67,23 @@ public class UpdateProductionRunHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task Handle_CompletedQuantityEqualsTarget_Succeeds_F049()
+    public async Task Handle_CompletedPlusScrapEqualsTarget_Succeeds_F049()
     {
+        // 7 good + 3 scrap = 10 == targetQty 10 — boundary must be accepted
         var run = await SeedRunAsync(targetQty: 10);
 
         var result = await _handler.Handle(new UpdateProductionRunCommand(
             JobId: run.JobId,
             RunId: run.Id,
-            CompletedQuantity: 10,
-            ScrapQuantity: 0,
+            CompletedQuantity: 7,
+            ScrapQuantity: 3,
             Status: ProductionRunStatus.Completed.ToString(),
             Notes: null,
             SetupTimeMinutes: null,
             RunTimeMinutes: null), CancellationToken.None);
 
-        result.CompletedQuantity.Should().Be(10);
+        result.CompletedQuantity.Should().Be(7);
+        result.ScrapQuantity.Should().Be(3);
         result.Status.Should().Be(ProductionRunStatus.Completed.ToString());
     }
 
