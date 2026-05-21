@@ -20,6 +20,10 @@ public class SalesOrderLine : BaseEntity
     public decimal RemainingQuantity => Quantity - ShippedQuantity;
     public bool IsFullyShipped => ShippedQuantity >= Quantity;
 
+    // F-032: per-line taxability code required by QBO AST. Null = inherit order-level default.
+    // Values: "TAX" (taxable), "NON" (non-taxable). Propagated from Part.TaxCode at SO creation.
+    public string? TaxCode { get; set; }
+
     public SalesOrder SalesOrder { get; set; } = null!;
     public Part? Part { get; set; }
     public UnitOfMeasure? Uom { get; set; }

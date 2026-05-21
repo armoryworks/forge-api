@@ -35,6 +35,9 @@ public class Customer : BaseAuditableEntity, IActiveAware
     // certificate number kept on file for audit purposes.
     public bool IsTaxExempt { get; set; }
     public string? TaxExemptionId { get; set; }
+    // F-032: expiry date for the exemption certificate. Null = no expiry tracked (legacy / not provided).
+    // QBO AST inputs require current validity; an alert/background job checks this field against today.
+    public DateOnly? ExemptionExpiryDate { get; set; }
 
     // Default tax + currency used when invoicing this customer if the line/header
     // does not specify otherwise. Both nullable so the tenant default applies.
