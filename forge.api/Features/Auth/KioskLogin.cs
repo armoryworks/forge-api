@@ -35,8 +35,19 @@ public class KioskLoginHandler(
         if (user == null || string.IsNullOrEmpty(user.PinHash))
             throw new InvalidOperationException("Invalid barcode or PIN");
 
-        if (!SetPinHandler.VerifyPin(request.Pin, user.PinHash))
+        // Check lockout before attempting PIN verification (F-051).
+        if (await userManager.IsLockedOutAsync(user))
             throw new InvalidOperationException("Invalid barcode or PIN");
+
+        if (!SetPinHandler.VerifyPin(request.Pin, user.PinHash))
+        {
+            // Increment the Identity failure counter so lockout fires after
+            // MaxFailedAccessAttempts wrong PINs — same mechanic as password login.
+            await userManager.AccessFailedAsync(user);
+            throw new InvalidOperationException("Invalid barcode or PIN");
+        }
+
+        await userManager.ResetAccessFailedCountAsync(user);
 
         // WU-06 / C1 — RoleTemplate expansion on kiosk login.
         var roles = await roleClaimsExpander.GetEffectiveRolesAsync(user, cancellationToken);

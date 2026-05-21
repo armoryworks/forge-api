@@ -135,6 +135,91 @@ public class KioskLoginHandlerTests
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Invalid barcode or PIN");
     }
+
+    // ── F-051 (was F-034[SEC]) lockout regression — kiosk/PIN path ──────────────
+
+    [Fact]
+    public async Task Handle_LockedOutAccount_ThrowsWithoutVerifyingPin()
+    {
+        // Account is locked; even the CORRECT PIN must be rejected, and the
+        // failure counter must NOT advance (we bail before the PIN check).
+        var pinHash = SetPinHandler.HashPin("5678");
+        var user = new ApplicationUser
+        {
+            Id = 3, Email = _faker.Internet.Email(),
+            FirstName = _faker.Name.FirstName(), LastName = _faker.Name.LastName(),
+            EmployeeBarcode = "EMP-003", PinHash = pinHash, IsActive = true,
+        };
+        _userManagerMock.Setup(x => x.Users)
+            .Returns(new TestAsyncEnumerableQueryable<ApplicationUser>(new List<ApplicationUser> { user }));
+        _userManagerMock.Setup(x => x.IsLockedOutAsync(user)).ReturnsAsync(true);
+
+        var act = () => _handler.Handle(new KioskLoginCommand("EMP-003", "5678"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Invalid barcode or PIN");
+
+        _tokenServiceMock.Verify(x => x.GenerateToken(
+            It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<IList<string>>(),
+            It.IsAny<TimeSpan?>(), It.IsAny<IDictionary<string, string>?>()), Times.Never);
+        _userManagerMock.Verify(x => x.AccessFailedAsync(It.IsAny<ApplicationUser>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_InvalidPin_IncrementsAccessFailedCount()
+    {
+        // Every wrong PIN must advance the Identity failure counter — this is the
+        // mechanic that eventually triggers lockout on the kiosk path (F-051).
+        var pinHash = SetPinHandler.HashPin("5678");
+        var user = new ApplicationUser
+        {
+            Id = 4, Email = _faker.Internet.Email(),
+            FirstName = _faker.Name.FirstName(), LastName = _faker.Name.LastName(),
+            EmployeeBarcode = "EMP-004", PinHash = pinHash, IsActive = true,
+        };
+        _userManagerMock.Setup(x => x.Users)
+            .Returns(new TestAsyncEnumerableQueryable<ApplicationUser>(new List<ApplicationUser> { user }));
+        _userManagerMock.Setup(x => x.IsLockedOutAsync(user)).ReturnsAsync(false);
+
+        var act = () => _handler.Handle(new KioskLoginCommand("EMP-004", "0000"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Invalid barcode or PIN");
+
+        _userManagerMock.Verify(x => x.AccessFailedAsync(user), Times.Once);
+        _userManagerMock.Verify(x => x.ResetAccessFailedCountAsync(It.IsAny<ApplicationUser>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_ValidPin_ResetsAccessFailedCount()
+    {
+        // A successful kiosk login clears the failure counter so prior bad
+        // attempts don't accumulate toward a lockout.
+        var pinHash = SetPinHandler.HashPin("5678");
+        var user = new ApplicationUser
+        {
+            Id = 5, Email = _faker.Internet.Email(),
+            FirstName = _faker.Name.FirstName(), LastName = _faker.Name.LastName(),
+            EmployeeBarcode = "EMP-005", PinHash = pinHash, IsActive = true,
+        };
+        _userManagerMock.Setup(x => x.Users)
+            .Returns(new TestAsyncEnumerableQueryable<ApplicationUser>(new List<ApplicationUser> { user }));
+        _userManagerMock.Setup(x => x.IsLockedOutAsync(user)).ReturnsAsync(false);
+
+        var tokenResult = new TokenResult("kiosk-jwt", "kiosk-jti", DateTimeOffset.UtcNow.AddHours(8));
+        _tokenServiceMock.Setup(x => x.GenerateToken(
+                user.Id, user.Email!, user.FirstName, user.LastName,
+                user.Initials, user.AvatarColor,
+                It.IsAny<IList<string>>(), TimeSpan.FromHours(8), null))
+            .Returns(tokenResult);
+
+        var result = await _handler.Handle(new KioskLoginCommand("EMP-005", "5678"), CancellationToken.None);
+
+        result.Token.Should().Be("kiosk-jwt");
+        _userManagerMock.Verify(x => x.ResetAccessFailedCountAsync(user), Times.Once);
+        _userManagerMock.Verify(x => x.AccessFailedAsync(It.IsAny<ApplicationUser>()), Times.Never);
+    }
 }
 
 /// <summary>

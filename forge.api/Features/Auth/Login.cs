@@ -42,6 +42,7 @@ public class LoginValidator : AbstractValidator<LoginCommand>
 
 public class LoginHandler(
     UserManager<ApplicationUser> userManager,
+    SignInManager<ApplicationUser> signInManager,
     ITokenService tokenService,
     ISessionStore sessionStore,
     IHttpContextAccessor httpContext,
@@ -72,17 +73,23 @@ public class LoginHandler(
             throw new UnauthorizedAccessException("Invalid credentials");
         }
 
-        var passwordValid = await userManager.CheckPasswordAsync(user, request.Password);
+        // CheckPasswordSignInAsync handles AccessFailedAsync on failure and
+        // ResetAccessFailedCountAsync on success — this is what engages the
+        // Identity lockout mechanism (F-051). Returns IsLockedOut when the
+        // account is already locked or becomes locked after this attempt.
+        var signInResult = await signInManager.CheckPasswordSignInAsync(
+            user, request.Password, lockoutOnFailure: true);
 
-        if (!passwordValid)
+        if (!signInResult.Succeeded)
         {
+            var reason = signInResult.IsLockedOut ? "account-locked" : "invalid-password";
             await auditWriter.WriteAsync("UserLoginFailed", user.Id,
                 entityType: "ApplicationUser",
                 entityId: user.Id,
                 details: System.Text.Json.JsonSerializer.Serialize(new
                 {
                     email = request.Email,
-                    reason = "invalid-password",
+                    reason,
                 }),
                 ct: cancellationToken);
             throw new UnauthorizedAccessException("Invalid credentials");

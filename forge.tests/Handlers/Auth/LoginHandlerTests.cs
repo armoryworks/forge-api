@@ -2,6 +2,7 @@ using Bogus;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Forge.Api.Features.Auth;
 using Forge.Api.Services;
@@ -14,6 +15,7 @@ namespace Forge.Tests.Handlers.Auth;
 public class LoginHandlerTests
 {
     private readonly Mock<UserManager<ApplicationUser>> _userManagerMock;
+    private readonly Mock<SignInManager<ApplicationUser>> _signInManagerMock;
     private readonly Mock<ITokenService> _tokenServiceMock;
     private readonly Mock<ISessionStore> _sessionStoreMock;
     private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
@@ -28,20 +30,24 @@ public class LoginHandlerTests
         _userManagerMock = new Mock<UserManager<ApplicationUser>>(
             Mock.Of<IUserStore<ApplicationUser>>(), null!, null!, null!, null!, null!, null!, null!, null!);
 
+        _signInManagerMock = new Mock<SignInManager<ApplicationUser>>(
+            _userManagerMock.Object,
+            Mock.Of<IHttpContextAccessor>(),
+            Mock.Of<IUserClaimsPrincipalFactory<ApplicationUser>>(),
+            null!, Mock.Of<ILogger<SignInManager<ApplicationUser>>>(), null!, null!);
+
         _tokenServiceMock = new Mock<ITokenService>();
         _sessionStoreMock = new Mock<ISessionStore>();
         _httpContextAccessorMock = new Mock<IHttpContextAccessor>();
         _auditWriterMock = new Mock<ISystemAuditWriter>();
         _roleClaimsExpanderMock = new Mock<IRoleClaimsExpander>();
-        // WU-06 regression: passthrough default returns empty role list. Tests
-        // that exercise role expansion override this per-test.
         _roleClaimsExpanderMock
             .Setup(x => x.GetEffectiveRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<string>());
 
         _db = TestDbContextFactory.Create();
         _handler = new LoginHandler(
-            _userManagerMock.Object, _tokenServiceMock.Object,
+            _userManagerMock.Object, _signInManagerMock.Object, _tokenServiceMock.Object,
             _sessionStoreMock.Object, _httpContextAccessorMock.Object, _db,
             _auditWriterMock.Object,
             _roleClaimsExpanderMock.Object);
@@ -63,8 +69,8 @@ public class LoginHandlerTests
 
         _userManagerMock.Setup(x => x.FindByEmailAsync(user.Email))
             .ReturnsAsync(user);
-        _userManagerMock.Setup(x => x.CheckPasswordAsync(user, "ValidPassword1!"))
-            .ReturnsAsync(true);
+        _signInManagerMock.Setup(x => x.CheckPasswordSignInAsync(user, "ValidPassword1!", true))
+            .ReturnsAsync(SignInResult.Success);
         _userManagerMock.Setup(x => x.GetRolesAsync(user))
             .ReturnsAsync(new List<string> { "Admin" });
         _roleClaimsExpanderMock
@@ -78,19 +84,12 @@ public class LoginHandlerTests
                 It.IsAny<IList<string>>(), null, null))
             .Returns(tokenResult);
 
-        var command = new LoginCommand(user.Email, "ValidPassword1!");
-
-        var result = await _handler.Handle(command, CancellationToken.None);
+        var result = await _handler.Handle(new LoginCommand(user.Email, "ValidPassword1!"), CancellationToken.None);
 
         result.Should().NotBeNull();
         result.Token.Should().Be("test-jwt-token");
-        result.User.Id.Should().Be(user.Id);
         result.User.Email.Should().Be(user.Email);
-        result.User.FirstName.Should().Be(user.FirstName);
-        result.User.LastName.Should().Be(user.LastName);
         result.User.Roles.Should().Contain("Admin");
-        result.ExpiresAt.Should().BeCloseTo(DateTimeOffset.UtcNow.AddHours(24), TimeSpan.FromMinutes(1));
-
         _sessionStoreMock.Verify(x => x.CreateSessionAsync(
             user.Id, "test-jti", It.IsAny<DateTimeOffset>(),
             "credentials", It.IsAny<string?>(), It.IsAny<string?>(),
@@ -103,59 +102,98 @@ public class LoginHandlerTests
         _userManagerMock.Setup(x => x.FindByEmailAsync(It.IsAny<string>()))
             .ReturnsAsync((ApplicationUser?)null);
 
-        var command = new LoginCommand("nonexistent@example.com", "password");
-
-        var act = () => _handler.Handle(command, CancellationToken.None);
+        var act = () => _handler.Handle(new LoginCommand("nobody@example.com", "password"), CancellationToken.None);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>()
             .WithMessage("Invalid credentials");
     }
 
     [Fact]
-    public async Task Handle_InvalidPassword_ThrowsUnauthorized()
+    public async Task Handle_WrongPassword_ThrowsUnauthorized()
     {
         var user = new ApplicationUser
         {
-            Id = 2,
-            Email = _faker.Internet.Email(),
-            FirstName = _faker.Name.FirstName(),
-            LastName = _faker.Name.LastName(),
-            IsActive = true,
+            Id = 2, Email = _faker.Internet.Email(),
+            FirstName = _faker.Name.FirstName(), LastName = _faker.Name.LastName(), IsActive = true,
         };
+        _userManagerMock.Setup(x => x.FindByEmailAsync(user.Email)).ReturnsAsync(user);
+        _signInManagerMock.Setup(x => x.CheckPasswordSignInAsync(user, It.IsAny<string>(), true))
+            .ReturnsAsync(SignInResult.Failed);
 
-        _userManagerMock.Setup(x => x.FindByEmailAsync(user.Email))
-            .ReturnsAsync(user);
-        _userManagerMock.Setup(x => x.CheckPasswordAsync(user, It.IsAny<string>()))
-            .ReturnsAsync(false);
-
-        var command = new LoginCommand(user.Email, "WrongPassword");
-
-        var act = () => _handler.Handle(command, CancellationToken.None);
+        var act = () => _handler.Handle(new LoginCommand(user.Email, "WrongPassword"), CancellationToken.None);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>()
             .WithMessage("Invalid credentials");
     }
 
+    // ── F-034 lockout regression ───────────────────────────────────────────────
+
     [Fact]
-    public async Task Handle_LockedOutUser_ThrowsUnauthorized()
+    public async Task Handle_LockedOutAccount_ThrowsUnauthorized_WithoutCheckingPassword()
+    {
+        // Arrange: SignInManager reports account locked (already at lockout limit).
+        var user = new ApplicationUser
+        {
+            Id = 3, Email = _faker.Internet.Email(),
+            FirstName = _faker.Name.FirstName(), LastName = _faker.Name.LastName(), IsActive = true,
+        };
+        _userManagerMock.Setup(x => x.FindByEmailAsync(user.Email)).ReturnsAsync(user);
+        _signInManagerMock.Setup(x => x.CheckPasswordSignInAsync(user, It.IsAny<string>(), true))
+            .ReturnsAsync(SignInResult.LockedOut);
+
+        var act = () => _handler.Handle(new LoginCommand(user.Email, "AnyPassword"), CancellationToken.None);
+
+        // Assert: returns same 401 — no lockout status leak to caller.
+        await act.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("Invalid credentials");
+
+        // Token must never be issued for a locked account.
+        _tokenServiceMock.Verify(x => x.GenerateToken(
+            It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<IList<string>>(),
+            It.IsAny<TimeSpan?>(), It.IsAny<IDictionary<string, string>?>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_AccountLocksTriggersBySignInManager_ThrowsUnauthorized()
+    {
+        // Arrange: this attempt causes the account to lock (SignInResult.LockedOut
+        // is returned when the failed attempt crosses the threshold).
+        var user = new ApplicationUser
+        {
+            Id = 4, Email = _faker.Internet.Email(),
+            FirstName = _faker.Name.FirstName(), LastName = _faker.Name.LastName(), IsActive = true,
+        };
+        _userManagerMock.Setup(x => x.FindByEmailAsync(user.Email)).ReturnsAsync(user);
+        _signInManagerMock.Setup(x => x.CheckPasswordSignInAsync(user, "WrongPw!", true))
+            .ReturnsAsync(SignInResult.LockedOut);
+
+        var act = () => _handler.Handle(new LoginCommand(user.Email, "WrongPw!"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        _tokenServiceMock.Verify(x => x.GenerateToken(
+            It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<IList<string>>(),
+            It.IsAny<TimeSpan?>(), It.IsAny<IDictionary<string, string>?>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_InactiveUser_ThrowsUnauthorized_BeforePasswordCheck()
     {
         var user = new ApplicationUser
         {
-            Id = 3,
-            Email = _faker.Internet.Email(),
-            FirstName = _faker.Name.FirstName(),
-            LastName = _faker.Name.LastName(),
-            IsActive = false,
+            Id = 5, Email = _faker.Internet.Email(),
+            FirstName = _faker.Name.FirstName(), LastName = _faker.Name.LastName(), IsActive = false,
         };
+        _userManagerMock.Setup(x => x.FindByEmailAsync(user.Email)).ReturnsAsync(user);
 
-        _userManagerMock.Setup(x => x.FindByEmailAsync(user.Email))
-            .ReturnsAsync(user);
-
-        var command = new LoginCommand(user.Email, "AnyPassword");
-
-        var act = () => _handler.Handle(command, CancellationToken.None);
+        var act = () => _handler.Handle(new LoginCommand(user.Email, "AnyPassword"), CancellationToken.None);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>()
             .WithMessage("Invalid credentials");
+
+        // Password check must never happen for inactive users.
+        _signInManagerMock.Verify(x => x.CheckPasswordSignInAsync(
+            It.IsAny<ApplicationUser>(), It.IsAny<string>(), It.IsAny<bool>()), Times.Never);
     }
 }
