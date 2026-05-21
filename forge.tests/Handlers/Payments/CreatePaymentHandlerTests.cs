@@ -6,6 +6,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Payments;
 
@@ -20,7 +21,9 @@ public class CreatePaymentHandlerTests
 
     public CreatePaymentHandlerTests()
     {
-        _handler = new CreatePaymentHandler(_paymentRepo.Object, _customerRepo.Object, _invoiceRepo.Object);
+        _handler = new CreatePaymentHandler(
+            _paymentRepo.Object, _customerRepo.Object, _invoiceRepo.Object,
+            TestDbContextFactory.Create());
     }
 
     [Fact]

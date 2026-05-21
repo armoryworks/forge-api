@@ -18,8 +18,9 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Ignore(e => e.AmountPaid);
         builder.Ignore(e => e.BalanceDue);
 
-        // WU-11 / TODO E1 — optimistic locking
-        builder.Property(e => e.Version).HasDefaultValue(1u);
+        // WU-11 / F-026 — optimistic locking; token causes WHERE version=@orig on UPDATE
+        // so concurrent SaveChanges on the same invoice throws DbUpdateConcurrencyException.
+        builder.Property(e => e.Version).HasDefaultValue(1u).IsConcurrencyToken();
 
         builder.Property(e => e.InvoiceNumber).HasMaxLength(20);
         builder.Property(e => e.Notes).HasMaxLength(2000);

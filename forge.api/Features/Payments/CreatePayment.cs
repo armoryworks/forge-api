@@ -1,9 +1,11 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Payments;
 
@@ -37,7 +39,7 @@ public class CreatePaymentValidator : AbstractValidator<CreatePaymentCommand>
     }
 }
 
-public class CreatePaymentHandler(IPaymentRepository repo, ICustomerRepository customerRepo, IInvoiceRepository invoiceRepo)
+public class CreatePaymentHandler(IPaymentRepository repo, ICustomerRepository customerRepo, IInvoiceRepository invoiceRepo, AppDbContext db)
     : IRequestHandler<CreatePaymentCommand, PaymentListItemModel>
 {
     public async Task<PaymentListItemModel> Handle(CreatePaymentCommand request, CancellationToken cancellationToken)
@@ -68,8 +70,10 @@ public class CreatePaymentHandler(IPaymentRepository repo, ICustomerRepository c
                 var invoice = await invoiceRepo.FindWithDetailsAsync(app.InvoiceId, cancellationToken)
                     ?? throw new KeyNotFoundException($"Invoice {app.InvoiceId} not found");
 
-                var balanceDue = invoice.Lines.Sum(l => l.Quantity * l.UnitPrice) * (1 + invoice.TaxRate)
-                    - invoice.PaymentApplications.Sum(pa => pa.Amount);
+                // F-027: consume the canonical Invoice.BalanceDue (Total − AmountPaid) rather than
+                // re-deriving the money formula here, so payment validation can't drift from the
+                // invoice's reported balance once line-level discounts land.
+                var balanceDue = invoice.BalanceDue;
 
                 if (app.Amount > balanceDue)
                     throw new InvalidOperationException(
@@ -89,11 +93,41 @@ public class CreatePaymentHandler(IPaymentRepository repo, ICustomerRepository c
                     invoice.Status = InvoiceStatus.Paid;
                 else if (invoice.Status == InvoiceStatus.Sent || invoice.Status == InvoiceStatus.Overdue)
                     invoice.Status = InvoiceStatus.PartiallyPaid;
+
+                // F-026: force the concurrency token modified so a concurrent SaveChanges on
+                // the same invoice row collides and throws DbUpdateConcurrencyException.
+                db.Entry(invoice).Property(i => i.Version).IsModified = true;
             }
         }
 
         await repo.AddAsync(payment, cancellationToken);
-        await repo.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await repo.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            // A concurrent payment committed to this invoice between our read and write.
+            // Reload each conflicted invoice (including navigations for balance calc) and
+            // re-run the over-apply guard; throws InvalidOperationException → 409.
+            foreach (var entry in ex.Entries.Where(e => e.Entity is Invoice))
+            {
+                await entry.ReloadAsync(cancellationToken);
+                var inv = (Invoice)entry.Entity;
+                await db.Entry(inv).Collection(i => i.PaymentApplications).LoadAsync(cancellationToken);
+                await db.Entry(inv).Collection(i => i.Lines).LoadAsync(cancellationToken);
+
+                var freshBalance = inv.BalanceDue;
+
+                var matchingApp = request.Applications!.First(a => a.InvoiceId == inv.Id);
+                if (matchingApp.Amount > freshBalance)
+                    throw new InvalidOperationException(
+                        $"Application amount {matchingApp.Amount:C} exceeds invoice {inv.InvoiceNumber} balance of {freshBalance:C}");
+            }
+
+            throw new InvalidOperationException("Concurrent payment conflict — please retry.");
+        }
 
         return new PaymentListItemModel(
             payment.Id, payment.PaymentNumber, payment.CustomerId, customer.Name,
