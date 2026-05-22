@@ -319,6 +319,7 @@ try
     builder.Services.AddScoped<IStatusEntryRepository, StatusEntryRepository>();
     builder.Services.AddScoped<IReportBuilderRepository, ReportBuilderRepository>();
     builder.Services.AddScoped<IEmbeddingRepository, EmbeddingRepository>();
+    builder.Services.AddScoped<ISyncQueueRepository, SyncQueueRepository>();
     builder.Services.AddScoped<IBarcodeService, BarcodeService>();
     builder.Services.AddSingleton<ICsvExportService, CsvExportService>();
     builder.Services.AddSingleton<IImageService, ImageService>();
