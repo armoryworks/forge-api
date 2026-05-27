@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Activity;
 using Forge.Api.Features.Customers;
+using Forge.Api.Features.Customers.BulkIntake;
 using Forge.Api.Features.OutreachPreferences;
 using Forge.Core.Models;
 
@@ -73,6 +74,22 @@ public class CustomersController(IMediator mediator) : ControllerBase
             BillingAddress: request.BillingAddress,
             ShippingAddress: request.ShippingAddress));
         return CreatedAtAction(nameof(GetCustomer), new { id = result.Id }, result);
+    }
+
+    [HttpPost("bulk-intake/preview")]
+    [Authorize(Roles = "Admin,Manager,PM")]
+    public async Task<ActionResult<BulkCustomerIntakeResponseModel>> BulkIntakePreview([FromBody] BulkCustomerIntakeRequest request)
+    {
+        var result = await mediator.Send(new BulkCustomerIntakeCommand(request, Commit: false));
+        return Ok(result);
+    }
+
+    [HttpPost("bulk-intake/commit")]
+    [Authorize(Roles = "Admin,Manager,PM")]
+    public async Task<ActionResult<BulkCustomerIntakeResponseModel>> BulkIntakeCommit([FromBody] BulkCustomerIntakeRequest request)
+    {
+        var result = await mediator.Send(new BulkCustomerIntakeCommand(request, Commit: true));
+        return Ok(result);
     }
 
     [HttpPut("{id:int}")]

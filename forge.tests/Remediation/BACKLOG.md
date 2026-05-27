@@ -123,13 +123,13 @@ Transfer / **UpdateCycleCount-approve**). `dotnet test` 29 passed / 0 failed.
 
 ### Autonomous burndown stopping point (2026-05-27)
 
-~24 findings closed RED→GREEN over the session (29 passing remediation tests, all
-`dotnet build -warnaserror` + `dotnet test` verified, committed + pushed). The
-remaining items each need a **focused or reviewed session**, not an unattended pass:
+~27 findings closed RED→GREEN over the session (32 passing remediation tests, all
+`dotnet build -warnaserror` + `dotnet test` verified, committed + pushed). Latest:
+**C8** (deactivate-with-open-docs guard → 409) and **C2** (customer bulk-import:
+`POST /customers/bulk-intake/preview` + `/commit` — within-batch + existing-customer
+dedup by name/email, preview classifies without persisting). The remaining items each
+need a **focused or reviewed session**, not an unattended pass:
 
-- **C2 — customer bulk-import** (sizable): mirrors the 360-line `BulkLeadIntakeHandler`
-  but needs an entirely new contract (request/row/result models + status enum + dedup
-  rules). Design-bearing; do it deliberately.
 - **C3 — customer segments**: needs a new `CustomerSegment` entity + table → an EF
   **migration** (schema change = reviewed per CLAUDE.md; can't verify against Postgres
   in the InMemory harness).

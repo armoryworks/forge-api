@@ -2,9 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
 using Forge.Tests.Capabilities;
@@ -12,11 +12,10 @@ using Forge.Tests.Capabilities;
 namespace Forge.Tests.Remediation.Customers;
 
 /// <summary>
-/// Region 1 · Customers RED tests (see ../README.md for the RED-pending convention).
-/// Findings: C8 (deactivate with open docs, no guard), C2 (bulk-import is placeholder
-/// chrome — no endpoint), C3 (segments page hardcoded — no endpoint).
-/// UI-only rows tracked separately: C7 (tab caps), C5 (standalone /customers/contacts gate).
-/// CAP-MD-CUSTOMERS is default-on, so these reach the handler/route.
+/// Region 1 · Customers RED tests (see ../README.md).
+/// GREEN: C8 (deactivate-with-open-docs guard), C2 (bulk-import preview + commit).
+/// Still RED: C3 (segments — needs a new entity + migration, a reviewed-session item).
+/// CAP-MD-CUSTOMERS is default-on.
 /// </summary>
 [Collection(CapabilityTestCollection.Name)]
 public class CustomersRemediationTests
@@ -34,9 +33,7 @@ public class CustomersRemediationTests
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
 
-    [Fact(Skip = "RED: C8 — UpdateCustomer deactivates a customer with open invoices/orders/jobs " +
-                 "with no guard. Remove Skip when deactivating a customer that has open documents " +
-                 "is rejected (409).")]
+    [Fact] // C8 GREEN — deactivating a customer with an open invoice is rejected
     public async Task Deactivating_a_customer_with_an_open_invoice_is_rejected()
     {
         int customerId;
@@ -56,28 +53,54 @@ public class CustomersRemediationTests
         var response = await AuthClient().PutAsync($"/api/v1/customers/{customerId}", body);
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict,
-            "a customer with open documents must not be deactivated (definition-of-correct)");
+            "a customer with open documents must not be deactivated");
     }
 
-    [Fact(Skip = "RED: C2 — customer bulk-import is placeholder UI with no backend endpoint. " +
-                 "Remove Skip when POST /customers/bulk-intake/preview exists (mirrors leads bulk-intake).")]
-    public async Task Customer_bulk_intake_preview_endpoint_exists()
+    [Fact] // C2 GREEN — bulk-intake preview classifies rows without persisting
+    public async Task Customer_bulk_intake_preview_classifies_rows()
     {
-        var body = JsonContent.Create(new { rows = Array.Empty<object>() });
+        var name = $"Acme {Guid.NewGuid():N}";
+        var body = JsonContent.Create(new
+        {
+            rows = new[]
+            {
+                new { externalRowKey = "r1", name, email = "acme@example.com", companyName = (string?)null, phone = (string?)null, notes = (string?)null },
+                new { externalRowKey = "r2", name, email = (string?)null, companyName = (string?)null, phone = (string?)null, notes = (string?)null },
+                new { externalRowKey = "r3", name = "", email = (string?)null, companyName = (string?)null, phone = (string?)null, notes = (string?)null },
+            },
+        });
         var response = await AuthClient().PostAsync("/api/v1/customers/bulk-intake/preview", body);
 
-        response.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
-        response.StatusCode.Should().NotBe(HttpStatusCode.MethodNotAllowed,
-            "the bulk-import wizard needs a real preview endpoint, not placeholder chrome");
+        response.IsSuccessStatusCode.Should().BeTrue();
+        var json = await response.Content.ReadAsStringAsync();
+        json.Should().Contain("DuplicateWithinBatch", "the second row repeats the first row's name");
+        json.Should().Contain("Invalid", "the blank-name row is invalid");
     }
 
-    [Fact(Skip = "RED: C3 — customer segments page hardcodes examples with no backend. " +
-                 "Remove Skip when GET /customers/segments exists.")]
+    [Fact] // C2 GREEN — bulk-intake commit persists the clean rows
+    public async Task Customer_bulk_intake_commit_creates_customers()
+    {
+        var name = $"CommitCo {Guid.NewGuid():N}";
+        var body = JsonContent.Create(new
+        {
+            rows = new[]
+            {
+                new { externalRowKey = "c1", name, email = (string?)null, companyName = (string?)null, phone = (string?)null, notes = (string?)null },
+            },
+        });
+        var response = await AuthClient().PostAsync("/api/v1/customers/bulk-intake/commit", body);
+        response.IsSuccessStatusCode.Should().BeTrue();
+
+        using var scope = NewScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        (await db.Customers.AnyAsync(c => c.Name == name)).Should().BeTrue("commit must persist the new customer");
+    }
+
+    [Fact(Skip = "RED: C3 — customer segments page hardcodes examples with no backend (needs a new " +
+                 "CustomerSegment entity + migration — reviewed-session item). Remove Skip when GET /customers/segments exists.")]
     public async Task Customer_segments_endpoint_exists()
     {
         var response = await AuthClient().GetAsync("/api/v1/customers/segments");
-
-        response.StatusCode.Should().NotBe(HttpStatusCode.NotFound,
-            "segments must be backed by a real CRUD endpoint, not 4 hardcoded examples");
+        response.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
     }
 }

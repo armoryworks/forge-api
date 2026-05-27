@@ -1,5 +1,8 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
+
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
@@ -72,6 +75,23 @@ public class UpdateCustomerHandler(ICustomerRepository repo, AppDbContext db, IC
         // Phase 3 H2 / WU-12: stamp/clear DeactivationDate on lifecycle change.
         if (request.IsActive.HasValue && request.IsActive.Value != customer.IsActive)
         {
+            // C8: a customer with open commercial documents must not be deactivated —
+            // that would orphan in-flight orders / unpaid invoices.
+            if (!request.IsActive.Value)
+            {
+                var hasOpenOrders = await db.SalesOrders.AnyAsync(
+                    o => o.CustomerId == customer.Id
+                         && o.Status != SalesOrderStatus.Cancelled && o.Status != SalesOrderStatus.Completed,
+                    cancellationToken);
+                var hasOpenInvoices = await db.Invoices.AnyAsync(
+                    i => i.CustomerId == customer.Id
+                         && i.Status != InvoiceStatus.Paid && i.Status != InvoiceStatus.Voided,
+                    cancellationToken);
+                if (hasOpenOrders || hasOpenInvoices)
+                    throw new InvalidOperationException(
+                        "Cannot deactivate a customer with open orders or unpaid invoices.");
+            }
+
             customer.IsActive = request.IsActive.Value;
             customer.DeactivationDate = customer.IsActive ? null : clock.UtcNow;
             changedFields.Add(customer.IsActive ? "reactivated" : "deactivated");
