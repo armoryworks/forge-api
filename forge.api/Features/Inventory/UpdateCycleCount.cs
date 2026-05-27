@@ -65,6 +65,13 @@ public class UpdateCycleCountHandler(
                     var content = await repo.FindBinContentWithLocationAsync(line.BinContentId.Value, cancellationToken);
                     if (content != null)
                     {
+                        // S-RI1: approving a count that drops a bin below its reserved qty would
+                        // inflate 'available' (= on-hand − reserved) into a phantom surplus.
+                        if (content.ReservedQuantity > line.ActualQuantity)
+                            throw new InvalidOperationException(
+                                $"Cannot approve: counted {line.ActualQuantity} for a bin with {content.ReservedQuantity} reserved. " +
+                                "Release the reservation first.");
+
                         content.Quantity = line.ActualQuantity;
 
                         if (line.ActualQuantity == 0)

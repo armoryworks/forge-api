@@ -134,6 +134,45 @@ public class InventoryRemediationTests
             "transferring 5 of 10 would leave 5 on-hand, below the 8 reserved");
     }
 
+    [Fact] // S-RI1 (UpdateCycleCount approve) — approving a count below reserved is rejected
+    public async Task Approving_a_cycle_count_below_reserved_is_rejected()
+    {
+        int cycleCountId;
+        int lineId;
+        using (var scope = NewScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var location = new StorageLocation { Name = "S-RI1 CC", LocationType = LocationType.Bin };
+            db.StorageLocations.Add(location);
+            await db.SaveChangesAsync();
+
+            var bin = new BinContent
+            {
+                LocationId = location.Id, EntityType = "Part", EntityId = 1,
+                Quantity = 10m, ReservedQuantity = 8m, Status = BinContentStatus.Stored,
+                PlacedBy = 1, PlacedAt = DateTimeOffset.UtcNow,
+            };
+            db.Add(bin);
+            await db.SaveChangesAsync();
+
+            var cycleCount = new CycleCount
+            {
+                LocationId = location.Id, CountedById = 1, CountedAt = DateTimeOffset.UtcNow, Status = "Pending",
+                Lines = { new CycleCountLine { BinContentId = bin.Id, EntityType = "Part", EntityId = 1, ExpectedQuantity = 10, ActualQuantity = 10 } },
+            };
+            db.Add(cycleCount);
+            await db.SaveChangesAsync();
+            cycleCountId = cycleCount.Id;
+            lineId = cycleCount.Lines.First().Id;
+        }
+
+        var body = JsonContent.Create(new { status = "Approved", lines = new[] { new { id = lineId, actualQuantity = 2 } } });
+        var response = await AuthClient().PutAsync($"/api/v1/inventory/cycle-counts/{cycleCountId}", body);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict,
+            "approving a counted 2 against an 8-reserved bin must be rejected");
+    }
+
     [Fact(Skip = "RED: S1 — the stock list omits parts that have zero on-hand (joins only parts " +
                  "with BinContent rows). Remove Skip when a zero-stock part appears in /inventory/parts.")]
     public async Task Stock_list_includes_a_part_with_zero_on_hand()

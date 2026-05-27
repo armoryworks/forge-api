@@ -28,7 +28,7 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
 | G-38-MRP-3 / F-07B-03 | **BLOCKER** | Planning · api | `PlanningCyclesController` mutations reachable by ProductionWorker — no role gate (live POST→201) | `[Authorize(Roles="Admin,Manager")]` on all planning-cycle mutations | `WebApplicationFactory` integration | ✅ |
 | F-EXP-01 | **BLOCKER** | Expenses · api | `PATCH /expenses/{id}/status` has no role/self gate — any user approves any expense (live) | Approval gated by role/ownership; routed through `ApprovalService` | `WebApplicationFactory` integration | ✅ (role gate; `ApprovalService` routing = F-26B-05) |
 | S-MV1 | **HIGH** | Shipments/Inventory · api | `ShipShipment` leaks on two axes: never relieves `on_hand` AND never releases the SO-line reservation (sharpens AUDIT-P06-3) | Ship decrements `BinContent` **and** releases the `SalesOrderLineId` reservation | xUnit + `TestDbContextFactory` | ☐ |
-| S-RI1 | **HIGH** | Inventory · api | `TransferStock`/`AdjustStock`/`UpdateCycleCount`/`RemoveBinContent` ignore `ReservedQuantity`, inflating `available` | Reducing/removing a bin throws if `newQty < ReservedQuantity`; transfer carries reserved to dest | `TestDbContextFactory` | ✅ Adjust/Remove/Transfer (UpdateCycleCount-approve still owed) |
+| S-RI1 | **HIGH** | Inventory · api | `TransferStock`/`AdjustStock`/`UpdateCycleCount`/`RemoveBinContent` ignore `ReservedQuantity`, inflating `available` | Reducing/removing a bin throws if `newQty < ReservedQuantity`; transfer carries reserved to dest | `TestDbContextFactory` | ✅ all 4 surfaces (Adjust/Remove/Transfer/CycleCount-approve) |
 | PRI-1 / PRI-2 / PRI-3 | **HIGH** | Purchasing/Inventory · api | PO-side ReceiveDialog marks PO Received + signals "Materials Ready" but writes no `BinContent`; inv-tab Receive stocks but never advances PO status (notify-XOR-stock) | One receive path both writes `BinContent` and advances PO status; location required when stocking | xUnit + `TestDbContextFactory` | ☐ |
 | F-JQ1 | **HIGH** | Jobs/Quality · api | Job advances through completion with open NCRs / failed inspections / unresolved CAPAs | `MoveJobStage` rejects advance when `NCR.Status==Open` or `QcInspection.Status==Failed` | xUnit handler | ☐ |
 | F-26B-01 | **HIGH** | Expenses · api+db | Expense has no vendor/payee link full-stack (no FK, API, or UI field) | Add `VendorId`/`PayeeId` FK to `Expense`; vendor picker on create | `WebApplicationFactory` integration | ☐ |
@@ -118,8 +118,12 @@ seed + assert real behavior (done for S2a/L2).
   both `[Authorize(Roles="Admin,Manager")]` behind CAP-EXT-ANNOUNCEMENTS. Tests: edit
   round-trips, retract → 204.
 
-Next: C2/C3 (customer bulk-import + segments — sizable), the S-RI1 cycle-count surface,
-and the infra-gated (real-Postgres set-default races, G-MFA-3 crypto).
+**S-RI1 fully closed** — the reservation guard now covers all 4 surfaces (Adjust / Remove /
+Transfer / **UpdateCycleCount-approve**). `dotnet test` 29 passed / 0 failed.
+
+Next: C2/C3 (customer bulk-import + segments — sizable; C3 needs a new entity + migration,
+so it's a reviewed-session item, not autonomous), and the infra-gated (real-Postgres
+set-default races, G-MFA-3 crypto — both need harness setup).
 
 ## RED test coverage landed (2026-05-27)
 
