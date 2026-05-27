@@ -139,6 +139,32 @@ public class TrainingController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("paths")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<TrainingPathResponseModel>> CreatePath(
+        [FromBody] CreateTrainingPathRequestModel model, CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new CreateTrainingPathCommand(model), ct);
+        return CreatedAtAction(nameof(GetPath), new { id = result.Id }, result);
+    }
+
+    [HttpPut("paths/{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<TrainingPathResponseModel>> UpdatePath(
+        int id, [FromBody] UpdateTrainingPathRequestModel model, CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new UpdateTrainingPathCommand(id, model), ct);
+        return Ok(result);
+    }
+
+    [HttpDelete("paths/{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeletePath(int id, CancellationToken ct = default)
+    {
+        await mediator.Send(new DeleteTrainingPathCommand(id), ct);
+        return NoContent();
+    }
+
     // Enrollments
 
     [HttpPost("enrollments")]

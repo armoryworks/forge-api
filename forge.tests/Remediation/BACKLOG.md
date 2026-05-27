@@ -107,8 +107,14 @@ seed + assert real behavior (done for S2a/L2).
   GetByIdQuery. Originals are preserved in history (lossless), per the steer.
 - Line add/delete (vs edit) deferred — edit is the tested contract; add/delete is a follow-on.
 
-Next: training-path write API (F-14-BE-01), announcements update, C2/C3, and the
-infra-gated (real-Postgres set-default races, G-MFA-3).
+**Training-path write API F-14-BE-01** built (`dotnet test` 26 passed / 0 failed):
+- `POST /training/paths` (create) + `PUT /training/paths/{id}` (edit; non-null ModuleIds
+  replaces the module set in order) + `DELETE /training/paths/{id}` (soft-delete) — all
+  `[Authorize(Roles="Admin")]`, behind CAP-HR-TRAINING. Shared `TrainingPathResponseBuilder`
+  returns the GetTrainingPaths shape. Tests: create round-trips, delete → 204.
+
+Next: announcements update (F-13-ANN-01), C2/C3 (customer bulk-import + segments), the
+S-RI1 cycle-count surface, and the infra-gated (real-Postgres set-default races, G-MFA-3).
 
 ## RED test coverage landed (2026-05-27)
 
