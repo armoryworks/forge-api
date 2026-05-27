@@ -66,8 +66,16 @@ Ship-gate **authz cluster** fixed + tests passing (`dotnet test` 8 passed / 0 fa
 - **S-RI1** — `AdjustStock` rejects dropping a bin below its `ReservedQuantity` (→ 409).
   The same guard is still owed on `TransferStock` / `UpdateCycleCount` (approve) / `RemoveBinContent`.
 
-Next burndown targets: handler-ownership checks (F-EXP-06 delete, TT-01 delete; need the
-caller's roles plumbed into the handler), then the remaining S-RI1 surfaces.
+**Ownership** batch fixed + tests passing (`dotnet test` 12 passed / 0 failed):
+- New `ForbiddenException` → 403 in `ExceptionHandlingMiddleware` (the codebase had no
+  generic 403 path — `UnauthorizedAccessException` maps to 401). Reusable for per-row authz.
+- **F-EXP-06** — `DeleteExpense` now rejects a non-owner/non-approver (owner or
+  Admin/Manager/OfficeManager only).
+- **TT-01** — `DeleteTimeEntry` now rejects a non-owner/non-manager (IDOR closed).
+
+Next burndown targets: remaining S-RI1 surfaces (`TransferStock` / `UpdateCycleCount`
+approve / `RemoveBinContent` — same reservation guard, → 409), then the missing-endpoint
+features and the infra-gated (Postgres / crypto) findings.
 
 ## RED test coverage landed (2026-05-27)
 

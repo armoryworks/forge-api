@@ -65,8 +65,7 @@ public class ExpensesRemediationTests
             "approving an expense must require an approver role — not be open to any authenticated user");
     }
 
-    [Fact(Skip = "RED: F-EXP-06 — DeleteExpense has a status guard but no ownership check; a non-owner " +
-                 "can delete another user's pending expense. Remove Skip when non-owner delete is 403.")]
+    [Fact] // F-EXP-06 GREEN — delete now checks ownership (owner or approver role)
     public async Task A_non_owner_cannot_delete_someone_elses_expense()
     {
         var expenseId = await SeedPendingExpenseFor(userId: 2);

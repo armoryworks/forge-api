@@ -32,8 +32,7 @@ public class TimeTrackingRemediationTests
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
 
-    [Fact(Skip = "RED: TT-01 — deleting a time entry has no ownership check (IDOR). " +
-                 "Remove Skip when a non-owner deleting another user's entry is rejected (403).")]
+    [Fact] // TT-01 GREEN — delete now checks ownership (owner or manager)
     public async Task A_non_owner_cannot_delete_another_users_time_entry()
     {
         int entryId;

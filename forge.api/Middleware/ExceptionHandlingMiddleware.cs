@@ -127,6 +127,20 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             });
             await context.Response.WriteAsync(json);
         }
+        catch (ForbiddenException ex)
+        {
+            // Authenticated but not permitted to act on this specific resource
+            // (per-row ownership check). 403 — distinct from the 401 below.
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            context.Response.ContentType = "application/problem+json";
+            await context.Response.WriteAsJsonAsync(new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = "Forbidden",
+                Detail = ex.Message,
+                Type = "about:blank",
+            });
+        }
         catch (UnauthorizedAccessException ex)
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
