@@ -32,15 +32,38 @@ public class PurchaseOrdersRemediationTests
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
 
-    [Fact(Skip = "RED: P06-4 — PO lines are immutable (no line edit endpoint). " +
-                 "Remove Skip when PUT /api/v1/purchase-orders/{id}/lines/{lineId} exists.")]
-    public async Task PurchaseOrder_line_edit_endpoint_exists()
+    [Fact] // P06-4 GREEN — a draft PO line is editable (gated to Draft)
+    public async Task Draft_purchase_order_line_can_be_edited()
     {
-        var response = await AuthClient().PutAsync("/api/v1/purchase-orders/1/lines/1", null);
+        int poId;
+        int lineId;
+        using (var scope = NewScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var vendor = new Vendor { CompanyName = "P06-4 Vendor" };
+            db.Vendors.Add(vendor);
+            var part = new Part { PartNumber = $"P-POE-{Guid.NewGuid().ToString("N")[..8]}", Name = "PO Edit Part" };
+            db.Parts.Add(part);
+            await db.SaveChangesAsync();
 
-        response.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
-        response.StatusCode.Should().NotBe(HttpStatusCode.MethodNotAllowed,
-            "a draft PO's lines must be editable before submit");
+            var po = new PurchaseOrder
+            {
+                VendorId = vendor.Id,
+                Status = PurchaseOrderStatus.Draft,
+                Lines = { new PurchaseOrderLine { PartId = part.Id, Description = "Original", OrderedQuantity = 2m, UnitPrice = 5m } },
+            };
+            db.PurchaseOrders.Add(po);
+            await db.SaveChangesAsync();
+            poId = po.Id;
+            lineId = po.Lines.First().Id;
+        }
+
+        var body = JsonContent.Create(new { description = "Edited PO line", quantity = 7m, unitPrice = 9m, notes = "rev" });
+        var response = await AuthClient().PutAsync($"/api/v1/purchase-orders/{poId}/lines/{lineId}", body);
+
+        response.IsSuccessStatusCode.Should().BeTrue("draft PO lines must be editable before submit");
+        var json = await response.Content.ReadAsStringAsync();
+        json.Should().Contain("Edited PO line", "the line edit must persist");
     }
 
     [Fact(Skip = "RED: PRI-1/2/3 / P06-2 — receiving a PO line writes no BinContent, so on-hand " +

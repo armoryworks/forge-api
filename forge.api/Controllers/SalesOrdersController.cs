@@ -53,6 +53,14 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("{id:int}/lines/{lineId:int}")]
+    public async Task<ActionResult<SalesOrderDetailResponseModel>> UpdateSalesOrderLine(
+        int id, int lineId, UpdateOrderLineRequestModel request)
+    {
+        var result = await mediator.Send(new UpdateSalesOrderLineCommand(id, lineId, request));
+        return Ok(result);
+    }
+
     [HttpPost("{id:int}/confirm")]
     public async Task<IActionResult> ConfirmSalesOrder(int id)
     {

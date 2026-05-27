@@ -20,7 +20,7 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
 | AUDIT-19-S1 | **HIGH** | Quotes pricing · api | Customer price lists are a dead input to quote line pricing | Quote line price resolves from the customer's price list when present | xUnit handler | ☐ |
 | AUDIT-V9 | **HIGH** | Vendors · api | Vendor price-tier variance silently dropped | Vendor-part price-tier writes persist / surface, no silent drop | xUnit handler | ☐ |
 | AUDIT-D5 | **HIGH** | Parts/BOM · api | No BOM cycle guard (A→B→A possible) | Adding a BOM edge that forms a cycle is rejected | xUnit handler + `TestDbContextFactory` | ✅ |
-| AUDIT-BE-1 (Q-3/SO-8) | **HIGH** | Quotes/SalesOrders · api+ui | Quote lines & SO header/lines immutable after creation; no edit path | Draft quotes/orders are editable (header + lines) | xUnit handler (api) + Vitest/Cypress (ui) | ☐ |
+| AUDIT-BE-1 (Q-3/SO-8) | **HIGH** | Quotes/SalesOrders · api+ui | Quote lines & SO header/lines immutable after creation; no edit path | Draft quotes/orders are editable (header + lines) | xUnit handler (api) + Vitest/Cypress (ui) | ✅ api line-edit (Draft-gated); header PUT pre-existing; UI caller = SO-8 (ui) |
 | AUDIT-S3 | **MED** | Quotes · api | `ConvertQuoteToOrder.cs:27-34` drops `quote.Notes` | Convert preserves `Notes` onto the order | `Quotes/ConvertQuoteToOrderRemediationTests` | 🔴 |
 | AUDIT-S3b / SO-8 | **MED** | SalesOrders · ui | SO-only header fields (CreditTerms/BillingAddress/RequestedDelivery/CustomerPO) can't be set post-convert (SO-edit dead) | Draft SO header is editable for these fields | Cypress E2E (ui) | ☐ |
 | BE-1 (carried) | **HIGH** | Calendars · api | `working-calendars/:id/set-default` → HTTP 500 (non-atomic default swap; unique `is_default` violation) | Set-default atomically clears the prior default (no 500) | xUnit handler + `TestDbContextFactory` | ☐ |
@@ -100,8 +100,15 @@ seed + assert real behavior (done for S2a/L2).
 - Note: the applied-payment void *reversal/recompute* path is implemented + code-reviewed;
   the test exercises the unapplied path. An applied-payment integration test would harden it.
 
-Next: line-edits (quote/SO/PO, Draft-gated), training paths, announcements update, C2/C3,
-and the infra-gated (real-Postgres set-default races, G-MFA-3).
+**Line-edits BE-1 / SO-8 / P06-4** built — Draft-gated (`dotnet test` 24 passed / 0 failed):
+- `PUT /quotes/{id}/lines/{lineId}`, `PUT /orders/{id}/lines/{lineId}`, `PUT /purchase-orders/{id}/lines/{lineId}`
+  edit a single line (description/qty/unit-price/notes) and 409 when the parent isn't Draft.
+  Shared `UpdateOrderLineRequestModel`; each handler re-returns the detail via the existing
+  GetByIdQuery. Originals are preserved in history (lossless), per the steer.
+- Line add/delete (vs edit) deferred — edit is the tested contract; add/delete is a follow-on.
+
+Next: training-path write API (F-14-BE-01), announcements update, C2/C3, and the
+infra-gated (real-Postgres set-default races, G-MFA-3).
 
 ## RED test coverage landed (2026-05-27)
 

@@ -46,6 +46,14 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpPut("{id:int}/lines/{lineId:int}")]
+    public async Task<ActionResult<PurchaseOrderDetailResponseModel>> UpdatePurchaseOrderLine(
+        int id, int lineId, UpdateOrderLineRequestModel request)
+    {
+        var result = await mediator.Send(new UpdatePurchaseOrderLineCommand(id, lineId, request));
+        return Ok(result);
+    }
+
     [HttpPost]
     public async Task<ActionResult<PurchaseOrderListItemModel>> CreatePurchaseOrder(CreatePurchaseOrderRequestModel request)
     {
