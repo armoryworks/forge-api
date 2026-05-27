@@ -52,6 +52,22 @@ public class AnnouncementsController(IMediator mediator) : ControllerBase
         return CreatedAtAction(nameof(GetActive), null, result);
     }
 
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<ActionResult<AnnouncementResponseModel>> Update(int id, [FromBody] UpdateAnnouncementRequestModel model)
+    {
+        var result = await mediator.Send(new UpdateAnnouncementCommand(id, model));
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> Retract(int id)
+    {
+        await mediator.Send(new DeleteAnnouncementCommand(id));
+        return NoContent();
+    }
+
     [HttpPost("{id}/acknowledge")]
     public async Task<IActionResult> Acknowledge(int id)
     {

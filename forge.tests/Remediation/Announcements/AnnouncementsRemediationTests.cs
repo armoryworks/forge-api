@@ -2,17 +2,18 @@ using System.Net;
 using System.Net.Http.Json;
 
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 
+using Forge.Data.Context;
 using Forge.Tests.Capabilities;
 
 namespace Forge.Tests.Remediation.Announcements;
 
 /// <summary>
-/// Region 5 · Announcements RED test (see ../README.md). Finding F-13-ANN-01: announcements
-/// are create-only — there is no update (PUT/PATCH) or retract path, so a published
-/// announcement can't be corrected or pulled. Endpoints sit behind CAP-EXT-ANNOUNCEMENTS
-/// (default OFF), so the test enables the cap first, then asserts the update route exists
-/// (today absent → 404).
+/// Region 5 · Announcements RED tests (see ../README.md). Finding F-13-ANN-01: announcements
+/// were create-only (no update/retract). Now GREEN — PUT /announcements/{id} (edit) +
+/// DELETE /announcements/{id} (retract/soft-delete), both [Authorize(Roles="Admin,Manager")]
+/// behind CAP-EXT-ANNOUNCEMENTS (default OFF, so each test enables it first).
 /// </summary>
 [Collection(CapabilityTestCollection.Name)]
 public class AnnouncementsRemediationTests
@@ -28,19 +29,52 @@ public class AnnouncementsRemediationTests
         return client;
     }
 
-    [Fact(Skip = "RED: F-13-ANN-01 — announcements are create-only (no update/retract). " +
-                 "Remove Skip when PUT /api/v1/announcements/{id} exists.")]
-    public async Task Announcement_update_endpoint_exists()
+    private IServiceScope NewScope() => _factory.Services.CreateScope();
+
+    private async Task EnableAnnouncements(HttpClient admin) =>
+        await admin.PutAsync("/api/v1/capabilities/CAP-EXT-ANNOUNCEMENTS/enabled", JsonContent.Create(new { enabled = true }));
+
+    private async Task<int> SeedAnnouncement()
+    {
+        using var scope = NewScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var announcement = new Announcement { Title = "Original", Content = "Original content", CreatedById = 1 };
+        db.Announcements.Add(announcement);
+        await db.SaveChangesAsync();
+        return announcement.Id;
+    }
+
+    [Fact] // F-13-ANN-01 GREEN — a published announcement can be edited
+    public async Task Announcement_can_be_edited()
     {
         var admin = AuthClient();
-        await admin.PutAsync("/api/v1/capabilities/CAP-EXT-ANNOUNCEMENTS/enabled",
-            JsonContent.Create(new { enabled = true }));
+        await EnableAnnouncements(admin);
+        var id = await SeedAnnouncement();
 
-        var response = await admin.PutAsync("/api/v1/announcements/1",
-            JsonContent.Create(new { title = "Corrected", body = "x" }));
+        var body = JsonContent.Create(new
+        {
+            title = "Corrected title",
+            content = "Corrected content",
+            severity = "Info",
+            requiresAcknowledgment = false,
+            expiresAt = (DateTimeOffset?)null,
+        });
+        var response = await admin.PutAsync($"/api/v1/announcements/{id}", body);
 
-        response.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
-        response.StatusCode.Should().NotBe(HttpStatusCode.MethodNotAllowed,
-            "a published announcement must be correctable / retractable");
+        response.IsSuccessStatusCode.Should().BeTrue("a published announcement must be editable");
+        var json = await response.Content.ReadAsStringAsync();
+        json.Should().Contain("Corrected title", "the edit must persist");
+    }
+
+    [Fact] // F-13-ANN-01 GREEN — a published announcement can be retracted
+    public async Task Announcement_can_be_retracted()
+    {
+        var admin = AuthClient();
+        await EnableAnnouncements(admin);
+        var id = await SeedAnnouncement();
+
+        var response = await admin.DeleteAsync($"/api/v1/announcements/{id}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent, "a published announcement must be retractable");
     }
 }

@@ -113,8 +113,13 @@ seed + assert real behavior (done for S2a/L2).
   `[Authorize(Roles="Admin")]`, behind CAP-HR-TRAINING. Shared `TrainingPathResponseBuilder`
   returns the GetTrainingPaths shape. Tests: create round-trips, delete → 204.
 
-Next: announcements update (F-13-ANN-01), C2/C3 (customer bulk-import + segments), the
-S-RI1 cycle-count surface, and the infra-gated (real-Postgres set-default races, G-MFA-3).
+**Announcements F-13-ANN-01** built (`dotnet test` 28 passed / 0 failed):
+- `PUT /announcements/{id}` (edit) + `DELETE /announcements/{id}` (retract/soft-delete),
+  both `[Authorize(Roles="Admin,Manager")]` behind CAP-EXT-ANNOUNCEMENTS. Tests: edit
+  round-trips, retract → 204.
+
+Next: C2/C3 (customer bulk-import + segments — sizable), the S-RI1 cycle-count surface,
+and the infra-gated (real-Postgres set-default races, G-MFA-3 crypto).
 
 ## RED test coverage landed (2026-05-27)
 
