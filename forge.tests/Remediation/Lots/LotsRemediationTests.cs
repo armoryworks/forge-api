@@ -1,16 +1,19 @@
 using System.Net;
+using System.Net.Http.Json;
 
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 
+using Forge.Data.Context;
 using Forge.Tests.Capabilities;
 
 namespace Forge.Tests.Remediation.Lots;
 
 /// <summary>
-/// Region 1 · Lots RED tests (see ../README.md). Finding L2: lots are create-only
-/// (LotsController has GET/POST but no PUT/DELETE) so a mistaken lot can't be
-/// corrected or archived despite the DeletedAt column. These assert the update +
-/// soft-delete endpoints exist (today the routes are absent → 404/405).
+/// Region 1 · Lots RED tests (see ../README.md). Finding L2: lots were create-only
+/// (LotsController had GET/POST but no PUT/DELETE) so a mistaken lot couldn't be
+/// corrected or archived despite the DeletedAt column. Now GREEN — update + soft-delete
+/// endpoints exist. Lots sit behind CAP-INV-LOTS (default OFF), so each test enables it first.
 /// </summary>
 [Collection(CapabilityTestCollection.Name)]
 public class LotsRemediationTests
@@ -26,25 +29,57 @@ public class LotsRemediationTests
         return client;
     }
 
-    [Fact(Skip = "RED: L2 — lots are create-only; no PUT to correct expiry/notes/supplier-lot. " +
-                 "Remove Skip when PUT /api/v1/lots/{id} exists.")]
-    public async Task Lot_update_endpoint_exists()
-    {
-        var response = await AuthClient().PutAsync("/api/v1/lots/1", null);
+    private IServiceScope NewScope() => _factory.Services.CreateScope();
 
-        response.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
-        response.StatusCode.Should().NotBe(HttpStatusCode.MethodNotAllowed,
-            "a mistaken lot must be correctable, not frozen at creation");
+    private async Task EnableLots(HttpClient admin) =>
+        await admin.PutAsync("/api/v1/capabilities/CAP-INV-LOTS/enabled", JsonContent.Create(new { enabled = true }));
+
+    [Fact] // L2 GREEN — a lot's expiry/supplier-lot/notes are now correctable
+    public async Task Lot_can_be_corrected()
+    {
+        var admin = AuthClient();
+        await EnableLots(admin);
+
+        int lotId;
+        using (var scope = NewScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var part = new Part { PartNumber = $"P-LOT-{Guid.NewGuid().ToString("N")[..8]}", Name = "Lot Part" };
+            db.Parts.Add(part);
+            await db.SaveChangesAsync();
+
+            var lot = new LotRecord { LotNumber = $"LOT-{Guid.NewGuid().ToString("N")[..8]}", PartId = part.Id, Quantity = 5m };
+            db.LotRecords.Add(lot);
+            await db.SaveChangesAsync();
+            lotId = lot.Id;
+        }
+
+        var body = JsonContent.Create(new { supplierLotNumber = "SUP-9", notes = "Corrected note" });
+        var response = await admin.PutAsync($"/api/v1/lots/{lotId}", body);
+
+        response.IsSuccessStatusCode.Should().BeTrue("a mistaken lot must be correctable");
+        var json = await response.Content.ReadAsStringAsync();
+        json.Should().Contain("Corrected note", "the correction must persist");
     }
 
-    [Fact(Skip = "RED: L2 — lots have no soft-delete path despite the DeletedAt column. " +
-                 "Remove Skip when DELETE /api/v1/lots/{id} exists.")]
-    public async Task Lot_delete_endpoint_exists()
+    [Fact] // L2 GREEN — a mistaken lot can be soft-deleted
+    public async Task Lot_can_be_soft_deleted()
     {
-        var response = await AuthClient().DeleteAsync("/api/v1/lots/1");
+        var admin = AuthClient();
+        await EnableLots(admin);
 
-        response.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
-        response.StatusCode.Should().NotBe(HttpStatusCode.MethodNotAllowed,
-            "a mistaken lot must be archivable (soft delete)");
+        int lotId;
+        using (var scope = NewScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var lot = new LotRecord { LotNumber = $"LOT-{Guid.NewGuid().ToString("N")[..8]}", PartId = 1, Quantity = 5m };
+            db.LotRecords.Add(lot);
+            await db.SaveChangesAsync();
+            lotId = lot.Id;
+        }
+
+        var response = await admin.DeleteAsync($"/api/v1/lots/{lotId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent, "a mistaken lot must be archivable (soft delete)");
     }
 }

@@ -154,15 +154,24 @@ public class InventoryRemediationTests
             "a part with no stock should still show in the inventory list (as zero), not vanish");
     }
 
-    [Fact(Skip = "RED: S2a — there is no PUT to update a storage location (can't rename/re-type/re-parent). " +
-                 "Remove Skip when PUT /inventory/locations/{id} exists.")]
-    public async Task Storage_location_update_endpoint_exists()
+    [Fact] // S2a GREEN — storage locations are now editable via PUT
+    public async Task Storage_location_can_be_renamed()
     {
-        var body = JsonContent.Create(new { name = "Renamed" });
-        var response = await AuthClient().PutAsync("/api/v1/inventory/locations/1", body);
+        int locationId;
+        using (var scope = NewScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var loc = new StorageLocation { Name = "Old Name", LocationType = LocationType.Bin };
+            db.StorageLocations.Add(loc);
+            await db.SaveChangesAsync();
+            locationId = loc.Id;
+        }
 
-        response.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
-        response.StatusCode.Should().NotBe(HttpStatusCode.MethodNotAllowed,
-            "created locations must be editable (rename / re-type / re-parent)");
+        var body = JsonContent.Create(new { name = "Renamed Bin", locationType = "Shelf" });
+        var response = await AuthClient().PutAsync($"/api/v1/inventory/locations/{locationId}", body);
+
+        response.IsSuccessStatusCode.Should().BeTrue("a created location must be editable");
+        var json = await response.Content.ReadAsStringAsync();
+        json.Should().Contain("Renamed Bin", "the rename must persist");
     }
 }

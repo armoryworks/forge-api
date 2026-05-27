@@ -39,6 +39,14 @@ public class InventoryController(IMediator mediator) : ControllerBase
         return Created($"/api/v1/inventory/locations", result);
     }
 
+    [HttpPut("locations/{id:int}")]
+    public async Task<ActionResult<StorageLocationResponseModel>> UpdateLocation(
+        int id, [FromBody] UpdateStorageLocationRequestModel request)
+    {
+        var result = await mediator.Send(new UpdateStorageLocationCommand(id, request));
+        return Ok(result);
+    }
+
     [HttpGet("locations/{locationId:int}/contents")]
     public async Task<ActionResult<List<BinContentResponseModel>>> GetBinContents(int locationId)
     {

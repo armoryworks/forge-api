@@ -78,9 +78,18 @@ Ship-gate **authz cluster** fixed + tests passing (`dotnet test` 8 passed / 0 fa
   and `TransferStock` (can't transfer the source below its reserved qty). Only
   `UpdateCycleCount`-approve remains (needs a seeded cycle-count + lines to test).
 
-Next burndown targets: the missing-endpoint features (C2/C3, S2a, L2, line-edits,
-payments void/amend, training paths, announcements update — these *build* an endpoint,
-not add a guard) and the infra-gated (real-Postgres set-default races, G-MFA-3 crypto).
+**Feature tier** started — missing endpoints built + behavioral tests (`dotnet test` 17 passed / 0 failed):
+- **S2a** — `PUT /inventory/locations/{id}` (`UpdateStorageLocation`) — locations are now
+  editable (rename / re-type / re-parent). Test rewritten from existence-stub → seed+rename+assert.
+- **L2** — `PUT /api/v1/lots/{id}` (correct expiry/supplier-lot/notes) + `DELETE /api/v1/lots/{id}`
+  (soft delete). Tests enable CAP-INV-LOTS, seed, then exercise the real contract.
+
+Note on the existence-stub tests: `NotBe(404)` can't tell "route missing" from "entity
+missing", so burning these down means *building the endpoint AND* rewriting the test to
+seed + assert real behavior (done for S2a/L2).
+
+Next: more feature-tier endpoints (payments void/amend, line-edits, training paths,
+announcements update, C2/C3) and the infra-gated (real-Postgres set-default races, G-MFA-3).
 
 ## RED test coverage landed (2026-05-27)
 

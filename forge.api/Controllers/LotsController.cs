@@ -32,6 +32,21 @@ public class LotsController(IMediator mediator) : ControllerBase
         return Created($"/api/v1/lots/{result.Id}", result);
     }
 
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<LotRecordResponseModel>> UpdateLotRecord(
+        int id, [FromBody] UpdateLotRecordRequestModel request)
+    {
+        var result = await mediator.Send(new UpdateLotRecordCommand(id, request));
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> DeleteLotRecord(int id)
+    {
+        await mediator.Send(new DeleteLotRecordCommand(id));
+        return NoContent();
+    }
+
     [HttpGet("{lotNumber}/trace")]
     public async Task<ActionResult<LotTraceabilityResponseModel>> GetTraceability(string lotNumber)
     {
