@@ -25,8 +25,8 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
 | AUDIT-S3b / SO-8 | **MED** | SalesOrders · ui | SO-only header fields (CreditTerms/BillingAddress/RequestedDelivery/CustomerPO) can't be set post-convert (SO-edit dead) | Draft SO header is editable for these fields | Cypress E2E (ui) | ☐ |
 | BE-1 (carried) | **HIGH** | Calendars · api | `working-calendars/:id/set-default` → HTTP 500 (non-atomic default swap; unique `is_default` violation) | Set-default atomically clears the prior default (no 500) | xUnit handler + `TestDbContextFactory` | ☐ |
 | G-MFA-3 | **BLOCKER** | MFA · api | TOTP HMAC keyed on `UTF8.GetBytes(secret)` vs the base32 QR secret → authenticator codes never match; QR enrolment broken | Base32-decode the secret before HMAC; QR + validation agree (golden-vector test) | xUnit handler | ☐ |
-| G-38-MRP-3 / F-07B-03 | **BLOCKER** | Planning · api | `PlanningCyclesController` mutations reachable by ProductionWorker — no role gate (live POST→201) | `[Authorize(Roles="Admin,Manager")]` on all planning-cycle mutations | `WebApplicationFactory` integration | ☐ |
-| F-EXP-01 | **BLOCKER** | Expenses · api | `PATCH /expenses/{id}/status` has no role/self gate — any user approves any expense (live) | Approval gated by role/ownership; routed through `ApprovalService` | `WebApplicationFactory` integration | ☐ |
+| G-38-MRP-3 / F-07B-03 | **BLOCKER** | Planning · api | `PlanningCyclesController` mutations reachable by ProductionWorker — no role gate (live POST→201) | `[Authorize(Roles="Admin,Manager")]` on all planning-cycle mutations | `WebApplicationFactory` integration | ✅ |
+| F-EXP-01 | **BLOCKER** | Expenses · api | `PATCH /expenses/{id}/status` has no role/self gate — any user approves any expense (live) | Approval gated by role/ownership; routed through `ApprovalService` | `WebApplicationFactory` integration | ✅ (role gate; `ApprovalService` routing = F-26B-05) |
 | S-MV1 | **HIGH** | Shipments/Inventory · api | `ShipShipment` leaks on two axes: never relieves `on_hand` AND never releases the SO-line reservation (sharpens AUDIT-P06-3) | Ship decrements `BinContent` **and** releases the `SalesOrderLineId` reservation | xUnit + `TestDbContextFactory` | ☐ |
 | S-RI1 | **HIGH** | Inventory · api | `TransferStock`/`AdjustStock`/`UpdateCycleCount`/`RemoveBinContent` ignore `ReservedQuantity`, inflating `available` | Reducing/removing a bin throws if `newQty < ReservedQuantity`; transfer carries reserved to dest | `TestDbContextFactory` | ☐ |
 | PRI-1 / PRI-2 / PRI-3 | **HIGH** | Purchasing/Inventory · api | PO-side ReceiveDialog marks PO Received + signals "Materials Ready" but writes no `BinContent`; inv-tab Receive stocks but never advances PO status (notify-XOR-stock) | One receive path both writes `BinContent` and advances PO status; location required when stocking | xUnit + `TestDbContextFactory` | ☐ |
@@ -48,6 +48,20 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
   F-JQ1, F-26B-*, G-MFA-3, G-38-MRP-3, F-EXP-01, G-39-EMAIL-1). UI/UX, WCAG, and
   cap-gating-coherence findings live in the master catalog (they're Vitest/Cypress/
   axe, not xUnit) — see `docs/delivery/in-progress/audit-remediation/`.
+
+## Burndown — GREEN so far (2026-05-27)
+
+Ship-gate **authz cluster** fixed + tests passing (`dotnet test` 8 passed / 0 failed):
+- **K-F13 / K-F15 / K-F14** — JobsController explode-bom / PUT (reassign) / dispose now
+  carry `[Authorize(Roles="Admin,Manager")]` (controller-level grant + method gate = AND).
+- **SF-04 / SF-05** — ShopFloorController complete-job / assign-job gated to Admin/Manager.
+- **P-F6 / G-38-MRP-3** — every PlanningCyclesController mutation gated to Admin/Manager (reads stay open).
+- **F-EXP-01** — Expenses status PATCH gated to Admin/Manager/OfficeManager (the deeper
+  `ApprovalService` routing + self-approval block remain as F-26B-05 / F-EXP-04).
+- **F-13-CAP-04** — `GET /capabilities/{id}/relations` now Admin-only (matched its siblings).
+
+Next burndown targets: handler-ownership checks (F-EXP-06 delete, TT-01 delete), then the
+no-migration data-integrity ones (D5 BOM cycle, S-RI1 reservation guard).
 
 ## RED test coverage landed (2026-05-27)
 

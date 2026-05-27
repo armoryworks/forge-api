@@ -164,6 +164,7 @@ public class CapabilitiesController(IMediator mediator) : ControllerBase
     /// have to walk the full descriptor to compute the inverse graph.
     /// </summary>
     [HttpGet("{id}/relations")]
+    [Authorize(Roles = "Admin")] // F-13-CAP-04: capability topology is admin-only (matches sibling admin endpoints)
     [CapabilityBootstrap]
     public async Task<ActionResult<CapabilityRelationsResponseModel>> GetRelations(
         string id,

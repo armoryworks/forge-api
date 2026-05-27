@@ -27,8 +27,7 @@ public class CapabilityRelationsRemediationTests
         return client;
     }
 
-    [Fact(Skip = "RED: F-13-CAP-04 — GET /capabilities/{id}/relations is readable by any authed user. " +
-                 "Remove Skip when it requires Admin (403 for a ProductionWorker).")]
+    [Fact] // F-13-CAP-04 GREEN — relations now requires Admin
     public async Task Capability_relations_are_admin_only()
     {
         var response = await AuthClient("ProductionWorker")

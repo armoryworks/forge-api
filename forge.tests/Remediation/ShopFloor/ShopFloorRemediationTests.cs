@@ -28,8 +28,7 @@ public class ShopFloorRemediationTests
         return client;
     }
 
-    [Fact(Skip = "RED: SF-04 — complete-job has no role gate and jumps to the final irreversible " +
-                 "stage. Remove Skip when it requires Admin/Manager (403 for a ProductionWorker).")]
+    [Fact] // SF-04 GREEN — complete-job now requires Admin/Manager
     public async Task Production_worker_cannot_complete_a_job_from_the_kiosk()
     {
         var response = await AuthClient("ProductionWorker")
@@ -38,8 +37,7 @@ public class ShopFloorRemediationTests
             "completing a job (irreversible) must require Admin/Manager / supervisor approval");
     }
 
-    [Fact(Skip = "RED: SF-05 — assign-job has no role/ownership gate; any user can steal any job. " +
-                 "Remove Skip when it requires Admin/Manager (403 for a ProductionWorker).")]
+    [Fact] // SF-05 GREEN — assign-job now requires Admin/Manager
     public async Task Production_worker_cannot_assign_a_job_from_the_kiosk()
     {
         var response = await AuthClient("ProductionWorker")

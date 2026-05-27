@@ -90,6 +90,7 @@ public class JobsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin,Manager")] // K-F15: reassignment/edit is a supervisory action
     [IfMatch(typeof(Job))]
     public async Task<ActionResult<JobDetailResponseModel>> UpdateJob(int id, UpdateJobCommand command)
     {
@@ -321,6 +322,7 @@ public class JobsController(IMediator mediator) : ControllerBase
 
     // Disposition
     [HttpPost("{id:int}/dispose")]
+    [Authorize(Roles = "Admin,Manager")] // K-F14: disposition can capitalize an Asset
     public async Task<ActionResult<JobDetailResponseModel>> DisposeJob(int id, DisposeJobRequestModel request)
         => Ok(await mediator.Send(new DisposeJobCommand(id, request)));
 
@@ -334,6 +336,7 @@ public class JobsController(IMediator mediator) : ControllerBase
 
     // BOM Explosion
     [HttpPost("{id:int}/explode-bom")]
+    [Authorize(Roles = "Admin,Manager")] // K-F13: creates child jobs + stock reservations
     public async Task<ActionResult<BomExplosionResponseModel>> ExplodeJobBom(int id)
         => Ok(await mediator.Send(new ExplodeJobBomCommand(id)));
 

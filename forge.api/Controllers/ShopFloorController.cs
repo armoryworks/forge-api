@@ -74,6 +74,7 @@ public class ShopFloorController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("assign-job")]
+    [Authorize(Roles = "Admin,Manager")] // SF-05: assigning/stealing a job is supervisory
     public async Task<IActionResult> AssignJob([FromBody] AssignJobRequestModel model)
     {
         await mediator.Send(new AssignJobCommand(model.JobId, model.UserId));
@@ -81,6 +82,7 @@ public class ShopFloorController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("complete-job")]
+    [Authorize(Roles = "Admin,Manager")] // SF-04: completing a job (irreversible) is supervisory
     public async Task<IActionResult> CompleteJob([FromBody] CompleteJobRequestModel model)
     {
         await mediator.Send(new CompleteJobCommand(model.JobId));

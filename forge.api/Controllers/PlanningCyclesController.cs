@@ -13,6 +13,11 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-PLAN-MRP")]
 public class PlanningCyclesController(IMediator mediator) : ControllerBase
 {
+    // Reads stay open to the broader controller-level role set (workers view the cycle);
+    // P-F6: every mutation requires Admin/Manager (a worker must not create/activate/
+    // complete cycles or commit/reorder/remove entries).
+    private const string MutateRoles = "Admin,Manager";
+
     [HttpGet]
     public async Task<ActionResult<List<PlanningCycleListItemModel>>> GetPlanningCycles()
     {
@@ -35,6 +40,7 @@ public class PlanningCyclesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = MutateRoles)]
     public async Task<ActionResult<PlanningCycleListItemModel>> CreatePlanningCycle(CreatePlanningCycleRequestModel request)
     {
         var result = await mediator.Send(new CreatePlanningCycleCommand(
@@ -43,6 +49,7 @@ public class PlanningCyclesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = MutateRoles)]
     public async Task<IActionResult> UpdatePlanningCycle(int id, UpdatePlanningCycleRequestModel request)
     {
         await mediator.Send(new UpdatePlanningCycleCommand(id, request.Name, request.StartDate, request.EndDate, request.Goals));
@@ -50,6 +57,7 @@ public class PlanningCyclesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/activate")]
+    [Authorize(Roles = MutateRoles)]
     public async Task<IActionResult> ActivatePlanningCycle(int id)
     {
         await mediator.Send(new ActivatePlanningCycleCommand(id));
@@ -57,6 +65,7 @@ public class PlanningCyclesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/complete")]
+    [Authorize(Roles = MutateRoles)]
     public async Task<ActionResult> CompletePlanningCycle(int id, CompletePlanningCycleRequestModel request)
     {
         var newCycleId = await mediator.Send(new CompletePlanningCycleCommand(id, request.RolloverIncomplete));
@@ -64,6 +73,7 @@ public class PlanningCyclesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/entries")]
+    [Authorize(Roles = MutateRoles)]
     public async Task<IActionResult> CommitJobToCycle(int id, CommitJobRequestModel request)
     {
         await mediator.Send(new CommitJobToCycleCommand(id, request.JobId));
@@ -71,6 +81,7 @@ public class PlanningCyclesController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}/entries/{jobId:int}")]
+    [Authorize(Roles = MutateRoles)]
     public async Task<IActionResult> RemoveJobFromCycle(int id, int jobId)
     {
         await mediator.Send(new RemoveJobFromCycleCommand(id, jobId));
@@ -78,6 +89,7 @@ public class PlanningCyclesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}/entries/order")]
+    [Authorize(Roles = MutateRoles)]
     public async Task<IActionResult> UpdateEntryOrder(int id, UpdateEntryOrderRequestModel request)
     {
         await mediator.Send(new UpdateEntryOrderCommand(id, request.Items));
@@ -85,6 +97,7 @@ public class PlanningCyclesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/entries/{jobId:int}/complete")]
+    [Authorize(Roles = MutateRoles)]
     public async Task<IActionResult> CompleteEntry(int id, int jobId)
     {
         await mediator.Send(new CompleteEntryCommand(id, jobId));

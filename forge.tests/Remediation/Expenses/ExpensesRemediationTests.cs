@@ -53,8 +53,7 @@ public class ExpensesRemediationTests
         return expense.Id;
     }
 
-    [Fact(Skip = "RED: F-EXP-01 (ship-gate) — expense approval is ungated; a ProductionWorker can " +
-                 "approve any expense. Remove Skip when approval requires an approver role (403 otherwise).")]
+    [Fact] // F-EXP-01 GREEN — approval now requires an approver role (Admin/Manager/OfficeManager)
     public async Task A_production_worker_cannot_approve_an_expense()
     {
         var expenseId = await SeedPendingExpenseFor(userId: 2);

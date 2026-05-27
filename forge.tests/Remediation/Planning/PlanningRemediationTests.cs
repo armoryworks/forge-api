@@ -28,8 +28,7 @@ public class PlanningRemediationTests
         return client;
     }
 
-    [Fact(Skip = "RED: P-F6 / G-38-MRP-3 (ship-gate) — a ProductionWorker can create planning cycles " +
-                 "(no per-endpoint role gate). Remove Skip when cycle mutations require Admin/Manager.")]
+    [Fact] // P-F6 / G-38-MRP-3 GREEN — cycle mutations now require Admin/Manager
     public async Task Production_worker_cannot_create_a_planning_cycle()
     {
         // Precondition: CAP-PLAN-MRP is default-off, so enable it as Admin first; otherwise

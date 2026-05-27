@@ -29,8 +29,7 @@ public class JobsAuthzRemediationTests
         return client;
     }
 
-    [Fact(Skip = "RED: K-F13 — POST /jobs/{id}/explode-bom is authGuard-only; a ProductionWorker can " +
-                 "create child jobs + reservations. Remove Skip when it requires Admin/Manager (403 otherwise).")]
+    [Fact] // K-F13 GREEN — explode-bom now requires Admin/Manager
     public async Task Production_worker_cannot_explode_bom()
     {
         var response = await AuthClient("ProductionWorker").PostAsync("/api/v1/jobs/1/explode-bom", null);
@@ -38,8 +37,7 @@ public class JobsAuthzRemediationTests
             "exploding a BOM into child jobs/reservations must require Admin/Manager");
     }
 
-    [Fact(Skip = "RED: K-F15 — PUT /jobs/{id} is authGuard-only; any user can reassign any job. " +
-                 "Remove Skip when reassignment requires Admin/Manager (403 otherwise).")]
+    [Fact] // K-F15 GREEN — PUT /jobs/{id} now requires Admin/Manager
     public async Task Production_worker_cannot_reassign_a_job()
     {
         var response = await AuthClient("ProductionWorker").PutAsync("/api/v1/jobs/1", null);
@@ -47,8 +45,7 @@ public class JobsAuthzRemediationTests
             "reassigning a job must require Admin/Manager, not any authenticated worker");
     }
 
-    [Fact(Skip = "RED: K-F14 — POST /jobs/{id}/dispose is authGuard-only; it can capitalize an Asset. " +
-                 "Remove Skip when disposition requires Admin/Manager (403 otherwise).")]
+    [Fact] // K-F14 GREEN — dispose now requires Admin/Manager
     public async Task Production_worker_cannot_dispose_a_job()
     {
         var response = await AuthClient("ProductionWorker").PostAsync("/api/v1/jobs/1/dispose", null);

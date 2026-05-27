@@ -40,6 +40,7 @@ public class ExpensesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id:int}/status")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager")] // F-EXP-01: approval is an approver-role action
     public async Task<ActionResult<ExpenseResponseModel>> UpdateExpenseStatus(int id, [FromBody] UpdateExpenseStatusRequestModel request)
     {
         var result = await mediator.Send(new UpdateExpenseStatusCommand(id, request));
