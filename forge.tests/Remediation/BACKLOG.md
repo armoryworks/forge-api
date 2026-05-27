@@ -48,6 +48,30 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
   F-JQ1, F-26B-*, G-MFA-3, G-38-MRP-3, F-EXP-01, G-39-EMAIL-1). UI/UX, WCAG, and
   cap-gating-coherence findings live in the master catalog (they're Vitest/Cypress/
   axe, not xUnit) — see `docs/delivery/in-progress/audit-remediation/`.
+
+## RED test coverage landed (2026-05-27)
+
+42 RED tests across 29 files in `Remediation/<Feature>/` now encode the
+definition-of-correct for the api-layer findings of Regions 1–5. All are
+`[Fact(Skip="RED: …")]` and the suite builds green (`dotnet build -warnaserror`).
+The live remaining-work list is `grep -rn 'Skip = "RED' forge.tests/Remediation`.
+
+| Region | Feature files (findings) |
+|--------|--------------------------|
+| 1 Master Data | Leads (L3, C1-back) · Customers (C8, C2, C3) · Vendors (V9) · Parts (D5, D2b) · Inventory (S-RI1, S1, S2a) · Lots (L2) |
+| 2 Quote-to-Cash + Expenses | Quotes (BE-1) · Estimates (BE-3, E-1) · SalesOrders (BE-1) · RecurringOrders (BE-4) · PurchaseOrders (P06-4, PRI-1/2/3) · Shipments (P06-3/S-MV1) · Invoices (AUDIT-21-S1) · Payments (P06-5) · Expenses (F-EXP-01, F-EXP-06, F-26B-01, F-EXP-03) · Quotes-convert (AUDIT-S3, S4 — pre-existing) |
+| 3 Operations | Kanban (K-F13/F15/F14) · ShopFloor (SF-04/05) · TimeTracking (TT-01) · Assets (AS-01, AS-03) · Planning (P-F6) · MRP (MRP-03) |
+| 4 Platform | Approvals (F-11-APPR-02) |
+| 5 Admin + Account | Capabilities (F-13-CAP-04) · Training (F-14-BE-01) · Announcements (F-13-ANN-01) |
+
+### Deferred — NOT yet covered by an api RED test (why)
+
+- **Postgres-specific** (InMemory can't reproduce the filtered-unique-index race): BE-1 / F-12-BE-01 working-calendar set-default 500, F-12-BE-02 CompanyLocation set-default, F-14-BE-02 OvertimeRule IsDefault. Need a real-Postgres (Testcontainers) integration harness.
+- **Crypto / entity-shape**: G-MFA-3 (TOTP base32 — needs a golden-vector unit test + OtpNet or manual HMAC in the test project), F-13-MFA-01 (MfaPolicy entity), F-12-USR-01 (ApplicationUser.ManagerId).
+- **Complex multi-entity seeding**: F-JQ1 (job advance past open NCR — needs stage graph), F-12-AUDIT-01 (approval audit — needs a pending step + approver), AUDIT-P06-1 (invoiced≤shipped — needs shipment context), AUDIT-19-S1 (price-list pricing).
+- **Other api**: AUDIT-S6 (ConvertLead atomicity), F-26B-02/05 (expense→QBO vendor / approval routing), G-39-EMAIL-1 (cap read-leak), Quality Q-03, Worker W-01, OEE-01/02.
+- **Stale at api level** (already implemented; UI/executor gap only): F-10-RPT-02/03 (report export + schedules exist), F-13-BE-01 (EDI mapping CRUD exists), P06-11c (customer-return DELETE exists).
+- **UI layer** (Vitest/Cypress/axe — out of this .NET run; tracked in the master catalog for a forge-ui spec pass): all of Regions 6 (Auth/MFA-login-contract/Onboarding/Portal/Mobile/AI) and 7 (nav cap-coherence, shared-component spine, WCAG), plus the UI rows within Regions 1–5 (C7/C5 tab caps, S2c bin pickers, P-F1, etc.).
 - **Burn-down is feature-by-feature** (master catalog spine, 2026-05-27 directive):
   take a feature to completion — write RED tests for all its rows, fix
   blocker→high→med→low, ship — rather than a severity skim. The **ship gate**
