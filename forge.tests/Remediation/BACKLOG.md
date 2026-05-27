@@ -121,9 +121,24 @@ seed + assert real behavior (done for S2a/L2).
 **S-RI1 fully closed** — the reservation guard now covers all 4 surfaces (Adjust / Remove /
 Transfer / **UpdateCycleCount-approve**). `dotnet test` 29 passed / 0 failed.
 
-Next: C2/C3 (customer bulk-import + segments — sizable; C3 needs a new entity + migration,
-so it's a reviewed-session item, not autonomous), and the infra-gated (real-Postgres
-set-default races, G-MFA-3 crypto — both need harness setup).
+### Autonomous burndown stopping point (2026-05-27)
+
+~24 findings closed RED→GREEN over the session (29 passing remediation tests, all
+`dotnet build -warnaserror` + `dotnet test` verified, committed + pushed). The
+remaining items each need a **focused or reviewed session**, not an unattended pass:
+
+- **C2 — customer bulk-import** (sizable): mirrors the 360-line `BulkLeadIntakeHandler`
+  but needs an entirely new contract (request/row/result models + status enum + dedup
+  rules). Design-bearing; do it deliberately.
+- **C3 — customer segments**: needs a new `CustomerSegment` entity + table → an EF
+  **migration** (schema change = reviewed per CLAUDE.md; can't verify against Postgres
+  in the InMemory harness).
+- **Set-default unique-index races** (working-calendar `F-12-BE-01`/BE-1, CompanyLocation
+  `F-12-BE-02`, OvertimeRule `F-14-BE-02`): Postgres-only (filtered unique index) — need a
+  **Testcontainers real-Postgres** integration harness; InMemory can't reproduce them.
+- **G-MFA-3** (TOTP base32 crypto): needs a golden-vector unit test (OtpNet or a manual
+  HMAC harness) + likely a small `MfaService` construction shim.
+- **UI layer** (Regions 6–7 + the UI rows in 1–5): Vitest/Cypress/axe — a `forge-ui` pass.
 
 ## RED test coverage landed (2026-05-27)
 
