@@ -70,6 +70,70 @@ public class InventoryRemediationTests
             "8 units are reserved — the bin cannot be adjusted down to 2 (would inflate available)");
     }
 
+    [Fact] // S-RI1 (RemoveBinContent) — removing a bin that still has reserved stock is rejected
+    public async Task Removing_a_bin_with_reserved_stock_is_rejected()
+    {
+        int binContentId;
+        using (var scope = NewScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var location = new StorageLocation { Name = "S-RI1 Remove", LocationType = LocationType.Bin };
+            db.StorageLocations.Add(location);
+            await db.SaveChangesAsync();
+
+            var bin = new BinContent
+            {
+                LocationId = location.Id, EntityType = "Part", EntityId = 1,
+                Quantity = 10m, ReservedQuantity = 8m, Status = BinContentStatus.Stored,
+                PlacedBy = 1, PlacedAt = DateTimeOffset.UtcNow,
+            };
+            db.Add(bin);
+            await db.SaveChangesAsync();
+            binContentId = bin.Id;
+        }
+
+        var response = await AuthClient().DeleteAsync($"/api/v1/inventory/bin-contents/{binContentId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict,
+            "a bin with reserved stock must not be removed wholesale");
+    }
+
+    [Fact] // S-RI1 (TransferStock) — transferring would drop the source below its reserved qty
+    public async Task Transferring_a_bin_below_its_reserved_quantity_is_rejected()
+    {
+        var admin = AuthClient();
+        await admin.PutAsync("/api/v1/capabilities/CAP-INV-MULTILOC/enabled",
+            JsonContent.Create(new { enabled = true }));
+
+        int sourceBinId;
+        int destLocationId;
+        using (var scope = NewScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var src = new StorageLocation { Name = "S-RI1 Src", LocationType = LocationType.Bin };
+            var dst = new StorageLocation { Name = "S-RI1 Dst", LocationType = LocationType.Bin };
+            db.StorageLocations.AddRange(src, dst);
+            await db.SaveChangesAsync();
+            destLocationId = dst.Id;
+
+            var bin = new BinContent
+            {
+                LocationId = src.Id, EntityType = "Part", EntityId = 1,
+                Quantity = 10m, ReservedQuantity = 8m, Status = BinContentStatus.Stored,
+                PlacedBy = 1, PlacedAt = DateTimeOffset.UtcNow,
+            };
+            db.Add(bin);
+            await db.SaveChangesAsync();
+            sourceBinId = bin.Id;
+        }
+
+        var body = JsonContent.Create(new { sourceBinContentId = sourceBinId, destinationLocationId = destLocationId, quantity = 5m });
+        var response = await admin.PostAsync("/api/v1/inventory/transfer", body);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict,
+            "transferring 5 of 10 would leave 5 on-hand, below the 8 reserved");
+    }
+
     [Fact(Skip = "RED: S1 — the stock list omits parts that have zero on-hand (joins only parts " +
                  "with BinContent rows). Remove Skip when a zero-stock part appears in /inventory/parts.")]
     public async Task Stock_list_includes_a_part_with_zero_on_hand()

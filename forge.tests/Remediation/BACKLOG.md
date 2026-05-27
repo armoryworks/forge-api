@@ -28,7 +28,7 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
 | G-38-MRP-3 / F-07B-03 | **BLOCKER** | Planning · api | `PlanningCyclesController` mutations reachable by ProductionWorker — no role gate (live POST→201) | `[Authorize(Roles="Admin,Manager")]` on all planning-cycle mutations | `WebApplicationFactory` integration | ✅ |
 | F-EXP-01 | **BLOCKER** | Expenses · api | `PATCH /expenses/{id}/status` has no role/self gate — any user approves any expense (live) | Approval gated by role/ownership; routed through `ApprovalService` | `WebApplicationFactory` integration | ✅ (role gate; `ApprovalService` routing = F-26B-05) |
 | S-MV1 | **HIGH** | Shipments/Inventory · api | `ShipShipment` leaks on two axes: never relieves `on_hand` AND never releases the SO-line reservation (sharpens AUDIT-P06-3) | Ship decrements `BinContent` **and** releases the `SalesOrderLineId` reservation | xUnit + `TestDbContextFactory` | ☐ |
-| S-RI1 | **HIGH** | Inventory · api | `TransferStock`/`AdjustStock`/`UpdateCycleCount`/`RemoveBinContent` ignore `ReservedQuantity`, inflating `available` | Reducing/removing a bin throws if `newQty < ReservedQuantity`; transfer carries reserved to dest | `TestDbContextFactory` | ✅ AdjustStock (Transfer/CycleCount/Remove still owed) |
+| S-RI1 | **HIGH** | Inventory · api | `TransferStock`/`AdjustStock`/`UpdateCycleCount`/`RemoveBinContent` ignore `ReservedQuantity`, inflating `available` | Reducing/removing a bin throws if `newQty < ReservedQuantity`; transfer carries reserved to dest | `TestDbContextFactory` | ✅ Adjust/Remove/Transfer (UpdateCycleCount-approve still owed) |
 | PRI-1 / PRI-2 / PRI-3 | **HIGH** | Purchasing/Inventory · api | PO-side ReceiveDialog marks PO Received + signals "Materials Ready" but writes no `BinContent`; inv-tab Receive stocks but never advances PO status (notify-XOR-stock) | One receive path both writes `BinContent` and advances PO status; location required when stocking | xUnit + `TestDbContextFactory` | ☐ |
 | F-JQ1 | **HIGH** | Jobs/Quality · api | Job advances through completion with open NCRs / failed inspections / unresolved CAPAs | `MoveJobStage` rejects advance when `NCR.Status==Open` or `QcInspection.Status==Failed` | xUnit handler | ☐ |
 | F-26B-01 | **HIGH** | Expenses · api+db | Expense has no vendor/payee link full-stack (no FK, API, or UI field) | Add `VendorId`/`PayeeId` FK to `Expense`; vendor picker on create | `WebApplicationFactory` integration | ☐ |
@@ -73,9 +73,14 @@ Ship-gate **authz cluster** fixed + tests passing (`dotnet test` 8 passed / 0 fa
   Admin/Manager/OfficeManager only).
 - **TT-01** — `DeleteTimeEntry` now rejects a non-owner/non-manager (IDOR closed).
 
-Next burndown targets: remaining S-RI1 surfaces (`TransferStock` / `UpdateCycleCount`
-approve / `RemoveBinContent` — same reservation guard, → 409), then the missing-endpoint
-features and the infra-gated (Postgres / crypto) findings.
+**Reservation guard extended** (`dotnet test` 14 passed / 0 failed):
+- **S-RI1** now also guards `RemoveBinContent` (can't remove a bin with reserved stock)
+  and `TransferStock` (can't transfer the source below its reserved qty). Only
+  `UpdateCycleCount`-approve remains (needs a seeded cycle-count + lines to test).
+
+Next burndown targets: the missing-endpoint features (C2/C3, S2a, L2, line-edits,
+payments void/amend, training paths, announcements update — these *build* an endpoint,
+not add a guard) and the infra-gated (real-Postgres set-default races, G-MFA-3 crypto).
 
 ## RED test coverage landed (2026-05-27)
 

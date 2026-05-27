@@ -19,6 +19,12 @@ public sealed class RemoveBinContentHandler(
         var content = await repo.FindBinContentAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Bin content {request.Id} not found");
 
+        // S-RI1: a bin with committed reservations can't be removed wholesale —
+        // that would silently drop reserved stock and inflate `available`.
+        if (content.ReservedQuantity > 0)
+            throw new InvalidOperationException(
+                $"Cannot remove this bin: {content.ReservedQuantity} unit(s) are reserved. Release the reservation first.");
+
         var userId = int.Parse(
             httpContextAccessor.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 

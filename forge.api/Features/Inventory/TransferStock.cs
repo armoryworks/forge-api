@@ -40,6 +40,12 @@ public class TransferStockHandler(
             throw new InvalidOperationException(
                 $"Cannot transfer {data.Quantity} — only {source.Quantity} available");
 
+        // S-RI1: don't let a transfer drop the source bin's on-hand below what's reserved.
+        if (source.Quantity - data.Quantity < source.ReservedQuantity)
+            throw new InvalidOperationException(
+                $"Cannot transfer {data.Quantity}: would leave less than the {source.ReservedQuantity} " +
+                "reserved at the source. Release the reservation first.");
+
         var destination = await repo.FindLocationAsync(data.DestinationLocationId, cancellationToken)
             ?? throw new KeyNotFoundException($"Destination location {data.DestinationLocationId} not found");
 
