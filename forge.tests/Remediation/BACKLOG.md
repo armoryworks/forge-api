@@ -88,8 +88,20 @@ Note on the existence-stub tests: `NotBe(404)` can't tell "route missing" from "
 missing", so burning these down means *building the endpoint AND* rewriting the test to
 seed + assert real behavior (done for S2a/L2).
 
-Next: more feature-tier endpoints (payments void/amend, line-edits, training paths,
-announcements update, C2/C3) and the infra-gated (real-Postgres set-default races, G-MFA-3).
+**Payments P06-5** built (`dotnet test` 20 passed / 0 failed):
+- `PUT /api/v1/payments/{id}` (amend) — blocks reducing the amount below what's already
+  applied to invoices.
+- `POST /api/v1/payments/{id}/void` — migration-free void: reverses the payment's
+  applications, recomputes the affected invoices' status, soft-deletes the payment, and
+  logs the reason (lossless). Distinct from DeletePayment (which refuses applied payments).
+- **Settings-selectable policy** `payments.modification-policy` (Locked / AmendOnly / Full,
+  default Full) — a registered `SettingDescriptor` so it's admin-editable. Amend needs
+  AmendOnly|Full; void needs Full. Tested: amend, locked→409, void.
+- Note: the applied-payment void *reversal/recompute* path is implemented + code-reviewed;
+  the test exercises the unapplied path. An applied-payment integration test would harden it.
+
+Next: line-edits (quote/SO/PO, Draft-gated), training paths, announcements update, C2/C3,
+and the infra-gated (real-Postgres set-default races, G-MFA-3).
 
 ## RED test coverage landed (2026-05-27)
 

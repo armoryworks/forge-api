@@ -56,6 +56,20 @@ public class PaymentsController(IMediator mediator) : ControllerBase
         return CreatedAtAction(nameof(GetPayment), new { id = result.Id }, result);
     }
 
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<PaymentListItemModel>> UpdatePayment(int id, UpdatePaymentRequestModel request)
+    {
+        var result = await mediator.Send(new UpdatePaymentCommand(id, request));
+        return Ok(result);
+    }
+
+    [HttpPost("{id:int}/void")]
+    public async Task<IActionResult> VoidPayment(int id, VoidPaymentRequestModel request)
+    {
+        await mediator.Send(new VoidPaymentCommand(id, request));
+        return NoContent();
+    }
+
     [HttpDelete("{id:int}")]
     [IfMatch(typeof(Payment))]
     public async Task<IActionResult> DeletePayment(int id)

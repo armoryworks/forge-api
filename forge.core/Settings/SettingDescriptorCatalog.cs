@@ -47,6 +47,7 @@ public static class SettingDescriptorCatalog
         list.AddRange(GoogleDriveSettings.Descriptors);
         list.AddRange(AccountingSettings.Descriptors);
         list.AddRange(ShippingSettings.Descriptors);
+        list.AddRange(PaymentsSettings.Descriptors);
         return list;
     }
 }
