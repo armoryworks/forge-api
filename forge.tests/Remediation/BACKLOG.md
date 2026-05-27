@@ -48,6 +48,11 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
   F-JQ1, F-26B-*, G-MFA-3, G-38-MRP-3, F-EXP-01, G-39-EMAIL-1). UI/UX, WCAG, and
   cap-gating-coherence findings live in the master catalog (they're Vitest/Cypress/
   axe, not xUnit) — see `docs/delivery/in-progress/audit-remediation/`.
-- **Burn-down order** follows the master catalog's waves: Wave 0 release-blockers
-  (G-MFA-3, G-38-MRP-3, F-EXP-01 here; MRP-freeze + WCAG in ui) first, then Wave 1
-  financial/data-integrity (Theme A). HIGH before MED within a wave.
+- **Burn-down is feature-by-feature** (master catalog spine, 2026-05-27 directive):
+  take a feature to completion — write RED tests for all its rows, fix
+  blocker→high→med→low, ship — rather than a severity skim. The **ship gate**
+  (G-MFA-3, F-EXP-01, the kanban/shop-floor/planning/time-tracking authz blockers,
+  F-14-BE-02, working-calendar 500) must be GREEN before GA regardless of feature
+  order. This table is the api slice of the catalog; rows here are grouped loosely
+  by severity for the `grep "Skip = \"RED"` view, but execution follows the feature
+  order in `docs/delivery/in-progress/audit-remediation/`.
