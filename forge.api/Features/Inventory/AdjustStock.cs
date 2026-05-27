@@ -36,6 +36,13 @@ public class AdjustStockHandler(
         var content = await repo.FindBinContentWithLocationAsync(data.BinContentId, cancellationToken)
             ?? throw new KeyNotFoundException($"Bin content {data.BinContentId} not found");
 
+        // S-RI1: never let an adjustment drop on-hand below what's already reserved —
+        // that would inflate `available` (= on-hand − reserved) into a phantom surplus.
+        if (data.NewQuantity < content.ReservedQuantity)
+            throw new InvalidOperationException(
+                $"Cannot adjust this bin to {data.NewQuantity}: {content.ReservedQuantity} unit(s) are reserved. " +
+                "Release the reservation first.");
+
         var delta = data.NewQuantity - (int)content.Quantity;
 
         content.Quantity = data.NewQuantity;

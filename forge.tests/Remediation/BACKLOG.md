@@ -19,7 +19,7 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
 | AUDIT-P06-3 / INV-1 | **HIGH** | Shipments/Inventory · api | Shipping does not relieve on-hand; `InventoryReliefService` orphaned (`Program.cs:387`) | Shipping a line decrements bin on-hand | xUnit handler / integration | ☐ |
 | AUDIT-19-S1 | **HIGH** | Quotes pricing · api | Customer price lists are a dead input to quote line pricing | Quote line price resolves from the customer's price list when present | xUnit handler | ☐ |
 | AUDIT-V9 | **HIGH** | Vendors · api | Vendor price-tier variance silently dropped | Vendor-part price-tier writes persist / surface, no silent drop | xUnit handler | ☐ |
-| AUDIT-D5 | **HIGH** | Parts/BOM · api | No BOM cycle guard (A→B→A possible) | Adding a BOM edge that forms a cycle is rejected | xUnit handler + `TestDbContextFactory` | ☐ |
+| AUDIT-D5 | **HIGH** | Parts/BOM · api | No BOM cycle guard (A→B→A possible) | Adding a BOM edge that forms a cycle is rejected | xUnit handler + `TestDbContextFactory` | ✅ |
 | AUDIT-BE-1 (Q-3/SO-8) | **HIGH** | Quotes/SalesOrders · api+ui | Quote lines & SO header/lines immutable after creation; no edit path | Draft quotes/orders are editable (header + lines) | xUnit handler (api) + Vitest/Cypress (ui) | ☐ |
 | AUDIT-S3 | **MED** | Quotes · api | `ConvertQuoteToOrder.cs:27-34` drops `quote.Notes` | Convert preserves `Notes` onto the order | `Quotes/ConvertQuoteToOrderRemediationTests` | 🔴 |
 | AUDIT-S3b / SO-8 | **MED** | SalesOrders · ui | SO-only header fields (CreditTerms/BillingAddress/RequestedDelivery/CustomerPO) can't be set post-convert (SO-edit dead) | Draft SO header is editable for these fields | Cypress E2E (ui) | ☐ |
@@ -28,7 +28,7 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
 | G-38-MRP-3 / F-07B-03 | **BLOCKER** | Planning · api | `PlanningCyclesController` mutations reachable by ProductionWorker — no role gate (live POST→201) | `[Authorize(Roles="Admin,Manager")]` on all planning-cycle mutations | `WebApplicationFactory` integration | ✅ |
 | F-EXP-01 | **BLOCKER** | Expenses · api | `PATCH /expenses/{id}/status` has no role/self gate — any user approves any expense (live) | Approval gated by role/ownership; routed through `ApprovalService` | `WebApplicationFactory` integration | ✅ (role gate; `ApprovalService` routing = F-26B-05) |
 | S-MV1 | **HIGH** | Shipments/Inventory · api | `ShipShipment` leaks on two axes: never relieves `on_hand` AND never releases the SO-line reservation (sharpens AUDIT-P06-3) | Ship decrements `BinContent` **and** releases the `SalesOrderLineId` reservation | xUnit + `TestDbContextFactory` | ☐ |
-| S-RI1 | **HIGH** | Inventory · api | `TransferStock`/`AdjustStock`/`UpdateCycleCount`/`RemoveBinContent` ignore `ReservedQuantity`, inflating `available` | Reducing/removing a bin throws if `newQty < ReservedQuantity`; transfer carries reserved to dest | `TestDbContextFactory` | ☐ |
+| S-RI1 | **HIGH** | Inventory · api | `TransferStock`/`AdjustStock`/`UpdateCycleCount`/`RemoveBinContent` ignore `ReservedQuantity`, inflating `available` | Reducing/removing a bin throws if `newQty < ReservedQuantity`; transfer carries reserved to dest | `TestDbContextFactory` | ✅ AdjustStock (Transfer/CycleCount/Remove still owed) |
 | PRI-1 / PRI-2 / PRI-3 | **HIGH** | Purchasing/Inventory · api | PO-side ReceiveDialog marks PO Received + signals "Materials Ready" but writes no `BinContent`; inv-tab Receive stocks but never advances PO status (notify-XOR-stock) | One receive path both writes `BinContent` and advances PO status; location required when stocking | xUnit + `TestDbContextFactory` | ☐ |
 | F-JQ1 | **HIGH** | Jobs/Quality · api | Job advances through completion with open NCRs / failed inspections / unresolved CAPAs | `MoveJobStage` rejects advance when `NCR.Status==Open` or `QcInspection.Status==Failed` | xUnit handler | ☐ |
 | F-26B-01 | **HIGH** | Expenses · api+db | Expense has no vendor/payee link full-stack (no FK, API, or UI field) | Add `VendorId`/`PayeeId` FK to `Expense`; vendor picker on create | `WebApplicationFactory` integration | ☐ |
@@ -60,8 +60,14 @@ Ship-gate **authz cluster** fixed + tests passing (`dotnet test` 8 passed / 0 fa
   `ApprovalService` routing + self-approval block remain as F-26B-05 / F-EXP-04).
 - **F-13-CAP-04** — `GET /capabilities/{id}/relations` now Admin-only (matched its siblings).
 
-Next burndown targets: handler-ownership checks (F-EXP-06 delete, TT-01 delete), then the
-no-migration data-integrity ones (D5 BOM cycle, S-RI1 reservation guard).
+**Data-integrity** batch fixed + tests passing (`dotnet test` 10 passed / 0 failed):
+- **AUDIT-D5** — `CreateBOMEntry` now rejects any edge that closes a BOM cycle (BFS the
+  child's descendants for the parent), via a new `IPartRepository.GetBomChildIdsAsync`.
+- **S-RI1** — `AdjustStock` rejects dropping a bin below its `ReservedQuantity` (→ 409).
+  The same guard is still owed on `TransferStock` / `UpdateCycleCount` (approve) / `RemoveBinContent`.
+
+Next burndown targets: handler-ownership checks (F-EXP-06 delete, TT-01 delete; need the
+caller's roles plumbed into the handler), then the remaining S-RI1 surfaces.
 
 ## RED test coverage landed (2026-05-27)
 

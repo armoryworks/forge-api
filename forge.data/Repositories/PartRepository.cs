@@ -370,6 +370,12 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
         return max ?? 0;
     }
 
+    public async Task<List<int>> GetBomChildIdsAsync(int parentPartId, CancellationToken ct)
+        => await db.BOMEntries
+            .Where(b => b.ParentPartId == parentPartId)
+            .Select(b => b.ChildPartId)
+            .ToListAsync(ct);
+
     public async Task AddBomEntryAsync(BOMEntry entry, CancellationToken ct)
     {
         await db.BOMEntries.AddAsync(entry, ct);

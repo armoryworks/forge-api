@@ -25,6 +25,8 @@ public interface IPartRepository
     Task AddAsync(Part part, CancellationToken ct);
     Task<BOMEntry?> FindBomEntryAsync(int bomEntryId, int parentPartId, CancellationToken ct);
     Task<int> GetMaxBomSortOrderAsync(int parentPartId, CancellationToken ct);
+    /// <summary>D5: the direct child part-ids of a parent, for BOM-cycle detection.</summary>
+    Task<List<int>> GetBomChildIdsAsync(int parentPartId, CancellationToken ct);
     Task AddBomEntryAsync(BOMEntry entry, CancellationToken ct);
     Task RemoveBomEntryAsync(BOMEntry entry);
     Task<List<OperationResponseModel>> GetOperationsAsync(int partId, CancellationToken ct);

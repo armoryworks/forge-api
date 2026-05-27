@@ -36,6 +36,13 @@ public class CreateBOMEntryHandler(
         var child = await repo.FindAsync(request.Data.ChildPartId, cancellationToken)
             ?? throw new KeyNotFoundException($"Child part {request.Data.ChildPartId} not found");
 
+        // D5: reject any edge that would close a BOM cycle (A→B→…→A), not just the
+        // direct self-reference above. The new edge parent→child forms a cycle iff the
+        // parent is already reachable beneath the child, so walk the child's descendants.
+        if (await WouldCreateCycleAsync(repo, request.ParentPartId, request.Data.ChildPartId, cancellationToken))
+            throw new InvalidOperationException(
+                "Adding this component would create a BOM cycle (this parent already appears beneath the component).");
+
         var maxSort = await repo.GetMaxBomSortOrderAsync(request.ParentPartId, cancellationToken);
 
         var entry = new BOMEntry
@@ -64,5 +71,31 @@ public class CreateBOMEntryHandler(
     {
         var raw = http.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
         return int.TryParse(raw, out var v) ? v : (int?)null;
+    }
+
+    /// <summary>
+    /// BFS the descendant tree of <paramref name="childId"/> over BOM child-edges.
+    /// If <paramref name="parentId"/> is reachable, the proposed parent→child edge
+    /// would close a cycle. <c>visited</c> also makes this safe against any
+    /// pre-existing cycle in the data.
+    /// </summary>
+    private static async Task<bool> WouldCreateCycleAsync(
+        IPartRepository repo, int parentId, int childId, CancellationToken ct)
+    {
+        var visited = new HashSet<int>();
+        var queue = new Queue<int>();
+        queue.Enqueue(childId);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (current == parentId) return true;
+            if (!visited.Add(current)) continue;
+
+            foreach (var grandChildId in await repo.GetBomChildIdsAsync(current, ct))
+                queue.Enqueue(grandChildId);
+        }
+
+        return false;
     }
 }

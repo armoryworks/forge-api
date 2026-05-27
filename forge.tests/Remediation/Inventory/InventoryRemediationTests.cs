@@ -35,17 +35,21 @@ public class InventoryRemediationTests
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
 
-    [Fact(Skip = "RED: S-RI1 — AdjustStock drops a bin below its ReservedQuantity with no guard, " +
-                 "inflating 'available'. Remove Skip when reducing a bin below its reserved qty is rejected.")]
+    [Fact] // S-RI1 GREEN (AdjustStock) — adjust below reserved now rejected; same guard owed on Transfer/CycleCount/Remove
     public async Task Adjusting_a_bin_below_its_reserved_quantity_is_rejected()
     {
         int binContentId;
         using (var scope = NewScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var location = new StorageLocation { Name = "S-RI1 Bin", LocationType = LocationType.Bin };
+            db.StorageLocations.Add(location);
+            await db.SaveChangesAsync();
+
             var bin = new BinContent
             {
-                LocationId = 1,
+                LocationId = location.Id,
                 EntityType = "Part",
                 EntityId = 1,
                 Quantity = 10m,

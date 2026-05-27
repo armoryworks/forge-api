@@ -41,8 +41,7 @@ public class PartsRemediationTests
         return part.Id;
     }
 
-    [Fact(Skip = "RED: D5 — BOM creation allows a multi-node cycle (A→B then B→A); only a direct " +
-                 "self-reference is guarded. Remove Skip when an edge that forms a cycle is rejected.")]
+    [Fact] // D5 GREEN — BOM cycle (A→B→A) now rejected via descendant-walk in CreateBOMEntry
     public async Task Adding_a_BOM_edge_that_forms_a_cycle_is_rejected()
     {
         var a = await SeedPart("A");
