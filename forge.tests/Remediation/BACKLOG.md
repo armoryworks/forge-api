@@ -1,10 +1,12 @@
 # Remediation backlog (audit findings → tests → status)
 
-Prioritized bridge from the `forge-analysis` audit to the TDD burn-down. Seeded
-from the **completed + verified** audit phases (completeness 02–16, intersections
-18–22). It will be **expanded from the phase-41 coverage merge** once the audit
-finishes — that merge is the deduped source of truth; treat this as the starting
-slice, HIGH-severity first.
+The **api-layer execution slice** of the audit remediation. The 44-phase audit is
+complete; the deduplicated, cross-layer **master catalog** (all layers, all
+severities, grouped by root cause + the burn-down waves) lives in the product repo
+at `docs/delivery/in-progress/audit-remediation/findings-catalog.md`. This file is
+the live `grep "Skip = \"RED"` tracker for the findings whose test is xUnit / EF
+`TestDbContextFactory` / `WebApplicationFactory` (the api defects). UI findings
+(Vitest / Cypress / axe) are tracked in `forge-ui` and the master catalog.
 
 Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` green (fixed + test passing)
 
@@ -22,6 +24,17 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
 | AUDIT-S3 | **MED** | Quotes · api | `ConvertQuoteToOrder.cs:27-34` drops `quote.Notes` | Convert preserves `Notes` onto the order | `Quotes/ConvertQuoteToOrderRemediationTests` | 🔴 |
 | AUDIT-S3b / SO-8 | **MED** | SalesOrders · ui | SO-only header fields (CreditTerms/BillingAddress/RequestedDelivery/CustomerPO) can't be set post-convert (SO-edit dead) | Draft SO header is editable for these fields | Cypress E2E (ui) | ☐ |
 | BE-1 (carried) | **HIGH** | Calendars · api | `working-calendars/:id/set-default` → HTTP 500 (non-atomic default swap; unique `is_default` violation) | Set-default atomically clears the prior default (no 500) | xUnit handler + `TestDbContextFactory` | ☐ |
+| G-MFA-3 | **BLOCKER** | MFA · api | TOTP HMAC keyed on `UTF8.GetBytes(secret)` vs the base32 QR secret → authenticator codes never match; QR enrolment broken | Base32-decode the secret before HMAC; QR + validation agree (golden-vector test) | xUnit handler | ☐ |
+| G-38-MRP-3 / F-07B-03 | **BLOCKER** | Planning · api | `PlanningCyclesController` mutations reachable by ProductionWorker — no role gate (live POST→201) | `[Authorize(Roles="Admin,Manager")]` on all planning-cycle mutations | `WebApplicationFactory` integration | ☐ |
+| F-EXP-01 | **BLOCKER** | Expenses · api | `PATCH /expenses/{id}/status` has no role/self gate — any user approves any expense (live) | Approval gated by role/ownership; routed through `ApprovalService` | `WebApplicationFactory` integration | ☐ |
+| S-MV1 | **HIGH** | Shipments/Inventory · api | `ShipShipment` leaks on two axes: never relieves `on_hand` AND never releases the SO-line reservation (sharpens AUDIT-P06-3) | Ship decrements `BinContent` **and** releases the `SalesOrderLineId` reservation | xUnit + `TestDbContextFactory` | ☐ |
+| S-RI1 | **HIGH** | Inventory · api | `TransferStock`/`AdjustStock`/`UpdateCycleCount`/`RemoveBinContent` ignore `ReservedQuantity`, inflating `available` | Reducing/removing a bin throws if `newQty < ReservedQuantity`; transfer carries reserved to dest | `TestDbContextFactory` | ☐ |
+| PRI-1 / PRI-2 / PRI-3 | **HIGH** | Purchasing/Inventory · api | PO-side ReceiveDialog marks PO Received + signals "Materials Ready" but writes no `BinContent`; inv-tab Receive stocks but never advances PO status (notify-XOR-stock) | One receive path both writes `BinContent` and advances PO status; location required when stocking | xUnit + `TestDbContextFactory` | ☐ |
+| F-JQ1 | **HIGH** | Jobs/Quality · api | Job advances through completion with open NCRs / failed inspections / unresolved CAPAs | `MoveJobStage` rejects advance when `NCR.Status==Open` or `QcInspection.Status==Failed` | xUnit handler | ☐ |
+| F-26B-01 | **HIGH** | Expenses · api+db | Expense has no vendor/payee link full-stack (no FK, API, or UI field) | Add `VendorId`/`PayeeId` FK to `Expense`; vendor picker on create | `WebApplicationFactory` integration | ☐ |
+| F-26B-02 | **HIGH** | Expenses/QBO · api | Expense→QBO posts as a vendorless cash purchase (no `VendorRef`); invisible in vendor aging | Set `VendorExternalId` on the accounting expense from the vendor FK | `WebApplicationFactory` integration | ☐ |
+| F-26B-05 | **HIGH** | Expenses · api | Configured multi-step approval policy bypassed — single status-flip ignores routing/approvers/escalation | Expense approval goes through `ApprovalService`, not a direct status PATCH | `WebApplicationFactory` integration | ☐ |
+| G-39-EMAIL-1 | MED | Comms · api | `GET /communications/connections` returns 200 when `CAP-EXT-EMAIL-SYNC` OFF (read-leak; cap-check is mutations-only) | Add `[RequiresCapability]` to the GET (or register the `communications` prefix) | `WebApplicationFactory` integration | ☐ |
 
 ## Notes
 
@@ -30,5 +43,11 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
   four are SalesOrder-only with no quote source (split into `AUDIT-S3b/SO-8`, a UI
   gap). The convert-bug is the single `Notes` drop.
 - Rows marked `🔴` have a written test in this suite (skipped until the fix lands).
-- When phase 41 completes, regenerate/extend this table from the merged matrix so
-  the flow-tier (27–30) and gating (36–40) findings are folded in.
+- **Fold-in complete (2026-05-27):** the flow-tier (27–30), intersections (23–26b),
+  and gating (36–40) api findings are now in the table above (S-MV1, S-RI1, PRI-*,
+  F-JQ1, F-26B-*, G-MFA-3, G-38-MRP-3, F-EXP-01, G-39-EMAIL-1). UI/UX, WCAG, and
+  cap-gating-coherence findings live in the master catalog (they're Vitest/Cypress/
+  axe, not xUnit) — see `docs/delivery/in-progress/audit-remediation/`.
+- **Burn-down order** follows the master catalog's waves: Wave 0 release-blockers
+  (G-MFA-3, G-38-MRP-3, F-EXP-01 here; MRP-freeze + WCAG in ui) first, then Wave 1
+  financial/data-integrity (Theme A). HIGH before MED within a wave.
