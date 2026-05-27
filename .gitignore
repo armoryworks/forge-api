@@ -3,6 +3,7 @@
 **/obj/
 **/out/
 **/publish/
+.artifacts-remediation/   # local --artifacts-path build dir (sidesteps IDE obj locks)
 *.dll
 *.pdb
 *.exe
