@@ -42,6 +42,13 @@ public class LeadConfiguration : IEntityTypeConfiguration<Lead>
             .OnDelete(DeleteBehavior.SetNull);
         builder.HasIndex(e => e.CampaignId);
 
+        // L3 (BLOCKER): Lead.Status must persist as a string. PullQueueHandler's raw SQL
+        // compares leads.status to text literals ('Lost','Converted'); with the default
+        // int mapping that comparison threw (integer = text) → 500 on every queue pull.
+        // Its sibling enums (OutreachState/NdaState/etc.) already persist as strings.
+        builder.Property(e => e.Status).HasConversion<string>().HasMaxLength(40);
+        builder.HasIndex(e => e.Status);
+
         builder.Property(e => e.OutreachState).HasConversion<string>().HasMaxLength(40);
         builder.HasIndex(e => e.OutreachState);
 

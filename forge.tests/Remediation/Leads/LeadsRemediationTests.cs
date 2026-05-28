@@ -49,20 +49,10 @@ public class LeadsRemediationTests
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
 
-    [Fact(Skip = "RED: L3 — Lead.Status persists as int, but PullQueueHandler.cs raw SQL " +
-                 "compares leads.status to string literals ('Lost','Converted') → 500 on every " +
-                 "queue pull. Remove Skip when LeadConfiguration maps Status with " +
-                 "HasConversion<string>() (its sibling enums OutreachState/NdaState already do).")]
-    public void Lead_Status_persists_as_a_string()
-    {
-        using var db = TestDbContextFactory.Create();
-
-        var prop = db.Model.FindEntityType(typeof(Lead))!.FindProperty(nameof(Lead.Status))!;
-
-        prop.GetValueConverter().Should().NotBeNull(
-            "PullQueueHandler compares leads.status to text; Status must persist as a string " +
-            "(definition-of-correct), like every other Lead enum column");
-    }
+    // L3 (Lead.Status persists as text) is proven against a real Postgres in
+    // LeadQueuePullRemediationTests — both a model-converter assertion and the actual
+    // queue-pull raw SQL. The InMemory provider doesn't expose GetValueConverter(), so the
+    // assertion can't live here.
 
     [Fact(Skip = "RED: C1-back — UpdateLead permits an illegal status regression (Converted → New) " +
                  "with no state-machine guard in the handler/validator. Remove Skip when a backward " +
