@@ -1,5 +1,3 @@
-using System.Text;
-
 using FluentAssertions;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
@@ -103,10 +101,10 @@ public class MfaBypassE2ETests : IDisposable
         await _db.SaveChangesAsync();
     }
 
-    // The server validates with new Totp(Encoding.UTF8.GetBytes(secret), step:30, totpSize:6);
-    // generate the matching code the same way (±1 step tolerance covers boundaries).
+    // G-MFA-3: the server now Base32-DECODES the secret (matching a real authenticator app);
+    // compute the expected code the same way (±1 step tolerance covers boundaries).
     private static string CurrentCode() =>
-        new Totp(Encoding.UTF8.GetBytes(Secret), step: 30, totpSize: 6).ComputeTotp();
+        new Totp(Base32Encoding.ToBytes(Secret), step: 30, totpSize: 6).ComputeTotp();
 
     [Fact]
     public async Task FullFlow_PreAuthTokenPlusValidTotp_YieldsFullJwt()

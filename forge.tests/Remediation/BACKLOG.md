@@ -24,7 +24,7 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
 | AUDIT-S3 | **MED** | Quotes · api | `ConvertQuoteToOrder.cs:27-34` drops `quote.Notes` | Convert preserves `Notes` onto the order | `Quotes/ConvertQuoteToOrderRemediationTests` | 🔴 |
 | AUDIT-S3b / SO-8 | **MED** | SalesOrders · ui | SO-only header fields (CreditTerms/BillingAddress/RequestedDelivery/CustomerPO) can't be set post-convert (SO-edit dead) | Draft SO header is editable for these fields | Cypress E2E (ui) | ☐ |
 | BE-1 (carried) | **HIGH** | Calendars · api | `working-calendars/:id/set-default` → HTTP 500 (non-atomic default swap; unique `is_default` violation) | Set-default atomically clears the prior default (no 500) | xUnit handler + `TestDbContextFactory` | ☐ |
-| G-MFA-3 | **BLOCKER** | MFA · api | TOTP HMAC keyed on `UTF8.GetBytes(secret)` vs the base32 QR secret → authenticator codes never match; QR enrolment broken | Base32-decode the secret before HMAC; QR + validation agree (golden-vector test) | xUnit handler | ☐ |
+| G-MFA-3 | **BLOCKER** | MFA · api | TOTP HMAC keyed on `UTF8.GetBytes(secret)` vs the base32 QR secret → authenticator codes never match; QR enrolment broken | Base32-decode the secret before HMAC; QR + validation agree (golden-vector test) | xUnit handler | ✅ (MfaService: Base32Encoding.ToBytes + ManualEntryKey=secret; golden-vector test; existing E2E test corrected) |
 | G-38-MRP-3 / F-07B-03 | **BLOCKER** | Planning · api | `PlanningCyclesController` mutations reachable by ProductionWorker — no role gate (live POST→201) | `[Authorize(Roles="Admin,Manager")]` on all planning-cycle mutations | `WebApplicationFactory` integration | ✅ |
 | F-EXP-01 | **BLOCKER** | Expenses · api | `PATCH /expenses/{id}/status` has no role/self gate — any user approves any expense (live) | Approval gated by role/ownership; routed through `ApprovalService` | `WebApplicationFactory` integration | ✅ (role gate; `ApprovalService` routing = F-26B-05) |
 | S-MV1 | **HIGH** | Shipments/Inventory · api | `ShipShipment` leaks on two axes: never relieves `on_hand` AND never releases the SO-line reservation (sharpens AUDIT-P06-3) | Ship decrements `BinContent` **and** releases the `SalesOrderLineId` reservation | xUnit + `TestDbContextFactory` | ☐ |
@@ -145,9 +145,22 @@ need a **focused or reviewed session**, not an unattended pass:
 - **Set-default unique-index races** (working-calendar `F-12-BE-01`/BE-1, CompanyLocation
   `F-12-BE-02`, OvertimeRule `F-14-BE-02`): Postgres-only (filtered unique index) — need a
   **Testcontainers real-Postgres** integration harness; InMemory can't reproduce them.
-- **G-MFA-3** (TOTP base32 crypto): needs a golden-vector unit test (OtpNet or a manual
-  HMAC harness) + likely a small `MfaService` construction shim.
-- **UI layer** (Regions 6–7 + the UI rows in 1–5): Vitest/Cypress/axe — a `forge-ui` pass.
+- **G-MFA-3** (TOTP base32 crypto): ✅ DONE (2026-05-28). `MfaService.ValidateTotpCode` now
+  `Base32Encoding.ToBytes(secret)` (was `Encoding.UTF8.GetBytes`); `ManualEntryKey` no longer
+  double-encodes. Golden-vector unit test added (`Remediation/Mfa`), and the existing
+  `MfaBypassE2ETests.CurrentCode()` — which had been written to the *bug* — was corrected to
+  Base32-decode. Otp.NET (already a dep) provided the decode; no construction shim needed
+  (the validate/generate methods are pure). 10 MFA tests pass.
+- **UI layer** (Regions 6–7 + the UI rows in 1–5): NOT blocked — scoped out of this run to
+  avoid destabilizing forge-ui's strict gates (`lint`/`lint:i18n` parity/`vitest`) unattended.
+  Doable in a `forge-ui` session (Vitest/Cypress/axe for the WCAG ones).
+
+### Remaining after 2026-05-28
+
+Only two api items left, both genuinely needing a **real-Postgres (Testcontainers) harness**
+(InMemory can't reproduce the filtered-unique-index race): the **set-default races**
+(working-calendar/CompanyLocation set-default, OvertimeRule `IsDefault`). Plus the **UI layer**
+(forge-ui session). The migration drift that blocked schema work is now resolved.
 
 ## RED test coverage landed (2026-05-27)
 

@@ -55,7 +55,10 @@ public class MfaService(
         {
             Secret = secret,
             QrCodeUri = GenerateQrCodeUri(secret, email, Issuer),
-            ManualEntryKey = Base32Encoding.ToString(Encoding.UTF8.GetBytes(secret)),
+            // G-MFA-3: the manual-entry key IS the Base32 secret the user types into the app
+            // (same value the QR encodes). The previous double-Base32-encoding produced a key
+            // that didn't match the QR / the stored secret.
+            ManualEntryKey = secret,
             DeviceId = device.Id,
         };
     }
@@ -313,7 +316,11 @@ public class MfaService(
     {
         try
         {
-            var secretBytes = Encoding.UTF8.GetBytes(secret);
+            // G-MFA-3: the stored secret is a Base32 string (see GenerateTotpSecret + the
+            // otpauth QR). A standard authenticator Base32-DECODES it to recover the raw key
+            // bytes and HMACs over those. We must do the same — NOT HMAC over the UTF-8 bytes
+            // of the Base32 string, which never matches what the authenticator computes.
+            var secretBytes = Base32Encoding.ToBytes(secret);
             var totp = new Totp(secretBytes, step: 30, totpSize: 6);
             return totp.VerifyTotp(code, out _, new VerificationWindow(toleranceSteps, toleranceSteps));
         }
