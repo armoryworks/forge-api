@@ -39,6 +39,14 @@ public class RecurringOrdersController(IMediator mediator) : ControllerBase
         return CreatedAtAction(nameof(GetRecurringOrder), new { id = result.Id }, result);
     }
 
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<RecurringOrderDetailResponseModel>> UpdateRecurringOrder(
+        int id, UpdateRecurringOrderRequestModel request)
+    {
+        var result = await mediator.Send(new UpdateRecurringOrderCommand(id, request));
+        return Ok(result);
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteRecurringOrder(int id)
     {
