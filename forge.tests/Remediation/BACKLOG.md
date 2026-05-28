@@ -186,9 +186,10 @@ suite verified, committed + pushed**. Full suite now **49 passed / 9 skipped / 0
 
 ### Remaining after 2026-05-28 (wave 2)
 
-**9 api findings still RED** — each deferred for a real reason (design decision or complex
-multi-entity seeding), NOT a harness gap. `grep -rn 'Skip = "RED' forge.tests/Remediation`
-is the live list:
+**8 api findings still RED** — each deferred for a real reason (design decision or complex
+multi-entity seeding), NOT a harness gap. (C1-back closed 2026-05-28: Converted is now
+terminal, handler-level test — LeadsController pins JWT+ApiKey schemes so HTTP test-auth 401s.)
+`grep -rn 'Skip = "RED' forge.tests/Remediation` is the live list:
 
 - **AUDIT-21-S1** (BLOCKER, Invoices/Payments) — invoice/payment create must enqueue a QBO
   `SyncQueue` row. Needs the accounting-boundary mode wired into the test + sync-queue assertion.
@@ -202,8 +203,6 @@ is the live list:
   compute path needs building; both need a product decision on estimate line/compute shape.
 - **F-26B-01 / F-EXP-03** (Expenses) — add `Expense.VendorId` FK (schema + UI) and a Reimbursed
   lifecycle state; both are schema + flow-design decisions.
-- **C1-back** (Leads) — `UpdateLead` should reject a backward status regression; needs the
-  lead funnel state-machine order decided.
 
 **Held (not RED-tracked here) — need Dan's call, not an unattended fix:**
 - **AUDIT-S6** (ConvertLead atomicity) — wrapping the split `SaveChanges` + the cross-handler
