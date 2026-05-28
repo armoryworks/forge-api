@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -57,6 +58,13 @@ public class UpdateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequest
         }
         if (data.Status.HasValue && data.Status.Value != lead.Status)
         {
+            // C1-back: the funnel is forward-only out of Converted. A converted lead became
+            // a customer (it carries ConvertedCustomerId) — regressing it to New/Contacted/etc.
+            // would orphan that link and resurrect a closed lead. Converted is terminal.
+            if (lead.Status == LeadStatus.Converted)
+                throw new InvalidOperationException(
+                    "A converted lead cannot change status — conversion is final.");
+
             lead.Status = data.Status.Value;
             // Status transitions are the most-watched lead event — call out
             // the new status by name in the rollup so the activity tab is
