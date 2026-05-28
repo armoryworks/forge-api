@@ -64,7 +64,7 @@ public class CustomersRemediationTests
         {
             rows = new[]
             {
-                new { externalRowKey = "r1", name, email = "acme@example.com", companyName = (string?)null, phone = (string?)null, notes = (string?)null },
+                new { externalRowKey = "r1", name, email = (string?)"acme@example.com", companyName = (string?)null, phone = (string?)null, notes = (string?)null },
                 new { externalRowKey = "r2", name, email = (string?)null, companyName = (string?)null, phone = (string?)null, notes = (string?)null },
                 new { externalRowKey = "r3", name = "", email = (string?)null, companyName = (string?)null, phone = (string?)null, notes = (string?)null },
             },
