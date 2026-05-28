@@ -13,15 +13,15 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
 | ID | Sev | Area / layer | Defect (where) | Expected (definition-of-correct) | Test | Status |
 |----|-----|--------------|----------------|----------------------------------|------|--------|
 | AUDIT-21-S1 | **BLOCKER** | Invoices/Payments · api | AR invoices & payments never enqueue the QBO `SyncQueue`; only `MoveJobStage.cs:172` enqueues | Creating an invoice/payment in standalone+integrated mode enqueues a QBO sync row | xUnit handler (`CreateInvoice`/`CreatePayment`) | ☐ |
-| AUDIT-S4 / BE20-C | **HIGH** | Quotes · api | `ConvertQuoteToOrder.cs:27-48` converts a zero-line quote into a live, confirmable order | An empty quote cannot convert (throws) | `Quotes/ConvertQuoteToOrderRemediationTests` | 🔴 |
+| AUDIT-S4 / BE20-C | **HIGH** | Quotes · api | `ConvertQuoteToOrder.cs:27-48` converts a zero-line quote into a live, confirmable order | An empty quote cannot convert (throws) | `Quotes/ConvertQuoteToOrderRemediationTests` | ✅ |
 | AUDIT-S6 / BE18-1 | **HIGH** | Leads · api | `ConvertLead.cs` split `SaveChanges`, no transaction → orphan customer on partial failure | Lead→customer convert is atomic (one transaction; rolls back on failure) | xUnit handler + `TestDbContextFactory` | ☐ |
 | AUDIT-P06-1 / Q2C-BE-8 | **HIGH** | Invoices · api | `CreateInvoice.cs:49-99` does not enforce `invoiced ≤ shipped` | Cannot invoice more than has shipped (validation rejects) | xUnit handler | ☐ |
 | AUDIT-P06-3 / INV-1 | **HIGH** | Shipments/Inventory · api | Shipping does not relieve on-hand; `InventoryReliefService` orphaned (`Program.cs:387`) | Shipping a line decrements bin on-hand | xUnit handler / integration | ☐ |
 | AUDIT-19-S1 | **HIGH** | Quotes pricing · api | Customer price lists are a dead input to quote line pricing | Quote line price resolves from the customer's price list when present | xUnit handler | ☐ |
-| AUDIT-V9 | **HIGH** | Vendors · api | Vendor price-tier variance silently dropped | Vendor-part price-tier writes persist / surface, no silent drop | xUnit handler | ☐ |
+| AUDIT-V9 | **HIGH** | Vendors · api | Vendor off-tier variance % silently dropped (request + response models omit `OffTierVariancePct`) | The variance % round-trips through PUT then GET | `Vendors/VendorsRemediationTests` | ✅ |
 | AUDIT-D5 | **HIGH** | Parts/BOM · api | No BOM cycle guard (A→B→A possible) | Adding a BOM edge that forms a cycle is rejected | xUnit handler + `TestDbContextFactory` | ✅ |
 | AUDIT-BE-1 (Q-3/SO-8) | **HIGH** | Quotes/SalesOrders · api+ui | Quote lines & SO header/lines immutable after creation; no edit path | Draft quotes/orders are editable (header + lines) | xUnit handler (api) + Vitest/Cypress (ui) | ✅ api line-edit (Draft-gated); header PUT pre-existing; UI caller = SO-8 (ui) |
-| AUDIT-S3 | **MED** | Quotes · api | `ConvertQuoteToOrder.cs:27-34` drops `quote.Notes` | Convert preserves `Notes` onto the order | `Quotes/ConvertQuoteToOrderRemediationTests` | 🔴 |
+| AUDIT-S3 | **MED** | Quotes · api | `ConvertQuoteToOrder.cs:27-34` drops `quote.Notes` | Convert preserves `Notes` onto the order | `Quotes/ConvertQuoteToOrderRemediationTests` | ✅ |
 | AUDIT-S3b / SO-8 | **MED** | SalesOrders · ui | SO-only header fields (CreditTerms/BillingAddress/RequestedDelivery/CustomerPO) can't be set post-convert (SO-edit dead) | Draft SO header is editable for these fields | Cypress E2E (ui) | ☐ |
 | BE-1 / F-12-BE-01/02 / F-14-BE-02 | **HIGH** | Calendars / Locations / Overtime · api | `set-default` (working-calendar, company-location) + create-overtime-rule-as-default → HTTP 500 (non-atomic default swap; filtered `is_default` unique-index violation) | Set-default atomically clears the prior default (no 500); exactly one default after | `SetDefault/SetDefaultRemediationTests` (real Postgres / Testcontainers) | ✅ (transaction + `ExecuteUpdate` clear-then-set on all 3 handlers; 3 tests green) |
 | G-MFA-3 | **BLOCKER** | MFA · api | TOTP HMAC keyed on `UTF8.GetBytes(secret)` vs the base32 QR secret → authenticator codes never match; QR enrolment broken | Base32-decode the secret before HMAC; QR + validation agree (golden-vector test) | xUnit handler | ✅ (MfaService: Base32Encoding.ToBytes + ManualEntryKey=secret; golden-vector test; existing E2E test corrected) |
@@ -161,20 +161,60 @@ need a **focused or reviewed session**, not an unattended pass:
   avoid destabilizing forge-ui's strict gates (`lint`/`lint:i18n` parity/`vitest`) unattended.
   Doable in a `forge-ui` session (Vitest/Cypress/axe for the WCAG ones).
 
-### Remaining after 2026-05-28
+### Second burndown wave (2026-05-28, autonomous)
 
-The **api slice of the catalog is functionally clear** of the items that had a tractable
-api-layer test. The set-default races (the last api findings that needed real Postgres) are
-now GREEN via the Testcontainers harness. What's left:
+After the set-default races + G-MFA-3 + C2/C3 landed, a second wave closed the tractable
+single-finding api defects — every one **fixed + a GREEN test, `-warnaserror` + the relevant
+suite verified, committed + pushed**. Full suite now **49 passed / 9 skipped / 0 failed**:
+
+- **AUDIT-S4 / AUDIT-S3** (Quotes convert) — reject zero-line-quote convert; preserve `Notes`
+  onto the order. The two pre-written RED tests un-skipped.
+- **V9** (Vendors) — `OffTierVariancePct` now round-trips through `UpdateVendorRequestModel` +
+  `VendorDetailResponseModel` (both had dropped it); 0–100 validation bound.
+- **AS-01 / AS-03** (Assets) — `GET /assets/{id}` (was list-and-find); Retired is now terminal
+  (Retired→anything → 409). Existence-stub rewritten to seed + fetch + assert.
+- **BE-4** (RecurringOrders) — `PUT /recurring-orders/{id}` (was delete+recreate); PATCH-style
+  header edit + optional wholesale line replace.
+- **F-11-APPR-02** (Approvals) — `DELETE /approvals/workflows/{id}` soft-delete (retire stale).
+- **D2b** (Parts) — inventory-summary now carries the reserved/available split (per-bin + total).
+- **S1** (Inventory) — `/inventory/parts` no longer drops zero-on-hand parts (removed the
+  `Where(contents.Any())` filter).
+- **L3** (BLOCKER, Leads) — `Lead.Status` now persists as text (`HasConversion<string>` +
+  int→varchar migration with explicit USING cast), so PullQueueHandler's `status NOT IN
+  ('Lost','Converted')` raw SQL no longer 500s. Verified on real Postgres via the harness
+  (new `LeadQueuePullRemediationTests` runs the pull end-to-end + asserts the text store type).
+
+### Remaining after 2026-05-28 (wave 2)
+
+**9 api findings still RED** — each deferred for a real reason (design decision or complex
+multi-entity seeding), NOT a harness gap. `grep -rn 'Skip = "RED' forge.tests/Remediation`
+is the live list:
+
+- **AUDIT-21-S1** (BLOCKER, Invoices/Payments) — invoice/payment create must enqueue a QBO
+  `SyncQueue` row. Needs the accounting-boundary mode wired into the test + sync-queue assertion.
+- **PRI-1/2/3** (PurchaseOrders) — unify the receive path so it both writes `BinContent` and
+  advances PO status; needs multi-entity (PO + lines + location) seeding.
+- **P06-3 / S-MV1** (Shipments) — ship must relieve on-hand AND release the SO-line reservation;
+  multi-entity (SO + line + reservation + bin) seeding.
+- **MRP-03** (Mrp) — `ApplyForecastToMps` needs a forecast approval-state guard; needs the
+  forecast/MPS state model decided.
+- **BE-3 / E-1** (Estimates) — estimate→quote should carry `EstimatedAmount` as a line, and the
+  compute path needs building; both need a product decision on estimate line/compute shape.
+- **F-26B-01 / F-EXP-03** (Expenses) — add `Expense.VendorId` FK (schema + UI) and a Reimbursed
+  lifecycle state; both are schema + flow-design decisions.
+- **C1-back** (Leads) — `UpdateLead` should reject a backward status regression; needs the
+  lead funnel state-machine order decided.
+
+**Held (not RED-tracked here) — need Dan's call, not an unattended fix:**
+- **AUDIT-S6** (ConvertLead atomicity) — wrapping the split `SaveChanges` + the cross-handler
+  `mediator.Send(CreateJobCommand)` in one transaction risks nested-transaction interaction;
+  failure-path can't be verified on InMemory. Wants a reviewed session.
+- **G-39-EMAIL-1** (communications GET cap read-leak) — the `GET /connections` read is
+  **intentionally** un-gated (documented: a user must see/remove a stale connection after the
+  cap is disabled, same as DELETE). Cap-gating it reverses a deliberate decision.
 
 - **UI layer** (Regions 6–7 + the UI rows in 1–5): a forge-ui session — Vitest/Cypress/axe.
   Scoped out of the .NET runs to avoid destabilizing forge-ui's strict gates unattended.
-- **Deferred api findings still RED** (19 skipped tests): these were left as `[Fact(Skip="RED")]`
-  because each needs **complex multi-entity seeding or a design decision**, not a harness gap —
-  e.g. AUDIT-21-S1 (invoice/payment → QBO sync enqueue), AUDIT-P06-1 (invoiced ≤ shipped),
-  S-MV1 (ship relieves on-hand + releases reservation), F-JQ1 (job-advance NCR gate),
-  the F-26B-* expense→QBO/approval-routing cluster, AUDIT-19-S1 (price-list pricing),
-  AUDIT-S6 (ConvertLead atomicity). `grep -rn 'Skip = "RED' forge.tests/Remediation` is the live list.
 
 ## RED test coverage landed (2026-05-27)
 
