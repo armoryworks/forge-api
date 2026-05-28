@@ -25,8 +25,7 @@ namespace Forge.Tests.Remediation.Quotes;
 /// </summary>
 public class ConvertQuoteToOrderRemediationTests
 {
-    [Fact(Skip = "RED: AUDIT-S3 — ConvertQuoteToOrder drops quote.Notes onto the order. " +
-                 "Remove Skip when ConvertQuoteToOrder.cs copies Notes onto the SalesOrder.")]
+    [Fact] // AUDIT-S3 — GREEN: ConvertQuoteToOrder now copies Notes onto the SalesOrder.
     public async Task ConvertQuoteToOrder_carries_quote_Notes_onto_the_order()
     {
         SalesOrder? captured = null;
@@ -41,8 +40,7 @@ public class ConvertQuoteToOrderRemediationTests
             "converting a quote must preserve its Notes onto the order (definition-of-correct)");
     }
 
-    [Fact(Skip = "RED: AUDIT-S4 / BE20-C — a zero-line Accepted quote converts to a live, " +
-                 "confirmable empty order. Remove Skip when ConvertQuoteToOrder.cs rejects empty quotes.")]
+    [Fact] // AUDIT-S4 / BE20-C — GREEN: ConvertQuoteToOrder now rejects a zero-line quote.
     public async Task ConvertQuoteToOrder_rejects_a_quote_with_no_lines()
     {
         var quote = AcceptedQuoteWithOneLine();

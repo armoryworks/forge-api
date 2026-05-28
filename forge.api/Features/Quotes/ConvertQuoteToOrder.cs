@@ -22,6 +22,11 @@ public class ConvertQuoteToOrderHandler(IQuoteRepository quoteRepo, ISalesOrderR
         if (quote.SalesOrder != null)
             throw new InvalidOperationException("Quote has already been converted to an order");
 
+        // AUDIT-S4 / BE20-C: a zero-line quote (e.g. estimate-derived) must not become a
+        // live, confirmable empty order. Reject before generating an order number.
+        if (quote.Lines.Count == 0)
+            throw new InvalidOperationException("Cannot convert a quote with no lines to an order");
+
         var orderNumber = await orderRepo.GenerateNextOrderNumberAsync(cancellationToken);
 
         var order = new SalesOrder
@@ -31,6 +36,8 @@ public class ConvertQuoteToOrderHandler(IQuoteRepository quoteRepo, ISalesOrderR
             QuoteId = quote.Id,
             ShippingAddressId = quote.ShippingAddressId,
             TaxRate = quote.TaxRate,
+            // AUDIT-S3: preserve the quote's Notes onto the order (was dropped on convert).
+            Notes = quote.Notes,
         };
 
         var lineNumber = 1;
