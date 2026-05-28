@@ -17,6 +17,7 @@ public record UpdateVendorCommand(
     string? Country,
     string? PaymentTerms,
     string? Notes,
+    decimal? OffTierVariancePct,
     bool? IsActive) : IRequest;
 
 public class UpdateVendorValidator : AbstractValidator<UpdateVendorCommand>
@@ -26,6 +27,10 @@ public class UpdateVendorValidator : AbstractValidator<UpdateVendorCommand>
         RuleFor(x => x.CompanyName).MaximumLength(200).When(x => x.CompanyName != null);
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
         RuleFor(x => x.Notes).MaximumLength(2000).When(x => x.Notes != null);
+        RuleFor(x => x.OffTierVariancePct)
+            .InclusiveBetween(0m, 100m)
+            .When(x => x.OffTierVariancePct.HasValue)
+            .WithMessage("Off-tier variance % must be between 0 and 100.");
     }
 }
 
@@ -48,6 +53,8 @@ public class UpdateVendorHandler(IVendorRepository repo, IClock clock)
         if (request.Country != null) vendor.Country = request.Country;
         if (request.PaymentTerms != null) vendor.PaymentTerms = request.PaymentTerms;
         if (request.Notes != null) vendor.Notes = request.Notes;
+        // V9: off-tier variance % round-trips (was silently dropped — request model omitted it).
+        if (request.OffTierVariancePct.HasValue) vendor.OffTierVariancePct = request.OffTierVariancePct;
 
         // Phase 3 H2 / WU-12: stamp DeactivationDate when transitioning
         // active → inactive; clear it on reactivation. Drives the lifecycle

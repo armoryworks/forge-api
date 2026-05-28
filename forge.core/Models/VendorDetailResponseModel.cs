@@ -13,6 +13,7 @@ public record VendorDetailResponseModel(
     string? Country,
     string? PaymentTerms,
     string? Notes,
+    decimal? OffTierVariancePct,
     bool IsActive,
     string? ExternalId,
     DateTimeOffset CreatedAt,

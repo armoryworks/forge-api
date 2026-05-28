@@ -69,7 +69,8 @@ public class VendorsController(IMediator mediator) : ControllerBase
         await mediator.Send(new UpdateVendorCommand(
             id, request.CompanyName, request.ContactName, request.Email, request.Phone,
             request.Address, request.City, request.State, request.ZipCode,
-            request.Country, request.PaymentTerms, request.Notes, request.IsActive));
+            request.Country, request.PaymentTerms, request.Notes,
+            request.OffTierVariancePct, request.IsActive));
         return NoContent();
     }
 

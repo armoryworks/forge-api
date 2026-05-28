@@ -12,4 +12,5 @@ public record UpdateVendorRequestModel(
     string? Country,
     string? PaymentTerms,
     string? Notes,
+    decimal? OffTierVariancePct,
     bool? IsActive);

@@ -27,6 +27,7 @@ public class GetVendorByIdHandler(IVendorRepository repo)
             vendor.Country,
             vendor.PaymentTerms,
             vendor.Notes,
+            vendor.OffTierVariancePct,
             vendor.IsActive,
             vendor.ExternalId,
             vendor.CreatedAt,

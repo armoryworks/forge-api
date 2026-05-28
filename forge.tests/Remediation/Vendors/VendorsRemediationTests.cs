@@ -31,8 +31,7 @@ public class VendorsRemediationTests
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
 
-    [Fact(Skip = "RED: V9 — off-tier variance % is dropped server-side (request + response models " +
-                 "omit OffTierVariancePct). Remove Skip when the value round-trips through PUT then GET.")]
+    [Fact] // V9 — GREEN: OffTierVariancePct now round-trips through request + response models.
     public async Task Vendor_offTierVariancePct_round_trips_through_update()
     {
         int vendorId;
