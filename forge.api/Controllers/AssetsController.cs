@@ -25,6 +25,13 @@ public class AssetsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<AssetResponseModel>> GetAsset(int id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetAssetByIdQuery(id), ct);
+        return Ok(result);
+    }
+
     [HttpPost]
     public async Task<ActionResult<AssetResponseModel>> CreateAsset([FromBody] CreateAssetRequestModel request)
     {

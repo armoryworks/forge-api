@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 
@@ -33,7 +34,17 @@ public class UpdateAssetHandler(IAssetRepository repo) : IRequestHandler<UpdateA
         if (data.Manufacturer is not null) asset.Manufacturer = data.Manufacturer.Trim();
         if (data.Model is not null) asset.Model = data.Model.Trim();
         if (data.SerialNumber is not null) asset.SerialNumber = data.SerialNumber.Trim();
-        if (data.Status.HasValue) asset.Status = data.Status.Value;
+        if (data.Status.HasValue && data.Status.Value != asset.Status)
+        {
+            // AS-03: Retired is terminal. An asset is decommissioned at end-of-life;
+            // bringing it back to Active/Maintenance/OutOfService would silently revive
+            // a disposed asset (and its history). Other transitions stay permissive.
+            if (asset.Status == AssetStatus.Retired)
+                throw new InvalidOperationException(
+                    "A retired asset cannot change status — retirement is final.");
+
+            asset.Status = data.Status.Value;
+        }
         if (data.CurrentHours.HasValue) asset.CurrentHours = data.CurrentHours.Value;
         if (data.Notes is not null) asset.Notes = data.Notes.Trim();
         if (data.IsCustomerOwned.HasValue) asset.IsCustomerOwned = data.IsCustomerOwned.Value;

@@ -32,19 +32,28 @@ public class AssetsRemediationTests
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
 
-    [Fact(Skip = "RED: AS-01 — there is no GET /assets/{id} single-read endpoint (detail fetches the " +
-                 "full list and finds). Remove Skip when GET /api/v1/assets/{id} exists.")]
-    public async Task Single_asset_read_endpoint_exists()
+    [Fact] // AS-01 — GREEN: GET /api/v1/assets/{id} now exists (GetAssetByIdQuery).
+    public async Task Single_asset_read_endpoint_returns_the_one_asset()
     {
-        var response = await AuthClient().GetAsync("/api/v1/assets/1");
+        int assetId;
+        using (var scope = NewScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var asset = new Asset { Name = "AS1-Single-Read", Status = AssetStatus.Active };
+            db.Assets.Add(asset);
+            await db.SaveChangesAsync();
+            assetId = asset.Id;
+        }
 
-        response.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
-        response.StatusCode.Should().NotBe(HttpStatusCode.MethodNotAllowed,
-            "opening an asset detail should fetch one asset, not the whole list");
+        var response = await AuthClient().GetAsync($"/api/v1/assets/{assetId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            "opening an asset detail should fetch one asset by id, not the whole list");
+        var json = await response.Content.ReadAsStringAsync();
+        json.Should().Contain("AS1-Single-Read", "the response must be that single asset's record");
     }
 
-    [Fact(Skip = "RED: AS-03 — asset status PATCH has no state-machine guard (any→any). " +
-                 "Remove Skip when an invalid transition (Retired→Active) is rejected (409).")]
+    [Fact] // AS-03 — GREEN: Retired is terminal; Retired→Active is rejected (409).
     public async Task Reactivating_a_retired_asset_is_rejected()
     {
         int assetId;
