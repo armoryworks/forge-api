@@ -131,8 +131,19 @@ dedup by name/email, preview classifies without persisting). The remaining items
 need a **focused or reviewed session**, not an unattended pass:
 
 - **C3 — customer segments**: needs a new `CustomerSegment` entity + table → an EF
-  **migration** (schema change = reviewed per CLAUDE.md; can't verify against Postgres
-  in the InMemory harness).
+  **migration**. ⚠️ **BLOCKED by pre-existing migration drift** (discovered 2026-05-27):
+  `dotnet ef migrations add` for the new table also re-emitted 4 unrelated columns
+  (`sales_order_lines.tax_code`, `invoice_lines.tax_code`, `shipment_lines.inventory_relieved_at`,
+  `customers.exemption_expiry_date` — the F032/BE1 work) — i.e. the entities carry these
+  but `AppDbContextModelSnapshot` does NOT. **Any** new migration will scoop them up, and
+  if the live DB already has them (from F032) the deploy fails with "column already exists".
+  This drift must be reconciled (regenerate the snapshot / add the missing F032 migration)
+  **before** C3 — or the set-default-race fixes — can safely add a migration. C3 was fully
+  reverted (entity + migration removed) so `main` stays clean.
+- **`-warnaserror` lesson (2026-05-27):** the CI gate is `dotnet build --configuration
+  Release -warnaserror`, NOT `dotnet test` (Debug). A CS8619 nullability warning in a test
+  slipped past `dotnet test` and broke the gate (fixed in 8911d46). Always run the
+  `-warnaserror` build before pushing, not just the test run.
 - **Set-default unique-index races** (working-calendar `F-12-BE-01`/BE-1, CompanyLocation
   `F-12-BE-02`, OvertimeRule `F-14-BE-02`): Postgres-only (filtered unique index) — need a
   **Testcontainers real-Postgres** integration harness; InMemory can't reproduce them.
