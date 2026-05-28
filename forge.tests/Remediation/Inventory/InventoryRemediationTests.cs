@@ -173,8 +173,7 @@ public class InventoryRemediationTests
             "approving a counted 2 against an 8-reserved bin must be rejected");
     }
 
-    [Fact(Skip = "RED: S1 — the stock list omits parts that have zero on-hand (joins only parts " +
-                 "with BinContent rows). Remove Skip when a zero-stock part appears in /inventory/parts.")]
+    [Fact] // S1 — GREEN: zero-on-hand parts now appear in /inventory/parts (filter removed).
     public async Task Stock_list_includes_a_part_with_zero_on_hand()
     {
         string partNumber;

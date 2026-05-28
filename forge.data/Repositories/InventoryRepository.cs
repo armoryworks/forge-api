@@ -185,11 +185,11 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
                 (p.Description != null && p.Description.ToLower().Contains(term)));
         }
 
-        var partsWithStock = await query
+        var parts = await query
             .OrderBy(p => p.PartNumber)
             .ToListAsync(ct);
 
-        var partIds = partsWithStock.Select(p => p.Id).ToList();
+        var partIds = parts.Select(p => p.Id).ToList();
 
         var contents = await db.BinContents
             .Include(c => c.Location)
@@ -218,8 +218,9 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
 
         var contentsByPart = contents.ToLookup(c => c.EntityId);
 
-        return partsWithStock
-            .Where(p => contentsByPart[p.Id].Any())
+        // S1: include parts with no BinContent rows (zero on-hand) — they must still
+        // appear in the stock list, not vanish. An empty bin set yields onHand = 0.
+        return parts
             .Select(p =>
             {
                 var bins = contentsByPart[p.Id].ToList();
