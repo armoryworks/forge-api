@@ -47,6 +47,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<JobLink> JobLinks => Set<JobLink>();
     public DbSet<JobActivityLog> JobActivityLogs => Set<JobActivityLog>();
     public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<CustomerSegment> CustomerSegments => Set<CustomerSegment>();
     public DbSet<Contact> Contacts => Set<Contact>();
     public DbSet<ContactOutreachPreferences> ContactOutreachPreferences => Set<ContactOutreachPreferences>();
     public DbSet<CustomerPortalAccess> CustomerPortalAccesses => Set<CustomerPortalAccess>();

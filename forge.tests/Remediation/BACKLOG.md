@@ -130,16 +130,14 @@ Transfer / **UpdateCycleCount-approve**). `dotnet test` 29 passed / 0 failed.
 dedup by name/email, preview classifies without persisting). The remaining items each
 need a **focused or reviewed session**, not an unattended pass:
 
-- **C3 — customer segments**: needs a new `CustomerSegment` entity + table → an EF
-  **migration**. ⚠️ **BLOCKED by pre-existing migration drift** (discovered 2026-05-27):
-  `dotnet ef migrations add` for the new table also re-emitted 4 unrelated columns
-  (`sales_order_lines.tax_code`, `invoice_lines.tax_code`, `shipment_lines.inventory_relieved_at`,
-  `customers.exemption_expiry_date` — the F032/BE1 work) — i.e. the entities carry these
-  but `AppDbContextModelSnapshot` does NOT. **Any** new migration will scoop them up, and
-  if the live DB already has them (from F032) the deploy fails with "column already exists".
-  This drift must be reconciled (regenerate the snapshot / add the missing F032 migration)
-  **before** C3 — or the set-default-race fixes — can safely add a migration. C3 was fully
-  reverted (entity + migration removed) so `main` stays clean.
+- **C3 — customer segments**: ✅ DONE (2026-05-28). `CustomerSegment` entity + CRUD
+  (`GET/POST /customers/segments`, `PUT/DELETE /customers/segments/{id}`; mutations
+  Admin/Manager) replacing the hard-coded examples. Migration `20260528062644_AddCustomerSegment`.
+  **Migration drift RESOLVED as a side effect**: `migrations add` re-emitted the 4 F032
+  columns (entities had them, snapshot didn't) — I **trimmed** those `AddColumn`/`DropColumn`
+  lines from the migration's `Up()`/`Down()` (F032 already creates them), and the regenerated
+  `AppDbContextModelSnapshot` now includes them, so the model↔snapshot drift is gone and the
+  next migration will be clean. Verified: `-warnaserror` build + `dotnet test` green (33 passing).
 - **`-warnaserror` lesson (2026-05-27):** the CI gate is `dotnet build --configuration
   Release -warnaserror`, NOT `dotnet test` (Debug). A CS8619 nullability warning in a test
   slipped past `dotnet test` and broke the gate (fixed in 8911d46). Always run the

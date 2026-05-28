@@ -96,11 +96,18 @@ public class CustomersRemediationTests
         (await db.Customers.AnyAsync(c => c.Name == name)).Should().BeTrue("commit must persist the new customer");
     }
 
-    [Fact(Skip = "RED: C3 — customer segments page hardcodes examples with no backend (needs a new " +
-                 "CustomerSegment entity + migration — reviewed-session item). Remove Skip when GET /customers/segments exists.")]
-    public async Task Customer_segments_endpoint_exists()
+    [Fact] // C3 GREEN — customer segments are backed by real CRUD (replaces hard-coded examples)
+    public async Task Customer_segment_can_be_created_and_listed()
     {
-        var response = await AuthClient().GetAsync("/api/v1/customers/segments");
-        response.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
+        var name = $"Aerospace Tier {Guid.NewGuid():N}";
+
+        var create = await AuthClient().PostAsync("/api/v1/customers/segments",
+            JsonContent.Create(new { name, description = "AS9100 accounts", filterCriteria = (string?)null }));
+        create.IsSuccessStatusCode.Should().BeTrue("admins must be able to create a segment");
+        (await create.Content.ReadAsStringAsync()).Should().Contain(name, "the created segment must round-trip");
+
+        var list = await AuthClient().GetAsync("/api/v1/customers/segments");
+        list.IsSuccessStatusCode.Should().BeTrue();
+        (await list.Content.ReadAsStringAsync()).Should().Contain(name, "the new segment must appear in the list");
     }
 }

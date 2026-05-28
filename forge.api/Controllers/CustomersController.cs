@@ -5,6 +5,7 @@ using Forge.Api.Capabilities;
 using Forge.Api.Features.Activity;
 using Forge.Api.Features.Customers;
 using Forge.Api.Features.Customers.BulkIntake;
+using Forge.Api.Features.Customers.Segments;
 using Forge.Api.Features.OutreachPreferences;
 using Forge.Core.Models;
 
@@ -49,6 +50,34 @@ public class CustomersController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new GetCustomersQuery());
         return Ok(result);
+    }
+
+    // ── C3: customer segments (saved named filters). Literal routes declared before
+    //    {id:int} so "segments" is never bound as a customer id. ──
+
+    [HttpGet("segments")]
+    public async Task<ActionResult<List<CustomerSegmentResponseModel>>> GetCustomerSegments()
+        => Ok(await mediator.Send(new GetCustomerSegmentsQuery()));
+
+    [HttpPost("segments")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<ActionResult<CustomerSegmentResponseModel>> CreateCustomerSegment([FromBody] CreateCustomerSegmentRequestModel request)
+    {
+        var result = await mediator.Send(new CreateCustomerSegmentCommand(request));
+        return CreatedAtAction(nameof(GetCustomerSegments), null, result);
+    }
+
+    [HttpPut("segments/{id:int}")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<ActionResult<CustomerSegmentResponseModel>> UpdateCustomerSegment(int id, [FromBody] UpdateCustomerSegmentRequestModel request)
+        => Ok(await mediator.Send(new UpdateCustomerSegmentCommand(id, request)));
+
+    [HttpDelete("segments/{id:int}")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> DeleteCustomerSegment(int id)
+    {
+        await mediator.Send(new DeleteCustomerSegmentCommand(id));
+        return NoContent();
     }
 
     [HttpGet("{id:int}")]
