@@ -23,7 +23,7 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
 | AUDIT-BE-1 (Q-3/SO-8) | **HIGH** | Quotes/SalesOrders · api+ui | Quote lines & SO header/lines immutable after creation; no edit path | Draft quotes/orders are editable (header + lines) | xUnit handler (api) + Vitest/Cypress (ui) | ✅ api line-edit (Draft-gated); header PUT pre-existing; UI caller = SO-8 (ui) |
 | AUDIT-S3 | **MED** | Quotes · api | `ConvertQuoteToOrder.cs:27-34` drops `quote.Notes` | Convert preserves `Notes` onto the order | `Quotes/ConvertQuoteToOrderRemediationTests` | 🔴 |
 | AUDIT-S3b / SO-8 | **MED** | SalesOrders · ui | SO-only header fields (CreditTerms/BillingAddress/RequestedDelivery/CustomerPO) can't be set post-convert (SO-edit dead) | Draft SO header is editable for these fields | Cypress E2E (ui) | ☐ |
-| BE-1 (carried) | **HIGH** | Calendars · api | `working-calendars/:id/set-default` → HTTP 500 (non-atomic default swap; unique `is_default` violation) | Set-default atomically clears the prior default (no 500) | xUnit handler + `TestDbContextFactory` | ☐ |
+| BE-1 / F-12-BE-01/02 / F-14-BE-02 | **HIGH** | Calendars / Locations / Overtime · api | `set-default` (working-calendar, company-location) + create-overtime-rule-as-default → HTTP 500 (non-atomic default swap; filtered `is_default` unique-index violation) | Set-default atomically clears the prior default (no 500); exactly one default after | `SetDefault/SetDefaultRemediationTests` (real Postgres / Testcontainers) | ✅ (transaction + `ExecuteUpdate` clear-then-set on all 3 handlers; 3 tests green) |
 | G-MFA-3 | **BLOCKER** | MFA · api | TOTP HMAC keyed on `UTF8.GetBytes(secret)` vs the base32 QR secret → authenticator codes never match; QR enrolment broken | Base32-decode the secret before HMAC; QR + validation agree (golden-vector test) | xUnit handler | ✅ (MfaService: Base32Encoding.ToBytes + ManualEntryKey=secret; golden-vector test; existing E2E test corrected) |
 | G-38-MRP-3 / F-07B-03 | **BLOCKER** | Planning · api | `PlanningCyclesController` mutations reachable by ProductionWorker — no role gate (live POST→201) | `[Authorize(Roles="Admin,Manager")]` on all planning-cycle mutations | `WebApplicationFactory` integration | ✅ |
 | F-EXP-01 | **BLOCKER** | Expenses · api | `PATCH /expenses/{id}/status` has no role/self gate — any user approves any expense (live) | Approval gated by role/ownership; routed through `ApprovalService` | `WebApplicationFactory` integration | ✅ (role gate; `ApprovalService` routing = F-26B-05) |
@@ -143,8 +143,14 @@ need a **focused or reviewed session**, not an unattended pass:
   slipped past `dotnet test` and broke the gate (fixed in 8911d46). Always run the
   `-warnaserror` build before pushing, not just the test run.
 - **Set-default unique-index races** (working-calendar `F-12-BE-01`/BE-1, CompanyLocation
-  `F-12-BE-02`, OvertimeRule `F-14-BE-02`): Postgres-only (filtered unique index) — need a
-  **Testcontainers real-Postgres** integration harness; InMemory can't reproduce them.
+  `F-12-BE-02`, OvertimeRule `F-14-BE-02`): ✅ DONE (2026-05-28). Added a **Testcontainers
+  real-Postgres** harness (`Helpers/PostgresFixture.cs` — `pgvector/pgvector:pg17`, full
+  `MigrateAsync`, real `AppDbContext` with `UseVector()`; `[Collection("postgres")]`). All
+  three handlers now do an **atomic swap**: clear the prior default via a discrete
+  `ExecuteUpdate` statement inside a transaction, then set/insert the target — so the
+  filtered `is_default` index only ever sees one true row at a statement boundary.
+  `SetDefault/SetDefaultRemediationTests` (3 tests) green against the container. InMemory
+  could not host this (no constraint, no `ExecuteUpdate`), which is why it was deferred.
 - **G-MFA-3** (TOTP base32 crypto): ✅ DONE (2026-05-28). `MfaService.ValidateTotpCode` now
   `Base32Encoding.ToBytes(secret)` (was `Encoding.UTF8.GetBytes`); `ManualEntryKey` no longer
   double-encodes. Golden-vector unit test added (`Remediation/Mfa`), and the existing
@@ -157,10 +163,18 @@ need a **focused or reviewed session**, not an unattended pass:
 
 ### Remaining after 2026-05-28
 
-Only two api items left, both genuinely needing a **real-Postgres (Testcontainers) harness**
-(InMemory can't reproduce the filtered-unique-index race): the **set-default races**
-(working-calendar/CompanyLocation set-default, OvertimeRule `IsDefault`). Plus the **UI layer**
-(forge-ui session). The migration drift that blocked schema work is now resolved.
+The **api slice of the catalog is functionally clear** of the items that had a tractable
+api-layer test. The set-default races (the last api findings that needed real Postgres) are
+now GREEN via the Testcontainers harness. What's left:
+
+- **UI layer** (Regions 6–7 + the UI rows in 1–5): a forge-ui session — Vitest/Cypress/axe.
+  Scoped out of the .NET runs to avoid destabilizing forge-ui's strict gates unattended.
+- **Deferred api findings still RED** (19 skipped tests): these were left as `[Fact(Skip="RED")]`
+  because each needs **complex multi-entity seeding or a design decision**, not a harness gap —
+  e.g. AUDIT-21-S1 (invoice/payment → QBO sync enqueue), AUDIT-P06-1 (invoiced ≤ shipped),
+  S-MV1 (ship relieves on-hand + releases reservation), F-JQ1 (job-advance NCR gate),
+  the F-26B-* expense→QBO/approval-routing cluster, AUDIT-19-S1 (price-list pricing),
+  AUDIT-S6 (ConvertLead atomicity). `grep -rn 'Skip = "RED' forge.tests/Remediation` is the live list.
 
 ## RED test coverage landed (2026-05-27)
 
@@ -179,7 +193,7 @@ The live remaining-work list is `grep -rn 'Skip = "RED' forge.tests/Remediation`
 
 ### Deferred — NOT yet covered by an api RED test (why)
 
-- **Postgres-specific** (InMemory can't reproduce the filtered-unique-index race): BE-1 / F-12-BE-01 working-calendar set-default 500, F-12-BE-02 CompanyLocation set-default, F-14-BE-02 OvertimeRule IsDefault. Need a real-Postgres (Testcontainers) integration harness.
+- ~~**Postgres-specific** (InMemory can't reproduce the filtered-unique-index race): BE-1 / F-12-BE-01 working-calendar set-default 500, F-12-BE-02 CompanyLocation set-default, F-14-BE-02 OvertimeRule IsDefault.~~ ✅ DONE 2026-05-28 — Testcontainers harness landed (`Helpers/PostgresFixture.cs`), all 3 GREEN.
 - **Crypto / entity-shape**: G-MFA-3 (TOTP base32 — needs a golden-vector unit test + OtpNet or manual HMAC in the test project), F-13-MFA-01 (MfaPolicy entity), F-12-USR-01 (ApplicationUser.ManagerId).
 - **Complex multi-entity seeding**: F-JQ1 (job advance past open NCR — needs stage graph), F-12-AUDIT-01 (approval audit — needs a pending step + approver), AUDIT-P06-1 (invoiced≤shipped — needs shipment context), AUDIT-19-S1 (price-list pricing).
 - **Other api**: AUDIT-S6 (ConvertLead atomicity), F-26B-02/05 (expense→QBO vendor / approval routing), G-39-EMAIL-1 (cap read-leak), Quality Q-03, Worker W-01, OEE-01/02.

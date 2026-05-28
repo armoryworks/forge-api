@@ -18,14 +18,19 @@ public class SetDefaultCompanyLocationHandler(AppDbContext db)
         if (!location.IsActive)
             throw new InvalidOperationException("Cannot set an inactive location as default.");
 
-        // Clear existing default
-        var currentDefault = await db.CompanyLocations
-            .FirstOrDefaultAsync(x => x.IsDefault, ct);
+        // Atomic default swap. The filtered unique index (is_default = true) means a
+        // single batched "clear old + set new" SaveChanges can violate the constraint
+        // if EF orders the set-new UPDATE before the clear-old one (BE-1 / F-12-BE-02).
+        // Clear the prior default via a discrete ExecuteUpdate statement first, then set
+        // the target, both inside one transaction — so the index only ever sees one true row.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        if (currentDefault != null)
-            currentDefault.IsDefault = false;
+        await db.CompanyLocations
+            .Where(x => x.IsDefault && x.Id != request.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsDefault, false), ct);
 
         location.IsDefault = true;
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
     }
 }

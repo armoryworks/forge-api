@@ -20,16 +20,23 @@ public class SetDefaultWorkingCalendarHandler(AppDbContext db)
             throw new InvalidOperationException("Cannot set an inactive calendar as default.");
         }
 
-        // Clear the previous default(s). Filtered unique index enforces
-        // single-default at the DB level — without this, the SaveChanges
-        // would fail. Same pattern as CompanyLocation.IsDefault.
-        var existing = await db.WorkingCalendars
+        // Atomic default swap. The filtered unique index (is_default = true) means a
+        // single batched "clear old + set new" SaveChanges can violate the constraint:
+        // EF does not guarantee it emits the UPDATE that clears the old default before
+        // the one that sets the new — if the order flips, two rows momentarily carry
+        // is_default = true and Postgres rejects the batch with a 500 (BE-1 / F-12-BE-01).
+        // Clear the prior default(s) via a discrete ExecuteUpdate statement first, then
+        // set the target, both inside one transaction — so the index only ever sees a
+        // single true row at any statement boundary.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        await db.WorkingCalendars
             .Where(c => c.IsDefault && c.Id != request.Id)
-            .ToListAsync(ct);
-        foreach (var c in existing) c.IsDefault = false;
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.IsDefault, false), ct);
 
         target.IsDefault = true;
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         return Unit.Value;
     }
 }
