@@ -97,6 +97,14 @@ public class ApprovalsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpDelete("workflows/{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeleteWorkflow(int id)
+    {
+        await mediator.Send(new DeleteApprovalWorkflowCommand(id));
+        return NoContent();
+    }
+
     private int GetUserId()
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
