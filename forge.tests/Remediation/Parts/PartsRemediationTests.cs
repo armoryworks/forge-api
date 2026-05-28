@@ -61,8 +61,7 @@ public class PartsRemediationTests
             "an edge that closes a BOM cycle must be rejected (recursive explosion would loop forever)");
     }
 
-    [Fact(Skip = "RED: D2b — inventory-summary returns total quantity only, no reserved/available split. " +
-                 "Remove Skip when the response includes reserved + available.")]
+    [Fact] // D2b — GREEN: inventory-summary now includes the reserved/available split.
     public async Task Part_inventory_summary_includes_reserved_and_available()
     {
         var partId = await SeedPart("Sum");

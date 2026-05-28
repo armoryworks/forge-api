@@ -34,15 +34,21 @@ public class GetPartInventorySummaryHandler(AppDbContext db)
 
         var locById = allLocations.ToDictionary(l => l.Id);
 
+        // D2b: on-hand alone is misleading — reserved stock isn't sellable/issuable.
+        // Surface the reserved + available (on-hand − reserved) split, per-bin and in total.
         var totalQuantity = binContents.Sum(bc => bc.Quantity);
+        var totalReserved = binContents.Sum(bc => bc.ReservedQuantity);
+        var totalAvailable = totalQuantity - totalReserved;
 
         var binLocations = binContents
             .Select(bc => new PartBinLocationResponseModel(
                 BuildPath(bc.Location, locById),
-                bc.Quantity))
+                bc.Quantity,
+                bc.ReservedQuantity,
+                bc.Quantity - bc.ReservedQuantity))
             .ToList();
 
-        return new PartInventorySummaryResponseModel(totalQuantity, binLocations);
+        return new PartInventorySummaryResponseModel(totalQuantity, totalReserved, totalAvailable, binLocations);
     }
 
     private static string BuildPath(StorageLocation loc, Dictionary<int, StorageLocation> byId)
