@@ -41,5 +41,12 @@ public class PurchaseOrderLineConfiguration : IEntityTypeConfiguration<PurchaseO
             .WithMany()
             .HasForeignKey(e => e.MrpPlannedOrderId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // UoM purchase-options effort — which size/form was ordered (null = per base unit).
+        builder.HasIndex(e => e.PurchaseOptionId);
+        builder.HasOne(e => e.PurchaseOption)
+            .WithMany()
+            .HasForeignKey(e => e.PurchaseOptionId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

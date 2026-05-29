@@ -249,6 +249,10 @@ public class Part : BaseAuditableEntity, IActiveAware
     public ICollection<BOMEntry> UsedInBOM { get; set; } = [];
     public ICollection<Operation> Operations { get; set; } = [];
     public ICollection<PurchaseOrderLine> PurchaseOrderLines { get; set; } = [];
+
+    // UoM purchase-options effort — the sizes/forms this part is bought in
+    // (4×8 sheet, 1 kg bar, bag of 100). Vendors price these via VendorPartPriceTier.
+    public ICollection<PartPurchaseOption> PurchaseOptions { get; set; } = [];
     public ICollection<PartAlternate> Alternates { get; set; } = [];
     public ICollection<SerialNumber> SerialNumbers { get; set; } = [];
 

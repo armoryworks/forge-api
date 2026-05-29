@@ -95,6 +95,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     // Pillar 3 — vendor-part intersection + tiered pricing.
     public DbSet<VendorPart> VendorParts => Set<VendorPart>();
     public DbSet<VendorPartPriceTier> VendorPartPriceTiers => Set<VendorPartPriceTier>();
+    public DbSet<PartPurchaseOption> PartPurchaseOptions => Set<PartPurchaseOption>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
     public DbSet<PurchaseOrderRelease> PurchaseOrderReleases => Set<PurchaseOrderRelease>();
