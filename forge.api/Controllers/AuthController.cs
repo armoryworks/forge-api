@@ -10,13 +10,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Features.Auth;
+using Forge.Api.Services;
 using Forge.Core.Models;
 
 namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/auth")]
-public class AuthController(IMediator mediator) : ControllerBase
+public class AuthController(IMediator mediator, ISsoHandoffStore handoffStore) : ControllerBase
 {
     [HttpPost("login")]
     [AllowAnonymous]
@@ -212,7 +213,12 @@ public class AuthController(IMediator mediator) : ControllerBase
             // Clean up the temporary external cookie
             await HttpContext.SignOutAsync("SsoExternalCookie");
 
-            return Redirect($"/sso/callback?sso_token={loginResponse.Token}");
+            // Hand the session back via an opaque single-use code, NOT the JWT
+            // itself — a token in the redirect URL leaks into proxy/nginx access
+            // logs, the Referer header, and browser history. The SPA exchanges
+            // this code (POST) for the real LoginResponse.
+            var code = handoffStore.Create(loginResponse);
+            return Redirect($"/sso/callback?code={code}");
         }
         catch (SsoDomainNotPermittedException)
         {
@@ -228,6 +234,22 @@ public class AuthController(IMediator mediator) : ControllerBase
             await HttpContext.SignOutAsync("SsoExternalCookie");
             return Redirect("/sso/callback?error=no_account");
         }
+    }
+
+    /// <summary>
+    /// Exchanges the opaque single-use code from the browser SSO callback
+    /// redirect for the real <see cref="LoginResponse"/>. The code is consumed
+    /// on first use; an unknown / expired / already-used code returns 401.
+    /// This is what keeps the JWT out of the callback URL.
+    /// </summary>
+    [HttpPost("sso/exchange-code")]
+    [AllowAnonymous]
+    public ActionResult<LoginResponse> ExchangeSsoCode([FromBody] SsoExchangeCodeRequestModel request)
+    {
+        var response = handoffStore.Consume(request.Code);
+        if (response is null)
+            return Unauthorized(new { message = "Invalid or expired SSO code." });
+        return Ok(response);
     }
 
     [HttpPost("sso/link")]

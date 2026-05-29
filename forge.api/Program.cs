@@ -329,6 +329,9 @@ try
     builder.Services.AddSingleton<IMfaPreAuthTokenService, MfaPreAuthTokenService>();
     builder.Services.AddSingleton<IPortalAuthService, PortalAuthService>();
     builder.Services.AddSingleton<ISessionStore, SessionStore>();
+    // Single-use handoff for the browser SSO callback — keeps the JWT out of
+    // the redirect URL (it would otherwise land in proxy logs / Referer).
+    builder.Services.AddSingleton<ISsoHandoffStore, SsoHandoffStore>();
     // External-provider id_token validator (Google JWKS). Singleton so the
     // OpenIdConnect ConfigurationManager's signing-key cache survives across
     // requests — instantiating per-request would fetch JWKS on every call.
