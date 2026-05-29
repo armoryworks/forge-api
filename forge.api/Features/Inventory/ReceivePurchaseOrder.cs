@@ -56,8 +56,18 @@ public class ReceivePurchaseOrderHandler(
 
         await poRepo.AddReceivingRecordAsync(record, cancellationToken);
 
-        // Update line received quantity
+        // Update line received quantity (stays in the line's order unit — options when the line
+        // is option-priced, base units otherwise — to match OrderedQuantity / RemainingQuantity).
         line.ReceivedQuantity += data.QuantityReceived;
+
+        // UoM purchase-options effort — inventory is always tracked in the part's base/stock UoM.
+        // When the line was ordered in purchase options (e.g. 2 "4×8 sheets"), convert the received
+        // option count to base units (2 × 32 = 64 sqft) before it lands in a bin. Null option (or
+        // content ≤ 0) → already base units.
+        var contentPerOption = line.PurchaseOption?.ContentQuantity;
+        var baseQuantityReceived = contentPerOption is > 0
+            ? data.QuantityReceived * contentPerOption.Value
+            : data.QuantityReceived;
 
         // If location provided, create bin content
         if (data.LocationId.HasValue)
@@ -70,7 +80,7 @@ public class ReceivePurchaseOrderHandler(
                 LocationId = data.LocationId.Value,
                 EntityType = "part",
                 EntityId = line.PartId,
-                Quantity = data.QuantityReceived,
+                Quantity = baseQuantityReceived,
                 LotNumber = data.LotNumber,
                 PlacedBy = userId,
                 PlacedAt = DateTimeOffset.UtcNow,
@@ -84,7 +94,7 @@ public class ReceivePurchaseOrderHandler(
             {
                 EntityType = "part",
                 EntityId = line.PartId,
-                Quantity = data.QuantityReceived,
+                Quantity = baseQuantityReceived,
                 LotNumber = data.LotNumber,
                 ToLocationId = data.LocationId.Value,
                 MovedBy = userId,

@@ -45,6 +45,7 @@ public class PartLandedCostService(
         var receipts = await db.ReceivingRecords
             .AsNoTracking()
             .Include(r => r.PurchaseOrderLine).ThenInclude(l => l.PurchaseOrder).ThenInclude(po => po.Vendor)
+            .Include(r => r.PurchaseOrderLine).ThenInclude(l => l.PurchaseOption)
             .Where(r => r.PurchaseOrderLine.PartId == partId)
             .OrderByDescending(r => r.CreatedAt)
             .Take(maxReceipts * 2) // over-fetch, then filter
@@ -68,8 +69,17 @@ public class PartLandedCostService(
 
             var line = rec.PurchaseOrderLine;
             var po = line.PurchaseOrder;
-            var basePrice = line.UnitPrice;
-            var freightPerUnit = rec.QuantityReceived > 0 ? rec.AllocatedFreight.Value / rec.QuantityReceived : 0m;
+
+            // UoM purchase-options effort — when the line is priced per purchase option
+            // (e.g. $50 per 4×8 sheet), UnitPrice and QuantityReceived are in option-units.
+            // Divide by the option's content to report cost per *base/stock* unit ($50/32 sqft
+            // = $1.5625/sqft). Null option (or content ≤ 0) → already per base unit (divisor 1).
+            var contentPerOption = line.PurchaseOption?.ContentQuantity;
+            var baseUnitsPerOption = contentPerOption is > 0 ? contentPerOption.Value : 1m;
+
+            var basePrice = line.UnitPrice / baseUnitsPerOption;
+            var freightPerOption = rec.QuantityReceived > 0 ? rec.AllocatedFreight.Value / rec.QuantityReceived : 0m;
+            var freightPerUnit = freightPerOption / baseUnitsPerOption;
 
             var receiptDate = DateOnly.FromDateTime(rec.CreatedAt.UtcDateTime);
             vpMap.TryGetValue(po.VendorId, out var vp);
