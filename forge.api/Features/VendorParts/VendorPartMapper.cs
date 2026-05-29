@@ -59,5 +59,6 @@ internal static class VendorPartMapper
             Currency: t.Currency,
             EffectiveFrom: t.EffectiveFrom,
             EffectiveTo: t.EffectiveTo,
-            Notes: t.Notes);
+            Notes: t.Notes,
+            PurchaseOptionId: t.PurchaseOptionId);
 }

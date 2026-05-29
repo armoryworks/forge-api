@@ -12,4 +12,5 @@ public record VendorPartPriceTierResponseModel(
     string Currency,
     DateTimeOffset EffectiveFrom,
     DateTimeOffset? EffectiveTo,
-    string? Notes);
+    string? Notes,
+    int? PurchaseOptionId);
