@@ -8,4 +8,6 @@ public record CreateBOMEntryRequestModel(
     string? ReferenceDesignator,
     BOMSourceType SourceType,
     int? LeadTimeDays,
-    string? Notes);
+    string? Notes,
+    // UoM purchase-options effort — the UoM this component is consumed in (default = child's stock UoM).
+    int? UomId = null);

@@ -207,7 +207,10 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
                 b.SortOrder,
                 b.SourceType,
                 b.LeadTimeDays,
-                b.Notes))
+                b.Notes,
+                b.UomId,
+                b.Uom != null ? b.Uom.Code : null,
+                b.Uom != null ? b.Uom.Name : null))
             .ToList();
 
         var usedIn = part.UsedInBOM
