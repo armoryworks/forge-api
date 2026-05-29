@@ -15,4 +15,6 @@ public record PurchaseOrderLineResponseModel(
     decimal CancelledShortCloseQuantity,
     decimal UnitPrice,
     decimal LineTotal,
-    string? Notes);
+    string? Notes,
+    int? PurchaseOptionId,
+    string? PurchaseOptionLabel);
