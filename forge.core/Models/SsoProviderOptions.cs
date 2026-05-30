@@ -41,4 +41,26 @@ public class SsoProviderOptions
     /// external audiences.
     /// </summary>
     public List<string>? AdditionalAudiences { get; set; }
+
+    /// <summary>
+    /// Microsoft-only allow-list of tenant ids (the <c>tid</c> claim on an
+    /// Azure AD v2.0 id_token, a GUID). When non-empty, the
+    /// <c>token-exchange</c> handler accepts id_tokens only from the listed
+    /// tenants — this lets an install be multi-tenant (no
+    /// <c>Authority</c> override needed) while still restricting which
+    /// tenants are trusted, without forcing single-tenant mode.
+    ///
+    /// Use cases:
+    ///   - A managed-service provider runs Forge for 5 customers, each
+    ///     on their own Microsoft 365 tenant — list all 5 tenant guids.
+    ///   - You want to permit your tenant + your partner's tenant.
+    ///
+    /// When empty (or null) on a multi-tenant deployment, any Microsoft
+    /// tenant whose id_token's audience matches Forge's client id is
+    /// accepted (the audience check already gates this hard — see
+    /// <c>ExternalIdTokenValidator.ValidateMicrosoftAsync</c>). Ignored by
+    /// non-Microsoft providers (Google has no tenant concept; generic OIDC
+    /// uses the discovery doc's issuer directly).
+    /// </summary>
+    public List<string>? AllowedTenantIds { get; set; }
 }

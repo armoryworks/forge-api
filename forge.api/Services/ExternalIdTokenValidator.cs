@@ -165,6 +165,23 @@ public class ExternalIdTokenValidator(IOptionsMonitor<SsoOptions> sso) : IExtern
         if (!result.IsValid)
             throw new AuthenticationException("id_token validation failed.", result.Exception);
 
+        // Optional Sso:Microsoft:AllowedTenantIds gate. When configured, the
+        // token's `tid` claim must be in the list. This complements the
+        // multi-tenant validator above: the install stays multi-tenant on the
+        // authority side (no Authority override needed) while still
+        // restricting trust to a known set of customer tenants. Empty / null
+        // list = no per-tenant restriction.
+        if (opts.AllowedTenantIds is { Count: > 0 } allowedTenants)
+        {
+            var tid = result.ClaimsIdentity.FindFirst("tid")?.Value;
+            if (string.IsNullOrEmpty(tid))
+                throw new AuthenticationException(
+                    "Microsoft id_token missing 'tid' claim — required when AllowedTenantIds is configured.");
+            if (!allowedTenants.Any(t => string.Equals(t, tid, StringComparison.OrdinalIgnoreCase)))
+                throw new AuthenticationException(
+                    $"Microsoft tenant '{tid}' is not permitted on this install.");
+        }
+
         // Prefer `oid` (AAD object id — stable across every OAuth client in
         // the tenant) so a federated client with its own client id still
         // matches the same Forge user via MicrosoftId. `sub` is per-app and
