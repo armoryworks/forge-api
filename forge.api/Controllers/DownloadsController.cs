@@ -1,10 +1,12 @@
 using System.IO.Compression;
+using System.Security.Claims;
 using System.Text;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Services;
 
 namespace Forge.Api.Controllers;
 
@@ -20,17 +22,29 @@ namespace Forge.Api.Controllers;
 public class DownloadsController : ControllerBase
 {
     private readonly string _toolsPath;
+    private readonly IDownloadTokenStore _downloadTokens;
 
-    public DownloadsController(IConfiguration config)
+    public DownloadsController(IConfiguration config, IDownloadTokenStore downloadTokens)
     {
         _toolsPath = config["ToolsPath"] ?? "/app/tools";
+        _downloadTokens = downloadTokens;
     }
 
     /// <summary>
     /// Returns a self-contained PowerShell setup script for the RFID Relay.
-    /// The script embeds the server URL (from the request) and a JWT token so that
-    /// running it on a client machine will: install Node.js if needed, download the
-    /// relay scripts from this server, install dependencies, and register a Windows Service.
+    /// The script embeds the server URL (from the request) and a single-use,
+    /// short-lived download token bound to the issuing admin. Running it on a
+    /// client machine will: install Node.js if needed, redeem the token at
+    /// <c>/rfid-relay-via-token.zip</c>, install dependencies, and register a
+    /// Windows Service.
+    ///
+    /// <para>The embedded credential is deliberately NOT the issuer's Forge
+    /// JWT. The PS1 lives on the workstation's filesystem after the install
+    /// and is reusable / mailable / backupable; a full JWT at rest there
+    /// would be a working bearer credential valid for the full session
+    /// lifetime, with the issuer's full grant set. The download token
+    /// expires within minutes (see <see cref="DownloadTokenStore"/>), is
+    /// single-use, and is scoped to one endpoint.</para>
     /// </summary>
     [HttpGet("rfid-relay-setup.ps1")]
     public IActionResult GetRfidRelaySetupScript()
@@ -39,12 +53,12 @@ public class DownloadsController : ControllerBase
         // UseForwardedHeaders middleware applies X-Forwarded-* to Request.Scheme/Host.
         var serverUrl = $"{Request.Scheme}://{Request.Host}";
 
-        // Pass the caller's JWT so the script can authenticate to the zip endpoint
-        var token = Request.Headers.Authorization.ToString().Replace("Bearer ", "");
-        if (string.IsNullOrEmpty(token))
-            token = Request.Query["access_token"].ToString();
+        // Bind the download token to the issuing admin so the redemption
+        // shows up in logs as their action, not as an anonymous fetch.
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var downloadToken = _downloadTokens.Issue(userId);
 
-        var script = GenerateSetupScript(serverUrl, token);
+        var script = GenerateSetupScript(serverUrl, downloadToken);
         // PowerShell 5.1 requires UTF-8 BOM to correctly parse non-ASCII characters
         var bom = Encoding.UTF8.GetPreamble();
         var body = Encoding.UTF8.GetBytes(script);
@@ -55,11 +69,41 @@ public class DownloadsController : ControllerBase
     }
 
     /// <summary>
-    /// Returns the RFID Relay scripts as a zip file.
-    /// Contains relay.js, package.json, and service install/uninstall scripts.
+    /// Token-gated companion to <see cref="GetRfidRelayZip"/>. The
+    /// installer PS1 hits this endpoint with the single-use download token
+    /// it received at issuance time; on success the token is consumed and
+    /// the zip is returned. Wrong / expired / already-consumed token → 401.
+    ///
+    /// <para>Anonymous because the credential IS the token in the header
+    /// (the issuing JWT is never embedded in the PS1). The token gates this
+    /// endpoint as tightly as a JWT would gate the legacy
+    /// <see cref="GetRfidRelayZip"/> path.</para>
+    /// </summary>
+    [HttpGet("rfid-relay-via-token.zip")]
+    [AllowAnonymous]
+    public IActionResult GetRfidRelayZipViaToken(
+        [FromHeader(Name = "X-Forge-Download-Token")] string? token)
+    {
+        if (string.IsNullOrEmpty(token) || _downloadTokens.Consume(token) is null)
+            return Unauthorized();
+        return BuildRfidRelayZip();
+    }
+
+    /// <summary>
+    /// Returns the RFID Relay scripts as a zip file. JWT-gated path retained
+    /// for direct admin use (e.g. download from the browser). The PS1
+    /// installer uses <see cref="GetRfidRelayZipViaToken"/> instead so it
+    /// doesn't have to embed a JWT.
     /// </summary>
     [HttpGet("rfid-relay.zip")]
-    public IActionResult GetRfidRelayZip()
+    public IActionResult GetRfidRelayZip() => BuildRfidRelayZip();
+
+    /// <summary>
+    /// Shared zip-building logic used by both the JWT-gated and the
+    /// token-gated routes. Reads the same set of relay files in both paths
+    /// so the installer experience is identical regardless of auth method.
+    /// </summary>
+    private IActionResult BuildRfidRelayZip()
     {
         var relayDir = Path.Combine(_toolsPath, "rfid-relay");
 
@@ -98,7 +142,7 @@ public class DownloadsController : ControllerBase
         return File(stream, "application/zip", "rfid-relay.zip");
     }
 
-    private static string GenerateSetupScript(string serverUrl, string token)
+    private static string GenerateSetupScript(string serverUrl, string downloadToken)
     {
         return $$"""
             #Requires -RunAsAdministrator
@@ -135,8 +179,10 @@ public class DownloadsController : ControllerBase
             Set-StrictMode -Version Latest
             $ErrorActionPreference = 'Stop'
 
-            $ServerUrl   = "{{serverUrl}}"
-            $AuthToken   = "{{token}}"
+            $ServerUrl     = "{{serverUrl}}"
+            # Single-use, short-lived download token bound to the issuing admin.
+            # NOT a full session JWT — see DownloadsController doc comment for why.
+            $DownloadToken = "{{downloadToken}}"
             # node-windows derives the service ID from the name: lowercase + stripped + .exe
             $ServiceName = "forgerfidrelay.exe"
 
@@ -228,17 +274,20 @@ public class DownloadsController : ControllerBase
 
             Write-Step "Downloading relay scripts from server..."
 
-            $zipUrl  = "$ServerUrl/api/v1/downloads/rfid-relay.zip"
+            # Token-gated endpoint -- the PS1 carries a single-use download
+            # token, not a session JWT. See DownloadsController for rationale.
+            $zipUrl  = "$ServerUrl/api/v1/downloads/rfid-relay-via-token.zip"
             $zipPath = Join-Path $env:TEMP "rfid-relay.zip"
 
             try {
-                $headers = @{ Authorization = "Bearer $AuthToken" }
+                $headers = @{ 'X-Forge-Download-Token' = $DownloadToken }
                 Invoke-WebRequest -Uri $zipUrl -Headers $headers -OutFile $zipPath -UseBasicParsing
                 Write-OK "Downloaded relay scripts."
             } catch {
                 Write-Fail "Failed to download from $zipUrl"
                 Write-Host "   Error: $($_.Exception.Message)" -ForegroundColor Red
-                Write-Host "   The setup script may have expired. Download a fresh one from the admin panel." -ForegroundColor Yellow
+                Write-Host "   The download token expires within minutes and is single-use." -ForegroundColor Yellow
+                Write-Host "   Download a fresh setup script from the admin panel and re-run it." -ForegroundColor Yellow
                 exit 1
             }
 

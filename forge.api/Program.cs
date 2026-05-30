@@ -332,6 +332,10 @@ try
     // Single-use handoff for the browser SSO callback — keeps the JWT out of
     // the redirect URL (it would otherwise land in proxy logs / Referer).
     builder.Services.AddSingleton<ISsoHandoffStore, SsoHandoffStore>();
+    // Single-use download token embedded in the RFID-relay setup PS1 instead
+    // of the issuing admin's JWT — same shape as the SSO handoff, different
+    // payload. See IDownloadTokenStore for the threat-model rationale.
+    builder.Services.AddSingleton<IDownloadTokenStore, DownloadTokenStore>();
     // External-provider id_token validator (Google / Microsoft / generic OIDC).
     // Singleton so the OpenIdConnect ConfigurationManager's signing-key cache
     // survives across requests — instantiating per-request would fetch JWKS on

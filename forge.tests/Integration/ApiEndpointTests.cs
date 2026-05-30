@@ -134,4 +134,46 @@ public class ApiEndpointTests
         var response = await _client.GetAsync("/api/v1/admin/accounting-mode");
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    // ─── RFID-relay token-gated endpoint ───
+    //
+    // The token-gated zip endpoint is [AllowAnonymous] but still inherits
+    // the controller's [RequiresCapability("CAP-CROSS-DOCS")] gate. Two
+    // valid failure modes exist for an anonymous unauthorized caller:
+    //   • Capability disabled (fresh-install default): 403 from the gate
+    //   • Capability enabled, no/bad token: 401 from the controller body
+    // Either way the security invariant — anonymous calls without a valid
+    // token MUST NOT receive the zip — holds. The tests assert the
+    // disjunction rather than pinning the order in which the two
+    // mechanisms fire.
+
+    [Fact]
+    public async Task GET_RfidRelayViaToken_RefusesAnonymousWithoutHeader()
+    {
+        var response = await _client.GetAsync("/api/v1/downloads/rfid-relay-via-token.zip");
+        Assert.True(response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden,
+            $"expected 401 or 403, got {(int)response.StatusCode} {response.StatusCode}");
+    }
+
+    [Fact]
+    public async Task GET_RfidRelayViaToken_RefusesBogusToken()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            "/api/v1/downloads/rfid-relay-via-token.zip");
+        request.Headers.Add("X-Forge-Download-Token", "dlt_not-a-real-token");
+        var response = await _client.SendAsync(request);
+        Assert.True(response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden,
+            $"expected 401 or 403, got {(int)response.StatusCode} {response.StatusCode}");
+    }
+
+    [Fact]
+    public async Task GET_RfidRelaySetupPs1_RefusesUnauthenticated()
+    {
+        // The setup-script endpoint is JWT-gated — the threat-model
+        // boundary is only between the issuer (admin, JWT) and the
+        // workstation installer (anonymous, single-use token).
+        var response = await _client.GetAsync("/api/v1/downloads/rfid-relay-setup.ps1");
+        Assert.True(response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden,
+            $"expected 401 or 403, got {(int)response.StatusCode} {response.StatusCode}");
+    }
 }
