@@ -48,9 +48,10 @@ public record IntegrationRecordResponseModel
     /// never used or when the source doesn't track usage).</summary>
     public DateTimeOffset? LastUsedAt { get; init; }
 
-    /// <summary>When the connection was issued. Null for sources that don't
-    /// carry a creation timestamp (e.g. <see cref="IntegrationKind.QuickBooksOAuth"/>
-    /// — persisted as a flat <c>SystemSetting</c> blob).</summary>
+    /// <summary>When the connection was issued. Nullable because some sources
+    /// historically didn't carry a creation timestamp; today every shipping
+    /// source populates it (SystemSetting was promoted to BaseAuditableEntity
+    /// so even the QuickBooks-OAuth singleton has CreatedAt/UpdatedAt now).</summary>
     public DateTimeOffset? CreatedAt { get; init; }
 
     /// <summary>

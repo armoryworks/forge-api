@@ -120,8 +120,16 @@ public class ConnectionsRegistryTests
     public async Task ListAsync_QuickBooksToken_AppearsWhenSettingPresent()
     {
         var (registry, _, settings) = Make();
+        var connectedAt = DateTimeOffset.UtcNow.AddDays(-30);
+        var refreshedAt = DateTimeOffset.UtcNow.AddHours(-2);
         settings.Setup(s => s.FindByKeyAsync("qb_oauth_token", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SystemSetting { Key = "qb_oauth_token", Value = "(encrypted blob)" });
+            .ReturnsAsync(new SystemSetting
+            {
+                Key = "qb_oauth_token",
+                Value = "(encrypted blob)",
+                CreatedAt = connectedAt,
+                UpdatedAt = refreshedAt,
+            });
 
         var rows = await registry.ListAsync(CancellationToken.None);
 
@@ -130,8 +138,10 @@ public class ConnectionsRegistryTests
         row!.Name.Should().Be("QuickBooks Online");
         row.Status.Should().Be("Connected");
         row.ManageRoute.Should().Be("/admin/integrations");
-        row.CreatedAt.Should().BeNull(
-            "SystemSetting doesn't extend BaseAuditableEntity — no timestamps available");
+        row.CreatedAt.Should().Be(connectedAt,
+            "SystemSetting now extends BaseAuditableEntity; CreatedAt is the original connect-time");
+        row.LastUsedAt.Should().Be(refreshedAt,
+            "UpdatedAt on the token row is the most recent refresh / reconnect");
     }
 
     [Fact]

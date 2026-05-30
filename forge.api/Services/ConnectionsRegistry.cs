@@ -99,9 +99,11 @@ public class ConnectionsRegistry(
     {
         // QuickBooks OAuth is persisted as a SystemSetting blob keyed by
         // `qb_oauth_token` (see QuickBooksTokenService). Singleton — at most
-        // one connection per install. We only surface presence + the
-        // last-modified timestamp from the setting row; the payload itself
-        // is the encrypted token envelope.
+        // one connection per install. SystemSetting now carries audit
+        // timestamps (promoted to BaseAuditableEntity), so we can surface
+        // the row's CreatedAt as the connect-time and UpdatedAt as the
+        // most-recent-refresh time. The payload itself is the encrypted
+        // token envelope and we never expose it here.
         var token = await systemSettings.FindByKeyAsync("qb_oauth_token", ct);
         if (token is null)
             return new List<IntegrationRecordResponseModel>();
@@ -114,8 +116,8 @@ public class ConnectionsRegistry(
                 Name = "QuickBooks Online",
                 OwnerEmail = null,
                 Status = "Connected",
-                LastUsedAt = null, // SystemSetting carries no timestamps;
-                CreatedAt = null,  // exposed as connected but undated
+                LastUsedAt = token.UpdatedAt, // last token-envelope write (refresh or reconnect)
+                CreatedAt = token.CreatedAt,  // first connection
                 ManageRoute = "/admin/integrations",
             },
         };
