@@ -337,6 +337,10 @@ try
     // survives across requests — instantiating per-request would fetch JWKS on
     // every call. The implementation dispatches by provider internally.
     builder.Services.AddSingleton<IExternalIdTokenValidator, ExternalIdTokenValidator>();
+    // Federated read-only registry over BI keys, system keys, EDI partners,
+    // QuickBooks OAuth, communications sync, cloud-storage links. Scoped
+    // because it queries the per-request DbContext.
+    builder.Services.AddScoped<IConnectionsRegistry, ConnectionsRegistry>();
     builder.Services.AddScoped<ISystemAuditWriter, SystemAuditWriter>();
     // Phase 3 / WU-06 / C1 — role-template rollup expansion at auth time.
     builder.Services.AddScoped<IRoleClaimsExpander, RoleClaimsExpander>();
