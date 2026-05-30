@@ -140,6 +140,8 @@ public class PurchaseOrderRepository(AppDbContext db) : IPurchaseOrderRepository
             .Include(po => po.Lines)
                 .ThenInclude(l => l.Part)
             .Include(po => po.Lines)
+                .ThenInclude(l => l.PurchaseOption)
+            .Include(po => po.Lines)
                 .ThenInclude(l => l.ReceivingRecords.Where(r => r.DeletedAt == null))
             .FirstOrDefaultAsync(po => po.Id == id, ct);
     }
@@ -149,6 +151,7 @@ public class PurchaseOrderRepository(AppDbContext db) : IPurchaseOrderRepository
         return await db.PurchaseOrderLines
             .Include(l => l.PurchaseOrder)
             .Include(l => l.Part)
+            .Include(l => l.PurchaseOption)
             .FirstOrDefaultAsync(l => l.Id == lineId, ct);
     }
 

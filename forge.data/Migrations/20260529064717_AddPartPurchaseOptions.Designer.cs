@@ -3,6 +3,7 @@ using System;
 using Forge.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using Pgvector;
 namespace Forge.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260529064717_AddPartPurchaseOptions")]
+    partial class AddPartPurchaseOptions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -18052,10 +18055,6 @@ namespace Forge.Data.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
-                    b.Property<int?>("RoleTemplateId")
-                        .HasColumnType("integer")
-                        .HasColumnName("role_template_id");
-
                     b.Property<string>("ScopesJson")
                         .HasColumnType("jsonb")
                         .HasColumnName("scopes_json");
@@ -18076,9 +18075,6 @@ namespace Forge.Data.Migrations
 
                     b.HasIndex("KeyPrefix")
                         .HasDatabaseName("ix_system_api_keys_key_prefix");
-
-                    b.HasIndex("RoleTemplateId")
-                        .HasDatabaseName("ix_system_api_keys_role_template_id");
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_system_api_keys_user_id");
@@ -24941,12 +24937,6 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.SystemApiKey", b =>
                 {
-                    b.HasOne("Forge.Core.Entities.RoleTemplate", null)
-                        .WithMany()
-                        .HasForeignKey("RoleTemplateId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_system_api_keys_role_templates_role_template_id");
-
                     b.HasOne("Forge.Data.Context.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")

@@ -22,6 +22,12 @@ public class PurchaseOrderLine : BaseEntity
     public int? MrpPlannedOrderId { get; set; }
     public int? UomId { get; set; }
 
+    // UoM purchase-options effort — which PartPurchaseOption (size/form) was ordered. When set,
+    // OrderedQuantity counts in options and UnitPrice is per option; the base-UoM quantity (for
+    // receiving into the bin + landed cost) = qty × option.ContentQuantity. Null = ordered per
+    // base unit (legacy single-option behavior).
+    public int? PurchaseOptionId { get; set; }
+
     // Phase 3 / WU-14 — RemainingQuantity excludes cancelled-short-close so
     // a short-closed line reports 0 remaining, not the unreceived portion.
     public decimal RemainingQuantity => OrderedQuantity - ReceivedQuantity - CancelledShortCloseQuantity;
@@ -31,6 +37,7 @@ public class PurchaseOrderLine : BaseEntity
     public Part Part { get; set; } = null!;
     public MrpPlannedOrder? MrpPlannedOrder { get; set; }
     public UnitOfMeasure? Uom { get; set; }
+    public PartPurchaseOption? PurchaseOption { get; set; }
     public ICollection<ReceivingRecord> ReceivingRecords { get; set; } = [];
     public ICollection<PurchaseOrderRelease> Releases { get; set; } = [];
 }

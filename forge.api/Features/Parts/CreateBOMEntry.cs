@@ -55,6 +55,7 @@ public class CreateBOMEntryHandler(
             SourceType = request.Data.SourceType,
             LeadTimeDays = request.Data.LeadTimeDays,
             Notes = request.Data.Notes?.Trim(),
+            UomId = request.Data.UomId,
         };
 
         await repo.AddBomEntryAsync(entry, cancellationToken);

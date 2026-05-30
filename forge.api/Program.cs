@@ -383,6 +383,7 @@ try
     builder.Services.AddScoped<IMrpService, MrpService>();
     builder.Services.AddScoped<IPartSourcingResolver, PartSourcingResolver>();
     builder.Services.AddScoped<IPartPricingResolver, PartPricingResolver>();
+    builder.Services.AddScoped<IVendorCostResolver, VendorCostResolver>();
     builder.Services.AddScoped<IAtpService, AtpService>();
     builder.Services.AddScoped<IForecastService, ForecastService>();
     builder.Services.AddScoped<ISchedulingService, SchedulingService>();

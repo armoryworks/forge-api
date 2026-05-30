@@ -17,5 +17,12 @@ public class VendorPartPriceTierConfiguration : IEntityTypeConfiguration<VendorP
         builder.Property(e => e.UnitPrice).HasPrecision(18, 4);
         builder.Property(e => e.Currency).HasMaxLength(3).IsRequired();
         builder.Property(e => e.Notes).HasMaxLength(2000);
+
+        // UoM purchase-options effort — which size/form this tier prices (null = single default).
+        builder.HasIndex(e => e.PurchaseOptionId);
+        builder.HasOne(e => e.PurchaseOption)
+            .WithMany()
+            .HasForeignKey(e => e.PurchaseOptionId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

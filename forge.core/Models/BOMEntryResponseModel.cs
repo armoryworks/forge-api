@@ -12,4 +12,7 @@ public record BOMEntryResponseModel(
     int SortOrder,
     BOMSourceType SourceType,
     int? LeadTimeDays,
-    string? Notes);
+    string? Notes,
+    int? UomId,
+    string? UomCode,
+    string? UomLabel);
