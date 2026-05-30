@@ -25,4 +25,20 @@ public class SsoProviderOptions
     /// same policy. See <c>docs/api-key-integrations.md</c>.
     /// </summary>
     public List<string>? AllowedDomains { get; set; }
+
+    /// <summary>
+    /// Additional audience values accepted by the token-exchange endpoint's
+    /// id_token validator. The provider's primary <see cref="ClientId"/> is
+    /// always accepted; this list permits id_tokens minted under a related
+    /// OAuth client — e.g. a federated app (Tuyere) that has its own
+    /// Google/Microsoft OAuth client but shares the same end-user identity
+    /// model with Forge. Without this, a Tuyere-issued id_token would be
+    /// rejected because its <c>aud</c> claim is Tuyere's client id, not
+    /// Forge's.
+    ///
+    /// Browser-flow OAuth (the <c>SsoCallback</c> path) is unaffected —
+    /// that flow always uses Forge's own client id and never sees
+    /// external audiences.
+    /// </summary>
+    public List<string>? AdditionalAudiences { get; set; }
 }

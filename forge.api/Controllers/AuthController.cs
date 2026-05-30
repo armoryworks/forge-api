@@ -161,10 +161,12 @@ public class AuthController(IMediator mediator, ISsoHandoffStore handoffStore) :
 
     /// <summary>
     /// Token-for-token exchange. Caller presents a fresh external-provider
-    /// id_token (today: Google) and receives a Forge JWT bound to the
+    /// id_token (Google, Microsoft / Azure AD v2.0, or a generic OIDC IdP
+    /// configured per install) and receives a Forge JWT bound to the
     /// matched <c>ApplicationUser</c>. The id_token IS the credential —
     /// validated server-side against the provider's JWKS + the configured
-    /// client id (audience). The browser-based OAuth flow is NOT involved.
+    /// client id (audience, including any <c>AdditionalAudiences</c>).
+    /// The browser-based OAuth flow is NOT involved.
     ///
     /// Intended for federated client apps (deployed alongside Forge) whose
     /// users already authenticated via the same IdP. The returned Forge JWT

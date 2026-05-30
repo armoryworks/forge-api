@@ -11,12 +11,36 @@ public interface IExternalIdTokenValidator
 {
     /// <summary>
     /// Validate a Google-issued id_token against Google's published JWKS
-    /// and the configured Google client id (audience). Throws
+    /// and the configured Google client id (plus any
+    /// <c>Sso:Google:AdditionalAudiences</c>). Throws
     /// <see cref="System.Security.Authentication.AuthenticationException"/>
     /// when validation fails for any reason (bad signature, expired, wrong
-    /// audience / issuer, etc.).
+    /// audience / issuer, unverified email, etc.).
     /// </summary>
     Task<ExternalIdTokenClaims> ValidateGoogleAsync(string idToken, CancellationToken ct);
+
+    /// <summary>
+    /// Validate a Microsoft-issued (Azure AD v2.0) id_token. Multi-tenant by
+    /// default (any <c>https://login.microsoftonline.com/{tenant-id}/v2.0</c>
+    /// issuer is accepted); set <c>Sso:Microsoft:Authority</c> to a tenant-
+    /// specific authority to lock the install to one tenant. Audience is
+    /// validated against <c>Sso:Microsoft:ClientId</c> plus any
+    /// <c>Sso:Microsoft:AdditionalAudiences</c>. Subject is derived from
+    /// <c>oid</c> when present (tenant-stable AAD object id) so federated
+    /// clients with a different OAuth client id still match the same user;
+    /// falls back to <c>sub</c> for personal accounts.
+    /// </summary>
+    Task<ExternalIdTokenClaims> ValidateMicrosoftAsync(string idToken, CancellationToken ct);
+
+    /// <summary>
+    /// Validate an id_token issued by a generic OIDC provider configured at
+    /// <c>Sso:Oidc:Authority</c>. JWKS, issuer, and signing keys come from
+    /// the authority's discovery document. Audience is validated against
+    /// <c>Sso:Oidc:ClientId</c> plus any <c>Sso:Oidc:AdditionalAudiences</c>.
+    /// If the token carries <c>email_verified</c>, it must be <c>true</c>;
+    /// when absent, the email is trusted (some IdPs omit the claim).
+    /// </summary>
+    Task<ExternalIdTokenClaims> ValidateOidcAsync(string idToken, CancellationToken ct);
 }
 
 /// <summary>Trusted claims extracted from a validated external id_token.</summary>

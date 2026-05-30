@@ -332,10 +332,11 @@ try
     // Single-use handoff for the browser SSO callback — keeps the JWT out of
     // the redirect URL (it would otherwise land in proxy logs / Referer).
     builder.Services.AddSingleton<ISsoHandoffStore, SsoHandoffStore>();
-    // External-provider id_token validator (Google JWKS). Singleton so the
-    // OpenIdConnect ConfigurationManager's signing-key cache survives across
-    // requests — instantiating per-request would fetch JWKS on every call.
-    builder.Services.AddSingleton<IExternalIdTokenValidator, GoogleIdTokenValidator>();
+    // External-provider id_token validator (Google / Microsoft / generic OIDC).
+    // Singleton so the OpenIdConnect ConfigurationManager's signing-key cache
+    // survives across requests — instantiating per-request would fetch JWKS on
+    // every call. The implementation dispatches by provider internally.
+    builder.Services.AddSingleton<IExternalIdTokenValidator, ExternalIdTokenValidator>();
     builder.Services.AddScoped<ISystemAuditWriter, SystemAuditWriter>();
     // Phase 3 / WU-06 / C1 — role-template rollup expansion at auth time.
     builder.Services.AddScoped<IRoleClaimsExpander, RoleClaimsExpander>();
