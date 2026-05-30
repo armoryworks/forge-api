@@ -55,6 +55,24 @@ public class SystemApiKey : BaseAuditableEntity
     public DateTimeOffset? ExpiresAt { get; set; }
 
     /// <summary>
+    /// Optional <see cref="RoleTemplate"/> binding that NARROWS the bound
+    /// user's role set at auth time. When set, the auth handler emits the
+    /// INTERSECTION of (a) the bound user's actual roles and (b) the role
+    /// template's <c>IncludedRoleNames</c>. The template can only narrow,
+    /// never expand — the user must already hold a role for the key to use it.
+    ///
+    /// When null (the default), the key inherits the bound user's full role
+    /// set, identical to the pre-scoping behavior.
+    ///
+    /// Tuyere example: bind <c>tuyere-cms@forge.local</c> (an Admin user)
+    /// to template "TuyereCms" (granting only OfficeManager + LeadIntake)
+    /// and the issued key authenticates with those two roles only, even
+    /// though the user has Admin. Removing the binding (or revoking the
+    /// template) restores the user's full grant set on the next request.
+    /// </summary>
+    public int? RoleTemplateId { get; set; }
+
+    /// <summary>
     /// Optional finer-grained scope grants beyond the user's roles. JSON
     /// array of scope strings (e.g. <c>["leads:write","customers:read"]</c>).
     /// Reserved for future use; today the bound user's roles are the sole

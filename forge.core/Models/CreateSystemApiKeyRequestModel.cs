@@ -25,4 +25,13 @@ public record CreateSystemApiKeyRequestModel
     public List<string>? Scopes { get; init; }
 
     public List<string>? AllowedIps { get; init; }
+
+    /// <summary>
+    /// Optional <c>RoleTemplate</c> id that narrows the bound user's role
+    /// set at auth time to the intersection of (user's roles) ∩ (template's
+    /// IncludedRoleNames). When null (the default), the key inherits the
+    /// bound user's full role set. The template can only narrow, never
+    /// expand — see <c>SystemApiKey.RoleTemplateId</c>.
+    /// </summary>
+    public int? RoleTemplateId { get; init; }
 }

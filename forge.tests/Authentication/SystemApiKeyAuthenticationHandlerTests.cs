@@ -5,6 +5,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -308,13 +309,19 @@ public class SystemApiKeyAuthenticationHandlerTests
 
     private static Task<SystemApiKeyAuthenticationHandler> BuildHandlerOnAsync(
         AppDbContext db, ApplicationUser user, ISystemAuditWriter auditWriter)
+        => BuildHandlerOnAsync(db, user, auditWriter,
+            userRoles: new List<string> { "LeadIntake" });
+
+    private static Task<SystemApiKeyAuthenticationHandler> BuildHandlerOnAsync(
+        AppDbContext db, ApplicationUser user, ISystemAuditWriter auditWriter,
+        List<string> userRoles)
     {
         var userStore = Mock.Of<IUserStore<ApplicationUser>>();
         var userManagerMock = new Mock<UserManager<ApplicationUser>>(
             userStore, null!, null!, null!, null!, null!, null!, null!, null!);
         userManagerMock
             .Setup(x => x.GetRolesAsync(It.IsAny<ApplicationUser>()))
-            .ReturnsAsync(new List<string> { "LeadIntake" });
+            .ReturnsAsync(userRoles);
 
         var options = new SystemApiKeyAuthenticationOptions();
         var optionsMonitor = new Mock<IOptionsMonitor<SystemApiKeyAuthenticationOptions>>();
@@ -329,5 +336,167 @@ public class SystemApiKeyAuthenticationHandlerTests
             new SystemClock(),
             auditWriter,
             userManagerMock.Object));
+    }
+
+    // ── Per-key role-template scoping ────────────────────────────────────
+
+    private static async Task<(string plaintext, int keyId, ApplicationUser user, AppDbContext db, Mock<ISystemAuditWriter> auditWriter)>
+        IssueWithTemplateAsync(string templateName, params string[] templateRoles)
+    {
+        var db = TestDbContextFactory.Create();
+        var user = new ApplicationUser
+        {
+            UserName = "svc@example.local",
+            Email = "svc@example.local",
+            FirstName = "Test", LastName = "Service",
+            IsActive = true,
+        };
+        db.Users.Add(user);
+
+        var template = new RoleTemplate
+        {
+            Name = templateName,
+            IncludedRoleNamesJson = System.Text.Json.JsonSerializer.Serialize(templateRoles),
+        };
+        db.RoleTemplates.Add(template);
+        await db.SaveChangesAsync();
+
+        var auditWriter = new Mock<ISystemAuditWriter>();
+        var issued = await new CreateSystemApiKeyHandler(db, auditWriter.Object).Handle(
+            new CreateSystemApiKeyCommand(new CreateSystemApiKeyRequestModel
+            {
+                Name = "scoped", UserId = user.Id, RoleTemplateId = template.Id,
+            }),
+            CancellationToken.None);
+
+        return (issued.PlaintextKey, issued.Id, user, db, auditWriter);
+    }
+
+    [Fact]
+    public async Task Handle_WithRoleTemplate_NarrowsRolesToIntersection()
+    {
+        // User holds Admin + Manager + Engineer; template scopes to Manager + PM.
+        // The intersection — Manager — is the only role the key gets.
+        var (plaintext, _, user, db, auditWriter) = await IssueWithTemplateAsync(
+            "TuyereCms", "Manager", "PM");
+
+        var handler = await BuildHandlerOnAsync(db, user, auditWriter.Object,
+            userRoles: new List<string> { "Admin", "Manager", "Engineer" });
+
+        var context = new DefaultHttpContext();
+        context.Request.Headers[HeaderName] = plaintext;
+        var scheme = new AuthenticationScheme(
+            SchemeName, null, typeof(SystemApiKeyAuthenticationHandler));
+        await handler.InitializeAsync(scheme, context);
+
+        var result = await handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+        var roles = result.Principal!.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+        roles.Should().BeEquivalentTo(new[] { "Manager" },
+            "the template can only narrow, never expand — Admin + Engineer are dropped " +
+            "because they're not in the template, and PM is dropped because the user " +
+            "doesn't have it.");
+        result.Principal.FindFirst("system_api_key_role_template_id")?.Value
+            .Should().NotBeNullOrEmpty(
+                "the bound template id is surfaced as an aux claim for audit trails");
+    }
+
+    [Fact]
+    public async Task Handle_WithRoleTemplate_OnlyExpandingRoles_EmitsEmptyRoleSet()
+    {
+        // Template wants Admin + Manager + PM. User has only Engineer.
+        // Intersection is empty — key authenticates but with no role grants
+        // (every [Authorize(Roles = ...)] will then 403; that's the right
+        // semantics for "the binding doesn't grant anything to this user").
+        var (plaintext, _, user, db, auditWriter) = await IssueWithTemplateAsync(
+            "AdminScope", "Admin", "Manager", "PM");
+
+        var handler = await BuildHandlerOnAsync(db, user, auditWriter.Object,
+            userRoles: new List<string> { "Engineer" });
+
+        var context = new DefaultHttpContext();
+        context.Request.Headers[HeaderName] = plaintext;
+        var scheme = new AuthenticationScheme(
+            SchemeName, null, typeof(SystemApiKeyAuthenticationHandler));
+        await handler.InitializeAsync(scheme, context);
+
+        var result = await handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+        result.Principal!.FindAll(ClaimTypes.Role).Should().BeEmpty(
+            "the template can only narrow — granting Admin via a template to a non-Admin " +
+            "user must NOT actually expand their grants");
+    }
+
+    [Fact]
+    public async Task Handle_WithRoleTemplate_DeactivatedBetweenIssueAndAuth_FallsBackToUserRoles()
+    {
+        // Template was active at issuance, then retired. Rather than 401'ing
+        // the key (which would silently break integrations the admin didn't
+        // touch), the key falls back to the user's full grant set — same
+        // posture as the "no binding" case. Admin can revoke if they want.
+        var (plaintext, _, user, db, auditWriter) = await IssueWithTemplateAsync(
+            "Retired", "Manager");
+
+        var template = await db.RoleTemplates.FirstAsync();
+        template.DeactivatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync();
+
+        var handler = await BuildHandlerOnAsync(db, user, auditWriter.Object,
+            userRoles: new List<string> { "Admin", "Engineer" });
+
+        var context = new DefaultHttpContext();
+        context.Request.Headers[HeaderName] = plaintext;
+        var scheme = new AuthenticationScheme(
+            SchemeName, null, typeof(SystemApiKeyAuthenticationHandler));
+        await handler.InitializeAsync(scheme, context);
+
+        var result = await handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+        var roles = result.Principal!.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+        roles.Should().BeEquivalentTo(new[] { "Admin", "Engineer" });
+    }
+
+    [Fact]
+    public async Task Handle_NoRoleTemplate_EmitsUserRolesUnchanged()
+    {
+        // Regression: keys issued without a template binding behave exactly
+        // as they did pre-feature — emit every role the user holds.
+        var db = TestDbContextFactory.Create();
+        var user = new ApplicationUser
+        {
+            UserName = "svc@example.local",
+            Email = "svc@example.local",
+            IsActive = true,
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var auditWriter = new Mock<ISystemAuditWriter>();
+        var issued = await new CreateSystemApiKeyHandler(db, auditWriter.Object).Handle(
+            new CreateSystemApiKeyCommand(new CreateSystemApiKeyRequestModel
+            {
+                Name = "no-template", UserId = user.Id,
+            }),
+            CancellationToken.None);
+
+        var handler = await BuildHandlerOnAsync(db, user, auditWriter.Object,
+            userRoles: new List<string> { "Admin", "Manager", "Engineer" });
+
+        var context = new DefaultHttpContext();
+        context.Request.Headers[HeaderName] = issued.PlaintextKey;
+        var scheme = new AuthenticationScheme(
+            SchemeName, null, typeof(SystemApiKeyAuthenticationHandler));
+        await handler.InitializeAsync(scheme, context);
+
+        var result = await handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+        var roles = result.Principal!.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+        roles.Should().BeEquivalentTo(new[] { "Admin", "Manager", "Engineer" });
+        result.Principal!.FindFirst("system_api_key_role_template_id").Should().BeNull(
+            "the aux claim is only emitted when a template binding exists");
     }
 }

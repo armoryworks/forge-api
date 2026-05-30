@@ -52,6 +52,20 @@ public class CreateSystemApiKeyHandler(AppDbContext db, ISystemAuditWriter audit
             throw new KeyNotFoundException(
                 $"ApplicationUser {model.UserId} not found or not active.");
 
+        // If a role-template binding is requested, verify it exists and is
+        // active. Refuse rather than silently dropping the binding — an
+        // admin issuing a key with explicit scoping intent shouldn't have it
+        // quietly fall back to the user's full grant set.
+        if (model.RoleTemplateId.HasValue)
+        {
+            var templateActive = await db.RoleTemplates
+                .AnyAsync(t => t.Id == model.RoleTemplateId.Value
+                            && t.DeactivatedAt == null, cancellationToken);
+            if (!templateActive)
+                throw new KeyNotFoundException(
+                    $"RoleTemplate {model.RoleTemplateId.Value} not found or deactivated.");
+        }
+
         var keyBytes = RandomNumberGenerator.GetBytes(32);
         var plaintextKey = $"fsk_{Convert.ToBase64String(keyBytes)
             .Replace("+", "").Replace("/", "").Replace("=", "")}";
@@ -66,6 +80,7 @@ public class CreateSystemApiKeyHandler(AppDbContext db, ISystemAuditWriter audit
             KeyHash = keyHash,
             KeyPrefix = keyPrefix,
             UserId = model.UserId,
+            RoleTemplateId = model.RoleTemplateId,
             ExpiresAt = model.ExpiresAt,
             ScopesJson = model.Scopes != null
                 ? JsonSerializer.Serialize(model.Scopes) : null,
@@ -84,6 +99,7 @@ public class CreateSystemApiKeyHandler(AppDbContext db, ISystemAuditWriter audit
             name = apiKey.Name,
             keyPrefix = apiKey.KeyPrefix,
             userId = apiKey.UserId,
+            roleTemplateId = apiKey.RoleTemplateId,
             expiresAt = apiKey.ExpiresAt,
             scopes = model.Scopes,
             allowedIps = model.AllowedIps,

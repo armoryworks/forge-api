@@ -196,7 +196,43 @@ public class SystemApiKeyAuthenticationHandler : AuthenticationHandler<SystemApi
         // user just like a normal interactive login.
         // UserManager.GetRolesAsync accepts an untracked ApplicationUser —
         // it goes through its own UserStore for the role lookup.
-        var roles = await _userManager.GetRolesAsync(user);
+        var userRoles = (IEnumerable<string>)await _userManager.GetRolesAsync(user);
+
+        // Per-key role-template scoping. When the key has a RoleTemplateId,
+        // narrow the emitted role claims to the intersection of the user's
+        // grants ∩ the template's IncludedRoleNames. The template can only
+        // narrow, never expand — a user must already hold a role for the
+        // key to use it. When the template was deleted out from under us
+        // (race / FK SetNull), the key falls back to the user's full set,
+        // mirroring the "no binding" case rather than 401'ing — admins can
+        // re-scope after the fact.
+        if (matched.RoleTemplateId.HasValue)
+        {
+            var template = await _db.RoleTemplates.AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == matched.RoleTemplateId.Value
+                                       && t.DeactivatedAt == null);
+            if (template is not null)
+            {
+                List<string>? templateRoles = null;
+                try
+                {
+                    templateRoles = System.Text.Json.JsonSerializer.Deserialize<List<string>>(
+                        template.IncludedRoleNamesJson);
+                }
+                catch
+                {
+                    // Malformed JSON shouldn't happen (the template-edit
+                    // surface controls writes), but if it does, fall back
+                    // to the user's full grant set rather than failing the
+                    // request — same posture as the malformed-IP-list path.
+                    templateRoles = null;
+                }
+                if (templateRoles is not null)
+                {
+                    userRoles = userRoles.Intersect(templateRoles, StringComparer.OrdinalIgnoreCase);
+                }
+            }
+        }
 
         var claims = new List<Claim>
         {
@@ -206,10 +242,14 @@ public class SystemApiKeyAuthenticationHandler : AuthenticationHandler<SystemApi
             new("system_api_key_prefix", matched.KeyPrefix),
         };
 
+        if (matched.RoleTemplateId.HasValue)
+            claims.Add(new("system_api_key_role_template_id",
+                matched.RoleTemplateId.Value.ToString()));
+
         if (!string.IsNullOrEmpty(user.Email))
             claims.Add(new(ClaimTypes.Email, user.Email));
 
-        foreach (var role in roles)
+        foreach (var role in userRoles)
             claims.Add(new(ClaimTypes.Role, role));
 
         var identity = new ClaimsIdentity(claims, SystemApiKeyAuthenticationOptions.SchemeName);

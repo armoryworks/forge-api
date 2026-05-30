@@ -3,6 +3,7 @@ using System;
 using Forge.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using Pgvector;
 namespace Forge.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260530164242_AddSystemApiKeyRoleTemplateBinding")]
+    partial class AddSystemApiKeyRoleTemplateBinding
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -12275,6 +12278,70 @@ namespace Forge.Data.Migrations
                     b.ToTable("part_prices");
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.PartPurchaseOption", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("ContentQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("content_quantity");
+
+                    b.Property<int?>("ContentUomId")
+                        .HasColumnType("integer")
+                        .HasColumnName("content_uom_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("label");
+
+                    b.Property<int>("PartId")
+                        .HasColumnType("integer")
+                        .HasColumnName("part_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_part_purchase_options");
+
+                    b.HasIndex("ContentUomId")
+                        .HasDatabaseName("ix_part_purchase_options_content_uom_id");
+
+                    b.HasIndex("PartId")
+                        .HasDatabaseName("ix_part_purchase_options_part_id");
+
+                    b.ToTable("part_purchase_options");
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.PartRevision", b =>
                 {
                     b.Property<int>("Id")
@@ -14005,6 +14072,10 @@ namespace Forge.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("part_id");
 
+                    b.Property<int?>("PurchaseOptionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("purchase_option_id");
+
                     b.Property<int>("PurchaseOrderId")
                         .HasColumnType("integer")
                         .HasColumnName("purchase_order_id");
@@ -14031,6 +14102,9 @@ namespace Forge.Data.Migrations
 
                     b.HasIndex("PartId")
                         .HasDatabaseName("ix_purchase_order_lines_part_id");
+
+                    b.HasIndex("PurchaseOptionId")
+                        .HasDatabaseName("ix_purchase_order_lines_purchase_option_id");
 
                     b.HasIndex("PurchaseOrderId")
                         .HasDatabaseName("ix_purchase_order_lines_purchase_order_id");
@@ -19917,6 +19991,10 @@ namespace Forge.Data.Migrations
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("notes");
 
+                    b.Property<int?>("PurchaseOptionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("purchase_option_id");
+
                     b.Property<decimal>("UnitPrice")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)")
@@ -19928,6 +20006,9 @@ namespace Forge.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_vendor_part_price_tiers");
+
+                    b.HasIndex("PurchaseOptionId")
+                        .HasDatabaseName("ix_vendor_part_price_tiers_purchase_option_id");
 
                     b.HasIndex("VendorPartId", "EffectiveFrom")
                         .HasDatabaseName("ix_vendor_part_price_tiers_vendor_part_id_effective_from");
@@ -23606,6 +23687,26 @@ namespace Forge.Data.Migrations
                     b.Navigation("Part");
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.PartPurchaseOption", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.UnitOfMeasure", "ContentUom")
+                        .WithMany()
+                        .HasForeignKey("ContentUomId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_part_purchase_options__units_of_measure_content_uom_id");
+
+                    b.HasOne("Forge.Core.Entities.Part", "Part")
+                        .WithMany("PurchaseOptions")
+                        .HasForeignKey("PartId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_part_purchase_options_parts_part_id");
+
+                    b.Navigation("ContentUom");
+
+                    b.Navigation("Part");
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.PartRevision", b =>
                 {
                     b.HasOne("Forge.Core.Entities.Part", "Part")
@@ -23976,6 +24077,12 @@ namespace Forge.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_purchase_order_lines_parts_part_id");
 
+                    b.HasOne("Forge.Core.Entities.PartPurchaseOption", "PurchaseOption")
+                        .WithMany()
+                        .HasForeignKey("PurchaseOptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_purchase_order_lines_part_purchase_options_purchase_option_~");
+
                     b.HasOne("Forge.Core.Entities.PurchaseOrder", "PurchaseOrder")
                         .WithMany("Lines")
                         .HasForeignKey("PurchaseOrderId")
@@ -23991,6 +24098,8 @@ namespace Forge.Data.Migrations
                     b.Navigation("MrpPlannedOrder");
 
                     b.Navigation("Part");
+
+                    b.Navigation("PurchaseOption");
 
                     b.Navigation("PurchaseOrder");
 
@@ -25084,12 +25193,20 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.VendorPartPriceTier", b =>
                 {
+                    b.HasOne("Forge.Core.Entities.PartPurchaseOption", "PurchaseOption")
+                        .WithMany()
+                        .HasForeignKey("PurchaseOptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_vendor_part_price_tiers_part_purchase_options_purchase_opti~");
+
                     b.HasOne("Forge.Core.Entities.VendorPart", "VendorPart")
                         .WithMany("PriceTiers")
                         .HasForeignKey("VendorPartId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_vendor_part_price_tiers_vendor_parts_vendor_part_id");
+
+                    b.Navigation("PurchaseOption");
 
                     b.Navigation("VendorPart");
                 });
@@ -25577,6 +25694,8 @@ namespace Forge.Data.Migrations
                     b.Navigation("BomRevisions");
 
                     b.Navigation("Operations");
+
+                    b.Navigation("PurchaseOptions");
 
                     b.Navigation("PurchaseOrderLines");
 

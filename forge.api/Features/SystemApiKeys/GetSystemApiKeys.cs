@@ -16,16 +16,20 @@ public class GetSystemApiKeysHandler(AppDbContext db)
     public async Task<List<SystemApiKeyResponseModel>> Handle(
         GetSystemApiKeysQuery request, CancellationToken cancellationToken)
     {
-        // Join to ApplicationUser so the admin UI can show "key X belongs
-        // to user Y" without a second round-trip.
+        // Join to ApplicationUser + RoleTemplate so the admin UI can show
+        // "key X belongs to user Y, scoped to template Z" without round-trips.
         var rows = await (from k in db.SystemApiKeys.AsNoTracking()
                           join u in db.Users.AsNoTracking() on k.UserId equals u.Id into uj
                           from u in uj.DefaultIfEmpty()
+                          join t in db.RoleTemplates.AsNoTracking()
+                              on k.RoleTemplateId equals t.Id into tj
+                          from t in tj.DefaultIfEmpty()
                           orderby k.CreatedAt descending
                           select new
                           {
                               Key = k,
                               UserEmail = u != null ? u.Email : null,
+                              RoleTemplateName = t != null ? t.Name : null,
                           })
             .ToListAsync(cancellationToken);
 
@@ -44,6 +48,8 @@ public class GetSystemApiKeysHandler(AppDbContext db)
             AllowedIps = r.Key.AllowedIpsJson != null
                 ? JsonSerializer.Deserialize<List<string>>(r.Key.AllowedIpsJson) : null,
             CreatedAt = r.Key.CreatedAt,
+            RoleTemplateId = r.Key.RoleTemplateId,
+            RoleTemplateName = r.RoleTemplateName,
         }).ToList();
     }
 }

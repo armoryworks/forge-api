@@ -28,8 +28,18 @@ public class SystemApiKeyConfiguration : IEntityTypeConfiguration<SystemApiKey>
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Optional FK to RoleTemplate. SET NULL on template delete — losing
+        // the template removes the scoping (key falls back to the user's
+        // full grant set), which is safer than invalidating the key. The
+        // admin can reassign or revoke afterward.
+        builder.HasOne<RoleTemplate>()
+            .WithMany()
+            .HasForeignKey(e => e.RoleTemplateId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(e => e.UserId);
         builder.HasIndex(e => e.IsActive);
         builder.HasIndex(e => e.KeyPrefix);
+        builder.HasIndex(e => e.RoleTemplateId);
     }
 }

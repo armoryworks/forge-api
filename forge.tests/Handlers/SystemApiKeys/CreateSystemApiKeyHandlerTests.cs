@@ -3,6 +3,7 @@ using Moq;
 
 using Forge.Api.Features.SystemApiKeys;
 using Forge.Api.Services;
+using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Tests.Helpers;
@@ -118,6 +119,93 @@ public class CreateSystemApiKeyHandlerTests
 
         await act.Should().ThrowAsync<KeyNotFoundException>(
             "issuing a key for a deactivated user is refused — the bound auth check would always fail");
+    }
+
+    private static async Task<int> SeedActiveTemplateAsync(
+        AppDbContext db, string name = "TuyereCms", params string[] roles)
+    {
+        var template = new RoleTemplate
+        {
+            Name = name,
+            IncludedRoleNamesJson = System.Text.Json.JsonSerializer.Serialize(
+                roles.Length == 0 ? new[] { "OfficeManager" } : roles),
+        };
+        db.RoleTemplates.Add(template);
+        await db.SaveChangesAsync();
+        return template.Id;
+    }
+
+    [Fact]
+    public async Task Handle_WithRoleTemplateId_PersistsBinding()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userId = await SeedActiveUserAsync(db);
+        var templateId = await SeedActiveTemplateAsync(db, "TuyereCms", "OfficeManager", "LeadIntake");
+        var handler = MakeHandler(db);
+
+        var result = await handler.Handle(
+            new CreateSystemApiKeyCommand(new CreateSystemApiKeyRequestModel
+            {
+                Name = "tuyere",
+                UserId = userId,
+                RoleTemplateId = templateId,
+            }),
+            CancellationToken.None);
+
+        var persisted = await db.SystemApiKeys.FindAsync(result.Id);
+        persisted!.RoleTemplateId.Should().Be(templateId,
+            "role-template binding must round-trip to the entity row");
+    }
+
+    [Fact]
+    public async Task Handle_UnknownRoleTemplate_ThrowsKeyNotFound()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userId = await SeedActiveUserAsync(db);
+        var handler = MakeHandler(db);
+
+        var act = () => handler.Handle(
+            new CreateSystemApiKeyCommand(new CreateSystemApiKeyRequestModel
+            {
+                Name = "bogus",
+                UserId = userId,
+                RoleTemplateId = 99999,
+            }),
+            CancellationToken.None);
+
+        // Refuse rather than silently dropping the binding — an admin
+        // issuing a key with explicit scoping shouldn't have it quietly
+        // fall back to the user's full grant set.
+        await act.Should().ThrowAsync<KeyNotFoundException>()
+            .WithMessage("*99999*");
+    }
+
+    [Fact]
+    public async Task Handle_DeactivatedRoleTemplate_ThrowsKeyNotFound()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userId = await SeedActiveUserAsync(db);
+        var template = new RoleTemplate
+        {
+            Name = "retired",
+            IncludedRoleNamesJson = "[\"OfficeManager\"]",
+            DeactivatedAt = DateTimeOffset.UtcNow.AddDays(-1),
+        };
+        db.RoleTemplates.Add(template);
+        await db.SaveChangesAsync();
+
+        var handler = MakeHandler(db);
+
+        var act = () => handler.Handle(
+            new CreateSystemApiKeyCommand(new CreateSystemApiKeyRequestModel
+            {
+                Name = "stale",
+                UserId = userId,
+                RoleTemplateId = template.Id,
+            }),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<KeyNotFoundException>();
     }
 
     [Fact]
