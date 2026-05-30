@@ -1,7 +1,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0
 WORKDIR /app
 
-# Install Chromium (PuppeteerSharp + Playwright fallback), ffmpeg, pwsh
+# Install Chromium for PuppeteerSharp (PDF extraction + form rendering +
+# walkthrough screenshots), ffmpeg, plus curl + git for the dev loop.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     fonts-liberation \
@@ -30,17 +31,6 @@ COPY forge.core/forge.core.csproj forge.core/
 COPY forge.data/forge.data.csproj forge.data/
 COPY forge.integrations/forge.integrations.csproj forge.integrations/
 RUN dotnet restore forge.api/forge.api.csproj
-
-# Install Playwright browsers (Chromium + ffmpeg) — persisted in layer
-# Builds the project first so playwright.ps1 + Microsoft.Playwright.dll exist
-COPY forge.api/ forge.api/
-COPY forge.core/ forge.core/
-COPY forge.data/ forge.data/
-COPY forge.integrations/ forge.integrations/
-COPY forge.tests/ forge.tests/
-RUN dotnet build forge.api/forge.api.csproj -c Debug --no-restore \
-    && pwsh forge.api/bin/Debug/net9.0/playwright.ps1 install chromium \
-    && pwsh forge.api/bin/Debug/net9.0/playwright.ps1 install ffmpeg
 
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080;http://+:5000
