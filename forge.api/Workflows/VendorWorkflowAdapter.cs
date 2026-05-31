@@ -29,9 +29,23 @@ namespace Forge.Api.Workflows;
 /// (see CLAUDE.md "Vendor workflow migration" entry, 2026-05-31).</para>
 /// </summary>
 public class VendorWorkflowAdapter(AppDbContext db)
-    : IWorkflowEntityCreator, IWorkflowFieldApplier
+    : IWorkflowEntityCreator, IWorkflowFieldApplier, IWorkflowEntityPromoter
 {
     public string EntityType => "Vendor";
+
+    /// <summary>
+    /// completeRun requires a promoter for every entity type. Vendor has no
+    /// Draft → Active lifecycle (it's just IsActive=true from creation), so
+    /// promotion is a no-op — the entity is already in its terminal state
+    /// the moment the materialization step's CreateDraftAsync returns.
+    /// Returning false signals "nothing to promote, nothing changed" which
+    /// the handler accepts without further work. (Found the hard way: the
+    /// first Mark Complete on a vendor wizard 409'd with "No workflow
+    /// entity promoter registered for entity type 'Vendor'" because this
+    /// interface wasn't implemented.)
+    /// </summary>
+    public Task<bool> PromoteAsync(int entityId, string targetStatus, CancellationToken ct)
+        => Task.FromResult(false);
 
     public async Task<int> CreateDraftAsync(JsonElement? initialData, CancellationToken ct)
     {

@@ -36,9 +36,17 @@ namespace Forge.Api.Workflows;
 /// </list>
 /// </summary>
 public class CustomerWorkflowAdapter(AppDbContext db)
-    : IWorkflowEntityCreator, IWorkflowFieldApplier
+    : IWorkflowEntityCreator, IWorkflowFieldApplier, IWorkflowEntityPromoter
 {
     public string EntityType => "Customer";
+
+    /// <summary>
+    /// completeRun requires a promoter for every entity type. Customer has
+    /// no Draft → Active lifecycle (it's IsActive=true from creation), so
+    /// promotion is a no-op — same shape as VendorWorkflowAdapter.PromoteAsync.
+    /// </summary>
+    public Task<bool> PromoteAsync(int entityId, string targetStatus, CancellationToken ct)
+        => Task.FromResult(false);
 
     public async Task<int> CreateDraftAsync(JsonElement? initialData, CancellationToken ct)
     {

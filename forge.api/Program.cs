@@ -396,11 +396,18 @@ try
         sp => sp.GetRequiredService<Forge.Api.Workflows.VendorWorkflowAdapter>());
     builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowFieldApplier>(
         sp => sp.GetRequiredService<Forge.Api.Workflows.VendorWorkflowAdapter>());
+    // completeRun requires a promoter for every entity type, even when the
+    // entity has no Draft->Active lifecycle (in which case the implementation
+    // is a no-op). Without this registration Mark Complete 409s.
+    builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowEntityPromoter>(
+        sp => sp.GetRequiredService<Forge.Api.Workflows.VendorWorkflowAdapter>());
 
     builder.Services.AddScoped<Forge.Api.Workflows.CustomerWorkflowAdapter>();
     builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowEntityCreator>(
         sp => sp.GetRequiredService<Forge.Api.Workflows.CustomerWorkflowAdapter>());
     builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowFieldApplier>(
+        sp => sp.GetRequiredService<Forge.Api.Workflows.CustomerWorkflowAdapter>());
+    builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowEntityPromoter>(
         sp => sp.GetRequiredService<Forge.Api.Workflows.CustomerWorkflowAdapter>());
     builder.Services.AddScoped<IClockEventTypeService, ClockEventTypeService>();
     builder.Services.AddScoped<IUserIntegrationService, UserIntegrationService>();
