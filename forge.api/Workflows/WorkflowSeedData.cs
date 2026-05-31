@@ -404,4 +404,49 @@ public static class WorkflowSeedData
     // `part-raw-material-express-v1` transitional alias builders were
     // retired along with the single-axis fork dialog. New runs always go
     // through one of the 14 canonical combo definitions above.)
+
+    // ─────────────────────────────────────────────────────────────────
+    // Vendor — single guided + express pairing (2026-05-31 migration).
+    //
+    // Migrates the legacy guided-vendor-dialog (mat-stepper) off the
+    // visual divergence onto the same shared WorkflowComponent shell that
+    // parts uses. Five steps after dropping the relationship-type picker
+    // — that picker only folded into the Notes column anyway; admins who
+    // want to label vendors can type it into Notes manually (see CLAUDE.md
+    // self-maintenance entry).
+    //
+    // Identity is the only hard gate; address / terms / supply items are
+    // optional collection-ish steps that admins can fill now or later via
+    // the vendor detail page. Review is a read-only summary step that
+    // re-asserts hasIdentity so completeRun can run its gates.
+    // ─────────────────────────────────────────────────────────────────
+
+    public static IReadOnlyList<ValidatorSeed> VendorReadinessValidators { get; } =
+    [
+        new(
+            ValidatorId: "hasIdentity",
+            Predicate: """{"type":"fieldPresent","field":"companyName"}""",
+            DisplayNameKey: "validators.vendors.hasIdentity",
+            MissingMessageKey: "validators.vendors.hasIdentityMissing"),
+    ];
+
+    public static IReadOnlyList<DefinitionSeed> VendorWorkflowDefinitions { get; } =
+    [
+        new(
+            DefinitionId: "vendor-guided-v1",
+            EntityType: "Vendor",
+            DefaultMode: "guided",
+            StepsJson: BuildVendorGuidedStepsJson(),
+            ExpressTemplateComponent: "VendorExpressFormComponent"),
+    ];
+
+    private static string BuildVendorGuidedStepsJson() => """
+    [
+      {"id":"identity","labelKey":"workflow.vendors.steps.identity","componentName":"VendorIdentityStepComponent","required":true,"completionGates":["hasIdentity"]},
+      {"id":"address","labelKey":"workflow.vendors.steps.address","componentName":"VendorAddressStepComponent","required":false,"completionGates":[]},
+      {"id":"terms","labelKey":"workflow.vendors.steps.terms","componentName":"VendorTermsStepComponent","required":false,"completionGates":[]},
+      {"id":"supplyItems","labelKey":"workflow.vendors.steps.supplyItems","componentName":"VendorSupplyItemsStepComponent","required":false,"completionGates":[]},
+      {"id":"review","labelKey":"workflow.vendors.steps.review","componentName":"VendorReviewStepComponent","required":true,"completionGates":["hasIdentity"]}
+    ]
+    """.Replace("\r", "").Replace("\n", "").Replace("  ", "");
 }

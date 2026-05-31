@@ -36,6 +36,26 @@ public class WorkflowSubstrateSeeder(
         "part-raw-material-express-v1",
     ];
 
+    /// <summary>
+    /// Each tuple is one entity type's substrate: the readiness validators
+    /// it owns + the workflow definitions that reference them. Adding a new
+    /// entity to the workflow framework means appending one tuple here and
+    /// registering its <c>IWorkflowEntityCreator</c> + <c>IWorkflowFieldApplier</c>
+    /// + <c>IEntityReadinessLoader</c> in <c>Program.cs</c>.
+    /// </summary>
+    private static readonly (string EntityType,
+                             Func<IReadOnlyList<WorkflowSeedData.ValidatorSeed>> Validators,
+                             Func<IReadOnlyList<WorkflowSeedData.DefinitionSeed>> Definitions)[]
+        EntityBundles =
+    [
+        ("Part",
+            static () => WorkflowSeedData.PartReadinessValidators,
+            static () => WorkflowSeedData.PartWorkflowDefinitions),
+        ("Vendor",
+            static () => WorkflowSeedData.VendorReadinessValidators,
+            static () => WorkflowSeedData.VendorWorkflowDefinitions),
+    ];
+
     public async Task SeedAsync(CancellationToken ct = default)
     {
         var prevSuppress = db.SuppressAudit;
@@ -43,8 +63,11 @@ public class WorkflowSubstrateSeeder(
         try
         {
             await CleanupRetiredAliasesAsync(ct);
-            await SeedValidatorsAsync(ct);
-            await SeedDefinitionsAsync(ct);
+            foreach (var (entityType, validators, definitions) in EntityBundles)
+            {
+                await SeedValidatorsAsync(entityType, validators(), ct);
+                await SeedDefinitionsAsync(definitions(), ct);
+            }
         }
         finally
         {
@@ -74,12 +97,14 @@ public class WorkflowSubstrateSeeder(
             orphaned.Count, string.Join(", ", orphaned.Select(o => o.DefinitionId)));
     }
 
-    private async Task SeedValidatorsAsync(CancellationToken ct)
+    private async Task SeedValidatorsAsync(
+        string entityType,
+        IReadOnlyList<WorkflowSeedData.ValidatorSeed> seeds,
+        CancellationToken ct)
     {
-        var seeds = WorkflowSeedData.PartReadinessValidators;
         var existing = await db.EntityReadinessValidators
             .IgnoreQueryFilters()
-            .Where(v => v.EntityType == "Part")
+            .Where(v => v.EntityType == entityType)
             .ToDictionaryAsync(v => v.ValidatorId, ct);
 
         var inserted = 0;
@@ -105,7 +130,7 @@ public class WorkflowSubstrateSeeder(
             {
                 db.EntityReadinessValidators.Add(new EntityReadinessValidator
                 {
-                    EntityType = "Part",
+                    EntityType = entityType,
                     ValidatorId = seed.ValidatorId,
                     Predicate = seed.Predicate,
                     DisplayNameKey = seed.DisplayNameKey,
@@ -119,12 +144,15 @@ public class WorkflowSubstrateSeeder(
         if (inserted > 0 || refreshed > 0)
             await db.SaveChangesAsync(ct);
 
-        logger.LogInformation("[WORKFLOW-SEED] Validators: inserted={Inserted}, refreshed={Refreshed}", inserted, refreshed);
+        logger.LogInformation(
+            "[WORKFLOW-SEED] {EntityType} validators: inserted={Inserted}, refreshed={Refreshed}",
+            entityType, inserted, refreshed);
     }
 
-    private async Task SeedDefinitionsAsync(CancellationToken ct)
+    private async Task SeedDefinitionsAsync(
+        IReadOnlyList<WorkflowSeedData.DefinitionSeed> seeds,
+        CancellationToken ct)
     {
-        var seeds = WorkflowSeedData.PartWorkflowDefinitions;
         var ids = seeds.Select(d => d.DefinitionId).ToList();
         var existing = await db.WorkflowDefinitions
             .IgnoreQueryFilters()
@@ -169,6 +197,8 @@ public class WorkflowSubstrateSeeder(
         if (inserted > 0 || refreshed > 0)
             await db.SaveChangesAsync(ct);
 
-        logger.LogInformation("[WORKFLOW-SEED] Definitions: inserted={Inserted}, refreshed={Refreshed}", inserted, refreshed);
+        logger.LogInformation(
+            "[WORKFLOW-SEED] Definitions ({EntityType}): inserted={Inserted}, refreshed={Refreshed}",
+            seeds.FirstOrDefault()?.EntityType ?? "?", inserted, refreshed);
     }
 }

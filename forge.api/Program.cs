@@ -372,9 +372,15 @@ try
                                Forge.Api.Workflows.EntityReadinessService>();
     builder.Services.AddScoped<Forge.Api.Workflows.IEntityReadinessLoader,
                                Forge.Api.Workflows.PartReadinessLoader>();
+    builder.Services.AddScoped<Forge.Api.Workflows.IEntityReadinessLoader,
+                               Forge.Api.Workflows.VendorReadinessLoader>();
 
-    // Workflow per-entity-type adapters. Phase 3 wires the Part variant;
-    // later phases register customer / quote / vendor / etc.
+    // Workflow per-entity-type adapters. Each entity-typed creator/applier is
+    // registered both as its concrete class (for direct injection in tests +
+    // alternate factories) and as the runtime interfaces the workflow's patch
+    // pipeline resolves by enumerating IWorkflowEntityCreator / IWorkflowFieldApplier.
+    // Adding a new entity: add a triple here + an entry in
+    // WorkflowSubstrateSeeder.EntityBundles.
     builder.Services.AddScoped<Forge.Api.Workflows.PartWorkflowAdapter>();
     builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowEntityCreator>(
         sp => sp.GetRequiredService<Forge.Api.Workflows.PartWorkflowAdapter>());
@@ -382,6 +388,12 @@ try
         sp => sp.GetRequiredService<Forge.Api.Workflows.PartWorkflowAdapter>());
     builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowEntityPromoter>(
         sp => sp.GetRequiredService<Forge.Api.Workflows.PartWorkflowAdapter>());
+
+    builder.Services.AddScoped<Forge.Api.Workflows.VendorWorkflowAdapter>();
+    builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowEntityCreator>(
+        sp => sp.GetRequiredService<Forge.Api.Workflows.VendorWorkflowAdapter>());
+    builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowFieldApplier>(
+        sp => sp.GetRequiredService<Forge.Api.Workflows.VendorWorkflowAdapter>());
     builder.Services.AddScoped<IClockEventTypeService, ClockEventTypeService>();
     builder.Services.AddScoped<IUserIntegrationService, UserIntegrationService>();
     builder.Services.AddScoped<IMrpService, MrpService>();
