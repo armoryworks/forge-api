@@ -2,18 +2,31 @@
 #
 # Builds + pushes linux/amd64 image to GHCR with `-amd64` tag suffix.
 # Companion: release-arm64.yml + release-manifest.yml.
+#
+# Trigger model (2026-05-31, per the asset-bloat fix):
+#   - schedule        : daily 06:00 UTC. Aggregates whatever commits landed
+#                       since the last build into a single image. Skips
+#                       when HEAD's short sha is already published.
+#   - workflow_dispatch: manual "I need one now" escape. Always builds.
+#   - push (tags only): v*.*.* semver tag pushes always build.
+#
+# Removed: `push: branches: [main]`. Per-commit GHCR image creation was
+# producing too many tags + asset churn. CI (ci.yml) still runs on every
+# push so test feedback stays fast; only the image-publish batches.
 
 name: Release amd64
 
 on:
-  push:
-    branches: [main]
-    tags: ['v*.*.*']
+  schedule:
+    - cron: '0 6 * * *'    # 06:00 UTC daily
   workflow_dispatch:
+  push:
+    tags: ['v*.*.*']
 
 permissions:
   contents: read
-  packages: write
+  packages: read
+  # write needed by build-and-push for the GHCR push.
 
 concurrency:
   group: release-amd64-${{ github.ref }}
@@ -25,7 +38,55 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # Decides whether the scheduled run should proceed. Non-schedule
+  # triggers (workflow_dispatch, tag push) always proceed.
+  #
+  # The idempotent check: compute HEAD's short sha + grep the package
+  # versions API for a tag matching `main-<sha>-amd64`. If present,
+  # the bits are already published — skip. Self-healing: a missing or
+  # failed prior build leaves HEAD's tag absent, so the next schedule
+  # builds.
+  should-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      should: ${{ steps.check.outputs.should }}
+      reason: ${{ steps.check.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decide
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" != "schedule" ]]; then
+            echo "should=true" >> "$GITHUB_OUTPUT"
+            echo "reason=trigger=${{ github.event_name }} (non-schedule)" >> "$GITHUB_OUTPUT"
+            echo "Non-schedule trigger — proceeding"
+            exit 0
+          fi
+          short_sha=$(git rev-parse --short=7 HEAD)
+          expected="main-${short_sha}-amd64"
+          repo_name="${GITHUB_REPOSITORY##*/}"
+          echo "Looking for prior image tag: ${expected}"
+          tags=$(gh api --paginate \
+              -H "Accept: application/vnd.github+json" \
+              "/orgs/${GITHUB_REPOSITORY_OWNER}/packages/container/${repo_name}/versions" \
+              --jq '.[].metadata.container.tags[]?' 2>/dev/null || true)
+          if echo "$tags" | grep -Fxq "$expected"; then
+            echo "should=false" >> "$GITHUB_OUTPUT"
+            echo "reason=already-published sha=${short_sha}" >> "$GITHUB_OUTPUT"
+            echo "Image for ${short_sha} already published — skipping scheduled build"
+          else
+            echo "should=true" >> "$GITHUB_OUTPUT"
+            echo "reason=new-commits-since-last-build sha=${short_sha}" >> "$GITHUB_OUTPUT"
+            echo "No prior image for ${short_sha} — proceeding"
+          fi
+
   test:
+    needs: should-build
+    if: needs.should-build.outputs.should == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -58,9 +119,13 @@ jobs:
         run: dotnet test --no-build --configuration Release
 
   build-and-push:
-    needs: test
+    needs: [should-build, test]
+    if: needs.should-build.outputs.should == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
         with:
