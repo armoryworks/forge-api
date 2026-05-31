@@ -54,6 +54,9 @@ public class WorkflowSubstrateSeeder(
         ("Vendor",
             static () => WorkflowSeedData.VendorReadinessValidators,
             static () => WorkflowSeedData.VendorWorkflowDefinitions),
+        ("Customer",
+            static () => WorkflowSeedData.CustomerReadinessValidators,
+            static () => WorkflowSeedData.CustomerWorkflowDefinitions),
     ];
 
     public async Task SeedAsync(CancellationToken ct = default)

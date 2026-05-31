@@ -374,6 +374,8 @@ try
                                Forge.Api.Workflows.PartReadinessLoader>();
     builder.Services.AddScoped<Forge.Api.Workflows.IEntityReadinessLoader,
                                Forge.Api.Workflows.VendorReadinessLoader>();
+    builder.Services.AddScoped<Forge.Api.Workflows.IEntityReadinessLoader,
+                               Forge.Api.Workflows.CustomerReadinessLoader>();
 
     // Workflow per-entity-type adapters. Each entity-typed creator/applier is
     // registered both as its concrete class (for direct injection in tests +
@@ -394,6 +396,12 @@ try
         sp => sp.GetRequiredService<Forge.Api.Workflows.VendorWorkflowAdapter>());
     builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowFieldApplier>(
         sp => sp.GetRequiredService<Forge.Api.Workflows.VendorWorkflowAdapter>());
+
+    builder.Services.AddScoped<Forge.Api.Workflows.CustomerWorkflowAdapter>();
+    builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowEntityCreator>(
+        sp => sp.GetRequiredService<Forge.Api.Workflows.CustomerWorkflowAdapter>());
+    builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowFieldApplier>(
+        sp => sp.GetRequiredService<Forge.Api.Workflows.CustomerWorkflowAdapter>());
     builder.Services.AddScoped<IClockEventTypeService, ClockEventTypeService>();
     builder.Services.AddScoped<IUserIntegrationService, UserIntegrationService>();
     builder.Services.AddScoped<IMrpService, MrpService>();

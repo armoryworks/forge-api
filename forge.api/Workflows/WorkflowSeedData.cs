@@ -449,4 +449,45 @@ public static class WorkflowSeedData
       {"id":"review","labelKey":"workflow.vendors.steps.review","componentName":"VendorReviewStepComponent","required":true,"completionGates":["hasIdentity"]}
     ]
     """.Replace("\r", "").Replace("\n", "").Replace("  ", "");
+
+    // ─────────────────────────────────────────────────────────────────
+    // Customer — single guided + express pairing (2026-05-31 migration).
+    //
+    // Mirrors the vendor migration: drops the legacy guided-customer-dialog
+    // (mat-stepper) for the shared WorkflowComponent shell. Four steps
+    // after the scope cuts documented in CustomerWorkflowAdapter:
+    //   identity → addresses-stub → creditAndTax → review.
+    //
+    // Engagement-shape picker dropped (was dead-letter UI — folded into
+    // a notes string that the server never received). Addresses deferred
+    // to the customer detail page like vendor supply items.
+    // ─────────────────────────────────────────────────────────────────
+
+    public static IReadOnlyList<ValidatorSeed> CustomerReadinessValidators { get; } =
+    [
+        new(
+            ValidatorId: "hasIdentity",
+            Predicate: """{"type":"fieldPresent","field":"name"}""",
+            DisplayNameKey: "validators.customers.hasIdentity",
+            MissingMessageKey: "validators.customers.hasIdentityMissing"),
+    ];
+
+    public static IReadOnlyList<DefinitionSeed> CustomerWorkflowDefinitions { get; } =
+    [
+        new(
+            DefinitionId: "customer-guided-v1",
+            EntityType: "Customer",
+            DefaultMode: "guided",
+            StepsJson: BuildCustomerGuidedStepsJson(),
+            ExpressTemplateComponent: "CustomerExpressFormComponent"),
+    ];
+
+    private static string BuildCustomerGuidedStepsJson() => """
+    [
+      {"id":"identity","labelKey":"workflow.customers.steps.identity","componentName":"CustomerIdentityStepComponent","required":true,"completionGates":["hasIdentity"]},
+      {"id":"addresses","labelKey":"workflow.customers.steps.addresses","componentName":"CustomerAddressesStepComponent","required":false,"completionGates":[]},
+      {"id":"creditAndTax","labelKey":"workflow.customers.steps.creditAndTax","componentName":"CustomerCreditAndTaxStepComponent","required":false,"completionGates":[]},
+      {"id":"review","labelKey":"workflow.customers.steps.review","componentName":"CustomerReviewStepComponent","required":true,"completionGates":["hasIdentity"]}
+    ]
+    """.Replace("\r", "").Replace("\n", "").Replace("  ", "");
 }
