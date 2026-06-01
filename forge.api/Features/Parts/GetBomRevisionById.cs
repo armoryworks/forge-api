@@ -29,7 +29,7 @@ public class GetBomRevisionByIdHandler(AppDbContext db) : IRequestHandler<GetBom
 
         var entries = revision.Entries
             .OrderBy(e => e.SortOrder)
-            .Select(e => new BomRevisionEntryResponseModel(
+            .Select(e => new BomRevisionLineResponseModel(
                 e.Id,
                 e.PartId,
                 e.Part?.PartNumber ?? string.Empty,

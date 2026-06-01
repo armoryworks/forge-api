@@ -67,23 +67,23 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/bom")]
-    public async Task<ActionResult<PartDetailResponseModel>> CreateBOMEntry(int id, [FromBody] CreateBOMEntryRequestModel request)
+    public async Task<ActionResult<PartDetailResponseModel>> CreateBOMLine(int id, [FromBody] CreateBOMLineRequestModel request)
     {
-        var result = await mediator.Send(new CreateBOMEntryCommand(id, request));
+        var result = await mediator.Send(new CreateBOMLineCommand(id, request));
         return Created($"/api/v1/parts/{id}", result);
     }
 
-    [HttpPatch("{id:int}/bom/{bomEntryId:int}")]
-    public async Task<ActionResult<PartDetailResponseModel>> UpdateBOMEntry(int id, int bomEntryId, [FromBody] UpdateBOMEntryRequestModel request)
+    [HttpPatch("{id:int}/bom/{bomLineId:int}")]
+    public async Task<ActionResult<PartDetailResponseModel>> UpdateBOMLine(int id, int bomLineId, [FromBody] UpdateBOMLineRequestModel request)
     {
-        var result = await mediator.Send(new UpdateBOMEntryCommand(id, bomEntryId, request));
+        var result = await mediator.Send(new UpdateBOMLineCommand(id, bomLineId, request));
         return Ok(result);
     }
 
-    [HttpDelete("{id:int}/bom/{bomEntryId:int}")]
-    public async Task<ActionResult<PartDetailResponseModel>> DeleteBOMEntry(int id, int bomEntryId)
+    [HttpDelete("{id:int}/bom/{bomLineId:int}")]
+    public async Task<ActionResult<PartDetailResponseModel>> DeleteBOMLine(int id, int bomLineId)
     {
-        var result = await mediator.Send(new DeleteBOMEntryCommand(id, bomEntryId));
+        var result = await mediator.Send(new DeleteBOMLineCommand(id, bomLineId));
         return Ok(result);
     }
 

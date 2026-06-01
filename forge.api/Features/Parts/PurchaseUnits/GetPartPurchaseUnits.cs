@@ -4,20 +4,20 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
-namespace Forge.Api.Features.Parts.PurchaseOptions;
+namespace Forge.Api.Features.Parts.PurchaseUnits;
 
-// UoM purchase-options effort — list a part's purchase options (sizes/forms).
-public record GetPartPurchaseOptionsQuery(int PartId) : IRequest<List<PartPurchaseOptionResponseModel>>;
+// UoM purchase-units effort — list a part's purchase units (sizes/forms).
+public record GetPartPurchaseUnitsQuery(int PartId) : IRequest<List<PartPurchaseUnitResponseModel>>;
 
-public class GetPartPurchaseOptionsHandler(AppDbContext db)
-    : IRequestHandler<GetPartPurchaseOptionsQuery, List<PartPurchaseOptionResponseModel>>
+public class GetPartPurchaseUnitsHandler(AppDbContext db)
+    : IRequestHandler<GetPartPurchaseUnitsQuery, List<PartPurchaseUnitResponseModel>>
 {
-    public Task<List<PartPurchaseOptionResponseModel>> Handle(GetPartPurchaseOptionsQuery request, CancellationToken ct)
-        => db.PartPurchaseOptions
+    public Task<List<PartPurchaseUnitResponseModel>> Handle(GetPartPurchaseUnitsQuery request, CancellationToken ct)
+        => db.PartPurchaseUnits
             .AsNoTracking()
             .Where(o => o.PartId == request.PartId)
             .OrderBy(o => o.SortOrder).ThenBy(o => o.Id)
-            .Select(o => new PartPurchaseOptionResponseModel(
+            .Select(o => new PartPurchaseUnitResponseModel(
                 o.Id,
                 o.PartId,
                 o.Label,

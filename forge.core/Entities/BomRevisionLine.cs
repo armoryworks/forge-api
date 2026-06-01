@@ -5,9 +5,9 @@ namespace Forge.Core.Entities;
 /// <summary>
 /// Phase 3 H4 / WU-20 — one component line in an immutable
 /// <see cref="BomRevision"/> snapshot. Mirrors the Part-side
-/// <see cref="BOMEntry"/> shape but is frozen at revision-creation time.
+/// <see cref="BOMLine"/> shape but is frozen at revision-creation time.
 /// </summary>
-public class BomRevisionEntry : BaseAuditableEntity
+public class BomRevisionLine : BaseAuditableEntity
 {
     public int BomRevisionId { get; set; }
     public BomRevision BomRevision { get; set; } = null!;

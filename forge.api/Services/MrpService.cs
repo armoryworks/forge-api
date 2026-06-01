@@ -173,20 +173,20 @@ public class MrpService(
                 .ToListAsync(cancellationToken);
 
             // Step 4: Build BOM tree and compute low-level codes
-            var bomEntries = await db.BOMEntries
+            var bomLines = await db.BOMLines
                 .AsNoTracking()
                 .Where(b => partIds.Contains(b.ParentPartId) || partIds.Contains(b.ChildPartId))
                 .ToListAsync(cancellationToken);
 
             // Include child parts that may not be in the original partIds
             var allPartIds = partIds.ToHashSet();
-            foreach (var bom in bomEntries)
+            foreach (var bom in bomLines)
             {
                 allPartIds.Add(bom.ChildPartId);
                 allPartIds.Add(bom.ParentPartId);
             }
 
-            var lowLevelCodes = ComputeLowLevelCodes(bomEntries, allPartIds);
+            var lowLevelCodes = ComputeLowLevelCodes(bomLines, allPartIds);
 
             // Step 5: Process level by level (low-level code ascending)
             var demandRecords = new List<MrpDemand>();
@@ -315,7 +315,7 @@ public class MrpService(
                 onHandMap.TryAdd(ch.PartId, ch.Quantity);
 
             // Group BOM by parent
-            var bomByParent = bomEntries
+            var bomByParent = bomLines
                 .GroupBy(b => b.ParentPartId)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
@@ -651,10 +651,10 @@ public class MrpService(
         return results;
     }
 
-    private static Dictionary<int, int> ComputeLowLevelCodes(List<BOMEntry> bomEntries, HashSet<int> allPartIds)
+    private static Dictionary<int, int> ComputeLowLevelCodes(List<BOMLine> bomLines, HashSet<int> allPartIds)
     {
         var codes = allPartIds.ToDictionary(id => id, _ => 0);
-        var childrenByParent = bomEntries
+        var childrenByParent = bomLines
             .GroupBy(b => b.ParentPartId)
             .ToDictionary(g => g.Key, g => g.Select(b => b.ChildPartId).ToList());
 

@@ -13,7 +13,7 @@ public record PartListResponseModel(
     // retired pre-beta; the list surface now exposes the three axes directly.
     ProcurementSource ProcurementSource,
     InventoryClass InventoryClass,
-    int BomEntryCount,
+    int BomLineCount,
     DateTimeOffset CreatedAt,
     // Pricing — resolved via IPartPricingResolver. EffectivePrice is non-nullable;
     // when no rung resolves, EffectivePriceSource is "Default" and EffectivePrice is 0.

@@ -15,12 +15,12 @@ public class VendorPartPriceTier : BaseEntity
     public int VendorPartId { get; set; }
 
     /// <summary>
-    /// UoM purchase-options effort — which <see cref="PartPurchaseOption"/> (size/form) this tier
+    /// UoM purchase-units effort — which <see cref="PartPurchaseUnit"/> (size/form) this tier
     /// prices. Null = the part's single default option (priced per base unit, legacy behavior).
     /// When the part has multiple options, every tier carries one; per-base-unit cost =
     /// <see cref="UnitPrice"/> ÷ option.ContentQuantity.
     /// </summary>
-    public int? PurchaseOptionId { get; set; }
+    public int? PurchaseUnitId { get; set; }
 
     public decimal MinQuantity { get; set; } = 1;
     public decimal UnitPrice { get; set; }
@@ -44,5 +44,5 @@ public class VendorPartPriceTier : BaseEntity
     public bool FreightIncluded { get; set; }
 
     public VendorPart VendorPart { get; set; } = null!;
-    public PartPurchaseOption? PurchaseOption { get; set; }
+    public PartPurchaseUnit? PurchaseUnit { get; set; }
 }

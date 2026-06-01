@@ -26,7 +26,7 @@ public class ExplodeJobBomHandlerTests
     }
 
     [Fact]
-    public async Task Handle_MakeBomEntry_CreatesChildJobAndJobLinks()
+    public async Task Handle_MakeBomLine_CreatesChildJobAndJobLinks()
     {
         // Arrange
         var (trackType, stage, parentPart, parentJob) = await SeedBaseEntitiesAsync();
@@ -35,7 +35,7 @@ public class ExplodeJobBomHandlerTests
         _dbContext.Parts.Add(childPart);
         await _dbContext.SaveChangesAsync();
 
-        _dbContext.BOMEntries.Add(new BOMEntry
+        _dbContext.BOMLines.Add(new BOMLine
         {
             ParentPartId = parentPart.Id,
             ChildPartId = childPart.Id,
@@ -79,7 +79,7 @@ public class ExplodeJobBomHandlerTests
     }
 
     [Fact]
-    public async Task Handle_BuyBomEntry_ReturnsBuyItemsWithoutCreatingJobs()
+    public async Task Handle_BuyBomLine_ReturnsBuyItemsWithoutCreatingJobs()
     {
         // Arrange
         var (_, _, parentPart, parentJob) = await SeedBaseEntitiesAsync();
@@ -88,7 +88,7 @@ public class ExplodeJobBomHandlerTests
         _dbContext.Parts.Add(buyPart);
         await _dbContext.SaveChangesAsync();
 
-        _dbContext.BOMEntries.Add(new BOMEntry
+        _dbContext.BOMLines.Add(new BOMLine
         {
             ParentPartId = parentPart.Id,
             ChildPartId = buyPart.Id,
@@ -115,7 +115,7 @@ public class ExplodeJobBomHandlerTests
     }
 
     [Fact]
-    public async Task Handle_StockBomEntry_AutoReservesAvailableStock()
+    public async Task Handle_StockBomLine_AutoReservesAvailableStock()
     {
         // Arrange
         var (_, _, parentPart, parentJob) = await SeedBaseEntitiesAsync();
@@ -140,7 +140,7 @@ public class ExplodeJobBomHandlerTests
         };
         _dbContext.BinContents.Add(binContent);
 
-        _dbContext.BOMEntries.Add(new BOMEntry
+        _dbContext.BOMLines.Add(new BOMLine
         {
             ParentPartId = parentPart.Id,
             ChildPartId = stockPart.Id,
@@ -172,7 +172,7 @@ public class ExplodeJobBomHandlerTests
     }
 
     [Fact]
-    public async Task Handle_StockBomEntry_ShortfallWhenInsufficientStock()
+    public async Task Handle_StockBomLine_ShortfallWhenInsufficientStock()
     {
         // Arrange
         var (_, _, parentPart, parentJob) = await SeedBaseEntitiesAsync();
@@ -198,7 +198,7 @@ public class ExplodeJobBomHandlerTests
         };
         _dbContext.BinContents.Add(binContent);
 
-        _dbContext.BOMEntries.Add(new BOMEntry
+        _dbContext.BOMLines.Add(new BOMLine
         {
             ParentPartId = parentPart.Id,
             ChildPartId = stockPart.Id,
@@ -266,11 +266,11 @@ public class ExplodeJobBomHandlerTests
     }
 
     [Fact]
-    public async Task Handle_PartHasNoBomEntries_ThrowsInvalidOperationException()
+    public async Task Handle_PartHasNoBomLines_ThrowsInvalidOperationException()
     {
         // Arrange
         var (_, _, parentPart, parentJob) = await SeedBaseEntitiesAsync();
-        // No BOM entries seeded for parentPart
+        // No BOM lines seeded for parentPart
 
         var command = new ExplodeJobBomCommand(parentJob.Id);
 
@@ -279,11 +279,11 @@ public class ExplodeJobBomHandlerTests
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*no BOM entries*");
+            .WithMessage("*no BOM lines*");
     }
 
     [Fact]
-    public async Task Handle_MixedBomEntries_CorrectlyCategorizesEachType()
+    public async Task Handle_MixedBomLines_CorrectlyCategorizesEachType()
     {
         // Arrange
         var (_, stage, parentPart, parentJob) = await SeedBaseEntitiesAsync();
@@ -309,10 +309,10 @@ public class ExplodeJobBomHandlerTests
             PlacedAt = DateTime.UtcNow,
         });
 
-        _dbContext.BOMEntries.AddRange(
-            new BOMEntry { ParentPartId = parentPart.Id, ChildPartId = makePart.Id, Quantity = 1, SourceType = BOMSourceType.Make, SortOrder = 1 },
-            new BOMEntry { ParentPartId = parentPart.Id, ChildPartId = buyPart.Id, Quantity = 2, SourceType = BOMSourceType.Buy, SortOrder = 2 },
-            new BOMEntry { ParentPartId = parentPart.Id, ChildPartId = stockPart.Id, Quantity = 3, SourceType = BOMSourceType.Stock, SortOrder = 3 }
+        _dbContext.BOMLines.AddRange(
+            new BOMLine { ParentPartId = parentPart.Id, ChildPartId = makePart.Id, Quantity = 1, SourceType = BOMSourceType.Make, SortOrder = 1 },
+            new BOMLine { ParentPartId = parentPart.Id, ChildPartId = buyPart.Id, Quantity = 2, SourceType = BOMSourceType.Buy, SortOrder = 2 },
+            new BOMLine { ParentPartId = parentPart.Id, ChildPartId = stockPart.Id, Quantity = 3, SourceType = BOMSourceType.Stock, SortOrder = 3 }
         );
         await _dbContext.SaveChangesAsync();
 

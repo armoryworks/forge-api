@@ -9,7 +9,7 @@ using Forge.Tests.Helpers;
 namespace Forge.Tests.Services;
 
 /// <summary>
-/// When a Buy BOMEntry has a NULL per-line LeadTimeDays, the backward
+/// When a Buy BOMLine has a NULL per-line LeadTimeDays, the backward
 /// scheduler must fall back to <see cref="IPartSourcingResolver"/> for
 /// the child part's effective lead time (preferred VendorPart row) rather
 /// than silently dropping the row from the maxLead computation.
@@ -55,8 +55,8 @@ public class BackwardSchedulingServiceTests
         });
         await db.SaveChangesAsync();
 
-        db.BOMEntries.AddRange(
-            new BOMEntry
+        db.BOMLines.AddRange(
+            new BOMLine
             {
                 ParentPartId = parent.Id,
                 ChildPartId = childWithLine.Id,
@@ -64,7 +64,7 @@ public class BackwardSchedulingServiceTests
                 SourceType = BOMSourceType.Buy,
                 LeadTimeDays = 5,
             },
-            new BOMEntry
+            new BOMLine
             {
                 ParentPartId = parent.Id,
                 ChildPartId = childFromVendorPart.Id,

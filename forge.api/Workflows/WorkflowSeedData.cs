@@ -55,7 +55,7 @@ public static class WorkflowSeedData
             MissingMessageKey: "validators.parts.hasBasicsMissing"),
         new(
             ValidatorId: "hasBom",
-            Predicate: """{"type":"relationExists","relation":"bomEntries","minCount":1}""",
+            Predicate: """{"type":"relationExists","relation":"bomLines","minCount":1}""",
             DisplayNameKey: "validators.parts.hasBom",
             MissingMessageKey: "validators.parts.hasBomMissing"),
         new(

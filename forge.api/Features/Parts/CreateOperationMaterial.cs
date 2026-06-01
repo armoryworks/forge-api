@@ -16,7 +16,7 @@ public class CreateOperationMaterialValidator : AbstractValidator<CreateOperatio
     {
         RuleFor(x => x.PartId).GreaterThan(0);
         RuleFor(x => x.OperationId).GreaterThan(0);
-        RuleFor(x => x.Data.BomEntryId).GreaterThan(0);
+        RuleFor(x => x.Data.BomLineId).GreaterThan(0);
         RuleFor(x => x.Data.Quantity).GreaterThan(0);
         RuleFor(x => x.Data.Notes).MaximumLength(1000).When(x => x.Data.Notes is not null);
     }
@@ -29,13 +29,13 @@ public class CreateOperationMaterialHandler(AppDbContext db) : IRequestHandler<C
         var operation = await db.Operations.FirstOrDefaultAsync(o => o.Id == request.OperationId && o.PartId == request.PartId, cancellationToken)
             ?? throw new KeyNotFoundException($"Operation {request.OperationId} not found for part {request.PartId}");
 
-        var bomEntry = await db.BOMEntries.Include(b => b.ChildPart).FirstOrDefaultAsync(b => b.Id == request.Data.BomEntryId && b.ParentPartId == request.PartId, cancellationToken)
-            ?? throw new KeyNotFoundException($"BOM entry {request.Data.BomEntryId} not found for part {request.PartId}");
+        var bomLine = await db.BOMLines.Include(b => b.ChildPart).FirstOrDefaultAsync(b => b.Id == request.Data.BomLineId && b.ParentPartId == request.PartId, cancellationToken)
+            ?? throw new KeyNotFoundException($"BOM line {request.Data.BomLineId} not found for part {request.PartId}");
 
         var material = new OperationMaterial
         {
             OperationId = request.OperationId,
-            BomEntryId = request.Data.BomEntryId,
+            BomLineId = request.Data.BomLineId,
             Quantity = request.Data.Quantity,
             Notes = request.Data.Notes?.Trim(),
         };
@@ -46,9 +46,9 @@ public class CreateOperationMaterialHandler(AppDbContext db) : IRequestHandler<C
         return new OperationMaterialResponseModel(
             material.Id,
             material.OperationId,
-            material.BomEntryId,
-            bomEntry.ChildPart.PartNumber,
-            bomEntry.ChildPart.Name,
+            material.BomLineId,
+            bomLine.ChildPart.PartNumber,
+            bomLine.ChildPart.Name,
             material.Quantity,
             material.Notes);
     }

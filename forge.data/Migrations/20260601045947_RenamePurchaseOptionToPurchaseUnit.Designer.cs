@@ -3,6 +3,7 @@ using System;
 using Forge.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using Pgvector;
 namespace Forge.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260601045947_RenamePurchaseOptionToPurchaseUnit")]
+    partial class RenamePurchaseOptionToPurchaseUnit
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1365,7 +1368,7 @@ namespace Forge.Data.Migrations
                     b.ToTable("auto_po_suggestions");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.BOMLine", b =>
+            modelBuilder.Entity("Forge.Core.Entities.BOMEntry", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -1434,22 +1437,22 @@ namespace Forge.Data.Migrations
                         .HasColumnName("vendor_id");
 
                     b.HasKey("Id")
-                        .HasName("pk_bomlines");
+                        .HasName("pk_bomentries");
 
                     b.HasIndex("ChildPartId")
-                        .HasDatabaseName("ix_bomlines_child_part_id");
+                        .HasDatabaseName("ix_bomentries_child_part_id");
 
                     b.HasIndex("ParentPartId")
-                        .HasDatabaseName("ix_bomlines_parent_part_id");
+                        .HasDatabaseName("ix_bomentries_parent_part_id");
 
                     b.HasIndex("UomId")
-                        .HasDatabaseName("ix_bomlines_uom_id");
+                        .HasDatabaseName("ix_bomentries_uom_id");
 
                     b.HasIndex("VendorId")
-                        .HasDatabaseName("ix_bomlines_vendor_id")
+                        .HasDatabaseName("ix_bomentries_vendor_id")
                         .HasFilter("vendor_id IS NOT NULL");
 
-                    b.ToTable("bomlines");
+                    b.ToTable("bomentries");
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Barcode", b =>
@@ -1858,7 +1861,7 @@ namespace Forge.Data.Migrations
                     b.ToTable("bom_revisions");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.BomRevisionLine", b =>
+            modelBuilder.Entity("Forge.Core.Entities.BomRevisionEntry", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -1929,15 +1932,15 @@ namespace Forge.Data.Migrations
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
-                        .HasName("pk_bom_revision_lines");
+                        .HasName("pk_bom_revision_entries");
 
                     b.HasIndex("BomRevisionId")
-                        .HasDatabaseName("ix_bom_revision_lines_bom_revision_id");
+                        .HasDatabaseName("ix_bom_revision_entries_bom_revision_id");
 
                     b.HasIndex("PartId")
-                        .HasDatabaseName("ix_bom_revision_lines_part_id");
+                        .HasDatabaseName("ix_bom_revision_entries_part_id");
 
-                    b.ToTable("bom_revision_lines");
+                    b.ToTable("bom_revision_entries");
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.CalibrationRecord", b =>
@@ -11595,9 +11598,9 @@ namespace Forge.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("BomLineId")
+                    b.Property<int>("BomEntryId")
                         .HasColumnType("integer")
-                        .HasColumnName("bom_line_id");
+                        .HasColumnName("bom_entry_id");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -11632,8 +11635,8 @@ namespace Forge.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_operation_materials");
 
-                    b.HasIndex("BomLineId")
-                        .HasDatabaseName("ix_operation_materials_bom_line_id");
+                    b.HasIndex("BomEntryId")
+                        .HasDatabaseName("ix_operation_materials_bom_entry_id");
 
                     b.HasIndex("OperationId")
                         .HasDatabaseName("ix_operation_materials_operation_id");
@@ -21562,32 +21565,32 @@ namespace Forge.Data.Migrations
                     b.Navigation("Vendor");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.BOMLine", b =>
+            modelBuilder.Entity("Forge.Core.Entities.BOMEntry", b =>
                 {
                     b.HasOne("Forge.Core.Entities.Part", "ChildPart")
                         .WithMany("UsedInBOM")
                         .HasForeignKey("ChildPartId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
-                        .HasConstraintName("fk_bomlines__parts_child_part_id");
+                        .HasConstraintName("fk_bomentries__parts_child_part_id");
 
                     b.HasOne("Forge.Core.Entities.Part", "ParentPart")
-                        .WithMany("BOMLines")
+                        .WithMany("BOMEntries")
                         .HasForeignKey("ParentPartId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
-                        .HasConstraintName("fk_bomlines__parts_parent_part_id");
+                        .HasConstraintName("fk_bomentries__parts_parent_part_id");
 
                     b.HasOne("Forge.Core.Entities.UnitOfMeasure", "Uom")
                         .WithMany()
                         .HasForeignKey("UomId")
-                        .HasConstraintName("fk_bomlines__units_of_measure_uom_id");
+                        .HasConstraintName("fk_bomentries__units_of_measure_uom_id");
 
                     b.HasOne("Forge.Core.Entities.Vendor", "Vendor")
                         .WithMany()
                         .HasForeignKey("VendorId")
                         .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_bomlines__vendors_vendor_id");
+                        .HasConstraintName("fk_bomentries__vendors_vendor_id");
 
                     b.Navigation("ChildPart");
 
@@ -21729,21 +21732,21 @@ namespace Forge.Data.Migrations
                     b.Navigation("Part");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.BomRevisionLine", b =>
+            modelBuilder.Entity("Forge.Core.Entities.BomRevisionEntry", b =>
                 {
                     b.HasOne("Forge.Core.Entities.BomRevision", "BomRevision")
                         .WithMany("Entries")
                         .HasForeignKey("BomRevisionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_bom_revision_lines_bom_revisions_bom_revision_id");
+                        .HasConstraintName("fk_bom_revision_entries_bom_revisions_bom_revision_id");
 
                     b.HasOne("Forge.Core.Entities.Part", "Part")
                         .WithMany()
                         .HasForeignKey("PartId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
-                        .HasConstraintName("fk_bom_revision_lines__parts_part_id");
+                        .HasConstraintName("fk_bom_revision_entries__parts_part_id");
 
                     b.Navigation("BomRevision");
 
@@ -23554,12 +23557,12 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.OperationMaterial", b =>
                 {
-                    b.HasOne("Forge.Core.Entities.BOMLine", "BomLine")
+                    b.HasOne("Forge.Core.Entities.BOMEntry", "BomEntry")
                         .WithMany()
-                        .HasForeignKey("BomLineId")
+                        .HasForeignKey("BomEntryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_operation_materials_bomlines_bom_line_id");
+                        .HasConstraintName("fk_operation_materials_bomentries_bom_entry_id");
 
                     b.HasOne("Forge.Core.Entities.Operation", "Operation")
                         .WithMany("Materials")
@@ -23568,7 +23571,7 @@ namespace Forge.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_operation_materials_operations_operation_id");
 
-                    b.Navigation("BomLine");
+                    b.Navigation("BomEntry");
 
                     b.Navigation("Operation");
                 });
@@ -25702,7 +25705,7 @@ namespace Forge.Data.Migrations
                 {
                     b.Navigation("Alternates");
 
-                    b.Navigation("BOMLines");
+                    b.Navigation("BOMEntries");
 
                     b.Navigation("BomRevisions");
 

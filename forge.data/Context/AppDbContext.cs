@@ -56,11 +56,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<OAuthStateToken> OAuthStateTokens => Set<OAuthStateToken>();
     public DbSet<Part> Parts => Set<Part>();
     public DbSet<PartPrice> PartPrices => Set<PartPrice>();
-    public DbSet<BOMEntry> BOMEntries => Set<BOMEntry>();
+    public DbSet<BOMLine> BOMLines => Set<BOMLine>();
 
     // Phase 3 H4 / WU-20 — BOM revision history.
     public DbSet<BomRevision> BomRevisions => Set<BomRevision>();
-    public DbSet<BomRevisionEntry> BomRevisionEntries => Set<BomRevisionEntry>();
+    public DbSet<BomRevisionLine> BomRevisionLines => Set<BomRevisionLine>();
     public DbSet<ReferenceData> ReferenceData => Set<ReferenceData>();
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
     public DbSet<SyncQueueEntry> SyncQueueEntries => Set<SyncQueueEntry>();
@@ -95,7 +95,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     // Pillar 3 — vendor-part intersection + tiered pricing.
     public DbSet<VendorPart> VendorParts => Set<VendorPart>();
     public DbSet<VendorPartPriceTier> VendorPartPriceTiers => Set<VendorPartPriceTier>();
-    public DbSet<PartPurchaseOption> PartPurchaseOptions => Set<PartPurchaseOption>();
+    public DbSet<PartPurchaseUnit> PartPurchaseUnits => Set<PartPurchaseUnit>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
     public DbSet<PurchaseOrderRelease> PurchaseOrderReleases => Set<PurchaseOrderRelease>();

@@ -86,7 +86,7 @@ public class CreatePartHandlerTests
             IsConfigurable: false,
             DefaultBinId: null,
             SourcePartId: null,
-            BomEntries: new List<BOMEntryResponseModel>(),
+            BomLines: new List<BOMLineResponseModel>(),
             UsedIn: new List<BOMUsageResponseModel>(),
             CreatedAt: DateTime.UtcNow,
             UpdatedAt: DateTime.UtcNow,

@@ -56,15 +56,15 @@ public class UpsertVendorPartPriceTierHandler(AppDbContext db, IClock clock)
         var now = clock.UtcNow;
         var effectiveFrom = body.EffectiveFrom ?? now;
 
-        // UoM purchase-options effort — if the tier prices a specific purchase option, it must
+        // UoM purchase-units effort — if the tier prices a specific purchase unit, it must
         // belong to this vendor-part's Part (a tier can't price another part's option).
-        if (body.PurchaseOptionId.HasValue)
+        if (body.PurchaseUnitId.HasValue)
         {
-            var optionBelongs = await db.PartPurchaseOptions
-                .AnyAsync(o => o.Id == body.PurchaseOptionId.Value && o.PartId == vp.PartId, ct);
+            var optionBelongs = await db.PartPurchaseUnits
+                .AnyAsync(o => o.Id == body.PurchaseUnitId.Value && o.PartId == vp.PartId, ct);
             if (!optionBelongs)
                 throw new InvalidOperationException(
-                    "The purchase option does not belong to this vendor-part's part.");
+                    "The purchase unit does not belong to this vendor-part's part.");
         }
 
         // Find a currently-effective tier at this min_qty (the supersede target).
@@ -72,12 +72,12 @@ public class UpsertVendorPartPriceTierHandler(AppDbContext db, IClock clock)
         // (effective_to IS NULL OR effective_to >= now). The new row's
         // effective_from also must overlap — we treat any unclosed row at
         // this min_qty as the supersede target.
-        // Supersede target is keyed by (vendor-part, purchase-option, min-qty): the same min-qty
+        // Supersede target is keyed by (vendor-part, purchase-unit, min-qty): the same min-qty
         // can exist independently for different options, so a tier for one option must not
         // supersede another option's tier at the same quantity break.
         var existing = await db.VendorPartPriceTiers
             .Where(t => t.VendorPartId == request.VendorPartId
-                && t.PurchaseOptionId == body.PurchaseOptionId
+                && t.PurchaseUnitId == body.PurchaseUnitId
                 && t.MinQuantity == body.MinQuantity
                 && t.EffectiveTo == null)
             .OrderByDescending(t => t.EffectiveFrom)
@@ -106,7 +106,7 @@ public class UpsertVendorPartPriceTierHandler(AppDbContext db, IClock clock)
         newTier = new VendorPartPriceTier
         {
             VendorPartId = request.VendorPartId,
-            PurchaseOptionId = body.PurchaseOptionId,
+            PurchaseUnitId = body.PurchaseUnitId,
             MinQuantity = body.MinQuantity,
             UnitPrice = body.UnitPrice,
             // Snapshot currency from parent so historical rows preserve what

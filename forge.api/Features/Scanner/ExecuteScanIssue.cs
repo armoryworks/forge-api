@@ -55,7 +55,7 @@ public class ExecuteScanIssueHandler(
         // Validate part is in BOM for the job's part (or any related BOM)
         if (job.PartId.HasValue)
         {
-            var isInBom = await db.BOMEntries.AsNoTracking()
+            var isInBom = await db.BOMLines.AsNoTracking()
                 .AnyAsync(bom => bom.ParentPartId == job.PartId && bom.ChildPartId == data.PartId,
                     cancellationToken);
 

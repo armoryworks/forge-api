@@ -73,7 +73,7 @@ public static class SeedAiAssistants
                 SystemPrompt = ProcurementSystemPrompt,
                 AllowedEntityTypes = JsonSerializer.Serialize(new List<string>
                 {
-                    "Vendor", "PurchaseOrder", "Part", "BOMEntry", "StorageLocation", "BinContent",
+                    "Vendor", "PurchaseOrder", "Part", "BOMLine", "StorageLocation", "BinContent",
                 }),
                 StarterQuestions = JsonSerializer.Serialize(new List<string>
                 {
@@ -203,7 +203,7 @@ public static class SeedAiAssistants
         - Inventory: stock levels, bin locations, low-stock alerts, cycle counts, reorder points
         - Receiving: PO receiving, quantity verification, bin placement, inventory auto-update
         - Cost analysis: material costs, vendor pricing, quantity breaks, price lists
-        - Parts catalog: part specifications, BOM entries (Make/Buy/Stock source types), process steps
+        - Parts catalog: part specifications, BOM lines (Make/Buy/Stock source types), process steps
 
         KEY PAGES:
         - Vendors (/vendors): Vendor database with contact info, linked POs, preferred parts

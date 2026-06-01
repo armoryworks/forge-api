@@ -41,7 +41,7 @@ public class PartsRemediationTests
         return part.Id;
     }
 
-    [Fact] // D5 GREEN — BOM cycle (A→B→A) now rejected via descendant-walk in CreateBOMEntry
+    [Fact] // D5 GREEN — BOM cycle (A→B→A) now rejected via descendant-walk in CreateBOMLine
     public async Task Adding_a_BOM_edge_that_forms_a_cycle_is_rejected()
     {
         var a = await SeedPart("A");

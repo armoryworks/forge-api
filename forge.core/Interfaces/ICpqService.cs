@@ -10,6 +10,6 @@ public interface ICpqService
     Task<Quote> GenerateQuoteFromConfigurationAsync(int configurationId, int customerId, CancellationToken ct);
     Task<Part> GeneratePartFromConfigurationAsync(int configurationId, CancellationToken ct);
     decimal CalculatePrice(ProductConfigurator configurator, Dictionary<string, string> selections);
-    IReadOnlyList<BOMEntry> GenerateBom(ProductConfigurator configurator, Dictionary<string, string> selections);
+    IReadOnlyList<BOMLine> GenerateBom(ProductConfigurator configurator, Dictionary<string, string> selections);
     IReadOnlyList<Operation> GenerateRouting(ProductConfigurator configurator, Dictionary<string, string> selections);
 }

@@ -2,7 +2,7 @@ using Forge.Core.Enums;
 
 namespace Forge.Core.Entities;
 
-public class BOMEntry : BaseAuditableEntity
+public class BOMLine : BaseAuditableEntity
 {
     public int ParentPartId { get; set; }
     public int ChildPartId { get; set; }

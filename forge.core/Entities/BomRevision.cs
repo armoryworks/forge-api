@@ -5,9 +5,9 @@ namespace Forge.Core.Entities;
 /// <summary>
 /// Phase 3 H4 / WU-20 — immutable BOM revision snapshot.
 ///
-/// BOMs in this codebase are part-scoped (BOMEntry rows hang directly off
+/// BOMs in this codebase are part-scoped (BOMLine rows hang directly off
 /// Part). Prior to this WU there was no immutable history of a BOM's state
-/// at any given moment — modifying a BOMEntry overwrote the prior data, so
+/// at any given moment — modifying a BOMLine overwrote the prior data, so
 /// a Job released against an earlier BOM state could not be reconstructed
 /// historically. Compliance positioning (food / medical / aerospace /
 /// automotive) requires that.
@@ -40,5 +40,5 @@ public class BomRevision : BaseAuditableEntity
     public int? CreatedByUserId { get; set; }
 
     /// <summary>Immutable component snapshot — never edited after creation.</summary>
-    public ICollection<BomRevisionEntry> Entries { get; set; } = [];
+    public ICollection<BomRevisionLine> Entries { get; set; } = [];
 }

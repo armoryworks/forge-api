@@ -22,6 +22,6 @@ public record UpsertVendorPartPriceTierRequestModel(
     DateTimeOffset? EffectiveFrom,
     DateTimeOffset? EffectiveTo,
     string? Notes,
-    // UoM purchase-options effort — which PartPurchaseOption this tier prices (null = per base
+    // UoM purchase-units effort — which PartPurchaseUnit this tier prices (null = per base
     // unit / the single default option). UnitPrice is then the price for one of that option.
-    int? PurchaseOptionId = null);
+    int? PurchaseUnitId = null);

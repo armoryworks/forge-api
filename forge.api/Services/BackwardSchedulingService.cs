@@ -90,12 +90,12 @@ public class BackwardSchedulingService(
         if (!partId.HasValue)
             return DefaultLeadTimeDays;
 
-        // Pull every Buy BOM entry — including rows with a null per-line
+        // Pull every Buy BOM line — including rows with a null per-line
         // LeadTimeDays. The legacy implementation filtered the nulls out at
         // the SQL level which silently dropped any child part whose buy
         // lead-time was tracked on the part snapshot or the preferred
         // VendorPart row instead of the BOM line.
-        var buyEntries = await db.BOMEntries
+        var buyEntries = await db.BOMLines
             .Where(b => b.ParentPartId == partId.Value && b.SourceType == BOMSourceType.Buy)
             .Select(b => new { b.ChildPartId, b.LeadTimeDays })
             .ToListAsync(ct);

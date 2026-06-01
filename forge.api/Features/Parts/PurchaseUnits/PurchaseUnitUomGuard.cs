@@ -2,15 +2,15 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Data.Context;
 
-namespace Forge.Api.Features.Parts.PurchaseOptions;
+namespace Forge.Api.Features.Parts.PurchaseUnits;
 
 /// <summary>
-/// UoM purchase-options effort — a purchase option's content UoM must be in the same
+/// UoM purchase-units effort — a purchase unit's content UoM must be in the same
 /// <c>UomCategory</c> as the part's stock UoM (area↔area, mass↔mass…). Otherwise the
 /// cost derivation (tier price ÷ content) would mix dimensions ("8 grams" for an area part).
 /// No-op when either UoM is unset.
 /// </summary>
-internal static class PurchaseOptionUomGuard
+internal static class PurchaseUnitUomGuard
 {
     public static async Task EnsureCompatibleAsync(AppDbContext db, int partId, int? contentUomId, CancellationToken ct)
     {
@@ -35,6 +35,6 @@ internal static class PurchaseOptionUomGuard
 
         if (contentCat.HasValue && stockCat.HasValue && contentCat != stockCat)
             throw new InvalidOperationException(
-                "The purchase option's content UoM must be in the same category as the part's stock UoM.");
+                "The purchase unit's content UoM must be in the same category as the part's stock UoM.");
     }
 }

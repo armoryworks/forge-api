@@ -3,10 +3,10 @@ using Forge.Core.Models;
 namespace Forge.Core.Interfaces;
 
 /// <summary>
-/// UoM purchase-options effort — derives a part's cost per base/stock unit from the preferred
-/// vendor's price tiers and the chosen purchase option's content quantity. Picks the option that
+/// UoM purchase-units effort — derives a part's cost per base/stock unit from the preferred
+/// vendor's price tiers and the chosen purchase unit's content quantity. Picks the option that
 /// is cheapest per base unit for the requested quantity (quantity-break aware), or the lone
-/// per-base-unit tier when the part has no purchase options (legacy single-option behavior).
+/// per-base-unit tier when the part has no purchase units (legacy single-option behavior).
 /// </summary>
 public interface IVendorCostResolver
 {

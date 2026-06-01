@@ -1,7 +1,7 @@
 namespace Forge.Core.Models;
 
-/// <summary>UoM purchase-options effort — a part's purchasable size/form (read shape).</summary>
-public record PartPurchaseOptionResponseModel(
+/// <summary>UoM purchase-units effort — a part's purchasable size/form (read shape).</summary>
+public record PartPurchaseUnitResponseModel(
     int Id,
     int PartId,
     string Label,

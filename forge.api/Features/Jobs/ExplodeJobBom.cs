@@ -34,14 +34,14 @@ public class ExplodeJobBomHandler(AppDbContext db, IJobRepository jobRepo) : IRe
             throw new InvalidOperationException($"Job {request.JobId} has no associated part. Set PartId before exploding BOM.");
 
         var part = await db.Parts
-            .Include(p => p.BOMEntries)
+            .Include(p => p.BOMLines)
                 .ThenInclude(b => b.ChildPart)
                     .ThenInclude(cp => cp.PreferredVendor)
             .FirstOrDefaultAsync(p => p.Id == parentJob.PartId.Value, ct)
             ?? throw new KeyNotFoundException($"Part {parentJob.PartId.Value} not found.");
 
-        if (part.BOMEntries.Count == 0)
-            throw new InvalidOperationException($"Part {part.PartNumber} has no BOM entries.");
+        if (part.BOMLines.Count == 0)
+            throw new InvalidOperationException($"Part {part.PartNumber} has no BOM lines.");
 
         var firstStage = parentJob.TrackType.Stages.FirstOrDefault()
             ?? throw new InvalidOperationException($"Track type '{parentJob.TrackType.Name}' has no stages configured.");
@@ -50,11 +50,11 @@ public class ExplodeJobBomHandler(AppDbContext db, IJobRepository jobRepo) : IRe
         var buyItems = new List<BomExplosionBuyItemModel>();
         var stockItems = new List<BomExplosionStockItemModel>();
 
-        foreach (var bomEntry in part.BOMEntries.OrderBy(b => b.SortOrder))
+        foreach (var bomLine in part.BOMLines.OrderBy(b => b.SortOrder))
         {
-            var childPart = bomEntry.ChildPart;
+            var childPart = bomLine.ChildPart;
 
-            switch (bomEntry.SourceType)
+            switch (bomLine.SourceType)
             {
                 case BOMSourceType.Make:
                 {
@@ -95,7 +95,7 @@ public class ExplodeJobBomHandler(AppDbContext db, IJobRepository jobRepo) : IRe
                     {
                         JobId = childJob.Id,
                         PartId = childPart.Id,
-                        Quantity = bomEntry.Quantity,
+                        Quantity = bomLine.Quantity,
                     });
 
                     createdJobs.Add(new BomExplosionChildJobModel(
@@ -104,7 +104,7 @@ public class ExplodeJobBomHandler(AppDbContext db, IJobRepository jobRepo) : IRe
                         childJob.Title,
                         childPart.Id,
                         childPart.PartNumber,
-                        bomEntry.Quantity));
+                        bomLine.Quantity));
                     break;
                 }
 
@@ -113,15 +113,15 @@ public class ExplodeJobBomHandler(AppDbContext db, IJobRepository jobRepo) : IRe
                         childPart.Id,
                         childPart.PartNumber,
                         childPart.Description ?? childPart.Name,
-                        bomEntry.Quantity,
+                        bomLine.Quantity,
                         childPart.PreferredVendorId,
                         childPart.PreferredVendor?.CompanyName,
-                        bomEntry.LeadTimeDays));
+                        bomLine.LeadTimeDays));
                     break;
 
                 case BOMSourceType.Stock:
                 {
-                    var needed = bomEntry.Quantity;
+                    var needed = bomLine.Quantity;
                     var reserved = 0m;
 
                     // Auto-reserve available stock across bins (oldest first)

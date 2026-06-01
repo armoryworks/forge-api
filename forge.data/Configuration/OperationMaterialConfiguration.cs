@@ -15,16 +15,16 @@ public class OperationMaterialConfiguration : IEntityTypeConfiguration<Operation
         builder.Property(e => e.Notes).HasMaxLength(1000);
 
         builder.HasIndex(e => e.OperationId);
-        builder.HasIndex(e => e.BomEntryId);
+        builder.HasIndex(e => e.BomLineId);
 
         builder.HasOne(e => e.Operation)
             .WithMany(o => o.Materials)
             .HasForeignKey(e => e.OperationId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(e => e.BomEntry)
+        builder.HasOne(e => e.BomLine)
             .WithMany()
-            .HasForeignKey(e => e.BomEntryId)
+            .HasForeignKey(e => e.BomLineId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

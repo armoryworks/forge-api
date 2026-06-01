@@ -13,4 +13,4 @@ public record VendorPartPriceTierResponseModel(
     DateTimeOffset EffectiveFrom,
     DateTimeOffset? EffectiveTo,
     string? Notes,
-    int? PurchaseOptionId);
+    int? PurchaseUnitId);

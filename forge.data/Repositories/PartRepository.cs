@@ -107,7 +107,7 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
                 p.Status,
                 p.ProcurementSource,
                 p.InventoryClass,
-                BomEntryCount = p.BOMEntries.Count,
+                BomLineCount = p.BOMLines.Count,
                 p.CreatedAt,
             })
             .ToListAsync(ct);
@@ -159,7 +159,7 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
                     r.Status,
                     r.ProcurementSource,
                     r.InventoryClass,
-                    r.BomEntryCount,
+                    r.BomLineCount,
                     r.CreatedAt,
                     price.UnitPrice,
                     price.Currency,
@@ -178,7 +178,7 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
     public async Task<PartDetailResponseModel?> GetDetailAsync(int id, CancellationToken ct)
     {
         var part = await db.Parts
-            .Include(p => p.BOMEntries).ThenInclude(b => b.ChildPart)
+            .Include(p => p.BOMLines).ThenInclude(b => b.ChildPart)
             .Include(p => p.UsedInBOM).ThenInclude(b => b.ParentPart)
             .Include(p => p.PreferredVendor)
             .Include(p => p.ToolingAsset)
@@ -195,9 +195,9 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
         if (part is null)
             return null;
 
-        var bomEntries = part.BOMEntries
+        var bomLines = part.BOMLines
             .OrderBy(b => b.SortOrder)
-            .Select(b => new BOMEntryResponseModel(
+            .Select(b => new BOMLineResponseModel(
                 b.Id,
                 b.ChildPartId,
                 b.ChildPart.PartNumber,
@@ -278,7 +278,7 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
             part.IsConfigurable,
             part.DefaultBinId,
             part.SourcePartId,
-            bomEntries,
+            bomLines,
             usedIn,
             part.CreatedAt,
             part.UpdatedAt,
@@ -362,32 +362,32 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
         await db.SaveChangesAsync(ct);
     }
 
-    public Task<BOMEntry?> FindBomEntryAsync(int bomEntryId, int parentPartId, CancellationToken ct)
-        => db.BOMEntries.FirstOrDefaultAsync(b => b.Id == bomEntryId && b.ParentPartId == parentPartId, ct);
+    public Task<BOMLine?> FindBomLineAsync(int bomLineId, int parentPartId, CancellationToken ct)
+        => db.BOMLines.FirstOrDefaultAsync(b => b.Id == bomLineId && b.ParentPartId == parentPartId, ct);
 
     public async Task<int> GetMaxBomSortOrderAsync(int parentPartId, CancellationToken ct)
     {
-        var max = await db.BOMEntries
+        var max = await db.BOMLines
             .Where(b => b.ParentPartId == parentPartId)
             .MaxAsync(b => (int?)b.SortOrder, ct);
         return max ?? 0;
     }
 
     public async Task<List<int>> GetBomChildIdsAsync(int parentPartId, CancellationToken ct)
-        => await db.BOMEntries
+        => await db.BOMLines
             .Where(b => b.ParentPartId == parentPartId)
             .Select(b => b.ChildPartId)
             .ToListAsync(ct);
 
-    public async Task AddBomEntryAsync(BOMEntry entry, CancellationToken ct)
+    public async Task AddBomLineAsync(BOMLine entry, CancellationToken ct)
     {
-        await db.BOMEntries.AddAsync(entry, ct);
+        await db.BOMLines.AddAsync(entry, ct);
         await db.SaveChangesAsync(ct);
     }
 
-    public Task RemoveBomEntryAsync(BOMEntry entry)
+    public Task RemoveBomLineAsync(BOMLine entry)
     {
-        db.BOMEntries.Remove(entry);
+        db.BOMLines.Remove(entry);
         return db.SaveChangesAsync(default);
     }
 
@@ -398,7 +398,7 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
             .Include(s => s.WorkCenter)
             .Include(s => s.ReferencedOperation)
             .Include(s => s.SubcontractVendor)
-            .Include(s => s.Materials).ThenInclude(m => m.BomEntry).ThenInclude(b => b.ChildPart)
+            .Include(s => s.Materials).ThenInclude(m => m.BomLine).ThenInclude(b => b.ChildPart)
             .OrderBy(s => s.StepNumber)
             .Select(s => new OperationResponseModel(
                 s.Id,
@@ -416,9 +416,9 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
                 s.Materials.Select(m => new OperationMaterialResponseModel(
                     m.Id,
                     m.OperationId,
-                    m.BomEntryId,
-                    m.BomEntry.ChildPart.PartNumber,
-                    m.BomEntry.ChildPart.Name,
+                    m.BomLineId,
+                    m.BomLine.ChildPart.PartNumber,
+                    m.BomLine.ChildPart.Name,
                     m.Quantity,
                     m.Notes)).ToList(),
                 s.CreatedAt,

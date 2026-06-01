@@ -9,8 +9,8 @@ namespace Forge.Api.Services;
 /// <summary>
 /// Phase 3 H4 / WU-20 — auto-revisions a part's BOM whenever its component
 /// list changes. Handlers call <see cref="CaptureCurrentStateAsync"/> after
-/// any add/update/delete on a BOMEntry; the service snapshots the part's
-/// current BOMEntry rows into a fresh <see cref="BomRevision"/> and points
+/// any add/update/delete on a BOMLine; the service snapshots the part's
+/// current BOMLine rows into a fresh <see cref="BomRevision"/> and points
 /// <see cref="Part.CurrentBomRevisionId"/> at the new revision.
 ///
 /// Scope discipline (per WU-20 spec):
@@ -21,9 +21,9 @@ namespace Forge.Api.Services;
 public interface IBomRevisionService
 {
     /// <summary>
-    /// Take a snapshot of the part's current BOMEntry rows as a new
+    /// Take a snapshot of the part's current BOMLine rows as a new
     /// <see cref="BomRevision"/>. Caller is responsible for having
-    /// already persisted the BOMEntry mutation (Add/Update/Delete) — this
+    /// already persisted the BOMLine mutation (Add/Update/Delete) — this
     /// reads from the DB to get the post-mutation state.
     /// </summary>
     Task<BomRevision> CaptureCurrentStateAsync(int partId, int? createdByUserId, string? notes, CancellationToken ct);
@@ -53,8 +53,8 @@ public class BomRevisionService(AppDbContext db, IClock clock) : IBomRevisionSer
             .MaxAsync(ct) ?? 0;
         nextRevNumber += 1;
 
-        // Read the current BOMEntry rows for the parent.
-        var entries = await db.BOMEntries
+        // Read the current BOMLine rows for the parent.
+        var entries = await db.BOMLines
             .Where(b => b.ParentPartId == partId)
             .Include(b => b.Uom)
             .OrderBy(b => b.SortOrder)
@@ -74,7 +74,7 @@ public class BomRevisionService(AppDbContext db, IClock clock) : IBomRevisionSer
 
         foreach (var e in entries)
         {
-            revision.Entries.Add(new BomRevisionEntry
+            revision.Entries.Add(new BomRevisionLine
             {
                 PartId = e.ChildPartId,
                 Quantity = e.Quantity,

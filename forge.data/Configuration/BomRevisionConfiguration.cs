@@ -27,9 +27,9 @@ public class BomRevisionConfiguration : IEntityTypeConfiguration<BomRevision>
     }
 }
 
-public class BomRevisionEntryConfiguration : IEntityTypeConfiguration<BomRevisionEntry>
+public class BomRevisionLineConfiguration : IEntityTypeConfiguration<BomRevisionLine>
 {
-    public void Configure(EntityTypeBuilder<BomRevisionEntry> builder)
+    public void Configure(EntityTypeBuilder<BomRevisionLine> builder)
     {
         builder.Ignore(e => e.IsDeleted);
 
