@@ -11,14 +11,14 @@ using Forge.Tests.Capabilities;
 namespace Forge.Tests.Features;
 
 /// <summary>
-/// UoM purchase-options effort — CRUD for a part's purchase options
-/// (/api/v1/parts/{partId}/purchase-options). CAP-MD-PARTS is default-on.
+/// UoM purchase-units effort — CRUD for a part's purchase units
+/// (/api/v1/parts/{partId}/purchase-units). CAP-MD-PARTS is default-on.
 /// </summary>
 [Collection(CapabilityTestCollection.Name)]
-public class PartPurchaseOptionsApiTests
+public class PartPurchaseUnitsApiTests
 {
     private readonly CapabilityTestWebApplicationFactory _factory;
-    public PartPurchaseOptionsApiTests(CapabilityTestWebApplicationFactory factory) => _factory = factory;
+    public PartPurchaseUnitsApiTests(CapabilityTestWebApplicationFactory factory) => _factory = factory;
 
     private HttpClient AuthClient(string role = "Admin")
     {
@@ -41,35 +41,35 @@ public class PartPurchaseOptionsApiTests
     }
 
     [Fact]
-    public async Task Purchase_option_round_trips_through_create_list_update_delete()
+    public async Task Purchase_unit_round_trips_through_create_list_update_delete()
     {
         var partId = await SeedPart();
         var client = AuthClient();
 
         // Create
-        var create = await client.PostAsync($"/api/v1/parts/{partId}/purchase-options",
+        var create = await client.PostAsync($"/api/v1/parts/{partId}/purchase-units",
             JsonContent.Create(new { label = "4x8 sheet", contentQuantity = 32m, contentUomId = (int?)null, sortOrder = 0 }));
         create.StatusCode.Should().Be(HttpStatusCode.Created);
         var createdJson = await create.Content.ReadAsStringAsync();
         createdJson.Should().Contain("4x8 sheet");
 
         // List
-        var listJson = await (await client.GetAsync($"/api/v1/parts/{partId}/purchase-options")).Content.ReadAsStringAsync();
+        var listJson = await (await client.GetAsync($"/api/v1/parts/{partId}/purchase-units")).Content.ReadAsStringAsync();
         listJson.Should().Contain("4x8 sheet").And.Contain("32");
 
         var id = (await create.Content.ReadFromJsonAsync<OptionDto>())!.Id;
 
         // Update
-        var update = await client.PutAsync($"/api/v1/parts/{partId}/purchase-options/{id}",
+        var update = await client.PutAsync($"/api/v1/parts/{partId}/purchase-units/{id}",
             JsonContent.Create(new { label = "4x8 sheet (rev B)", contentQuantity = 32m, contentUomId = (int?)null, sortOrder = 1, isActive = true }));
         update.IsSuccessStatusCode.Should().BeTrue();
         (await update.Content.ReadAsStringAsync()).Should().Contain("rev B");
 
         // Delete (soft) → drops out of the list
-        var del = await client.DeleteAsync($"/api/v1/parts/{partId}/purchase-options/{id}");
+        var del = await client.DeleteAsync($"/api/v1/parts/{partId}/purchase-units/{id}");
         del.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        var afterJson = await (await client.GetAsync($"/api/v1/parts/{partId}/purchase-options")).Content.ReadAsStringAsync();
+        var afterJson = await (await client.GetAsync($"/api/v1/parts/{partId}/purchase-units")).Content.ReadAsStringAsync();
         afterJson.Should().NotContain("rev B");
     }
 
@@ -90,11 +90,11 @@ public class PartPurchaseOptionsApiTests
         var partId = await SeedPart(stockUomId: areaUomId);
 
         // Area part, mass content UoM → mismatch → 409.
-        var resp = await AuthClient().PostAsync($"/api/v1/parts/{partId}/purchase-options",
+        var resp = await AuthClient().PostAsync($"/api/v1/parts/{partId}/purchase-units",
             JsonContent.Create(new { label = "bad option", contentQuantity = 8m, contentUomId = massUomId, sortOrder = 0 }));
 
         resp.StatusCode.Should().Be(HttpStatusCode.Conflict,
-            "a mass content UoM cannot describe an area part's purchase option");
+            "a mass content UoM cannot describe an area part's purchase unit");
     }
 
     private sealed record OptionDto(int Id);

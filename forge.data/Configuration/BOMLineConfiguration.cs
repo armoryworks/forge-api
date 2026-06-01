@@ -4,9 +4,9 @@ using Forge.Core.Entities;
 
 namespace Forge.Data.Configuration;
 
-public class BOMEntryConfiguration : IEntityTypeConfiguration<BOMEntry>
+public class BOMLineConfiguration : IEntityTypeConfiguration<BOMLine>
 {
-    public void Configure(EntityTypeBuilder<BOMEntry> builder)
+    public void Configure(EntityTypeBuilder<BOMLine> builder)
     {
         builder.Ignore(e => e.IsDeleted);
 
@@ -15,7 +15,7 @@ public class BOMEntryConfiguration : IEntityTypeConfiguration<BOMEntry>
         builder.Property(e => e.Notes).HasMaxLength(500);
 
         builder.HasOne(e => e.ParentPart)
-            .WithMany(p => p.BOMEntries)
+            .WithMany(p => p.BOMLines)
             .HasForeignKey(e => e.ParentPartId)
             .OnDelete(DeleteBehavior.Restrict);
 

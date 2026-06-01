@@ -41,7 +41,7 @@ public class UpdatePurchaseOrderLineHandler(IPurchaseOrderRepository repo, IMedi
         line.OrderedQuantity = request.Data.Quantity;
         line.UnitPrice = request.Data.UnitPrice;
         line.Notes = request.Data.Notes;
-        line.PurchaseOptionId = request.Data.PurchaseOptionId;
+        line.PurchaseUnitId = request.Data.PurchaseUnitId;
 
         await repo.SaveChangesAsync(cancellationToken);
 

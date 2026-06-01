@@ -121,16 +121,16 @@ public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
     /// </summary>
     public async Task<List<SankeyFlowItem>> GetMaterialToProductFlowAsync(CancellationToken ct)
     {
-        var bomEntries = await db.BOMEntries.AsNoTracking()
+        var bomLines = await db.BOMLines.AsNoTracking()
             .Select(b => new { b.ParentPartId, b.ChildPartId, b.Quantity })
             .ToListAsync(ct);
 
-        var partIds = bomEntries.SelectMany(b => new[] { b.ParentPartId, b.ChildPartId }).Distinct().ToList();
+        var partIds = bomLines.SelectMany(b => new[] { b.ParentPartId, b.ChildPartId }).Distinct().ToList();
         var parts = await db.Parts.AsNoTracking()
             .Where(p => partIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.PartNumber ?? $"Part #{p.Id}", ct);
 
-        return bomEntries
+        return bomLines
             .Where(b => parts.ContainsKey(b.ChildPartId) && parts.ContainsKey(b.ParentPartId))
             .GroupBy(b => new { b.ChildPartId, b.ParentPartId })
             .Select(g => new SankeyFlowItem(

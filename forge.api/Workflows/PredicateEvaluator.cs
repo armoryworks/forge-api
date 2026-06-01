@@ -17,8 +17,8 @@ namespace Forge.Api.Workflows;
 ///
 /// PropertyName casing: predicate JSON should use camelCase to match the
 /// frontend twin; the evaluator title-cases the first character before
-/// reflecting against the C# entity (so "name" → "Name", "bomEntries" →
-/// "BomEntries"). Unknown fields / unknown operators short-circuit to
+/// reflecting against the C# entity (so "name" → "Name", "bomLines" →
+/// "BomLines"). Unknown fields / unknown operators short-circuit to
 /// <c>false</c> and emit a single warning per evaluation.
 ///
 /// This is intentionally NOT a full JSONLogic — the operator surface is

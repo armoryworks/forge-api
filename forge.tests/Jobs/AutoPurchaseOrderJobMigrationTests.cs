@@ -79,7 +79,7 @@ public class AutoPurchaseOrderJobMigrationTests
         }
 
         // BOM: parent consumes child at the configured ratio.
-        db.BOMEntries.Add(new BOMEntry
+        db.BOMLines.Add(new BOMLine
         {
             ParentPartId = parent.Id,
             ChildPartId = child.Id,

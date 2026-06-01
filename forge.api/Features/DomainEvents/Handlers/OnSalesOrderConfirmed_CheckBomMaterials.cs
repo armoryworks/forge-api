@@ -38,21 +38,21 @@ public class OnSalesOrderConfirmed_CheckBomMaterials(
 
         var partIds = linesWithParts.Select(l => l.PartId!.Value).Distinct().ToList();
 
-        // Load all Buy BOM entries for these parts, grouped by parent part
-        var buyBomEntries = await db.BOMEntries
+        // Load all Buy BOM lines for these parts, grouped by parent part
+        var buyBomLines = await db.BOMLines
             .Include(b => b.ChildPart)
             .Where(b => partIds.Contains(b.ParentPartId) && b.SourceType == BOMSourceType.Buy)
             .AsNoTracking()
             .ToListAsync(ct);
 
-        if (buyBomEntries.Count == 0)
+        if (buyBomLines.Count == 0)
         {
-            logger.LogInformation("No Buy BOM entries for SO {OrderNumber} parts — no material check needed", so.OrderNumber);
+            logger.LogInformation("No Buy BOM lines for SO {OrderNumber} parts — no material check needed", so.OrderNumber);
             return;
         }
 
         // Build quantity requirements: child part -> total qty needed
-        var materialPartIds = buyBomEntries.Select(b => b.ChildPartId).Distinct().ToList();
+        var materialPartIds = buyBomLines.Select(b => b.ChildPartId).Distinct().ToList();
 
         // Build a lookup of SO line qty per parent part
         var qtyByParentPart = linesWithParts
@@ -61,7 +61,7 @@ public class OnSalesOrderConfirmed_CheckBomMaterials(
 
         // Calculate total required qty per child (material) part
         var requiredQtyByMaterial = new Dictionary<int, decimal>();
-        foreach (var bom in buyBomEntries)
+        foreach (var bom in buyBomLines)
         {
             if (!qtyByParentPart.TryGetValue(bom.ParentPartId, out var parentQty))
                 continue;
@@ -85,8 +85,8 @@ public class OnSalesOrderConfirmed_CheckBomMaterials(
 
         var inventoryLookup = inventoryByPart.ToDictionary(x => x.PartId, x => x.TotalQty);
 
-        // Build a vendor lookup from BOM entries (prefer first vendor found per child part)
-        var vendorByMaterial = buyBomEntries
+        // Build a vendor lookup from BOM lines (prefer first vendor found per child part)
+        var vendorByMaterial = buyBomLines
             .Where(b => b.VendorId.HasValue)
             .GroupBy(b => b.ChildPartId)
             .ToDictionary(g => g.Key, g => g.First().VendorId!.Value);
@@ -141,7 +141,7 @@ public class OnSalesOrderConfirmed_CheckBomMaterials(
             else
             {
                 // No vendor on BOM or already has pending suggestion — create a notification
-                var materialPart = buyBomEntries.FirstOrDefault(b => b.ChildPartId == materialPartId)?.ChildPart;
+                var materialPart = buyBomLines.FirstOrDefault(b => b.ChildPartId == materialPartId)?.ChildPart;
                 var partDesc = materialPart?.PartNumber ?? $"Part #{materialPartId}";
 
                 foreach (var userId in purchasingUserIds)

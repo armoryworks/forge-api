@@ -76,14 +76,14 @@ public class AutoPurchaseOrderJob(
             return;
         }
 
-        // 4. Get all Buy BOM entries for parts on active SOs
+        // 4. Get all Buy BOM lines for parts on active SOs
         var soPartIds = activeSOLines
             .Where(l => l.PartId.HasValue)
             .Select(l => l.PartId!.Value)
             .Distinct()
             .ToList();
 
-        var buyBomEntries = await db.BOMEntries
+        var buyBomLines = await db.BOMLines
             .AsNoTracking()
             .Include(b => b.ChildPart)
             .Where(b => soPartIds.Contains(b.ParentPartId)
@@ -92,22 +92,22 @@ public class AutoPurchaseOrderJob(
                 && !b.ChildPart.ExcludeFromAutoPo)
             .ToListAsync(ct);
 
-        if (buyBomEntries.Count == 0)
+        if (buyBomLines.Count == 0)
         {
-            logger.LogInformation("[AutoPO] No Buy BOM entries found for active SO parts — skipping");
+            logger.LogInformation("[AutoPO] No Buy BOM lines found for active SO parts — skipping");
             return;
         }
 
-        // Build lookup: parentPartId -> list of Buy BOM entries
-        var bomByParent = buyBomEntries
+        // Build lookup: parentPartId -> list of Buy BOM lines
+        var bomByParent = buyBomLines
             .GroupBy(b => b.ParentPartId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
         // Pillar 3 — bulk-resolve effective sourcing values for every child
-        // part referenced by these Buy BOM entries. Reads come from the
+        // part referenced by these Buy BOM lines. Reads come from the
         // preferred VendorPart row (Part snapshot columns were dropped post-
         // OEM-on-VendorPart move; vendor-specific terms only live there now).
-        var bomChildPartIds = buyBomEntries.Select(b => b.ChildPartId).Distinct().ToList();
+        var bomChildPartIds = buyBomLines.Select(b => b.ChildPartId).Distinct().ToList();
         var sourcingByChildPart = await sourcingResolver.ResolveManyAsync(bomChildPartIds, ct);
 
         // 5. Calculate demand per child part
@@ -116,13 +116,13 @@ public class AutoPurchaseOrderJob(
 
         foreach (var soLine in activeSOLines)
         {
-            if (!soLine.PartId.HasValue || !bomByParent.TryGetValue(soLine.PartId.Value, out var bomEntries))
+            if (!soLine.PartId.HasValue || !bomByParent.TryGetValue(soLine.PartId.Value, out var bomLines))
                 continue;
 
             var remainingQty = soLine.Quantity - soLine.ShippedQuantity;
             var deliveryDate = soLine.SalesOrder.RequestedDeliveryDate;
 
-            foreach (var bom in bomEntries)
+            foreach (var bom in bomLines)
             {
                 var demand = remainingQty * bom.Quantity;
 
@@ -131,7 +131,7 @@ public class AutoPurchaseOrderJob(
                     info = new DemandInfo
                     {
                         ChildPart = bom.ChildPart,
-                        BomEntry = bom,
+                        BomLine = bom,
                     };
                     demandByChildPart[bom.ChildPartId] = info;
                 }
@@ -201,10 +201,10 @@ public class AutoPurchaseOrderJob(
             .Distinct()
             .ToList();
 
-        // Also include vendor IDs from BOM entries
+        // Also include vendor IDs from BOM lines
         var bomVendorIds = demandByChildPart.Values
-            .Where(d => d.BomEntry.VendorId.HasValue)
-            .Select(d => d.BomEntry.VendorId!.Value)
+            .Where(d => d.BomLine.VendorId.HasValue)
+            .Select(d => d.BomLine.VendorId!.Value)
             .Distinct()
             .ToList();
 
@@ -262,8 +262,8 @@ public class AutoPurchaseOrderJob(
             if (effectiveMinOrderQty is > 0 && orderQty < effectiveMinOrderQty.Value)
                 orderQty = (int)Math.Ceiling(effectiveMinOrderQty.Value);
 
-            // Determine vendor (prefer BOM entry vendor, then part preferred vendor)
-            var vendorId = demand.BomEntry.VendorId ?? part.PreferredVendorId;
+            // Determine vendor (prefer BOM line vendor, then part preferred vendor)
+            var vendorId = demand.BomLine.VendorId ?? part.PreferredVendorId;
             if (!vendorId.HasValue || !vendorMap.ContainsKey(vendorId.Value))
             {
                 logger.LogWarning("[AutoPO] Part {PartId} ({PartNumber}) has no valid vendor — skipping",
@@ -430,7 +430,7 @@ public class AutoPurchaseOrderJob(
     private sealed class DemandInfo
     {
         public Part ChildPart { get; set; } = null!;
-        public BOMEntry BomEntry { get; set; } = null!;
+        public BOMLine BomLine { get; set; } = null!;
         public decimal TotalDemand { get; set; }
         public DateTimeOffset? EarliestNeededBy { get; set; }
         public HashSet<int> SourceSalesOrderIds { get; } = [];

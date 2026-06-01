@@ -1,6 +1,6 @@
 namespace Forge.Core.Models;
 
 public record CreateOperationMaterialRequestModel(
-    int BomEntryId,
+    int BomLineId,
     decimal Quantity,
     string? Notes);

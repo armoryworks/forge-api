@@ -8,11 +8,11 @@ using Forge.Core.Models;
 
 namespace Forge.Api.Features.Parts;
 
-public record CreateBOMEntryCommand(int ParentPartId, CreateBOMEntryRequestModel Data) : IRequest<PartDetailResponseModel>;
+public record CreateBOMLineCommand(int ParentPartId, CreateBOMLineRequestModel Data) : IRequest<PartDetailResponseModel>;
 
-public class CreateBOMEntryCommandValidator : AbstractValidator<CreateBOMEntryCommand>
+public class CreateBOMLineCommandValidator : AbstractValidator<CreateBOMLineCommand>
 {
-    public CreateBOMEntryCommandValidator()
+    public CreateBOMLineCommandValidator()
     {
         RuleFor(x => x.ParentPartId).GreaterThan(0);
         RuleFor(x => x.Data.ChildPartId).GreaterThan(0);
@@ -20,12 +20,12 @@ public class CreateBOMEntryCommandValidator : AbstractValidator<CreateBOMEntryCo
     }
 }
 
-public class CreateBOMEntryHandler(
+public class CreateBOMLineHandler(
     IPartRepository repo,
     IBomRevisionService bomRevisions,
-    IHttpContextAccessor httpContext) : IRequestHandler<CreateBOMEntryCommand, PartDetailResponseModel>
+    IHttpContextAccessor httpContext) : IRequestHandler<CreateBOMLineCommand, PartDetailResponseModel>
 {
-    public async Task<PartDetailResponseModel> Handle(CreateBOMEntryCommand request, CancellationToken cancellationToken)
+    public async Task<PartDetailResponseModel> Handle(CreateBOMLineCommand request, CancellationToken cancellationToken)
     {
         var parent = await repo.FindAsync(request.ParentPartId, cancellationToken)
             ?? throw new KeyNotFoundException($"Part {request.ParentPartId} not found");
@@ -45,7 +45,7 @@ public class CreateBOMEntryHandler(
 
         var maxSort = await repo.GetMaxBomSortOrderAsync(request.ParentPartId, cancellationToken);
 
-        var entry = new BOMEntry
+        var entry = new BOMLine
         {
             ParentPartId = request.ParentPartId,
             ChildPartId = request.Data.ChildPartId,
@@ -58,7 +58,7 @@ public class CreateBOMEntryHandler(
             UomId = request.Data.UomId,
         };
 
-        await repo.AddBomEntryAsync(entry, cancellationToken);
+        await repo.AddBomLineAsync(entry, cancellationToken);
 
         // Phase 3 H4 / WU-20 — adding a component is a structural change;
         // capture an immutable revision snapshot of the new state.

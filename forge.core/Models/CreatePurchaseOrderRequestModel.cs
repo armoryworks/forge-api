@@ -14,6 +14,6 @@ public record CreatePurchaseOrderLineModel(
     decimal Quantity,
     decimal UnitPrice,
     string? Notes,
-    // UoM purchase-options effort — which PartPurchaseOption (size/form) is ordered. When set,
+    // UoM purchase-units effort — which PartPurchaseUnit (size/form) is ordered. When set,
     // Quantity counts in options and UnitPrice is per option; receiving converts to base UoM.
-    int? PurchaseOptionId = null);
+    int? PurchaseUnitId = null);

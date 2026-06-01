@@ -18,11 +18,11 @@ public class VendorPartPriceTierConfiguration : IEntityTypeConfiguration<VendorP
         builder.Property(e => e.Currency).HasMaxLength(3).IsRequired();
         builder.Property(e => e.Notes).HasMaxLength(2000);
 
-        // UoM purchase-options effort — which size/form this tier prices (null = single default).
-        builder.HasIndex(e => e.PurchaseOptionId);
-        builder.HasOne(e => e.PurchaseOption)
+        // UoM purchase-units effort — which size/form this tier prices (null = single default).
+        builder.HasIndex(e => e.PurchaseUnitId);
+        builder.HasOne(e => e.PurchaseUnit)
             .WithMany()
-            .HasForeignKey(e => e.PurchaseOptionId)
+            .HasForeignKey(e => e.PurchaseUnitId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

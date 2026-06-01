@@ -37,16 +37,16 @@ public class OnPurchaseOrderReceived_CheckMaterialReady(
             .Select(l => l.PartId)
             .ToHashSet();
 
-        // Check BOM entries with SourceType=Buy that match received parts
+        // Check BOM lines with SourceType=Buy that match received parts
         // If the job has a part, check its BOM for buy-type entries
         if (job.PartId.HasValue)
         {
-            var buyBomEntries = await db.BOMEntries
+            var buyBomLines = await db.BOMLines
                 .Where(b => b.ParentPartId == job.PartId.Value && b.SourceType == BOMSourceType.Buy)
                 .AsNoTracking()
                 .ToListAsync(ct);
 
-            if (buyBomEntries.Count > 0)
+            if (buyBomLines.Count > 0)
             {
                 // Get all PO lines for this job and check which BOM parts have been fully received
                 var allPoLinesForJob = await db.PurchaseOrders
@@ -60,7 +60,7 @@ public class OnPurchaseOrderReceived_CheckMaterialReady(
                     .ToDictionary(g => g.Key, g => g.All(l => l.ReceivedQuantity >= l.OrderedQuantity));
 
                 // Check if all BOM buy-type materials have been fully received
-                var allBomMaterialsReady = buyBomEntries.All(bom =>
+                var allBomMaterialsReady = buyBomLines.All(bom =>
                     receivedByPart.TryGetValue(bom.ChildPartId, out var received) && received);
 
                 if (!allBomMaterialsReady) return;

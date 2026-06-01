@@ -9,6 +9,6 @@ public record UpdateOrderLineRequestModel(
     decimal Quantity,
     decimal UnitPrice,
     string? Notes,
-    // UoM purchase-options effort — PO-only: which PartPurchaseOption the line orders
+    // UoM purchase-units effort — PO-only: which PartPurchaseUnit the line orders
     // (null = per base unit). Ignored by Quote / Sales Order line edits.
-    int? PurchaseOptionId = null);
+    int? PurchaseUnitId = null);

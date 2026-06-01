@@ -10,14 +10,14 @@ public static partial class PartMapper
 {
     /// <summary>
     /// Maps a Part entity to a PartDetailResponseModel.
-    /// BOM entries and usage lists must be provided separately as they require sub-mapping.
+    /// BOM lines and usage lists must be provided separately as they require sub-mapping.
     /// Pricing fields are populated from a <see cref="ResolvedPartPrice"/> when supplied
     /// (callers should resolve via <c>IPartPricingResolver</c>); when null the response
     /// falls back to the Default rung values.
     /// </summary>
     public static PartDetailResponseModel ToDetailModel(
         this Part part,
-        List<BOMEntryResponseModel>? bomEntries = null,
+        List<BOMLineResponseModel>? bomLines = null,
         List<BOMUsageResponseModel>? usedIn = null,
         ResolvedPartPrice? resolvedPrice = null)
     {
@@ -74,7 +74,7 @@ public static partial class PartMapper
             IsConfigurable: part.IsConfigurable,
             DefaultBinId: part.DefaultBinId,
             SourcePartId: part.SourcePartId,
-            BomEntries: bomEntries ?? [],
+            BomLines: bomLines ?? [],
             UsedIn: usedIn ?? [],
             CreatedAt: part.CreatedAt,
             UpdatedAt: part.UpdatedAt,

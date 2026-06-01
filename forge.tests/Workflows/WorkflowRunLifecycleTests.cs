@@ -442,7 +442,7 @@ public class WorkflowRunLifecycleTests(CapabilityTestWebApplicationFactory facto
             };
             db.Parts.Add(component);
             await db.SaveChangesAsync();
-            db.BOMEntries.Add(new BOMEntry
+            db.BOMLines.Add(new BOMLine
             {
                 ParentPartId = entityId,
                 ChildPartId = component.Id,

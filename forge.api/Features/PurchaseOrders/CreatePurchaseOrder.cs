@@ -119,7 +119,7 @@ public class CreatePurchaseOrderHandler(
                 OrderedQuantity = line.Quantity,
                 UnitPrice = line.UnitPrice,
                 Notes = line.Notes,
-                PurchaseOptionId = line.PurchaseOptionId,
+                PurchaseUnitId = line.PurchaseUnitId,
             });
         }
 

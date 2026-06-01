@@ -3,16 +3,16 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
-namespace Forge.Api.Features.Parts.PurchaseOptions;
+namespace Forge.Api.Features.Parts.PurchaseUnits;
 
 /// <summary>Shared read projection so create/update return the same shape as the list query.</summary>
-internal static class PartPurchaseOptionProjection
+internal static class PartPurchaseUnitProjection
 {
-    public static async Task<PartPurchaseOptionResponseModel> SingleAsync(AppDbContext db, int id, CancellationToken ct)
-        => await db.PartPurchaseOptions
+    public static async Task<PartPurchaseUnitResponseModel> SingleAsync(AppDbContext db, int id, CancellationToken ct)
+        => await db.PartPurchaseUnits
             .AsNoTracking()
             .Where(o => o.Id == id)
-            .Select(o => new PartPurchaseOptionResponseModel(
+            .Select(o => new PartPurchaseUnitResponseModel(
                 o.Id,
                 o.PartId,
                 o.Label,

@@ -23,12 +23,12 @@ public interface IPartRepository
     Task<bool> PartNumberExistsAsync(string partNumber, int? excludeId, CancellationToken ct);
     Task<string> GetNextPartNumberAsync(InventoryClass inventoryClass, CancellationToken ct);
     Task AddAsync(Part part, CancellationToken ct);
-    Task<BOMEntry?> FindBomEntryAsync(int bomEntryId, int parentPartId, CancellationToken ct);
+    Task<BOMLine?> FindBomLineAsync(int bomLineId, int parentPartId, CancellationToken ct);
     Task<int> GetMaxBomSortOrderAsync(int parentPartId, CancellationToken ct);
     /// <summary>D5: the direct child part-ids of a parent, for BOM-cycle detection.</summary>
     Task<List<int>> GetBomChildIdsAsync(int parentPartId, CancellationToken ct);
-    Task AddBomEntryAsync(BOMEntry entry, CancellationToken ct);
-    Task RemoveBomEntryAsync(BOMEntry entry);
+    Task AddBomLineAsync(BOMLine entry, CancellationToken ct);
+    Task RemoveBomLineAsync(BOMLine entry);
     Task<List<OperationResponseModel>> GetOperationsAsync(int partId, CancellationToken ct);
     Task<Operation?> FindOperationAsync(int operationId, CancellationToken ct);
     Task SaveChangesAsync(CancellationToken ct);

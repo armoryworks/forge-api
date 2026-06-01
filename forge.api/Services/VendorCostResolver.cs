@@ -8,9 +8,9 @@ namespace Forge.Api.Services;
 
 /// <summary>
 /// Default <see cref="IVendorCostResolver"/>. Reads the preferred vendor's currently-effective
-/// price tiers (with each tier's purchase option content), and for the requested base quantity
+/// price tiers (with each tier's purchase unit content), and for the requested base quantity
 /// picks the option whose **cost per base unit** (tier price ÷ content) is cheapest — quantity-break
-/// aware. A tier with no purchase option is treated as priced per base unit (content = 1), which
+/// aware. A tier with no purchase unit is treated as priced per base unit (content = 1), which
 /// preserves the legacy single-option behavior. All reads are <c>AsNoTracking</c>.
 /// </summary>
 public class VendorCostResolver(AppDbContext db) : IVendorCostResolver
@@ -33,8 +33,8 @@ public class VendorCostResolver(AppDbContext db) : IVendorCostResolver
                 t.UnitPrice,
                 t.Currency,
                 t.MinQuantity,
-                t.PurchaseOptionId,
-                t.PurchaseOption != null ? (decimal?)t.PurchaseOption.ContentQuantity : null))
+                t.PurchaseUnitId,
+                t.PurchaseUnit != null ? (decimal?)t.PurchaseUnit.ContentQuantity : null))
             .ToListAsync(ct);
 
         if (tiers.Count == 0)
@@ -45,7 +45,7 @@ public class VendorCostResolver(AppDbContext db) : IVendorCostResolver
         // Each option (and the null/per-base-unit "option") is costed independently; the cheapest
         // per-base-unit wins. Quantity-break: for an option holding `content` base units, covering
         // `qty` needs ceil(qty/content) of them — pick the best break that volume qualifies for.
-        foreach (var group in tiers.GroupBy(t => t.PurchaseOptionId))
+        foreach (var group in tiers.GroupBy(t => t.PurchaseUnitId))
         {
             var content = group.First().Content ?? 1m;
             if (content <= 0) continue; // malformed option — skip rather than divide by zero
@@ -65,7 +65,7 @@ public class VendorCostResolver(AppDbContext db) : IVendorCostResolver
                     partId,
                     costPerBase,
                     applicable.Currency,
-                    applicable.PurchaseOptionId,
+                    applicable.PurchaseUnitId,
                     content,
                     applicable.UnitPrice,
                     applicable.Id,
@@ -78,5 +78,5 @@ public class VendorCostResolver(AppDbContext db) : IVendorCostResolver
     }
 
     private sealed record TierRow(
-        int Id, decimal UnitPrice, string Currency, decimal MinQuantity, int? PurchaseOptionId, decimal? Content);
+        int Id, decimal UnitPrice, string Currency, decimal MinQuantity, int? PurchaseUnitId, decimal? Content);
 }

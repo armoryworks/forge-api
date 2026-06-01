@@ -9,10 +9,10 @@ using Forge.Tests.Helpers;
 namespace Forge.Tests.Services;
 
 /// <summary>
-/// UoM purchase-options effort — landed cost must be reported per base/stock unit even when the
-/// PO line was priced per purchase option ($50 per 4×8 sheet ÷ 32 sqft = $1.5625/sqft, not $50).
+/// UoM purchase-units effort — landed cost must be reported per base/stock unit even when the
+/// PO line was priced per purchase unit ($50 per 4×8 sheet ÷ 32 sqft = $1.5625/sqft, not $50).
 /// </summary>
-public class PartLandedCostOptionTests
+public class PartLandedCostUnitTests
 {
     [Fact]
     public async Task Landed_cost_is_per_base_unit_when_the_line_is_option_priced()
@@ -25,8 +25,8 @@ public class PartLandedCostOptionTests
         db.Vendors.Add(vendor);
         await db.SaveChangesAsync();
 
-        var option = new PartPurchaseOption { PartId = part.Id, Label = "4x8 sheet", ContentQuantity = 32m };
-        db.PartPurchaseOptions.Add(option);
+        var option = new PartPurchaseUnit { PartId = part.Id, Label = "4x8 sheet", ContentQuantity = 32m };
+        db.PartPurchaseUnits.Add(option);
         var po = new PurchaseOrder { PONumber = "PO-1", VendorId = vendor.Id, Status = PurchaseOrderStatus.Received };
         db.PurchaseOrders.Add(po);
         await db.SaveChangesAsync();
@@ -38,7 +38,7 @@ public class PartLandedCostOptionTests
             Description = "sheets",
             UnitPrice = 50m,            // per 4×8 sheet
             OrderedQuantity = 2m,       // in options
-            PurchaseOptionId = option.Id,
+            PurchaseUnitId = option.Id,
         };
         db.PurchaseOrderLines.Add(line);
         await db.SaveChangesAsync();

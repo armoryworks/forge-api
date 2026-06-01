@@ -6,19 +6,19 @@ using Forge.Core.Models;
 
 namespace Forge.Api.Features.Parts;
 
-public record DeleteBOMEntryCommand(int ParentPartId, int BomEntryId) : IRequest<PartDetailResponseModel>;
+public record DeleteBOMLineCommand(int ParentPartId, int BomLineId) : IRequest<PartDetailResponseModel>;
 
-public class DeleteBOMEntryHandler(
+public class DeleteBOMLineHandler(
     IPartRepository repo,
     IBomRevisionService bomRevisions,
-    IHttpContextAccessor httpContext) : IRequestHandler<DeleteBOMEntryCommand, PartDetailResponseModel>
+    IHttpContextAccessor httpContext) : IRequestHandler<DeleteBOMLineCommand, PartDetailResponseModel>
 {
-    public async Task<PartDetailResponseModel> Handle(DeleteBOMEntryCommand request, CancellationToken cancellationToken)
+    public async Task<PartDetailResponseModel> Handle(DeleteBOMLineCommand request, CancellationToken cancellationToken)
     {
-        var entry = await repo.FindBomEntryAsync(request.BomEntryId, request.ParentPartId, cancellationToken)
-            ?? throw new KeyNotFoundException($"BOM entry {request.BomEntryId} not found on part {request.ParentPartId}");
+        var entry = await repo.FindBomLineAsync(request.BomLineId, request.ParentPartId, cancellationToken)
+            ?? throw new KeyNotFoundException($"BOM line {request.BomLineId} not found on part {request.ParentPartId}");
 
-        await repo.RemoveBomEntryAsync(entry);
+        await repo.RemoveBomLineAsync(entry);
 
         // Phase 3 H4 / WU-20 — removing a component is a structural change.
         var userId = int.TryParse(httpContext.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier), out var v) ? v : (int?)null;

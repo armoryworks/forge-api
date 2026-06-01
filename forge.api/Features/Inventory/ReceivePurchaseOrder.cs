@@ -60,11 +60,11 @@ public class ReceivePurchaseOrderHandler(
         // is option-priced, base units otherwise — to match OrderedQuantity / RemainingQuantity).
         line.ReceivedQuantity += data.QuantityReceived;
 
-        // UoM purchase-options effort — inventory is always tracked in the part's base/stock UoM.
-        // When the line was ordered in purchase options (e.g. 2 "4×8 sheets"), convert the received
+        // UoM purchase-units effort — inventory is always tracked in the part's base/stock UoM.
+        // When the line was ordered in purchase units (e.g. 2 "4×8 sheets"), convert the received
         // option count to base units (2 × 32 = 64 sqft) before it lands in a bin. Null option (or
         // content ≤ 0) → already base units.
-        var contentPerOption = line.PurchaseOption?.ContentQuantity;
+        var contentPerOption = line.PurchaseUnit?.ContentQuantity;
         var baseQuantityReceived = contentPerOption is > 0
             ? data.QuantityReceived * contentPerOption.Value
             : data.QuantityReceived;

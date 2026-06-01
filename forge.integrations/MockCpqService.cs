@@ -56,7 +56,7 @@ public class MockCpqService(ILogger<MockCpqService> logger) : ICpqService
         return configurator.BasePrice ?? 0m;
     }
 
-    public IReadOnlyList<BOMEntry> GenerateBom(ProductConfigurator configurator, Dictionary<string, string> selections)
+    public IReadOnlyList<BOMLine> GenerateBom(ProductConfigurator configurator, Dictionary<string, string> selections)
     {
         logger.LogInformation("[MockCPQ] Generate BOM for {ConfiguratorName}", configurator.Name);
         return [];

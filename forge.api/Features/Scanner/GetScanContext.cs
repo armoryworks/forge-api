@@ -136,7 +136,7 @@ public class GetScanContextHandler(AppDbContext db)
             openShipmentLines.Count > 0 ? openShipmentLines : null));
 
         // Issue — available if active jobs use this part in BOM
-        var activeJobs = await db.BOMEntries
+        var activeJobs = await db.BOMLines
             .AsNoTracking()
             .Where(bom => bom.ChildPartId == part.Id)
             .Join(

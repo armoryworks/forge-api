@@ -60,7 +60,7 @@ public record PartDetailResponseModel(
     bool IsConfigurable,
     int? DefaultBinId,
     int? SourcePartId,
-    List<BOMEntryResponseModel> BomEntries,
+    List<BOMLineResponseModel> BomLines,
     List<BOMUsageResponseModel> UsedIn,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,

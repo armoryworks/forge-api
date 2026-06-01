@@ -16,5 +16,5 @@ public record PurchaseOrderLineResponseModel(
     decimal UnitPrice,
     decimal LineTotal,
     string? Notes,
-    int? PurchaseOptionId,
-    string? PurchaseOptionLabel);
+    int? PurchaseUnitId,
+    string? PurchaseUnitLabel);

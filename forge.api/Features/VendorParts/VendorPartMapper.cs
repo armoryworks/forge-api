@@ -60,5 +60,5 @@ internal static class VendorPartMapper
             EffectiveFrom: t.EffectiveFrom,
             EffectiveTo: t.EffectiveTo,
             Notes: t.Notes,
-            PurchaseOptionId: t.PurchaseOptionId);
+            PurchaseUnitId: t.PurchaseUnitId);
 }

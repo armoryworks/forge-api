@@ -5,9 +5,9 @@ using Forge.Core.Entities;
 
 namespace Forge.Data.Configuration;
 
-public class PartPurchaseOptionConfiguration : IEntityTypeConfiguration<PartPurchaseOption>
+public class PartPurchaseUnitConfiguration : IEntityTypeConfiguration<PartPurchaseUnit>
 {
-    public void Configure(EntityTypeBuilder<PartPurchaseOption> builder)
+    public void Configure(EntityTypeBuilder<PartPurchaseUnit> builder)
     {
         builder.Ignore(e => e.IsDeleted);
 
@@ -17,7 +17,7 @@ public class PartPurchaseOptionConfiguration : IEntityTypeConfiguration<PartPurc
         builder.HasIndex(e => e.PartId);
 
         builder.HasOne(e => e.Part)
-            .WithMany(p => p.PurchaseOptions)
+            .WithMany(p => p.PurchaseUnits)
             .HasForeignKey(e => e.PartId)
             .OnDelete(DeleteBehavior.Cascade);
 

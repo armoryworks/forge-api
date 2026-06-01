@@ -24,9 +24,9 @@ public record BomRevisionDetailResponseModel(
     int? CreatedByUserId,
     DateTimeOffset CreatedAt,
     bool IsCurrent,
-    List<BomRevisionEntryResponseModel> Entries);
+    List<BomRevisionLineResponseModel> Entries);
 
-public record BomRevisionEntryResponseModel(
+public record BomRevisionLineResponseModel(
     int Id,
     int PartId,
     string PartNumber,
