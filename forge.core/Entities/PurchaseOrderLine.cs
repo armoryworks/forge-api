@@ -28,6 +28,10 @@ public class PurchaseOrderLine : BaseEntity
     // base unit (legacy single-option behavior).
     public int? PurchaseUnitId { get; set; }
 
+    // Optional reason captured when a user manually overrides the suggested
+    // (vendor-tier) unit price on this line. Null when not overridden.
+    public string? ManualOverrideReason { get; set; }
+
     // Phase 3 / WU-14 — RemainingQuantity excludes cancelled-short-close so
     // a short-closed line reports 0 remaining, not the unreceived portion.
     public decimal RemainingQuantity => OrderedQuantity - ReceivedQuantity - CancelledShortCloseQuantity;

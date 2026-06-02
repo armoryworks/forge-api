@@ -13,6 +13,7 @@ public class PurchaseOrderLineConfiguration : IEntityTypeConfiguration<PurchaseO
 
         builder.Property(e => e.Description).HasMaxLength(500);
         builder.Property(e => e.Notes).HasMaxLength(1000);
+        builder.Property(e => e.ManualOverrideReason).HasMaxLength(500);
         // Phase 3 / WU-10 / F8-partial — quantity + price are decimal(18,4).
         // 4 decimals on quantity is enough for any reasonable UoM (lb/kg/hr/in).
         // 4 decimals on unit price is industry-standard (allows fractional cents

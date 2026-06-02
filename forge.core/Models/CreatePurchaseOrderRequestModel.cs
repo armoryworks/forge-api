@@ -16,4 +16,7 @@ public record CreatePurchaseOrderLineModel(
     string? Notes,
     // UoM purchase-units effort — which PartPurchaseUnit (size/form) is ordered. When set,
     // Quantity counts in options and UnitPrice is per option; receiving converts to base UoM.
-    int? PurchaseUnitId = null);
+    int? PurchaseUnitId = null,
+    // Optional reason captured when a user manually overrides the suggested
+    // (vendor-tier) unit price. Null when the price was not overridden.
+    string? ManualOverrideReason = null);

@@ -120,6 +120,7 @@ public class CreatePurchaseOrderHandler(
                 UnitPrice = line.UnitPrice,
                 Notes = line.Notes,
                 PurchaseUnitId = line.PurchaseUnitId,
+                ManualOverrideReason = line.ManualOverrideReason,
             });
         }
 

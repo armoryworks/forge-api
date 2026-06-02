@@ -170,6 +170,33 @@ public class CreatePurchaseOrderHandlerTests
     }
 
     [Fact]
+    public async Task Handle_LineWithManualOverrideReason_PersistsReason()
+    {
+        // Arrange
+        var vendorId = 1;
+        var partId = 2;
+        const string reason = "Negotiated one-off rate with vendor";
+        var vendor = new Vendor { Id = vendorId, CompanyName = "Vendor" };
+        var part = new Part { Id = partId, PartNumber = "P-001", Description = "Part Desc" };
+
+        _vendorRepo.Setup(r => r.FindAsync(vendorId, It.IsAny<CancellationToken>())).ReturnsAsync(vendor);
+        _poRepo.Setup(r => r.GenerateNextPONumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("PO-0001");
+        _partRepo.Setup(r => r.FindAsync(partId, It.IsAny<CancellationToken>())).ReturnsAsync(part);
+
+        var command = new CreatePurchaseOrderCommand(
+            vendorId, null, null,
+            [new CreatePurchaseOrderLineModel(partId, null, 1, 10m, null, ManualOverrideReason: reason)]);
+
+        // Act
+        await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        _poRepo.Verify(r => r.AddAsync(It.Is<PurchaseOrder>(po =>
+            po.Lines.First().ManualOverrideReason == reason
+        ), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Handle_MultipleLines_CreatesAllLines()
     {
         // Arrange
