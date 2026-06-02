@@ -17,4 +17,6 @@ public record PurchaseOrderLineResponseModel(
     decimal LineTotal,
     string? Notes,
     int? PurchaseUnitId,
-    string? PurchaseUnitLabel);
+    string? PurchaseUnitLabel,
+    // Reason captured when the unit price was manually overridden (null otherwise).
+    string? ManualOverrideReason);
