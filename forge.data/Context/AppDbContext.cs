@@ -40,6 +40,22 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
         _clock = clock;
     }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+
+        // Accounting GL (Phase 0): enforce posted-ledger immutability in software
+        // (§2, §4, §5.2). Idempotent — only add the interceptor when DI hasn't
+        // already registered it via AddDbContext, so production (Program.cs) and
+        // InMemory unit tests both get it without double-registration.
+        var extension = optionsBuilder.Options
+            .FindExtension<Microsoft.EntityFrameworkCore.Infrastructure.CoreOptionsExtension>();
+        var alreadyRegistered = extension?.Interceptors?
+            .OfType<Interceptors.LedgerImmutabilityInterceptor>().Any() ?? false;
+        if (!alreadyRegistered)
+            optionsBuilder.AddInterceptors(new Interceptors.LedgerImmutabilityInterceptor());
+    }
+
     public DbSet<TrackType> TrackTypes => Set<TrackType>();
     public DbSet<JobStage> JobStages => Set<JobStage>();
     public DbSet<Job> Jobs => Set<Job>();
@@ -461,6 +477,20 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
 
     // Pro Services rollout — Deliverable entity (Artifact 4 §4.6, gated by CAP-O2C-DELIVERABLE).
     public DbSet<Deliverable> Deliverables => Set<Deliverable>();
+
+    // Accounting GL foundation (Phase 0, acct_* schema; CAP-ACCT-FULLGL — OFF/dark).
+    // Ledger entities derive from BaseEntity (or carry a long Id) so they are
+    // exempt from the global soft-delete query filter (§2/§5.6).
+    public DbSet<Forge.Core.Entities.Accounting.Book> Books => Set<Forge.Core.Entities.Accounting.Book>();
+    public DbSet<Forge.Core.Entities.Accounting.GlAccount> GlAccounts => Set<Forge.Core.Entities.Accounting.GlAccount>();
+    public DbSet<Forge.Core.Entities.Accounting.CostCenter> CostCenters => Set<Forge.Core.Entities.Accounting.CostCenter>();
+    public DbSet<Forge.Core.Entities.Accounting.FiscalYear> FiscalYears => Set<Forge.Core.Entities.Accounting.FiscalYear>();
+    public DbSet<Forge.Core.Entities.Accounting.FiscalPeriod> FiscalPeriods => Set<Forge.Core.Entities.Accounting.FiscalPeriod>();
+    public DbSet<Forge.Core.Entities.Accounting.JournalEntry> JournalEntries => Set<Forge.Core.Entities.Accounting.JournalEntry>();
+    public DbSet<Forge.Core.Entities.Accounting.JournalLine> JournalLines => Set<Forge.Core.Entities.Accounting.JournalLine>();
+    public DbSet<Forge.Core.Entities.Accounting.AccountDeterminationRule> AccountDeterminationRules => Set<Forge.Core.Entities.Accounting.AccountDeterminationRule>();
+    public DbSet<Forge.Core.Entities.Accounting.AcctNumberSequence> AcctNumberSequences => Set<Forge.Core.Entities.Accounting.AcctNumberSequence>();
+    public DbSet<Forge.Core.Entities.Accounting.LedgerBalance> LedgerBalances => Set<Forge.Core.Entities.Accounting.LedgerBalance>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

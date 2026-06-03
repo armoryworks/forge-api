@@ -693,6 +693,11 @@ public static partial class SeedData
         // ── Default Chat Channels ────────────────────────────────────────────
         await SeedDefaultChannelsAsync(db, admin.Id);
 
+        // ── Accounting GL Phase-0 foundation (dark; CAP-ACCT-FULLGL off) ─────
+        // Book + chart of accounts + determination rules + current fiscal
+        // year/periods. Idempotent (run-once on empty acct_books). See §5.4.
+        await SeedAccountingAsync(db);
+
         // ── Historical Data ────────────────────────────────────────────────
         await SeedHistoricalDataAsync(db, admin.Id, akim.Id, dhart.Id, jsilva.Id, mreyes.Id,
             pmorris.Id, lwilson.Id, cthompson.Id, bkelly.Id);
