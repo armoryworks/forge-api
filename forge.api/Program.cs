@@ -332,6 +332,23 @@ try
     builder.Services.AddScoped<IAcctNumberSequenceAllocator, AcctNumberSequenceAllocator>();
     builder.Services.AddScoped<IPostingEngine, Forge.Api.Features.Accounting.ForgeGlPostingEngine>();
     builder.Services.AddScoped<ITrialBalanceService, Forge.Api.Features.Accounting.TrialBalanceService>();
+    // Segregation of duties at the engine boundary (§5.7). The engine takes
+    // IGlBoundaryAuthorizer as an optional dependency; supplying it here is the
+    // production path that fail-safe-denies callers lacking the GL capability.
+    // ICurrentUserCapabilities is the model-agnostic resolver the accounting
+    // suite binds to (it reads effective JWT role claims, already template-
+    // expanded by RoleClaimsExpander).
+    builder.Services.AddScoped<ICurrentUserCapabilities, Forge.Api.Features.Accounting.Sod.CurrentUserCapabilities>();
+    builder.Services.AddScoped<IGlBoundaryAuthorizer, Forge.Api.Features.Accounting.Sod.GlBoundaryAuthorizer>();
+    // Opening-balances hard-gate helper (§5.5): refuses to enable CAP-ACCT-FULLGL
+    // for a book until its opening balances are loaded. Logic only — the
+    // capability stays OFF; nothing calls EnsureCanEnableFullGlAsync yet.
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IGlCapabilityGate,
+                               Forge.Api.Features.Accounting.GlCapabilityGate>();
+    // Startup validator for the determination map (§5.2). Invoked once after the
+    // capability snapshot hydrates; warns (FULLGL off / dark) or fails fast
+    // (FULLGL on).
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.GlDeterminationStartupValidator>();
     // Posted-ledger immutability interceptor (§2, §4, §5.2). AppDbContext also
     // self-adds this in OnConfiguring (idempotent) so InMemory unit tests get
     // it; registering on the DbContext options here is the production path.
@@ -623,6 +640,11 @@ try
         builder.Services.AddScoped<IEmailService, SmtpEmailService>();
         // Accounting providers — all implementations registered; factory resolves active one from system settings
         builder.Services.AddScoped<IAccountingService, LocalAccountingService>();
+        // Native Forge Accounting Suite provider shim (ACCOUNTING_SUITE_PLAN §5.5).
+        // Registered so the factory can LIST + SELECT "forge-native"; it does NOT
+        // become the active provider (active stays per the accounting_provider
+        // system setting). The GL is reached via IPostingEngine, not this shim.
+        builder.Services.AddScoped<IAccountingService, ForgeGlAccountingService>();
         builder.Services.AddScoped<IAccountingService, QuickBooksAccountingService>();
         builder.Services.AddScoped<IAccountingService, XeroAccountingService>();
         builder.Services.AddScoped<IAccountingService, FreshBooksAccountingService>();
@@ -1203,6 +1225,30 @@ try
             Log.Information("[CAPABILITY-SEED] Snapshot hydrated: {Count} capabilities ({Enabled} enabled)",
                 capabilitySnapshots.Current.EnabledByCode.Count,
                 capabilitySnapshots.Current.EnabledByCode.Count(kv => kv.Value));
+
+            // Accounting GL — validate the account-determination map at startup
+            // (ACCOUNTING_SUITE_PLAN §5.2). Runs after the capability snapshot so
+            // it knows whether CAP-ACCT-FULLGL is on: warns (Phase-0 dark / off)
+            // or fails fast (on). A determination-map problem is caught here, not
+            // on the first posting's hot path. Wrapped defensively so a validator
+            // hiccup never bricks a boot while the GL is dark.
+            try
+            {
+                var fullGlEnabled = capabilitySnapshots.IsEnabled("CAP-ACCT-FULLGL");
+                var glDeterminationValidator = scope.ServiceProvider
+                    .GetRequiredService<Forge.Api.Features.Accounting.GlDeterminationStartupValidator>();
+                await glDeterminationValidator.ValidateAsync(fullGlEnabled);
+            }
+            catch (InvalidOperationException) when (capabilitySnapshots.IsEnabled("CAP-ACCT-FULLGL"))
+            {
+                // FULLGL on + bad determination map → fail fast (rethrow).
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[GL-DETERMINATION] Startup determination validation hit an error; " +
+                                "continuing because CAP-ACCT-FULLGL is off (GL is dark).");
+            }
 
             // Workflow Pattern Phase 3 — seed entity readiness validators +
             // workflow definitions. Idempotent stable-id upsert. Runs after

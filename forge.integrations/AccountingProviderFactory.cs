@@ -51,6 +51,12 @@ public class AccountingProviderFactory : IAccountingProviderFactory
             // AccountingProviderInfo(Id, Name, Description, Icon, RequiresOAuth, IsConfigured)
             // IsConfigured here means "is this provider currently active/selected"
             new("local", "Local (Standalone)", "All data stored locally — no external accounting sync required", "storage", false, activeId == "local" || string.IsNullOrEmpty(activeId)),
+            // Native in-ecosystem double-entry GL (ACCOUNTING_SUITE_PLAN §5.5).
+            // Selectable as a provider, but the GL itself is reached via
+            // IPostingEngine — this row is a shim so the factory can LIST
+            // "forge-native". Becoming active is a Conversion-workstream (§7A)
+            // step gated on CAP-ACCT-FULLGL, which stays OFF in Phase 0.
+            new(ForgeGlAccountingService.Id, "Forge Accounting Suite", "Native in-ecosystem double-entry general ledger — books stay inside Forge (no external sync)", "account_tree", false, activeId == ForgeGlAccountingService.Id),
             new("quickbooks", "QuickBooks Online", "Accounting, invoicing, and payment sync via Intuit QuickBooks", "account_balance", true, activeId == "quickbooks"),
             new("xero", "Xero", "Cloud accounting with multi-currency and project tracking", "account_balance_wallet", true, activeId == "xero"),
             new("freshbooks", "FreshBooks", "Small business invoicing and expense tracking", "receipt_long", true, activeId == "freshbooks"),

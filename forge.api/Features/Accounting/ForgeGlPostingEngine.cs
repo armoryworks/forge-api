@@ -15,17 +15,39 @@ namespace Forge.Api.Features.Accounting;
 /// counter and maintaining the incremental <see cref="LedgerBalance"/>
 /// read-model. Phase-0 single-currency: every line's currency equals the
 /// entry's, <c>FunctionalAmount = TxnAmount</c>, <c>FxRate = 1</c>.
+/// <para>
+/// Segregation of duties (§5.7) is enforced at this boundary via the optional
+/// <see cref="IGlBoundaryAuthorizer"/>: <see cref="PostAsync"/> requires
+/// <see cref="GlCapability.PostJournalEntry"/> and <see cref="ReverseAsync"/>
+/// requires <see cref="GlCapability.ReverseJournalEntry"/>. When an authorizer
+/// is injected (the production DI path) it denies callers who lack the
+/// capability with a fail-safe default-deny. When the authorizer is
+/// <c>null</c> — the explicit Phase-0 "dark" seam used by the engine's own unit
+/// tests — the boundary is treated as not-yet-wired and posting proceeds
+/// (CAP-ACCT-FULLGL is OFF so no command site reaches the engine in production).
+/// </para>
 /// </summary>
 public sealed class ForgeGlPostingEngine(
     AppDbContext db,
     IAccountDeterminationResolver resolver,
     IAcctNumberSequenceAllocator sequenceAllocator,
-    IClock clock) : IPostingEngine
+    IClock clock,
+    // TODO(§5.7 / Phase 1): make this non-optional once a command site wires the
+    // engine. The null-default keeps the dark Phase-0 engine constructible from
+    // unit tests that exercise posting mechanics without an identity context;
+    // the production DI registration always supplies a real authorizer, whose
+    // own default-deny is the fail-safe.
+    IGlBoundaryAuthorizer? authorizer = null) : IPostingEngine
 {
     public async Task<JournalEntry> PostAsync(
         PostingRequest request, int postedByUserId, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        // SoD boundary check (§5.7): a posting requires POST_JE in the caller's
+        // effective capability set. Enforced only when the authorizer seam is
+        // wired (see ctor note); the authorizer itself fail-safe-denies.
+        authorizer?.EnsureAuthorized(GlCapability.PostJournalEntry);
 
         // --- Idempotency: a duplicate (BookId, IdempotencyKey) returns the
         // existing entry (no throw). Non-Manual sources MUST carry a key. ---
@@ -176,6 +198,10 @@ public sealed class ForgeGlPostingEngine(
         int reversedByUserId,
         CancellationToken ct = default)
     {
+        // SoD boundary check (§5.7): reversal requires REVERSE_JE. Enforced only
+        // when the authorizer seam is wired (see ctor note).
+        authorizer?.EnsureAuthorized(GlCapability.ReverseJournalEntry);
+
         var original = await db.JournalEntries
             .Include(e => e.Lines)
             .FirstOrDefaultAsync(e => e.Id == entryId, ct)

@@ -202,6 +202,53 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
 
             await context.Response.WriteAsJsonAsync(problem);
         }
+        catch (Forge.Core.Models.Accounting.PostingException ex)
+        {
+            // Accounting GL Phase-0 — a posting-engine validation failure
+            // (unbalanced entry, unmapped/non-postable/cross-book account,
+            // control line missing a party, etc.). These are caller-input
+            // failures, so 400 with the machine-readable Code surfaced for the
+            // client. (Reached only via the CAP-ACCT-FULLGL-gated GL endpoints —
+            // dark while the capability is OFF.)
+            logger.LogWarning(ex, "[ACCT-GL] Posting rejected: {Code}", ex.Code);
+
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Posting rejected",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = ex.Code;
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
+        catch (Forge.Core.Models.Accounting.GlAuthorizationException ex)
+        {
+            // Accounting GL §5.7 — segregation-of-duties denial at the posting-
+            // engine boundary: the caller lacks the required GL capability. This
+            // is an authorization failure (not caller-input), so 403. (Reached
+            // only via the CAP-ACCT-FULLGL-gated GL endpoints — dark while the
+            // capability is OFF.)
+            logger.LogWarning("[ACCT-GL] SoD denial: missing {Capability}", ex.RequiredCapability);
+
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = "GL operation not permitted",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["requiredCapability"] = ex.RequiredCapability.ToString();
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Unhandled exception");

@@ -233,5 +233,154 @@ dotnet ef database update -p forge.data --startup-project forge.api
 
 ---
 
-*Generated for human review of the autonomous Phase-0 build. The capability `CAP-ACCT-FULLGL` remains
-OFF; all Phase-0 code is dark and reached only behind the engine/read interfaces.*
+## 7. Completion pass (2026-06-03)
+
+A second autonomous pass closed most of the §4 "stubbed / deferred" items above. **The capability
+`CAP-ACCT-FULLGL` remains OFF and the engine stays dark** — nothing was wired to an operational command
+site (Invoice/PO/Job/etc.). The engine is now reachable at runtime **only** via the new
+capability-gated GL endpoints (which 403 at the edge while FULLGL is off) and the test suite.
+
+### 7.1 Build + full-suite test — GREEN
+- `dotnet build forge.slnx` → **Build succeeded, 0 Warning(s), 0 Error(s)**.
+- `dotnet test forge.tests` (**whole suite, not just Accounting**) →
+  **Passed: 1165, Failed: 0, Skipped: 8** (~34 s). The 8 skips are pre-existing `Remediation.*`
+  placeholders, unrelated to accounting.
+- Accounting tests now total **69** (was 24 at `f70e10ba`) — **+45 new** across this pass.
+- `dotnet ef migrations list` still resolves design-time config cleanly; the new migration
+  `20260603085539_AddLedgerImmutabilityTriggers` shows **(Pending)** alongside the foundation migration —
+  **neither was applied** (`database update` never run, per guardrails).
+
+### 7.2 What this pass ADDED
+
+**(a) Postgres immutability triggers — closes the §4.1 principal gap.**
+- `forge.data/Migrations/20260603085539_AddLedgerImmutabilityTriggers.cs` (+ `.Designer.cs`) —
+  a new migration of **hand-written `migrationBuilder.Sql`** only (the foundation migration's
+  EF-scaffolded snapshot was NOT hand-edited). It creates `BEFORE UPDATE OR DELETE` triggers +
+  trigger functions on `acct_journal_entries` and `acct_journal_lines` that `RAISE EXCEPTION`
+  (`ERRCODE = restrict_violation`) on any mutation of a `Posted`/`Reversed` row, with the **same single
+  carve-out** the interceptor allows: the `Posted→Reversed` status flip + `reversed_by_entry_id` link on
+  a header. Lines follow their header's status. This is the defense-in-depth DB layer the §2/§4/§5.6/§9
+  "two ways" immutability requirement called for. (Migration is **Pending** — not yet applied to any DB.)
+
+**(b) Manual journal-entry + trial-balance HTTP endpoints (§5.5 / §5.9 acceptance).**
+- `forge.api/Controllers/AccountingGlController.cs` — `POST /api/v1/accounting/journal-entries` and
+  `GET /api/v1/accounting/trial-balance`. **Gated dark**: class-level `[RequiresCapability("CAP-ACCT-FULLGL")]`
+  + `[Authorize(Roles = "Controller")]`. With FULLGL OFF the capability-gate middleware 403s at the edge
+  before the handler runs.
+- `forge.api/Features/Accounting/CreateManualJournalEntry.cs` — MediatR command + FluentValidation
+  validator + handler. Handler reads the **server-trusted** principal off `IHttpContextAccessor`
+  (never client-supplied), builds a `PostingRequest`, and calls `IPostingEngine.PostAsync` — never
+  touches `JournalEntry` directly. Command type also carries `[RequiresCapability]` so the MediatR
+  `CapabilityGateBehavior` is a second gate.
+- `forge.api/Features/Accounting/GetTrialBalance.cs` — MediatR query + handler delegating to
+  `ITrialBalanceService`.
+
+**(c) Capability gate / opening-balances hard-gate (§5.5 / §7A).**
+- `forge.api/Features/Accounting/GlCapabilityGate.cs` (`IGlCapabilityGate`) — `EvaluateAsync` /
+  `AreOpeningBalancesLoadedAsync`: refuses to enable FULLGL for a book until a `Posted`
+  `Source=Conversion` opening journal exists (filter-immune via `IgnoreQueryFilters`). **Logic only** —
+  intentionally NOT wired into any capability-toggle path (that would be Phase 1), so FULLGL stays OFF.
+
+**(d) Startup determination-map validator (§5.2).**
+- `forge.api/Features/Accounting/GlDeterminationStartupValidator.cs` — for each active book, asks
+  `IAccountDeterminationResolver.ValidateKeysAsync` that every configured key resolves to a postable,
+  active, in-book account. Invoked in `Program.cs` **after** the capability snapshot hydrates: **warns**
+  when FULLGL is off (Phase-0 dark) and **fails fast** (throws) when FULLGL is on. Wrapped defensively so
+  a validator hiccup never bricks a dark boot.
+
+**(e) Provider shim (§5.5 / §3 gap-4).**
+- `forge.integrations/ForgeGlAccountingService.cs` (`IAccountingService`, id `"forge-native"`) — makes the
+  native suite **listable/selectable** in `AccountingProviderFactory` (one new row added there). It is a
+  **thin shim, NOT the GL seam**: every sync/CRM method throws `NotSupportedException` pointing at
+  `IPostingEngine`; only the connectivity probes report a healthy sync-free local provider. Registered in
+  DI but does **not** become the active provider.
+
+**(f) Segregation of duties at the engine boundary (§5.7).**
+- `forge.core/Enums/Accounting/GlCapability.cs` — `PostJournalEntry / ApproveJournalEntry /
+  ReverseJournalEntry / ClosePeriodSoft / ClosePeriodHard / ReopenPeriod / ConfigureGl`.
+- `forge.core/Interfaces/ICurrentUserCapabilities.cs` + `forge.core/Interfaces/IGlBoundaryAuthorizer.cs`
+  — model-agnostic capability resolver + boundary enforcer contracts.
+- `forge.core/Models/Accounting/GlAuthorizationException.cs` — carries the missing `GlCapability`;
+  mapped to **403** at the HTTP edge (distinct from `PostingException` → 400).
+- `forge.api/Features/Accounting/Sod/CurrentUserCapabilities.cs` — reads effective JWT role claims
+  (already template-expanded by `RoleClaimsExpander`); GL capabilities attach to **`Controller`** (bare
+  Admin/Manager/OfficeManager get none); exposes the toxic-combination probe (Admin + POST_JE).
+- `forge.api/Features/Accounting/Sod/GlBoundaryAuthorizer.cs` — **fail-safe default-deny** (no resolvable
+  principal → deny); the toxic-combination is **logged, not blocked** (the solo `OwnerOperator` superuser
+  legitimately trips it; the log catches the unintended combos).
+- `forge.api/Features/Accounting/ForgeGlPostingEngine.cs` (modified) — `PostAsync`/`ReverseAsync` now call
+  the **optional** `IGlBoundaryAuthorizer` (`EnsureAuthorized(PostJournalEntry/ReverseJournalEntry)`).
+  The dependency is null-defaulted: the production DI path always supplies a real (default-deny)
+  authorizer, while the engine's own unit tests construct it with `null` to exercise posting mechanics
+  without an identity context. (CAP-ACCT-FULLGL is OFF, so no command site reaches the engine in prod.)
+
+**(g) HTTP error mapping.**
+- `forge.api/Middleware/ExceptionHandlingMiddleware.cs` (modified) — `PostingException` → **400**
+  (`problem.code` = machine-readable code); `GlAuthorizationException` → **403**
+  (`problem.requiredCapability`). Both reachable only via the gated endpoints.
+
+**(h) DI wiring.**
+- `forge.api/Program.cs` (modified) — registers `ICurrentUserCapabilities`, `IGlBoundaryAuthorizer`,
+  `IGlCapabilityGate`, `GlDeterminationStartupValidator` (scoped), and invokes the startup validator
+  after capability-snapshot hydration. `ForgeGlAccountingService` registered in the provider list.
+
+**(i) New tests (+45).**
+- `forge.tests/Accounting/PostingEngineEdgeCaseTests.cs` — additional engine edge cases.
+- `forge.tests/Accounting/AccountDeterminationResolverTests.cs` — resolver scope precedence / no
+  cross-book fallback / `ValidateKeysAsync`.
+- `forge.tests/Accounting/GlSegregationOfDutiesTests.cs` — capability mapping + fail-safe deny + toxic
+  combination.
+- `forge.tests/Accounting/GlCapabilityGateAndBoundaryTests.cs` — opening-balances hard-gate +
+  boundary-authorizer behavior.
+- `forge.tests/Accounting/ForgeGlAccountingProviderShimTests.cs` — shim throws on sync methods, probes OK.
+- `forge.tests/Handlers/Accounting/AccountingGlHandlerTests.cs` — the MediatR command/query handlers
+  (manual-JE post + trial-balance) end to end against the engine.
+
+### 7.3 SoD status (§5.7)
+Capability-based SoD is now **implemented and enforced at the engine boundary** (not role-name-based):
+GL capabilities attach to `Controller`; the boundary authorizer fail-safe-denies an unresolvable
+principal; the toxic-combination (grant-permissions Admin + POST_JE) is **surfaced via a warning log**,
+not blocked, so the seeded `OwnerOperator` keeps working. **Maker-checker routing** (Draft→Approved→Posted
+for reverse / hard-close / large JEs) is **still deferred** — routine posts go straight to `Posted` as in
+Phase 0; the capability keys for it exist but the workflow is Phase 3 (close) / cross-cutting (large-JE
+threshold).
+
+### 7.4 Still stubbed / deferred after this pass
+1. **Audit / observability (§5.8) — still not wired.** No `ISystemAuditWriter` calls on
+   post/reverse/close/determination-rule changes, and no posting-failure / sweeper alerting. The SoD
+   toxic-combination warning log is the only observability added. **Deferred.**
+2. **Reconciliation sweeper (§4) — not implemented.** Expected — it has no sources to reconcile until
+   Phase 1 wires posting.
+3. **Maker-checker workflow (§5.7) — deferred** (see §7.3). Routine posts go straight to `Posted`.
+4. **Period close / reopen operations — not implemented.** The `ClosePeriodSoft/Hard`, `ReopenPeriod`
+   capability keys exist; the close engine + auto-reversal of `AutoReverseNextPeriod` accruals are Phase 3.
+5. **Migration not applied / not DB-verified.** Per guardrails we did NOT run `dotnet ef database update`.
+   The two new migrations compile and list as Pending; the trigger DDL is therefore **unverified at
+   runtime** (the trigger SQL is hand-written and untested against a live Postgres).
+6. **Concurrent-close race still not auto-tested.** The `FOR UPDATE` period lock is real on Npgsql but a
+   no-op on the InMemory test provider, so §5.9's "incl. under a concurrent close" remains unproven by an
+   automated test (would need a Postgres-backed integration test).
+7. **Opening-balances hard-gate is logic-only** — `IGlCapabilityGate` is implemented + tested but not
+   invoked by any capability-toggle path (intentional; wiring it is Phase 1 and would begin un-darking).
+
+### 7.5 Updated open questions
+- **Audit wiring shape:** confirm `ISystemAuditWriter` is the right sink for GL post/reverse/close events
+  and define the before/after payload + reason capture (§5.8) before Phase 1 un-darks the engine.
+- **Maker-checker large-JE threshold:** still a Book-configurable amount per §5.7 / §12 — needs the value
+  + the Draft→Approved→Posted routing decided before reverse/hard-close go live.
+- **Determination-validator severity at toggle time:** today severity follows the *startup* FULLGL state.
+  When the Phase-1 toggle path flips FULLGL on for a book, it should re-run `GlDeterminationStartupValidator`
+  (or `IGlCapabilityGate`) and **fail the toggle** on an unresolved key — confirm that is where the gate
+  belongs.
+- **Postgres trigger vs interceptor carve-out drift:** the trigger and the C# interceptor each encode the
+  `Posted→Reversed` carve-out independently. A live integration test should assert they agree once a DB
+  is available (the trigger is currently unverified against Postgres).
+- **`accounting_provider = "forge-native"` activation semantics:** selecting the shim as active provider is
+  defined as "books live inside Forge"; confirm the Conversion-workstream (§7A) capability flip
+  (EXTERNAL off → BUILTIN on → FULLGL on) is the path that sets it, not a bare provider switch.
+
+---
+
+*Generated for human review of the autonomous Phase-0 build + completion pass. The capability
+`CAP-ACCT-FULLGL` remains OFF; all Phase-0 code is dark — reachable only behind the engine/read
+interfaces and the capability-gated GL endpoints (which 403 at the edge while FULLGL is off).*
