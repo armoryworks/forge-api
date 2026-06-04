@@ -5,6 +5,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Forge.Api.Features.Accounting;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -35,7 +36,12 @@ public class UpdateExpenseStatusHandler(
     IHttpContextAccessor httpContext,
     ISyncQueueRepository syncQueue,
     IAccountingProviderFactory providerFactory,
-    ILogger<UpdateExpenseStatusHandler> logger) : IRequestHandler<UpdateExpenseStatusCommand, ExpenseResponseModel>
+    ILogger<UpdateExpenseStatusHandler> logger,
+    // Optional / null-default so the handler stays constructible without an
+    // accounting context (e.g. isolated unit tests). The production DI path
+    // supplies it; with CAP-ACCT-FULLGL off the posting service no-ops anyway
+    // (mirrors SendInvoice's STAGE A / CreatePayment's STAGE B wiring).
+    IExpenseApPostingService? apPosting = null) : IRequestHandler<UpdateExpenseStatusCommand, ExpenseResponseModel>
 {
     public async Task<ExpenseResponseModel> Handle(UpdateExpenseStatusCommand request, CancellationToken cancellationToken)
     {
@@ -49,6 +55,19 @@ public class UpdateExpenseStatusHandler(
         expense.ApprovalNotes = request.Data.ApprovalNotes?.Trim();
 
         await repo.SaveChangesAsync(cancellationToken);
+
+        // ── Inline expense / AP posting (Phase-1 STAGE C, §7 matrix row "Expense
+        // approved"). Runs on the approved transition AFTER the operational
+        // SaveChanges so the expense row (status + ApprovedBy) is persisted; the
+        // posting then references it as the source and posts on the SAME
+        // request-scoped context (the locked inline model — §2). No-op while
+        // CAP-ACCT-FULLGL is off; the service self-gates, so the operational
+        // expense-approval flow is unchanged while dark. Dr Expense / Cr AP
+        // (party = vendor) when the expense settles to a vendor, else Cr Cash.
+        if (apPosting is not null && request.Data.Status is ExpenseStatus.Approved or ExpenseStatus.SelfApproved)
+        {
+            await apPosting.PostExpenseApprovedAsync(expense.Id, userId, cancellationToken);
+        }
 
         // Enqueue QB expense creation when approved
         if (request.Data.Status is ExpenseStatus.Approved or ExpenseStatus.SelfApproved)

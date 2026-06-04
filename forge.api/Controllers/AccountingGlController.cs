@@ -74,6 +74,85 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new GetTrialBalanceQuery(bookId, fromDate, toDate), ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Phase-1 STAGE D — produce the AR sub-ledger + aging for the book as of an
+    /// optional date (defaults to today). Derived from posted AR-control
+    /// <see cref="Forge.Core.Entities.Accounting.JournalLine"/>s carrying a
+    /// Customer party, bucketed by age, with an AR-control-vs-aging
+    /// reconciliation attached (§6 Phase-1 row "AR sub-ledger + aging").
+    /// </summary>
+    [HttpGet("ar-aging")]
+    public async Task<ActionResult<ArAging>> GetArAging(
+        [FromQuery] int bookId,
+        [FromQuery] DateOnly? asOfDate,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetArAgingQuery(bookId, asOfDate), ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Phase-1 STAGE E — Profit &amp; Loss for the book over an optional period
+    /// range (ACCOUNTING_SUITE_PLAN §6 Phase-1 row "P&amp;L + Balance Sheet").
+    /// Built over the trial-balance ledger projection restricted to Income/Expense
+    /// accounts (<c>GlAccount.AccountType</c>).
+    /// <para>
+    /// <b>Dual-gated.</b> The method-level <see cref="RequiresCapabilityAttribute"/>
+    /// <c>CAP-RPT-FINANCIALS</c> (financial-statements reporting gate, default OFF
+    /// until COGS posting is live — §6 / §10) is what the HTTP capability
+    /// middleware enforces at the edge (it overrides the controller-level
+    /// <c>CAP-ACCT-FULLGL</c> for this action). The query type still carries
+    /// <c>CAP-ACCT-FULLGL</c>, so the MediatR <c>CapabilityGateBehavior</c>
+    /// enforces the GL engine gate as well — <b>both</b> capabilities must be ON to
+    /// reach the handler.
+    /// </para>
+    /// <para>
+    /// <b>Incomplete-margin label:</b> COGS is not posted until Phase 2, so the
+    /// result carries <c>CogsPosted = false</c> + a margin caveat; gross margin is
+    /// incomplete.
+    /// </para>
+    /// </summary>
+    [HttpGet("pnl")]
+    [RequiresCapability("CAP-RPT-FINANCIALS")]
+    public async Task<ActionResult<ProfitAndLoss>> GetProfitAndLoss(
+        [FromQuery] int bookId,
+        [FromQuery] DateOnly? fromDate,
+        [FromQuery] DateOnly? toDate,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetProfitAndLossQuery(bookId, fromDate, toDate), ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Phase-1 STAGE E — Balance Sheet for the book as of an optional date
+    /// (defaults to today) (ACCOUNTING_SUITE_PLAN §6 Phase-1 row "P&amp;L + Balance
+    /// Sheet"). Built over the trial-balance ledger projection restricted to
+    /// Asset/Liability/Equity accounts, plus a computed current-year-earnings
+    /// equity line so the sheet balances before the Phase-3 year-end
+    /// Retained-Earnings roll.
+    /// <para>
+    /// <b>Dual-gated</b> identically to <see cref="GetProfitAndLoss"/>:
+    /// <c>CAP-RPT-FINANCIALS</c> at the HTTP edge + <c>CAP-ACCT-FULLGL</c> on the
+    /// query. Both default OFF.
+    /// </para>
+    /// <para>
+    /// <b>Incomplete-margin label:</b> current-year-earnings inherits the
+    /// not-yet-posted-COGS limitation (Phase 2); <c>CogsPosted = false</c> + a
+    /// caveat are returned.
+    /// </para>
+    /// </summary>
+    [HttpGet("balance-sheet")]
+    [RequiresCapability("CAP-RPT-FINANCIALS")]
+    public async Task<ActionResult<BalanceSheet>> GetBalanceSheet(
+        [FromQuery] int bookId,
+        [FromQuery] DateOnly? asOfDate,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetBalanceSheetQuery(bookId, asOfDate), ct);
+        return Ok(result);
+    }
 }
 
 /// <summary>

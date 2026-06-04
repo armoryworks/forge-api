@@ -120,7 +120,11 @@ public static partial class SeedData
             ("52000", "Inventory Write-Down",        AccountType.Expense,   NormalBalance.Debit,  false, null,                         "INVENTORY_WRITEDOWN"),
 
             // ── Operating expense (6xxxx) ───────────────────────────────────
-            ("60000", "General & Administrative",    AccountType.Expense,   NormalBalance.Debit,  false, null,                         null),
+            // Phase-1 STAGE C — the default debit target for an approved Expense
+            // (§7 "Expense approved": Dr Expense / Cr AP-or-Cash). Per-category
+            // determination is deferred (§12); Phase 1 routes all expense
+            // categories to this single operating-expense account.
+            ("60000", "General & Administrative",    AccountType.Expense,   NormalBalance.Debit,  false, null,                         "OPERATING_EXPENSE"),
 
             // ── Other income / expense (9xxxx) ──────────────────────────────
             ("90000", "Foreign Exchange Gain",       AccountType.Income,    NormalBalance.Credit, false, null,                         "FX_GAIN"),

@@ -1,6 +1,10 @@
+using System.Security.Claims;
+
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -39,7 +43,17 @@ public class CreatePaymentValidator : AbstractValidator<CreatePaymentCommand>
     }
 }
 
-public class CreatePaymentHandler(IPaymentRepository repo, ICustomerRepository customerRepo, IInvoiceRepository invoiceRepo, AppDbContext db)
+public class CreatePaymentHandler(
+    IPaymentRepository repo,
+    ICustomerRepository customerRepo,
+    IInvoiceRepository invoiceRepo,
+    AppDbContext db,
+    // Optional / null-default so the handler stays constructible without an
+    // accounting context (e.g. isolated unit tests). The production DI path
+    // supplies both; with CAP-ACCT-FULLGL off the posting service no-ops anyway
+    // (mirrors SendInvoice's STAGE A wiring).
+    IPaymentCashPostingService? cashPosting = null,
+    IHttpContextAccessor? httpContextAccessor = null)
     : IRequestHandler<CreatePaymentCommand, PaymentListItemModel>
 {
     public async Task<PaymentListItemModel> Handle(CreatePaymentCommand request, CancellationToken cancellationToken)
@@ -128,6 +142,25 @@ public class CreatePaymentHandler(IPaymentRepository repo, ICustomerRepository c
             }
 
             throw new InvalidOperationException("Concurrent payment conflict — please retry.");
+        }
+
+        // ── Inline cash-receipt posting (Phase-1 STAGE B, §7 matrix row "Payment
+        // applied"). Runs AFTER the operational SaveChanges so the payment row
+        // (and its applications / invoice-status changes) is persisted and the
+        // payment Id is assigned — the posting then references it as the source.
+        // The engine posts on the SAME request-scoped context (the locked inline
+        // model — §2). No-op while CAP-ACCT-FULLGL is off; the service self-gates,
+        // so the operational payment flow is unchanged while dark.
+        if (cashPosting is not null)
+        {
+            var createdByUserId =
+                int.TryParse(
+                    httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier),
+                    out var uid)
+                    ? uid
+                    : 0;
+
+            await cashPosting.PostPaymentCreatedAsync(payment.Id, createdByUserId, cancellationToken);
         }
 
         return new PaymentListItemModel(

@@ -332,6 +332,22 @@ try
     builder.Services.AddScoped<IAcctNumberSequenceAllocator, AcctNumberSequenceAllocator>();
     builder.Services.AddScoped<IPostingEngine, Forge.Api.Features.Accounting.ForgeGlPostingEngine>();
     builder.Services.AddScoped<ITrialBalanceService, Forge.Api.Features.Accounting.TrialBalanceService>();
+    // Phase-1 STAGE D — AR sub-ledger + aging read seam (§6 Phase-1 row "AR
+    // sub-ledger + aging"). Derives the aging from posted AR-control JournalLines
+    // carrying a Customer party (filter-immune) with an AR-control-vs-aging
+    // reconciliation. Reached only via the gated GET /api/v1/accounting/ar-aging
+    // endpoint (403 at the edge while CAP-ACCT-FULLGL is OFF), so it stays dark.
+    builder.Services.AddScoped<IArAgingService, Forge.Api.Features.Accounting.ArAgingService>();
+    // Phase-1 STAGE E — basic financial statements (§6 Phase-1 row "P&L + Balance
+    // Sheet"). Profit & Loss (Income/Expense over a period range) and Balance
+    // Sheet (Asset/Liability/Equity as of a date, with computed current-year-
+    // earnings) built over the same filter-immune ledger projection the trial
+    // balance reads, classified by GlAccount.AccountType. Reached only via the
+    // gated GET /api/v1/accounting/pnl and /balance-sheet endpoints, which carry
+    // CAP-RPT-FINANCIALS at the HTTP edge (default OFF until COGS posting is live)
+    // on top of the CAP-ACCT-FULLGL gate on the query types — both must be ON, so
+    // it stays dark. Statements are labelled CogsPosted=false (Phase-2 limitation).
+    builder.Services.AddScoped<IFinancialStatementService, Forge.Api.Features.Accounting.FinancialStatementService>();
     // Segregation of duties at the engine boundary (§5.7). The engine takes
     // IGlBoundaryAuthorizer as an optional dependency; supplying it here is the
     // production path that fail-safe-denies callers lacking the GL capability.
@@ -353,6 +369,27 @@ try
     // self-adds this in OnConfiguring (idempotent) so InMemory unit tests get
     // it; registering on the DbContext options here is the production path.
     builder.Services.AddSingleton<Forge.Data.Interceptors.LedgerImmutabilityInterceptor>();
+    // Phase-1 STAGE A — AR / revenue / tax posting wired INLINE into the invoice
+    // finalize handler (SendInvoice). Self-gates on CAP-ACCT-FULLGL: a no-op
+    // while the capability is OFF (the default), so the operational invoice flow
+    // is unchanged and the engine stays dark (§7 matrix row 1–2, §8.4).
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IInvoiceArPostingService,
+                               Forge.Api.Features.Accounting.InvoiceArPostingService>();
+    // Phase-1 STAGE B — Payment / cash-receipt posting wired INLINE into the
+    // CreatePayment handler. Self-gates on CAP-ACCT-FULLGL: a no-op while the
+    // capability is OFF (the default), so the operational payment flow is
+    // unchanged and the engine stays dark (§7 matrix row "Payment applied").
+    // Posts Dr Cash / Cr AR (applied) / Cr Customer Deposits (unapplied).
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IPaymentCashPostingService,
+                               Forge.Api.Features.Accounting.PaymentCashPostingService>();
+    // Phase-1 STAGE C — Expense / AP posting wired INLINE into the approved
+    // transition of the UpdateExpenseStatus handler. Self-gates on
+    // CAP-ACCT-FULLGL: a no-op while the capability is OFF (the default), so the
+    // operational expense-approval flow is unchanged and the engine stays dark
+    // (§7 matrix row "Expense approved"). Posts Dr Expense / Cr AP (party =
+    // vendor) when the expense settles to a vendor, else Dr Expense / Cr Cash.
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IExpenseApPostingService,
+                               Forge.Api.Features.Accounting.ExpenseApPostingService>();
 
     builder.Services.AddScoped<IBarcodeService, BarcodeService>();
     builder.Services.AddSingleton<ICsvExportService, CsvExportService>();

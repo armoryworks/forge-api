@@ -199,4 +199,52 @@ public class AccountingGlHandlerTests
         tb.TotalCredit.Should().Be(0m);
         tb.Rows.Should().BeEmpty();
     }
+
+    // ── Phase-1 STAGE E — P&L + Balance Sheet handlers (§6 Phase-1 row) ─────────
+
+    [Fact]
+    public async Task GetProfitAndLoss_AfterRevenuePost_ReturnsNetIncomeAndCaveat()
+    {
+        using var db = await SeedAsync();
+        // Dr Cash / Cr Revenue 500 → revenue 500, no expense, net income 500.
+        var postHandler = new CreateManualJournalEntryHandler(CreateEngine(db), HttpAccessorFor(PostingUserId));
+        await postHandler.Handle(BalancedCommand(500m), CancellationToken.None);
+
+        var pnlHandler = new GetProfitAndLossHandler(new FinancialStatementService(db, new SystemClock()));
+
+        var pnl = await pnlHandler.Handle(
+            new GetProfitAndLossQuery(BookId, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31)),
+            CancellationToken.None);
+
+        pnl.TotalIncome.Should().Be(500m);
+        pnl.TotalExpense.Should().Be(0m);
+        pnl.NetIncome.Should().Be(500m);
+        // Phase-1 incomplete-margin label (COGS not posted until Phase 2).
+        pnl.CogsPosted.Should().BeFalse();
+        pnl.MarginCaveat.Should().Contain("COGS");
+    }
+
+    [Fact]
+    public async Task GetBalanceSheet_AfterRevenuePost_BalancesWithCurrentYearEarnings()
+    {
+        using var db = await SeedAsync();
+        // Dr Cash 500 (asset) / Cr Revenue 500 (income) on 2026-01-15.
+        var postHandler = new CreateManualJournalEntryHandler(CreateEngine(db), HttpAccessorFor(PostingUserId));
+        await postHandler.Handle(BalancedCommand(500m), CancellationToken.None);
+
+        var bsHandler = new GetBalanceSheetHandler(new FinancialStatementService(db, new SystemClock()));
+
+        var bs = await bsHandler.Handle(
+            new GetBalanceSheetQuery(BookId, new DateOnly(2026, 6, 30)),
+            CancellationToken.None);
+
+        // Asset (cash 500) balances against current-year earnings (revenue 500),
+        // which is surfaced as equity before the Phase-3 year-end RE roll.
+        bs.TotalAssets.Should().Be(500m);
+        bs.TotalLiabilities.Should().Be(0m);
+        bs.CurrentYearEarnings.Should().Be(500m);
+        bs.TotalLiabilitiesAndEquity.Should().Be(500m);
+        bs.IsBalanced.Should().BeTrue();
+        bs.CogsPosted.Should().BeFalse();
+    }
 }
