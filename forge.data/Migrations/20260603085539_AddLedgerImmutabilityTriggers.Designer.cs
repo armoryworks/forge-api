@@ -3,6 +3,7 @@ using System;
 using Forge.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using Pgvector;
 namespace Forge.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260603085539_AddLedgerImmutabilityTriggers")]
+    partial class AddLedgerImmutabilityTriggers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -405,14 +408,6 @@ namespace Forge.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("code");
 
-                    b.Property<string>("DefaultCostingMethod")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("Standard")
-                        .HasColumnName("default_costing_method");
-
                     b.Property<int>("FunctionalCurrencyId")
                         .HasColumnType("integer")
                         .HasColumnName("functional_currency_id");
@@ -432,14 +427,6 @@ namespace Forge.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("reporting_time_zone");
-
-                    b.Property<string>("RevenueRecognitionMethod")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasDefaultValue("PointInTime")
-                        .HasColumnName("revenue_recognition_method");
 
                     b.Property<decimal>("RoundingTolerance")
                         .HasPrecision(18, 4)
