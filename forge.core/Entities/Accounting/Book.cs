@@ -1,3 +1,5 @@
+using Forge.Core.Enums.Accounting;
+
 namespace Forge.Core.Entities.Accounting;
 
 /// <summary>
@@ -30,6 +32,20 @@ public class Book : BaseEntity
     /// functional currency's smallest unit (e.g. 0.01).
     /// </summary>
     public decimal RoundingTolerance { get; set; }
+
+    /// <summary>
+    /// Default inventory costing method; overridable per part via
+    /// <c>Part.ValuationClassId</c>. Manufacturing default = Standard (§8.1).
+    /// Not consumed by the engine until Phase 2 — present now so it's config, not a migration.
+    /// </summary>
+    public CostingMethod DefaultCostingMethod { get; set; } = CostingMethod.Standard;
+
+    /// <summary>
+    /// How revenue (and matching COGS) is recognized. Default = PointInTime
+    /// (control transfer). Over-time methods land later (§8.4). Not consumed by
+    /// the engine until Phase 1 — present now so it's config, not a migration.
+    /// </summary>
+    public RevenueRecognitionMethod RevenueRecognitionMethod { get; set; } = RevenueRecognitionMethod.PointInTime;
 
     public bool IsActive { get; set; } = true;
 
