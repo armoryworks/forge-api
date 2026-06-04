@@ -63,7 +63,7 @@ public class CheckTierVarianceHandler(
                 Tiers = vp.PriceTiers
                     .Where(t => t.EffectiveFrom <= now && (t.EffectiveTo == null || t.EffectiveTo > now))
                     .OrderByDescending(t => t.MinQuantity)
-                    .Select(t => new { t.MinQuantity, t.UnitPrice, t.Currency })
+                    .Select(t => new { t.MinQuantity, t.UnitPrice, t.Currency, t.PurchaseUnitId })
                     .ToList(),
             })
             .ToListAsync(ct);
@@ -83,8 +83,14 @@ public class CheckTierVarianceHandler(
             {
                 vendorPartId = vp.Id;
                 currency = vp.Currency;
-                // Pick the tier whose MinQuantity is the largest <= request qty.
-                var tier = vp.Tiers.FirstOrDefault(t => t.MinQuantity <= line.Quantity);
+                // Match the tier for the SAME purchase option the line is priced
+                // in (null = per base unit / "1 per each"), then the largest
+                // MinQuantity break the quantity qualifies for. Tier UnitPrice and
+                // the entered UnitPrice are both expressed per that option, so the
+                // variance comparison below is apples-to-apples — no per-base
+                // normalization needed once the option matches.
+                var tier = vp.Tiers.FirstOrDefault(t =>
+                    t.PurchaseUnitId == line.PurchaseUnitId && t.MinQuantity <= line.Quantity);
                 if (tier != null)
                 {
                     tierPrice = tier.UnitPrice;
