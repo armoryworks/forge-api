@@ -143,6 +143,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<PaymentApplication> PaymentApplications => Set<PaymentApplication>();
 
+    // AP sub-ledger (⚡ Accounting Boundary) — Phase-2 VendorBill / VendorPayment
+    public DbSet<VendorBill> VendorBills => Set<VendorBill>();
+    public DbSet<VendorBillLine> VendorBillLines => Set<VendorBillLine>();
+    public DbSet<VendorPayment> VendorPayments => Set<VendorPayment>();
+    public DbSet<VendorPaymentApplication> VendorPaymentApplications => Set<VendorPaymentApplication>();
+
     // Pricing
     public DbSet<PriceList> PriceLists => Set<PriceList>();
     public DbSet<PriceListEntry> PriceListEntries => Set<PriceListEntry>();
