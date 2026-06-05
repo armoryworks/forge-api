@@ -624,6 +624,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
         nameof(BaseAuditableEntity.DeletedAt),
         nameof(BaseAuditableEntity.DeletedBy),
         nameof(BaseEntity.Id),
+        // Optimistic-locking concurrency token (IConcurrencyVersioned). Bumped
+        // on every Modified save, so it would otherwise emit a meaningless
+        // "Version changed from N to N+1" history row alongside every real
+        // edit. It's plumbing, not a user-facing change — never log it.
+        nameof(IConcurrencyVersioned.Version),
     };
 
     private (

@@ -138,6 +138,17 @@ public class InventoryController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    // Manual inventory override (forge-api#4) — set on-hand for an existing part
+    // at a location, creating the bin content when none exists (opening stock).
+    [HttpPost("set-on-hand")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RequiresCapability("CAP-INV-ADJUST")]
+    public async Task<IActionResult> SetOnHandQuantity([FromBody] SetOnHandQuantityRequestModel request)
+    {
+        await mediator.Send(new SetOnHandQuantityCommand(request));
+        return NoContent();
+    }
+
     // ── Cycle Counts ──
 
     [HttpGet("cycle-counts")]

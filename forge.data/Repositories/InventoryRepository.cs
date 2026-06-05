@@ -161,6 +161,11 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
     public Task<BinContent?> FindBinContentAsync(int id, CancellationToken ct)
         => db.BinContents.Include(c => c.Location).FirstOrDefaultAsync(c => c.Id == id, ct);
 
+    public Task<BinContent?> FindActiveBinContentByPartLocationAsync(int partId, int locationId, CancellationToken ct)
+        => db.BinContents.Include(c => c.Location)
+            .FirstOrDefaultAsync(c => c.EntityType == "part" && c.EntityId == partId
+                && c.LocationId == locationId && c.RemovedAt == null, ct);
+
     public async Task AddBinContentAsync(BinContent content, CancellationToken ct)
     {
         await db.BinContents.AddAsync(content, ct);

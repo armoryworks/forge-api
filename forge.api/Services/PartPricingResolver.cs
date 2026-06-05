@@ -91,14 +91,27 @@ public class PartPricingResolver(AppDbContext db) : IPartPricingResolver
                 && t.EffectiveFrom <= now
                 && (t.EffectiveTo == null || t.EffectiveTo > now))
             .OrderBy(t => t.MinQuantity)
-            .Select(t => new { t.Id, t.UnitPrice, t.Currency, t.Notes })
+            .Select(t => new
+            {
+                t.Id,
+                t.UnitPrice,
+                t.Currency,
+                t.Notes,
+                Content = t.PurchaseUnit != null ? (decimal?)t.PurchaseUnit.ContentQuantity : null,
+            })
             .FirstOrDefaultAsync(ct);
 
         if (vendorTier is not null)
         {
+            // A tier's UnitPrice is the price for ONE purchase option (e.g. a
+            // "Box of 100"); normalize to a per-base-unit price by the option's
+            // content quantity. A null/≤0 content means the tier is already
+            // priced per base unit ("1 / each"). Mirrors VendorCostResolver so
+            // both resolvers agree on what a tier price means.
+            var content = vendorTier.Content is > 0m ? vendorTier.Content.Value : 1m;
             return new ResolvedPartPrice(
                 PartId: partId,
-                UnitPrice: vendorTier.UnitPrice,
+                UnitPrice: vendorTier.UnitPrice / content,
                 Currency: vendorTier.Currency,
                 Source: PartPriceSource.VendorPartTier,
                 SourceRowId: vendorTier.Id,

@@ -19,7 +19,12 @@ public record CheckTierVarianceRequestModel(
 public record CheckTierVarianceLineModel(
     int PartId,
     decimal Quantity,
-    decimal UnitPrice);
+    decimal UnitPrice,
+    // The purchase option the entered price/qty are expressed in. Null = priced
+    // per base unit ("1 per each"). The variance check matches the tier for the
+    // SAME option so the price comparison is apples-to-apples; legacy callers
+    // that omit this default to null and match the per-base-unit tiers.
+    int? PurchaseUnitId = null);
 
 /// <summary>
 /// Response: one row per request line, plus the threshold used so the

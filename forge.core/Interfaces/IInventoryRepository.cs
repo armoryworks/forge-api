@@ -18,6 +18,9 @@ public interface IInventoryRepository
     // Bin contents
     Task<List<BinContentResponseModel>> GetBinContentsAsync(int locationId, CancellationToken ct);
     Task<BinContent?> FindBinContentAsync(int id, CancellationToken ct);
+    /// <summary>Active (not removed) bin content for a part at a location, if any —
+    /// used by the manual on-hand override to decide create vs adjust.</summary>
+    Task<BinContent?> FindActiveBinContentByPartLocationAsync(int partId, int locationId, CancellationToken ct);
     Task AddBinContentAsync(BinContent content, CancellationToken ct);
     Task AddMovementAsync(BinMovement movement, CancellationToken ct);
 

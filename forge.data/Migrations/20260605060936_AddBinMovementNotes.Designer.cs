@@ -3,6 +3,7 @@ using System;
 using Forge.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using Pgvector;
 namespace Forge.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260605060936_AddBinMovementNotes")]
+    partial class AddBinMovementNotes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -7561,11 +7564,6 @@ namespace Forge.Data.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("receipt_file_id");
 
-                    b.Property<string>("SettlementTarget")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("settlement_target");
-
                     b.Property<int>("Status")
                         .HasColumnType("integer")
                         .HasColumnName("status");
@@ -7578,10 +7576,6 @@ namespace Forge.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("user_id");
 
-                    b.Property<int?>("VendorId")
-                        .HasColumnType("integer")
-                        .HasColumnName("vendor_id");
-
                     b.HasKey("Id")
                         .HasName("pk_expenses");
 
@@ -7593,9 +7587,6 @@ namespace Forge.Data.Migrations
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_expenses_user_id");
-
-                    b.HasIndex("VendorId")
-                        .HasDatabaseName("ix_expenses_vendor_id");
 
                     b.ToTable("expenses");
                 });
@@ -23457,15 +23448,7 @@ namespace Forge.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_expenses__jobs_job_id");
 
-                    b.HasOne("Forge.Core.Entities.Vendor", "Vendor")
-                        .WithMany()
-                        .HasForeignKey("VendorId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_expenses__vendors_vendor_id");
-
                     b.Navigation("Job");
-
-                    b.Navigation("Vendor");
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.FileAttachment", b =>

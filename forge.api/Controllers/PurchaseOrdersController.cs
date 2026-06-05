@@ -167,4 +167,12 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
         await mediator.Send(new UpdatePurchaseOrderReleaseCommand(id, releaseNum, request));
         return NoContent();
     }
+
+    // AI-assisted review of a manual unit-price override (forge#6). Also gated on
+    // the AI capability; the handler degrades gracefully when the model is offline.
+    [HttpPost("price-variance-review")]
+    [RequiresCapability("CAP-EXT-AI-ASSISTANT")]
+    public async Task<ActionResult<ReviewPriceOverrideResponseModel>> ReviewPriceOverride(
+        [FromBody] ReviewPriceOverrideRequestModel request, CancellationToken ct)
+        => Ok(await mediator.Send(new ReviewPriceOverrideQuery(request), ct));
 }

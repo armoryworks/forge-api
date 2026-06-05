@@ -15,7 +15,8 @@ public record UpdateAdminUserCommand(
     string? Initials,
     string? AvatarColor,
     bool? IsActive,
-    string? Role) : IRequest<AdminUserResponseModel>;
+    string? Role,
+    string? Email = null) : IRequest<AdminUserResponseModel>;
 
 public class UpdateAdminUserValidator : AbstractValidator<UpdateAdminUserCommand>
 {
@@ -27,6 +28,7 @@ public class UpdateAdminUserValidator : AbstractValidator<UpdateAdminUserCommand
         RuleFor(x => x.Initials).MaximumLength(4).When(x => x.Initials is not null);
         RuleFor(x => x.AvatarColor).MaximumLength(20).When(x => x.AvatarColor is not null);
         RuleFor(x => x.Role).MaximumLength(50).When(x => x.Role is not null);
+        RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(256).When(x => x.Email is not null);
     }
 }
 
@@ -49,6 +51,25 @@ public class UpdateAdminUserHandler(
         if (request.Initials is not null) user.Initials = request.Initials;
         if (request.AvatarColor is not null) user.AvatarColor = request.AvatarColor;
         if (request.IsActive.HasValue) user.IsActive = request.IsActive.Value;
+
+        // Email correction (typo fix). Email is the login identity — UserName is
+        // kept in sync with Email at account creation, so any change must update
+        // both. UpdateAsync re-normalizes and validates uniqueness as a backstop,
+        // but we pre-check for a clean 409 with a user-readable message.
+        string? previousEmail = null;
+        if (request.Email is not null
+            && !string.Equals(request.Email, user.Email, StringComparison.OrdinalIgnoreCase))
+        {
+            var normalized = userManager.NormalizeEmail(request.Email);
+            var taken = await db.Users.AnyAsync(
+                u => u.Id != user.Id && u.NormalizedEmail == normalized, cancellationToken);
+            if (taken)
+                throw new InvalidOperationException($"Email '{request.Email}' is already in use by another user.");
+
+            previousEmail = user.Email;
+            user.Email = request.Email;
+            user.UserName = request.Email;
+        }
 
         user.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -74,6 +95,22 @@ public class UpdateAdminUserHandler(
                     targetUserId = user.Id,
                     fromRoles = currentRoles.ToArray(),
                     toRole = request.Role,
+                }),
+                ct: cancellationToken);
+        }
+
+        if (previousEmail is not null)
+        {
+            // Email is the login credential — surface the change as a discrete,
+            // high-signal system-wide audit row (mirrors RoleAssigned below).
+            await auditWriter.WriteAsync("UserEmailChanged", db.CurrentUserId ?? 0,
+                entityType: "ApplicationUser",
+                entityId: user.Id,
+                details: System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    targetUserId = user.Id,
+                    fromEmail = previousEmail,
+                    toEmail = user.Email,
                 }),
                 ct: cancellationToken);
         }

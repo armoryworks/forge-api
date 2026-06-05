@@ -65,6 +65,9 @@ public class AdjustStockHandler(
             MovedBy = userId,
             MovedAt = DateTimeOffset.UtcNow,
             Reason = BinMovementReason.Adjustment,
+            // Persist the adjustment reason on the movement (was previously
+            // validated then discarded) so the audit trail carries the why.
+            Notes = string.IsNullOrWhiteSpace(data.Notes) ? data.Reason : $"{data.Reason} — {data.Notes}",
         };
 
         await repo.AddMovementAsync(movement, cancellationToken);
