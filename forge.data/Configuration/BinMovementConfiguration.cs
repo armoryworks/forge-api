@@ -11,6 +11,7 @@ public class BinMovementConfiguration : IEntityTypeConfiguration<BinMovement>
         builder.Property(e => e.EntityType).HasMaxLength(50);
         builder.Property(e => e.LotNumber).HasMaxLength(100);
         builder.Property(e => e.Quantity).HasPrecision(18, 4);
+        builder.Property(e => e.Notes).HasMaxLength(1000);
 
         builder.HasOne(e => e.FromLocation)
             .WithMany()

@@ -13,6 +13,12 @@ public class BinMovement : BaseEntity
     public int MovedBy { get; set; }
     public DateTimeOffset MovedAt { get; set; }
     public BinMovementReason? Reason { get; set; }
+    /// <summary>
+    /// Free-text reason / provenance for the movement (e.g. a manual inventory
+    /// adjustment's justification, optionally a source PO / vendor reference).
+    /// Operational audit only — never a GL posting (see inventory-override design).
+    /// </summary>
+    public string? Notes { get; set; }
     public int? ReversedMovementId { get; set; }
     public int? ScanActionLogId { get; set; }
 
