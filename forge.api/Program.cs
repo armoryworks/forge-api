@@ -390,6 +390,15 @@ try
     // vendor) when the expense settles to a vendor, else Dr Expense / Cr Cash.
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IExpenseApPostingService,
                                Forge.Api.Features.Accounting.ExpenseApPostingService>();
+    // Phase-2 STAGE A — AP sub-ledger posting. VendorBill approved → Dr line accounts
+    // (+ purchase tax) / Cr AP control (party = vendor); VendorPayment → Dr AP
+    // (applied) + Dr vendor-advance (unapplied) / Cr Cash. Both self-gate on
+    // CAP-ACCT-FULLGL (no-op while OFF, the default), so they stay dark until the
+    // command sites (CreateVendorBill / CreateVendorPayment, STAGE A.3) wire them.
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IVendorBillApPostingService,
+                               Forge.Api.Features.Accounting.VendorBillApPostingService>();
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IVendorPaymentCashPostingService,
+                               Forge.Api.Features.Accounting.VendorPaymentCashPostingService>();
 
     builder.Services.AddScoped<IBarcodeService, BarcodeService>();
     builder.Services.AddSingleton<ICsvExportService, CsvExportService>();
