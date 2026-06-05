@@ -10,153 +10,9 @@ handlers but each `PostAsync` call is guarded by the FULLGL capability gate (or 
 wrapped so a posting error never breaks the operational action while dark. The existing
 invoice/payment/expense tests pass unchanged.
 
-- **`dotnet build forge.slnx` → GREEN** (0 Warning, 0 Error). **build green = true.**
-- **`dotnet test forge.tests` (whole suite) → Passed: 1210, Failed: 0, Skipped: 7. full-suite green = true.**
-  (The 7 skips are the pre-existing `Remediation.*` placeholders, unrelated to accounting.)
-- Accounting-filtered subset → **126 passed, 0 failed.** Invoice/Payment/Expense subsets → **53 passed,
-  2 skipped (placeholders), 0 failed** — pass **unchanged** (the optional null-default posting params mean
-  the legacy handler tests never wire a posting service).
-- No `dotnet ef database update` was run (guardrail). The one Phase-1 migration
-  `20260604080039_AddExpenseSettlementTarget` (additive nullable columns only) lists as **(Pending)** and is
-  **not applied** to any database.
-
 ---
 
-## EXECUTIVE SUMMARY — what posts now, where it's wired, and how it stays dark
-
-### What posts now (FULLGL ON) and where it is wired (inline, in the operational command's transaction)
-
-| §7 trigger | Posting (Dr / Cr) | Wired in (command handler → posting service) |
-|---|---|---|
-| Invoice finalized (control transfer) | **Dr AR_CONTROL** (customer party) / **Cr SALES_REVENUE** per line / **Cr SALES_TAX_PAYABLE** (suppressed for tax-exempt) | `Features/Invoices/SendInvoice.cs` → `InvoiceArPostingService` |
-| Invoice **before** delivery | Dr AR_CONTROL / **Cr DEFERRED_REVENUE** (PointInTime rev-rec; reclass-to-revenue-on-delivery is a documented TODO) | same |
-| Payment applied | **Dr CASH** / **Cr AR_CONTROL** (customer party); **Cr CUSTOMER_DEPOSITS** for the unapplied/overpayment remainder (`Amount == applied + unapplied`) | `Features/Payments/CreatePayment.cs` → `PaymentCashPostingService` |
-| Expense approved | **Dr OPERATING_EXPENSE** / **Cr AP_CONTROL** (vendor party) when it settles to a vendor, else **Cr CASH**; disambiguated by `Expense.SettlementTarget` (+ `Expense.VendorId`), null-target infers AP-if-vendor-else-Cash | `Features/Expenses/UpdateExpenseStatus.cs` (Approved/SelfApproved transition) → `ExpenseApPostingService` |
-
-Each posting service builds a `PostingRequest` and calls `IPostingEngine.PostAsync` on the **shared
-request-scoped `AppDbContext`** (the locked INLINE model, §2 — no event-driven posting). Idempotency key
-shape `source:type:id:purpose` (`AR:Invoice:<id>:REVENUE`, cash, expense) → a re-fire returns the existing
-entry. The single seeded active `Book` is resolved as the posting book (single-entity for now, §5.1).
-
-### How the FULLGL gate keeps it dark + the regression proof
-
-1. **Self-gate (the primary dark guard).** The FIRST statement of every posting service's public method is
-   `if (!capabilities.IsEnabled("CAP-ACCT-FULLGL")) return;`. With FULLGL OFF (the catalog default,
-   `IsDefaultOn: false`) the method returns before touching the engine or any `acct_*` table — the
-   operational flow is byte-for-byte unchanged.
-2. **Optional/null-default DI seam.** The posting services are injected as optional null-default ctor params
-   into the three handlers, so handlers stay constructible without an accounting context and the legacy
-   handler unit tests (which don't wire a posting service) are untouched.
-3. **Error containment while dark.** The dark path can never throw into the operational action (the only
-   work it does is the early `return`). Once FULLGL is ON a posting failure DOES propagate and fail the
-   operation visibly (the inline model's "fail visibly" rule, §2). Best-effort audit writes are
-   try/caught so an audit hiccup never unwinds a committed posting.
-4. **Regression proof.** `forge.tests/Accounting/Phase1DarkRegressionTests.cs` (6 tests) wires the **real**
-   posting service into the **real** command handler against a **fully seeded book** (book + CoA +
-   determination rules + open period) with **FULLGL OFF**, and asserts the command behaves exactly as
-   before AND that **no JournalEntry / JournalLine / LedgerBalance row is created** and no exception is
-   thrown. Seeding a complete book (not an empty schema) makes the no-op attributable to the **gate**, not
-   to a missing book — confirmed **non-vacuous** (flipping the gate ON in a throwaway run makes the engine
-   post and the "no JournalEntry" assertion fails as designed; reverted). The full pre-existing
-   invoice/payment/expense suites pass unchanged.
-
-### AR aging + P&L / Balance Sheet
-
-- **AR sub-ledger + aging** — `Features/Accounting/ArAgingService.cs` (`IArAgingService`). Projected
-  directly from posted `JournalLine`s on AR-control accounts carrying a `Customer` party (NOT a parallel
-  store), filter-immune (`IgnoreQueryFilters`). Standard 30/60/90/91+ balance-forward ladder. `ReconcileAsync`
-  ties the aging total to the posted AR-control balance by construction; any nonzero diff is a genuine defect.
-- **P&L + Balance Sheet** — `Features/Accounting/FinancialStatementService.cs`
-  (`IFinancialStatementService`), over the same filter-immune posted-`JournalLine` projection, classified by
-  `GlAccount.AccountType`; reversals net to zero like the trial balance. Balance Sheet balances via a
-  **computed current-year-earnings** equity line (interim, until the Phase-3 RE roll). Both statements carry
-  `CogsPosted = false` + a `MarginCaveat` string (COGS is Phase 2 → margin/net income incomplete).
-- Reporting endpoints (`GET /pnl`, `/balance-sheet`, `/ar-aging`) are **dual-gated**: method-level
-  `CAP-RPT-FINANCIALS` (`IsDefaultOn: false`) at the HTTP edge + `CAP-ACCT-FULLGL` on the MediatR query type.
-  Both must be ON to reach a handler.
-
-### What is DEFERRED (matches the plan)
-
-- **COGS / inventory-relief leg → Phase 2.** The §7 matrix "+ Dr COGS / Cr Finished-Goods for stocked
-  goods" is intentionally NOT posted (needs the per-part valuation store, §8.1, and resolution of the
-  FG-not-yet-loaded edge, §12). This is why `CogsPosted = false` and `CAP-RPT-FINANCIALS` stays OFF.
-- **Sales-tax remittance** (Dr SALES_TAX_PAYABLE / Cr Cash by jurisdiction) — **deferred.** Phase 1
-  **accrues** tax to the single `SALES_TAX_PAYABLE` control on invoice finalize; remittance-by-jurisdiction
-  has no structural home yet (§12 Phase-1 deferral) and is specified before the remittance posting is wired.
-- **Customer returns** (Dr SALES_RETURNS / Cr AR-or-REFUNDS_PAYABLE) — **deferred** (the `SALES_RETURNS` /
-  `REFUNDS_PAYABLE` keys are seeded; no return command posts yet).
-- **Deferred-revenue reclass on delivery** (Dr DEFERRED_REVENUE / Cr SALES_REVENUE) — the deferred booking
-  posts; the delivery-trigger reclass is a documented TODO (idempotency purpose `REVENUE_RECLASS`).
-- **Realized FX on foreign settlement** → Phase 4 (single-currency invariant pinned 1:1 in Phase 1).
-- **Cash Flow statement** + **year-end RE roll / period close** → Phase 3.
-
-### §7.5 / §8 defaults chosen (flagged for owner/accountant ratification)
-
-1. **Audit on post / reverse** — wired via the existing `ISystemAuditWriter` (`CAP-IDEN-AUDIT-SYSTEM-LOG`)
-   with actor + before/after + reason; best-effort (never unwinds a committed posting).
-2. **Maker-checker thresholds (configurable, not constants)** — defaults **Sales > $50,000 /
-   Purchasing > $1,000 / GL manual-JE configurable**; routine posts go straight to `Posted`.
-3. **Single seeded `Book` is the posting book** (single-entity now, multi-entity-ready, §5.1).
-4. **Statement amounts are functional currency**; **current-year-earnings is computed** (not a posted RE
-   balance) until Phase 3; **no fiscal year covering the date → CY earnings = 0**; **BS balances are
-   cumulative-since-inception, P&L is window-restricted**.
-
----
-
-## STAGE F — tests (this pass)
-
-Adds the formal Phase-1 test pass. The Stage A–E posting services already shipped with their own
-service-level tests (FULLGL **ON** behavior + a service-level dark no-op). Stage F audits that coverage
-against the §F acceptance list and adds the one genuinely missing layer: the **CRITICAL command-level
-non-regression** that the whole "stay dark & non-regressing" guardrail rests on.
-
-### Coverage already present (verified, FULLGL ON), no change needed
-
-- **Invoice finalize** (`InvoiceArPostingServiceTests`): Dr AR / Cr SALES_REVENUE / Cr SALES_TAX_PAYABLE
-  on delivery; the **deferred-revenue** path (invoice precedes delivery → Cr DEFERRED_REVENUE);
-  tax-exempt suppression; no-COGS (Phase 2); idempotency.
-- **Payment applied** (`PaymentCashPostingServiceTests`): Dr CASH / Cr AR_CONTROL (customer party);
-  the **customer-deposit** path for the unapplied/overpayment remainder; on-account; idempotency.
-- **Expense approved** (`ExpenseApPostingServiceTests`): Dr OPERATING_EXPENSE / Cr **AP-or-Cash**
-  (vendor party on AP); null-target inference; control-line-no-vendor hard error; idempotency.
-- **AR aging reconciles to the AR control balance** (`ArAgingServiceTests`): `ReconcileAsync` ties the
-  aging total to the posted AR-control balance (and flags a missing-party defect).
-- **P&L / Balance Sheet balance** (`FinancialStatementServiceTests`): P&L income/expense netting;
-  Balance Sheet `IsBalanced` (Assets = Liabilities + Equity incl. current-year earnings).
-
-### What was added — `forge.tests/Accounting/Phase1DarkRegressionTests.cs` (6 tests)
-
-The CRITICAL **FULLGL OFF** regression at the **operational command** level (not just the posting
-service). Each test wires the **real** posting service into the **real** command handler
-(`SendInvoiceHandler`, `CreatePaymentHandler`, `UpdateExpenseStatusHandler`), backed by a **fully seeded
-accounting book** (book + CoA + determination rules + open period), with `CAP-ACCT-FULLGL` **OFF**, and
-asserts the command behaves **exactly as before**: status transitions / returned models unchanged,
-operational `SaveChangesAsync` still called once, the pre-existing guards (only-Draft, customer-not-found,
-non-approve branch) preserved — and **no JournalEntry / JournalLine / LedgerBalance row is created** and
-**no exception** is thrown.
-
-- Seeding a complete book (rather than an empty schema) is deliberate: it proves the no-op is enforced by
-  the **FULLGL gate**, not by a missing book. Confirmed **non-vacuous** — flipping the gate to ON in a
-  throwaway run makes the engine post against the seeded book and the "no JournalEntry" assertion fails as
-  designed; reverted.
-- Covers: invoice finalize (happy + non-Draft reject), payment create (happy + customer-not-found),
-  expense approve (approve transition + a non-approving transition that must not reach the posting branch
-  or the QB-sync path).
-
-### Build / test
-
-- `dotnet build forge.slnx` → **Build succeeded, 0 Warning(s), 0 Error(s)**.
-- `dotnet build forge.tests/forge.tests.csproj` → **Build succeeded, 0 Warning(s), 0 Error(s)**.
-- `dotnet test forge.tests` (whole suite) → **Passed: 1210, Failed: 0, Skipped: 7** (~33 s). +6 vs the
-  prior 1204; the 7 skips are the pre-existing `Remediation.*` placeholders, unrelated to accounting.
-- Accounting-filtered subset → **126 passed** (+6 this pass). The pre-existing invoice/payment/expense
-  handler tests (`Handlers.{Invoices,Payments,Expenses}`, 42) pass **unchanged** — the optional
-  null-default posting params mean those tests never wired a posting service and are untouched.
-- No migration added in Stage F (tests only); no `dotnet ef database update` run (guardrail).
-
----
-
-## STAGE E — basic financial statements
+## STAGE E — basic financial statements (this pass)
 
 Adds the two basic financial statements over the existing ledger read path, completing the §6 Phase-1
 deliverable "P&L + Balance Sheet".
@@ -240,6 +96,59 @@ nothing relieves inventory → COGS at the sale in Phase 1.
 - Accounting-filtered subset → **120 passed** (+11 this pass: 9 service + 2 handler).
 - No migration was added in Stage E (statements are read-only over existing tables); per guardrails
   `dotnet ef database update` was **not** run.
+
+---
+
+## STAGE F — posting atomicity (GO-LIVE BLOCKER fix)
+
+**Problem.** Through Stage E the posting was "inline" but **not atomic**: each operational handler called
+its own `repo.SaveChangesAsync` *and* the engine's `PostAsync` called a **second** `db.SaveChangesAsync`.
+Those were two separate commits. If the operational write committed and the posting then failed (or vice
+versa), the database could be left with an operational row and no journal entry (or the reverse) — a
+silent ledger integrity hole the moment `CAP-ACCT-FULLGL` is switched on. The engine was *designed* for
+"the caller's transaction" (its class doc says so, and its `FOR UPDATE` fiscal-period lock only actually
+holds until a wrapping transaction commits) — but no command site ever opened one.
+
+**Fix (this pass).** Each of the three Phase-1 command handlers now wraps its operational change **and**
+the inline posting in a single transaction:
+
+- `CreatePayment` — `await using var tx = await db.Database.BeginTransactionAsync(ct); … ; await tx.CommitAsync(ct);`
+  (`db` was already injected; the existing optimistic-concurrency `try/catch` is preserved — on a conflict
+  it throws and the `await using` rolls the transaction back).
+- `SendInvoice` and `UpdateExpenseStatus` — same wrap; `AppDbContext? db` was **added** as an optional
+  trailing constructor parameter. In production DI supplies it (a real Npgsql transaction); in the
+  isolated mock-based unit tests it is `null` and **no** transaction is opened (behavior is byte-for-byte
+  as before — those tests mock the repo and never had a context).
+
+The engine is **unchanged**: when a transaction is already open on the shared context, its
+`SaveChangesAsync` *flushes within* that transaction instead of committing, and the handler's single
+`CommitAsync` commits operational + ledger together. On a posting exception the `await using` disposes the
+transaction → rollback → the operational change is undone too. On the EF InMemory provider
+`BeginTransactionAsync` is an ignored no-op (the test factory suppresses `TransactionIgnoredWarning`), so
+the dark unit tests are unaffected.
+
+**Verification.**
+- `dotnet build` → **0 Warning(s), 0 Error(s)**.
+- InMemory suite (whole, minus the 3 Docker-backed Postgres classes) → **1214 passed, 0 failed, 7 skipped**
+  (the 7 are pre-existing `Remediation.*` placeholders). **No regression** from the wrap.
+- **Real-Postgres rollback/commit proof — `forge.tests/Accounting/Phase1PostingAtomicityTests.cs` (6 tests):**
+  for each of the three handlers, a "rolls back" test forces the posting to fail *after* the operational
+  write (a deliberately-omitted account-determination rule → `PostingException "DETERMINATION_UNMAPPED"`)
+  and asserts, via a **fresh context**, that the operational write did **not** survive and no journal entry
+  leaked; payment + invoice "commits" tests prove the happy path persists both. These use the real
+  `AppDbContext` over Postgres (the EF InMemory provider *ignores* transactions, so it cannot prove
+  rollback) via the shared `PostgresFixture`.
+
+> ⚠️ **Execution gap (must run before enabling FULLGL):** these 6 Postgres tests were **written, compile,
+> and follow the repo's Testcontainers convention, but were NOT executed in the authoring session** — that
+> sandbox lost Docker daemon access mid-session (uid not in the `docker` group; no passwordless sudo), so
+> neither Testcontainers nor a CLI-started container was reachable from the test process. They **must be
+> run on a Docker-enabled box before `CAP-ACCT-FULLGL` is turned on.** Two ways:
+> 1. **Testcontainers (default):** any environment whose user can reach the Docker socket — `dotnet test --filter "FullyQualifiedName~Phase1PostingAtomicityTests"`.
+> 2. **External Postgres (new `FORGE_TEST_PG` escape hatch on `PostgresFixture`):** start a pgvector PG
+>    and point the fixture at it — `docker run -d --name pg -e POSTGRES_USER=forge -e POSTGRES_PASSWORD=forgetest -e POSTGRES_DB=forge_test -p 55432:5432 pgvector/pgvector:pg17`,
+>    then `FORGE_TEST_PG="Host=localhost;Port=55432;Database=forge_test;Username=forge;Password=forgetest" dotnet test --filter "FullyQualifiedName~Phase1PostingAtomicityTests"`.
+>    This same env var lets the existing `SetDefault`/`LeadQueue` Postgres tests run where Testcontainers' Docker.DotNet client is blocked.
 
 ---
 

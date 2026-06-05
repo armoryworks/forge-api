@@ -2,10 +2,12 @@ using System.Security.Claims;
 
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Invoices;
 
@@ -23,9 +25,13 @@ public class SendInvoiceHandler(
     IInvoiceRepository repo,
     // Optional / null-default so the handler stays constructible without an
     // accounting context (e.g. isolated unit tests). The production DI path
-    // supplies both; with CAP-ACCT-FULLGL off the posting service no-ops anyway.
+    // supplies all three; with CAP-ACCT-FULLGL off the posting service no-ops anyway.
     IInvoiceArPostingService? arPosting = null,
-    IHttpContextAccessor? httpContextAccessor = null)
+    IHttpContextAccessor? httpContextAccessor = null,
+    // The request-scoped context, used to wrap the status flip + AR posting in one
+    // transaction. Null only in isolated unit tests (mocked repo, no context) — then
+    // no transaction is opened and behavior is exactly as before.
+    AppDbContext? db = null)
     : IRequestHandler<SendInvoiceCommand>
 {
     public async Task Handle(SendInvoiceCommand request, CancellationToken cancellationToken)
@@ -38,10 +44,17 @@ public class SendInvoiceHandler(
 
         invoice.Status = InvoiceStatus.Sent;
 
-        // ── Inline AR posting (Phase-1 STAGE A). Built BEFORE the operational
-        // SaveChanges so the journal entry and the status change commit (or roll
-        // back) together — the locked inline, single-transaction model (§2).
-        // No-op while CAP-ACCT-FULLGL is off; the service self-gates.
+        // ── Inline AR posting (Phase-1 STAGE A), wrapped with the Draft→Sent flip in
+        // ONE transaction so the journal entry and the status change commit (or roll
+        // back) together — the locked inline, single-transaction model (§2). The
+        // engine's SaveChanges joins this transaction; the handler commits once at the
+        // end, so a posting failure leaves the invoice Draft (no orphaned status flip).
+        // No-op while CAP-ACCT-FULLGL is off; the service self-gates. db is null only
+        // in isolated unit tests (mocked repo, no context) → no transaction is opened.
+        await using var tx = db is not null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         if (arPosting is not null)
         {
             var finalizedByUserId =
@@ -55,5 +68,8 @@ public class SendInvoiceHandler(
         }
 
         await repo.SaveChangesAsync(cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
     }
 }

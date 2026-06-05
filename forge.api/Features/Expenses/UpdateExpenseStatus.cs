@@ -4,11 +4,13 @@ using System.Text.Json;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Forge.Api.Features.Accounting;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Expenses;
 
@@ -41,7 +43,11 @@ public class UpdateExpenseStatusHandler(
     // accounting context (e.g. isolated unit tests). The production DI path
     // supplies it; with CAP-ACCT-FULLGL off the posting service no-ops anyway
     // (mirrors SendInvoice's STAGE A / CreatePayment's STAGE B wiring).
-    IExpenseApPostingService? apPosting = null) : IRequestHandler<UpdateExpenseStatusCommand, ExpenseResponseModel>
+    IExpenseApPostingService? apPosting = null,
+    // The request-scoped context, used to wrap the status change + AP posting in one
+    // transaction. Null only in isolated unit tests (mocked repo, no context) — then
+    // no transaction is opened and behavior is exactly as before.
+    AppDbContext? db = null) : IRequestHandler<UpdateExpenseStatusCommand, ExpenseResponseModel>
 {
     public async Task<ExpenseResponseModel> Handle(UpdateExpenseStatusCommand request, CancellationToken cancellationToken)
     {
@@ -54,20 +60,30 @@ public class UpdateExpenseStatusHandler(
         expense.ApprovedBy = userId;
         expense.ApprovalNotes = request.Data.ApprovalNotes?.Trim();
 
-        await repo.SaveChangesAsync(cancellationToken);
-
         // ── Inline expense / AP posting (Phase-1 STAGE C, §7 matrix row "Expense
-        // approved"). Runs on the approved transition AFTER the operational
-        // SaveChanges so the expense row (status + ApprovedBy) is persisted; the
-        // posting then references it as the source and posts on the SAME
-        // request-scoped context (the locked inline model — §2). No-op while
+        // approved"), wrapped with the status change in ONE transaction so the
+        // expense update and the journal entry commit (or roll back) together — the
+        // locked inline, single-transaction model (§2). The engine's SaveChanges
+        // joins this transaction; the handler commits once, so a posting failure
+        // leaves the expense status unchanged (no orphaned approval). Posting runs on
+        // the approved transition, on the SAME request-scoped context. No-op while
         // CAP-ACCT-FULLGL is off; the service self-gates, so the operational
         // expense-approval flow is unchanged while dark. Dr Expense / Cr AP
         // (party = vendor) when the expense settles to a vendor, else Cr Cash.
+        // db is null only in isolated unit tests (mocked repo) → no transaction.
+        await using var tx = db is not null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
+        await repo.SaveChangesAsync(cancellationToken);
+
         if (apPosting is not null && request.Data.Status is ExpenseStatus.Approved or ExpenseStatus.SelfApproved)
         {
             await apPosting.PostExpenseApprovedAsync(expense.Id, userId, cancellationToken);
         }
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
 
         // Enqueue QB expense creation when approved
         if (request.Data.Status is ExpenseStatus.Approved or ExpenseStatus.SelfApproved)

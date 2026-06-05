@@ -61,6 +61,15 @@ public class CreatePaymentHandler(
         var customer = await customerRepo.FindAsync(request.CustomerId, cancellationToken)
             ?? throw new KeyNotFoundException($"Customer {request.CustomerId} not found");
 
+        // One unit of work: the payment + its applications + the invoice-status
+        // updates AND the inline cash-receipt posting commit (or roll back) together
+        // — the locked inline, single-transaction model (§2). The engine's
+        // SaveChanges joins this transaction instead of committing on its own, so a
+        // posting failure unwinds the payment too (no orphaned operational row). On
+        // Npgsql this is a real transaction; on the in-memory test provider it's an
+        // ignored no-op, so the mock-based handler tests are unaffected.
+        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+
         var paymentNumber = await repo.GenerateNextPaymentNumberAsync(cancellationToken);
         var method = Enum.Parse<PaymentMethod>(request.Method, true);
 
@@ -145,12 +154,14 @@ public class CreatePaymentHandler(
         }
 
         // ── Inline cash-receipt posting (Phase-1 STAGE B, §7 matrix row "Payment
-        // applied"). Runs AFTER the operational SaveChanges so the payment row
-        // (and its applications / invoice-status changes) is persisted and the
-        // payment Id is assigned — the posting then references it as the source.
-        // The engine posts on the SAME request-scoped context (the locked inline
-        // model — §2). No-op while CAP-ACCT-FULLGL is off; the service self-gates,
-        // so the operational payment flow is unchanged while dark.
+        // applied"). Runs AFTER the operational SaveChanges (within the same open
+        // transaction) so the payment row — and its applications / invoice-status
+        // changes — is flushed and the payment Id is assigned for the posting to
+        // reference as its source. The engine posts on the SAME request-scoped
+        // context and its SaveChanges joins this transaction; nothing commits until
+        // the tx.CommitAsync below, so a posting failure rolls the payment back too
+        // (the locked inline model — §2). No-op while CAP-ACCT-FULLGL is off; the
+        // service self-gates, so the operational payment flow is unchanged while dark.
         if (cashPosting is not null)
         {
             var createdByUserId =
@@ -162,6 +173,8 @@ public class CreatePaymentHandler(
 
             await cashPosting.PostPaymentCreatedAsync(payment.Id, createdByUserId, cancellationToken);
         }
+
+        await tx.CommitAsync(cancellationToken);
 
         return new PaymentListItemModel(
             payment.Id, payment.PaymentNumber, payment.CustomerId, customer.Name,
