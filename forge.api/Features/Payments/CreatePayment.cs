@@ -28,12 +28,21 @@ public class CreatePaymentValidator : AbstractValidator<CreatePaymentCommand>
     {
         RuleFor(x => x.CustomerId).GreaterThan(0);
         RuleFor(x => x.Amount).GreaterThan(0);
-        RuleFor(x => x.Method).NotEmpty();
+        RuleFor(x => x.Method).NotEmpty()
+            // Constrain to the PaymentMethod enum so an invalid string is a 400, not a 500 from the
+            // handler's Enum.Parse (parity with CreateVendorPayment — Phase-2 review).
+            .Must(m => Enum.TryParse<PaymentMethod>(m, ignoreCase: true, out _))
+            .WithMessage("Method must be one of: Cash, Check, CreditCard, BankTransfer, Wire, Other");
         When(x => x.Applications != null && x.Applications.Count > 0, () =>
         {
             RuleFor(x => x.Applications!.Sum(a => a.Amount))
                 .LessThanOrEqualTo(x => x.Amount)
                 .WithMessage("Applied amounts cannot exceed payment amount");
+            // A duplicate invoice reference would bypass the per-invoice over-apply guard (EF returns the
+            // same tracked entity, so each check sees the same pre-application balance) — reject duplicates.
+            RuleFor(x => x.Applications!)
+                .Must(a => a.Select(x => x.InvoiceId).Distinct().Count() == a.Count)
+                .WithMessage("An invoice may be referenced at most once per payment");
             RuleForEach(x => x.Applications).ChildRules(app =>
             {
                 app.RuleFor(a => a.InvoiceId).GreaterThan(0);
@@ -92,6 +101,19 @@ public class CreatePaymentHandler(
             {
                 var invoice = await invoiceRepo.FindWithDetailsAsync(app.InvoiceId, cancellationToken)
                     ?? throw new KeyNotFoundException($"Invoice {app.InvoiceId} not found");
+
+                // Sub-ledger integrity: the payment's customer must own the invoice (parity with
+                // CreateVendorPayment — Phase-2 review).
+                if (invoice.CustomerId != request.CustomerId)
+                    throw new InvalidOperationException(
+                        $"Invoice {invoice.InvoiceNumber} belongs to a different customer");
+
+                // Only a finalized (AR-booked) invoice can be paid. A Draft invoice has not posted its AR
+                // debit (posting fires on SendInvoice), so paying it would Cr AR against a receivable the
+                // GL never recorded; Paid/Voided are terminal. Restrict to Sent / PartiallyPaid / Overdue.
+                if (invoice.Status is not (InvoiceStatus.Sent or InvoiceStatus.PartiallyPaid or InvoiceStatus.Overdue))
+                    throw new InvalidOperationException(
+                        $"Invoice {invoice.InvoiceNumber} is {invoice.Status}; only Sent, PartiallyPaid, or Overdue invoices can be paid");
 
                 // F-027: consume the canonical Invoice.BalanceDue rather than re-deriving the
                 // money formula here. The two were numerically equal only while

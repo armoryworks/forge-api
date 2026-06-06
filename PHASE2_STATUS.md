@@ -155,10 +155,12 @@ catalog entries — deferred because new capabilities are a product-taxonomy dec
 - **Duplicate-vendor-invoice (double-payment) protection** — no uniqueness on `(VendorId,
   VendorInvoiceNumber)`; the highest-value AP control to add before go-live (AR doesn't need this — we
   issue invoices, we receive bills).
-- **AR-side parity** — the review found the same `Enum.Parse`→500 and duplicate-application gaps in the
-  Phase-1 `CreatePayment` (and no status/vendor guards). Fixed here on AP; **recommend mirroring the fixes
-  to `CreatePayment`/`SendInvoice`** in a separate change (not done here to avoid mutating committed,
-  tested Phase-1 AR code without owner sign-off).
+- **AR-side parity — DONE (owner-approved follow-up).** The review found the same gaps in the Phase-1
+  `CreatePayment`; the four guards are now mirrored to it: `Method` enum validation (400 not 500),
+  duplicate-invoice-application rejection, customer-ownership of the applied invoice, and a status guard
+  (only Sent/PartiallyPaid/Overdue invoices payable — a Draft invoice's AR debit isn't booked until
+  `SendInvoice`). Added `CreatePaymentHandlerTests` for all four. Existing AR tests pay Sent invoices, so
+  no regression (full suite 1244 green).
 
 *Generated for human review of the autonomous Phase-2 build. `CAP-ACCT-FULLGL` remains OFF; nothing deployed;
 no migration applied. The inventory/COGS stages wait on the operational substrate (don't perturb Armory

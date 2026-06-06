@@ -152,6 +152,26 @@ the dark unit tests are unaffected.
 
 ---
 
+## STAGE G — payment-guard hardening (parity from the Phase-2 review)
+
+The Phase-2 AP adversarial review surfaced four input/state-machine gaps that the Phase-1 `CreatePayment`
+shared (it was the template the AP side mirrored). Now closed on the AR side too (owner-approved follow-up):
+
+- **`Method` enum validation** — an invalid `PaymentMethod` string flowed into `Enum.Parse` → unhandled
+  `ArgumentException` → 500. The validator now constrains it → 400.
+- **Duplicate-invoice-application guard** — the same invoice referenced twice in one payment bypassed the
+  per-invoice over-apply check (EF returns the same tracked entity, so each check saw the same balance).
+  Rejected in the validator.
+- **Customer-ownership guard** — the payment's customer must own each applied invoice (sub-ledger integrity).
+- **Status guard** — only `Sent`/`PartiallyPaid`/`Overdue` invoices are payable. A `Draft` invoice's AR debit
+  isn't booked until `SendInvoice`, so paying it would Cr AR against a receivable the GL never recorded.
+
+`CreatePaymentHandlerTests` covers all four. Existing AR tests pay `Sent` invoices, so no behavior change for
+valid flows (full InMemory suite **1244 passed**). These are operational-validation fixes; they are
+independent of `CAP-ACCT-FULLGL` (the parse/guard run before any posting).
+
+---
+
 ## Open-item defaults — flagged for ratification (per task guardrails)
 
 These are applied as defaults in the Phase-1 build and are recorded here for the owner/accountant to
