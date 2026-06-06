@@ -46,6 +46,10 @@ public class CapabilityTestWebApplicationFactory : WebApplicationFactory<Program
             var dbName = "TestDb_Capabilities_" + Guid.NewGuid();
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
                 .UseInMemoryDatabase(dbName)
+                // Inline GL postings (e.g. ReceiveItems) open a transaction; the InMemory provider can't
+                // honor it and would otherwise throw TransactionIgnoredWarning. Treat it as a no-op,
+                // matching TestDbContextFactory (the unit-test InMemory context).
+                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
                 .Options;
             services.AddScoped<AppDbContext>(_ => new TestAppDbContext(dbOptions));
 

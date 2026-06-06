@@ -1,11 +1,14 @@
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.DomainEvents;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.PurchaseOrders;
 
@@ -19,7 +22,12 @@ public class ReceiveItemsHandler(
     IPurchaseOrderRepository repo,
     IClock clock,
     IMediator mediator,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    // Phase-2 STAGE C — optional / null-default so the handler stays constructible without an accounting
+    // context (isolated unit tests). The production DI path supplies both; with CAP-ACCT-FULLGL off the
+    // posting service no-ops. db is null only in those tests → no transaction is opened.
+    AppDbContext? db = null,
+    IReceiptInventoryPostingService? receiptPosting = null)
     : IRequestHandler<ReceiveItemsCommand>
 {
     public async Task Handle(ReceiveItemsCommand request, CancellationToken cancellationToken)
@@ -158,9 +166,34 @@ public class ReceiveItemsHandler(
             po.Status = PurchaseOrderStatus.PartiallyReceived;
         }
 
+        // Resolve the actor once (tolerant) — used as the accounting PostedBy and on the domain event.
+        var userId = int.TryParse(
+            httpContext.HttpContext?.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+            out var uid) ? uid : 0;
+
+        // One transaction: the receiving records + PO-status flip AND the inline inventory / GRNI posting
+        // commit (or roll back) together — the locked inline model (§2). The engine's SaveChanges joins
+        // this transaction; the handler commits once, so a posting failure unwinds the receipt too. On
+        // Npgsql this is a real transaction; on the in-memory test provider it's an ignored no-op (and db
+        // is null in the mock-based handler tests, so no transaction is opened there at all).
+        await using var tx = db is not null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         await repo.SaveChangesAsync(cancellationToken);
 
-        var userId = int.Parse(httpContext.HttpContext!.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        // Inline inventory / GRNI posting (Phase-2 STAGE C). Runs AFTER the operational SaveChanges so the
+        // receiving records are flushed and resolvable by ReceiptNumber; no-op while CAP-ACCT-FULLGL is off.
+        if (receiptPosting is not null)
+        {
+            var entryDate = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
+            await receiptPosting.PostReceiptAsync(
+                request.PurchaseOrderId, receiptNumber, entryDate, userId, cancellationToken);
+        }
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
+
         await mediator.Publish(new PurchaseOrderReceivedEvent(request.PurchaseOrderId, 0, userId), cancellationToken);
     }
 }

@@ -144,7 +144,25 @@ Filter-immune projection like the trial balance. Endpoint `GET /api/v1/accountin
   revenue invoices still defer COGS to the (unbuilt) delivery-reclass trigger. 6-lens adversarial review;
   fixes applied. Tests: COGS cases in `InvoiceArPostingServiceTests` + `CogsPosted` derivation/reversal/
   window cases in `FinancialStatementServiceTests`. Full InMemory suite 1252 green.
-- **C–E:** sequenced per the table above; C requires the operational inventory wiring + the ratify-items.
+- **STAGE C — PO receipt (built, dark):** `ReceiptInventoryPostingService`, hooked into `ReceiveItems`
+  (transaction-wrapped like Phase-1). On receipt: Dr `INVENTORY_{RAW|WIP|FG}` (per part `InventoryClass` —
+  Raw/Component→RAW, Subassembly→WIP, FinishedGood→FG; Consumable/Tool→`OPERATING_EXPENSE`) at **landed
+  actual PO cost** (`UnitPrice × qty + allocated freight`) / Cr `GRNI` (base) / Cr `FREIGHT_CLEARING`
+  (freight). One JE per receipt, idempotency `Inventory:Receipt:{poId}:{receiptNumber}:RECEIPT`. The engine
+  guard (STAGE B) lets the inventory control debit post party-less. 4-lens adversarial review (double-entry
+  + engine clean); fixes applied (PO-scoped record query, factory transaction-warning suppression, comment
+  accuracy, + a Postgres rollback test). Tests: `Phase2ReceiptPostingServiceTests` (11) +
+  `Phase2ReceiptHandlerAtomicityTests` (Postgres). Full InMemory suite **1263 green**.
+  - **Decisions:** receipt values inventory at **actual PO price** — the standard-vs-actual + bill-vs-PO
+    variance is recognized as **PPV at the STAGE-D 3-way match**, not at receipt. **Consumables/tools are
+    expensed** at receipt (no perpetual-supplies key / tool-capitalization signal yet).
+  - **Follow-ups before un-darking:** the **second receive path** (`Features/Inventory/ReceivePurchaseOrder`,
+    single-line, no `ReceiptNumber`) creates `BinContent` but is **not** GRNI-posted — a stock-without-
+    liability asymmetry to converge (mirror-image of "ReceiveItems doesn't create BinContent"). **Freight
+    rounding:** Σ `AllocatedFreight` can drift sub-cent from `ActualFreight`, so STAGE D must reconcile
+    `FREIGHT_CLEARING` to the freight invoice and route the delta to a variance/rounding account (the
+    receipt JE itself always balances — it credits Σ allocated, not `ActualFreight`).
+- **D–E:** STAGE D (VendorBill 3-way match → Dr GRNI / Cr AP + PPV, GRNI aging) + STAGE E (valuation store).
 
 ### STAGE A.3 review — fixes applied + follow-ups
 

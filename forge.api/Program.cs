@@ -405,6 +405,10 @@ try
                                Forge.Api.Features.Accounting.VendorBillApPostingService>();
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IVendorPaymentCashPostingService,
                                Forge.Api.Features.Accounting.VendorPaymentCashPostingService>();
+    // Phase-2 STAGE C — PO-receipt inventory / GRNI posting, wired into ReceiveItems. Self-gates on
+    // CAP-ACCT-FULLGL (no-op while OFF, the default): Dr Inventory / Cr GRNI / Cr Freight-Clearing.
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IReceiptInventoryPostingService,
+                               Forge.Api.Features.Accounting.ReceiptInventoryPostingService>();
 
     builder.Services.AddScoped<IBarcodeService, BarcodeService>();
     builder.Services.AddSingleton<ICsvExportService, CsvExportService>();
