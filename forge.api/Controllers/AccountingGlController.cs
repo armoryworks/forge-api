@@ -93,6 +93,21 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
+    /// Phase-2 STAGE A — Accounts-Payable aging: open payables by vendor and age bucket, with an
+    /// AP-control-vs-aging reconciliation (§6 Phase-2 row "AP sub-ledger + aging"). Sub-ledger report
+    /// (CAP-ACCT-FULLGL at the edge, like ar-aging — NOT a financial statement, so no CAP-RPT-FINANCIALS).
+    /// </summary>
+    [HttpGet("ap-aging")]
+    public async Task<ActionResult<ApAging>> GetApAging(
+        [FromQuery] int bookId,
+        [FromQuery] DateOnly? asOfDate,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetApAgingQuery(bookId, asOfDate), ct);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Phase-1 STAGE E — Profit &amp; Loss for the book over an optional period
     /// range (ACCOUNTING_SUITE_PLAN §6 Phase-1 row "P&amp;L + Balance Sheet").
     /// Built over the trial-balance ledger projection restricted to Income/Expense

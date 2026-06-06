@@ -122,11 +122,44 @@ Filter-immune projection like the trial balance. Endpoint `GET /api/v1/accountin
 
 ## Build status
 
-- **STAGE A.1 (this commit):** AP sub-ledger entities + EF configs + DbSets + additive migration. _(see below)_
-- **STAGE A.2 (next):** the two posting services + AP aging + create/approve/pay handlers (atomicity-wrapped)
-  + endpoints + DI + InMemory service tests + Postgres rollback tests (run where Docker is available).
-- **B–E:** after A, sequenced per the table above; B/C require the operational inventory wiring + ratifies.
+- **STAGE A.1 (commit `bedb4be9`):** AP sub-ledger entities + EF configs + DbSets + additive migration.
+- **STAGE A.2 (commit `4497a344`):** the two AP posting services + DI + 8 InMemory service tests.
+- **STAGE A.3 (this commit):** `VendorBill`/`VendorPayment` repositories; `CreateVendorBill` /
+  `ApproveVendorBill` / `CreateVendorPayment` handlers (atomicity-wrapped, mirroring the fixed Phase-1
+  handlers); GET list/by-id queries; `VendorBillsController` / `VendorPaymentsController`; `ApAgingService`
+  + `GetApAging` + `ap-aging` endpoint; DI. Tests: AP aging (9), AP handler flow (9), Postgres rollback (3).
+  Full InMemory suite green (1244 passed, 0 failed). Reviewed by a 6-lens adversarial pass (double-entry /
+  atomicity / dark-gating / mirror-fidelity / state-machine / completeness) — fixes below applied.
+- **B–E:** sequenced per the table above; B/C require the operational inventory wiring + the ratify-items.
 
-*Generated for human review of the autonomous Phase-2 entry. `CAP-ACCT-FULLGL` remains OFF; nothing deployed;
+### STAGE A.3 review — fixes applied + follow-ups
+
+Fixed in this commit (from the adversarial review):
+- **Pay only a booked payable** — `CreateVendorPayment` now rejects applying to a non-`Approved`/
+  -`PartiallyPaid` bill (a Draft bill's AP credit isn't posted until approval; paying it would Dr AP against
+  an unrecorded liability and drive AP-control negative). Closes the pay-Draft and pay-Void holes.
+- **Vendor-ownership guard** — the payment's vendor must own each applied bill.
+- **`Method` validation** — invalid `PaymentMethod` is now a 400 (was a 500 from `Enum.Parse`).
+- **Duplicate-application guard** — a bill may be referenced at most once per payment (the per-bill
+  over-apply check sees the same tracked balance otherwise).
+- **Zero-total bill rejected** — would otherwise approve yet post no journal (silent divergence).
+
+**Capability taxonomy (ratify):** the two AP controllers gate on **`CAP-P2P-PO`** (the default-on baseline
+"every shop with vendors uses this"), not the receiving-specific `CAP-P2P-RECEIVE`. The correct end-state,
+symmetric to the AR side's `CAP-O2C-INVOICE` / `CAP-O2C-CASH`, is **dedicated `CAP-P2P-BILL` / `CAP-P2P-PAY`**
+catalog entries — deferred because new capabilities are a product-taxonomy decision for the owner.
+
+**Pre-go-live follow-ups (tracked, not blocking the dark increment):**
+- **No void/cancel/correction path** and no client `If-Match` concurrency on AP mutations — the AP
+  sub-ledger is append-only via this API. A void-with-reversal flow is needed before un-darking.
+- **Duplicate-vendor-invoice (double-payment) protection** — no uniqueness on `(VendorId,
+  VendorInvoiceNumber)`; the highest-value AP control to add before go-live (AR doesn't need this — we
+  issue invoices, we receive bills).
+- **AR-side parity** — the review found the same `Enum.Parse`→500 and duplicate-application gaps in the
+  Phase-1 `CreatePayment` (and no status/vendor guards). Fixed here on AP; **recommend mirroring the fixes
+  to `CreatePayment`/`SendInvoice`** in a separate change (not done here to avoid mutating committed,
+  tested Phase-1 AR code without owner sign-off).
+
+*Generated for human review of the autonomous Phase-2 build. `CAP-ACCT-FULLGL` remains OFF; nothing deployed;
 no migration applied. The inventory/COGS stages wait on the operational substrate (don't perturb Armory
 Plastics' testing) + the ratify-items above.*

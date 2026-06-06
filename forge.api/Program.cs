@@ -309,6 +309,9 @@ try
     builder.Services.AddScoped<ISearchRepository, SearchRepository>();
     builder.Services.AddScoped<IPlanningCycleRepository, PlanningCycleRepository>();
     builder.Services.AddScoped<IVendorRepository, VendorRepository>();
+    // Phase-2 AP sub-ledger repositories (VendorBill / VendorPayment).
+    builder.Services.AddScoped<IVendorBillRepository, VendorBillRepository>();
+    builder.Services.AddScoped<IVendorPaymentRepository, VendorPaymentRepository>();
     builder.Services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
     builder.Services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();
     builder.Services.AddScoped<IQuoteRepository, QuoteRepository>();
@@ -338,6 +341,9 @@ try
     // reconciliation. Reached only via the gated GET /api/v1/accounting/ar-aging
     // endpoint (403 at the edge while CAP-ACCT-FULLGL is OFF), so it stays dark.
     builder.Services.AddScoped<IArAgingService, Forge.Api.Features.Accounting.ArAgingService>();
+    // Phase-2 STAGE A — AP sub-ledger aging (credit-normal mirror of AR aging). Reached only via the
+    // gated GET /api/v1/accounting/ap-aging endpoint (403 while CAP-ACCT-FULLGL is OFF), so it stays dark.
+    builder.Services.AddScoped<IApAgingService, Forge.Api.Features.Accounting.ApAgingService>();
     // Phase-1 STAGE E — basic financial statements (§6 Phase-1 row "P&L + Balance
     // Sheet"). Profit & Loss (Income/Expense over a period range) and Balance
     // Sheet (Asset/Liability/Equity as of a date, with computed current-year-
