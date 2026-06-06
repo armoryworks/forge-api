@@ -130,7 +130,21 @@ Filter-immune projection like the trial balance. Endpoint `GET /api/v1/accountin
   + `GetApAging` + `ap-aging` endpoint; DI. Tests: AP aging (9), AP handler flow (9), Postgres rollback (3).
   Full InMemory suite green (1244 passed, 0 failed). Reviewed by a 6-lens adversarial pass (double-entry /
   atomicity / dark-gating / mirror-fidelity / state-machine / completeness) — fixes below applied.
-- **B–E:** sequenced per the table above; B/C require the operational inventory wiring + the ratify-items.
+- **STAGE B — COGS at sale (built, dark):** `InvoiceArPostingService` now posts a separate COGS journal
+  on control transfer — Dr COGS / Cr `INVENTORY_FG` at resolved standard cost
+  (`Part.ManualCostOverride ?? CurrentCostCalculation.ResultAmount`) for finished-goods lines
+  (`InventoryClass.FinishedGood`, non-phantom); service/non-FG/no-cost lines skipped (logged). The engine's
+  control-line party guard was made **inventory-aware** (party required for every control account EXCEPT
+  inventory — fail-safe, so a null `ControlType` still demands a party) so `Cr INVENTORY_FG` posts
+  party-less (reconciled by part via the valuation store). `FinancialStatementService.CogsPosted` is now
+  **derived from the ledger** (net COGS activity, window-scoped for the P&L, account-set aware, reversal-
+  netting) instead of hardcoded false — so the P&L/BS drop the incomplete-margin caveat once COGS is live.
+  §12 decisions baked in + documented: cost source = standard; FG-not-yet-loaded → post-regardless (FG can
+  go negative until opening-balance load §7A; valuation-store guard is a STAGE-E refinement); deferred-
+  revenue invoices still defer COGS to the (unbuilt) delivery-reclass trigger. 6-lens adversarial review;
+  fixes applied. Tests: COGS cases in `InvoiceArPostingServiceTests` + `CogsPosted` derivation/reversal/
+  window cases in `FinancialStatementServiceTests`. Full InMemory suite 1252 green.
+- **C–E:** sequenced per the table above; C requires the operational inventory wiring + the ratify-items.
 
 ### STAGE A.3 review — fixes applied + follow-ups
 

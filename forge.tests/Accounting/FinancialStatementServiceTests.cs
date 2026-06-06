@@ -173,7 +173,63 @@ public class FinancialStatementServiceTests
         // Net income = 1300 − 300 = 1000.
         pnl.NetIncome.Should().Be(1000m);
 
-        // Phase-1 incomplete-margin label.
+        // No COGS posted → incomplete-margin label present.
+        pnl.CogsPosted.Should().BeFalse();
+        pnl.MarginCaveat.Should().Contain("COGS");
+    }
+
+    [Fact]
+    public async Task Pnl_CogsPosted_DerivedTrue_WhenCogsLineExists()
+    {
+        using var db = await SeedAsync();
+        await PostAsync(db, ArControlId, RevenueId, 1000m, new DateOnly(2026, 2, 1), "Invoice",
+            debitParty: SubledgerPartyType.Customer, debitPartyId: CustomerAId);
+        // A posted COGS-account line (the Phase-2 STAGE B relief) flips CogsPosted true.
+        await PostAsync(db, CogsId, CashId, 300m, new DateOnly(2026, 2, 1), "Inventory");
+
+        var pnl = await Service(db).GetProfitAndLossAsync(BookId, new DateOnly(2026, 1, 1), AsOf);
+
+        pnl.CogsPosted.Should().BeTrue();
+        pnl.MarginCaveat.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Pnl_CogsPosted_FalseWhenCogsPostedThenReversed()
+    {
+        using var db = await SeedAsync();
+        var engine = Engine(db);
+        var cogs = await engine.PostAsync(new PostingRequest
+        {
+            BookId = BookId, EntryDate = new DateOnly(2026, 2, 1), Source = JournalSource.Inventory,
+            SourceType = "Invoice", SourceId = 1, CurrencyId = UsdId,
+            IdempotencyKey = "Inventory:Invoice:1:COGS",
+            Lines =
+            [
+                new PostingLine { GlAccountId = CogsId, Debit = 300m },
+                new PostingLine { GlAccountId = CashId, Credit = 300m },
+            ],
+        }, postedByUserId: 7);
+
+        await engine.ReverseAsync(cogs.Id, new DateOnly(2026, 2, 2), "correction", reversedByUserId: 7);
+
+        var pnl = await Service(db).GetProfitAndLossAsync(BookId, new DateOnly(2026, 1, 1), AsOf);
+
+        // Posted then reversed → net COGS zero → not "live" → caveat returns.
+        pnl.CogsPosted.Should().BeFalse();
+        pnl.MarginCaveat.Should().Contain("COGS");
+    }
+
+    [Fact]
+    public async Task Pnl_CogsPosted_FalseForWindowWithoutCogs()
+    {
+        using var db = await SeedAsync();
+        await PostAsync(db, ArControlId, RevenueId, 1000m, new DateOnly(2026, 2, 1), "Invoice",
+            debitParty: SubledgerPartyType.Customer, debitPartyId: CustomerAId);
+        await PostAsync(db, CogsId, CashId, 300m, new DateOnly(2026, 2, 1), "Inventory");
+
+        // A later window with revenue activity dates but no COGS posted IN it must still warn.
+        var pnl = await Service(db).GetProfitAndLossAsync(BookId, new DateOnly(2026, 4, 1), new DateOnly(2026, 6, 30));
+
         pnl.CogsPosted.Should().BeFalse();
         pnl.MarginCaveat.Should().Contain("COGS");
     }

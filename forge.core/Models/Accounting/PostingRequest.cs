@@ -76,7 +76,8 @@ public sealed class PostingLine
     public int? JobId { get; init; }
     public int? CostCenterId { get; init; }
 
-    /// <summary>Required on lines that resolve to an <c>IsControlAccount</c> account (§5.2).</summary>
+    /// <summary>Required on lines that resolve to a party-based (AR/AP) control account (§5.2); inventory
+    /// control accounts post party-less (reconciled by part via the valuation store, §8.1).</summary>
     public SubledgerPartyType? PartyType { get; init; }
     public int? PartyId { get; init; }
 

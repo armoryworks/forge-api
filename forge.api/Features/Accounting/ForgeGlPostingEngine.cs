@@ -107,11 +107,18 @@ public sealed class ForgeGlPostingEngine(
                     "ACCOUNT_INACTIVE",
                     $"Line {lineNumber}: account {account.AccountNumber} is inactive.");
 
-            // Control accounts post only via sub-ledgers → require a party.
-            if (account.IsControlAccount && (l.PartyType is null || l.PartyId is null))
+            // Control accounts post via a sub-ledger and require a party — EXCEPT inventory control
+            // accounts, which are reconciled by PART via the valuation store (Phase-2 §8.1), not a
+            // party sub-ledger (there is no inventory SubledgerPartyType), so they post party-less
+            // (e.g. Cr INVENTORY_FG on the COGS relief). Stated as "everything except Inventory" so the
+            // guard stays FAIL-SAFE: a misconfigured control account with a null ControlType still
+            // demands a party rather than silently posting party-less.
+            if (account.IsControlAccount
+                && account.ControlType != ControlAccountType.Inventory
+                && (l.PartyType is null || l.PartyId is null))
                 throw new PostingException(
                     "CONTROL_LINE_PARTY_REQUIRED",
-                    $"Line {lineNumber}: account {account.AccountNumber} is a control account and requires SubledgerPartyType/Id.");
+                    $"Line {lineNumber}: account {account.AccountNumber} is a control account and requires SubledgerPartyType/Id (only inventory control accounts post party-less).");
 
             // Book-consistency for the cost-center dimension.
             if (l.CostCenterId is int ccId)

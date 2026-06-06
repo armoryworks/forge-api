@@ -35,6 +35,8 @@ public class InvoiceArPostingServiceTests
     private const int ArControlId = 102;
     private const int DeferredRevenueId = 103;
     private const int SalesTaxPayableId = 104;
+    private const int CogsId = 105;
+    private const int InventoryFgId = 106;
 
     private const int OpenPeriodId = 1000;
 
@@ -95,13 +97,17 @@ public class InvoiceArPostingServiceTests
             new GlAccount { Id = RevenueId, BookId = BookId, AccountNumber = "40000", Name = "Sales Revenue", AccountType = AccountType.Income, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true },
             new GlAccount { Id = ArControlId, BookId = BookId, AccountNumber = "11000", Name = "Accounts Receivable", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.AR, IsPostable = true, IsActive = true },
             new GlAccount { Id = DeferredRevenueId, BookId = BookId, AccountNumber = "24000", Name = "Deferred Revenue", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true },
-            new GlAccount { Id = SalesTaxPayableId, BookId = BookId, AccountNumber = "23000", Name = "Sales Tax Payable", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true });
+            new GlAccount { Id = SalesTaxPayableId, BookId = BookId, AccountNumber = "23000", Name = "Sales Tax Payable", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true },
+            new GlAccount { Id = CogsId, BookId = BookId, AccountNumber = "50000", Name = "Cost of Goods Sold", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
+            new GlAccount { Id = InventoryFgId, BookId = BookId, AccountNumber = "13300", Name = "Inventory — Finished Goods", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true });
 
         db.Set<AccountDeterminationRule>().AddRange(
             new AccountDeterminationRule { BookId = BookId, Key = "AR_CONTROL", GlAccountId = ArControlId },
             new AccountDeterminationRule { BookId = BookId, Key = "SALES_REVENUE", GlAccountId = RevenueId },
             new AccountDeterminationRule { BookId = BookId, Key = "DEFERRED_REVENUE", GlAccountId = DeferredRevenueId },
-            new AccountDeterminationRule { BookId = BookId, Key = "SALES_TAX_PAYABLE", GlAccountId = SalesTaxPayableId });
+            new AccountDeterminationRule { BookId = BookId, Key = "SALES_TAX_PAYABLE", GlAccountId = SalesTaxPayableId },
+            new AccountDeterminationRule { BookId = BookId, Key = "COGS", GlAccountId = CogsId },
+            new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_FG", GlAccountId = InventoryFgId });
 
         await db.SaveChangesAsync();
         return db;
@@ -270,5 +276,116 @@ public class InvoiceArPostingServiceTests
 
         // A re-finalize returns the existing entry — no duplicate journal.
         (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(1);
+    }
+
+    // ─────────────────────────── Phase-2 STAGE B — COGS at sale ───────────────────────────
+
+    /// <summary>An invoice with a single finished-goods part line (no shipment → control transferred).</summary>
+    private static async Task<Invoice> AddFinishedGoodsInvoiceAsync(
+        AppDbContext db, decimal? unitCost, decimal qty = 2m,
+        InventoryClass inventoryClass = InventoryClass.FinishedGood)
+    {
+        var customer = new Customer { Name = "Acme Corp" };
+        db.Set<Customer>().Add(customer);
+
+        var part = new Part
+        {
+            PartNumber = "FG-1",
+            Description = "Widget",
+            InventoryClass = inventoryClass,
+            ProcurementSource = ProcurementSource.Make,
+            ManualCostOverride = unitCost,
+        };
+        db.Set<Part>().Add(part);
+        await db.SaveChangesAsync();
+
+        var invoice = new Invoice
+        {
+            InvoiceNumber = "INV-2001",
+            CustomerId = customer.Id,
+            InvoiceDate = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero),
+            DueDate = new DateTimeOffset(2026, 2, 14, 0, 0, 0, TimeSpan.Zero),
+            Status = InvoiceStatus.Draft,
+            TaxRate = 0m,
+            Lines = [new InvoiceLine { Description = "Widget", Quantity = qty, UnitPrice = 100m, LineNumber = 1, PartId = part.Id }],
+        };
+        db.Invoices.Add(invoice);
+        await db.SaveChangesAsync();
+        return invoice;
+    }
+
+    [Fact]
+    public async Task Post_FinishedGoodsLine_PostsCogsRelief()
+    {
+        using var db = await SeedAsync();
+        var invoice = await AddFinishedGoodsInvoiceAsync(db, unitCost: 30m, qty: 2m);
+        var service = CreateService(db, fullGlOn: true);
+
+        await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+
+        var entries = await db.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines).ToListAsync();
+        entries.Should().HaveCount(2); // revenue + COGS
+
+        var cogs = entries.Single(e => e.Source == JournalSource.Inventory);
+        cogs.SourceType.Should().Be("Invoice");
+        cogs.SourceId.Should().Be(invoice.Id);
+        // Dr COGS 60 (30 × 2) / Cr INVENTORY_FG 60, party-less inventory control credit.
+        cogs.Lines.Single(l => l.GlAccountId == CogsId).Debit.Should().Be(60m);
+        var fg = cogs.Lines.Single(l => l.GlAccountId == InventoryFgId);
+        fg.Credit.Should().Be(60m);
+        fg.SubledgerPartyType.Should().BeNull();
+        cogs.Lines.Sum(l => l.Debit).Should().Be(cogs.Lines.Sum(l => l.Credit));
+    }
+
+    [Fact]
+    public async Task Post_ServiceLine_NoPart_PostsNoCogs()
+    {
+        using var db = await SeedAsync();
+        var invoice = await AddInvoiceAsync(db, taxRate: 0m); // free-text lines, no PartId
+        var service = CreateService(db, fullGlOn: true);
+
+        await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+
+        // Only the revenue entry — service/free-text lines don't relieve inventory.
+        (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Post_FinishedGoodsLineWithoutCost_SkipsCogs()
+    {
+        using var db = await SeedAsync();
+        var invoice = await AddFinishedGoodsInvoiceAsync(db, unitCost: null); // no resolvable standard cost
+        var service = CreateService(db, fullGlOn: true);
+
+        await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+
+        (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(1); // revenue only — COGS skipped
+    }
+
+    [Fact]
+    public async Task Post_NonFinishedGoodsPart_PostsNoCogs()
+    {
+        using var db = await SeedAsync();
+        // A raw-material part line is consumed in production, not relieved at the sale.
+        var invoice = await AddFinishedGoodsInvoiceAsync(db, unitCost: 30m, inventoryClass: InventoryClass.Raw);
+        var service = CreateService(db, fullGlOn: true);
+
+        await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+
+        (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Post_Cogs_IsIdempotent()
+    {
+        using var db = await SeedAsync();
+        var invoice = await AddFinishedGoodsInvoiceAsync(db, unitCost: 30m, qty: 2m);
+        var service = CreateService(db, fullGlOn: true);
+
+        await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+        await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+
+        // revenue + COGS, each de-duped — no doubling.
+        (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(2);
     }
 }

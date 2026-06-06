@@ -43,11 +43,11 @@ namespace Forge.Api.Features.Accounting;
 /// ON a posting failure propagates and fails the operation (the inline model's
 /// "fail visibly" rule — §2).</para>
 ///
-/// <para><b>DEFER to Phase 2 — COGS / inventory relief.</b> The matrix's
-/// "+ Dr COGS / Cr Finished-Goods for stocked goods" leg is NOT posted here: it
-/// needs the per-part valuation store that Phase 2 introduces (§6, §8.1) and the
-/// FG-not-yet-loaded edge (§12) must be resolved first. See the TODO at the call
-/// site.</para>
+/// <para><b>Phase-2 STAGE B — COGS / finished-goods relief.</b> On control transfer, stocked
+/// finished-goods lines also relieve inventory: Dr COGS / Cr INVENTORY_FG at the resolved standard
+/// cost, posted as a separate journal entry (idempotency purpose <c>:COGS</c>). Lines with no part, a
+/// non-finished-goods part, or no resolvable cost are skipped. When the invoice precedes delivery
+/// (deferred revenue), COGS waits for the same delivery trigger as the revenue reclass.</para>
 /// </summary>
 public interface IInvoiceArPostingService
 {
@@ -79,6 +79,10 @@ public sealed class InvoiceArPostingService(
     private const string KeyDeferredRevenue = "DEFERRED_REVENUE";
     private const string KeySalesTaxPayable = "SALES_TAX_PAYABLE";
 
+    // Phase-2 STAGE B — COGS / finished-goods relief at the sale.
+    private const string KeyCogs = "COGS";
+    private const string KeyInventoryFg = "INVENTORY_FG";
+
     public async Task PostInvoiceFinalizedAsync(
         int invoiceId, int finalizedByUserId, CancellationToken ct = default)
     {
@@ -102,7 +106,7 @@ public sealed class InvoiceArPostingService(
         // Load the invoice with everything the journal needs from the SHARED
         // request-scoped context (so the posting joins the caller's transaction).
         var invoice = await db.Invoices
-            .Include(i => i.Lines)
+            .Include(i => i.Lines).ThenInclude(l => l.Part).ThenInclude(p => p!.CurrentCostCalculation)
             .Include(i => i.Customer)
             .Include(i => i.Shipment)
             .FirstOrDefaultAsync(i => i.Id == invoiceId, ct);
@@ -167,7 +171,10 @@ public sealed class InvoiceArPostingService(
         {
             // A zero/negative-total invoice (e.g. a fully-discounted or empty
             // finalize) has nothing to post; skip rather than emit a degenerate
-            // entry the balanced-check would reject anyway.
+            // entry the balanced-check would reject anyway. NOTE: this also skips
+            // COGS/FG relief for a zero-revenue delivered FG line (free sample /
+            // 100%-discount) — such goods relieve inventory via the shipment path,
+            // not the invoice (documented limitation).
             Log.Information(
                 "AR posting skipped: invoice {InvoiceId} has non-positive postable total {Total}.",
                 invoiceId, arTotal);
@@ -243,18 +250,14 @@ public sealed class InvoiceArPostingService(
         // an audit hiccup must not unwind a successful, committed posting.
         await TryAuditAsync(invoice, entry, revenueKey, arTotal, taxAmount, finalizedByUserId, ct);
 
-        // ── TODO (Phase 2 — COGS / inventory relief, §6 / §7 matrix row 1 / §8.1 / §12):
-        // For stocked finished-goods lines, control transfer should ALSO relieve
-        // inventory: Dr COGS / Cr Finished-Goods at the per-unit valued cost.
-        // That leg is intentionally NOT posted in Phase 1 because:
-        //   (a) it needs the per-part valuation store (moving-average / FIFO
-        //       layers / standard cost) that Phase 2 introduces (§8.1), and
-        //   (b) the FG-not-yet-loaded edge (§12) must be resolved first — a
-        //       make-to-order good can be sold before its FG balance is loaded,
-        //       which would drive FG negative.
-        // Leaving COGS unposted in Phase 1 means the interim P&L shows revenue
-        // without matched COGS; CAP-RPT-FINANCIALS stays OFF until COGS is live
-        // (§6 sequencing note). Do NOT post COGS here.
+        // ── COGS / finished-goods relief (Phase-2 STAGE B, §7 matrix row 1). On control transfer,
+        // relieve finished-goods inventory at standard cost for stocked FG lines: Dr COGS /
+        // Cr INVENTORY_FG, as a SEPARATE journal entry (idempotency purpose :COGS) so it de-dupes
+        // independently. When the invoice precedes delivery (!controlTransferred → deferred revenue),
+        // inventory is NOT relieved yet — COGS waits for the same delivery trigger as the revenue
+        // reclass (TODO below).
+        if (controlTransferred)
+            await PostCogsAsync(invoice, book, finalizedByUserId, ct);
 
         // ── TODO (Phase 1 — deferred-revenue reclass on delivery, §8.4 / matrix
         // row 2): when the invoice was booked to DEFERRED_REVENUE (invoice
@@ -263,6 +266,135 @@ public sealed class InvoiceArPostingService(
         // intended trigger is the ShipmentDelivered transition (Shipment.Status
         // → Delivered / DeliveredDate set). That handler is not wired in STAGE A;
         // documented here as the reclass site (idempotency purpose = REVENUE_RECLASS).
+    }
+
+    /// <summary>
+    /// Phase-2 STAGE B — COGS / finished-goods relief at the sale (§7 matrix row 1, §8.1). For each
+    /// stocked finished-goods line with a resolvable standard cost, posts Dr COGS for the line cost and
+    /// a single aggregate Cr INVENTORY_FG, as a separate journal entry (idempotency purpose :COGS).
+    /// Lines with no part, a non-finished-goods part, or no resolvable cost are skipped (the document
+    /// still finalizes; gross margin understates for that line until a cost lands). INVENTORY_FG is an
+    /// inventory control account reconciled by part via the valuation store (§8.1), so the credit posts
+    /// party-less (the engine requires a party only for AR/AP control accounts).
+    /// </summary>
+    private async Task PostCogsAsync(Invoice invoice, Book book, int userId, CancellationToken ct)
+    {
+        var lines = new List<PostingLine>();
+        decimal totalCogs = 0m;
+
+        foreach (var line in invoice.Lines.OrderBy(l => l.LineNumber))
+        {
+            if (!LineRelievesFinishedGoods(line))
+                continue;
+
+            var unitCost = ResolveStandardCost(line.Part!);
+            if (unitCost is not { } cost || cost <= 0m)
+            {
+                // No resolvable / non-positive standard cost — skip this line's COGS (don't block the
+                // sale). Logged so the partial-COGS gap is observable (gross margin understates here).
+                Log.Information(
+                    "COGS skipped: invoice {InvoiceId} line {LineNumber} part {PartNumber} has no resolvable standard cost.",
+                    invoice.Id, line.LineNumber, line.Part!.PartNumber);
+                continue;
+            }
+
+            var lineCogs = cost * line.Quantity;
+            if (lineCogs <= 0m)
+                continue;
+
+            totalCogs += lineCogs;
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyCogs,
+                Debit = lineCogs,
+                Description = $"COGS — invoice {invoice.InvoiceNumber} line {line.LineNumber}: {line.Description}",
+            });
+        }
+
+        if (totalCogs <= 0m)
+            return; // no stocked finished-goods lines with a cost → nothing to relieve
+
+        // §12 (FG-not-yet-loaded edge) — DECISION: post the relief at standard cost REGARDLESS of
+        // current on-hand FG value. A sale relieves FG even if the inbound FG-load posting (production
+        // receipt / opening-balance conversion §7A) hasn't run, which can drive INVENTORY_FG negative.
+        // Mitigated by loading opening FG balances at go-live (§7A) before COGS is enabled; a
+        // valuation-store-aware guard (skip/queue when no FG value, §8.1) is a STAGE-E refinement. TODO(§12).
+        //
+        // Cr INVENTORY_FG for the aggregate relief (inventory control account; party-less — reconciled
+        // by part via the valuation store, §8.1).
+        lines.Add(new PostingLine
+        {
+            AccountKey = KeyInventoryFg,
+            Credit = totalCogs,
+            Description = $"Finished-goods relief — invoice {invoice.InvoiceNumber}",
+        });
+
+        var request = new PostingRequest
+        {
+            BookId = book.Id,
+            EntryDate = DateOnly.FromDateTime(invoice.InvoiceDate.UtcDateTime),
+            Source = JournalSource.Inventory,
+            SourceType = "Invoice",
+            SourceId = invoice.Id,
+            CurrencyId = book.FunctionalCurrencyId,
+            Memo = $"COGS / finished-goods relief — invoice {invoice.InvoiceNumber}",
+            IdempotencyKey = $"{JournalSource.Inventory}:Invoice:{invoice.Id}:COGS",
+            Lines = lines,
+        };
+
+        var entry = await postingEngine.PostAsync(request, userId, ct);
+        await TryAuditCogsAsync(invoice, entry, totalCogs, userId, ct);
+    }
+
+    /// <summary>A line relieves finished-goods inventory iff it carries a Part that is a (non-phantom)
+    /// FinishedGood. Service / free-text lines (null Part) and non-FG parts do not.</summary>
+    private static bool LineRelievesFinishedGoods(InvoiceLine line) =>
+        line.Part is { } part
+        && part.InventoryClass == InventoryClass.FinishedGood
+        && part.ProcurementSource != ProcurementSource.Phantom;
+
+    /// <summary>Resolved per-unit standard cost (documented read priority, Part.cs):
+    /// ManualCostOverride ?? CurrentCostCalculation.ResultAmount ?? null.</summary>
+    private static decimal? ResolveStandardCost(Part part) =>
+        part.ManualCostOverride ?? part.CurrentCostCalculation?.ResultAmount;
+
+    private async Task TryAuditCogsAsync(
+        Invoice invoice, JournalEntry entry, decimal totalCogs, int actorUserId, CancellationToken ct)
+    {
+        if (auditWriter is null)
+            return;
+
+        try
+        {
+            var details = JsonSerializer.Serialize(new
+            {
+                before = (object?)null,
+                after = new
+                {
+                    journalEntryId = entry.Id,
+                    entryNumber = entry.EntryNumber,
+                    bookId = entry.BookId,
+                    source = entry.Source.ToString(),
+                    entryDate = entry.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    totalCogs,
+                },
+                reason = $"Invoice {invoice.InvoiceNumber} — COGS / finished-goods relief posted.",
+            });
+
+            await auditWriter.WriteAsync(
+                action: "GlInvoiceCogsPosted",
+                userId: actorUserId,
+                entityType: nameof(JournalEntry),
+                entityId: null,
+                details: details,
+                ct: ct);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex,
+                "COGS posting audit write failed for invoice {InvoiceId} (entry {EntryId}); posting itself is committed.",
+                invoice.Id, entry.Id);
+        }
     }
 
     /// <summary>

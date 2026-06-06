@@ -38,11 +38,9 @@ namespace Forge.Api.Features.Accounting;
 /// </summary>
 public sealed class FinancialStatementService(AppDbContext db, IClock clock) : IFinancialStatementService
 {
-    // COGS is wired in Phase 2 (§6 Phase-2 row). Until then every statement this
-    // service emits carries the incomplete-margin flag + caveat so the limitation
-    // travels with the data, not just the API docs.
-    private const bool CogsPostedPhase1 = false;
-
+    // CogsPosted is derived per-book from the ledger (DeriveCogsPostedAsync): true once any COGS-account
+    // line has posted (the Phase-2 STAGE B inventory→COGS relief at the sale). While no COGS has posted,
+    // statements carry the incomplete-margin caveat so the limitation travels with the data.
     private const string MarginCaveatText =
         "Gross margin is INCOMPLETE: Cost of Goods Sold (COGS) is not posted yet " +
         "(arrives in Phase 2). Revenue and operating expense are reflected; the " +
@@ -103,6 +101,8 @@ public sealed class FinancialStatementService(AppDbContext db, IClock clock) : I
             })
             .ToList();
 
+        var cogsPosted = await DeriveCogsPostedAsync(bookId, fromDate, toDate, ct);
+
         return new ProfitAndLoss
         {
             BookId = bookId,
@@ -112,8 +112,8 @@ public sealed class FinancialStatementService(AppDbContext db, IClock clock) : I
             Expense = expense,
             TotalIncome = income.Sum(l => l.Amount),
             TotalExpense = expense.Sum(l => l.Amount),
-            CogsPosted = CogsPostedPhase1,
-            MarginCaveat = MarginCaveatText,
+            CogsPosted = cogsPosted,
+            MarginCaveat = cogsPosted ? string.Empty : MarginCaveatText,
         };
     }
 
@@ -154,6 +154,7 @@ public sealed class FinancialStatementService(AppDbContext db, IClock clock) : I
             .ToList();
 
         var currentYearEarnings = await ComputeCurrentYearEarningsAsync(bookId, asOf, ct);
+        var cogsPosted = await DeriveCogsPostedAsync(bookId, fromDate: null, toDate: asOf, ct);
 
         return new BalanceSheet
         {
@@ -166,8 +167,8 @@ public sealed class FinancialStatementService(AppDbContext db, IClock clock) : I
             TotalLiabilities = liabilities.Sum(l => l.Amount),
             TotalEquityPosted = equity.Sum(l => l.Amount),
             CurrentYearEarnings = currentYearEarnings,
-            CogsPosted = CogsPostedPhase1,
-            MarginCaveat = MarginCaveatText,
+            CogsPosted = cogsPosted,
+            MarginCaveat = cogsPosted ? string.Empty : MarginCaveatText,
         };
     }
 
@@ -214,6 +215,38 @@ public sealed class FinancialStatementService(AppDbContext db, IClock clock) : I
     /// (InMemory can't express the per-account net in SQL cleanly) and provably
     /// correct, mirroring <see cref="ArAgingService"/>.
     /// </summary>
+    /// <summary>
+    /// True when there is net COGS activity in the report window — the Phase-2 STAGE B inventory→COGS
+    /// relief at the sale. Derived from the ledger (not from CAP-ACCT-FULLGL, which only means posting is
+    /// enabled, not that COGS was recorded). <b>Window-scoped</b> so a P&amp;L for a period with revenue
+    /// but no COGS-in-window keeps the incomplete-margin caveat (pass <c>null</c>/asOf for the cumulative
+    /// balance sheet). Nets Dr−Cr over Posted+Reversed so a posted-then-reversed COGS reads as not-live,
+    /// and resolves the full SET of COGS-keyed accounts so a future scoped rule isn't silently missed.
+    /// </summary>
+    private async Task<bool> DeriveCogsPostedAsync(int bookId, DateOnly? fromDate, DateOnly? toDate, CancellationToken ct)
+    {
+        var cogsAccountIds = await db.AccountDeterminationRules
+            .Where(r => r.BookId == bookId && r.Key == "COGS")
+            .Select(r => r.GlAccountId)
+            .ToListAsync(ct);
+
+        if (cogsAccountIds.Count == 0)
+            return false;
+
+        var net = await
+            (from line in db.JournalLines.IgnoreQueryFilters()
+             join entry in db.JournalEntries.IgnoreQueryFilters() on line.JournalEntryId equals entry.Id
+             where entry.BookId == bookId
+                 && cogsAccountIds.Contains(line.GlAccountId)
+                 && (entry.Status == JournalEntryStatus.Posted || entry.Status == JournalEntryStatus.Reversed)
+                 && (fromDate == null || entry.EntryDate >= fromDate)
+                 && (toDate == null || entry.EntryDate <= toDate)
+             select line.Debit - line.Credit)
+            .SumAsync(ct);
+
+        return net != 0m;
+    }
+
     private async Task<List<StatementLineRow>> ProjectLinesAsync(
         int bookId,
         DateOnly? fromDate,
