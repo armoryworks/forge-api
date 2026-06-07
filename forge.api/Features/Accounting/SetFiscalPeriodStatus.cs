@@ -2,11 +2,13 @@ using System.Security.Claims;
 
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Accounting;
 
@@ -21,14 +23,26 @@ public record SetFiscalPeriodStatusCommand(int PeriodId, FiscalPeriodStatus Targ
 
 public class SetFiscalPeriodStatusHandler(
     IFiscalPeriodCloseService closeService,
-    IHttpContextAccessor? httpContextAccessor = null)
+    IHttpContextAccessor? httpContextAccessor = null,
+    AppDbContext? db = null)
     : IRequestHandler<SetFiscalPeriodStatusCommand, FiscalPeriodModel>
 {
-    public Task<FiscalPeriodModel> Handle(SetFiscalPeriodStatusCommand request, CancellationToken cancellationToken)
+    public async Task<FiscalPeriodModel> Handle(SetFiscalPeriodStatusCommand request, CancellationToken cancellationToken)
     {
         var actorUserId = int.TryParse(
             httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier),
             out var uid) ? uid : 0;
-        return closeService.TransitionAsync(request.PeriodId, request.Target, actorUserId, cancellationToken);
+
+        // One transaction so the status flip + any auto-reversing-accrual entries commit (or roll back) together.
+        await using var tx = db is not null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
+        var result = await closeService.TransitionAsync(request.PeriodId, request.Target, actorUserId, cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
+
+        return result;
     }
 }

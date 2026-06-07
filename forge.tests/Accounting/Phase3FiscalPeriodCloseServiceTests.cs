@@ -39,7 +39,7 @@ public class Phase3FiscalPeriodCloseServiceTests
     private static ForgeGlPostingEngine Engine(AppDbContext db)
         => new(db, new AccountDeterminationResolver(db), new FakeAllocator(), new SystemClock());
 
-    private static FiscalPeriodCloseService Service(AppDbContext db) => new(db, new SystemClock());
+    private static FiscalPeriodCloseService Service(AppDbContext db) => new(db, new SystemClock(), Engine(db));
 
     private static async Task<AppDbContext> SeedAsync(FiscalPeriodStatus status = FiscalPeriodStatus.Open)
     {
@@ -195,5 +195,90 @@ public class Phase3FiscalPeriodCloseServiceTests
         var p = await db.FiscalPeriods.SingleAsync(p => p.Id == PeriodId);
         p.ReopenedByUserId.Should().Be(99);
         p.ReopenedAt.Should().NotBeNull();
+    }
+
+    // ─────────────────── auto-reversing accruals (§12) ───────────────────
+
+    private const int JanId = 2000;
+    private const int FebId = 2001;
+
+    private static async Task<AppDbContext> SeedTwoPeriodsAsync()
+    {
+        var db = TestDbContextFactory.Create();
+        db.Set<Currency>().Add(new Currency { Id = UsdId, Code = "USD", Name = "US Dollar", Symbol = "$" });
+        db.Set<Book>().Add(new Book
+        {
+            Id = BookId, Code = "MAIN", Name = "Main", FunctionalCurrencyId = UsdId,
+            ReportingTimeZone = "America/New_York", RoundingTolerance = 0.01m, IsActive = true,
+        });
+        db.Set<FiscalYear>().Add(new FiscalYear
+        {
+            Id = FiscalYearId, BookId = BookId, Name = "FY2026",
+            StartDate = new DateOnly(2026, 1, 1), EndDate = new DateOnly(2026, 12, 31), Status = FiscalYearStatus.Open,
+        });
+        db.Set<FiscalPeriod>().AddRange(
+            new FiscalPeriod { Id = JanId, FiscalYearId = FiscalYearId, PeriodNumber = 1, Name = "Jan 2026", StartDate = new DateOnly(2026, 1, 1), EndDate = new DateOnly(2026, 1, 31), Status = FiscalPeriodStatus.Open },
+            new FiscalPeriod { Id = FebId, FiscalYearId = FiscalYearId, PeriodNumber = 2, Name = "Feb 2026", StartDate = new DateOnly(2026, 2, 1), EndDate = new DateOnly(2026, 2, 28), Status = FiscalPeriodStatus.Open });
+        db.Set<GlAccount>().AddRange(
+            new GlAccount { Id = CashId, BookId = BookId, AccountNumber = "10100", Name = "Cash", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
+            new GlAccount { Id = RevId, BookId = BookId, AccountNumber = "40000", Name = "Sales", AccountType = AccountType.Income, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true });
+        db.Set<AccountDeterminationRule>().AddRange(
+            new AccountDeterminationRule { BookId = BookId, Key = "CASH", GlAccountId = CashId },
+            new AccountDeterminationRule { BookId = BookId, Key = "SALES_REVENUE", GlAccountId = RevId });
+        await db.SaveChangesAsync();
+        return db;
+    }
+
+    private static Task<JournalEntry> PostAccrualAsync(AppDbContext db, DateOnly date) => Engine(db).PostAsync(new PostingRequest
+    {
+        BookId = BookId, EntryDate = date, Source = JournalSource.Manual, CurrencyId = UsdId,
+        IdempotencyKey = $"accrual:{date}", AutoReverseNextPeriod = true,
+        Lines =
+        [
+            new PostingLine { AccountKey = "CASH", Debit = 500m, Description = "accrual dr" },
+            new PostingLine { AccountKey = "SALES_REVENUE", Credit = 500m, Description = "accrual cr" },
+        ],
+    }, 7);
+
+    [Fact]
+    public async Task Close_ReversesAutoReverseAccruals_IntoNextPeriod()
+    {
+        using var db = await SeedTwoPeriodsAsync();
+        var accrual = await PostAccrualAsync(db, new DateOnly(2026, 1, 15));
+
+        await Service(db).TransitionAsync(JanId, FiscalPeriodStatus.SoftClosed, actorUserId: 7);
+
+        // Original is reversed; the reversal posts on Feb 1 (the day after Jan ends).
+        var original = await db.JournalEntries.IgnoreQueryFilters().SingleAsync(e => e.Id == accrual.Id);
+        original.Status.Should().Be(JournalEntryStatus.Reversed);
+        original.ReversedByEntryId.Should().NotBeNull();
+
+        var reversal = await db.JournalEntries.IgnoreQueryFilters().SingleAsync(e => e.ReversalOfEntryId == accrual.Id);
+        reversal.EntryDate.Should().Be(new DateOnly(2026, 2, 1));
+        reversal.FiscalPeriodId.Should().Be(FebId);
+    }
+
+    [Fact]
+    public async Task Close_AccrualReversal_Idempotent_OnReClose()
+    {
+        using var db = await SeedTwoPeriodsAsync();
+        var accrual = await PostAccrualAsync(db, new DateOnly(2026, 1, 15));
+        var svc = Service(db);
+
+        await svc.TransitionAsync(JanId, FiscalPeriodStatus.SoftClosed, actorUserId: 7);
+        await svc.TransitionAsync(JanId, FiscalPeriodStatus.HardClosed, actorUserId: 7); // re-close
+
+        // Exactly one reversal (the second close skips the already-reversed accrual).
+        (await db.JournalEntries.IgnoreQueryFilters().CountAsync(e => e.ReversalOfEntryId == accrual.Id)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Close_AccrualWithNoNextPeriod_Throws()
+    {
+        using var db = await SeedAsync(); // single full-year period → no period covers 2027-01-01
+        await PostAccrualAsync(db, new DateOnly(2026, 6, 15));
+
+        var act = async () => await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.SoftClosed, actorUserId: 7);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*create the next period first*");
     }
 }
