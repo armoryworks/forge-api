@@ -366,6 +366,8 @@ try
     builder.Services.AddScoped<IDepreciationService, Forge.Api.Features.Accounting.DepreciationService>();
     // §7A conversion — opening-balance journal at go-live (Source=Conversion).
     builder.Services.AddScoped<IConversionService, Forge.Api.Features.Accounting.ConversionService>();
+    // Phase-5 — payroll GL foundation (pay-run + payroll journal; tax-calc is a separate spike).
+    builder.Services.AddScoped<IPayrollService, Forge.Api.Features.Accounting.PayrollService>();
     // Phase-1 STAGE E — basic financial statements (§6 Phase-1 row "P&L + Balance
     // Sheet"). Profit & Loss (Income/Expense over a period range) and Balance
     // Sheet (Asset/Liability/Equity as of a date, with computed current-year-

@@ -241,6 +241,26 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    // ─────────────────────────── Phase-5 payroll ───────────────────────────
+
+    /// <summary>Phase-5 — create a pay run (amounts provided; tax calc is the §8.3 spike, out of scope here).</summary>
+    [HttpPost("pay-runs")]
+    [RequiresCapability("CAP-PAYROLL-RUN")]
+    public async Task<ActionResult<PayRunModel>> CreatePayRun([FromBody] CreatePayRunModel model, CancellationToken ct)
+        => Ok(await mediator.Send(new CreatePayRunCommand(model), ct));
+
+    /// <summary>Phase-5 — list a book's pay runs.</summary>
+    [HttpGet("pay-runs")]
+    [RequiresCapability("CAP-PAYROLL-RUN")]
+    public async Task<ActionResult<IReadOnlyList<PayRunModel>>> ListPayRuns([FromQuery] int bookId, CancellationToken ct)
+        => Ok(await mediator.Send(new ListPayRunsQuery(bookId), ct));
+
+    /// <summary>Phase-5 — post the payroll journal for a pay run.</summary>
+    [HttpPost("pay-runs/{id:int}/post")]
+    [RequiresCapability("CAP-PAYROLL-RUN")]
+    public async Task<ActionResult<PayRunModel>> PostPayRun(int id, CancellationToken ct)
+        => Ok(await mediator.Send(new PostPayRunCommand(id), ct));
+
     /// <summary>§7A conversion — post the opening-balance journal (balance-sheet opening balances + AR/AP
     /// open items) at go-live. Idempotent per book.</summary>
     [HttpPost("opening-balances")]
