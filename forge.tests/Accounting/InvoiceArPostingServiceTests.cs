@@ -65,6 +65,15 @@ public class InvoiceArPostingServiceTests
             new ForgeGlPostingEngine(db, new AccountDeterminationResolver(db), new FakeAllocator(), new SystemClock()),
             new FakeCapabilities(fullGlOn));
 
+    // STAGE E — service wired to the perpetual valuation store (FG relief at weighted-average).
+    private static InvoiceArPostingService CreateServiceWithValuation(AppDbContext db, bool fullGlOn)
+        => new(
+            db,
+            new ForgeGlPostingEngine(db, new AccountDeterminationResolver(db), new FakeAllocator(), new SystemClock()),
+            new FakeCapabilities(fullGlOn),
+            auditWriter: null,
+            valuation: new InventoryValuationService(db));
+
     private static async Task<AppDbContext> SeedAsync()
     {
         var db = TestDbContextFactory.Create();
@@ -387,5 +396,32 @@ public class InvoiceArPostingServiceTests
 
         // revenue + COGS, each de-duped — no doubling.
         (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Post_FinishedGoodsLine_WithValuationStore_UsesWeightedAverage_AndRelievesStore()
+    {
+        using var db = await SeedAsync();
+        // Standard cost 30, but the perpetual store carries the part at a weighted-average of 8.00 — the store
+        // must win, and decrement in lock-step with the GL relief.
+        var invoice = await AddFinishedGoodsInvoiceAsync(db, unitCost: 30m, qty: 2m);
+        var partId = invoice.Lines.First().PartId!.Value;
+        db.Set<InventoryValuation>().Add(new InventoryValuation
+        {
+            BookId = BookId, PartId = partId, OnHandQuantity = 10m, TotalValue = 80m, AverageUnitCost = 8m,
+        });
+        await db.SaveChangesAsync();
+
+        await CreateServiceWithValuation(db, fullGlOn: true).PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+
+        var cogs = await db.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines)
+            .SingleAsync(e => e.Source == JournalSource.Inventory);
+        // Weighted-average 8.00 (NOT the 30 standard): Dr COGS 16 (2 × 8) / Cr INVENTORY_FG 16.
+        cogs.Lines.Single(l => l.GlAccountId == CogsId).Debit.Should().Be(16m);
+        cogs.Lines.Single(l => l.GlAccountId == InventoryFgId).Credit.Should().Be(16m);
+
+        var store = await db.Set<InventoryValuation>().SingleAsync(v => v.PartId == partId);
+        store.OnHandQuantity.Should().Be(8m);   // 10 − 2
+        store.TotalValue.Should().Be(64m);       // 80 − 16
     }
 }

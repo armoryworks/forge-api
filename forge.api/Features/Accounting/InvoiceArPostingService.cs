@@ -67,7 +67,10 @@ public sealed class InvoiceArPostingService(
     AppDbContext db,
     IPostingEngine postingEngine,
     ICapabilitySnapshotProvider capabilities,
-    ISystemAuditWriter? auditWriter = null) : IInvoiceArPostingService
+    ISystemAuditWriter? auditWriter = null,
+    // STAGE E — when wired, finished-goods relief is valued at the perpetual weighted-average and the store is
+    // decremented; null (isolated tests) or no store row falls back to the part's standard cost.
+    IInventoryValuationService? valuation = null) : IInvoiceArPostingService
 {
     // The capability that gates the whole GL. Must match CapabilityCatalog.
     private const string FullGlCapability = "CAP-ACCT-FULLGL";
@@ -279,6 +282,16 @@ public sealed class InvoiceArPostingService(
     /// </summary>
     private async Task PostCogsAsync(Invoice invoice, Book book, int userId, CancellationToken ct)
     {
+        var idempotencyKey = $"{JournalSource.Inventory}:Invoice:{invoice.Id}:COGS";
+
+        // Idempotency guard for the valuation-store side-effect. The engine de-dupes the journal entry by
+        // (BookId, IdempotencyKey), but ApplyIssueAsync (below) relieves the store OUTSIDE the engine — so a
+        // re-finalize would double-relieve. Bail before touching the store if this COGS entry already exists.
+        var alreadyPosted = await db.JournalEntries.IgnoreQueryFilters()
+            .AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == idempotencyKey, ct);
+        if (alreadyPosted)
+            return;
+
         var lines = new List<PostingLine>();
         decimal totalCogs = 0m;
 
@@ -287,18 +300,31 @@ public sealed class InvoiceArPostingService(
             if (!LineRelievesFinishedGoods(line))
                 continue;
 
-            var unitCost = ResolveStandardCost(line.Part!);
-            if (unitCost is not { } cost || cost <= 0m)
+            // Perpetual costing (STAGE E): when the valuation store carries this FG part, relieve it at the
+            // weighted-average and post that actual value — the store decrements in lock-step with the GL.
+            // Otherwise fall back to the part's standard cost (and leave the store untouched).
+            decimal lineCogs;
+            var hasStoreRow = valuation is not null
+                && await db.InventoryValuations.AnyAsync(v => v.BookId == book.Id && v.PartId == line.PartId, ct);
+            if (hasStoreRow)
             {
-                // No resolvable / non-positive standard cost — skip this line's COGS (don't block the
-                // sale). Logged so the partial-COGS gap is observable (gross margin understates here).
-                Log.Information(
-                    "COGS skipped: invoice {InvoiceId} line {LineNumber} part {PartNumber} has no resolvable standard cost.",
-                    invoice.Id, line.LineNumber, line.Part!.PartNumber);
-                continue;
+                lineCogs = await valuation!.ApplyIssueAsync(book.Id, line.PartId!.Value, line.Quantity, ct);
+            }
+            else
+            {
+                var unitCost = ResolveStandardCost(line.Part!);
+                if (unitCost is not { } cost || cost <= 0m)
+                {
+                    // No resolvable / non-positive standard cost — skip this line's COGS (don't block the
+                    // sale). Logged so the partial-COGS gap is observable (gross margin understates here).
+                    Log.Information(
+                        "COGS skipped: invoice {InvoiceId} line {LineNumber} part {PartNumber} has no resolvable standard cost.",
+                        invoice.Id, line.LineNumber, line.Part!.PartNumber);
+                    continue;
+                }
+                lineCogs = cost * line.Quantity;
             }
 
-            var lineCogs = cost * line.Quantity;
             if (lineCogs <= 0m)
                 continue;
 
@@ -314,11 +340,11 @@ public sealed class InvoiceArPostingService(
         if (totalCogs <= 0m)
             return; // no stocked finished-goods lines with a cost → nothing to relieve
 
-        // §12 (FG-not-yet-loaded edge) — DECISION: post the relief at standard cost REGARDLESS of
-        // current on-hand FG value. A sale relieves FG even if the inbound FG-load posting (production
-        // receipt / opening-balance conversion §7A) hasn't run, which can drive INVENTORY_FG negative.
-        // Mitigated by loading opening FG balances at go-live (§7A) before COGS is enabled; a
-        // valuation-store-aware guard (skip/queue when no FG value, §8.1) is a STAGE-E refinement. TODO(§12).
+        // §12 (FG-not-yet-loaded edge) — when the valuation store carries a part, the relief above used its
+        // weighted-average (STAGE E) and decremented it in lock-step. Parts NOT yet in the store fall back to
+        // standard cost: a sale still relieves FG even if the inbound FG-load (production receipt / opening-
+        // balance conversion §7A) hasn't run, which can drive INVENTORY_FG negative. Mitigated by loading
+        // opening FG balances at go-live (§7A) before COGS is enabled.
         //
         // Cr INVENTORY_FG for the aggregate relief (inventory control account; party-less — reconciled
         // by part via the valuation store, §8.1).
@@ -338,7 +364,7 @@ public sealed class InvoiceArPostingService(
             SourceId = invoice.Id,
             CurrencyId = book.FunctionalCurrencyId,
             Memo = $"COGS / finished-goods relief — invoice {invoice.InvoiceNumber}",
-            IdempotencyKey = $"{JournalSource.Inventory}:Invoice:{invoice.Id}:COGS",
+            IdempotencyKey = idempotencyKey,
             Lines = lines,
         };
 

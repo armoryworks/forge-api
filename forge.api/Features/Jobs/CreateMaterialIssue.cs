@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -30,7 +31,11 @@ public class CreateMaterialIssueValidator : AbstractValidator<CreateMaterialIssu
     }
 }
 
-public class CreateMaterialIssueHandler(AppDbContext db)
+public class CreateMaterialIssueHandler(
+    AppDbContext db,
+    // Phase-2 STAGE E — optional / null-default so the handler stays constructible without an accounting
+    // context (isolated unit tests). Production DI supplies it; with CAP-ACCT-FULLGL off it no-ops.
+    IMaterialIssuePostingService? posting = null)
     : IRequestHandler<CreateMaterialIssueCommand, MaterialIssueResponseModel>
 {
     public async Task<MaterialIssueResponseModel> Handle(
@@ -100,7 +105,27 @@ public class CreateMaterialIssueHandler(AppDbContext db)
         };
 
         db.MaterialIssues.Add(issue);
+
+        // One transaction: the issue + bin decrement AND the inline WIP / inventory posting commit (or roll
+        // back) together — the locked inline model. The engine's SaveChanges joins this transaction; a posting
+        // failure (FULLGL on) unwinds the issue too. On Npgsql this is a real transaction; the in-memory test
+        // provider treats it as an ignored no-op. tx is opened only when posting is wired.
+        await using var tx = posting is not null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         await db.SaveChangesAsync(cancellationToken);
+
+        // Inline WIP / inventory posting (Phase-2 STAGE E) — no-op while CAP-ACCT-FULLGL is off. Runs after the
+        // issue is flushed so its id resolves; relieves the perpetual valuation store at weighted-average.
+        if (posting is not null)
+        {
+            var entryDate = DateOnly.FromDateTime(issue.IssuedAt.UtcDateTime);
+            await posting.PostMaterialIssueAsync(issue.Id, entryDate, request.IssuedById, cancellationToken);
+        }
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
 
         var part = await db.Parts.AsNoTracking()
             .FirstAsync(p => p.Id == request.PartId, cancellationToken);
