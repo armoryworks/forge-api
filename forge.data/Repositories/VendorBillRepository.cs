@@ -40,6 +40,9 @@ public class VendorBillRepository(AppDbContext db) : IVendorBillRepository
     public Task<VendorBill?> FindAsync(int id, CancellationToken ct)
         => db.VendorBills.FirstOrDefaultAsync(b => b.Id == id, ct);
 
+    public Task<bool> ExistsForVendorInvoiceAsync(int vendorId, string vendorInvoiceNumber, CancellationToken ct)
+        => db.VendorBills.AnyAsync(b => b.VendorId == vendorId && b.VendorInvoiceNumber == vendorInvoiceNumber, ct);
+
     public Task<VendorBill?> FindWithDetailsAsync(int id, CancellationToken ct)
         => db.VendorBills
             .Include(b => b.Lines).ThenInclude(l => l.PurchaseOrderLine)

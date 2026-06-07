@@ -67,6 +67,16 @@ public class CreateVendorBillHandler(
         var vendor = await vendorRepo.FindAsync(request.VendorId, cancellationToken)
             ?? throw new KeyNotFoundException($"Vendor {request.VendorId} not found");
 
+        // Duplicate-vendor-invoice guard (pre-go-live AP control): never record the same vendor invoice twice
+        // — the highest-value double-payment protection (we receive bills, unlike AR where we issue invoices).
+        // A friendly 4xx here; the partial unique index ux_vendor_bills_vendor_invoice is the backstop.
+        if (!string.IsNullOrWhiteSpace(request.VendorInvoiceNumber)
+            && await repo.ExistsForVendorInvoiceAsync(request.VendorId, request.VendorInvoiceNumber, cancellationToken))
+        {
+            throw new InvalidOperationException(
+                $"A bill for vendor {request.VendorId} with invoice number '{request.VendorInvoiceNumber}' already exists.");
+        }
+
         var billNumber = await repo.GenerateNextBillNumberAsync(cancellationToken);
 
         var bill = new VendorBill

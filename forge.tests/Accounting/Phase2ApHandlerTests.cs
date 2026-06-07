@@ -163,7 +163,7 @@ public class Phase2ApHandlerTests
     }
 
     private static CreateVendorBillCommand PoBillCmd(int vendorId, int poId, int poLineId, decimal qty, decimal billUnitPrice)
-        => new(vendorId, "V-PO", poId,
+        => new(vendorId, null, poId, // null vendor-invoice-number → exempt from the duplicate-bill guard
             new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2026, 2, 14, 0, 0, 0, TimeSpan.Zero),
             0m, "po-note",
@@ -450,6 +450,34 @@ public class Phase2ApHandlerTests
             CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*different vendor*");
+    }
+
+    [Fact]
+    public async Task CreateBill_DuplicateVendorInvoice_Throws()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var h = new Harness(db, fullGlOn: false);
+
+        await h.CreateBill.Handle(BillCmd(vendorId), CancellationToken.None); // VendorInvoiceNumber "V-555"
+
+        var act = async () => await h.CreateBill.Handle(BillCmd(vendorId), CancellationToken.None);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already exists*");
+    }
+
+    [Fact]
+    public async Task CreateBill_NullVendorInvoice_NotDeduped()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var h = new Harness(db, fullGlOn: false);
+        var cmd = new CreateVendorBillCommand(vendorId, null, null,
+            new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2026, 2, 14, 0, 0, 0, TimeSpan.Zero),
+            0m, null, [new CreateVendorBillLineModel(null, "x", 1, 100m, null)]);
+
+        await h.CreateBill.Handle(cmd, CancellationToken.None);
+
+        // A bill with no vendor invoice number is exempt from the duplicate guard.
+        var act = async () => await h.CreateBill.Handle(cmd, CancellationToken.None);
+        await act.Should().NotThrowAsync();
     }
 
     [Fact]

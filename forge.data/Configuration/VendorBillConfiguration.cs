@@ -34,6 +34,13 @@ public class VendorBillConfiguration : IEntityTypeConfiguration<VendorBill>
         builder.Property(e => e.Provider).HasMaxLength(50);
 
         builder.HasIndex(e => e.BillNumber).IsUnique().HasDatabaseName("ux_vendor_bills_number");
+        // Pre-go-live AP control (hardening): block paying the same vendor invoice twice. Partial unique on
+        // (vendor, vendor_invoice_number) where a number is present — bills without a vendor invoice number
+        // (manual / not-yet-keyed) are exempt. The handler also guards with a friendly 4xx before this fires.
+        builder.HasIndex(e => new { e.VendorId, e.VendorInvoiceNumber })
+            .IsUnique()
+            .HasDatabaseName("ux_vendor_bills_vendor_invoice")
+            .HasFilter("vendor_invoice_number IS NOT NULL");
         builder.HasIndex(e => e.VendorId).HasDatabaseName("ix_vendor_bills_vendor");
         builder.HasIndex(e => e.Status).HasDatabaseName("ix_vendor_bills_status");
         builder.HasIndex(e => e.PurchaseOrderId).HasDatabaseName("ix_vendor_bills_po");
