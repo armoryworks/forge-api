@@ -10,6 +10,8 @@ branch `feat/accounting-gl-phase1`, no migration applied, nothing deployed):
   audit columns, auto-reversing accruals at close, recurring journal templates, close-checklist gate +
   late-posting date resolver.
 - **Phase 4a** — fixed-asset register + straight-line depreciation posting.
+- **Phase 4b** — multi-currency posting (engine FxRate, backward-compatible) + period-end unrealized FX
+  revaluation (realized-on-settlement still to do — see §1).
 - **§7A conversion** — opening-balance journal (balance-sheet + AR/AP open items).
 - **Cross-cutting §12** — reversal-of-reversal policy, dimension-required (Job/CostCenter), maker-checker
   large-JE threshold.
@@ -22,35 +24,33 @@ un-darking (sandbox has none).
 
 ---
 
-## 1. Phase 4b — FX revaluation (the one genuinely-large remaining build)
+## 1. Phase 4b — FX revaluation — **DONE** (commit `7a4b519d`), except realized-on-settlement
 
-**Why it's not done in this run:** realized/unrealized FX requires real foreign-currency entries, but the
-engine pins the **Phase-0 single-currency invariant** — every line's `CurrencyId` = the entry's,
-`FunctionalAmount = TxnAmount`, `FxRate = 1` (`ForgeGlPostingEngine` ~line 151–154). Un-pinning that is a
-cross-cutting change to the engine + every posting service, and **all 1370 tests assume FxRate=1**. Rushing
-it risks the whole ledger. It needs its own focused, well-tested workstream — not a marathon-tail rush.
+- **Multi-currency posting — done.** `PostingRequest.FxRate` (default 1); the engine computes
+  `FunctionalAmount = round(TxnAmount × FxRate)`. At `FxRate == 1` it's **byte-for-byte** the old
+  single-currency path (no rounding) — all 1370 prior tests stay green. One rate per entry, so the functional
+  ledger balances whenever the transaction side does.
+- **Period-end unrealized reval — done.** `FxRevaluationService.RevalueAsync(book, currency, newRate, asOf)`
+  re-measures the **net foreign monetary position** (cash + AR/AP control in the foreign currency) and posts
+  the functional carrying adjustment to `FX_REVALUATION` / `FX_GAIN`|`FX_LOSS` with `AutoReverseNextPeriod`
+  (reuses the close auto-reversal). Functional-currency + no-rate-change are no-ops. `POST
+  /accounting/fx-revaluation`, gated `CAP-ACCT-FXREVAL`. +5 tests.
 
-**Concrete plan (do this as a dedicated stage):**
-1. **Multi-currency posting (prerequisite).** Let a `PostingRequest`/line carry a transaction currency ≠ the
-   book functional currency + an `FxRate`; the engine computes `FunctionalAmount = round(TxnAmount × FxRate)`
-   and **balances in FUNCTIONAL** (the txn side won't net to zero across currencies). Add a tolerance line for
-   functional rounding. Gate behind a `CAP-ACCT-MULTICURRENCY` so the single-currency path is unchanged when
-   off. An `FxRateService` (rate source: manual table + optional provider) supplies the rate by (currency, date).
-2. **Realized FX on settlement** (Phase-1-onward, AR/AP cash): when a foreign invoice/bill settles at a
-   different rate than booked, post the difference to `FX_GAIN` / `FX_LOSS`. Hook in the existing
-   payment/settlement posting services (they already compute the AP/AR relief).
-3. **Period-end unrealized reval:** an `FxRevaluationService` that, as of a date, revalues open foreign AR/AP/
-   cash balances to the period-end rate and posts the unrealized gain/loss with `AutoReverseNextPeriod = true`
-   (reuses the close auto-reversal already built) + a `CTA` line for equity translation. Gate `CAP-ACCT-FXREVAL`.
-4. Tests: multi-currency balanced post; realized gain + loss on settlement; unrealized reval posts +
-   auto-reverses next period; reval reconciles to the FX-adjusted control balances.
+**Remaining FX piece — realized FX on settlement.** When a foreign invoice/bill settles at a rate different
+from its booking rate, the difference is a *realized* gain/loss. This needs **per-open-item booking-rate
+tracking** (the AR/AP sub-ledger is currently a control-balance projection, not strict open items), then a
+hook in the payment/settlement posting services: relieve AR/AP at the booked functional carrying value, take
+cash at the settlement rate, and post the difference to `FX_GAIN`/`FX_LOSS`. Build alongside an open-item
+sub-ledger load (it pairs naturally with §7A's open-item conversion). A future `CTA` line handles equity
+translation for consolidations.
 
-## 2. Cross-cutting §12 — JE attachments (small)
+## 2. Cross-cutting §12 — JE attachments — **supported by existing infra**
 
-`FileAttachment` is already polymorphic (`EntityType` + `EntityId`). Manual-JE attachments are mostly a wiring
-step: allow `EntityType = "JournalEntry"` through the existing attachment API + surface it on the JE detail.
-**Caveat:** `FileAttachment.EntityId` is `int` while `JournalEntry.Id` is `long` — either widen the attachment
-key for JEs or store the JE number. Decide before wiring.
+`FileAttachment` is polymorphic and the generic `FilesController` already exposes
+`POST /files/{entityType}/{entityId}/files` for any entity type — so a manual JE takes attachments today via
+`EntityType = "JournalEntry"`. The UI/JE detail can surface it directly; no new backend. **Caveat:** the route
++ `FileAttachment.EntityId` are `int` while `JournalEntry.Id` is `long`; fine until a book exceeds ~2.1B
+journal entries — widen to `long` (or key by entry number) before that's a concern.
 
 ## 3. Pre-go-live (independent of new features)
 
