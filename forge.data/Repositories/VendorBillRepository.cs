@@ -42,7 +42,7 @@ public class VendorBillRepository(AppDbContext db) : IVendorBillRepository
 
     public Task<VendorBill?> FindWithDetailsAsync(int id, CancellationToken ct)
         => db.VendorBills
-            .Include(b => b.Lines)
+            .Include(b => b.Lines).ThenInclude(l => l.PurchaseOrderLine)
             .Include(b => b.PaymentApplications)
             .FirstOrDefaultAsync(b => b.Id == id, ct);
 

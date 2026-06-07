@@ -192,6 +192,38 @@ Filter-immune projection like the trial balance. Endpoint `GET /api/v1/accountin
     the match to tag its GRNI-clear leg with the receipt's `Inventory:Receipt:{poId}` source, OR the aging
     to net across both sources by PO — decide at D.3) and the **line-level ReceivingRecord↔GRNI
     reconciliation** sweeper (§12 — must check line-level coverage, not `(SourceType,SourceId)` presence).
+
+- **STAGE D.2 — 3-way-match posting (BUILT, dark, commit pending):** implemented exactly to the design above.
+  - `VendorBillApPostingService.PostCoreAsync` now branches on `bill.PurchaseOrderId`: `BuildStandaloneDebits`
+    (unchanged STAGE-A path) vs **`BuildPoMatchedDebits`** — per line **Dr GRNI** = `Quantity × PO UnitPrice`
+    (one granular line each, keyed for D.3 line-level reconciliation), net **Dr|Cr PURCHASE_PRICE_VARIANCE** =
+    `Σ(LineTotal − grniClear)` (Dr unfavorable / Cr favorable), then the shared **Dr OPERATING_EXPENSE** (tax)
+    / **Cr AP_CONTROL** (Total, party=vendor). Balances by construction. Bill load extended to
+    `.Include(b => b.Lines).ThenInclude(l => l.PurchaseOrderLine)`; `VendorBillRepository.FindWithDetailsAsync`
+    likewise (for the handler).
+  - **`ApproveVendorBill`** loads via `FindWithDetailsAsync`, runs the **operational** 3-way-match guard
+    (regardless of FULLGL): rejects the PO↔line **invariant** violations (PO-matched bill with an unlinked
+    line / standalone bill with a linked line), the **cumulative** over-bill (GroupBy PO line, `Σqty >
+    UnbilledReceivedQuantity` → throw), and **after** the posting reads the pre-bill value, increments
+    `PurchaseOrderLine.BilledQuantity += Σqty` — all inside the one `BeginTransaction`/`Commit`. A posting
+    failure leaves the bill Draft and `BilledQuantity` unchanged.
+  - **Zero-priced received line** (valid: `UnitPrice ≥ 0`, `Quantity > 0`) is *not* skipped — it still clears
+    its GRNI (Dr GRNI at PO price / Cr PPV favorable), or the GRNI accrual would be stranded while
+    `BilledQuantity` advanced. Skip is on `Quantity ≤ 0` only. (Self-caught; regression-tested.)
+  - Tests: **+18** (service: exact / unfavorable-PPV / favorable-PPV / mixed-zero-priced / two-lines-same-
+    PO-PPV-accumulation / zero-PO-price / tax / over-bill / partial-remainder / idempotent; handler: FULLGL
+    on+off advance, over-bill, second-bill, cumulative-two-line over-bill, invariant ×2, posting-failure
+    rollback). Full InMemory suite **1281 green**, 0 failed, 7 skipped (the 3 Docker PG `…AtomicityTests`
+    still unrun — sandbox has no Docker).
+  - **Adversarial verify (4-lens workflow):** balance lens **0 findings** (arithmetic proven); ordering/
+    atomicity/dark-gating **confirmed correct by design**. Fixed pre-commit: the PO↔line invariant re-check
+    in `ApproveVendorBill` (a `PurchaseOrderId`-null / line-linked mismatch would have silently routed a PO
+    line through the standalone path → expense instead of GRNI clear), and the service over-bill guard made
+    **cumulative** (was per-line — two lines on one PO line could each pass yet over-clear if `PostAsync` were
+    called directly). Both now match the handler.
+  - **Deferred (pre-go-live hardening, tracked below):** lost-update concurrency on `BilledQuantity` (two
+    concurrent same-PO-line approvals under READ COMMITTED can both pass + both increment); and a Postgres
+    proof that a posting failure *after* the engine's SaveChanges rolls back the `BilledQuantity`/status.
 - **E:** STAGE E (inventory valuation store: standard / weighted-avg / FIFO, §8.1).
 
 ### STAGE A.3 review — fixes applied + follow-ups
@@ -217,6 +249,15 @@ catalog entries — deferred because new capabilities are a product-taxonomy dec
 - **Duplicate-vendor-invoice (double-payment) protection** — no uniqueness on `(VendorId,
   VendorInvoiceNumber)`; the highest-value AP control to add before go-live (AR doesn't need this — we
   issue invoices, we receive bills).
+- **3-way-match concurrency (STAGE D.2, from the adversarial review)** — `ApproveVendorBill` reads
+  `UnbilledReceivedQuantity` then increments `PurchaseOrderLine.BilledQuantity` with no row lock; under
+  Postgres READ COMMITTED two concurrent approvals against the same PO line can both pass the over-bill guard
+  and both increment (lost update → double-clear of GRNI). Fix before un-darking: a `FOR UPDATE` lock on the
+  matched PO lines (the engine already does this pattern) **or** an EF concurrency token on `BilledQuantity`.
+  Deliberately **not** wired now — it would change update behavior on the operational `purchase_order_lines`
+  table Armory Plastics is actively testing (could surface `DbUpdateConcurrencyException` in their receive
+  flow), and the race only bites with FULLGL on. Pair with a Postgres atomicity test (posting-fails-after-
+  engine-SaveChanges → `BilledQuantity`/status roll back) alongside the existing `Phase…AtomicityTests`.
 - **AR-side parity — DONE (owner-approved follow-up).** The review found the same gaps in the Phase-1
   `CreatePayment`; the four guards are now mirrored to it: `Method` enum validation (400 not 500),
   duplicate-invoice-application rejection, customer-ownership of the applied invoice, and a status guard

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -31,13 +32,57 @@ public class ApproveVendorBillHandler(
 {
     public async Task Handle(ApproveVendorBillCommand request, CancellationToken cancellationToken)
     {
-        var bill = await repo.FindAsync(request.Id, cancellationToken)
+        // Load lines + their PO-line refs so both the 3-way-match guard below and the dark posting can see
+        // received-but-not-yet-billed quantities.
+        var bill = await repo.FindWithDetailsAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Vendor bill {request.Id} not found");
 
         if (bill.Status != VendorBillStatus.Draft)
             throw new InvalidOperationException("Only Draft bills can be approved");
 
         bill.Status = VendorBillStatus.Approved;
+
+        // ── PO ↔ line invariant (defense-in-depth). CreateVendorBill's validator already enforces this, but
+        // re-check it on the posting trigger because a bill can be loaded/mutated outside that path: a
+        // PO-matched bill MUST link every line to a PO line, and a standalone bill must link none. A mismatch
+        // would silently mis-route the posting — a standalone-routed PO line debits expense instead of
+        // clearing the GRNI accrued at receipt, leaving the accrual stranded and BilledQuantity un-advanced.
+        if (bill.PurchaseOrderId is not null)
+        {
+            if (bill.Lines.Any(l => l.PurchaseOrderLineId is null))
+                throw new InvalidOperationException(
+                    $"Vendor bill {bill.BillNumber} is PO-matched but has a line with no purchase-order line "
+                  + "reference (3-way match requires every line to match a PO line).");
+        }
+        else if (bill.Lines.Any(l => l.PurchaseOrderLineId is not null))
+        {
+            throw new InvalidOperationException(
+                $"Vendor bill {bill.BillNumber} is standalone (no purchase order) but a line references a "
+              + "purchase-order line.");
+        }
+
+        // ── 3-way match (STAGE D), OPERATIONAL — runs regardless of CAP-ACCT-FULLGL. A PO-linked bill may
+        // bill no more than each PO line's received-but-not-yet-billed quantity (else it would clear GRNI it
+        // never accrued / pay before receipt); after posting we advance BilledQuantity so a later bill
+        // against the same receipt can't double-clear. Several bill lines can hit one PO line → group + sum.
+        var poMatches = bill.PurchaseOrderId is not null
+            ? bill.Lines
+                .Where(l => l.PurchaseOrderLineId is not null)
+                .GroupBy(l => l.PurchaseOrderLineId!.Value)
+                .Select(g => (PoLine: g.First().PurchaseOrderLine, Quantity: g.Sum(l => l.Quantity)))
+                .ToList()
+            : new List<(PurchaseOrderLine? PoLine, decimal Quantity)>();
+
+        foreach (var (poLine, quantity) in poMatches)
+        {
+            if (poLine is null)
+                throw new InvalidOperationException(
+                    $"Vendor bill {bill.BillNumber} references a purchase-order line that could not be loaded.");
+            if (quantity > poLine.UnbilledReceivedQuantity)
+                throw new InvalidOperationException(
+                    $"Vendor bill {bill.BillNumber} bills {quantity} against PO line {poLine.Id}, "
+                  + $"but only {poLine.UnbilledReceivedQuantity} is received-but-not-yet-billed.");
+        }
 
         // ── Inline AP posting wrapped with the status flip in ONE transaction so the journal entry and
         // the Draft→Approved flip commit (or roll back) together (the locked inline model — §2). The
@@ -58,6 +103,11 @@ public class ApproveVendorBillHandler(
 
             await apPosting.PostVendorBillApprovedAsync(bill.Id, approvedByUserId, cancellationToken);
         }
+
+        // Advance operational 3-way-match state AFTER the posting read the pre-bill BilledQuantity. Persisted
+        // by the SaveChanges below within the same transaction (PO lines are tracked by the shared context).
+        foreach (var (poLine, quantity) in poMatches)
+            poLine!.BilledQuantity += quantity;
 
         await repo.SaveChangesAsync(cancellationToken);
 
