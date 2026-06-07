@@ -31,6 +31,20 @@ public sealed class BankReconciliationWorksheet
     public bool IsReconciled => Math.Abs(Difference) <= RoundingTolerance;
 }
 
+/// <summary>A cash GL account available to reconcile (the CASH determination key).</summary>
+public sealed record CashAccountModel(int GlAccountId, string AccountNumber, string Name);
+
+/// <summary>A reconciliation summary row (the list view).</summary>
+public sealed record BankReconciliationSummary(
+    int ReconciliationId,
+    int CashGlAccountId,
+    string CashAccountName,
+    DateOnly StatementDate,
+    decimal StatementEndingBalance,
+    BankReconciliationStatus Status,
+    decimal Difference,
+    bool IsReconciled);
+
 /// <summary>One cash line on the worksheet (amount = its cash effect: + deposit, − withdrawal).</summary>
 public sealed class BankReconciliationItemRow
 {

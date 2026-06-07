@@ -307,6 +307,18 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
 
     // ─────────────────────────── Phase-3 bank reconciliation ───────────────────────────
 
+    /// <summary>Phase-3 — cash GL accounts available to reconcile.</summary>
+    [HttpGet("cash-accounts")]
+    public async Task<ActionResult<IReadOnlyList<CashAccountModel>>> GetCashAccounts(
+        [FromQuery] int bookId, CancellationToken ct)
+        => Ok(await mediator.Send(new GetCashAccountsQuery(bookId), ct));
+
+    /// <summary>Phase-3 — list a book's bank reconciliations.</summary>
+    [HttpGet("bank-reconciliations")]
+    public async Task<ActionResult<IReadOnlyList<BankReconciliationSummary>>> ListBankReconciliations(
+        [FromQuery] int bookId, CancellationToken ct)
+        => Ok(await mediator.Send(new ListBankReconciliationsQuery(bookId), ct));
+
     /// <summary>Phase-3 — start a bank reconciliation (Draft) for a cash account against a statement.</summary>
     [HttpPost("bank-reconciliations")]
     public async Task<ActionResult<BankReconciliationWorksheet>> StartBankReconciliation(

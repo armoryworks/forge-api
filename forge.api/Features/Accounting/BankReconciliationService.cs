@@ -11,6 +11,41 @@ namespace Forge.Api.Features.Accounting;
 /// <inheritdoc />
 public sealed class BankReconciliationService(AppDbContext db, IClock clock) : IBankReconciliationService
 {
+    public async Task<IReadOnlyList<CashAccountModel>> GetCashAccountsAsync(int bookId, CancellationToken ct = default)
+    {
+        return await
+            (from rule in db.AccountDeterminationRules
+             join account in db.GlAccounts on rule.GlAccountId equals account.Id
+             where rule.BookId == bookId && rule.Key == "CASH"
+             orderby account.AccountNumber
+             select new CashAccountModel(account.Id, account.AccountNumber, account.Name))
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<BankReconciliationSummary>> ListAsync(int bookId, CancellationToken ct = default)
+    {
+        var recs = await db.BankReconciliations
+            .AsNoTracking()
+            .Where(r => r.BookId == bookId)
+            .OrderByDescending(r => r.StatementDate).ThenByDescending(r => r.Id)
+            .ToListAsync(ct);
+
+        var accountNames = await db.GlAccounts
+            .Where(a => a.BookId == bookId)
+            .ToDictionaryAsync(a => a.Id, a => a.Name, ct);
+
+        var summaries = new List<BankReconciliationSummary>(recs.Count);
+        foreach (var rec in recs)
+        {
+            var ws = await BuildWorksheetAsync(rec.Id, ct); // reuse the worksheet to get the difference
+            summaries.Add(new BankReconciliationSummary(
+                rec.Id, rec.CashGlAccountId,
+                accountNames.TryGetValue(rec.CashGlAccountId, out var n) ? n : $"Account {rec.CashGlAccountId}",
+                rec.StatementDate, rec.StatementEndingBalance, rec.Status, ws.Difference, ws.IsReconciled));
+        }
+        return summaries;
+    }
+
     public async Task<BankReconciliationWorksheet> StartAsync(
         int bookId, int cashGlAccountId, DateOnly statementDate, decimal statementEndingBalance, CancellationToken ct = default)
     {

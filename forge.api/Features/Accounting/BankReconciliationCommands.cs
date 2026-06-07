@@ -6,6 +6,28 @@ using Forge.Core.Models.Accounting;
 
 namespace Forge.Api.Features.Accounting;
 
+/// <summary>Phase-3 — cash GL accounts available to reconcile. CAP-ACCT-FULLGL gated.</summary>
+[RequiresCapability("CAP-ACCT-FULLGL")]
+public record GetCashAccountsQuery(int BookId) : IRequest<IReadOnlyList<CashAccountModel>>;
+
+public class GetCashAccountsHandler(IBankReconciliationService service)
+    : IRequestHandler<GetCashAccountsQuery, IReadOnlyList<CashAccountModel>>
+{
+    public Task<IReadOnlyList<CashAccountModel>> Handle(GetCashAccountsQuery request, CancellationToken ct)
+        => service.GetCashAccountsAsync(request.BookId, ct);
+}
+
+/// <summary>Phase-3 — list a book's bank reconciliations. CAP-ACCT-FULLGL gated.</summary>
+[RequiresCapability("CAP-ACCT-FULLGL")]
+public record ListBankReconciliationsQuery(int BookId) : IRequest<IReadOnlyList<BankReconciliationSummary>>;
+
+public class ListBankReconciliationsHandler(IBankReconciliationService service)
+    : IRequestHandler<ListBankReconciliationsQuery, IReadOnlyList<BankReconciliationSummary>>
+{
+    public Task<IReadOnlyList<BankReconciliationSummary>> Handle(ListBankReconciliationsQuery request, CancellationToken ct)
+        => service.ListAsync(request.BookId, ct);
+}
+
 /// <summary>Phase-3 — start a bank reconciliation (Draft) for a cash account + statement. CAP-ACCT-FULLGL gated.</summary>
 [RequiresCapability("CAP-ACCT-FULLGL")]
 public record StartBankReconciliationCommand(int BookId, int CashGlAccountId, DateOnly StatementDate, decimal StatementEndingBalance)

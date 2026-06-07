@@ -9,6 +9,12 @@ namespace Forge.Core.Interfaces;
 /// </summary>
 public interface IBankReconciliationService
 {
+    /// <summary>Cash GL accounts (the CASH determination key) available to reconcile, for the picker.</summary>
+    Task<IReadOnlyList<CashAccountModel>> GetCashAccountsAsync(int bookId, CancellationToken ct = default);
+
+    /// <summary>Summaries of the book's reconciliations (newest first).</summary>
+    Task<IReadOnlyList<BankReconciliationSummary>> ListAsync(int bookId, CancellationToken ct = default);
+
     Task<BankReconciliationWorksheet> StartAsync(
         int bookId, int cashGlAccountId, DateOnly statementDate, decimal statementEndingBalance, CancellationToken ct = default);
 
