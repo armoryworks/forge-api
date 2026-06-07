@@ -240,6 +240,13 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>§7A conversion — post the opening-balance journal (balance-sheet opening balances + AR/AP
+    /// open items) at go-live. Idempotent per book.</summary>
+    [HttpPost("opening-balances")]
+    public async Task<ActionResult<OpeningBalanceResult>> PostOpeningBalances(
+        [FromBody] PostOpeningBalancesModel model, CancellationToken ct)
+        => Ok(await mediator.Send(new PostOpeningBalancesCommand(model), ct));
+
     // ─────────────────────────── Phase-4 fixed-asset depreciation ───────────────────────────
 
     /// <summary>Phase-4 — register a depreciable fixed asset.</summary>

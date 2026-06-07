@@ -364,6 +364,8 @@ try
     builder.Services.AddScoped<IInventoryValuationService, Forge.Api.Features.Accounting.InventoryValuationService>();
     // Phase-4 — fixed-asset register + straight-line depreciation posting.
     builder.Services.AddScoped<IDepreciationService, Forge.Api.Features.Accounting.DepreciationService>();
+    // §7A conversion — opening-balance journal at go-live (Source=Conversion).
+    builder.Services.AddScoped<IConversionService, Forge.Api.Features.Accounting.ConversionService>();
     // Phase-1 STAGE E — basic financial statements (§6 Phase-1 row "P&L + Balance
     // Sheet"). Profit & Loss (Income/Expense over a period range) and Balance
     // Sheet (Asset/Liability/Equity as of a date, with computed current-year-
