@@ -108,6 +108,22 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
+    /// Phase-2 STAGE D.3 — GRNI (Goods-Received-Not-Invoiced) reconciliation + aging: open received-not-billed
+    /// by purchase order and age bucket, the GL-GRNI-vs-operational variance (§12 control), and a line-level
+    /// uncovered-receipt drill-down. Sub-ledger/clearing report (CAP-ACCT-FULLGL at the edge — it only means
+    /// anything once GRNI is being posted; not a financial statement, so no CAP-RPT-FINANCIALS).
+    /// </summary>
+    [HttpGet("grni-reconciliation")]
+    public async Task<ActionResult<GrniReconciliation>> GetGrniReconciliation(
+        [FromQuery] int bookId,
+        [FromQuery] DateOnly? asOfDate,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetGrniReconciliationQuery(bookId, asOfDate), ct);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Phase-1 STAGE E — Profit &amp; Loss for the book over an optional period
     /// range (ACCOUNTING_SUITE_PLAN §6 Phase-1 row "P&amp;L + Balance Sheet").
     /// Built over the trial-balance ledger projection restricted to Income/Expense

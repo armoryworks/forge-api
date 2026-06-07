@@ -344,6 +344,9 @@ try
     // Phase-2 STAGE A — AP sub-ledger aging (credit-normal mirror of AR aging). Reached only via the
     // gated GET /api/v1/accounting/ap-aging endpoint (403 while CAP-ACCT-FULLGL is OFF), so it stays dark.
     builder.Services.AddScoped<IApAgingService, Forge.Api.Features.Accounting.ApAgingService>();
+    // Phase-2 STAGE D.3 — GRNI reconciliation + aging (read-only; GL GRNI vs operational received-not-billed).
+    // Reached only via the gated GET /api/v1/accounting/grni-reconciliation endpoint (403 while FULLGL OFF).
+    builder.Services.AddScoped<IGrniReconciliationService, Forge.Api.Features.Accounting.GrniReconciliationService>();
     // Phase-1 STAGE E — basic financial statements (§6 Phase-1 row "P&L + Balance
     // Sheet"). Profit & Loss (Income/Expense over a period range) and Balance
     // Sheet (Asset/Liability/Equity as of a date, with computed current-year-

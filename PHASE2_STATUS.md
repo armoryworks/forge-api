@@ -224,6 +224,30 @@ Filter-immune projection like the trial balance. Endpoint `GET /api/v1/accountin
   - **Deferred (pre-go-live hardening, tracked below):** lost-update concurrency on `BilledQuantity` (two
     concurrent same-PO-line approvals under READ COMMITTED can both pass + both increment); and a Postgres
     proof that a posting failure *after* the engine's SaveChanges rolls back the `BilledQuantity`/status.
+
+- **STAGE D.3 — GRNI reconciliation + aging (BUILT, dark, commit pending):** read-only — derives everything,
+  mutates nothing. New `GrniReconciliationService` + `IGrniReconciliationService` + `GetGrniReconciliationQuery`
+  + `GET /api/v1/accounting/grni-reconciliation` (gated `CAP-ACCT-FULLGL`, Controller-role) + DI. Model
+  `GrniReconciliation`.
+  - **GL balance** = net of the `GRNI`-key account(s), credit-positive (Cr − Dr), Posted + Reversed,
+    `EntryDate ≤ AsOf` (excludes `FREIGHT_CLEARING` — freight is a separate key). **Operational open** =
+    Σ `UnbilledReceivedQuantity × PO UnitPrice` over open PO lines. **Variance** = GL − operational, the §12
+    control; `IsReconciled` absorbs sub-cent residue within the **book `RoundingTolerance`** (GL is posted at
+    currency scale; operational is computed fresh — fractional qty×price would otherwise false-fail an exact 0).
+  - **Aging** buckets the open amount per PO by each line's *earliest* receipt date (`ReceivingRecord.CreatedAt`),
+    same 0-30/31-60/61-90/91+ grain as AP/AR. **Uncovered-receipts sweep** (line-level coverage): open-line
+    receiving records with no GRNI accrual JE (matched by the receipt idempotency key
+    `Inventory:Receipt:{poId}:{receiptNumber}:RECEIPT`); blank receipt number → `NO_RECEIPT_NUMBER`; bounded
+    to 200 + `UncoveredTruncated`.
+  - **2-lens adversarial verify:** the lone "critical" (DayNumber year-boundary) was a **false positive** —
+    `DateOnly.DayNumber` is days-since-0001 (epoch), not day-of-year; `ApAgingService` uses the same pattern.
+    Added `Aging_ReceiptInPriorYear_BucketsByActualDayCount` which **passes**, proving it. Fixed: blank
+    (whitespace) receipt number now reports `NO_RECEIPT_NUMBER` (was `NO_ACCRUAL_POSTED`); zero-priced open
+    lines no longer falsely flagged uncovered (no GRNI to cover). +10 tests; full suite **1291 green**.
+  - **Documented caveats (ratify):** operational side uses *current* qty *and PO unit price* (a price edit
+    after receipt legitimately shows as variance); earliest-date aging (not per-receipt FIFO); uncovered
+    sweep scoped to open lines (a fully-billed-line gap still shows in the exhaustive `Variance`); a reversed
+    accrual reads as variance, not uncovered (cross-reference the ledger). No migration (read-only).
 - **E:** STAGE E (inventory valuation store: standard / weighted-avg / FIFO, §8.1).
 
 ### STAGE A.3 review — fixes applied + follow-ups
