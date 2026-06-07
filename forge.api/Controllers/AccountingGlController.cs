@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
+using Forge.Core.Enums.Accounting;
 using Forge.Core.Models.Accounting;
 
 namespace Forge.Api.Controllers;
@@ -106,6 +107,24 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new GetApAgingQuery(bookId, asOfDate), ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Phase-3 — soft-close a fiscal period (Open → SoftClosed). Posting into it then requires an audited
+    /// controller override; reopen returns it to Open. CAP-ACCT-FULLGL gated.
+    /// </summary>
+    [HttpPost("periods/{id:int}/soft-close")]
+    public async Task<ActionResult<FiscalPeriodModel>> SoftClosePeriod(int id, CancellationToken ct)
+        => Ok(await mediator.Send(new SetFiscalPeriodStatusCommand(id, FiscalPeriodStatus.SoftClosed), ct));
+
+    /// <summary>Phase-3 — hard-close a fiscal period (→ HardClosed): a permanent lock; posting is rejected outright.</summary>
+    [HttpPost("periods/{id:int}/hard-close")]
+    public async Task<ActionResult<FiscalPeriodModel>> HardClosePeriod(int id, CancellationToken ct)
+        => Ok(await mediator.Send(new SetFiscalPeriodStatusCommand(id, FiscalPeriodStatus.HardClosed), ct));
+
+    /// <summary>Phase-3 — reopen a soft-closed fiscal period (SoftClosed → Open). A hard-closed period cannot reopen.</summary>
+    [HttpPost("periods/{id:int}/reopen")]
+    public async Task<ActionResult<FiscalPeriodModel>> ReopenPeriod(int id, CancellationToken ct)
+        => Ok(await mediator.Send(new SetFiscalPeriodStatusCommand(id, FiscalPeriodStatus.Open), ct));
 
     /// <summary>
     /// Phase-2 STAGE D.3 — GRNI (Goods-Received-Not-Invoiced) reconciliation + aging: open received-not-billed
