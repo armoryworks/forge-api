@@ -42,6 +42,7 @@ public sealed class CashFlowStatementService(AppDbContext db, IClock clock) : IC
                  AccountNumber = account.AccountNumber,
                  AccountName = account.Name,
                  AccountType = account.AccountType,
+                 Category = account.CashFlowCategory,
                  NetDebit = line.Debit > 0 ? line.FunctionalAmount : -line.FunctionalAmount,
              })
             .ToListAsync(ct);
@@ -56,10 +57,11 @@ public sealed class CashFlowStatementService(AppDbContext db, IClock clock) : IC
         var bsAccounts = lines
             .Where(r => r.AccountType is AccountType.Asset or AccountType.Liability or AccountType.Equity
                 && !cashAccountIds.Contains(r.AccountId))
-            .GroupBy(r => new { r.AccountId, r.AccountNumber, r.AccountName, r.AccountType })
+            .GroupBy(r => new { r.AccountId, r.AccountNumber, r.AccountName, r.AccountType, r.Category })
             .Select(g => new
             {
-                g.Key.AccountId, g.Key.AccountNumber, g.Key.AccountName, g.Key.AccountType,
+                g.Key.AccountId, g.Key.AccountNumber, g.Key.AccountName,
+                Section = SectionFor(g.Key.AccountType, g.Key.Category),
                 CashFlow = -g.Sum(r => r.NetDebit),
             })
             .Where(x => x.CashFlow != 0m)
@@ -69,13 +71,13 @@ public sealed class CashFlowStatementService(AppDbContext db, IClock clock) : IC
         static CashFlowLine Line(int id, string num, string name, decimal amount)
             => new() { GlAccountId = id, AccountNumber = num, AccountName = name, Amount = amount };
 
-        var operating = bsAccounts
-            .Where(x => x.AccountType is AccountType.Asset or AccountType.Liability)
+        List<CashFlowLine> Section(CashFlowCategory section) => bsAccounts
+            .Where(x => x.Section == section)
             .Select(x => Line(x.AccountId, x.AccountNumber, x.AccountName, x.CashFlow)).ToList();
-        var financing = bsAccounts
-            .Where(x => x.AccountType == AccountType.Equity)
-            .Select(x => Line(x.AccountId, x.AccountNumber, x.AccountName, x.CashFlow)).ToList();
-        var investing = new List<CashFlowLine>(); // no long-term-asset classification yet (Phase 4+)
+
+        var operating = Section(CashFlowCategory.Operating);
+        var investing = Section(CashFlowCategory.Investing);
+        var financing = Section(CashFlowCategory.Financing);
 
         var netCashOperating = netIncome + operating.Sum(l => l.Amount);
         var netCashInvesting = investing.Sum(l => l.Amount);
@@ -102,12 +104,20 @@ public sealed class CashFlowStatementService(AppDbContext db, IClock clock) : IC
         };
     }
 
+    /// <summary>
+    /// A non-cash balance-sheet account's cash-flow section: the explicit <c>GlAccount.CashFlowCategory</c>
+    /// when tagged, else the type heuristic (Asset/Liability → Operating working capital, Equity → Financing).
+    /// </summary>
+    private static CashFlowCategory SectionFor(AccountType type, CashFlowCategory? tagged)
+        => tagged ?? (type == AccountType.Equity ? CashFlowCategory.Financing : CashFlowCategory.Operating);
+
     private sealed class Row
     {
         public int AccountId { get; init; }
         public string AccountNumber { get; init; } = string.Empty;
         public string AccountName { get; init; } = string.Empty;
         public AccountType AccountType { get; init; }
+        public CashFlowCategory? Category { get; init; }
         public decimal NetDebit { get; init; }
     }
 }

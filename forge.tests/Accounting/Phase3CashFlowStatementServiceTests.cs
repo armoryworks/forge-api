@@ -197,6 +197,31 @@ public class Phase3CashFlowStatementServiceTests
     }
 
     [Fact]
+    public async Task TaggedAccount_ClassifiesAsInvesting_NotOperating()
+    {
+        using var db = await SeedAsync();
+        // A long-term asset tagged Investing — its purchase is an investing outflow, not working capital.
+        const int equipmentId = 110;
+        db.Set<GlAccount>().Add(new GlAccount
+        {
+            Id = equipmentId, BookId = BookId, AccountNumber = "15000", Name = "Equipment",
+            AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit,
+            CashFlowCategory = CashFlowCategory.Investing, IsPostable = true, IsActive = true,
+        });
+        db.Set<AccountDeterminationRule>().Add(new AccountDeterminationRule { BookId = BookId, Key = "EQUIPMENT", GlAccountId = equipmentId });
+        await db.SaveChangesAsync();
+        await PostAsync(db, "EQUIPMENT", "CASH", 2000m); // buy equipment for cash
+
+        var r = await Service(db).GetCashFlowStatementAsync(BookId, From, To);
+
+        r.Investing.Single(l => l.GlAccountId == equipmentId).Amount.Should().Be(-2000m); // investing use
+        r.OperatingAdjustments.Should().NotContain(l => l.GlAccountId == equipmentId);
+        r.NetCashFromInvesting.Should().Be(-2000m);
+        r.ActualCashChange.Should().Be(-2000m);
+        r.IsReconciled.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task MixedActivity_Reconciles()
     {
         using var db = await SeedAsync();

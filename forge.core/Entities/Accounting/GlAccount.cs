@@ -31,6 +31,12 @@ public class GlAccount : BaseEntity
 
     public bool IsActive { get; set; } = true;
 
+    /// <summary>
+    /// Optional cash-flow-statement classification (Operating / Investing / Financing). When null the
+    /// statement uses a type-based heuristic. Tag long-term-asset / long-term-debt accounts here (Phase 4+).
+    /// </summary>
+    public CashFlowCategory? CashFlowCategory { get; set; }
+
     public string? Description { get; set; }
 
     public Book Book { get; set; } = null!;

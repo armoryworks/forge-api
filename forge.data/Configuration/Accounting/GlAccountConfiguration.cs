@@ -16,6 +16,7 @@ public class GlAccountConfiguration : IEntityTypeConfiguration<GlAccount>
         builder.Property(e => e.AccountType).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(e => e.NormalBalance).HasConversion<string>().HasMaxLength(10).IsRequired();
         builder.Property(e => e.ControlType).HasConversion<string>().HasMaxLength(20);
+        builder.Property(e => e.CashFlowCategory).HasConversion<string>().HasMaxLength(20);
         builder.Property(e => e.Description).HasMaxLength(1000);
 
         // Account numbers are unique within a book.
