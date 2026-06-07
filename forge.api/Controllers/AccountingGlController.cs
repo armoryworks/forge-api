@@ -127,6 +127,14 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new SetFiscalPeriodStatusCommand(id, FiscalPeriodStatus.Open), ct));
 
     /// <summary>
+    /// Phase-3 — year-end close: posts the Retained-Earnings roll (zeroes every P&amp;L account into RE),
+    /// hard-closes every period in the year, and marks the year Closed. CAP-ACCT-FULLGL gated.
+    /// </summary>
+    [HttpPost("years/{id:int}/close")]
+    public async Task<ActionResult<YearEndCloseResult>> CloseFiscalYear(int id, CancellationToken ct)
+        => Ok(await mediator.Send(new CloseFiscalYearCommand(id), ct));
+
+    /// <summary>
     /// Phase-2 STAGE D.3 — GRNI (Goods-Received-Not-Invoiced) reconciliation + aging: open received-not-billed
     /// by purchase order and age bucket, the GL-GRNI-vs-operational variance (§12 control), and a line-level
     /// uncovered-receipt drill-down. Sub-ledger/clearing report (CAP-ACCT-FULLGL at the edge — it only means

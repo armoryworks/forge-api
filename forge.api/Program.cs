@@ -349,6 +349,8 @@ try
     builder.Services.AddScoped<IGrniReconciliationService, Forge.Api.Features.Accounting.GrniReconciliationService>();
     // Phase-3 — fiscal-period close/reopen (status transitions; engine already enforces status on posting).
     builder.Services.AddScoped<IFiscalPeriodCloseService, Forge.Api.Features.Accounting.FiscalPeriodCloseService>();
+    // Phase-3 — year-end close / Retained-Earnings roll-forward (posts the closing entry, locks the year).
+    builder.Services.AddScoped<IYearEndCloseService, Forge.Api.Features.Accounting.YearEndCloseService>();
     // Phase-1 STAGE E — basic financial statements (§6 Phase-1 row "P&L + Balance
     // Sheet"). Profit & Loss (Income/Expense over a period range) and Balance
     // Sheet (Asset/Liability/Equity as of a date, with computed current-year-

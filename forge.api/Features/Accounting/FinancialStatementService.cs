@@ -71,7 +71,8 @@ public sealed class FinancialStatementService(AppDbContext db, IClock clock) : I
             fromDate,
             toDate,
             type => type == AccountType.Income || type == AccountType.Expense,
-            ct);
+            ct,
+            excludeYearEndClose: true); // a closed year still reports its real revenue/expense
 
         // Income is credit-normal (Cr − Dr); Expense is debit-normal (Dr − Cr).
         // Each account's signed amount nets in its statement direction so a contra
@@ -183,22 +184,28 @@ public sealed class FinancialStatementService(AppDbContext db, IClock clock) : I
     private async Task<decimal> ComputeCurrentYearEarningsAsync(
         int bookId, DateOnly asOf, CancellationToken ct)
     {
-        var fiscalYearStart = await db.FiscalYears
+        var fiscalYear = await db.FiscalYears
             .IgnoreQueryFilters()
             .Where(fy => fy.BookId == bookId && fy.StartDate <= asOf && fy.EndDate >= asOf)
             .OrderByDescending(fy => fy.StartDate)
-            .Select(fy => (DateOnly?)fy.StartDate)
+            .Select(fy => new { fy.StartDate, fy.Status })
             .FirstOrDefaultAsync(ct);
 
-        if (fiscalYearStart is null)
+        if (fiscalYear is null)
+            return 0m;
+
+        // A CLOSED year's earnings have already been rolled into the Retained-Earnings account by the
+        // year-end close, so the interim adjustment is zero (else the balance sheet double-counts).
+        if (fiscalYear.Status == FiscalYearStatus.Closed)
             return 0m;
 
         var pnlRows = await ProjectLinesAsync(
             bookId,
-            fromDate: fiscalYearStart,
+            fromDate: fiscalYear.StartDate,
             toDate: asOf,
             type => type == AccountType.Income || type == AccountType.Expense,
-            ct);
+            ct,
+            excludeYearEndClose: true);
 
         var income = pnlRows.Where(r => r.AccountType == AccountType.Income)
             .Sum(CreditNormalAmount);
@@ -252,7 +259,8 @@ public sealed class FinancialStatementService(AppDbContext db, IClock clock) : I
         DateOnly? fromDate,
         DateOnly? toDate,
         Func<AccountType, bool> typeFilter,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool excludeYearEndClose = false)
     {
         var raw = await
             (from line in db.JournalLines.IgnoreQueryFilters()
@@ -263,6 +271,10 @@ public sealed class FinancialStatementService(AppDbContext db, IClock clock) : I
              where entry.BookId == bookId
                  && (entry.Status == JournalEntryStatus.Posted
                      || entry.Status == JournalEntryStatus.Reversed)
+                 // The year-end RE roll zeroes the P&L accounts into Retained Earnings. Excluding it from the
+                 // income statement keeps a CLOSED year's revenue/expense reportable (the roll lives only in
+                 // the equity/RE projection, which passes excludeYearEndClose=false).
+                 && (!excludeYearEndClose || entry.SourceType != "YearEndClose")
                  && (fromDate == null || entry.EntryDate >= fromDate)
                  && (toDate == null || entry.EntryDate <= toDate)
              select new StatementLineRow
