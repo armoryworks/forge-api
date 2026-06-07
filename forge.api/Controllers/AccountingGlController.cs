@@ -132,6 +132,12 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<FiscalPeriodModel>> ReopenPeriod(int id, CancellationToken ct)
         => Ok(await mediator.Send(new SetFiscalPeriodStatusCommand(id, FiscalPeriodStatus.Open), ct));
 
+    /// <summary>Phase-3 — the pre-close checklist for a period (GRNI reconciled, AR/AP tie to control). A
+    /// hard-close is blocked unless it all passes.</summary>
+    [HttpGet("periods/{id:int}/close-checklist")]
+    public async Task<ActionResult<CloseChecklistResult>> GetCloseChecklist(int id, CancellationToken ct)
+        => Ok(await mediator.Send(new GetCloseChecklistQuery(id), ct));
+
     /// <summary>
     /// Phase-3 — year-end close: posts the Retained-Earnings roll (zeroes every P&amp;L account into RE),
     /// hard-closes every period in the year, and marks the year Closed. CAP-ACCT-FULLGL gated.

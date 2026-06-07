@@ -281,4 +281,88 @@ public class Phase3FiscalPeriodCloseServiceTests
         var act = async () => await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.SoftClosed, actorUserId: 7);
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*create the next period first*");
     }
+
+    // ─────────────────── close-checklist gate + late-posting (§12) ───────────────────
+
+    private sealed class FakeChecklist(bool pass) : IPeriodCloseChecklistService
+    {
+        public Task<CloseChecklistResult> EvaluateAsync(int bookId, DateOnly asOf, CancellationToken ct = default)
+            => Task.FromResult(new CloseChecklistResult(bookId, asOf,
+                [new CloseChecklistItem("GRNI_RECONCILED", "GRNI ties", pass, pass ? "Reconciled" : "Variance 50.00")]));
+    }
+
+    private static FiscalPeriodCloseService ServiceWith(AppDbContext db, IPeriodCloseChecklistService cl)
+        => new(db, new SystemClock(), Engine(db), cl);
+
+    [Fact]
+    public async Task HardClose_BlockedWhenChecklistFails()
+    {
+        using var db = await SeedAsync();
+        var svc = ServiceWith(db, new FakeChecklist(pass: false));
+
+        var act = async () => await svc.TransitionAsync(PeriodId, FiscalPeriodStatus.HardClosed, actorUserId: 7);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*pre-close checklist not satisfied*");
+
+        (await db.FiscalPeriods.SingleAsync(p => p.Id == PeriodId)).Status.Should().Be(FiscalPeriodStatus.Open);
+    }
+
+    [Fact]
+    public async Task HardClose_AllowedWhenChecklistPasses()
+    {
+        using var db = await SeedAsync();
+        var svc = ServiceWith(db, new FakeChecklist(pass: true));
+
+        await svc.TransitionAsync(PeriodId, FiscalPeriodStatus.HardClosed, actorUserId: 7);
+
+        (await db.FiscalPeriods.SingleAsync(p => p.Id == PeriodId)).Status.Should().Be(FiscalPeriodStatus.HardClosed);
+    }
+
+    [Fact]
+    public async Task SoftClose_NotGatedByChecklist()
+    {
+        using var db = await SeedAsync();
+        var svc = ServiceWith(db, new FakeChecklist(pass: false)); // would block a hard-close
+
+        await svc.TransitionAsync(PeriodId, FiscalPeriodStatus.SoftClosed, actorUserId: 7);
+
+        (await db.FiscalPeriods.SingleAsync(p => p.Id == PeriodId)).Status.Should().Be(FiscalPeriodStatus.SoftClosed);
+    }
+
+    [Fact]
+    public async Task Checklist_CleanBook_AllPassed()
+    {
+        using var db = await SeedAsync();
+        var checklist = new PeriodCloseChecklistService(
+            new GrniReconciliationService(db, new SystemClock()),
+            new ArAgingService(db, new SystemClock()),
+            new ApAgingService(db, new SystemClock()));
+
+        var result = await checklist.EvaluateAsync(BookId, new DateOnly(2026, 12, 31));
+
+        result.AllPassed.Should().BeTrue();
+        result.Items.Should().Contain(i => i.Key == "GRNI_RECONCILED" && i.Passed);
+    }
+
+    [Fact]
+    public async Task LatePosting_OpenPeriod_KeepsDesiredDate()
+    {
+        using var db = await SeedTwoPeriodsAsync();
+        var resolver = new PostingDateResolver(db);
+
+        var date = await resolver.ResolveOpenPostingDateAsync(BookId, new DateOnly(2026, 1, 15));
+
+        date.Should().Be(new DateOnly(2026, 1, 15)); // Jan is open
+    }
+
+    [Fact]
+    public async Task LatePosting_ClosedPeriod_CatchesUpToNextOpenPeriodStart()
+    {
+        using var db = await SeedTwoPeriodsAsync();
+        await Service(db).TransitionAsync(JanId, FiscalPeriodStatus.HardClosed, actorUserId: 7);
+        var resolver = new PostingDateResolver(db);
+
+        var date = await resolver.ResolveOpenPostingDateAsync(BookId, new DateOnly(2026, 1, 15));
+
+        date.Should().Be(new DateOnly(2026, 2, 1)); // Jan closed → catch up into Feb (next open period start)
+    }
 }

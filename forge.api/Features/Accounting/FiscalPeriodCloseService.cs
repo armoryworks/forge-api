@@ -9,7 +9,11 @@ using Forge.Data.Context;
 namespace Forge.Api.Features.Accounting;
 
 /// <inheritdoc />
-public sealed class FiscalPeriodCloseService(AppDbContext db, IClock clock, IPostingEngine postingEngine)
+public sealed class FiscalPeriodCloseService(
+    AppDbContext db,
+    IClock clock,
+    IPostingEngine postingEngine,
+    IPeriodCloseChecklistService? checklist = null)
     : IFiscalPeriodCloseService
 {
     // Legal transitions. HardClosed is terminal (a hard-closed period is reopened only by an explicit
@@ -43,6 +47,21 @@ public sealed class FiscalPeriodCloseService(AppDbContext db, IClock clock, IPos
         if (!Allowed[period.Status].Contains(target))
             throw new InvalidOperationException(
                 $"Cannot transition fiscal period {periodId} from {period.Status} to {target}.");
+
+        // Close-checklist gate (§12): a HardClose is permanent, so require the book to be clean as of the
+        // period end (GRNI reconciled, AR/AP tie to control). SoftClose is reversible, so it isn't gated.
+        if (target == FiscalPeriodStatus.HardClosed && checklist is not null)
+        {
+            var result = await checklist.EvaluateAsync(period.FiscalYear?.BookId
+                ?? await db.FiscalYears.Where(y => y.Id == period.FiscalYearId).Select(y => y.BookId).FirstAsync(ct),
+                period.EndDate, ct);
+            if (!result.AllPassed)
+            {
+                var failures = string.Join("; ", result.Items.Where(i => !i.Passed).Select(i => $"{i.Label}: {i.Detail}"));
+                throw new InvalidOperationException(
+                    $"Cannot hard-close period {period.Name}: pre-close checklist not satisfied — {failures}.");
+            }
+        }
 
         period.Status = target;
 

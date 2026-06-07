@@ -349,6 +349,9 @@ try
     builder.Services.AddScoped<IGrniReconciliationService, Forge.Api.Features.Accounting.GrniReconciliationService>();
     // Phase-3 — fiscal-period close/reopen (status transitions; engine already enforces status on posting).
     builder.Services.AddScoped<IFiscalPeriodCloseService, Forge.Api.Features.Accounting.FiscalPeriodCloseService>();
+    // Phase-3 — pre-close checklist (gates HardClose) + late-posting catch-up date resolver (§12).
+    builder.Services.AddScoped<IPeriodCloseChecklistService, Forge.Api.Features.Accounting.PeriodCloseChecklistService>();
+    builder.Services.AddScoped<IPostingDateResolver, Forge.Api.Features.Accounting.PostingDateResolver>();
     // Phase-3 — year-end close / Retained-Earnings roll-forward (posts the closing entry, locks the year).
     builder.Services.AddScoped<IYearEndCloseService, Forge.Api.Features.Accounting.YearEndCloseService>();
     // Phase-3 — indirect-method cash-flow statement (read-only; reconciles to the actual cash movement).
