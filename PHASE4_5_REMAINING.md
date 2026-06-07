@@ -70,20 +70,21 @@ The hold is lifted; the perpetual loop is now wired end-to-end **except job-comp
   valuation store (weighted-average, decrementing in lock-step) when the FG part is carried there, falling
   back to standard cost otherwise — closes the §12 STAGE-E TODO. Same idempotency pre-check added.
 
-**Remaining link — job-complete → FG (NOT built; needs owner decisions).** When a `ProductionRun` flips to
-`Completed`, the good output (`PartId`, qty) should stock an FG bin + value FG (Dr INVENTORY_FG / Cr
-INVENTORY_WIP, feed the FG store) — the last hop before sale→COGS. Held back because three things are
-genuinely undecided, and a wrong cost flow is worse than an absent one:
-  1. **Quantity semantics are inconsistent in the current model.** `UpdateProductionRun`'s validator treats
-     `CompletedQuantity` + `ScrapQuantity` as disjoint (`≤ Target`, so Completed = good), but the same
-     handler's yield formula `(CompletedQuantity − ScrapQuantity)/CompletedQuantity` assumes Completed
-     *includes* scrap. Resolve which is canonical before stocking qty off it.
-  2. **Valuation basis** — standard cost (documented manufacturing default; WIP residual = production
-     variance needing a destination) vs. actual accumulated WIP (`IJobCostService` rollup, prorated to good
-     qty). Standard is the natural first cut, symmetric with the receipt service deferring PPV to 3-way match.
-  3. **It's an always-on shop-floor change**, not just a dark GL post — stocking an FG bin on completion alters
-     `UpdateProductionRun` for every caller (and its existing handler tests) + needs an FG-bin destination
-     rule. Decide trigger point (run-complete vs an explicit "receive to stock" step) alongside it.
+- **Job-complete → FG — DONE.** New explicit **receive-to-stock** step (`POST
+  /jobs/{id}/production-runs/{runId}/receive-to-stock`, gated `CAP-MFG-COMPLETE`) —
+  `ReceiveProductionRunToStock` stocks the run's good output into an FG bin and stamps `ReceivedToStockAt` /
+  `ReceivedQuantity` (idempotent: a second call no-ops). New `ProductionReceiptPostingService` (FULLGL-gated,
+  inline) posts Dr INVENTORY_FG / Cr INVENTORY_WIP at **standard cost** + feeds the FG valuation store. The
+  three open questions were resolved per owner: good qty = `CompletedQuantity` (the validator's disjoint
+  reading is canonical; the yield formula is the buggy one — left for a separate reporting fix); **standard
+  cost** valuation (WIP residual = production variance, recognized at period-end — symmetric with the receipt
+  service deferring PPV); an **explicit receive step** (not auto-on-Completed), so `UpdateProductionRun` is
+  untouched. Additive migration `AddProductionRunReceivedToStock` (NOT applied). +10 tests. The perpetual loop
+  is now closed end-to-end: **receipt → raw → WIP → FG → COGS.**
+
+  Documented refinements: a distinct subassembly-inventory key (a Subassembly output currently skips GL as a
+  Dr WIP / Cr WIP wash); reconciling the standard-cost WIP residual as an explicit production-variance posting;
+  surfacing `ReceivedQuantity`/`ReceivedToStockAt` on the production-run read model + UI.
 
 ## 4. Pre-go-live (independent of new features)
 

@@ -16,6 +16,11 @@ public class ProductionRun : BaseAuditableEntity
     public ProductionRunStatus Status { get; set; } = ProductionRunStatus.Planned;
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
+    // Finished-goods receipt: set once the run's good output is received into stock (the receive-to-stock
+    // step). ReceivedQuantity captures the good quantity stocked at that moment (immutable record, independent
+    // of any later CompletedQuantity edit). Null ReceivedToStockAt ⇒ not yet received (the idempotency guard).
+    public DateTimeOffset? ReceivedToStockAt { get; set; }
+    public int ReceivedQuantity { get; set; }
     public string? Notes { get; set; }
     public decimal? SetupTimeMinutes { get; set; }
     public decimal? RunTimeMinutes { get; set; }
