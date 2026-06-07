@@ -158,4 +158,19 @@ public class Phase3FiscalPeriodCloseServiceTests
         var act = async () => await Engine(db).PostAsync(SimpleEntry(allowOverride: true), postedByUserId: 7);
         (await act.Should().ThrowAsync<PostingException>()).Which.Code.Should().Be("PERIOD_HARD_CLOSED");
     }
+
+    [Fact]
+    public async Task FiscalCalendar_ReturnsYearWithPeriods()
+    {
+        using var db = await SeedAsync(FiscalPeriodStatus.SoftClosed);
+
+        var calendar = await new GetFiscalCalendarHandler(db)
+            .Handle(new GetFiscalCalendarQuery(BookId), CancellationToken.None);
+
+        var year = calendar.Should().ContainSingle().Subject;
+        year.Id.Should().Be(FiscalYearId);
+        var period = year.Periods.Should().ContainSingle().Subject;
+        period.Id.Should().Be(PeriodId);
+        period.Status.Should().Be(FiscalPeriodStatus.SoftClosed);
+    }
 }

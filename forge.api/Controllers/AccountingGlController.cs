@@ -108,6 +108,12 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Phase-3 — the book's fiscal calendar (years + periods with statuses) for the close screen.</summary>
+    [HttpGet("fiscal-calendar")]
+    public async Task<ActionResult<IReadOnlyList<FiscalYearModel>>> GetFiscalCalendar(
+        [FromQuery] int bookId, CancellationToken ct)
+        => Ok(await mediator.Send(new GetFiscalCalendarQuery(bookId), ct));
+
     /// <summary>
     /// Phase-3 — soft-close a fiscal period (Open → SoftClosed). Posting into it then requires an audited
     /// controller override; reopen returns it to Open. CAP-ACCT-FULLGL gated.
