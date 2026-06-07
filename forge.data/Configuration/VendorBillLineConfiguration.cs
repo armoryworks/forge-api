@@ -23,11 +23,18 @@ public class VendorBillLineConfiguration : IEntityTypeConfiguration<VendorBillLi
         builder.Property(e => e.AccountDeterminationKey).HasMaxLength(64).IsRequired();
 
         builder.HasIndex(e => e.PartId).HasDatabaseName("ix_vendor_bill_lines_part");
+        builder.HasIndex(e => e.PurchaseOrderLineId).HasDatabaseName("ix_vendor_bill_lines_po_line");
 
         builder.HasOne(e => e.Part)
             .WithMany()
             .HasForeignKey(e => e.PartId)
             .HasConstraintName("fk_vendor_bill_lines_part")
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(e => e.PurchaseOrderLine)
+            .WithMany()
+            .HasForeignKey(e => e.PurchaseOrderLineId)
+            .HasConstraintName("fk_vendor_bill_lines_po_line")
             .OnDelete(DeleteBehavior.SetNull);
     }
 }

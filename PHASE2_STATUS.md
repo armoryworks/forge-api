@@ -162,7 +162,37 @@ Filter-immune projection like the trial balance. Endpoint `GET /api/v1/accountin
     rounding:** Σ `AllocatedFreight` can drift sub-cent from `ActualFreight`, so STAGE D must reconcile
     `FREIGHT_CLEARING` to the freight invoice and route the delta to a variance/rounding account (the
     receipt JE itself always balances — it credits Σ allocated, not `ActualFreight`).
-- **D–E:** STAGE D (VendorBill 3-way match → Dr GRNI / Cr AP + PPV, GRNI aging) + STAGE E (valuation store).
+- **STAGE D.1 — 3-way-match foundation (built, dark, additive migration):** added the structural seam the
+  match needs — `VendorBillLine.PurchaseOrderLineId` (FK→PO line, nullable) and
+  `PurchaseOrderLine.BilledQuantity` (+ computed `UnbilledReceivedQuantity = Received − Billed`), EF configs,
+  the `CreateVendorBillLineModel.PurchaseOrderLineId` request field + mapping, and validation (a PO-linked
+  bill requires each line to reference a PO line; a standalone bill must not). Migration
+  `AddVendorBillPoLineMatch` (2 additive columns + index + FK; no drops — **not applied**). Full InMemory
+  suite **1263 green**, no regression. This is structure only — the posting is **D.2** below.
+
+  **STAGE D.2 design (the §12 "3-way-match math", specified for the next build):**
+  - **Posting (PO-matched bill, branch in `VendorBillApPostingService` on `PurchaseOrderId != null`):** per
+    matched line, `grniClear = billedQty × PO UnitPrice`; `billedAmt = billedQty × bill UnitPrice`;
+    `ppv = billedAmt − grniClear`. Post **Dr GRNI** (Σ grniClear) / **Dr|Cr PURCHASE_PRICE_VARIANCE** (net
+    ppv; unfavorable bill>PO → Dr) / **Dr OPERATING_EXPENSE** (bill tax) / **Cr AP_CONTROL** (bill Total,
+    party=vendor). Balances by construction (Σ grniClear + ppv = Σ billedAmt = subtotal; + tax = Total). One
+    entry per bill, idempotency `AP:VendorBill:{id}:BILL` (the match IS the bill posting; standalone bills
+    keep the same key — a bill is one or the other).
+  - **Partial / multiple bills:** the open GRNI a bill may clear is `UnbilledReceivedQuantity × PO price`.
+    The **operational** `ApproveVendorBill` increments `PurchaseOrderLine.BilledQuantity += billedQty`
+    (regardless of FULLGL, after the posting reads the pre-bill value), so a second bill can't double-clear.
+  - **Bill-before-receipt / over-bill (§7 ordering — fail-and-surface):** if `billedQty >
+    UnbilledReceivedQuantity` (billing more than received-not-yet-billed → no GRNI accrued), the posting
+    throws `PostingException("GRNI_INSUFFICIENT")` and the whole approval rolls back, rather than driving
+    GRNI negative. (An operational pre-check should mirror this so a *dark* over-bill is also blocked — a
+    D.2 item.)
+  - **Deferred to D.3 (reporting):** the **GRNI aging report** (group GRNI lines by `JournalEntry.SourceId`
+    = PO id where `Source=Inventory, SourceType="Receipt"`, age by entry date, credit-positive — note the
+    match's GRNI debit currently posts under the bill's `AP` source, so per-PO netting in the aging needs
+    the match to tag its GRNI-clear leg with the receipt's `Inventory:Receipt:{poId}` source, OR the aging
+    to net across both sources by PO — decide at D.3) and the **line-level ReceivingRecord↔GRNI
+    reconciliation** sweeper (§12 — must check line-level coverage, not `(SourceType,SourceId)` presence).
+- **E:** STAGE E (inventory valuation store: standard / weighted-avg / FIFO, §8.1).
 
 ### STAGE A.3 review — fixes applied + follow-ups
 

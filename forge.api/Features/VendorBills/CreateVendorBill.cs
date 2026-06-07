@@ -42,6 +42,18 @@ public class CreateVendorBillValidator : AbstractValidator<CreateVendorBillComma
             line.RuleFor(l => l.Quantity).GreaterThan(0m);
             line.RuleFor(l => l.UnitPrice).GreaterThanOrEqualTo(0);
         });
+        // 3-way match (STAGE D): a PO-linked bill must match each line to a PO line so the posting can
+        // clear GRNI at the PO price; a standalone (non-PO) bill must NOT carry PO-line links.
+        When(x => x.PurchaseOrderId is not null, () =>
+            RuleForEach(x => x.Lines).ChildRules(line =>
+                line.RuleFor(l => l.PurchaseOrderLineId)
+                    .NotNull()
+                    .WithMessage("Each line on a PO-linked bill must reference a purchase-order line (3-way match).")));
+        When(x => x.PurchaseOrderId is null, () =>
+            RuleForEach(x => x.Lines).ChildRules(line =>
+                line.RuleFor(l => l.PurchaseOrderLineId)
+                    .Null()
+                    .WithMessage("A standalone (non-PO) bill line cannot reference a purchase-order line.")));
     }
 }
 
@@ -76,6 +88,7 @@ public class CreateVendorBillHandler(
             bill.Lines.Add(new VendorBillLine
             {
                 PartId = line.PartId,
+                PurchaseOrderLineId = line.PurchaseOrderLineId,
                 Description = line.Description,
                 Quantity = line.Quantity,
                 UnitPrice = line.UnitPrice,

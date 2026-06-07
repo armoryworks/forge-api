@@ -14,6 +14,10 @@ public class VendorBillLine : BaseEntity
     /// <summary>Optional part reference (inventory/PO bills); null for service/expense lines.</summary>
     public int? PartId { get; set; }
 
+    /// <summary>Optional link to the matched PO line (STAGE-D 3-way match) — supplies the PO price the
+    /// GRNI accrual was booked at, and the open (received-not-billed) quantity. Null for standalone bills.</summary>
+    public int? PurchaseOrderLineId { get; set; }
+
     public string Description { get; set; } = string.Empty;
     public decimal Quantity { get; set; }
     public decimal UnitPrice { get; set; }
@@ -29,4 +33,5 @@ public class VendorBillLine : BaseEntity
 
     public VendorBill VendorBill { get; set; } = null!;
     public Part? Part { get; set; }
+    public PurchaseOrderLine? PurchaseOrderLine { get; set; }
 }

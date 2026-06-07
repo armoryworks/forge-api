@@ -22,6 +22,8 @@ public class PurchaseOrderLineConfiguration : IEntityTypeConfiguration<PurchaseO
         builder.Property(e => e.ReceivedQuantity).HasPrecision(18, 4);
         // Phase 3 / WU-14 / H3 — short-close. Same precision as Ordered/Received.
         builder.Property(e => e.CancelledShortCloseQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
+        // Phase-2 STAGE-D 3-way match — quantity already billed (for open-GRNI tracking).
+        builder.Property(e => e.BilledQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
         builder.Property(e => e.UnitPrice).HasPrecision(18, 4);
 
         builder.HasIndex(e => e.PurchaseOrderId);

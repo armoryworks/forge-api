@@ -23,4 +23,6 @@ public record CreateVendorBillLineModel(
     string Description,
     decimal Quantity,
     decimal UnitPrice,
-    string? AccountDeterminationKey);
+    string? AccountDeterminationKey,
+    // STAGE-D 3-way match: the PO line this bill line matches (required when the bill is PO-linked).
+    int? PurchaseOrderLineId = null);
