@@ -41,6 +41,13 @@ public interface IVendorBillApPostingService
     /// enabled. A no-op while the capability is off. Idempotent: a re-post returns the existing entry.
     /// </summary>
     Task PostVendorBillApprovedAsync(int vendorBillId, int approvedByUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reverses the posted AP / expense journal for a bill being voided (posts an equal-and-opposite entry,
+    /// flips the original to Reversed). A no-op while CAP-ACCT-FULLGL is off, or if nothing is currently
+    /// posted for the bill (e.g. it was approved while the capability was off).
+    /// </summary>
+    Task ReverseVendorBillApprovedAsync(int vendorBillId, int reversedByUserId, CancellationToken ct = default);
 }
 
 /// <inheritdoc />
@@ -68,6 +75,32 @@ public sealed class VendorBillApPostingService(
             return;
 
         await PostCoreAsync(vendorBillId, approvedByUserId, ct);
+    }
+
+    public async Task ReverseVendorBillApprovedAsync(
+        int vendorBillId, int reversedByUserId, CancellationToken ct = default)
+    {
+        // ── GATE (dark by default) ──
+        if (!capabilities.IsEnabled(FullGlCapability))
+            return;
+
+        // The live posted entry for this bill (the ":BILL" entry). Skip if none is currently posted — the
+        // bill may have been approved while FULLGL was off, or already reversed.
+        var entry = await db.Set<JournalEntry>()
+            .Where(e => e.Source == JournalSource.AP
+                && e.SourceType == "VendorBill"
+                && e.SourceId == vendorBillId
+                && e.Status == JournalEntryStatus.Posted)
+            .OrderByDescending(e => e.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (entry is null)
+            return;
+
+        // Reverse in the original entry's period (clean same-period correction). When period close lands
+        // (Phase 3), a closed-period reversal becomes a policy choice the engine already guards.
+        await postingEngine.ReverseAsync(
+            entry.Id, entry.EntryDate, $"Vendor bill {vendorBillId} voided", reversedByUserId, ct);
     }
 
     private async Task PostCoreAsync(int vendorBillId, int approvedByUserId, CancellationToken ct)

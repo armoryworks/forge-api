@@ -88,6 +88,13 @@ public class Phase2ApHandlerTests
                     new ForgeGlPostingEngine(db, new AccountDeterminationResolver(db), new FakeAllocator(), new SystemClock()),
                     new FakeCapabilities(fullGlOn)),
                 HttpContextFor(7));
+
+        public VoidVendorBillHandler Void { get; } =
+            new(new VendorBillRepository(db),
+                new VendorBillApPostingService(db,
+                    new ForgeGlPostingEngine(db, new AccountDeterminationResolver(db), new FakeAllocator(), new SystemClock()),
+                    new FakeCapabilities(fullGlOn)),
+                HttpContextFor(7), db);
     }
 
     private static async Task<(AppDbContext db, int vendorId)> SeedAsync()
@@ -478,6 +485,87 @@ public class Phase2ApHandlerTests
         // A bill with no vendor invoice number is exempt from the duplicate guard.
         var act = async () => await h.CreateBill.Handle(cmd, CancellationToken.None);
         await act.Should().NotThrowAsync();
+    }
+
+    // ─────────────────────────── Void / reversal (H2) ───────────────────────────
+
+    [Fact]
+    public async Task VoidDraftBill_CancelsWithNoGl()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var h = new Harness(db, fullGlOn: true);
+        var bill = await h.CreateBill.Handle(BillCmd(vendorId), CancellationToken.None);
+
+        await h.Void.Handle(new VoidVendorBillCommand(bill.Id), CancellationToken.None);
+
+        (await db.VendorBills.SingleAsync(b => b.Id == bill.Id)).Status.Should().Be(VendorBillStatus.Void);
+        (await db.JournalEntries.IgnoreQueryFilters().AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task VoidApprovedBill_FullGlOn_ReversesJournal()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var h = new Harness(db, fullGlOn: true);
+        var bill = await h.CreateBill.Handle(BillCmd(vendorId), CancellationToken.None);
+        await h.Approve.Handle(new ApproveVendorBillCommand(bill.Id), CancellationToken.None);
+
+        await h.Void.Handle(new VoidVendorBillCommand(bill.Id), CancellationToken.None);
+
+        (await db.VendorBills.SingleAsync(b => b.Id == bill.Id)).Status.Should().Be(VendorBillStatus.Void);
+
+        // Original entry reversed + a reversal entry posted → net AP-control balance is zero.
+        var entries = await db.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines).ToListAsync();
+        entries.Should().HaveCount(2);
+        entries.Should().Contain(e => e.Status == JournalEntryStatus.Reversed);
+        entries.SelectMany(e => e.Lines).Where(l => l.GlAccountId == ApControlId)
+            .Sum(l => l.Credit - l.Debit).Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task VoidApprovedPoMatchedBill_RestoresBilledQuantity()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var h = new Harness(db, fullGlOn: true);
+        var (poId, poLineId) = await AddReceivedPoLineAsync(db, vendorId, poUnitPrice: 10m, receivedQty: 5m);
+        var bill = await h.CreateBill.Handle(PoBillCmd(vendorId, poId, poLineId, qty: 5m, billUnitPrice: 10m), CancellationToken.None);
+        await h.Approve.Handle(new ApproveVendorBillCommand(bill.Id), CancellationToken.None);
+        (await db.Set<PurchaseOrderLine>().SingleAsync(l => l.Id == poLineId)).BilledQuantity.Should().Be(5m);
+
+        await h.Void.Handle(new VoidVendorBillCommand(bill.Id), CancellationToken.None);
+
+        // Billed quantity handed back → the received goods are billable again.
+        (await db.Set<PurchaseOrderLine>().SingleAsync(l => l.Id == poLineId)).BilledQuantity.Should().Be(0m);
+        (await db.VendorBills.SingleAsync(b => b.Id == bill.Id)).Status.Should().Be(VendorBillStatus.Void);
+    }
+
+    [Fact]
+    public async Task VoidBill_WithPaymentApplied_Throws()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var h = new Harness(db, fullGlOn: true);
+        var bill = await h.CreateBill.Handle(BillCmd(vendorId), CancellationToken.None);
+        await h.Approve.Handle(new ApproveVendorBillCommand(bill.Id), CancellationToken.None);
+        await h.CreatePayment.Handle(
+            new CreateVendorPaymentCommand(vendorId, "Check", 200m,
+                new DateTimeOffset(2026, 1, 20, 0, 0, 0, TimeSpan.Zero), null, null,
+                [new CreateVendorPaymentApplicationModel(bill.Id, 200m)]),
+            CancellationToken.None);
+
+        var act = async () => await h.Void.Handle(new VoidVendorBillCommand(bill.Id), CancellationToken.None);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*payments applied*");
+    }
+
+    [Fact]
+    public async Task VoidBill_AlreadyVoid_Throws()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var h = new Harness(db, fullGlOn: false);
+        var bill = await h.CreateBill.Handle(BillCmd(vendorId), CancellationToken.None);
+        await h.Void.Handle(new VoidVendorBillCommand(bill.Id), CancellationToken.None);
+
+        var act = async () => await h.Void.Handle(new VoidVendorBillCommand(bill.Id), CancellationToken.None);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already void*");
     }
 
     [Fact]

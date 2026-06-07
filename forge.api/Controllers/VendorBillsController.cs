@@ -48,4 +48,15 @@ public class VendorBillsController(IMediator mediator) : ControllerBase
         await mediator.Send(new ApproveVendorBillCommand(id));
         return NoContent();
     }
+
+    /// <summary>
+    /// Voids a vendor bill. A Draft bill is cancelled; an Approved bill is reversed (the AP/expense journal
+    /// is reversed and the billed quantity returned to its PO lines). Blocked if payments are applied.
+    /// </summary>
+    [HttpPost("{id:int}/void")]
+    public async Task<IActionResult> VoidVendorBill(int id)
+    {
+        await mediator.Send(new VoidVendorBillCommand(id));
+        return NoContent();
+    }
 }
