@@ -267,21 +267,21 @@ Fixed in this commit (from the adversarial review):
 symmetric to the AR side's `CAP-O2C-INVOICE` / `CAP-O2C-CASH`, is **dedicated `CAP-P2P-BILL` / `CAP-P2P-PAY`**
 catalog entries — deferred because new capabilities are a product-taxonomy decision for the owner.
 
-**Pre-go-live follow-ups (tracked, not blocking the dark increment):**
-- **No void/cancel/correction path** and no client `If-Match` concurrency on AP mutations — the AP
-  sub-ledger is append-only via this API. A void-with-reversal flow is needed before un-darking.
-- **Duplicate-vendor-invoice (double-payment) protection** — no uniqueness on `(VendorId,
-  VendorInvoiceNumber)`; the highest-value AP control to add before go-live (AR doesn't need this — we
-  issue invoices, we receive bills).
-- **3-way-match concurrency (STAGE D.2, from the adversarial review)** — `ApproveVendorBill` reads
-  `UnbilledReceivedQuantity` then increments `PurchaseOrderLine.BilledQuantity` with no row lock; under
-  Postgres READ COMMITTED two concurrent approvals against the same PO line can both pass the over-bill guard
-  and both increment (lost update → double-clear of GRNI). Fix before un-darking: a `FOR UPDATE` lock on the
-  matched PO lines (the engine already does this pattern) **or** an EF concurrency token on `BilledQuantity`.
-  Deliberately **not** wired now — it would change update behavior on the operational `purchase_order_lines`
-  table Armory Plastics is actively testing (could surface `DbUpdateConcurrencyException` in their receive
-  flow), and the race only bites with FULLGL on. Pair with a Postgres atomicity test (posting-fails-after-
-  engine-SaveChanges → `BilledQuantity`/status roll back) alongside the existing `Phase…AtomicityTests`.
+**Pre-go-live hardening — DONE (commits H1 `c4ddacbc`, H2 `8d9e392d`, H3 this commit):**
+- **Duplicate-vendor-invoice (double-payment) protection — DONE (H1).** `CreateVendorBill` rejects a
+  `(VendorId, VendorInvoiceNumber)` that already exists (null/blank exempt); partial unique index
+  `ux_vendor_bills_vendor_invoice` as the DB backstop (additive migration, not applied).
+- **AP void/correction path — DONE (H2).** `VoidVendorBill` (+ `POST /vendor-bills/{id}/void`): a Draft bill
+  cancels; an Approved bill **reverses** the AP journal (engine `ReverseAsync`) and hands `BilledQuantity`
+  back to its PO lines, in one tx; blocked when payments are applied. (Client `If-Match` concurrency on AP
+  mutations still open — lower priority; `VendorBill.Version` token already exists.)
+- **3-way-match concurrency — DONE (H3).** `ApproveVendorBill` now takes a `FOR UPDATE` row lock on the
+  matched `purchase_order_lines` (Postgres only; no-op on InMemory) inside the transaction, before the
+  over-bill read + `BilledQuantity` increment, so concurrent same-line approvals serialize (no lost-update /
+  double-clear). The chosen lock (vs an EF concurrency token) does **not** alter update behavior on the
+  operational table for other flows — safe to carry while Armory Plastics tests. Still open: a Postgres
+  proof that a posting failure after the engine's SaveChanges rolls back `BilledQuantity`/status (run with
+  the deferred `Phase…AtomicityTests` on a Docker box before un-darking).
 - **AR-side parity — DONE (owner-approved follow-up).** The review found the same gaps in the Phase-1
   `CreatePayment`; the four guards are now mirrored to it: `Method` enum validation (400 not 500),
   duplicate-invoice-application rejection, customer-ownership of the applied invoice, and a status guard

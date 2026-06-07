@@ -73,15 +73,13 @@ public class ApproveVendorBillHandler(
                 .ToList()
             : new List<(PurchaseOrderLine? PoLine, decimal Quantity)>();
 
-        foreach (var (poLine, quantity) in poMatches)
+        // Validate the PO-line refs loaded. The over-bill check itself runs after the row lock below, against
+        // the freshly-committed BilledQuantity.
+        foreach (var (poLine, _) in poMatches)
         {
             if (poLine is null)
                 throw new InvalidOperationException(
                     $"Vendor bill {bill.BillNumber} references a purchase-order line that could not be loaded.");
-            if (quantity > poLine.UnbilledReceivedQuantity)
-                throw new InvalidOperationException(
-                    $"Vendor bill {bill.BillNumber} bills {quantity} against PO line {poLine.Id}, "
-                  + $"but only {poLine.UnbilledReceivedQuantity} is received-but-not-yet-billed.");
         }
 
         // ── Inline AP posting wrapped with the status flip in ONE transaction so the journal entry and
@@ -91,6 +89,28 @@ public class ApproveVendorBillHandler(
         await using var tx = db is not null
             ? await db.Database.BeginTransactionAsync(cancellationToken)
             : null;
+
+        // ── Concurrency: lock the matched PO-line rows FOR UPDATE so two concurrent approvals against the
+        // same line serialize. Without it both could read the same BilledQuantity, both pass the over-bill
+        // guard, and both increment — a lost update that double-clears GRNI. Postgres only; a no-op on other
+        // providers (InMemory tests). Reload to observe the committed BilledQuantity under the lock.
+        if (db is not null && poMatches.Count > 0 && db.Database.IsNpgsql())
+        {
+            var poLineIds = poMatches.Select(m => m.PoLine!.Id).ToArray();
+            await db.Database.ExecuteSqlRawAsync(
+                "SELECT id FROM purchase_order_lines WHERE id = ANY({0}) FOR UPDATE", [poLineIds], cancellationToken);
+            foreach (var (poLine, _) in poMatches)
+                await db.Entry(poLine!).ReloadAsync(cancellationToken);
+        }
+
+        // ── Over-bill guard, now against the freshly-locked received-but-not-yet-billed quantity ──
+        foreach (var (poLine, quantity) in poMatches)
+        {
+            if (quantity > poLine!.UnbilledReceivedQuantity)
+                throw new InvalidOperationException(
+                    $"Vendor bill {bill.BillNumber} bills {quantity} against PO line {poLine.Id}, "
+                  + $"but only {poLine.UnbilledReceivedQuantity} is received-but-not-yet-billed.");
+        }
 
         if (apPosting is not null)
         {
