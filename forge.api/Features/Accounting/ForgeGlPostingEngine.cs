@@ -120,6 +120,17 @@ public sealed class ForgeGlPostingEngine(
                     "CONTROL_LINE_PARTY_REQUIRED",
                     $"Line {lineNumber}: account {account.AccountNumber} is a control account and requires SubledgerPartyType/Id (only inventory control accounts post party-less).");
 
+            // Dimension-required policy (§12): WIP/COGS accounts can require a Job; departmental accounts a
+            // CostCenter. A line missing the required dimension is rejected.
+            if (account.RequiresJob && l.JobId is null)
+                throw new PostingException(
+                    "JOB_REQUIRED",
+                    $"Line {lineNumber}: account {account.AccountNumber} requires a Job dimension.");
+            if (account.RequiresCostCenter && l.CostCenterId is null)
+                throw new PostingException(
+                    "COST_CENTER_REQUIRED",
+                    $"Line {lineNumber}: account {account.AccountNumber} requires a CostCenter dimension.");
+
             // Book-consistency for the cost-center dimension.
             if (l.CostCenterId is int ccId)
             {
@@ -218,6 +229,9 @@ public sealed class ForgeGlPostingEngine(
         // Check already-reversed first so a re-reverse reports the precise reason
         // (the original is left Reversed by the prior reversal, so the status
         // check alone would mask it). ---
+        // Reversal-of-reversal policy (§12): a reversal entry is itself Posted with a null ReversedByEntryId,
+        // so it MAY be reversed in turn — that re-instates the original economically (a correction of a
+        // correction). The same two preconditions apply uniformly; no special-casing for reversal entries.
         if (original.ReversedByEntryId is not null)
             throw new PostingException(
                 "ALREADY_REVERSED",
