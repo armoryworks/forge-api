@@ -241,6 +241,13 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Phase-4b — run a period-end unrealized FX revaluation for a currency (auto-reverses next period).</summary>
+    [HttpPost("fx-revaluation")]
+    [RequiresCapability("CAP-ACCT-FXREVAL")]
+    public async Task<ActionResult<FxRevaluationResult>> RevalueFx(
+        [FromBody] RevalueFxRequest body, CancellationToken ct)
+        => Ok(await mediator.Send(new RevalueFxCommand(body.BookId, body.CurrencyId, body.NewRate, body.AsOf), ct));
+
     // ─────────────────────────── Phase-5 payroll ───────────────────────────
 
     /// <summary>Phase-5 — create a pay run (amounts provided; tax calc is the §8.3 spike, out of scope here).</summary>
@@ -371,6 +378,9 @@ public record PostFromTemplateRequest(DateOnly EntryDate, string? Memo);
 
 /// <summary>Body for <c>POST /api/v1/accounting/depreciation/run</c>.</summary>
 public record RunDepreciationRequest(int BookId, DateOnly PeriodMonth);
+
+/// <summary>Body for <c>POST /api/v1/accounting/fx-revaluation</c>.</summary>
+public record RevalueFxRequest(int BookId, int CurrencyId, decimal NewRate, DateOnly AsOf);
 
 /// <summary>
 /// Request body for <c>POST /api/v1/accounting/journal-entries</c>. The

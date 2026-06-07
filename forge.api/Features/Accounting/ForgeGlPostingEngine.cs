@@ -159,10 +159,15 @@ public sealed class ForgeGlPostingEngine(
                 CostCenterId = l.CostCenterId,
                 Debit = l.Debit,
                 Credit = l.Credit,
-                CurrencyId = request.CurrencyId,       // Phase-0 single-currency invariant
-                TxnAmount = amount,
-                FunctionalAmount = amount,             // FunctionalAmount = TxnAmount
-                FxRate = 1m,                           // pinned to 1 in Phase 0
+                CurrencyId = request.CurrencyId,       // entry transaction currency
+                TxnAmount = amount,                    // amount in the transaction currency
+                // FX (Phase-4): functional value at the entry rate. At FxRate == 1 this is byte-for-byte the
+                // old single-currency behaviour (FunctionalAmount == TxnAmount, no rounding applied); only a
+                // real rate (≠ 1) multiplies + rounds to the functional currency's minor unit.
+                FunctionalAmount = request.FxRate == 1m
+                    ? amount
+                    : Math.Round(amount * request.FxRate, 2, MidpointRounding.AwayFromZero),
+                FxRate = request.FxRate,
                 SubledgerPartyType = l.PartyType,
                 SubledgerPartyId = l.PartyId,
                 Description = l.Description,

@@ -41,6 +41,14 @@ public sealed class PostingRequest
     public string? IdempotencyKey { get; init; }
 
     /// <summary>
+    /// Phase-4 FX: the rate from the entry transaction currency (<see cref="CurrencyId"/>) to the book's
+    /// functional currency. <c>FunctionalAmount = round(TxnAmount × FxRate)</c>. Defaults to <b>1</b> — the
+    /// single-currency path (functional = transaction) is byte-for-byte unchanged. One rate per entry, so the
+    /// functional ledger balances whenever the transaction side does.
+    /// </summary>
+    public decimal FxRate { get; init; } = 1m;
+
+    /// <summary>
     /// Accrual flag — the period-close step (Phase 3) reverses these into the
     /// next period.
     /// </summary>

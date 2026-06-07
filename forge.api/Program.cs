@@ -368,6 +368,8 @@ try
     builder.Services.AddScoped<IConversionService, Forge.Api.Features.Accounting.ConversionService>();
     // Phase-5 — payroll GL foundation (pay-run + payroll journal; tax-calc is a separate spike).
     builder.Services.AddScoped<IPayrollService, Forge.Api.Features.Accounting.PayrollService>();
+    // Phase-4b — period-end unrealized FX revaluation of the net foreign monetary position.
+    builder.Services.AddScoped<IFxRevaluationService, Forge.Api.Features.Accounting.FxRevaluationService>();
     // Phase-1 STAGE E — basic financial statements (§6 Phase-1 row "P&L + Balance
     // Sheet"). Profit & Loss (Income/Expense over a period range) and Balance
     // Sheet (Asset/Liability/Equity as of a date, with computed current-year-
