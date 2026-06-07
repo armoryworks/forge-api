@@ -360,6 +360,8 @@ try
     builder.Services.AddScoped<IBankReconciliationService, Forge.Api.Features.Accounting.BankReconciliationService>();
     // Phase-3 — recurring/standard journal templates (post a balanced entry from a saved template).
     builder.Services.AddScoped<IJournalTemplateService, Forge.Api.Features.Accounting.JournalTemplateService>();
+    // Phase-2 STAGE E — perpetual inventory valuation store (receipt-fed; ties to GL inventory control).
+    builder.Services.AddScoped<IInventoryValuationService, Forge.Api.Features.Accounting.InventoryValuationService>();
     // Phase-1 STAGE E — basic financial statements (§6 Phase-1 row "P&L + Balance
     // Sheet"). Profit & Loss (Income/Expense over a period range) and Balance
     // Sheet (Asset/Liability/Equity as of a date, with computed current-year-

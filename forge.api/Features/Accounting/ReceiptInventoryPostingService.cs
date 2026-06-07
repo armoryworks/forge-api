@@ -54,7 +54,8 @@ public sealed class ReceiptInventoryPostingService(
     AppDbContext db,
     IPostingEngine postingEngine,
     ICapabilitySnapshotProvider capabilities,
-    ISystemAuditWriter? auditWriter = null) : IReceiptInventoryPostingService
+    ISystemAuditWriter? auditWriter = null,
+    IInventoryValuationService? valuation = null) : IReceiptInventoryPostingService
 {
     private const string FullGlCapability = "CAP-ACCT-FULLGL";
 
@@ -116,6 +117,8 @@ public sealed class ReceiptInventoryPostingService(
         var lines = new List<PostingLine>(records.Count + 2);
         decimal totalBase = 0m;
         decimal totalFreight = 0m;
+        // STAGE E: stocked-part receipts to feed into the valuation store after the GL post (landed cost).
+        var valuationFeeds = new List<(int PartId, decimal Quantity, decimal LandedCost)>();
 
         foreach (var rec in records.OrderBy(r => r.Id))
         {
@@ -133,6 +136,10 @@ public sealed class ReceiptInventoryPostingService(
             });
             totalBase += baseCost;
             totalFreight += freight;
+
+            // Consumables/tools are expensed (not stocked) — only perpetual-stocked classes feed the store.
+            if (IsStocked(line.Part))
+                valuationFeeds.Add((line.PartId, rec.QuantityReceived, baseCost + freight));
         }
 
         if (totalBase + totalFreight <= 0m)
@@ -170,8 +177,19 @@ public sealed class ReceiptInventoryPostingService(
         };
 
         var entry = await postingEngine.PostAsync(request, userId, ct);
+
+        // STAGE E: feed the perpetual valuation store at landed cost (joins this transaction). No-op when the
+        // valuation service isn't wired (isolated unit tests).
+        if (valuation is not null)
+            foreach (var (partId, quantity, landedCost) in valuationFeeds)
+                await valuation.ApplyReceiptAsync(book.Id, partId, quantity, landedCost, ct);
+
         await TryAuditAsync(receiptNumber, purchaseOrderId, entry, totalBase, totalFreight, userId, ct);
     }
+
+    /// <summary>True for perpetual-stocked inventory classes (the ones that debit an INVENTORY_* account).</summary>
+    private static bool IsStocked(Part? part) => part?.InventoryClass is
+        InventoryClass.Raw or InventoryClass.Component or InventoryClass.Subassembly or InventoryClass.FinishedGood;
 
     /// <summary>Maps a received part's <see cref="InventoryClass"/> to the inventory determination key
     /// it capitalizes to. Consumables / tools are expensed (not stocked-for-production); a null/unknown

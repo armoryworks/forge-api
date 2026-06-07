@@ -240,6 +240,20 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    // ─────────────────────────── Phase-2 STAGE E inventory valuation ───────────────────────────
+
+    /// <summary>STAGE E — the perpetual inventory valuation (on-hand qty, avg cost, value) per part.</summary>
+    [HttpGet("inventory-valuation")]
+    public async Task<ActionResult<IReadOnlyList<InventoryValuationModel>>> GetInventoryValuation(
+        [FromQuery] int bookId, CancellationToken ct)
+        => Ok(await mediator.Send(new GetInventoryValuationQuery(bookId), ct));
+
+    /// <summary>STAGE E — valuation sub-ledger vs GL inventory-control reconciliation.</summary>
+    [HttpGet("inventory-valuation/reconciliation")]
+    public async Task<ActionResult<InventoryValuationReconciliation>> GetInventoryValuationReconciliation(
+        [FromQuery] int bookId, CancellationToken ct)
+        => Ok(await mediator.Send(new GetInventoryValuationReconciliationQuery(bookId), ct));
+
     // ─────────────────────────── Phase-3 journal templates ───────────────────────────
 
     /// <summary>Phase-3 — create a recurring/standard journal template.</summary>
