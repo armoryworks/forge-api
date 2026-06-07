@@ -1,4 +1,7 @@
+using System.Security.Claims;
+
 using MediatR;
+using Microsoft.AspNetCore.Http;
 
 using Forge.Api.Capabilities;
 using Forge.Core.Enums.Accounting;
@@ -16,9 +19,16 @@ namespace Forge.Api.Features.Accounting;
 public record SetFiscalPeriodStatusCommand(int PeriodId, FiscalPeriodStatus Target)
     : IRequest<FiscalPeriodModel>;
 
-public class SetFiscalPeriodStatusHandler(IFiscalPeriodCloseService closeService)
+public class SetFiscalPeriodStatusHandler(
+    IFiscalPeriodCloseService closeService,
+    IHttpContextAccessor? httpContextAccessor = null)
     : IRequestHandler<SetFiscalPeriodStatusCommand, FiscalPeriodModel>
 {
     public Task<FiscalPeriodModel> Handle(SetFiscalPeriodStatusCommand request, CancellationToken cancellationToken)
-        => closeService.TransitionAsync(request.PeriodId, request.Target, cancellationToken);
+    {
+        var actorUserId = int.TryParse(
+            httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier),
+            out var uid) ? uid : 0;
+        return closeService.TransitionAsync(request.PeriodId, request.Target, actorUserId, cancellationToken);
+    }
 }

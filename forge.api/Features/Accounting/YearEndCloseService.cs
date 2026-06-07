@@ -9,7 +9,8 @@ using Forge.Data.Context;
 namespace Forge.Api.Features.Accounting;
 
 /// <inheritdoc />
-public sealed class YearEndCloseService(AppDbContext db, IPostingEngine postingEngine) : IYearEndCloseService
+public sealed class YearEndCloseService(AppDbContext db, IPostingEngine postingEngine, IClock clock)
+    : IYearEndCloseService
 {
     private const string KeyRetainedEarnings = "RETAINED_EARNINGS";
 
@@ -97,10 +98,17 @@ public sealed class YearEndCloseService(AppDbContext db, IPostingEngine postingE
 
         // Lock the year: hard-close every period, mark the year Closed. (Posting happened first, while the
         // final period was still postable.)
+        var now = clock.UtcNow;
         var periods = await db.FiscalPeriods.Where(p => p.FiscalYearId == year.Id).ToListAsync(ct);
         foreach (var period in periods)
+        {
             period.Status = FiscalPeriodStatus.HardClosed;
+            period.ClosedByUserId = closedByUserId;
+            period.ClosedAt = now;
+        }
         year.Status = FiscalYearStatus.Closed;
+        year.ClosedByUserId = closedByUserId;
+        year.ClosedAt = now;
         await db.SaveChangesAsync(ct);
 
         return new YearEndCloseResult(year.Id, entryId, netIncome, reAccountId, periods.Count);

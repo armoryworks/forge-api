@@ -26,6 +26,12 @@ public class FiscalPeriod : BaseEntity, IConcurrencyVersioned
     /// <summary>Optimistic-locking token guarding close-vs-post races.</summary>
     public uint Version { get; set; }
 
+    // ── Close-transition audit (§12) — who/when last closed or reopened this period. ──
+    public int? ClosedByUserId { get; set; }
+    public DateTimeOffset? ClosedAt { get; set; }
+    public int? ReopenedByUserId { get; set; }
+    public DateTimeOffset? ReopenedAt { get; set; }
+
     public FiscalYear FiscalYear { get; set; } = null!;
     public ICollection<JournalEntry> JournalEntries { get; set; } = [];
 }

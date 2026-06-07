@@ -44,7 +44,7 @@ public class Phase3YearEndCloseServiceTests
     private static ForgeGlPostingEngine Engine(AppDbContext db)
         => new(db, new AccountDeterminationResolver(db), new FakeAllocator(), new SystemClock());
 
-    private static YearEndCloseService Service(AppDbContext db) => new(db, Engine(db));
+    private static YearEndCloseService Service(AppDbContext db) => new(db, Engine(db), new SystemClock());
     private static FinancialStatementService Statements(AppDbContext db) => new(db, new SystemClock());
 
     private static async Task<AppDbContext> SeedAsync()

@@ -39,7 +39,7 @@ public class Phase3FiscalPeriodCloseServiceTests
     private static ForgeGlPostingEngine Engine(AppDbContext db)
         => new(db, new AccountDeterminationResolver(db), new FakeAllocator(), new SystemClock());
 
-    private static FiscalPeriodCloseService Service(AppDbContext db) => new(db);
+    private static FiscalPeriodCloseService Service(AppDbContext db) => new(db, new SystemClock());
 
     private static async Task<AppDbContext> SeedAsync(FiscalPeriodStatus status = FiscalPeriodStatus.Open)
     {
@@ -87,7 +87,7 @@ public class Phase3FiscalPeriodCloseServiceTests
     public async Task SoftClose_OpenToSoftClosed()
     {
         using var db = await SeedAsync();
-        var result = await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.SoftClosed);
+        var result = await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.SoftClosed, actorUserId: 7);
         result.Status.Should().Be(FiscalPeriodStatus.SoftClosed);
         (await db.FiscalPeriods.SingleAsync(p => p.Id == PeriodId)).Status.Should().Be(FiscalPeriodStatus.SoftClosed);
     }
@@ -96,28 +96,28 @@ public class Phase3FiscalPeriodCloseServiceTests
     public async Task HardClose_FromSoftClosed()
     {
         using var db = await SeedAsync(FiscalPeriodStatus.SoftClosed);
-        (await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.HardClosed)).Status.Should().Be(FiscalPeriodStatus.HardClosed);
+        (await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.HardClosed, actorUserId: 7)).Status.Should().Be(FiscalPeriodStatus.HardClosed);
     }
 
     [Fact]
     public async Task HardClose_DirectFromOpen()
     {
         using var db = await SeedAsync();
-        (await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.HardClosed)).Status.Should().Be(FiscalPeriodStatus.HardClosed);
+        (await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.HardClosed, actorUserId: 7)).Status.Should().Be(FiscalPeriodStatus.HardClosed);
     }
 
     [Fact]
     public async Task Reopen_SoftClosedToOpen()
     {
         using var db = await SeedAsync(FiscalPeriodStatus.SoftClosed);
-        (await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.Open)).Status.Should().Be(FiscalPeriodStatus.Open);
+        (await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.Open, actorUserId: 7)).Status.Should().Be(FiscalPeriodStatus.Open);
     }
 
     [Fact]
     public async Task HardClosed_IsTerminal_ReopenThrows()
     {
         using var db = await SeedAsync(FiscalPeriodStatus.HardClosed);
-        var act = async () => await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.Open);
+        var act = async () => await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.Open, actorUserId: 7);
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*from HardClosed*");
     }
 
@@ -125,7 +125,7 @@ public class Phase3FiscalPeriodCloseServiceTests
     public async Task SameStatus_Throws()
     {
         using var db = await SeedAsync();
-        var act = async () => await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.Open);
+        var act = async () => await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.Open, actorUserId: 7);
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already Open*");
     }
 
@@ -133,7 +133,7 @@ public class Phase3FiscalPeriodCloseServiceTests
     public async Task SoftClose_ThenPostWithoutOverride_Throws()
     {
         using var db = await SeedAsync();
-        await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.SoftClosed);
+        await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.SoftClosed, actorUserId: 7);
 
         var act = async () => await Engine(db).PostAsync(SimpleEntry(), postedByUserId: 7);
         (await act.Should().ThrowAsync<PostingException>()).Which.Code.Should().Be("PERIOD_SOFT_CLOSED");
@@ -143,7 +143,7 @@ public class Phase3FiscalPeriodCloseServiceTests
     public async Task SoftClose_ThenPostWithOverride_Succeeds()
     {
         using var db = await SeedAsync();
-        await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.SoftClosed);
+        await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.SoftClosed, actorUserId: 7);
 
         var entry = await Engine(db).PostAsync(SimpleEntry(allowOverride: true), postedByUserId: 7);
         entry.Status.Should().Be(JournalEntryStatus.Posted);
@@ -153,7 +153,7 @@ public class Phase3FiscalPeriodCloseServiceTests
     public async Task HardClose_ThenPost_Throws()
     {
         using var db = await SeedAsync();
-        await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.HardClosed);
+        await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.HardClosed, actorUserId: 7);
 
         var act = async () => await Engine(db).PostAsync(SimpleEntry(allowOverride: true), postedByUserId: 7);
         (await act.Should().ThrowAsync<PostingException>()).Which.Code.Should().Be("PERIOD_HARD_CLOSED");
@@ -172,5 +172,28 @@ public class Phase3FiscalPeriodCloseServiceTests
         var period = year.Periods.Should().ContainSingle().Subject;
         period.Id.Should().Be(PeriodId);
         period.Status.Should().Be(FiscalPeriodStatus.SoftClosed);
+    }
+
+    [Fact]
+    public async Task Close_StampsCloseAudit()
+    {
+        using var db = await SeedAsync();
+        await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.SoftClosed, actorUserId: 42);
+
+        var p = await db.FiscalPeriods.SingleAsync(p => p.Id == PeriodId);
+        p.ClosedByUserId.Should().Be(42);
+        p.ClosedAt.Should().NotBeNull();
+        p.ReopenedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Reopen_StampsReopenAudit()
+    {
+        using var db = await SeedAsync(FiscalPeriodStatus.SoftClosed);
+        await Service(db).TransitionAsync(PeriodId, FiscalPeriodStatus.Open, actorUserId: 99);
+
+        var p = await db.FiscalPeriods.SingleAsync(p => p.Id == PeriodId);
+        p.ReopenedByUserId.Should().Be(99);
+        p.ReopenedAt.Should().NotBeNull();
     }
 }

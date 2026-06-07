@@ -12,6 +12,10 @@ namespace Forge.Core.Interfaces;
 /// </summary>
 public interface IFiscalPeriodCloseService
 {
-    /// <summary>Transitions a period to <paramref name="target"/>; throws on an illegal transition.</summary>
-    Task<FiscalPeriodModel> TransitionAsync(int periodId, FiscalPeriodStatus target, CancellationToken ct = default);
+    /// <summary>
+    /// Transitions a period to <paramref name="target"/>; throws on an illegal transition. Stamps the
+    /// close/reopen audit (<paramref name="actorUserId"/> + timestamp).
+    /// </summary>
+    Task<FiscalPeriodModel> TransitionAsync(
+        int periodId, FiscalPeriodStatus target, int actorUserId, CancellationToken ct = default);
 }

@@ -9,7 +9,7 @@ using Forge.Data.Context;
 namespace Forge.Api.Features.Accounting;
 
 /// <inheritdoc />
-public sealed class FiscalPeriodCloseService(AppDbContext db) : IFiscalPeriodCloseService
+public sealed class FiscalPeriodCloseService(AppDbContext db, IClock clock) : IFiscalPeriodCloseService
 {
     // Legal transitions. HardClosed is terminal (a hard-closed period is reopened only by an explicit
     // back-out at the DB level — never through this API). Open can hard-close directly (skipping soft).
@@ -21,7 +21,7 @@ public sealed class FiscalPeriodCloseService(AppDbContext db) : IFiscalPeriodClo
     };
 
     public async Task<FiscalPeriodModel> TransitionAsync(
-        int periodId, FiscalPeriodStatus target, CancellationToken ct = default)
+        int periodId, FiscalPeriodStatus target, int actorUserId, CancellationToken ct = default)
     {
         var period = await db.FiscalPeriods
             .FirstOrDefaultAsync(p => p.Id == periodId, ct)
@@ -44,6 +44,20 @@ public sealed class FiscalPeriodCloseService(AppDbContext db) : IFiscalPeriodClo
                 $"Cannot transition fiscal period {periodId} from {period.Status} to {target}.");
 
         period.Status = target;
+
+        // Close-transition audit: a close (→ SoftClosed/HardClosed) stamps ClosedBy/At; a reopen (→ Open)
+        // stamps ReopenedBy/At.
+        if (target == FiscalPeriodStatus.Open)
+        {
+            period.ReopenedByUserId = actorUserId;
+            period.ReopenedAt = clock.UtcNow;
+        }
+        else
+        {
+            period.ClosedByUserId = actorUserId;
+            period.ClosedAt = clock.UtcNow;
+        }
+
         await db.SaveChangesAsync(ct); // Version token guards a concurrent status change
 
         return new FiscalPeriodModel(
