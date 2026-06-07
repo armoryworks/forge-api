@@ -52,7 +52,40 @@ translation for consolidations.
 + `FileAttachment.EntityId` are `int` while `JournalEntry.Id` is `long`; fine until a book exceeds ~2.1B
 journal entries — widen to `long` (or key by entry number) before that's a concern.
 
-## 3. Pre-go-live (independent of new features)
+## 3. Operational inventory ↔ perpetual valuation loop (Armory Plastics hold LIFTED 2026-06-07)
+
+The hold is lifted; the perpetual loop is now wired end-to-end **except job-complete→FG**:
+
+- **Receipt → raw stock — DONE** (`7f96297c`). PO receive stocks a `BinContent` (find-or-create + default
+  receiving bin); feeds the valuation store at landed cost (already in STAGE C). Operational (not gated).
+- **Ship → relief — DONE** (`36a52553`). `ShipShipment` relieves on-hand via `InventoryReliefService`
+  (FIFO bin decrement + Ship movement, idempotent, backorder-tolerant). Also standardized
+  `BinContent.EntityType` on canonical lowercase `"part"` — **fixed a latent `MrpService` on-hand bug**
+  (it filtered capital `"Part"`, so MRP saw zero on-hand for every part).
+- **Material issue → WIP — DONE** (`46b7e701`). New `MaterialIssuePostingService` (FULLGL-gated, inline):
+  Issue → Dr WIP / Cr INVENTORY_{class}; Scrap → Dr OPERATING_EXPENSE / Cr …; Return → reverse + re-credit
+  store. Relieves the valuation store at weighted-average via `ApplyIssueAsync` (falls back to the issue's
+  unit cost when no store row); idempotency pre-check guards the store side-effect.
+- **Sale → COGS — REFINED** (`46b7e701`). `InvoiceArPostingService` COGS relief now sources cost from the
+  valuation store (weighted-average, decrementing in lock-step) when the FG part is carried there, falling
+  back to standard cost otherwise — closes the §12 STAGE-E TODO. Same idempotency pre-check added.
+
+**Remaining link — job-complete → FG (NOT built; needs owner decisions).** When a `ProductionRun` flips to
+`Completed`, the good output (`PartId`, qty) should stock an FG bin + value FG (Dr INVENTORY_FG / Cr
+INVENTORY_WIP, feed the FG store) — the last hop before sale→COGS. Held back because three things are
+genuinely undecided, and a wrong cost flow is worse than an absent one:
+  1. **Quantity semantics are inconsistent in the current model.** `UpdateProductionRun`'s validator treats
+     `CompletedQuantity` + `ScrapQuantity` as disjoint (`≤ Target`, so Completed = good), but the same
+     handler's yield formula `(CompletedQuantity − ScrapQuantity)/CompletedQuantity` assumes Completed
+     *includes* scrap. Resolve which is canonical before stocking qty off it.
+  2. **Valuation basis** — standard cost (documented manufacturing default; WIP residual = production
+     variance needing a destination) vs. actual accumulated WIP (`IJobCostService` rollup, prorated to good
+     qty). Standard is the natural first cut, symmetric with the receipt service deferring PPV to 3-way match.
+  3. **It's an always-on shop-floor change**, not just a dark GL post — stocking an FG bin on completion alters
+     `UpdateProductionRun` for every caller (and its existing handler tests) + needs an FG-bin destination
+     rule. Decide trigger point (run-complete vs an explicit "receive to stock" step) alongside it.
+
+## 4. Pre-go-live (independent of new features)
 
 - Run the deferred **Postgres atomicity + concurrency tests** on a Docker-enabled box (the `…AtomicityTests`
   and the 3-way-match FOR UPDATE race) before flipping `CAP-ACCT-FULLGL` on.
@@ -60,5 +93,3 @@ journal entries — widen to `long` (or key by entry number) before that's a con
   `CAP-ACCT-MULTICURRENCY`, `CAP-ACCT-FXREVAL` (and ratify the deferred `CAP-P2P-BILL`/`CAP-P2P-PAY`).
 - Maker-checker is the synchronous first cut (approver supplied at post time, must differ from poster); a full
   async pending-approval workflow is the follow-up.
-- Operational inventory movements (material issue→WIP, job-complete→FG, ship relief) remain **unwired** while
-  Armory Plastics tests — they feed STAGE-E valuation decrements + COGS relief; wire when that hold lifts.
