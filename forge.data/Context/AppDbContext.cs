@@ -499,6 +499,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<Forge.Core.Entities.Accounting.LedgerBalance> LedgerBalances => Set<Forge.Core.Entities.Accounting.LedgerBalance>();
     public DbSet<Forge.Core.Entities.Accounting.BankReconciliation> BankReconciliations => Set<Forge.Core.Entities.Accounting.BankReconciliation>();
     public DbSet<Forge.Core.Entities.Accounting.BankReconciliationItem> BankReconciliationItems => Set<Forge.Core.Entities.Accounting.BankReconciliationItem>();
+    public DbSet<Forge.Core.Entities.Accounting.JournalTemplate> JournalTemplates => Set<Forge.Core.Entities.Accounting.JournalTemplate>();
+    public DbSet<Forge.Core.Entities.Accounting.JournalTemplateLine> JournalTemplateLines => Set<Forge.Core.Entities.Accounting.JournalTemplateLine>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

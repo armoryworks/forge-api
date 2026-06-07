@@ -234,6 +234,26 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    // ─────────────────────────── Phase-3 journal templates ───────────────────────────
+
+    /// <summary>Phase-3 — create a recurring/standard journal template.</summary>
+    [HttpPost("journal-templates")]
+    public async Task<ActionResult<JournalTemplateModel>> CreateJournalTemplate(
+        [FromBody] CreateJournalTemplateModel model, CancellationToken ct)
+        => Ok(await mediator.Send(new CreateJournalTemplateCommand(model), ct));
+
+    /// <summary>Phase-3 — list a book's journal templates.</summary>
+    [HttpGet("journal-templates")]
+    public async Task<ActionResult<IReadOnlyList<JournalTemplateModel>>> ListJournalTemplates(
+        [FromQuery] int bookId, CancellationToken ct)
+        => Ok(await mediator.Send(new ListJournalTemplatesQuery(bookId), ct));
+
+    /// <summary>Phase-3 — post a journal entry from a template for a given date.</summary>
+    [HttpPost("journal-templates/{id:int}/post")]
+    public async Task<ActionResult<PostedFromTemplateModel>> PostFromTemplate(
+        int id, [FromBody] PostFromTemplateRequest body, CancellationToken ct)
+        => Ok(await mediator.Send(new PostFromTemplateCommand(id, body.EntryDate, body.Memo), ct));
+
     // ─────────────────────────── Phase-3 bank reconciliation ───────────────────────────
 
     /// <summary>Phase-3 — start a bank reconciliation (Draft) for a cash account against a statement.</summary>
@@ -262,6 +282,9 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
 
 /// <summary>Body for <c>POST /api/v1/accounting/bank-reconciliations</c>.</summary>
 public record StartBankReconciliationRequest(int BookId, int CashGlAccountId, DateOnly StatementDate, decimal StatementEndingBalance);
+
+/// <summary>Body for <c>POST /api/v1/accounting/journal-templates/{id}/post</c>.</summary>
+public record PostFromTemplateRequest(DateOnly EntryDate, string? Memo);
 
 /// <summary>
 /// Request body for <c>POST /api/v1/accounting/journal-entries</c>. The
