@@ -227,7 +227,35 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new GetCashFlowStatementQuery(bookId, fromDate, toDate), ct);
         return Ok(result);
     }
+
+    // ─────────────────────────── Phase-3 bank reconciliation ───────────────────────────
+
+    /// <summary>Phase-3 — start a bank reconciliation (Draft) for a cash account against a statement.</summary>
+    [HttpPost("bank-reconciliations")]
+    public async Task<ActionResult<BankReconciliationWorksheet>> StartBankReconciliation(
+        [FromBody] StartBankReconciliationRequest body, CancellationToken ct)
+        => Ok(await mediator.Send(new StartBankReconciliationCommand(
+            body.BookId, body.CashGlAccountId, body.StatementDate, body.StatementEndingBalance), ct));
+
+    /// <summary>Phase-3 — fetch a reconciliation worksheet.</summary>
+    [HttpGet("bank-reconciliations/{id:int}")]
+    public async Task<ActionResult<BankReconciliationWorksheet>> GetBankReconciliation(int id, CancellationToken ct)
+        => Ok(await mediator.Send(new GetBankReconciliationQuery(id), ct));
+
+    /// <summary>Phase-3 — toggle a cash line's cleared flag on a Draft reconciliation.</summary>
+    [HttpPost("bank-reconciliations/{id:int}/items/{journalLineId:long}/cleared")]
+    public async Task<ActionResult<BankReconciliationWorksheet>> SetBankReconciliationItemCleared(
+        int id, long journalLineId, [FromQuery] bool cleared, CancellationToken ct)
+        => Ok(await mediator.Send(new SetBankReconciliationItemClearedCommand(id, journalLineId, cleared), ct));
+
+    /// <summary>Phase-3 — finalize a reconciliation (requires it to be in balance).</summary>
+    [HttpPost("bank-reconciliations/{id:int}/finalize")]
+    public async Task<ActionResult<BankReconciliationWorksheet>> FinalizeBankReconciliation(int id, CancellationToken ct)
+        => Ok(await mediator.Send(new FinalizeBankReconciliationCommand(id), ct));
 }
+
+/// <summary>Body for <c>POST /api/v1/accounting/bank-reconciliations</c>.</summary>
+public record StartBankReconciliationRequest(int BookId, int CashGlAccountId, DateOnly StatementDate, decimal StatementEndingBalance);
 
 /// <summary>
 /// Request body for <c>POST /api/v1/accounting/journal-entries</c>. The
