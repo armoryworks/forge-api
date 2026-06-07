@@ -240,6 +240,29 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    // ─────────────────────────── Phase-4 fixed-asset depreciation ───────────────────────────
+
+    /// <summary>Phase-4 — register a depreciable fixed asset.</summary>
+    [HttpPost("fixed-assets")]
+    [RequiresCapability("CAP-ACCT-DEPRECIATION")]
+    public async Task<ActionResult<FixedAssetModel>> CreateFixedAsset(
+        [FromBody] CreateFixedAssetModel model, CancellationToken ct)
+        => Ok(await mediator.Send(new CreateFixedAssetCommand(model), ct));
+
+    /// <summary>Phase-4 — list a book's fixed assets with derived depreciation.</summary>
+    [HttpGet("fixed-assets")]
+    [RequiresCapability("CAP-ACCT-DEPRECIATION")]
+    public async Task<ActionResult<IReadOnlyList<FixedAssetModel>>> ListFixedAssets(
+        [FromQuery] int bookId, CancellationToken ct)
+        => Ok(await mediator.Send(new ListFixedAssetsQuery(bookId), ct));
+
+    /// <summary>Phase-4 — post a month's depreciation for the book (idempotent per asset per month).</summary>
+    [HttpPost("depreciation/run")]
+    [RequiresCapability("CAP-ACCT-DEPRECIATION")]
+    public async Task<ActionResult<DepreciationRunResult>> RunDepreciation(
+        [FromBody] RunDepreciationRequest body, CancellationToken ct)
+        => Ok(await mediator.Send(new RunDepreciationCommand(body.BookId, body.PeriodMonth), ct));
+
     // ─────────────────────────── Phase-2 STAGE E inventory valuation ───────────────────────────
 
     /// <summary>STAGE E — the perpetual inventory valuation (on-hand qty, avg cost, value) per part.</summary>
@@ -305,6 +328,9 @@ public record StartBankReconciliationRequest(int BookId, int CashGlAccountId, Da
 
 /// <summary>Body for <c>POST /api/v1/accounting/journal-templates/{id}/post</c>.</summary>
 public record PostFromTemplateRequest(DateOnly EntryDate, string? Memo);
+
+/// <summary>Body for <c>POST /api/v1/accounting/depreciation/run</c>.</summary>
+public record RunDepreciationRequest(int BookId, DateOnly PeriodMonth);
 
 /// <summary>
 /// Request body for <c>POST /api/v1/accounting/journal-entries</c>. The

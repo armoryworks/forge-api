@@ -502,6 +502,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<Forge.Core.Entities.Accounting.JournalTemplate> JournalTemplates => Set<Forge.Core.Entities.Accounting.JournalTemplate>();
     public DbSet<Forge.Core.Entities.Accounting.JournalTemplateLine> JournalTemplateLines => Set<Forge.Core.Entities.Accounting.JournalTemplateLine>();
     public DbSet<Forge.Core.Entities.Accounting.InventoryValuation> InventoryValuations => Set<Forge.Core.Entities.Accounting.InventoryValuation>();
+    public DbSet<Forge.Core.Entities.Accounting.FixedAsset> FixedAssets => Set<Forge.Core.Entities.Accounting.FixedAsset>();
+    public DbSet<Forge.Core.Entities.Accounting.DepreciationEntry> DepreciationEntries => Set<Forge.Core.Entities.Accounting.DepreciationEntry>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
