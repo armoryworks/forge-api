@@ -53,6 +53,13 @@ public sealed class PostingRequest
     /// </summary>
     public bool AllowSoftClosedOverride { get; init; }
 
+    /// <summary>
+    /// Optional second-approver principal (maker-checker, §5.7): recorded as the entry's <c>ApprovedBy</c>.
+    /// Required (and must differ from the poster) when the entry total exceeds the book's maker-checker
+    /// threshold; enforced at the manual-JE edge.
+    /// </summary>
+    public int? ApprovedByUserId { get; init; }
+
     public IReadOnlyList<PostingLine> Lines { get; init; } = [];
 }
 

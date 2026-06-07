@@ -34,6 +34,12 @@ public class Book : BaseEntity
     public decimal RoundingTolerance { get; set; }
 
     /// <summary>
+    /// Maker-checker threshold (§5.7 / §12): a manual journal entry whose total exceeds this amount requires a
+    /// second approver (distinct from the poster). Null disables the check.
+    /// </summary>
+    public decimal? MakerCheckerThreshold { get; set; }
+
+    /// <summary>
     /// Default inventory costing method; overridable per part via
     /// <c>Part.ValuationClassId</c>. Manufacturing default = Standard (§8.1).
     /// Not consumed by the engine until Phase 2 — present now so it's config, not a migration.

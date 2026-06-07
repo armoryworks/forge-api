@@ -367,6 +367,7 @@ public sealed class ForgeGlPostingEngine(
             AutoReverseNextPeriod = autoReverse,
             ReversalOfEntryId = reversalOfEntryId,
             PostedBy = postedByUserId,
+            ApprovedBy = request.ApprovedByUserId, // maker-checker second approver (§5.7), when supplied
             PostedAt = clock.UtcNow,
             Lines = lines,
         };

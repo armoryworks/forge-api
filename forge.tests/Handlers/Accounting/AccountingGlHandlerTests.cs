@@ -142,6 +142,67 @@ public class AccountingGlHandlerTests
     }
 
     [Fact]
+    public async Task CreateManualJournalEntry_OverThreshold_WithoutApprover_Throws()
+    {
+        using var db = await SeedAsync();
+        var book = await db.Books.SingleAsync(b => b.Id == BookId);
+        book.MakerCheckerThreshold = 1000m;
+        await db.SaveChangesAsync();
+        var handler = new CreateManualJournalEntryHandler(CreateEngine(db), HttpAccessorFor(PostingUserId), db);
+
+        var act = async () => await handler.Handle(BalancedCommand(5000m), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*maker-checker threshold*");
+        (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CreateManualJournalEntry_OverThreshold_WithDistinctApprover_PostsWithApprovedBy()
+    {
+        using var db = await SeedAsync();
+        var book = await db.Books.SingleAsync(b => b.Id == BookId);
+        book.MakerCheckerThreshold = 1000m;
+        await db.SaveChangesAsync();
+        var handler = new CreateManualJournalEntryHandler(CreateEngine(db), HttpAccessorFor(PostingUserId), db);
+
+        var command = BalancedCommand(5000m) with { ApprovedByUserId = PostingUserId + 1 };
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        result.Status.Should().Be(JournalEntryStatus.Posted.ToString());
+        (await db.JournalEntries.IgnoreQueryFilters().SingleAsync(e => e.Id == result.Id))
+            .ApprovedBy.Should().Be(PostingUserId + 1);
+    }
+
+    [Fact]
+    public async Task CreateManualJournalEntry_OverThreshold_ApproverSameAsPoster_Throws()
+    {
+        using var db = await SeedAsync();
+        var book = await db.Books.SingleAsync(b => b.Id == BookId);
+        book.MakerCheckerThreshold = 1000m;
+        await db.SaveChangesAsync();
+        var handler = new CreateManualJournalEntryHandler(CreateEngine(db), HttpAccessorFor(PostingUserId), db);
+
+        var command = BalancedCommand(5000m) with { ApprovedByUserId = PostingUserId }; // same as poster
+        var act = async () => await handler.Handle(command, CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*second approver*");
+    }
+
+    [Fact]
+    public async Task CreateManualJournalEntry_UnderThreshold_PostsWithoutApprover()
+    {
+        using var db = await SeedAsync();
+        var book = await db.Books.SingleAsync(b => b.Id == BookId);
+        book.MakerCheckerThreshold = 1000m;
+        await db.SaveChangesAsync();
+        var handler = new CreateManualJournalEntryHandler(CreateEngine(db), HttpAccessorFor(PostingUserId), db);
+
+        var result = await handler.Handle(BalancedCommand(250m), CancellationToken.None); // under 1000
+
+        result.Status.Should().Be(JournalEntryStatus.Posted.ToString());
+    }
+
+    [Fact]
     public async Task CreateManualJournalEntry_Unbalanced_ThrowsPostingException()
     {
         using var db = await SeedAsync();

@@ -3,11 +3,13 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Accounting;
 
@@ -35,7 +37,8 @@ public record CreateManualJournalEntryCommand(
     int CurrencyId,
     string? Memo,
     bool AllowSoftClosedOverride,
-    IReadOnlyList<CreateManualJournalLineModel> Lines)
+    IReadOnlyList<CreateManualJournalLineModel> Lines,
+    int? ApprovedByUserId = null)
     : IRequest<ManualJournalEntryResult>;
 
 /// <summary>
@@ -110,7 +113,8 @@ public class CreateManualJournalEntryValidator : AbstractValidator<CreateManualJ
 
 public class CreateManualJournalEntryHandler(
     IPostingEngine postingEngine,
-    IHttpContextAccessor httpContextAccessor)
+    IHttpContextAccessor httpContextAccessor,
+    AppDbContext? db = null)
     : IRequestHandler<CreateManualJournalEntryCommand, ManualJournalEntryResult>
 {
     public async Task<ManualJournalEntryResult> Handle(
@@ -120,6 +124,24 @@ public class CreateManualJournalEntryHandler(
         // engine records it as PostedBy.
         var postedByUserId = int.Parse(
             httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+
+        // Maker-checker (§5.7): a manual JE over the book's threshold needs a second approver distinct from
+        // the poster. (db is null only in isolated unit tests → gate skipped; the engine records ApprovedBy.)
+        if (db is not null)
+        {
+            var threshold = await db.Books.AsNoTracking()
+                .Where(b => b.Id == request.BookId)
+                .Select(b => b.MakerCheckerThreshold)
+                .FirstOrDefaultAsync(cancellationToken);
+            var total = request.Lines.Sum(l => l.Debit);
+            if (threshold is decimal limit && total > limit
+                && (request.ApprovedByUserId is not int approver || approver == postedByUserId))
+            {
+                throw new InvalidOperationException(
+                    $"Manual journal entry total {total:0.00} exceeds the maker-checker threshold "
+                  + $"{limit:0.00}; a second approver distinct from the poster is required.");
+            }
+        }
 
         // Build the PostingRequest at the command site (the feature pattern):
         // the handler assembles the balanced Dr/Cr request and hands it to the
@@ -132,6 +154,7 @@ public class CreateManualJournalEntryHandler(
             CurrencyId = request.CurrencyId,
             Memo = request.Memo,
             AllowSoftClosedOverride = request.AllowSoftClosedOverride,
+            ApprovedByUserId = request.ApprovedByUserId,
             Lines = request.Lines.Select(l => new PostingLine
             {
                 GlAccountId = l.GlAccountId,

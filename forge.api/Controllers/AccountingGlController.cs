@@ -51,7 +51,8 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
                 request.CurrencyId,
                 request.Memo,
                 request.AllowSoftClosedOverride,
-                request.Lines),
+                request.Lines,
+                request.ApprovedByUserId),
             ct);
 
         return CreatedAtAction(
@@ -350,4 +351,5 @@ public record CreateManualJournalEntryRequest(
     int CurrencyId,
     string? Memo,
     bool AllowSoftClosedOverride,
-    IReadOnlyList<CreateManualJournalLineModel> Lines);
+    IReadOnlyList<CreateManualJournalLineModel> Lines,
+    int? ApprovedByUserId = null);
