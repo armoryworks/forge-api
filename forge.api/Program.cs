@@ -351,6 +351,8 @@ try
     builder.Services.AddScoped<IFiscalPeriodCloseService, Forge.Api.Features.Accounting.FiscalPeriodCloseService>();
     // Phase-3 — year-end close / Retained-Earnings roll-forward (posts the closing entry, locks the year).
     builder.Services.AddScoped<IYearEndCloseService, Forge.Api.Features.Accounting.YearEndCloseService>();
+    // Phase-3 — indirect-method cash-flow statement (read-only; reconciles to the actual cash movement).
+    builder.Services.AddScoped<ICashFlowStatementService, Forge.Api.Features.Accounting.CashFlowStatementService>();
     // Phase-1 STAGE E — basic financial statements (§6 Phase-1 row "P&L + Balance
     // Sheet"). Profit & Loss (Income/Expense over a period range) and Balance
     // Sheet (Asset/Liability/Equity as of a date, with computed current-year-

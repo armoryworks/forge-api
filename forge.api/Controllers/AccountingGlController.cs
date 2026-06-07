@@ -211,6 +211,22 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new GetBalanceSheetQuery(bookId, asOfDate), ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Phase-3 — indirect-method Cash-Flow statement over a window (net income → working-capital changes →
+    /// change in cash, reconciled to the actual cash movement). Dual-gated like the P&amp;L / Balance Sheet.
+    /// </summary>
+    [HttpGet("cash-flow")]
+    [RequiresCapability("CAP-RPT-FINANCIALS")]
+    public async Task<ActionResult<CashFlowStatement>> GetCashFlow(
+        [FromQuery] int bookId,
+        [FromQuery] DateOnly? fromDate,
+        [FromQuery] DateOnly? toDate,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetCashFlowStatementQuery(bookId, fromDate, toDate), ct);
+        return Ok(result);
+    }
 }
 
 /// <summary>
