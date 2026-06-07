@@ -27,7 +27,10 @@ public class ReceiveItemsHandler(
     // context (isolated unit tests). The production DI path supplies both; with CAP-ACCT-FULLGL off the
     // posting service no-ops. db is null only in those tests → no transaction is opened.
     AppDbContext? db = null,
-    IReceiptInventoryPostingService? receiptPosting = null)
+    IReceiptInventoryPostingService? receiptPosting = null,
+    // Operational stock-in: when supplied (production DI), receiving stocks the part into a bin (creates/
+    // increments BinContent + a Receive movement). Null in mock-based handler tests → no stock movement.
+    IInventoryRepository? inventory = null)
     : IRequestHandler<ReceiveItemsCommand>
 {
     public async Task Handle(ReceiveItemsCommand request, CancellationToken cancellationToken)
@@ -182,6 +185,50 @@ public class ReceiveItemsHandler(
 
         await repo.SaveChangesAsync(cancellationToken);
 
+        // Operational stock-in (P06-2 / PRI-1..3): stock the received goods into a bin so on-hand actually
+        // rises. Per line, find-or-create the active BinContent for (part, location) and increment it, then
+        // record a Receive movement. Location = the line's StorageLocationId, else a default receiving bin.
+        // Not gated by CAP-ACCT-FULLGL — this is operational inventory, independent of the GL posting below.
+        if (inventory is not null)
+        {
+            int? defaultBinId = null;
+            foreach (var (req, line, rec) in newRecords)
+            {
+                var locationId = req.StorageLocationId
+                    ?? (defaultBinId ??= await ResolveDefaultBinAsync(inventory, userId, clock, cancellationToken));
+
+                var existing = await inventory.FindActiveBinContentByPartLocationAsync(line.PartId, locationId, cancellationToken);
+                if (existing is not null)
+                {
+                    existing.Quantity += rec.QuantityReceived;
+                }
+                else
+                {
+                    await inventory.AddBinContentAsync(new BinContent
+                    {
+                        LocationId = locationId,
+                        EntityType = "part",
+                        EntityId = line.PartId,
+                        Quantity = rec.QuantityReceived,
+                        Status = BinContentStatus.Stored,
+                        PlacedBy = userId,
+                        PlacedAt = clock.UtcNow,
+                    }, cancellationToken);
+                }
+
+                await inventory.AddMovementAsync(new BinMovement
+                {
+                    EntityType = "part",
+                    EntityId = line.PartId,
+                    Quantity = rec.QuantityReceived,
+                    ToLocationId = locationId,
+                    MovedBy = userId,
+                    MovedAt = clock.UtcNow,
+                    Reason = BinMovementReason.Receive,
+                }, cancellationToken);
+            }
+        }
+
         // Inline inventory / GRNI posting (Phase-2 STAGE C). Runs AFTER the operational SaveChanges so the
         // receiving records are flushed and resolvable by ReceiptNumber; no-op while CAP-ACCT-FULLGL is off.
         if (receiptPosting is not null)
@@ -195,5 +242,27 @@ public class ReceiveItemsHandler(
             await tx.CommitAsync(cancellationToken);
 
         await mediator.Publish(new PurchaseOrderReceivedEvent(request.PurchaseOrderId, 0, userId), cancellationToken);
+    }
+
+    /// <summary>
+    /// The bin to stock receipts into when a line doesn't name one: the first active bin, or a freshly
+    /// provisioned "Receiving" bin if the warehouse has none yet (so a first receipt always has somewhere to
+    /// land).
+    /// </summary>
+    private static async Task<int> ResolveDefaultBinAsync(
+        IInventoryRepository inventory, int userId, IClock clock, CancellationToken ct)
+    {
+        var bins = await inventory.GetBinLocationsAsync(ct);
+        if (bins.Count > 0)
+            return bins[0].Id;
+
+        var receiving = new StorageLocation
+        {
+            Name = "Receiving",
+            LocationType = LocationType.Bin,
+            IsActive = true,
+        };
+        await inventory.AddLocationAsync(receiving, ct);
+        return receiving.Id;
     }
 }
