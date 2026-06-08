@@ -72,6 +72,10 @@ public sealed class PaymentCashPostingService(
     private const string KeyCash = "CASH";
     private const string KeyArControl = "AR_CONTROL";
     private const string KeyCustomerDeposits = "CUSTOMER_DEPOSITS";
+    // Realized FX (Phase-4): the difference between the AR carrying value (booking rate) and the cash
+    // received (settlement rate). FX_REVALUATION is for period-end UNrealized revaluation only — never here.
+    private const string KeyFxGain = "FX_GAIN";
+    private const string KeyFxLoss = "FX_LOSS";
 
     public async Task PostPaymentCreatedAsync(
         int paymentId, int createdByUserId, CancellationToken ct = default)
@@ -138,33 +142,62 @@ public sealed class PaymentCashPostingService(
             return;
         }
 
-        // applied = Σ application amounts; unapplied = overpayment / on-account.
-        // Amount == applied + unapplied (Payment.UnappliedAmount), so the entry
-        // below is balanced by construction.
-        var applied = payment.AppliedAmount;
-        var unapplied = payment.UnappliedAmount;
+        // ── Realized FX at settlement (Phase-4, ALL-FUNCTIONAL integrated entry). Per application we relieve
+        // AR at the invoice's BOOKING rate (its booked carrying value) and bring cash in at the application's
+        // SETTLEMENT rate; the difference is the realized FX gain/loss. The whole entry is in functional
+        // currency at FxRate 1, so it must balance on Dr/Cr exactly.
+        //
+        // BACKWARD COMPAT: when invoice.FxRate == 1 AND app.SettlementFxRate == 1, arRelief == cash == applied
+        // and the FX plug is 0 → byte-identical to the prior single-currency entry (no FX line).
+        decimal cashFromApplications = 0m; // Σ cash_func (foreign × settlement rate)
+        decimal arRelief = 0m;             // Σ arRelief_func (foreign × invoice booking rate)
 
-        var lines = new List<PostingLine>(3)
+        foreach (var app in payment.Applications)
         {
-            // Dr CASH for the full amount received.
-            new()
+            var foreign = app.Amount;
+
+            // Load the invoice for its booking FxRate. A not-found invoice (defensive / isolated tests that
+            // reference synthetic ids) defaults to rate 1 — the single-currency carrying value.
+            var bookingRate = await db.Set<Invoice>()
+                .Where(i => i.Id == app.InvoiceId)
+                .Select(i => (decimal?)i.FxRate)
+                .FirstOrDefaultAsync(ct) ?? 1m;
+
+            arRelief += Math.Round(foreign * bookingRate, 2, MidpointRounding.AwayFromZero);
+            cashFromApplications += Math.Round(foreign * app.SettlementFxRate, 2, MidpointRounding.AwayFromZero);
+        }
+
+        // unapplied = the FUNCTIONAL cash NOT consumed by applications = overpayment / on-account, carried at
+        // the payment's rate. Computed as payment.Amount (functional cash) − Σ cash_func so the foreign-currency
+        // applications net out cleanly. SINGLE CURRENCY (rate 1): cashFromApplications == AppliedAmount, so this
+        // equals payment.UnappliedAmount (Amount − Applied) — byte-identical to the prior behavior. (A tiny
+        // negative from rounding floors to 0 so a 0/0 line is never emitted.)
+        var unapplied = Math.Max(0m, payment.Amount - cashFromApplications);
+
+        // Dr CASH = Σ cash_func (+ unapplied at the payment's rate) = payment.Amount when fully applied.
+        var cashDebit = cashFromApplications + unapplied;
+
+        var lines = new List<PostingLine>(4);
+        if (cashDebit > 0m)
+        {
+            lines.Add(new PostingLine
             {
                 AccountKey = KeyCash,
-                Debit = amount,
+                Debit = cashDebit,
                 Description = $"Cash receipt — payment {payment.PaymentNumber}",
-            },
-        };
+            });
+        }
 
-        // Cr AR for the applied portion, relieving the customer's receivable. AR
-        // is a control account → the engine requires the customer party here (§5.2).
-        if (applied > 0m)
+        // Cr AR for the applied portion at the booked carrying value (booking rate), fully relieving the
+        // receivable. AR is a control account → the engine requires the customer party here (§5.2).
+        if (arRelief > 0m)
         {
             lines.Add(new PostingLine
             {
                 AccountKey = KeyArControl,
                 PartyType = SubledgerPartyType.Customer,
                 PartyId = payment.CustomerId,
-                Credit = applied,
+                Credit = arRelief,
                 Description = $"AR settlement — payment {payment.PaymentNumber}",
             });
         }
@@ -181,6 +214,31 @@ public sealed class PaymentCashPostingService(
             });
         }
 
+        // FX plug = Σ (arRelief − cash). We relieved AR at the booking rate but cash came in at settlement;
+        //   > 0  → relieved MORE AR than cash received (the currency weakened) → Dr FX_LOSS;
+        //   < 0  → received more cash than AR relieved (the currency strengthened) → Cr FX_GAIN.
+        // Worked example: EUR invoice foreign 100, booking 1.10 → AR 110; settle 1.05 → cash 105 →
+        //   plug +5 → Dr Cash 105 / Dr FX_LOSS 5 / Cr AR 110 (balances; that invoice's AR nets to 0).
+        var fxPlug = arRelief - cashFromApplications;
+        if (fxPlug > 0m)
+        {
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyFxLoss,
+                Debit = fxPlug,
+                Description = $"Realized FX loss — payment {payment.PaymentNumber}",
+            });
+        }
+        else if (fxPlug < 0m)
+        {
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyFxGain,
+                Credit = -fxPlug,
+                Description = $"Realized FX gain — payment {payment.PaymentNumber}",
+            });
+        }
+
         // ── Idempotency key (§5.2): source:type:id:purpose. AR/PAYMENT for a
         // payment; a re-post returns the existing entry (no throw, no dup).
         var idempotencyKey = $"{JournalSource.AR}:Payment:{payment.Id}:PAYMENT";
@@ -192,7 +250,10 @@ public sealed class PaymentCashPostingService(
             Source = JournalSource.AR,
             SourceType = "Payment",
             SourceId = payment.Id,
-            CurrencyId = book.FunctionalCurrencyId, // Phase-0/1 single-currency invariant
+            // The settlement entry is fully FUNCTIONAL (FxRate omitted → 1): AR is relieved at carrying value,
+            // cash at the received value, and the realized-FX plug balances the two — all already in functional
+            // currency. (Realized FX is the integrated entry; it must NOT use a separate FX_REVALUATION entry.)
+            CurrencyId = book.FunctionalCurrencyId,
             Memo = $"Cash receipt — payment {payment.PaymentNumber}"
                  + (unapplied > 0m ? $" (unapplied {unapplied} to customer deposits)" : string.Empty),
             IdempotencyKey = idempotencyKey,
@@ -206,7 +267,7 @@ public sealed class PaymentCashPostingService(
 
         // ── Audit (§5.8): actor + before/after + reason on post. Best-effort —
         // an audit hiccup must not unwind a successful, committed posting.
-        await TryAuditAsync(payment, entry, amount, applied, unapplied, createdByUserId, ct);
+        await TryAuditAsync(payment, entry, amount, payment.AppliedAmount, unapplied, createdByUserId, ct);
     }
 
     private async Task TryAuditAsync(

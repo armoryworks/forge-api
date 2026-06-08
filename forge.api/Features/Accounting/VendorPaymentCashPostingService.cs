@@ -53,6 +53,10 @@ public sealed class VendorPaymentCashPostingService(
     private const string KeyCash = "CASH";
     // Unapplied vendor cash = an advance/prepayment to the vendor (asset). Ratify per PHASE2_STATUS.
     private const string KeyVendorAdvance = "PREPAID_EXPENSE";
+    // Realized FX (Phase-4): the difference between the AP carrying value (booking rate) and the cash paid
+    // (settlement rate). FX_REVALUATION is for period-end UNrealized revaluation only — never here.
+    private const string KeyFxGain = "FX_GAIN";
+    private const string KeyFxLoss = "FX_LOSS";
 
     public async Task PostVendorPaymentCreatedAsync(
         int vendorPaymentId, int createdByUserId, CancellationToken ct = default)
@@ -99,20 +103,49 @@ public sealed class VendorPaymentCashPostingService(
 
         var entryDate = DateOnly.FromDateTime(payment.PaymentDate.UtcDateTime);
 
-        var applied = payment.AppliedAmount;
-        var unapplied = payment.UnappliedAmount;
+        // ── Realized FX at settlement (Phase-4, ALL-FUNCTIONAL integrated entry — mirror of the AR side with
+        // the FX sign flipped). Per application we relieve AP at the bill's BOOKING rate (its booked payable
+        // carrying value) and pay cash out at the application's SETTLEMENT rate; the difference is realized FX.
+        // The whole entry is in functional currency at FxRate 1, so it must balance on Dr/Cr exactly.
+        //
+        // BACKWARD COMPAT: when bill.FxRate == 1 AND app.SettlementFxRate == 1, apRelief == cash == applied and
+        // the FX plug is 0 → byte-identical to the prior single-currency entry (no FX line).
+        decimal cashFromApplications = 0m; // Σ cash_func (foreign × settlement rate)
+        decimal apRelief = 0m;             // Σ apRelief_func (foreign × bill booking rate)
 
-        var lines = new List<PostingLine>(3);
+        foreach (var app in payment.Applications)
+        {
+            var foreign = app.Amount;
 
-        // Dr AP for the applied portion, relieving the vendor's payable (party = vendor).
-        if (applied > 0m)
+            // Load the bill for its booking FxRate. A not-found bill (defensive / isolated tests that
+            // reference synthetic ids) defaults to rate 1 — the single-currency carrying value.
+            var bookingRate = await db.Set<VendorBill>()
+                .Where(b => b.Id == app.VendorBillId)
+                .Select(b => (decimal?)b.FxRate)
+                .FirstOrDefaultAsync(ct) ?? 1m;
+
+            apRelief += Math.Round(foreign * bookingRate, 2, MidpointRounding.AwayFromZero);
+            cashFromApplications += Math.Round(foreign * app.SettlementFxRate, 2, MidpointRounding.AwayFromZero);
+        }
+
+        // unapplied = the FUNCTIONAL cash NOT consumed by applications = advance / on-account (asset), carried
+        // at the payment's rate. payment.Amount (functional cash) − Σ cash_func so foreign-currency applications
+        // net out cleanly. SINGLE CURRENCY (rate 1): cashFromApplications == AppliedAmount, so this equals
+        // payment.UnappliedAmount — byte-identical to the prior behavior. (A tiny negative from rounding floors
+        // to 0 so a 0/0 line is never emitted.)
+        var unapplied = Math.Max(0m, payment.Amount - cashFromApplications);
+
+        var lines = new List<PostingLine>(4);
+
+        // Dr AP at the booked carrying value (booking rate), fully relieving the payable (party = vendor).
+        if (apRelief > 0m)
         {
             lines.Add(new PostingLine
             {
                 AccountKey = KeyApControl,
                 PartyType = SubledgerPartyType.Vendor,
                 PartyId = payment.VendorId,
-                Debit = applied,
+                Debit = apRelief,
                 Description = $"AP settlement — vendor payment {payment.PaymentNumber}",
             });
         }
@@ -128,13 +161,42 @@ public sealed class VendorPaymentCashPostingService(
             });
         }
 
-        // Cr Cash for the full amount disbursed.
-        lines.Add(new PostingLine
+        // Cr Cash = Σ cash_func (+ unapplied advance at the payment's rate).
+        var cashCredit = cashFromApplications + unapplied;
+        if (cashCredit > 0m)
         {
-            AccountKey = KeyCash,
-            Credit = amount,
-            Description = $"Cash disbursement — vendor payment {payment.PaymentNumber}",
-        });
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyCash,
+                Credit = cashCredit,
+                Description = $"Cash disbursement — vendor payment {payment.PaymentNumber}",
+            });
+        }
+
+        // FX plug = Σ (apRelief − cash). We relieved AP at the booking rate but cash went out at settlement;
+        //   > 0  → settled a BIGGER payable for LESS cash (the currency weakened) → Cr FX_GAIN;
+        //   < 0  → paid MORE cash than the payable relieved (the currency strengthened) → Dr FX_LOSS.
+        // Worked example: EUR bill foreign 100, booking 1.10 → AP 110; settle 1.05 → cash 105 →
+        //   plug +5 → Dr AP 110 / Cr Cash 105 / Cr FX_GAIN 5 (balances; that bill's AP nets to 0).
+        var fxPlug = apRelief - cashFromApplications;
+        if (fxPlug > 0m)
+        {
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyFxGain,
+                Credit = fxPlug,
+                Description = $"Realized FX gain — vendor payment {payment.PaymentNumber}",
+            });
+        }
+        else if (fxPlug < 0m)
+        {
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyFxLoss,
+                Debit = -fxPlug,
+                Description = $"Realized FX loss — vendor payment {payment.PaymentNumber}",
+            });
+        }
 
         var idempotencyKey = $"{JournalSource.AP}:VendorPayment:{payment.Id}:PAYMENT";
 
@@ -154,7 +216,7 @@ public sealed class VendorPaymentCashPostingService(
 
         var entry = await postingEngine.PostAsync(request, createdByUserId, ct);
 
-        await TryAuditAsync(payment, entry, amount, applied, unapplied, createdByUserId, ct);
+        await TryAuditAsync(payment, entry, amount, payment.AppliedAmount, unapplied, createdByUserId, ct);
     }
 
     private async Task TryAuditAsync(

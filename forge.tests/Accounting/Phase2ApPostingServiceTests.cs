@@ -153,7 +153,8 @@ public class Phase2ApPostingServiceTests
     }
 
     private static async Task<VendorPayment> AddPaymentAsync(
-        AppDbContext db, int vendorId, decimal amount, int? billId = null, decimal? appliedAmount = null)
+        AppDbContext db, int vendorId, decimal amount, int? billId = null, decimal? appliedAmount = null,
+        decimal settlementFxRate = 1m)
     {
         var payment = new VendorPayment
         {
@@ -164,7 +165,7 @@ public class Phase2ApPostingServiceTests
             PaymentDate = new DateTimeOffset(2026, 1, 20, 0, 0, 0, TimeSpan.Zero),
         };
         if (billId is int bid && appliedAmount is decimal applied)
-            payment.Applications.Add(new VendorPaymentApplication { VendorBillId = bid, Amount = applied });
+            payment.Applications.Add(new VendorPaymentApplication { VendorBillId = bid, Amount = applied, SettlementFxRate = settlementFxRate });
 
         db.Set<VendorPayment>().Add(payment);
         await db.SaveChangesAsync();
@@ -601,6 +602,79 @@ public class Phase2ApPostingServiceTests
         entry.Lines.Single(l => l.GlAccountId == ApControlId).Debit.Should().Be(100m);
         entry.Lines.Single(l => l.GlAccountId == PrepaidExpenseId).Debit.Should().Be(50m);
         entry.Lines.Single(l => l.GlAccountId == CashId).Credit.Should().Be(150m);
+        entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+    }
+
+    // ─────────────────────── VendorPayment — realized FX (Phase-4) ───────────────────────
+
+    [Fact]
+    public async Task Payment_RealizedFxGain_CreditsFxGain_ApNetsToZero_Balances()
+    {
+        // EUR bill foreign 100 booked @1.10 → AP carrying 110. Settled @1.05 → cash 105 (functional).
+        // Plug +5 → Cr FX_GAIN (settled a bigger payable for less cash). Dr AP 110 / Cr Cash 105 / Cr FX_GAIN 5.
+        using var db = await SeedAsync();
+        var vendorId = await AddVendorAsync(db);
+        var bill = await AddBillAsync(db, vendorId, currencyId: EurId, fxRate: 1.10m);
+        var payment = await AddPaymentAsync(db, vendorId, amount: 105m, billId: bill.Id, appliedAmount: 100m, settlementFxRate: 1.05m);
+
+        await PaymentService(db, fullGlOn: true).PostVendorPaymentCreatedAsync(payment.Id, createdByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+
+        // AP relieved at the booked carrying value (110) → fully nets the bill's AP to zero.
+        var ap = entry.Lines.Single(l => l.GlAccountId == ApControlId);
+        ap.Debit.Should().Be(110m);
+        ap.SubledgerPartyType.Should().Be(SubledgerPartyType.Vendor);
+        ap.SubledgerPartyId.Should().Be(vendorId);
+
+        entry.Lines.Single(l => l.GlAccountId == CashId).Credit.Should().Be(105m);
+        entry.Lines.Single(l => l.GlAccountId == FxGainId).Credit.Should().Be(5m);
+        entry.Lines.Should().NotContain(l => l.GlAccountId == FxLossId);
+        entry.Lines.Should().OnlyContain(l => l.FxRate == 1m); // fully functional settlement entry
+
+        // BALANCES: Dr 110 == Cr 105 + 5.
+        entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+    }
+
+    [Fact]
+    public async Task Payment_RealizedFxLoss_DebitsFxLoss_ApNetsToZero_Balances()
+    {
+        // EUR bill foreign 100 booked @1.10 → AP carrying 110. Settled @1.15 → cash 115 (functional).
+        // Plug −5 → Dr FX_LOSS (paid more cash than the payable relieved). Dr AP 110 / Dr FX_LOSS 5 / Cr Cash 115.
+        using var db = await SeedAsync();
+        var vendorId = await AddVendorAsync(db);
+        var bill = await AddBillAsync(db, vendorId, currencyId: EurId, fxRate: 1.10m);
+        var payment = await AddPaymentAsync(db, vendorId, amount: 115m, billId: bill.Id, appliedAmount: 100m, settlementFxRate: 1.15m);
+
+        await PaymentService(db, fullGlOn: true).PostVendorPaymentCreatedAsync(payment.Id, createdByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == ApControlId).Debit.Should().Be(110m);
+        entry.Lines.Single(l => l.GlAccountId == FxLossId).Debit.Should().Be(5m);
+        entry.Lines.Single(l => l.GlAccountId == CashId).Credit.Should().Be(115m);
+        entry.Lines.Should().NotContain(l => l.GlAccountId == FxGainId);
+
+        // BALANCES: Dr 110 + 5 == Cr 115.
+        entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+    }
+
+    [Fact]
+    public async Task Payment_FunctionalCurrencyBill_NoFxLine_BackwardCompatible()
+    {
+        // USD (functional) bill booked @1, settled @1 → apRelief == cash == applied → NO FX line.
+        // Same shape as the pre-FX single-currency path: Dr AP 100 / Cr Cash 100.
+        using var db = await SeedAsync();
+        var vendorId = await AddVendorAsync(db);
+        var bill = await AddBillAsync(db, vendorId); // USD @1 (defaults)
+        var payment = await AddPaymentAsync(db, vendorId, amount: 100m, billId: bill.Id, appliedAmount: 100m);
+
+        await PaymentService(db, fullGlOn: true).PostVendorPaymentCreatedAsync(payment.Id, createdByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == ApControlId).Debit.Should().Be(100m);
+        entry.Lines.Single(l => l.GlAccountId == CashId).Credit.Should().Be(100m);
+        entry.Lines.Should().NotContain(l => l.GlAccountId == FxGainId || l.GlAccountId == FxLossId);
+        entry.Lines.Should().HaveCount(2);
         entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
     }
 
