@@ -27,6 +27,7 @@ public class Phase2ApPostingServiceTests
 {
     private const int BookId = 1;
     private const int UsdId = 1;
+    private const int EurId = 2; // 2nd currency for the multi-currency FX coverage
     private const int FiscalYearId = 10;
     private const int OpenPeriodId = 1000;
 
@@ -36,6 +37,8 @@ public class Phase2ApPostingServiceTests
     private const int PrepaidExpenseId = 203;
     private const int GrniId = 210;   // STAGE D — 3-way match
     private const int PpvId = 211;    // STAGE D — purchase price variance
+    private const int FxGainId = 212; // Phase-4 — realized FX gain
+    private const int FxLossId = 213; // Phase-4 — realized FX loss
 
     private sealed class FakeAllocator : IAcctNumberSequenceAllocator
     {
@@ -67,7 +70,9 @@ public class Phase2ApPostingServiceTests
     {
         var db = TestDbContextFactory.Create();
 
-        db.Set<Currency>().Add(new Currency { Id = UsdId, Code = "USD", Name = "US Dollar", Symbol = "$" });
+        db.Set<Currency>().AddRange(
+            new Currency { Id = UsdId, Code = "USD", Name = "US Dollar", Symbol = "$" },
+            new Currency { Id = EurId, Code = "EUR", Name = "Euro", Symbol = "€" });
 
         db.Set<Book>().Add(new Book
         {
@@ -94,7 +99,9 @@ public class Phase2ApPostingServiceTests
             new GlAccount { Id = CashId, BookId = BookId, AccountNumber = "10100", Name = "Cash", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
             new GlAccount { Id = PrepaidExpenseId, BookId = BookId, AccountNumber = "12000", Name = "Prepaid Expenses", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
             new GlAccount { Id = GrniId, BookId = BookId, AccountNumber = "21000", Name = "GRNI", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true },
-            new GlAccount { Id = PpvId, BookId = BookId, AccountNumber = "51000", Name = "Purchase Price Variance", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true });
+            new GlAccount { Id = PpvId, BookId = BookId, AccountNumber = "51000", Name = "Purchase Price Variance", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
+            new GlAccount { Id = FxGainId, BookId = BookId, AccountNumber = "90000", Name = "Foreign Exchange Gain", AccountType = AccountType.Income, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true },
+            new GlAccount { Id = FxLossId, BookId = BookId, AccountNumber = "90100", Name = "Foreign Exchange Loss", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true });
 
         db.Set<AccountDeterminationRule>().AddRange(
             new AccountDeterminationRule { BookId = BookId, Key = "AP_CONTROL", GlAccountId = ApControlId },
@@ -102,7 +109,9 @@ public class Phase2ApPostingServiceTests
             new AccountDeterminationRule { BookId = BookId, Key = "CASH", GlAccountId = CashId },
             new AccountDeterminationRule { BookId = BookId, Key = "PREPAID_EXPENSE", GlAccountId = PrepaidExpenseId },
             new AccountDeterminationRule { BookId = BookId, Key = "GRNI", GlAccountId = GrniId },
-            new AccountDeterminationRule { BookId = BookId, Key = "PURCHASE_PRICE_VARIANCE", GlAccountId = PpvId });
+            new AccountDeterminationRule { BookId = BookId, Key = "PURCHASE_PRICE_VARIANCE", GlAccountId = PpvId },
+            new AccountDeterminationRule { BookId = BookId, Key = "FX_GAIN", GlAccountId = FxGainId },
+            new AccountDeterminationRule { BookId = BookId, Key = "FX_LOSS", GlAccountId = FxLossId });
 
         await db.SaveChangesAsync();
         return db;
@@ -118,13 +127,16 @@ public class Phase2ApPostingServiceTests
 
     private static async Task<VendorBill> AddBillAsync(
         AppDbContext db, int vendorId, decimal taxAmount = 0m,
-        VendorBillStatus status = VendorBillStatus.Approved)
+        VendorBillStatus status = VendorBillStatus.Approved,
+        int currencyId = UsdId, decimal fxRate = 1m)
     {
         var bill = new VendorBill
         {
             BillNumber = "BILL-1001",
             VendorId = vendorId,
             VendorInvoiceNumber = "V-555",
+            CurrencyId = currencyId,
+            FxRate = fxRate,
             Status = status,
             BillDate = new DateTimeOffset(2026, 1, 18, 0, 0, 0, TimeSpan.Zero),
             DueDate = new DateTimeOffset(2026, 2, 17, 0, 0, 0, TimeSpan.Zero),
@@ -201,6 +213,38 @@ public class Phase2ApPostingServiceTests
         ap.SubledgerPartyId.Should().Be(vendorId);
 
         entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+    }
+
+    [Fact]
+    public async Task Bill_ForeignCurrency_PostsApAtBookingRate()
+    {
+        // Stage 2 — a EUR bill at booking rate 1.10. The AP/expense entry posts in the TRANSACTION currency
+        // (EUR): each line's TxnAmount is the foreign amount, and FunctionalAmount = foreign × 1.10.
+        using var db = await SeedAsync();
+        var vendorId = await AddVendorAsync(db);
+        var bill = await AddBillAsync(db, vendorId, currencyId: EurId, fxRate: 1.10m);
+
+        await BillService(db, fullGlOn: true).PostVendorBillApprovedAsync(bill.Id, approvedByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.CurrencyId.Should().Be(EurId);
+
+        // AP line: TxnAmount 200 EUR; FunctionalAmount 200 × 1.10 = 220.
+        var ap = entry.Lines.Single(l => l.GlAccountId == ApControlId);
+        ap.CurrencyId.Should().Be(EurId);
+        ap.Credit.Should().Be(200m);
+        ap.TxnAmount.Should().Be(200m);
+        ap.FxRate.Should().Be(1.10m);
+        ap.FunctionalAmount.Should().Be(220m);
+
+        // Expense (G&A) lines: foreign 200, functional 220.
+        entry.Lines.Where(l => l.GlAccountId == OperatingExpenseId).Sum(l => l.TxnAmount).Should().Be(200m);
+        entry.Lines.Where(l => l.GlAccountId == OperatingExpenseId).Sum(l => l.FunctionalAmount).Should().Be(220m);
+
+        // Balanced in both dimensions.
+        entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+        entry.Lines.Where(l => l.Debit > 0).Sum(l => l.FunctionalAmount)
+            .Should().Be(entry.Lines.Where(l => l.Credit > 0).Sum(l => l.FunctionalAmount));
     }
 
     [Fact]

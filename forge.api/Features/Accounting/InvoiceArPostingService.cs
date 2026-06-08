@@ -240,7 +240,13 @@ public sealed class InvoiceArPostingService(
             Source = JournalSource.AR,
             SourceType = "Invoice",
             SourceId = invoice.Id,
-            CurrencyId = book.FunctionalCurrencyId, // Phase-0/1 single-currency invariant
+            // Phase-4 FX: post the AR / revenue / tax entry in the invoice's TRANSACTION currency at its
+            // BOOKING rate. The engine multiplies each line's txn amount by FxRate → FunctionalAmount
+            // (round half-away at 2dp). Single-currency (functional, FxRate 1) is byte-for-byte the prior
+            // behavior. COGS/FG relief stays in functional currency (standard cost, not the sale's rate) —
+            // see PostCogsAsync below.
+            CurrencyId = invoice.CurrencyId,
+            FxRate = invoice.FxRate,
             Memo = $"AR revenue recognition — invoice {invoice.InvoiceNumber}"
                  + (revenueKey == KeyDeferredRevenue ? " (deferred — invoice precedes delivery)" : string.Empty),
             IdempotencyKey = idempotencyKey,

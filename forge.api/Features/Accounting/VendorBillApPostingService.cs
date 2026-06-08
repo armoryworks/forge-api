@@ -181,7 +181,11 @@ public sealed class VendorBillApPostingService(
             Source = JournalSource.AP,
             SourceType = "VendorBill",
             SourceId = bill.Id,
-            CurrencyId = book.FunctionalCurrencyId, // Phase-1/2 single-currency invariant
+            // Phase-4 FX: post the AP / expense entry in the bill's TRANSACTION currency at its BOOKING rate.
+            // The engine multiplies each line's txn amount by FxRate → FunctionalAmount. Single-currency
+            // (functional, FxRate 1) is byte-for-byte the prior behavior.
+            CurrencyId = bill.CurrencyId,
+            FxRate = bill.FxRate,
             Memo = $"Vendor bill {bill.BillNumber} approved"
                  + (bill.VendorInvoiceNumber is { Length: > 0 } vin ? $" (vendor inv {vin})" : string.Empty),
             IdempotencyKey = idempotencyKey,

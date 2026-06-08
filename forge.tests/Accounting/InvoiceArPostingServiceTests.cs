@@ -28,6 +28,7 @@ public class InvoiceArPostingServiceTests
 {
     private const int BookId = 1;
     private const int UsdId = 1;
+    private const int EurId = 2; // 2nd currency for the multi-currency FX coverage
     private const int FiscalYearId = 10;
 
     private const int CashId = 100;
@@ -88,7 +89,9 @@ public class InvoiceArPostingServiceTests
     {
         var db = TestDbContextFactory.Create();
 
-        db.Set<Currency>().Add(new Currency { Id = UsdId, Code = "USD", Name = "US Dollar", Symbol = "$" });
+        db.Set<Currency>().AddRange(
+            new Currency { Id = UsdId, Code = "USD", Name = "US Dollar", Symbol = "$" },
+            new Currency { Id = EurId, Code = "EUR", Name = "Euro", Symbol = "€" });
 
         db.Set<Book>().Add(new Book
         {
@@ -137,7 +140,9 @@ public class InvoiceArPostingServiceTests
         decimal taxRate = 0.08m,
         bool taxExempt = false,
         int? shipmentId = null,
-        Shipment? shipment = null)
+        Shipment? shipment = null,
+        int currencyId = UsdId,
+        decimal fxRate = 1m)
     {
         var customer = new Customer { Name = "Acme Corp", IsTaxExempt = taxExempt };
         db.Set<Customer>().Add(customer);
@@ -149,6 +154,8 @@ public class InvoiceArPostingServiceTests
         {
             InvoiceNumber = "INV-1001",
             CustomerId = customer.Id,
+            CurrencyId = currencyId,
+            FxRate = fxRate,
             ShipmentId = shipmentId,
             InvoiceDate = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero),
             DueDate = new DateTimeOffset(2026, 2, 14, 0, 0, 0, TimeSpan.Zero),
@@ -222,6 +229,39 @@ public class InvoiceArPostingServiceTests
 
         // Balanced: Σ Dr == Σ Cr.
         entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+    }
+
+    [Fact]
+    public async Task Post_ForeignCurrencyInvoice_PostsArAtBookingRate()
+    {
+        // Stage 2 — a EUR invoice at booking rate 1.10. The AR/revenue/tax entry posts in the TRANSACTION
+        // currency (EUR): each line's TxnAmount is the foreign amount, and FunctionalAmount = foreign × 1.10.
+        using var db = await SeedAsync();
+        // No shipment → control transferred at finalize → straight to revenue (taxRate 0 to keep arithmetic clean).
+        var invoice = await AddInvoiceAsync(db, taxRate: 0m, currencyId: EurId, fxRate: 1.10m);
+        var service = CreateService(db, fullGlOn: true);
+
+        await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.CurrencyId.Should().Be(EurId);
+
+        // AR line: TxnAmount 200 EUR; FunctionalAmount 200 × 1.10 = 220. Debit stays the foreign txn amount.
+        var ar = entry.Lines.Single(l => l.GlAccountId == ArControlId);
+        ar.CurrencyId.Should().Be(EurId);
+        ar.Debit.Should().Be(200m);
+        ar.TxnAmount.Should().Be(200m);
+        ar.FxRate.Should().Be(1.10m);
+        ar.FunctionalAmount.Should().Be(220m);
+
+        // Revenue: foreign 200, functional 220 across the two lines.
+        entry.Lines.Where(l => l.GlAccountId == RevenueId).Sum(l => l.TxnAmount).Should().Be(200m);
+        entry.Lines.Where(l => l.GlAccountId == RevenueId).Sum(l => l.FunctionalAmount).Should().Be(220m);
+
+        // Balanced in BOTH the transaction and functional dimensions (one rate per entry).
+        entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+        entry.Lines.Where(l => l.Debit > 0).Sum(l => l.FunctionalAmount)
+            .Should().Be(entry.Lines.Where(l => l.Credit > 0).Sum(l => l.FunctionalAmount));
     }
 
     [Fact]
