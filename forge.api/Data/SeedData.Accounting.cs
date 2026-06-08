@@ -92,6 +92,9 @@ public static partial class SeedData
             ("13200", "Inventory — Work in Process", AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.Inventory, "INVENTORY_WIP"),
             ("13250", "Inventory — Subassemblies",   AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.Inventory, "INVENTORY_SUBASSEMBLY"),
             ("13300", "Inventory — Finished Goods",  AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.Inventory, "INVENTORY_FG"),
+            // Standard costing: actual overhead accumulates here (Dr) and is relieved as applied (Cr); the
+            // residual balance is the over/under-applied overhead (the spending + volume variance) at period end.
+            ("13400", "Manufacturing Overhead Control", AccountType.Asset,  NormalBalance.Debit,  false, null,                         "OVERHEAD_CONTROL"),
 
             // ── Liabilities (2xxxx) ─────────────────────────────────────────
             ("20000", "Accounts Payable",            AccountType.Liability, NormalBalance.Credit, true,  ControlAccountType.AP,        "AP_CONTROL"),
@@ -124,6 +127,12 @@ public static partial class SeedData
             // over/under-absorbed labor/overhead variance.
             ("51210", "Labor Absorbed",              AccountType.Expense,   NormalBalance.Credit, false, null,                         "LABOR_APPLIED"),
             ("51220", "Overhead Absorbed",           AccountType.Expense,   NormalBalance.Credit, false, null,                         "OVERHEAD_APPLIED"),
+            // Standard-cost variance decomposition (the 6 slots; material price reuses PURCHASE_PRICE_VARIANCE
+            // 51000, material usage reuses MATERIAL_USAGE_VARIANCE 51100). Debit = unfavorable, credit = favorable.
+            ("51300", "Labor Rate Variance",         AccountType.Expense,   NormalBalance.Debit,  false, null,                         "LABOR_RATE_VARIANCE"),
+            ("51310", "Labor Efficiency Variance",   AccountType.Expense,   NormalBalance.Debit,  false, null,                         "LABOR_EFFICIENCY_VARIANCE"),
+            ("51320", "Overhead Spending Variance",  AccountType.Expense,   NormalBalance.Debit,  false, null,                         "OVERHEAD_SPENDING_VARIANCE"),
+            ("51330", "Overhead Efficiency Variance",AccountType.Expense,   NormalBalance.Debit,  false, null,                         "OVERHEAD_EFFICIENCY_VARIANCE"),
             ("52000", "Inventory Write-Down",        AccountType.Expense,   NormalBalance.Debit,  false, null,                         "INVENTORY_WRITEDOWN"),
 
             // ── Operating expense (6xxxx) ───────────────────────────────────
