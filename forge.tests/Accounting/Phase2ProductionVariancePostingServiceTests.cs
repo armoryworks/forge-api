@@ -6,6 +6,7 @@ using Forge.Api.Features.Accounting;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
+using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
@@ -34,6 +35,9 @@ public class Phase2ProductionVariancePostingServiceTests
     private const int LaborAppliedId = 140;
     private const int OhAppliedId = 141;
     private const int ProdVarId = 142;
+    private const int MatUsageId = 143;
+    private const int LaborEffId = 144;
+    private const int OhEffId = 145;
 
     private const int JobId = 42;
     private static readonly DateOnly EntryDate = new(2026, 1, 15);
@@ -59,6 +63,10 @@ public class Phase2ProductionVariancePostingServiceTests
 
     private static ProductionVariancePostingService Service(AppDbContext db, bool fullGlOn)
         => new(db, Engine(db), new FakeCapabilities(fullGlOn), new JobCostService(db));
+
+    private static ProductionVariancePostingService ServiceWithStd(AppDbContext db)
+        => new(db, Engine(db), new FakeCapabilities(true), new JobCostService(db),
+            auditWriter: null, standardCost: new StandardCostResolver(db));
 
     private static async Task<AppDbContext> SeedAsync()
     {
@@ -86,14 +94,20 @@ public class Phase2ProductionVariancePostingServiceTests
             new GlAccount { Id = FgId, BookId = BookId, AccountNumber = "13300", Name = "Inventory — FG", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true },
             new GlAccount { Id = LaborAppliedId, BookId = BookId, AccountNumber = "51210", Name = "Labor Absorbed", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true },
             new GlAccount { Id = OhAppliedId, BookId = BookId, AccountNumber = "51220", Name = "Overhead Absorbed", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true },
-            new GlAccount { Id = ProdVarId, BookId = BookId, AccountNumber = "51200", Name = "Production Variance", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true });
+            new GlAccount { Id = ProdVarId, BookId = BookId, AccountNumber = "51200", Name = "Production Variance", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
+            new GlAccount { Id = MatUsageId, BookId = BookId, AccountNumber = "51100", Name = "Material Usage Variance", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
+            new GlAccount { Id = LaborEffId, BookId = BookId, AccountNumber = "51310", Name = "Labor Efficiency Variance", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
+            new GlAccount { Id = OhEffId, BookId = BookId, AccountNumber = "51330", Name = "Overhead Efficiency Variance", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true });
         db.Set<AccountDeterminationRule>().AddRange(
             new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_RAW", GlAccountId = RawId },
             new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_WIP", GlAccountId = WipId },
             new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_FG", GlAccountId = FgId },
             new AccountDeterminationRule { BookId = BookId, Key = "LABOR_APPLIED", GlAccountId = LaborAppliedId },
             new AccountDeterminationRule { BookId = BookId, Key = "OVERHEAD_APPLIED", GlAccountId = OhAppliedId },
-            new AccountDeterminationRule { BookId = BookId, Key = "PRODUCTION_VARIANCE", GlAccountId = ProdVarId });
+            new AccountDeterminationRule { BookId = BookId, Key = "PRODUCTION_VARIANCE", GlAccountId = ProdVarId },
+            new AccountDeterminationRule { BookId = BookId, Key = "MATERIAL_USAGE_VARIANCE", GlAccountId = MatUsageId },
+            new AccountDeterminationRule { BookId = BookId, Key = "LABOR_EFFICIENCY_VARIANCE", GlAccountId = LaborEffId },
+            new AccountDeterminationRule { BookId = BookId, Key = "OVERHEAD_EFFICIENCY_VARIANCE", GlAccountId = OhEffId });
 
         await db.SaveChangesAsync();
         return db;
@@ -213,6 +227,40 @@ public class Phase2ProductionVariancePostingServiceTests
         result.Posted.Should().BeTrue("labor + overhead were absorbed even though the variance is nil");
         (await EntryByKeyAsync(db, $"Inventory:Job:{JobId}:WIPABSORB")).Should().NotBeNull();
         (await EntryByKeyAsync(db, $"Inventory:Job:{JobId}:PRODVARIANCE")).Should().BeNull();
+        (await WipByJobAsync(db)).Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task Close_WithResolver_DecomposesIntoNamedVariances()
+    {
+        using var db = await SeedAsync();
+        // GL WIP: material 110 in, std FG 130 relieved; labor 25 + burden 12 absorbed at close → residual 17.
+        await SeedJobAsync(db, materialIn: 110m, stdFgRelieved: 130m, labor: 25m, burden: 12m);
+
+        // Part std elements: 13/unit = material 10 + labor 2 + overhead 1 (routing); 10 good units produced.
+        var part = new Part { PartNumber = "P-STD", Name = "x", ManualCostOverride = 13m };
+        db.Add(part);
+        await db.SaveChangesAsync();
+        db.Add(new Operation { PartId = part.Id, StepNumber = 1, Title = "Op", EstimatedLaborCost = 2m, EstimatedBurdenCost = 1m });
+        db.Add(new MaterialIssue { JobId = JobId, PartId = part.Id, Quantity = 11m, UnitCost = 10m, IssuedById = 7, IssuedAt = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero), IssueType = MaterialIssueType.Issue });
+        db.Add(new ProductionRun { JobId = JobId, PartId = part.Id, RunNumber = "RUN-STD", TargetQuantity = 10, CompletedQuantity = 10, ReceivedQuantity = 10, ReceivedToStockAt = DateTimeOffset.UtcNow, Status = ProductionRunStatus.Completed });
+        await db.SaveChangesAsync();
+
+        var result = await ServiceWithStd(db).CloseJobProductionCostAsync(JobId, EntryDate, 7);
+
+        result.MaterialUsageVariance.Should().Be(10m);      // 110 actual − 100 std
+        result.LaborEfficiencyVariance.Should().Be(5m);     // 25 − 20
+        result.OverheadEfficiencyVariance.Should().Be(2m);  // 12 − 10
+        result.ProductionVarianceResidual.Should().Be(0m);  // 17 − (10+5+2)
+        result.ProductionVariance.Should().Be(17m);         // total residual cleared
+
+        var variance = await EntryByKeyAsync(db, $"Inventory:Job:{JobId}:PRODVARIANCE");
+        variance!.Lines.Single(l => l.GlAccountId == MatUsageId).Debit.Should().Be(10m);
+        variance.Lines.Single(l => l.GlAccountId == LaborEffId).Debit.Should().Be(5m);
+        variance.Lines.Single(l => l.GlAccountId == OhEffId).Debit.Should().Be(2m);
+        variance.Lines.Should().NotContain(l => l.GlAccountId == ProdVarId, "the named variances explain the residual fully");
+        variance.Lines.Single(l => l.GlAccountId == WipId).Credit.Should().Be(17m);
+
         (await WipByJobAsync(db)).Should().Be(0m);
     }
 

@@ -14,9 +14,20 @@ using Serilog;
 
 namespace Forge.Api.Features.Accounting;
 
-/// <summary>Result of closing a job's production cost — the absorbed conversion costs and the variance swept.</summary>
+/// <summary>
+/// Result of closing a job's production cost — the absorbed conversion costs and the variance swept.
+/// <see cref="ProductionVariance"/> is the total WIP residual cleared; when a standard resolver is wired it is
+/// decomposed into the named variance components (material usage + labor efficiency + overhead efficiency +
+/// the unexplained <see cref="ProductionVarianceResidual"/> catch-all), which sum to it.
+/// </summary>
 public sealed record JobProductionCostCloseResult(
-    int JobId, decimal LaborAbsorbed, decimal OverheadAbsorbed, decimal ProductionVariance, bool Posted);
+    int JobId, decimal LaborAbsorbed, decimal OverheadAbsorbed, decimal ProductionVariance, bool Posted)
+{
+    public decimal MaterialUsageVariance { get; init; }
+    public decimal LaborEfficiencyVariance { get; init; }
+    public decimal OverheadEfficiencyVariance { get; init; }
+    public decimal ProductionVarianceResidual { get; init; }
+}
 
 /// <summary>
 /// Phase-2 STAGE E — job-cost close / production-variance recognition (the labor-+-overhead-aware completion
@@ -53,13 +64,19 @@ public sealed class ProductionVariancePostingService(
     IPostingEngine postingEngine,
     ICapabilitySnapshotProvider capabilities,
     IJobCostService jobCost,
-    ISystemAuditWriter? auditWriter = null) : IProductionVariancePostingService
+    ISystemAuditWriter? auditWriter = null,
+    // Standard costing: when wired, the WIP residual is decomposed into named variances (material usage, labor
+    // efficiency, overhead efficiency) using the part standard-cost elements; null → a single lumped sweep.
+    IStandardCostResolver? standardCost = null) : IProductionVariancePostingService
 {
     private const string FullGlCapability = "CAP-ACCT-FULLGL";
     private const string KeyInventoryWip = "INVENTORY_WIP";
     private const string KeyLaborApplied = "LABOR_APPLIED";
     private const string KeyOverheadApplied = "OVERHEAD_APPLIED";
     private const string KeyProductionVariance = "PRODUCTION_VARIANCE";
+    private const string KeyMaterialUsageVariance = "MATERIAL_USAGE_VARIANCE";
+    private const string KeyLaborEfficiencyVariance = "LABOR_EFFICIENCY_VARIANCE";
+    private const string KeyOverheadEfficiencyVariance = "OVERHEAD_EFFICIENCY_VARIANCE";
 
     public async Task<JobProductionCostCloseResult> CloseJobProductionCostAsync(
         int jobId, DateOnly entryDate, int closedByUserId, CancellationToken ct = default)
@@ -135,19 +152,49 @@ public sealed class ProductionVariancePostingService(
         if (residual == 0m)
             return new JobProductionCostCloseResult(jobId, labor, burden, 0m, Posted: labor + burden > 0m);
 
-        // Unfavorable (debit residual — actual exceeded standard): Dr PRODUCTION_VARIANCE / Cr WIP.
-        // Favorable (credit residual — over-relieved): Dr WIP / Cr PRODUCTION_VARIANCE.
-        var varianceLines = residual > 0m
-            ?
-            [
-                new PostingLine { AccountKey = KeyProductionVariance, Debit = residual, Description = $"Production variance (unfavorable) — job {jobId}" },
-                new PostingLine { AccountKey = KeyInventoryWip, Credit = residual, JobId = jobId, Description = $"WIP clear — job {jobId}" },
-            ]
-            : new List<PostingLine>
+        // Decompose the residual into named variances (material usage / labor efficiency / overhead efficiency)
+        // when a standard resolver is wired, with any unexplained remainder to PRODUCTION_VARIANCE; else a
+        // single lumped sweep. Every branch zeroes the job's WIP (the named lines + WIP offset sum to residual).
+        decimal matUsage = 0m, laborEff = 0m, ohEff = 0m, catchall = residual;
+        var lines = new List<PostingLine>();
+
+        if (standardCost is not null)
+        {
+            // Standard cost of good output, decomposed, from the job's received production runs.
+            var runs = await db.ProductionRuns.AsNoTracking()
+                .Where(r => r.JobId == jobId && r.ReceivedToStockAt != null && r.ReceivedQuantity > 0)
+                .Select(r => new { r.PartId, r.ReceivedQuantity })
+                .ToListAsync(ct);
+            decimal stdMat = 0m, stdLab = 0m, stdOh = 0m;
+            foreach (var r in runs)
             {
-                new() { AccountKey = KeyInventoryWip, Debit = -residual, JobId = jobId, Description = $"WIP clear — job {jobId}" },
-                new() { AccountKey = KeyProductionVariance, Credit = -residual, Description = $"Production variance (favorable) — job {jobId}" },
-            };
+                var e = await standardCost.ResolveAsync(r.PartId, ct);
+                stdMat += e.Material * r.ReceivedQuantity;
+                stdLab += e.Labor * r.ReceivedQuantity;
+                stdOh += e.Overhead * r.ReceivedQuantity;
+            }
+
+            var actualMaterial = Math.Round(await jobCost.GetActualMaterialCostAsync(jobId, ct), 2);
+            matUsage = Math.Round(actualMaterial - stdMat, 2);   // actual material vs standard for output
+            laborEff = Math.Round(labor - stdLab, 2);            // actual labor (std rate) vs standard → efficiency
+            ohEff = Math.Round(burden - stdOh, 2);               // actual overhead vs standard → efficiency
+            catchall = Math.Round(residual - matUsage - laborEff - ohEff, 2);
+
+            AddSignedVariance(lines, KeyMaterialUsageVariance, matUsage, jobId, "material usage");
+            AddSignedVariance(lines, KeyLaborEfficiencyVariance, laborEff, jobId, "labor efficiency");
+            AddSignedVariance(lines, KeyOverheadEfficiencyVariance, ohEff, jobId, "overhead efficiency");
+            AddSignedVariance(lines, KeyProductionVariance, catchall, jobId, "production (residual)");
+        }
+        else
+        {
+            AddSignedVariance(lines, KeyProductionVariance, residual, jobId, "production");
+        }
+
+        // WIP offset clears the residual to zero (the variances above net to `residual`).
+        if (residual > 0m)
+            lines.Add(new PostingLine { AccountKey = KeyInventoryWip, Credit = residual, JobId = jobId, Description = $"WIP clear — job {jobId}" });
+        else
+            lines.Add(new PostingLine { AccountKey = KeyInventoryWip, Debit = -residual, JobId = jobId, Description = $"WIP clear — job {jobId}" });
 
         var entry = await postingEngine.PostAsync(new PostingRequest
         {
@@ -159,12 +206,28 @@ public sealed class ProductionVariancePostingService(
             CurrencyId = book.FunctionalCurrencyId,
             Memo = $"Production variance — job {jobId}",
             IdempotencyKey = varKey,
-            Lines = varianceLines,
+            Lines = lines,
         }, closedByUserId, ct);
 
         await TryAuditAsync(jobId, entry, labor, burden, residual, closedByUserId, ct);
 
-        return new JobProductionCostCloseResult(jobId, labor, burden, residual, Posted: true);
+        return new JobProductionCostCloseResult(jobId, labor, burden, residual, Posted: true)
+        {
+            MaterialUsageVariance = matUsage,
+            LaborEfficiencyVariance = laborEff,
+            OverheadEfficiencyVariance = ohEff,
+            ProductionVarianceResidual = catchall,
+        };
+    }
+
+    /// <summary>Adds a variance line for a signed amount: positive = unfavorable (debit), negative = favorable
+    /// (credit), zero = nothing. (Job dimension is carried only on the WIP offset, not the P&amp;L variance.)</summary>
+    private static void AddSignedVariance(List<PostingLine> lines, string accountKey, decimal amount, int jobId, string label)
+    {
+        if (amount > 0m)
+            lines.Add(new PostingLine { AccountKey = accountKey, Debit = amount, Description = $"{label} variance (unfavorable) — job {jobId}" });
+        else if (amount < 0m)
+            lines.Add(new PostingLine { AccountKey = accountKey, Credit = -amount, Description = $"{label} variance (favorable) — job {jobId}" });
     }
 
     private async Task TryAuditAsync(
