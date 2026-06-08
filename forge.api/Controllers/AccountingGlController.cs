@@ -257,6 +257,19 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<JobProductionCostCloseResult>> CloseJobProductionCost(int jobId, CancellationToken ct)
         => Ok(await mediator.Send(new CloseJobProductionCostCommand(jobId), ct));
 
+    /// <summary>Standard costing — record actual overhead incurred into the single-plant pool (OVERHEAD_CONTROL).</summary>
+    [HttpPost("overhead/record")]
+    public async Task<ActionResult> RecordActualOverhead([FromBody] RecordActualOverheadRequest body, CancellationToken ct)
+    {
+        await mediator.Send(new RecordActualOverheadCommand(body.Amount, body.Memo ?? string.Empty, body.EntryDate), ct);
+        return NoContent();
+    }
+
+    /// <summary>Standard costing — close the overhead pool for a period: post the spending variance + clear the pool.</summary>
+    [HttpPost("overhead/close")]
+    public async Task<ActionResult<OverheadPoolCloseResult>> CloseOverheadPool([FromBody] CloseOverheadPoolRequest body, CancellationToken ct)
+        => Ok(await mediator.Send(new CloseOverheadPoolCommand(body.AsOf), ct));
+
     // ─────────────────────────── Phase-5 payroll ───────────────────────────
 
     /// <summary>Phase-5 — create a pay run (amounts provided; tax calc is the §8.3 spike, out of scope here).</summary>
