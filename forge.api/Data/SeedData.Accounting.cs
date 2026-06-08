@@ -127,6 +127,7 @@ public static partial class SeedData
             // over/under-absorbed labor/overhead variance.
             ("51210", "Labor Absorbed",              AccountType.Expense,   NormalBalance.Credit, false, null,                         "LABOR_APPLIED"),
             ("51220", "Overhead Absorbed",           AccountType.Expense,   NormalBalance.Credit, false, null,                         "OVERHEAD_APPLIED"),
+            ("51230", "Subcontract Absorbed",        AccountType.Expense,   NormalBalance.Credit, false, null,                         "SUBCONTRACT_APPLIED"),
             // Standard-cost variance decomposition (the 6 slots; material price reuses PURCHASE_PRICE_VARIANCE
             // 51000, material usage reuses MATERIAL_USAGE_VARIANCE 51100). Debit = unfavorable, credit = favorable.
             ("51300", "Labor Rate Variance",         AccountType.Expense,   NormalBalance.Debit,  false, null,                         "LABOR_RATE_VARIANCE"),

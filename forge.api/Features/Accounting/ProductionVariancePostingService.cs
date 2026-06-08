@@ -23,6 +23,7 @@ namespace Forge.Api.Features.Accounting;
 public sealed record JobProductionCostCloseResult(
     int JobId, decimal LaborAbsorbed, decimal OverheadAbsorbed, decimal ProductionVariance, bool Posted)
 {
+    public decimal SubcontractAbsorbed { get; init; }
     public decimal MaterialUsageVariance { get; init; }
     public decimal LaborRateVariance { get; init; }
     public decimal LaborEfficiencyVariance { get; init; }
@@ -51,7 +52,9 @@ public sealed record JobProductionCostCloseResult(
 /// regardless of weighted-average-vs-unit-cost material differences. Decomposing it into named variances
 /// (rate/efficiency/usage) is a future refinement. <b>Trigger:</b> an explicit close, run after all of the
 /// job's production receipts; activity posted after the close is not re-swept (idempotent on the entry keys).
-/// Subcontract conversion is not yet absorbed here (a documented follow-up).</para>
+/// Subcontract conversion (outside-vendor operation steps) is absorbed into WIP alongside labor + overhead
+/// (Dr INVENTORY_WIP / Cr SUBCONTRACT_APPLIED) — like them it is tracked operationally and never hits GL WIP,
+/// so the standard FG relief would otherwise over-relieve by it.</para>
 /// </summary>
 public interface IProductionVariancePostingService
 {
@@ -74,6 +77,7 @@ public sealed class ProductionVariancePostingService(
     private const string KeyInventoryWip = "INVENTORY_WIP";
     private const string KeyLaborApplied = "LABOR_APPLIED";
     private const string KeyOverheadApplied = "OVERHEAD_APPLIED";
+    private const string KeySubcontractApplied = "SUBCONTRACT_APPLIED";
     private const string KeyProductionVariance = "PRODUCTION_VARIANCE";
     private const string KeyMaterialUsageVariance = "MATERIAL_USAGE_VARIANCE";
     private const string KeyLaborRateVariance = "LABOR_RATE_VARIANCE";
@@ -99,21 +103,26 @@ public sealed class ProductionVariancePostingService(
         var laborRateVar = Math.Round(await jobCost.GetLaborRateVarianceAsync(jobId, ct), 2);
         var laborActual = Math.Round(await jobCost.GetActualLaborCostAtActualRateAsync(jobId, ct), 2);
         var burden = Math.Round(await jobCost.GetActualBurdenCostAsync(jobId, ct), 2);
+        // Subcontract conversion (outside-vendor operation steps) is tracked operationally and — like labor and
+        // overhead — never hits GL WIP, so the standard FG relief over-relieves by it too. Absorb it the same way.
+        var subcontract = Math.Round(await jobCost.GetActualSubcontractCostAsync(jobId, ct), 2);
 
-        // ── 1) Absorb labor (at ACTUAL cost) + overhead into WIP (idempotent on the absorb key). ─────────────
+        // ── 1) Absorb labor (at ACTUAL cost) + overhead + subcontract into WIP (idempotent on the absorb key). ─
         var absorbKey = $"{JournalSource.Inventory}:Job:{jobId}:WIPABSORB";
         var alreadyAbsorbed = await db.JournalEntries.IgnoreQueryFilters()
             .AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == absorbKey, ct);
-        if (!alreadyAbsorbed && laborActual + burden > 0m)
+        if (!alreadyAbsorbed && laborActual + burden + subcontract > 0m)
         {
             var absorbLines = new List<PostingLine>
             {
-                new() { AccountKey = KeyInventoryWip, Debit = laborActual + burden, JobId = jobId, Description = $"WIP — absorb labor + overhead (job {jobId})" },
+                new() { AccountKey = KeyInventoryWip, Debit = laborActual + burden + subcontract, JobId = jobId, Description = $"WIP — absorb labor + overhead + subcontract (job {jobId})" },
             };
             if (laborActual > 0m)
                 absorbLines.Add(new PostingLine { AccountKey = KeyLaborApplied, Credit = laborActual, Description = $"Labor absorbed — job {jobId}" });
             if (burden > 0m)
                 absorbLines.Add(new PostingLine { AccountKey = KeyOverheadApplied, Credit = burden, Description = $"Overhead absorbed — job {jobId}" });
+            if (subcontract > 0m)
+                absorbLines.Add(new PostingLine { AccountKey = KeySubcontractApplied, Credit = subcontract, Description = $"Subcontract absorbed — job {jobId}" });
 
             await postingEngine.PostAsync(new PostingRequest
             {
@@ -123,7 +132,7 @@ public sealed class ProductionVariancePostingService(
                 SourceType = "Job",
                 SourceId = jobId,
                 CurrencyId = book.FunctionalCurrencyId,
-                Memo = $"WIP absorption — labor + overhead, job {jobId}",
+                Memo = $"WIP absorption — labor + overhead + subcontract, job {jobId}",
                 IdempotencyKey = absorbKey,
                 Lines = absorbLines,
             }, closedByUserId, ct);
@@ -134,14 +143,14 @@ public sealed class ProductionVariancePostingService(
         var alreadyVarianced = await db.JournalEntries.IgnoreQueryFilters()
             .AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == varKey, ct);
         if (alreadyVarianced)
-            return new JobProductionCostCloseResult(jobId, laborActual, burden, 0m, Posted: false);
+            return new JobProductionCostCloseResult(jobId, laborActual, burden, 0m, Posted: false) { SubcontractAbsorbed = subcontract };
 
         var wipAccountId = await db.Set<AccountDeterminationRule>()
             .Where(r => r.BookId == book.Id && r.Key == KeyInventoryWip)
             .Select(r => (int?)r.GlAccountId)
             .FirstOrDefaultAsync(ct);
         if (wipAccountId is null)
-            return new JobProductionCostCloseResult(jobId, laborActual, burden, 0m, Posted: false);
+            return new JobProductionCostCloseResult(jobId, laborActual, burden, 0m, Posted: false) { SubcontractAbsorbed = subcontract };
 
         // GL WIP balance for this job (debit-positive): material in + labor/OH absorbed − standard FG relieved.
         var wipBalance = await
@@ -156,7 +165,7 @@ public sealed class ProductionVariancePostingService(
 
         var residual = Math.Round(wipBalance, 2);
         if (residual == 0m)
-            return new JobProductionCostCloseResult(jobId, laborActual, burden, 0m, Posted: laborActual + burden > 0m);
+            return new JobProductionCostCloseResult(jobId, laborActual, burden, 0m, Posted: laborActual + burden + subcontract > 0m) { SubcontractAbsorbed = subcontract };
 
         // Decompose the residual into named variances (material usage / labor rate + efficiency / overhead
         // efficiency) when a standard resolver is wired, with any unexplained remainder to PRODUCTION_VARIANCE;
@@ -223,6 +232,7 @@ public sealed class ProductionVariancePostingService(
 
         return new JobProductionCostCloseResult(jobId, laborActual, burden, residual, Posted: true)
         {
+            SubcontractAbsorbed = subcontract,
             MaterialUsageVariance = matUsage,
             LaborRateVariance = standardCost is not null ? laborRateVar : 0m,
             LaborEfficiencyVariance = laborEff,

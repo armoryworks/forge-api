@@ -39,6 +39,7 @@ public class Phase2ProductionVariancePostingServiceTests
     private const int LaborEffId = 144;
     private const int OhEffId = 145;
     private const int LaborRateId = 146;
+    private const int SubAppliedId = 147;
 
     private const int JobId = 42;
     private static readonly DateOnly EntryDate = new(2026, 1, 15);
@@ -99,7 +100,8 @@ public class Phase2ProductionVariancePostingServiceTests
             new GlAccount { Id = MatUsageId, BookId = BookId, AccountNumber = "51100", Name = "Material Usage Variance", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
             new GlAccount { Id = LaborEffId, BookId = BookId, AccountNumber = "51310", Name = "Labor Efficiency Variance", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
             new GlAccount { Id = OhEffId, BookId = BookId, AccountNumber = "51330", Name = "Overhead Efficiency Variance", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
-            new GlAccount { Id = LaborRateId, BookId = BookId, AccountNumber = "51300", Name = "Labor Rate Variance", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true });
+            new GlAccount { Id = LaborRateId, BookId = BookId, AccountNumber = "51300", Name = "Labor Rate Variance", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
+            new GlAccount { Id = SubAppliedId, BookId = BookId, AccountNumber = "51230", Name = "Subcontract Absorbed", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true });
         db.Set<AccountDeterminationRule>().AddRange(
             new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_RAW", GlAccountId = RawId },
             new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_WIP", GlAccountId = WipId },
@@ -110,7 +112,8 @@ public class Phase2ProductionVariancePostingServiceTests
             new AccountDeterminationRule { BookId = BookId, Key = "MATERIAL_USAGE_VARIANCE", GlAccountId = MatUsageId },
             new AccountDeterminationRule { BookId = BookId, Key = "LABOR_EFFICIENCY_VARIANCE", GlAccountId = LaborEffId },
             new AccountDeterminationRule { BookId = BookId, Key = "OVERHEAD_EFFICIENCY_VARIANCE", GlAccountId = OhEffId },
-            new AccountDeterminationRule { BookId = BookId, Key = "LABOR_RATE_VARIANCE", GlAccountId = LaborRateId });
+            new AccountDeterminationRule { BookId = BookId, Key = "LABOR_RATE_VARIANCE", GlAccountId = LaborRateId },
+            new AccountDeterminationRule { BookId = BookId, Key = "SUBCONTRACT_APPLIED", GlAccountId = SubAppliedId });
 
         await db.SaveChangesAsync();
         return db;
@@ -161,6 +164,23 @@ public class Phase2ProductionVariancePostingServiceTests
         db.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines)
             .FirstOrDefaultAsync(e => e.IdempotencyKey == key);
 
+    /// <summary>Gives the job a subcontract conversion cost: a subcontract Operation on a part + a job-linked
+    /// PO line for that part. GetActualSubcontractCostAsync sums PO-line value over subcontract operations.</summary>
+    private static async Task SeedSubcontractAsync(AppDbContext db, decimal cost)
+    {
+        var part = new Part { PartNumber = "P-SUB", Name = "Sub", Description = "Subcontracted part" };
+        var vendor = new Vendor { CompanyName = "Sub Vendor" };
+        db.Set<Part>().Add(part);
+        db.Set<Vendor>().Add(vendor);
+        await db.SaveChangesAsync();
+        db.Set<Operation>().Add(new Operation { PartId = part.Id, StepNumber = 1, Title = "Outside plating", IsSubcontract = true });
+        var po = new PurchaseOrder { PONumber = "PO-SUB", VendorId = vendor.Id, JobId = JobId, Status = PurchaseOrderStatus.Submitted };
+        db.Set<PurchaseOrder>().Add(po);
+        await db.SaveChangesAsync();
+        db.Set<PurchaseOrderLine>().Add(new PurchaseOrderLine { PurchaseOrderId = po.Id, PartId = part.Id, OrderedQuantity = 1m, UnitPrice = cost });
+        await db.SaveChangesAsync();
+    }
+
     [Fact]
     public async Task Close_WhenFullGlOff_IsNoOp()
     {
@@ -198,6 +218,29 @@ public class Phase2ProductionVariancePostingServiceTests
         variance.Lines.Single(l => l.GlAccountId == WipId).Credit.Should().Be(10m);
 
         (await WipByJobAsync(db)).Should().Be(0m, "the job's WIP is fully cleared after the close");
+    }
+
+    [Fact]
+    public async Task Close_WithSubcontract_AbsorbsSubcontractIntoWip()
+    {
+        using var db = await SeedAsync();
+        // Material 100 + std FG 130 → WIP −30. Labor 25 + burden 15 + subcontract 20 = 60 absorbed → WIP +30.
+        await SeedJobAsync(db, materialIn: 100m, stdFgRelieved: 130m, labor: 25m, burden: 15m);
+        await SeedSubcontractAsync(db, cost: 20m);
+
+        var result = await Service(db, fullGlOn: true).CloseJobProductionCostAsync(JobId, EntryDate, 7);
+
+        result.SubcontractAbsorbed.Should().Be(20m);
+
+        var absorb = await EntryByKeyAsync(db, $"Inventory:Job:{JobId}:WIPABSORB");
+        absorb!.Lines.Single(l => l.GlAccountId == WipId).Debit.Should().Be(60m); // labor 25 + overhead 15 + subcontract 20
+        absorb.Lines.Single(l => l.GlAccountId == LaborAppliedId).Credit.Should().Be(25m);
+        absorb.Lines.Single(l => l.GlAccountId == OhAppliedId).Credit.Should().Be(15m);
+        absorb.Lines.Single(l => l.GlAccountId == SubAppliedId).Credit.Should().Be(20m);
+
+        // WIP after absorb = −30 + 60 = +30, swept (unfavorable) to PRODUCTION_VARIANCE; job WIP cleared.
+        result.ProductionVariance.Should().Be(30m);
+        (await WipByJobAsync(db)).Should().Be(0m);
     }
 
     [Fact]
