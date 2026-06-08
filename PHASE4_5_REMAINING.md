@@ -94,16 +94,22 @@ The hold is lifted; the perpetual loop is now wired end-to-end **except job-comp
     `(Completed − Scrap)/Completed` / `CompletedQuantity-as-total` reading. The `ReworkQuantity`→good
     relationship and a dedicated rework metric are a separate reporting refinement.
 
-  **Still deferred — production variance (entangled with WIP absorption).** Receiving FG at standard credits
-  INVENTORY_WIP by `standard × qty`. But **only material currently posts to GL WIP** (the material-issue
-  service); labor/overhead are tracked operationally (`IJobCostService`) and are **not** absorbed into the GL
-  WIP account. So crediting WIP at the FULL standard FG cost (material + labor + overhead) over-relieves WIP by
-  the labor/overhead portion and can drive INVENTORY_WIP negative. Doing variance "right" therefore needs, in
-  order: (1) **labor/overhead absorption postings** into WIP (Dr WIP / Cr applied-labor|overhead) as production
-  happens; (2) a **WIP→run allocation** rule (a job's WIP split across its runs / partial completions); then
-  (3) the explicit **production-variance** posting of the standard-vs-actual residual (a
-  `MATERIAL_USAGE_VARIANCE`-style account already exists in the seed). This is a Phase-5/6 costing workstream,
-  not a quick refinement — until it lands, the standard-cost WIP residual simply remains in INVENTORY_WIP.
+  **Production variance (labor + overhead aware) — DONE.** WIP lines now carry the **Job dimension**
+  (`JournalLine.JobId`), set by the material-issue and production-receipt postings, so GL WIP is isolatable per
+  job. A new explicit **close-production-cost** step (`POST /accounting/jobs/{jobId}/close-production-cost`,
+  CAP-ACCT-FULLGL) → `ProductionVariancePostingService`: (1) **absorbs** the job's actual labor + burden
+  (`IJobCostService`) into WIP — Dr INVENTORY_WIP (Job) / Cr LABOR_APPLIED / Cr OVERHEAD_APPLIED (new
+  contra-expense clearing accounts `51210`/`51220`); (2) **sweeps** the job's remaining GL WIP-by-job balance
+  (material in + labor/OH absorbed − standard FG relieved) to **PRODUCTION_VARIANCE** (`51200`) — unfavorable
+  debit / favorable credit — zeroing the job's WIP. Both entries idempotent; +5 tests. This resolves the
+  WIP-over-relief that standard-cost FG receipt would otherwise cause.
+
+  Costing follow-ups (not blocking): the sweep is a **single lumped variance** (material price/usage +
+  labor/OH efficiency in one figure) — decomposing into named rate/efficiency/usage variances is future work;
+  **subcontract** conversion isn't absorbed here yet; absorption is **batch at close** (not continuous at
+  time-entry); and activity posted after a close isn't re-swept (reopen/adjust is a follow-up). The
+  `LABOR_APPLIED`/`OVERHEAD_APPLIED` clearing accounts net against actual wages / overhead at period end to
+  surface the over/under-absorbed amount.
 
 ## 4. Pre-go-live (independent of new features)
 

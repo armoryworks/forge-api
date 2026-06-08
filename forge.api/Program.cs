@@ -366,6 +366,8 @@ try
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IMaterialIssuePostingService, Forge.Api.Features.Accounting.MaterialIssuePostingService>();
     // Phase-2 STAGE E — production receipt (job-complete→FG): Dr INVENTORY_FG / Cr WIP at standard cost.
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IProductionReceiptPostingService, Forge.Api.Features.Accounting.ProductionReceiptPostingService>();
+    // Phase-2 STAGE E — job-cost close: absorb labor+overhead into WIP, sweep WIP residual to PRODUCTION_VARIANCE.
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IProductionVariancePostingService, Forge.Api.Features.Accounting.ProductionVariancePostingService>();
     // Phase-4 — fixed-asset register + straight-line depreciation posting.
     builder.Services.AddScoped<IDepreciationService, Forge.Api.Features.Accounting.DepreciationService>();
     // §7A conversion — opening-balance journal at go-live (Source=Conversion).

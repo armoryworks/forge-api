@@ -118,6 +118,12 @@ public static partial class SeedData
             ("50000", "Cost of Goods Sold",          AccountType.Expense,   NormalBalance.Debit,  false, null,                         "COGS"),
             ("51000", "Purchase Price Variance",     AccountType.Expense,   NormalBalance.Debit,  false, null,                         "PURCHASE_PRICE_VARIANCE"),
             ("51100", "Material Usage Variance",     AccountType.Expense,   NormalBalance.Debit,  false, null,                         "MATERIAL_USAGE_VARIANCE"),
+            ("51200", "Production Variance",         AccountType.Expense,   NormalBalance.Debit,  false, null,                         "PRODUCTION_VARIANCE"),
+            // Absorption clearing (contra-expense, credit-normal): labor/overhead capitalized into WIP. At
+            // period end these net against actual wages (WAGE_EXPENSE) + actual overhead to give the
+            // over/under-absorbed labor/overhead variance.
+            ("51210", "Labor Absorbed",              AccountType.Expense,   NormalBalance.Credit, false, null,                         "LABOR_APPLIED"),
+            ("51220", "Overhead Absorbed",           AccountType.Expense,   NormalBalance.Credit, false, null,                         "OVERHEAD_APPLIED"),
             ("52000", "Inventory Write-Down",        AccountType.Expense,   NormalBalance.Debit,  false, null,                         "INVENTORY_WRITEDOWN"),
 
             // ── Operating expense (6xxxx) ───────────────────────────────────

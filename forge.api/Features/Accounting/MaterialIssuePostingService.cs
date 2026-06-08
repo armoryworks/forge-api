@@ -157,8 +157,10 @@ public sealed class MaterialIssuePostingService(
             IdempotencyKey = idempotencyKey,
             Lines =
             [
-                new PostingLine { AccountKey = debitKey, Debit = amount, Description = desc },
-                new PostingLine { AccountKey = creditKey, Credit = amount, Description = desc },
+                // Tag the WIP leg with the Job dimension so GL WIP is isolatable per job (the job-cost close /
+                // production-variance sweep reads WIP-by-job). The inventory leg is stock, not job-specific.
+                new PostingLine { AccountKey = debitKey, Debit = amount, JobId = debitKey == KeyInventoryWip ? issue.JobId : null, Description = desc },
+                new PostingLine { AccountKey = creditKey, Credit = amount, JobId = creditKey == KeyInventoryWip ? issue.JobId : null, Description = desc },
             ],
         };
 

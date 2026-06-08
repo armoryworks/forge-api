@@ -130,8 +130,10 @@ public sealed class ProductionReceiptPostingService(
             IdempotencyKey = idempotencyKey,
             Lines =
             [
+                // The FG/inventory debit is stock (not job-specific); tag the WIP credit with the Job dimension
+                // so the job-cost close can read & sweep WIP-by-job.
                 new PostingLine { AccountKey = debitKey, Debit = fgValue, Description = desc },
-                new PostingLine { AccountKey = KeyInventoryWip, Credit = fgValue, Description = desc },
+                new PostingLine { AccountKey = KeyInventoryWip, Credit = fgValue, JobId = run.JobId, Description = desc },
             ],
         };
 

@@ -248,6 +248,15 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         [FromBody] RevalueFxRequest body, CancellationToken ct)
         => Ok(await mediator.Send(new RevalueFxCommand(body.BookId, body.CurrencyId, body.NewRate, body.AsOf), ct));
 
+    /// <summary>
+    /// Close a job's production cost (STAGE E completion): absorb the job's actual labor + overhead into WIP
+    /// and sweep the remaining WIP balance to PRODUCTION_VARIANCE. Idempotent; run after the job's production
+    /// receipts.
+    /// </summary>
+    [HttpPost("jobs/{jobId:int}/close-production-cost")]
+    public async Task<ActionResult<JobProductionCostCloseResult>> CloseJobProductionCost(int jobId, CancellationToken ct)
+        => Ok(await mediator.Send(new CloseJobProductionCostCommand(jobId), ct));
+
     // ─────────────────────────── Phase-5 payroll ───────────────────────────
 
     /// <summary>Phase-5 — create a pay run (amounts provided; tax calc is the §8.3 spike, out of scope here).</summary>
