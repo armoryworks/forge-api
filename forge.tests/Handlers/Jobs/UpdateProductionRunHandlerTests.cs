@@ -85,6 +85,18 @@ public class UpdateProductionRunHandlerTests : IDisposable
         result.CompletedQuantity.Should().Be(7);
         result.ScrapQuantity.Should().Be(3);
         result.Status.Should().Be(ProductionRunStatus.Completed.ToString());
+        // Yield = good / (good + scrap) = 7 / 10 = 70% (NOT the old (7−3)/7 = 57%).
+        result.YieldPercentage.Should().Be(70m);
+    }
+
+    [Theory]
+    [InlineData(7, 3, 70)]   // 7 good of 10 processed
+    [InlineData(10, 0, 100)] // all good
+    [InlineData(0, 5, 0)]    // all scrap
+    [InlineData(0, 0, 0)]    // nothing processed → 0 (no divide-by-zero)
+    public void YieldPercent_IsGoodOverGoodPlusScrap(int completed, int scrap, int expected)
+    {
+        ProductionRun.YieldPercent(completed, scrap).Should().Be(expected);
     }
 
     public void Dispose() => _db.Dispose();

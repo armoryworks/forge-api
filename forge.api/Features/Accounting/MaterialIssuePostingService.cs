@@ -60,6 +60,7 @@ public sealed class MaterialIssuePostingService(
 
     private const string KeyInventoryRaw = "INVENTORY_RAW";
     private const string KeyInventoryWip = "INVENTORY_WIP";
+    private const string KeyInventorySubassembly = "INVENTORY_SUBASSEMBLY";
     private const string KeyInventoryFg = "INVENTORY_FG";
     private const string KeyOperatingExpense = "OPERATING_EXPENSE";
 
@@ -174,7 +175,7 @@ public sealed class MaterialIssuePostingService(
     private static string ReliefKeyFor(Part? part) => part?.InventoryClass switch
     {
         InventoryClass.Raw or InventoryClass.Component => KeyInventoryRaw,
-        InventoryClass.Subassembly => KeyInventoryWip,
+        InventoryClass.Subassembly => KeyInventorySubassembly,
         InventoryClass.FinishedGood => KeyInventoryFg,
         _ => KeyInventoryRaw,
     };

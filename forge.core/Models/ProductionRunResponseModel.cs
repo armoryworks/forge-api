@@ -19,4 +19,7 @@ public record ProductionRunResponseModel(
     string? Notes,
     decimal? SetupTimeMinutes,
     decimal? RunTimeMinutes,
-    decimal YieldPercentage);
+    decimal YieldPercentage,
+    // Finished-goods receipt (receive-to-stock): null/0 until the run's good output is stocked.
+    int ReceivedQuantity,
+    DateTimeOffset? ReceivedToStockAt);

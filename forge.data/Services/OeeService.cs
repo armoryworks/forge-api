@@ -41,11 +41,14 @@ public class OeeService(AppDbContext db) : IOeeService
                      && r.Status != ProductionRunStatus.Planned)
             .ToListAsync(ct);
 
-        var totalQuantity = runs.Sum(r => (decimal)r.CompletedQuantity);
+        // CompletedQuantity is the GOOD count, disjoint from ScrapQuantity (the UpdateProductionRun validator
+        // enforces Completed + Scrap ≤ Target) — so total units PROCESSED is good + scrap + rework, not
+        // CompletedQuantity alone. (The old code treated CompletedQuantity as the total and double-subtracted
+        // scrap/rework, understating throughput and mis-stating the Quality + Performance factors.)
+        var goodQuantity = runs.Sum(r => (decimal)r.CompletedQuantity);
         var scrapQuantity = runs.Sum(r => (decimal)r.ScrapQuantity);
         var reworkQuantity = runs.Sum(r => (decimal)r.ReworkQuantity);
-        var goodQuantity = totalQuantity - scrapQuantity - reworkQuantity;
-        if (goodQuantity < 0) goodQuantity = 0;
+        var totalQuantity = goodQuantity + scrapQuantity + reworkQuantity;
 
         var runTimeMinutes = runs.Sum(r => r.RunTimeMinutes ?? 0m);
 

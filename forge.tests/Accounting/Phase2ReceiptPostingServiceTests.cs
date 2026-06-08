@@ -30,6 +30,7 @@ public class Phase2ReceiptPostingServiceTests
     private const int InvRawId = 130;
     private const int InvWipId = 131;
     private const int InvFgId = 132;
+    private const int InvSubId = 133;
     private const int GrniId = 210;
     private const int FreightId = 220;
     private const int OpExId = 600;
@@ -82,12 +83,14 @@ public class Phase2ReceiptPostingServiceTests
             new GlAccount { Id = InvRawId, BookId = BookId, AccountNumber = "13100", Name = "Inventory — Raw", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true },
             new GlAccount { Id = InvWipId, BookId = BookId, AccountNumber = "13200", Name = "Inventory — WIP", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true },
             new GlAccount { Id = InvFgId, BookId = BookId, AccountNumber = "13300", Name = "Inventory — FG", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true },
+            new GlAccount { Id = InvSubId, BookId = BookId, AccountNumber = "13250", Name = "Inventory — Subassemblies", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true },
             new GlAccount { Id = GrniId, BookId = BookId, AccountNumber = "21000", Name = "GRNI", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true },
             new GlAccount { Id = FreightId, BookId = BookId, AccountNumber = "22000", Name = "Freight Clearing", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true },
             new GlAccount { Id = OpExId, BookId = BookId, AccountNumber = "60000", Name = "G&A", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true });
         db.Set<AccountDeterminationRule>().AddRange(
             new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_RAW", GlAccountId = InvRawId },
             new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_WIP", GlAccountId = InvWipId },
+            new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_SUBASSEMBLY", GlAccountId = InvSubId },
             new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_FG", GlAccountId = InvFgId },
             new AccountDeterminationRule { BookId = BookId, Key = "GRNI", GlAccountId = GrniId },
             new AccountDeterminationRule { BookId = BookId, Key = "FREIGHT_CLEARING", GlAccountId = FreightId },
@@ -183,7 +186,7 @@ public class Phase2ReceiptPostingServiceTests
     }
 
     [Theory]
-    [InlineData(InventoryClass.Subassembly, InvWipId)]
+    [InlineData(InventoryClass.Subassembly, InvSubId)]
     [InlineData(InventoryClass.FinishedGood, InvFgId)]
     [InlineData(InventoryClass.Component, InvRawId)]
     [InlineData(InventoryClass.Consumable, OpExId)]

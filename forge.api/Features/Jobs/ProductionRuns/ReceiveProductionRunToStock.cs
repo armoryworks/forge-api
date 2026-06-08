@@ -139,9 +139,7 @@ public class ReceiveProductionRunToStockHandler(
                 operatorName = $"{user.FirstName} {user.LastName}".Trim();
         }
 
-        var yieldPct = run.CompletedQuantity > 0
-            ? (run.CompletedQuantity - run.ScrapQuantity) * 100.0m / run.CompletedQuantity
-            : 0m;
+        var yieldPct = ProductionRun.YieldPercent(run.CompletedQuantity, run.ScrapQuantity);
 
         return new ProductionRunResponseModel(
             run.Id,
@@ -162,6 +160,8 @@ public class ReceiveProductionRunToStockHandler(
             run.Notes,
             run.SetupTimeMinutes,
             run.RunTimeMinutes,
-            yieldPct);
+            yieldPct,
+            run.ReceivedQuantity,
+            run.ReceivedToStockAt);
     }
 }

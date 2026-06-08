@@ -48,9 +48,9 @@ public class GetProductionRunsHandler(AppDbContext db) : IRequestHandler<GetProd
             pr.Notes,
             pr.SetupTimeMinutes,
             pr.RunTimeMinutes,
-            pr.CompletedQuantity > 0
-                ? (pr.CompletedQuantity - pr.ScrapQuantity) * 100.0m / pr.CompletedQuantity
-                : 0m
+            Forge.Core.Entities.ProductionRun.YieldPercent(pr.CompletedQuantity, pr.ScrapQuantity),
+            pr.ReceivedQuantity,
+            pr.ReceivedToStockAt
         )).ToList();
     }
 }

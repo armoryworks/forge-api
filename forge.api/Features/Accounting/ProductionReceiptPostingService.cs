@@ -21,7 +21,7 @@ namespace Forge.Api.Features.Accounting;
 /// <see cref="ProductionRun"/>'s good output is received into stock, this service posts the WIP→FG move
 /// <b>inline, in the receive-to-stock command's transaction</b>, at the produced part's <b>standard cost</b>:
 /// <list type="bullet">
-///   <item><b>Dr INVENTORY_{FG|RAW}</b> (the produced part's class) — usually INVENTORY_FG.</item>
+///   <item><b>Dr INVENTORY_{FG|SUBASSEMBLY|RAW}</b> (the produced part's class) — usually INVENTORY_FG.</item>
 ///   <item><b>Cr INVENTORY_WIP</b> — relieving the job's accumulated work-in-process.</item>
 /// </list>
 /// and feeds the perpetual FG valuation store via <see cref="IInventoryValuationService.ApplyReceiptAsync"/>.
@@ -38,10 +38,9 @@ namespace Forge.Api.Features.Accounting;
 /// on the run id; an idempotency pre-check guards the valuation-store mutation (which runs outside the engine)
 /// so a re-receive can't double-stock the store.</para>
 ///
-/// <para><b>Subassembly output edge:</b> a Subassembly produced into stock would debit INVENTORY_WIP — the
-/// same account it credits — because there's no distinct subassembly-inventory key yet. That same-account
-/// move is a wash, so GL/value is skipped (logged); the operational stock-in still happens. Splitting a
-/// subassembly inventory key is the documented refinement.</para>
+/// <para><b>Subassembly output:</b> a Subassembly produced into stock debits its own INVENTORY_SUBASSEMBLY
+/// account (Dr INVENTORY_SUBASSEMBLY / Cr INVENTORY_WIP) — distinct from the open-job WIP it relieves — so it
+/// reconciles by part via the valuation store like any other stocked class.</para>
 /// </summary>
 public interface IProductionReceiptPostingService
 {
@@ -66,6 +65,7 @@ public sealed class ProductionReceiptPostingService(
 
     private const string KeyInventoryRaw = "INVENTORY_RAW";
     private const string KeyInventoryWip = "INVENTORY_WIP";
+    private const string KeyInventorySubassembly = "INVENTORY_SUBASSEMBLY";
     private const string KeyInventoryFg = "INVENTORY_FG";
 
     public async Task PostProductionReceiptAsync(
@@ -87,15 +87,6 @@ public sealed class ProductionReceiptPostingService(
             return;
 
         var debitKey = DebitKeyFor(run.Part);
-        if (debitKey == KeyInventoryWip)
-        {
-            // Subassembly output → Dr WIP / Cr WIP is a wash; skip GL/value (operational stock-in already done).
-            Log.Information(
-                "Production-receipt GL skipped for run {RunId}: produced part is WIP-class (no distinct subassembly key).",
-                run.Id);
-            return;
-        }
-
         var unitStd = ResolveStandardCost(run.Part!);
         if (unitStd is not { } std || std <= 0m)
         {
@@ -163,7 +154,7 @@ public sealed class ProductionReceiptPostingService(
     private static string DebitKeyFor(Part? part) => part?.InventoryClass switch
     {
         InventoryClass.FinishedGood => KeyInventoryFg,
-        InventoryClass.Subassembly => KeyInventoryWip,
+        InventoryClass.Subassembly => KeyInventorySubassembly,
         InventoryClass.Raw or InventoryClass.Component => KeyInventoryRaw,
         _ => KeyInventoryFg,
     };

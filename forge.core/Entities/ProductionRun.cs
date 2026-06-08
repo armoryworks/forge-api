@@ -30,4 +30,17 @@ public class ProductionRun : BaseAuditableEntity
     public Job Job { get; set; } = null!;
     public Part Part { get; set; } = null!;
     public WorkCenter? WorkCenter { get; set; }
+
+    /// <summary>
+    /// First-pass yield % = good units / total units processed = Completed / (Completed + Scrap).
+    /// <see cref="CompletedQuantity"/> is the GOOD count and <see cref="ScrapQuantity"/> the bad count —
+    /// they are disjoint (the UpdateProductionRun validator enforces Completed + Scrap ≤ Target). The old
+    /// <c>(Completed − Scrap)/Completed</c> form was wrong on both numerator and denominator. Returns 0 when
+    /// nothing has been processed.
+    /// </summary>
+    public static decimal YieldPercent(int completedQuantity, int scrapQuantity)
+    {
+        var total = completedQuantity + scrapQuantity;
+        return total > 0 ? completedQuantity * 100.0m / total : 0m;
+    }
 }

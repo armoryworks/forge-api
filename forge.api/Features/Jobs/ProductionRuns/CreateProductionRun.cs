@@ -86,6 +86,8 @@ public class CreateProductionRunHandler(AppDbContext db) : IRequestHandler<Creat
             productionRun.Notes,
             productionRun.SetupTimeMinutes,
             productionRun.RunTimeMinutes,
-            0m);
+            0m,
+            productionRun.ReceivedQuantity,
+            productionRun.ReceivedToStockAt);
     }
 }

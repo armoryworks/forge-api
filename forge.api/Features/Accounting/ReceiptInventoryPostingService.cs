@@ -61,6 +61,7 @@ public sealed class ReceiptInventoryPostingService(
 
     private const string KeyInventoryRaw = "INVENTORY_RAW";
     private const string KeyInventoryWip = "INVENTORY_WIP";
+    private const string KeyInventorySubassembly = "INVENTORY_SUBASSEMBLY";
     private const string KeyInventoryFg = "INVENTORY_FG";
     private const string KeyGrni = "GRNI";
     private const string KeyFreightClearing = "FREIGHT_CLEARING";
@@ -197,7 +198,7 @@ public sealed class ReceiptInventoryPostingService(
     private static string DebitKeyFor(Part? part) => part?.InventoryClass switch
     {
         InventoryClass.Raw or InventoryClass.Component => KeyInventoryRaw,
-        InventoryClass.Subassembly => KeyInventoryWip,
+        InventoryClass.Subassembly => KeyInventorySubassembly,
         InventoryClass.FinishedGood => KeyInventoryFg,
         InventoryClass.Consumable or InventoryClass.Tool => KeyOperatingExpense,
         _ => KeyInventoryRaw,

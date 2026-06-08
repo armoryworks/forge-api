@@ -29,6 +29,7 @@ public class Phase2ProductionReceiptPostingServiceTests
     private const int InvRawId = 130;
     private const int InvWipId = 131;
     private const int InvFgId = 132;
+    private const int InvSubId = 133;
 
     private static readonly DateOnly EntryDate = new(2026, 1, 15);
 
@@ -77,10 +78,12 @@ public class Phase2ProductionReceiptPostingServiceTests
         db.Set<GlAccount>().AddRange(
             new GlAccount { Id = InvRawId, BookId = BookId, AccountNumber = "13100", Name = "Inventory — Raw", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true },
             new GlAccount { Id = InvWipId, BookId = BookId, AccountNumber = "13200", Name = "Inventory — WIP", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true },
-            new GlAccount { Id = InvFgId, BookId = BookId, AccountNumber = "13300", Name = "Inventory — FG", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true });
+            new GlAccount { Id = InvFgId, BookId = BookId, AccountNumber = "13300", Name = "Inventory — FG", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true },
+            new GlAccount { Id = InvSubId, BookId = BookId, AccountNumber = "13250", Name = "Inventory — Subassemblies", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true });
         db.Set<AccountDeterminationRule>().AddRange(
             new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_RAW", GlAccountId = InvRawId },
             new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_WIP", GlAccountId = InvWipId },
+            new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_SUBASSEMBLY", GlAccountId = InvSubId },
             new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_FG", GlAccountId = InvFgId });
 
         await db.SaveChangesAsync();
@@ -157,15 +160,22 @@ public class Phase2ProductionReceiptPostingServiceTests
     }
 
     [Fact]
-    public async Task Receipt_Subassembly_SkipsGl_SameAccountWash()
+    public async Task Receipt_Subassembly_PostsSubassemblyInventory()
     {
         using var db = await SeedAsync();
-        // A subassembly debits INVENTORY_WIP — the same account it credits — so the GL is skipped.
+        // A subassembly debits its own INVENTORY_SUBASSEMBLY account (distinct from the WIP it relieves).
         var runId = await AddReceivedRunAsync(db, InventoryClass.Subassembly, standardCost: 9m, receivedQty: 3);
+        var run = await db.Set<ProductionRun>().FindAsync(runId);
 
         await Service(db, fullGlOn: true).PostProductionReceiptAsync(runId, EntryDate, receivedByUserId: 7);
 
-        (await db.JournalEntries.IgnoreQueryFilters().AnyAsync()).Should().BeFalse();
+        var entry = await db.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == InvSubId).Debit.Should().Be(27m);   // 9 × 3
+        entry.Lines.Single(l => l.GlAccountId == InvWipId).Credit.Should().Be(27m);
+
+        var store = await db.Set<InventoryValuation>().SingleAsync(v => v.PartId == run!.PartId);
+        store.OnHandQuantity.Should().Be(3m);
+        store.TotalValue.Should().Be(27m);
     }
 
     [Fact]

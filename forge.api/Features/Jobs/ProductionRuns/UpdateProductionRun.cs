@@ -82,9 +82,7 @@ public class UpdateProductionRunHandler(AppDbContext db) : IRequestHandler<Updat
                 operatorName = $"{user.FirstName} {user.LastName}".Trim();
         }
 
-        var yieldPct = run.CompletedQuantity > 0
-            ? (run.CompletedQuantity - run.ScrapQuantity) * 100.0m / run.CompletedQuantity
-            : 0m;
+        var yieldPct = Forge.Core.Entities.ProductionRun.YieldPercent(run.CompletedQuantity, run.ScrapQuantity);
 
         return new ProductionRunResponseModel(
             run.Id,
@@ -105,6 +103,8 @@ public class UpdateProductionRunHandler(AppDbContext db) : IRequestHandler<Updat
             run.Notes,
             run.SetupTimeMinutes,
             run.RunTimeMinutes,
-            yieldPct);
+            yieldPct,
+            run.ReceivedQuantity,
+            run.ReceivedToStockAt);
     }
 }

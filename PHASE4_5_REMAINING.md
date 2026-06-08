@@ -82,9 +82,28 @@ The hold is lifted; the perpetual loop is now wired end-to-end **except job-comp
   untouched. Additive migration `AddProductionRunReceivedToStock` (NOT applied). +10 tests. The perpetual loop
   is now closed end-to-end: **receipt → raw → WIP → FG → COGS.**
 
-  Documented refinements: a distinct subassembly-inventory key (a Subassembly output currently skips GL as a
-  Dr WIP / Cr WIP wash); reconciling the standard-cost WIP residual as an explicit production-variance posting;
-  surfacing `ReceivedQuantity`/`ReceivedToStockAt` on the production-run read model + UI.
+  **Follow-ups since:**
+  - **Subassembly-inventory key — DONE.** New seeded account `13250 Inventory — Subassemblies` / key
+    `INVENTORY_SUBASSEMBLY`; receipt, material-issue, and production-receipt services all route the Subassembly
+    class to it (previously a `Dr WIP / Cr WIP` wash). Reconciles by part via the valuation store like any
+    stocked class.
+  - **`ReceivedQuantity`/`ReceivedToStockAt` on the run read model — DONE** (API). UI surfacing still pending.
+  - **Yield / OEE reporting bug — FIXED.** First-pass yield is now `good / (good + scrap)` (canonical
+    `ProductionRun.YieldPercent`), and `OeeService` Quality/Performance now treat `CompletedQuantity` as the
+    GOOD count (total processed = good + scrap + rework) — both previously used the wrong
+    `(Completed − Scrap)/Completed` / `CompletedQuantity-as-total` reading. The `ReworkQuantity`→good
+    relationship and a dedicated rework metric are a separate reporting refinement.
+
+  **Still deferred — production variance (entangled with WIP absorption).** Receiving FG at standard credits
+  INVENTORY_WIP by `standard × qty`. But **only material currently posts to GL WIP** (the material-issue
+  service); labor/overhead are tracked operationally (`IJobCostService`) and are **not** absorbed into the GL
+  WIP account. So crediting WIP at the FULL standard FG cost (material + labor + overhead) over-relieves WIP by
+  the labor/overhead portion and can drive INVENTORY_WIP negative. Doing variance "right" therefore needs, in
+  order: (1) **labor/overhead absorption postings** into WIP (Dr WIP / Cr applied-labor|overhead) as production
+  happens; (2) a **WIP→run allocation** rule (a job's WIP split across its runs / partial completions); then
+  (3) the explicit **production-variance** posting of the standard-vs-actual residual (a
+  `MATERIAL_USAGE_VARIANCE`-style account already exists in the seed). This is a Phase-5/6 costing workstream,
+  not a quick refinement — until it lands, the standard-cost WIP residual simply remains in INVENTORY_WIP.
 
 ## 4. Pre-go-live (independent of new features)
 

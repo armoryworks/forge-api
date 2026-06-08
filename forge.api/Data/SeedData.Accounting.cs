@@ -90,6 +90,7 @@ public static partial class SeedData
             ("12000", "Prepaid Expenses",            AccountType.Asset,     NormalBalance.Debit,  false, null,                         "PREPAID_EXPENSE"),
             ("13100", "Inventory — Raw Materials",   AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.Inventory, "INVENTORY_RAW"),
             ("13200", "Inventory — Work in Process", AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.Inventory, "INVENTORY_WIP"),
+            ("13250", "Inventory — Subassemblies",   AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.Inventory, "INVENTORY_SUBASSEMBLY"),
             ("13300", "Inventory — Finished Goods",  AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.Inventory, "INVENTORY_FG"),
 
             // ── Liabilities (2xxxx) ─────────────────────────────────────────
