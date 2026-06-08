@@ -62,6 +62,34 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
+    /// Maker-checker async work-list (§5.7): the manual JEs awaiting a second approver
+    /// (<c>PendingApproval</c>) for a book — what the create endpoint routes an over-threshold entry to when no
+    /// distinct approver was supplied up-front.
+    /// </summary>
+    [HttpGet("journal-entries/pending")]
+    public async Task<ActionResult<IReadOnlyList<ManualJournalEntryResult>>> GetPendingJournalEntries(
+        [FromQuery] int bookId, CancellationToken ct)
+        => Ok(await mediator.Send(new GetPendingJournalEntriesQuery(bookId), ct));
+
+    /// <summary>
+    /// Maker-checker async approval (§5.7): finalize a <c>PendingApproval</c> manual JE to <c>Posted</c>,
+    /// folding it into the ledger. The approver (this caller) must differ from the submitter — the engine
+    /// enforces it (<c>APPROVER_NOT_DISTINCT</c>).
+    /// </summary>
+    [HttpPost("journal-entries/{id:long}/approve")]
+    public async Task<ActionResult<ManualJournalEntryResult>> ApproveJournalEntry(long id, CancellationToken ct)
+        => Ok(await mediator.Send(new ApproveJournalEntryCommand(id), ct));
+
+    /// <summary>
+    /// Maker-checker async rejection (§5.7): return a <c>PendingApproval</c> manual JE to <c>Draft</c> with an
+    /// optional reason (appended to the memo). Nothing was applied to the ledger, so nothing unwinds.
+    /// </summary>
+    [HttpPost("journal-entries/{id:long}/reject")]
+    public async Task<ActionResult<ManualJournalEntryResult>> RejectJournalEntry(
+        long id, [FromQuery] string? reason, CancellationToken ct)
+        => Ok(await mediator.Send(new RejectJournalEntryCommand(id, reason), ct));
+
+    /// <summary>
     /// Produce a filter-immune trial balance for the book over an optional date
     /// range (§5.3 / §5.9). Asserts total Dr == total Cr via
     /// <see cref="TrialBalance.IsBalanced"/>.

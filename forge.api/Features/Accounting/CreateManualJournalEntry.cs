@@ -125,8 +125,11 @@ public class CreateManualJournalEntryHandler(
         var postedByUserId = int.Parse(
             httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
 
-        // Maker-checker (§5.7): a manual JE over the book's threshold needs a second approver distinct from
-        // the poster. (db is null only in isolated unit tests → gate skipped; the engine records ApprovedBy.)
+        // Maker-checker (§5.7): a manual JE over the book's threshold needs a second approver distinct from the
+        // poster. If a distinct approver is supplied up-front it posts immediately (the synchronous first cut);
+        // otherwise it is routed to PendingApproval for a distinct approver to finalize asynchronously (the
+        // approve/reject endpoints). (db is null only in isolated unit tests → threshold gate skipped → posts.)
+        var requiresApproval = false;
         if (db is not null)
         {
             var threshold = await db.Books.AsNoTracking()
@@ -134,13 +137,8 @@ public class CreateManualJournalEntryHandler(
                 .Select(b => b.MakerCheckerThreshold)
                 .FirstOrDefaultAsync(cancellationToken);
             var total = request.Lines.Sum(l => l.Debit);
-            if (threshold is decimal limit && total > limit
-                && (request.ApprovedByUserId is not int approver || approver == postedByUserId))
-            {
-                throw new InvalidOperationException(
-                    $"Manual journal entry total {total:0.00} exceeds the maker-checker threshold "
-                  + $"{limit:0.00}; a second approver distinct from the poster is required.");
-            }
+            requiresApproval = threshold is decimal limit && total > limit
+                && (request.ApprovedByUserId is not int approver || approver == postedByUserId);
         }
 
         // Build the PostingRequest at the command site (the feature pattern):
@@ -169,22 +167,10 @@ public class CreateManualJournalEntryHandler(
             }).ToList(),
         };
 
-        var entry = await postingEngine.PostAsync(postingRequest, postedByUserId, cancellationToken);
+        var entry = requiresApproval
+            ? await postingEngine.PostPendingAsync(postingRequest, postedByUserId, cancellationToken)
+            : await postingEngine.PostAsync(postingRequest, postedByUserId, cancellationToken);
 
-        return new ManualJournalEntryResult(
-            entry.Id,
-            entry.BookId,
-            entry.EntryNumber,
-            entry.EntryDate,
-            entry.FiscalPeriodId,
-            entry.FiscalYearId,
-            entry.Status.ToString(),
-            entry.Memo,
-            entry.PostedBy,
-            entry.Lines
-                .OrderBy(l => l.LineNumber)
-                .Select(l => new ManualJournalLineResult(
-                    l.Id, l.LineNumber, l.GlAccountId, l.Debit, l.Credit, l.FunctionalAmount, l.Description))
-                .ToList());
+        return entry.ToManualResult();
     }
 }

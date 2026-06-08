@@ -142,7 +142,7 @@ public class AccountingGlHandlerTests
     }
 
     [Fact]
-    public async Task CreateManualJournalEntry_OverThreshold_WithoutApprover_Throws()
+    public async Task CreateManualJournalEntry_OverThreshold_WithoutApprover_RoutesToPendingApproval()
     {
         using var db = await SeedAsync();
         var book = await db.Books.SingleAsync(b => b.Id == BookId);
@@ -150,10 +150,15 @@ public class AccountingGlHandlerTests
         await db.SaveChangesAsync();
         var handler = new CreateManualJournalEntryHandler(CreateEngine(db), HttpAccessorFor(PostingUserId), db);
 
-        var act = async () => await handler.Handle(BalancedCommand(5000m), CancellationToken.None);
+        var result = await handler.Handle(BalancedCommand(5000m), CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*maker-checker threshold*");
-        (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(0);
+        // Async maker-checker: routed to PendingApproval, numbered (gaps allowed), submitter recorded.
+        result.Status.Should().Be(JournalEntryStatus.PendingApproval.ToString());
+        result.EntryNumber.Should().Be(1);
+        result.PostedBy.Should().Be(PostingUserId);
+        // Persisted but NOT folded into the ledger-balance read-model — it awaits a distinct approver.
+        (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(1);
+        (await db.LedgerBalances.CountAsync()).Should().Be(0);
     }
 
     [Fact]
@@ -174,7 +179,7 @@ public class AccountingGlHandlerTests
     }
 
     [Fact]
-    public async Task CreateManualJournalEntry_OverThreshold_ApproverSameAsPoster_Throws()
+    public async Task CreateManualJournalEntry_OverThreshold_ApproverSameAsPoster_RoutesToPendingApproval()
     {
         using var db = await SeedAsync();
         var book = await db.Books.SingleAsync(b => b.Id == BookId);
@@ -182,10 +187,11 @@ public class AccountingGlHandlerTests
         await db.SaveChangesAsync();
         var handler = new CreateManualJournalEntryHandler(CreateEngine(db), HttpAccessorFor(PostingUserId), db);
 
-        var command = BalancedCommand(5000m) with { ApprovedByUserId = PostingUserId }; // same as poster
-        var act = async () => await handler.Handle(command, CancellationToken.None);
+        // The poster naming themself as approver is not a valid second approver → routed to PendingApproval.
+        var command = BalancedCommand(5000m) with { ApprovedByUserId = PostingUserId };
+        var result = await handler.Handle(command, CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*second approver*");
+        result.Status.Should().Be(JournalEntryStatus.PendingApproval.ToString());
     }
 
     [Fact]
@@ -200,6 +206,95 @@ public class AccountingGlHandlerTests
         var result = await handler.Handle(BalancedCommand(250m), CancellationToken.None); // under 1000
 
         result.Status.Should().Be(JournalEntryStatus.Posted.ToString());
+    }
+
+    [Fact]
+    public async Task ApprovePending_DistinctApprover_FinalizesToPostedAndAppliesToLedger()
+    {
+        using var db = await SeedAsync();
+        var book = await db.Books.SingleAsync(b => b.Id == BookId);
+        book.MakerCheckerThreshold = 1000m;
+        await db.SaveChangesAsync();
+        var engine = CreateEngine(db);
+
+        // Maker submits an over-threshold entry → PendingApproval (not yet on the ledger).
+        var submitted = await new CreateManualJournalEntryHandler(engine, HttpAccessorFor(PostingUserId), db)
+            .Handle(BalancedCommand(5000m), CancellationToken.None);
+        submitted.Status.Should().Be(JournalEntryStatus.PendingApproval.ToString());
+        (await db.LedgerBalances.CountAsync()).Should().Be(0);
+
+        // A distinct checker approves → Posted + folded into the ledger.
+        var checkerId = PostingUserId + 1;
+        var approved = await new ApproveJournalEntryHandler(engine, HttpAccessorFor(checkerId))
+            .Handle(new ApproveJournalEntryCommand(submitted.Id), CancellationToken.None);
+
+        approved.Status.Should().Be(JournalEntryStatus.Posted.ToString());
+        var entry = await db.JournalEntries.IgnoreQueryFilters().SingleAsync(e => e.Id == submitted.Id);
+        entry.ApprovedBy.Should().Be(checkerId);
+        entry.PostedBy.Should().Be(PostingUserId); // the maker, unchanged
+        entry.PostedAt.Should().NotBeNull();
+        (await db.LedgerBalances.CountAsync()).Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task ApprovePending_ApproverSameAsSubmitter_Throws()
+    {
+        using var db = await SeedAsync();
+        var book = await db.Books.SingleAsync(b => b.Id == BookId);
+        book.MakerCheckerThreshold = 1000m;
+        await db.SaveChangesAsync();
+        var engine = CreateEngine(db);
+
+        var submitted = await new CreateManualJournalEntryHandler(engine, HttpAccessorFor(PostingUserId), db)
+            .Handle(BalancedCommand(5000m), CancellationToken.None);
+
+        var act = async () => await new ApproveJournalEntryHandler(engine, HttpAccessorFor(PostingUserId))
+            .Handle(new ApproveJournalEntryCommand(submitted.Id), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<PostingException>()).Which.Code.Should().Be("APPROVER_NOT_DISTINCT");
+        (await db.JournalEntries.IgnoreQueryFilters().SingleAsync(e => e.Id == submitted.Id))
+            .Status.Should().Be(JournalEntryStatus.PendingApproval);
+        (await db.LedgerBalances.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task RejectPending_ReturnsToDraft_WithoutTouchingLedger()
+    {
+        using var db = await SeedAsync();
+        var book = await db.Books.SingleAsync(b => b.Id == BookId);
+        book.MakerCheckerThreshold = 1000m;
+        await db.SaveChangesAsync();
+        var engine = CreateEngine(db);
+
+        var submitted = await new CreateManualJournalEntryHandler(engine, HttpAccessorFor(PostingUserId), db)
+            .Handle(BalancedCommand(5000m), CancellationToken.None);
+
+        var rejected = await new RejectJournalEntryHandler(db)
+            .Handle(new RejectJournalEntryCommand(submitted.Id, "out of policy"), CancellationToken.None);
+
+        rejected.Status.Should().Be(JournalEntryStatus.Draft.ToString());
+        rejected.Memo.Should().Contain("Rejected");
+        (await db.LedgerBalances.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetPendingJournalEntries_ReturnsOnlyPendingForBook()
+    {
+        using var db = await SeedAsync();
+        var book = await db.Books.SingleAsync(b => b.Id == BookId);
+        book.MakerCheckerThreshold = 1000m;
+        await db.SaveChangesAsync();
+        var engine = CreateEngine(db);
+        var create = new CreateManualJournalEntryHandler(engine, HttpAccessorFor(PostingUserId), db);
+
+        await create.Handle(BalancedCommand(5000m), CancellationToken.None); // → PendingApproval
+        await create.Handle(BalancedCommand(250m), CancellationToken.None);  // under threshold → Posted
+
+        var pending = await new GetPendingJournalEntriesHandler(db)
+            .Handle(new GetPendingJournalEntriesQuery(BookId), CancellationToken.None);
+
+        pending.Should().HaveCount(1);
+        pending[0].Status.Should().Be(JournalEntryStatus.PendingApproval.ToString());
     }
 
     [Fact]

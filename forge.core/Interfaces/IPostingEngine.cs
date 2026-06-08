@@ -34,6 +34,28 @@ public interface IPostingEngine
     Task<JournalEntry> PostAsync(PostingRequest request, int postedByUserId, CancellationToken ct = default);
 
     /// <summary>
+    /// Maker-checker async path (§5.7): fully validates a balanced request (same §5.2 checks as
+    /// <see cref="PostAsync"/>) and writes the entry with status
+    /// <see cref="Enums.Accounting.JournalEntryStatus.PendingApproval"/> — its <c>EntryNumber</c> is
+    /// allocated (gaps are allowed) but it is <b>NOT</b> applied to the <see cref="LedgerBalance"/> read-model,
+    /// so it does not affect the trial balance until a distinct approver finalizes it via
+    /// <see cref="ApprovePendingAsync"/>. <c>PostedBy</c> records the submitter (the maker).
+    /// </summary>
+    /// <exception cref="PostingException">Any §5.2 validation failure.</exception>
+    Task<JournalEntry> PostPendingAsync(PostingRequest request, int submittedByUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Finalizes a <see cref="Enums.Accounting.JournalEntryStatus.PendingApproval"/> entry: re-checks the
+    /// fiscal period (rejects HardClosed), flips it to <c>Posted</c>, records the approver (who MUST differ
+    /// from the submitting <c>PostedBy</c>, §5.7) and <c>PostedAt</c>, and applies it to the
+    /// <see cref="LedgerBalance"/> read-model — all in the caller's transaction.
+    /// </summary>
+    /// <exception cref="PostingException">
+    /// Not found, not pending, approver-not-distinct, or a period violation.
+    /// </exception>
+    Task<JournalEntry> ApprovePendingAsync(long entryId, int approvedByUserId, CancellationToken ct = default);
+
+    /// <summary>
     /// Reverses a posted entry by posting an equal-and-opposite entry and
     /// flipping the original to <see cref="Enums.Accounting.JournalEntryStatus.Reversed"/>
     /// with a <c>ReversedByEntryId</c> link, in one transaction.
