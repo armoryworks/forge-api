@@ -41,26 +41,10 @@ public sealed class StandardCostResolver(AppDbContext db, IStandardCostRollupSer
                 inputs.OverheadAmount ?? 0m);
         }
 
+        // 2) Manual override → it is the carried total (labor/overhead from rollup, material = residual);
+        //    3) no override → the rollup is the standard. (Shared reconcile with the part-standard recalc.)
         var elements = await rollup.RollupAsync(partId, ct);
         var manualOverride = part.ManualCostOverride ?? part.CurrentCostCalculation?.ResultAmount;
-
-        // 2) Manual standard set → it is the carried total; keep rolled-up labor/overhead, material = residual.
-        if (manualOverride is decimal total && total > 0m)
-        {
-            var labor = elements.Labor;
-            var overhead = elements.Overhead;
-            var conversion = labor + overhead;
-            if (conversion > total)
-            {
-                // Conversion alone exceeds the manual standard — scale it to fit; no implied material.
-                labor = decimal.Round(total * (conversion == 0m ? 0m : labor / conversion), 2);
-                overhead = total - labor;
-                return new StandardCostElements(0m, labor, overhead);
-            }
-            return new StandardCostElements(total - conversion, labor, overhead);
-        }
-
-        // 3) No override → the rollup is the standard (material from BOM + routing conversion).
-        return elements;
+        return StandardCostElements.ReconcileToOverride(elements, manualOverride);
     }
 }

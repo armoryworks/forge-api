@@ -157,6 +157,11 @@ public class PartsController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Recalculate + freeze the part's standard cost (rollup → current CostCalculation snapshot).</summary>
+    [HttpPost("{id:int}/recalculate-standard-cost")]
+    public async Task<ActionResult<RecalculatedStandardCostModel>> RecalculateStandardCost(int id, CancellationToken ct)
+        => Ok(await mediator.Send(new RecalculatePartStandardCostCommand(id), ct));
+
     [HttpPost("{id:int}/operations/{operationId:int}/materials")]
     public async Task<ActionResult<OperationMaterialResponseModel>> CreateOperationMaterial(int id, int operationId, [FromBody] CreateOperationMaterialRequestModel request)
         => StatusCode(201, await mediator.Send(new CreateOperationMaterialCommand(id, operationId, request)));
