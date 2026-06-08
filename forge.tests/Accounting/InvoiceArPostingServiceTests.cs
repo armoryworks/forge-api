@@ -74,6 +74,16 @@ public class InvoiceArPostingServiceTests
             auditWriter: null,
             valuation: new InventoryValuationService(db));
 
+    // Standard costing — service wired with the standard-cost resolver (FG relief at STANDARD).
+    private static InvoiceArPostingService CreateServiceWithStandard(AppDbContext db, bool fullGlOn)
+        => new(
+            db,
+            new ForgeGlPostingEngine(db, new AccountDeterminationResolver(db), new FakeAllocator(), new SystemClock()),
+            new FakeCapabilities(fullGlOn),
+            auditWriter: null,
+            valuation: new InventoryValuationService(db),
+            standardCost: new StandardCostResolver(db));
+
     private static async Task<AppDbContext> SeedAsync()
     {
         var db = TestDbContextFactory.Create();
@@ -423,5 +433,30 @@ public class InvoiceArPostingServiceTests
         var store = await db.Set<InventoryValuation>().SingleAsync(v => v.PartId == partId);
         store.OnHandQuantity.Should().Be(8m);   // 10 − 2
         store.TotalValue.Should().Be(64m);       // 80 − 16
+    }
+
+    [Fact]
+    public async Task Post_FinishedGoodsLine_WithStandardResolver_RelievesAtStandard()
+    {
+        using var db = await SeedAsync();
+        // Standard cost 30; the store carries a different weighted-avg (8). Standard costing must relieve COGS
+        // at STANDARD (30), not the store's 8 — while still decrementing the store quantity.
+        var invoice = await AddFinishedGoodsInvoiceAsync(db, unitCost: 30m, qty: 2m);
+        var partId = invoice.Lines.First().PartId!.Value;
+        db.Set<InventoryValuation>().Add(new InventoryValuation
+        {
+            BookId = BookId, PartId = partId, OnHandQuantity = 10m, TotalValue = 80m, AverageUnitCost = 8m,
+        });
+        await db.SaveChangesAsync();
+
+        await CreateServiceWithStandard(db, fullGlOn: true).PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+
+        var cogs = await db.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines)
+            .SingleAsync(e => e.Source == JournalSource.Inventory);
+        cogs.Lines.Single(l => l.GlAccountId == CogsId).Debit.Should().Be(60m);          // 30 standard × 2
+        cogs.Lines.Single(l => l.GlAccountId == InventoryFgId).Credit.Should().Be(60m);
+
+        var store = await db.Set<InventoryValuation>().SingleAsync(v => v.PartId == partId);
+        store.OnHandQuantity.Should().Be(8m, "the perpetual store quantity is still decremented");
     }
 }

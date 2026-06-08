@@ -372,6 +372,8 @@ try
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IProductionVariancePostingService, Forge.Api.Features.Accounting.ProductionVariancePostingService>();
     // Standard costing Phase 4 — single-plant overhead pool: record actual overhead + period spending variance.
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IOverheadPoolService, Forge.Api.Features.Accounting.OverheadPoolService>();
+    // Standard costing Phase 5 — variance rollup report (lumped = SUM of the six variance accounts).
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IVarianceReportService, Forge.Api.Features.Accounting.VarianceReportService>();
     // Phase-4 — fixed-asset register + straight-line depreciation posting.
     builder.Services.AddScoped<IDepreciationService, Forge.Api.Features.Accounting.DepreciationService>();
     // §7A conversion — opening-balance journal at go-live (Source=Conversion).

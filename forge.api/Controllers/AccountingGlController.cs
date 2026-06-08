@@ -270,6 +270,12 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<OverheadPoolCloseResult>> CloseOverheadPool([FromBody] CloseOverheadPoolRequest body, CancellationToken ct)
         => Ok(await mediator.Send(new CloseOverheadPoolCommand(body.AsOf), ct));
 
+    /// <summary>Standard costing — variance rollup for a date range (the six slots + residual; lumped = sum).</summary>
+    [HttpGet("variances")]
+    public async Task<ActionResult<VarianceReportModel>> GetVariances(
+        [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken ct)
+        => Ok(await mediator.Send(new GetVarianceReportQuery(from, to), ct));
+
     // ─────────────────────────── Phase-5 payroll ───────────────────────────
 
     /// <summary>Phase-5 — create a pay run (amounts provided; tax calc is the §8.3 spike, out of scope here).</summary>

@@ -68,9 +68,12 @@ public sealed class InvoiceArPostingService(
     IPostingEngine postingEngine,
     ICapabilitySnapshotProvider capabilities,
     ISystemAuditWriter? auditWriter = null,
-    // STAGE E — when wired, finished-goods relief is valued at the perpetual weighted-average and the store is
-    // decremented; null (isolated tests) or no store row falls back to the part's standard cost.
-    IInventoryValuationService? valuation = null) : IInvoiceArPostingService
+    // STAGE E — when wired, finished-goods relief decrements the perpetual store; null (isolated tests) or no
+    // store row falls back to the part's standard cost.
+    IInventoryValuationService? valuation = null,
+    // Standard costing — when wired, COGS relieves finished goods at STANDARD (the store value carries standard,
+    // so the store decrement stays in lock-step). Null preserves the prior store-weighted-average behavior.
+    IStandardCostResolver? standardCost = null) : IInvoiceArPostingService
 {
     // The capability that gates the whole GL. Must match CapabilityCatalog.
     private const string FullGlCapability = "CAP-ACCT-FULLGL";
@@ -300,29 +303,47 @@ public sealed class InvoiceArPostingService(
             if (!LineRelievesFinishedGoods(line))
                 continue;
 
-            // Perpetual costing (STAGE E): when the valuation store carries this FG part, relieve it at the
-            // weighted-average and post that actual value — the store decrements in lock-step with the GL.
-            // Otherwise fall back to the part's standard cost (and leave the store untouched).
+            // Costing. Standard (resolver wired): relieve finished goods at STANDARD; still decrement the
+            // perpetual store for quantity tracking (its value carries standard, so it stays in lock-step).
+            // Otherwise (perpetual STAGE E): relieve at the store value when a row exists, else the part's
+            // standard cost.
             decimal lineCogs;
-            var hasStoreRow = valuation is not null
-                && await db.InventoryValuations.AnyAsync(v => v.BookId == book.Id && v.PartId == line.PartId, ct);
-            if (hasStoreRow)
+            if (standardCost is not null)
             {
-                lineCogs = await valuation!.ApplyIssueAsync(book.Id, line.PartId!.Value, line.Quantity, ct);
-            }
-            else
-            {
-                var unitCost = ResolveStandardCost(line.Part!);
-                if (unitCost is not { } cost || cost <= 0m)
+                lineCogs = Math.Round((await standardCost.ResolveAsync(line.PartId!.Value, ct)).Total * line.Quantity, 2, MidpointRounding.AwayFromZero);
+                if (lineCogs <= 0m)
                 {
-                    // No resolvable / non-positive standard cost — skip this line's COGS (don't block the
-                    // sale). Logged so the partial-COGS gap is observable (gross margin understates here).
                     Log.Information(
                         "COGS skipped: invoice {InvoiceId} line {LineNumber} part {PartNumber} has no resolvable standard cost.",
                         invoice.Id, line.LineNumber, line.Part!.PartNumber);
                     continue;
                 }
-                lineCogs = cost * line.Quantity;
+                if (valuation is not null
+                    && await db.InventoryValuations.AnyAsync(v => v.BookId == book.Id && v.PartId == line.PartId, ct))
+                    await valuation.ApplyIssueAsync(book.Id, line.PartId!.Value, line.Quantity, ct);
+            }
+            else
+            {
+                var hasStoreRow = valuation is not null
+                    && await db.InventoryValuations.AnyAsync(v => v.BookId == book.Id && v.PartId == line.PartId, ct);
+                if (hasStoreRow)
+                {
+                    lineCogs = await valuation!.ApplyIssueAsync(book.Id, line.PartId!.Value, line.Quantity, ct);
+                }
+                else
+                {
+                    var unitCost = ResolveStandardCost(line.Part!);
+                    if (unitCost is not { } cost || cost <= 0m)
+                    {
+                        // No resolvable / non-positive standard cost — skip this line's COGS (don't block the
+                        // sale). Logged so the partial-COGS gap is observable (gross margin understates here).
+                        Log.Information(
+                            "COGS skipped: invoice {InvoiceId} line {LineNumber} part {PartNumber} has no resolvable standard cost.",
+                            invoice.Id, line.LineNumber, line.Part!.PartNumber);
+                        continue;
+                    }
+                    lineCogs = cost * line.Quantity;
+                }
             }
 
             if (lineCogs <= 0m)

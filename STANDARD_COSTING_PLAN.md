@@ -34,6 +34,13 @@ Absorption clearing (contra-expense, credit-normal): `LABOR_APPLIED` (51210), `O
 already seeded. Overhead pool (asset/clearing): `OVERHEAD_CONTROL` (13400) accumulates actual overhead and is
 relieved as applied.
 
+## Status — COMPLETE (all 6 variance slots live; full standard-cost carrying)
+
+Phases 0–5 all delivered, dark behind CAP-ACCT-FULLGL, branch-only. Resolver/pool dependencies are optional
+on each posting service, so the prior actual-cost behavior holds without them and every pre-existing test
+stayed green through the cutover. The lumped variance is the `GET /accounting/variances` rollup =
+SUM(variance accounts).
+
 ## Phases
 
 0. **StandardCostResolver** — `(material, labor, overhead)` std unit cost for a part. Priority:
