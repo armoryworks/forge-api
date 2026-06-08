@@ -41,7 +41,7 @@ public class StandardCostResolverTests
         part.CurrentCostCalculationId = calc.Id;
         await db.SaveChangesAsync();
 
-        var elements = await new StandardCostResolver(db).ResolveAsync(part.Id);
+        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db)).ResolveAsync(part.Id);
 
         elements.Material.Should().Be(18m);
         elements.Labor.Should().Be(8m);
@@ -50,21 +50,22 @@ public class StandardCostResolverTests
     }
 
     [Fact]
-    public async Task RoutingRollup_LaborOverheadFromOperations_MaterialIsResidual()
+    public async Task RoutingRollup_LaborOverheadFromWorkCenterRates_MaterialIsResidual()
     {
         using var db = TestDbContextFactory.Create();
-        var partId = await AddPartAsync(db, manualOverride: 50m); // blended standard 50
-        db.AddRange(
-            new Operation { PartId = partId, StepNumber = 1, Title = "Mill", EstimatedLaborCost = 12m, EstimatedBurdenCost = 8m },
-            new Operation { PartId = partId, StepNumber = 2, Title = "Finish", EstimatedLaborCost = 6m, EstimatedBurdenCost = 4m });
+        var partId = await AddPartAsync(db, manualOverride: 50m); // carried standard 50
+        var wc = new WorkCenter { Name = "Mill", Code = "MILL", LaborCostPerHour = 18m, BurdenRatePerHour = 12m, IsActive = true };
+        db.Add(wc);
+        await db.SaveChangesAsync();
+        db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Mill", EstimatedMinutes = 60, WorkCenterId = wc.Id });
         await db.SaveChangesAsync();
 
-        var elements = await new StandardCostResolver(db).ResolveAsync(partId);
+        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db)).ResolveAsync(partId);
 
-        elements.Labor.Should().Be(18m);     // 12 + 6
-        elements.Overhead.Should().Be(12m);  // 8 + 4
+        elements.Labor.Should().Be(18m);     // 1 hr × 18
+        elements.Overhead.Should().Be(12m);  // 1 hr × 12
         elements.Material.Should().Be(20m);  // 50 − 18 − 12 (residual)
-        elements.Total.Should().Be(50m, "elements reconcile to the blended standard");
+        elements.Total.Should().Be(50m, "elements reconcile to the carried standard");
     }
 
     [Fact]
@@ -73,7 +74,7 @@ public class StandardCostResolverTests
         using var db = TestDbContextFactory.Create();
         var partId = await AddPartAsync(db, manualOverride: 25m);
 
-        var elements = await new StandardCostResolver(db).ResolveAsync(partId);
+        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db)).ResolveAsync(partId);
 
         elements.Material.Should().Be(25m);
         elements.Labor.Should().Be(0m);
@@ -81,17 +82,22 @@ public class StandardCostResolverTests
     }
 
     [Fact]
-    public async Task RoutingConversionExceedsBlended_MaterialFloorsAtZero()
+    public async Task RoutingConversionExceedsOverride_ScalesConversion_MaterialZero()
     {
         using var db = TestDbContextFactory.Create();
         var partId = await AddPartAsync(db, manualOverride: 15m); // below routing conversion of 30
-        db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Op", EstimatedLaborCost = 18m, EstimatedBurdenCost = 12m });
+        var wc = new WorkCenter { Name = "Op", Code = "OP1", LaborCostPerHour = 18m, BurdenRatePerHour = 12m, IsActive = true };
+        db.Add(wc);
+        await db.SaveChangesAsync();
+        db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Op", EstimatedMinutes = 60, WorkCenterId = wc.Id });
         await db.SaveChangesAsync();
 
-        var elements = await new StandardCostResolver(db).ResolveAsync(partId);
+        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db)).ResolveAsync(partId);
 
-        elements.Material.Should().Be(0m, "a blended total below routing conversion implies no material");
-        elements.Labor.Should().Be(18m);
-        elements.Overhead.Should().Be(12m);
+        // Conversion 30 exceeds the override 15 → scaled to fit, no implied material; total stays at 15.
+        elements.Material.Should().Be(0m);
+        elements.Labor.Should().Be(9m);     // 15 × (18/30)
+        elements.Overhead.Should().Be(6m);  // 15 − 9
+        elements.Total.Should().Be(15m);
     }
 }

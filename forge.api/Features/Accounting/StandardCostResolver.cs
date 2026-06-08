@@ -10,16 +10,17 @@ namespace Forge.Api.Features.Accounting;
 /// Resolves a part's standard unit cost into material / labor / overhead. Resolution priority:
 /// <list type="number">
 ///   <item><b>Explicit cost-calc breakdown</b> — <c>CurrentCostCalculation.Inputs</c>
-///         (DirectMaterialCost / DirectLaborCost / OverheadAmount), when any element is populated.</item>
-///   <item><b>Routing rollup</b> — labor + overhead from the part's <see cref="Forge.Core.Entities.Operation"/>
-///         standards (Σ EstimatedLaborCost / EstimatedBurdenCost); material is the residual of the blended
-///         standard (<c>ManualCostOverride ?? CostCalc.ResultAmount</c>) minus labor + overhead, so the three
-///         elements always reconcile to the standard value carried in inventory.</item>
-///   <item><b>Blended fallback</b> — no routing and only a blended <c>ManualCostOverride</c>: all material
-///         (no element split available).</item>
+///         (DirectMaterialCost / DirectLaborCost / OverheadAmount), when any element is populated (the D5
+///         persisted snapshot).</item>
+///   <item><b>Manual standard override present</b> — <c>ManualCostOverride</c> is the carried standard
+///         <i>total</i>; labor + overhead come from the live cost rollup (routing × work-center rates) and
+///         material is the reconciling residual (override − labor − overhead). This keeps the element total
+///         equal to the carried standard so the variance decomposition balances exactly.</item>
+///   <item><b>No override</b> — the cost rollup IS the standard (material from BOM + labor/overhead from
+///         routing); the elements sum to the rolled-up total.</item>
 /// </list>
 /// </summary>
-public sealed class StandardCostResolver(AppDbContext db) : IStandardCostResolver
+public sealed class StandardCostResolver(AppDbContext db, IStandardCostRollupService rollup) : IStandardCostResolver
 {
     public async Task<StandardCostElements> ResolveAsync(int partId, CancellationToken ct = default)
     {
@@ -29,7 +30,7 @@ public sealed class StandardCostResolver(AppDbContext db) : IStandardCostResolve
         if (part is null)
             return StandardCostElements.Zero;
 
-        // 1) Explicit element breakdown from the current cost calculation.
+        // 1) Explicit element breakdown from the current cost calculation (D5 snapshot).
         var inputs = part.CurrentCostCalculation?.Inputs;
         if (inputs is not null &&
             (inputs.DirectMaterialCost.HasValue || inputs.DirectLaborCost.HasValue || inputs.OverheadAmount.HasValue))
@@ -40,24 +41,26 @@ public sealed class StandardCostResolver(AppDbContext db) : IStandardCostResolve
                 inputs.OverheadAmount ?? 0m);
         }
 
-        var blendedTotal = part.ManualCostOverride ?? part.CurrentCostCalculation?.ResultAmount ?? 0m;
+        var elements = await rollup.RollupAsync(partId, ct);
+        var manualOverride = part.ManualCostOverride ?? part.CurrentCostCalculation?.ResultAmount;
 
-        // 2) Routing rollup for labor + overhead; material is the reconciling residual.
-        var routing = await db.Operations.AsNoTracking()
-            .Where(o => o.PartId == partId)
-            .Select(o => new { o.EstimatedLaborCost, o.EstimatedBurdenCost })
-            .ToListAsync(ct);
-
-        if (routing.Count > 0)
+        // 2) Manual standard set → it is the carried total; keep rolled-up labor/overhead, material = residual.
+        if (manualOverride is decimal total && total > 0m)
         {
-            var labor = routing.Sum(o => o.EstimatedLaborCost);
-            var overhead = routing.Sum(o => o.EstimatedBurdenCost);
-            var material = blendedTotal - labor - overhead;
-            if (material < 0m) material = 0m; // a blended total below routing conversion → no implied material
-            return new StandardCostElements(material, labor, overhead);
+            var labor = elements.Labor;
+            var overhead = elements.Overhead;
+            var conversion = labor + overhead;
+            if (conversion > total)
+            {
+                // Conversion alone exceeds the manual standard — scale it to fit; no implied material.
+                labor = decimal.Round(total * (conversion == 0m ? 0m : labor / conversion), 2);
+                overhead = total - labor;
+                return new StandardCostElements(0m, labor, overhead);
+            }
+            return new StandardCostElements(total - conversion, labor, overhead);
         }
 
-        // 3) Blended-only fallback: no element split available.
-        return new StandardCostElements(blendedTotal, 0m, 0m);
+        // 3) No override → the rollup is the standard (material from BOM + routing conversion).
+        return elements;
     }
 }

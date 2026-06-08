@@ -54,7 +54,7 @@ public class Phase1StandardReceiptPostingTests
 
     private static ReceiptInventoryPostingService Service(AppDbContext db)
         => new(db, Engine(db), new FakeCapabilities(true),
-            valuation: new InventoryValuationService(db), standardCost: new StandardCostResolver(db));
+            valuation: new InventoryValuationService(db), standardCost: new StandardCostResolver(db, new StandardCostRollupService(db)));
 
     private static async Task<AppDbContext> SeedAsync()
     {

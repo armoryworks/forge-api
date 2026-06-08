@@ -67,7 +67,7 @@ public class Phase2ProductionVariancePostingServiceTests
 
     private static ProductionVariancePostingService ServiceWithStd(AppDbContext db)
         => new(db, Engine(db), new FakeCapabilities(true), new JobCostService(db),
-            auditWriter: null, standardCost: new StandardCostResolver(db));
+            auditWriter: null, standardCost: new StandardCostResolver(db, new StandardCostRollupService(db)));
 
     private static async Task<AppDbContext> SeedAsync()
     {
@@ -241,11 +241,14 @@ public class Phase2ProductionVariancePostingServiceTests
         // GL WIP: material 110 in, std FG 130 relieved; labor 25 + burden 12 absorbed at close → residual 17.
         await SeedJobAsync(db, materialIn: 110m, stdFgRelieved: 130m, labor: 25m, burden: 12m);
 
-        // Part std elements: 13/unit = material 10 + labor 2 + overhead 1 (routing); 10 good units produced.
+        // Part std elements: 13/unit = material 10 + labor 2 + overhead 1; routing (1 hr @ WC rates 2/1) gives
+        // labor 2 + overhead 1, material is the residual of the 13 override. 10 good units produced.
         var part = new Part { PartNumber = "P-STD", Name = "x", ManualCostOverride = 13m };
         db.Add(part);
+        var wc = new WorkCenter { Name = "WC", Code = "WC-STD", LaborCostPerHour = 2m, BurdenRatePerHour = 1m, IsActive = true };
+        db.Add(wc);
         await db.SaveChangesAsync();
-        db.Add(new Operation { PartId = part.Id, StepNumber = 1, Title = "Op", EstimatedLaborCost = 2m, EstimatedBurdenCost = 1m });
+        db.Add(new Operation { PartId = part.Id, StepNumber = 1, Title = "Op", EstimatedMinutes = 60, WorkCenterId = wc.Id });
         db.Add(new MaterialIssue { JobId = JobId, PartId = part.Id, Quantity = 11m, UnitCost = 10m, IssuedById = 7, IssuedAt = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero), IssueType = MaterialIssueType.Issue });
         db.Add(new ProductionRun { JobId = JobId, PartId = part.Id, RunNumber = "RUN-STD", TargetQuantity = 10, CompletedQuantity = 10, ReceivedQuantity = 10, ReceivedToStockAt = DateTimeOffset.UtcNow, Status = ProductionRunStatus.Completed });
         await db.SaveChangesAsync();
@@ -278,8 +281,10 @@ public class Phase2ProductionVariancePostingServiceTests
 
         var part = new Part { PartNumber = "P-STD2", Name = "x", ManualCostOverride = 13m };
         db.Add(part);
+        var wc = new WorkCenter { Name = "WC2", Code = "WC-STD2", LaborCostPerHour = 2m, BurdenRatePerHour = 1m, IsActive = true };
+        db.Add(wc);
         await db.SaveChangesAsync();
-        db.Add(new Operation { PartId = part.Id, StepNumber = 1, Title = "Op", EstimatedLaborCost = 2m, EstimatedBurdenCost = 1m });
+        db.Add(new Operation { PartId = part.Id, StepNumber = 1, Title = "Op", EstimatedMinutes = 60, WorkCenterId = wc.Id });
         db.Add(new MaterialIssue { JobId = JobId, PartId = part.Id, Quantity = 11m, UnitCost = 10m, IssuedById = 7, IssuedAt = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero), IssueType = MaterialIssueType.Issue });
         db.Add(new ProductionRun { JobId = JobId, PartId = part.Id, RunNumber = "RUN-STD2", TargetQuantity = 10, CompletedQuantity = 10, ReceivedQuantity = 10, ReceivedToStockAt = DateTimeOffset.UtcNow, Status = ProductionRunStatus.Completed });
         await db.SaveChangesAsync();
