@@ -117,7 +117,11 @@ END $$;");
     {
         var part = new Part { PartNumber = "P-RAW", Description = "x", InventoryClass = InventoryClass.Raw, ProcurementSource = ProcurementSource.Buy };
         db.Set<Part>().Add(part);
-        var po = new PurchaseOrder { PONumber = "PO-1", VendorId = 1, Status = PurchaseOrderStatus.Submitted };
+        // Seed the vendor too — real Postgres enforces the PO→Vendor FK (InMemory does not).
+        var vendor = new Vendor { CompanyName = "Atomicity Vendor" };
+        db.Set<Vendor>().Add(vendor);
+        await db.SaveChangesAsync();
+        var po = new PurchaseOrder { PONumber = "PO-1", VendorId = vendor.Id, Status = PurchaseOrderStatus.Submitted };
         db.Set<PurchaseOrder>().Add(po);
         await db.SaveChangesAsync();
         var line = new PurchaseOrderLine { PurchaseOrderId = po.Id, PartId = part.Id, OrderedQuantity = 10m, UnitPrice = 5m };
