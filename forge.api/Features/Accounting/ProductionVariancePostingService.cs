@@ -24,6 +24,7 @@ public sealed record JobProductionCostCloseResult(
     int JobId, decimal LaborAbsorbed, decimal OverheadAbsorbed, decimal ProductionVariance, bool Posted)
 {
     public decimal MaterialUsageVariance { get; init; }
+    public decimal LaborRateVariance { get; init; }
     public decimal LaborEfficiencyVariance { get; init; }
     public decimal OverheadEfficiencyVariance { get; init; }
     public decimal ProductionVarianceResidual { get; init; }
@@ -75,6 +76,7 @@ public sealed class ProductionVariancePostingService(
     private const string KeyOverheadApplied = "OVERHEAD_APPLIED";
     private const string KeyProductionVariance = "PRODUCTION_VARIANCE";
     private const string KeyMaterialUsageVariance = "MATERIAL_USAGE_VARIANCE";
+    private const string KeyLaborRateVariance = "LABOR_RATE_VARIANCE";
     private const string KeyLaborEfficiencyVariance = "LABOR_EFFICIENCY_VARIANCE";
     private const string KeyOverheadEfficiencyVariance = "OVERHEAD_EFFICIENCY_VARIANCE";
 
@@ -91,21 +93,25 @@ public sealed class ProductionVariancePostingService(
                 "NO_POSTING_BOOK",
                 "CAP-ACCT-FULLGL is enabled but no active accounting Book is seeded to close job production cost into.");
 
-        var labor = Math.Round(await jobCost.GetActualLaborCostAsync(jobId, ct), 2);
+        // Labor at the STANDARD rate (efficiency basis) and at the ACTUAL rate (what's absorbed into WIP); the
+        // difference is the labor RATE variance.
+        var laborStd = Math.Round(await jobCost.GetActualLaborCostAsync(jobId, ct), 2);
+        var laborRateVar = Math.Round(await jobCost.GetLaborRateVarianceAsync(jobId, ct), 2);
+        var laborActual = Math.Round(await jobCost.GetActualLaborCostAtActualRateAsync(jobId, ct), 2);
         var burden = Math.Round(await jobCost.GetActualBurdenCostAsync(jobId, ct), 2);
 
-        // ── 1) Absorb labor + overhead into WIP (idempotent on the absorb key). ────────────────────────────
+        // ── 1) Absorb labor (at ACTUAL cost) + overhead into WIP (idempotent on the absorb key). ─────────────
         var absorbKey = $"{JournalSource.Inventory}:Job:{jobId}:WIPABSORB";
         var alreadyAbsorbed = await db.JournalEntries.IgnoreQueryFilters()
             .AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == absorbKey, ct);
-        if (!alreadyAbsorbed && labor + burden > 0m)
+        if (!alreadyAbsorbed && laborActual + burden > 0m)
         {
             var absorbLines = new List<PostingLine>
             {
-                new() { AccountKey = KeyInventoryWip, Debit = labor + burden, JobId = jobId, Description = $"WIP — absorb labor + overhead (job {jobId})" },
+                new() { AccountKey = KeyInventoryWip, Debit = laborActual + burden, JobId = jobId, Description = $"WIP — absorb labor + overhead (job {jobId})" },
             };
-            if (labor > 0m)
-                absorbLines.Add(new PostingLine { AccountKey = KeyLaborApplied, Credit = labor, Description = $"Labor absorbed — job {jobId}" });
+            if (laborActual > 0m)
+                absorbLines.Add(new PostingLine { AccountKey = KeyLaborApplied, Credit = laborActual, Description = $"Labor absorbed — job {jobId}" });
             if (burden > 0m)
                 absorbLines.Add(new PostingLine { AccountKey = KeyOverheadApplied, Credit = burden, Description = $"Overhead absorbed — job {jobId}" });
 
@@ -128,14 +134,14 @@ public sealed class ProductionVariancePostingService(
         var alreadyVarianced = await db.JournalEntries.IgnoreQueryFilters()
             .AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == varKey, ct);
         if (alreadyVarianced)
-            return new JobProductionCostCloseResult(jobId, labor, burden, 0m, Posted: false);
+            return new JobProductionCostCloseResult(jobId, laborActual, burden, 0m, Posted: false);
 
         var wipAccountId = await db.Set<AccountDeterminationRule>()
             .Where(r => r.BookId == book.Id && r.Key == KeyInventoryWip)
             .Select(r => (int?)r.GlAccountId)
             .FirstOrDefaultAsync(ct);
         if (wipAccountId is null)
-            return new JobProductionCostCloseResult(jobId, labor, burden, 0m, Posted: false);
+            return new JobProductionCostCloseResult(jobId, laborActual, burden, 0m, Posted: false);
 
         // GL WIP balance for this job (debit-positive): material in + labor/OH absorbed − standard FG relieved.
         var wipBalance = await
@@ -150,11 +156,12 @@ public sealed class ProductionVariancePostingService(
 
         var residual = Math.Round(wipBalance, 2);
         if (residual == 0m)
-            return new JobProductionCostCloseResult(jobId, labor, burden, 0m, Posted: labor + burden > 0m);
+            return new JobProductionCostCloseResult(jobId, laborActual, burden, 0m, Posted: laborActual + burden > 0m);
 
-        // Decompose the residual into named variances (material usage / labor efficiency / overhead efficiency)
-        // when a standard resolver is wired, with any unexplained remainder to PRODUCTION_VARIANCE; else a
-        // single lumped sweep. Every branch zeroes the job's WIP (the named lines + WIP offset sum to residual).
+        // Decompose the residual into named variances (material usage / labor rate + efficiency / overhead
+        // efficiency) when a standard resolver is wired, with any unexplained remainder to PRODUCTION_VARIANCE;
+        // else a single lumped sweep. Every branch zeroes the job's WIP (the named lines + WIP offset sum to
+        // residual).
         decimal matUsage = 0m, laborEff = 0m, ohEff = 0m, catchall = residual;
         var lines = new List<PostingLine>();
 
@@ -176,11 +183,14 @@ public sealed class ProductionVariancePostingService(
 
             var actualMaterial = Math.Round(await jobCost.GetActualMaterialCostAsync(jobId, ct), 2);
             matUsage = Math.Round(actualMaterial - stdMat, 2);   // actual material vs standard for output
-            laborEff = Math.Round(labor - stdLab, 2);            // actual labor (std rate) vs standard → efficiency
+            laborEff = Math.Round(laborStd - stdLab, 2);         // actual hrs at STD rate vs standard → efficiency
             ohEff = Math.Round(burden - stdOh, 2);               // actual overhead vs standard → efficiency
-            catchall = Math.Round(residual - matUsage - laborEff - ohEff, 2);
+            // labor rate variance (laborActual − laborStd) was computed up front; the labor portion of the
+            // residual is (laborActual − stdLab) = laborRateVar + laborEff, so both post here.
+            catchall = Math.Round(residual - matUsage - laborRateVar - laborEff - ohEff, 2);
 
             AddSignedVariance(lines, KeyMaterialUsageVariance, matUsage, jobId, "material usage");
+            AddSignedVariance(lines, KeyLaborRateVariance, laborRateVar, jobId, "labor rate");
             AddSignedVariance(lines, KeyLaborEfficiencyVariance, laborEff, jobId, "labor efficiency");
             AddSignedVariance(lines, KeyOverheadEfficiencyVariance, ohEff, jobId, "overhead efficiency");
             AddSignedVariance(lines, KeyProductionVariance, catchall, jobId, "production (residual)");
@@ -209,11 +219,12 @@ public sealed class ProductionVariancePostingService(
             Lines = lines,
         }, closedByUserId, ct);
 
-        await TryAuditAsync(jobId, entry, labor, burden, residual, closedByUserId, ct);
+        await TryAuditAsync(jobId, entry, laborActual, burden, residual, closedByUserId, ct);
 
-        return new JobProductionCostCloseResult(jobId, labor, burden, residual, Posted: true)
+        return new JobProductionCostCloseResult(jobId, laborActual, burden, residual, Posted: true)
         {
             MaterialUsageVariance = matUsage,
+            LaborRateVariance = standardCost is not null ? laborRateVar : 0m,
             LaborEfficiencyVariance = laborEff,
             OverheadEfficiencyVariance = ohEff,
             ProductionVarianceResidual = catchall,

@@ -25,8 +25,11 @@ public class TimeEntry : BaseAuditableEntity
     // through Operation (which may have its WorkCenter reassigned later).
     public int? WorkCenterId { get; set; }
 
-    // Costing
+    // Costing. LaborCost is at the STANDARD rate (hours × StandardRatePerHour) — the basis for the labor
+    // efficiency variance; ActualLaborCost is at the actual burdened rate — their difference is the labor rate
+    // variance. ActualLaborCost == 0 (not yet recalculated with an actual rate) ⇒ treated as the standard cost.
     public decimal LaborCost { get; set; }
+    public decimal ActualLaborCost { get; set; }
     public decimal BurdenCost { get; set; }
 
     // Pro Services — billable / non-billable split. Gated by
