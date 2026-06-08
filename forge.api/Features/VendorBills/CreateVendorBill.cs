@@ -1,10 +1,12 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.VendorBills;
 
@@ -20,7 +22,11 @@ public record CreateVendorBillCommand(
     DateTimeOffset DueDate,
     decimal TaxAmount,
     string? Notes,
-    List<CreateVendorBillLineModel> Lines) : IRequest<VendorBillListItemModel>;
+    List<CreateVendorBillLineModel> Lines,
+    // Multi-currency (Phase-4 FULLGL, additive) — mirrors CreateInvoiceCommand. Null CurrencyId → the active
+    // book's functional currency; FxRate is the booking rate. Defaults keep single-currency callers unchanged.
+    int? CurrencyId = null,
+    decimal FxRate = 1m) : IRequest<VendorBillListItemModel>;
 
 public class CreateVendorBillValidator : AbstractValidator<CreateVendorBillCommand>
 {
@@ -30,6 +36,8 @@ public class CreateVendorBillValidator : AbstractValidator<CreateVendorBillComma
         RuleFor(x => x.Lines).NotEmpty().WithMessage("At least one line item is required");
         RuleFor(x => x.TaxAmount).GreaterThanOrEqualTo(0);
         RuleFor(x => x.DueDate).GreaterThanOrEqualTo(x => x.BillDate);
+        // FX booking rate must be positive (a 0 or negative rate would zero/invert the functional amount).
+        RuleFor(x => x.FxRate).GreaterThan(0m);
         // A zero-total bill would flip to Approved yet post no journal (the engine skips non-positive
         // totals) — a silent status/ledger divergence. Require a positive total.
         RuleFor(x => x)
@@ -59,7 +67,8 @@ public class CreateVendorBillValidator : AbstractValidator<CreateVendorBillComma
 
 public class CreateVendorBillHandler(
     IVendorBillRepository repo,
-    IVendorRepository vendorRepo)
+    IVendorRepository vendorRepo,
+    AppDbContext db)
     : IRequestHandler<CreateVendorBillCommand, VendorBillListItemModel>
 {
     public async Task<VendorBillListItemModel> Handle(CreateVendorBillCommand request, CancellationToken cancellationToken)
@@ -79,10 +88,16 @@ public class CreateVendorBillHandler(
 
         var billNumber = await repo.GenerateNextBillNumberAsync(cancellationToken);
 
+        // Multi-currency (Phase-4 FULLGL, additive). Resolve the bill currency to the caller-supplied
+        // CurrencyId, else the active book's functional currency (mirrors the posting services / CreateInvoice).
+        var currencyId = request.CurrencyId ?? await ResolveFunctionalCurrencyIdAsync(db, cancellationToken);
+
         var bill = new VendorBill
         {
             BillNumber = billNumber,
             VendorId = request.VendorId,
+            CurrencyId = currencyId,
+            FxRate = request.FxRate,
             VendorInvoiceNumber = request.VendorInvoiceNumber,
             PurchaseOrderId = request.PurchaseOrderId,
             Status = VendorBillStatus.Draft,
@@ -117,4 +132,15 @@ public class CreateVendorBillHandler(
             bill.Status.ToString(), bill.BillDate, bill.DueDate,
             bill.Total, bill.AmountPaid, bill.BalanceDue, bill.CreatedAt);
     }
+
+    /// <summary>
+    /// The active book's functional currency, or the seeded functional-currency default (1) when no book is
+    /// present (single-currency installs that never enabled the GL). Read-only — never tracked.
+    /// </summary>
+    private static async Task<int> ResolveFunctionalCurrencyIdAsync(AppDbContext db, CancellationToken ct)
+        => await db.Books.AsNoTracking()
+            .Where(b => b.IsActive)
+            .OrderBy(b => b.Id)
+            .Select(b => b.FunctionalCurrencyId)
+            .FirstOrDefaultAsync(ct) is int id and > 0 ? id : 1;
 }

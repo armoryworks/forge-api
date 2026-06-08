@@ -20,6 +20,16 @@ public class VendorBill : BaseAuditableEntity, IConcurrencyVersioned
 
     public int VendorId { get; set; }
 
+    // ── Multi-currency (Phase-4 FULLGL, additive). The currency the bill is
+    // denominated in, and the booking rate (txn→functional) captured at creation.
+    // Defaults: functional currency + rate 1, so single-currency installs are
+    // byte-for-byte unchanged. The AP posting books the payable at this currency/
+    // rate; settlement realizes FX vs the payment rate (mirror of Invoice).
+    public int CurrencyId { get; set; }
+
+    /// <summary>Booking FX rate (transaction→functional) captured at bill creation. Default 1.</summary>
+    public decimal FxRate { get; set; } = 1m;
+
     /// <summary>The vendor's own invoice/document number (their reference), as printed on the bill.</summary>
     public string? VendorInvoiceNumber { get; set; }
 
@@ -51,6 +61,7 @@ public class VendorBill : BaseAuditableEntity, IConcurrencyVersioned
     public decimal BalanceDue => Total - AmountPaid;
 
     public Vendor Vendor { get; set; } = null!;
+    public Currency Currency { get; set; } = null!;
     public PurchaseOrder? PurchaseOrder { get; set; }
     public ICollection<VendorBillLine> Lines { get; set; } = [];
     public ICollection<VendorPaymentApplication> PaymentApplications { get; set; } = [];

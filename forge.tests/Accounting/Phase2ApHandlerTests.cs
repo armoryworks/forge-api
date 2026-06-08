@@ -73,7 +73,7 @@ public class Phase2ApHandlerTests
             new(db, new AccountDeterminationResolver(db), new FakeAllocator(), new SystemClock());
 
         public CreateVendorBillHandler CreateBill { get; } =
-            new(new VendorBillRepository(db), new VendorRepository(db));
+            new(new VendorBillRepository(db), new VendorRepository(db), db);
 
         public ApproveVendorBillHandler Approve { get; } =
             new(new VendorBillRepository(db),

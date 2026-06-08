@@ -38,7 +38,8 @@ public class VendorBillsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new CreateVendorBillCommand(
             request.VendorId, request.VendorInvoiceNumber, request.PurchaseOrderId,
-            request.BillDate, request.DueDate, request.TaxAmount, request.Notes, request.Lines));
+            request.BillDate, request.DueDate, request.TaxAmount, request.Notes, request.Lines,
+            CurrencyId: request.CurrencyId, FxRate: request.FxRate));
         return CreatedAtAction(nameof(GetVendorBill), new { id = result.Id }, result);
     }
 

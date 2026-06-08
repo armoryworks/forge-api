@@ -19,7 +19,11 @@ public record CreateInvoiceCommand(
     decimal TaxRate,
     string? Notes,
     List<CreateInvoiceLineModel> Lines,
-    string? CustomerPO = null) : IRequest<InvoiceListItemModel>;
+    string? CustomerPO = null,
+    // Multi-currency (Phase-4 FULLGL, additive). Null CurrencyId → the active book's functional currency;
+    // FxRate is the booking rate (txn→functional). Defaults keep single-currency callers byte-for-byte unchanged.
+    int? CurrencyId = null,
+    decimal FxRate = 1m) : IRequest<InvoiceListItemModel>;
 
 public class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
 {
@@ -30,6 +34,8 @@ public class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
         RuleFor(x => x.TaxRate).GreaterThanOrEqualTo(0).LessThan(1);
         RuleFor(x => x.DueDate).GreaterThanOrEqualTo(x => x.InvoiceDate);
         RuleFor(x => x.CustomerPO).MaximumLength(50);
+        // FX booking rate must be positive (a 0 or negative rate would zero/invert the functional amount).
+        RuleFor(x => x.FxRate).GreaterThan(0m);
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
             line.RuleFor(l => l.Description).NotEmpty();
@@ -68,10 +74,18 @@ public class CreateInvoiceHandler(
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
+        // Multi-currency (Phase-4 FULLGL, additive). Resolve the invoice currency to the caller-supplied
+        // CurrencyId, else the active book's functional currency (mirrors how the posting services load the
+        // book). When no book is seeded (single-currency installs that never enabled the GL), fall back to the
+        // seeded functional-currency default (1) — keeping the value functional and the row backward-compatible.
+        var currencyId = request.CurrencyId ?? await ResolveFunctionalCurrencyIdAsync(db, cancellationToken);
+
         var invoice = new Invoice
         {
             InvoiceNumber = invoiceNumber,
             CustomerId = request.CustomerId,
+            CurrencyId = currencyId,
+            FxRate = request.FxRate,
             SalesOrderId = request.SalesOrderId,
             ShipmentId = request.ShipmentId,
             InvoiceDate = request.InvoiceDate,
@@ -105,4 +119,15 @@ public class CreateInvoiceHandler(
             invoice.Status.ToString(), invoice.InvoiceDate, invoice.DueDate,
             total, 0, total, invoice.CreatedAt);
     }
+
+    /// <summary>
+    /// The active book's functional currency, or the seeded functional-currency default (1) when no book is
+    /// present (single-currency installs that never enabled the GL). Read-only — never tracked.
+    /// </summary>
+    private static async Task<int> ResolveFunctionalCurrencyIdAsync(AppDbContext db, CancellationToken ct)
+        => await db.Books.AsNoTracking()
+            .Where(b => b.IsActive)
+            .OrderBy(b => b.Id)
+            .Select(b => b.FunctionalCurrencyId)
+            .FirstOrDefaultAsync(ct) is int id and > 0 ? id : 1;
 }

@@ -28,6 +28,11 @@ public class VendorBillConfiguration : IEntityTypeConfiguration<VendorBill>
         builder.Property(e => e.BillNumber).HasMaxLength(30).IsRequired();
         builder.Property(e => e.VendorInvoiceNumber).HasMaxLength(60);
         builder.Property(e => e.TaxAmount).HasPrecision(18, 4);
+
+        // Multi-currency (Phase-4 FULLGL, additive) — mirrors InvoiceConfiguration. Column default 1 so
+        // existing rows backfill to the functional currency / unity rate (single-currency path unchanged).
+        builder.Property(e => e.CurrencyId).HasDefaultValue(1);
+        builder.Property(e => e.FxRate).HasPrecision(18, 8).HasDefaultValue(1m);
         builder.Property(e => e.Notes).HasMaxLength(2000);
         builder.Property(e => e.ExternalId).HasMaxLength(100);
         builder.Property(e => e.ExternalRef).HasMaxLength(100);
@@ -45,10 +50,19 @@ public class VendorBillConfiguration : IEntityTypeConfiguration<VendorBill>
         builder.HasIndex(e => e.Status).HasDatabaseName("ix_vendor_bills_status");
         builder.HasIndex(e => e.PurchaseOrderId).HasDatabaseName("ix_vendor_bills_po");
 
+        builder.HasIndex(e => e.CurrencyId).HasDatabaseName("ix_vendor_bills_currency");
+
         builder.HasOne(e => e.Vendor)
             .WithMany()
             .HasForeignKey(e => e.VendorId)
             .HasConstraintName("fk_vendor_bills_vendor")
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // FK to currencies (mirrors Book.FunctionalCurrency — Restrict, no inverse nav).
+        builder.HasOne(e => e.Currency)
+            .WithMany()
+            .HasForeignKey(e => e.CurrencyId)
+            .HasConstraintName("fk_vendor_bills_currency")
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(e => e.PurchaseOrder)

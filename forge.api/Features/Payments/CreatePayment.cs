@@ -47,6 +47,9 @@ public class CreatePaymentValidator : AbstractValidator<CreatePaymentCommand>
             {
                 app.RuleFor(a => a.InvoiceId).GreaterThan(0);
                 app.RuleFor(a => a.Amount).GreaterThan(0);
+                // Settlement FX rate must be positive (a 0 or negative rate would zero/invert the functional
+                // cash amount, breaking the realized-FX plug). Default 1 satisfies this for single-currency.
+                app.RuleFor(a => a.SettlementFxRate).GreaterThan(0m);
             });
         });
     }
@@ -129,6 +132,7 @@ public class CreatePaymentHandler(
                 {
                     InvoiceId = app.InvoiceId,
                     Amount = app.Amount,
+                    SettlementFxRate = app.SettlementFxRate,
                 });
 
                 appliedTotal += app.Amount;

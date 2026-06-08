@@ -14,4 +14,9 @@ public record CreateVendorPaymentRequestModel(
     List<CreateVendorPaymentApplicationModel>? Applications);
 
 /// <summary>Links part of a vendor payment to a specific vendor bill.</summary>
-public record CreateVendorPaymentApplicationModel(int VendorBillId, decimal Amount);
+/// <remarks>
+/// <c>SettlementFxRate</c> (txn→functional, default 1) is the rate in effect when this payment settled the
+/// bill; the cash-disbursement posting realizes FX vs the bill's booking rate. Default keeps single-currency
+/// settlements unchanged.
+/// </remarks>
+public record CreateVendorPaymentApplicationModel(int VendorBillId, decimal Amount, decimal SettlementFxRate = 1m);
