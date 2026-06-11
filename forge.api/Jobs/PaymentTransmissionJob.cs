@@ -280,7 +280,13 @@ public class PaymentTransmissionJob(
                 ],
             };
 
-            await postingEngine.PostAsync(request, transmission.CreatedByUserId ?? 0, ct);
+            // Hangfire context carries no user principal; the SoD boundary fail-safe-denies without one.
+            // Enter the explicit system-posting scope (§5.7 carve-out) so this trusted, idempotent
+            // settlement entry is authorized — and logged — as the system principal.
+            using (GlSystemPostingScope.Enter())
+            {
+                await postingEngine.PostAsync(request, transmission.CreatedByUserId ?? 0, ct);
+            }
 
             logger.LogInformation(
                 "PaymentTransmissionJob: settlement posted for transmission {Id} ({Amount} in transit cleared)",

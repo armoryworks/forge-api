@@ -112,4 +112,21 @@ public class GlSegregationOfDutiesTests
         authorizer.Invoking(a => a.EnsureAuthorized(GlCapability.ReverseJournalEntry))
             .Should().Throw<GlAuthorizationException>();
     }
+
+    [Fact]
+    public void Authorizer_SystemPostingScope_AuthorizesWithoutPrincipal_AndDoesNotLeak()
+    {
+        // §5.7 system carve-out: a trusted background job (no principal) enters the explicit scope —
+        // authorized inside it, fail-safe-denied again the moment it exits.
+        var authorizer = AuthorizerFor(NoContext());
+
+        using (GlSystemPostingScope.Enter())
+        {
+            authorizer.Invoking(a => a.EnsureAuthorized(GlCapability.PostJournalEntry))
+                .Should().NotThrow();
+        }
+
+        authorizer.Invoking(a => a.EnsureAuthorized(GlCapability.PostJournalEntry))
+            .Should().Throw<GlAuthorizationException>("the scope must not leak past its dispose");
+    }
 }
