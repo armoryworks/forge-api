@@ -39,6 +39,7 @@ public class Phase2ApPostingServiceTests
     private const int PpvId = 211;    // STAGE D — purchase price variance
     private const int FxGainId = 212; // Phase-4 — realized FX gain
     private const int FxLossId = 213; // Phase-4 — realized FX loss
+    private const int CashInTransitId = 214; // §7 BANK-002 — electronic-disbursement clearing
 
     private sealed class FakeAllocator : IAcctNumberSequenceAllocator
     {
@@ -101,7 +102,8 @@ public class Phase2ApPostingServiceTests
             new GlAccount { Id = GrniId, BookId = BookId, AccountNumber = "21000", Name = "GRNI", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true },
             new GlAccount { Id = PpvId, BookId = BookId, AccountNumber = "51000", Name = "Purchase Price Variance", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
             new GlAccount { Id = FxGainId, BookId = BookId, AccountNumber = "90000", Name = "Foreign Exchange Gain", AccountType = AccountType.Income, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true },
-            new GlAccount { Id = FxLossId, BookId = BookId, AccountNumber = "90100", Name = "Foreign Exchange Loss", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true });
+            new GlAccount { Id = FxLossId, BookId = BookId, AccountNumber = "90100", Name = "Foreign Exchange Loss", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
+            new GlAccount { Id = CashInTransitId, BookId = BookId, AccountNumber = "10150", Name = "Cash in Transit", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true });
 
         db.Set<AccountDeterminationRule>().AddRange(
             new AccountDeterminationRule { BookId = BookId, Key = "AP_CONTROL", GlAccountId = ApControlId },
@@ -111,7 +113,8 @@ public class Phase2ApPostingServiceTests
             new AccountDeterminationRule { BookId = BookId, Key = "GRNI", GlAccountId = GrniId },
             new AccountDeterminationRule { BookId = BookId, Key = "PURCHASE_PRICE_VARIANCE", GlAccountId = PpvId },
             new AccountDeterminationRule { BookId = BookId, Key = "FX_GAIN", GlAccountId = FxGainId },
-            new AccountDeterminationRule { BookId = BookId, Key = "FX_LOSS", GlAccountId = FxLossId });
+            new AccountDeterminationRule { BookId = BookId, Key = "FX_LOSS", GlAccountId = FxLossId },
+            new AccountDeterminationRule { BookId = BookId, Key = "CASH_IN_TRANSIT", GlAccountId = CashInTransitId });
 
         await db.SaveChangesAsync();
         return db;
@@ -154,13 +157,13 @@ public class Phase2ApPostingServiceTests
 
     private static async Task<VendorPayment> AddPaymentAsync(
         AppDbContext db, int vendorId, decimal amount, int? billId = null, decimal? appliedAmount = null,
-        decimal settlementFxRate = 1m)
+        decimal settlementFxRate = 1m, PaymentMethod method = PaymentMethod.Check)
     {
         var payment = new VendorPayment
         {
             PaymentNumber = "VPMT-1001",
             VendorId = vendorId,
-            Method = PaymentMethod.Check,
+            Method = method,
             Amount = amount,
             PaymentDate = new DateTimeOffset(2026, 1, 20, 0, 0, 0, TimeSpan.Zero),
         };
@@ -602,6 +605,70 @@ public class Phase2ApPostingServiceTests
         entry.Lines.Single(l => l.GlAccountId == ApControlId).Debit.Should().Be(100m);
         entry.Lines.Single(l => l.GlAccountId == PrepaidExpenseId).Debit.Should().Be(50m);
         entry.Lines.Single(l => l.GlAccountId == CashId).Credit.Should().Be(150m);
+        entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+    }
+
+    // ─────────────────── VendorPayment — cash-in-transit clearing (§7 BANK-002) ───────────────────
+
+    [Fact]
+    public async Task Payment_Electronic_CreditsCashInTransit_NotCash()
+    {
+        // BankTransfer = electronic → origination only records the INTENT to move money: the cash credit
+        // goes to CASH_IN_TRANSIT; CASH is untouched until the bank transmission settles.
+        using var db = await SeedAsync();
+        var vendorId = await AddVendorAsync(db);
+        var bill = await AddBillAsync(db, vendorId);
+        var payment = await AddPaymentAsync(
+            db, vendorId, amount: 100m, billId: bill.Id, appliedAmount: 100m, method: PaymentMethod.BankTransfer);
+
+        await PaymentService(db, fullGlOn: true).PostVendorPaymentCreatedAsync(payment.Id, createdByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == ApControlId).Debit.Should().Be(100m);
+        entry.Lines.Single(l => l.GlAccountId == CashInTransitId).Credit.Should().Be(100m);
+        entry.Lines.Should().NotContain(l => l.GlAccountId == CashId);
+        entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+    }
+
+    [Fact]
+    public async Task Payment_Wire_Overpayment_AdvanceAndCitBothPost()
+    {
+        // Wire is electronic too: Dr AP 100 / Dr PREPAID 50 / Cr CASH_IN_TRANSIT 150.
+        using var db = await SeedAsync();
+        var vendorId = await AddVendorAsync(db);
+        var bill = await AddBillAsync(db, vendorId);
+        var payment = await AddPaymentAsync(
+            db, vendorId, amount: 150m, billId: bill.Id, appliedAmount: 100m, method: PaymentMethod.Wire);
+
+        await PaymentService(db, fullGlOn: true).PostVendorPaymentCreatedAsync(payment.Id, createdByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == ApControlId).Debit.Should().Be(100m);
+        entry.Lines.Single(l => l.GlAccountId == PrepaidExpenseId).Debit.Should().Be(50m);
+        entry.Lines.Single(l => l.GlAccountId == CashInTransitId).Credit.Should().Be(150m);
+        entry.Lines.Should().NotContain(l => l.GlAccountId == CashId);
+        entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+    }
+
+    [Fact]
+    public async Task Payment_Electronic_RealizedFxGain_BalancesWithCit()
+    {
+        // EUR bill foreign 100 booked @1.10 → AP carrying 110; settled @1.05 → cash 105, electronically.
+        // Dr AP 110 / Cr CASH_IN_TRANSIT 105 / Cr FX_GAIN 5 — the FX plug is unchanged by the CIT routing.
+        using var db = await SeedAsync();
+        var vendorId = await AddVendorAsync(db);
+        var bill = await AddBillAsync(db, vendorId, currencyId: EurId, fxRate: 1.10m);
+        var payment = await AddPaymentAsync(
+            db, vendorId, amount: 105m, billId: bill.Id, appliedAmount: 100m, settlementFxRate: 1.05m,
+            method: PaymentMethod.BankTransfer);
+
+        await PaymentService(db, fullGlOn: true).PostVendorPaymentCreatedAsync(payment.Id, createdByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == ApControlId).Debit.Should().Be(110m);
+        entry.Lines.Single(l => l.GlAccountId == CashInTransitId).Credit.Should().Be(105m);
+        entry.Lines.Single(l => l.GlAccountId == FxGainId).Credit.Should().Be(5m);
+        entry.Lines.Should().NotContain(l => l.GlAccountId == CashId);
         entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
     }
 

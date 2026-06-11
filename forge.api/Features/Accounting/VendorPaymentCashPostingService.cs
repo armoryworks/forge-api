@@ -7,6 +7,7 @@ using Forge.Api.Capabilities;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
+using Forge.Core.Enums;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
@@ -24,7 +25,11 @@ namespace Forge.Api.Features.Accounting;
 ///         (party = vendor, §5.2).</item>
 ///   <item><b>Dr</b> <c>PREPAID_EXPENSE</c> for any <i>unapplied</i> amount — a vendor advance / prepayment
 ///         carried as an asset until applied to a bill (the asset-side mirror of customer deposits).</item>
-///   <item><b>Cr</b> <c>CASH</c> for the full amount disbursed.</item>
+///   <item><b>Cr</b> <c>CASH</c> for the full amount disbursed — or <b>Cr</b> <c>CASH_IN_TRANSIT</c> for
+///         electronic methods (<see cref="PaymentMethods.IsElectronic"/>: BankTransfer/Wire), which only
+///         record the <i>intent</i> to move money (architecture.md §7 BANK-002). The in-transit balance is
+///         cleared (Dr CASH_IN_TRANSIT / Cr CASH) by the settlement entry the
+///         <c>PaymentTransmissionJob</c> posts when the bank submission succeeds.</item>
 /// </list>
 /// The entry balances because <c>Amount == applied + unapplied</c>.
 ///
@@ -51,6 +56,9 @@ public sealed class VendorPaymentCashPostingService(
 
     private const string KeyApControl = "AP_CONTROL";
     private const string KeyCash = "CASH";
+    // §7 BANK-002 clearing: electronic disbursements credit CASH_IN_TRANSIT at origination (intent);
+    // the transmission-success settlement entry moves it to CASH (confirmed).
+    private const string KeyCashInTransit = "CASH_IN_TRANSIT";
     // Unapplied vendor cash = an advance/prepayment to the vendor (asset). Ratify per PHASE2_STATUS.
     private const string KeyVendorAdvance = "PREPAID_EXPENSE";
     // Realized FX (Phase-4): the difference between the AP carrying value (booking rate) and the cash paid
@@ -161,13 +169,15 @@ public sealed class VendorPaymentCashPostingService(
             });
         }
 
-        // Cr Cash = Σ cash_func (+ unapplied advance at the payment's rate).
+        // Cr Cash = Σ cash_func (+ unapplied advance at the payment's rate). Electronic methods credit the
+        // CASH_IN_TRANSIT clearing account instead of CASH — origination records the INTENT to move money;
+        // the confirmed settlement (Dr CIT / Cr CASH) posts when the bank transmission succeeds (§7 BANK-002).
         var cashCredit = cashFromApplications + unapplied;
         if (cashCredit > 0m)
         {
             lines.Add(new PostingLine
             {
-                AccountKey = KeyCash,
+                AccountKey = PaymentMethods.IsElectronic(payment.Method) ? KeyCashInTransit : KeyCash,
                 Credit = cashCredit,
                 Description = $"Cash disbursement — vendor payment {payment.PaymentNumber}",
             });

@@ -201,7 +201,7 @@ public class CreateVendorPaymentHandler(
         // transmission for electronic methods. Runs OUTSIDE the payment transaction — the payment is
         // already a fact; a transmission hiccup is handled by the transmission's own retry cycle.
         PaymentTransmission? transmission = null;
-        if (method is PaymentMethod.BankTransfer or PaymentMethod.Wire)
+        if (PaymentMethods.IsElectronic(method))
         {
             transmission = new PaymentTransmission
             {

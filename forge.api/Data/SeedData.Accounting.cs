@@ -86,6 +86,10 @@ public static partial class SeedData
         {
             // ── Assets (1xxxx) ──────────────────────────────────────────────
             ("10100", "Cash — Operating",            AccountType.Asset,     NormalBalance.Debit,  false, null,                         "CASH"),
+            // §7 BANK-002: clearing account decoupling payment INTENT (origination) from CONFIRMED
+            // settlement. Electronic disbursements credit this instead of CASH; the transmission-success
+            // settlement entry (Dr CASH_IN_TRANSIT / Cr CASH) clears it.
+            ("10150", "Cash in Transit",             AccountType.Asset,     NormalBalance.Debit,  false, null,                         "CASH_IN_TRANSIT"),
             ("11000", "Accounts Receivable",         AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.AR,        "AR_CONTROL"),
             ("12000", "Prepaid Expenses",            AccountType.Asset,     NormalBalance.Debit,  false, null,                         "PREPAID_EXPENSE"),
             ("13100", "Inventory — Raw Materials",   AccountType.Asset,     NormalBalance.Debit,  true,  ControlAccountType.Inventory, "INVENTORY_RAW"),
