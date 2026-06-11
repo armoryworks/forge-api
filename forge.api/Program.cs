@@ -1745,6 +1745,10 @@ try
         "lead-followup-reminders",
         job => job.RunAsync(CancellationToken.None),
         Cron.Daily(7)); // 7 AM UTC daily — pairs with the existing daily-digest cadence
+    RecurringJob.AddOrUpdate<PaymentTransmissionSweepJob>(
+        "payment-transmission-sweep",
+        job => job.SweepAsync(CancellationToken.None),
+        "*/5 * * * *"); // Every 5 minutes — re-enqueues stuck Queued/Retrying bank transmissions
 
     // Accounting sync jobs
     RecurringJob.AddOrUpdate<CustomerSyncJob>(
