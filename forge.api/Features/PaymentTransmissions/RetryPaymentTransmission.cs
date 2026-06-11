@@ -45,6 +45,17 @@ public class RetryPaymentTransmissionHandler(
                 $"Payment transmission {transmission.Id} is {transmission.Status}; "
                 + "only Failed or Cancelled transmissions can be retried");
 
+        // A voided (soft-deleted) payment must never move money — re-queueing its transmission would
+        // resubmit a disbursement whose GL/operational record has been reversed.
+        if (transmission.SourceType == "VendorPayment")
+        {
+            var voided = await db.VendorPayments.IgnoreQueryFilters()
+                .AnyAsync(p => p.Id == transmission.SourceId && p.DeletedAt != null, cancellationToken);
+            if (voided)
+                throw new InvalidOperationException(
+                    $"Payment transmission {transmission.Id} cannot be retried: the payment has been voided");
+        }
+
         transmission.Status = PaymentTransmissionStatus.Queued;
         transmission.AttemptCount = 0;
         transmission.NextAttemptAt = null;

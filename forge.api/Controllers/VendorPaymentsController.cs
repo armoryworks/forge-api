@@ -39,4 +39,16 @@ public class VendorPaymentsController(IMediator mediator) : ControllerBase
             request.ReferenceNumber, request.Notes, request.Applications));
         return CreatedAtAction(nameof(GetVendorPayment), new { id = result.Id }, result);
     }
+
+    /// <summary>
+    /// Voids a vendor payment: drops its bill applications (bills reopen), reverses the cash-disbursement
+    /// journal (FULLGL-respecting), cancels any pending bank transmission, and soft-deletes the payment.
+    /// Rejected (409) once the latest transmission has Succeeded — money already moved.
+    /// </summary>
+    [HttpPost("{id:int}/void")]
+    public async Task<IActionResult> VoidVendorPayment(int id, VoidPaymentRequestModel request)
+    {
+        await mediator.Send(new VoidVendorPaymentCommand(id, request.Reason));
+        return NoContent();
+    }
 }

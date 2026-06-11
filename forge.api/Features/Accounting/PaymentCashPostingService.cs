@@ -55,6 +55,15 @@ public interface IPaymentCashPostingService
     /// <param name="paymentId">The payment that was created (must already be persisted with its Id).</param>
     /// <param name="createdByUserId">Server-trusted actor (recorded as PostedBy + audit actor).</param>
     Task PostPaymentCreatedAsync(int paymentId, int createdByUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reverses the posted cash-receipt journal for a payment being voided (equal-and-opposite entry —
+    /// including any realized-FX plug lines — original flipped to Reversed). A no-op while
+    /// CAP-ACCT-FULLGL is off, when nothing is posted for the payment (created while the capability was
+    /// off), or when the origination is already reversed.
+    /// </summary>
+    Task ReversePaymentCreatedAsync(
+        int paymentId, string reason, int reversedByUserId, CancellationToken ct = default);
 }
 
 /// <inheritdoc />
@@ -62,7 +71,10 @@ public sealed class PaymentCashPostingService(
     AppDbContext db,
     IPostingEngine postingEngine,
     ICapabilitySnapshotProvider capabilities,
-    ISystemAuditWriter? auditWriter = null) : IPaymentCashPostingService
+    ISystemAuditWriter? auditWriter = null,
+    // Optional / null-default so existing construction sites keep compiling; only the void-reversal
+    // path needs a clock (the reversal posts on the void date). Falls back to system time when absent.
+    IClock? clock = null) : IPaymentCashPostingService
 {
     // The capability that gates the whole GL. Must match CapabilityCatalog.
     private const string FullGlCapability = "CAP-ACCT-FULLGL";
@@ -92,6 +104,36 @@ public sealed class PaymentCashPostingService(
         // visibly (inline model, §2) — so once past the dark gate we let
         // PostingException propagate.
         await PostCoreAsync(paymentId, createdByUserId, ct);
+    }
+
+    public async Task ReversePaymentCreatedAsync(
+        int paymentId, string reason, int reversedByUserId, CancellationToken ct = default)
+    {
+        // ── GATE (dark by default) — same self-gating as the sibling posting methods ──
+        if (!capabilities.IsEnabled(FullGlCapability))
+            return;
+
+        var book = await db.Books.AsNoTracking()
+            .Where(b => b.IsActive)
+            .OrderBy(b => b.Id)
+            .FirstOrDefaultAsync(ct);
+        if (book is null)
+            return; // No GL configured — nothing was ever posted for this payment.
+
+        // The cash-receipt origination entry, located by its idempotency key (§5.2 key shape). Skip when
+        // absent (payment recorded while FULLGL was off) or already reversed.
+        var idempotencyKey = $"{JournalSource.AR}:Payment:{paymentId}:PAYMENT";
+        var entry = await db.JournalEntries.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(e => e.BookId == book.Id && e.IdempotencyKey == idempotencyKey, ct);
+
+        if (entry is null || entry.Status != JournalEntryStatus.Posted || entry.ReversedByEntryId is not null)
+            return;
+
+        // Reverse on the VOID date (today) — the original period may differ; the engine guards closed
+        // periods. ReverseAsync flips the WHOLE entry, including any realized-FX plug lines.
+        var reversalDate = DateOnly.FromDateTime((clock?.UtcNow ?? DateTimeOffset.UtcNow).UtcDateTime);
+        await postingEngine.ReverseAsync(
+            entry.Id, reversalDate, $"Payment {paymentId} voided: {reason}", reversedByUserId, ct);
     }
 
     private async Task PostCoreAsync(int paymentId, int createdByUserId, CancellationToken ct)
