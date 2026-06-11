@@ -35,7 +35,10 @@ public class VendorPaymentRepository(AppDbContext db) : IVendorPaymentRepository
         => db.VendorPayments.FirstOrDefaultAsync(p => p.Id == id, ct);
 
     public Task<VendorPayment?> FindWithDetailsAsync(int id, CancellationToken ct)
-        => db.VendorPayments.Include(p => p.Applications).FirstOrDefaultAsync(p => p.Id == id, ct);
+        => db.VendorPayments
+            // VendorBill nav supplies BillNumber for the payment-detail application breakdown.
+            .Include(p => p.Applications).ThenInclude(a => a.VendorBill)
+            .FirstOrDefaultAsync(p => p.Id == id, ct);
 
     public async Task<string> GenerateNextVendorPaymentNumberAsync(CancellationToken ct)
     {

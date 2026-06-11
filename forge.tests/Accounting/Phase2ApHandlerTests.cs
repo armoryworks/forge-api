@@ -596,4 +596,64 @@ public class Phase2ApHandlerTests
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.ErrorMessage.Contains("greater than zero"));
     }
+
+    // ─────────────────── Detail read models (UI backing) ───────────────────
+
+    [Fact]
+    public async Task GetVendorBillById_ReturnsLines_WithPoLinkageAndCurrency()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var h = new Harness(db, fullGlOn: false);
+        var (poId, poLineId) = await AddReceivedPoLineAsync(db, vendorId, poUnitPrice: 10m, receivedQty: 5m);
+        var created = await h.CreateBill.Handle(PoBillCmd(vendorId, poId, poLineId, qty: 3m, billUnitPrice: 10m), CancellationToken.None);
+
+        var detail = await new GetVendorBillByIdHandler(new VendorBillRepository(db), new VendorRepository(db))
+            .Handle(new GetVendorBillByIdQuery(created.Id), CancellationToken.None);
+
+        detail.VendorName.Should().Be("Delta Supply");
+        detail.PurchaseOrderId.Should().Be(poId);
+        detail.CurrencyId.Should().Be(UsdId);
+        detail.FxRate.Should().Be(1m);
+        detail.Lines.Should().HaveCount(1);
+        detail.Lines[0].PurchaseOrderLineId.Should().Be(poLineId);
+        detail.Lines[0].Quantity.Should().Be(3m);
+        detail.Lines[0].LineTotal.Should().Be(30m);
+    }
+
+    [Fact]
+    public async Task GetVendorPaymentById_ReturnsApplications_WithBillNumbers()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var h = new Harness(db, fullGlOn: false);
+        var bill = await h.CreateBill.Handle(BillCmd(vendorId), CancellationToken.None);
+        await h.Approve.Handle(new ApproveVendorBillCommand(bill.Id), CancellationToken.None);
+        var payment = await h.CreatePayment.Handle(
+            new CreateVendorPaymentCommand(vendorId, "Check", 200m,
+                new DateTimeOffset(2026, 1, 20, 0, 0, 0, TimeSpan.Zero), "REF-D", null,
+                [new CreateVendorPaymentApplicationModel(bill.Id, 200m)]),
+            CancellationToken.None);
+
+        var detail = await new GetVendorPaymentByIdHandler(new VendorPaymentRepository(db), new VendorRepository(db))
+            .Handle(new GetVendorPaymentByIdQuery(payment.Id), CancellationToken.None);
+
+        detail.Applications.Should().HaveCount(1);
+        detail.Applications[0].VendorBillId.Should().Be(bill.Id);
+        detail.Applications[0].BillNumber.Should().Be(bill.BillNumber);
+        detail.Applications[0].Amount.Should().Be(200m);
+        detail.Applications[0].SettlementFxRate.Should().Be(1m);
+    }
+
+    [Fact]
+    public async Task PurchaseOrderLine_UnbilledReceivedQuantity_SurfacesReceivedMinusBilled()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var h = new Harness(db, fullGlOn: false);
+        var (poId, poLineId) = await AddReceivedPoLineAsync(db, vendorId, poUnitPrice: 10m, receivedQty: 5m);
+        var bill = await h.CreateBill.Handle(PoBillCmd(vendorId, poId, poLineId, qty: 3m, billUnitPrice: 10m), CancellationToken.None);
+        await h.Approve.Handle(new ApproveVendorBillCommand(bill.Id), CancellationToken.None);
+
+        // 5 received − 3 billed = 2 still billable; this is what the bill-against-PO form caps each line at.
+        (await db.Set<PurchaseOrderLine>().SingleAsync(l => l.Id == poLineId))
+            .UnbilledReceivedQuantity.Should().Be(2m);
+    }
 }

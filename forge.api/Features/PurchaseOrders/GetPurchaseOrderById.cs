@@ -51,6 +51,7 @@ public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo)
                 l.ReceivedQuantity,
                 l.RemainingQuantity,
                 l.CancelledShortCloseQuantity,
+                l.UnbilledReceivedQuantity,
                 l.UnitPrice,
                 l.OrderedQuantity * l.UnitPrice,
                 l.Notes,

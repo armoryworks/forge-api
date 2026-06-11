@@ -30,7 +30,7 @@ public class VendorBillsController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new GetVendorBillsQuery(vendorId, status), ct));
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<VendorBillListItemModel>> GetVendorBill(int id)
+    public async Task<ActionResult<VendorBillDetailModel>> GetVendorBill(int id)
         => Ok(await mediator.Send(new GetVendorBillByIdQuery(id)));
 
     [HttpPost]

@@ -16,21 +16,28 @@ public class GetVendorBillsHandler(IVendorBillRepository repo)
         => repo.GetAllAsync(request.VendorId, request.Status, cancellationToken);
 }
 
-public record GetVendorBillByIdQuery(int Id) : IRequest<VendorBillListItemModel>;
+public record GetVendorBillByIdQuery(int Id) : IRequest<VendorBillDetailModel>;
 
 public class GetVendorBillByIdHandler(IVendorBillRepository repo, IVendorRepository vendorRepo)
-    : IRequestHandler<GetVendorBillByIdQuery, VendorBillListItemModel>
+    : IRequestHandler<GetVendorBillByIdQuery, VendorBillDetailModel>
 {
-    public async Task<VendorBillListItemModel> Handle(GetVendorBillByIdQuery request, CancellationToken cancellationToken)
+    public async Task<VendorBillDetailModel> Handle(GetVendorBillByIdQuery request, CancellationToken cancellationToken)
     {
         var bill = await repo.FindWithDetailsAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Vendor bill {request.Id} not found");
 
         var vendor = await vendorRepo.FindAsync(bill.VendorId, cancellationToken);
 
-        return new VendorBillListItemModel(
+        return new VendorBillDetailModel(
             bill.Id, bill.BillNumber, bill.VendorId, vendor?.CompanyName ?? $"Vendor {bill.VendorId}",
-            bill.VendorInvoiceNumber, bill.Status.ToString(), bill.BillDate, bill.DueDate,
-            bill.Total, bill.AmountPaid, bill.BalanceDue, bill.CreatedAt);
+            bill.VendorInvoiceNumber, bill.PurchaseOrderId, bill.Status.ToString(), bill.BillDate, bill.DueDate,
+            bill.Subtotal, bill.TaxAmount, bill.Total, bill.AmountPaid, bill.BalanceDue,
+            bill.CurrencyId, bill.FxRate, bill.Notes, bill.CreatedAt,
+            bill.Lines
+                .OrderBy(l => l.LineNumber)
+                .Select(l => new VendorBillLineDetailModel(
+                    l.Id, l.LineNumber, l.PartId, l.PurchaseOrderLineId,
+                    l.Description, l.Quantity, l.UnitPrice, l.LineTotal, l.AccountDeterminationKey))
+                .ToList());
     }
 }

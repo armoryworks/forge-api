@@ -28,7 +28,7 @@ public class VendorPaymentsController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new GetVendorPaymentsQuery(vendorId), ct));
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<VendorPaymentListItemModel>> GetVendorPayment(int id)
+    public async Task<ActionResult<VendorPaymentDetailModel>> GetVendorPayment(int id)
         => Ok(await mediator.Send(new GetVendorPaymentByIdQuery(id)));
 
     [HttpPost]

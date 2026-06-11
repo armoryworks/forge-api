@@ -15,21 +15,29 @@ public class GetVendorPaymentsHandler(IVendorPaymentRepository repo)
         => repo.GetAllAsync(request.VendorId, cancellationToken);
 }
 
-public record GetVendorPaymentByIdQuery(int Id) : IRequest<VendorPaymentListItemModel>;
+public record GetVendorPaymentByIdQuery(int Id) : IRequest<VendorPaymentDetailModel>;
 
 public class GetVendorPaymentByIdHandler(IVendorPaymentRepository repo, IVendorRepository vendorRepo)
-    : IRequestHandler<GetVendorPaymentByIdQuery, VendorPaymentListItemModel>
+    : IRequestHandler<GetVendorPaymentByIdQuery, VendorPaymentDetailModel>
 {
-    public async Task<VendorPaymentListItemModel> Handle(GetVendorPaymentByIdQuery request, CancellationToken cancellationToken)
+    public async Task<VendorPaymentDetailModel> Handle(GetVendorPaymentByIdQuery request, CancellationToken cancellationToken)
     {
         var payment = await repo.FindWithDetailsAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Vendor payment {request.Id} not found");
 
         var vendor = await vendorRepo.FindAsync(payment.VendorId, cancellationToken);
 
-        return new VendorPaymentListItemModel(
+        return new VendorPaymentDetailModel(
             payment.Id, payment.PaymentNumber, payment.VendorId, vendor?.CompanyName ?? $"Vendor {payment.VendorId}",
             payment.Method.ToString(), payment.Amount, payment.AppliedAmount, payment.UnappliedAmount,
-            payment.PaymentDate, payment.ReferenceNumber, payment.CreatedAt);
+            payment.PaymentDate, payment.ReferenceNumber, payment.Notes, payment.CreatedAt,
+            payment.Applications
+                .OrderBy(a => a.Id)
+                .Select(a => new VendorPaymentApplicationDetailModel(
+                    a.VendorBillId,
+                    a.VendorBill?.BillNumber ?? $"Bill {a.VendorBillId}",
+                    a.Amount,
+                    a.SettlementFxRate))
+                .ToList());
     }
 }
