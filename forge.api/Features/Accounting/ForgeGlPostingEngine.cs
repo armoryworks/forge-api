@@ -350,8 +350,12 @@ public sealed class ForgeGlPostingEngine(
             reversalOfEntryId: original.Id);
 
         // --- The sole permitted mutation on a Posted row: Posted→Reversed + link. ---
+        // Link via the NAVIGATION, not the Id value: the reversal is still Added here, so on a real
+        // store-generated-key provider (Npgsql) `reversal.Id` is 0 until SaveChanges — assigning it directly
+        // wrote 0 into reversed_by_entry_id and violated the FK (23503). EF fixes the navigation up to the
+        // real key during the insert. (InMemory assigns keys at Add, which is why tests never caught this.)
         original.Status = JournalEntryStatus.Reversed;
-        original.ReversedByEntryId = reversal.Id;
+        original.ReversedByEntry = reversal;
 
         await db.SaveChangesAsync(ct);
         return reversal;
