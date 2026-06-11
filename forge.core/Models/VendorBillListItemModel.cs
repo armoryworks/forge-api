@@ -3,6 +3,8 @@ namespace Forge.Core.Models;
 /// <summary>
 /// ⚡ ACCOUNTING BOUNDARY — list/detail projection of a <c>VendorBill</c> (AP counterpart of
 /// <c>InvoiceListItemModel</c>). Money fields are the computed bill totals.
+/// <paramref name="HasFailedTransmission"/> is true when any payment applied to this bill has a LATEST
+/// bank transmission in Failed status — the UI flags the row for manual reprocessing.
 /// </summary>
 public record VendorBillListItemModel(
     int Id,
@@ -16,4 +18,5 @@ public record VendorBillListItemModel(
     decimal Total,
     decimal AmountPaid,
     decimal BalanceDue,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    bool HasFailedTransmission = false);

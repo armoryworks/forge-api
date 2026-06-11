@@ -306,3 +306,20 @@ getReconciliationStatement(account, date) -> Statement
 - The §7 posting map encoded as `AccountDeterminationRule` rows (vs hard-coded), so the CoA mapping is data-driven.
 - Per-source idempotency key persisted + unique-indexed (invariant #6).
 - ~~UI i18n: the Phase-1 forge-ui components currently render hardcoded strings — externalize to `en.json`/`es.json` before the suite leaves "dark" status.~~ **DONE** (2026-06-08): the 10 accounting screens are internationalized — top-level `accounting.*` section (108 keys) in `en.json` + `es.json` at 1:1 parity; server-supplied dynamic labels and table aria-labels intentionally left.
+
+### `BANK-002` (partial) — Payment transmission pipeline (added 2026-06-11)
+
+The retry/backoff/triage half of `BANK-002` is realized on this branch; NACHA file generation and the real
+bank submission channel remain open per §10.1.
+
+| Piece | Realized by |
+|-------|-------------|
+| Transmission record | `forge.core/Entities/PaymentTransmission.cs` — generic polymorphic source (`SourceType`/`SourceId`, mirrors ActivityLog/StatusEntry), status `Queued → Retrying → Succeeded \| Failed \| Cancelled`, attempt/backoff/error/bank-ref columns. Migration `AddPaymentTransmission`. |
+| Bank channel seam | `IBankPaymentService` (`forge.core/Interfaces`) + `MockBankPaymentService` (`forge.integrations`) — ALWAYS mock until the Frontier CU channel is decided (§10.1); a reference number containing `FAIL` forces the failure path deterministically. |
+| Retry engine | `forge.api/Jobs/PaymentTransmissionJob.cs` — 1 initial attempt + 4 retries, exponential backoff ×4 (1/4/16/64 min) via Hangfire `Schedule`; all times from `IClock`. |
+| Triage | Final failure → status `Failed`, `transmission-failed` activity row, **critical AppNotification to the payment creator**; `GET /api/v1/payment-transmissions?status=&sourceType=` lists the queue and `POST /api/v1/payment-transmissions/{id}/retry` re-queues with a fresh 5-attempt cycle (AttemptCount reset to 0 — deliberate: a manual reprocess earns a full cycle; history stays on the activity log). |
+| Origination hook | `CreateVendorPayment` queues a transmission for `BankTransfer`/`Wire` methods after the payment (and posting) commits. |
+| UI surfacing | Latest-transmission fields on `VendorPaymentListItemModel`/`VendorPaymentDetailModel`, `HasFailedTransmission` on `VendorBillListItemModel`/`VendorBillDetailModel`; `PaymentTransmission` added to `GlChangeBroadcastInterceptor`'s watch list so status changes push `accountingChanged`. |
+
+Controls note: the §"Controls (mandatory)" segregation (create ≠ release) and the human-approval step before
+submission are NOT yet implemented — they belong to the real-channel work, not the mock pipeline.

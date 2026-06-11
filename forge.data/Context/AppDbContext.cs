@@ -148,6 +148,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<VendorBillLine> VendorBillLines => Set<VendorBillLine>();
     public DbSet<VendorPayment> VendorPayments => Set<VendorPayment>();
     public DbSet<VendorPaymentApplication> VendorPaymentApplications => Set<VendorPaymentApplication>();
+    // Electronic bank/ACH submission tracking (generic SourceType/SourceId, wired to VendorPayment today)
+    public DbSet<PaymentTransmission> PaymentTransmissions => Set<PaymentTransmission>();
 
     // Pricing
     public DbSet<PriceList> PriceLists => Set<PriceList>();

@@ -27,6 +27,9 @@ public class GetVendorPaymentByIdHandler(IVendorPaymentRepository repo, IVendorR
 
         var vendor = await vendorRepo.FindAsync(payment.VendorId, cancellationToken);
 
+        // Latest bank transmission (null for non-electronic payments) — single lookup, no N+1.
+        var transmission = await repo.FindLatestTransmissionAsync(payment.Id, cancellationToken);
+
         return new VendorPaymentDetailModel(
             payment.Id, payment.PaymentNumber, payment.VendorId, vendor?.CompanyName ?? $"Vendor {payment.VendorId}",
             payment.Method.ToString(), payment.Amount, payment.AppliedAmount, payment.UnappliedAmount,
@@ -38,6 +41,8 @@ public class GetVendorPaymentByIdHandler(IVendorPaymentRepository repo, IVendorR
                     a.VendorBill?.BillNumber ?? $"Bill {a.VendorBillId}",
                     a.Amount,
                     a.SettlementFxRate))
-                .ToList());
+                .ToList(),
+            transmission?.Id, transmission?.Status.ToString(), transmission?.AttemptCount ?? 0,
+            transmission?.LastError, transmission?.SubmissionRef, transmission?.NextAttemptAt);
     }
 }

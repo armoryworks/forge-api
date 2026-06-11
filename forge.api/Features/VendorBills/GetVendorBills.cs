@@ -28,6 +28,10 @@ public class GetVendorBillByIdHandler(IVendorBillRepository repo, IVendorReposit
 
         var vendor = await vendorRepo.FindAsync(bill.VendorId, cancellationToken);
 
+        // Failed-transmission flag over the bill's applied payments (single grouped lookup, no N+1).
+        var hasFailedTransmission = await repo.HasFailedTransmissionAsync(
+            bill.PaymentApplications.Select(a => a.VendorPaymentId).Distinct().ToList(), cancellationToken);
+
         return new VendorBillDetailModel(
             bill.Id, bill.BillNumber, bill.VendorId, vendor?.CompanyName ?? $"Vendor {bill.VendorId}",
             bill.VendorInvoiceNumber, bill.PurchaseOrderId, bill.Status.ToString(), bill.BillDate, bill.DueDate,
@@ -38,6 +42,7 @@ public class GetVendorBillByIdHandler(IVendorBillRepository repo, IVendorReposit
                 .Select(l => new VendorBillLineDetailModel(
                     l.Id, l.LineNumber, l.PartId, l.PurchaseOrderLineId,
                     l.Description, l.Quantity, l.UnitPrice, l.LineTotal, l.AccountDeterminationKey))
-                .ToList());
+                .ToList(),
+            hasFailedTransmission);
     }
 }

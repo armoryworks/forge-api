@@ -24,12 +24,33 @@ public class VendorPaymentRepository(AppDbContext db) : IVendorPaymentRepository
             .Where(v => vendorIds.Contains(v.Id))
             .ToDictionaryAsync(v => v.Id, v => v.CompanyName, ct);
 
-        return payments.Select(p => new VendorPaymentListItemModel(
-            p.Id, p.PaymentNumber, p.VendorId,
-            vendorNames.TryGetValue(p.VendorId, out var n) ? n : $"Vendor {p.VendorId}",
-            p.Method.ToString(), p.Amount, p.AppliedAmount, p.UnappliedAmount,
-            p.PaymentDate, p.ReferenceNumber, p.CreatedAt)).ToList();
+        // Latest bank transmission per payment in ONE pre-fetched dictionary (no N+1):
+        // ordered by Id desc, so the first row per source is the latest.
+        var paymentIds = payments.Select(p => p.Id).ToList();
+        var latestTransmissions = (await db.PaymentTransmissions.AsNoTracking()
+                .Where(t => t.SourceType == "VendorPayment" && paymentIds.Contains(t.SourceId))
+                .OrderByDescending(t => t.Id)
+                .ToListAsync(ct))
+            .GroupBy(t => t.SourceId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        return payments.Select(p =>
+        {
+            latestTransmissions.TryGetValue(p.Id, out var tx);
+            return new VendorPaymentListItemModel(
+                p.Id, p.PaymentNumber, p.VendorId,
+                vendorNames.TryGetValue(p.VendorId, out var n) ? n : $"Vendor {p.VendorId}",
+                p.Method.ToString(), p.Amount, p.AppliedAmount, p.UnappliedAmount,
+                p.PaymentDate, p.ReferenceNumber, p.CreatedAt,
+                tx?.Status.ToString(), tx?.AttemptCount ?? 0, tx?.Id);
+        }).ToList();
     }
+
+    public Task<PaymentTransmission?> FindLatestTransmissionAsync(int paymentId, CancellationToken ct)
+        => db.PaymentTransmissions.AsNoTracking()
+            .Where(t => t.SourceType == "VendorPayment" && t.SourceId == paymentId)
+            .OrderByDescending(t => t.Id)
+            .FirstOrDefaultAsync(ct);
 
     public Task<VendorPayment?> FindAsync(int id, CancellationToken ct)
         => db.VendorPayments.FirstOrDefaultAsync(p => p.Id == id, ct);

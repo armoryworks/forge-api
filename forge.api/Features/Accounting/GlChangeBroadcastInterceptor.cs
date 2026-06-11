@@ -143,5 +143,8 @@ public sealed class GlChangeBroadcastInterceptor(IHubContext<AccountingHub> hub)
     private static bool IsAccountingEntity(object entity) => entity
         is JournalEntry or JournalLine or FiscalYear or FiscalPeriod or GlAccount
         or AccountDeterminationRule or BankReconciliation or BankReconciliationItem
-        or InventoryValuation or LedgerBalance;
+        or InventoryValuation or LedgerBalance
+        // Not a GL entity, but this hub IS the finance-ops push channel: transmission status changes
+        // (Retrying/Failed/Succeeded) must auto-refresh the Payables lists without a manual reload.
+        or Forge.Core.Entities.PaymentTransmission;
 }

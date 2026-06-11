@@ -12,6 +12,8 @@ public interface IVendorBillRepository
     Task<VendorBill?> FindWithDetailsAsync(int id, CancellationToken ct);
     /// <summary>True if a bill already exists for this vendor + vendor-invoice-number (duplicate-bill guard).</summary>
     Task<bool> ExistsForVendorInvoiceAsync(int vendorId, string vendorInvoiceNumber, CancellationToken ct);
+    /// <summary>True when any of the given payments' LATEST bank transmission is Failed (UI triage flag).</summary>
+    Task<bool> HasFailedTransmissionAsync(IReadOnlyCollection<int> vendorPaymentIds, CancellationToken ct);
     Task<string> GenerateNextBillNumberAsync(CancellationToken ct);
     Task AddAsync(VendorBill bill, CancellationToken ct);
     Task SaveChangesAsync(CancellationToken ct);

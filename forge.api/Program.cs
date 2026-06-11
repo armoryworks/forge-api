@@ -683,6 +683,12 @@ try
     var storageProvider = builder.Configuration.GetValue<string>("Storage:Provider") ?? "minio";
     builder.Services.Configure<LocalStorageOptions>(builder.Configuration.GetSection(LocalStorageOptions.SectionName));
 
+    // Bank payment origination (ACH/wire) — ALWAYS mock for now, regardless of MockIntegrations:
+    // the real bank channel for Frontier CU (NACHA file vs API, SFTP vs portal) is an open decision
+    // (docs/accounting/architecture.md §10). Once decided, the real adapter replaces this behind the
+    // same IBankPaymentService interface under the MockIntegrations flag like the other integrations.
+    builder.Services.AddSingleton<IBankPaymentService, MockBankPaymentService>();
+
     if (useMocks)
     {
         builder.Services.AddSingleton<IStorageService, MockStorageService>();

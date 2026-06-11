@@ -24,4 +24,6 @@ public record VendorBillDetailModel(
     decimal FxRate,
     string? Notes,
     DateTimeOffset CreatedAt,
-    IReadOnlyList<VendorBillLineDetailModel> Lines);
+    IReadOnlyList<VendorBillLineDetailModel> Lines,
+    // True when any payment applied to this bill has a LATEST bank transmission in Failed status.
+    bool HasFailedTransmission = false);

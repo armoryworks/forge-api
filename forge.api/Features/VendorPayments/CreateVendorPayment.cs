@@ -1,16 +1,19 @@
 using System.Security.Claims;
 
 using FluentValidation;
+using Hangfire;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
+using Forge.Api.Jobs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.VendorPayments;
 
@@ -69,7 +72,10 @@ public class CreateVendorPaymentHandler(
     // Optional / null-default (mirrors CreatePayment): the production DI path supplies both; with
     // CAP-ACCT-FULLGL off the posting service no-ops anyway.
     IVendorPaymentCashPostingService? cashPosting = null,
-    IHttpContextAccessor? httpContextAccessor = null)
+    IHttpContextAccessor? httpContextAccessor = null,
+    // Optional like the posting seam so existing unit tests (no Hangfire storage) keep working;
+    // the transmission row is still created — only the job enqueue is skipped when null.
+    IBackgroundJobClient? backgroundJobs = null)
     : IRequestHandler<CreateVendorPaymentCommand, VendorPaymentListItemModel>
 {
     public async Task<VendorPaymentListItemModel> Handle(CreateVendorPaymentCommand request, CancellationToken cancellationToken)
@@ -191,9 +197,35 @@ public class CreateVendorPaymentHandler(
 
         await tx.CommitAsync(cancellationToken);
 
+        // ── Electronic payment origination: after the payment (and posting) commits, queue a bank
+        // transmission for electronic methods. Runs OUTSIDE the payment transaction — the payment is
+        // already a fact; a transmission hiccup is handled by the transmission's own retry cycle.
+        PaymentTransmission? transmission = null;
+        if (method is PaymentMethod.BankTransfer or PaymentMethod.Wire)
+        {
+            transmission = new PaymentTransmission
+            {
+                SourceType = "VendorPayment",
+                SourceId = payment.Id,
+                Amount = payment.Amount,
+                Method = method.ToString(),
+                CreatedByUserId = db.CurrentUserId,
+            };
+            db.PaymentTransmissions.Add(transmission);
+            db.LogActivityAt(
+                "transmission-queued",
+                $"Bank transmission queued — {payment.PaymentNumber} {payment.Amount:C} via {method}",
+                ("VendorPayment", payment.Id));
+            await db.SaveChangesAsync(cancellationToken);
+
+            backgroundJobs?.Enqueue<PaymentTransmissionJob>(
+                j => j.ProcessAsync(transmission.Id, CancellationToken.None));
+        }
+
         return new VendorPaymentListItemModel(
             payment.Id, payment.PaymentNumber, payment.VendorId, vendor.CompanyName,
             payment.Method.ToString(), payment.Amount, appliedTotal, payment.Amount - appliedTotal,
-            payment.PaymentDate, payment.ReferenceNumber, payment.CreatedAt);
+            payment.PaymentDate, payment.ReferenceNumber, payment.CreatedAt,
+            transmission?.Status.ToString(), transmission?.AttemptCount ?? 0, transmission?.Id);
     }
 }
