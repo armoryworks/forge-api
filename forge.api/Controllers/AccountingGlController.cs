@@ -368,6 +368,53 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         [FromQuery] int bookId, CancellationToken ct)
         => Ok(await mediator.Send(new GetInventoryValuationReconciliationQuery(bookId), ct));
 
+    // ─────────────────────────── QB-001 CPA CSV exports ───────────────────────────
+
+    /// <summary>
+    /// QB-001 — trial balance CSV download for the CPA (§10 ratification: "CSV/Excel export always
+    /// available"). Same gating as the rest of the GL surface (Controller role + CAP-ACCT-FULLGL).
+    /// </summary>
+    [HttpGet("exports/trial-balance.csv")]
+    public async Task<IActionResult> ExportTrialBalanceCsv(
+        [FromQuery] int bookId,
+        [FromQuery] DateOnly? fromDate,
+        [FromQuery] DateOnly? toDate,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new ExportTrialBalanceCsvQuery(bookId, fromDate, toDate), ct);
+        return File(result.Content, "text/csv", result.FileName);
+    }
+
+    /// <summary>
+    /// QB-001 — full GL detail CSV download (one row per journal line, Posted + Reversed, ordered by
+    /// entry number then line number).
+    /// </summary>
+    [HttpGet("exports/gl-detail.csv")]
+    public async Task<IActionResult> ExportGlDetailCsv(
+        [FromQuery] int bookId,
+        [FromQuery] DateOnly? fromDate,
+        [FromQuery] DateOnly? toDate,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new ExportGlDetailCsvQuery(bookId, fromDate, toDate), ct);
+        return File(result.Content, "text/csv", result.FileName);
+    }
+
+    /// <summary>
+    /// QB-001 — per-account period-net journal summary CSV (the "one monthly JE" the CPA keys into
+    /// their system). Same aggregation the config-gated QBO push uses.
+    /// </summary>
+    [HttpGet("exports/journal-summary.csv")]
+    public async Task<IActionResult> ExportJournalSummaryCsv(
+        [FromQuery] int bookId,
+        [FromQuery] DateOnly? fromDate,
+        [FromQuery] DateOnly? toDate,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new ExportJournalSummaryCsvQuery(bookId, fromDate, toDate), ct);
+        return File(result.Content, "text/csv", result.FileName);
+    }
+
     // ─────────────────────────── Phase-3 journal templates ───────────────────────────
 
     /// <summary>Phase-3 — create a recurring/standard journal template.</summary>
