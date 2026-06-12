@@ -10,7 +10,8 @@ namespace Forge.Api.Capabilities;
 /// CAP-MD-CUSTOMER-ADDRESSES, CAP-MD-CUSTOMER-INTERACTIONS,
 /// CAP-O2C-CREDIT-LIMITS) per the Customer/Lead parity audit + 2
 /// (CAP-EXT-EMAIL-SYNC, CAP-EXT-VOIP-SYNC) per Wave 8 communication
-/// sync skeleton = 135 total.
+/// sync skeleton + 2 (CAP-P2P-BILL, CAP-P2P-PAY) per the owner-ratified
+/// AP capability split = 137 total.
 /// The catalog header claims 121 because three INV/QC/MD entries are listed
 /// in two areas; the Phase A implementation treats every distinct code as
 /// one row and accepts the count-discrepancy. See _catalog-rows.cs.txt and
@@ -59,6 +60,11 @@ public static class CapabilityCatalog
         // IsConfigurable, DefaultBinId, SourcePartId) are write-anytime.
         new("CAP-MD-PART-COMPLIANCE", "MD", @"Part — compliance fields", @"Surfaces tariff (HTS), hazmat, shelf life, backflush policy, kit/configurable flags, and source-part / default-bin pickers on the Part detail Quality cluster. Disable for shops that don't ship internationally or handle regulated materials.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-P2P-PO", "P2P", @"Purchase orders", @"Buyer-side document authorizing vendor shipment / service. Lines reference parts or services with quantity, price, tax, expected date. The baseline P2P capability — every shop with vendors uses this.", IsDefaultOn: true, RequiresRoles: null),
+        // AP capability split (owner-ratified 2026-06): vendor bills + vendor
+        // payments previously rode CAP-P2P-PO. Default-on matches CAP-P2P-PO
+        // so fresh installs are behavior-neutral.
+        new("CAP-P2P-BILL", "P2P", @"Vendor bills + 3-way match", @"Vendor invoice (bill) entry and approval against POs and receipts (3-way match) — the AP twin of CAP-O2C-INVOICE. Approval is the AP posting trigger when full GL is on. Split from CAP-P2P-PO so AP document entry can be gated independently of purchasing.", IsDefaultOn: true, RequiresRoles: null),
+        new("CAP-P2P-PAY", "P2P", @"Vendor payments + bank transmissions", @"Vendor payment recording, application against open bills, and electronic bank/ACH transmission triage — the AP twin of CAP-O2C-CASH. Split from CAP-P2P-PO so cash disbursement can be gated independently of purchasing and bill entry.", IsDefaultOn: true, RequiresRoles: null),
         new("CAP-P2P-RFQ", "P2P", @"Request for quote (multi-vendor sourcing)", @"Pre-PO vendor sourcing: send identical line items to multiple vendors, collect responses, compare, convert winning bid to PO. Used by shops that competitively source rather than buying from a fixed vendor.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-P2P-RECEIVE", "P2P", @"Receiving + 3-way match", @"Goods receipt against PO, with 3-way match (PO + receipt + vendor invoice) before AP posts. Includes over-receipt tolerance, short-receipt close, GR/IR pending state.", IsDefaultOn: true, RequiresRoles: null),
         new("CAP-P2P-AUTOPO", "P2P", @"Automated PO generation (replenishment)", @"System-suggested or auto-generated POs from MRP exceptions, reorder-point breaches, or replenishment kanban triggers. Reduces manual buyer effort.", IsDefaultOn: false, RequiresRoles: null),

@@ -106,6 +106,11 @@ public static class CapabilityCatalogRelations
         new("CAP-P2P-SUBCONTRACT", "CAP-MD-ROUTING"),
         new("CAP-P2P-SUBCONTRACT", "CAP-MFG-WO-RELEASE"),
         new("CAP-P2P-APPROVALS", "CAP-P2P-PO"),
+        // AP capability split (owner-ratified 2026-06): bills hang off POs
+        // (3-way match references PO + receipt); payments hang off bills
+        // (a payment applies against open bills).
+        new("CAP-P2P-BILL", "CAP-P2P-PO"),
+        new("CAP-P2P-PAY", "CAP-P2P-BILL"),
 
         // ── O2C ─────────────────────────────────────────────────────────────
         new("CAP-O2C-LEAD", "CAP-MD-CUSTOMERS"),

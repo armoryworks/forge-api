@@ -26,8 +26,13 @@ public static partial class SeedData
     // Idempotent / runs once: guarded on `acct_books` being empty. Re-running the
     // seed is a no-op once a Book exists; tenant edits are never overwritten.
 
-    private static async Task SeedAccountingAsync(AppDbContext db)
+    internal static async Task SeedAccountingAsync(AppDbContext db)
     {
+        // Additive chart patch — runs on EVERY boot, before the run-once guard
+        // below returns, so installs seeded before the patched account existed
+        // get it backfilled. No-op on fresh installs and already-patched ones.
+        await EnsureCashInTransitAsync(db);
+
         // Run-once guard: if any Book exists the GL foundation is already seeded.
         if (await db.Books.AnyAsync())
         {
@@ -227,5 +232,69 @@ public static partial class SeedData
             "Seeded accounting GL foundation: Book '{Book}' (currency {Currency}), {Accounts} accounts, " +
             "{Rules} determination rules, FiscalYear {Year} + {Periods} periods (CAP-ACCT-FULLGL remains off — dark).",
             book.Code, baseCurrency.Code, accounts.Count, rules.Count, fiscalYear.Name, fiscalYear.Periods.Count);
+    }
+
+    // ── Additive chart patch: 10150 "Cash in Transit" (§7 BANK-002) ─────────
+    //
+    // PATTERN for future additive chart entries on pre-seeded installs: the
+    // main seed above is run-once (guarded on acct_books being non-empty), so
+    // an account added to the seeded chart AFTER an install was first seeded
+    // never arrives there — it used to require a hand INSERT. Each such
+    // account gets a small Ensure*Async step like this one, called from
+    // SeedAccountingAsync BEFORE the run-once guard so it executes on every
+    // boot. Keyed on the AccountDeterminationRule (the stable lookup the
+    // posting engine resolves through): rule present → no-op; rule absent →
+    // insert the GlAccount (reusing a hand-inserted one when present) + the
+    // rule, per active Book. Idempotent; never mutates existing rows.
+    internal static async Task EnsureCashInTransitAsync(AppDbContext db)
+    {
+        const string Key = "CASH_IN_TRANSIT";
+        const string AccountNumber = "10150";
+
+        var books = await db.Books.Where(b => b.IsActive).ToListAsync();
+        if (books.Count == 0)
+            return; // Fresh install — the run-once seed writes the full chart (incl. 10150) right after this returns.
+
+        var bookIdsWithRule = await db.AccountDeterminationRules
+            .Where(r => r.Key == Key)
+            .Select(r => r.BookId)
+            .ToListAsync();
+
+        foreach (var book in books.Where(b => !bookIdsWithRule.Contains(b.Id)))
+        {
+            // Reuse a hand-inserted 10150 when one exists; otherwise create it
+            // (exact construction style of the seeded chart above).
+            var account = await db.GlAccounts
+                .FirstOrDefaultAsync(a => a.BookId == book.Id && a.AccountNumber == AccountNumber);
+            if (account is null)
+            {
+                account = new GlAccount
+                {
+                    BookId = book.Id,
+                    AccountNumber = AccountNumber,
+                    Name = "Cash in Transit",
+                    AccountType = AccountType.Asset,
+                    NormalBalance = NormalBalance.Debit,
+                    IsControlAccount = false,
+                    ControlType = null,
+                    IsPostable = true,
+                    IsActive = true,
+                };
+                db.GlAccounts.Add(account);
+                await db.SaveChangesAsync(); // flush so account.Id is available for the rule
+            }
+
+            db.AccountDeterminationRules.Add(new AccountDeterminationRule
+            {
+                BookId = book.Id,
+                Key = Key,
+                GlAccountId = account.Id,
+            });
+            await db.SaveChangesAsync();
+
+            Log.Information(
+                "Backfilled GL account {Number} 'Cash in Transit' + {Key} determination rule for Book '{Book}' (additive chart patch for pre-seeded installs).",
+                AccountNumber, Key, book.Code);
+        }
     }
 }

@@ -12,14 +12,14 @@ namespace Forge.Api.Controllers;
 /// <summary>
 /// ⚡ ACCOUNTING BOUNDARY — vendor bills (AP). The AP twin of <see cref="InvoicesController"/>. Approval
 /// is the AP posting trigger; while CAP-ACCT-FULLGL is OFF the posting self-no-ops. Gated by
-/// <c>CAP-P2P-RECEIVE</c> (the AP-posting P2P capability — "vendor invoice before AP posts").
+/// <c>CAP-P2P-BILL</c> (the dedicated AP bill capability, symmetric to AR's CAP-O2C-INVOICE).
 /// </summary>
 [ApiController]
 [Route("api/v1/vendor-bills")]
 [Authorize(Roles = "Admin,Manager,OfficeManager")]
-// Baseline P2P capability (default-on). A dedicated CAP-P2P-BILL (symmetric to AR's CAP-O2C-INVOICE)
-// is the recommended end-state — see PHASE2_STATUS "capability taxonomy".
-[RequiresCapability("CAP-P2P-PO")]
+// Dedicated AP capability (default-on, split from CAP-P2P-PO per the owner-ratified AP capability
+// taxonomy — see PHASE2_STATUS "capability taxonomy").
+[RequiresCapability("CAP-P2P-BILL")]
 public class VendorBillsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

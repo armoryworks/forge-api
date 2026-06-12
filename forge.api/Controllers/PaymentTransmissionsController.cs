@@ -11,13 +11,13 @@ namespace Forge.Api.Controllers;
 
 /// <summary>
 /// ⚡ ACCOUNTING BOUNDARY — electronic bank/ACH transmission triage: list transmissions (filterable by
-/// status for the failed-payment queue) and manually re-queue Failed/Cancelled ones. Reuses the
-/// baseline AP capability (<c>CAP-P2P-PO</c>) like <see cref="VendorPaymentsController"/>.
+/// status for the failed-payment queue) and manually re-queue Failed/Cancelled ones. Gated by the
+/// dedicated AP payment capability (<c>CAP-P2P-PAY</c>) like <see cref="VendorPaymentsController"/>.
 /// </summary>
 [ApiController]
 [Route("api/v1/payment-transmissions")]
 [Authorize(Roles = "Admin,Manager,OfficeManager")]
-[RequiresCapability("CAP-P2P-PO")]
+[RequiresCapability("CAP-P2P-PAY")]
 public class PaymentTransmissionsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
