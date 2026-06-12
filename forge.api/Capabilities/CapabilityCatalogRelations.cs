@@ -111,6 +111,8 @@ public static class CapabilityCatalogRelations
         // (a payment applies against open bills).
         new("CAP-P2P-BILL", "CAP-P2P-PO"),
         new("CAP-P2P-PAY", "CAP-P2P-BILL"),
+        // NACHA origination (BANK-002 Phase A) batches vendor payments into ACH files.
+        new("CAP-BANK-NACHA", "CAP-P2P-PAY"),
 
         // ── O2C ─────────────────────────────────────────────────────────────
         new("CAP-O2C-LEAD", "CAP-MD-CUSTOMERS"),

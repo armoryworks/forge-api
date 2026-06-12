@@ -150,6 +150,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<VendorPaymentApplication> VendorPaymentApplications => Set<VendorPaymentApplication>();
     // Electronic bank/ACH submission tracking (generic SourceType/SourceId, wired to VendorPayment today)
     public DbSet<PaymentTransmission> PaymentTransmissions => Set<PaymentTransmission>();
+    // BANK-002 Phase A — NACHA origination (⚡ Banking Boundary): encrypted vendor ACH
+    // destinations (dual-control + prenote) and the payment batches / entry lines that
+    // become the generated NACHA files (release-by-portal-upload = the SoD step).
+    public DbSet<VendorBankAccount> VendorBankAccounts => Set<VendorBankAccount>();
+    public DbSet<PaymentBatch> PaymentBatches => Set<PaymentBatch>();
+    public DbSet<PaymentBatchItem> PaymentBatchItems => Set<PaymentBatchItem>();
 
     // Pricing
     public DbSet<PriceList> PriceLists => Set<PriceList>();
@@ -517,6 +523,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     // QB-001 — one-way QBO journal-summary push for the CPA (CAP-ACCT-QBO-EXPORT, default OFF).
     public DbSet<Forge.Core.Entities.Accounting.QboAccountMap> QboAccountMaps => Set<Forge.Core.Entities.Accounting.QboAccountMap>();
     public DbSet<Forge.Core.Entities.Accounting.QboExportLog> QboExportLogs => Set<Forge.Core.Entities.Accounting.QboExportLog>();
+
+    // BANK-001 — bank statement import staging (OFX/CSV → dedupe → auto-match → confirm clears
+    // the line in the open bank reconciliation; settlement confirmation for in-transit cash).
+    public DbSet<Forge.Core.Entities.Accounting.BankStatementImport> BankStatementImports => Set<Forge.Core.Entities.Accounting.BankStatementImport>();
+    public DbSet<Forge.Core.Entities.Accounting.BankStatementLine> BankStatementLines => Set<Forge.Core.Entities.Accounting.BankStatementLine>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

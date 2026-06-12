@@ -146,5 +146,8 @@ public sealed class GlChangeBroadcastInterceptor(IHubContext<AccountingHub> hub)
         or InventoryValuation or LedgerBalance
         // Not a GL entity, but this hub IS the finance-ops push channel: transmission status changes
         // (Retrying/Failed/Succeeded) must auto-refresh the Payables lists without a manual reload.
-        or Forge.Core.Entities.PaymentTransmission;
+        or Forge.Core.Entities.PaymentTransmission
+        // BANK-002 Phase A: batch / bank-account lifecycle changes refresh the Banking screens live.
+        or Forge.Core.Entities.PaymentBatch or Forge.Core.Entities.PaymentBatchItem
+        or Forge.Core.Entities.VendorBankAccount;
 }

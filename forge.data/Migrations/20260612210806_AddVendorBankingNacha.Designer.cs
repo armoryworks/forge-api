@@ -3,6 +3,7 @@ using System;
 using Forge.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using Pgvector;
 namespace Forge.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260612210806_AddVendorBankingNacha")]
+    partial class AddVendorBankingNacha
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -683,150 +686,6 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ux_acct_bank_rec_items_rec_line");
 
                     b.ToTable("acct_bank_reconciliation_items", (string)null);
-                });
-
-            modelBuilder.Entity("Forge.Core.Entities.Accounting.BankStatementImport", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("BookId")
-                        .HasColumnType("integer")
-                        .HasColumnName("book_id");
-
-                    b.Property<int>("CashGlAccountId")
-                        .HasColumnType("integer")
-                        .HasColumnName("cash_gl_account_id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTimeOffset?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("text")
-                        .HasColumnName("deleted_by");
-
-                    b.Property<int>("DuplicateCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("duplicate_count");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(260)
-                        .HasColumnType("character varying(260)")
-                        .HasColumnName("file_name");
-
-                    b.Property<string>("Format")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasColumnName("format");
-
-                    b.Property<int>("ImportedByUserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("imported_by_user_id");
-
-                    b.Property<int>("LineCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("line_count");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_acct_bank_statement_imports");
-
-                    b.HasIndex("CashGlAccountId")
-                        .HasDatabaseName("ix_acct_bank_statement_imports_cash_gl_account_id");
-
-                    b.HasIndex("BookId", "CashGlAccountId")
-                        .HasDatabaseName("ix_acct_stmt_imports_book_account");
-
-                    b.ToTable("acct_bank_statement_imports", (string)null);
-                });
-
-            modelBuilder.Entity("Forge.Core.Entities.Accounting.BankStatementLine", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("amount");
-
-                    b.Property<int>("BankStatementImportId")
-                        .HasColumnType("integer")
-                        .HasColumnName("bank_statement_import_id");
-
-                    b.Property<int>("CashGlAccountId")
-                        .HasColumnType("integer")
-                        .HasColumnName("cash_gl_account_id");
-
-                    b.Property<DateTimeOffset?>("ConfirmedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("confirmed_at");
-
-                    b.Property<int?>("ConfirmedByUserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("confirmed_by_user_id");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("description");
-
-                    b.Property<string>("Fitid")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("fitid");
-
-                    b.Property<string>("MatchStatus")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("match_status");
-
-                    b.Property<long?>("MatchedJournalLineId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("matched_journal_line_id");
-
-                    b.Property<DateOnly>("PostedDate")
-                        .HasColumnType("date")
-                        .HasColumnName("posted_date");
-
-                    b.HasKey("Id")
-                        .HasName("pk_acct_bank_statement_lines");
-
-                    b.HasIndex("BankStatementImportId")
-                        .HasDatabaseName("ix_acct_bank_statement_lines_bank_statement_import_id");
-
-                    b.HasIndex("MatchStatus")
-                        .HasDatabaseName("ix_acct_stmt_lines_status");
-
-                    b.HasIndex("MatchedJournalLineId")
-                        .HasDatabaseName("ix_acct_stmt_lines_journal_line");
-
-                    b.HasIndex("CashGlAccountId", "Fitid")
-                        .IsUnique()
-                        .HasDatabaseName("ux_acct_stmt_lines_account_fitid");
-
-                    b.ToTable("acct_bank_statement_lines", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Accounting.Book", b =>
@@ -23895,36 +23754,6 @@ namespace Forge.Data.Migrations
                     b.Navigation("JournalLine");
                 });
 
-            modelBuilder.Entity("Forge.Core.Entities.Accounting.BankStatementImport", b =>
-                {
-                    b.HasOne("Forge.Core.Entities.Accounting.GlAccount", null)
-                        .WithMany()
-                        .HasForeignKey("CashGlAccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_acct_stmt_imports_cash_account");
-                });
-
-            modelBuilder.Entity("Forge.Core.Entities.Accounting.BankStatementLine", b =>
-                {
-                    b.HasOne("Forge.Core.Entities.Accounting.BankStatementImport", "Import")
-                        .WithMany("Lines")
-                        .HasForeignKey("BankStatementImportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_acct_stmt_lines_import");
-
-                    b.HasOne("Forge.Core.Entities.Accounting.JournalLine", "MatchedJournalLine")
-                        .WithMany()
-                        .HasForeignKey("MatchedJournalLineId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_acct_stmt_lines_journal_line");
-
-                    b.Navigation("Import");
-
-                    b.Navigation("MatchedJournalLine");
-                });
-
             modelBuilder.Entity("Forge.Core.Entities.Accounting.Book", b =>
                 {
                     b.HasOne("Forge.Core.Entities.Currency", "FunctionalCurrency")
@@ -28430,11 +28259,6 @@ namespace Forge.Data.Migrations
             modelBuilder.Entity("Forge.Core.Entities.Accounting.BankReconciliation", b =>
                 {
                     b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("Forge.Core.Entities.Accounting.BankStatementImport", b =>
-                {
-                    b.Navigation("Lines");
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Accounting.CostCenter", b =>

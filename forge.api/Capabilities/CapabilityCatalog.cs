@@ -12,7 +12,7 @@ namespace Forge.Api.Capabilities;
 /// (CAP-EXT-EMAIL-SYNC, CAP-EXT-VOIP-SYNC) per Wave 8 communication
 /// sync skeleton + 2 (CAP-P2P-BILL, CAP-P2P-PAY) per the owner-ratified
 /// AP capability split + 1 (CAP-ACCT-QBO-EXPORT) per the QB-001 owner
-/// ratification = 138 total.
+/// ratification + 1 (CAP-BANK-NACHA) per BANK-002 Phase A = 139 total.
 /// The catalog header claims 121 because three INV/QC/MD entries are listed
 /// in two areas; the Phase A implementation treats every distinct code as
 /// one row and accepts the count-discrepancy. See _catalog-rows.cs.txt and
@@ -152,6 +152,7 @@ public static class CapabilityCatalog
         // accounting mode — it coexists with CAP-ACCT-FULLGL rather than competing with it.
         new("CAP-ACCT-QBO-EXPORT", "ACCT", @"QuickBooks journal-summary export", @"One-way downstream push of the per-account period-net journal summary to QuickBooks Online for the CPA (QB-001). Requires the built-in full GL and a connected QuickBooks OAuth integration; per-account QBO mapping maintained in-app. QuickBooks is never the system of record — nothing syncs back. Default OFF; enable per install when the CPA wants API delivery instead of CSV.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-PAYROLL-RUN", "ACCT", @"Payroll run + journal posting", @"Create pay runs and post the payroll journal (gross wages, employer taxes, withholdings, net-pay liability). Tax CALCULATION stays with the payroll provider (PAY-001 offload) — amounts are supplied, this posts them. Phase-5 foundation; default OFF until payroll go-live.", IsDefaultOn: false, RequiresRoles: null),
+        new("CAP-BANK-NACHA", "P2P", @"NACHA / ACH payment origination", @"BANK-002 Phase A: encrypted vendor bank accounts (dual-control approvals + zero-dollar prenotes) and NACHA payment batches — generate the ACH file, upload it to the bank portal by hand, release in-app by a SECOND user (segregation of duties). When enabled, ACH (BankTransfer) vendor payments await batching instead of the per-payment mock transmission channel. Default OFF until the bank's ACH origination agreement is in place and the Banking settings are populated.", IsDefaultOn: false, RequiresRoles: null),
         // ── Pro Services rollout (Phase 2) — accounting mode migration ──
         new("CAP-ACCT-MIGRATION", "ACCT", @"Accounting mode migration wizard", @"BUILTIN ⟷ EXTERNAL accounting mode migration tooling — snapshot, dry-run, frozen window, circuit breaker, hold-period rollback, accountant sign-off. Auto-gated to false outside the eligibility window; eligibility logic lives in the migration handler. Default OFF — surfaces only when an admin starts a transition.", IsDefaultOn: false, RequiresRoles: "Admin"),
         new("CAP-HR-HIRE", "HR", @"Hire + onboarding workflow", @"Multi-step new-hire flow: create employee, collect compliance forms, grant system access, assign to first task.", IsDefaultOn: true, RequiresRoles: null),

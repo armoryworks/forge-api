@@ -75,7 +75,10 @@ public class CreateVendorPaymentHandler(
     IHttpContextAccessor? httpContextAccessor = null,
     // Optional like the posting seam so existing unit tests (no Hangfire storage) keep working;
     // the transmission row is still created — only the job enqueue is skipped when null.
-    IBackgroundJobClient? backgroundJobs = null)
+    IBackgroundJobClient? backgroundJobs = null,
+    // BANK-002 Phase A: when CAP-BANK-NACHA is on, ACH (BankTransfer) payments await a NACHA
+    // batch instead of the per-payment mock transmission channel. Optional/null = capability off.
+    Forge.Api.Capabilities.ICapabilitySnapshotProvider? capabilities = null)
     : IRequestHandler<CreateVendorPaymentCommand, VendorPaymentListItemModel>
 {
     public async Task<VendorPaymentListItemModel> Handle(CreateVendorPaymentCommand request, CancellationToken cancellationToken)
@@ -210,8 +213,23 @@ public class CreateVendorPaymentHandler(
         // ── Electronic payment origination: after the payment (and posting) commits, queue a bank
         // transmission for electronic methods. Runs OUTSIDE the payment transaction — the payment is
         // already a fact; a transmission hiccup is handled by the transmission's own retry cycle.
+        //
+        // BANK-002 Phase A: with CAP-BANK-NACHA on, ACH (BankTransfer) payments do NOT auto-queue —
+        // they await assembly into a NACHA batch; the batch RELEASE creates the (Succeeded)
+        // transmission. Wire stays on the per-payment channel either way.
+        var awaitsNachaBatch = method == PaymentMethod.BankTransfer
+            && (capabilities?.IsEnabled("CAP-BANK-NACHA") ?? false);
+
         PaymentTransmission? transmission = null;
-        if (PaymentMethods.IsElectronic(method))
+        if (awaitsNachaBatch)
+        {
+            db.LogActivityAt(
+                "awaiting-batch",
+                $"Payment {payment.PaymentNumber} ({payment.Amount:C} via ACH) awaiting NACHA batch assembly",
+                ("VendorPayment", payment.Id));
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        else if (PaymentMethods.IsElectronic(method))
         {
             transmission = new PaymentTransmission
             {

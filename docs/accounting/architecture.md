@@ -351,3 +351,26 @@ promoting the expense into the one AP pipeline instead of bolting on a parallel 
 | Backfill | `EnsureExpenseBillsBackfilledAsync` (boot ensure) — reconstructs a linked bill + `ApOpenItem` for every still-POSTED legacy expense AP origination (vendor/amount read from the posted AP credit line, no new GL). Dark history untouched — auto-creating payables for possibly out-of-band-paid expenses risks double payment; §7A opening balances own that. |
 | UI | Bills list/detail show a "From expense EXP-n" chip; the Expenses list links the promoted bill (`vendor-bill` entity link). `ExpenseResponseModel` gains `VendorId`/`VendorName`/`LinkedVendorBillId`/`LinkedVendorBillNumber`. |
 | Job costing (general fix) | `VendorBillLine.JobId` (new) carries to the GL debit line on standalone-bill posting — promoted job-costed expenses keep their job tag; available to manual bills too. Migration `AddExpenseBillPromotion`. |
+
+### BANK-002 Phase A — NACHA origination (added 2026-06-13)
+
+| Piece | Realized by |
+|-------|-------------|
+| Vendor bank accounts | `VendorBankAccount` — routing/account stored ONLY as Data-Protection ciphertext (`Forge.Banking` purpose, `BankingDataProtector`); masked twins are the only display form; ABA checksum at entry. **Dual control:** create/change → PendingApproval; approval requires a user ≠ the change-maker; a change to a verified account resets approval AND prenote. Prenote lifecycle Approved → PrenoteSent (batch release) → Verified (manual, after the return window). |
+| NACHA writer | `NachaFileGenerator` — 94-char records (1/5/6/8/9), credits-only service class 220, CCD/PPD, prenote codes 23/33, entry hash (rightmost 10), 10-record blocking, trace numbers = ODFI+seq persisted per item. Pure/deterministic (clock injected). |
+| Batches | `PaymentBatch`/`PaymentBatchItem` + `PaymentBatchService`: assemble (eligibility = BankTransfer payments not in a live batch, latest transmission Failed/Cancelled-or-none, vendor has payable account) → generate (refuses until Banking settings configured; **exposure limit** §10.1) → download (`{batch}.ach`, file text stored on the row for audit) → **release by a second user (SoD)** = the portal-upload attestation; release creates a Succeeded `PaymentTransmission` per payment (engages the no-void-after-transmit guard) or flips prenote accounts to PrenoteSent. |
+| Channel routing | `CreateVendorPayment`: with `CAP-BANK-NACHA` on, ACH (BankTransfer) payments skip the per-payment mock transmission and await batching ("awaiting-batch" activity); Wire stays on the per-payment channel. |
+| Config | `BankingSettings` descriptors (Banking group): immediate destination/origin (+names), company name/ID, ODFI, SEC code, require-prenote (default ON), exposure limit, statement match window. Settings are data — no per-bank code. |
+| Gating + UI | `CAP-BANK-NACHA` (default OFF, requires CAP-P2P-PAY) gates `BankingController` + the endpoint registry prefix + two new Payables tabs (ACH Batches, Bank Accounts) with the full lifecycle actions. Migration `AddVendorBankingNacha`. |
+
+Still owed for live banking: the Frontier CU ACH agreement values, then Phase B (SFTP submission + in-app release queue) and Phase C (returns/NOC ingestion keyed by stored trace numbers).
+
+### BANK-001 — bank statement import + auto-match (added 2026-06-13)
+
+| Piece | Realized by |
+|-------|-------------|
+| Staging | `BankStatementImport`/`BankStatementLine` (`acct_bank_statement_*`): signed amounts (+ = cash Dr), FITID dedupe unique per (cash account, FITID) — re-imports/overlapping exports insert nothing twice. |
+| Parsers | `BankStatementParser` — OFX 1.x SGML AND 2.x XML (regex-per-tag inside STMTTRN blocks, FITID verbatim); CSV header-mapped (Date/Amount/Description synonyms, parenthesized negatives), FITID = content hash + occurrence index. |
+| Auto-match | proposes ONLY a unique candidate: equal signed amount + entry date within `banking.statement.match-window-days` (default 5) + not already claimed. Ambiguity stays Unmatched — the matcher never guesses. |
+| Confirm = settlement attestation | confirming flips the journal line's `BankReconciliationItem.IsCleared` in the open Draft rec of the same cash account (how "Succeeded = submission accepted" payments get actual settlement confirmed — the §7 CIT note); unmatch un-clears. Manual match guarded (same account, Posted, unclaimed). |
+| Surface | `BankStatementsController` (`/accounting/bank-statements`, Controller role, CAP-ACCT-FULLGL) + the Bank Statements accounting screen (import upload, per-import match-state rollup, line review with confirm/ignore/unmatch). Migration `AddBankStatementImport`. |

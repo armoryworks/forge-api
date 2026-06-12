@@ -49,6 +49,7 @@ public static class SettingDescriptorCatalog
         list.AddRange(VarianceWatchdogSettings.Descriptors);
         list.AddRange(ShippingSettings.Descriptors);
         list.AddRange(PaymentsSettings.Descriptors);
+        list.AddRange(BankingSettings.Descriptors);
         return list;
     }
 }

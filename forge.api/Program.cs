@@ -448,6 +448,18 @@ try
     // AP posting above is the fallback.
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IExpenseBillPromotionService,
                                Forge.Api.Features.Accounting.ExpenseBillPromotionService>();
+    // BANK-002 Phase A — NACHA origination: encrypted vendor bank accounts (dual control +
+    // prenote) and payment batches (generate → portal upload → release-by-second-user = SoD).
+    // All endpoints gated CAP-BANK-NACHA (default OFF).
+    builder.Services.AddSingleton<Forge.Api.Services.IBankingDataProtector,
+                                  Forge.Api.Services.BankingDataProtector>();
+    builder.Services.AddScoped<Forge.Api.Features.Banking.IVendorBankAccountService,
+                               Forge.Api.Features.Banking.VendorBankAccountService>();
+    builder.Services.AddScoped<Forge.Api.Features.Banking.IPaymentBatchService,
+                               Forge.Api.Features.Banking.PaymentBatchService>();
+    // BANK-001 — OFX/CSV statement import + auto-match staging (gated CAP-ACCT-FULLGL).
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IBankStatementImportService,
+                               Forge.Api.Features.Accounting.BankStatementImportService>();
     // Phase-2 STAGE A — AP sub-ledger posting. VendorBill approved → Dr line accounts
     // (+ purchase tax) / Cr AP control (party = vendor); VendorPayment → Dr AP
     // (applied) + Dr vendor-advance (unapplied) / Cr Cash. Both self-gate on
