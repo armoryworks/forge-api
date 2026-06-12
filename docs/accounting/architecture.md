@@ -374,3 +374,18 @@ Still owed for live banking: the Frontier CU ACH agreement values, then Phase B 
 | Auto-match | proposes ONLY a unique candidate: equal signed amount + entry date within `banking.statement.match-window-days` (default 5) + not already claimed. Ambiguity stays Unmatched — the matcher never guesses. |
 | Confirm = settlement attestation | confirming flips the journal line's `BankReconciliationItem.IsCleared` in the open Draft rec of the same cash account (how "Succeeded = submission accepted" payments get actual settlement confirmed — the §7 CIT note); unmatch un-clears. Manual match guarded (same account, Posted, unclaimed). |
 | Surface | `BankStatementsController` (`/accounting/bank-statements`, Controller role, CAP-ACCT-FULLGL) + the Bank Statements accounting screen (import upload, per-import match-state rollup, line review with confirm/ignore/unmatch). Migration `AddBankStatementImport`. |
+
+### BANK-002 Phase B/C — bank portability (added 2026-06-13, owner: "make it configurable for any bank")
+
+NACHA is the universal standard — the per-bank surface is now PURE configuration; onboarding any of
+the ~5,000 banks/CUs is values-entry:
+
+| Flex point | Realized by |
+|-------|-------------|
+| Balanced vs unbalanced files | `banking.nacha.balanced` (+ offset routing/account settings, account number encrypted): on = each batch carries its own offsetting debit (service class 200, code 27) against our funding account; off (default) = credits-only 220, the bank creates the offset. |
+| Submission channel | `banking.nacha.channel` = manual (Phase A: download → portal upload → release attests) or sftp (releasing UPLOADS via the generic `SftpBankFileChannel` — SSH.NET, MIT; host/port/user/password(encrypted)/dirs are the banking.sftp.* settings). Release stays the second-user SoD step on both channels; an upload failure keeps the batch Generated for retry. |
+| Returns / NOC ingestion | Returns are NACHA-STANDARD files → `NachaReturnParser` is bank-agnostic (addenda 99 = R-code return, 98 = C-code NOC, joined by the ORIGINAL trace). `BankReturnsService` (idempotent): payment return → transmission Failed + critical notification (Payables triage takes over; money correction = controller's void/re-send call); prenote return → account Disabled (re-entry re-runs dual control); NOC → vendor activity note with corrected data. Manual import endpoint + Payables button; `bank-returns-poll` job (30 min) auto-ingests + renames ".processed" when the channel is sftp. |
+
+**Trace uniqueness invariant (defect found in live verify):** trace sequences are GLOBALLY monotonic
+across batches — a per-file restart duplicated traces between files and mis-routed a return to the
+prenote batch's item. The matcher also prefers the most recent assignment for legacy duplicates.

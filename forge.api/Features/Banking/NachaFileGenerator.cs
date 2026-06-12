@@ -11,6 +11,15 @@ public sealed record NachaEntry(
     string IndividualId,        // our reference, e.g. payment number (15)
     string ReceiverName);       // vendor name (22)
 
+/// <summary>
+/// Balanced-file offset (banking.nacha.balanced): our funding account, debited for the batch
+/// total so the file nets to zero — required by some banks; most create the offset themselves.
+/// </summary>
+public sealed record NachaOffset(
+    string RoutingNumber,     // 9 digits incl. check digit
+    string AccountNumber,
+    string CompanyName);      // receiver name on the offset entry (us)
+
 /// <summary>The origination identity from BankingSettings (validated before generation).</summary>
 public sealed record NachaOrigination(
     string ImmediateDestination,     // 9-digit bank routing
@@ -38,6 +47,7 @@ public static class NachaFileGenerator
     private const int RecordLength = 94;
     private const int BlockingFactor = 10;
     private const string CreditsOnlyServiceClass = "220";
+    private const string MixedServiceClass = "200"; // balanced files: credits + the offset debit
 
     /// <summary>
     /// True when <paramref name="routing"/> is 9 digits passing the ABA checksum
@@ -59,21 +69,30 @@ public static class NachaFileGenerator
         DateOnly effectiveEntryDate,
         DateTimeOffset fileCreatedAt,
         bool isPrenote,
-        int batchNumber)
+        int batchNumber,
+        NachaOffset? offset = null,
+        int traceSeqStart = 1)
     {
         if (entries.Count == 0)
             throw new InvalidOperationException("A NACHA file requires at least one entry.");
 
+        // A zero-dollar prenote batch has nothing to balance — the offset only rides live batches.
+        var balanced = offset is not null && !isPrenote;
+        var serviceClass = balanced ? MixedServiceClass : CreditsOnlyServiceClass;
+
         var sb = new StringBuilder();
-        var lines = new List<string>(entries.Count + 4)
+        var lines = new List<string>(entries.Count + 5)
         {
             FileHeader(origination, fileCreatedAt),
-            BatchHeader(origination, effectiveEntryDate, isPrenote, batchNumber),
+            BatchHeader(origination, effectiveEntryDate, isPrenote, batchNumber, serviceClass),
         };
 
         var entryHash = 0L;
         var totalCreditCents = 0L;
-        var traceSeq = 0;
+        // Trace sequences are GLOBALLY monotonic across batches (caller passes the next free
+        // sequence) — a per-file restart would duplicate traces between files, and the trace is
+        // the join key for bank returns (a duplicate would mis-route a return to another batch).
+        var traceSeq = traceSeqStart - 1;
         var traces = new List<string>(entries.Count);
 
         foreach (var e in entries)
@@ -110,8 +129,32 @@ public static class NachaFileGenerator
                 .ToString());
         }
 
-        lines.Add(BatchControl(origination, entries.Count, entryHash, totalCreditCents, batchNumber));
-        lines.Add(FileControl(entries.Count, entryHash, totalCreditCents, batchCount: 1, totalRecords: lines.Count + 1));
+        var totalDebitCents = 0L;
+        var entryCount = entries.Count;
+        if (balanced)
+        {
+            // The offset: one DEBIT against our funding account for the batch total → file nets to 0.
+            traceSeq++;
+            var offsetTrace = origination.OriginatingDfi + traceSeq.ToString("D7");
+            totalDebitCents = totalCreditCents;
+            entryHash += long.Parse(offset!.RoutingNumber[..8]);
+            entryCount++;
+            lines.Add(new StringBuilder(RecordLength)
+                .Append('6')
+                .Append("27")                                             // checking debit (the offset)
+                .Append(offset.RoutingNumber)
+                .Append(Left(offset.AccountNumber, 17))
+                .Append(totalDebitCents.ToString("D10"))
+                .Append(Left("OFFSET", 15))
+                .Append(Left(offset.CompanyName, 22))
+                .Append(Left(string.Empty, 2))
+                .Append('0')
+                .Append(offsetTrace)
+                .ToString());
+        }
+
+        lines.Add(BatchControl(origination, entryCount, entryHash, totalDebitCents, totalCreditCents, batchNumber, serviceClass));
+        lines.Add(FileControl(entryCount, entryHash, totalDebitCents, totalCreditCents, batchCount: 1, totalRecords: lines.Count + 1));
 
         // Block to a multiple of 10 records with all-9 filler lines.
         while (lines.Count % BlockingFactor != 0)
@@ -129,8 +172,8 @@ public static class NachaFileGenerator
     }
 
     /// <summary>Trace numbers assigned to the entries, in input order (persisted onto batch items).</summary>
-    public static IReadOnlyList<string> AssignTraceNumbers(string originatingDfi, int entryCount)
-        => Enumerable.Range(1, entryCount).Select(i => originatingDfi + i.ToString("D7")).ToList();
+    public static IReadOnlyList<string> AssignTraceNumbers(string originatingDfi, int entryCount, int traceSeqStart = 1)
+        => Enumerable.Range(traceSeqStart, entryCount).Select(i => originatingDfi + i.ToString("D7")).ToList();
 
     private static string FileHeader(NachaOrigination o, DateTimeOffset createdAt)
         => new StringBuilder(RecordLength)
@@ -149,10 +192,10 @@ public static class NachaFileGenerator
             .Append(Left(string.Empty, 8))                                // reference code
             .ToString();
 
-    private static string BatchHeader(NachaOrigination o, DateOnly effectiveDate, bool isPrenote, int batchNumber)
+    private static string BatchHeader(NachaOrigination o, DateOnly effectiveDate, bool isPrenote, int batchNumber, string serviceClass)
         => new StringBuilder(RecordLength)
             .Append('5')
-            .Append(CreditsOnlyServiceClass)
+            .Append(serviceClass)
             .Append(Left(o.CompanyName, 16))
             .Append(Left(string.Empty, 20))                               // company discretionary data
             .Append(Left(o.CompanyId, 10))
@@ -166,13 +209,13 @@ public static class NachaFileGenerator
             .Append(batchNumber.ToString("D7"))
             .ToString();
 
-    private static string BatchControl(NachaOrigination o, int entryCount, long entryHash, long creditCents, int batchNumber)
+    private static string BatchControl(NachaOrigination o, int entryCount, long entryHash, long debitCents, long creditCents, int batchNumber, string serviceClass)
         => new StringBuilder(RecordLength)
             .Append('8')
-            .Append(CreditsOnlyServiceClass)
+            .Append(serviceClass)
             .Append(entryCount.ToString("D6"))
             .Append(Hash10(entryHash))
-            .Append(0L.ToString("D12"))                                   // total debits (credits-only file)
+            .Append(debitCents.ToString("D12"))                           // 0 unless balanced (offset debit)
             .Append(creditCents.ToString("D12"))
             .Append(Left(o.CompanyId, 10))
             .Append(Left(string.Empty, 19))                               // message authentication code
@@ -181,7 +224,7 @@ public static class NachaFileGenerator
             .Append(batchNumber.ToString("D7"))
             .ToString();
 
-    private static string FileControl(int entryCount, long entryHash, long creditCents, int batchCount, int totalRecords)
+    private static string FileControl(int entryCount, long entryHash, long debitCents, long creditCents, int batchCount, int totalRecords)
     {
         // Block count includes the filler this file will be padded to.
         var blockCount = (totalRecords + BlockingFactor - 1) / BlockingFactor;
@@ -191,7 +234,7 @@ public static class NachaFileGenerator
             .Append(blockCount.ToString("D6"))
             .Append(entryCount.ToString("D8"))
             .Append(Hash10(entryHash))
-            .Append(0L.ToString("D12"))
+            .Append(debitCents.ToString("D12"))
             .Append(creditCents.ToString("D12"))
             .Append(Left(string.Empty, 39))                               // reserved
             .ToString();

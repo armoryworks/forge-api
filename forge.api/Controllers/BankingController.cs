@@ -22,7 +22,8 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-BANK-NACHA")]
 public class BankingController(
     IVendorBankAccountService bankAccounts,
-    IPaymentBatchService batches) : ControllerBase
+    IPaymentBatchService batches,
+    IBankReturnsService returns) : ControllerBase
 {
     // ── Vendor bank accounts ──────────────────────────────────────────────
 
@@ -98,6 +99,17 @@ public class BankingController(
     [HttpPost("payment-batches/{id:int}/cancel")]
     public async Task<ActionResult<PaymentBatchDetailModel>> CancelBatch(int id, CancellationToken ct)
         => Ok(await batches.CancelAsync(id, UserId, ct));
+
+    // ── Returns / NOC ingestion (Phase C — NACHA-standard, bank-agnostic) ──
+
+    /// <summary>Upload a bank ACH return/NOC file. Idempotent — re-imports double-apply nothing.</summary>
+    [HttpPost("returns/import")]
+    public async Task<ActionResult<BankReturnsImportResultModel>> ImportReturns(IFormFile file, CancellationToken ct)
+    {
+        using var reader = new StreamReader(file.OpenReadStream());
+        var contents = await reader.ReadToEndAsync(ct);
+        return Ok(await returns.ApplyAsync(contents, UserId, ct));
+    }
 
     private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 }

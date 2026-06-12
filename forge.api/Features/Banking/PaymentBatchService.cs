@@ -48,7 +48,10 @@ public sealed class PaymentBatchService(
     IVendorBankAccountService bankAccounts,
     IBankingDataProtector protector,
     ISettingsService settings,
-    IClock clock) : IPaymentBatchService
+    IClock clock,
+    // The Phase-B channel: used only when banking.nacha.channel = sftp (release uploads the
+    // file). Null-default keeps direct-construction tests on the manual channel.
+    IBankFileChannel? fileChannel = null) : IPaymentBatchService
 {
     public async Task<IReadOnlyList<PaymentBatchListItemModel>> ListAsync(CancellationToken ct = default)
     {
@@ -232,10 +235,34 @@ public sealed class PaymentBatchService(
                 ReceiverName: account.Vendor?.CompanyName ?? $"Vendor {account.VendorId}"));
         }
 
-        batch.FileContents = NachaFileGenerator.Generate(
-            origination, entries, batch.EffectiveEntryDate, clock.UtcNow, batch.IsPrenote, batch.Id);
+        // Balanced files (banking.nacha.balanced): some banks require the batch to carry its own
+        // offsetting debit against our funding account; most create the offset themselves (default).
+        NachaOffset? offsetEntry = null;
+        if (await settings.GetBoolAsync(BankingSettings.BalancedFilesKey, ct) && !batch.IsPrenote)
+        {
+            var offsetRouting = await Required(BankingSettings.OffsetRoutingKey, ct);
+            if (!NachaFileGenerator.IsValidRoutingNumber(offsetRouting))
+                throw new InvalidOperationException(
+                    "Banking settings: the offset account routing number is not a valid routing number (ABA checksum).");
+            offsetEntry = new NachaOffset(
+                offsetRouting,
+                await Required(BankingSettings.OffsetAccountKey, ct),
+                origination.CompanyName);
+        }
 
-        var traces = NachaFileGenerator.AssignTraceNumbers(origination.OriginatingDfi, entries.Count);
+        // Globally monotonic trace sequence: traces are the bank-return join key, so they must
+        // never repeat across batches. Next free = count of every trace ever assigned (incl.
+        // balanced-file offsets, which consume a sequence but aren't persisted as items).
+        var traceSeqStart = await db.PaymentBatchItems.IgnoreQueryFilters()
+            .CountAsync(i => i.TraceNumber != null, ct)
+            + await db.PaymentBatches.IgnoreQueryFilters()
+                .CountAsync(b => b.FileContents != null && !b.IsPrenote, ct) // offset allowance (≤1 per live file)
+            + 1;
+
+        batch.FileContents = NachaFileGenerator.Generate(
+            origination, entries, batch.EffectiveEntryDate, clock.UtcNow, batch.IsPrenote, batch.Id, offsetEntry, traceSeqStart);
+
+        var traces = NachaFileGenerator.AssignTraceNumbers(origination.OriginatingDfi, entries.Count, traceSeqStart);
         var ordered = batch.Items.OrderBy(i => i.Id).ToList();
         for (var i = 0; i < ordered.Count; i++)
             ordered[i].TraceNumber = traces[i];
@@ -271,6 +298,22 @@ public sealed class PaymentBatchService(
         if (batch.CreatedByUserId == userId)
             throw new InvalidOperationException(
                 "Segregation of duties: a batch must be released by a different user than the one who created it.");
+
+        // Phase-B channel: on sftp, the RELEASE performs the upload (the second user's click IS
+        // the transmission). An upload failure throws — the batch stays Generated and release can
+        // be retried. Manual channel: release attests a portal upload done by hand (Phase A).
+        var channel = (await settings.GetStringAsync(BankingSettings.ChannelKey, ct))?.Trim().ToLowerInvariant();
+        if (channel == "sftp")
+        {
+            if (fileChannel is null)
+                throw new InvalidOperationException(
+                    "banking.nacha.channel is 'sftp' but no bank file channel is configured in this process.");
+            await fileChannel.UploadAsync($"{batch.BatchNumber}.ach", batch.FileContents!, ct);
+            db.LogActivityAt(
+                "batch-uploaded",
+                $"Batch {batch.BatchNumber} uploaded to the bank over SFTP",
+                ("PaymentBatch", batch.Id));
+        }
 
         batch.Status = PaymentBatchStatus.Released;
         batch.ReleasedByUserId = userId;

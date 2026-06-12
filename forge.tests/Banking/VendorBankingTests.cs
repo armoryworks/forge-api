@@ -54,6 +54,24 @@ public class VendorBankingTests
             => Task.FromResult<IReadOnlyDictionary<string, string?>>(values);
     }
 
+    private sealed class FakeFileChannel : IBankFileChannel
+    {
+        public List<(string Name, string Contents)> Uploaded { get; } = [];
+        public bool FailUploads { get; set; }
+        public Task UploadAsync(string fileName, string contents, CancellationToken ct)
+        {
+            if (FailUploads) throw new InvalidOperationException("SFTP unreachable");
+            Uploaded.Add((fileName, contents));
+            return Task.CompletedTask;
+        }
+        public Task<IReadOnlyList<string>> ListReturnFilesAsync(CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<string>>([]);
+        public Task<string> DownloadReturnFileAsync(string fileName, CancellationToken ct)
+            => Task.FromResult(string.Empty);
+        public Task MarkReturnProcessedAsync(string fileName, CancellationToken ct)
+            => Task.CompletedTask;
+    }
+
     private sealed class FakeClock : IClock
     {
         public DateTimeOffset UtcNow { get; set; } = new(2026, 6, 12, 12, 0, 0, TimeSpan.Zero);
@@ -72,14 +90,14 @@ public class VendorBankingTests
     };
 
     private static (AppDbContext Db, VendorBankAccountService Accounts, PaymentBatchService Batches, FakeSettings Settings)
-        CreateHarness(Dictionary<string, string?>? settings = null)
+        CreateHarness(Dictionary<string, string?>? settings = null, IBankFileChannel? channel = null)
     {
         var db = TestDbContextFactory.Create();
         var fakeSettings = new FakeSettings(settings ?? ConfiguredOrigination());
         var clock = new FakeClock();
         var protector = new FakeProtector();
         var accounts = new VendorBankAccountService(db, protector, fakeSettings, clock);
-        var batches = new PaymentBatchService(db, accounts, protector, fakeSettings, clock);
+        var batches = new PaymentBatchService(db, accounts, protector, fakeSettings, clock, channel);
         return (db, accounts, batches, fakeSettings);
     }
 
@@ -305,9 +323,10 @@ public class VendorBankingTests
         lines.Should().AllSatisfy(l => l.Length.Should().Be(94));
         // The decrypted account number reaches the file (the one allowed seam) …
         contents.Should().Contain("000123456789");
-        // … and the persisted item carries its trace.
+        // … and the persisted item carries its trace. Sequences are GLOBALLY monotonic: the
+        // prenote batch in the harness consumed seq 1, so this payment entry gets seq 2.
         (await db.PaymentBatchItems.SingleAsync(i => i.VendorPaymentId == payment.Id))
-            .TraceNumber.Should().Be("071000300000001");
+            .TraceNumber.Should().Be("071000300000002");
     }
 
     [Fact]
@@ -323,6 +342,71 @@ public class VendorBankingTests
         await batches.CancelAsync(batch.Id, userId: 1);
         (await batches.GetEligiblePaymentsAsync())
             .Should().ContainSingle(e => e.VendorPaymentId == payment.Id);
+    }
+
+    [Fact]
+    public async Task Generate_BalancedSetting_EmitsOffsetDebit()
+    {
+        var settings = ConfiguredOrigination(requirePrenote: false);
+        settings[BankingSettings.BalancedFilesKey] = "true";
+        settings[BankingSettings.OffsetRoutingKey] = "071000301";
+        settings[BankingSettings.OffsetAccountKey] = "00998877";
+        var (db, accounts, batches, _) = CreateHarness(settings);
+        var vendorId = await AddVendorAsync(db);
+        var created = await accounts.CreateAsync(vendorId, Request(), userId: 1);
+        await accounts.ApproveAsync(created.Id, userId: 2);
+        var payment = await AddAchPaymentAsync(db, vendorId, 200m);
+        var batch = await batches.CreateAsync([payment.Id], new DateOnly(2026, 6, 15), userId: 1);
+
+        await batches.GenerateAsync(batch.Id, userId: 1);
+        var (_, contents) = await batches.GetFileAsync(batch.Id);
+
+        contents.Should().Contain("627071000301");                  // offset debit to our funding account
+        contents.Split('\n')[1].Substring(1, 3).Should().Be("200"); // mixed service class
+    }
+
+    [Fact]
+    public async Task Generate_BalancedSetting_MissingOffsetAccount_Blocks()
+    {
+        var settings = ConfiguredOrigination(requirePrenote: false);
+        settings[BankingSettings.BalancedFilesKey] = "true";
+        var (db, accounts, batches, _) = CreateHarness(settings);
+        var vendorId = await AddVendorAsync(db);
+        var created = await accounts.CreateAsync(vendorId, Request(), userId: 1);
+        await accounts.ApproveAsync(created.Id, userId: 2);
+        var payment = await AddAchPaymentAsync(db, vendorId, 200m);
+        var batch = await batches.CreateAsync([payment.Id], new DateOnly(2026, 6, 15), userId: 1);
+
+        var act = () => batches.GenerateAsync(batch.Id, userId: 1);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*not configured*");
+    }
+
+    [Fact]
+    public async Task Release_SftpChannel_UploadsOnRelease_FailureKeepsGenerated()
+    {
+        var settings = ConfiguredOrigination(requirePrenote: false);
+        settings[BankingSettings.ChannelKey] = "sftp";
+        var channel = new FakeFileChannel();
+        var (db, accounts, batches, _) = CreateHarness(settings, channel);
+        var vendorId = await AddVendorAsync(db);
+        var created = await accounts.CreateAsync(vendorId, Request(), userId: 1);
+        await accounts.ApproveAsync(created.Id, userId: 2);
+        var payment = await AddAchPaymentAsync(db, vendorId, 300m);
+        var batch = await batches.CreateAsync([payment.Id], new DateOnly(2026, 6, 15), userId: 1);
+        await batches.GenerateAsync(batch.Id, userId: 1);
+
+        // Upload failure → release throws, batch stays Generated, no transmission created.
+        channel.FailUploads = true;
+        var act = () => batches.ReleaseAsync(batch.Id, userId: 2);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*SFTP unreachable*");
+        (await db.PaymentBatches.SingleAsync()).Status.Should().Be(PaymentBatchStatus.Generated);
+        (await db.PaymentTransmissions.AnyAsync()).Should().BeFalse();
+
+        // Retry succeeds: the release click performed the upload (second user = SoD intact).
+        channel.FailUploads = false;
+        var released = await batches.ReleaseAsync(batch.Id, userId: 2);
+        released.Status.Should().Be("Released");
+        channel.Uploaded.Should().ContainSingle(u => u.Name == released.BatchNumber + ".ach");
     }
 
     [Fact]

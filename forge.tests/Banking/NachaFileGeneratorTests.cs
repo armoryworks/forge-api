@@ -140,6 +140,42 @@ public class NachaFileGeneratorTests
     }
 
     [Fact]
+    public void Generate_Balanced_AppendsOffsetDebit_ServiceClass200()
+    {
+        var offset = new NachaOffset(ValidRouting2, "00998877", "ARMORY PLASTICS");
+        var file = NachaFileGenerator.Generate(
+            Origination(), [Entry(100m), Entry(50.25m)], EffectiveDate, CreatedAt,
+            isPrenote: false, batchNumber: 4, offset: offset);
+
+        var lines = file.Split('\n');
+        lines[1].Substring(1, 3).Should().Be("200");              // mixed service class
+        // Offset entry: code 27 debit for the credit total (15025 cents) against our account.
+        var offsetLine = lines[4];
+        offsetLine.Substring(0, 3).Should().Be("627");
+        offsetLine.Substring(3, 9).Should().Be(ValidRouting2);
+        offsetLine.Substring(29, 10).Should().Be("0000015025");
+        // Batch control: 3 entries, debits == credits (the file nets to zero).
+        var batchControl = lines[5];
+        batchControl.Substring(1, 3).Should().Be("200");
+        batchControl.Substring(4, 6).Should().Be("000003");
+        batchControl.Substring(20, 12).Should().Be("000000015025");
+        batchControl.Substring(32, 12).Should().Be("000000015025");
+    }
+
+    [Fact]
+    public void Generate_Prenote_IgnoresOffset_StaysCreditsOnly()
+    {
+        var offset = new NachaOffset(ValidRouting2, "00998877", "ARMORY PLASTICS");
+        var file = NachaFileGenerator.Generate(
+            Origination(), [Entry(500m)], EffectiveDate, CreatedAt,
+            isPrenote: true, batchNumber: 5, offset: offset);
+
+        var lines = file.Split('\n');
+        lines[1].Substring(1, 3).Should().Be("220");
+        lines.Count(l => l.StartsWith("627")).Should().Be(0);     // no offset on a zero-dollar batch
+    }
+
+    [Fact]
     public void Generate_NoEntries_Throws()
     {
         var act = () => NachaFileGenerator.Generate(

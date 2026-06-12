@@ -457,6 +457,13 @@ try
                                Forge.Api.Features.Banking.VendorBankAccountService>();
     builder.Services.AddScoped<Forge.Api.Features.Banking.IPaymentBatchService,
                                Forge.Api.Features.Banking.PaymentBatchService>();
+    // Phase B/C bank-portability: generic SFTP channel (banking.sftp.* settings) + NACHA-standard
+    // returns/NOC ingestion. Bank-agnostic by construction — onboarding a new bank is values-entry.
+    builder.Services.AddScoped<Forge.Core.Interfaces.IBankFileChannel,
+                               Forge.Api.Features.Banking.SftpBankFileChannel>();
+    builder.Services.AddScoped<Forge.Api.Features.Banking.IBankReturnsService,
+                               Forge.Api.Features.Banking.BankReturnsService>();
+    builder.Services.AddScoped<Forge.Api.Jobs.BankReturnsPollJob>();
     // BANK-001 — OFX/CSV statement import + auto-match staging (gated CAP-ACCT-FULLGL).
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IBankStatementImportService,
                                Forge.Api.Features.Accounting.BankStatementImportService>();
@@ -1781,6 +1788,10 @@ try
         "variance-watchdog",
         job => job.RunAsync(CancellationToken.None),
         "0 6 * * *"); // 6 AM UTC daily — §10.6 nudges the Controller role when standard-cost variances drift
+    RecurringJob.AddOrUpdate<BankReturnsPollJob>(
+        "bank-returns-poll",
+        job => job.PollAsync(CancellationToken.None),
+        "*/30 * * * *"); // Every 30 minutes — no-op unless banking.nacha.channel = sftp (Phase C)
 
     // Accounting sync jobs
     RecurringJob.AddOrUpdate<CustomerSyncJob>(

@@ -22,6 +22,16 @@ public static class BankingSettings
     public const string RequirePrenoteKey = "banking.require-prenote";
     public const string ExposureLimitKey = "banking.exposure-limit";
     public const string StatementMatchWindowDaysKey = "banking.statement.match-window-days";
+    public const string BalancedFilesKey = "banking.nacha.balanced";
+    public const string OffsetRoutingKey = "banking.nacha.offset-routing";
+    public const string OffsetAccountKey = "banking.nacha.offset-account";
+    public const string ChannelKey = "banking.nacha.channel";
+    public const string SftpHostKey = "banking.sftp.host";
+    public const string SftpPortKey = "banking.sftp.port";
+    public const string SftpUsernameKey = "banking.sftp.username";
+    public const string SftpPasswordKey = "banking.sftp.password";
+    public const string SftpUploadDirKey = "banking.sftp.upload-dir";
+    public const string SftpReturnsDirKey = "banking.sftp.returns-dir";
 
     public static IReadOnlyList<SettingDescriptor> Descriptors =>
     [
@@ -76,5 +86,41 @@ public static class BankingSettings
                 + "equal AND the dates are within this many days (and exactly one candidate fits).",
             DefaultValue: "5",
             SortOrder: 110),
+        // ── Bank-portability knobs: the three places banks actually differ ──
+        new(BalancedFilesKey, Group, "NACHA — Balanced Files", SettingDataType.Boolean,
+            Description: "Off (default): credits-only files (service class 220) — the bank creates the "
+                + "offset to your account. On: each batch carries its own offsetting DEBIT entry against "
+                + "the offset account below (service class 200) — required by some banks.",
+            DefaultValue: "false",
+            SortOrder: 111),
+        new(OffsetRoutingKey, Group, "NACHA — Offset Account Routing", SettingDataType.String,
+            Description: "Our funding account's routing number — the offset debit's destination when "
+                + "balanced files are on.",
+            ValidationPattern: @"^\d{9}$",
+            SortOrder: 112),
+        new(OffsetAccountKey, Group, "NACHA — Offset Account Number", SettingDataType.Secret,
+            Description: "Our funding account number for the offset debit (balanced files only). Stored "
+                + "encrypted.",
+            IsSecret: true,
+            SortOrder: 113),
+        new(ChannelKey, Group, "NACHA — Submission Channel", SettingDataType.String,
+            Description: "manual (default): generate → download → upload to the bank portal by hand; "
+                + "release attests the upload. sftp: releasing a batch UPLOADS the file over SFTP "
+                + "(settings below) — release is still the second-user SoD step.",
+            DefaultValue: "manual",
+            ValidationPattern: @"^(manual|sftp)$",
+            SortOrder: 114),
+        new(SftpHostKey, Group, "Bank SFTP — Host", SettingDataType.String, SortOrder: 115),
+        new(SftpPortKey, Group, "Bank SFTP — Port", SettingDataType.Integer, DefaultValue: "22", SortOrder: 116),
+        new(SftpUsernameKey, Group, "Bank SFTP — Username", SettingDataType.String, SortOrder: 117),
+        new(SftpPasswordKey, Group, "Bank SFTP — Password", SettingDataType.Secret,
+            Description: "Stored encrypted. (Key-based auth: ask before wiring — most CU drops are "
+                + "password-over-SSH today.)",
+            IsSecret: true,
+            SortOrder: 118),
+        new(SftpUploadDirKey, Group, "Bank SFTP — Upload Directory", SettingDataType.String,
+            DefaultValue: "/inbound", SortOrder: 119),
+        new(SftpReturnsDirKey, Group, "Bank SFTP — Returns Directory", SettingDataType.String,
+            DefaultValue: "/outbound", SortOrder: 120),
     ];
 }
