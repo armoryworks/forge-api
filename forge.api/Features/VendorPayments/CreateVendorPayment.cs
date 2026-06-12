@@ -195,6 +195,16 @@ public class CreateVendorPaymentHandler(
             await cashPosting.PostVendorPaymentCreatedAsync(payment.Id, createdByUserId, cancellationToken);
         }
 
+        // Activity (transactional entity → log on the payment), inside the same transaction. Without this,
+        // non-electronic payments (Check/Cash) left no trail at all — only electronic ones got the
+        // transmission-queued row below.
+        db.LogActivityAt(
+            "created",
+            $"Payment {payment.PaymentNumber} recorded — {payment.Amount:C} via {method}"
+            + (appliedTotal > 0 ? $", {appliedTotal:C} applied" : string.Empty),
+            ("VendorPayment", payment.Id));
+        await db.SaveChangesAsync(cancellationToken);
+
         await tx.CommitAsync(cancellationToken);
 
         // ── Electronic payment origination: after the payment (and posting) commits, queue a bank

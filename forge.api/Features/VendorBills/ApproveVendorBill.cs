@@ -9,6 +9,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.VendorBills;
 
@@ -128,6 +129,13 @@ public class ApproveVendorBillHandler(
         // by the SaveChanges below within the same transaction (PO lines are tracked by the shared context).
         foreach (var (poLine, quantity) in poMatches)
             poLine!.BilledQuantity += quantity;
+
+        // Activity (transactional entity → log on the bill). db is null only in isolated unit tests.
+        db?.LogActivityAt(
+            "approved",
+            $"Bill {bill.BillNumber} approved for payment — {bill.Total:C}"
+            + (poMatches.Count > 0 ? " (3-way matched)" : string.Empty),
+            ("VendorBill", bill.Id));
 
         await repo.SaveChangesAsync(cancellationToken);
 

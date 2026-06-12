@@ -7,6 +7,7 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.VendorBills;
 
@@ -126,6 +127,14 @@ public class CreateVendorBillHandler(
 
         await repo.AddAsync(bill, cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);
+
+        // Activity (transactional entity → log on the bill): after the first save so the id is assigned.
+        db.LogActivityAt(
+            "created",
+            $"Bill {bill.BillNumber} created for {vendor.CompanyName} — {bill.Total:C}"
+            + (bill.PurchaseOrderId is int poId ? $" (PO {poId})" : string.Empty),
+            ("VendorBill", bill.Id));
+        await db.SaveChangesAsync(cancellationToken);
 
         return new VendorBillListItemModel(
             bill.Id, bill.BillNumber, bill.VendorId, vendor.CompanyName, bill.VendorInvoiceNumber,

@@ -8,6 +8,7 @@ using Forge.Api.Features.Accounting;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.VendorBills;
 
@@ -74,6 +75,15 @@ public class VoidVendorBillHandler(
                     poLine.BilledQuantity -= g.Sum(l => l.Quantity);
             }
         }
+
+        // Activity (transactional entity → log on the bill). db is null only in isolated unit tests.
+        db?.LogActivityAt(
+            "voided",
+            $"Bill {bill.BillNumber} voided"
+            + (wasPosted
+                ? " — ledger entry reversed, PO billed quantities restored"
+                : " (draft cancelled)"),
+            ("VendorBill", bill.Id));
 
         await repo.SaveChangesAsync(cancellationToken);
 
