@@ -1,23 +1,24 @@
 namespace Forge.Core.Models.Accounting;
 
 /// <summary>
-/// Phase-1 STAGE D — AR sub-ledger + aging report (ACCOUNTING_SUITE_PLAN §6
-/// Phase-1 row "AR sub-ledger + aging", §7 matrix rows 1–3). The report is
-/// <b>derived from the ledger</b> — it sums posted <c>JournalLine</c>s on
-/// AR-control accounts (<c>GlAccount.ControlType == AR</c>) carrying
-/// <c>SubledgerPartyType = Customer</c> — so it is always tied to the GL by
-/// construction (the reconciliation in <see cref="ArAgingReconciliation"/>
-/// proves it). Amounts are <b>functional</b> currency (Phase-0/1 single-currency
-/// invariant — TxnAmount == FunctionalAmount).
+/// AR-002 — AR sub-ledger aging report. The report is <b>derived from the
+/// open-item sub-ledger</b> (<c>ArOpenItem</c> rows maintained at posting time,
+/// in the same transaction as every AR-control journal): per customer, the open
+/// functional remainder of each non-Closed/non-Voided document, bucketed by the
+/// age of its DueDate (DocumentDate when no due date is set) — document-grain
+/// aging, the standard AR treatment (formerly balance-forward at the posting
+/// grain). The reconciliation in <see cref="ArAgingReconciliation"/> ties the
+/// total back to the AR-control GL balance. Amounts are <b>functional</b>
+/// currency at each document's booking rate.
 /// </summary>
 
 /// <summary>
-/// One age bucket of a customer's open AR balance. Buckets are computed from the
-/// age (in days) of each posting's <c>EntryDate</c> relative to the report's
-/// as-of date. A debit on the AR control line increases the open balance
-/// (an invoice); a credit decreases it (a payment / credit memo applied to the
-/// customer). The aging signs net amounts within each bucket so a fully-paid
-/// customer ages to zero.
+/// One age bucket of a customer's open AR balance. Buckets are computed from
+/// the age (in days) of each open item's due date (document date fallback)
+/// relative to the report's as-of date; each invoice's OPEN remainder
+/// (original − applied) lands wholly in its document's bucket, so a partial
+/// payment shrinks that bucket rather than crediting a younger one. Documents
+/// not yet due sit in the youngest bucket.
 /// </summary>
 public sealed class ArAgingBucket
 {
@@ -39,15 +40,16 @@ public sealed class ArAgingBucket
 
 /// <summary>
 /// A single customer's open AR balance, broken into age buckets. The
-/// <see cref="OpenBalance"/> is the net of all AR-control postings for the
-/// customer (debits − credits) and equals the sum of the bucket amounts.
+/// <see cref="OpenBalance"/> is the sum of the customer's open-item remainders
+/// (original − applied, functional at booking rates) and equals the sum of the
+/// bucket amounts.
 /// </summary>
 public sealed class ArAgingCustomerRow
 {
     public int CustomerId { get; init; }
     public string CustomerName { get; init; } = string.Empty;
 
-    /// <summary>Net open receivable (functional) = Σ bucket amounts = Dr − Cr.</summary>
+    /// <summary>Net open receivable (functional) = Σ bucket amounts = Σ open items.</summary>
     public decimal OpenBalance { get; init; }
 
     public IReadOnlyList<ArAgingBucket> Buckets { get; init; } = [];
@@ -81,27 +83,27 @@ public sealed class ArAging
 }
 
 /// <summary>
-/// AR-control-vs-aging reconciliation (§9 "sub-ledger↔control reconciliation").
-/// Compares the sum of the derived aging (<see cref="AgingTotal"/>) to the
-/// posted balance of the AR-control GL account(s) (<see cref="ControlBalance"/>).
-/// They must be equal because the aging is derived from the very same AR-control
-/// <c>JournalLine</c>s; a non-zero <see cref="Difference"/> means some AR posting
-/// is missing a customer party (so it aged into no customer) or an out-of-band
-/// mutation occurred — i.e. a bug to alert on.
+/// AR-control-vs-open-items reconciliation (§9 "sub-ledger↔control
+/// reconciliation"). Compares Σ open functional amounts of the open items
+/// (<see cref="AgingTotal"/>) to the posted balance of the AR-control GL
+/// account(s) (<see cref="ControlBalance"/>). The items are maintained inside
+/// the same transactions that move control, so they tie exactly; a non-zero
+/// <see cref="Difference"/> means a manual/conversion JE hit AR control
+/// directly (bypasses items by design — this row surfaces it), a legacy
+/// document awaits the boot-time backfill, or an out-of-band mutation occurred.
+/// A Voided item counts on neither side (its GL was reversed).
 /// </summary>
 public sealed class ArAgingReconciliation
 {
     /// <summary>Net AR-control account balance from the GL (Dr − Cr, functional).</summary>
     public decimal ControlBalance { get; init; }
 
-    /// <summary>Sum of the customer-attributed aging (functional).</summary>
+    /// <summary>Σ open functional amounts of the AR open items (the sub-ledger side).</summary>
     public decimal AgingTotal { get; init; }
 
     /// <summary>
-    /// ControlBalance − AgingTotal. Zero when the sub-ledger ties to the control
-    /// account. The portion of the control balance carrying no
-    /// <c>SubledgerPartyType = Customer</c> party (which the engine should never
-    /// allow on a control line) is exactly this difference.
+    /// ControlBalance − AgingTotal. Zero when the open-item sub-ledger ties to
+    /// the control account; non-zero is alertable (see class doc).
     /// </summary>
     public decimal Difference => ControlBalance - AgingTotal;
 

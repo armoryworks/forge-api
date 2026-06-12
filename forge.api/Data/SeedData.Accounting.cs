@@ -33,6 +33,12 @@ public static partial class SeedData
         // get it backfilled. No-op on fresh installs and already-patched ones.
         await EnsureCashInTransitAsync(db);
 
+        // AR-002/AP-001 open-item sub-ledger backfill — runs on EVERY boot, before
+        // the run-once guard, so installs that posted AR/AP journals before the
+        // open-item tables existed get their items reconstructed. No-op on fresh
+        // installs and on any install where items already exist.
+        await EnsureOpenItemsBackfilledAsync(db);
+
         // Run-once guard: if any Book exists the GL foundation is already seeded.
         if (await db.Books.AnyAsync())
         {
@@ -246,6 +252,194 @@ public static partial class SeedData
     // posting engine resolves through): rule present → no-op; rule absent →
     // insert the GlAccount (reusing a hand-inserted one when present) + the
     // rule, per active Book. Idempotent; never mutates existing rows.
+    // ── AR-002/AP-001: open-item sub-ledger backfill (boot-time ensure) ──────
+    //
+    // The open items are normally created/maintained by the posting services at
+    // posting time, but installs that enabled CAP-ACCT-FULLGL BEFORE the
+    // open-item tables existed have posted AR/AP origination journals with no
+    // items. Mirrors the EnsureCashInTransitAsync pattern: runs on every boot
+    // before the run-once guard; per side (AR / AP) it backfills ONLY when that
+    // open-item table is EMPTY (the idempotency guard — once any item exists,
+    // posting-time maintenance owns the table and the backfill never re-runs).
+    //
+    // Reconstruction matches the posting-time math exactly so the reconciliation
+    // ties: items are built from operational Invoices / VendorBills that have a
+    // POSTED origination journal (matched by the posting idempotency keys
+    // AR:Invoice:{id}:REVENUE / AP:VendorBill:{id}:BILL); applied amounts come
+    // from their Payment/VendorPayment applications — counted only when the
+    // payment's own origination journal is Posted (a payment recorded while
+    // FULLGL was off moved no control balance, so it must not shrink the item) —
+    // functional at the DOCUMENT's booking rate; statuses recomputed. A vendor
+    // bill whose origination is Reversed (voided bill) gets a Voided item,
+    // matching the posting-time void path.
+    internal static async Task EnsureOpenItemsBackfilledAsync(AppDbContext db)
+    {
+        var book = await db.Books.Where(b => b.IsActive).OrderBy(b => b.Id).FirstOrDefaultAsync();
+        if (book is null)
+            return; // No GL seeded — nothing was ever posted.
+
+        // ── AR side ──────────────────────────────────────────────────────────
+        if (!await db.ArOpenItems.AnyAsync())
+        {
+            // Posted invoice originations (the Dr AR_CONTROL revenue entries).
+            var postedInvoiceIds = (await db.JournalEntries.IgnoreQueryFilters()
+                .Where(e => e.BookId == book.Id
+                    && e.Source == JournalSource.AR
+                    && e.SourceType == "Invoice"
+                    && e.SourceId != null
+                    && e.IdempotencyKey != null && e.IdempotencyKey.EndsWith(":REVENUE")
+                    && e.Status == JournalEntryStatus.Posted)
+                .Select(e => e.SourceId!.Value)
+                .ToListAsync()).ToHashSet();
+
+            if (postedInvoiceIds.Count > 0)
+            {
+                // Payments whose cash-receipt origination is Posted — only these
+                // relieved AR control, so only these count as applied. (A voided
+                // payment's origination is Reversed AND its applications are
+                // removed; a dark-mode payment never posted.)
+                var postedPaymentIds = (await db.JournalEntries.IgnoreQueryFilters()
+                    .Where(e => e.BookId == book.Id
+                        && e.Source == JournalSource.AR
+                        && e.SourceType == "Payment"
+                        && e.SourceId != null
+                        && e.IdempotencyKey != null && e.IdempotencyKey.EndsWith(":PAYMENT")
+                        && e.Status == JournalEntryStatus.Posted)
+                    .Select(e => e.SourceId!.Value)
+                    .ToListAsync()).ToHashSet();
+
+                // Bounded by the posted originations (not the whole invoice table).
+                var invoices = await db.Invoices.IgnoreQueryFilters()
+                    .Include(i => i.Lines)
+                    .Include(i => i.Customer)
+                    .Include(i => i.PaymentApplications)
+                    .Where(i => postedInvoiceIds.Contains((long)i.Id))
+                    .ToListAsync();
+
+                foreach (var invoice in invoices)
+                {
+                    // Mirror InvoiceArPostingService: posted total = subtotal + non-exempt tax.
+                    var subtotal = invoice.Lines.Sum(l => l.LineTotal);
+                    var taxAmount = invoice.Customer.IsTaxExempt ? 0m : subtotal * invoice.TaxRate;
+                    var arTotal = subtotal + taxAmount;
+                    if (arTotal <= 0m)
+                        continue; // the posting skipped degenerate totals; mirror it defensively
+
+                    var item = new ArOpenItem
+                    {
+                        BookId = book.Id,
+                        CustomerId = invoice.CustomerId,
+                        SourceType = "Invoice",
+                        SourceId = invoice.Id,
+                        DocumentNumber = invoice.InvoiceNumber,
+                        DocumentDate = invoice.InvoiceDate,
+                        DueDate = invoice.DueDate,
+                        CurrencyId = invoice.CurrencyId,
+                        FxRate = invoice.FxRate,
+                        OriginalTxnAmount = arTotal,
+                        OriginalFunctionalAmount = Math.Round(arTotal * invoice.FxRate, 2, MidpointRounding.AwayFromZero),
+                    };
+
+                    foreach (var app in invoice.PaymentApplications.Where(a => postedPaymentIds.Contains(a.PaymentId)))
+                    {
+                        item.AppliedTxnAmount += app.Amount;
+                        item.AppliedFunctionalAmount +=
+                            Math.Round(app.Amount * invoice.FxRate, 2, MidpointRounding.AwayFromZero);
+                    }
+
+                    item.RecomputeStatus();
+                    db.ArOpenItems.Add(item);
+                }
+
+                await db.SaveChangesAsync();
+                Log.Information(
+                    "Backfilled {Count} AR open items from posted invoice originations (open-item sub-ledger boot ensure).",
+                    invoices.Count);
+            }
+        }
+
+        // ── AP side (mirror) ─────────────────────────────────────────────────
+        if (!await db.ApOpenItems.AnyAsync())
+        {
+            // Bill originations: Posted → active item; Reversed → the bill was
+            // voided (its GL nets to zero) → Voided item, like the void path.
+            var billOriginations = await db.JournalEntries.IgnoreQueryFilters()
+                .Where(e => e.BookId == book.Id
+                    && e.Source == JournalSource.AP
+                    && e.SourceType == "VendorBill"
+                    && e.SourceId != null
+                    && e.IdempotencyKey != null && e.IdempotencyKey.EndsWith(":BILL")
+                    && (e.Status == JournalEntryStatus.Posted || e.Status == JournalEntryStatus.Reversed))
+                .Select(e => new { SourceId = e.SourceId!.Value, e.Status })
+                .ToListAsync();
+
+            if (billOriginations.Count > 0)
+            {
+                var voidedBillIds = billOriginations
+                    .Where(o => o.Status == JournalEntryStatus.Reversed)
+                    .Select(o => o.SourceId)
+                    .ToHashSet();
+                var billIds = billOriginations.Select(o => o.SourceId).ToHashSet();
+
+                var postedVendorPaymentIds = (await db.JournalEntries.IgnoreQueryFilters()
+                    .Where(e => e.BookId == book.Id
+                        && e.Source == JournalSource.AP
+                        && e.SourceType == "VendorPayment"
+                        && e.SourceId != null
+                        && e.IdempotencyKey != null && e.IdempotencyKey.EndsWith(":PAYMENT")
+                        && e.Status == JournalEntryStatus.Posted)
+                    .Select(e => e.SourceId!.Value)
+                    .ToListAsync()).ToHashSet();
+
+                var bills = await db.VendorBills.IgnoreQueryFilters()
+                    .Include(b => b.Lines)
+                    .Include(b => b.PaymentApplications)
+                    .Where(b => billIds.Contains((long)b.Id))
+                    .ToListAsync();
+
+                foreach (var bill in bills)
+                {
+                    var total = bill.Total; // Σ line totals + tax — exactly what the posting credited
+                    if (total <= 0m)
+                        continue;
+
+                    var item = new ApOpenItem
+                    {
+                        BookId = book.Id,
+                        VendorId = bill.VendorId,
+                        SourceType = "VendorBill",
+                        SourceId = bill.Id,
+                        DocumentNumber = bill.BillNumber,
+                        DocumentDate = bill.BillDate,
+                        DueDate = bill.DueDate,
+                        CurrencyId = bill.CurrencyId,
+                        FxRate = bill.FxRate,
+                        OriginalTxnAmount = total,
+                        OriginalFunctionalAmount = Math.Round(total * bill.FxRate, 2, MidpointRounding.AwayFromZero),
+                    };
+
+                    foreach (var app in bill.PaymentApplications.Where(a => postedVendorPaymentIds.Contains(a.VendorPaymentId)))
+                    {
+                        item.AppliedTxnAmount += app.Amount;
+                        item.AppliedFunctionalAmount +=
+                            Math.Round(app.Amount * bill.FxRate, 2, MidpointRounding.AwayFromZero);
+                    }
+
+                    item.RecomputeStatus();
+                    if (voidedBillIds.Contains(bill.Id))
+                        item.Status = OpenItemStatus.Voided;
+
+                    db.ApOpenItems.Add(item);
+                }
+
+                await db.SaveChangesAsync();
+                Log.Information(
+                    "Backfilled {Count} AP open items from posted vendor-bill originations (open-item sub-ledger boot ensure).",
+                    bills.Count);
+            }
+        }
+    }
+
     internal static async Task EnsureCashInTransitAsync(AppDbContext db)
     {
         const string Key = "CASH_IN_TRANSIT";

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
+using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
@@ -9,31 +10,41 @@ using Forge.Data.Context;
 namespace Forge.Api.Features.Accounting;
 
 /// <summary>
-/// Phase-1 STAGE D — AR sub-ledger + aging, derived from the ledger
-/// (ACCOUNTING_SUITE_PLAN §6 Phase-1 row "AR sub-ledger + aging", §7 matrix rows
-/// 1–3, §9 "sub-ledger↔control reconciliation").
+/// AR-002 — AR sub-ledger aging, derived from the <b>open-item sub-ledger</b>
+/// (<see cref="ArOpenItem"/>): per customer, the OPEN functional amounts
+/// (original − applied, both at the document's booking rate) of non-Closed /
+/// non-Voided items, bucketed by the age of each item's <b>DueDate when set,
+/// else DocumentDate</b>.
 ///
-/// <para>The sub-ledger is <b>not a parallel store</b>: it is projected directly
-/// from posted <see cref="Forge.Core.Entities.Accounting.JournalLine"/>s on
-/// AR-control GL accounts (<c>GlAccount.ControlType == AR</c>) that carry a
-/// <c>SubledgerPartyType = Customer</c> party. Because it is the same data the
-/// trial balance reads, the AR-control-vs-aging reconciliation
-/// (<see cref="ReconcileAsync"/>) ties by construction; any non-zero difference
-/// is a genuine defect (an AR-control posting missing its customer party, which
-/// the posting engine rejects on control lines — §5.2 — or an out-of-band
-/// mutation past the immutability interceptor/trigger).</para>
+/// <para><b>Semantics change (open-item cutover).</b> Phase 1 aged at the
+/// transaction grain ("balance-forward": every AR-control posting re-bucketed by
+/// its EntryDate, credits landing in the bucket of the payment date). This
+/// service ages at the <b>document grain</b> — the standard AR treatment: each
+/// invoice's open remainder ages in the bucket of its due date, and a partial
+/// payment shrinks that document's bucket rather than crediting a younger one.
+/// Items not yet due (DueDate after the as-of date) sit in the youngest bucket.</para>
 ///
-/// <para><b>Filter-immune</b> (§5.3): every read uses <c>IgnoreQueryFilters</c>
-/// so a soft-deleted customer master or ledger row never silently drops and
-/// makes the sub-ledger appear to reconcile when it does not.</para>
+/// <para><b>Reconciliation.</b> <see cref="ReconcileAsync"/> compares the AR
+/// control balance from the GL (net of all posted AR-control lines) against
+/// Σ open functional amounts of the items. The items are maintained by the
+/// posting services <i>inside the same transaction</i> as every control
+/// movement (origination creates, applications increment at the booking-rate
+/// relief, voids restore), so the two tie exactly. A non-zero difference is
+/// alertable: a manual/conversion JE hitting AR control directly (bypasses
+/// items BY DESIGN — the reconciliation row is what surfaces it), a legacy
+/// document the backfill hasn't reconstructed, or an out-of-band mutation. A
+/// <see cref="OpenItemStatus.Voided"/> item counts on neither side, matching
+/// its reversed GL.</para>
 ///
-/// <para><b>Aging signing.</b> On an AR (debit-normal) control account a debit
-/// raises the customer's open balance (an invoice) and a credit lowers it (a
-/// payment / credit applied to that customer). We net <c>Debit − Credit</c> per
-/// posting and bucket by the age of the posting's <c>EntryDate</c>. Phase 1 ages
-/// at the transaction grain (not FIFO invoice-by-invoice application), which is
-/// the standard "balance-forward" aging; precise open-item application reporting
-/// rides on the open-item sub-ledger load (§7A) and is a later refinement.</para>
+/// <para><b>As-of.</b> The as-of date gates which documents age into the report
+/// (DocumentDate on/before as-of) and the GL control balance (EntryDate on/
+/// before as-of). Applied amounts are the items' CURRENT state — the open-item
+/// report is a now-state sub-ledger, so a historical as-of approximates (a
+/// payment dated after the as-of has already shrunk its item). The default
+/// as-of (today) is exact.</para>
+///
+/// <para><b>Filter-immune</b> (§5.3): reads use <c>IgnoreQueryFilters</c> so a
+/// soft-deleted customer master or ledger row never silently drops a balance.</para>
 /// </summary>
 public sealed class ArAgingService(AppDbContext db, IClock clock) : IArAgingService
 {
@@ -54,40 +65,11 @@ public sealed class ArAgingService(AppDbContext db, IClock clock) : IArAgingServ
     {
         var asOf = asOfDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
 
-        // Project posted AR-control lines carrying a Customer party. We pull the
-        // raw rows (EntryDate + net amount + customer id) and bucket in memory so
-        // the age arithmetic is provider-agnostic (InMemory can't do DateOnly
-        // day-diff in SQL) and provably correct.
-        var postings = await
-            (from line in db.JournalLines.IgnoreQueryFilters()
-             join entry in db.JournalEntries.IgnoreQueryFilters()
-                 on line.JournalEntryId equals entry.Id
-             join account in db.GlAccounts.IgnoreQueryFilters()
-                 on line.GlAccountId equals account.Id
-             where entry.BookId == bookId
-                 && account.ControlType == ControlAccountType.AR
-                 && account.IsControlAccount
-                 && line.SubledgerPartyType == SubledgerPartyType.Customer
-                 && line.SubledgerPartyId != null
-                 // Posted + Reversed headers both contribute: a Reversed original
-                 // is netted by its (Posted) reversal, exactly as the trial
-                 // balance treats them (§5.3).
-                 && (entry.Status == JournalEntryStatus.Posted
-                     || entry.Status == JournalEntryStatus.Reversed)
-                 // Only entries dated on/before the as-of date age into the report.
-                 && entry.EntryDate <= asOf
-             select new ArPostingRow
-             {
-                 CustomerId = line.SubledgerPartyId!.Value,
-                 EntryDate = entry.EntryDate,
-                 // Functional amount, debit-positive (AR is debit-normal).
-                 NetFunctional = line.Debit > 0 ? line.FunctionalAmount : -line.FunctionalAmount,
-             })
-            .ToListAsync(ct);
+        var items = await LoadOpenItemsAsync(bookId, asOf, ct);
 
         // Resolve customer display names (filter-immune — a soft-deleted customer
         // still owns an open balance until it's settled).
-        var customerIds = postings.Select(p => p.CustomerId).Distinct().ToList();
+        var customerIds = items.Select(i => i.CustomerId).Distinct().ToList();
         var customerNames = await db.Set<Customer>()
             .IgnoreQueryFilters()
             .Where(c => customerIds.Contains(c.Id))
@@ -100,22 +82,21 @@ public sealed class ArAgingService(AppDbContext db, IClock clock) : IArAgingServ
         var customerRows = new List<ArAgingCustomerRow>();
         var grandBucketTotals = new decimal[BucketDefs.Length];
 
-        foreach (var group in postings.GroupBy(p => p.CustomerId))
+        foreach (var group in items.GroupBy(i => i.CustomerId))
         {
             var bucketAmounts = new decimal[BucketDefs.Length];
 
-            foreach (var posting in group)
+            foreach (var item in group)
             {
-                var ageDays = asOf.DayNumber - posting.EntryDate.DayNumber;
-                var idx = BucketIndexForAge(ageDays);
-                bucketAmounts[idx] += posting.NetFunctional;
-                grandBucketTotals[idx] += posting.NetFunctional;
+                var idx = BucketIndexForAge(AgeDays(item, asOf));
+                bucketAmounts[idx] += item.OpenFunctionalAmount;
+                grandBucketTotals[idx] += item.OpenFunctionalAmount;
             }
 
             var openBalance = bucketAmounts.Sum();
 
-            // A customer that nets to zero (fully paid) is not an open item; drop
-            // it from the aging so the report shows only outstanding receivables.
+            // A customer whose items net to zero open is not an open row; drop it
+            // so the report shows only outstanding receivables.
             if (openBalance == 0m)
                 continue;
 
@@ -130,7 +111,7 @@ public sealed class ArAgingService(AppDbContext db, IClock clock) : IArAgingServ
             });
         }
 
-        var reconciliation = await ReconcileCoreAsync(bookId, asOf, ct);
+        var reconciliation = await ReconcileCoreAsync(bookId, asOf, items, ct);
 
         return new ArAging
         {
@@ -146,24 +127,45 @@ public sealed class ArAgingService(AppDbContext db, IClock clock) : IArAgingServ
         };
     }
 
-    public Task<ArAgingReconciliation> ReconcileAsync(
+    public async Task<ArAgingReconciliation> ReconcileAsync(
         int bookId,
         DateOnly? asOfDate = null,
         CancellationToken ct = default)
     {
         var asOf = asOfDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
-        return ReconcileCoreAsync(bookId, asOf, ct);
+        return await ReconcileCoreAsync(bookId, asOf, await LoadOpenItemsAsync(bookId, asOf, ct), ct);
     }
 
     /// <summary>
-    /// Computes the AR-control-vs-aging reconciliation. The control balance is the
-    /// net of <b>all</b> posted AR-control lines (with or without a party); the
-    /// aging total is the net of those carrying a Customer party. They tie when
-    /// every AR-control posting has a customer party — which the engine enforces
-    /// on control lines (§5.2) — so a non-zero difference is alertable.
+    /// Non-Closed / non-Voided open items for the book, restricted to documents
+    /// dated on/before the as-of date. (Closed items carry 0 open; Voided items
+    /// are excluded everywhere — their GL was reversed.) The date filter runs
+    /// in memory so the DateTimeOffset→DateOnly comparison is provider-agnostic.
+    /// </summary>
+    private async Task<List<ArOpenItem>> LoadOpenItemsAsync(int bookId, DateOnly asOf, CancellationToken ct)
+    {
+        var items = await db.ArOpenItems.IgnoreQueryFilters().AsNoTracking()
+            .Where(i => i.BookId == bookId
+                && i.Status != OpenItemStatus.Closed
+                && i.Status != OpenItemStatus.Voided)
+            .ToListAsync(ct);
+
+        return items
+            .Where(i => DateOnly.FromDateTime(i.DocumentDate.UtcDateTime) <= asOf)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Computes the AR-control-vs-open-items reconciliation. The control balance
+    /// is the net of all posted AR-control lines from the GL; the aging total is
+    /// Σ open functional amounts of the (already loaded) open items. The posting
+    /// services maintain items inside every control-moving transaction, so a
+    /// non-zero difference is alertable — most commonly a manual JE posted
+    /// directly to AR control (which bypasses items by design and is surfaced
+    /// here) or a legacy document awaiting the boot-time backfill.
     /// </summary>
     private async Task<ArAgingReconciliation> ReconcileCoreAsync(
-        int bookId, DateOnly asOf, CancellationToken ct)
+        int bookId, DateOnly asOf, List<ArOpenItem> items, CancellationToken ct)
     {
         var lines = await
             (from line in db.JournalLines.IgnoreQueryFilters()
@@ -174,27 +176,21 @@ public sealed class ArAgingService(AppDbContext db, IClock clock) : IArAgingServ
              where entry.BookId == bookId
                  && account.ControlType == ControlAccountType.AR
                  && account.IsControlAccount
+                 // Posted + Reversed headers both contribute: a Reversed original
+                 // is netted by its (Posted) reversal, exactly as the trial
+                 // balance treats them (§5.3).
                  && (entry.Status == JournalEntryStatus.Posted
                      || entry.Status == JournalEntryStatus.Reversed)
                  && entry.EntryDate <= asOf
-             select new
-             {
-                 line.Debit,
-                 line.Credit,
-                 line.FunctionalAmount,
-                 line.SubledgerPartyType,
-                 line.SubledgerPartyId,
-             })
+             select new { line.Debit, line.FunctionalAmount })
             .ToListAsync(ct);
 
         // Net AR-control balance from the GL (debit-normal: Dr − Cr).
         var controlBalance = lines.Sum(l =>
             l.Debit > 0 ? l.FunctionalAmount : -l.FunctionalAmount);
 
-        // Aging total = the customer-attributed slice (what the sub-ledger projects).
-        var agingTotal = lines
-            .Where(l => l.SubledgerPartyType == SubledgerPartyType.Customer && l.SubledgerPartyId != null)
-            .Sum(l => l.Debit > 0 ? l.FunctionalAmount : -l.FunctionalAmount);
+        // Sub-ledger total = Σ open functional amounts of the open items.
+        var agingTotal = items.Sum(i => i.OpenFunctionalAmount);
 
         return new ArAgingReconciliation
         {
@@ -203,10 +199,17 @@ public sealed class ArAgingService(AppDbContext db, IClock clock) : IArAgingServ
         };
     }
 
+    /// <summary>Aging anchor: DueDate when set, else DocumentDate (document-grain aging).</summary>
+    private static int AgeDays(ArOpenItem item, DateOnly asOf)
+    {
+        var anchor = item.DueDate != default ? item.DueDate : item.DocumentDate;
+        return asOf.DayNumber - DateOnly.FromDateTime(anchor.UtcDateTime).DayNumber;
+    }
+
     private static int BucketIndexForAge(int ageDays)
     {
-        // Negative age (a future-dated entry on/before the as-of cutoff cannot be
-        // negative here, but guard anyway) lands in the youngest bucket.
+        // Negative age = the document is not yet due — it sits in the youngest
+        // ("current") bucket.
         if (ageDays < 0)
             return 0;
 
@@ -236,13 +239,5 @@ public sealed class ArAgingService(AppDbContext db, IClock clock) : IArAgingServ
             });
         }
         return buckets;
-    }
-
-    /// <summary>Flat projection of an AR-control posting for in-memory aging.</summary>
-    private sealed class ArPostingRow
-    {
-        public int CustomerId { get; init; }
-        public DateOnly EntryDate { get; init; }
-        public decimal NetFunctional { get; init; }
     }
 }

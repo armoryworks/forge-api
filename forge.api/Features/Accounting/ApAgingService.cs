@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
+using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
@@ -9,16 +10,27 @@ using Forge.Data.Context;
 namespace Forge.Api.Features.Accounting;
 
 /// <summary>
-/// Phase-2 STAGE A — Accounts-Payable aging (the AP counterpart of <see cref="ArAgingService"/>).
-/// Derives the aging from posted AP-control <c>JournalLine</c>s carrying a <b>Vendor</b> party, bucketed
-/// by age at the <c>JournalEntry.EntryDate</c> grain (balance-forward, mirroring AR — NOT FIFO open-item
-/// application; precise open-item aging rides on the §7A open-item sub-ledger load later).
+/// AP-001 — Accounts-Payable aging (the AP counterpart of <see cref="ArAgingService"/>), derived
+/// from the <b>open-item sub-ledger</b> (<see cref="ApOpenItem"/>): per vendor, the OPEN functional
+/// amounts (original − applied, both at the document's booking rate) of non-Closed / non-Voided
+/// items, bucketed by the age of each item's <b>DueDate when set, else DocumentDate</b>.
 /// <para>
-/// <b>Sign:</b> AP is credit-normal — a bill (credit to AP control) raises the open payable and a payment
-/// (debit) lowers it, so the netting is <c>Credit − Debit</c> (credit-positive), the mirror-image of AR's
-/// <c>Debit − Credit</c>. <b>Filter-immune:</b> every join uses <c>IgnoreQueryFilters()</c> so soft-deleted
-/// ledger rows never silently drop a balance. Posted AND Reversed entries both contribute (a reversed
-/// original is netted by its reversal), matching the trial balance.
+/// <b>Semantics change (open-item cutover).</b> Phase 2 aged at the transaction grain
+/// (balance-forward: every AP-control posting re-bucketed by its EntryDate). This service ages at
+/// the <b>document grain</b> — the standard AP treatment: each bill's open remainder ages in the
+/// bucket of its due date, and a partial payment shrinks that document's bucket rather than
+/// crediting a younger one. Items not yet due sit in the youngest bucket.
+/// </para>
+/// <para>
+/// <b>Reconciliation</b> compares the AP control balance from the GL against Σ open functional
+/// amounts of the items, which the posting services maintain inside every control-moving
+/// transaction — so the two tie exactly. A non-zero difference is alertable (manual JE hitting AP
+/// control directly — bypasses items BY DESIGN, surfaced here; vendor-settled <c>Expense</c>
+/// postings, which credit AP control without a bill document; or a legacy document awaiting the
+/// boot-time backfill). A Voided item (voided bill — its GL reversed) counts on neither side.
+/// <b>As-of</b> gates document/entry inclusion; applied amounts are the items' current state, so
+/// the default as-of (today) is exact and a historical as-of approximates. <b>Filter-immune:</b>
+/// reads use <c>IgnoreQueryFilters()</c>.
 /// </para>
 /// </summary>
 public sealed class ApAgingService(AppDbContext db, IClock clock) : IApAgingService
@@ -35,30 +47,9 @@ public sealed class ApAgingService(AppDbContext db, IClock clock) : IApAgingServ
     {
         var asOf = asOfDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
 
-        var postings = await
-            (from line in db.JournalLines.IgnoreQueryFilters()
-             join entry in db.JournalEntries.IgnoreQueryFilters()
-                 on line.JournalEntryId equals entry.Id
-             join account in db.GlAccounts.IgnoreQueryFilters()
-                 on line.GlAccountId equals account.Id
-             where entry.BookId == bookId
-                 && account.ControlType == ControlAccountType.AP
-                 && account.IsControlAccount
-                 && line.SubledgerPartyType == SubledgerPartyType.Vendor
-                 && line.SubledgerPartyId != null
-                 && (entry.Status == JournalEntryStatus.Posted
-                     || entry.Status == JournalEntryStatus.Reversed)
-                 && entry.EntryDate <= asOf
-             select new ApPostingRow
-             {
-                 VendorId = line.SubledgerPartyId!.Value,
-                 EntryDate = entry.EntryDate,
-                 // Functional amount, credit-positive (AP is credit-normal).
-                 NetFunctional = line.Credit > 0 ? line.FunctionalAmount : -line.FunctionalAmount,
-             })
-            .ToListAsync(ct);
+        var items = await LoadOpenItemsAsync(bookId, asOf, ct);
 
-        var vendorIds = postings.Select(p => p.VendorId).Distinct().ToList();
+        var vendorIds = items.Select(i => i.VendorId).Distinct().ToList();
         var vendorNames = await db.Set<Vendor>()
             .IgnoreQueryFilters()
             .Where(v => vendorIds.Contains(v.Id))
@@ -68,15 +59,14 @@ public sealed class ApAgingService(AppDbContext db, IClock clock) : IApAgingServ
         var vendorRows = new List<ApAgingVendorRow>();
         var grandBucketTotals = new decimal[BucketDefs.Length];
 
-        foreach (var group in postings.GroupBy(p => p.VendorId))
+        foreach (var group in items.GroupBy(i => i.VendorId))
         {
             var bucketAmounts = new decimal[BucketDefs.Length];
-            foreach (var posting in group)
+            foreach (var item in group)
             {
-                var ageDays = asOf.DayNumber - posting.EntryDate.DayNumber;
-                var idx = BucketIndexForAge(ageDays);
-                bucketAmounts[idx] += posting.NetFunctional;
-                grandBucketTotals[idx] += posting.NetFunctional;
+                var idx = BucketIndexForAge(AgeDays(item, asOf));
+                bucketAmounts[idx] += item.OpenFunctionalAmount;
+                grandBucketTotals[idx] += item.OpenFunctionalAmount;
             }
 
             var openBalance = bucketAmounts.Sum();
@@ -92,7 +82,7 @@ public sealed class ApAgingService(AppDbContext db, IClock clock) : IApAgingServ
             });
         }
 
-        var reconciliation = await ReconcileCoreAsync(bookId, asOf, ct);
+        var reconciliation = await ReconcileCoreAsync(bookId, asOf, items, ct);
 
         return new ApAging
         {
@@ -111,10 +101,30 @@ public sealed class ApAgingService(AppDbContext db, IClock clock) : IApAgingServ
     public async Task<ApAgingReconciliation> ReconcileAsync(int bookId, DateOnly? asOfDate = null, CancellationToken ct = default)
     {
         var asOf = asOfDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
-        return await ReconcileCoreAsync(bookId, asOf, ct);
+        return await ReconcileCoreAsync(bookId, asOf, await LoadOpenItemsAsync(bookId, asOf, ct), ct);
     }
 
-    private async Task<ApAgingReconciliation> ReconcileCoreAsync(int bookId, DateOnly asOf, CancellationToken ct)
+    /// <summary>
+    /// Non-Closed / non-Voided open items for the book, restricted to documents dated on/before
+    /// the as-of date. (Closed items carry 0 open; Voided items are excluded everywhere — their GL
+    /// was reversed.) Date filter in memory so the DateTimeOffset→DateOnly comparison is
+    /// provider-agnostic.
+    /// </summary>
+    private async Task<List<ApOpenItem>> LoadOpenItemsAsync(int bookId, DateOnly asOf, CancellationToken ct)
+    {
+        var items = await db.ApOpenItems.IgnoreQueryFilters().AsNoTracking()
+            .Where(i => i.BookId == bookId
+                && i.Status != OpenItemStatus.Closed
+                && i.Status != OpenItemStatus.Voided)
+            .ToListAsync(ct);
+
+        return items
+            .Where(i => DateOnly.FromDateTime(i.DocumentDate.UtcDateTime) <= asOf)
+            .ToList();
+    }
+
+    private async Task<ApAgingReconciliation> ReconcileCoreAsync(
+        int bookId, DateOnly asOf, List<ApOpenItem> items, CancellationToken ct)
     {
         var lines = await
             (from line in db.JournalLines.IgnoreQueryFilters()
@@ -125,23 +135,32 @@ public sealed class ApAgingService(AppDbContext db, IClock clock) : IApAgingServ
                  && account.IsControlAccount
                  && (entry.Status == JournalEntryStatus.Posted || entry.Status == JournalEntryStatus.Reversed)
                  && entry.EntryDate <= asOf
-             select new { line.Debit, line.Credit, line.FunctionalAmount, line.SubledgerPartyType, line.SubledgerPartyId })
+             select new { line.Credit, line.FunctionalAmount })
             .ToListAsync(ct);
 
         // Net AP-control balance from the GL (credit-normal: Cr − Dr).
         var controlBalance = lines.Sum(l =>
             l.Credit > 0 ? l.FunctionalAmount : -l.FunctionalAmount);
 
-        // Aging total = the vendor-attributed slice (what the sub-ledger projects).
-        var agingTotal = lines
-            .Where(l => l.SubledgerPartyType == SubledgerPartyType.Vendor && l.SubledgerPartyId != null)
-            .Sum(l => l.Credit > 0 ? l.FunctionalAmount : -l.FunctionalAmount);
+        // Sub-ledger total = Σ open functional amounts of the open items.
+        var agingTotal = items.Sum(i => i.OpenFunctionalAmount);
 
         return new ApAgingReconciliation { ControlBalance = controlBalance, AgingTotal = agingTotal };
     }
 
+    /// <summary>Aging anchor: DueDate when set, else DocumentDate (document-grain aging).</summary>
+    private static int AgeDays(ApOpenItem item, DateOnly asOf)
+    {
+        var anchor = item.DueDate != default ? item.DueDate : item.DocumentDate;
+        return asOf.DayNumber - DateOnly.FromDateTime(anchor.UtcDateTime).DayNumber;
+    }
+
     private static int BucketIndexForAge(int ageDays)
     {
+        // Negative age = not yet due — the youngest ("current") bucket.
+        if (ageDays < 0)
+            return 0;
+
         for (var i = 0; i < BucketDefs.Length; i++)
         {
             var (from, to, _) = BucketDefs[i];
@@ -149,19 +168,11 @@ public sealed class ApAgingService(AppDbContext db, IClock clock) : IApAgingServ
                 return i;
         }
 
-        // age < 0 (future-dated; excluded by the EntryDate<=asOf filter) — clamp into the first bucket.
-        return 0;
+        return BucketDefs.Length - 1;
     }
 
     private static IReadOnlyList<ApAgingBucket> BuildBuckets(decimal[] amounts)
         => BucketDefs
             .Select((d, i) => new ApAgingBucket { FromDays = d.From, ToDays = d.To, Label = d.Label, Amount = amounts[i] })
             .ToList();
-
-    private sealed class ApPostingRow
-    {
-        public int VendorId { get; init; }
-        public DateOnly EntryDate { get; init; }
-        public decimal NetFunctional { get; init; }
-    }
 }
