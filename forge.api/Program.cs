@@ -1749,6 +1749,10 @@ try
         "payment-transmission-sweep",
         job => job.SweepAsync(CancellationToken.None),
         "*/5 * * * *"); // Every 5 minutes — re-enqueues stuck Queued/Retrying bank transmissions
+    RecurringJob.AddOrUpdate<VarianceWatchdogJob>(
+        "variance-watchdog",
+        job => job.RunAsync(CancellationToken.None),
+        "0 6 * * *"); // 6 AM UTC daily — §10.6 nudges the Controller role when standard-cost variances drift
 
     // Accounting sync jobs
     RecurringJob.AddOrUpdate<CustomerSyncJob>(
