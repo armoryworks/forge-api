@@ -89,6 +89,11 @@ public class VoidVendorPaymentTests
         => new(new VendorPaymentRepository(db), db, new FixedClock(Now),
             PostingService(db, fullGlOn), HttpContextFor(UserId));
 
+    private static VendorBillApPostingService BillPostingService(AppDbContext db, bool fullGlOn)
+        => new(db,
+            new ForgeGlPostingEngine(db, new AccountDeterminationResolver(db), new FakeAllocator(), new FixedClock(Now)),
+            new FakeCapabilities(fullGlOn));
+
     private static async Task<(AppDbContext db, int vendorId)> SeedAsync()
     {
         var db = TestDbContextFactory.Create();
@@ -305,6 +310,30 @@ public class VoidVendorPaymentTests
             new VoidVendorPaymentCommand(1, "   "), CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*reason is required*");
+    }
+
+    [Fact]
+    public async Task Void_RestoresApOpenItem_BillReopensInSubLedger()
+    {
+        // AP-001 open-item sub-ledger: bill approval creates the item, the payment closes it, and the
+        // void restores it (applied decremented back to zero, status recomputed) in step with the GL.
+        var (db, vendorId) = await SeedAsync();
+        var bill = await AddApprovedBillAsync(db, vendorId);
+        await BillPostingService(db, fullGlOn: true).PostVendorBillApprovedAsync(bill.Id, UserId);
+
+        var created = await CreateWirePaymentAsync(db, vendorId, bill.Id, 200m, fullGlOn: true);
+        var item = await db.ApOpenItems.SingleAsync(i => i.SourceId == bill.Id);
+        item.AppliedTxnAmount.Should().Be(200m);
+        item.Status.Should().Be(OpenItemStatus.Closed);
+
+        await VoidHandler(db, fullGlOn: true).Handle(
+            new VoidVendorPaymentCommand(created.Id, "duplicate entry"), CancellationToken.None);
+
+        item = await db.ApOpenItems.SingleAsync(i => i.SourceId == bill.Id);
+        item.AppliedTxnAmount.Should().Be(0m);
+        item.AppliedFunctionalAmount.Should().Be(0m);
+        item.Status.Should().Be(OpenItemStatus.Open);
+        item.OpenFunctionalAmount.Should().Be(200m);
     }
 
     [Fact]

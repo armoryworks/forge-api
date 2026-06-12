@@ -508,6 +508,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<Forge.Core.Entities.Accounting.DepreciationEntry> DepreciationEntries => Set<Forge.Core.Entities.Accounting.DepreciationEntry>();
     public DbSet<Forge.Core.Entities.Accounting.PayRun> PayRuns => Set<Forge.Core.Entities.Accounting.PayRun>();
 
+    // AR-002/AP-001 — per-document open-item sub-ledger (maintained at posting time by the
+    // AR/AP posting services, same transaction as the control-account journal; the aging +
+    // control reconciliation read from these).
+    public DbSet<Forge.Core.Entities.Accounting.ArOpenItem> ArOpenItems => Set<Forge.Core.Entities.Accounting.ArOpenItem>();
+    public DbSet<Forge.Core.Entities.Accounting.ApOpenItem> ApOpenItems => Set<Forge.Core.Entities.Accounting.ApOpenItem>();
+
     // QB-001 — one-way QBO journal-summary push for the CPA (CAP-ACCT-QBO-EXPORT, default OFF).
     public DbSet<Forge.Core.Entities.Accounting.QboAccountMap> QboAccountMaps => Set<Forge.Core.Entities.Accounting.QboAccountMap>();
     public DbSet<Forge.Core.Entities.Accounting.QboExportLog> QboExportLogs => Set<Forge.Core.Entities.Accounting.QboExportLog>();

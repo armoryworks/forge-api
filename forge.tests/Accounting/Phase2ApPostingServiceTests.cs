@@ -759,4 +759,54 @@ public class Phase2ApPostingServiceTests
 
         (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(1);
     }
+
+    // ─────────────────────── AP-001 — open-item sub-ledger maintenance ───────────────────────
+
+    [Fact]
+    public async Task Bill_CreatesApOpenItem_ForThePostedControlTotal()
+    {
+        using var db = await SeedAsync();
+        var vendorId = await AddVendorAsync(db);
+        // 200 lines + 16 tax → Cr AP_CONTROL 216; the open item must carry the POSTED total.
+        var bill = await AddBillAsync(db, vendorId, taxAmount: 16m);
+        var service = BillService(db, fullGlOn: true);
+
+        await service.PostVendorBillApprovedAsync(bill.Id, approvedByUserId: 7);
+
+        var item = await db.ApOpenItems.SingleAsync();
+        item.SourceType.Should().Be("VendorBill");
+        item.SourceId.Should().Be(bill.Id);
+        item.VendorId.Should().Be(vendorId);
+        item.OriginalTxnAmount.Should().Be(216m);
+        item.OriginalFunctionalAmount.Should().Be(216m);
+        item.AppliedTxnAmount.Should().Be(0m);
+        item.Status.Should().Be(OpenItemStatus.Open);
+
+        // Idempotent: a re-approve creates no duplicate item.
+        await service.PostVendorBillApprovedAsync(bill.Id, approvedByUserId: 7);
+        (await db.ApOpenItems.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Payment_IncrementsApOpenItem_AndRepostNeverDoubleApplies()
+    {
+        using var db = await SeedAsync();
+        var vendorId = await AddVendorAsync(db);
+        var bill = await AddBillAsync(db, vendorId); // 200 total (no tax)
+        await BillService(db, fullGlOn: true).PostVendorBillApprovedAsync(bill.Id, approvedByUserId: 7);
+
+        var payment = await AddPaymentAsync(db, vendorId, amount: 80m, billId: bill.Id, appliedAmount: 80m);
+        var service = PaymentService(db, fullGlOn: true);
+        await service.PostVendorPaymentCreatedAsync(payment.Id, createdByUserId: 7);
+
+        var item = await db.ApOpenItems.SingleAsync();
+        item.AppliedTxnAmount.Should().Be(80m);
+        item.AppliedFunctionalAmount.Should().Be(80m);
+        item.Status.Should().Be(OpenItemStatus.PartiallyApplied);
+        item.OpenTxnAmount.Should().Be(120m);
+
+        // A re-post never double-applies (the journal de-dupe guard covers the item maintenance too).
+        await service.PostVendorPaymentCreatedAsync(payment.Id, createdByUserId: 7);
+        (await db.ApOpenItems.SingleAsync()).AppliedTxnAmount.Should().Be(80m);
+    }
 }

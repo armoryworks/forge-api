@@ -112,6 +112,37 @@ public sealed class VendorPaymentCashPostingService(
         if (entry is null || entry.Status != JournalEntryStatus.Posted || entry.ReversedByEntryId is not null)
             return;
 
+        // ── AP open items (AP-001): restore each applied bill's item by the same booking-rate relief
+        // the origination applied (the reversal un-relieves AP_CONTROL by exactly that amount).
+        // Floored at zero; status recomputed. Staged BEFORE ReverseAsync so the engine's
+        // SaveChangesAsync flushes the restore atomically with the reversal entry — and the
+        // re-reversal guard above (ReversedByEntryId) makes the decrement run-once.
+        var payment = await db.Set<VendorPayment>().IgnoreQueryFilters()
+            .Include(p => p.Applications)
+            .FirstOrDefaultAsync(p => p.Id == vendorPaymentId, ct);
+        if (payment is not null)
+        {
+            foreach (var app in payment.Applications)
+            {
+                var openItem = await db.ApOpenItems.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(i => i.SourceType == "VendorBill" && i.SourceId == app.VendorBillId, ct);
+                if (openItem is null)
+                    continue; // legacy document (pre-open-item) — the backfill owns reconstruction
+
+                var bookingRate = await db.Set<VendorBill>().IgnoreQueryFilters()
+                    .Where(b => b.Id == app.VendorBillId)
+                    .Select(b => (decimal?)b.FxRate)
+                    .FirstOrDefaultAsync(ct) ?? 1m;
+
+                openItem.AppliedTxnAmount = Math.Max(0m, openItem.AppliedTxnAmount - app.Amount);
+                openItem.AppliedFunctionalAmount = Math.Max(
+                    0m,
+                    openItem.AppliedFunctionalAmount
+                        - Math.Round(app.Amount * bookingRate, 2, MidpointRounding.AwayFromZero));
+                openItem.RecomputeStatus();
+            }
+        }
+
         // Reverse on the VOID date (today) — the original period may differ; the engine guards closed
         // periods. ReverseAsync flips the WHOLE entry, including any realized-FX plug lines.
         var reversalDate = DateOnly.FromDateTime((clock?.UtcNow ?? DateTimeOffset.UtcNow).UtcDateTime);
@@ -154,6 +185,13 @@ public sealed class VendorPaymentCashPostingService(
 
         var entryDate = DateOnly.FromDateTime(payment.PaymentDate.UtcDateTime);
 
+        // ── Idempotency key computed up front: the open-item maintenance below must NOT re-apply on a
+        // re-post (the engine's journal de-dupe returns the existing entry, but the item increments
+        // live outside the engine — so guard independently, mirroring the AR side).
+        var idempotencyKey = $"{JournalSource.AP}:VendorPayment:{payment.Id}:PAYMENT";
+        var alreadyPosted = await db.JournalEntries.IgnoreQueryFilters()
+            .AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == idempotencyKey, ct);
+
         // ── Realized FX at settlement (Phase-4, ALL-FUNCTIONAL integrated entry — mirror of the AR side with
         // the FX sign flipped). Per application we relieve AP at the bill's BOOKING rate (its booked payable
         // carrying value) and pay cash out at the application's SETTLEMENT rate; the difference is realized FX.
@@ -175,8 +213,35 @@ public sealed class VendorPaymentCashPostingService(
                 .Select(b => (decimal?)b.FxRate)
                 .FirstOrDefaultAsync(ct) ?? 1m;
 
-            apRelief += Math.Round(foreign * bookingRate, 2, MidpointRounding.AwayFromZero);
+            var apReliefFunc = Math.Round(foreign * bookingRate, 2, MidpointRounding.AwayFromZero);
+            apRelief += apReliefFunc;
             cashFromApplications += Math.Round(foreign * app.SettlementFxRate, 2, MidpointRounding.AwayFromZero);
+
+            // ── AP open item (AP-001 open-item sub-ledger): increment the bill's item by EXACTLY the
+            // relief this entry posts — foreign on the txn side, apReliefFunc (BOOKING rate, the same
+            // rounded local debited to AP_CONTROL) on the functional side, so the item moves in
+            // lock-step with control. The settlement-rate cash and the FX plug never touch the item.
+            // The change is flushed by the engine's SaveChangesAsync — same transaction as the journal.
+            if (!alreadyPosted)
+            {
+                var openItem = await db.ApOpenItems.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(i => i.SourceType == "VendorBill" && i.SourceId == app.VendorBillId, ct);
+                if (openItem is null)
+                {
+                    // Legacy data (bill posted before the open-item sub-ledger existed): the boot-time
+                    // backfill owns reconstruction — do NOT create-then-apply a partial item here.
+                    Log.Warning(
+                        "AP open item missing for vendor bill {VendorBillId} while applying vendor payment "
+                        + "{VendorPaymentId}; skipped (legacy document — the open-item backfill owns reconstruction).",
+                        app.VendorBillId, payment.Id);
+                }
+                else
+                {
+                    openItem.AppliedTxnAmount += foreign;
+                    openItem.AppliedFunctionalAmount += apReliefFunc;
+                    openItem.RecomputeStatus();
+                }
+            }
         }
 
         // unapplied = the FUNCTIONAL cash NOT consumed by applications = advance / on-account (asset), carried
@@ -250,8 +315,6 @@ public sealed class VendorPaymentCashPostingService(
                 Description = $"Realized FX loss — vendor payment {payment.PaymentNumber}",
             });
         }
-
-        var idempotencyKey = $"{JournalSource.AP}:VendorPayment:{payment.Id}:PAYMENT";
 
         var request = new PostingRequest
         {

@@ -499,4 +499,30 @@ public class InvoiceArPostingServiceTests
         var store = await db.Set<InventoryValuation>().SingleAsync(v => v.PartId == partId);
         store.OnHandQuantity.Should().Be(8m, "the perpetual store quantity is still decremented");
     }
+
+    // ─────────────────────── AR-002 — open-item sub-ledger maintenance ───────────────────────
+
+    [Fact]
+    public async Task Post_CreatesArOpenItem_ForThePostedControlTotal()
+    {
+        using var db = await SeedAsync();
+        // 200 subtotal + 8% tax → Dr AR_CONTROL 216; the open item must carry the POSTED total.
+        var invoice = await AddInvoiceAsync(db, taxRate: 0.08m);
+        var service = CreateService(db, fullGlOn: true);
+
+        await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+
+        var item = await db.ArOpenItems.SingleAsync();
+        item.SourceType.Should().Be("Invoice");
+        item.SourceId.Should().Be(invoice.Id);
+        item.CustomerId.Should().Be(invoice.CustomerId);
+        item.OriginalTxnAmount.Should().Be(216m);
+        item.OriginalFunctionalAmount.Should().Be(216m);
+        item.AppliedTxnAmount.Should().Be(0m);
+        item.Status.Should().Be(OpenItemStatus.Open);
+
+        // Idempotent: a re-finalize creates no duplicate item.
+        await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+        (await db.ArOpenItems.CountAsync()).Should().Be(1);
+    }
 }

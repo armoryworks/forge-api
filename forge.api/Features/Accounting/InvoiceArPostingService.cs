@@ -233,6 +233,35 @@ public sealed class InvoiceArPostingService(
         // invoice; a re-finalize returns the existing entry (no throw, no dup).
         var idempotencyKey = $"{JournalSource.AR}:Invoice:{invoice.Id}:REVENUE";
 
+        // ── AR open item (AR-002 open-item sub-ledger). The Dr AR_CONTROL above is the single
+        // seam where this invoice's receivable enters the control account, so the per-document
+        // open item is created HERE, in the same transaction (the engine's SaveChangesAsync
+        // below flushes both atomically) — that is what keeps Σ open items == control balance.
+        // Idempotency: the engine's journal de-dupe can return early without saving, so this
+        // guards independently on (SourceType, SourceId) (unique-indexed as the DB backstop).
+        var hasOpenItem = await db.ArOpenItems.IgnoreQueryFilters()
+            .AnyAsync(i => i.SourceType == "Invoice" && i.SourceId == invoice.Id, ct);
+        if (!hasOpenItem)
+        {
+            db.ArOpenItems.Add(new ArOpenItem
+            {
+                BookId = book.Id,
+                CustomerId = invoice.CustomerId,
+                SourceType = "Invoice",
+                SourceId = invoice.Id,
+                DocumentNumber = invoice.InvoiceNumber,
+                DocumentDate = invoice.InvoiceDate,
+                DueDate = invoice.DueDate,
+                CurrencyId = invoice.CurrencyId,
+                FxRate = invoice.FxRate,
+                // txn = the POSTED total (subtotal + non-exempt tax) in the invoice's currency;
+                // functional = txn × booking rate, rounded exactly like the engine rounds the line.
+                OriginalTxnAmount = arTotal,
+                OriginalFunctionalAmount = Math.Round(arTotal * invoice.FxRate, 2, MidpointRounding.AwayFromZero),
+                Status = OpenItemStatus.Open,
+            });
+        }
+
         var request = new PostingRequest
         {
             BookId = book.Id,

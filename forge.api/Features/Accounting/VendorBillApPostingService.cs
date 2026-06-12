@@ -97,6 +97,16 @@ public sealed class VendorBillApPostingService(
         if (entry is null)
             return;
 
+        // ── AP open item (AP-001): flip the bill's item to Voided — logically zeroing it. A Voided
+        // item is excluded from aging AND the control reconciliation adds it to neither side,
+        // matching the reversed GL (the bill's AP control nets to zero). Applied amounts are left
+        // untouched for audit (VoidVendorBill blocks bills with payments applied, so they are 0).
+        // Staged BEFORE ReverseAsync so the engine's SaveChangesAsync flushes both atomically.
+        var openItem = await db.ApOpenItems.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(i => i.SourceType == "VendorBill" && i.SourceId == vendorBillId, ct);
+        if (openItem is not null)
+            openItem.Status = OpenItemStatus.Voided;
+
         // Reverse in the original entry's period (clean same-period correction). When period close lands
         // (Phase 3), a closed-period reversal becomes a policy choice the engine already guards.
         await postingEngine.ReverseAsync(
@@ -173,6 +183,35 @@ public sealed class VendorBillApPostingService(
         });
 
         var idempotencyKey = $"{JournalSource.AP}:VendorBill:{bill.Id}:BILL";
+
+        // ── AP open item (AP-001 open-item sub-ledger). The Cr AP_CONTROL above is the single seam
+        // where this bill's payable enters the control account, so the per-document open item is
+        // created HERE, in the same transaction (the engine's SaveChangesAsync flushes both
+        // atomically) — that is what keeps Σ open items == control balance. Idempotency: the
+        // engine's journal de-dupe can return early without saving, so this guards independently
+        // on (SourceType, SourceId) (unique-indexed as the DB backstop).
+        var hasOpenItem = await db.ApOpenItems.IgnoreQueryFilters()
+            .AnyAsync(i => i.SourceType == "VendorBill" && i.SourceId == bill.Id, ct);
+        if (!hasOpenItem)
+        {
+            db.ApOpenItems.Add(new ApOpenItem
+            {
+                BookId = book.Id,
+                VendorId = bill.VendorId,
+                SourceType = "VendorBill",
+                SourceId = bill.Id,
+                DocumentNumber = bill.BillNumber,
+                DocumentDate = bill.BillDate,
+                DueDate = bill.DueDate,
+                CurrencyId = bill.CurrencyId,
+                FxRate = bill.FxRate,
+                // txn = the POSTED bill total in its currency; functional = txn × booking rate,
+                // rounded exactly like the engine rounds the line.
+                OriginalTxnAmount = total,
+                OriginalFunctionalAmount = Math.Round(total * bill.FxRate, 2, MidpointRounding.AwayFromZero),
+                Status = OpenItemStatus.Open,
+            });
+        }
 
         var request = new PostingRequest
         {

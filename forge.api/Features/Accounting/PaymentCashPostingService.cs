@@ -129,6 +129,37 @@ public sealed class PaymentCashPostingService(
         if (entry is null || entry.Status != JournalEntryStatus.Posted || entry.ReversedByEntryId is not null)
             return;
 
+        // ── AR open items (AR-002): restore each applied invoice's item by the same booking-rate
+        // relief the origination applied (the reversal un-relieves AR_CONTROL by exactly that
+        // amount). Floored at zero; status recomputed. Staged BEFORE ReverseAsync so the engine's
+        // SaveChangesAsync flushes the restore atomically with the reversal entry — and the
+        // re-reversal guard above (ReversedByEntryId) makes the decrement run-once.
+        var payment = await db.Set<Payment>().IgnoreQueryFilters()
+            .Include(p => p.Applications)
+            .FirstOrDefaultAsync(p => p.Id == paymentId, ct);
+        if (payment is not null)
+        {
+            foreach (var app in payment.Applications)
+            {
+                var openItem = await db.ArOpenItems.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(i => i.SourceType == "Invoice" && i.SourceId == app.InvoiceId, ct);
+                if (openItem is null)
+                    continue; // legacy document (pre-open-item) — the backfill owns reconstruction
+
+                var bookingRate = await db.Set<Invoice>().IgnoreQueryFilters()
+                    .Where(i => i.Id == app.InvoiceId)
+                    .Select(i => (decimal?)i.FxRate)
+                    .FirstOrDefaultAsync(ct) ?? 1m;
+
+                openItem.AppliedTxnAmount = Math.Max(0m, openItem.AppliedTxnAmount - app.Amount);
+                openItem.AppliedFunctionalAmount = Math.Max(
+                    0m,
+                    openItem.AppliedFunctionalAmount
+                        - Math.Round(app.Amount * bookingRate, 2, MidpointRounding.AwayFromZero));
+                openItem.RecomputeStatus();
+            }
+        }
+
         // Reverse on the VOID date (today) — the original period may differ; the engine guards closed
         // periods. ReverseAsync flips the WHOLE entry, including any realized-FX plug lines.
         var reversalDate = DateOnly.FromDateTime((clock?.UtcNow ?? DateTimeOffset.UtcNow).UtcDateTime);
@@ -184,6 +215,14 @@ public sealed class PaymentCashPostingService(
             return;
         }
 
+        // ── Idempotency key (§5.2): source:type:id:purpose. Computed up front because the open-item
+        // maintenance below must NOT re-apply on a re-post: the engine's journal de-dupe returns the
+        // existing entry, but the item increments live outside the engine — so guard independently
+        // (same pattern as the COGS valuation-store guard in InvoiceArPostingService).
+        var idempotencyKey = $"{JournalSource.AR}:Payment:{payment.Id}:PAYMENT";
+        var alreadyPosted = await db.JournalEntries.IgnoreQueryFilters()
+            .AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == idempotencyKey, ct);
+
         // ── Realized FX at settlement (Phase-4, ALL-FUNCTIONAL integrated entry). Per application we relieve
         // AR at the invoice's BOOKING rate (its booked carrying value) and bring cash in at the application's
         // SETTLEMENT rate; the difference is the realized FX gain/loss. The whole entry is in functional
@@ -205,8 +244,35 @@ public sealed class PaymentCashPostingService(
                 .Select(i => (decimal?)i.FxRate)
                 .FirstOrDefaultAsync(ct) ?? 1m;
 
-            arRelief += Math.Round(foreign * bookingRate, 2, MidpointRounding.AwayFromZero);
+            var arReliefFunc = Math.Round(foreign * bookingRate, 2, MidpointRounding.AwayFromZero);
+            arRelief += arReliefFunc;
             cashFromApplications += Math.Round(foreign * app.SettlementFxRate, 2, MidpointRounding.AwayFromZero);
+
+            // ── AR open item (AR-002 open-item sub-ledger): increment the invoice's item by EXACTLY
+            // the relief this entry posts — foreign on the txn side, arReliefFunc (BOOKING rate, the
+            // same rounded local credited to AR_CONTROL) on the functional side, so the item moves in
+            // lock-step with control. The settlement-rate cash and the FX plug never touch the item.
+            // The change is flushed by the engine's SaveChangesAsync — same transaction as the journal.
+            if (!alreadyPosted)
+            {
+                var openItem = await db.ArOpenItems.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(i => i.SourceType == "Invoice" && i.SourceId == app.InvoiceId, ct);
+                if (openItem is null)
+                {
+                    // Legacy data (invoice posted before the open-item sub-ledger existed): the boot-time
+                    // backfill owns reconstruction — do NOT create-then-apply a partial item here.
+                    Log.Warning(
+                        "AR open item missing for invoice {InvoiceId} while applying payment {PaymentId}; "
+                        + "skipped (legacy document — the open-item backfill owns reconstruction).",
+                        app.InvoiceId, payment.Id);
+                }
+                else
+                {
+                    openItem.AppliedTxnAmount += foreign;
+                    openItem.AppliedFunctionalAmount += arReliefFunc;
+                    openItem.RecomputeStatus();
+                }
+            }
         }
 
         // unapplied = the FUNCTIONAL cash NOT consumed by applications = overpayment / on-account, carried at
@@ -280,10 +346,6 @@ public sealed class PaymentCashPostingService(
                 Description = $"Realized FX gain — payment {payment.PaymentNumber}",
             });
         }
-
-        // ── Idempotency key (§5.2): source:type:id:purpose. AR/PAYMENT for a
-        // payment; a re-post returns the existing entry (no throw, no dup).
-        var idempotencyKey = $"{JournalSource.AR}:Payment:{payment.Id}:PAYMENT";
 
         var request = new PostingRequest
         {

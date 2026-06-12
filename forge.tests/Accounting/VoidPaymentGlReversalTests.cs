@@ -212,4 +212,34 @@ public class VoidPaymentGlReversalTests
         (await db.Set<Payment>().AnyAsync(p => p.Id == payment.Id)).Should().BeFalse();
         (await db.Invoices.SingleAsync(i => i.Id == invoice.Id)).Status.Should().Be(InvoiceStatus.Sent);
     }
+
+    [Fact]
+    public async Task Void_FullGlOn_RestoresArOpenItem()
+    {
+        // AR-002 open-item sub-ledger: the payment posting closed the invoice's item; the void must
+        // restore it (applied decremented back to zero, status recomputed) in step with the GL reversal.
+        using var db = await SeedAsync();
+        var (payment, invoice) = await AddPaidInvoiceAsync(db);
+        db.ArOpenItems.Add(new ArOpenItem
+        {
+            BookId = BookId, CustomerId = payment.CustomerId, SourceType = "Invoice", SourceId = invoice.Id,
+            DocumentNumber = invoice.InvoiceNumber, DocumentDate = invoice.InvoiceDate, DueDate = invoice.DueDate,
+            CurrencyId = UsdId, FxRate = 1m, OriginalTxnAmount = 100m, OriginalFunctionalAmount = 100m,
+            Status = OpenItemStatus.Open,
+        });
+        await db.SaveChangesAsync();
+
+        var posting = PostingService(db, fullGlOn: true);
+        await posting.PostPaymentCreatedAsync(payment.Id, UserId);
+        (await db.ArOpenItems.SingleAsync()).Status.Should().Be(OpenItemStatus.Closed);
+
+        await Handler(db, posting).Handle(
+            new VoidPaymentCommand(payment.Id, new VoidPaymentRequestModel("bounced check")), CancellationToken.None);
+
+        var item = await db.ArOpenItems.SingleAsync();
+        item.AppliedTxnAmount.Should().Be(0m);
+        item.AppliedFunctionalAmount.Should().Be(0m);
+        item.Status.Should().Be(OpenItemStatus.Open);
+        item.OpenFunctionalAmount.Should().Be(100m);
+    }
 }

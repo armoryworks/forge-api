@@ -367,4 +367,37 @@ public class PaymentCashPostingServiceTests
         // A re-post returns the existing entry — no duplicate journal.
         (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(1);
     }
+
+    // ─────────────────────── AR-002 — open-item sub-ledger maintenance ───────────────────────
+
+    [Fact]
+    public async Task Post_IncrementsArOpenItem_ByBookingRateRelief()
+    {
+        using var db = await SeedAsync();
+        // EUR invoice foreign 100 booked @1.10 with its open item (as InvoiceArPostingService creates it).
+        var payment = await AddPaymentForInvoiceAsync(
+            db, appliedForeign: 100m, invoiceCurrencyId: EurId, invoiceFxRate: 1.10m, settlementFxRate: 1.05m);
+        var invoiceId = payment.Applications.Single().InvoiceId;
+        db.ArOpenItems.Add(new ArOpenItem
+        {
+            BookId = BookId, CustomerId = payment.CustomerId, SourceType = "Invoice", SourceId = invoiceId,
+            DocumentNumber = "INV-FX-1", DocumentDate = new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.Zero),
+            DueDate = new DateTimeOffset(2026, 2, 9, 0, 0, 0, TimeSpan.Zero), CurrencyId = EurId, FxRate = 1.10m,
+            OriginalTxnAmount = 100m, OriginalFunctionalAmount = 110m, Status = OpenItemStatus.Open,
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db, fullGlOn: true);
+        await service.PostPaymentCreatedAsync(payment.Id, createdByUserId: 7);
+
+        // Applied at the BOOKING-rate relief (110), not the settlement-rate cash (105); exact-close → Closed.
+        var item = await db.ArOpenItems.SingleAsync();
+        item.AppliedTxnAmount.Should().Be(100m);
+        item.AppliedFunctionalAmount.Should().Be(110m);
+        item.Status.Should().Be(OpenItemStatus.Closed);
+
+        // A re-post never double-applies (the journal de-dupe guard covers the item maintenance too).
+        await service.PostPaymentCreatedAsync(payment.Id, createdByUserId: 7);
+        (await db.ArOpenItems.SingleAsync()).AppliedTxnAmount.Should().Be(100m);
+    }
 }
