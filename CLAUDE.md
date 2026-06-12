@@ -420,10 +420,10 @@ readonly isStandalone = this.accountingService.isStandalone;
 <!-- ===== Capability Gating ===== -->
 ## Capability Gating (Phase 4)
 
-The system runs on a **per-install capability gate**: 129 named capabilities (e.g., `CAP-MD-CUSTOMERS`, `CAP-INV-LOTS`, `CAP-EXT-AI-ASSISTANT`) are registered in a static catalog. Each install's capability state is stored in the `capabilities` table; controllers and Hangfire-fired commands carry `[RequiresCapability("CAP-...")]` attributes; the `CapabilityGateMiddleware` (controller side) and `CapabilityGateBehavior` (MediatR side) short-circuit with 403 + envelope when a capability is disabled. Bootstrap-exempt endpoints (auth, descriptor, capability admin) carry `[CapabilityBootstrap]` instead so admins are never locked out.
+The system runs on a **per-install capability gate**: 138 named capabilities (count grows as features register codes) (e.g., `CAP-MD-CUSTOMERS`, `CAP-INV-LOTS`, `CAP-EXT-AI-ASSISTANT`) are registered in a static catalog. Each install's capability state is stored in the `capabilities` table; controllers and Hangfire-fired commands carry `[RequiresCapability("CAP-...")]` attributes; the `CapabilityGateMiddleware` (controller side) and `CapabilityGateBehavior` (MediatR side) short-circuit with 403 + envelope when a capability is disabled. Bootstrap-exempt endpoints (auth, descriptor, capability admin) carry `[CapabilityBootstrap]` instead so admins are never locked out.
 
 **Where things live:**
-- **Catalog (source of truth)**: `forge-api/forge.api/Capabilities/CapabilityCatalog.cs` — 129 capabilities with code, name, area, default-state, dependencies/mutexes
+- **Catalog (source of truth)**: `forge-api/forge.api/Capabilities/CapabilityCatalog.cs` — all registered capabilities with code, name, area, default-state, dependencies/mutexes
 - **Relations**: `CapabilityCatalogRelations.cs` — dependency edges + mutex pairs (only one declared mutex today: `CAP-ACCT-EXTERNAL ⊥ CAP-ACCT-BUILTIN`)
 - **Snapshot + middleware**: `CapabilitySnapshot.cs`, `ICapabilitySnapshotProvider`, `CapabilityGateMiddleware.cs`, `CapabilityGateBehavior.cs`
 - **Mutation API**: `CapabilitiesController` exposes `PUT /api/v1/capabilities/{code}/enabled`, bulk-toggle, validate, audit-log; preset & discovery endpoints layered on top
