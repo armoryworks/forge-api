@@ -266,14 +266,16 @@ getReconciliationStatement(account, date) -> Statement
 
 ---
 
-## 10. Open Decisions
+## 10. Open Decisions — RESOLVED 2026-06-12 (owner ratification)
 
-1. **Frontier CU capabilities** — ACH origination available? File format, cutoff times, submission channel (SFTP vs portal)? Blocks `BANK-002` design.
-2. **Read channel choice** — aggregator (Plaid/MX/Finicity) vs direct file feed. Note: US open-banking (CFPB §1033) is currently enjoined/under reconsideration and credit unions wouldn't be covered for years regardless — do **not** architect around mandated direct bank APIs.
-3. **Tooling asset model** — customer-owned vs capitalized vs per-run-amortized for molds (`FA-001`).
-4. **Customer EDI** — required by any current/target customers? Determines whether `EDI-001` is built at all.
-5. **Payroll split** — provider owns filing; do we originate net-pay ACH ourselves (`BANK-002`) or let the provider fund? Affects cash flow timing.
-6. **Standard cost roll cadence** — how often standards are re-set, and the control protecting that setting (it reprices all historical inventory meaning).
+1. **Frontier CU / BANK-002 write channel → NACHA file.** Phase A: in-app NACHA generation + manual portal upload (the upload IS the create≠release SoD control). Phase B: SFTP automation + in-app release queue once the CU's origination agreement/spec/cutoffs are confirmed (inquiry still owed to the CU). Phase C: ACH returns (R-code) ingestion. Portal RPA/scraping explicitly rejected (credentials + MFA + ToS + fragility on a money path).
+2. **Read channel → manual OFX/CSV statement import** into a staging + auto-match flow (no stored bank credentials, no vendor dependency); an aggregator (Plaid-class) is the sanctioned upgrade if cadence ever needs to be sub-monthly. The CFPB §1033 caveat stands — never architect around mandated bank APIs.
+3. **Tooling asset model → explicit per-asset ownership** (Asset.IsCustomerOwned; customer-owned molds off balance sheet, memo-tracked) **+ units-of-production depreciation by shot count** for company-owned molds (CurrentShotCount / ToolLifeExpectancy are already captured operationally), straight-line fallback.
+4. **Customer EDI → config-driven minimal core, pared from an OSS translator** (specific fork candidate to be confirmed; LICENSE CHECK REQUIRED before embedding — GPL-class licenses cannot be embedded here). Per-partner implementation guides stay data-driven (`EdiMapping`); no partner-specific hardcoding until a customer mandates.
+5. **Payroll split → full-service provider owns filing AND funds net pay**; Forge pulls the register and posts the JE (the PayRun foundation is the consumer). No in-house tax calculation, ever.
+6. **Standard cost roll cadence → annual roll + gated ad-hoc re-rolls** (controller-approved, with inventory revaluation), supported by an automated **variance watchdog** — threshold/trend monitors on the variance accounts notifying the controller with a friendly digest and a "consider a cost roll" suggestion.
+
+**Additional ratifications (same date):** split `CAP-P2P-BILL` / `CAP-P2P-PAY` from `CAP-P2P-PO`; build the **open-item AR/AP sub-ledger now** (no conversion dependency); QB-001 = **CSV/Excel export always available + QBO API journal push config-gated** (reusing the existing QuickBooks OAuth plumbing) — not mutually exclusive; cutover strategy (parallel-run vs hard cut) is an **adoption-time client decision** documented in the runbook, not a code path; accounting migrations ride the next build, with the Cash-in-Transit account backfill made idempotent in the seeder so pre-seeded installs need no manual SQL.
 
 ---
 

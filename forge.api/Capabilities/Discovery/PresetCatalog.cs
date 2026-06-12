@@ -30,7 +30,9 @@ public static class PresetCatalog
         "CAP-MD-ROUTING", "CAP-MD-WORKCENTERS", "CAP-MD-LOCATIONS",
         "CAP-MD-CALENDARS", "CAP-MD-EMPLOYEES", "CAP-MD-ASSETS", "CAP-MD-UOM",
         "CAP-MD-CURRENCIES", "CAP-MD-TAXCODES",
-        "CAP-P2P-PO", "CAP-P2P-RECEIVE",
+        // CAP-P2P-BILL/PAY ride with PO in every preset (the AP split is capability taxonomy, not a
+        // preset axis — even Pro Services pays vendor bills; only RECEIVE is manufacturing-specific).
+        "CAP-P2P-PO", "CAP-P2P-RECEIVE", "CAP-P2P-BILL", "CAP-P2P-PAY",
         "CAP-O2C-QUOTE", "CAP-O2C-SO", "CAP-O2C-PICKPACK", "CAP-O2C-SHIP",
         "CAP-O2C-INVOICE", "CAP-O2C-CASH",
         "CAP-MFG-WO-RELEASE", "CAP-MFG-MATL-ISSUE", "CAP-MFG-LABOR",
