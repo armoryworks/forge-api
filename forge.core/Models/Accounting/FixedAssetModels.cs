@@ -2,7 +2,11 @@ using Forge.Core.Enums.Accounting;
 
 namespace Forge.Core.Models.Accounting;
 
-/// <summary>Register a depreciable fixed asset.</summary>
+/// <summary>
+/// Register a depreciable fixed asset. Straight-line by default; units-of-production (§10.3 — molds
+/// depreciate by shot count) additionally requires <paramref name="UsefulLifeUnits"/> and
+/// <paramref name="LinkedAssetId"/> (the operational asset supplying the shot counter).
+/// </summary>
 public sealed record CreateFixedAssetModel(
     int BookId,
     string Name,
@@ -13,7 +17,10 @@ public sealed record CreateFixedAssetModel(
     int UsefulLifeMonths,
     int AssetGlAccountId,
     int AccumulatedDepreciationGlAccountId,
-    int DepreciationExpenseGlAccountId);
+    int DepreciationExpenseGlAccountId,
+    DepreciationMethod Method = DepreciationMethod.StraightLine,
+    decimal? UsefulLifeUnits = null,
+    int? LinkedAssetId = null);
 
 /// <summary>A fixed asset + its derived depreciation figures.</summary>
 public sealed record FixedAssetModel(

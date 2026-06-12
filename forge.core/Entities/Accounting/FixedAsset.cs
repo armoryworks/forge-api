@@ -22,6 +22,19 @@ public class FixedAsset : BaseAuditableEntity
     public DepreciationMethod Method { get; set; } = DepreciationMethod.StraightLine;
     public FixedAssetStatus Status { get; set; } = FixedAssetStatus.Active;
 
+    /// <summary>Units-of-production — total expected units over the asset's life (shots for a mold). §10.3.</summary>
+    public decimal? UsefulLifeUnits { get; set; }
+
+    /// <summary>
+    /// Units-of-production — the operational <see cref="Forge.Core.Entities.Asset"/> supplying the unit
+    /// counter (mold shot count). Customer-owned tooling is never linked (off the balance sheet).
+    /// </summary>
+    public int? LinkedAssetId { get; set; }
+    public Asset? LinkedAsset { get; set; }
+
+    /// <summary>High-water mark of units already depreciated (shots charged-for to date).</summary>
+    public decimal LastDepreciatedUnits { get; set; }
+
     public int AssetGlAccountId { get; set; }
     public int AccumulatedDepreciationGlAccountId { get; set; }
     public int DepreciationExpenseGlAccountId { get; set; }

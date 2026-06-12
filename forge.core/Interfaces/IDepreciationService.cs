@@ -4,7 +4,8 @@ namespace Forge.Core.Interfaces;
 
 /// <summary>
 /// ⚡ Phase-4 — fixed-asset register + monthly depreciation posting (Dr depreciation expense / Cr accumulated
-/// depreciation). Straight-line; idempotent per asset per month. CAP-ACCT-DEPRECIATION gated at the edge.
+/// depreciation). Straight-line by default; units-of-production by shot count for company-owned molds
+/// (§10.3). Idempotent per asset per month. CAP-ACCT-DEPRECIATION gated at the edge.
 /// </summary>
 public interface IDepreciationService
 {

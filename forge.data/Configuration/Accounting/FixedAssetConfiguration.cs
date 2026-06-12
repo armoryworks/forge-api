@@ -21,8 +21,17 @@ public class FixedAssetConfiguration : IEntityTypeConfiguration<FixedAsset>
         builder.Property(e => e.SalvageValue).HasPrecision(18, 2);
         builder.Property(e => e.Method).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(e => e.UsefulLifeUnits).HasPrecision(18, 2);
+        builder.Property(e => e.LastDepreciatedUnits).HasPrecision(18, 2).HasDefaultValue(0m);
 
         builder.HasIndex(e => e.BookId).HasDatabaseName("ix_acct_fixed_assets_book");
+        builder.HasIndex(e => e.LinkedAssetId).HasDatabaseName("ix_acct_fixed_assets_linked_asset");
+
+        builder.HasOne(e => e.LinkedAsset)
+            .WithMany()
+            .HasForeignKey(e => e.LinkedAssetId)
+            .HasConstraintName("fk_acct_fixed_assets_linked_asset")
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(e => e.DepreciationEntries)
             .WithOne(d => d.FixedAsset)

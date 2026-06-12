@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums.Accounting;
@@ -9,7 +10,8 @@ using Forge.Data.Context;
 namespace Forge.Api.Features.Accounting;
 
 /// <inheritdoc />
-public sealed class DepreciationService(AppDbContext db, IPostingEngine postingEngine) : IDepreciationService
+public sealed class DepreciationService(
+    AppDbContext db, IPostingEngine postingEngine, ILogger<DepreciationService>? logger = null) : IDepreciationService
 {
     public async Task<FixedAssetModel> CreateAssetAsync(CreateFixedAssetModel model, CancellationToken ct = default)
     {
@@ -17,6 +19,27 @@ public sealed class DepreciationService(AppDbContext db, IPostingEngine postingE
             throw new InvalidOperationException("Useful life must be a positive number of months.");
         if (model.Cost < model.SalvageValue)
             throw new InvalidOperationException("Salvage value cannot exceed cost.");
+
+        if (model.Method == DepreciationMethod.UnitsOfProduction)
+        {
+            if (model.UsefulLifeUnits is not > 0)
+                throw new InvalidOperationException(
+                    "Units-of-production depreciation requires a positive useful life in units (total expected shots).");
+            if (model.LinkedAssetId is not int linkedAssetId)
+                throw new InvalidOperationException(
+                    "Units-of-production depreciation requires a linked operational asset supplying the shot count.");
+
+            var linked = await db.Assets.AsNoTracking()
+                .Where(a => a.Id == linkedAssetId)
+                .Select(a => new { a.IsCustomerOwned })
+                .FirstOrDefaultAsync(ct)
+                ?? throw new KeyNotFoundException($"Linked operational asset {linkedAssetId} not found.");
+
+            if (linked.IsCustomerOwned)
+                throw new InvalidOperationException(
+                    "Customer-owned tooling cannot be capitalized — it stays off the balance sheet and is " +
+                    "memo-tracked operationally only. Link a company-owned asset instead.");
+        }
 
         var asset = new FixedAsset
         {
@@ -27,7 +50,9 @@ public sealed class DepreciationService(AppDbContext db, IPostingEngine postingE
             SalvageValue = model.SalvageValue,
             InServiceDate = model.InServiceDate,
             UsefulLifeMonths = model.UsefulLifeMonths,
-            Method = DepreciationMethod.StraightLine,
+            Method = model.Method,
+            UsefulLifeUnits = model.Method == DepreciationMethod.UnitsOfProduction ? model.UsefulLifeUnits : null,
+            LinkedAssetId = model.Method == DepreciationMethod.UnitsOfProduction ? model.LinkedAssetId : null,
             Status = FixedAssetStatus.Active,
             AssetGlAccountId = model.AssetGlAccountId,
             AccumulatedDepreciationGlAccountId = model.AccumulatedDepreciationGlAccountId,
@@ -63,6 +88,7 @@ public sealed class DepreciationService(AppDbContext db, IPostingEngine postingE
 
         var assets = await db.FixedAssets
             .Include(a => a.DepreciationEntries)
+            .Include(a => a.LinkedAsset) // soft-deleted linked assets are filtered → nav stays null
             .Where(a => a.BookId == bookId
                 && a.Status == FixedAssetStatus.Active
                 && a.InServiceDate <= month.AddMonths(1).AddDays(-1)) // in service by month end
@@ -85,7 +111,39 @@ public sealed class DepreciationService(AppDbContext db, IPostingEngine postingE
                 continue;
             }
 
-            var amount = Math.Min(asset.MonthlyStraightLine, remaining);
+            decimal amount;
+            decimal unitsThisPeriod = 0m;
+            if (asset.Method == DepreciationMethod.UnitsOfProduction)
+            {
+                // The filtered include leaves the nav null for soft-deleted assets; the DeletedAt check
+                // covers same-context tracker fix-up reattaching an already-tracked deleted instance.
+                if (asset.LinkedAsset is null || asset.LinkedAsset.DeletedAt is not null || asset.UsefulLifeUnits is not > 0)
+                {
+                    logger?.LogWarning(
+                        "Skipping units-of-production depreciation for fixed asset {FixedAssetId} ({AssetName}) — " +
+                        "linked operational asset is missing/deleted or useful-life units are not set.",
+                        asset.Id, asset.Name);
+                    continue;
+                }
+
+                unitsThisPeriod = Math.Max(0m, asset.LinkedAsset.CurrentShotCount - asset.LastDepreciatedUnits);
+                if (unitsThisPeriod <= 0m)
+                {
+                    logger?.LogDebug(
+                        "No new units for fixed asset {FixedAssetId} ({AssetName}) in {PeriodMonth:yyyy-MM} — nothing to depreciate.",
+                        asset.Id, asset.Name, month);
+                    continue;
+                }
+
+                // (Cost − Salvage) × unitsThisPeriod / UsefulLifeUnits, capped below at remaining book value.
+                amount = Math.Round(asset.DepreciableBase * unitsThisPeriod / asset.UsefulLifeUnits.Value, 2);
+            }
+            else
+            {
+                amount = asset.MonthlyStraightLine;
+            }
+
+            amount = Math.Min(amount, remaining);
             if (amount <= 0m)
                 continue;
 
@@ -110,6 +168,9 @@ public sealed class DepreciationService(AppDbContext db, IPostingEngine postingE
             {
                 FixedAssetId = asset.Id, PeriodMonth = month, Amount = amount, JournalEntryId = entry.Id,
             });
+
+            if (unitsThisPeriod > 0m)
+                asset.LastDepreciatedUnits += unitsThisPeriod; // high-water mark of shots charged-for
 
             if (accumulated + amount >= asset.DepreciableBase)
                 asset.Status = FixedAssetStatus.FullyDepreciated;
