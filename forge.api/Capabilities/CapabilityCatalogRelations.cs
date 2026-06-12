@@ -230,6 +230,9 @@ public static class CapabilityCatalogRelations
         new("CAP-ACCT-DEPRECIATION", "CAP-ACCT-FULLGL"),
         new("CAP-ACCT-FXREVAL", "CAP-MD-CURRENCIES"),
         new("CAP-ACCT-FXREVAL", "CAP-ACCT-FULLGL"),
+        // QB-001: the QBO push exports FROM the built-in GL — it depends on FULLGL and is
+        // deliberately NOT in the BUILTIN ⊥ EXTERNAL mutex (downstream export, not external mode).
+        new("CAP-ACCT-QBO-EXPORT", "CAP-ACCT-FULLGL"),
 
         // ── HR ──────────────────────────────────────────────────────────────
         new("CAP-HR-HIRE", "CAP-MD-EMPLOYEES"),

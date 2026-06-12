@@ -508,6 +508,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<Forge.Core.Entities.Accounting.DepreciationEntry> DepreciationEntries => Set<Forge.Core.Entities.Accounting.DepreciationEntry>();
     public DbSet<Forge.Core.Entities.Accounting.PayRun> PayRuns => Set<Forge.Core.Entities.Accounting.PayRun>();
 
+    // QB-001 — one-way QBO journal-summary push for the CPA (CAP-ACCT-QBO-EXPORT, default OFF).
+    public DbSet<Forge.Core.Entities.Accounting.QboAccountMap> QboAccountMaps => Set<Forge.Core.Entities.Accounting.QboAccountMap>();
+    public DbSet<Forge.Core.Entities.Accounting.QboExportLog> QboExportLogs => Set<Forge.Core.Entities.Accounting.QboExportLog>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

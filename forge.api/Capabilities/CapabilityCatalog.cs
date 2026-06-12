@@ -11,7 +11,8 @@ namespace Forge.Api.Capabilities;
 /// CAP-O2C-CREDIT-LIMITS) per the Customer/Lead parity audit + 2
 /// (CAP-EXT-EMAIL-SYNC, CAP-EXT-VOIP-SYNC) per Wave 8 communication
 /// sync skeleton + 2 (CAP-P2P-BILL, CAP-P2P-PAY) per the owner-ratified
-/// AP capability split = 137 total.
+/// AP capability split + 1 (CAP-ACCT-QBO-EXPORT) per the QB-001 owner
+/// ratification = 138 total.
 /// The catalog header claims 121 because three INV/QC/MD entries are listed
 /// in two areas; the Phase A implementation treats every distinct code as
 /// one row and accepts the count-discrepancy. See _catalog-rows.cs.txt and
@@ -145,6 +146,11 @@ public static class CapabilityCatalog
         new("CAP-ACCT-PERIOD", "ACCT", @"Period close + lock", @"Close (lock) a fiscal period to prevent backdated postings; controller-level reopen with audit trail; soft-close vs hard-close distinction.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-ACCT-DEPRECIATION", "ACCT", @"Asset depreciation schedule", @"Periodic depreciation posting per asset, multiple methods (straight-line, declining balance), depreciation schedule report.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-ACCT-FXREVAL", "ACCT", @"Multi-currency revaluation", @"Revalue open AR/AP/cash balances at period end at current FX rate.", IsDefaultOn: false, RequiresRoles: null),
+        // QB-001 (§10 ratification 2026-06-12): one-way downstream journal-summary push to QuickBooks
+        // Online for the CPA. Deliberately NOT part of the CAP-ACCT-BUILTIN ⊥ CAP-ACCT-EXTERNAL mutex:
+        // this is a downstream EXPORT FROM the built-in GL (QB is never system of record), not external
+        // accounting mode — it coexists with CAP-ACCT-FULLGL rather than competing with it.
+        new("CAP-ACCT-QBO-EXPORT", "ACCT", @"QuickBooks journal-summary export", @"One-way downstream push of the per-account period-net journal summary to QuickBooks Online for the CPA (QB-001). Requires the built-in full GL and a connected QuickBooks OAuth integration; per-account QBO mapping maintained in-app. QuickBooks is never the system of record — nothing syncs back. Default OFF; enable per install when the CPA wants API delivery instead of CSV.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-PAYROLL-RUN", "ACCT", @"Payroll run + journal posting", @"Create pay runs and post the payroll journal (gross wages, employer taxes, withholdings, net-pay liability). Tax CALCULATION stays with the payroll provider (PAY-001 offload) — amounts are supplied, this posts them. Phase-5 foundation; default OFF until payroll go-live.", IsDefaultOn: false, RequiresRoles: null),
         // ── Pro Services rollout (Phase 2) — accounting mode migration ──
         new("CAP-ACCT-MIGRATION", "ACCT", @"Accounting mode migration wizard", @"BUILTIN ⟷ EXTERNAL accounting mode migration tooling — snapshot, dry-run, frozen window, circuit breaker, hold-period rollback, accountant sign-off. Auto-gated to false outside the eligibility window; eligibility logic lives in the migration handler. Default OFF — surfaces only when an admin starts a transition.", IsDefaultOn: false, RequiresRoles: "Admin"),

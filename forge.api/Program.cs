@@ -693,6 +693,8 @@ try
     {
         builder.Services.AddSingleton<IStorageService, MockStorageService>();
         builder.Services.AddSingleton<IAccountingService, MockAccountingService>();
+        // QB-001 — one-way QBO journal-summary push (CAP-ACCT-QBO-EXPORT).
+        builder.Services.AddSingleton<IQboJournalPushService, MockQboJournalPushService>();
         builder.Services.AddSingleton<IShippingService, MockShippingService>();
         builder.Services.AddSingleton<IAddressValidationService, MockAddressValidationService>();
         builder.Services.AddSingleton<IAiService, MockAiService>();
@@ -760,6 +762,9 @@ try
         builder.Services.AddScoped<IAccountingService, NetSuiteAccountingService>();
         builder.Services.AddScoped<IAccountingService, WaveAccountingService>();
         builder.Services.AddScoped<IAccountingService, ZohoAccountingService>();
+        // QB-001 — one-way QBO journal-summary push; rides the same stored QuickBooks
+        // OAuth connection (IExternalIdentityResolver) as QuickBooksAccountingService.
+        builder.Services.AddScoped<IQboJournalPushService, QboJournalPushService>();
         // Shipping: all configured carriers registered; MultiCarrierShippingService aggregates them
         builder.Services.AddSingleton<IShippingCarrierService, UpsShippingService>();
         builder.Services.AddSingleton<IShippingCarrierService, FedExShippingService>();
