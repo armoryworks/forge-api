@@ -43,7 +43,8 @@ public class VendorBillRepository(AppDbContext db) : IVendorBillRepository
             vendorNames.TryGetValue(b.VendorId, out var n) ? n : $"Vendor {b.VendorId}",
             b.VendorInvoiceNumber, b.Status.ToString(), b.BillDate, b.DueDate,
             b.Total, b.AmountPaid, b.BalanceDue, b.CreatedAt,
-            b.PaymentApplications.Any(a => failedPaymentIds.Contains(a.VendorPaymentId)))).ToList();
+            b.PaymentApplications.Any(a => failedPaymentIds.Contains(a.VendorPaymentId)),
+            b.ExpenseId)).ToList();
     }
 
     public async Task<bool> HasFailedTransmissionAsync(IReadOnlyCollection<int> vendorPaymentIds, CancellationToken ct)

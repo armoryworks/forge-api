@@ -37,6 +37,14 @@ public class VoidVendorBillHandler(
         if (bill.Status == VendorBillStatus.Void)
             throw new InvalidOperationException("Bill is already void.");
 
+        // A bill promoted from a vendor-settled expense is driven by the EXPENSE lifecycle: voiding it
+        // here would strand the expense as approved with its payable (and its GL debit) silently gone.
+        // Reject or send the expense back to revision instead — demotion voids the bill in lockstep.
+        if (bill.ExpenseId is int sourceExpenseId)
+            throw new InvalidOperationException(
+                $"Bill {bill.BillNumber} was promoted from expense EXP-{sourceExpenseId}; "
+                + "reject the expense (or request revision) to void it.");
+
         // A bill with vendor payments applied can't be voided — the payment's AP debit would be left pointing
         // at a reversed liability. Void/unapply the payment(s) first. (PartiallyPaid/Paid bills always have
         // applications, so this also blocks them.)

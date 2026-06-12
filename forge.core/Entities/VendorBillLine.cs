@@ -24,6 +24,14 @@ public class VendorBillLine : BaseEntity
     public int LineNumber { get; set; }
 
     /// <summary>
+    /// Optional job tag carried onto the GL debit line for job costing (mirrors
+    /// <see cref="Expense.JobId"/> — set when the bill line originates from a job-costed
+    /// expense or any other job-attributable purchase). Standalone-bill posting only;
+    /// PO-matched lines clear GRNI, which is never job-tagged.
+    /// </summary>
+    public int? JobId { get; set; }
+
+    /// <summary>
     /// GL account-determination key this line debits (e.g. OPERATING_EXPENSE, INVENTORY_RAW, GRNI).
     /// Default OPERATING_EXPENSE. Resolved per-book via AccountDeterminationRule at posting time.
     /// </summary>
@@ -34,4 +42,5 @@ public class VendorBillLine : BaseEntity
     public VendorBill VendorBill { get; set; } = null!;
     public Part? Part { get; set; }
     public PurchaseOrderLine? PurchaseOrderLine { get; set; }
+    public Job? Job { get; set; }
 }

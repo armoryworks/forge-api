@@ -49,6 +49,13 @@ public class VendorBillConfiguration : IEntityTypeConfiguration<VendorBill>
         builder.HasIndex(e => e.VendorId).HasDatabaseName("ix_vendor_bills_vendor");
         builder.HasIndex(e => e.Status).HasDatabaseName("ix_vendor_bills_status");
         builder.HasIndex(e => e.PurchaseOrderId).HasDatabaseName("ix_vendor_bills_po");
+        // Expense-promotion backstop: at most one LIVE (non-void) bill per promoted expense. A demoted
+        // (voided) bill may be superseded by a fresh promotion when the expense is re-approved, so the
+        // filter excludes Void (status 4 — enum values are append-only).
+        builder.HasIndex(e => e.ExpenseId)
+            .IsUnique()
+            .HasDatabaseName("ux_vendor_bills_expense_live")
+            .HasFilter("expense_id IS NOT NULL AND status <> 4");
 
         builder.HasIndex(e => e.CurrencyId).HasDatabaseName("ix_vendor_bills_currency");
 
@@ -70,6 +77,14 @@ public class VendorBillConfiguration : IEntityTypeConfiguration<VendorBill>
             .HasForeignKey(e => e.PurchaseOrderId)
             .HasConstraintName("fk_vendor_bills_po")
             .OnDelete(DeleteBehavior.SetNull);
+
+        // Promotion link to the originating vendor-settled expense. Restrict — a payable must not lose
+        // its source document; the expense side blocks deletion while a live bill references it.
+        builder.HasOne(e => e.Expense)
+            .WithMany()
+            .HasForeignKey(e => e.ExpenseId)
+            .HasConstraintName("fk_vendor_bills_expense")
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(e => e.Lines)
             .WithOne(l => l.VendorBill)

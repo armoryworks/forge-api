@@ -94,6 +94,29 @@ public sealed class VendorBillApPostingService(
             .OrderByDescending(e => e.Id)
             .FirstOrDefaultAsync(ct);
 
+        // A bill promoted from an expense BEFORE this build (reconstructed by the boot backfill)
+        // carries its AP credit under the legacy AP:Expense:{id}:EXPENSE origination — the bill itself
+        // never posted. Reverse that entry instead, so voiding the bill still zeroes both the expense
+        // debit and the payable in the GL.
+        if (entry is null)
+        {
+            var expenseId = await db.Set<VendorBill>()
+                .Where(b => b.Id == vendorBillId)
+                .Select(b => b.ExpenseId)
+                .FirstOrDefaultAsync(ct);
+
+            if (expenseId is not null)
+            {
+                entry = await db.Set<JournalEntry>()
+                    .Where(e => e.Source == JournalSource.AP
+                        && e.SourceType == "Expense"
+                        && e.SourceId == expenseId
+                        && e.Status == JournalEntryStatus.Posted)
+                    .OrderByDescending(e => e.Id)
+                    .FirstOrDefaultAsync(ct);
+            }
+        }
+
         if (entry is null)
             return;
 
@@ -249,6 +272,7 @@ public sealed class VendorBillApPostingService(
             lines.Add(new PostingLine
             {
                 AccountKey = l.AccountDeterminationKey,
+                JobId = l.JobId, // carry the job tag for job costing (e.g. promoted job-costed expenses)
                 Debit = amount,
                 Description = l.Description,
             });

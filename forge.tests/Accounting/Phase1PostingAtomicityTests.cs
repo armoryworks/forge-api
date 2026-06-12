@@ -372,7 +372,8 @@ END $$;");
             new Mock<IAccountingProviderFactory>().Object,
             NullLogger<UpdateExpenseStatusHandler>.Instance,
             new ExpenseApPostingService(db, Engine(db), new FakeCapabilities(fullGlOn: true)),
-            db);
+            billPromotion: null, // legacy-path coverage; promotion has its own suite
+            db: db);
 
     private static async Task<Expense> AddPendingExpenseAsync(AppDbContext db)
     {

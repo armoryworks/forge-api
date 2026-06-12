@@ -36,5 +36,13 @@ public class VendorBillLineConfiguration : IEntityTypeConfiguration<VendorBillLi
             .HasForeignKey(e => e.PurchaseOrderLineId)
             .HasConstraintName("fk_vendor_bill_lines_po_line")
             .OnDelete(DeleteBehavior.SetNull);
+
+        // Job-costing tag (carried to the GL debit line on standalone-bill posting).
+        builder.HasIndex(e => e.JobId).HasDatabaseName("ix_vendor_bill_lines_job");
+        builder.HasOne(e => e.Job)
+            .WithMany()
+            .HasForeignKey(e => e.JobId)
+            .HasConstraintName("fk_vendor_bill_lines_job")
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

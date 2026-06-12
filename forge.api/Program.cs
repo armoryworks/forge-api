@@ -442,6 +442,12 @@ try
     // vendor) when the expense settles to a vendor, else Dr Expense / Cr Cash.
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IExpenseApPostingService,
                                Forge.Api.Features.Accounting.ExpenseApPostingService>();
+    // Expense → bill promotion: a vendor-settled expense approval auto-creates an Approved
+    // VendorBill (gated on CAP-P2P-BILL) so the payable flows through the one AP pipeline —
+    // open item, aging, vendor payments, void. When promotion declines, the legacy expense
+    // AP posting above is the fallback.
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IExpenseBillPromotionService,
+                               Forge.Api.Features.Accounting.ExpenseBillPromotionService>();
     // Phase-2 STAGE A — AP sub-ledger posting. VendorBill approved → Dr line accounts
     // (+ purchase tax) / Cr AP control (party = vendor); VendorPayment → Dr AP
     // (applied) + Dr vendor-advance (unapplied) / Cr Cash. Both self-gate on

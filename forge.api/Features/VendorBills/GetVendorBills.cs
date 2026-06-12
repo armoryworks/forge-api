@@ -43,6 +43,7 @@ public class GetVendorBillByIdHandler(IVendorBillRepository repo, IVendorReposit
                     l.Id, l.LineNumber, l.PartId, l.PurchaseOrderLineId,
                     l.Description, l.Quantity, l.UnitPrice, l.LineTotal, l.AccountDeterminationKey))
                 .ToList(),
-            hasFailedTransmission);
+            hasFailedTransmission,
+            bill.ExpenseId);
     }
 }

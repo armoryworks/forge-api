@@ -39,6 +39,14 @@ public static partial class SeedData
         // installs and on any install where items already exist.
         await EnsureOpenItemsBackfilledAsync(db);
 
+        // Expense→bill promotion backfill — runs on EVERY boot, after the open-item
+        // backfill. Vendor-settled expenses posted under the legacy Expense-keyed AP
+        // origination (before promotion existed) get a linked, born-Approved
+        // VendorBill + ApOpenItem reconstructed (no new GL — the journal already
+        // exists), so they become payable/agable and the AP reconciliation ties.
+        // Idempotent per expense: skipped once a bill references it.
+        await EnsureExpenseBillsBackfilledAsync(db);
+
         // Run-once guard: if any Book exists the GL foundation is already seeded.
         if (await db.Books.AnyAsync())
         {
@@ -438,6 +446,130 @@ public static partial class SeedData
                     bills.Count);
             }
         }
+    }
+
+    // ── Expense→bill promotion backfill (boot ensure) ────────────────────────
+    //
+    // Before promotion existed, approving a vendor-settled expense (FULLGL on)
+    // posted Dr Expense / Cr AP under the legacy AP:Expense:{id}:EXPENSE key with
+    // NO bill and NO open item — a payable nothing in the app could relieve, and
+    // a standing control-vs-subledger reconciliation difference. For each such
+    // expense this reconstructs a linked, born-Approved VendorBill plus its
+    // ApOpenItem, WITHOUT posting (the journal already exists; the bill's void
+    // path knows to reverse the legacy-keyed origination via VendorBill.ExpenseId).
+    //
+    // Idempotent per expense: skipped once ANY bill references the expense. The
+    // amount/vendor are taken from the posted AP credit line (ground truth at
+    // posting time), not the mutable expense row. Dark installs are untouched —
+    // no posted origination, no bill (auto-creating payables for possibly
+    // already-paid-out-of-band history would risk double payment).
+    internal static async Task EnsureExpenseBillsBackfilledAsync(AppDbContext db)
+    {
+        var book = await db.Books.Where(b => b.IsActive).OrderBy(b => b.Id).FirstOrDefaultAsync();
+        if (book is null)
+            return; // No GL seeded — nothing was ever posted.
+
+        // Posted legacy expense AP originations, with the vendor + posted amount from the AP credit
+        // line (the shared :EXPENSE key also covers the cash-settled variant, which has no party line).
+        var originations = await db.JournalEntries.IgnoreQueryFilters()
+            .Where(e => e.BookId == book.Id
+                && e.Source == JournalSource.AP
+                && e.SourceType == "Expense"
+                && e.SourceId != null
+                && e.IdempotencyKey != null && e.IdempotencyKey.EndsWith(":EXPENSE")
+                && e.Status == JournalEntryStatus.Posted)
+            .SelectMany(e => e.Lines
+                .Where(l => l.SubledgerPartyType == Forge.Core.Enums.Accounting.SubledgerPartyType.Vendor
+                    && l.SubledgerPartyId != null
+                    && l.Credit > 0m)
+                .Select(l => new { ExpenseId = (int)e.SourceId!.Value, VendorId = l.SubledgerPartyId!.Value, Amount = l.Credit }))
+            .ToListAsync();
+
+        if (originations.Count == 0)
+            return;
+
+        var expenseIds = originations.Select(o => o.ExpenseId).ToList();
+        var alreadyPromoted = (await db.VendorBills.IgnoreQueryFilters()
+            .Where(b => b.ExpenseId != null && expenseIds.Contains(b.ExpenseId.Value))
+            .Select(b => b.ExpenseId!.Value)
+            .ToListAsync()).ToHashSet();
+
+        var pending = originations.Where(o => !alreadyPromoted.Contains(o.ExpenseId)).ToList();
+        if (pending.Count == 0)
+            return;
+
+        var expenses = await db.Expenses.IgnoreQueryFilters()
+            .Where(e => expenseIds.Contains(e.Id))
+            .ToDictionaryAsync(e => e.Id);
+
+        var created = 0;
+        foreach (var o in pending)
+        {
+            expenses.TryGetValue(o.ExpenseId, out var expense);
+            var billDate = expense?.ExpenseDate ?? DateTimeOffset.UtcNow;
+
+            // Inline bill-number generation (mirrors VendorBillRepository.GenerateNextBillNumberAsync;
+            // SaveChanges per bill below keeps the sequence advancing).
+            var last = await db.VendorBills.IgnoreQueryFilters()
+                .OrderByDescending(b => b.Id)
+                .Select(b => b.BillNumber)
+                .FirstOrDefaultAsync();
+            var billNumber = last != null && last.StartsWith("BILL-") && int.TryParse(last[5..], out var n)
+                ? $"BILL-{n + 1:D5}"
+                : "BILL-00001";
+
+            var bill = new VendorBill
+            {
+                BillNumber = billNumber,
+                VendorId = o.VendorId,
+                ExpenseId = o.ExpenseId,
+                CurrencyId = book.FunctionalCurrencyId,
+                FxRate = 1m,
+                Status = Forge.Core.Enums.VendorBillStatus.Approved,
+                BillDate = billDate,
+                DueDate = billDate, // due-on-receipt — the conservative default for reconstructed history
+                Notes = $"Reconstructed from expense EXP-{o.ExpenseId} (legacy AP origination backfill).",
+                Lines =
+                {
+                    new VendorBillLine
+                    {
+                        Description = expense is not null
+                            ? $"Expense EXP-{expense.Id} — {expense.Category}: {expense.Description}"
+                            : $"Expense EXP-{o.ExpenseId}",
+                        Quantity = 1m,
+                        UnitPrice = o.Amount,
+                        LineNumber = 1,
+                        AccountDeterminationKey = "OPERATING_EXPENSE",
+                        JobId = expense?.JobId,
+                    },
+                },
+            };
+
+            db.VendorBills.Add(bill);
+            await db.SaveChangesAsync(); // assign the id for the open item + advance the number sequence
+
+            db.ApOpenItems.Add(new ApOpenItem
+            {
+                BookId = book.Id,
+                VendorId = o.VendorId,
+                SourceType = "VendorBill",
+                SourceId = bill.Id,
+                DocumentNumber = bill.BillNumber,
+                DocumentDate = bill.BillDate,
+                DueDate = bill.DueDate,
+                CurrencyId = bill.CurrencyId,
+                FxRate = 1m,
+                OriginalTxnAmount = o.Amount,
+                OriginalFunctionalAmount = o.Amount,
+                Status = OpenItemStatus.Open,
+            });
+            created++;
+        }
+
+        await db.SaveChangesAsync();
+        Log.Information(
+            "Backfilled {Count} promoted vendor bills (+ open items) from legacy expense AP originations.",
+            created);
     }
 
     internal static async Task EnsureCashInTransitAsync(AppDbContext db)

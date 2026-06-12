@@ -28,6 +28,7 @@ public class ExpenseRepository(AppDbContext db) : IExpenseRepository
         }
 
         var expenses = await query
+            .Include(e => e.Vendor)
             .OrderByDescending(e => e.ExpenseDate)
             .ToListAsync(ct);
 
@@ -39,12 +40,15 @@ public class ExpenseRepository(AppDbContext db) : IExpenseRepository
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, ct);
 
-        return expenses.Select(e => ToResponseModel(e, users)).ToList();
+        var promotedBills = await GetLivePromotedBillsAsync(expenses.Select(e => e.Id).ToList(), ct);
+
+        return expenses.Select(e => ToResponseModel(e, users, promotedBills)).ToList();
     }
 
     public async Task<ExpenseResponseModel?> GetByIdAsync(int id, CancellationToken ct)
     {
         var expense = await db.Expenses.Include(e => e.Job)
+            .Include(e => e.Vendor)
             .FirstOrDefaultAsync(e => e.Id == id, ct);
 
         if (expense is null) return null;
@@ -56,7 +60,9 @@ public class ExpenseRepository(AppDbContext db) : IExpenseRepository
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, ct);
 
-        return ToResponseModel(expense, users);
+        var promotedBills = await GetLivePromotedBillsAsync([expense.Id], ct);
+
+        return ToResponseModel(expense, users, promotedBills);
     }
 
     public Task<Expense?> FindAsync(int id, CancellationToken ct)
@@ -71,17 +77,43 @@ public class ExpenseRepository(AppDbContext db) : IExpenseRepository
     public Task SaveChangesAsync(CancellationToken ct)
         => db.SaveChangesAsync(ct);
 
-    private static ExpenseResponseModel ToResponseModel(Expense e, Dictionary<int, ApplicationUser> users)
+    /// <summary>
+    /// The live (non-void) promoted bill per expense id — (billId, billNumber) keyed by ExpenseId.
+    /// One grouped lookup for the list path (no N+1).
+    /// </summary>
+    private async Task<Dictionary<int, (int BillId, string BillNumber)>> GetLivePromotedBillsAsync(
+        IReadOnlyCollection<int> expenseIds, CancellationToken ct)
+    {
+        if (expenseIds.Count == 0) return [];
+
+        return (await db.VendorBills.AsNoTracking()
+                .Where(b => b.ExpenseId != null
+                    && expenseIds.Contains(b.ExpenseId.Value)
+                    && b.Status != VendorBillStatus.Void)
+                .Select(b => new { ExpenseId = b.ExpenseId!.Value, b.Id, b.BillNumber })
+                .ToListAsync(ct))
+            .ToDictionary(b => b.ExpenseId, b => (b.Id, b.BillNumber));
+    }
+
+    private static ExpenseResponseModel ToResponseModel(
+        Expense e,
+        Dictionary<int, ApplicationUser> users,
+        Dictionary<int, (int BillId, string BillNumber)> promotedBills)
     {
         var userName = users.TryGetValue(e.UserId, out var user)
             ? $"{user.FirstName} {user.LastName}" : "Unknown";
         var approvedByName = e.ApprovedBy.HasValue && users.TryGetValue(e.ApprovedBy.Value, out var approver)
             ? $"{approver.FirstName} {approver.LastName}" : null;
+        var promotedBill = promotedBills.TryGetValue(e.Id, out var bill)
+            ? bill
+            : ((int BillId, string BillNumber)?)null;
 
         return new ExpenseResponseModel(
             e.Id, e.UserId, userName, e.JobId, e.Job?.JobNumber,
             e.Amount, e.Category, e.Description, e.ReceiptFileId,
             e.Status, e.ApprovedBy, approvedByName, e.ApprovalNotes,
-            e.ExpenseDate, e.CreatedAt);
+            e.ExpenseDate, e.CreatedAt,
+            e.VendorId, e.Vendor?.CompanyName,
+            promotedBill?.BillId, promotedBill?.BillNumber);
     }
 }

@@ -335,3 +335,19 @@ balance — which is exactly why origination and settlement post separately thro
 
 Controls note: the §"Controls (mandatory)" segregation (create ≠ release) and the human-approval step before
 submission are NOT yet implemented — they belong to the real-channel work, not the mock pipeline.
+
+### Expense → bill promotion (vendor-settled expense rectification, added 2026-06-12)
+
+Before this, approving a vendor-settled `Expense` (FULLGL on) posted `Dr Expense / Cr AP (party = vendor)`
+under `AP:Expense:{id}:EXPENSE` with **no bill, no open item, and no settlement path** — a payable nothing
+in the app could relieve, and a standing AP control-vs-subledger reconciliation difference. Rectified by
+promoting the expense into the one AP pipeline instead of bolting on a parallel mini-AP:
+
+| Piece | Realized by |
+|-------|-------------|
+| Promotion | `ExpenseBillPromotionService.PromoteApprovedExpenseAsync` — on the approved transition (`UpdateExpenseStatus`), a vendor-settled expense auto-creates a **born-Approved standalone `VendorBill`** (`VendorBill.ExpenseId` link, one `OPERATING_EXPENSE` line carrying the expense's `JobId`, vendor `PaymentTerms` mapped onto `CreditTerms` for the due date) and posts it through `VendorBillApPostingService` under the BILL key — open item, aging, vendor payments (incl. electronic transmission/CIT), all inherited. Gated on **CAP-P2P-BILL**; when promotion declines (Payables off / cash-settled / no vendor / non-positive) the legacy `ExpenseApPostingService` remains the fallback, byte-for-byte. |
+| Demotion | `DemoteExpenseBillAsync` — an approved expense leaving approved status (rejected/revision) voids its promoted bill and reverses the posting in the same transaction; **blocked while vendor payments are applied** (void the payments first). Direct `VoidVendorBill` of a promoted bill is rejected (the expense drives the lifecycle); the UI hides the Void button (`sourceExpenseId`). |
+| Double-post guards | One live (non-void) bill per expense (`ux_vendor_bills_expense_live`); an expense whose payable already posted under the legacy Expense key is promoted WITHOUT re-posting, and its void path reverses the legacy-keyed entry (`ReverseVendorBillApprovedAsync` falls back via `VendorBill.ExpenseId`). |
+| Backfill | `EnsureExpenseBillsBackfilledAsync` (boot ensure) — reconstructs a linked bill + `ApOpenItem` for every still-POSTED legacy expense AP origination (vendor/amount read from the posted AP credit line, no new GL). Dark history untouched — auto-creating payables for possibly out-of-band-paid expenses risks double payment; §7A opening balances own that. |
+| UI | Bills list/detail show a "From expense EXP-n" chip; the Expenses list links the promoted bill (`vendor-bill` entity link). `ExpenseResponseModel` gains `VendorId`/`VendorName`/`LinkedVendorBillId`/`LinkedVendorBillNumber`. |
+| Job costing (general fix) | `VendorBillLine.JobId` (new) carries to the GL debit line on standalone-bill posting — promoted job-costed expenses keep their job tag; available to manual bills too. Migration `AddExpenseBillPromotion`. |

@@ -44,6 +44,10 @@ public class UpdateExpenseStatusHandler(
     // supplies it; with CAP-ACCT-FULLGL off the posting service no-ops anyway
     // (mirrors SendInvoice's STAGE A / CreatePayment's STAGE B wiring).
     IExpenseApPostingService? apPosting = null,
+    // Promotes a vendor-settled expense into the AP bill pipeline on approval (and demotes —
+    // voids the bill — when it leaves approved status). Optional like apPosting; when absent or
+    // when promotion declines (Payables capability off / cash-settled), apPosting is the fallback.
+    IExpenseBillPromotionService? billPromotion = null,
     // The request-scoped context, used to wrap the status change + AP posting in one
     // transaction. Null only in isolated unit tests (mocked repo, no context) — then
     // no transaction is opened and behavior is exactly as before.
@@ -77,9 +81,24 @@ public class UpdateExpenseStatusHandler(
 
         await repo.SaveChangesAsync(cancellationToken);
 
-        if (apPosting is not null && request.Data.Status is ExpenseStatus.Approved or ExpenseStatus.SelfApproved)
+        if (request.Data.Status is ExpenseStatus.Approved or ExpenseStatus.SelfApproved)
         {
-            await apPosting.PostExpenseApprovedAsync(expense.Id, userId, cancellationToken);
+            // Promotion first: a vendor-settled expense becomes a real vendor bill (open item, aging,
+            // payable via vendor payments). Promotion handles the GL through the bill posting; only
+            // when it declines (Payables off / cash-settled / no vendor) does the legacy expense AP
+            // posting fire — both inside this transaction.
+            var promotedBill = billPromotion is not null
+                ? await billPromotion.PromoteApprovedExpenseAsync(expense.Id, userId, cancellationToken)
+                : null;
+
+            if (promotedBill is null && apPosting is not null)
+                await apPosting.PostExpenseApprovedAsync(expense.Id, userId, cancellationToken);
+        }
+        else if (billPromotion is not null)
+        {
+            // Leaving approved status (rejected / revision / re-opened): void the promoted bill and
+            // reverse its posting. Throws — blocking the transition — if payments are applied.
+            await billPromotion.DemoteExpenseBillAsync(expense.Id, userId, cancellationToken);
         }
 
         if (tx is not null)

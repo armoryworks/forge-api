@@ -36,6 +36,14 @@ public class VendorBill : BaseAuditableEntity, IConcurrencyVersioned
     /// <summary>Optional link to the originating PO — the seam for STAGE-D 3-way match. Null for standalone bills.</summary>
     public int? PurchaseOrderId { get; set; }
 
+    /// <summary>
+    /// Optional link to the vendor-settled <see cref="Expense"/> this bill was promoted from
+    /// (expense approval auto-creates the bill so the payable flows through the one AP pipeline —
+    /// open item, aging, vendor payments, void. At most one NON-VOID bill per expense; a demoted
+    /// (voided) bill may be superseded by a fresh promotion on re-approval.
+    /// </summary>
+    public int? ExpenseId { get; set; }
+
     public VendorBillStatus Status { get; set; } = VendorBillStatus.Draft;
     public DateTimeOffset BillDate { get; set; }
     public DateTimeOffset DueDate { get; set; }
@@ -63,6 +71,7 @@ public class VendorBill : BaseAuditableEntity, IConcurrencyVersioned
     public Vendor Vendor { get; set; } = null!;
     public Currency Currency { get; set; } = null!;
     public PurchaseOrder? PurchaseOrder { get; set; }
+    public Expense? Expense { get; set; }
     public ICollection<VendorBillLine> Lines { get; set; } = [];
     public ICollection<VendorPaymentApplication> PaymentApplications { get; set; } = [];
 }

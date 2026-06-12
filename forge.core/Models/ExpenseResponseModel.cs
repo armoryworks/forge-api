@@ -17,4 +17,10 @@ public record ExpenseResponseModel(
     string? ApprovedByName,
     string? ApprovalNotes,
     DateTimeOffset ExpenseDate,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    // Vendor-settled expenses: the vendor the expense is owed to, and the live (non-void) vendor
+    // bill the approval promoted it into (the payable is paid/aged/voided through that bill).
+    int? VendorId = null,
+    string? VendorName = null,
+    int? LinkedVendorBillId = null,
+    string? LinkedVendorBillNumber = null);

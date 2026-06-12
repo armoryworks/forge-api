@@ -19,4 +19,7 @@ public record VendorBillListItemModel(
     decimal AmountPaid,
     decimal BalanceDue,
     DateTimeOffset CreatedAt,
-    bool HasFailedTransmission = false);
+    bool HasFailedTransmission = false,
+    // Set when the bill was auto-promoted from a vendor-settled expense approval — the UI shows a
+    // "from expense" chip and links back; such bills are voided via the expense, not directly.
+    int? SourceExpenseId = null);
