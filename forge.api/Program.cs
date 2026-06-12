@@ -725,7 +725,10 @@ try
         builder.Services.AddSingleton<IImageComparisonService, MockImageComparisonService>();
         builder.Services.AddSingleton<IWalkthroughGeneratorService, MockWalkthroughGeneratorService>();
         builder.Services.AddSingleton<IPdfFormFillService, MockPdfFormFillService>();
-        builder.Services.AddSingleton<IEdiService, MockEdiService>();
+        // EDI translation is pure logic + DB — not an external integration — so the REAL
+        // X12 service runs even under MockIntegrations; only the CHANNEL (transport) is mock.
+        // (Inverse of the always-mock bank channel: mock the wire, never the translator.)
+        builder.Services.AddScoped<IEdiService, Forge.Api.Features.Edi.X12EdiService>();
         builder.Services.AddSingleton<IEdiTransportService, MockEdiTransportService>();
         builder.Services.AddSingleton<ICpqService, MockCpqService>();
         builder.Services.AddSingleton<ICurrencyService, MockCurrencyService>();
@@ -810,8 +813,10 @@ try
         builder.Services.AddSingleton<IImageComparisonService, SkiaImageComparisonService>();
         builder.Services.AddSingleton<IWalkthroughGeneratorService, PuppeteerWalkthroughGeneratorService>();
         builder.Services.AddSingleton<IPdfFormFillService, PdfSharpFormFillService>();
-        // EDI: mock for now — real providers (AS2/SFTP) can be added per trading partner
-        builder.Services.AddSingleton<IEdiService, MockEdiService>();
+        // EDI translation: REAL X12 service (EDI.Net inbound parse + deterministic outbound
+        // writer — docs/edi/EDI_CORE_PLAN.md). Scoped: it owns the request's AppDbContext.
+        // Transport stays mock until a partner channel (SFTP/AS2/VAN) is ratified — Phase-B seam.
+        builder.Services.AddScoped<IEdiService, Forge.Api.Features.Edi.X12EdiService>();
         builder.Services.AddSingleton<IEdiTransportService, MockEdiTransportService>();
         // CPQ, Localization, Plant — mock for now until real engines built
         builder.Services.AddSingleton<ICpqService, MockCpqService>();

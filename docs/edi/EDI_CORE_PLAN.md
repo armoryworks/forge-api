@@ -1,11 +1,12 @@
 # EDI Core — License Analysis + Real-Translator Plan
 
-> **Status:** analysis complete; implementation awaiting owner confirmation of the fork target
-> (§10.4 ratification: "config-driven minimal core pared from an OSS translator fork").
->
-> ⚠️ **Open item:** the owner referenced an OSS project from an out-of-band discussion whose
-> name was never recorded in-session. The analysis below stands on its own; if the remembered
-> project differs from the recommendation, only the translator internals change.
+> **Status: IMPLEMENTED (2026-06-13, owner-ratified "pull in and implement EDI.Net").**
+> `X12EdiService : IEdiService` is live behind the existing scaffold: EDI.Net (`indice.Edi`
+> 1.12.0, MIT, NuGet) owns inbound deserialization; `X12DocumentWriter` renders the outbound
+> set with hand-built envelopes (fixed-width ISA, computed SE/GE/IEA counts — the same
+> exact-control pattern as NachaFileGenerator; the test suite parses rendered documents back
+> through EDI.Net to prove the halves agree). Transport remains the mock channel — the Phase-B
+> seam (SFTP/AS2/VAN) per trading partner.
 
 ## 1. What already exists (important — found 2026-06-13)
 
@@ -51,14 +52,25 @@ time.
 OUT of scope: HIPAA sets, EDIFACT (until a partner demands it), AS2 transport (the module's
 `EdiTransportMethod` already abstracts transport; start with the existing poll/manual channels).
 
-## 4. Implementation plan (one focused session once the fork target is ratified)
+## 4. What shipped (2026-06-13)
 
-1. NuGet `indice.Edi`; attribute-annotated grammar POCOs for 850/810/855/856/997 (start from
-   EDI.Net's own X12_850 test model).
-2. `X12EdiService : IEdiService` in `forge.integrations` — same DI switch as every other
-   integration (`MOCK_INTEGRATIONS` keeps `MockEdiService` for tests/dev).
-3. Wire `ProcessTransactionAsync` 850-handling to draft-SalesOrder creation using the partner's
-   `EdiMapping` profile (partner part number → our part via the mapping rows).
-4. 997 generation on successful inbound parse (the scaffold already tracks `IsAcknowledged`).
-5. Tests: golden-file 850 → SO; 810 render → re-parse round-trip; malformed-interchange →
-   transaction Failed with error message (the existing retry path).
+1. ✅ NuGet `indice.Edi` 1.12.0; `Edi850Interchange` inbound model (mirrors EDI.Net's own X12
+   reference model; PO106/PO107 product-ID pairs, N1 loops, BEG).
+2. ✅ `X12EdiService : IEdiService` (`forge.api/Features/Edi/`, scoped — owns the request
+   DbContext; registered on the REAL DI branch, `MockEdiService` stays on the mock branch).
+3. ✅ 850 → Draft SalesOrder: partner-identity validation (ISA sender must match the partner —
+   wrong-sender fails loudly), duplicate-BEG03 guard (no double orders on retransmission),
+   part resolution by PO107 against `Part.PartNumber` (unresolved numbers kept in line notes
+   for human completion), `AutoProcess` flag wired in ReceiveEdiDocument.
+4. ✅ 997 generated + persisted + linked on successful processing (inbound → Acknowledged).
+5. ✅ Outbound 855 (BAK/PO1/ACK/CTT), 856 (BSN/HL S-O-I/LIN/SN1), 810 (BIG/IT1/TDS), 997
+   (AK1/AK9); per-partner monotonic interchange control numbers.
+6. ✅ 11 tests: golden 850→SO incl. part resolution, 997 linkage, duplicate/wrong-sender/
+   no-customer/malformed error paths, idempotent reprocess, envelope structure proofs,
+   810 round-trip through EDI.Net's parser, transport delegation.
+
+### Remaining (Phase B+)
+- Real transport per partner (SFTP first — same manual-channel posture as NACHA until then).
+- `EdiMapping` field-mapping profiles for partners whose part numbers DON'T equal ours
+  (today: direct PartNumber match; the mapping rows are the seam).
+- Inbound 855/856 (if we ever SELL via EDI to a customer who acknowledges) — out of scope.

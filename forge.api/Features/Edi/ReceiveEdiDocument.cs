@@ -30,6 +30,16 @@ public class ReceiveEdiDocumentHandler(AppDbContext db, IEdiService ediService, 
         db.EdiTransactions.Add(transaction);
         await db.SaveChangesAsync(cancellationToken);
 
+        // The scaffold's AutoProcess flag, now wired: parse + apply (850 → draft sales order,
+        // 997 ack) immediately after receipt. A processing failure lands the transaction in
+        // Error with the message recorded — the response carries the outcome either way.
+        var partner = await db.EdiTradingPartners
+            .FindAsync([request.Model.TradingPartnerId], cancellationToken);
+        if (partner?.AutoProcess == true)
+        {
+            await ediService.ProcessTransactionAsync(transaction.Id, cancellationToken);
+        }
+
         var detail = await mediator.Send(new GetEdiTransactionByIdQuery(transaction.Id), cancellationToken);
         return new EdiTransactionResponseModel
         {
