@@ -32,6 +32,7 @@ public static class BankingSettings
     public const string SftpPasswordKey = "banking.sftp.password";
     public const string SftpUploadDirKey = "banking.sftp.upload-dir";
     public const string SftpReturnsDirKey = "banking.sftp.returns-dir";
+    public const string WireManualAttestationKey = "banking.wire.manual-attestation";
 
     public static IReadOnlyList<SettingDescriptor> Descriptors =>
     [
@@ -122,5 +123,12 @@ public static class BankingSettings
             DefaultValue: "/inbound", SortOrder: 119),
         new(SftpReturnsDirKey, Group, "Bank SFTP — Returns Directory", SettingDataType.String,
             DefaultValue: "/outbound", SortOrder: 120),
+        new(WireManualAttestationKey, Group, "Wires — Manual Attestation", SettingDataType.Boolean,
+            Description: "On: wire payments wait as Queued until a SECOND user attests the wire was "
+                + "entered at the bank portal (no fake auto-success). Off (default): the development "
+                + "mock channel processes them. Production installs should turn this ON until a real "
+                + "bank wire API exists.",
+            DefaultValue: "false",
+            SortOrder: 121),
     ];
 }

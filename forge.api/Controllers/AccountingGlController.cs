@@ -312,6 +312,26 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<PayRunModel>> CreatePayRun([FromBody] CreatePayRunModel model, CancellationToken ct)
         => Ok(await mediator.Send(new CreatePayRunCommand(model), ct));
 
+    /// <summary>
+    /// PAY-001 — import the payroll provider's per-employee register CSV as a DRAFT pay run
+    /// (column mapping auto-detected; pin exact headers via Admin → Settings → Payroll).
+    /// Posting remains the separate PostPayRun step.
+    /// </summary>
+    [HttpPost("payroll/runs/import")]
+    public async Task<ActionResult<PayrollRegisterImportResultModel>> ImportPayrollRegister(
+        [FromForm] int bookId, [FromForm] DateOnly payDate,
+        [FromForm] DateOnly periodStart, [FromForm] DateOnly periodEnd,
+        IFormFile file,
+        [FromServices] Forge.Api.Features.Accounting.IPayrollRegisterImportService importService,
+        CancellationToken ct)
+    {
+        using var reader = new StreamReader(file.OpenReadStream());
+        var contents = await reader.ReadToEndAsync(ct);
+        var userId = int.Parse(
+            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        return Ok(await importService.ImportAsync(bookId, payDate, periodStart, periodEnd, contents, userId, ct));
+    }
+
     /// <summary>Phase-5 — list a book's pay runs.</summary>
     [HttpGet("pay-runs")]
     [RequiresCapability("CAP-PAYROLL-RUN")]

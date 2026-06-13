@@ -44,11 +44,17 @@ public class X12EdiServiceTests
             => Task.FromResult(true);
     }
 
+    private sealed class FakeTransportFactory(FakeTransport transport) : IEdiTransportFactory
+    {
+        public IEdiTransportService For(EdiTransportMethod method) => transport;
+    }
+
     private static (AppDbContext Db, X12EdiService Service, FakeTransport Transport) CreateHarness()
     {
         var db = TestDbContextFactory.Create();
         var transport = new FakeTransport();
-        var service = new X12EdiService(db, new SalesOrderRepository(db), transport, new FakeClock());
+        var service = new X12EdiService(
+            db, new SalesOrderRepository(db), new FakeTransportFactory(transport), new FakeClock());
         return (db, service, transport);
     }
 

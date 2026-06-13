@@ -30,6 +30,9 @@ public class PayRun : BaseAuditableEntity
 
     /// <summary>The posted payroll journal entry (set on approval).</summary>
     public long? JournalEntryId { get; set; }
+
+    /// <summary>Per-employee register rows (PAY-001 import); the run's totals are Σ of these.</summary>
+    public ICollection<PayRunLine> Lines { get; set; } = [];
 }
 
 /// <summary>Lifecycle of a pay run.</summary>

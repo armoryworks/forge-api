@@ -36,22 +36,27 @@ namespace Forge.Api.Features.Accounting;
 ///         receipt — cross-reference the ledger to tell a reversal from a never-posted accrual.</item>
 /// </list></para>
 /// </summary>
-public sealed class GrniReconciliationService(AppDbContext db, IClock clock) : IGrniReconciliationService
+public sealed class GrniReconciliationService(AppDbContext db, IClock clock, Forge.Core.Settings.ISettingsService? settings = null) : IGrniReconciliationService
 {
     private const string KeyGrni = "GRNI";
     private const string ReceiptSourceType = "Receipt";
 
-    private static readonly (int From, int? To, string Label)[] BucketDefs =
-    [
-        (0, 30, "0-30"),
-        (31, 60, "31-60"),
-        (61, 90, "61-90"),
-        (91, null, "91+"),
-    ];
+    // accounting.aging.bucket-days (admin-editable; default = the standard 30/60/90 ladder).
+    // Loaded per call by LoadBucketsAsync; null settings (isolated tests) keep the standard ladder.
+    private IReadOnlyList<(int From, int? To, string Label)> BucketDefs = AgingBuckets.Standard;
+
+    private async Task LoadBucketsAsync(CancellationToken ct)
+    {
+        if (settings is not null)
+            BucketDefs = AgingBuckets.Parse(
+                await settings.GetStringAsync(Forge.Core.Settings.AccountingSettings.AgingBucketDaysKey, ct));
+    }
 
     public async Task<GrniReconciliation> GetGrniReconciliationAsync(
         int bookId, DateOnly? asOfDate = null, CancellationToken ct = default)
     {
+        await LoadBucketsAsync(ct);
+
         var asOf = asOfDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
 
         // Book rounding tolerance absorbs sub-cent GL-vs-operational residue (fractional qty × price posted at
@@ -96,11 +101,11 @@ public sealed class GrniReconciliationService(AppDbContext db, IClock clock) : I
             .ToDictionaryAsync(v => v.Id, v => v.CompanyName, ct);
 
         var poRows = new List<GrniPoRow>();
-        var grandBucketTotals = new decimal[BucketDefs.Length];
+        var grandBucketTotals = new decimal[BucketDefs.Count];
 
         foreach (var poGroup in openLines.GroupBy(l => l.PurchaseOrderId))
         {
-            var bucketAmounts = new decimal[BucketDefs.Length];
+            var bucketAmounts = new decimal[BucketDefs.Count];
             foreach (var line in poGroup)
             {
                 var openAmount = line.OpenQuantity * line.UnitPrice;
@@ -252,9 +257,9 @@ public sealed class GrniReconciliationService(AppDbContext db, IClock clock) : I
         return (uncovered, truncated);
     }
 
-    private static int BucketIndexForAge(int ageDays)
+    private int BucketIndexForAge(int ageDays)
     {
-        for (var i = 0; i < BucketDefs.Length; i++)
+        for (var i = 0; i < BucketDefs.Count; i++)
         {
             var (from, to, _) = BucketDefs[i];
             if (ageDays >= from && (to is null || ageDays <= to))
@@ -263,7 +268,7 @@ public sealed class GrniReconciliationService(AppDbContext db, IClock clock) : I
         return 0; // age < 0 is excluded upstream; clamp defensively
     }
 
-    private static IReadOnlyList<GrniAgingBucket> BuildBuckets(decimal[] amounts)
+    private IReadOnlyList<GrniAgingBucket> BuildBuckets(decimal[] amounts)
         => BucketDefs
             .Select((d, i) => new GrniAgingBucket { FromDays = d.From, ToDays = d.To, Label = d.Label, Amount = amounts[i] })
             .ToList();

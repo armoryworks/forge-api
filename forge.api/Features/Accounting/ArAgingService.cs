@@ -46,23 +46,28 @@ namespace Forge.Api.Features.Accounting;
 /// <para><b>Filter-immune</b> (§5.3): reads use <c>IgnoreQueryFilters</c> so a
 /// soft-deleted customer master or ledger row never silently drops a balance.</para>
 /// </summary>
-public sealed class ArAgingService(AppDbContext db, IClock clock) : IArAgingService
+public sealed class ArAgingService(AppDbContext db, IClock clock, Forge.Core.Settings.ISettingsService? settings = null) : IArAgingService
 {
     // Standard 30-day aging ladder: 0-30, 31-60, 61-90, 91+. Each tuple is the
     // inclusive lower bound, inclusive upper bound (null = open-ended), label.
-    private static readonly (int From, int? To, string Label)[] BucketDefs =
-    [
-        (0, 30, "0-30"),
-        (31, 60, "31-60"),
-        (61, 90, "61-90"),
-        (91, null, "91+"),
-    ];
+    // accounting.aging.bucket-days (admin-editable; default = the standard 30/60/90 ladder).
+    // Loaded per call by LoadBucketsAsync; null settings (isolated tests) keep the standard ladder.
+    private IReadOnlyList<(int From, int? To, string Label)> BucketDefs = AgingBuckets.Standard;
+
+    private async Task LoadBucketsAsync(CancellationToken ct)
+    {
+        if (settings is not null)
+            BucketDefs = AgingBuckets.Parse(
+                await settings.GetStringAsync(Forge.Core.Settings.AccountingSettings.AgingBucketDaysKey, ct));
+    }
 
     public async Task<ArAging> GetArAgingAsync(
         int bookId,
         DateOnly? asOfDate = null,
         CancellationToken ct = default)
     {
+        await LoadBucketsAsync(ct);
+
         var asOf = asOfDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
 
         var items = await LoadOpenItemsAsync(bookId, asOf, ct);
@@ -80,11 +85,11 @@ public sealed class ArAgingService(AppDbContext db, IClock clock) : IArAgingServ
                 ct);
 
         var customerRows = new List<ArAgingCustomerRow>();
-        var grandBucketTotals = new decimal[BucketDefs.Length];
+        var grandBucketTotals = new decimal[BucketDefs.Count];
 
         foreach (var group in items.GroupBy(i => i.CustomerId))
         {
-            var bucketAmounts = new decimal[BucketDefs.Length];
+            var bucketAmounts = new decimal[BucketDefs.Count];
 
             foreach (var item in group)
             {
@@ -132,6 +137,8 @@ public sealed class ArAgingService(AppDbContext db, IClock clock) : IArAgingServ
         DateOnly? asOfDate = null,
         CancellationToken ct = default)
     {
+        await LoadBucketsAsync(ct);
+
         var asOf = asOfDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
         return await ReconcileCoreAsync(bookId, asOf, await LoadOpenItemsAsync(bookId, asOf, ct), ct);
     }
@@ -206,14 +213,14 @@ public sealed class ArAgingService(AppDbContext db, IClock clock) : IArAgingServ
         return asOf.DayNumber - DateOnly.FromDateTime(anchor.UtcDateTime).DayNumber;
     }
 
-    private static int BucketIndexForAge(int ageDays)
+    private int BucketIndexForAge(int ageDays)
     {
         // Negative age = the document is not yet due — it sits in the youngest
         // ("current") bucket.
         if (ageDays < 0)
             return 0;
 
-        for (var i = 0; i < BucketDefs.Length; i++)
+        for (var i = 0; i < BucketDefs.Count; i++)
         {
             var (from, to, _) = BucketDefs[i];
             if (ageDays >= from && (to is null || ageDays <= to))
@@ -221,13 +228,13 @@ public sealed class ArAgingService(AppDbContext db, IClock clock) : IArAgingServ
         }
 
         // Unreachable (the last bucket is open-ended), but fall back to the oldest.
-        return BucketDefs.Length - 1;
+        return BucketDefs.Count - 1;
     }
 
-    private static List<ArAgingBucket> BuildBuckets(decimal[] amounts)
+    private List<ArAgingBucket> BuildBuckets(decimal[] amounts)
     {
-        var buckets = new List<ArAgingBucket>(BucketDefs.Length);
-        for (var i = 0; i < BucketDefs.Length; i++)
+        var buckets = new List<ArAgingBucket>(BucketDefs.Count);
+        for (var i = 0; i < BucketDefs.Count; i++)
         {
             var (from, to, label) = BucketDefs[i];
             buckets.Add(new ArAgingBucket

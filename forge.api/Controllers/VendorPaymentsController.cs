@@ -51,4 +51,16 @@ public class VendorPaymentsController(IMediator mediator) : ControllerBase
         await mediator.Send(new VoidVendorPaymentCommand(id, request.Reason));
         return NoContent();
     }
+
+    /// <summary>
+    /// banking.wire.manual-attestation: a SECOND user attests the wire was entered at the bank
+    /// portal — flips the Queued transmission to Succeeded and clears cash-in-transit (the wire
+    /// twin of payment-batch release; SoD enforced server-side).
+    /// </summary>
+    [HttpPost("{id:int}/attest-wire")]
+    public async Task<IActionResult> AttestWire(int id, AttestWireRequestModel request)
+    {
+        await mediator.Send(new AttestWireTransmissionCommand(id, request.BankReference));
+        return NoContent();
+    }
 }

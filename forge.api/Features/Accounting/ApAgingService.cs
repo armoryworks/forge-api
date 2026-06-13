@@ -33,18 +33,23 @@ namespace Forge.Api.Features.Accounting;
 /// reads use <c>IgnoreQueryFilters()</c>.
 /// </para>
 /// </summary>
-public sealed class ApAgingService(AppDbContext db, IClock clock) : IApAgingService
+public sealed class ApAgingService(AppDbContext db, IClock clock, Forge.Core.Settings.ISettingsService? settings = null) : IApAgingService
 {
-    private static readonly (int From, int? To, string Label)[] BucketDefs =
-    [
-        (0, 30, "0-30"),
-        (31, 60, "31-60"),
-        (61, 90, "61-90"),
-        (91, null, "91+"),
-    ];
+    // accounting.aging.bucket-days (admin-editable; default = the standard 30/60/90 ladder).
+    // Loaded per call by LoadBucketsAsync; null settings (isolated tests) keep the standard ladder.
+    private IReadOnlyList<(int From, int? To, string Label)> BucketDefs = AgingBuckets.Standard;
+
+    private async Task LoadBucketsAsync(CancellationToken ct)
+    {
+        if (settings is not null)
+            BucketDefs = AgingBuckets.Parse(
+                await settings.GetStringAsync(Forge.Core.Settings.AccountingSettings.AgingBucketDaysKey, ct));
+    }
 
     public async Task<ApAging> GetApAgingAsync(int bookId, DateOnly? asOfDate = null, CancellationToken ct = default)
     {
+        await LoadBucketsAsync(ct);
+
         var asOf = asOfDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
 
         var items = await LoadOpenItemsAsync(bookId, asOf, ct);
@@ -57,11 +62,11 @@ public sealed class ApAgingService(AppDbContext db, IClock clock) : IApAgingServ
             .ToDictionaryAsync(v => v.Id, v => v.CompanyName, ct);
 
         var vendorRows = new List<ApAgingVendorRow>();
-        var grandBucketTotals = new decimal[BucketDefs.Length];
+        var grandBucketTotals = new decimal[BucketDefs.Count];
 
         foreach (var group in items.GroupBy(i => i.VendorId))
         {
-            var bucketAmounts = new decimal[BucketDefs.Length];
+            var bucketAmounts = new decimal[BucketDefs.Count];
             foreach (var item in group)
             {
                 var idx = BucketIndexForAge(AgeDays(item, asOf));
@@ -100,6 +105,8 @@ public sealed class ApAgingService(AppDbContext db, IClock clock) : IApAgingServ
 
     public async Task<ApAgingReconciliation> ReconcileAsync(int bookId, DateOnly? asOfDate = null, CancellationToken ct = default)
     {
+        await LoadBucketsAsync(ct);
+
         var asOf = asOfDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
         return await ReconcileCoreAsync(bookId, asOf, await LoadOpenItemsAsync(bookId, asOf, ct), ct);
     }
@@ -155,23 +162,23 @@ public sealed class ApAgingService(AppDbContext db, IClock clock) : IApAgingServ
         return asOf.DayNumber - DateOnly.FromDateTime(anchor.UtcDateTime).DayNumber;
     }
 
-    private static int BucketIndexForAge(int ageDays)
+    private int BucketIndexForAge(int ageDays)
     {
         // Negative age = not yet due — the youngest ("current") bucket.
         if (ageDays < 0)
             return 0;
 
-        for (var i = 0; i < BucketDefs.Length; i++)
+        for (var i = 0; i < BucketDefs.Count; i++)
         {
             var (from, to, _) = BucketDefs[i];
             if (ageDays >= from && (to is null || ageDays <= to))
                 return i;
         }
 
-        return BucketDefs.Length - 1;
+        return BucketDefs.Count - 1;
     }
 
-    private static IReadOnlyList<ApAgingBucket> BuildBuckets(decimal[] amounts)
+    private IReadOnlyList<ApAgingBucket> BuildBuckets(decimal[] amounts)
         => BucketDefs
             .Select((d, i) => new ApAgingBucket { FromDays = d.From, ToDays = d.To, Label = d.Label, Amount = amounts[i] })
             .ToList();

@@ -21,4 +21,7 @@ public record EdiTradingPartnerResponseModel
     public int TransactionCount { get; init; }
     public DateTimeOffset? LastTransactionAt { get; init; }
     public int ErrorCount { get; init; }
+
+    /// <summary>Sanitized SFTP transport display (password never leaves the server).</summary>
+    public EdiSftpTransportInfoModel? TransportSftp { get; init; }
 }

@@ -50,6 +50,7 @@ public static class SettingDescriptorCatalog
         list.AddRange(ShippingSettings.Descriptors);
         list.AddRange(PaymentsSettings.Descriptors);
         list.AddRange(BankingSettings.Descriptors);
+        list.AddRange(PayrollSettings.Descriptors);
         return list;
     }
 }

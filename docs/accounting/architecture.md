@@ -389,3 +389,14 @@ the ~5,000 banks/CUs is values-entry:
 **Trace uniqueness invariant (defect found in live verify):** trace sequences are GLOBALLY monotonic
 across batches — a per-file restart duplicated traces between files and mis-routed a return to the
 prenote batch's item. The matcher also prefers the most recent assignment for legacy duplicates.
+
+### Counterparty-pending integrations made config (added 2026-06-13, owner-ratified)
+
+| Item | Realized by |
+|------|-------------|
+| Wire attestation | `banking.wire.manual-attestation` (default OFF — dev mock keeps working): wires sit Queued until a SECOND user attests the portal entry (`POST /vendor-payments/{id}/attest-wire`, SoD creator≠attester) → Succeeded `MANUAL-WIRE/{ref}` + the CIT settlement entry via the extracted `TransmissionSettlementService` (shared with the automated channel; §5.7 system scope). No fake auto-success on money movement. |
+| EDI partner SFTP transport | `SftpEdiTransportService` (SSH.NET) selected per partner by `EdiTransportFactory` (Sftp → real; others → manual no-op). Partner dialog gains TYPED transport fields (host/port/user/password/dirs) — the server composes the storage column and encrypts the password (`Forge.EdiTransport` purpose); blank password on update keeps the stored one; responses carry sanitized info only. Polled inbound files rename ".processed". Existing 30-min poll job now actually transports. |
+| Payroll register intake (PAY-001) | Per-employee granularity (owner-ratified): `PayRunLine` (migration `AddPayRunLines`); provider-agnostic `PayrollRegisterParser` — synonym auto-detection that SUMS split columns (Social Security + Medicare → FICA), employer-vs-employee header collision handled, totals rows excluded, $/parens amounts; `payroll.register.column.*` settings pin exact headers per provider (admin-editable). `POST /accounting/payroll/runs/import` creates a Draft run (totals = Σ lines, net-identity warnings); posting stays PostPayRun. Provider choice = a mapping, never code. |
+| Aging ladder | `accounting.aging.bucket-days` (default "30,60,90" = the standard 0-30/31-60/61-90/91+): AR aging, AP aging, and GRNI all derive their buckets from it (`AgingBuckets.Parse`, malformed → standard); the UI renders buckets dynamically already. |
+
+NOTHING user-facing is JSON: settings auto-render as typed admin forms; EDI transport is labeled dialog fields; payroll mapping is settings. JSON exists only as owned storage formats.

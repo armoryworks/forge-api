@@ -467,6 +467,12 @@ try
     // BANK-001 — OFX/CSV statement import + auto-match staging (gated CAP-ACCT-FULLGL).
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IBankStatementImportService,
                                Forge.Api.Features.Accounting.BankStatementImportService>();
+    // Shared bank-settlement poster (transmission success + manual wire attestation).
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.ITransmissionSettlementService,
+                               Forge.Api.Features.Accounting.TransmissionSettlementService>();
+    // PAY-001 — provider-agnostic payroll register import (per-employee, mapping via settings).
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IPayrollRegisterImportService,
+                               Forge.Api.Features.Accounting.PayrollRegisterImportService>();
     // Phase-2 STAGE A — AP sub-ledger posting. VendorBill approved → Dr line accounts
     // (+ purchase tax) / Cr AP control (party = vendor); VendorPayment → Dr AP
     // (applied) + Dr vendor-advance (unapplied) / Cr Cash. Both self-gate on
@@ -736,6 +742,12 @@ try
         // X12 service runs even under MockIntegrations; only the CHANNEL (transport) is mock.
         // (Inverse of the always-mock bank channel: mock the wire, never the translator.)
         builder.Services.AddScoped<IEdiService, Forge.Api.Features.Edi.X12EdiService>();
+        builder.Services.AddSingleton<Forge.Api.Services.IEdiCredentialProtector,
+                                      Forge.Api.Services.EdiCredentialProtector>();
+        builder.Services.AddSingleton<MockEdiTransportService>();
+        builder.Services.AddSingleton<Forge.Api.Features.Edi.SftpEdiTransportService>();
+        builder.Services.AddSingleton<Forge.Api.Features.Edi.IEdiTransportFactory,
+                                      Forge.Api.Features.Edi.EdiTransportFactory>();
         builder.Services.AddSingleton<IEdiTransportService, MockEdiTransportService>();
         builder.Services.AddSingleton<ICpqService, MockCpqService>();
         builder.Services.AddSingleton<ICurrencyService, MockCurrencyService>();
@@ -822,8 +834,15 @@ try
         builder.Services.AddSingleton<IPdfFormFillService, PdfSharpFormFillService>();
         // EDI translation: REAL X12 service (EDI.Net inbound parse + deterministic outbound
         // writer — docs/edi/EDI_CORE_PLAN.md). Scoped: it owns the request's AppDbContext.
-        // Transport stays mock until a partner channel (SFTP/AS2/VAN) is ratified — Phase-B seam.
+        // Transport resolves PER PARTNER: Sftp → the generic SSH.NET channel (typed admin
+        // fields, password encrypted); all other methods → the manual no-op channel.
         builder.Services.AddScoped<IEdiService, Forge.Api.Features.Edi.X12EdiService>();
+        builder.Services.AddSingleton<Forge.Api.Services.IEdiCredentialProtector,
+                                      Forge.Api.Services.EdiCredentialProtector>();
+        builder.Services.AddSingleton<MockEdiTransportService>();
+        builder.Services.AddSingleton<Forge.Api.Features.Edi.SftpEdiTransportService>();
+        builder.Services.AddSingleton<Forge.Api.Features.Edi.IEdiTransportFactory,
+                                      Forge.Api.Features.Edi.EdiTransportFactory>();
         builder.Services.AddSingleton<IEdiTransportService, MockEdiTransportService>();
         // CPQ, Localization, Plant — mock for now until real engines built
         builder.Services.AddSingleton<ICpqService, MockCpqService>();

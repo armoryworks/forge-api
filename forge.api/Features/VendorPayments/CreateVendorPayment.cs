@@ -78,7 +78,10 @@ public class CreateVendorPaymentHandler(
     IBackgroundJobClient? backgroundJobs = null,
     // BANK-002 Phase A: when CAP-BANK-NACHA is on, ACH (BankTransfer) payments await a NACHA
     // batch instead of the per-payment mock transmission channel. Optional/null = capability off.
-    Forge.Api.Capabilities.ICapabilitySnapshotProvider? capabilities = null)
+    Forge.Api.Capabilities.ICapabilitySnapshotProvider? capabilities = null,
+    // banking.wire.manual-attestation: wires wait for a second user's attestation instead of the
+    // mock channel. Optional/null (isolated unit tests) = setting off.
+    Forge.Core.Settings.ISettingsService? settings = null)
     : IRequestHandler<CreateVendorPaymentCommand, VendorPaymentListItemModel>
 {
     public async Task<VendorPaymentListItemModel> Handle(CreateVendorPaymentCommand request, CancellationToken cancellationToken)
@@ -220,6 +223,13 @@ public class CreateVendorPaymentHandler(
         var awaitsNachaBatch = method == PaymentMethod.BankTransfer
             && (capabilities?.IsEnabled("CAP-BANK-NACHA") ?? false);
 
+        // banking.wire.manual-attestation: a wire sits Queued until a SECOND user attests it was
+        // entered at the bank portal — no fake auto-success on money movement (mirror of the
+        // batch-release SoD step). The mock channel remains the dev default.
+        var awaitsWireAttestation = method == PaymentMethod.Wire
+            && settings is not null
+            && await settings.GetBoolAsync(Forge.Core.Settings.BankingSettings.WireManualAttestationKey, cancellationToken);
+
         PaymentTransmission? transmission = null;
         if (awaitsNachaBatch)
         {
@@ -241,13 +251,19 @@ public class CreateVendorPaymentHandler(
             };
             db.PaymentTransmissions.Add(transmission);
             db.LogActivityAt(
-                "transmission-queued",
-                $"Bank transmission queued — {payment.PaymentNumber} {payment.Amount:C} via {method}",
+                awaitsWireAttestation ? "awaiting-wire-attestation" : "transmission-queued",
+                awaitsWireAttestation
+                    ? $"Payment {payment.PaymentNumber} ({payment.Amount:C}) awaiting wire attestation — enter the wire at the bank, then a second user attests it"
+                    : $"Bank transmission queued — {payment.PaymentNumber} {payment.Amount:C} via {method}",
                 ("VendorPayment", payment.Id));
             await db.SaveChangesAsync(cancellationToken);
 
-            backgroundJobs?.Enqueue<PaymentTransmissionJob>(
-                j => j.ProcessAsync(transmission.Id, CancellationToken.None));
+            // Manual attestation: no channel job — the transmission stays Queued until attested.
+            if (!awaitsWireAttestation)
+            {
+                backgroundJobs?.Enqueue<PaymentTransmissionJob>(
+                    j => j.ProcessAsync(transmission.Id, CancellationToken.None));
+            }
         }
 
         return new VendorPaymentListItemModel(

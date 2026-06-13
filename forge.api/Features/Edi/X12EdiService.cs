@@ -37,7 +37,7 @@ namespace Forge.Api.Features.Edi;
 public sealed class X12EdiService(
     AppDbContext db,
     ISalesOrderRepository salesOrderRepo,
-    IEdiTransportService transport,
+    IEdiTransportFactory transportFactory,
     IClock clock) : IEdiService
 {
     // ── Inbound ───────────────────────────────────────────────────────────
@@ -303,14 +303,15 @@ public sealed class X12EdiService(
     public async Task SendTransactionAsync(int transactionId, CancellationToken ct)
     {
         var transaction = await LoadAsync(transactionId, ct);
-        await transport.SendAsync(
+        await transportFactory.For(transaction.TradingPartner.TransportMethod).SendAsync(
             transaction.RawPayload, transaction.TradingPartner.TransportConfigJson ?? "{}", ct);
     }
 
     public async Task<IReadOnlyList<EdiTransaction>> PollInboundAsync(int tradingPartnerId, CancellationToken ct)
     {
         var partner = await PartnerAsync(tradingPartnerId, ct);
-        var payloads = await transport.PollAsync(partner.TransportConfigJson ?? "{}", ct);
+        var payloads = await transportFactory.For(partner.TransportMethod)
+            .PollAsync(partner.TransportConfigJson ?? "{}", ct);
 
         var transactions = new List<EdiTransaction>(payloads.Count);
         foreach (var payload in payloads)

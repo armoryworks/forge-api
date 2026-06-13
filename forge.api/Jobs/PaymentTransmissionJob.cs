@@ -39,7 +39,10 @@ public class PaymentTransmissionJob(
     ILogger<PaymentTransmissionJob> logger,
     // Optional / null-default (mirrors the posting seams elsewhere): production DI supplies the engine;
     // unit tests without GL seed skip the settlement posting entirely when null.
-    IPostingEngine? postingEngine = null)
+    IPostingEngine? postingEngine = null,
+    // Extracted settlement seam (shared with manual wire attestation). Null → construct inline
+    // from the same deps, so existing direct-construction tests keep working unchanged.
+    Forge.Api.Features.Accounting.ITransmissionSettlementService? settlementService = null)
 {
     /// <summary>One initial attempt + four automatic retries (spec: retry up to 4 more times).</summary>
     public const int MaxAttempts = 5;
@@ -218,93 +221,11 @@ public class PaymentTransmissionJob(
     private async Task TryPostSettlementAsync(
         PaymentTransmission transmission, string paymentNumber, CancellationToken ct)
     {
-        if (postingEngine is null || transmission.SourceType != "VendorPayment")
-            return;
-
-        try
-        {
-            // Resolve the active posting book — mirrors how the posting services load it.
-            var book = await db.Books.AsNoTracking()
-                .Where(b => b.IsActive)
-                .OrderBy(b => b.Id)
-                .FirstOrDefaultAsync(ct);
-            if (book is null)
-                return; // No GL configured — nothing was originated, nothing to settle.
-
-            // Locate the origination entry by its idempotency key (the posting service's key shape).
-            var originationKey = $"{JournalSource.AP}:VendorPayment:{transmission.SourceId}:PAYMENT";
-            var origination = await db.JournalEntries.IgnoreQueryFilters().AsNoTracking()
-                .Include(e => e.Lines)
-                .FirstOrDefaultAsync(e => e.BookId == book.Id && e.IdempotencyKey == originationKey, ct);
-            if (origination is null)
-                return; // FULLGL was off when the payment was created — skip silently.
-
-            // Sum the origination's Cr CASH_IN_TRANSIT functional amount. Zero → legacy/non-CIT entry.
-            var citAccountId = await db.AccountDeterminationRules.AsNoTracking()
-                .Where(r => r.BookId == book.Id && r.Key == "CASH_IN_TRANSIT")
-                .Select(r => (int?)r.GlAccountId)
-                .FirstOrDefaultAsync(ct);
-            if (citAccountId is null)
-                return; // CIT account not seeded on this install — pre-CIT behavior, nothing in transit.
-
-            var inTransit = origination.Lines
-                .Where(l => l.GlAccountId == citAccountId && l.Credit > 0m)
-                .Sum(l => l.FunctionalAmount);
-            if (inTransit <= 0m)
-                return; // Origination credited CASH directly (legacy) — nothing in transit to clear.
-
-            var request = new PostingRequest
-            {
-                BookId = book.Id,
-                EntryDate = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime),
-                Source = JournalSource.AP,
-                SourceType = "VendorPayment",
-                SourceId = transmission.SourceId,
-                CurrencyId = book.FunctionalCurrencyId,
-                Memo = $"Bank settlement — payment {paymentNumber}",
-                IdempotencyKey = $"{JournalSource.AP}:VendorPayment:{transmission.SourceId}:SETTLEMENT",
-                Lines =
-                [
-                    new PostingLine
-                    {
-                        AccountKey = "CASH_IN_TRANSIT",
-                        Debit = inTransit,
-                        Description = $"Bank settlement — payment {paymentNumber}",
-                    },
-                    new PostingLine
-                    {
-                        AccountKey = "CASH",
-                        Credit = inTransit,
-                        Description = $"Bank settlement — payment {paymentNumber}",
-                    },
-                ],
-            };
-
-            // Hangfire context carries no user principal; the SoD boundary fail-safe-denies without one.
-            // Enter the explicit system-posting scope (§5.7 carve-out) so this trusted, idempotent
-            // settlement entry is authorized — and logged — as the system principal.
-            using (GlSystemPostingScope.Enter())
-            {
-                await postingEngine.PostAsync(request, transmission.CreatedByUserId ?? 0, ct);
-            }
-
-            logger.LogInformation(
-                "PaymentTransmissionJob: settlement posted for transmission {Id} ({Amount} in transit cleared)",
-                transmission.Id, inTransit);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            // The submission DID succeed — never unwind the Succeeded transmission over a settlement
-            // posting failure. The un-cleared CASH_IN_TRANSIT balance is the visible reconciling item.
-            logger.LogError(ex,
-                "PaymentTransmissionJob: settlement posting failed for transmission {Id} (payment {Payment}); "
-                + "the transmission remains Succeeded — the cash-in-transit balance will surface in reconciliation",
-                transmission.Id, paymentNumber);
-        }
+        // Logic lives in TransmissionSettlementService (shared with the manual wire attestation —
+        // banking.wire.manual-attestation); identical guards, idempotency key, and system scope.
+        var service = settlementService
+            ?? new Forge.Api.Features.Accounting.TransmissionSettlementService(db, clock, postingEngine);
+        await service.TryPostSettlementAsync(transmission, paymentNumber, ct);
     }
 
     private static string Truncate(string? s, int max)

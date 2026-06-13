@@ -45,6 +45,11 @@ public class GetEdiTradingPartnerByIdHandler(AppDbContext db)
             QualifierValue = partner.QualifierValue,
             DefaultFormat = partner.DefaultFormat,
             TransportMethod = partner.TransportMethod,
+            TransportSftp = Forge.Api.Features.Edi.EdiSftpTransportConfig.FromJson(partner.TransportConfigJson) is { } cfg
+                ? new EdiSftpTransportInfoModel(
+                    cfg.Host, cfg.Port, cfg.Username,
+                    !string.IsNullOrEmpty(cfg.PasswordEncrypted), cfg.OutboundDir, cfg.InboundDir)
+                : null,
             AutoProcess = partner.AutoProcess,
             RequireAcknowledgment = partner.RequireAcknowledgment,
             IsActive = partner.IsActive,

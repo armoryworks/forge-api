@@ -8,7 +8,7 @@ namespace Forge.Api.Features.Edi;
 
 public record UpdateEdiTradingPartnerCommand(int Id, UpdateEdiTradingPartnerRequestModel Model) : IRequest<EdiTradingPartnerResponseModel>;
 
-public class UpdateEdiTradingPartnerHandler(AppDbContext db, IMediator mediator)
+public class UpdateEdiTradingPartnerHandler(AppDbContext db, IMediator mediator, Forge.Api.Services.IEdiCredentialProtector protector)
     : IRequestHandler<UpdateEdiTradingPartnerCommand, EdiTradingPartnerResponseModel>
 {
     public async Task<EdiTradingPartnerResponseModel> Handle(
@@ -30,7 +30,21 @@ public class UpdateEdiTradingPartnerHandler(AppDbContext db, IMediator mediator)
         if (model.ApplicationReceiverId is not null) partner.ApplicationReceiverId = model.ApplicationReceiverId;
         if (model.DefaultFormat.HasValue) partner.DefaultFormat = model.DefaultFormat.Value;
         if (model.TransportMethod.HasValue) partner.TransportMethod = model.TransportMethod.Value;
-        if (model.TransportConfigJson is not null) partner.TransportConfigJson = model.TransportConfigJson;
+        if (model.TransportSftp is { } sftp)
+        {
+            // A blank password keeps the existing stored ciphertext (the UI never echoes it back).
+            var existing = Forge.Api.Features.Edi.EdiSftpTransportConfig.FromJson(partner.TransportConfigJson);
+            var passwordEncrypted = string.IsNullOrWhiteSpace(sftp.Password)
+                ? existing?.PasswordEncrypted ?? string.Empty
+                : protector.Protect(sftp.Password)!;
+            partner.TransportConfigJson = new Forge.Api.Features.Edi.EdiSftpTransportConfig(
+                sftp.Host.Trim(), sftp.Port, sftp.Username.Trim(), passwordEncrypted,
+                sftp.OutboundDir.Trim(), sftp.InboundDir.Trim()).ToJson();
+        }
+        else if (model.TransportConfigJson is not null)
+        {
+            partner.TransportConfigJson = model.TransportConfigJson;
+        }
         if (model.AutoProcess.HasValue) partner.AutoProcess = model.AutoProcess.Value;
         if (model.RequireAcknowledgment.HasValue) partner.RequireAcknowledgment = model.RequireAcknowledgment.Value;
         if (model.IsActive.HasValue) partner.IsActive = model.IsActive.Value;
