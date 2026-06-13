@@ -38,6 +38,7 @@ public sealed class X12EdiService(
     AppDbContext db,
     ISalesOrderRepository salesOrderRepo,
     IEdiTransportFactory transportFactory,
+    IEdiPartNumberMapService partNumberMap,
     IClock clock) : IEdiService
 {
     // ── Inbound ───────────────────────────────────────────────────────────
@@ -143,13 +144,23 @@ public sealed class X12EdiService(
                 Notes = $"Created from EDI 850 (transaction {transaction.Id}, partner {transaction.TradingPartner.Name}).",
             };
 
+            // Per-partner part-number translation (EDI_CORE_PLAN §Known functional gap → built):
+            // map the partner's number to OUR number first, then match the catalog. A miss falls
+            // back to today's behavior — the line is still created, partner number kept in notes.
+            var translation = await partNumberMap.GetTranslationAsync(transaction.TradingPartnerId, ct);
+
             var lineNumber = 1;
             foreach (var line in order.Lines)
             {
                 var partnerPartNumber = PreferredPartNumber(line);
-                var part = partnerPartNumber is null
+                var translated = partnerPartNumber is not null
+                    && translation.TryGetValue(partnerPartNumber, out var ours)
+                        ? ours
+                        : partnerPartNumber;
+
+                var part = translated is null
                     ? null
-                    : await db.Parts.FirstOrDefaultAsync(p => p.PartNumber == partnerPartNumber, ct);
+                    : await db.Parts.FirstOrDefaultAsync(p => p.PartNumber == translated, ct);
 
                 salesOrder.Lines.Add(new SalesOrderLine
                 {
@@ -160,9 +171,11 @@ public sealed class X12EdiService(
                     Quantity = line.Quantity,
                     UnitPrice = line.UnitPrice,
                     LineNumber = lineNumber++,
-                    // Unresolved part: keep the partner's number visible for human completion.
+                    // Unresolved part: keep the partner's number visible for human completion
+                    // (a mapping exists but its target is missing, or there is no mapping at all).
                     Notes = part is null && partnerPartNumber is not null
                         ? $"Unresolved partner part number: {partnerPartNumber}"
+                          + (translated != partnerPartNumber ? $" (mapped to {translated}, not found)" : string.Empty)
                         : null,
                 });
             }

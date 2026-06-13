@@ -748,6 +748,8 @@ try
         builder.Services.AddSingleton<Forge.Api.Features.Edi.SftpEdiTransportService>();
         builder.Services.AddSingleton<Forge.Api.Features.Edi.IEdiTransportFactory,
                                       Forge.Api.Features.Edi.EdiTransportFactory>();
+        builder.Services.AddScoped<Forge.Api.Features.Edi.IEdiPartNumberMapService,
+                                   Forge.Api.Features.Edi.EdiPartNumberMapService>();
         builder.Services.AddSingleton<IEdiTransportService, MockEdiTransportService>();
         builder.Services.AddSingleton<ICpqService, MockCpqService>();
         builder.Services.AddSingleton<ICurrencyService, MockCurrencyService>();
@@ -843,6 +845,8 @@ try
         builder.Services.AddSingleton<Forge.Api.Features.Edi.SftpEdiTransportService>();
         builder.Services.AddSingleton<Forge.Api.Features.Edi.IEdiTransportFactory,
                                       Forge.Api.Features.Edi.EdiTransportFactory>();
+        builder.Services.AddScoped<Forge.Api.Features.Edi.IEdiPartNumberMapService,
+                                   Forge.Api.Features.Edi.EdiPartNumberMapService>();
         builder.Services.AddSingleton<IEdiTransportService, MockEdiTransportService>();
         // CPQ, Localization, Plant — mock for now until real engines built
         builder.Services.AddSingleton<ICpqService, MockCpqService>();

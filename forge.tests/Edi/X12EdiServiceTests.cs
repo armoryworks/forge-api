@@ -54,7 +54,8 @@ public class X12EdiServiceTests
         var db = TestDbContextFactory.Create();
         var transport = new FakeTransport();
         var service = new X12EdiService(
-            db, new SalesOrderRepository(db), new FakeTransportFactory(transport), new FakeClock());
+            db, new SalesOrderRepository(db), new FakeTransportFactory(transport),
+            new EdiPartNumberMapService(db), new FakeClock());
         return (db, service, transport);
     }
 
