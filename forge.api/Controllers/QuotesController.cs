@@ -51,11 +51,25 @@ public class QuotesController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{id:int}/lines")]
+    public async Task<ActionResult<QuoteDetailResponseModel>> AddQuoteLine(int id, CreateQuoteLineModel request)
+    {
+        var result = await mediator.Send(new AddQuoteLineCommand(id, request));
+        return Ok(result);
+    }
+
     [HttpPut("{id:int}/lines/{lineId:int}")]
     public async Task<ActionResult<QuoteDetailResponseModel>> UpdateQuoteLine(
         int id, int lineId, UpdateOrderLineRequestModel request)
     {
         var result = await mediator.Send(new UpdateQuoteLineCommand(id, lineId, request));
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:int}/lines/{lineId:int}")]
+    public async Task<ActionResult<QuoteDetailResponseModel>> DeleteQuoteLine(int id, int lineId)
+    {
+        var result = await mediator.Send(new DeleteQuoteLineCommand(id, lineId));
         return Ok(result);
     }
 

@@ -29,7 +29,10 @@ public record EstimateDetailResponseModel(
     int? GeneratedQuoteId,
     DateTimeOffset? ConvertedAt,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    // SALES-LINE-CRUD: itemized lines (catalog parts and/or lump-sum unknowns).
+    // Reuses QuoteLineResponseModel since an estimate is a Quote-Type row.
+    IReadOnlyList<QuoteLineResponseModel> Lines);
 
 public record CreateEstimateRequestModel(
     int CustomerId,
