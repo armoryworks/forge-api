@@ -57,6 +57,30 @@ public class EstimatesController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{id:int}/lines")]
+    public async Task<ActionResult<EstimateDetailResponseModel>> AddEstimateLine(
+        int id, CreateQuoteLineModel request, CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new AddEstimateLineCommand(id, request), ct);
+        return Ok(result);
+    }
+
+    [HttpPut("{id:int}/lines/{lineId:int}")]
+    public async Task<ActionResult<EstimateDetailResponseModel>> UpdateEstimateLine(
+        int id, int lineId, UpdateOrderLineRequestModel request, CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new UpdateEstimateLineCommand(id, lineId, request), ct);
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:int}/lines/{lineId:int}")]
+    public async Task<ActionResult<EstimateDetailResponseModel>> DeleteEstimateLine(
+        int id, int lineId, CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new DeleteEstimateLineCommand(id, lineId), ct);
+        return Ok(result);
+    }
+
     [HttpPost("{id:int}/convert")]
     public async Task<ActionResult<QuoteListItemModel>> ConvertToQuote(int id, CancellationToken ct = default)
     {

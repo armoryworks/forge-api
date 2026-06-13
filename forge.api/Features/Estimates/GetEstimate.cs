@@ -16,6 +16,7 @@ public class GetEstimateHandler(AppDbContext db) : IRequestHandler<GetEstimateQu
             .AsNoTracking()
             .Include(x => x.Customer)
             .Include(x => x.GeneratedQuote)
+            .Include(x => x.Lines).ThenInclude(l => l.Part)
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.Type == QuoteType.Estimate && x.DeletedAt == null, ct)
             ?? throw new KeyNotFoundException($"Estimate {request.Id} not found.");
 
@@ -43,6 +44,19 @@ public class GetEstimateHandler(AppDbContext db) : IRequestHandler<GetEstimateQu
             e.GeneratedQuote?.Id,
             e.ConvertedAt,
             e.CreatedAt,
-            e.UpdatedAt);
+            e.UpdatedAt,
+            e.Lines
+                .OrderBy(l => l.LineNumber)
+                .Select(l => new QuoteLineResponseModel(
+                    l.Id,
+                    l.PartId,
+                    l.Part?.PartNumber,
+                    l.Description,
+                    l.Quantity,
+                    l.UnitPrice,
+                    l.Quantity * l.UnitPrice,
+                    l.LineNumber,
+                    l.Notes))
+                .ToList());
     }
 }
