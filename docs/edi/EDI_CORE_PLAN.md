@@ -69,8 +69,38 @@ OUT of scope: HIPAA sets, EDIFACT (until a partner demands it), AS2 transport (t
    no-customer/malformed error paths, idempotent reprocess, envelope structure proofs,
    810 round-trip through EDI.Net's parser, transport delegation.
 
-### Remaining (Phase B+)
-- Real transport per partner (SFTP first — same manual-channel posture as NACHA until then).
-- `EdiMapping` field-mapping profiles for partners whose part numbers DON'T equal ours
-  (today: direct PartNumber match; the mapping rows are the seam).
-- Inbound 855/856 (if we ever SELL via EDI to a customer who acknowledges) — out of scope.
+### Update 2026-06-13 — transport shipped
+Per-partner SFTP transport is DONE: `SftpEdiTransportService` (SSH.NET) selected by
+`EdiTransportFactory` from the partner's method; typed admin dialog fields (password encrypted,
+`Forge.EdiTransport` purpose); the 30-minute inbound poll job transports for real; polled files
+rename `.processed`. Partner onboarding is values-entry.
+
+## Known functional gap — part-number translation (the ONE remaining EDI build item)
+
+**What works today:** an inbound 850 line resolves its part by EXACT match of the partner's
+product ID (PO107, preferring the BP qualifier) against `Part.PartNumber`. When the numbers
+match — e.g. the partner orders by our catalog numbers — lines land fully resolved.
+
+**The gap:** most large EDI customers order by THEIR OWN part numbers. Today those lines are
+NOT lost: the draft sales order is still created, the line carries the quantity/price, and the
+partner's number is preserved in the order line's **notes** ("Unresolved partner part number:
+X") for a human to complete. But there is no per-partner translation table wiring, so every
+such line needs manual completion on every order.
+
+**The trigger to build it:** the first customer whose EDI program uses their own part numbers
+(you'll see it immediately — their 850s apply with all lines unresolved).
+
+**The implementation seam (already scaffolded):** the `EdiMapping` entity
+(`TradingPartnerId`, `TransactionSet`, `ValueTranslationsJson`) + its existing CRUD endpoints.
+The build is: (1) an admin mapping editor on the EDI panel (partner part number ↔ our part,
+typed rows — no JSON editing, per the standing rule); (2) one lookup in
+`X12EdiService.ProcessTransactionAsync`'s line loop — translate via the partner's mapping
+before the `Part.PartNumber` match, falling back to today's behavior. Roughly a half-session.
+
+**Where this is surfaced in-app:** info icons on Admin → EDI (partners toolbar, transactions
+filters, and inside the partner dialog) state the limitation and point here
+(`adminPanels.edi.partNumberGap.*`).
+
+### Out of scope (unchanged)
+- Inbound 855/856 (if we ever SELL via EDI to a customer who acknowledges).
+- AS2/VAN transports until a partner mandates one (the factory is the seam).
