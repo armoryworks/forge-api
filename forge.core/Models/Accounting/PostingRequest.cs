@@ -41,6 +41,14 @@ public sealed class PostingRequest
     public string? IdempotencyKey { get; init; }
 
     /// <summary>
+    /// Phase-4 FX: the rate from the entry transaction currency (<see cref="CurrencyId"/>) to the book's
+    /// functional currency. <c>FunctionalAmount = round(TxnAmount × FxRate)</c>. Defaults to <b>1</b> — the
+    /// single-currency path (functional = transaction) is byte-for-byte unchanged. One rate per entry, so the
+    /// functional ledger balances whenever the transaction side does.
+    /// </summary>
+    public decimal FxRate { get; init; } = 1m;
+
+    /// <summary>
     /// Accrual flag — the period-close step (Phase 3) reverses these into the
     /// next period.
     /// </summary>
@@ -52,6 +60,13 @@ public sealed class PostingRequest
     /// path is needed in Phase 0 beyond this flag (§5.2).
     /// </summary>
     public bool AllowSoftClosedOverride { get; init; }
+
+    /// <summary>
+    /// Optional second-approver principal (maker-checker, §5.7): recorded as the entry's <c>ApprovedBy</c>.
+    /// Required (and must differ from the poster) when the entry total exceeds the book's maker-checker
+    /// threshold; enforced at the manual-JE edge.
+    /// </summary>
+    public int? ApprovedByUserId { get; init; }
 
     public IReadOnlyList<PostingLine> Lines { get; init; } = [];
 }
@@ -76,7 +91,8 @@ public sealed class PostingLine
     public int? JobId { get; init; }
     public int? CostCenterId { get; init; }
 
-    /// <summary>Required on lines that resolve to an <c>IsControlAccount</c> account (§5.2).</summary>
+    /// <summary>Required on lines that resolve to a party-based (AR/AP) control account (§5.2); inventory
+    /// control accounts post party-less (reconciled by part via the valuation store, §8.1).</summary>
     public SubledgerPartyType? PartyType { get; init; }
     public int? PartyId { get; init; }
 

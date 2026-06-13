@@ -18,6 +18,7 @@ public class UpdateExpenseCommandValidator : AbstractValidator<UpdateExpenseComm
         RuleFor(x => x.Data.Amount).GreaterThan(0).WithMessage("Amount must be greater than zero.");
         RuleFor(x => x.Data.Category).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Data.Description).NotEmpty().MaximumLength(500);
+        RuleFor(x => x.Data.VendorId).GreaterThan(0).When(x => x.Data.VendorId is not null);
     }
 }
 
@@ -50,6 +51,11 @@ public class UpdateExpenseHandler(
         expense.JobId = data.JobId;
         expense.ReceiptFileId = data.ReceiptFileId;
         expense.ExpenseDate = data.ExpenseDate;
+        // Vendor-settled: a named vendor routes the expense to Accounts Payable — approval promotes
+        // it into a vendor bill paid through the AP pipeline. Absent → cash. (Editable only while
+        // Pending/NeedsRevision — see the status guard above — so no promoted bill exists yet.)
+        expense.VendorId = data.VendorId;
+        expense.SettlementTarget = data.VendorId is not null ? ExpenseSettlementTarget.AccountsPayable : null;
 
         // Resubmission: flip status + clear previous reviewer state, re-submit to approval pipeline.
         var wasRevision = expense.Status == ExpenseStatus.NeedsRevision;

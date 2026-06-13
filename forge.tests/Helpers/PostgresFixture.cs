@@ -20,24 +20,54 @@ namespace Forge.Tests.Helpers;
 /// </para>
 /// Uses the real <see cref="AppDbContext"/> (not the InMemory test subclass) so
 /// the pgvector <c>DocumentEmbedding</c> column migrates cleanly.
+/// <para>
+/// <b>External-Postgres override:</b> if the <c>FORGE_TEST_PG</c> environment
+/// variable holds a connection string, the fixture connects to that instead of
+/// starting a container. This is for environments where the Testcontainers
+/// <c>Docker.DotNet</c> client cannot reach the daemon socket (e.g. a sandbox that
+/// proxies the docker CLI but blocks raw-socket access, or a uid not in the
+/// <c>docker</c> group) — point it at a manually-started <c>pgvector/pgvector:pg17</c>
+/// container: <c>FORGE_TEST_PG="Host=localhost;Port=55432;Database=forge_test;Username=forge;Password=forgetest"</c>.
+/// Unset (the default) → Testcontainers, exactly as before.
+/// </para>
 /// </summary>
 public sealed class PostgresFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder()
-        // pgvector image — the migration history calls CREATE EXTENSION vector.
-        .WithImage("pgvector/pgvector:pg17")
-        .Build();
+    // When FORGE_TEST_PG is set we connect to that external Postgres and skip the
+    // container entirely (Testcontainers' Docker.DotNet client is unavailable).
+    private readonly string? _externalConnectionString =
+        Environment.GetEnvironmentVariable("FORGE_TEST_PG");
 
-    public string ConnectionString => _container.GetConnectionString();
+    private readonly PostgreSqlContainer? _container;
+
+    public PostgresFixture()
+    {
+        if (string.IsNullOrWhiteSpace(_externalConnectionString))
+        {
+            _container = new PostgreSqlBuilder()
+                // pgvector image — the migration history calls CREATE EXTENSION vector.
+                .WithImage("pgvector/pgvector:pg17")
+                .Build();
+        }
+    }
+
+    public string ConnectionString =>
+        _externalConnectionString ?? _container!.GetConnectionString();
 
     public async Task InitializeAsync()
     {
-        await _container.StartAsync();
+        if (_container is not null)
+            await _container.StartAsync();
+
         await using var ctx = CreateContext();
         await ctx.Database.MigrateAsync();
     }
 
-    public async Task DisposeAsync() => await _container.DisposeAsync();
+    public async Task DisposeAsync()
+    {
+        if (_container is not null)
+            await _container.DisposeAsync();
+    }
 
     /// <summary>Fresh real <see cref="AppDbContext"/> bound to the container.</summary>
     public AppDbContext CreateContext()

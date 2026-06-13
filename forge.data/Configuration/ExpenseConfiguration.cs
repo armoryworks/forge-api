@@ -17,12 +17,26 @@ public class ExpenseConfiguration : IEntityTypeConfiguration<Expense>
         builder.Property(e => e.ApprovalNotes).HasMaxLength(500);
         builder.Property(e => e.ExternalExpenseId).HasMaxLength(100);
 
+        // Phase-1 STAGE C — persist the settlement target as its string name so
+        // the column is stable/readable and not positional (additive, nullable).
+        builder.Property(e => e.SettlementTarget)
+            .HasConversion<string>()
+            .HasMaxLength(30);
+
         builder.HasOne(e => e.Job)
             .WithMany()
             .HasForeignKey(e => e.JobId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        // Optional vendor the expense settles to (AP sub-ledger party). SetNull
+        // mirrors the Job FK: removing a vendor must not delete its expenses.
+        builder.HasOne(e => e.Vendor)
+            .WithMany()
+            .HasForeignKey(e => e.VendorId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(e => e.UserId);
         builder.HasIndex(e => e.Status);
+        builder.HasIndex(e => e.VendorId);
     }
 }

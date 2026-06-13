@@ -13,7 +13,7 @@ namespace Forge.Api.Controllers;
 [Route("api/v1/edi")]
 [Authorize(Roles = "Admin,Manager")]
 [RequiresCapability("CAP-CROSS-INTEG-EDI")]
-public class EdiController(IMediator mediator) : ControllerBase
+public class EdiController(IMediator mediator, IEdiPartNumberMapService partNumberMap) : ControllerBase
 {
     // ── Trading Partners ────────────────────────────────────────
 
@@ -140,5 +140,28 @@ public class EdiController(IMediator mediator) : ControllerBase
     {
         await mediator.Send(new DeleteEdiMappingCommand(id));
         return NoContent();
+    }
+
+    // ── Part-number translation (per partner; typed rows + CSV import) ──────
+
+    /// <summary>The partner's part-number map (partner number → our part), each row resolved against the catalog.</summary>
+    [HttpGet("trading-partners/{id:int}/part-number-map")]
+    public async Task<ActionResult<IReadOnlyList<EdiPartNumberMapRow>>> GetPartNumberMap(int id, CancellationToken ct)
+        => Ok(await partNumberMap.GetRowsAsync(id, ct));
+
+    /// <summary>Replaces the partner's entire part-number map with the supplied typed rows.</summary>
+    [HttpPut("trading-partners/{id:int}/part-number-map")]
+    public async Task<ActionResult<IReadOnlyList<EdiPartNumberMapRow>>> SavePartNumberMap(
+        int id, [FromBody] SaveEdiPartNumberMapRequestModel request, CancellationToken ct)
+        => Ok(await partNumberMap.ReplaceRowsAsync(id, request.Rows, ct));
+
+    /// <summary>Bulk-imports a two-column CSV (PartnerPartNumber, OurPartNumber); upserts by partner number.</summary>
+    [HttpPost("trading-partners/{id:int}/part-number-map/import")]
+    public async Task<ActionResult<EdiPartNumberMapImportResultModel>> ImportPartNumberMap(
+        int id, IFormFile file, CancellationToken ct)
+    {
+        using var reader = new StreamReader(file.OpenReadStream());
+        var csv = await reader.ReadToEndAsync(ct);
+        return Ok(await partNumberMap.ImportCsvAsync(id, csv, ct));
     }
 }

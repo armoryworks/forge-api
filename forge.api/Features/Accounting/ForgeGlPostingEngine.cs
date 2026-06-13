@@ -39,8 +39,15 @@ public sealed class ForgeGlPostingEngine(
     // own default-deny is the fail-safe.
     IGlBoundaryAuthorizer? authorizer = null) : IPostingEngine
 {
-    public async Task<JournalEntry> PostAsync(
-        PostingRequest request, int postedByUserId, CancellationToken ct = default)
+    public Task<JournalEntry> PostAsync(PostingRequest request, int postedByUserId, CancellationToken ct = default)
+        => PostInternalAsync(request, postedByUserId, JournalEntryStatus.Posted, applyBalances: true, ct);
+
+    public Task<JournalEntry> PostPendingAsync(
+        PostingRequest request, int submittedByUserId, CancellationToken ct = default)
+        => PostInternalAsync(request, submittedByUserId, JournalEntryStatus.PendingApproval, applyBalances: false, ct);
+
+    private async Task<JournalEntry> PostInternalAsync(
+        PostingRequest request, int postedByUserId, JournalEntryStatus status, bool applyBalances, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -107,11 +114,29 @@ public sealed class ForgeGlPostingEngine(
                     "ACCOUNT_INACTIVE",
                     $"Line {lineNumber}: account {account.AccountNumber} is inactive.");
 
-            // Control accounts post only via sub-ledgers → require a party.
-            if (account.IsControlAccount && (l.PartyType is null || l.PartyId is null))
+            // Control accounts post via a sub-ledger and require a party — EXCEPT inventory control
+            // accounts, which are reconciled by PART via the valuation store (Phase-2 §8.1), not a
+            // party sub-ledger (there is no inventory SubledgerPartyType), so they post party-less
+            // (e.g. Cr INVENTORY_FG on the COGS relief). Stated as "everything except Inventory" so the
+            // guard stays FAIL-SAFE: a misconfigured control account with a null ControlType still
+            // demands a party rather than silently posting party-less.
+            if (account.IsControlAccount
+                && account.ControlType != ControlAccountType.Inventory
+                && (l.PartyType is null || l.PartyId is null))
                 throw new PostingException(
                     "CONTROL_LINE_PARTY_REQUIRED",
-                    $"Line {lineNumber}: account {account.AccountNumber} is a control account and requires SubledgerPartyType/Id.");
+                    $"Line {lineNumber}: account {account.AccountNumber} is a control account and requires SubledgerPartyType/Id (only inventory control accounts post party-less).");
+
+            // Dimension-required policy (§12): WIP/COGS accounts can require a Job; departmental accounts a
+            // CostCenter. A line missing the required dimension is rejected.
+            if (account.RequiresJob && l.JobId is null)
+                throw new PostingException(
+                    "JOB_REQUIRED",
+                    $"Line {lineNumber}: account {account.AccountNumber} requires a Job dimension.");
+            if (account.RequiresCostCenter && l.CostCenterId is null)
+                throw new PostingException(
+                    "COST_CENTER_REQUIRED",
+                    $"Line {lineNumber}: account {account.AccountNumber} requires a CostCenter dimension.");
 
             // Book-consistency for the cost-center dimension.
             if (l.CostCenterId is int ccId)
@@ -141,10 +166,15 @@ public sealed class ForgeGlPostingEngine(
                 CostCenterId = l.CostCenterId,
                 Debit = l.Debit,
                 Credit = l.Credit,
-                CurrencyId = request.CurrencyId,       // Phase-0 single-currency invariant
-                TxnAmount = amount,
-                FunctionalAmount = amount,             // FunctionalAmount = TxnAmount
-                FxRate = 1m,                           // pinned to 1 in Phase 0
+                CurrencyId = request.CurrencyId,       // entry transaction currency
+                TxnAmount = amount,                    // amount in the transaction currency
+                // FX (Phase-4): functional value at the entry rate. At FxRate == 1 this is byte-for-byte the
+                // old single-currency behaviour (FunctionalAmount == TxnAmount, no rounding applied); only a
+                // real rate (≠ 1) multiplies + rounds to the functional currency's minor unit.
+                FunctionalAmount = request.FxRate == 1m
+                    ? amount
+                    : Math.Round(amount * request.FxRate, 2, MidpointRounding.AwayFromZero),
+                FxRate = request.FxRate,
                 SubledgerPartyType = l.PartyType,
                 SubledgerPartyId = l.PartyId,
                 Description = l.Description,
@@ -185,8 +215,49 @@ public sealed class ForgeGlPostingEngine(
             idempotencyKey: request.IdempotencyKey,
             memo: request.Memo,
             autoReverse: request.AutoReverseNextPeriod,
-            reversalOfEntryId: null);
+            reversalOfEntryId: null,
+            status: status,
+            applyBalances: applyBalances);
 
+        await db.SaveChangesAsync(ct);
+        return entry;
+    }
+
+    public async Task<JournalEntry> ApprovePendingAsync(long entryId, int approvedByUserId, CancellationToken ct = default)
+    {
+        // SoD (§5.7): finalizing a posting reaches the books only with POST_JE.
+        authorizer?.EnsureAuthorized(GlCapability.PostJournalEntry);
+
+        var entry = await db.JournalEntries
+            .Include(e => e.Lines)
+            .FirstOrDefaultAsync(e => e.Id == entryId, ct)
+            ?? throw new PostingException("ENTRY_NOT_FOUND", $"Journal entry {entryId} not found.");
+
+        if (entry.Status != JournalEntryStatus.PendingApproval)
+            throw new PostingException(
+                "NOT_PENDING_APPROVAL",
+                $"Only a PendingApproval entry can be approved; entry {entryId} is {entry.Status}.");
+
+        // §5.7: the approver (checker) MUST differ from the submitter (maker, recorded as PostedBy).
+        if (entry.PostedBy is int maker && maker == approvedByUserId)
+            throw new PostingException(
+                "APPROVER_NOT_DISTINCT",
+                "The approver must differ from the user who submitted the entry for approval.");
+
+        // The period may have hard-closed since submission — re-check under a row lock.
+        var period = await ResolveAndLockPeriodAsync(entry.BookId, entry.EntryDate, ct);
+        if (period.Status == FiscalPeriodStatus.HardClosed)
+            throw new PostingException(
+                "PERIOD_HARD_CLOSED",
+                $"Cannot post into hard-closed period '{period.Name}' (EntryDate {entry.EntryDate}).");
+
+        // PendingApproval → Posted: the immutability interceptor permits this (it locks only entries whose
+        // ORIGINAL status was Posted/Reversed). Fold into the ledger-balance read-model now (deferred at submit).
+        entry.Status = JournalEntryStatus.Posted;
+        entry.ApprovedBy = approvedByUserId;
+        entry.PostedAt = clock.UtcNow;
+
+        await ApplyToLedgerBalancesAsync(entry, entry.FiscalPeriodId, ct);
         await db.SaveChangesAsync(ct);
         return entry;
     }
@@ -211,6 +282,9 @@ public sealed class ForgeGlPostingEngine(
         // Check already-reversed first so a re-reverse reports the precise reason
         // (the original is left Reversed by the prior reversal, so the status
         // check alone would mask it). ---
+        // Reversal-of-reversal policy (§12): a reversal entry is itself Posted with a null ReversedByEntryId,
+        // so it MAY be reversed in turn — that re-instates the original economically (a correction of a
+        // correction). The same two preconditions apply uniformly; no special-casing for reversal entries.
         if (original.ReversedByEntryId is not null)
             throw new PostingException(
                 "ALREADY_REVERSED",
@@ -276,8 +350,12 @@ public sealed class ForgeGlPostingEngine(
             reversalOfEntryId: original.Id);
 
         // --- The sole permitted mutation on a Posted row: Posted→Reversed + link. ---
+        // Link via the NAVIGATION, not the Id value: the reversal is still Added here, so on a real
+        // store-generated-key provider (Npgsql) `reversal.Id` is 0 until SaveChanges — assigning it directly
+        // wrote 0 into reversed_by_entry_id and violated the FK (23503). EF fixes the navigation up to the
+        // real key during the insert. (InMemory assigns keys at Add, which is why tests never caught this.)
         original.Status = JournalEntryStatus.Reversed;
-        original.ReversedByEntryId = reversal.Id;
+        original.ReversedByEntry = reversal;
 
         await db.SaveChangesAsync(ct);
         return reversal;
@@ -320,7 +398,9 @@ public sealed class ForgeGlPostingEngine(
         string? idempotencyKey,
         string? memo,
         bool autoReverse,
-        long? reversalOfEntryId)
+        long? reversalOfEntryId,
+        JournalEntryStatus status = JournalEntryStatus.Posted,
+        bool applyBalances = true)
     {
         var fiscalYearId = period.FiscalYear?.Id ?? await db.FiscalPeriods
             .Where(p => p.Id == period.Id)
@@ -342,17 +422,22 @@ public sealed class ForgeGlPostingEngine(
             IdempotencyKey = idempotencyKey,
             CurrencyId = request.CurrencyId,
             Memo = memo,
-            Status = JournalEntryStatus.Posted,
+            Status = status,
             AutoReverseNextPeriod = autoReverse,
             ReversalOfEntryId = reversalOfEntryId,
             PostedBy = postedByUserId,
-            PostedAt = clock.UtcNow,
+            ApprovedBy = request.ApprovedByUserId, // maker-checker second approver (§5.7), when supplied
+            // Pending entries are not yet posted — PostedAt stamps only on the Posted transition.
+            PostedAt = status == JournalEntryStatus.Posted ? clock.UtcNow : null,
             Lines = lines,
         };
 
         db.JournalEntries.Add(entry);
 
-        await ApplyToLedgerBalancesAsync(entry, period.Id, ct);
+        // A PendingApproval entry is NOT folded into the ledger-balance read-model until it is approved
+        // (ApprovePendingAsync), so it never reaches the trial balance while awaiting a second approver.
+        if (applyBalances)
+            await ApplyToLedgerBalancesAsync(entry, period.Id, ct);
         return entry;
     }
 

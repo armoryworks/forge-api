@@ -19,7 +19,7 @@ public class CreateEdiTradingPartnerValidator : AbstractValidator<CreateEdiTradi
     }
 }
 
-public class CreateEdiTradingPartnerHandler(AppDbContext db, IMediator mediator)
+public class CreateEdiTradingPartnerHandler(AppDbContext db, IMediator mediator, Forge.Api.Services.IEdiCredentialProtector protector)
     : IRequestHandler<CreateEdiTradingPartnerCommand, EdiTradingPartnerResponseModel>
 {
     public async Task<EdiTradingPartnerResponseModel> Handle(
@@ -39,7 +39,14 @@ public class CreateEdiTradingPartnerHandler(AppDbContext db, IMediator mediator)
             ApplicationReceiverId = model.ApplicationReceiverId,
             DefaultFormat = model.DefaultFormat,
             TransportMethod = model.TransportMethod,
-            TransportConfigJson = model.TransportConfigJson,
+            // Typed admin fields win over raw JSON (the UI only ever sends TransportSftp;
+            // the password is encrypted at rest, Forge.EdiTransport purpose).
+            TransportConfigJson = model.TransportSftp is { } sftp
+                ? new Forge.Api.Features.Edi.EdiSftpTransportConfig(
+                    sftp.Host.Trim(), sftp.Port, sftp.Username.Trim(),
+                    protector.Protect(sftp.Password) ?? string.Empty,
+                    sftp.OutboundDir.Trim(), sftp.InboundDir.Trim()).ToJson()
+                : model.TransportConfigJson,
             AutoProcess = model.AutoProcess,
             RequireAcknowledgment = model.RequireAcknowledgment,
             Notes = model.Notes,

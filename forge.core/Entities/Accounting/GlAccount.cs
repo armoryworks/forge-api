@@ -31,6 +31,18 @@ public class GlAccount : BaseEntity
 
     public bool IsActive { get; set; } = true;
 
+    /// <summary>Dimension-required policy (§12): a line to this account must carry a Job (e.g. WIP/COGS).</summary>
+    public bool RequiresJob { get; set; }
+
+    /// <summary>Dimension-required policy (§12): a line to this account must carry a CostCenter (departmental).</summary>
+    public bool RequiresCostCenter { get; set; }
+
+    /// <summary>
+    /// Optional cash-flow-statement classification (Operating / Investing / Financing). When null the
+    /// statement uses a type-based heuristic. Tag long-term-asset / long-term-debt accounts here (Phase 4+).
+    /// </summary>
+    public CashFlowCategory? CashFlowCategory { get; set; }
+
     public string? Description { get; set; }
 
     public Book Book { get; set; } = null!;

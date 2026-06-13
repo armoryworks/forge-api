@@ -16,6 +16,10 @@ public class FiscalYear : BaseEntity
 
     public FiscalYearStatus Status { get; set; } = FiscalYearStatus.Open;
 
+    // ── Close audit (§12) — who/when ran the year-end close. ──
+    public int? ClosedByUserId { get; set; }
+    public DateTimeOffset? ClosedAt { get; set; }
+
     public Book Book { get; set; } = null!;
     public ICollection<FiscalPeriod> Periods { get; set; } = [];
 }

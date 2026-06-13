@@ -66,9 +66,7 @@ public class PurchaseOrdersRemediationTests
         json.Should().Contain("Edited PO line", "the line edit must persist");
     }
 
-    [Fact(Skip = "RED: PRI-1/2/3 / P06-2 — receiving a PO line writes no BinContent, so on-hand " +
-                 "never rises (the PO flips to Received and signals 'Materials Ready' on nothing). " +
-                 "Remove Skip when receiving stocks the part (a BinContent row is created).")]
+    [Fact] // GREEN (PRI-1/2/3 / P06-2): receiving now stocks the part — a BinContent row is created/incremented.
     public async Task Receiving_a_PO_line_creates_stock()
     {
         int poId;
@@ -100,12 +98,13 @@ public class PurchaseOrdersRemediationTests
             lineId = db.PurchaseOrderLines.First(l => l.PurchaseOrderId == poId).Id;
         }
 
-        var body = JsonContent.Create(new { lines = new[] { new { purchaseOrderLineId = lineId, receivedQuantity = 5m } } });
-        await AuthClient().PostAsync($"/api/v1/purchase-orders/{poId}/receive", body);
+        var body = JsonContent.Create(new { lines = new[] { new { lineId, quantity = 5m } } });
+        var receiveResponse = await AuthClient().PostAsync($"/api/v1/purchase-orders/{poId}/receive", body);
+        receiveResponse.IsSuccessStatusCode.Should().BeTrue("the receive must succeed before it can stock the part");
 
         using var verify = NewScope();
         var verifyDb = verify.ServiceProvider.GetRequiredService<AppDbContext>();
-        verifyDb.BinContents.Any(b => b.EntityType == "Part" && b.EntityId == partId).Should().BeTrue(
+        verifyDb.BinContents.Any(b => b.EntityType == "part" && b.EntityId == partId).Should().BeTrue(
             "receiving must stock the part — otherwise on-hand stays at zero while the PO says Received");
     }
 }

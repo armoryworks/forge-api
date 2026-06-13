@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Accounting;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -12,11 +13,19 @@ namespace Forge.Api.Features.Payments;
 
 // P06-5: void (reverse) a recorded payment — distinct from DeletePayment, which refuses
 // when the payment has applications. Void drops the applications so the invoices reopen,
-// soft-deletes the payment (lossless — the row + activity trail are preserved), and is
-// gated by the admin-selectable payments.modification-policy.
+// reverses the cash-receipt journal when one was posted (FULLGL-respecting — the posting
+// service self-gates and no-ops when nothing is on the books), soft-deletes the payment
+// (lossless — the row + activity trail are preserved), and is gated by the
+// admin-selectable payments.modification-policy.
 public record VoidPaymentCommand(int Id, VoidPaymentRequestModel Data) : IRequest;
 
-public class VoidPaymentHandler(IPaymentRepository repo, AppDbContext db, ISettingsService settings)
+public class VoidPaymentHandler(
+    IPaymentRepository repo,
+    AppDbContext db,
+    ISettingsService settings,
+    // Optional / null-default so existing construction sites (unit tests without a GL) keep working;
+    // production DI supplies it, and with CAP-ACCT-FULLGL off it no-ops anyway.
+    IPaymentCashPostingService? cashPosting = null)
     : IRequestHandler<VoidPaymentCommand>
 {
     public async Task Handle(VoidPaymentCommand request, CancellationToken cancellationToken)
@@ -32,6 +41,13 @@ public class VoidPaymentHandler(IPaymentRepository repo, AppDbContext db, ISetti
 
         var payment = await repo.FindWithDetailsAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Payment {request.Id} not found");
+
+        // Reverse the cash-receipt origination journal (Dr CASH / Cr AR + FX plug) BEFORE the soft
+        // delete — without this the GL kept the cash and the relieved AR for a payment that no longer
+        // exists operationally. No-op while CAP-ACCT-FULLGL is off or when nothing was posted.
+        if (cashPosting is not null)
+            await cashPosting.ReversePaymentCreatedAsync(
+                payment.Id, reason!, db.CurrentUserId ?? 0, cancellationToken);
 
         // Reverse this payment's applications so each invoice's computed balance reopens.
         var affectedInvoiceIds = payment.Applications.Select(a => a.InvoiceId).Distinct().ToList();

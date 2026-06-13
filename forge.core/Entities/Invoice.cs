@@ -12,6 +12,17 @@ public class Invoice : BaseAuditableEntity, IConcurrencyVersioned
 
     public string InvoiceNumber { get; set; } = string.Empty;
     public int CustomerId { get; set; }
+
+    // ── Multi-currency (Phase-4 FULLGL, additive). The currency the invoice is
+    // denominated in, and the booking rate (txn→functional) captured at creation.
+    // Defaults: functional currency + rate 1, so single-currency installs are
+    // byte-for-byte unchanged. The AR posting books revenue at this currency/rate
+    // (FunctionalAmount = txn × FxRate); settlement realizes FX vs the payment rate.
+    public int CurrencyId { get; set; }
+
+    /// <summary>Booking FX rate (transaction→functional) captured at invoice creation. Default 1.</summary>
+    public decimal FxRate { get; set; } = 1m;
+
     public int? SalesOrderId { get; set; }
     public int? ShipmentId { get; set; }
     public InvoiceStatus Status { get; set; } = InvoiceStatus.Draft;
@@ -67,6 +78,7 @@ public class Invoice : BaseAuditableEntity, IConcurrencyVersioned
         => Math.Round(value, 2, MidpointRounding.AwayFromZero);
 
     public Customer Customer { get; set; } = null!;
+    public Currency Currency { get; set; } = null!;
     public SalesOrder? SalesOrder { get; set; }
     public Shipment? Shipment { get; set; }
     public ICollection<InvoiceLine> Lines { get; set; } = [];

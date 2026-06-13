@@ -46,8 +46,11 @@ public static class SettingDescriptorCatalog
         list.AddRange(MinioSettings.Descriptors);
         list.AddRange(GoogleDriveSettings.Descriptors);
         list.AddRange(AccountingSettings.Descriptors);
+        list.AddRange(VarianceWatchdogSettings.Descriptors);
         list.AddRange(ShippingSettings.Descriptors);
         list.AddRange(PaymentsSettings.Descriptors);
+        list.AddRange(BankingSettings.Descriptors);
+        list.AddRange(PayrollSettings.Descriptors);
         return list;
     }
 }

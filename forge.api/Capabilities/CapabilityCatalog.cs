@@ -10,7 +10,9 @@ namespace Forge.Api.Capabilities;
 /// CAP-MD-CUSTOMER-ADDRESSES, CAP-MD-CUSTOMER-INTERACTIONS,
 /// CAP-O2C-CREDIT-LIMITS) per the Customer/Lead parity audit + 2
 /// (CAP-EXT-EMAIL-SYNC, CAP-EXT-VOIP-SYNC) per Wave 8 communication
-/// sync skeleton = 135 total.
+/// sync skeleton + 2 (CAP-P2P-BILL, CAP-P2P-PAY) per the owner-ratified
+/// AP capability split + 1 (CAP-ACCT-QBO-EXPORT) per the QB-001 owner
+/// ratification + 1 (CAP-BANK-NACHA) per BANK-002 Phase A = 139 total.
 /// The catalog header claims 121 because three INV/QC/MD entries are listed
 /// in two areas; the Phase A implementation treats every distinct code as
 /// one row and accepts the count-discrepancy. See _catalog-rows.cs.txt and
@@ -59,6 +61,11 @@ public static class CapabilityCatalog
         // IsConfigurable, DefaultBinId, SourcePartId) are write-anytime.
         new("CAP-MD-PART-COMPLIANCE", "MD", @"Part — compliance fields", @"Surfaces tariff (HTS), hazmat, shelf life, backflush policy, kit/configurable flags, and source-part / default-bin pickers on the Part detail Quality cluster. Disable for shops that don't ship internationally or handle regulated materials.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-P2P-PO", "P2P", @"Purchase orders", @"Buyer-side document authorizing vendor shipment / service. Lines reference parts or services with quantity, price, tax, expected date. The baseline P2P capability — every shop with vendors uses this.", IsDefaultOn: true, RequiresRoles: null),
+        // AP capability split (owner-ratified 2026-06): vendor bills + vendor
+        // payments previously rode CAP-P2P-PO. Default-on matches CAP-P2P-PO
+        // so fresh installs are behavior-neutral.
+        new("CAP-P2P-BILL", "P2P", @"Vendor bills + 3-way match", @"Vendor invoice (bill) entry and approval against POs and receipts (3-way match) — the AP twin of CAP-O2C-INVOICE. Approval is the AP posting trigger when full GL is on. Split from CAP-P2P-PO so AP document entry can be gated independently of purchasing.", IsDefaultOn: true, RequiresRoles: null),
+        new("CAP-P2P-PAY", "P2P", @"Vendor payments + bank transmissions", @"Vendor payment recording, application against open bills, and electronic bank/ACH transmission triage — the AP twin of CAP-O2C-CASH. Split from CAP-P2P-PO so cash disbursement can be gated independently of purchasing and bill entry.", IsDefaultOn: true, RequiresRoles: null),
         new("CAP-P2P-RFQ", "P2P", @"Request for quote (multi-vendor sourcing)", @"Pre-PO vendor sourcing: send identical line items to multiple vendors, collect responses, compare, convert winning bid to PO. Used by shops that competitively source rather than buying from a fixed vendor.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-P2P-RECEIVE", "P2P", @"Receiving + 3-way match", @"Goods receipt against PO, with 3-way match (PO + receipt + vendor invoice) before AP posts. Includes over-receipt tolerance, short-receipt close, GR/IR pending state.", IsDefaultOn: true, RequiresRoles: null),
         new("CAP-P2P-AUTOPO", "P2P", @"Automated PO generation (replenishment)", @"System-suggested or auto-generated POs from MRP exceptions, reorder-point breaches, or replenishment kanban triggers. Reduces manual buyer effort.", IsDefaultOn: false, RequiresRoles: null),
@@ -134,11 +141,18 @@ public static class CapabilityCatalog
         new("CAP-MAINT-ASSETLIFECYCLE", "MAINT", @"Asset transfer + retirement + custodian", @"Lifecycle events on assets: transfer between locations, custodian change, retirement / disposal.", IsDefaultOn: true, RequiresRoles: null),
         new("CAP-ACCT-EXTERNAL", "ACCT", @"External accounting integration", @"Sync invoices, payments, customers, items to an external accounting system (QuickBooks fully implemented; Xero, Sage, FreshBooks, Zoho stubbed). When this is on, GL/JE/period-close/bank-rec live in the external system; the app is operational-only.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-ACCT-BUILTIN", "ACCT", @"Built-in lightweight accounting (CRUD)", @"App-resident invoice / payment / expense / sales-tax surface in plain language. Active when external accounting is not. Excludes full GL machinery.", IsDefaultOn: true, RequiresRoles: null),
-        new("CAP-ACCT-FULLGL", "ACCT", @"Built-in full GL machinery (NOT YET IMPLEMENTED)", @"Chart of accounts, journal entries, period close, bank reconciliation, year-end roll, depreciation. Registered as a capability for future delivery; currently not implemented in the application.", IsDefaultOn: false, RequiresRoles: null),
+        new("CAP-ACCT-FULLGL", "ACCT", @"Built-in full general ledger", @"Native double-entry GL: chart of accounts, journal entries (incl. maker-checker), financial statements, period close + year-end roll, AR/AP sub-ledgers, standard costing + variances, bank reconciliation, multi-currency + FX. Enabling requires posted opening balances (§7A conversion gate). Mutex with CAP-ACCT-EXTERNAL.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-ACCT-EXPENSES", "ACCT", @"Expense entry", @"Employee / company expense capture with reimbursement workflow. Operational regardless of accounting mode.", IsDefaultOn: true, RequiresRoles: null),
         new("CAP-ACCT-PERIOD", "ACCT", @"Period close + lock", @"Close (lock) a fiscal period to prevent backdated postings; controller-level reopen with audit trail; soft-close vs hard-close distinction.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-ACCT-DEPRECIATION", "ACCT", @"Asset depreciation schedule", @"Periodic depreciation posting per asset, multiple methods (straight-line, declining balance), depreciation schedule report.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-ACCT-FXREVAL", "ACCT", @"Multi-currency revaluation", @"Revalue open AR/AP/cash balances at period end at current FX rate.", IsDefaultOn: false, RequiresRoles: null),
+        // QB-001 (§10 ratification 2026-06-12): one-way downstream journal-summary push to QuickBooks
+        // Online for the CPA. Deliberately NOT part of the CAP-ACCT-BUILTIN ⊥ CAP-ACCT-EXTERNAL mutex:
+        // this is a downstream EXPORT FROM the built-in GL (QB is never system of record), not external
+        // accounting mode — it coexists with CAP-ACCT-FULLGL rather than competing with it.
+        new("CAP-ACCT-QBO-EXPORT", "ACCT", @"QuickBooks journal-summary export", @"One-way downstream push of the per-account period-net journal summary to QuickBooks Online for the CPA (QB-001). Requires the built-in full GL and a connected QuickBooks OAuth integration; per-account QBO mapping maintained in-app. QuickBooks is never the system of record — nothing syncs back. Default OFF; enable per install when the CPA wants API delivery instead of CSV.", IsDefaultOn: false, RequiresRoles: null),
+        new("CAP-PAYROLL-RUN", "ACCT", @"Payroll run + journal posting", @"Create pay runs and post the payroll journal (gross wages, employer taxes, withholdings, net-pay liability). Tax CALCULATION stays with the payroll provider (PAY-001 offload) — amounts are supplied, this posts them. Phase-5 foundation; default OFF until payroll go-live.", IsDefaultOn: false, RequiresRoles: null),
+        new("CAP-BANK-NACHA", "P2P", @"NACHA / ACH payment origination", @"BANK-002 Phase A: encrypted vendor bank accounts (dual-control approvals + zero-dollar prenotes) and NACHA payment batches — generate the ACH file, upload it to the bank portal by hand, release in-app by a SECOND user (segregation of duties). When enabled, ACH (BankTransfer) vendor payments await batching instead of the per-payment mock transmission channel. Default OFF until the bank's ACH origination agreement is in place and the Banking settings are populated.", IsDefaultOn: false, RequiresRoles: null),
         // ── Pro Services rollout (Phase 2) — accounting mode migration ──
         new("CAP-ACCT-MIGRATION", "ACCT", @"Accounting mode migration wizard", @"BUILTIN ⟷ EXTERNAL accounting mode migration tooling — snapshot, dry-run, frozen window, circuit breaker, hold-period rollback, accountant sign-off. Auto-gated to false outside the eligibility window; eligibility logic lives in the migration handler. Default OFF — surfaces only when an admin starts a transition.", IsDefaultOn: false, RequiresRoles: "Admin"),
         new("CAP-HR-HIRE", "HR", @"Hire + onboarding workflow", @"Multi-step new-hire flow: create employee, collect compliance forms, grant system access, assign to first task.", IsDefaultOn: true, RequiresRoles: null),

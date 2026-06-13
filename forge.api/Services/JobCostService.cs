@@ -66,6 +66,23 @@ public class JobCostService(AppDbContext db) : IJobCostService
             .SumAsync(t => t.LaborCost, ct);
     }
 
+    public async Task<decimal> GetActualLaborCostAtActualRateAsync(int jobId, CancellationToken ct)
+    {
+        return await db.TimeEntries
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId)
+            // ActualLaborCost == 0 means no actual rate was applied yet → use the standard-rate LaborCost.
+            .SumAsync(t => t.ActualLaborCost != 0m ? t.ActualLaborCost : t.LaborCost, ct);
+    }
+
+    public async Task<decimal> GetLaborRateVarianceAsync(int jobId, CancellationToken ct)
+    {
+        return await db.TimeEntries
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && t.ActualLaborCost != 0m)
+            .SumAsync(t => t.ActualLaborCost - t.LaborCost, ct);
+    }
+
     public async Task<decimal> GetActualBurdenCostAsync(int jobId, CancellationToken ct)
     {
         return await db.TimeEntries
@@ -131,10 +148,12 @@ public class JobCostService(AppDbContext db) : IJobCostService
                 : null;
 
             var hourlyRate = userRate?.StandardRatePerHour ?? 0m;
+            var actualRate = userRate?.ActualRatePerHour ?? hourlyRate; // no actual rate → costs at standard
             var burdenRate = entry.Operation?.BurdenRate ?? 0m;
             var hours = entry.DurationMinutes / 60m;
 
-            entry.LaborCost = hours * hourlyRate;
+            entry.LaborCost = hours * hourlyRate;       // standard-rate basis (efficiency variance)
+            entry.ActualLaborCost = hours * actualRate; // actual-rate basis (rate variance = actual − standard)
             entry.BurdenCost = hours * burdenRate;
         }
 

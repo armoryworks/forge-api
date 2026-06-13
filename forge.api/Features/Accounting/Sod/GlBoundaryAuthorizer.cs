@@ -26,6 +26,18 @@ public sealed class GlBoundaryAuthorizer(
 {
     public void EnsureAuthorized(GlCapability capability)
     {
+        // §5.7 system carve-out: a trusted background job (e.g. the transmission-settlement posting) has no
+        // principal by nature and explicitly enters GlSystemPostingScope around its engine call. Authorize +
+        // log as the system principal. Human-driven flows never enter the scope (AsyncLocal — cannot leak
+        // across requests), so the per-user fail-safe checks below are unchanged.
+        if (GlSystemPostingScope.IsActive)
+        {
+            logger.LogInformation(
+                "[GL-SOD] System-scope posting authorized for {Capability} (background job, no user principal).",
+                capability);
+            return;
+        }
+
         // Fail-safe: no resolvable principal → deny.
         if (capabilities.CurrentUserId is null)
             throw new GlAuthorizationException(

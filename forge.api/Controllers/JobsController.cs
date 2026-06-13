@@ -264,6 +264,15 @@ public class JobsController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{id:int}/production-runs/{runId:int}/receive-to-stock")]
+    [RequiresCapability("CAP-MFG-COMPLETE")]
+    public async Task<ActionResult<ProductionRunResponseModel>> ReceiveProductionRunToStock(int id, int runId)
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var result = await mediator.Send(new ReceiveProductionRunToStockCommand(id, runId, userId));
+        return Ok(result);
+    }
+
     // Bulk operations
     [HttpPatch("bulk/stage")]
     public async Task<ActionResult<BulkOperationResponseModel>> BulkMoveStage(BulkMoveJobStageCommand command)

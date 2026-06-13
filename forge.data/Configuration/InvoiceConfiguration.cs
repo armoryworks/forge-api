@@ -25,6 +25,12 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Property(e => e.InvoiceNumber).HasMaxLength(20);
         builder.Property(e => e.Notes).HasMaxLength(2000);
         builder.Property(e => e.TaxRate).HasPrecision(8, 6);
+
+        // Multi-currency (Phase-4 FULLGL, additive). Column default 1 so existing rows backfill to the
+        // functional currency / unity rate — the single-currency path stays byte-for-byte unchanged.
+        // FxRate precision (18,8) matches JournalLine.FxRate / ExchangeRate.Rate (§5.6).
+        builder.Property(e => e.CurrencyId).HasDefaultValue(1);
+        builder.Property(e => e.FxRate).HasPrecision(18, 8).HasDefaultValue(1m);
         builder.Property(e => e.ExternalId).HasMaxLength(100);
         builder.Property(e => e.ExternalRef).HasMaxLength(100);
         builder.Property(e => e.Provider).HasMaxLength(50);
@@ -42,6 +48,14 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
             .WithMany(c => c.Invoices)
             .HasForeignKey(e => e.CustomerId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // FK to currencies (mirrors Book.FunctionalCurrency — Restrict, no inverse nav).
+        builder.HasOne(e => e.Currency)
+            .WithMany()
+            .HasForeignKey(e => e.CurrencyId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(e => e.CurrencyId);
 
         builder.HasOne(e => e.SalesOrder)
             .WithMany(so => so.Invoices)

@@ -115,6 +115,63 @@ public class CreatePaymentHandlerTests
     }
 
     [Fact]
+    public async Task Handle_PayDraftInvoice_Throws()
+    {
+        const int customerId = 5;
+        _customerRepo.Setup(r => r.FindAsync(customerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Customer { Id = customerId, Name = "Acme" });
+        _paymentRepo.Setup(r => r.GenerateNextPaymentNumberAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync("PMT-9001");
+        var invoice = new Invoice { Id = 50, InvoiceNumber = "INV-50", CustomerId = customerId, TaxRate = 0, Status = InvoiceStatus.Draft };
+        invoice.Lines.Add(new InvoiceLine { Quantity = 1, UnitPrice = 100m, Description = "x", LineNumber = 1 });
+        _invoiceRepo.Setup(r => r.FindWithDetailsAsync(50, It.IsAny<CancellationToken>())).ReturnsAsync(invoice);
+
+        var act = async () => await _handler.Handle(new CreatePaymentCommand(
+            customerId, "Check", 100m, DateTime.UtcNow, null, null,
+            new List<CreatePaymentApplicationModel> { new(50, 100m) }), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*only Sent, PartiallyPaid, or Overdue*");
+    }
+
+    [Fact]
+    public async Task Handle_PayInvoiceOfDifferentCustomer_Throws()
+    {
+        const int customerId = 5;
+        _customerRepo.Setup(r => r.FindAsync(customerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Customer { Id = customerId, Name = "Acme" });
+        _paymentRepo.Setup(r => r.GenerateNextPaymentNumberAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync("PMT-9002");
+        var invoice = new Invoice { Id = 51, InvoiceNumber = "INV-51", CustomerId = 999, TaxRate = 0, Status = InvoiceStatus.Sent };
+        invoice.Lines.Add(new InvoiceLine { Quantity = 1, UnitPrice = 100m, Description = "x", LineNumber = 1 });
+        _invoiceRepo.Setup(r => r.FindWithDetailsAsync(51, It.IsAny<CancellationToken>())).ReturnsAsync(invoice);
+
+        var act = async () => await _handler.Handle(new CreatePaymentCommand(
+            customerId, "Check", 100m, DateTime.UtcNow, null, null,
+            new List<CreatePaymentApplicationModel> { new(51, 100m) }), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*different customer*");
+    }
+
+    [Fact]
+    public void Validator_InvalidMethod_FailsValidation()
+    {
+        var result = new CreatePaymentValidator().Validate(
+            new CreatePaymentCommand(1, "Venmo", 100m, DateTime.UtcNow, null, null, null));
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == nameof(CreatePaymentCommand.Method));
+    }
+
+    [Fact]
+    public void Validator_DuplicateInvoiceApplication_FailsValidation()
+    {
+        var result = new CreatePaymentValidator().Validate(
+            new CreatePaymentCommand(1, "Check", 200m, DateTime.UtcNow, null, null,
+                new List<CreatePaymentApplicationModel> { new(5, 100m), new(5, 100m) }));
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.ErrorMessage.Contains("at most once"));
+    }
+
+    [Fact]
     public async Task Handle_FullPayment_SetsInvoiceStatusToPaid()
     {
         // Arrange

@@ -390,6 +390,445 @@ namespace Forge.Data.Migrations
                     b.ToTable("acct_number_sequences", (string)null);
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.ApOpenItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AppliedFunctionalAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("applied_functional_amount");
+
+                    b.Property<decimal>("AppliedTxnAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("applied_txn_amount");
+
+                    b.Property<int>("BookId")
+                        .HasColumnType("integer")
+                        .HasColumnName("book_id");
+
+                    b.Property<int>("CurrencyId")
+                        .HasColumnType("integer")
+                        .HasColumnName("currency_id");
+
+                    b.Property<DateTimeOffset>("DocumentDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("document_date");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("document_number");
+
+                    b.Property<DateTimeOffset>("DueDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("due_date");
+
+                    b.Property<decimal>("FxRate")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("numeric(18,8)")
+                        .HasColumnName("fx_rate");
+
+                    b.Property<decimal>("OriginalFunctionalAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("original_functional_amount");
+
+                    b.Property<decimal>("OriginalTxnAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("original_txn_amount");
+
+                    b.Property<int>("SourceId")
+                        .HasColumnType("integer")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("source_type");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<int>("VendorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("vendor_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_acct_ap_open_items");
+
+                    b.HasIndex("CurrencyId")
+                        .HasDatabaseName("ix_acct_ap_open_items_currency_id");
+
+                    b.HasIndex("VendorId")
+                        .HasDatabaseName("ix_acct_ap_open_items_vendor");
+
+                    b.HasIndex("BookId", "Status")
+                        .HasDatabaseName("ix_acct_ap_open_items_book_status");
+
+                    b.HasIndex("SourceType", "SourceId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_acct_ap_open_items_source");
+
+                    b.ToTable("acct_ap_open_items", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.ArOpenItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AppliedFunctionalAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("applied_functional_amount");
+
+                    b.Property<decimal>("AppliedTxnAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("applied_txn_amount");
+
+                    b.Property<int>("BookId")
+                        .HasColumnType("integer")
+                        .HasColumnName("book_id");
+
+                    b.Property<int>("CurrencyId")
+                        .HasColumnType("integer")
+                        .HasColumnName("currency_id");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("customer_id");
+
+                    b.Property<DateTimeOffset>("DocumentDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("document_date");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("document_number");
+
+                    b.Property<DateTimeOffset>("DueDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("due_date");
+
+                    b.Property<decimal>("FxRate")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("numeric(18,8)")
+                        .HasColumnName("fx_rate");
+
+                    b.Property<decimal>("OriginalFunctionalAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("original_functional_amount");
+
+                    b.Property<decimal>("OriginalTxnAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("original_txn_amount");
+
+                    b.Property<int>("SourceId")
+                        .HasColumnType("integer")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("source_type");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_acct_ar_open_items");
+
+                    b.HasIndex("CurrencyId")
+                        .HasDatabaseName("ix_acct_ar_open_items_currency_id");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("ix_acct_ar_open_items_customer");
+
+                    b.HasIndex("BookId", "Status")
+                        .HasDatabaseName("ix_acct_ar_open_items_book_status");
+
+                    b.HasIndex("SourceType", "SourceId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_acct_ar_open_items_source");
+
+                    b.ToTable("acct_ar_open_items", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.BankReconciliation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BookId")
+                        .HasColumnType("integer")
+                        .HasColumnName("book_id");
+
+                    b.Property<int>("CashGlAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("cash_gl_account_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<DateTimeOffset?>("FinalizedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("finalized_at");
+
+                    b.Property<DateOnly>("StatementDate")
+                        .HasColumnType("date")
+                        .HasColumnName("statement_date");
+
+                    b.Property<decimal>("StatementEndingBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("statement_ending_balance");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L)
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_acct_bank_reconciliations");
+
+                    b.HasIndex("CashGlAccountId")
+                        .HasDatabaseName("ix_acct_bank_reconciliations_cash_gl_account_id");
+
+                    b.HasIndex("BookId", "CashGlAccountId", "StatementDate")
+                        .HasDatabaseName("ix_acct_bank_recs_book_account_date");
+
+                    b.ToTable("acct_bank_reconciliations", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.BankReconciliationItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BankReconciliationId")
+                        .HasColumnType("integer")
+                        .HasColumnName("bank_reconciliation_id");
+
+                    b.Property<bool>("IsCleared")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_cleared");
+
+                    b.Property<long>("JournalLineId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_line_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_acct_bank_reconciliation_items");
+
+                    b.HasIndex("JournalLineId")
+                        .HasDatabaseName("ix_acct_bank_rec_items_line");
+
+                    b.HasIndex("BankReconciliationId", "JournalLineId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_acct_bank_rec_items_rec_line");
+
+                    b.ToTable("acct_bank_reconciliation_items", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.BankStatementImport", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BookId")
+                        .HasColumnType("integer")
+                        .HasColumnName("book_id");
+
+                    b.Property<int>("CashGlAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("cash_gl_account_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<int>("DuplicateCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("duplicate_count");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("format");
+
+                    b.Property<int>("ImportedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("imported_by_user_id");
+
+                    b.Property<int>("LineCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("line_count");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_acct_bank_statement_imports");
+
+                    b.HasIndex("CashGlAccountId")
+                        .HasDatabaseName("ix_acct_bank_statement_imports_cash_gl_account_id");
+
+                    b.HasIndex("BookId", "CashGlAccountId")
+                        .HasDatabaseName("ix_acct_stmt_imports_book_account");
+
+                    b.ToTable("acct_bank_statement_imports", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.BankStatementLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<int>("BankStatementImportId")
+                        .HasColumnType("integer")
+                        .HasColumnName("bank_statement_import_id");
+
+                    b.Property<int>("CashGlAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("cash_gl_account_id");
+
+                    b.Property<DateTimeOffset?>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("confirmed_at");
+
+                    b.Property<int?>("ConfirmedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("confirmed_by_user_id");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Fitid")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("fitid");
+
+                    b.Property<string>("MatchStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("match_status");
+
+                    b.Property<long?>("MatchedJournalLineId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("matched_journal_line_id");
+
+                    b.Property<DateOnly>("PostedDate")
+                        .HasColumnType("date")
+                        .HasColumnName("posted_date");
+
+                    b.HasKey("Id")
+                        .HasName("pk_acct_bank_statement_lines");
+
+                    b.HasIndex("BankStatementImportId")
+                        .HasDatabaseName("ix_acct_bank_statement_lines_bank_statement_import_id");
+
+                    b.HasIndex("MatchStatus")
+                        .HasDatabaseName("ix_acct_stmt_lines_status");
+
+                    b.HasIndex("MatchedJournalLineId")
+                        .HasDatabaseName("ix_acct_stmt_lines_journal_line");
+
+                    b.HasIndex("CashGlAccountId", "Fitid")
+                        .IsUnique()
+                        .HasDatabaseName("ux_acct_stmt_lines_account_fitid");
+
+                    b.ToTable("acct_bank_statement_lines", (string)null);
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.Accounting.Book", b =>
                 {
                     b.Property<int>("Id")
@@ -420,6 +859,10 @@ namespace Forge.Data.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
+
+                    b.Property<decimal?>("MakerCheckerThreshold")
+                        .HasColumnType("numeric")
+                        .HasColumnName("maker_checker_threshold");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -505,6 +948,42 @@ namespace Forge.Data.Migrations
                     b.ToTable("acct_cost_centers", (string)null);
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.DepreciationEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<int>("FixedAssetId")
+                        .HasColumnType("integer")
+                        .HasColumnName("fixed_asset_id");
+
+                    b.Property<long>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
+                    b.Property<DateOnly>("PeriodMonth")
+                        .HasColumnType("date")
+                        .HasColumnName("period_month");
+
+                    b.HasKey("Id")
+                        .HasName("pk_acct_depreciation_entries");
+
+                    b.HasIndex("FixedAssetId", "PeriodMonth")
+                        .IsUnique()
+                        .HasDatabaseName("ux_acct_depreciation_entries_asset_month");
+
+                    b.ToTable("acct_depreciation_entries", (string)null);
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.Accounting.FiscalPeriod", b =>
                 {
                     b.Property<int>("Id")
@@ -513,6 +992,14 @@ namespace Forge.Data.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at");
+
+                    b.Property<int?>("ClosedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("closed_by_user_id");
 
                     b.Property<DateOnly>("EndDate")
                         .HasColumnType("date")
@@ -531,6 +1018,14 @@ namespace Forge.Data.Migrations
                     b.Property<int>("PeriodNumber")
                         .HasColumnType("integer")
                         .HasColumnName("period_number");
+
+                    b.Property<DateTimeOffset?>("ReopenedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reopened_at");
+
+                    b.Property<int?>("ReopenedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("reopened_by_user_id");
 
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date")
@@ -572,6 +1067,14 @@ namespace Forge.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("book_id");
 
+                    b.Property<DateTimeOffset?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at");
+
+                    b.Property<int?>("ClosedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("closed_by_user_id");
+
                     b.Property<DateOnly>("EndDate")
                         .HasColumnType("date")
                         .HasColumnName("end_date");
@@ -602,6 +1105,116 @@ namespace Forge.Data.Migrations
                     b.ToTable("acct_fiscal_years", (string)null);
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.FixedAsset", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AccumulatedDepreciationGlAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("accumulated_depreciation_gl_account_id");
+
+                    b.Property<int>("AssetGlAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("asset_gl_account_id");
+
+                    b.Property<string>("AssetTag")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("asset_tag");
+
+                    b.Property<int>("BookId")
+                        .HasColumnType("integer")
+                        .HasColumnName("book_id");
+
+                    b.Property<decimal>("Cost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("cost");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<int>("DepreciationExpenseGlAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("depreciation_expense_gl_account_id");
+
+                    b.Property<DateOnly>("InServiceDate")
+                        .HasColumnType("date")
+                        .HasColumnName("in_service_date");
+
+                    b.Property<decimal>("LastDepreciatedUnits")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("last_depreciated_units");
+
+                    b.Property<int?>("LinkedAssetId")
+                        .HasColumnType("integer")
+                        .HasColumnName("linked_asset_id");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("method");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<decimal>("SalvageValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("salvage_value");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("UsefulLifeMonths")
+                        .HasColumnType("integer")
+                        .HasColumnName("useful_life_months");
+
+                    b.Property<decimal?>("UsefulLifeUnits")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("useful_life_units");
+
+                    b.HasKey("Id")
+                        .HasName("pk_acct_fixed_assets");
+
+                    b.HasIndex("BookId")
+                        .HasDatabaseName("ix_acct_fixed_assets_book");
+
+                    b.HasIndex("LinkedAssetId")
+                        .HasDatabaseName("ix_acct_fixed_assets_linked_asset");
+
+                    b.ToTable("acct_fixed_assets", (string)null);
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.Accounting.GlAccount", b =>
                 {
                     b.Property<int>("Id")
@@ -626,6 +1239,11 @@ namespace Forge.Data.Migrations
                     b.Property<int>("BookId")
                         .HasColumnType("integer")
                         .HasColumnName("book_id");
+
+                    b.Property<string>("CashFlowCategory")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("cash_flow_category");
 
                     b.Property<string>("ControlType")
                         .HasMaxLength(20)
@@ -665,6 +1283,14 @@ namespace Forge.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("parent_account_id");
 
+                    b.Property<bool>("RequiresCostCenter")
+                        .HasColumnType("boolean")
+                        .HasColumnName("requires_cost_center");
+
+                    b.Property<bool>("RequiresJob")
+                        .HasColumnType("boolean")
+                        .HasColumnName("requires_job");
+
                     b.HasKey("Id")
                         .HasName("pk_acct_gl_accounts");
 
@@ -676,6 +1302,58 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ux_acct_gl_accounts_book_number");
 
                     b.ToTable("acct_gl_accounts", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.InventoryValuation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AverageUnitCost")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)")
+                        .HasColumnName("average_unit_cost");
+
+                    b.Property<int>("BookId")
+                        .HasColumnType("integer")
+                        .HasColumnName("book_id");
+
+                    b.Property<decimal>("OnHandQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("on_hand_quantity");
+
+                    b.Property<int>("PartId")
+                        .HasColumnType("integer")
+                        .HasColumnName("part_id");
+
+                    b.Property<decimal>("TotalValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_value");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L)
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_acct_inventory_valuations");
+
+                    b.HasIndex("PartId")
+                        .HasDatabaseName("ix_acct_inventory_valuations_part_id");
+
+                    b.HasIndex("BookId", "PartId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_acct_inventory_valuations_book_part");
+
+                    b.ToTable("acct_inventory_valuations", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Accounting.JournalEntry", b =>
@@ -905,6 +1583,134 @@ namespace Forge.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.JournalTemplate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("AutoReverseNextPeriod")
+                        .HasColumnType("boolean")
+                        .HasColumnName("auto_reverse_next_period");
+
+                    b.Property<int>("BookId")
+                        .HasColumnType("integer")
+                        .HasColumnName("book_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Memo")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("memo");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_acct_journal_templates");
+
+                    b.HasIndex("BookId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_acct_journal_templates_book_name");
+
+                    b.ToTable("acct_journal_templates", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.JournalTemplateLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountDeterminationKey")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("account_determination_key");
+
+                    b.Property<decimal>("Credit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("credit");
+
+                    b.Property<decimal>("Debit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("debit");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<int?>("GlAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("gl_account_id");
+
+                    b.Property<int>("JournalTemplateId")
+                        .HasColumnType("integer")
+                        .HasColumnName("journal_template_id");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("line_number");
+
+                    b.Property<int?>("PartyId")
+                        .HasColumnType("integer")
+                        .HasColumnName("party_id");
+
+                    b.Property<string>("PartyType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("party_type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_acct_journal_template_lines");
+
+                    b.HasIndex("JournalTemplateId")
+                        .HasDatabaseName("ix_acct_journal_template_lines_template");
+
+                    b.ToTable("acct_journal_template_lines", (string)null);
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.Accounting.LedgerBalance", b =>
                 {
                     b.Property<int>("Id")
@@ -957,6 +1763,260 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ux_acct_ledger_balances_grain");
 
                     b.ToTable("acct_ledger_balances", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.PayRun", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BookId")
+                        .HasColumnType("integer")
+                        .HasColumnName("book_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<decimal>("EmployeeTaxWithheld")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("employee_tax_withheld");
+
+                    b.Property<decimal>("EmployerTax")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("employer_tax");
+
+                    b.Property<decimal>("GrossWages")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("gross_wages");
+
+                    b.Property<long?>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
+                    b.Property<DateOnly>("PayDate")
+                        .HasColumnType("date")
+                        .HasColumnName("pay_date");
+
+                    b.Property<DateOnly>("PeriodEnd")
+                        .HasColumnType("date")
+                        .HasColumnName("period_end");
+
+                    b.Property<DateOnly>("PeriodStart")
+                        .HasColumnType("date")
+                        .HasColumnName("period_start");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_acct_pay_runs");
+
+                    b.HasIndex("BookId")
+                        .HasDatabaseName("ix_acct_pay_runs_book");
+
+                    b.ToTable("acct_pay_runs", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.PayRunLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("EmployeeName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("employee_name");
+
+                    b.Property<decimal>("EmployerTax")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("employer_tax");
+
+                    b.Property<decimal>("FederalWithholding")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("federal_withholding");
+
+                    b.Property<decimal>("FicaEmployee")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("fica_employee");
+
+                    b.Property<decimal>("GrossPay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("gross_pay");
+
+                    b.Property<decimal>("NetPay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("net_pay");
+
+                    b.Property<decimal>("OtherDeductions")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("other_deductions");
+
+                    b.Property<int>("PayRunId")
+                        .HasColumnType("integer")
+                        .HasColumnName("pay_run_id");
+
+                    b.Property<decimal>("StateWithholding")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("state_withholding");
+
+                    b.HasKey("Id")
+                        .HasName("pk_acct_pay_run_lines");
+
+                    b.HasIndex("PayRunId")
+                        .HasDatabaseName("ix_acct_pay_run_lines_run");
+
+                    b.ToTable("acct_pay_run_lines", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.QboAccountMap", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<int>("GlAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("gl_account_id");
+
+                    b.Property<string>("QboAccountId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("qbo_account_id");
+
+                    b.Property<string>("QboAccountName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("qbo_account_name");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_acct_qbo_account_maps");
+
+                    b.HasIndex("GlAccountId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_acct_qbo_account_maps_gl_account")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.ToTable("acct_qbo_account_maps", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.QboExportLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BookId")
+                        .HasColumnType("integer")
+                        .HasColumnName("book_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<DateOnly>("FromDate")
+                        .HasColumnType("date")
+                        .HasColumnName("from_date");
+
+                    b.Property<DateTimeOffset>("PushedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("pushed_at");
+
+                    b.Property<int?>("PushedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("pushed_by");
+
+                    b.Property<string>("QboDocId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("qbo_doc_id");
+
+                    b.Property<DateOnly>("ToDate")
+                        .HasColumnType("date")
+                        .HasColumnName("to_date");
+
+                    b.Property<decimal>("TotalDebit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_debit");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_acct_qbo_export_logs");
+
+                    b.HasIndex("BookId", "FromDate", "ToDate")
+                        .HasDatabaseName("ix_acct_qbo_export_logs_book_range");
+
+                    b.ToTable("acct_qbo_export_logs", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.ActivityLog", b =>
@@ -7561,6 +8621,11 @@ namespace Forge.Data.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("receipt_file_id");
 
+                    b.Property<string>("SettlementTarget")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("settlement_target");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer")
                         .HasColumnName("status");
@@ -7573,6 +8638,10 @@ namespace Forge.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("user_id");
 
+                    b.Property<int?>("VendorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("vendor_id");
+
                     b.HasKey("Id")
                         .HasName("pk_expenses");
 
@@ -7584,6 +8653,9 @@ namespace Forge.Data.Migrations
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_expenses_user_id");
+
+                    b.HasIndex("VendorId")
+                        .HasDatabaseName("ix_expenses_vendor_id");
 
                     b.ToTable("expenses");
                 });
@@ -8798,6 +9870,12 @@ namespace Forge.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("credit_terms");
 
+                    b.Property<int>("CurrencyId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("currency_id");
+
                     b.Property<int>("CustomerId")
                         .HasColumnType("integer")
                         .HasColumnName("customer_id");
@@ -8828,6 +9906,13 @@ namespace Forge.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("external_ref");
+
+                    b.Property<decimal>("FxRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 8)
+                        .HasColumnType("numeric(18,8)")
+                        .HasDefaultValue(1m)
+                        .HasColumnName("fx_rate");
 
                     b.Property<DateTimeOffset>("InvoiceDate")
                         .HasColumnType("timestamp with time zone")
@@ -8883,6 +9968,9 @@ namespace Forge.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_invoices");
+
+                    b.HasIndex("CurrencyId")
+                        .HasDatabaseName("ix_invoices_currency_id");
 
                     b.HasIndex("CustomerId")
                         .HasDatabaseName("ix_invoices_customer_id");
@@ -9858,6 +10946,10 @@ namespace Forge.Data.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("ActualRatePerHour")
+                        .HasColumnType("numeric")
+                        .HasColumnName("actual_rate_per_hour");
 
                     b.Property<decimal?>("DoubletimeRatePerHour")
                         .HasPrecision(18, 4)
@@ -13310,6 +14402,13 @@ namespace Forge.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("payment_id");
 
+                    b.Property<decimal>("SettlementFxRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 8)
+                        .HasColumnType("numeric(18,8)")
+                        .HasDefaultValue(1m)
+                        .HasColumnName("settlement_fx_rate");
+
                     b.HasKey("Id")
                         .HasName("pk_payment_applications");
 
@@ -13320,6 +14419,229 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_payment_applications_payment_id");
 
                     b.ToTable("payment_applications");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.PaymentBatch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BatchNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("batch_number");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<DateOnly>("EffectiveEntryDate")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_entry_date");
+
+                    b.Property<int>("EntryCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("entry_count");
+
+                    b.Property<string>("FileContents")
+                        .HasColumnType("text")
+                        .HasColumnName("file_contents");
+
+                    b.Property<DateTimeOffset?>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("generated_at");
+
+                    b.Property<bool>("IsPrenote")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_prenote");
+
+                    b.Property<DateTimeOffset?>("ReleasedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("released_at");
+
+                    b.Property<int?>("ReleasedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("released_by_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("total_amount");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_payment_batches");
+
+                    b.HasIndex("BatchNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payment_batches_number");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_payment_batches_status");
+
+                    b.ToTable("payment_batches", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.PaymentBatchItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("amount");
+
+                    b.Property<int>("PaymentBatchId")
+                        .HasColumnType("integer")
+                        .HasColumnName("payment_batch_id");
+
+                    b.Property<string>("TraceNumber")
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("trace_number");
+
+                    b.Property<int>("VendorBankAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("vendor_bank_account_id");
+
+                    b.Property<int?>("VendorPaymentId")
+                        .HasColumnType("integer")
+                        .HasColumnName("vendor_payment_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_payment_batch_items");
+
+                    b.HasIndex("PaymentBatchId")
+                        .HasDatabaseName("ix_payment_batch_items_payment_batch_id");
+
+                    b.HasIndex("VendorBankAccountId")
+                        .HasDatabaseName("ix_payment_batch_items_account");
+
+                    b.HasIndex("VendorPaymentId")
+                        .HasDatabaseName("ix_payment_batch_items_payment");
+
+                    b.ToTable("payment_batch_items", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.PaymentTransmission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_count");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<DateTimeOffset?>("LastAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_attempt_at");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("last_error");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("method");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at");
+
+                    b.Property<int>("SourceId")
+                        .HasColumnType("integer")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("source_type");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("SubmissionRef")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("submission_ref");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_payment_transmissions");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_payment_transmissions_status");
+
+                    b.HasIndex("SourceType", "SourceId")
+                        .HasDatabaseName("ix_payment_transmissions_source");
+
+                    b.ToTable("payment_transmissions", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PerformanceReview", b =>
@@ -14332,6 +15654,14 @@ namespace Forge.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("part_id");
 
+                    b.Property<int>("ReceivedQuantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("received_quantity");
+
+                    b.Property<DateTimeOffset?>("ReceivedToStockAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_to_stock_at");
+
                     b.Property<int>("ReworkQuantity")
                         .HasColumnType("integer")
                         .HasColumnName("rework_quantity");
@@ -14693,6 +16023,13 @@ namespace Forge.Data.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("BilledQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("billed_quantity");
 
                     b.Property<decimal>("CancelledShortCloseQuantity")
                         .ValueGeneratedOnAdd()
@@ -19145,6 +20482,10 @@ namespace Forge.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("activity_type_id");
 
+                    b.Property<decimal>("ActualLaborCost")
+                        .HasColumnType("numeric")
+                        .HasColumnName("actual_labor_cost");
+
                     b.Property<decimal?>("BillRate")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
@@ -20501,6 +21842,325 @@ namespace Forge.Data.Migrations
                     b.ToTable("vendors");
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.VendorBankAccount", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountNumberEncrypted")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("account_number_encrypted");
+
+                    b.Property<string>("AccountNumberMasked")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("account_number_masked");
+
+                    b.Property<int>("AccountType")
+                        .HasColumnType("integer")
+                        .HasColumnName("account_type");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<int?>("ApprovedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("approved_by_user_id");
+
+                    b.Property<int>("ChangedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("changed_by_user_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<string>("Nickname")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nickname");
+
+                    b.Property<DateTimeOffset?>("PrenoteSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("prenote_sent_at");
+
+                    b.Property<string>("RoutingNumberEncrypted")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("routing_number_encrypted");
+
+                    b.Property<string>("RoutingNumberMasked")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("routing_number_masked");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("VendorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("vendor_id");
+
+                    b.Property<DateTimeOffset?>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("verified_at");
+
+                    b.Property<int?>("VerifiedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("verified_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_vendor_bank_accounts");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_vendor_bank_accounts_status");
+
+                    b.HasIndex("VendorId")
+                        .HasDatabaseName("ix_vendor_bank_accounts_vendor");
+
+                    b.ToTable("vendor_bank_accounts", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.VendorBill", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("BillDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("bill_date");
+
+                    b.Property<string>("BillNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("bill_number");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("CreditTerms")
+                        .HasColumnType("integer")
+                        .HasColumnName("credit_terms");
+
+                    b.Property<int>("CurrencyId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("currency_id");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<DateTimeOffset>("DueDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("due_date");
+
+                    b.Property<int?>("ExpenseId")
+                        .HasColumnType("integer")
+                        .HasColumnName("expense_id");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("external_id");
+
+                    b.Property<string>("ExternalRef")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("external_ref");
+
+                    b.Property<decimal>("FxRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 8)
+                        .HasColumnType("numeric(18,8)")
+                        .HasDefaultValue(1m)
+                        .HasColumnName("fx_rate");
+
+                    b.Property<DateTimeOffset?>("LastSyncedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_synced_at");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("Provider")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("provider");
+
+                    b.Property<int?>("PurchaseOrderId")
+                        .HasColumnType("integer")
+                        .HasColumnName("purchase_order_id");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("TaxAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("tax_amount");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("VendorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("vendor_id");
+
+                    b.Property<string>("VendorInvoiceNumber")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("vendor_invoice_number");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L)
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_vendor_bills");
+
+                    b.HasIndex("BillNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ux_vendor_bills_number");
+
+                    b.HasIndex("CurrencyId")
+                        .HasDatabaseName("ix_vendor_bills_currency");
+
+                    b.HasIndex("ExpenseId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_vendor_bills_expense_live")
+                        .HasFilter("expense_id IS NOT NULL AND status <> 4");
+
+                    b.HasIndex("PurchaseOrderId")
+                        .HasDatabaseName("ix_vendor_bills_po");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_vendor_bills_status");
+
+                    b.HasIndex("VendorId")
+                        .HasDatabaseName("ix_vendor_bills_vendor");
+
+                    b.HasIndex("VendorId", "VendorInvoiceNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ux_vendor_bills_vendor_invoice")
+                        .HasFilter("vendor_invoice_number IS NOT NULL");
+
+                    b.ToTable("vendor_bills", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.VendorBillLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountDeterminationKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("account_determination_key");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<int?>("JobId")
+                        .HasColumnType("integer")
+                        .HasColumnName("job_id");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("line_number");
+
+                    b.Property<int?>("PartId")
+                        .HasColumnType("integer")
+                        .HasColumnName("part_id");
+
+                    b.Property<int?>("PurchaseOrderLineId")
+                        .HasColumnType("integer")
+                        .HasColumnName("purchase_order_line_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_price");
+
+                    b.Property<int>("VendorBillId")
+                        .HasColumnType("integer")
+                        .HasColumnName("vendor_bill_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_vendor_bill_lines");
+
+                    b.HasIndex("JobId")
+                        .HasDatabaseName("ix_vendor_bill_lines_job");
+
+                    b.HasIndex("PartId")
+                        .HasDatabaseName("ix_vendor_bill_lines_part");
+
+                    b.HasIndex("PurchaseOrderLineId")
+                        .HasDatabaseName("ix_vendor_bill_lines_po_line");
+
+                    b.HasIndex("VendorBillId")
+                        .HasDatabaseName("ix_vendor_bill_lines_vendor_bill_id");
+
+                    b.ToTable("vendor_bill_lines", (string)null);
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.VendorPart", b =>
                 {
                     b.Property<int>("Id")
@@ -20691,6 +22351,144 @@ namespace Forge.Data.Migrations
                         .HasDatabaseName("ix_vendor_part_price_tiers_vendor_part_id_min_quantity");
 
                     b.ToTable("vendor_part_price_tiers");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.VendorPayment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("external_id");
+
+                    b.Property<string>("ExternalRef")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("external_ref");
+
+                    b.Property<DateTimeOffset?>("LastSyncedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_synced_at");
+
+                    b.Property<int>("Method")
+                        .HasColumnType("integer")
+                        .HasColumnName("method");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("notes");
+
+                    b.Property<DateTimeOffset>("PaymentDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("payment_date");
+
+                    b.Property<string>("PaymentNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("payment_number");
+
+                    b.Property<string>("Provider")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("provider");
+
+                    b.Property<string>("ReferenceNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("reference_number");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("VendorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("vendor_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L)
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_vendor_payments");
+
+                    b.HasIndex("PaymentNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ux_vendor_payments_number");
+
+                    b.HasIndex("VendorId")
+                        .HasDatabaseName("ix_vendor_payments_vendor");
+
+                    b.ToTable("vendor_payments", (string)null);
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.VendorPaymentApplication", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("amount");
+
+                    b.Property<decimal>("SettlementFxRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 8)
+                        .HasColumnType("numeric(18,8)")
+                        .HasDefaultValue(1m)
+                        .HasColumnName("settlement_fx_rate");
+
+                    b.Property<int>("VendorBillId")
+                        .HasColumnType("integer")
+                        .HasColumnName("vendor_bill_id");
+
+                    b.Property<int>("VendorPaymentId")
+                        .HasColumnType("integer")
+                        .HasColumnName("vendor_payment_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_vendor_payment_applications");
+
+                    b.HasIndex("VendorBillId")
+                        .HasDatabaseName("ix_vpa_bill");
+
+                    b.HasIndex("VendorPaymentId")
+                        .HasDatabaseName("ix_vpa_payment");
+
+                    b.ToTable("vendor_payment_applications", (string)null);
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.VendorScorecard", b =>
@@ -22095,6 +23893,101 @@ namespace Forge.Data.Migrations
                     b.Navigation("FiscalYear");
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.ApOpenItem", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Accounting.Book", null)
+                        .WithMany()
+                        .HasForeignKey("BookId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_acct_ap_open_items_book");
+
+                    b.HasOne("Forge.Core.Entities.Currency", null)
+                        .WithMany()
+                        .HasForeignKey("CurrencyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_acct_ap_open_items_currency");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.ArOpenItem", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Accounting.Book", null)
+                        .WithMany()
+                        .HasForeignKey("BookId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_acct_ar_open_items_book");
+
+                    b.HasOne("Forge.Core.Entities.Currency", null)
+                        .WithMany()
+                        .HasForeignKey("CurrencyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_acct_ar_open_items_currency");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.BankReconciliation", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Accounting.GlAccount", null)
+                        .WithMany()
+                        .HasForeignKey("CashGlAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_acct_bank_recs_cash_account");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.BankReconciliationItem", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Accounting.BankReconciliation", "BankReconciliation")
+                        .WithMany("Items")
+                        .HasForeignKey("BankReconciliationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_acct_bank_rec_items_rec");
+
+                    b.HasOne("Forge.Core.Entities.Accounting.JournalLine", "JournalLine")
+                        .WithMany()
+                        .HasForeignKey("JournalLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_acct_bank_rec_items_line");
+
+                    b.Navigation("BankReconciliation");
+
+                    b.Navigation("JournalLine");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.BankStatementImport", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Accounting.GlAccount", null)
+                        .WithMany()
+                        .HasForeignKey("CashGlAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_acct_stmt_imports_cash_account");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.BankStatementLine", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Accounting.BankStatementImport", "Import")
+                        .WithMany("Lines")
+                        .HasForeignKey("BankStatementImportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_acct_stmt_lines_import");
+
+                    b.HasOne("Forge.Core.Entities.Accounting.JournalLine", "MatchedJournalLine")
+                        .WithMany()
+                        .HasForeignKey("MatchedJournalLineId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_acct_stmt_lines_journal_line");
+
+                    b.Navigation("Import");
+
+                    b.Navigation("MatchedJournalLine");
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.Accounting.Book", b =>
                 {
                     b.HasOne("Forge.Core.Entities.Currency", "FunctionalCurrency")
@@ -22127,6 +24020,18 @@ namespace Forge.Data.Migrations
                     b.Navigation("Parent");
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.DepreciationEntry", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Accounting.FixedAsset", "FixedAsset")
+                        .WithMany("DepreciationEntries")
+                        .HasForeignKey("FixedAssetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_acct_depreciation_entries_asset");
+
+                    b.Navigation("FixedAsset");
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.Accounting.FiscalPeriod", b =>
                 {
                     b.HasOne("Forge.Core.Entities.Accounting.FiscalYear", "FiscalYear")
@@ -22151,6 +24056,17 @@ namespace Forge.Data.Migrations
                     b.Navigation("Book");
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.FixedAsset", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Asset", "LinkedAsset")
+                        .WithMany()
+                        .HasForeignKey("LinkedAssetId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_acct_fixed_assets_linked_asset");
+
+                    b.Navigation("LinkedAsset");
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.Accounting.GlAccount", b =>
                 {
                     b.HasOne("Forge.Core.Entities.Accounting.Book", "Book")
@@ -22169,6 +24085,18 @@ namespace Forge.Data.Migrations
                     b.Navigation("Book");
 
                     b.Navigation("ParentAccount");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.InventoryValuation", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Part", "Part")
+                        .WithMany()
+                        .HasForeignKey("PartId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_acct_inventory_valuations_part");
+
+                    b.Navigation("Part");
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Accounting.JournalEntry", b =>
@@ -22272,6 +24200,18 @@ namespace Forge.Data.Migrations
                     b.Navigation("JournalEntry");
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.JournalTemplateLine", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Accounting.JournalTemplate", "JournalTemplate")
+                        .WithMany("Lines")
+                        .HasForeignKey("JournalTemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_acct_journal_template_lines_template");
+
+                    b.Navigation("JournalTemplate");
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.Accounting.LedgerBalance", b =>
                 {
                     b.HasOne("Forge.Core.Entities.Accounting.Book", "Book")
@@ -22307,6 +24247,30 @@ namespace Forge.Data.Migrations
                     b.Navigation("Currency");
 
                     b.Navigation("FiscalPeriod");
+
+                    b.Navigation("GlAccount");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.PayRunLine", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Accounting.PayRun", "PayRun")
+                        .WithMany("Lines")
+                        .HasForeignKey("PayRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_acct_pay_run_lines_run");
+
+                    b.Navigation("PayRun");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.QboAccountMap", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Accounting.GlAccount", "GlAccount")
+                        .WithMany()
+                        .HasForeignKey("GlAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_acct_qbo_account_maps_gl_account");
 
                     b.Navigation("GlAccount");
                 });
@@ -23445,7 +25409,15 @@ namespace Forge.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_expenses__jobs_job_id");
 
+                    b.HasOne("Forge.Core.Entities.Vendor", "Vendor")
+                        .WithMany()
+                        .HasForeignKey("VendorId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_expenses__vendors_vendor_id");
+
                     b.Navigation("Job");
+
+                    b.Navigation("Vendor");
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.FileAttachment", b =>
@@ -23644,6 +25616,13 @@ namespace Forge.Data.Migrations
 
             modelBuilder.Entity("Forge.Core.Entities.Invoice", b =>
                 {
+                    b.HasOne("Forge.Core.Entities.Currency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_invoices_currencies_currency_id");
+
                     b.HasOne("Forge.Core.Entities.Customer", "Customer")
                         .WithMany("Invoices")
                         .HasForeignKey("CustomerId")
@@ -23662,6 +25641,8 @@ namespace Forge.Data.Migrations
                         .HasForeignKey("Forge.Core.Entities.Invoice", "ShipmentId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_invoices__shipments_shipment_id");
+
+                    b.Navigation("Currency");
 
                     b.Navigation("Customer");
 
@@ -24705,6 +26686,35 @@ namespace Forge.Data.Migrations
                     b.Navigation("Invoice");
 
                     b.Navigation("Payment");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.PaymentBatchItem", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.PaymentBatch", "PaymentBatch")
+                        .WithMany("Items")
+                        .HasForeignKey("PaymentBatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_payment_batch_items_batch");
+
+                    b.HasOne("Forge.Core.Entities.VendorBankAccount", "VendorBankAccount")
+                        .WithMany()
+                        .HasForeignKey("VendorBankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_payment_batch_items_account");
+
+                    b.HasOne("Forge.Core.Entities.VendorPayment", "VendorPayment")
+                        .WithMany()
+                        .HasForeignKey("VendorPaymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_payment_batch_items_payment");
+
+                    b.Navigation("PaymentBatch");
+
+                    b.Navigation("VendorBankAccount");
+
+                    b.Navigation("VendorPayment");
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.PerformanceReview", b =>
@@ -26102,6 +28112,91 @@ namespace Forge.Data.Migrations
                         .HasConstraintName("fk_user_scan_identifiers__asp_net_users_user_id");
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.VendorBankAccount", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Vendor", "Vendor")
+                        .WithMany()
+                        .HasForeignKey("VendorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_vendor_bank_accounts_vendor");
+
+                    b.Navigation("Vendor");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.VendorBill", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Currency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_vendor_bills_currency");
+
+                    b.HasOne("Forge.Core.Entities.Expense", "Expense")
+                        .WithMany()
+                        .HasForeignKey("ExpenseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_vendor_bills_expense");
+
+                    b.HasOne("Forge.Core.Entities.PurchaseOrder", "PurchaseOrder")
+                        .WithMany()
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_vendor_bills_po");
+
+                    b.HasOne("Forge.Core.Entities.Vendor", "Vendor")
+                        .WithMany()
+                        .HasForeignKey("VendorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_vendor_bills_vendor");
+
+                    b.Navigation("Currency");
+
+                    b.Navigation("Expense");
+
+                    b.Navigation("PurchaseOrder");
+
+                    b.Navigation("Vendor");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.VendorBillLine", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Job", "Job")
+                        .WithMany()
+                        .HasForeignKey("JobId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_vendor_bill_lines_job");
+
+                    b.HasOne("Forge.Core.Entities.Part", "Part")
+                        .WithMany()
+                        .HasForeignKey("PartId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_vendor_bill_lines_part");
+
+                    b.HasOne("Forge.Core.Entities.PurchaseOrderLine", "PurchaseOrderLine")
+                        .WithMany()
+                        .HasForeignKey("PurchaseOrderLineId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_vendor_bill_lines_po_line");
+
+                    b.HasOne("Forge.Core.Entities.VendorBill", "VendorBill")
+                        .WithMany("Lines")
+                        .HasForeignKey("VendorBillId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_vendor_bill_lines_bill");
+
+                    b.Navigation("Job");
+
+                    b.Navigation("Part");
+
+                    b.Navigation("PurchaseOrderLine");
+
+                    b.Navigation("VendorBill");
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.VendorPart", b =>
                 {
                     b.HasOne("Forge.Core.Entities.Part", "Part")
@@ -26141,6 +28236,39 @@ namespace Forge.Data.Migrations
                     b.Navigation("PurchaseUnit");
 
                     b.Navigation("VendorPart");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.VendorPayment", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.Vendor", "Vendor")
+                        .WithMany()
+                        .HasForeignKey("VendorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_vendor_payments_vendor");
+
+                    b.Navigation("Vendor");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.VendorPaymentApplication", b =>
+                {
+                    b.HasOne("Forge.Core.Entities.VendorBill", "VendorBill")
+                        .WithMany("PaymentApplications")
+                        .HasForeignKey("VendorBillId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_vpa_bill");
+
+                    b.HasOne("Forge.Core.Entities.VendorPayment", "VendorPayment")
+                        .WithMany("Applications")
+                        .HasForeignKey("VendorPaymentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_vpa_payment");
+
+                    b.Navigation("VendorBill");
+
+                    b.Navigation("VendorPayment");
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.VendorScorecard", b =>
@@ -26374,6 +28502,16 @@ namespace Forge.Data.Migrations
                     b.Navigation("Contacts");
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.BankReconciliation", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.BankStatementImport", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.Accounting.CostCenter", b =>
                 {
                     b.Navigation("Children");
@@ -26389,12 +28527,27 @@ namespace Forge.Data.Migrations
                     b.Navigation("Periods");
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.FixedAsset", b =>
+                {
+                    b.Navigation("DepreciationEntries");
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.Accounting.GlAccount", b =>
                 {
                     b.Navigation("ChildAccounts");
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.Accounting.JournalEntry", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.JournalTemplate", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.Accounting.PayRun", b =>
                 {
                     b.Navigation("Lines");
                 });
@@ -26676,6 +28829,11 @@ namespace Forge.Data.Migrations
                     b.Navigation("Applications");
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.PaymentBatch", b =>
+                {
+                    b.Navigation("Items");
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.PickWave", b =>
                 {
                     b.Navigation("Lines");
@@ -26857,9 +29015,21 @@ namespace Forge.Data.Migrations
                     b.Navigation("PurchaseOrders");
                 });
 
+            modelBuilder.Entity("Forge.Core.Entities.VendorBill", b =>
+                {
+                    b.Navigation("Lines");
+
+                    b.Navigation("PaymentApplications");
+                });
+
             modelBuilder.Entity("Forge.Core.Entities.VendorPart", b =>
                 {
                     b.Navigation("PriceTiers");
+                });
+
+            modelBuilder.Entity("Forge.Core.Entities.VendorPayment", b =>
+                {
+                    b.Navigation("Applications");
                 });
 
             modelBuilder.Entity("Forge.Core.Entities.WbsElement", b =>

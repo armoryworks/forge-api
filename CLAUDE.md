@@ -420,10 +420,10 @@ readonly isStandalone = this.accountingService.isStandalone;
 <!-- ===== Capability Gating ===== -->
 ## Capability Gating (Phase 4)
 
-The system runs on a **per-install capability gate**: 152 named capabilities (e.g., `CAP-MD-CUSTOMERS`, `CAP-INV-LOTS`, `CAP-EXT-AI-ASSISTANT`) are registered in a static catalog. Each install's capability state is stored in the `capabilities` table; controllers and Hangfire-fired commands carry `[RequiresCapability("CAP-...")]` attributes; the `CapabilityGateMiddleware` (controller side) and `CapabilityGateBehavior` (MediatR side) short-circuit with 403 + envelope when a capability is disabled. Bootstrap-exempt endpoints (auth, descriptor, capability admin) carry `[CapabilityBootstrap]` instead so admins are never locked out.
+The system runs on a **per-install capability gate**: 157 named capabilities (e.g., `CAP-MD-CUSTOMERS`, `CAP-INV-LOTS`, `CAP-EXT-AI-ASSISTANT`) are registered in a static catalog. Each install's capability state is stored in the `capabilities` table; controllers and Hangfire-fired commands carry `[RequiresCapability("CAP-...")]` attributes; the `CapabilityGateMiddleware` (controller side) and `CapabilityGateBehavior` (MediatR side) short-circuit with 403 + envelope when a capability is disabled. Bootstrap-exempt endpoints (auth, descriptor, capability admin) carry `[CapabilityBootstrap]` instead so admins are never locked out.
 
 **Where things live:**
-- **Catalog (source of truth)**: `forge-api/forge.api/Capabilities/CapabilityCatalog.cs` — 152 capabilities with code, name, area, default-state, dependencies/mutexes
+- **Catalog (source of truth)**: `forge-api/forge.api/Capabilities/CapabilityCatalog.cs` — 157 capabilities with code, name, area, default-state, dependencies/mutexes
 - **Relations**: `CapabilityCatalogRelations.cs` — dependency edges + mutex pairs (only one declared mutex today: `CAP-ACCT-EXTERNAL ⊥ CAP-ACCT-BUILTIN`)
 - **Snapshot + middleware**: `CapabilitySnapshot.cs`, `ICapabilitySnapshotProvider`, `CapabilityGateMiddleware.cs`, `CapabilityGateBehavior.cs`
 - **Mutation API**: `CapabilitiesController` exposes `PUT /api/v1/capabilities/{code}/enabled`, bulk-toggle, validate, audit-log; preset & discovery endpoints layered on top
@@ -438,7 +438,7 @@ The system runs on a **per-install capability gate**: 152 named capabilities (e.
 **Adding a new feature**: see `docs/coding-standards.md` §0 — every new endpoint either reuses an existing capability or registers a new one in the catalog before it ships.
 
 **Design artifacts (deep-dive, decision history)**:
-- `phase-4-output/4A-capability-catalog/` — all 129 capabilities with rationale (Phase 4 snapshot; catalog is 152 today)
+- `phase-4-output/4A-capability-catalog/` — all 129 capabilities with rationale (Phase 4 snapshot; catalog is 157 today)
 - `phase-4-output/4B-preset-design/` — 8 presets with target profile + capability set
 - `phase-4-output/4C-discovery-flow/` — 22-question wizard + recommendation algorithm
 - `phase-4-output/4D-gating-mechanism/` — middleware + descriptor + audit pipeline

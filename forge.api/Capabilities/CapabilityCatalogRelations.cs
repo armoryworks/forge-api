@@ -106,6 +106,13 @@ public static class CapabilityCatalogRelations
         new("CAP-P2P-SUBCONTRACT", "CAP-MD-ROUTING"),
         new("CAP-P2P-SUBCONTRACT", "CAP-MFG-WO-RELEASE"),
         new("CAP-P2P-APPROVALS", "CAP-P2P-PO"),
+        // AP capability split (owner-ratified 2026-06): bills hang off POs
+        // (3-way match references PO + receipt); payments hang off bills
+        // (a payment applies against open bills).
+        new("CAP-P2P-BILL", "CAP-P2P-PO"),
+        new("CAP-P2P-PAY", "CAP-P2P-BILL"),
+        // NACHA origination (BANK-002 Phase A) batches vendor payments into ACH files.
+        new("CAP-BANK-NACHA", "CAP-P2P-PAY"),
 
         // ── O2C ─────────────────────────────────────────────────────────────
         new("CAP-O2C-LEAD", "CAP-MD-CUSTOMERS"),
@@ -225,6 +232,9 @@ public static class CapabilityCatalogRelations
         new("CAP-ACCT-DEPRECIATION", "CAP-ACCT-FULLGL"),
         new("CAP-ACCT-FXREVAL", "CAP-MD-CURRENCIES"),
         new("CAP-ACCT-FXREVAL", "CAP-ACCT-FULLGL"),
+        // QB-001: the QBO push exports FROM the built-in GL — it depends on FULLGL and is
+        // deliberately NOT in the BUILTIN ⊥ EXTERNAL mutex (downstream export, not external mode).
+        new("CAP-ACCT-QBO-EXPORT", "CAP-ACCT-FULLGL"),
 
         // ── HR ──────────────────────────────────────────────────────────────
         new("CAP-HR-HIRE", "CAP-MD-EMPLOYEES"),

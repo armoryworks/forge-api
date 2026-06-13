@@ -76,8 +76,7 @@ public class ExpensesRemediationTests
             "only the owner (or a manager) may delete an expense");
     }
 
-    [Fact(Skip = "RED: F-26B-01 — Expense has no vendor/payee link, so it can't be attributed to a " +
-                 "vendor anywhere. Remove Skip when Expense has a VendorId (or PayeeId) FK.")]
+    [Fact] // F-26B-01 GREEN — Expense now has a VendorId FK (Phase-1 STAGE C: settlement-target + Vendor link)
     public void Expense_has_a_vendor_or_payee_link()
     {
         using var db = TestDbContextFactory.Create();

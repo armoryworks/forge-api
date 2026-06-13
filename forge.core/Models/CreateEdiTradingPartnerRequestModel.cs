@@ -16,6 +16,9 @@ public record CreateEdiTradingPartnerRequestModel
     public EdiFormat DefaultFormat { get; init; } = EdiFormat.X12;
     public EdiTransportMethod TransportMethod { get; init; }
     public string? TransportConfigJson { get; init; }
+
+    /// <summary>Typed SFTP transport fields (preferred over raw TransportConfigJson — the admin UI sends these).</summary>
+    public EdiSftpTransportRequestModel? TransportSftp { get; init; }
     public bool AutoProcess { get; init; } = true;
     public bool RequireAcknowledgment { get; init; } = true;
     public string? Notes { get; init; }

@@ -53,7 +53,8 @@ public class InvoicesController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new CreateInvoiceCommand(
             request.CustomerId, request.SalesOrderId, request.ShipmentId,
             request.InvoiceDate, request.DueDate, request.CreditTerms,
-            request.TaxRate, request.Notes, request.Lines));
+            request.TaxRate, request.Notes, request.Lines,
+            CurrencyId: request.CurrencyId, FxRate: request.FxRate));
         return CreatedAtAction(nameof(GetInvoice), new { id = result.Id }, result);
     }
 

@@ -17,6 +17,12 @@ public class PurchaseOrderLine : BaseEntity
     // the system understands it will not be received. Always 0 for normal POs;
     // set on /short-close to (OrderedQuantity - ReceivedQuantity at close-time).
     public decimal CancelledShortCloseQuantity { get; set; }
+
+    // Phase-2 STAGE-D 3-way match — quantity of this line already billed by approved VendorBills, so the
+    // GRNI accrued at receipt is cleared only once. UnbilledReceivedQuantity = received − billed is the
+    // open GRNI a new bill may clear. Always 0 for lines never billed through the AP sub-ledger.
+    public decimal BilledQuantity { get; set; }
+
     public decimal UnitPrice { get; set; }
     public string? Notes { get; set; }
     public int? MrpPlannedOrderId { get; set; }
@@ -36,6 +42,9 @@ public class PurchaseOrderLine : BaseEntity
     // a short-closed line reports 0 remaining, not the unreceived portion.
     public decimal RemainingQuantity => OrderedQuantity - ReceivedQuantity - CancelledShortCloseQuantity;
     public decimal UnreceivedQuantity => OrderedQuantity - ReceivedQuantity;
+
+    /// <summary>Received but not yet billed — the open GRNI a 3-way-match bill may clear (STAGE D).</summary>
+    public decimal UnbilledReceivedQuantity => ReceivedQuantity - BilledQuantity;
 
     public PurchaseOrder PurchaseOrder { get; set; } = null!;
     public Part Part { get; set; } = null!;

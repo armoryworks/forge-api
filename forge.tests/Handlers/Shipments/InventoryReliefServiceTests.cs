@@ -70,7 +70,7 @@ public class InventoryReliefServiceTests : IDisposable
 
     private BinContent MakeBin(int partId, decimal qty, DateTimeOffset? placedAt = null) => new()
     {
-        EntityType = "Part",
+        EntityType = "part",
         EntityId = partId,
         Quantity = qty,
         Status = BinContentStatus.Stored,

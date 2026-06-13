@@ -3,11 +3,13 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Accounting;
 
@@ -35,7 +37,8 @@ public record CreateManualJournalEntryCommand(
     int CurrencyId,
     string? Memo,
     bool AllowSoftClosedOverride,
-    IReadOnlyList<CreateManualJournalLineModel> Lines)
+    IReadOnlyList<CreateManualJournalLineModel> Lines,
+    int? ApprovedByUserId = null)
     : IRequest<ManualJournalEntryResult>;
 
 /// <summary>
@@ -110,7 +113,8 @@ public class CreateManualJournalEntryValidator : AbstractValidator<CreateManualJ
 
 public class CreateManualJournalEntryHandler(
     IPostingEngine postingEngine,
-    IHttpContextAccessor httpContextAccessor)
+    IHttpContextAccessor httpContextAccessor,
+    AppDbContext? db = null)
     : IRequestHandler<CreateManualJournalEntryCommand, ManualJournalEntryResult>
 {
     public async Task<ManualJournalEntryResult> Handle(
@@ -120,6 +124,22 @@ public class CreateManualJournalEntryHandler(
         // engine records it as PostedBy.
         var postedByUserId = int.Parse(
             httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+
+        // Maker-checker (§5.7): a manual JE over the book's threshold needs a second approver distinct from the
+        // poster. If a distinct approver is supplied up-front it posts immediately (the synchronous first cut);
+        // otherwise it is routed to PendingApproval for a distinct approver to finalize asynchronously (the
+        // approve/reject endpoints). (db is null only in isolated unit tests → threshold gate skipped → posts.)
+        var requiresApproval = false;
+        if (db is not null)
+        {
+            var threshold = await db.Books.AsNoTracking()
+                .Where(b => b.Id == request.BookId)
+                .Select(b => b.MakerCheckerThreshold)
+                .FirstOrDefaultAsync(cancellationToken);
+            var total = request.Lines.Sum(l => l.Debit);
+            requiresApproval = threshold is decimal limit && total > limit
+                && (request.ApprovedByUserId is not int approver || approver == postedByUserId);
+        }
 
         // Build the PostingRequest at the command site (the feature pattern):
         // the handler assembles the balanced Dr/Cr request and hands it to the
@@ -132,6 +152,7 @@ public class CreateManualJournalEntryHandler(
             CurrencyId = request.CurrencyId,
             Memo = request.Memo,
             AllowSoftClosedOverride = request.AllowSoftClosedOverride,
+            ApprovedByUserId = request.ApprovedByUserId,
             Lines = request.Lines.Select(l => new PostingLine
             {
                 GlAccountId = l.GlAccountId,
@@ -146,22 +167,10 @@ public class CreateManualJournalEntryHandler(
             }).ToList(),
         };
 
-        var entry = await postingEngine.PostAsync(postingRequest, postedByUserId, cancellationToken);
+        var entry = requiresApproval
+            ? await postingEngine.PostPendingAsync(postingRequest, postedByUserId, cancellationToken)
+            : await postingEngine.PostAsync(postingRequest, postedByUserId, cancellationToken);
 
-        return new ManualJournalEntryResult(
-            entry.Id,
-            entry.BookId,
-            entry.EntryNumber,
-            entry.EntryDate,
-            entry.FiscalPeriodId,
-            entry.FiscalYearId,
-            entry.Status.ToString(),
-            entry.Memo,
-            entry.PostedBy,
-            entry.Lines
-                .OrderBy(l => l.LineNumber)
-                .Select(l => new ManualJournalLineResult(
-                    l.Id, l.LineNumber, l.GlAccountId, l.Debit, l.Credit, l.FunctionalAmount, l.Description))
-                .ToList());
+        return entry.ToManualResult();
     }
 }

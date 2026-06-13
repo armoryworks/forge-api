@@ -113,7 +113,7 @@ public class MrpService(
             // 3a: On-hand inventory (BinContents aggregated by part)
             var onHandByPart = await db.BinContents
                 .AsNoTracking()
-                .Where(bc => bc.EntityType == "Part"
+                .Where(bc => bc.EntityType == "part"   // canonical BinContent entity type — capital "Part" matched nothing
                     && bc.Status != BinContentStatus.QcHold
                     && partIds.Contains(bc.EntityId))
                 .GroupBy(bc => bc.EntityId)
@@ -303,7 +303,7 @@ public class MrpService(
             // Also load on-hand for child parts
             var childOnHand = await db.BinContents
                 .AsNoTracking()
-                .Where(bc => bc.EntityType == "Part"
+                .Where(bc => bc.EntityType == "part"   // canonical BinContent entity type — capital "Part" matched nothing
                     && bc.Status != BinContentStatus.QcHold
                     && allPartIds.Contains(bc.EntityId)
                     && !partIds.Contains(bc.EntityId))

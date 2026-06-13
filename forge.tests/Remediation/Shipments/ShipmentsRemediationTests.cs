@@ -30,8 +30,7 @@ public class ShipmentsRemediationTests
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
 
-    [Fact(Skip = "RED: P06-3 / S-MV1 — shipping never relieves on-hand (status-flip only). " +
-                 "Remove Skip when shipping a line decrements the bin's on-hand quantity.")]
+    [Fact] // GREEN (P06-3 / S-MV1): shipping now relieves on-hand via InventoryReliefService.
     public async Task Shipping_relieves_on_hand_inventory()
     {
         int binId;
@@ -42,12 +41,14 @@ public class ShipmentsRemediationTests
 
             var part = new Part { PartNumber = $"P-SHIP-{Guid.NewGuid().ToString("N")[..8]}", Name = "Shipped Part" };
             db.Parts.Add(part);
+            var customer = new Customer { Name = "P06-3 Ship Customer" };
+            db.Customers.Add(customer);
             await db.SaveChangesAsync();
 
             var bin = new BinContent
             {
                 LocationId = 1,
-                EntityType = "Part",
+                EntityType = "part",
                 EntityId = part.Id,
                 Quantity = 10m,
                 ReservedQuantity = 0m,
@@ -57,7 +58,7 @@ public class ShipmentsRemediationTests
             };
             db.Add(bin);
 
-            var so = new SalesOrder { CustomerId = 1, Status = SalesOrderStatus.Confirmed };
+            var so = new SalesOrder { CustomerId = customer.Id, Status = SalesOrderStatus.Confirmed };
             db.SalesOrders.Add(so);
             await db.SaveChangesAsync();
 
@@ -74,7 +75,8 @@ public class ShipmentsRemediationTests
             shipmentId = shipment.Id;
         }
 
-        await AuthClient().PostAsync($"/api/v1/shipments/{shipmentId}/ship", null);
+        var shipResp = await AuthClient().PostAsync($"/api/v1/shipments/{shipmentId}/ship", null);
+        shipResp.IsSuccessStatusCode.Should().BeTrue(await shipResp.Content.ReadAsStringAsync());
 
         using var verify = NewScope();
         var db2 = verify.ServiceProvider.GetRequiredService<AppDbContext>();

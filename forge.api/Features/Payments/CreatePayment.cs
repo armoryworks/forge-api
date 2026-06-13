@@ -1,6 +1,10 @@
+using System.Security.Claims;
+
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -24,28 +28,59 @@ public class CreatePaymentValidator : AbstractValidator<CreatePaymentCommand>
     {
         RuleFor(x => x.CustomerId).GreaterThan(0);
         RuleFor(x => x.Amount).GreaterThan(0);
-        RuleFor(x => x.Method).NotEmpty();
+        RuleFor(x => x.Method).NotEmpty()
+            // Constrain to the PaymentMethod enum so an invalid string is a 400, not a 500 from the
+            // handler's Enum.Parse (parity with CreateVendorPayment — Phase-2 review).
+            .Must(m => Enum.TryParse<PaymentMethod>(m, ignoreCase: true, out _))
+            .WithMessage("Method must be one of: Cash, Check, CreditCard, BankTransfer, Wire, Other");
         When(x => x.Applications != null && x.Applications.Count > 0, () =>
         {
             RuleFor(x => x.Applications!.Sum(a => a.Amount))
                 .LessThanOrEqualTo(x => x.Amount)
                 .WithMessage("Applied amounts cannot exceed payment amount");
+            // A duplicate invoice reference would bypass the per-invoice over-apply guard (EF returns the
+            // same tracked entity, so each check sees the same pre-application balance) — reject duplicates.
+            RuleFor(x => x.Applications!)
+                .Must(a => a.Select(x => x.InvoiceId).Distinct().Count() == a.Count)
+                .WithMessage("An invoice may be referenced at most once per payment");
             RuleForEach(x => x.Applications).ChildRules(app =>
             {
                 app.RuleFor(a => a.InvoiceId).GreaterThan(0);
                 app.RuleFor(a => a.Amount).GreaterThan(0);
+                // Settlement FX rate must be positive (a 0 or negative rate would zero/invert the functional
+                // cash amount, breaking the realized-FX plug). Default 1 satisfies this for single-currency.
+                app.RuleFor(a => a.SettlementFxRate).GreaterThan(0m);
             });
         });
     }
 }
 
-public class CreatePaymentHandler(IPaymentRepository repo, ICustomerRepository customerRepo, IInvoiceRepository invoiceRepo, AppDbContext db)
+public class CreatePaymentHandler(
+    IPaymentRepository repo,
+    ICustomerRepository customerRepo,
+    IInvoiceRepository invoiceRepo,
+    AppDbContext db,
+    // Optional / null-default so the handler stays constructible without an
+    // accounting context (e.g. isolated unit tests). The production DI path
+    // supplies both; with CAP-ACCT-FULLGL off the posting service no-ops anyway
+    // (mirrors SendInvoice's STAGE A wiring).
+    IPaymentCashPostingService? cashPosting = null,
+    IHttpContextAccessor? httpContextAccessor = null)
     : IRequestHandler<CreatePaymentCommand, PaymentListItemModel>
 {
     public async Task<PaymentListItemModel> Handle(CreatePaymentCommand request, CancellationToken cancellationToken)
     {
         var customer = await customerRepo.FindAsync(request.CustomerId, cancellationToken)
             ?? throw new KeyNotFoundException($"Customer {request.CustomerId} not found");
+
+        // One unit of work: the payment + its applications + the invoice-status
+        // updates AND the inline cash-receipt posting commit (or roll back) together
+        // — the locked inline, single-transaction model (§2). The engine's
+        // SaveChanges joins this transaction instead of committing on its own, so a
+        // posting failure unwinds the payment too (no orphaned operational row). On
+        // Npgsql this is a real transaction; on the in-memory test provider it's an
+        // ignored no-op, so the mock-based handler tests are unaffected.
+        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
 
         var paymentNumber = await repo.GenerateNextPaymentNumberAsync(cancellationToken);
         var method = Enum.Parse<PaymentMethod>(request.Method, true);
@@ -70,6 +105,19 @@ public class CreatePaymentHandler(IPaymentRepository repo, ICustomerRepository c
                 var invoice = await invoiceRepo.FindWithDetailsAsync(app.InvoiceId, cancellationToken)
                     ?? throw new KeyNotFoundException($"Invoice {app.InvoiceId} not found");
 
+                // Sub-ledger integrity: the payment's customer must own the invoice (parity with
+                // CreateVendorPayment — Phase-2 review).
+                if (invoice.CustomerId != request.CustomerId)
+                    throw new InvalidOperationException(
+                        $"Invoice {invoice.InvoiceNumber} belongs to a different customer");
+
+                // Only a finalized (AR-booked) invoice can be paid. A Draft invoice has not posted its AR
+                // debit (posting fires on SendInvoice), so paying it would Cr AR against a receivable the
+                // GL never recorded; Paid/Voided are terminal. Restrict to Sent / PartiallyPaid / Overdue.
+                if (invoice.Status is not (InvoiceStatus.Sent or InvoiceStatus.PartiallyPaid or InvoiceStatus.Overdue))
+                    throw new InvalidOperationException(
+                        $"Invoice {invoice.InvoiceNumber} is {invoice.Status}; only Sent, PartiallyPaid, or Overdue invoices can be paid");
+
                 // F-027: consume the canonical Invoice.BalanceDue rather than re-deriving the
                 // money formula here. The two were numerically equal only while
                 // InvoiceLine.LineTotal == Quantity * UnitPrice; a single source of truth keeps
@@ -84,6 +132,7 @@ public class CreatePaymentHandler(IPaymentRepository repo, ICustomerRepository c
                 {
                     InvoiceId = app.InvoiceId,
                     Amount = app.Amount,
+                    SettlementFxRate = app.SettlementFxRate,
                 });
 
                 appliedTotal += app.Amount;
@@ -129,6 +178,29 @@ public class CreatePaymentHandler(IPaymentRepository repo, ICustomerRepository c
 
             throw new InvalidOperationException("Concurrent payment conflict — please retry.");
         }
+
+        // ── Inline cash-receipt posting (Phase-1 STAGE B, §7 matrix row "Payment
+        // applied"). Runs AFTER the operational SaveChanges (within the same open
+        // transaction) so the payment row — and its applications / invoice-status
+        // changes — is flushed and the payment Id is assigned for the posting to
+        // reference as its source. The engine posts on the SAME request-scoped
+        // context and its SaveChanges joins this transaction; nothing commits until
+        // the tx.CommitAsync below, so a posting failure rolls the payment back too
+        // (the locked inline model — §2). No-op while CAP-ACCT-FULLGL is off; the
+        // service self-gates, so the operational payment flow is unchanged while dark.
+        if (cashPosting is not null)
+        {
+            var createdByUserId =
+                int.TryParse(
+                    httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier),
+                    out var uid)
+                    ? uid
+                    : 0;
+
+            await cashPosting.PostPaymentCreatedAsync(payment.Id, createdByUserId, cancellationToken);
+        }
+
+        await tx.CommitAsync(cancellationToken);
 
         return new PaymentListItemModel(
             payment.Id, payment.PaymentNumber, payment.CustomerId, customer.Name,

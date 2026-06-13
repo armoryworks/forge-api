@@ -3,6 +3,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 
@@ -17,6 +18,7 @@ public class CreateExpenseCommandValidator : AbstractValidator<CreateExpenseComm
         RuleFor(x => x.Data.Amount).GreaterThan(0).WithMessage("Amount must be greater than zero.");
         RuleFor(x => x.Data.Category).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Data.Description).NotEmpty().MaximumLength(500);
+        RuleFor(x => x.Data.VendorId).GreaterThan(0).When(x => x.Data.VendorId is not null);
     }
 }
 
@@ -44,6 +46,10 @@ public class CreateExpenseHandler(
             Description = data.Description.Trim(),
             ReceiptFileId = data.ReceiptFileId,
             ExpenseDate = data.ExpenseDate,
+            // Vendor-settled: a named vendor routes the expense to Accounts Payable — approval
+            // promotes it into a vendor bill paid through the AP pipeline. Absent → cash.
+            VendorId = data.VendorId,
+            SettlementTarget = data.VendorId is not null ? ExpenseSettlementTarget.AccountsPayable : null,
         };
 
         await repo.AddAsync(expense, cancellationToken);

@@ -20,6 +20,7 @@ public class EntityActivityController(IMediator mediator) : ControllerBase
         "Job", "Part", "Asset", "Lead", "Customer", "Expense",
         "SalesOrder", "Invoice", "Quote", "Shipment", "Payment",
         "PurchaseOrder", "Vendor", "CustomerReturn", "Lot",
+        "VendorBill", "VendorPayment",
     };
 
     [HttpGet("activity")]

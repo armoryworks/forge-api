@@ -1,0 +1,290 @@
+using System.Globalization;
+using System.Text.Json;
+
+using Microsoft.EntityFrameworkCore;
+
+using Forge.Api.Capabilities;
+using Forge.Api.Services;
+using Forge.Core.Entities;
+using Forge.Core.Entities.Accounting;
+using Forge.Core.Enums;
+using Forge.Core.Enums.Accounting;
+using Forge.Core.Interfaces;
+using Forge.Core.Models.Accounting;
+using Forge.Data.Context;
+using Serilog;
+
+namespace Forge.Api.Features.Accounting;
+
+/// <summary>
+/// Phase-2 STAGE C — PO-receipt inventory / GRNI posting (ACCOUNTING_SUITE_PLAN §7 matrix
+/// "PO receipt", §8.1). When goods are received against a purchase order, this service posts the
+/// landed-cost journal <b>inline, in the receiving command's transaction</b> for the receipt
+/// (all <see cref="ReceivingRecord"/>s sharing a <c>ReceiptNumber</c>):
+/// <list type="bullet">
+///   <item><b>Dr INVENTORY_{RAW|WIP|SUBASSEMBLY|FG}</b> (per the part's <see cref="InventoryClass"/>) — or
+///         <b>Dr OPERATING_EXPENSE</b> for consumables/tools — at <b>standard cost × qty</b> when a standard
+///         resolver is wired (else landed actual: PO price × qty + freight).</item>
+///   <item><b>Cr GRNI</b> (Goods Received Not Invoiced) for the base (PO price × qty) — the accrued
+///         vendor liability until the bill arrives and the 3-way match clears it (STAGE D).</item>
+///   <item><b>Cr FREIGHT_CLEARING</b> for the allocated freight — cleared when the freight bill lands.</item>
+///   <item><b>Dr|Cr PURCHASE_PRICE_VARIANCE</b> = standard inventory value − landed actual (the material
+///         price variance): favorable credit when standard exceeds landed, unfavorable debit otherwise.</item>
+/// </list>
+/// The entry balances by construction: Σ Dr INVENTORY(std) + Dr PPV(unfav) == Σ GRNI(base) + Σ Freight(freight)
+/// + Cr PPV(fav).
+///
+/// <para><b>STAYS DARK while CAP-ACCT-FULLGL is OFF (the default).</b> Idempotent via the engine's
+/// (BookId, IdempotencyKey) de-dupe, keyed on the receipt number. <b>Costing (standard):</b> inventory is
+/// carried at standard and the material price variance is recognized here at receipt; a part with no resolvable
+/// standard (or no resolver wired) falls back to landed actual carrying with no variance. GRNI / FREIGHT_CLEARING
+/// are non-control (party-less); INVENTORY_* are inventory control accounts that post party-less (reconciled by
+/// part via the valuation store, §8.1).</para>
+/// </summary>
+public interface IReceiptInventoryPostingService
+{
+    /// <summary>
+    /// Posts the inventory / GRNI journal for a PO receipt (the <see cref="ReceivingRecord"/>s sharing
+    /// <paramref name="receiptNumber"/>), when (and only when) CAP-ACCT-FULLGL is enabled. A no-op while
+    /// the capability is off, or when the receipt has no number (the single-line inventory receive path).
+    /// </summary>
+    Task PostReceiptAsync(
+        int purchaseOrderId, string? receiptNumber, DateOnly entryDate, int receivedByUserId,
+        CancellationToken ct = default);
+}
+
+/// <inheritdoc />
+public sealed class ReceiptInventoryPostingService(
+    AppDbContext db,
+    IPostingEngine postingEngine,
+    ICapabilitySnapshotProvider capabilities,
+    ISystemAuditWriter? auditWriter = null,
+    IInventoryValuationService? valuation = null,
+    // Standard costing: when wired, stocked receipts capitalize at STANDARD and the std−landed difference posts
+    // as the material price variance (PPV). Null (or no resolvable standard) → landed actual carrying.
+    IStandardCostResolver? standardCost = null) : IReceiptInventoryPostingService
+{
+    private const string FullGlCapability = "CAP-ACCT-FULLGL";
+
+    private const string KeyInventoryRaw = "INVENTORY_RAW";
+    private const string KeyInventoryWip = "INVENTORY_WIP";
+    private const string KeyInventorySubassembly = "INVENTORY_SUBASSEMBLY";
+    private const string KeyInventoryFg = "INVENTORY_FG";
+    private const string KeyGrni = "GRNI";
+    private const string KeyFreightClearing = "FREIGHT_CLEARING";
+    private const string KeyPurchasePriceVariance = "PURCHASE_PRICE_VARIANCE";
+    // Consumables / tools are not stocked-for-production inventory (per the InventoryClass doc comments:
+    // issued to overhead / durable, not a BOM input) — expensed at receipt. A future INVENTORY_SUPPLIES
+    // key could perpetual-stock consumables; high-value tools could capitalize as an Asset (no
+    // capitalization-threshold signal exists at this layer yet). Decision recorded in PHASE2_STATUS.
+    private const string KeyOperatingExpense = "OPERATING_EXPENSE";
+
+    public async Task PostReceiptAsync(
+        int purchaseOrderId, string? receiptNumber, DateOnly entryDate, int receivedByUserId,
+        CancellationToken ct = default)
+    {
+        if (!capabilities.IsEnabled(FullGlCapability))
+            return;
+
+        // The single-line inventory receive path (Features/Inventory/ReceivePurchaseOrder) leaves
+        // ReceiptNumber null and isn't posted here — STAGE C hooks the primary, freight-bearing
+        // ReceiveItems flow. (Hooking that secondary path is a tracked follow-up.)
+        if (string.IsNullOrWhiteSpace(receiptNumber))
+            return;
+
+        await PostCoreAsync(purchaseOrderId, receiptNumber, entryDate, receivedByUserId, ct);
+    }
+
+    private async Task PostCoreAsync(
+        int purchaseOrderId, string receiptNumber, DateOnly entryDate, int userId, CancellationToken ct)
+    {
+        var records = await db.Set<ReceivingRecord>()
+            .Include(r => r.PurchaseOrderLine).ThenInclude(l => l.Part)
+            // Scope by PO id too (a single receive is for one PO) so a ReceiptNumber collision across POs
+            // can never pull a foreign PO's lines into this journal.
+            .Where(r => r.ReceiptNumber == receiptNumber && r.PurchaseOrderLine.PurchaseOrderId == purchaseOrderId)
+            .ToListAsync(ct);
+
+        if (records.Count == 0)
+        {
+            Log.Warning(
+                "Receipt posting skipped: no receiving records found for receipt {ReceiptNumber} (FULLGL on).",
+                receiptNumber);
+            return;
+        }
+
+        var book = await db.Books.AsNoTracking()
+            .Where(b => b.IsActive)
+            .OrderBy(b => b.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (book is null)
+            throw new PostingException(
+                "NO_POSTING_BOOK",
+                "CAP-ACCT-FULLGL is enabled but no active accounting Book is seeded to post the receipt into.");
+
+        var lines = new List<PostingLine>(records.Count + 3);
+        decimal totalBase = 0m;
+        decimal totalFreight = 0m;
+        decimal totalInventory = 0m;
+        // Stocked-part receipts to feed into the valuation store after the GL post (at the capitalized amount).
+        var valuationFeeds = new List<(int PartId, decimal Quantity, decimal Cost)>();
+
+        foreach (var rec in records.OrderBy(r => r.Id))
+        {
+            var line = rec.PurchaseOrderLine;
+            var baseCost = rec.QuantityReceived * line.UnitPrice;
+            var freight = rec.AllocatedFreight ?? 0m;
+            var landed = baseCost + freight;
+            if (landed <= 0m)
+                continue; // nothing to capitalize for this line
+
+            // Standard-cost carrying: a stocked part capitalizes at STANDARD (× qty); the std−landed difference
+            // is the material price variance posted below. No resolver wired, or no resolvable standard, falls
+            // back to landed actual (no variance) — backward compatible with actual-cost carrying.
+            var stocked = IsStocked(line.Part);
+            var stdUnit = stocked && standardCost is not null
+                ? (await standardCost.ResolveAsync(line.PartId, ct)).Total
+                : 0m;
+            var inventoryAmount = stocked && stdUnit > 0m
+                ? Math.Round(stdUnit * rec.QuantityReceived, 2, MidpointRounding.AwayFromZero)
+                : landed;
+
+            lines.Add(new PostingLine
+            {
+                AccountKey = DebitKeyFor(line.Part),
+                Debit = inventoryAmount,
+                Description = $"Receipt {receiptNumber} — {(line.Part?.PartNumber ?? $"part {line.PartId}")} x{rec.QuantityReceived}",
+            });
+            totalBase += baseCost;
+            totalFreight += freight;
+            totalInventory += inventoryAmount;
+
+            // Consumables/tools are expensed (not stocked) — only perpetual-stocked classes feed the store.
+            if (stocked)
+                valuationFeeds.Add((line.PartId, rec.QuantityReceived, inventoryAmount));
+        }
+
+        if (totalBase + totalFreight <= 0m)
+            return; // a zero-value receipt has nothing to post
+
+        // Cr GRNI for the base — the accrued vendor liability until the bill arrives (non-control, party-less).
+        if (totalBase > 0m)
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyGrni,
+                Credit = totalBase,
+                Description = $"GRNI — receipt {receiptNumber}",
+            });
+
+        // Cr Freight-Clearing for the landed freight — cleared when the freight bill lands.
+        if (totalFreight > 0m)
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyFreightClearing,
+                Credit = totalFreight,
+                Description = $"Freight clearing — receipt {receiptNumber}",
+            });
+
+        // Material price variance (PPV) = standard inventory value − landed actual. The entry balances by
+        // construction: Dr INVENTORY(std) + Dr PPV(unfav) == Cr GRNI(base) + Cr FREIGHT(freight) + Cr PPV(fav).
+        // Zero when every line fell back to landed (no standard / no resolver).
+        var ppv = Math.Round(totalInventory - (totalBase + totalFreight), 2);
+        if (ppv > 0m)
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyPurchasePriceVariance,
+                Credit = ppv, // standard exceeds landed — favorable purchase price variance
+                Description = $"Material price variance (favorable) — receipt {receiptNumber}",
+            });
+        else if (ppv < 0m)
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyPurchasePriceVariance,
+                Debit = -ppv, // landed exceeds standard — unfavorable
+                Description = $"Material price variance (unfavorable) — receipt {receiptNumber}",
+            });
+
+        var request = new PostingRequest
+        {
+            BookId = book.Id,
+            EntryDate = entryDate,
+            Source = JournalSource.Inventory,
+            SourceType = "Receipt",
+            SourceId = purchaseOrderId,
+            CurrencyId = book.FunctionalCurrencyId,
+            Memo = $"PO receipt {receiptNumber} — inventory / GRNI (PO {purchaseOrderId})",
+            IdempotencyKey = $"{JournalSource.Inventory}:Receipt:{purchaseOrderId}:{receiptNumber}:RECEIPT",
+            Lines = lines,
+        };
+
+        var entry = await postingEngine.PostAsync(request, userId, ct);
+
+        // STAGE E: feed the perpetual valuation store at landed cost (joins this transaction). No-op when the
+        // valuation service isn't wired (isolated unit tests).
+        if (valuation is not null)
+            foreach (var (partId, quantity, landedCost) in valuationFeeds)
+                await valuation.ApplyReceiptAsync(book.Id, partId, quantity, landedCost, ct);
+
+        await TryAuditAsync(receiptNumber, purchaseOrderId, entry, totalBase, totalFreight, userId, ct);
+    }
+
+    /// <summary>True for perpetual-stocked inventory classes (the ones that debit an INVENTORY_* account).</summary>
+    private static bool IsStocked(Part? part) => part?.InventoryClass is
+        InventoryClass.Raw or InventoryClass.Component or InventoryClass.Subassembly or InventoryClass.FinishedGood;
+
+    /// <summary>Maps a received part's <see cref="InventoryClass"/> to the inventory determination key
+    /// it capitalizes to. Consumables / tools are expensed (not stocked-for-production); a null/unknown
+    /// class defaults to raw-materials inventory (a purchased input).</summary>
+    private static string DebitKeyFor(Part? part) => part?.InventoryClass switch
+    {
+        InventoryClass.Raw or InventoryClass.Component => KeyInventoryRaw,
+        InventoryClass.Subassembly => KeyInventorySubassembly,
+        InventoryClass.FinishedGood => KeyInventoryFg,
+        InventoryClass.Consumable or InventoryClass.Tool => KeyOperatingExpense,
+        _ => KeyInventoryRaw,
+    };
+
+    private async Task TryAuditAsync(
+        string receiptNumber, int purchaseOrderId, JournalEntry entry, decimal totalBase, decimal totalFreight,
+        int actorUserId, CancellationToken ct)
+    {
+        if (auditWriter is null)
+            return;
+
+        try
+        {
+            var details = JsonSerializer.Serialize(new
+            {
+                before = (object?)null,
+                after = new
+                {
+                    journalEntryId = entry.Id,
+                    entryNumber = entry.EntryNumber,
+                    bookId = entry.BookId,
+                    source = entry.Source.ToString(),
+                    entryDate = entry.EntryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    purchaseOrderId,
+                    receiptNumber,
+                    totalBase,
+                    totalFreight,
+                },
+                reason = $"PO receipt {receiptNumber} — inventory / GRNI posted.",
+            });
+
+            await auditWriter.WriteAsync(
+                action: "GlReceiptInventoryPosted",
+                userId: actorUserId,
+                entityType: nameof(JournalEntry),
+                entityId: null,
+                details: details,
+                ct: ct);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex,
+                "Receipt posting audit write failed for receipt {ReceiptNumber} (entry {EntryId}); posting itself is committed.",
+                receiptNumber, entry.Id);
+        }
+    }
+}
