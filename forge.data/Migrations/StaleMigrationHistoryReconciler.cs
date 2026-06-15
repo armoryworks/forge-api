@@ -93,12 +93,15 @@ public static class StaleMigrationHistoryReconciler
                 SELECT * FROM "__EFMigrationsHistory"
                 """);
 
-            // 2. Delete the stale rows.
-            await db.Database.ExecuteSqlRawAsync(
-                """
-                DELETE FROM "__EFMigrationsHistory" WHERE "MigrationId" = ANY({0})
-                """,
-                staleApplied.ToArray());
+            // 2. Delete the stale rows (per-id to avoid array-parameter binding; provider-neutral).
+            foreach (var staleId in staleApplied)
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    """
+                    DELETE FROM "__EFMigrationsHistory" WHERE "MigrationId" = {0}
+                    """,
+                    staleId);
+            }
 
             // 3. Insert the verified baseline IDs (idempotent on re-run).
             foreach (var migrationId in verified)

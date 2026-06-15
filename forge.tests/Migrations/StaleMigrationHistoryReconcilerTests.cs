@@ -15,26 +15,40 @@ namespace Forge.Tests.Migrations;
 /// migration <b>squash</b> safe against an existing-data install (squash plan §3.1).
 ///
 /// <para>Runs against a real Postgres (Testcontainers / <c>FORGE_TEST_PG</c>) because the reconciler
-/// uses raw SQL and <c>information_schema</c> introspection that the EF Core InMemory provider cannot
-/// model — InMemory ignores transactions and has no <c>information_schema</c>.</para>
+/// uses raw SQL, transactions, and <c>information_schema</c> introspection that the EF Core InMemory
+/// provider cannot model.</para>
 ///
 /// <para>The fixture migrates the full (pre-squash) history once, so the live schema matches every
-/// migration in the assembly. We then drive the reconciler with crafted applied/assembly ID lists to
-/// simulate the post-squash state without actually squashing the test assembly.</para>
+/// migration in the assembly. We drive the reconciler with crafted applied/assembly ID lists — and a
+/// synthetic "stale" history row — to exercise each path without actually squashing the test
+/// assembly. Mutating tests restore <c>__EFMigrationsHistory</c> and drop the backup table afterward
+/// so the shared fixture is order-independent.</para>
+///
+/// <para><b>Why we don't use the historical InitialCreate as the "baseline":</b> the real
+/// <c>InitialBaseline</c> is generated from the current model, so every object it declares exists.
+/// The April-2026 <c>InitialCreate</c> created 111 tables, 70+ later migrations renamed/dropped some,
+/// so verifying it against today's schema correctly fails — that's a faithful-simulation problem, not
+/// a reconciler bug. We instead use the most recent migration (whose objects nothing later mutated)
+/// to exercise the verify-and-insert path.</para>
 /// </summary>
 [Collection(PostgresCollection.Name)]
 public sealed class StaleMigrationHistoryReconcilerTests(PostgresFixture fixture)
 {
     private const string ProductVersion = "10.0.9";
+    private const string FakeStaleId = "00000000000000_OldSquashedChain";
+    private const string BackupTable = "__EFMigrationsHistory_pre_squash";
 
     private static IMigrationsAssembly MigrationsAssembly(DbContext db) =>
         ((IInfrastructure<IServiceProvider>)db).Instance.GetRequiredService<IMigrationsAssembly>();
+
+    // ── raw history helpers (the reconciler operates on the real table) ──
 
     private static async Task<List<string>> HistoryRowsAsync(DbContext db)
     {
         var rows = new List<string>();
         var conn = db.Database.GetDbConnection();
-        await conn.OpenAsync();
+        var wasOpen = conn.State == System.Data.ConnectionState.Open;
+        if (!wasOpen) await conn.OpenAsync();
         try
         {
             await using var cmd = conn.CreateCommand();
@@ -42,14 +56,26 @@ public sealed class StaleMigrationHistoryReconcilerTests(PostgresFixture fixture
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync()) rows.Add(reader.GetString(0));
         }
-        finally { await conn.CloseAsync(); }
+        finally { if (!wasOpen) await conn.CloseAsync(); }
         return rows;
     }
+
+    private static Task InsertHistoryRowAsync(DbContext db, string migrationId) =>
+        db.Database.ExecuteSqlRawAsync(
+            """INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion") VALUES ({0}, {1}) ON CONFLICT DO NOTHING""",
+            migrationId, ProductVersion);
+
+    private static Task DeleteHistoryRowAsync(DbContext db, string migrationId) =>
+        db.Database.ExecuteSqlRawAsync("""DELETE FROM "__EFMigrationsHistory" WHERE "MigrationId" = {0}""", migrationId);
+
+    private static Task DropBackupTableAsync(DbContext db) =>
+        db.Database.ExecuteSqlRawAsync($"""DROP TABLE IF EXISTS "{BackupTable}" """);
 
     private static async Task<bool> TableExistsAsync(DbContext db, string table)
     {
         var conn = db.Database.GetDbConnection();
-        await conn.OpenAsync();
+        var wasOpen = conn.State == System.Data.ConnectionState.Open;
+        if (!wasOpen) await conn.OpenAsync();
         try
         {
             await using var cmd = conn.CreateCommand();
@@ -58,8 +84,10 @@ public sealed class StaleMigrationHistoryReconcilerTests(PostgresFixture fixture
             await using var reader = await cmd.ExecuteReaderAsync();
             return await reader.ReadAsync();
         }
-        finally { await conn.CloseAsync(); }
+        finally { if (!wasOpen) await conn.CloseAsync(); }
     }
+
+    // ── tests ──
 
     /// <summary>No stale rows → no-op, returns the signature-absent reason, touches nothing.</summary>
     [Fact]
@@ -78,35 +106,77 @@ public sealed class StaleMigrationHistoryReconcilerTests(PostgresFixture fixture
     }
 
     /// <summary>
-    /// Stale history + a present-and-verifiable baseline → history is rewritten to the baseline, the
-    /// pre-squash backup is created, and nothing in the live schema is touched.
-    /// Simulates post-squash by treating the first real migration as the sole "baseline" and every
-    /// other applied ID as stale.
+    /// Stale history with nothing to re-insert (the baseline is already in history) → backs up,
+    /// deletes the stale row, reconciles. Exercises the signature → backup → delete → commit path.
     /// </summary>
     [Fact]
-    public async Task StaleHistory_BaselinePresent_Reconciles()
+    public async Task StaleHistory_DeletesStaleRow_Reconciles()
     {
         await using var db = fixture.CreateContext();
-        var allReal = db.Database.GetMigrations().ToList();
-        var baselineId = allReal.First(); // InitialCreate — its objects exist in the migrated schema
+        var real = (await db.Database.GetAppliedMigrationsAsync()).ToList();
+        await InsertHistoryRowAsync(db, FakeStaleId);
 
-        // Simulate the squashed assembly: it knows ONLY the baseline.
-        var assemblyIds = new List<string> { baselineId };
-        // Applied (per history) = everything EXCEPT the baseline, so the baseline is "not applied" and
-        // must be verified-present and re-inserted; the rest are stale and must be removed.
-        var appliedIds = allReal.Skip(1).ToList();
+        try
+        {
+            // Assembly knows only the real set; history additionally holds the stale chain ID.
+            var result = await StaleMigrationHistoryReconciler.ReconcileAsync(
+                db, [.. real, FakeStaleId], real, MigrationsAssembly(db), ProductVersion);
 
-        var result = await StaleMigrationHistoryReconciler.ReconcileAsync(
-            db, appliedIds, assemblyIds, MigrationsAssembly(db), ProductVersion);
+            result.Reconciled.Should().BeTrue();
+            result.AbortReason.Should().BeNull();
+            result.StaleRemoved.Should().Be(1);
+            result.BaselineInserted.Should().Be(0);
 
-        result.Reconciled.Should().BeTrue();
-        result.AbortReason.Should().BeNull();
-        result.StaleRemoved.Should().Be(appliedIds.Count);
-        result.BaselineInserted.Should().Be(1);
+            var after = await HistoryRowsAsync(db);
+            after.Should().NotContain(FakeStaleId);
+            after.Should().BeEquivalentTo(real); // back to exactly the real set
+            (await TableExistsAsync(db, BackupTable)).Should().BeTrue();
+        }
+        finally
+        {
+            await DeleteHistoryRowAsync(db, FakeStaleId);
+            await DropBackupTableAsync(db);
+        }
+    }
 
-        // Backup table exists; live schema (e.g. the jobs table) is untouched.
-        (await TableExistsAsync(db, "__EFMigrationsHistory_pre_squash")).Should().BeTrue();
-        (await TableExistsAsync(db, "jobs")).Should().BeTrue();
+    /// <summary>
+    /// Stale history AND a baseline migration absent from history but present in the schema → verifies
+    /// it present, then deletes the stale row and re-inserts the baseline. Exercises the
+    /// verify → insert path using the most recent migration (its objects were not later mutated).
+    /// </summary>
+    [Fact]
+    public async Task StaleHistory_VerifiesAndReInsertsBaseline()
+    {
+        await using var db = fixture.CreateContext();
+        var real = (await db.Database.GetAppliedMigrationsAsync()).ToList();
+        var baselineId = real.Last(); // latest migration — cleanly verifiable
+
+        // Remove the baseline from history (present in schema, absent from history) + add a stale row.
+        await DeleteHistoryRowAsync(db, baselineId);
+        await InsertHistoryRowAsync(db, FakeStaleId);
+
+        try
+        {
+            var applied = real.Take(real.Count - 1).Append(FakeStaleId).ToList(); // history now: real-minus-last + stale
+            var result = await StaleMigrationHistoryReconciler.ReconcileAsync(
+                db, applied, real, MigrationsAssembly(db), ProductVersion);
+
+            result.Reconciled.Should().BeTrue();
+            result.AbortReason.Should().BeNull();
+            result.StaleRemoved.Should().Be(1);
+            result.BaselineInserted.Should().Be(1);
+
+            var after = await HistoryRowsAsync(db);
+            after.Should().Contain(baselineId);
+            after.Should().NotContain(FakeStaleId);
+            after.Should().BeEquivalentTo(real);
+        }
+        finally
+        {
+            await InsertHistoryRowAsync(db, baselineId); // ensure restored even if assertions failed
+            await DeleteHistoryRowAsync(db, FakeStaleId);
+            await DropBackupTableAsync(db);
+        }
     }
 
     /// <summary>
@@ -120,17 +190,16 @@ public sealed class StaleMigrationHistoryReconcilerTests(PostgresFixture fixture
         var before = await HistoryRowsAsync(db);
 
         // Assembly claims a migration that does not exist in the migrations assembly → unverifiable.
-        var assemblyIds = new List<string> { "00000000000000_DoesNotExist" };
-        var appliedIds = before; // all real IDs are "stale" relative to the bogus assembly
+        var bogusBaseline = new List<string> { "00000000000000_DoesNotExist" };
 
         var result = await StaleMigrationHistoryReconciler.ReconcileAsync(
-            db, appliedIds, assemblyIds, MigrationsAssembly(db), ProductVersion);
+            db, before, bogusBaseline, MigrationsAssembly(db), ProductVersion);
 
         result.Reconciled.Should().BeFalse();
         result.AbortReason.Should().Be("unverified-assembly-migration");
         result.UnverifiedAssemblyMigrations.Should().Contain("00000000000000_DoesNotExist");
 
-        // History unchanged; no destructive rewrite occurred.
-        (await HistoryRowsAsync(db)).Should().BeEquivalentTo(before);
+        (await HistoryRowsAsync(db)).Should().BeEquivalentTo(before); // unchanged
+        (await TableExistsAsync(db, BackupTable)).Should().BeFalse(); // abort happens before backup
     }
 }
