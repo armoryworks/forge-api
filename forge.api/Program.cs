@@ -1336,14 +1336,59 @@ try
                 }
                 else
                 {
-                    Log.Information(
-                        "[DB-LIFECYCLE] Migration history intact. Applied: [{AppliedMigrations}]",
-                        string.Join(", ", appliedList.TakeLast(5)));
-                    if (pendingMigrations.Any())
+                    // History is present. Check for STALE history — applied IDs the assembly no longer
+                    // knows. After a migration squash (132 timestamped migrations → one InitialBaseline)
+                    // this is the old chain; without reconciliation EF treats the baseline as pending and
+                    // MigrateAsync re-CREATEs existing tables → boot fails. See
+                    // Forge.Data.Migrations.StaleMigrationHistoryReconciler.
+                    var staleApplied = appliedList.Where(id => !allMigrations.Contains(id)).ToList();
+
+                    if (staleApplied.Any())
+                    {
+                        Log.Warning(
+                            "[DB-LIFECYCLE] ⚠ STALE migration history detected: {StaleCount} applied IDs are " +
+                            "unknown to the assembly (post-squash signature). Verifying the baseline is present " +
+                            "before reconciling history...",
+                            staleApplied.Count);
+
+                        var migrationsAssembly = ((IInfrastructure<IServiceProvider>)db).Instance
+                            .GetRequiredService<IMigrationsAssembly>();
+                        var efVersion = typeof(DbContext).Assembly.GetName().Version?.ToString() ?? "10.0.9";
+
+                        var result = await Forge.Data.Migrations.StaleMigrationHistoryReconciler.ReconcileAsync(
+                            db, appliedList, allMigrations, migrationsAssembly, efVersion);
+
+                        if (result.Reconciled)
+                        {
+                            Log.Warning(
+                                "[DB-LIFECYCLE] History reconciled: removed {Removed} stale rows, inserted " +
+                                "{Inserted} baseline rows. Original rows backed up to " +
+                                "__EFMigrationsHistory_pre_squash. MigrateAsync will apply only genuinely-pending migrations.",
+                                result.StaleRemoved, result.BaselineInserted);
+                        }
+                        else
+                        {
+                            // Fail safe: the baseline did NOT verify present. Do NOT rewrite history;
+                            // leave it untouched and surface the mismatch loudly. MigrateAsync below will
+                            // still run — but against intact history, so it cannot destructively re-create.
+                            Log.Error(
+                                "[DB-LIFECYCLE] ✗ STALE-HISTORY RECONCILE ABORTED ({Reason}). Unverified " +
+                                "assembly migrations: [{Unverified}]. History left UNTOUCHED — investigate a " +
+                                "schema/baseline mismatch before deploying a squashed build to this install.",
+                                result.AbortReason, string.Join(", ", result.UnverifiedAssemblyMigrations));
+                        }
+                    }
+                    else
                     {
                         Log.Information(
-                            "[DB-LIFECYCLE] Pending migrations to apply: [{PendingMigrations}]",
-                            string.Join(", ", pendingMigrations));
+                            "[DB-LIFECYCLE] Migration history intact. Applied: [{AppliedMigrations}]",
+                            string.Join(", ", appliedList.TakeLast(5)));
+                        if (pendingMigrations.Any())
+                        {
+                            Log.Information(
+                                "[DB-LIFECYCLE] Pending migrations to apply: [{PendingMigrations}]",
+                                string.Join(", ", pendingMigrations));
+                        }
                     }
                 }
             }
