@@ -11,6 +11,11 @@ public class GlAccountConfiguration : IEntityTypeConfiguration<GlAccount>
     {
         builder.ToTable("acct_gl_accounts");
 
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.RequiresCostCenter).HasDefaultValueSql("false");
+        builder.Property(e => e.RequiresJob).HasDefaultValueSql("false");
+
         builder.Property(e => e.AccountNumber).HasMaxLength(50).IsRequired();
         builder.Property(e => e.Name).HasMaxLength(200).IsRequired();
         builder.Property(e => e.AccountType).HasConversion<string>().HasMaxLength(20).IsRequired();

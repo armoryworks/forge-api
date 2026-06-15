@@ -8,6 +8,10 @@ public class ShipmentLineConfiguration : IEntityTypeConfiguration<ShipmentLine>
 {
     public void Configure(EntityTypeBuilder<ShipmentLine> builder)
     {
+
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.IsHazmat).HasDefaultValueSql("false");
         builder.Property(e => e.Notes).HasMaxLength(1000);
         builder.Property(e => e.Description).HasMaxLength(500);
         // Phase 3 / WU-23 (F8-broad): decimal(18,4) for UoM-aware fractional qty.

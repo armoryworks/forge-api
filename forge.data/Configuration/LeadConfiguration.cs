@@ -8,6 +8,14 @@ public class LeadConfiguration : IEntityTypeConfiguration<Lead>
 {
     public void Configure(EntityTypeBuilder<Lead> builder)
     {
+
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.EngagementShape).HasDefaultValueSql("0");
+        builder.Property(e => e.OutreachState).HasDefaultValueSql("''");
+        builder.Property(e => e.CapabilityFit).HasDefaultValueSql("''");
+        builder.Property(e => e.ExportControl).HasDefaultValueSql("''");
+        builder.Property(e => e.NdaState).HasDefaultValueSql("''");
         builder.Ignore(e => e.IsDeleted);
 
         builder.Property(e => e.CompanyName).HasMaxLength(200);

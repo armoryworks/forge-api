@@ -8,6 +8,17 @@ public class PartConfiguration : IEntityTypeConfiguration<Part>
 {
     public void Configure(EntityTypeBuilder<Part> builder)
     {
+
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.InspectionFrequency).HasDefaultValueSql("0");
+        builder.Property(e => e.RequiresReceivingInspection).HasDefaultValueSql("false");
+        builder.Property(e => e.ExcludeFromAutoPo).HasDefaultValueSql("false");
+        builder.Property(e => e.SafetyStockQty).HasDefaultValueSql("0");
+        builder.Property(e => e.Name).HasDefaultValueSql("''");
+        builder.Property(e => e.InventoryClass).HasDefaultValueSql("'Component'");
+        builder.Property(e => e.ProcurementSource).HasDefaultValueSql("'Buy'");
+        builder.Property(e => e.TraceabilityType).HasDefaultValueSql("'None'");
         builder.Ignore(e => e.IsDeleted);
         // Phase 3 H2 / WU-12: IActiveAware contract member — derived from Status.
         builder.Ignore(e => e.IsActiveForNewTransactions);

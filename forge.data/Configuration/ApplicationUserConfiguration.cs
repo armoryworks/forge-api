@@ -9,6 +9,12 @@ public class ApplicationUserConfiguration : IEntityTypeConfiguration<Application
 {
     public void Configure(EntityTypeBuilder<ApplicationUser> builder)
     {
+
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.MfaEnabled).HasDefaultValueSql("false");
+        builder.Property(e => e.MfaEnforcedByPolicy).HasDefaultValueSql("false");
+        builder.Property(e => e.MfaRecoveryCodesRemaining).HasDefaultValueSql("0");
         // Phase 3 H2 / WU-12: IActiveAware contract member — derived from IsActive.
         builder.Ignore(e => e.IsActiveForNewTransactions);
 

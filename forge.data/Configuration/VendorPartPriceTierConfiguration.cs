@@ -8,6 +8,10 @@ public class VendorPartPriceTierConfiguration : IEntityTypeConfiguration<VendorP
 {
     public void Configure(EntityTypeBuilder<VendorPartPriceTier> builder)
     {
+
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.FreightIncluded).HasDefaultValueSql("false");
         // Lookup by vendor_part + min_qty is the hot path (price for a given
         // requested qty). Effective-from is also frequently filtered.
         builder.HasIndex(e => new { e.VendorPartId, e.MinQuantity });

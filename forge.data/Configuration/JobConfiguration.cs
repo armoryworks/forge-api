@@ -8,6 +8,14 @@ public class JobConfiguration : IEntityTypeConfiguration<Job>
 {
     public void Configure(EntityTypeBuilder<Job> builder)
     {
+
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.EstimatedBurdenCost).HasDefaultValueSql("0.0");
+        builder.Property(e => e.EstimatedLaborCost).HasDefaultValueSql("0.0");
+        builder.Property(e => e.EstimatedMaterialCost).HasDefaultValueSql("0.0");
+        builder.Property(e => e.EstimatedSubcontractCost).HasDefaultValueSql("0.0");
+        builder.Property(e => e.QuotedPrice).HasDefaultValueSql("0.0");
         builder.Ignore(e => e.IsDeleted);
 
         // WU-11 / TODO E1 — optimistic locking

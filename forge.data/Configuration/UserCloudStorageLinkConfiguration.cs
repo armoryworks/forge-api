@@ -10,6 +10,10 @@ public class UserCloudStorageLinkConfiguration : IEntityTypeConfiguration<UserCl
 {
     public void Configure(EntityTypeBuilder<UserCloudStorageLink> builder)
     {
+
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.UserId).HasDefaultValueSql("0");
         builder.Property(e => e.ExternalUserId).HasMaxLength(500);
         builder.Property(e => e.OAuthTokenEncrypted).HasMaxLength(4000).IsRequired();
         builder.Property(e => e.RefreshTokenEncrypted).HasMaxLength(4000).IsRequired();
