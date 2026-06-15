@@ -71,6 +71,37 @@ public class CapabilityCatalogSeeder(AppDbContext db, ILogger<CapabilityCatalogS
                 "[CAPABILITY-SEED] Catalog seed complete: inserted={Inserted}, refreshed={Refreshed}, total={Total}",
                 inserted, refreshed, CapabilityCatalog.All.Count);
 
+            // Opt-in override: SEED_ENABLE_CAPABILITIES is an explicit,
+            // comma-separated list of capability codes to force-enable after the
+            // catalog seed. Used by the e2e / demo stack to exercise
+            // off-by-default features (e.g. CAP-O2C-LEAD, CAP-EXT-ANNOUNCEMENTS)
+            // without an admin toggling them by hand. It is absent in normal
+            // installs, so the "Enabled is operator-owned" rule above still holds
+            // everywhere the var isn't set. (Catalog rows are saved above, so the
+            // just-inserted rows are queryable here.)
+            var enableCsv = Environment.GetEnvironmentVariable("SEED_ENABLE_CAPABILITIES");
+            if (!string.IsNullOrWhiteSpace(enableCsv))
+            {
+                var codes = enableCsv.Split(
+                    ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                var forced = 0;
+                foreach (var code in codes)
+                {
+                    var row = await db.Capabilities.FirstOrDefaultAsync(c => c.Code == code, ct);
+                    if (row is null)
+                    {
+                        logger.LogWarning(
+                            "[CAPABILITY-SEED] SEED_ENABLE_CAPABILITIES lists unknown code '{Code}' — skipped.", code);
+                        continue;
+                    }
+                    if (!row.Enabled) { row.Enabled = true; forced++; }
+                }
+                if (forced > 0) await db.SaveChangesAsync(ct);
+                logger.LogInformation(
+                    "[CAPABILITY-SEED] SEED_ENABLE_CAPABILITIES force-enabled {Forced} capability(ies) from: {Codes}",
+                    forced, enableCsv);
+            }
+
             // Phase 4 Phase-C — surface catalog drift (edges referencing
             // codes not in the catalog body). Warns once at startup and
             // then silently skips the bad edges at evaluation time.
