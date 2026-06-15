@@ -177,16 +177,24 @@ Do not ask the user — just do it after verifying the build passes.
 - Records for models/value objects — immutable by default
 - Composition over deep inheritance — max 2 levels
 - Integration pattern: interface + real impl + mock impl (e.g., `IAiService` / `OllamaAiService` / `MockAiService`)
-- Entity config: one `IEntityTypeConfiguration<T>` per entity, Fluent API only (no data annotations)
+- Entity mapping: **prefer data annotations / attributes on the entity** (`[Table]`, `[Column]`, `[MaxLength]`, `[Precision]`, `[ForeignKey]`, etc.). Use `OnModelCreating` / `IEntityTypeConfiguration<T>` only for what attributes can't express (global query filters, value converters, composite/filtered indexes). See the schema-ownership note under **Database** below — forge-db owns schema, so EF mapping is deliberately lean.
 
 ### Database (PostgreSQL + EF Core)
+
+> **Schema ownership (direction, in progress).** The `forge-db` repo is becoming the desired-state
+> source of truth for the schema (dacpac-style SQL scripts + a C# harness over Atlas); EF stops
+> generating migrations and becomes a lean query-mapping layer kept in sync by a CI drift-check.
+> This is why entity mapping prefers attributes and `OnModelCreating` is kept minimal. Sequencing:
+> the EF squash (`docs/db/MIGRATION_SQUASH_PLAN.md`) lands first and seeds forge-db. Until that
+> cutover completes, EF migrations remain the live mechanism — see `forge-db/docs/DESIGN.md`.
+
 - `AppDbContext` auto-applies:
   - Snake_case naming for all tables/columns/keys/indexes
   - `SetTimestamps()` — auto-sets `CreatedAt`/`UpdatedAt` on `BaseEntity`; auto-stamps `DeletedBy = CurrentUserId.ToString()` whenever a soft delete is committed (`DeletedAt` modified to non-null) and the handler hasn't already set `DeletedBy`. Soft-delete handlers only need to stamp `DeletedAt`; the audit principal follows automatically. Explicit `DeletedBy` values are never overwritten.
   - `NormalizeDateTimes()` — converts `DateTimeKind.Unspecified` to UTC before save
   - Global query filter: `DeletedAt == null` on all `BaseEntity` types
 - Soft deletes only — no hard deletes (`DeletedAt` timestamp + `DeletedBy` audit principal — auto-populated by `SetTimestamps()`)
-- Fluent API in separate `IEntityTypeConfiguration<T>` classes (no data annotations)
+- Mapping via data annotations on the entity by default; `OnModelCreating` is allowed when necessary (the soft-delete global query filter is the canonical example — EF Core has no attribute equivalent for it).
 - Foreign key indexes explicit on all FK columns
 - `reference_data` table: centralized lookup/dropdown values with `group_id` grouping and immutable `code` field
 - Primary keys: `id` (int, auto-increment). Foreign keys: `{table_singular}_id`
@@ -586,7 +594,6 @@ RecurringOrder, RecurringOrderLine
 - Never use `console.log` in production code
 - Never hardcode z-index values — use `$z-*` variables
 - Never use `try/catch` in controllers — middleware handles exceptions
-- Never use data annotations on entities — use Fluent API configuration
 - Never hard-delete records — always soft delete via `DeletedAt`
 - Never use `mat-error` / inline validation — wrap the disabled submit button with `<app-validation-button>` (stereotype). Do not use `ValidationPopoverDirective` on new code.
 - Never deep-override Material internals with CSS — build a custom component instead
