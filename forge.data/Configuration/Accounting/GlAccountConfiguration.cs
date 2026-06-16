@@ -13,8 +13,8 @@ public class GlAccountConfiguration : IEntityTypeConfiguration<GlAccount>
 
         // Legacy backfill defaults — declared to match the deployed schema so the squashed
         // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
-        builder.Property(e => e.RequiresCostCenter).HasDefaultValueSql("false");
-        builder.Property(e => e.RequiresJob).HasDefaultValueSql("false");
+        builder.Property(e => e.RequiresCostCenter).HasDefaultValueSql("false").ValueGeneratedNever();
+        builder.Property(e => e.RequiresJob).HasDefaultValueSql("false").ValueGeneratedNever();
 
         builder.Property(e => e.AccountNumber).HasMaxLength(50).IsRequired();
         builder.Property(e => e.Name).HasMaxLength(200).IsRequired();

@@ -11,13 +11,13 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
 
         // Legacy backfill defaults — declared to match the deployed schema so the squashed
         // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
-        builder.Property(e => e.IsOnCreditHold).HasDefaultValueSql("false");
-        builder.Property(e => e.IsTaxExempt).HasDefaultValueSql("false");
-        builder.Property(e => e.IsAerospace).HasDefaultValueSql("false");
-        builder.Property(e => e.IsAutomotive).HasDefaultValueSql("false");
-        builder.Property(e => e.IsFdaRegulated).HasDefaultValueSql("false");
-        builder.Property(e => e.IsItarControlled).HasDefaultValueSql("false");
-        builder.Property(e => e.IsReferenceOk).HasDefaultValueSql("false");
+        builder.Property(e => e.IsOnCreditHold).HasDefaultValueSql("false").ValueGeneratedNever();
+        builder.Property(e => e.IsTaxExempt).HasDefaultValueSql("false").ValueGeneratedNever();
+        builder.Property(e => e.IsAerospace).HasDefaultValueSql("false").ValueGeneratedNever();
+        builder.Property(e => e.IsAutomotive).HasDefaultValueSql("false").ValueGeneratedNever();
+        builder.Property(e => e.IsFdaRegulated).HasDefaultValueSql("false").ValueGeneratedNever();
+        builder.Property(e => e.IsItarControlled).HasDefaultValueSql("false").ValueGeneratedNever();
+        builder.Property(e => e.IsReferenceOk).HasDefaultValueSql("false").ValueGeneratedNever();
         builder.Ignore(e => e.IsDeleted);
         // Phase 3 H2 / WU-12: IActiveAware contract member — pure compute.
         builder.Ignore(e => e.IsActiveForNewTransactions);

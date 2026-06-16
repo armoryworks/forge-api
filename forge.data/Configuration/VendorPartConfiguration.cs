@@ -11,7 +11,7 @@ public class VendorPartConfiguration : IEntityTypeConfiguration<VendorPart>
 
         // Legacy backfill defaults — declared to match the deployed schema so the squashed
         // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
-        builder.Property(e => e.Incoterm).HasDefaultValueSql("0");
+        builder.Property(e => e.Incoterm).HasDefaultValueSql("0").ValueGeneratedNever();
         builder.Ignore(e => e.IsDeleted);
 
         // (vendor, part) is unique — at most one VendorPart per vendor-part

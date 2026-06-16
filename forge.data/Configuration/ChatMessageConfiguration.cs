@@ -11,7 +11,7 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
 
         // Legacy backfill defaults — declared to match the deployed schema so the squashed
         // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
-        builder.Property(e => e.ThreadReplyCount).HasDefaultValueSql("0");
+        builder.Property(e => e.ThreadReplyCount).HasDefaultValueSql("0").ValueGeneratedNever();
         builder.HasOne<Forge.Data.Context.ApplicationUser>()
             .WithMany()
             .HasForeignKey(m => m.SenderId)
