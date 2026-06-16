@@ -182,11 +182,14 @@ Do not ask the user — just do it after verifying the build passes.
 ### Database (PostgreSQL + EF Core)
 
 > **Schema ownership (direction, in progress).** The `forge-db` repo is becoming the desired-state
-> source of truth for the schema (dacpac-style SQL scripts + a C# harness over Atlas); EF stops
+> source of truth for the schema (dacpac-style SQL scripts + a C# harness over
+> [stripe/pg-schema-diff](https://github.com/stripe/pg-schema-diff) — MIT, no registration; Atlas
+> was evaluated first but its free tier gates extensions/functions/triggers behind login); EF stops
 > generating migrations and becomes a lean query-mapping layer kept in sync by a CI drift-check.
 > This is why entity mapping prefers attributes and `OnModelCreating` is kept minimal. Sequencing:
-> the EF squash (`docs/db/MIGRATION_SQUASH_PLAN.md`) lands first and seeds forge-db. Until that
-> cutover completes, EF migrations remain the live mechanism — see `forge-db/docs/DESIGN.md`.
+> the EF squash (`docs/db/MIGRATION_SQUASH_PLAN.md`) landed first and seeded forge-db (now built —
+> see `forge-db/docs/DESIGN.md`). Until the deploy-time cutover completes, EF `MigrateAsync()`
+> remains the live mechanism.
 
 - `AppDbContext` auto-applies:
   - Snake_case naming for all tables/columns/keys/indexes

@@ -1,10 +1,13 @@
 # DB Cutover Plan — Migration Squash (+ optional Atlas declarative move)
 
-> **Status: PLAN — not executed.** Awaiting scope decision (Phase 1 only, Phase 1+2, or
-> Phase 1 forever-on-EF). Nothing here touches the Armory Plastics live DB; deployment stays
-> held regardless of this plan.
+> **Status: EXECUTED.** Phase 1 (the squash) merged — forge-api `a8260a75`, PR #18 — and the
+> rebaseline deploy succeeded (the boot reconciler collapsed the live `__EFMigrationsHistory` to the
+> baseline, data intact). Phase 2 (declarative cutover) is now **built in `forge-db`** (PR #1) using
+> **[stripe/pg-schema-diff](https://github.com/stripe/pg-schema-diff)**, NOT Atlas — see §5 and
+> `forge-db/docs/DESIGN.md`. Prod deploy hold otherwise stands. The rest of this doc is preserved as
+> the original decision record.
 >
-> **Context:** `forge-api` has **132 EF Core migrations** (2026-04-10 → 2026-06-13, **121 MB**
+> **Context:** `forge-api` had **132 EF Core migrations** (2026-04-10 → 2026-06-13, **121 MB**
 > of Designer/snapshot files). The squash was deferred because **Armory Plastics is testing on
 > live data** and forge-api runs `MigrateAsync()` on boot — see [[schema-migration-direction]].
 
@@ -136,25 +139,29 @@ drop+recreate). The reconciliation matters only for existing-data installs (Armo
 
 ---
 
-## 5. Phase 2 — Atlas declarative cutover (deferred; sketch only)
+## 5. Phase 2 — declarative cutover (BUILT — see `forge-db`)
 
-When the schema settles (post-go-live) and if scope = B/A-then-2:
+The declarative db-project now lives in `armoryworks/forge-db` (PR #1). What shipped, vs. this
+section's original Atlas sketch:
 
-1. Export the baseline to canonical SQL — the Atlas **desired state** (HCL or `schema.sql`).
-2. Stand up an Atlas project (`atlas.hcl`, dev-DB URL, migrations dir); `atlas migrate diff`
-   replaces `dotnet ef migrations add`; `atlas migrate apply` (or `schema apply`) replaces
-   `MigrateAsync`.
-3. **The thorny design question to resolve then, not now:** EF still needs the C# model. Options
-   are (a) keep EF entity configs as the mapping but stop generating EF migrations (Atlas owns
-   schema; a CI check asserts the EF model snapshot still matches the Atlas state), or (b)
-   scaffold the model from the Atlas schema. This is real design work — out of scope until Phase
-   1 lands and go-live is past.
-4. Boot path: replace `MigrateAsync()` with the Atlas apply step (or run Atlas in CI/deploy and
-   leave boot read-only).
+1. **Engine: [stripe/pg-schema-diff](https://github.com/stripe/pg-schema-diff)** (MIT, no
+   account/registration) — **not Atlas**. Atlas was the first choice (candidate list below), but its
+   free tier gates `CREATE EXTENSION`/`FUNCTION`/`TRIGGER` behind `atlas login` ("available to
+   logged-in users only") — unacceptable for an open-source self-host stack. pg-schema-diff handles
+   our `vector` + identity columns + functions + triggers natively.
+2. **Seed:** `pg_dump --schema-only --no-owner --no-privileges` of a scratch DB built from this
+   squash's `InitialBaseline`, split one-object-per-file into `forge-db/schema/`.
+3. **EF's new role: option (a) below was chosen** — EF keeps the entity mapping (prefer attributes),
+   stops generating migrations; a one-directional **CI drift-check** (still TODO) will assert the EF
+   model conforms to forge-db's `schema/`. (We did NOT scaffold the model from the schema — option b.)
+4. **Boot path (target, owner-gated, not yet cut over):** deploy-time `Forge.Db apply` with a
+   read-only boot (`verify`, refuse-on-drift), replacing `MigrateAsync()`.
 
-Candidates (best-first, from [[schema-migration-direction]]): **Atlas** (declarative, first-class
-Postgres), `migra` (diff engine), pgquarrel/apgdiff. Change-based tools (Sqitch/Flyway/Liquibase)
-are explicitly **not** the target.
+Original candidate ranking (historical, from [[schema-migration-direction]]): **Atlas** (declarative,
+first-class Postgres), `migra` (diff engine), pgquarrel/apgdiff; change-based tools
+(Sqitch/Flyway/Liquibase) were explicitly **not** the target. The outcome differs (pg-schema-diff)
+for the registration reason in #1 — migra is also now deprecated and pgquarrel unmaintained. Full
+rationale + decision table in `forge-db/docs/DESIGN.md` (§4, §7, §9).
 
 ---
 
