@@ -3,6 +3,7 @@ using System.Text.Json;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 using Forge.Api.Features.DomainEvents;
@@ -11,6 +12,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Jobs;
 
@@ -21,6 +23,7 @@ public class MoveJobStageHandler(
     ITrackTypeRepository trackRepo,
     IActivityLogRepository actRepo,
     ICustomerRepository customerRepo,
+    AppDbContext db,
     IAccountingService accountingService,
     ISyncQueueRepository syncQueue,
     IWorkCenterContext workCenterContext,
@@ -56,12 +59,31 @@ public class MoveJobStageHandler(
                 "Documents created at this stage cannot be voided.");
         }
 
+        // Determine completion up front so the F-JQ1 quality gate can block the move before it applies.
+        var allStages = await trackRepo.GetStagesByTrackTypeAsync(job.TrackTypeId, cancellationToken);
+        var lastStage = allStages.OrderByDescending(s => s.SortOrder).FirstOrDefault();
+        var movingToCompletion = lastStage is not null && lastStage.Id == request.StageId;
+
+        // F-JQ1: a job must not advance INTO completion (the final stage) while it has an open NCR or a
+        // failed QC inspection. Checked before the move is applied, so the job stays put rather than
+        // completing with unresolved quality issues. (Scope: gated at the final stage only; an NCR
+        // counts as open at NcrStatus.Open per the audit spec.)
+        if (movingToCompletion)
+        {
+            var hasOpenNcr = await db.NonConformances
+                .AnyAsync(n => n.JobId == job.Id && n.Status == NcrStatus.Open, cancellationToken);
+            var hasFailedInspection = await db.QcInspections
+                .AnyAsync(i => i.JobId == job.Id && i.Status == "Failed", cancellationToken);
+            if (hasOpenNcr || hasFailedInspection)
+                throw new InvalidOperationException(
+                    "Cannot complete this job while it has an open non-conformance (NCR) or a failed QC " +
+                    "inspection. Resolve the open quality issue before advancing to the final stage.");
+        }
+
         job.CurrentStageId = request.StageId;
 
         // Mark job as completed when moved to the final stage of its track
-        var allStages = await trackRepo.GetStagesByTrackTypeAsync(job.TrackTypeId, cancellationToken);
-        var lastStage = allStages.OrderByDescending(s => s.SortOrder).FirstOrDefault();
-        if (lastStage is not null && lastStage.Id == request.StageId)
+        if (movingToCompletion)
         {
             job.CompletedDate = clock.UtcNow;
         }
