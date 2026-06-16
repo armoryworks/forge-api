@@ -180,26 +180,64 @@ public sealed class StaleMigrationHistoryReconcilerTests(PostgresFixture fixture
     }
 
     /// <summary>
-    /// Stale history but a baseline migration the assembly cannot instantiate (cannot be verified) →
-    /// FAIL SAFE: history is left untouched, no backup table is created, the unverified ID is surfaced.
+    /// Stale history but the BASELINE (first assembly migration) cannot be verified present →
+    /// FAIL SAFE: history is left untouched, no backup table is created, the reason is surfaced.
     /// </summary>
     [Fact]
-    public async Task StaleHistory_UnverifiableBaseline_AbortsAndLeavesHistoryUntouched()
+    public async Task StaleHistory_BaselineNotPresent_AbortsAndLeavesHistoryUntouched()
     {
         await using var db = fixture.CreateContext();
         var before = await HistoryRowsAsync(db);
 
-        // Assembly claims a migration that does not exist in the migrations assembly → unverifiable.
+        // The sole assembly migration (the "baseline") does not exist in the assembly → unverifiable,
+        // so the baseline is not present and reconciliation must abort.
         var bogusBaseline = new List<string> { "00000000000000_DoesNotExist" };
 
         var result = await StaleMigrationHistoryReconciler.ReconcileAsync(
             db, before, bogusBaseline, MigrationsAssembly(db), ProductVersion);
 
         result.Reconciled.Should().BeFalse();
-        result.AbortReason.Should().Be("unverified-assembly-migration");
+        result.AbortReason.Should().Be("baseline-not-present");
         result.UnverifiedAssemblyMigrations.Should().Contain("00000000000000_DoesNotExist");
 
         (await HistoryRowsAsync(db)).Should().BeEquivalentTo(before); // unchanged
         (await TableExistsAsync(db, BackupTable)).Should().BeFalse(); // abort happens before backup
+    }
+
+    /// <summary>
+    /// The post-squash reality: stale history, a verified-present baseline, AND a genuinely-new
+    /// migration that is NOT yet applied (its schema change isn't present). The reconciler must
+    /// reconcile to the baseline and leave the new migration PENDING (out of history) so the normal
+    /// MigrateAsync that follows applies it — rather than aborting. Mirrors the DropDeadOutboxColumns
+    /// case on a legacy install.
+    /// </summary>
+    [Fact]
+    public async Task StaleHistory_BaselinePresent_LeavesGenuinelyNewMigrationPending()
+    {
+        await using var db = fixture.CreateContext();
+        var realBaseline = db.Database.GetMigrations().First(); // InitialBaseline — verifies present
+        const string futureId = "99999999999999_NotYetApplied"; // unknown to assembly → cannot verify → pending
+
+        // History holds only a stale row; baseline is absent from history (must be verified present).
+        var applied = new List<string> { FakeStaleId };
+        var assembly = new List<string> { realBaseline, futureId };
+
+        try
+        {
+            var result = await StaleMigrationHistoryReconciler.ReconcileAsync(
+                db, applied, assembly, MigrationsAssembly(db), ProductVersion);
+
+            result.Reconciled.Should().BeTrue();
+            result.AbortReason.Should().BeNull();
+            result.BaselineInserted.Should().Be(1);                 // baseline verified + inserted
+            result.PendingMigrations.Should().ContainSingle()
+                .Which.Should().Be(futureId);                       // new migration left for MigrateAsync
+            (await HistoryRowsAsync(db)).Should().Contain(realBaseline);
+            (await HistoryRowsAsync(db)).Should().NotContain(futureId);
+        }
+        finally
+        {
+            await DropBackupTableAsync(db);
+        }
     }
 }

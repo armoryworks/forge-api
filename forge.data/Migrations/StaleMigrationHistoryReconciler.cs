@@ -27,6 +27,7 @@ public static class StaleMigrationHistoryReconciler
         int StaleRemoved,
         int BaselineInserted,
         IReadOnlyList<string> StaleMigrationIds,
+        IReadOnlyList<string> PendingMigrations,
         IReadOnlyList<string> UnverifiedAssemblyMigrations,
         string? AbortReason);
 
@@ -52,34 +53,38 @@ public static class StaleMigrationHistoryReconciler
         // Signature: applied IDs the assembly no longer knows. After a squash this is the old chain.
         var staleApplied = appliedMigrationIds.Where(id => !assemblySet.Contains(id)).ToList();
         if (staleApplied.Count == 0)
-            return new Result(false, 0, 0, [], [], "no-stale-history");
+            return new Result(false, 0, 0, [], [], [], "no-stale-history");
 
-        // Assembly migrations not yet in history. Post-squash this is the baseline that must be proven
-        // already-present before we rewrite history to claim it.
+        // Assembly migrations not yet in history. Partition them:
+        //   verified → their schema is already present (the baseline the squash collapsed to);
+        //   pending  → genuinely new work not yet applied (e.g. a migration added AFTER the squash).
+        // Pending migrations must NOT block reconciliation — they are left out of history so the normal
+        // MigrateAsync that follows applies them. (Earlier this aborted on any unverified migration,
+        // which wrongly tripped on legitimate post-squash migrations.)
         var assemblyNotApplied = assemblyMigrationIds.Where(id => !appliedSet.Contains(id)).ToList();
 
         var verified = new List<string>();
-        var unverified = new List<string>();
+        var pending = new List<string>();
         foreach (var migrationId in assemblyNotApplied)
         {
-            if (!migrationsAssembly.Migrations.TryGetValue(migrationId, out var typeInfo))
-            {
-                unverified.Add(migrationId);
-                continue;
-            }
-
-            var migration = (Migration)Activator.CreateInstance(typeInfo.AsType())!;
-            if (await MigrationSchemaVerifier.IsMigrationApplied(db, migration, migrationId))
+            if (migrationsAssembly.Migrations.TryGetValue(migrationId, out var typeInfo)
+                && await MigrationSchemaVerifier.IsMigrationApplied(
+                    db, (Migration)Activator.CreateInstance(typeInfo.AsType())!, migrationId))
                 verified.Add(migrationId);
             else
-                unverified.Add(migrationId);
+                pending.Add(migrationId);
         }
 
-        // Fail safe: any unverified baseline migration → leave history untouched, surface the mismatch.
-        if (unverified.Count > 0)
-            return new Result(false, 0, 0, staleApplied, unverified, "unverified-assembly-migration");
+        // Fail safe: the baseline (first assembly migration) MUST be present — already in history, or
+        // verified present now. If it isn't, the live schema doesn't match the baseline; do NOT rewrite
+        // history (a destructive MigrateAsync could follow). Leave everything untouched and surface it.
+        var baselineId = assemblyMigrationIds.Count > 0 ? assemblyMigrationIds[0] : null;
+        var baselinePresent = baselineId != null
+            && (appliedSet.Contains(baselineId) || verified.Contains(baselineId));
+        if (!baselinePresent)
+            return new Result(false, 0, 0, staleApplied, pending, pending, "baseline-not-present");
 
-        // All baseline migrations verified present → rewrite history in one transaction.
+        // Baseline present → rewrite history in one transaction; pending migrations stay out (MigrateAsync applies them).
         var strategy = db.Database.CreateExecutionStrategy();
         await strategy.ExecuteAsync(async () =>
         {
@@ -118,6 +123,6 @@ public static class StaleMigrationHistoryReconciler
             await tx.CommitAsync();
         });
 
-        return new Result(true, staleApplied.Count, verified.Count, staleApplied, [], null);
+        return new Result(true, staleApplied.Count, verified.Count, staleApplied, pending, [], null);
     }
 }

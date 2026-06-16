@@ -1362,9 +1362,11 @@ try
                         {
                             Log.Warning(
                                 "[DB-LIFECYCLE] History reconciled: removed {Removed} stale rows, inserted " +
-                                "{Inserted} baseline rows. Original rows backed up to " +
-                                "__EFMigrationsHistory_pre_squash. MigrateAsync will apply only genuinely-pending migrations.",
-                                result.StaleRemoved, result.BaselineInserted);
+                                "{Inserted} baseline rows, left {Pending} genuinely-new migration(s) pending " +
+                                "[{PendingIds}]. Original rows backed up to __EFMigrationsHistory_pre_squash. " +
+                                "MigrateAsync will apply only the pending migrations.",
+                                result.StaleRemoved, result.BaselineInserted, result.PendingMigrations.Count,
+                                string.Join(", ", result.PendingMigrations));
                         }
                         else
                         {

@@ -80,25 +80,31 @@ public static class MigrationSchemaVerifier
 
     // ── ANSI information_schema queries (Postgres, MSSQL, MySQL) ──
 
+    // Postgres truncates identifiers to NAMEDATALEN-1 = 63 bytes. A migration may declare a
+    // longer constraint/index name (EF emits the full name); the DB stores the 63-char prefix.
+    // Match BOTH so existence checks don't false-negative on long names. For names ≤ 63 the two
+    // forms are identical, so this is harmless on other providers / short names.
+    private static string Trunc(string name) => name.Length > 63 ? name[..63] : name;
+
     private static async Task<bool> TableExists(DbConnection conn, string table, string? schema = null)
     {
         return await ExistsQuery(conn,
-            "SELECT 1 FROM information_schema.tables WHERE table_name = @p0 AND table_schema = @p1",
-            table, schema ?? "public");
+            "SELECT 1 FROM information_schema.tables WHERE table_name IN (@p0, @p1) AND table_schema = @p2",
+            table, Trunc(table), schema ?? "public");
     }
 
     private static async Task<bool> ColumnExists(DbConnection conn, string table, string column, string? schema = null)
     {
         return await ExistsQuery(conn,
-            "SELECT 1 FROM information_schema.columns WHERE table_name = @p0 AND column_name = @p1 AND table_schema = @p2",
-            table, column, schema ?? "public");
+            "SELECT 1 FROM information_schema.columns WHERE table_name IN (@p0, @p1) AND column_name IN (@p2, @p3) AND table_schema = @p4",
+            table, Trunc(table), column, Trunc(column), schema ?? "public");
     }
 
     private static async Task<bool> ConstraintExists(DbConnection conn, string constraint, string? schema = null)
     {
         return await ExistsQuery(conn,
-            "SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = @p0 AND constraint_schema = @p1",
-            constraint, schema ?? "public");
+            "SELECT 1 FROM information_schema.table_constraints WHERE constraint_name IN (@p0, @p1) AND constraint_schema = @p2",
+            constraint, Trunc(constraint), schema ?? "public");
     }
 
     private static async Task<bool> IndexExists(DbConnection conn, string indexName)
@@ -110,15 +116,15 @@ public static class MigrationSchemaVerifier
         if (providerName.Contains("Npgsql", StringComparison.OrdinalIgnoreCase))
         {
             return await ExistsQuery(conn,
-                "SELECT 1 FROM pg_indexes WHERE indexname = @p0",
-                indexName);
+                "SELECT 1 FROM pg_indexes WHERE indexname IN (@p0, @p1)",
+                indexName, Trunc(indexName));
         }
 
         if (providerName.Contains("SqlClient", StringComparison.OrdinalIgnoreCase))
         {
             return await ExistsQuery(conn,
-                "SELECT 1 FROM sys.indexes WHERE name = @p0",
-                indexName);
+                "SELECT 1 FROM sys.indexes WHERE name IN (@p0, @p1)",
+                indexName, Trunc(indexName));
         }
 
         // SQLite / other — indexes aren't reliably introspectable, assume applied
