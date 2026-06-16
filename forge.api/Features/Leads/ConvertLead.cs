@@ -73,6 +73,14 @@ public class ConvertLeadHandler(
         if (lead.Status is LeadStatus.Lost)
             throw new InvalidOperationException("Cannot convert a lost lead.");
 
+        // AUDIT-S6 / BE18-1: one unit of work for the whole conversion. Previously an early
+        // SaveChanges committed the customer on its own, so any later failure (contacts, lead
+        // close-out, the optional CreateJob) left an orphan customer. The intermediate SaveChanges
+        // below still flush — to assign the customer Id the contacts/job FK off — but nothing commits
+        // until tx.CommitAsync. The nested CreateJobCommand runs on this same request-scoped context,
+        // so it joins the transaction. (On the in-memory test provider this is an ignored no-op.)
+        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+
         var data = request.Data;
 
         // Create customer from lead — basic identity fields carry over from
@@ -235,6 +243,8 @@ public class ConvertLeadHandler(
                 jobId = jobResult.Id;
             }
         }
+
+        await tx.CommitAsync(cancellationToken);
 
         return new ConvertLeadResponseModel(customer.Id, jobId);
     }
