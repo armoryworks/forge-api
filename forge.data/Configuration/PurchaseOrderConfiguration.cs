@@ -8,6 +8,11 @@ public class PurchaseOrderConfiguration : IEntityTypeConfiguration<PurchaseOrder
 {
     public void Configure(EntityTypeBuilder<PurchaseOrder> builder)
     {
+
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.IsBlanket).HasDefaultValueSql("false").ValueGeneratedNever();
+        builder.Property(e => e.Incoterm).HasDefaultValueSql("0").ValueGeneratedNever();
         builder.Ignore(e => e.IsDeleted);
         builder.Ignore(e => e.BlanketRemainingQuantity);
 

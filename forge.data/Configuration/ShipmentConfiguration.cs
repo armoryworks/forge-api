@@ -8,6 +8,10 @@ public class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
 {
     public void Configure(EntityTypeBuilder<Shipment> builder)
     {
+
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.SignatureRequired).HasDefaultValueSql("false").ValueGeneratedNever();
         builder.Ignore(e => e.IsDeleted);
 
         // WU-11 / TODO E1 — optimistic locking

@@ -8,6 +8,10 @@ public class SalesTaxRateConfiguration : IEntityTypeConfiguration<SalesTaxRate>
 {
     public void Configure(EntityTypeBuilder<SalesTaxRate> builder)
     {
+
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.ExemptFlag).HasDefaultValueSql("false").ValueGeneratedNever();
         builder.Ignore(e => e.IsDeleted);
 
         builder.Property(e => e.Name).HasMaxLength(100);

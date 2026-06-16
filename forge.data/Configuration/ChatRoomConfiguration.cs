@@ -9,6 +9,12 @@ public class ChatRoomConfiguration : IEntityTypeConfiguration<ChatRoom>
 {
     public void Configure(EntityTypeBuilder<ChatRoom> builder)
     {
+
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.ChannelType).HasDefaultValueSql("''").ValueGeneratedNever();
+        builder.Property(e => e.CreatedBySystem).HasDefaultValueSql("false").ValueGeneratedNever();
+        builder.Property(e => e.IsReadOnly).HasDefaultValueSql("false").ValueGeneratedNever();
         builder.Property(r => r.Name).HasMaxLength(200);
         builder.Property(r => r.Description).HasMaxLength(500);
         builder.Property(r => r.IconName).HasMaxLength(50);

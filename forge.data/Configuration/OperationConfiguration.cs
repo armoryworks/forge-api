@@ -9,6 +9,19 @@ public class OperationConfiguration : IEntityTypeConfiguration<Operation>
 {
     public void Configure(EntityTypeBuilder<Operation> builder)
     {
+
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.IsSubcontract).HasDefaultValueSql("false").ValueGeneratedNever();
+        builder.Property(e => e.OverlapPercent).HasDefaultValueSql("0.0").ValueGeneratedNever();
+        builder.Property(e => e.RunMinutesEach).HasDefaultValueSql("0.0").ValueGeneratedNever();
+        builder.Property(e => e.RunMinutesLot).HasDefaultValueSql("0.0").ValueGeneratedNever();
+        builder.Property(e => e.ScrapFactor).HasDefaultValueSql("0.0").ValueGeneratedNever();
+        builder.Property(e => e.SetupMinutes).HasDefaultValueSql("0.0").ValueGeneratedNever();
+        builder.Property(e => e.BurdenRate).HasDefaultValueSql("0.0").ValueGeneratedNever();
+        builder.Property(e => e.EstimatedBurdenCost).HasDefaultValueSql("0.0").ValueGeneratedNever();
+        builder.Property(e => e.EstimatedLaborCost).HasDefaultValueSql("0.0").ValueGeneratedNever();
+        builder.Property(e => e.LaborRate).HasDefaultValueSql("0.0").ValueGeneratedNever();
         builder.Ignore(e => e.IsDeleted);
 
         builder.Property(e => e.Title).IsRequired().HasMaxLength(200);

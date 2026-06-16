@@ -8,6 +8,13 @@ public class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
 {
     public void Configure(EntityTypeBuilder<TimeEntry> builder)
     {
+
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.BurdenCost).HasDefaultValueSql("0.0").ValueGeneratedNever();
+        builder.Property(e => e.LaborCost).HasDefaultValueSql("0.0").ValueGeneratedNever();
+        builder.Property(e => e.EntryType).HasDefaultValueSql("0").ValueGeneratedNever();
+        builder.Property(e => e.ActualLaborCost).HasDefaultValueSql("0.0").ValueGeneratedNever();
         builder.HasOne(t => t.Job)
             .WithMany()
             .HasForeignKey(t => t.JobId)

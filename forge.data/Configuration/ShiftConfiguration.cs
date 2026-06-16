@@ -9,6 +9,11 @@ public class ShiftConfiguration : IEntityTypeConfiguration<Shift>
 {
     public void Configure(EntityTypeBuilder<Shift> builder)
     {
+
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.CapacityHours).HasDefaultValueSql("0.0").ValueGeneratedNever();
+        builder.Property(e => e.PremiumMultiplier).HasDefaultValueSql("1.0").ValueGeneratedNever();
         builder.Ignore(e => e.IsDeleted);
 
         builder.Property(e => e.Name).IsRequired().HasMaxLength(100);

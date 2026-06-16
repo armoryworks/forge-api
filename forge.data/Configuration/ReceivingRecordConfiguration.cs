@@ -8,6 +8,11 @@ public class ReceivingRecordConfiguration : IEntityTypeConfiguration<ReceivingRe
 {
     public void Configure(EntityTypeBuilder<ReceivingRecord> builder)
     {
+
+        // Legacy backfill defaults — declared to match the deployed schema so the squashed
+        // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.
+        builder.Property(e => e.InspectionStatus).HasDefaultValueSql("0").ValueGeneratedNever();
+        builder.Property(e => e.FreightAllocationMethod).HasDefaultValueSql("0").ValueGeneratedNever();
         builder.Ignore(e => e.IsDeleted);
 
         builder.Property(e => e.ReceivedBy).HasMaxLength(200);

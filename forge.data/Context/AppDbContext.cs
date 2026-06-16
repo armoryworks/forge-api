@@ -555,6 +555,26 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
                 index.SetDatabaseName(ToSnakeCase(index.GetDatabaseName()!));
         }
 
+        // Identity FK constraint names: the deployed schema (created by an older EF version) names
+        // these AspNet* → asp_net_users FKs with a DOUBLE underscore before the principal table;
+        // current EF emits a single underscore. Force the legacy names so the squashed InitialBaseline
+        // reproduces the deployed schema exactly AND the boot reconciler (which verifies FKs by name)
+        // can confirm the baseline is present on existing installs. See docs/db/MIGRATION_SQUASH_PLAN.md §3.3.
+        var legacyIdentityFkNames = new Dictionary<string, string>
+        {
+            ["fk_asp_net_user_claims_asp_net_users_user_id"] = "fk_asp_net_user_claims__asp_net_users_user_id",
+            ["fk_asp_net_user_logins_asp_net_users_user_id"] = "fk_asp_net_user_logins__asp_net_users_user_id",
+            ["fk_asp_net_user_roles_asp_net_users_user_id"] = "fk_asp_net_user_roles__asp_net_users_user_id",
+            ["fk_asp_net_user_tokens_asp_net_users_user_id"] = "fk_asp_net_user_tokens__asp_net_users_user_id",
+        };
+        foreach (var entityType in builder.Model.GetEntityTypes())
+            foreach (var fk in entityType.GetForeignKeys())
+            {
+                var name = fk.GetConstraintName();
+                if (name != null && legacyIdentityFkNames.TryGetValue(name, out var legacy))
+                    fk.SetConstraintName(legacy);
+            }
+
         // Global query filter for soft delete on all BaseAuditableEntity types
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
