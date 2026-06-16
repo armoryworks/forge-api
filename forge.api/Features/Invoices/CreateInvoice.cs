@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -49,7 +51,11 @@ public class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
 public class CreateInvoiceHandler(
     IInvoiceRepository repo,
     ICustomerRepository customerRepo,
-    AppDbContext db)
+    AppDbContext db,
+    // AUDIT-21-S1: optional / null-default so isolated unit-test constructions stay valid; the DI
+    // path supplies both. The QBO enqueue self-gates on a provider being connected.
+    IAccountingService? accountingService = null,
+    ISyncQueueRepository? syncQueue = null)
     : IRequestHandler<CreateInvoiceCommand, InvoiceListItemModel>
 {
     public async Task<InvoiceListItemModel> Handle(CreateInvoiceCommand request, CancellationToken cancellationToken)
@@ -113,6 +119,27 @@ public class CreateInvoiceHandler(
         await repo.SaveChangesAsync(cancellationToken);
 
         var total = invoice.Lines.Sum(l => l.Quantity * l.UnitPrice) * (1 + invoice.TaxRate);
+
+        // AUDIT-21-S1 (BLOCKER): enqueue a QBO sync row so AR reaches the accounting provider —
+        // previously only MoveJobStage enqueued, leaving invoices created any other way invisible to
+        // sync. Only when a provider is actually connected (mirrors MoveJobStage); unlike the job path
+        // we do NOT require the customer to be pre-synced — the sync worker upserts the customer, so a
+        // first invoice for a brand-new customer still syncs.
+        if (accountingService is not null && syncQueue is not null
+            && await accountingService.TestConnectionAsync(cancellationToken))
+        {
+            var document = new AccountingDocument(
+                Type: AccountingDocumentType.Invoice,
+                CustomerExternalId: customer.ExternalId ?? string.Empty,
+                LineItems: invoice.Lines
+                    .Select(l => new AccountingLineItem(l.Description, l.Quantity, l.UnitPrice, ItemExternalId: null))
+                    .ToList(),
+                RefNumber: invoice.InvoiceNumber,
+                Amount: total,
+                Date: invoice.InvoiceDate);
+            await syncQueue.EnqueueAsync("Invoice", invoice.Id, "CreateInvoice",
+                JsonSerializer.Serialize(document), cancellationToken);
+        }
 
         return new InvoiceListItemModel(
             invoice.Id, invoice.InvoiceNumber, invoice.CustomerId, customer.Name,

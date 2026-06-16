@@ -32,8 +32,7 @@ public class InvoicesRemediationTests
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
 
-    [Fact(Skip = "RED: AUDIT-21-S1 / P06-9 — creating an invoice never enqueues a QBO sync row. " +
-                 "Remove Skip when CreateInvoice enqueues a SyncQueueEntry (integrated mode).")]
+    [Fact] // AUDIT-21-S1 / P06-9 (was RED): CreateInvoice now enqueues a QBO SyncQueueEntry.
     public async Task Creating_an_invoice_enqueues_a_sync_row()
     {
         int customerId;
