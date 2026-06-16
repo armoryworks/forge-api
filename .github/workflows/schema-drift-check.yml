@@ -1,0 +1,107 @@
+# Schema drift check — asserts the forge-api EF model still matches forge-db's desired-state schema/.
+#
+# Mechanism (forge-db DESIGN §5): build a scratch DB from the EF model (`dotnet ef database update`),
+# then run forge-db's `Forge.Db verify` against it. pg-schema-diff's plan must be empty AND the
+# explicit pg_extension/pg_proc/pg_trigger check must pass — any drift fails the job. This is the
+# one-directional contract: forge-db is authoritative, so on a mismatch the EF model is wrong.
+#
+# ACTIVATION: forge-db's schema/ tree currently lives on PR #1 (branch feat/db-project-scaffold),
+# not yet on main. Until that merges, run this manually via "Run workflow" (workflow_dispatch) — set
+# forge_db_ref to feat/db-project-scaffold to validate now, or leave it at main. AFTER forge-db#1
+# merges, uncomment the pull_request/push triggers below to make it automatic (and, once green,
+# optionally a required check — branch protection is off pre-beta).
+#
+# REQUIRES a read token for the separate forge-db repo: set secret FORGE_DB_RO_TOKEN (a fine-grained
+# PAT or deploy key with read access to armoryworks/forge-db). If forge-db is public, delete the
+# `token:` line on its checkout step.
+
+name: Schema drift check
+
+on:
+  workflow_dispatch:
+    inputs:
+      forge_db_ref:
+        description: forge-db ref to check the EF model against
+        default: main
+        required: false
+  # --- Uncomment after forge-db#1 merges to run automatically on entity/config changes: ---
+  # pull_request:
+  #   branches: [develop, main]
+  #   paths: ['forge.data/**', 'forge.core/**']
+  # push:
+  #   branches: [develop, main]
+  #   paths: ['forge.data/**', 'forge.core/**']
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  schema-drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        # pgvector, NOT plain postgres — the schema declares the `vector` type, and pg-schema-diff
+        # loads the desired DDL into a temp DB it creates on this server (the postgres superuser has
+        # the CREATEDB it needs).
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: forge_drift
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_URL: "postgres://postgres:postgres@localhost:5432/forge_drift?sslmode=disable"
+      ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=forge_drift;Username=postgres;Password=postgres"
+      Jwt__Key: "ci-drift-check-design-time-dummy-key-0123456789-abcdefghij"
+      ASPNETCORE_ENVIRONMENT: "Development"
+      MockIntegrations: "true"
+
+    steps:
+      - name: Checkout forge-api
+        uses: actions/checkout@v4
+
+      - name: Checkout forge-db (desired-state schema)
+        uses: actions/checkout@v4
+        with:
+          repository: armoryworks/forge-db
+          ref: ${{ github.event.inputs.forge_db_ref || 'main' }}
+          path: forge-db
+          token: ${{ secrets.FORGE_DB_RO_TOKEN }}   # delete this line if forge-db is public
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache: true
+
+      - name: Install pg-schema-diff (pinned)
+        run: |
+          go install github.com/stripe/pg-schema-diff/cmd/pg-schema-diff@v1.0.5
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Install dotnet-ef
+        run: |
+          dotnet tool install --global dotnet-ef
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Build the EF model's schema into the scratch DB
+        run: dotnet ef database update --project forge.data --startup-project forge.api
+
+      - name: Verify EF model conforms to forge-db/schema/ (fails on drift)
+        run: dotnet run --project forge-db/src/Forge.Db -c Release -- verify --db "$DB_URL" --repo forge-db
