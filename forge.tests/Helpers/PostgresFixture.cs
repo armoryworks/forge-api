@@ -59,8 +59,12 @@ public sealed class PostgresFixture : IAsyncLifetime
         if (_container is not null)
             await _container.StartAsync();
 
+        // Schema is created from the forge-db declarative schema (the same path the app boots),
+        // not EF migrations — EF migrations were retired in the db cutover (2026-06-17). This
+        // applies the full schema including the pgvector extension + acct_journal immutability
+        // triggers, which the ledger-trigger/GL-atomicity tests in this collection rely on.
         await using var ctx = CreateContext();
-        await ctx.Database.MigrateAsync();
+        await Forge.Data.SchemaBootstrapper.EnsureSchemaAsync(ctx);
     }
 
     public async Task DisposeAsync()
