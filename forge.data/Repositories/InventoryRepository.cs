@@ -131,6 +131,25 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task<StorageLocation> EnsureDefaultLocationAsync(CancellationToken ct)
+    {
+        var existing = await db.StorageLocations
+            .FirstOrDefaultAsync(l => l.IsDefault && l.DeletedAt == null, ct);
+        if (existing is not null)
+            return existing;
+
+        var main = new StorageLocation
+        {
+            Name = "Main",
+            LocationType = LocationType.Bin,
+            IsActive = true,
+            IsDefault = true,
+        };
+        await db.StorageLocations.AddAsync(main, ct);
+        await db.SaveChangesAsync(ct);
+        return main;
+    }
+
     public async Task<List<BinContentResponseModel>> GetBinContentsAsync(int locationId, CancellationToken ct)
     {
         var contents = await db.BinContents

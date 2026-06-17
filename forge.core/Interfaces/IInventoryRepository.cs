@@ -15,6 +15,13 @@ public interface IInventoryRepository
     Task<bool> BarcodeExistsAsync(string barcode, int? excludeId, CancellationToken ct);
     Task AddLocationAsync(StorageLocation location, CancellationToken ct);
 
+    /// <summary>
+    /// Returns the single default storage location, creating a "Main" bin if none
+    /// exists. Used by single-location mode so manual stock can be tracked without
+    /// the customer choosing a location. Idempotent.
+    /// </summary>
+    Task<StorageLocation> EnsureDefaultLocationAsync(CancellationToken ct);
+
     // Bin contents
     Task<List<BinContentResponseModel>> GetBinContentsAsync(int locationId, CancellationToken ct);
     Task<BinContent?> FindBinContentAsync(int id, CancellationToken ct);

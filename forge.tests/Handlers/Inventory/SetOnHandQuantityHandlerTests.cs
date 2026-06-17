@@ -77,6 +77,30 @@ public class SetOnHandQuantityHandlerTests
         _repo.Verify(r => r.AddBinContentAsync(It.IsAny<BinContent>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact] // Single-location mode: no location supplied -> uses (or creates) the default location.
+    public async Task NoLocationSupplied_usesDefaultLocation()
+    {
+        _repo.Setup(r => r.EnsureDefaultLocationAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StorageLocation { Id = 1, Name = "Main", IsDefault = true });
+        _repo.Setup(r => r.FindActiveBinContentByPartLocationAsync(3, 1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((BinContent?)null);
+        BinContent? added = null;
+        _repo.Setup(r => r.AddBinContentAsync(It.IsAny<BinContent>(), It.IsAny<CancellationToken>()))
+            .Callback<BinContent, CancellationToken>((c, _) => added = c).Returns(Task.CompletedTask);
+        _repo.Setup(r => r.AddMovementAsync(It.IsAny<BinMovement>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var cmd = new SetOnHandQuantityCommand(new SetOnHandQuantityRequestModel(
+            PartId: 3, LocationId: null, Quantity: 40, Reason: "Opening stock",
+            Notes: null, SourcePurchaseOrderId: null, VendorId: null));
+        await _handler.Handle(cmd, CancellationToken.None);
+
+        added.Should().NotBeNull();
+        added!.LocationId.Should().Be(1, "single-location mode places stock at the default location");
+        _repo.Verify(r => r.EnsureDefaultLocationAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _repo.Verify(r => r.FindLocationAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Fact]
     public async Task SettingBelowReservedQuantity_throwsAndPersistsNothing()
     {
