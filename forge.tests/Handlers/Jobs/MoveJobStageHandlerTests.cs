@@ -10,7 +10,9 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 using Forge.Integrations;
+using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Jobs;
 
@@ -21,6 +23,7 @@ public class MoveJobStageHandlerTests
     private readonly Mock<IActivityLogRepository> _actRepo = new();
     private readonly Mock<IMediator> _mediator = new();
     private readonly Mock<IHubContext<BoardHub>> _boardHub = new();
+    private readonly AppDbContext _db = TestDbContextFactory.Create();
     private readonly MoveJobStageHandler _handler;
 
     private readonly Faker _faker = new();
@@ -37,6 +40,7 @@ public class MoveJobStageHandlerTests
             _trackRepo.Object,
             _actRepo.Object,
             Mock.Of<ICustomerRepository>(),
+            _db,
             Mock.Of<IAccountingService>(),
             Mock.Of<ISyncQueueRepository>(),
             Mock.Of<IWorkCenterContext>(),
