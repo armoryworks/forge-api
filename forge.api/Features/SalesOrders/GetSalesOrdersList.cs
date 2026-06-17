@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -17,6 +18,13 @@ namespace Forge.Api.Features.SalesOrders;
 /// This is a query-side projection only — mutations remain on the legacy
 /// <c>/api/v1/orders</c> SalesOrders surface unchanged. Full entity unification
 /// is a future architectural pass (F1-broad).
+///
+/// #25: a Draft <see cref="SalesOrder"/> entity (e.g. fresh from a quote→order
+/// convert) has no confirmed Job yet, so the Job projection alone would hide it and
+/// users think the order "wasn't created." We therefore also surface Draft entity-SOs,
+/// as a LEADING block (pending/actionable orders first) ahead of the Job-projected
+/// production rows. Status="Draft" returns only those; a production status returns
+/// only Job rows; no status returns drafts-then-jobs.
 /// </summary>
 public record GetSalesOrdersListQuery(SalesOrderListQuery Query)
     : IRequest<PagedResponse<SalesOrderListItemModel>>;
@@ -125,8 +133,38 @@ public class GetSalesOrdersListHandler(AppDbContext db)
                 q = q.Where(j => j.CreatedAt <= query.DateTo.Value);
         }
 
-        // — Count BEFORE paging —
-        var totalCount = await q.CountAsync(cancellationToken);
+        // #25 — Draft entity-SO block. A Draft SalesOrder has no confirmed Job, so it's
+        // absent from the Job projection above; surface it here so a freshly-converted
+        // order is visible. Drafts are excluded when the caller filters to a production
+        // status (only "Draft" or no status shows them).
+        var includeDrafts = string.IsNullOrWhiteSpace(query.Status)
+                            || string.Equals(query.Status, "Draft", StringComparison.OrdinalIgnoreCase);
+
+        IQueryable<SalesOrder> draftQuery = db.SalesOrders.AsNoTracking()
+            .Where(o => o.Status == SalesOrderStatus.Draft);
+
+        if (query.CustomerId.HasValue)
+            draftQuery = draftQuery.Where(o => o.CustomerId == query.CustomerId.Value);
+        if (!string.IsNullOrWhiteSpace(query.Q))
+        {
+            var term = query.Q.Trim().ToLower();
+            draftQuery = draftQuery.Where(o =>
+                o.OrderNumber.ToLower().Contains(term) ||
+                o.Customer.Name.ToLower().Contains(term));
+        }
+        if (query.DateFrom.HasValue)
+            draftQuery = useShipDate
+                ? draftQuery.Where(o => o.RequestedDeliveryDate >= query.DateFrom.Value)
+                : draftQuery.Where(o => o.CreatedAt >= query.DateFrom.Value);
+        if (query.DateTo.HasValue)
+            draftQuery = useShipDate
+                ? draftQuery.Where(o => o.RequestedDeliveryDate <= query.DateTo.Value)
+                : draftQuery.Where(o => o.CreatedAt <= query.DateTo.Value);
+
+        // — Counts BEFORE paging — drafts lead, jobs follow.
+        var jobTotal = await q.CountAsync(cancellationToken);
+        var draftTotal = includeDrafts ? await draftQuery.CountAsync(cancellationToken) : 0;
+        var totalCount = draftTotal + jobTotal;
 
         // — Sort (whitelist; default = createdAt desc, stable secondary by Id) —
         var sortKey = (query.Sort ?? "").Trim().ToLowerInvariant();
@@ -145,26 +183,69 @@ public class GetSalesOrdersListHandler(AppDbContext db)
         };
         ordered = ordered.ThenBy(j => j.Id);
 
-        // — Page slice + projection —
-        // Project Job → SalesOrderListItemModel. customerPO has no direct Job
-        // analog (Job has no CustomerPO field) so it's null in the projection;
-        // lineCount uses the count of JobParts as the closest line analog;
-        // total uses Job.QuotedPrice.
-        var items = await ordered
-            .Skip(query.Skip)
-            .Take(query.EffectivePageSize)
-            .Select(j => new SalesOrderListItemModel(
-                j.Id,
-                j.JobNumber,
-                j.CustomerId ?? 0,
-                j.Customer != null ? j.Customer.Name : string.Empty,
-                MapStageCodeToSoStatus(j.CurrentStage.Code),
-                null, // CustomerPO — no Job analog (vestigial SO-only field)
-                j.JobParts.Count(),
-                j.QuotedPrice,
-                j.DueDate,
-                j.CreatedAt))
-            .ToListAsync(cancellationToken);
+        // Draft block sort mirrors the job keys where there's a direct analog; "total"/
+        // "status" fall back to CreatedAt (drafts-first ordering dominates intent anyway).
+        IOrderedQueryable<SalesOrder> draftOrdered = sortKey switch
+        {
+            "ordernumber"             => desc ? draftQuery.OrderByDescending(o => o.OrderNumber)            : draftQuery.OrderBy(o => o.OrderNumber),
+            "customername"            => desc ? draftQuery.OrderByDescending(o => o.Customer.Name)          : draftQuery.OrderBy(o => o.Customer.Name),
+            "requesteddeliverydate"   => desc ? draftQuery.OrderByDescending(o => o.RequestedDeliveryDate)  : draftQuery.OrderBy(o => o.RequestedDeliveryDate),
+            "updatedat"               => desc ? draftQuery.OrderByDescending(o => o.UpdatedAt)              : draftQuery.OrderBy(o => o.UpdatedAt),
+            "id"                      => desc ? draftQuery.OrderByDescending(o => o.Id)                     : draftQuery.OrderBy(o => o.Id),
+            "createdat"               => desc ? draftQuery.OrderByDescending(o => o.CreatedAt)              : draftQuery.OrderBy(o => o.CreatedAt),
+            _                         => draftQuery.OrderByDescending(o => o.CreatedAt),
+        };
+        draftOrdered = draftOrdered.ThenBy(o => o.Id);
+
+        // — Page slice across the two blocks (drafts lead) —
+        var skip = query.Skip;
+        var pageSize = query.EffectivePageSize;
+        var items = new List<SalesOrderListItemModel>(pageSize);
+
+        // Draft portion of this page (real entity-SO ids → rows are directly openable
+        // at /orders/{id}, unlike the Job-projected rows).
+        if (includeDrafts && skip < draftTotal)
+        {
+            var take = Math.Min(pageSize, draftTotal - skip);
+            items.AddRange(await draftOrdered
+                .Skip(skip)
+                .Take(take)
+                .Select(o => new SalesOrderListItemModel(
+                    o.Id,
+                    o.OrderNumber,
+                    o.CustomerId,
+                    o.Customer.Name,
+                    "Draft",
+                    o.CustomerPO,
+                    o.Lines.Count,
+                    o.Lines.Sum(l => l.Quantity * l.UnitPrice),
+                    o.RequestedDeliveryDate,
+                    o.CreatedAt))
+                .ToListAsync(cancellationToken));
+        }
+
+        // Job portion fills the remainder of the page.
+        // customerPO has no Job analog (null); lineCount uses JobParts; total uses QuotedPrice.
+        var remaining = pageSize - items.Count;
+        if (remaining > 0)
+        {
+            var jobSkip = Math.Max(0, skip - draftTotal);
+            items.AddRange(await ordered
+                .Skip(jobSkip)
+                .Take(remaining)
+                .Select(j => new SalesOrderListItemModel(
+                    j.Id,
+                    j.JobNumber,
+                    j.CustomerId ?? 0,
+                    j.Customer != null ? j.Customer.Name : string.Empty,
+                    MapStageCodeToSoStatus(j.CurrentStage.Code),
+                    null, // CustomerPO — no Job analog (vestigial SO-only field)
+                    j.JobParts.Count(),
+                    j.QuotedPrice,
+                    j.DueDate,
+                    j.CreatedAt))
+                .ToListAsync(cancellationToken));
+        }
 
         return new PagedResponse<SalesOrderListItemModel>(
             items,
