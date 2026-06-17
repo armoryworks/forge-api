@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 
+using Forge.Core.Enums;
 using Forge.Data.Context;
 using Forge.Tests.Capabilities;
 
@@ -32,8 +33,7 @@ public class InvoicesRemediationTests
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
 
-    [Fact(Skip = "RED: AUDIT-21-S1 / P06-9 — creating an invoice never enqueues a QBO sync row. " +
-                 "Remove Skip when CreateInvoice enqueues a SyncQueueEntry (integrated mode).")]
+    [Fact] // AUDIT-21-S1 / P06-9 (was RED): CreateInvoice now enqueues a QBO SyncQueueEntry.
     public async Task Creating_an_invoice_enqueues_a_sync_row()
     {
         int customerId;
@@ -60,5 +60,54 @@ public class InvoicesRemediationTests
         var db2 = verify.ServiceProvider.GetRequiredService<AppDbContext>();
         db2.SyncQueueEntries.Any().Should().BeTrue(
             "an AR invoice must enqueue a QBO sync row so accounting stays in sync (today nothing enqueues)");
+    }
+
+    [Fact] // AUDIT-P06-1 / Q2C-BE-8 — invoicing more than has shipped is rejected.
+    public async Task Invoicing_more_than_shipped_is_rejected()
+    {
+        int customerId, salesOrderId, partId;
+        using (var scope = NewScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var customer = new Customer { Name = "P06-1 Customer" };
+            var part = new Part { PartNumber = $"P-INV-{Guid.NewGuid().ToString("N")[..8]}", Name = "Widget" };
+            db.Customers.Add(customer);
+            db.Parts.Add(part);
+            await db.SaveChangesAsync();
+
+            var so = new SalesOrder { CustomerId = customer.Id, Status = SalesOrderStatus.Confirmed };
+            db.SalesOrders.Add(so);
+            await db.SaveChangesAsync();
+
+            db.Shipments.Add(new Shipment
+            {
+                SalesOrderId = so.Id,
+                Status = ShipmentStatus.Shipped,
+                Lines = { new ShipmentLine { PartId = part.Id, Quantity = 5m } },
+            });
+            await db.SaveChangesAsync();
+
+            customerId = customer.Id; salesOrderId = so.Id; partId = part.Id;
+        }
+
+        // 10 requested vs 5 shipped → rejected.
+        var over = JsonContent.Create(new
+        {
+            customerId, salesOrderId,
+            invoiceDate = DateTimeOffset.UtcNow, dueDate = DateTimeOffset.UtcNow.AddDays(30), taxRate = 0m,
+            lines = new[] { new { partId, description = "Widget", quantity = 10m, unitPrice = 10m } },
+        });
+        (await AuthClient().PostAsync("/api/v1/invoices", over)).IsSuccessStatusCode
+            .Should().BeFalse("invoicing 10 when only 5 shipped must be rejected (AUDIT-P06-1)");
+
+        // 5 requested vs 5 shipped → allowed.
+        var ok = JsonContent.Create(new
+        {
+            customerId, salesOrderId,
+            invoiceDate = DateTimeOffset.UtcNow, dueDate = DateTimeOffset.UtcNow.AddDays(30), taxRate = 0m,
+            lines = new[] { new { partId, description = "Widget", quantity = 5m, unitPrice = 10m } },
+        });
+        (await AuthClient().PostAsync("/api/v1/invoices", ok)).IsSuccessStatusCode
+            .Should().BeTrue("invoicing exactly the shipped quantity must be allowed");
     }
 }

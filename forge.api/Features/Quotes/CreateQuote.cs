@@ -32,7 +32,12 @@ public class CreateQuoteValidator : AbstractValidator<CreateQuoteCommand>
     }
 }
 
-public class CreateQuoteHandler(IQuoteRepository repo, ICustomerRepository customerRepo, IPartRepository partRepo)
+public class CreateQuoteHandler(
+    IQuoteRepository repo,
+    ICustomerRepository customerRepo,
+    IPartRepository partRepo,
+    // AUDIT-19-S1: optional/null-default so isolated unit-test constructions stay valid; DI supplies it.
+    Forge.Api.Services.CustomerPriceResolver? priceResolver = null)
     : IRequestHandler<CreateQuoteCommand, QuoteListItemModel>
 {
     public async Task<QuoteListItemModel> Handle(CreateQuoteCommand request, CancellationToken cancellationToken)
@@ -65,12 +70,18 @@ public class CreateQuoteHandler(IQuoteRepository repo, ICustomerRepository custo
                 ActiveCheck.EnsureActive(part, "Part", $"lines[{i}].partId", partId);
             }
 
+            // AUDIT-19-S1: resolve an unset (0) catalog-part price from the customer's price list.
+            var unitPrice = line.UnitPrice;
+            if (unitPrice == 0m && priceResolver is not null && line.PartId is int pricePartId && pricePartId > 0)
+                unitPrice = await priceResolver.ResolveUnitPriceAsync(request.CustomerId, pricePartId, cancellationToken)
+                            ?? unitPrice;
+
             quote.Lines.Add(new QuoteLine
             {
                 PartId = line.PartId,
                 Description = line.Description,
                 Quantity = line.Quantity,
-                UnitPrice = line.UnitPrice,
+                UnitPrice = unitPrice,
                 LineNumber = lineNumber++,
                 Notes = line.Notes,
             });

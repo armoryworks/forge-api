@@ -33,7 +33,9 @@ public class AddQuoteLineHandler(
     IQuoteRepository repo,
     IPartRepository partRepo,
     AppDbContext db,
-    IMediator mediator)
+    IMediator mediator,
+    // AUDIT-19-S1: optional/null-default so isolated unit-test constructions stay valid; DI supplies it.
+    Forge.Api.Services.CustomerPriceResolver? priceResolver = null)
     : IRequestHandler<AddQuoteLineCommand, QuoteDetailResponseModel>
 {
     public async Task<QuoteDetailResponseModel> Handle(AddQuoteLineCommand request, CancellationToken cancellationToken)
@@ -52,19 +54,26 @@ public class AddQuoteLineHandler(
 
         var nextLineNumber = quote.Lines.Count == 0 ? 1 : quote.Lines.Max(l => l.LineNumber) + 1;
 
+        // AUDIT-19-S1: when the caller didn't set a price (0) for a catalog part, resolve it from the
+        // customer's price list so price lists are a live pricing input. An explicit price is kept.
+        var unitPrice = request.Data.UnitPrice;
+        if (unitPrice == 0m && priceResolver is not null && request.Data.PartId is int && request.Data.PartId.Value > 0)
+            unitPrice = await priceResolver.ResolveUnitPriceAsync(quote.CustomerId, request.Data.PartId.Value, cancellationToken)
+                        ?? unitPrice;
+
         quote.Lines.Add(new QuoteLine
         {
             PartId = request.Data.PartId,
             Description = request.Data.Description,
             Quantity = request.Data.Quantity,
-            UnitPrice = request.Data.UnitPrice,
+            UnitPrice = unitPrice,
             LineNumber = nextLineNumber,
             Notes = request.Data.Notes,
         });
 
         db.LogActivityAt(
             "line-added",
-            $"Added quote line {nextLineNumber}: {request.Data.Description} ({request.Data.Quantity} × {request.Data.UnitPrice})",
+            $"Added quote line {nextLineNumber}: {request.Data.Description} ({request.Data.Quantity} × {unitPrice})",
             ("Quote", quote.Id));
 
         await repo.SaveChangesAsync(cancellationToken);

@@ -102,6 +102,23 @@ public class InventoryReliefService(AppDbContext db, ILogger<InventoryReliefServ
                 take, partId, bin.Id, line.Id);
         }
 
+        // S-MV1 (second axis): release the SO-line reservation(s) this shipment fulfils — soft-delete
+        // each reservation and decrement its bin's held quantity (mirrors ReleaseReservationHandler).
+        // The soft-delete global query filter makes this idempotent on re-ship. Full release on ship;
+        // proportional release for partial shipments is a documented follow-up.
+        if (line.SalesOrderLineId is int soLineId)
+        {
+            var reservations = await db.Reservations
+                .Include(r => r.BinContent)
+                .Where(r => r.SalesOrderLineId == soLineId)
+                .ToListAsync(ct);
+            foreach (var res in reservations)
+            {
+                res.DeletedAt = DateTimeOffset.UtcNow;
+                res.BinContent.ReservedQuantity = Math.Max(0, res.BinContent.ReservedQuantity - res.Quantity);
+            }
+        }
+
         line.InventoryRelievedAt = DateTimeOffset.UtcNow;
     }
 }

@@ -107,4 +107,42 @@ public class PurchaseOrdersRemediationTests
         verifyDb.BinContents.Any(b => b.EntityType == "part" && b.EntityId == partId).Should().BeTrue(
             "receiving must stock the part — otherwise on-hand stays at zero while the PO says Received");
     }
+
+    [Fact] // PRI-1/2/3: the inventory-tab receive must stock the part AND advance the PO status.
+    public async Task Inventory_receive_stocks_and_advances_PO_status()
+    {
+        int poId, lineId, partId, locationId;
+        using (var scope = NewScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var part = new Part { PartNumber = $"P-IRCV-{Guid.NewGuid().ToString("N")[..8]}", Name = "Inv Received Part" };
+            var location = new StorageLocation { Name = "Recv Bin", LocationType = LocationType.Bin, IsActive = true };
+            db.Parts.Add(part);
+            db.StorageLocations.Add(location);
+            await db.SaveChangesAsync();
+
+            var po = new PurchaseOrder
+            {
+                VendorId = 1,
+                Status = PurchaseOrderStatus.Submitted,
+                Lines = { new PurchaseOrderLine { PartId = part.Id, Description = "Inv Received Part", OrderedQuantity = 4m, UnitPrice = 1m } },
+            };
+            db.PurchaseOrders.Add(po);
+            await db.SaveChangesAsync();
+
+            poId = po.Id; partId = part.Id; locationId = location.Id; lineId = po.Lines.First().Id;
+        }
+
+        var body = JsonContent.Create(new { purchaseOrderLineId = lineId, quantityReceived = 4m, locationId });
+        (await AuthClient().PostAsync("/api/v1/inventory/receive", body)).IsSuccessStatusCode
+            .Should().BeTrue("the inventory-tab receive must succeed");
+
+        using var verify = NewScope();
+        var db2 = verify.ServiceProvider.GetRequiredService<AppDbContext>();
+        db2.BinContents.Any(b => b.EntityType == "part" && b.EntityId == partId).Should().BeTrue(
+            "the inv-tab receive must stock the part");
+        db2.PurchaseOrders.First(p => p.Id == poId).Status.Should().Be(PurchaseOrderStatus.Received,
+            "fully receiving via the inventory tab must advance the PO to Received (PRI-1/2/3)");
+    }
 }

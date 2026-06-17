@@ -61,6 +61,44 @@ public class ConvertEstimateToQuoteHandlerTests
         newQuote.SourceEstimateId.Should().Be(estimate.Id);
     }
 
+    [Fact] // #24 — line items (incl. lump-sum, PartId == null) must carry into the new quote.
+    public async Task Handle_EstimateWithLines_CopiesLinesIntoQuote()
+    {
+        var customer = new Customer { Name = _faker.Company.CompanyName() };
+        _db.Customers.Add(customer);
+        await _db.SaveChangesAsync();
+
+        var part = new Part { PartNumber = "P-24", Name = "Widget" };
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+
+        var estimate = new Quote
+        {
+            Type = QuoteType.Estimate,
+            Title = "Itemized Estimate",
+            CustomerId = customer.Id,
+            Status = QuoteStatus.Sent,
+            Lines =
+            {
+                new QuoteLine { PartId = part.Id, Description = "Catalog line", Quantity = 2m, UnitPrice = 10m, LineNumber = 1 },
+                new QuoteLine { PartId = null, Description = "Lump-sum line", Quantity = 1m, UnitPrice = 250m, LineNumber = 2 },
+            },
+        };
+        _db.Quotes.Add(estimate);
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new ConvertEstimateToQuoteCommand(estimate.Id), CancellationToken.None);
+
+        result.LineCount.Should().Be(2, "both estimate lines must transition into the quote");
+        result.Total.Should().Be(270m, "2×10 + 1×250");
+
+        var copied = _db.QuoteLines.Where(l => l.QuoteId == result.Id).OrderBy(l => l.LineNumber).ToList();
+        copied.Should().HaveCount(2);
+        copied[0].PartId.Should().Be(part.Id);
+        copied[1].PartId.Should().BeNull("lump-sum lines copy as-is for resolution in the quote editor");
+        copied[1].Description.Should().Be("Lump-sum line");
+    }
+
     [Fact]
     public async Task Handle_NonExistentEstimate_ThrowsKeyNotFoundException()
     {

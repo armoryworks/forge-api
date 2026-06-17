@@ -213,6 +213,54 @@ public class CreateJobHandlerTests
         ), It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact] // #27 — a new job can be associated with an open sales-order line at create time.
+    public async Task Handle_WithSalesOrderLineId_LinksJobToLine()
+    {
+        var stageId = 7;
+        _trackRepo.Setup(r => r.FindFirstActiveStageAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JobStage { Id = stageId, TrackTypeId = 1, Name = "Quote" });
+        _jobRepo.Setup(r => r.GenerateNextJobNumberAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync("JOB-0027");
+        _jobRepo.Setup(r => r.GetMaxBoardPositionAsync(stageId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        var so = new SalesOrder { OrderNumber = "SO-1", CustomerId = 1 };
+        _db.SalesOrders.Add(so);
+        await _db.SaveChangesAsync();
+        var line = new SalesOrderLine { SalesOrderId = so.Id, Description = "Line A", Quantity = 1m, UnitPrice = 5m, LineNumber = 1 };
+        _db.SalesOrderLines.Add(line);
+        await _db.SaveChangesAsync();
+
+        var expectedResult = new JobDetailResponseModel(
+            1, "JOB-0027", "Test", null, 1, "Production",
+            stageId, "Quote", "#94a3b8", null, null, null, null,
+            "Normal", null, null, null, null, null, false, 1, 0, null,
+            null, null, null, null, null, null, null, null, null, null, 0,
+            DateTime.UtcNow, DateTime.UtcNow);
+        _mediator.Setup(m => m.Send(It.IsAny<GetJobByIdQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedResult);
+
+        var command = new CreateJobCommand("Test", null, 1, null, null, null, null, null, line.Id);
+
+        await _handler.Handle(command, CancellationToken.None);
+
+        _jobRepo.Verify(r => r.AddAsync(It.Is<Job>(j =>
+            j.SalesOrderLineId == line.Id), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact] // #27 — a non-existent SO-line association is rejected before the job is created.
+    public async Task Handle_WithUnknownSalesOrderLineId_ThrowsKeyNotFound()
+    {
+        _trackRepo.Setup(r => r.FindFirstActiveStageAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JobStage { Id = 1, TrackTypeId = 1, Name = "Quote" });
+
+        var command = new CreateJobCommand("Test", null, 1, null, null, null, null, null, 99999);
+
+        var act = () => _handler.Handle(command, CancellationToken.None);
+
+        await act.Should().ThrowAsync<KeyNotFoundException>().WithMessage("*Sales order line 99999*");
+    }
+
     [Fact]
     public async Task Handle_BroadcastsSignalREvent()
     {

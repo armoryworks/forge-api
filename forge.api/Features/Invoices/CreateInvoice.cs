@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -49,13 +51,49 @@ public class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
 public class CreateInvoiceHandler(
     IInvoiceRepository repo,
     ICustomerRepository customerRepo,
-    AppDbContext db)
+    AppDbContext db,
+    // AUDIT-21-S1: optional / null-default so isolated unit-test constructions stay valid; the DI
+    // path supplies both. The QBO enqueue self-gates on a provider being connected.
+    IAccountingService? accountingService = null,
+    ISyncQueueRepository? syncQueue = null)
     : IRequestHandler<CreateInvoiceCommand, InvoiceListItemModel>
 {
     public async Task<InvoiceListItemModel> Handle(CreateInvoiceCommand request, CancellationToken cancellationToken)
     {
         var customer = await customerRepo.FindAsync(request.CustomerId, cancellationToken)
             ?? throw new KeyNotFoundException($"Customer {request.CustomerId} not found");
+
+        // AUDIT-P06-1 / Q2C-BE-8: you cannot invoice more than has shipped. When the invoice is tied
+        // to a sales order, cap each part's cumulative invoiced quantity (existing invoices for the SO
+        // + this one) at the quantity shipped for that SO. Lines with no PartId (e.g. freight) aren't
+        // goods-shipment-bound and are skipped.
+        if (request.SalesOrderId is int shippedSoId)
+        {
+            var shippedByPart = await db.ShipmentLines
+                .Where(sl => sl.PartId != null
+                    && sl.Shipment.SalesOrderId == shippedSoId
+                    && sl.Shipment.Status == ShipmentStatus.Shipped)
+                .GroupBy(sl => sl.PartId!.Value)
+                .Select(g => new { PartId = g.Key, Qty = g.Sum(x => x.Quantity) })
+                .ToDictionaryAsync(x => x.PartId, x => x.Qty, cancellationToken);
+
+            var invoicedByPart = await db.InvoiceLines
+                .Where(il => il.PartId != null && il.Invoice.SalesOrderId == shippedSoId)
+                .GroupBy(il => il.PartId!.Value)
+                .Select(g => new { PartId = g.Key, Qty = g.Sum(x => x.Quantity) })
+                .ToDictionaryAsync(x => x.PartId, x => x.Qty, cancellationToken);
+
+            foreach (var grp in request.Lines.Where(l => l.PartId != null).GroupBy(l => l.PartId!.Value))
+            {
+                var requested = grp.Sum(l => l.Quantity);
+                var shipped = shippedByPart.GetValueOrDefault(grp.Key);
+                var already = invoicedByPart.GetValueOrDefault(grp.Key);
+                if (already + requested > shipped)
+                    throw new InvalidOperationException(
+                        $"Cannot invoice {requested} of part {grp.Key}: only {shipped - already} remain " +
+                        $"invoiceable against the shipped quantity ({shipped} shipped, {already} already invoiced).");
+            }
+        }
 
         var invoiceNumber = await repo.GenerateNextInvoiceNumberAsync(cancellationToken);
 
@@ -113,6 +151,27 @@ public class CreateInvoiceHandler(
         await repo.SaveChangesAsync(cancellationToken);
 
         var total = invoice.Lines.Sum(l => l.Quantity * l.UnitPrice) * (1 + invoice.TaxRate);
+
+        // AUDIT-21-S1 (BLOCKER): enqueue a QBO sync row so AR reaches the accounting provider —
+        // previously only MoveJobStage enqueued, leaving invoices created any other way invisible to
+        // sync. Only when a provider is actually connected (mirrors MoveJobStage); unlike the job path
+        // we do NOT require the customer to be pre-synced — the sync worker upserts the customer, so a
+        // first invoice for a brand-new customer still syncs.
+        if (accountingService is not null && syncQueue is not null
+            && await accountingService.TestConnectionAsync(cancellationToken))
+        {
+            var document = new AccountingDocument(
+                Type: AccountingDocumentType.Invoice,
+                CustomerExternalId: customer.ExternalId ?? string.Empty,
+                LineItems: invoice.Lines
+                    .Select(l => new AccountingLineItem(l.Description, l.Quantity, l.UnitPrice, ItemExternalId: null))
+                    .ToList(),
+                RefNumber: invoice.InvoiceNumber,
+                Amount: total,
+                Date: invoice.InvoiceDate);
+            await syncQueue.EnqueueAsync("Invoice", invoice.Id, "CreateInvoice",
+                JsonSerializer.Serialize(document), cancellationToken);
+        }
 
         return new InvoiceListItemModel(
             invoice.Id, invoice.InvoiceNumber, invoice.CustomerId, customer.Name,

@@ -55,6 +55,34 @@ public class PaymentsRemediationTests
         return payment.Id;
     }
 
+    [Fact] // AUDIT-21-S1 — creating a payment must enqueue a QBO sync row (AR cash receipts reach accounting).
+    public async Task Creating_a_payment_enqueues_a_sync_row()
+    {
+        int customerId;
+        using (var scope = NewScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var customer = new Customer { Name = "AUDIT21-Payment" };
+            db.Customers.Add(customer);
+            await db.SaveChangesAsync();
+            customerId = customer.Id;
+        }
+
+        var body = JsonContent.Create(new
+        {
+            customerId,
+            method = "Check",
+            amount = 100m,
+            paymentDate = DateTimeOffset.UtcNow,
+        });
+        await AuthClient().PostAsync("/api/v1/payments", body);
+
+        using var verify = NewScope();
+        var db2 = verify.ServiceProvider.GetRequiredService<AppDbContext>();
+        db2.SyncQueueEntries.Any(e => e.EntityType == "Payment").Should().BeTrue(
+            "an AR payment must enqueue a QBO sync row so accounting stays in sync (today nothing enqueues)");
+    }
+
     [Fact] // P06-5 GREEN — a recorded payment can be amended (policy: full)
     public async Task Payment_can_be_amended()
     {

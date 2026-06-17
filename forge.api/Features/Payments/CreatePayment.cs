@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 
 using FluentValidation;
 using MediatR;
@@ -65,7 +66,11 @@ public class CreatePaymentHandler(
     // supplies both; with CAP-ACCT-FULLGL off the posting service no-ops anyway
     // (mirrors SendInvoice's STAGE A wiring).
     IPaymentCashPostingService? cashPosting = null,
-    IHttpContextAccessor? httpContextAccessor = null)
+    IHttpContextAccessor? httpContextAccessor = null,
+    // AUDIT-21-S1: same optional/null-default pattern — DI supplies both; the QBO enqueue self-gates
+    // on a provider being connected.
+    IAccountingService? accountingService = null,
+    ISyncQueueRepository? syncQueue = null)
     : IRequestHandler<CreatePaymentCommand, PaymentListItemModel>
 {
     public async Task<PaymentListItemModel> Handle(CreatePaymentCommand request, CancellationToken cancellationToken)
@@ -198,6 +203,21 @@ public class CreatePaymentHandler(
                     : 0;
 
             await cashPosting.PostPaymentCreatedAsync(payment.Id, createdByUserId, cancellationToken);
+        }
+
+        // AUDIT-21-S1 (BLOCKER): enqueue a QBO payment sync row so AR cash receipts reach the
+        // accounting provider — before this only MoveJobStage enqueued, leaving payments invisible to
+        // sync. Inside the open transaction so the sync row commits/rolls back with the payment.
+        if (accountingService is not null && syncQueue is not null
+            && await accountingService.TestConnectionAsync(cancellationToken))
+        {
+            var accountingPayment = new AccountingPayment(
+                ExternalId: customer.ExternalId ?? string.Empty,
+                Amount: payment.Amount,
+                Date: payment.PaymentDate,
+                Method: payment.Method.ToString());
+            await syncQueue.EnqueueAsync("Payment", payment.Id, "CreatePayment",
+                JsonSerializer.Serialize(accountingPayment), cancellationToken);
         }
 
         await tx.CommitAsync(cancellationToken);
