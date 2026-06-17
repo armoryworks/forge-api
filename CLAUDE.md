@@ -181,15 +181,24 @@ Do not ask the user — just do it after verifying the build passes.
 
 ### Database (PostgreSQL + EF Core)
 
-> **Schema ownership (direction, in progress).** The `forge-db` repo is becoming the desired-state
-> source of truth for the schema (dacpac-style SQL scripts + a C# harness over
+> **Schema ownership (forge-db; EF migrations RETIRED 2026-06-17).** The `forge-db` repo is the
+> desired-state source of truth for the schema (dacpac-style SQL scripts + a C# harness over
 > [stripe/pg-schema-diff](https://github.com/stripe/pg-schema-diff) — MIT, no registration; Atlas
-> was evaluated first but its free tier gates extensions/functions/triggers behind login); EF stops
-> generating migrations and becomes a lean query-mapping layer kept in sync by a CI drift-check.
-> This is why entity mapping prefers attributes and `OnModelCreating` is kept minimal. Sequencing:
-> the EF squash (`docs/db/MIGRATION_SQUASH_PLAN.md`) landed first and seeded forge-db (now built —
-> see `forge-db/docs/DESIGN.md`). Until the deploy-time cutover completes, EF `MigrateAsync()`
-> remains the live mechanism.
+> was evaluated first but its free tier gates extensions/functions/triggers behind login). **EF Core
+> no longer has migrations** — it is a lean query-mapping layer only. At boot, `SchemaBootstrapper`
+> (in `forge.data`) applies the embedded `forge.data/Schema/forge-schema.sql` (assembled from
+> forge-db's `schema/` tree, including the pgvector extension + acct_journal immutability triggers
+> EF's model can't express) on a fresh DB, and is a no-op on an existing DB. This is why entity
+> mapping prefers attributes and `OnModelCreating` is kept minimal.
+>
+> **Do NOT add EF migrations or call `MigrateAsync`/`dotnet ef migrations add`.** All schema changes
+> go through forge-db; then regenerate the embedded SQL:
+> `forge-db assemble --repo <forge-db> --out forge.data/Schema/forge-schema.sql`. The
+> `schema-drift-check` workflow asserts the embedded SQL stays in sync with forge-db; the
+> Postgres-backed test collection (`PostgresFixture`, which applies the same schema) catches
+> EF-model-vs-schema drift. History: the EF squash (`docs/db/MIGRATION_SQUASH_PLAN.md`) seeded
+> forge-db (`forge-db/docs/DESIGN.md`); the cutover removed the migration files + the squash
+> reconciler/verifier once 0.1.0 was deployed to all installs.
 
 - `AppDbContext` auto-applies:
   - Snake_case naming for all tables/columns/keys/indexes

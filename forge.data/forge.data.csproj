@@ -5,6 +5,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Declarative schema (assembled from the forge-db schema/ tree via `forge-db assemble`).
+         Applied by SchemaBootstrapper on a fresh DB; EF Core no longer owns migrations. -->
+    <EmbeddedResource Include="Schema\forge-schema.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Forge.Core.Entities" />
     <Using Include="Forge.Core.Interfaces" />
   </ItemGroup>

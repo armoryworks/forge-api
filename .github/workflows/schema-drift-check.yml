@@ -1,15 +1,22 @@
-# Schema drift check — asserts the forge-api EF model still matches forge-db's desired-state schema/.
+# Schema drift check — asserts the committed embedded schema is in sync with forge-db's source.
 #
-# Mechanism (forge-db DESIGN §5): build a scratch DB from the EF model (`dotnet ef database update`),
-# then run forge-db's `Forge.Db verify` against it. pg-schema-diff's plan must be empty AND the
-# explicit pg_extension/pg_proc/pg_trigger check must pass — any drift fails the job. This is the
-# one-directional contract: forge-db is authoritative, so on a mismatch the EF model is wrong.
+# Since the db cutover (2026-06-17), forge-api no longer uses EF migrations: it applies the
+# declarative schema at boot via SchemaBootstrapper, reading the embedded
+# `forge.data/Schema/forge-schema.sql`. That file is the assembled output of forge-db's `schema/`
+# tree, so it MUST be regenerated whenever forge-db's schema changes:
+#
+#   forge-db assemble --repo <forge-db> --out forge.data/Schema/forge-schema.sql
+#
+# This job re-assembles forge-db and fails if the committed embedded SQL differs (i.e. someone
+# changed forge-db's schema without regenerating the embedded artifact). The complementary
+# invariant — that the EF model still maps cleanly onto this schema — is covered by the
+# Postgres-backed test collection, which runs real queries against the schema this file produces.
 #
 # ACTIVATION: forge-db's schema/ tree currently lives on PR #1 (branch feat/db-project-scaffold),
 # not yet on main. Until that merges, run this manually via "Run workflow" (workflow_dispatch) — set
-# forge_db_ref to feat/db-project-scaffold to validate now, or leave it at main. AFTER forge-db#1
-# merges, uncomment the pull_request/push triggers below to make it automatic (and, once green,
-# optionally a required check — branch protection is off pre-beta).
+# forge_db_ref to feat/db-project-scaffold. AFTER forge-db#1 merges, uncomment the pull_request/push
+# triggers below to make it automatic (and optionally a required check — branch protection is off
+# pre-beta).
 #
 # REQUIRES a read token for the separate forge-db repo: set secret FORGE_DB_RO_TOKEN (a fine-grained
 # PAT or deploy key with read access to armoryworks/forge-db). If forge-db is public, delete the
@@ -21,16 +28,16 @@ on:
   workflow_dispatch:
     inputs:
       forge_db_ref:
-        description: forge-db ref to check the EF model against
+        description: forge-db ref to assemble the desired-state schema from
         default: main
         required: false
-  # --- Uncomment after forge-db#1 merges to run automatically on entity/config changes: ---
+  # --- Uncomment after forge-db#1 merges to run automatically on schema/embedded-SQL changes: ---
   # pull_request:
   #   branches: [develop, main]
-  #   paths: ['forge.data/**', 'forge.core/**']
+  #   paths: ['forge.data/Schema/**', 'forge.data/**', 'forge.core/**']
   # push:
   #   branches: [develop, main]
-  #   paths: ['forge.data/**', 'forge.core/**']
+  #   paths: ['forge.data/Schema/**', 'forge.data/**', 'forge.core/**']
 
 permissions:
   contents: read
@@ -39,33 +46,9 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  schema-drift:
+  schema-sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    services:
-      postgres:
-        # pgvector, NOT plain postgres — the schema declares the `vector` type, and pg-schema-diff
-        # loads the desired DDL into a temp DB it creates on this server (the postgres superuser has
-        # the CREATEDB it needs).
-        image: pgvector/pgvector:pg17
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: forge_drift
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      DB_URL: "postgres://postgres:postgres@localhost:5432/forge_drift?sslmode=disable"
-      ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=forge_drift;Username=postgres;Password=postgres"
-      Jwt__Key: "ci-drift-check-design-time-dummy-key-0123456789-abcdefghij"
-      ASPNETCORE_ENVIRONMENT: "Development"
-      MockIntegrations: "true"
+    timeout-minutes: 10
 
     steps:
       - name: Checkout forge-api
@@ -84,24 +67,14 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.26.x'
-          cache: true
+      - name: Assemble forge-db desired state
+        run: dotnet run --project forge-db/src/Forge.Db -c Release -- assemble --repo forge-db --out /tmp/forge-schema.sql
 
-      - name: Install pg-schema-diff (pinned)
+      - name: Assert embedded schema matches forge-db (fails on drift)
         run: |
-          go install github.com/stripe/pg-schema-diff/cmd/pg-schema-diff@v1.0.5
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-
-      - name: Install dotnet-ef
-        run: |
-          dotnet tool install --global dotnet-ef
-          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
-
-      - name: Build the EF model's schema into the scratch DB
-        run: dotnet ef database update --project forge.data --startup-project forge.api
-
-      - name: Verify EF model conforms to forge-db/schema/ (fails on drift)
-        run: dotnet run --project forge-db/src/Forge.Db -c Release -- verify --db "$DB_URL" --repo forge-db
+          if ! diff -u forge.data/Schema/forge-schema.sql /tmp/forge-schema.sql; then
+            echo "::error::Embedded schema forge.data/Schema/forge-schema.sql is stale vs forge-db."
+            echo "::error::Regenerate it: forge-db assemble --repo <forge-db> --out forge.data/Schema/forge-schema.sql"
+            exit 1
+          fi
+          echo "Embedded schema matches forge-db's schema/ tree."
