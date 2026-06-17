@@ -63,6 +63,38 @@ public class CreateInvoiceHandler(
         var customer = await customerRepo.FindAsync(request.CustomerId, cancellationToken)
             ?? throw new KeyNotFoundException($"Customer {request.CustomerId} not found");
 
+        // AUDIT-P06-1 / Q2C-BE-8: you cannot invoice more than has shipped. When the invoice is tied
+        // to a sales order, cap each part's cumulative invoiced quantity (existing invoices for the SO
+        // + this one) at the quantity shipped for that SO. Lines with no PartId (e.g. freight) aren't
+        // goods-shipment-bound and are skipped.
+        if (request.SalesOrderId is int shippedSoId)
+        {
+            var shippedByPart = await db.ShipmentLines
+                .Where(sl => sl.PartId != null
+                    && sl.Shipment.SalesOrderId == shippedSoId
+                    && sl.Shipment.Status == ShipmentStatus.Shipped)
+                .GroupBy(sl => sl.PartId!.Value)
+                .Select(g => new { PartId = g.Key, Qty = g.Sum(x => x.Quantity) })
+                .ToDictionaryAsync(x => x.PartId, x => x.Qty, cancellationToken);
+
+            var invoicedByPart = await db.InvoiceLines
+                .Where(il => il.PartId != null && il.Invoice.SalesOrderId == shippedSoId)
+                .GroupBy(il => il.PartId!.Value)
+                .Select(g => new { PartId = g.Key, Qty = g.Sum(x => x.Quantity) })
+                .ToDictionaryAsync(x => x.PartId, x => x.Qty, cancellationToken);
+
+            foreach (var grp in request.Lines.Where(l => l.PartId != null).GroupBy(l => l.PartId!.Value))
+            {
+                var requested = grp.Sum(l => l.Quantity);
+                var shipped = shippedByPart.GetValueOrDefault(grp.Key);
+                var already = invoicedByPart.GetValueOrDefault(grp.Key);
+                if (already + requested > shipped)
+                    throw new InvalidOperationException(
+                        $"Cannot invoice {requested} of part {grp.Key}: only {shipped - already} remain " +
+                        $"invoiceable against the shipped quantity ({shipped} shipped, {already} already invoiced).");
+            }
+        }
+
         var invoiceNumber = await repo.GenerateNextInvoiceNumberAsync(cancellationToken);
 
         CreditTerms? creditTerms = request.CreditTerms != null
