@@ -20,6 +20,10 @@ public class ReceivePurchaseOrderCommandValidator : AbstractValidator<ReceivePur
         RuleFor(x => x.Data.PurchaseOrderLineId).GreaterThan(0);
         // Phase 3 / WU-23 (F8-broad): decimal quantity supports fractional UoM.
         RuleFor(x => x.Data.QuantityReceived).GreaterThan(0m);
+        // PRI-1/2/3: a location is required when receiving stock, so the receive always stocks
+        // (no notify-without-stock) and on-hand actually rises.
+        RuleFor(x => x.Data.LocationId)
+            .NotNull().WithMessage("A storage location is required when receiving stock into inventory.");
     }
 }
 
@@ -105,11 +109,24 @@ public class ReceivePurchaseOrderHandler(
             await inventoryRepo.AddMovementAsync(movement, cancellationToken);
         }
 
-        await poRepo.SaveChangesAsync(cancellationToken);
+        // PRI-1/2/3: advance the PO status — the inv-tab receive previously stocked but never advanced
+        // status (notify-XOR-stock), so a fully-received PO stayed open. The PO + its lines are tracked
+        // and `line` above is the same tracked instance, so the updated ReceivedQuantity is reflected.
+        var po = await poRepo.FindWithDetailsAsync(line.PurchaseOrderId, cancellationToken);
+        if (po is not null)
+        {
+            if (po.Lines.All(l => l.RemainingQuantity <= 0))
+            {
+                po.Status = PurchaseOrderStatus.Received;
+                po.ReceivedDate = DateTimeOffset.UtcNow;
+            }
+            else if (po.Lines.Any(l => l.ReceivedQuantity > 0))
+            {
+                po.Status = PurchaseOrderStatus.PartiallyReceived;
+            }
+        }
 
-        // Load PO info for response
-        var po = await poRepo.FindWithDetailsAsync(
-            line.PurchaseOrderId, cancellationToken);
+        await poRepo.SaveChangesAsync(cancellationToken);
 
         return new ReceivingRecordResponseModel(
             record.Id,
