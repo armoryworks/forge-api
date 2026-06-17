@@ -32,6 +32,21 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// #27 — sales-order lines available to associate with a new job. Defaults to lines
+    /// not actively assigned to an open job; <c>includeAssigned=true</c> surfaces the rest.
+    /// </summary>
+    [HttpGet("assignable-lines")]
+    public async Task<ActionResult<List<AssignableSalesOrderLineModel>>> GetAssignableLines(
+        [FromQuery] bool includeAssigned = false,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await mediator.Send(
+            new GetAssignableSalesOrderLinesQuery(includeAssigned, search), cancellationToken);
+        return Ok(result);
+    }
+
     [HttpPost]
     public async Task<ActionResult<SalesOrderListItemModel>> CreateSalesOrder(CreateSalesOrderRequestModel request)
     {

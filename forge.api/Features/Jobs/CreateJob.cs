@@ -22,7 +22,9 @@ public record CreateJobCommand(
     int? CustomerId,
     JobPriority? Priority,
     DateTimeOffset? DueDate,
-    int? PartId = null) : IRequest<JobDetailResponseModel>;
+    int? PartId = null,
+    // #27: optionally associate the new job with an open sales-order line at create time.
+    int? SalesOrderLineId = null) : IRequest<JobDetailResponseModel>;
 
 public class CreateJobCommandValidator : AbstractValidator<CreateJobCommand>
 {
@@ -52,6 +54,14 @@ public class CreateJobHandler(
         if (request.AssigneeId.HasValue)
             await AssigneeComplianceCheck.EnsureCanBeAssigned(db, request.AssigneeId.Value, cancellationToken);
 
+        // #27: validate the optional SO-line association before creating the job.
+        if (request.SalesOrderLineId is int soLineId)
+        {
+            var soLineExists = await db.SalesOrderLines.AnyAsync(l => l.Id == soLineId, cancellationToken);
+            if (!soLineExists)
+                throw new KeyNotFoundException($"Sales order line {soLineId} not found.");
+        }
+
         var firstStage = await trackRepo.FindFirstActiveStageAsync(request.TrackTypeId, cancellationToken)
             ?? throw new KeyNotFoundException($"No active stages found for TrackType {request.TrackTypeId}.");
 
@@ -71,6 +81,7 @@ public class CreateJobHandler(
             DueDate = request.DueDate,
             BoardPosition = maxPosition + 1,
             PartId = request.PartId,
+            SalesOrderLineId = request.SalesOrderLineId,
         };
 
         // Phase 3 H4 / WU-20 — if this job is being released against a
@@ -90,7 +101,9 @@ public class CreateJobHandler(
         job.ActivityLogs.Add(new JobActivityLog
         {
             Action = ActivityAction.Created,
-            Description = $"Job {jobNumber} created.",
+            Description = request.SalesOrderLineId is int linkedLineId
+                ? $"Job {jobNumber} created (linked to SO line #{linkedLineId})."
+                : $"Job {jobNumber} created.",
         });
 
         await jobRepo.AddAsync(job, cancellationToken);

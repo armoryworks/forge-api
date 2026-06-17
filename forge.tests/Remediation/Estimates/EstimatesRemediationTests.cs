@@ -32,17 +32,20 @@ public class EstimatesRemediationTests
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
 
-    [Fact(Skip = "RED: BE-3 — converting an estimate yields a zero-line quote; the EstimatedAmount " +
-                 "is not carried onto a quote line. Remove Skip when the converted quote has ≥1 line.")]
+    [Fact] // GREEN (BE-3 / #24): an un-itemized estimate's EstimatedAmount becomes a lump-sum quote line.
     public async Task Converting_an_estimate_produces_a_quote_with_at_least_one_line()
     {
         int estimateId;
         using (var scope = NewScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var customer = new Customer { Name = "BE3 Customer" };
+            db.Customers.Add(customer);
+            await db.SaveChangesAsync();
+
             var estimate = new Quote
             {
-                CustomerId = 1,
+                CustomerId = customer.Id,
                 Type = QuoteType.Estimate,
                 Status = QuoteStatus.Accepted,
                 Title = "BE3-Estimate",
