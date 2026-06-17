@@ -32,6 +32,15 @@ public class QuotesController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// AUDIT-19-S1: the customer-specific price-list unit price for a part (null if none). Line
+    /// dialogs call this on part-select to pre-fill the price (forge-ui#26).
+    /// </summary>
+    [HttpGet("resolve-price")]
+    public async Task<ActionResult<decimal?>> ResolvePrice(
+        [FromQuery] int customerId, [FromQuery] int partId, CancellationToken ct)
+        => Ok(await mediator.Send(new ResolvePartPriceQuery(customerId, partId), ct));
+
     [HttpPost]
     public async Task<ActionResult<QuoteListItemModel>> CreateQuote(CreateQuoteRequestModel request)
     {
