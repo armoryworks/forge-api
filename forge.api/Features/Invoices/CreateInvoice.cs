@@ -63,6 +63,13 @@ public class CreateInvoiceHandler(
         var customer = await customerRepo.FindAsync(request.CustomerId, cancellationToken)
             ?? throw new KeyNotFoundException($"Customer {request.CustomerId} not found");
 
+        // INV-IN2: one invoice per shipment (a unique index enforces it). Guard here
+        // so a double-invoice returns a clean 409 instead of a DbUpdateException 500.
+        if (request.ShipmentId is int shipmentId
+            && await db.Invoices.AnyAsync(i => i.ShipmentId == shipmentId, cancellationToken))
+            throw new InvalidOperationException(
+                $"Shipment {shipmentId} has already been invoiced — each shipment can be invoiced once.");
+
         // AUDIT-P06-1 / Q2C-BE-8: you cannot invoice more than has shipped. When the invoice is tied
         // to a sales order, cap each part's cumulative invoiced quantity (existing invoices for the SO
         // + this one) at the quantity shipped for that SO. Lines with no PartId (e.g. freight) aren't

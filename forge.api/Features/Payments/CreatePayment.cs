@@ -102,6 +102,8 @@ public class CreatePaymentHandler(
         };
 
         decimal appliedTotal = 0;
+        // SOs whose invoice(s) became fully paid in this payment — completion candidates.
+        var completionCandidateSoIds = new HashSet<int>();
 
         if (request.Applications != null)
         {
@@ -145,7 +147,10 @@ public class CreatePaymentHandler(
                 // Update invoice status
                 var newBalance = balanceDue - app.Amount;
                 if (newBalance <= 0)
+                {
                     invoice.Status = InvoiceStatus.Paid;
+                    if (invoice.SalesOrderId is int paidSoId) completionCandidateSoIds.Add(paidSoId);
+                }
                 else if (invoice.Status == InvoiceStatus.Sent || invoice.Status == InvoiceStatus.Overdue)
                     invoice.Status = InvoiceStatus.PartiallyPaid;
 
@@ -182,6 +187,29 @@ public class CreatePaymentHandler(
             }
 
             throw new InvalidOperationException("Concurrent payment conflict — please retry.");
+        }
+
+        // ── Order-to-cash completion. An order that is fully shipped with all its
+        // (non-voided) invoices paid is done — advance it to Completed, the terminal
+        // O2C state the prior pipeline never set (CreateShipment only reaches Shipped).
+        // Runs after the invoice-Paid flush so the statuses checked here are committed.
+        if (completionCandidateSoIds.Count > 0)
+        {
+            var anyCompleted = false;
+            foreach (var soId in completionCandidateSoIds)
+            {
+                var so = await db.SalesOrders
+                    .Include(o => o.Lines)
+                    .Include(o => o.Invoices)
+                    .FirstOrDefaultAsync(o => o.Id == soId, cancellationToken);
+                if (so is null || so.Status != SalesOrderStatus.Shipped) continue;
+                if (so.Lines.Count == 0 || !so.Lines.All(l => l.IsFullyShipped)) continue;
+                var billable = so.Invoices.Where(i => i.Status != InvoiceStatus.Voided).ToList();
+                if (billable.Count == 0 || !billable.All(i => i.Status == InvoiceStatus.Paid)) continue;
+                so.Status = SalesOrderStatus.Completed;
+                anyCompleted = true;
+            }
+            if (anyCompleted) await db.SaveChangesAsync(cancellationToken);
         }
 
         // ── Inline cash-receipt posting (Phase-1 STAGE B, §7 matrix row "Payment
