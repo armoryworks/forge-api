@@ -97,9 +97,9 @@ public static class ModuleCatalog
             new[] { "CAP-PLAN-MRP", "CAP-PLAN-MPS", "CAP-PLAN-CAPACITY", "CAP-PLAN-ATP", "CAP-RPT-MRPEX" }),
 
         new("people", "People",
-            "Manage employees, hiring, and time tracking.",
+            "Manage employees, hiring, time tracking, and training.",
             "Turns on employee records.",
-            new[] { "CAP-MD-EMPLOYEES", "CAP-HR-HIRE", "CAP-HR-TERMINATION", "CAP-HR-TIMETRACK" }),
+            new[] { "CAP-MD-EMPLOYEES", "CAP-HR-HIRE", "CAP-HR-TERMINATION", "CAP-HR-TIMETRACK", "CAP-HR-TRAINING" }),
     };
 
     public static ModuleDefinition? FindById(string id) =>
