@@ -23,6 +23,11 @@ public class ModuleCatalogTests
         set.Should().NotContain("CAP-P2P-PO");          // purchasing not selected
         set.Should().NotContain("CAP-MFG-WO-RELEASE");  // production not selected
         set.Should().NotContain("CAP-EXT-KANBAN");      // job board belongs to production
+        // Customers/Vendors are owned by Sales/Purchasing, not Foundations — an
+        // inventory-only install must not surface them (they were previously pulled
+        // in by CAP-RPT-OPERATIONAL, now removed from Foundations).
+        set.Should().NotContain("CAP-MD-CUSTOMERS");
+        set.Should().NotContain("CAP-MD-VENDORS");
     }
 
     [Fact]

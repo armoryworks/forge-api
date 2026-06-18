@@ -37,8 +37,11 @@ public static class ModuleCatalog
         "CAP-CROSS-NOTIFICATIONS", "CAP-CROSS-INTEG-FILE", "CAP-CROSS-CONCURRENCY",
         // Core master data every flow leans on
         "CAP-MD-PARTS", "CAP-MD-UOM", "CAP-MD-LOCATIONS", "CAP-MD-CURRENCIES", "CAP-MD-TAXCODES",
-        // Baseline reporting + mobile shell
-        "CAP-RPT-OPERATIONAL", "CAP-RPT-DASHBOARDS", "CAP-EXT-MOBILE",
+        // Baseline dashboards + mobile shell. Operational reports (CAP-RPT-OPERATIONAL)
+        // are deliberately NOT here: they require customer + vendor master data, so a
+        // foundations slot would force Customers/Vendors on for every install (e.g.
+        // Inventory only). They belong with the modules that own that data instead.
+        "CAP-RPT-DASHBOARDS", "CAP-EXT-MOBILE",
     };
 
     public static IReadOnlyList<ModuleDefinition> All { get; } = new List<ModuleDefinition>
@@ -49,6 +52,12 @@ public static class ModuleCatalog
             new[] { "CAP-INV-CORE", "CAP-INV-CYCLECOUNT", "CAP-INV-ADJUST", "CAP-RPT-INVVAL" },
             DefaultSelected: true),
 
+        // Vendors live here: they're the procure-to-pay anchor (no vendor, no PO or
+        // receipt). ⚡ Accounting boundary: vendors are shared master data — the AP
+        // side (CAP-P2P-BILL / CAP-P2P-PAY, vendor bills + payments) also uses them
+        // and is accounting-bounded: full local CRUD in standalone mode, read-only
+        // when an external accounting provider is connected. (Customers mirror this
+        // under Sales for the AR side.)
         new("purchasing", "Purchasing",
             "Order materials from vendors and receive them into stock.",
             "Turns on vendor records and receiving; receiving adds to Inventory.",
