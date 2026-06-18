@@ -7018,7 +7018,7 @@ CREATE TABLE public.storage_locations (
     description character varying(500),
     sort_order integer NOT NULL,
     is_active boolean NOT NULL,
-    is_default boolean NOT NULL,
+    is_default boolean NOT NULL DEFAULT false,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,
@@ -11640,3 +11640,10 @@ CREATE TABLE public."__EFMigrationsHistory" (
 );
 ALTER TABLE ONLY public."__EFMigrationsHistory"
     ADD CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId");
+
+CREATE SEQUENCE public.job_number_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
