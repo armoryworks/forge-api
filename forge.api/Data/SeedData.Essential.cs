@@ -272,6 +272,29 @@ public static partial class SeedData
             Log.Information("Seeded currency reference data (7 entries)");
         }
 
+        // Base/functional currency (Currency entity). Required by Invoice.CurrencyId
+        // and Book.FunctionalCurrencyId. Seeded here (essential, always-on) so a clean
+        // standalone install — SEED_DEMO_DATA=false, GL never enabled — can still
+        // create invoices: CreateInvoice falls back to currency id 1 when no GL book
+        // exists, so this base row (the first/only Currency) must exist. Idempotent;
+        // the accounting GL seed find-or-creates the same base currency by
+        // IsBaseCurrency/Code, so the two never conflict.
+        if (!await db.Currencies.AnyAsync())
+        {
+            db.Currencies.Add(new Currency
+            {
+                Code = "USD",
+                Name = "US Dollar",
+                Symbol = "$",
+                DecimalPlaces = 2,
+                IsBaseCurrency = true,
+                IsActive = true,
+                SortOrder = 1,
+            });
+            await db.SaveChangesAsync();
+            Log.Information("Seeded base currency USD (Currency entity)");
+        }
+
         // Units of Measure — the stock/purchase/sales UoM dropdowns and the
         // part-workflow inventory step resolve a UoM by code. Without these
         // rows the inventory-step UoM picker offers values the server can't
