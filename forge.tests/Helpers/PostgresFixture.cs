@@ -64,7 +64,7 @@ public sealed class PostgresFixture : IAsyncLifetime
         // applies the full schema including the pgvector extension + acct_journal immutability
         // triggers, which the ledger-trigger/GL-atomicity tests in this collection rely on.
         await using var ctx = CreateContext();
-        await Forge.Data.SchemaBootstrapper.EnsureSchemaAsync(ctx);
+        await Forge.Data.SchemaBootstrapper.EnsureSchemaAsync(ctx, ConnectionString);
     }
 
     public async Task DisposeAsync()

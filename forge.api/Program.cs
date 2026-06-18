@@ -1236,7 +1236,11 @@ try
             }
 
             Log.Information("[DB-LIFECYCLE] Ensuring the declarative schema (forge-db) is present...");
-            var schemaCreated = await Forge.Data.SchemaBootstrapper.EnsureSchemaAsync(db);
+            // Pass the configured connection string (credentials intact) so the bootstrapper
+            // can reach the maintenance DB to create the target after a RECREATE_DB wipe.
+            var dbConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
+            var schemaCreated = await Forge.Data.SchemaBootstrapper.EnsureSchemaAsync(db, dbConnectionString);
             Log.Information(
                 schemaCreated
                     ? "[DB-LIFECYCLE] Fresh database — applied the forge-db declarative schema."
