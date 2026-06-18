@@ -18,7 +18,9 @@ public class SetOnHandQuantityCommandValidator : AbstractValidator<SetOnHandQuan
     public SetOnHandQuantityCommandValidator()
     {
         RuleFor(x => x.Data.PartId).GreaterThan(0);
-        RuleFor(x => x.Data.LocationId).GreaterThan(0);
+        // LocationId is optional — when omitted, single-location mode uses the
+        // default location. When supplied it must be a real id.
+        RuleFor(x => x.Data.LocationId!.Value).GreaterThan(0).When(x => x.Data.LocationId.HasValue);
         RuleFor(x => x.Data.Quantity).GreaterThanOrEqualTo(0);
         // Reason is mandatory precisely because there's no PO paper trail.
         RuleFor(x => x.Data.Reason).NotEmpty().MaximumLength(500);
@@ -45,10 +47,20 @@ public class SetOnHandQuantityHandler(
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var now = DateTimeOffset.UtcNow;
 
-        _ = await repo.FindLocationAsync(data.LocationId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Location {data.LocationId} not found.");
+        int locationId;
+        if (data.LocationId is int requested)
+        {
+            _ = await repo.FindLocationAsync(requested, cancellationToken)
+                ?? throw new KeyNotFoundException($"Location {requested} not found.");
+            locationId = requested;
+        }
+        else
+        {
+            // Single-location mode: no location chosen, so use (or create) the default.
+            locationId = (await repo.EnsureDefaultLocationAsync(cancellationToken)).Id;
+        }
 
-        var existing = await repo.FindActiveBinContentByPartLocationAsync(data.PartId, data.LocationId, cancellationToken);
+        var existing = await repo.FindActiveBinContentByPartLocationAsync(data.PartId, locationId, cancellationToken);
         var auditNote = BuildNote(data);
 
         decimal delta;
@@ -60,7 +72,7 @@ public class SetOnHandQuantityHandler(
             {
                 EntityType = "part",
                 EntityId = data.PartId,
-                LocationId = data.LocationId,
+                LocationId = locationId,
                 Quantity = data.Quantity,
                 Status = BinContentStatus.Stored,
                 PlacedBy = userId,
@@ -90,8 +102,8 @@ public class SetOnHandQuantityHandler(
             EntityType = "part",
             EntityId = data.PartId,
             Quantity = Math.Abs(delta),
-            FromLocationId = delta < 0 ? data.LocationId : null,
-            ToLocationId = delta >= 0 ? data.LocationId : null,
+            FromLocationId = delta < 0 ? locationId : null,
+            ToLocationId = delta >= 0 ? locationId : null,
             MovedBy = userId,
             MovedAt = now,
             Reason = BinMovementReason.Adjustment,

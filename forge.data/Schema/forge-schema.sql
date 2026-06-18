@@ -7018,6 +7018,7 @@ CREATE TABLE public.storage_locations (
     description character varying(500),
     sort_order integer NOT NULL,
     is_active boolean NOT NULL,
+    is_default boolean NOT NULL,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,
@@ -11255,6 +11256,8 @@ CREATE INDEX ix_status_entries_set_by_id ON public.status_entries USING btree (s
 CREATE INDEX ix_status_entries_work_center_id ON public.status_entries USING btree (work_center_id);
 
 CREATE UNIQUE INDEX ix_storage_locations_barcode ON public.storage_locations USING btree (barcode) WHERE (barcode IS NOT NULL);
+
+CREATE UNIQUE INDEX ix_storage_locations_is_default ON public.storage_locations USING btree (is_default) WHERE ((is_default = true) AND (deleted_at IS NULL));
 
 CREATE INDEX ix_storage_locations_parent_id ON public.storage_locations USING btree (parent_id);
 
