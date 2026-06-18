@@ -63,6 +63,23 @@ public class AuthController(IMediator mediator, ISsoHandoffStore handoffStore) :
         return Ok(modules);
     }
 
+    // The module -> capability mapping (full catalog + per-module resolved sets).
+    // Baked into the stubbed demo so its cordoning matches a real install.
+    [HttpGet("setup/modules/capabilities")]
+    [AllowAnonymous]
+    public ActionResult<SetupModuleCapabilitiesResponseModel> SetupModuleCapabilities()
+    {
+        var capabilities = Forge.Api.Capabilities.CapabilityCatalog.All
+            .Select(c => new SetupModuleCapabilityResponseModel(c.Code, c.Area, c.Name, c.IsDefaultOn))
+            .ToList();
+        var modules = Forge.Api.Capabilities.ModuleCatalog.All.ToDictionary(
+            m => m.Id,
+            m => (IReadOnlyList<string>)Forge.Api.Capabilities.ModuleCatalog
+                .EnabledCapabilitiesFor(new[] { m.Id }).OrderBy(x => x, System.StringComparer.Ordinal).ToList());
+        return Ok(new SetupModuleCapabilitiesResponseModel(
+            capabilities, Forge.Api.Capabilities.ModuleCatalog.Foundations, modules));
+    }
+
     [HttpGet("validate-token/{token}")]
     [AllowAnonymous]
     public async Task<ActionResult<SetupTokenInfoResponse>> ValidateToken(string token)
