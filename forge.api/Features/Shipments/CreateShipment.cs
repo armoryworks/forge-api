@@ -46,8 +46,9 @@ public class CreateShipmentHandler(IShipmentRepository shipmentRepo, ISalesOrder
         var order = await orderRepo.FindWithDetailsAsync(request.SalesOrderId, cancellationToken)
             ?? throw new KeyNotFoundException($"Sales order {request.SalesOrderId} not found");
 
-        if (order.Status == SalesOrderStatus.Draft || order.Status == SalesOrderStatus.Cancelled)
-            throw new InvalidOperationException("Cannot create shipment for Draft or Cancelled orders");
+        if (order.Status is SalesOrderStatus.Draft or SalesOrderStatus.Cancelled)
+            throw new InvalidOperationException(
+                $"Sales order {order.OrderNumber} must be confirmed before a shipment can be created (current status: {order.Status}).");
 
         var shipmentNumber = await shipmentRepo.GenerateNextShipmentNumberAsync(cancellationToken);
 
@@ -87,10 +88,25 @@ public class CreateShipmentHandler(IShipmentRepository shipmentRepo, ISalesOrder
             }
             else
             {
-                // Part-based: create line without SO line fulfillment tracking
+                // Part-based: resolve the line to the matching SO line so the
+                // quantity is validated against the order (a part can't be
+                // over-shipped, and a part not on the order is rejected) and SO
+                // fulfillment is tracked — same guarantees as the SO-line path.
+                var orderLine = order.Lines.FirstOrDefault(l => l.PartId == line.PartId && l.RemainingQuantity > 0)
+                    ?? order.Lines.FirstOrDefault(l => l.PartId == line.PartId)
+                    ?? throw new InvalidOperationException(
+                        $"Part {line.PartId} is not on sales order {order.OrderNumber}");
+
+                if (line.Quantity > orderLine.RemainingQuantity)
+                    throw new InvalidOperationException(
+                        $"Cannot ship {line.Quantity} of line {orderLine.LineNumber} — only {orderLine.RemainingQuantity} remaining");
+
+                orderLine.ShippedQuantity += line.Quantity;
+
                 shipment.Lines.Add(new ShipmentLine
                 {
-                    PartId = line.PartId,
+                    SalesOrderLineId = orderLine.Id,
+                    PartId = orderLine.PartId,
                     Quantity = line.Quantity,
                     Notes = line.Notes,
                 });

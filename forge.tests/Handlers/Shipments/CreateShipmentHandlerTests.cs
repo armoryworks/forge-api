@@ -56,6 +56,13 @@ public class CreateShipmentHandlerTests
         };
     }
 
+    private SalesOrder CreateConfirmedOrderWithPart(int id, int lineId, int partId, int quantity, int shippedQuantity = 0)
+    {
+        var order = CreateConfirmedOrder(id, lineId, quantity, shippedQuantity);
+        order.Lines.First().PartId = partId;
+        return order;
+    }
+
     [Fact]
     public async Task Handle_ValidCommand_CreatesShipmentAndReturnsListItem()
     {
@@ -128,7 +135,7 @@ public class CreateShipmentHandlerTests
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*Draft*Cancelled*");
+            .WithMessage("*must be confirmed*");
     }
 
     [Fact]
@@ -149,7 +156,7 @@ public class CreateShipmentHandlerTests
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*Draft*Cancelled*");
+            .WithMessage("*must be confirmed*");
     }
 
     [Fact]
@@ -256,5 +263,45 @@ public class CreateShipmentHandlerTests
         _shipmentRepo.Verify(r => r.AddAsync(It.Is<Shipment>(s =>
             s.ShippingAddressId == 42
         ), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_PartBasedLine_ExceedsRemaining_ThrowsInvalidOperationException()
+    {
+        // Arrange — 20 ordered, 15 already shipped (5 remaining), part-based line ships 10.
+        var order = CreateConfirmedOrderWithPart(1, lineId: 10, partId: 50, quantity: 20, shippedQuantity: 15);
+        _orderRepo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        _shipmentRepo.Setup(r => r.GenerateNextShipmentNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("SHP-0001");
+
+        var command = new CreateShipmentCommand(
+            1, null, null, null, null, null, null,
+            [new CreateShipmentLineModel(null, 10, null, PartId: 50)]);
+
+        // Act
+        var act = () => _handler.Handle(command, CancellationToken.None);
+
+        // Assert — the part-based path now validates against the order.
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*only 5 remaining*");
+    }
+
+    [Fact]
+    public async Task Handle_PartBasedLine_PartNotOnOrder_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var order = CreateConfirmedOrderWithPart(1, lineId: 10, partId: 50, quantity: 20);
+        _orderRepo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        _shipmentRepo.Setup(r => r.GenerateNextShipmentNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("SHP-0001");
+
+        var command = new CreateShipmentCommand(
+            1, null, null, null, null, null, null,
+            [new CreateShipmentLineModel(null, 5, null, PartId: 999)]); // part 999 not on the order
+
+        // Act
+        var act = () => _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*not on sales order*");
     }
 }

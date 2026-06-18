@@ -51,6 +51,8 @@ public class ShipmentRepository(AppDbContext db) : IShipmentRepository
                 .ThenInclude(so => so.Customer)
             .Include(s => s.Lines)
                 .ThenInclude(l => l.SalesOrderLine)
+            .Include(s => s.Lines)
+                .ThenInclude(l => l.Part)
             .Include(s => s.Invoice)
             .FirstOrDefaultAsync(s => s.Id == id, ct);
     }

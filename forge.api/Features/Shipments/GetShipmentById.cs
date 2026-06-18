@@ -34,10 +34,16 @@ public class GetShipmentByIdHandler(IShipmentRepository repo)
                 l.Id,
                 l.SalesOrderLineId,
                 l.PartId,
-                l.SalesOrderLine?.Description ?? l.Part?.Description ?? string.Empty,
+                // Prefer the SO-line description, then the part's description, then
+                // the part's Name (the canonical short identifier post Phase-4) —
+                // treating blanks as missing so a part with only a Name still shows.
+                FirstNonBlank(l.SalesOrderLine?.Description, l.Part?.Description, l.Part?.Name),
                 l.Quantity,
                 l.Notes)).ToList(),
             shipment.CreatedAt,
             shipment.UpdatedAt);
     }
+
+    private static string FirstNonBlank(params string?[] values)
+        => values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? string.Empty;
 }
