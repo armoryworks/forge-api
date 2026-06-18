@@ -8,7 +8,8 @@ public record CreateShipmentRequestModel(
     decimal? ShippingCost,
     decimal? Weight,
     string? Notes,
-    List<CreateShipmentLineModel> Lines);
+    List<CreateShipmentLineModel> Lines,
+    int? CarrierId = null);
 
 public record CreateShipmentLineModel(
     int? SalesOrderLineId,

@@ -38,7 +38,7 @@ public class ShipmentsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new CreateShipmentCommand(
             request.SalesOrderId, request.ShippingAddressId, request.Carrier,
             request.TrackingNumber, request.ShippingCost, request.Weight,
-            request.Notes, request.Lines));
+            request.Notes, request.Lines, request.CarrierId));
         return CreatedAtAction(nameof(GetShipment), new { id = result.Id }, result);
     }
 
@@ -53,9 +53,9 @@ public class ShipmentsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/ship")]
-    public async Task<IActionResult> ShipShipment(int id)
+    public async Task<IActionResult> ShipShipment(int id, [FromBody] ShipShipmentRequestModel? request = null)
     {
-        await mediator.Send(new ShipShipmentCommand(id));
+        await mediator.Send(new ShipShipmentCommand(id, request?.ScanCode));
         return NoContent();
     }
 

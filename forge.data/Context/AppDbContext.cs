@@ -136,6 +136,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<SalesOrderLine> SalesOrderLines => Set<SalesOrderLine>();
     public DbSet<Shipment> Shipments => Set<Shipment>();
     public DbSet<ShipmentLine> ShipmentLines => Set<ShipmentLine>();
+    public DbSet<Carrier> Carriers => Set<Carrier>();
 
     // Standalone Financial (⚡ Accounting Boundary)
     public DbSet<Invoice> Invoices => Set<Invoice>();

@@ -1,12 +1,14 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.DomainEvents;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Shipments;
 
@@ -18,7 +20,10 @@ public record CreateShipmentCommand(
     decimal? ShippingCost,
     decimal? Weight,
     string? Notes,
-    List<CreateShipmentLineModel> Lines) : IRequest<ShipmentListItemModel>;
+    List<CreateShipmentLineModel> Lines,
+    // Optional selected carrier (master data). Additive: callers that pass only the free-text
+    // Carrier string are unchanged. Drives the scan-to-ship gate + delivery automation.
+    int? CarrierId = null) : IRequest<ShipmentListItemModel>;
 
 public class CreateShipmentValidator : AbstractValidator<CreateShipmentCommand>
 {
@@ -38,7 +43,14 @@ public class CreateShipmentValidator : AbstractValidator<CreateShipmentCommand>
     }
 }
 
-public class CreateShipmentHandler(IShipmentRepository shipmentRepo, ISalesOrderRepository orderRepo, IMediator mediator, IHttpContextAccessor httpContext)
+public class CreateShipmentHandler(
+    IShipmentRepository shipmentRepo,
+    ISalesOrderRepository orderRepo,
+    IMediator mediator,
+    IHttpContextAccessor httpContext,
+    // Optional / null-default so the mock-based handler tests stay constructible; the DI path
+    // supplies it. Used to validate the selected carrier (clean 404 vs. an FK-violation 500).
+    AppDbContext? db = null)
     : IRequestHandler<CreateShipmentCommand, ShipmentListItemModel>
 {
     public async Task<ShipmentListItemModel> Handle(CreateShipmentCommand request, CancellationToken cancellationToken)
@@ -50,6 +62,10 @@ public class CreateShipmentHandler(IShipmentRepository shipmentRepo, ISalesOrder
             throw new InvalidOperationException(
                 $"Sales order {order.OrderNumber} must be confirmed before a shipment can be created (current status: {order.Status}).");
 
+        if (request.CarrierId is int carrierId && db is not null
+            && !await db.Carriers.AnyAsync(c => c.Id == carrierId && c.IsActive, cancellationToken))
+            throw new KeyNotFoundException($"Carrier {carrierId} not found or inactive");
+
         var shipmentNumber = await shipmentRepo.GenerateNextShipmentNumberAsync(cancellationToken);
 
         var shipment = new Shipment
@@ -58,6 +74,7 @@ public class CreateShipmentHandler(IShipmentRepository shipmentRepo, ISalesOrder
             SalesOrderId = request.SalesOrderId,
             ShippingAddressId = request.ShippingAddressId ?? order.ShippingAddressId,
             Carrier = request.Carrier,
+            CarrierId = request.CarrierId,
             TrackingNumber = request.TrackingNumber,
             ShippingCost = request.ShippingCost,
             Weight = request.Weight,
@@ -112,6 +129,12 @@ public class CreateShipmentHandler(IShipmentRepository shipmentRepo, ISalesOrder
                 });
             }
         }
+
+        // Forge-issued, coverage-bound scan token for the printed label wrapper (master QR). Bound to
+        // the exact line/qty coverage now that the lines are resolved, so the scan-to-ship gate can
+        // verify the label belongs to this shipment's content. Always set — cheap, and useful on
+        // manual carriers too — even though the gate only enforces it for carriers that require it.
+        shipment.ScanCode = ShipmentScanCode.Compute(shipmentNumber, shipment.Lines);
 
         // Update order status based on fulfillment (only applies when SO lines are linked)
         if (order.Lines.Any() && order.Lines.All(l => l.IsFullyShipped))

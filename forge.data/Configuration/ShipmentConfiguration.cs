@@ -19,6 +19,7 @@ public class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
 
         builder.Property(e => e.ShipmentNumber).HasMaxLength(20);
         builder.Property(e => e.Carrier).HasMaxLength(100);
+        builder.Property(e => e.ScanCode).HasMaxLength(120);
         builder.Property(e => e.TrackingNumber).HasMaxLength(100);
         builder.Property(e => e.Notes).HasMaxLength(2000);
         builder.Property(e => e.ShippingCost).HasPrecision(18, 4);
@@ -31,10 +32,18 @@ public class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
         builder.HasIndex(e => e.ShipmentNumber).IsUnique();
         builder.HasIndex(e => e.SalesOrderId);
         builder.HasIndex(e => e.Status);
+        builder.HasIndex(e => e.CarrierId);
 
         builder.HasOne(e => e.ShippingAddress)
             .WithMany()
             .HasForeignKey(e => e.ShippingAddressId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // Distinct nav name (AssignedCarrier) so the FK doesn't collide with the legacy free-text
+        // `Carrier` string. SetNull on carrier delete — the shipment keeps its tracking/free-text.
+        builder.HasOne(e => e.AssignedCarrier)
+            .WithMany()
+            .HasForeignKey(e => e.CarrierId)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(e => e.Lines)

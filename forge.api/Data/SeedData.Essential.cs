@@ -295,6 +295,22 @@ public static partial class SeedData
             Log.Information("Seeded base currency USD (Currency entity)");
         }
 
+        // Carriers — the shipper picker on a shipment. The four direct carriers seed as Api (bridged
+        // to the IShippingService integration ids) and require a printed-label scan before shipping;
+        // a manual "Will Call" covers customer pickup with no label and no scan. Custom / shadow
+        // shippers are added by the user via POST /api/v1/carriers. Idempotent on an empty table.
+        if (!await db.Carriers.AnyAsync())
+        {
+            db.Carriers.AddRange(
+                new Carrier { Name = "UPS", Code = "UPS", Scac = "UPSN", IntegrationKind = CarrierIntegrationKind.Api, DeliveryUpdateMode = CarrierDeliveryUpdateMode.Manual, IntegrationServiceId = "ups", RequiresScanToShip = true, SortOrder = 1 },
+                new Carrier { Name = "FedEx", Code = "FEDEX", Scac = "FDEG", IntegrationKind = CarrierIntegrationKind.Api, DeliveryUpdateMode = CarrierDeliveryUpdateMode.Manual, IntegrationServiceId = "fedex", RequiresScanToShip = true, SortOrder = 2 },
+                new Carrier { Name = "USPS", Code = "USPS", Scac = "USPS", IntegrationKind = CarrierIntegrationKind.Api, DeliveryUpdateMode = CarrierDeliveryUpdateMode.Manual, IntegrationServiceId = "usps", RequiresScanToShip = true, SortOrder = 3 },
+                new Carrier { Name = "DHL", Code = "DHL", Scac = "DHLC", IntegrationKind = CarrierIntegrationKind.Api, DeliveryUpdateMode = CarrierDeliveryUpdateMode.Manual, IntegrationServiceId = "dhl", RequiresScanToShip = true, SortOrder = 4 },
+                new Carrier { Name = "Will Call / Customer Pickup", Code = "WILLCALL", IntegrationKind = CarrierIntegrationKind.Manual, DeliveryUpdateMode = CarrierDeliveryUpdateMode.Manual, RequiresScanToShip = false, SortOrder = 5 });
+            await db.SaveChangesAsync();
+            Log.Information("Seeded 5 carriers (UPS, FedEx, USPS, DHL, Will Call)");
+        }
+
         // Units of Measure — the stock/purchase/sales UoM dropdowns and the
         // part-workflow inventory step resolve a UoM by code. Without these
         // rows the inventory-step UoM picker offers values the server can't
