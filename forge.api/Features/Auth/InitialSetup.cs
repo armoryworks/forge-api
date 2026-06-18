@@ -3,7 +3,9 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Data;
+using Forge.Api.Features.Capabilities.BulkToggle;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -27,7 +29,10 @@ public record InitialSetupCommand(
     string? LocationLine2,
     string? LocationCity,
     string? LocationState,
-    string? LocationPostalCode) : IRequest<LoginResponse>;
+    string? LocationPostalCode,
+    // Quick-start module picker: the modules the shop chose to turn on. Null/empty
+    // (the Full guided branch) leaves the catalog defaults in place.
+    IReadOnlyList<string>? SelectedModules = null) : IRequest<LoginResponse>;
 
 public class InitialSetupValidator : AbstractValidator<InitialSetupCommand>
 {
@@ -55,7 +60,8 @@ public class InitialSetupHandler(
     AppDbContext db,
     ITokenService tokenService,
     ISessionStore sessionStore,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    IMediator mediator)
     : IRequestHandler<InitialSetupCommand, LoginResponse>
 {
     public async Task<LoginResponse> Handle(InitialSetupCommand request, CancellationToken cancellationToken)
@@ -151,6 +157,28 @@ public class InitialSetupHandler(
             // Assign admin to this location
             user.WorkLocationId = location.Id;
             await userManager.UpdateAsync(user);
+        }
+
+        // Quick-start branch: apply the chosen module set. Foundations ∪ selected
+        // modules ∪ dependency closure becomes the enabled set; everything else is
+        // turned off, so a single-module install (e.g. Inventory only) is genuinely
+        // cordoned. Routed through BulkToggle so the snapshot, audit, and dependency
+        // validation all run. The Full guided branch sends no modules and keeps the
+        // catalog defaults.
+        if (request.SelectedModules is { Count: > 0 })
+        {
+            var target = ModuleCatalog.EnabledCapabilitiesFor(request.SelectedModules);
+            var current = await db.Capabilities
+                .Select(c => new { c.Code, c.Enabled })
+                .ToListAsync(cancellationToken);
+            var deltas = current
+                .Where(c => target.Contains(c.Code) != c.Enabled)
+                .Select(c => new BulkToggleItem(c.Code, target.Contains(c.Code), null))
+                .ToList();
+            if (deltas.Count > 0)
+                await mediator.Send(
+                    new BulkToggleCapabilitiesCommand(deltas, "Initial setup — module selection"),
+                    cancellationToken);
         }
 
         // Generate JWT

@@ -51,6 +51,18 @@ public class AuthController(IMediator mediator, ISsoHandoffStore handoffStore) :
         return Ok(result);
     }
 
+    // The first-run module picker reads this list (anonymous — it renders during
+    // setup, before any admin exists). Static catalog data; no DB hit.
+    [HttpGet("setup/modules")]
+    [AllowAnonymous]
+    public ActionResult<IReadOnlyList<SetupModuleResponseModel>> SetupModules()
+    {
+        var modules = Forge.Api.Capabilities.ModuleCatalog.All
+            .Select(m => new SetupModuleResponseModel(m.Id, m.Name, m.Summary, m.PrerequisiteNote, m.DefaultSelected))
+            .ToList();
+        return Ok(modules);
+    }
+
     [HttpGet("validate-token/{token}")]
     [AllowAnonymous]
     public async Task<ActionResult<SetupTokenInfoResponse>> ValidateToken(string token)
