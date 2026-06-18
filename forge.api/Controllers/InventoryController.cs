@@ -149,6 +149,27 @@ public class InventoryController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    // ── Friendly stock verbs (standalone inventory: no PO / no shipment needed) ──
+
+    // Add stock without a purchase order (manual stock-in). Inherits the class
+    // CAP-INV-CORE gate and the full inventory role set, so a clerk on the floor
+    // can record receipts directly. Additive: bumps the bin or opens a new one.
+    [HttpPost("receive-stock")]
+    public async Task<IActionResult> ReceiveStock([FromBody] ReceiveStockRequestModel request)
+    {
+        await mediator.Send(new ReceiveStockCommand(request));
+        return NoContent();
+    }
+
+    // Consume stock without a shipment or job issue (manual stock-out). Same
+    // CAP-INV-CORE gate; can never drop on-hand below reserved (S-RI1).
+    [HttpPost("use-stock")]
+    public async Task<IActionResult> UseStock([FromBody] UseStockRequestModel request)
+    {
+        await mediator.Send(new UseStockCommand(request));
+        return NoContent();
+    }
+
     // ── Cycle Counts ──
 
     [HttpGet("cycle-counts")]
