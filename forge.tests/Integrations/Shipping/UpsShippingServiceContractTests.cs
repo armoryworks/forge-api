@@ -1,6 +1,3 @@
-using System.Net;
-using System.Text;
-
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -8,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Forge.Api.Features.Shipments;
 using Forge.Core.Models;
 using Forge.Integrations;
+using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Integrations.Shipping;
 
@@ -60,7 +58,6 @@ public class UpsShippingServiceContractTests
 
     private static UpsShippingService MakeService(Dictionary<string, string> routes)
     {
-        var handler = new RouteStubHandler(routes);
         var opts = Options.Create(new UpsOptions
         {
             ClientId = "cid",
@@ -68,7 +65,8 @@ public class UpsShippingServiceContractTests
             AccountNumber = "A1234",
             Environment = "sandbox",
         });
-        return new UpsShippingService(new StubFactory(handler), opts, NullLogger<UpsShippingService>.Instance);
+        return new UpsShippingService(
+            new StubHttpClientFactory(new RouteStubHandler(routes)), opts, NullLogger<UpsShippingService>.Instance);
     }
 
     [Fact]
@@ -133,31 +131,12 @@ public class UpsShippingServiceContractTests
     public async Task Unconfigured_service_is_inert()
     {
         var svc = new UpsShippingService(
-            new StubFactory(new RouteStubHandler(new Dictionary<string, string>())),
+            new StubHttpClientFactory(new RouteStubHandler(new Dictionary<string, string>())),
             Options.Create(new UpsOptions()), // no creds
             NullLogger<UpsShippingService>.Instance);
 
         svc.IsConfigured.Should().BeFalse();
         (await svc.GetRatesAsync(SampleRequest(), CancellationToken.None)).Should().BeEmpty();
         (await svc.GetTrackingAsync("1Z999", CancellationToken.None)).Should().BeNull();
-    }
-
-    // Route-aware fake: returns the canned body whose key is a substring of the request URL.
-    private sealed class RouteStubHandler(IReadOnlyDictionary<string, string> routes) : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
-        {
-            var url = request.RequestUri!.AbsoluteUri;
-            var body = routes.FirstOrDefault(kv => url.Contains(kv.Key)).Value ?? "{}";
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(body, Encoding.UTF8, "application/json"),
-            });
-        }
-    }
-
-    private sealed class StubFactory(HttpMessageHandler handler) : IHttpClientFactory
-    {
-        public HttpClient CreateClient(string name) => new(handler, disposeHandler: false);
     }
 }

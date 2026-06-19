@@ -143,14 +143,21 @@ public class UspsShippingService(
                 estimatedDelivery = parsedDt;
         }
 
+        // USPS Tracking 3.0 (api.usps.com) returns a camelCase trackingEvents[] array — NOT the legacy
+        // Web Tools "TrackSummary"/"EventCity" PascalCase shape. Parse the modern fields.
         var events = new List<TrackingEvent>();
-        if (doc.RootElement.TryGetProperty("TrackSummary", out var summary))
+        if (doc.RootElement.TryGetProperty("trackingEvents", out var trackingEvents)
+            && trackingEvents.ValueKind == JsonValueKind.Array)
         {
-            var loc = summary.TryGetProperty("EventCity", out var city) ? city.GetString() ?? "" : "";
-            var evtDesc = summary.TryGetProperty("Event", out var ev) ? ev.GetString() ?? "" : "";
-            var dateStr = summary.TryGetProperty("EventTime", out var et) ? et.GetString() : null;
-            DateTimeOffset.TryParse(dateStr, out var evtTime);
-            events.Add(new TrackingEvent(evtTime, loc, evtDesc));
+            foreach (var evt in trackingEvents.EnumerateArray())
+            {
+                var loc = evt.TryGetProperty("eventCity", out var city) ? city.GetString() ?? "" : "";
+                var evtDesc = evt.TryGetProperty("eventDescription", out var ed) ? ed.GetString() ?? ""
+                    : evt.TryGetProperty("eventType", out var etype) ? etype.GetString() ?? "" : "";
+                var tsStr = evt.TryGetProperty("eventTimestamp", out var ts) ? ts.GetString() : null;
+                DateTimeOffset.TryParse(tsStr, out var evtTime);
+                events.Add(new TrackingEvent(evtTime, loc, evtDesc));
+            }
         }
 
         return new ShipmentTracking(trackingNumber, status, estimatedDelivery, events);
