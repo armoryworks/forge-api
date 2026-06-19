@@ -13,20 +13,37 @@ namespace Forge.Integrations;
 public class FedExShippingService(
     IHttpClientFactory httpClientFactory,
     IOptions<FedExOptions> options,
-    ILogger<FedExShippingService> logger) : IShippingCarrierService
+    ILogger<FedExShippingService> logger,
+    ICarrierCredentialProvider? credentialProvider = null) : IShippingCarrierService
 {
     private string? _cachedToken;
     private DateTimeOffset _tokenExpiry = DateTimeOffset.MinValue;
 
     public string CarrierId => "fedex";
     public string CarrierName => "FedEx";
-    public bool IsConfigured => !string.IsNullOrEmpty(options.Value.ClientId) && !string.IsNullOrEmpty(options.Value.ClientSecret);
+    public bool IsConfigured
+    {
+        get { var o = EffectiveOptions(); return !string.IsNullOrEmpty(o.ClientId) && !string.IsNullOrEmpty(o.ClientSecret); }
+    }
+
+    // UI-entered (decrypted) credentials override appsettings/env when present.
+    private FedExOptions EffectiveOptions()
+    {
+        var stored = credentialProvider?.Resolve(CarrierId);
+        return stored is null ? options.Value : new FedExOptions
+        {
+            ClientId = stored.ClientId,
+            ClientSecret = stored.Secret,
+            AccountNumber = stored.AccountNumber ?? string.Empty,
+            Environment = stored.Environment,
+        };
+    }
 
     public async Task<List<ShippingRate>> GetRatesAsync(ShipmentRequest request, CancellationToken ct)
     {
         if (!IsConfigured) return [];
-        var opts = options.Value;
-        var token = await GetAccessTokenAsync(ct);
+        var opts = EffectiveOptions();
+        var token = await GetAccessTokenAsync(opts, ct);
         if (token is null) return [];
 
         var client = CreateClient(token);
@@ -90,8 +107,8 @@ public class FedExShippingService(
     public async Task<ShippingLabel> CreateLabelAsync(ShipmentRequest request, string carrierId, CancellationToken ct)
     {
         if (!IsConfigured) throw new InvalidOperationException("FedEx is not configured");
-        var opts = options.Value;
-        var token = await GetAccessTokenAsync(ct);
+        var opts = EffectiveOptions();
+        var token = await GetAccessTokenAsync(opts, ct);
         if (token is null) throw new InvalidOperationException("FedEx authentication failed");
 
         var serviceType = carrierId.StartsWith("fedex-") ? carrierId[6..].ToUpperInvariant() : "FEDEX_GROUND";
@@ -161,8 +178,8 @@ public class FedExShippingService(
     public async Task<ShipmentTracking?> GetTrackingAsync(string trackingNumber, CancellationToken ct)
     {
         if (!IsConfigured) return null;
-        var opts = options.Value;
-        var token = await GetAccessTokenAsync(ct);
+        var opts = EffectiveOptions();
+        var token = await GetAccessTokenAsync(opts, ct);
         if (token is null) return null;
 
         var client = CreateClient(token);
@@ -228,14 +245,13 @@ public class FedExShippingService(
     }
 
     public Task<bool> TestConnectionAsync(CancellationToken ct) =>
-        GetAccessTokenAsync(ct).ContinueWith(t => t.Result is not null, ct);
+        GetAccessTokenAsync(EffectiveOptions(), ct).ContinueWith(t => t.Result is not null, ct);
 
-    private async Task<string?> GetAccessTokenAsync(CancellationToken ct)
+    private async Task<string?> GetAccessTokenAsync(FedExOptions opts, CancellationToken ct)
     {
         if (_cachedToken is not null && DateTimeOffset.UtcNow < _tokenExpiry)
             return _cachedToken;
 
-        var opts = options.Value;
         var client = httpClientFactory.CreateClient();
         var form = new FormUrlEncodedContent([
             new KeyValuePair<string, string>("grant_type", "client_credentials"),

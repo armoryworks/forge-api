@@ -13,7 +13,8 @@ namespace Forge.Integrations;
 public class UspsShippingService(
     IHttpClientFactory httpClientFactory,
     IOptions<UspsOptions> options,
-    ILogger<UspsShippingService> logger) : IShippingCarrierService
+    ILogger<UspsShippingService> logger,
+    ICarrierCredentialProvider? credentialProvider = null) : IShippingCarrierService
 {
     private const string BaseUrl = "https://api.usps.com";
     private string? _cachedToken;
@@ -21,12 +22,23 @@ public class UspsShippingService(
 
     public string CarrierId => "usps";
     public string CarrierName => "USPS";
-    public bool IsConfigured => !string.IsNullOrEmpty(options.Value.ConsumerKey) && !string.IsNullOrEmpty(options.Value.ConsumerSecret);
+    public bool IsConfigured
+    {
+        get { var o = EffectiveOptions(); return !string.IsNullOrEmpty(o.ConsumerKey) && !string.IsNullOrEmpty(o.ConsumerSecret); }
+    }
+
+    // UI-entered (decrypted) credentials override appsettings when present.
+    private UspsOptions EffectiveOptions()
+    {
+        var stored = credentialProvider?.Resolve(CarrierId);
+        return stored is null ? options.Value
+            : new UspsOptions { ConsumerKey = stored.ClientId, ConsumerSecret = stored.Secret };
+    }
 
     public async Task<List<ShippingRate>> GetRatesAsync(ShipmentRequest request, CancellationToken ct)
     {
         if (!IsConfigured) return [];
-        var token = await GetAccessTokenAsync(ct);
+        var token = await GetAccessTokenAsync(EffectiveOptions(), ct);
         if (token is null) return [];
 
         var client = CreateClient(token);
@@ -76,7 +88,7 @@ public class UspsShippingService(
     public async Task<ShippingLabel> CreateLabelAsync(ShipmentRequest request, string carrierId, CancellationToken ct)
     {
         if (!IsConfigured) throw new InvalidOperationException("USPS is not configured");
-        var token = await GetAccessTokenAsync(ct);
+        var token = await GetAccessTokenAsync(EffectiveOptions(), ct);
         if (token is null) throw new InvalidOperationException("USPS authentication failed");
 
         var mailClass = carrierId.StartsWith("usps-") ? carrierId[5..].ToUpperInvariant().Replace('-', '_') : "PRIORITY_MAIL";
@@ -121,7 +133,7 @@ public class UspsShippingService(
     public async Task<ShipmentTracking?> GetTrackingAsync(string trackingNumber, CancellationToken ct)
     {
         if (!IsConfigured) return null;
-        var token = await GetAccessTokenAsync(ct);
+        var token = await GetAccessTokenAsync(EffectiveOptions(), ct);
         if (token is null) return null;
 
         var client = CreateClient(token);
@@ -164,14 +176,13 @@ public class UspsShippingService(
     }
 
     public Task<bool> TestConnectionAsync(CancellationToken ct) =>
-        GetAccessTokenAsync(ct).ContinueWith(t => t.Result is not null, ct);
+        GetAccessTokenAsync(EffectiveOptions(), ct).ContinueWith(t => t.Result is not null, ct);
 
-    private async Task<string?> GetAccessTokenAsync(CancellationToken ct)
+    private async Task<string?> GetAccessTokenAsync(UspsOptions opts, CancellationToken ct)
     {
         if (_cachedToken is not null && DateTimeOffset.UtcNow < _tokenExpiry)
             return _cachedToken;
 
-        var opts = options.Value;
         var client = httpClientFactory.CreateClient();
         var form = new FormUrlEncodedContent([
             new KeyValuePair<string, string>("grant_type", "client_credentials"),

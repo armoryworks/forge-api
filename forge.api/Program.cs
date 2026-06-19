@@ -721,6 +721,9 @@ try
     // same IBankPaymentService interface under the MockIntegrations flag like the other integrations.
     builder.Services.AddSingleton<IBankPaymentService, MockBankPaymentService>();
 
+    // Resolves UI-entered carrier credentials (decrypted) for the carrier adapters; harmless with mocks.
+    builder.Services.AddSingleton<ICarrierCredentialProvider, Forge.Api.Services.CarrierCredentialProvider>();
+
     if (useMocks)
     {
         builder.Services.AddSingleton<IStorageService, MockStorageService>();

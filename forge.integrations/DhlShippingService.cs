@@ -13,16 +13,33 @@ namespace Forge.Integrations;
 public class DhlShippingService(
     IHttpClientFactory httpClientFactory,
     IOptions<DhlOptions> options,
-    ILogger<DhlShippingService> logger) : IShippingCarrierService
+    ILogger<DhlShippingService> logger,
+    ICarrierCredentialProvider? credentialProvider = null) : IShippingCarrierService
 {
     public string CarrierId => "dhl";
     public string CarrierName => "DHL Express";
-    public bool IsConfigured => !string.IsNullOrEmpty(options.Value.ApiKey) && !string.IsNullOrEmpty(options.Value.ApiSecret);
+    public bool IsConfigured
+    {
+        get { var o = EffectiveOptions(); return !string.IsNullOrEmpty(o.ApiKey) && !string.IsNullOrEmpty(o.ApiSecret); }
+    }
+
+    // UI-entered (decrypted) credentials override appsettings when present; the configured BaseUrl is kept.
+    private DhlOptions EffectiveOptions()
+    {
+        var stored = credentialProvider?.Resolve(CarrierId);
+        return stored is null ? options.Value : new DhlOptions
+        {
+            ApiKey = stored.ClientId,
+            ApiSecret = stored.Secret,
+            AccountNumber = stored.AccountNumber ?? string.Empty,
+            BaseUrl = options.Value.BaseUrl,
+        };
+    }
 
     public async Task<List<ShippingRate>> GetRatesAsync(ShipmentRequest request, CancellationToken ct)
     {
         if (!IsConfigured) return [];
-        var opts = options.Value;
+        var opts = EffectiveOptions();
         var client = CreateClient(opts);
         var pkg = request.Packages.FirstOrDefault() ?? new ShippingPackage(1, 12, 12, 6);
 
@@ -85,7 +102,7 @@ public class DhlShippingService(
     public async Task<ShippingLabel> CreateLabelAsync(ShipmentRequest request, string carrierId, CancellationToken ct)
     {
         if (!IsConfigured) throw new InvalidOperationException("DHL is not configured");
-        var opts = options.Value;
+        var opts = EffectiveOptions();
         var productCode = carrierId.StartsWith("dhl-") ? carrierId[4..].ToUpperInvariant() : "P";
         var client = CreateClient(opts);
         var pkg = request.Packages.FirstOrDefault() ?? new ShippingPackage(1, 12, 12, 6);
@@ -154,7 +171,7 @@ public class DhlShippingService(
     public async Task<ShipmentTracking?> GetTrackingAsync(string trackingNumber, CancellationToken ct)
     {
         if (!IsConfigured) return null;
-        var opts = options.Value;
+        var opts = EffectiveOptions();
         var client = CreateClient(opts);
 
         var response = await client.GetAsync($"{opts.BaseUrl}/shipments/{trackingNumber}/tracking?trackingView=all-checkpoints", ct);
@@ -206,7 +223,7 @@ public class DhlShippingService(
 
     public async Task<bool> TestConnectionAsync(CancellationToken ct)
     {
-        var opts = options.Value;
+        var opts = EffectiveOptions();
         if (!IsConfigured) return false;
         var client = CreateClient(opts);
         var testUrl = $"{opts.BaseUrl}/rates?originCountryCode=US&originPostalCode=10001" +

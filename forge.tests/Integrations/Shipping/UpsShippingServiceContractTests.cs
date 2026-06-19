@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 using Forge.Api.Features.Shipments;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Integrations;
 using Forge.Tests.Helpers;
@@ -138,5 +139,29 @@ public class UpsShippingServiceContractTests
         svc.IsConfigured.Should().BeFalse();
         (await svc.GetRatesAsync(SampleRequest(), CancellationToken.None)).Should().BeEmpty();
         (await svc.GetTrackingAsync("1Z999", CancellationToken.None)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Stored_credentials_drive_the_adapter_when_options_are_empty()
+    {
+        // No appsettings/env creds — only UI-entered (provider) creds. The adapter must become configured
+        // and operate on them, proving the ICarrierCredentialProvider path (not just the IOptions fallback).
+        var provider = new StubCredentialProvider(new CarrierCredentials("ui-client", "ui-secret", "ACCT9", "sandbox"));
+        var svc = new UpsShippingService(
+            new StubHttpClientFactory(new RouteStubHandler(new Dictionary<string, string>
+            {
+                ["/oauth/token"] = TokenJson, ["/api/rating/"] = RateMultiJson,
+            })),
+            Options.Create(new UpsOptions()), // empty options
+            NullLogger<UpsShippingService>.Instance,
+            provider);
+
+        svc.IsConfigured.Should().BeTrue("UI-entered credentials make the adapter configured");
+        (await svc.GetRatesAsync(SampleRequest(), CancellationToken.None)).Should().HaveCount(2);
+    }
+
+    private sealed class StubCredentialProvider(CarrierCredentials? creds) : ICarrierCredentialProvider
+    {
+        public CarrierCredentials? Resolve(string integrationServiceId) => creds;
     }
 }

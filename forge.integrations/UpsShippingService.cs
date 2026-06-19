@@ -14,20 +14,38 @@ namespace Forge.Integrations;
 public class UpsShippingService(
     IHttpClientFactory httpClientFactory,
     IOptions<UpsOptions> options,
-    ILogger<UpsShippingService> logger) : IShippingCarrierService
+    ILogger<UpsShippingService> logger,
+    ICarrierCredentialProvider? credentialProvider = null) : IShippingCarrierService
 {
     private string? _cachedToken;
     private DateTimeOffset _tokenExpiry = DateTimeOffset.MinValue;
 
     public string CarrierId => "ups";
     public string CarrierName => "UPS";
-    public bool IsConfigured => !string.IsNullOrEmpty(options.Value.ClientId) && !string.IsNullOrEmpty(options.Value.ClientSecret);
+    public bool IsConfigured
+    {
+        get { var o = EffectiveOptions(); return !string.IsNullOrEmpty(o.ClientId) && !string.IsNullOrEmpty(o.ClientSecret); }
+    }
+
+    // UI-entered (decrypted) credentials override appsettings/env when present; the env-derived
+    // BaseUrl/TokenUrl follow from the resolved environment.
+    private UpsOptions EffectiveOptions()
+    {
+        var stored = credentialProvider?.Resolve(CarrierId);
+        return stored is null ? options.Value : new UpsOptions
+        {
+            ClientId = stored.ClientId,
+            ClientSecret = stored.Secret,
+            AccountNumber = stored.AccountNumber ?? string.Empty,
+            Environment = stored.Environment,
+        };
+    }
 
     public async Task<List<ShippingRate>> GetRatesAsync(ShipmentRequest request, CancellationToken ct)
     {
         if (!IsConfigured) return [];
-        var opts = options.Value;
-        var token = await GetAccessTokenAsync(ct);
+        var opts = EffectiveOptions();
+        var token = await GetAccessTokenAsync(opts, ct);
         if (token is null) return [];
 
         var client = CreateClient(token);
@@ -70,8 +88,8 @@ public class UpsShippingService(
     public async Task<ShippingLabel> CreateLabelAsync(ShipmentRequest request, string carrierId, CancellationToken ct)
     {
         if (!IsConfigured) throw new InvalidOperationException("UPS is not configured");
-        var opts = options.Value;
-        var token = await GetAccessTokenAsync(ct);
+        var opts = EffectiveOptions();
+        var token = await GetAccessTokenAsync(opts, ct);
         if (token is null) throw new InvalidOperationException("UPS authentication failed");
 
         // Extract service code from carrierId (e.g., "ups-03" → "03")
@@ -103,8 +121,8 @@ public class UpsShippingService(
     public async Task<ShipmentTracking?> GetTrackingAsync(string trackingNumber, CancellationToken ct)
     {
         if (!IsConfigured) return null;
-        var opts = options.Value;
-        var token = await GetAccessTokenAsync(ct);
+        var opts = EffectiveOptions();
+        var token = await GetAccessTokenAsync(opts, ct);
         if (token is null) return null;
 
         var client = CreateClient(token);
@@ -173,14 +191,13 @@ public class UpsShippingService(
     }
 
     public Task<bool> TestConnectionAsync(CancellationToken ct) =>
-        GetAccessTokenAsync(ct).ContinueWith(t => t.Result is not null, ct);
+        GetAccessTokenAsync(EffectiveOptions(), ct).ContinueWith(t => t.Result is not null, ct);
 
-    private async Task<string?> GetAccessTokenAsync(CancellationToken ct)
+    private async Task<string?> GetAccessTokenAsync(UpsOptions opts, CancellationToken ct)
     {
         if (_cachedToken is not null && DateTimeOffset.UtcNow < _tokenExpiry)
             return _cachedToken;
 
-        var opts = options.Value;
         var client = httpClientFactory.CreateClient();
         var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{opts.ClientId}:{opts.ClientSecret}"));
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
