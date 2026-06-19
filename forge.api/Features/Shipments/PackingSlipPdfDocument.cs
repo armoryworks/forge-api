@@ -2,6 +2,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 
 namespace Forge.Api.Features.Shipments;
@@ -43,10 +44,21 @@ public class PackingSlipPdfDocument : IDocument
                     left.Item().Text(_companyName).Bold().FontSize(18);
                 });
 
-                row.RelativeItem().AlignRight().Column(right =>
+                row.RelativeItem().AlignRight().PaddingRight(10).Column(right =>
                 {
                     right.Item().Text("PACKING SLIP").Bold().FontSize(24).FontColor(Colors.Teal.Darken2);
                     right.Item().Text($"#{_shipment.ShipmentNumber}").FontSize(12);
+                });
+
+                // Master QR — the coverage-bound ScanCode the worker scans to mark the
+                // shipment shipped. Always present; falls back to a fresh compute for a
+                // legacy shipment created before scan codes existed.
+                var master = _shipment.ScanCode
+                    ?? ShipmentScanCode.Compute(_shipment.ShipmentNumber, _shipment.Lines);
+                row.ConstantItem(82).Column(qr =>
+                {
+                    qr.Item().Width(78).Image(QrCodeRenderer.Png(master));
+                    qr.Item().AlignCenter().Text("SCAN TO SHIP").FontSize(7).FontColor(Colors.Grey.Darken1);
                 });
             });
 
@@ -141,6 +153,8 @@ public class PackingSlipPdfDocument : IDocument
                 });
             });
 
+            ComposeScanCodes(col);
+
             if (!string.IsNullOrWhiteSpace(_shipment.Notes))
             {
                 col.Item().PaddingTop(20).Column(notes =>
@@ -168,6 +182,40 @@ public class PackingSlipPdfDocument : IDocument
                         right.Item().PaddingTop(4).Text("Date").FontSize(9).FontColor(Colors.Grey.Darken1);
                     });
                 });
+            });
+        });
+    }
+
+    // Per-sales-order QR codes — one per distinct SO covered by the shipment. Each encodes a scoped,
+    // coverage-bound code for that order's slice, so a mixed (multi-order) shipment can be scanned down
+    // to a single order. A single-order shipment renders exactly one. Grouped by the line's SO (the
+    // header SO today; future multi-order shipments fan out here automatically).
+    private void ComposeScanCodes(ColumnDescriptor col)
+    {
+        var groups = _shipment.Lines
+            .GroupBy(l => l.SalesOrderLine?.SalesOrderId ?? _shipment.SalesOrderId)
+            .OrderBy(g => g.Key)
+            .ToList();
+        if (groups.Count == 0) return;
+
+        col.Item().PaddingTop(16).Column(scan =>
+        {
+            scan.Item().Text("Order scan codes").SemiBold().FontSize(9).FontColor(Colors.Grey.Darken1);
+            scan.Item().PaddingTop(4).Row(row =>
+            {
+                foreach (var group in groups)
+                {
+                    var label = group.Key == _shipment.SalesOrderId
+                        ? _shipment.SalesOrder.OrderNumber
+                        : $"SO #{group.Key}";
+                    var code = ShipmentScanCode.ComputeForScope(
+                        _shipment.ShipmentNumber, $"S{group.Key}", group);
+                    row.ConstantItem(90).Column(qr =>
+                    {
+                        qr.Item().Width(70).Image(QrCodeRenderer.Png(code));
+                        qr.Item().AlignCenter().Text(label).FontSize(7).FontColor(Colors.Grey.Darken1);
+                    });
+                }
             });
         });
     }
