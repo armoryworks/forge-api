@@ -1704,6 +1704,10 @@ try
         "bank-returns-poll",
         job => job.PollAsync(CancellationToken.None),
         "*/30 * * * *"); // Every 30 minutes — no-op unless banking.nacha.channel = sftp (Phase C)
+    RecurringJob.AddOrUpdate<ShipmentDeliverySweepJob>(
+        "shipment-delivery-sweep",
+        job => job.SweepAsync(CancellationToken.None),
+        "*/30 * * * *"); // Every 30 minutes — polls tracking for Poll-mode carriers and marks delivered
 
     // Accounting sync jobs
     RecurringJob.AddOrUpdate<CustomerSyncJob>(
