@@ -39,4 +39,20 @@ public class Carrier : BaseAuditableEntity
     public bool IsActive { get; set; } = true;
     public int SortOrder { get; set; }
     public string? Notes { get; set; }
+
+    // ── Live-integration credentials (entered via the carrier admin UI; Api carriers only).
+    /// <summary>The carrier API key / client id / consumer key — an identifier, stored as-is.</summary>
+    public string? CredentialClientId { get; set; }
+
+    /// <summary>
+    /// The carrier API secret, stored ENCRYPTED at rest (ITokenEncryptionService) and never returned by
+    /// the API — write-only from the UI's perspective. Null until credentials are entered.
+    /// </summary>
+    public string? CredentialSecret { get; set; }
+
+    /// <summary>The carrier account / shipper number (identifier; semi-sensitive, stored as-is).</summary>
+    public string? CredentialAccountNumber { get; set; }
+
+    /// <summary>"sandbox" or "production" — selects the carrier API host for this carrier's credentials.</summary>
+    public string? CredentialEnvironment { get; set; }
 }

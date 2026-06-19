@@ -30,4 +30,12 @@ public class CarriersController(IMediator mediator) : ControllerBase
             request.RequiresScanToShip, request.Notes));
         return CreatedAtAction(nameof(GetCarriers), new { }, result);
     }
+
+    [HttpPut("{id:int}/credentials")]
+    public async Task<IActionResult> UpdateCredentials(int id, UpdateCarrierCredentialsRequestModel request)
+    {
+        await mediator.Send(new UpdateCarrierCredentialsCommand(
+            id, request.ClientId, request.Secret, request.AccountNumber, request.Environment));
+        return NoContent();
+    }
 }

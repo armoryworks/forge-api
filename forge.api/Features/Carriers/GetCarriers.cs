@@ -21,7 +21,10 @@ public class GetCarriersHandler(AppDbContext db) : IRequestHandler<GetCarriersQu
             .Select(c => new CarrierListItemModel(
                 c.Id, c.Name, c.Code, c.Scac,
                 c.IntegrationKind.ToString(), c.DeliveryUpdateMode.ToString(),
-                c.IntegrationServiceId, c.RequiresScanToShip, c.IsActive, c.SortOrder))
+                c.IntegrationServiceId, c.RequiresScanToShip, c.IsActive, c.SortOrder,
+                c.CredentialClientId != null && c.CredentialSecret != null,
+                c.CredentialClientId,
+                c.CredentialEnvironment))
             .ToListAsync(cancellationToken);
     }
 }
