@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -45,7 +46,7 @@ public class UpsShippingService(
         if (doc.RootElement.TryGetProperty("RateResponse", out var rr) &&
             rr.TryGetProperty("RatedShipment", out var shipments))
         {
-            foreach (var s in shipments.EnumerateArray())
+            foreach (var s in EnumerateOrSingle(shipments))
             {
                 var serviceCode = s.TryGetProperty("Service", out var svc)
                     ? svc.TryGetProperty("Code", out var code) ? code.GetString() ?? "03" : "03"
@@ -53,7 +54,7 @@ public class UpsShippingService(
                 var serviceName = MapUpsServiceCode(serviceCode);
                 var amount = s.TryGetProperty("TotalCharges", out var charges) &&
                              charges.TryGetProperty("MonetaryValue", out var mv)
-                    ? decimal.Parse(mv.GetString() ?? "0")
+                    ? decimal.Parse(mv.GetString() ?? "0", CultureInfo.InvariantCulture)
                     : 0m;
                 var days = s.TryGetProperty("GuaranteedDelivery", out var gd) &&
                            gd.TryGetProperty("BusinessDaysInTransit", out var daysEl)
@@ -90,9 +91,7 @@ public class UpsShippingService(
         var doc = JsonDocument.Parse(body);
         var shipResp = doc.RootElement.GetProperty("ShipmentResponse").GetProperty("ShipmentResults");
         var tracking = shipResp.GetProperty("ShipmentIdentificationNumber").GetString()!;
-        var labelData = shipResp
-            .GetProperty("PackageResults")
-            .EnumerateArray().First()
+        var labelData = EnumerateOrSingle(shipResp.GetProperty("PackageResults")).First()
             .GetProperty("ShippingLabel")
             .GetProperty("GraphicImage")
             .GetString()!;
@@ -142,8 +141,7 @@ public class UpsShippingService(
                             {
                                 if (dateEl.TryGetProperty("date", out var dv))
                                 {
-                                    if (DateTimeOffset.TryParse(dv.GetString(), out var dt))
-                                        estimatedDelivery = dt;
+                                    estimatedDelivery = ParseUpsDateTime(dv.GetString(), null) ?? estimatedDelivery;
                                     break;
                                 }
                             }
@@ -162,7 +160,7 @@ public class UpsShippingService(
                                     ? sdesc.GetString() ?? string.Empty : string.Empty;
                                 var dateStr = act.TryGetProperty("date", out var actDate) ? actDate.GetString() : null;
                                 var timeStr = act.TryGetProperty("time", out var actTime) ? actTime.GetString() : null;
-                                DateTimeOffset.TryParse($"{dateStr} {timeStr}", out var eventTime);
+                                var eventTime = ParseUpsDateTime(dateStr, timeStr) ?? default;
                                 events.Add(new TrackingEvent(eventTime, loc, actDesc));
                             }
                         }
@@ -306,6 +304,24 @@ public class UpsShippingService(
         PostalCode = a.Zip,
         CountryCode = string.IsNullOrEmpty(a.Country) ? "US" : a.Country,
     };
+
+    // UPS returns single-or-array for collection fields (RatedShipment, PackageResults): a bare object
+    // when there's one element, an array when several. Normalize so parsing never crashes on the single
+    // case — a classic UPS-integration trap (e.g. a one-service rate shop or a one-package shipment).
+    private static IEnumerable<JsonElement> EnumerateOrSingle(JsonElement el)
+        => el.ValueKind == JsonValueKind.Array ? el.EnumerateArray() : [el];
+
+    // UPS dates/times are yyyyMMdd / HHmmss strings (not ISO) — TryParse won't read them. Parse exactly,
+    // treating them as UTC; null for missing/garbage so a bad field doesn't poison the tracking record.
+    private static DateTimeOffset? ParseUpsDateTime(string? date, string? time)
+    {
+        if (string.IsNullOrWhiteSpace(date)) return null;
+        var hasTime = !string.IsNullOrWhiteSpace(time);
+        var raw = hasTime ? date + time : date;
+        var fmt = hasTime ? "yyyyMMddHHmmss" : "yyyyMMdd";
+        return DateTimeOffset.TryParseExact(
+            raw, fmt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dt) ? dt : null;
+    }
 
     private static string MapUpsServiceCode(string code) => code switch
     {
