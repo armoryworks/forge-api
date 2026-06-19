@@ -41,6 +41,13 @@ public class Shipment : BaseAuditableEntity, IConcurrencyVersioned
     public bool SignatureRequired { get; set; }
     public string? BillOfLadingNumber { get; set; }
 
+    /// <summary>
+    /// Carrier pickup confirmation (PRP / confirmation code) once a courier pickup is scheduled for this
+    /// shipment; null when none is scheduled. Per-shipment pickup model — a shipment has at most one.
+    /// </summary>
+    public string? PickupConfirmationNumber { get; set; }
+    public DateTimeOffset? PickupScheduledDate { get; set; }
+
     public SalesOrder SalesOrder { get; set; } = null!;
     public Carrier? AssignedCarrier { get; set; }
     public CustomerAddress? ShippingAddress { get; set; }

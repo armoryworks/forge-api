@@ -6862,6 +6862,8 @@ CREATE TABLE public.shipments (
     insured_value numeric(18,4),
     signature_required boolean DEFAULT false NOT NULL,
     bill_of_lading_number character varying(200),
+    pickup_confirmation_number character varying(100),
+    pickup_scheduled_date timestamp with time zone,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,

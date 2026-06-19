@@ -103,6 +103,22 @@ public class ShipmentsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("{id:int}/pickup")]
+    public async Task<ActionResult<PickupConfirmation>> SchedulePickup(
+        int id, [FromBody] SchedulePickupRequestModel? request = null)
+    {
+        var result = await mediator.Send(new SchedulePickupCommand(
+            id, request?.ReadyTime, request?.CloseTime, request?.Instructions));
+        return Ok(result);
+    }
+
+    [HttpPost("{id:int}/pickup/cancel")]
+    public async Task<IActionResult> CancelPickup(int id)
+    {
+        await mediator.Send(new CancelPickupCommand(id));
+        return NoContent();
+    }
+
     [HttpPost("validate-address")]
     public async Task<ActionResult<AddressValidationResponseModel>> ValidateAddress(ValidateAddressRequestModel request)
     {

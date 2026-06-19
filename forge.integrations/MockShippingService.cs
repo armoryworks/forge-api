@@ -67,4 +67,18 @@ public class MockShippingService : IShippingService
         _logger.LogInformation("[MockShipping] TestConnection — returning true");
         return Task.FromResult(true);
     }
+
+    public Task<PickupConfirmation> SchedulePickupAsync(PickupRequest request, string carrierId, CancellationToken ct)
+    {
+        var confirmation = $"MOCK-PU-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
+        _logger.LogInformation("[MockShipping] SchedulePickup via {Carrier} ready {Ready} — confirmation {Conf}",
+            carrierId, request.ReadyTime, confirmation);
+        return Task.FromResult(new PickupConfirmation(confirmation, request.ReadyTime, carrierId.ToUpperInvariant()));
+    }
+
+    public Task<bool> CancelPickupAsync(string confirmationNumber, string carrierId, CancellationToken ct)
+    {
+        _logger.LogInformation("[MockShipping] CancelPickup {Conf} ({Carrier})", confirmationNumber, carrierId);
+        return Task.FromResult(true);
+    }
 }

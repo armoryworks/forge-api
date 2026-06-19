@@ -55,6 +55,21 @@ public class MultiCarrierShippingService(
         return await carrier.CreateLabelAsync(request, carrierId, ct);
     }
 
+    public async Task<PickupConfirmation> SchedulePickupAsync(PickupRequest request, string carrierId, CancellationToken ct)
+        => await ResolveCarrier(carrierId).SchedulePickupAsync(request, carrierId, ct);
+
+    public async Task<bool> CancelPickupAsync(string confirmationNumber, string carrierId, CancellationToken ct)
+        => await ResolveCarrier(carrierId).CancelPickupAsync(confirmationNumber, carrierId, ct);
+
+    // Route by carrierId prefix to a configured carrier (same resolution CreateLabelAsync uses).
+    private IShippingCarrierService ResolveCarrier(string carrierId)
+    {
+        var prefix = carrierId.Split('-').FirstOrDefault() ?? carrierId;
+        return _carriers.FirstOrDefault(c => c.CarrierId.Equals(prefix, StringComparison.OrdinalIgnoreCase) && c.IsConfigured)
+            ?? throw new InvalidOperationException(
+                $"Carrier '{prefix}' is not configured or not found. Available: {string.Join(", ", _carriers.Where(c => c.IsConfigured).Select(c => c.CarrierId))}");
+    }
+
     public Task<ShipmentTracking?> GetTrackingAsync(string trackingNumber, CancellationToken ct)
     {
         // Detect carrier by tracking number format heuristics

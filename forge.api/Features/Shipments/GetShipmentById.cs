@@ -31,6 +31,8 @@ public class GetShipmentByIdHandler(IShipmentRepository repo)
             shipment.ShippingCost,
             shipment.Weight,
             shipment.Notes,
+            shipment.PickupConfirmationNumber,
+            shipment.PickupScheduledDate,
             shipment.Invoice?.Id,
             shipment.Lines.Select(l => new ShipmentLineResponseModel(
                 l.Id,

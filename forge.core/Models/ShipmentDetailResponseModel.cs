@@ -17,6 +17,8 @@ public record ShipmentDetailResponseModel(
     decimal? ShippingCost,
     decimal? Weight,
     string? Notes,
+    string? PickupConfirmationNumber,
+    DateTimeOffset? PickupScheduledDate,
     int? InvoiceId,
     List<ShipmentLineResponseModel> Lines,
     DateTimeOffset CreatedAt,
