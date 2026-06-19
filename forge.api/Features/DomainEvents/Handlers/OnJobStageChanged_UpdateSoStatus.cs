@@ -8,16 +8,20 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.DomainEvents.Handlers;
 
+/// <summary>
+/// Production progress moves the SO from Confirmed → InProduction when its first job enters a production
+/// stage. It deliberately does NOT advance the SO to Shipped: fulfillment status is owned solely by actual
+/// <see cref="Shipment"/>s (OnShipmentCreated_UpdateSalesOrder), so a "Shipped" order is always backed by a
+/// real shipment + inventory relief + tracking. The job kanban reaching a ship/complete column instead
+/// raises a ready-to-ship signal (OnJobStageChanged_CheckShipReady) — it never marks the order shipped on
+/// its own. (This resolves the prior dual-writer conflict where a job dragged to a "Shipped" column flipped
+/// the SO to Shipped with no shipment, stranding it short of Completed.)
+/// </summary>
 public class OnJobStageChanged_UpdateSoStatus(
     AppDbContext db,
     ILogger<OnJobStageChanged_UpdateSoStatus> logger)
     : INotificationHandler<JobStageChangedEvent>
 {
-    private static readonly HashSet<string> CompletionStageNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Shipped", "Invoiced/Sent", "Payment Received", "Completed"
-    };
-
     private static readonly HashSet<string> ProductionStageNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "In Production", "Materials Received", "QC/Review"
@@ -25,7 +29,6 @@ public class OnJobStageChanged_UpdateSoStatus(
 
     public async Task Handle(JobStageChangedEvent notification, CancellationToken ct)
     {
-        // Load the job with its SO line linkage
         var job = await db.Jobs
             .Include(j => j.SalesOrderLine)
             .AsNoTracking()
@@ -35,77 +38,31 @@ public class OnJobStageChanged_UpdateSoStatus(
 
         var salesOrderId = job.SalesOrderLine!.SalesOrderId;
 
-        // Load the SO for status update (tracked, not AsNoTracking)
-        var salesOrder = await db.SalesOrders
-            .FirstOrDefaultAsync(so => so.Id == salesOrderId, ct);
-
+        var salesOrder = await db.SalesOrders.FirstOrDefaultAsync(so => so.Id == salesOrderId, ct);
         if (salesOrder is null) return;
 
-        var toStage = await db.JobStages
-            .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == notification.ToStageId, ct);
-
+        var toStage = await db.JobStages.AsNoTracking().FirstOrDefaultAsync(s => s.Id == notification.ToStageId, ct);
         if (toStage is null) return;
 
-        var isProductionStage = ProductionStageNames.Contains(toStage.Name) ||
-                                toStage.Name.Contains("Production", StringComparison.OrdinalIgnoreCase);
+        var isProductionStage = ProductionStageNames.Contains(toStage.Name)
+            || toStage.Name.Contains("Production", StringComparison.OrdinalIgnoreCase);
 
-        var isCompletionStage = CompletionStageNames.Contains(toStage.Name) ||
-                                toStage.Name.Contains("Ship", StringComparison.OrdinalIgnoreCase);
+        // Confirmed → InProduction when the first job enters a production stage. (No Shipped transition —
+        // that's the shipment's job; see the class summary.)
+        if (salesOrder.Status != SalesOrderStatus.Confirmed || !isProductionStage) return;
 
-        // Transition 1: Confirmed → InProduction when any job enters a production stage
-        if (salesOrder.Status == SalesOrderStatus.Confirmed && isProductionStage)
-        {
-            salesOrder.Status = SalesOrderStatus.InProduction;
-
-            db.ActivityLogs.Add(new ActivityLog
-            {
-                EntityType = "SalesOrder",
-                EntityId = salesOrderId,
-                UserId = notification.UserId,
-                Action = "status_changed",
-                Description = $"Status changed to In Production (job {job.JobNumber} entered {toStage.Name}).",
-            });
-
-            await db.SaveChangesAsync(ct);
-            logger.LogInformation("SO {SalesOrderId} status updated to InProduction — job {JobNumber} entered {Stage}",
-                salesOrderId, job.JobNumber, toStage.Name);
-            return;
-        }
-
-        // Transition 2: Check if all jobs across all SO lines are complete → SO status = Shipped
-        if (!isCompletionStage) return;
-        if (salesOrder.Status is SalesOrderStatus.Shipped or SalesOrderStatus.Completed or SalesOrderStatus.Cancelled)
-            return;
-
-        // Load all jobs linked to any line of this SO
-        var allSoJobs = await db.Jobs
-            .Include(j => j.CurrentStage)
-            .Where(j => j.SalesOrderLine != null && j.SalesOrderLine.SalesOrderId == salesOrderId)
-            .AsNoTracking()
-            .ToListAsync(ct);
-
-        if (allSoJobs.Count == 0) return;
-
-        var allComplete = allSoJobs.All(j =>
-            CompletionStageNames.Contains(j.CurrentStage.Name) ||
-            j.CurrentStage.Name.Contains("Ship", StringComparison.OrdinalIgnoreCase));
-
-        if (!allComplete) return;
-
-        salesOrder.Status = SalesOrderStatus.Shipped;
-
+        salesOrder.Status = SalesOrderStatus.InProduction;
         db.ActivityLogs.Add(new ActivityLog
         {
             EntityType = "SalesOrder",
             EntityId = salesOrderId,
             UserId = notification.UserId,
             Action = "status_changed",
-            Description = "Status changed to Shipped — all production jobs are complete.",
+            Description = $"Status changed to In Production (job {job.JobNumber} entered {toStage.Name}).",
         });
 
         await db.SaveChangesAsync(ct);
-        logger.LogInformation("SO {SalesOrderId} status updated to Shipped — all {Count} jobs complete",
-            salesOrderId, allSoJobs.Count);
+        logger.LogInformation("SO {SalesOrderId} → InProduction (job {JobNumber} entered {Stage})",
+            salesOrderId, job.JobNumber, toStage.Name);
     }
 }

@@ -104,6 +104,14 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    // One-click: ship the order's production-complete, unshipped lines (creates the shipment for you).
+    [HttpPost("{id:int}/create-shipment")]
+    public async Task<ActionResult<ShipmentListItemModel>> CreateShipmentFromOrder(int id)
+    {
+        var result = await mediator.Send(new Forge.Api.Features.Shipments.CreateShipmentFromSalesOrderCommand(id));
+        return Ok(result);
+    }
+
     [HttpDelete("{id:int}")]
     [IfMatch(typeof(SalesOrder))]
     public async Task<IActionResult> DeleteSalesOrder(int id)
