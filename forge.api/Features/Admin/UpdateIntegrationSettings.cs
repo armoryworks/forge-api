@@ -47,10 +47,6 @@ public class UpdateIntegrationSettingsHandler(
     IOptions<DocuSealOptions> docuSealOptions,
     IOptions<AiOptions> aiOptions,
     IOptions<GoogleDriveOptions> googleDriveOptions,
-    IOptions<UpsOptions> upsOptions,
-    IOptions<FedExOptions> fedExOptions,
-    IOptions<DhlOptions> dhlOptions,
-    IOptions<StampsOptions> stampsOptions,
     IOptions<QuickBooksOptions> quickBooksOptions,
     IOptions<XeroOptions> xeroOptions,
     IOptions<FreshBooksOptions> freshBooksOptions,
@@ -137,18 +133,6 @@ public class UpdateIntegrationSettingsHandler(
                 break;
             case "gdrive":
                 ApplyGoogleDrive(applied);
-                break;
-            case "ups":
-                ApplyUps(applied);
-                break;
-            case "fedex":
-                ApplyFedEx(applied);
-                break;
-            case "dhl":
-                ApplyDhl(applied);
-                break;
-            case "stamps":
-                ApplyStamps(applied);
                 break;
             case "quickbooks":
                 ApplyQuickBooks(applied);
@@ -265,60 +249,11 @@ public class UpdateIntegrationSettingsHandler(
     }
 
     // ── Shipping carriers ─────────────────────────────────────────────
-    // The four direct carrier services (UPS, FedEx, USPS Shipping, DHL,
-    // Stamps.com) all bind IOptions<T>. Without this propagation, an
-    // admin save lands the new credentials in the database but the
-    // carrier services keep using the in-memory snapshot from process
-    // start — a "saved successfully" toast that does nothing until the
-    // next API restart. Mirroring the SMTP / MinIO pattern lets carrier
-    // credentials take effect on save, same as every other integration.
-
-    private void ApplyUps(Dictionary<string, string?> applied)
-    {
-        var o = upsOptions.Value;
-        if (applied.TryGetValue("ups.client-id", out var cid) && cid is not null) o.ClientId = cid;
-        if (applied.TryGetValue("ups.client-secret", out var cs) && cs is not null) o.ClientSecret = cs;
-        if (applied.TryGetValue("ups.account-number", out var acct) && acct is not null) o.AccountNumber = acct;
-        // mode descriptor maps to environment ("sandbox" / "production")
-        if (applied.TryGetValue("ups.mode", out var mode) && mode is not null) o.Environment = mode;
-    }
-
-    private void ApplyFedEx(Dictionary<string, string?> applied)
-    {
-        var o = fedExOptions.Value;
-        if (applied.TryGetValue("fedex.client-id", out var cid) && cid is not null) o.ClientId = cid;
-        if (applied.TryGetValue("fedex.client-secret", out var cs) && cs is not null) o.ClientSecret = cs;
-        if (applied.TryGetValue("fedex.account-number", out var acct) && acct is not null) o.AccountNumber = acct;
-        if (applied.TryGetValue("fedex.mode", out var mode) && mode is not null) o.Environment = mode;
-    }
-
-    private void ApplyDhl(Dictionary<string, string?> applied)
-    {
-        var o = dhlOptions.Value;
-        if (applied.TryGetValue("dhl.api-key", out var key) && key is not null) o.ApiKey = key;
-        if (applied.TryGetValue("dhl.account-number", out var acct) && acct is not null) o.AccountNumber = acct;
-        // dhl.mode is in the descriptor but DhlOptions doesn't model an
-        // environment switch — the BaseUrl is hardcoded to production.
-        // Sandbox vs production for DHL Express is gated server-side by
-        // the API key tier the developer was issued. No-op here.
-    }
-
-    private void ApplyStamps(Dictionary<string, string?> applied)
-    {
-        var o = stampsOptions.Value;
-        // Stamps descriptor uses username/password/integration-id; the
-        // options model has ApiKey + AccountId + Password + Environment.
-        // Map integration-id → ApiKey, username → AccountId, password →
-        // Password (closest available fields). Until a real Stamps
-        // service ships (the SwsimV111 SOAP wrapper), this captures the
-        // credentials without a restart so when the service does land
-        // it picks them up immediately — and the password is no longer
-        // silently dropped on the floor.
-        if (applied.TryGetValue("stamps.integration-id", out var iid) && iid is not null) o.ApiKey = iid;
-        if (applied.TryGetValue("stamps.username", out var user) && user is not null) o.AccountId = user;
-        if (applied.TryGetValue("stamps.password", out var pw) && pw is not null) o.Password = pw;
-        if (applied.TryGetValue("stamps.mode", out var mode) && mode is not null) o.Environment = mode;
-    }
+    // Carrier credentials (UPS, FedEx, DHL, Stamps.com) are NOT managed here.
+    // They live on the dedicated /admin/carriers page as DB-backed Carrier
+    // rows, read live by ICarrierCredentialProvider — one home, no duplication.
+    // (USPS above stays: that descriptor is the free USPS Web Tools UserId for
+    // address validation, a different credential from USPS *shipping*.)
 
     // ── Accounting providers ──────────────────────────────────────────
     // All 7 accounting providers bind IOptions<T>; admin saves through

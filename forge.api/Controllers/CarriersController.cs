@@ -38,4 +38,11 @@ public class CarriersController(IMediator mediator) : ControllerBase
             id, request.ClientId, request.Secret, request.AccountNumber, request.Environment));
         return NoContent();
     }
+
+    [HttpPost("{id:int}/test")]
+    public async Task<ActionResult<CarrierTestResultModel>> TestCarrier(int id)
+    {
+        var result = await mediator.Send(new TestCarrierConnectionCommand(id));
+        return Ok(result);
+    }
 }

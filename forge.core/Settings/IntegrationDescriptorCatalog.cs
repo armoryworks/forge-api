@@ -258,77 +258,9 @@ public static class IntegrationDescriptorCatalog
             SignupUrl: "https://ollama.com/library"),
 
         // ── Shipping carriers ─────────────────────────────────────
-        new(
-            Provider: "ups",
-            Name: "UPS",
-            Description: "UPS shipping rate shopping, label creation, and tracking.",
-            Icon: "local_shipping",
-            Category: "shipping",
-            FieldKeys: ["ups.mode", "ups.client-id", "ups.client-secret", "ups.account-number"],
-            IsConfiguredCheckKey: "ups.client-id",
-            LogoUrl: "https://logo.clearbit.com/ups.com",
-            SetupSteps:
-            [
-                "developer.ups.com → sign in with your UPS.com account (or create one).",
-                "Avatar → Apps → Add Apps. 'I want to integrate UPS technology into my business' → associate a UPS shipping account → accept terms.",
-                "Add the Authorization (OAuth) product + APIs you need (Rating, Shipping, Tracking). Click the eye icon on the app to reveal Client ID + Client Secret.",
-                "Sandbox testing is free — no charges for test shipments. OAuth tokens expire every hour (auto-refresh handled).",
-            ],
-            SignupUrl: "https://developer.ups.com/"),
-
-        new(
-            Provider: "fedex",
-            Name: "FedEx",
-            Description: "FedEx shipping rate shopping, label creation, and tracking.",
-            Icon: "local_shipping",
-            Category: "shipping",
-            FieldKeys: ["fedex.mode", "fedex.client-id", "fedex.client-secret", "fedex.account-number"],
-            IsConfiguredCheckKey: "fedex.client-id",
-            LogoUrl: "https://logo.clearbit.com/fedex.com",
-            SetupSteps:
-            [
-                "developer.fedex.com → register and create a free user ID. Log in and create an Organization (required before any project).",
-                "My Projects → Create New Project → API Project. Pick the APIs (Rates, Ship, Track).",
-                "Open the project → Test tab → API Key (Client ID) + Secret Key (Client Secret).",
-                "Sandbox base URL: apis-sandbox.fedex.com (vs production: apis.fedex.com). Tokens expire every hour. No real shipments in sandbox.",
-            ],
-            SignupUrl: "https://developer.fedex.com/"),
-
-        new(
-            Provider: "dhl",
-            Name: "DHL Express",
-            Description: "DHL Express international shipping.",
-            Icon: "flight_takeoff",
-            Category: "shipping",
-            FieldKeys: ["dhl.mode", "dhl.api-key", "dhl.account-number"],
-            IsConfiguredCheckKey: "dhl.api-key",
-            LogoUrl: "https://logo.clearbit.com/dhl.com",
-            SetupSteps:
-            [
-                "Register at developer.dhl.com/user/register. Confirm via email.",
-                "Get Access / API Catalog → request the DHL Express MyDHL API. Provide your 9-digit DHL Express account number.",
-                "Approval takes ~24 hours. You'll get Test + Production access emails.",
-                "Once approved: app dashboard → Show Key → API Key + API Secret. Test labels are watermarked + not billed.",
-            ],
-            SignupUrl: "https://developer.dhl.com/"),
-
-        new(
-            Provider: "stamps",
-            Name: "Stamps.com",
-            Description: "USPS postage printing + shipping labels via Stamps.com.",
-            Icon: "local_post_office",
-            Category: "shipping",
-            FieldKeys: ["stamps.mode", "stamps.username", "stamps.password", "stamps.integration-id"],
-            IsConfiguredCheckKey: "stamps.integration-id",
-            LogoUrl: "https://logo.clearbit.com/stamps.com",
-            SetupSteps:
-            [
-                "Sign up for a free developer sandbox at developer.stamps.com → Get a Free API Key.",
-                "Log in to the developer portal → create a new application → receive your Integration ID (API Key).",
-                "Sandbox endpoint: swsim.stamps.com. Sandbox labels are watermarked SAMPLE + not charged.",
-                "Username = your Stamps.com login. SOAP-based API — WSDL at swsim.stamps.com/SwsimV111.asmx?WSDL.",
-            ],
-            SignupUrl: "https://developer.stamps.com/"),
+        // Carrier credentials are managed on the dedicated /admin/carriers page (DB-backed Carrier rows
+        // read live by ICarrierCredentialProvider), NOT here — one home, no duplication. See
+        // CarriersController + the carrier credentials dialog.
 
         // ── Accounting providers ──────────────────────────────────
         new(

@@ -37,7 +37,6 @@ public class UpdateIntegrationSettingsHandlerTests
         out MinioOptions minio,
         out UspsOptions usps,
         out AiOptions ai,
-        out StampsOptions stamps,
         out GoogleDriveOptions gdrive)
     {
         var dp = new EphemeralDataProtectionProvider();
@@ -45,7 +44,6 @@ public class UpdateIntegrationSettingsHandlerTests
         minio = new MinioOptions();
         usps = new UspsOptions();
         ai = new AiOptions();
-        stamps = new StampsOptions();
         gdrive = new GoogleDriveOptions();
 
         var mediator = new Mock<IMediator>();
@@ -74,10 +72,6 @@ public class UpdateIntegrationSettingsHandlerTests
             Options.Create(new DocuSealOptions()),
             Options.Create(ai),
             Options.Create(gdrive),
-            Options.Create(new UpsOptions()),
-            Options.Create(new FedExOptions()),
-            Options.Create(new DhlOptions()),
-            Options.Create(stamps),
             Options.Create(new QuickBooksOptions()),
             Options.Create(new XeroOptions()),
             Options.Create(new FreshBooksOptions()),
@@ -127,10 +121,6 @@ public class UpdateIntegrationSettingsHandlerTests
             Options.Create(new DocuSealOptions()),
             Options.Create(new AiOptions()),
             Options.Create(new GoogleDriveOptions()),
-            Options.Create(new UpsOptions()),
-            Options.Create(new FedExOptions()),
-            Options.Create(new DhlOptions()),
-            Options.Create(new StampsOptions()),
             Options.Create(new QuickBooksOptions()),
             Options.Create(new XeroOptions()),
             Options.Create(new FreshBooksOptions()),
@@ -270,7 +260,7 @@ public class UpdateIntegrationSettingsHandlerTests
         // breaking USPS OAuth client-credentials renewal until someone
         // bounced the API container.
         using var dbScope = new AppDbContextLike();
-        var handler = MakeHandler(dbScope, out _, out var usps, out _, out _, out _);
+        var handler = MakeHandler(dbScope, out _, out var usps, out _, out _);
 
         await handler.Handle(new UpdateIntegrationSettingsCommand(
             Provider: "usps",
@@ -290,7 +280,7 @@ public class UpdateIntegrationSettingsHandlerTests
     public async Task Handle_Ai_PropagatesDocsPath_OnSave()
     {
         using var dbScope = new AppDbContextLike();
-        var handler = MakeHandler(dbScope, out _, out _, out var ai, out _, out _);
+        var handler = MakeHandler(dbScope, out _, out _, out var ai, out _);
 
         await handler.Handle(new UpdateIntegrationSettingsCommand(
             Provider: "ai",
@@ -314,7 +304,7 @@ public class UpdateIntegrationSettingsHandlerTests
         // onto IOptions<GoogleDriveOptions> so the running service picks
         // them up without a restart.
         using var dbScope = new AppDbContextLike();
-        var handler = MakeHandler(dbScope, out _, out _, out _, out _, out var gdrive);
+        var handler = MakeHandler(dbScope, out _, out _, out _, out var gdrive);
 
         await handler.Handle(new UpdateIntegrationSettingsCommand(
             Provider: "gdrive",
@@ -355,8 +345,6 @@ public class UpdateIntegrationSettingsHandlerTests
             Options.Create(new SmtpOptions()), Options.Create(new MinioOptions()),
             Options.Create(new UspsOptions()), Options.Create(new DocuSealOptions()),
             Options.Create(new AiOptions()), Options.Create(new GoogleDriveOptions()),
-            Options.Create(new UpsOptions()), Options.Create(new FedExOptions()),
-            Options.Create(new DhlOptions()), Options.Create(new StampsOptions()),
             Options.Create(qb),
             Options.Create(new XeroOptions()), Options.Create(new FreshBooksOptions()),
             Options.Create(new SageOptions()), Options.Create(new NetSuiteOptions()),
@@ -401,8 +389,6 @@ public class UpdateIntegrationSettingsHandlerTests
             Options.Create(new SmtpOptions()), Options.Create(new MinioOptions()),
             Options.Create(new UspsOptions()), Options.Create(new DocuSealOptions()),
             Options.Create(new AiOptions()), Options.Create(new GoogleDriveOptions()),
-            Options.Create(new UpsOptions()), Options.Create(new FedExOptions()),
-            Options.Create(new DhlOptions()), Options.Create(new StampsOptions()),
             Options.Create(new QuickBooksOptions()),
             Options.Create(new XeroOptions()), Options.Create(new FreshBooksOptions()),
             Options.Create(new SageOptions()), Options.Create(new NetSuiteOptions()),
@@ -419,32 +405,6 @@ public class UpdateIntegrationSettingsHandlerTests
 
         wave.AccessToken.Should().Be("wv-token-xyz");
         wave.BusinessId.Should().Be("biz_abc123");
-    }
-
-    [Fact]
-    public async Task Handle_Stamps_PropagatesPassword_OnSave()
-    {
-        // Even though the real Stamps SwsimV111 service isn't built yet,
-        // the Password field must round-trip to StampsOptions so the
-        // service picks the credential up the moment it ships. Pre-fix
-        // ApplyStamps silently dropped the password on the floor.
-        using var dbScope = new AppDbContextLike();
-        var handler = MakeHandler(dbScope, out _, out _, out _, out var stamps, out _);
-
-        await handler.Handle(new UpdateIntegrationSettingsCommand(
-            Provider: "stamps",
-            Settings: new Dictionary<string, string>
-            {
-                ["stamps.username"] = "test-user",
-                ["stamps.password"] = "test-pass",
-                ["stamps.integration-id"] = "test-int-id",
-            }),
-            CancellationToken.None);
-
-        stamps.AccountId.Should().Be("test-user");
-        stamps.Password.Should().Be("test-pass",
-            "Stamps password must round-trip even though the Stamps service is incomplete");
-        stamps.ApiKey.Should().Be("test-int-id");
     }
 
     [Fact]
