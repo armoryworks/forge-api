@@ -230,6 +230,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<ControlledDocument> ControlledDocuments => Set<ControlledDocument>();
     public DbSet<DocumentRevision> DocumentRevisions => Set<DocumentRevision>();
 
+    // General versioned-document store (lightweight, multi-entity) — e.g. wrapped shipping labels.
+    public DbSet<DocumentSet> DocumentSets => Set<DocumentSet>();
+    public DbSet<DocumentSetVersion> DocumentSetVersions => Set<DocumentSetVersion>();
+    public DbSet<DocumentSetLink> DocumentSetLinks => Set<DocumentSetLink>();
+
     // Outbound Webhooks
     public DbSet<WebhookSubscription> WebhookSubscriptions => Set<WebhookSubscription>();
     public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
