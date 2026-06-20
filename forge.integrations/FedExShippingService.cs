@@ -154,13 +154,28 @@ public class FedExShippingService(
             accountNumber = new { value = opts.AccountNumber },
         };
 
-        var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-        var response = await client.PostAsync($"{opts.BaseUrl}/ship/v1/shipments", content, ct);
-        var body = await response.Content.ReadAsStringAsync(ct);
-        if (!response.IsSuccessStatusCode)
+        var payloadJson = JsonSerializer.Serialize(payload);
+        HttpResponseMessage response;
+        string body;
+        var attempt = 0;
+        while (true)
         {
-            logger.LogError("[FedEx] CreateLabel failed: {Status} {Body}", response.StatusCode, body);
-            throw new InvalidOperationException($"FedEx label creation failed: {response.StatusCode}");
+            attempt++;
+            using var content = new StringContent(payloadJson, Encoding.UTF8, "application/json");
+            response = await client.PostAsync($"{opts.BaseUrl}/ship/v1/shipments", content, ct);
+            body = await response.Content.ReadAsStringAsync(ct);
+            if (response.IsSuccessStatusCode) break;
+
+            // FedEx's sandbox /ship endpoint frequently returns a transient 503/429 (while /rate stays up).
+            // Those mean "not processed — try again", so retrying a couple of times won't double-mint a label.
+            var retryable = (int)response.StatusCode is 503 or 429;
+            if (!retryable || attempt >= 3)
+            {
+                logger.LogError("[FedEx] CreateLabel failed (attempt {Attempt}): {Status} {Body}", attempt, response.StatusCode, body);
+                throw new InvalidOperationException($"FedEx label creation failed: {DescribeFedExError(response.StatusCode, body)}");
+            }
+            logger.LogWarning("[FedEx] CreateLabel transient {Status} (attempt {Attempt}) — retrying", response.StatusCode, attempt);
+            await Task.Delay(TimeSpan.FromMilliseconds(600 * attempt), ct);
         }
 
         var doc = JsonDocument.Parse(body);
@@ -290,6 +305,26 @@ public class FedExShippingService(
         postalCode = a.Zip,
         countryCode = string.IsNullOrEmpty(a.Country) ? "US" : a.Country,
     };
+
+    // Pull FedEx's actual error out of the response body (errors[0].message/code) so the user sees the
+    // real reason instead of just the HTTP status. Falls back to the status when the body isn't JSON.
+    private static string DescribeFedExError(System.Net.HttpStatusCode status, string body)
+    {
+        try
+        {
+            var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("errors", out var errors) && errors.GetArrayLength() > 0)
+            {
+                var first = errors[0];
+                var msg = first.TryGetProperty("message", out var m) ? m.GetString() : null;
+                var code = first.TryGetProperty("code", out var c) ? c.GetString() : null;
+                if (!string.IsNullOrWhiteSpace(msg))
+                    return string.IsNullOrWhiteSpace(code) ? msg! : $"{msg} ({code})";
+            }
+        }
+        catch (JsonException) { /* non-JSON body (e.g. an HTML 503 page) — fall through to the status */ }
+        return status.ToString();
+    }
 
     private static string MapFedExServiceType(string type) => type switch
     {
