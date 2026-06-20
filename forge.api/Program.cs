@@ -284,6 +284,8 @@ try
 
     // Repositories
     builder.Services.AddScoped<IJobRepository, JobRepository>();
+    builder.Services.AddScoped<Forge.Api.Features.Documents.IDocumentStore, Forge.Api.Features.Documents.DocumentStore>();
+    builder.Services.AddScoped<Forge.Api.Features.Shipments.ShipDocumentComposer>();
     builder.Services.AddScoped<ISubtaskRepository, SubtaskRepository>();
     builder.Services.AddScoped<IActivityLogRepository, ActivityLogRepository>();
     builder.Services.AddScoped<ITrackTypeRepository, TrackTypeRepository>();

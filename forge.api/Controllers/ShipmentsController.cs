@@ -76,10 +76,19 @@ public class ShipmentsController(IMediator mediator) : ControllerBase
     }
 
     // The combined "wrapped" ship document — carrier label + company/QR/carrier-badge, landscape.
+    // Returns the current stored version (or composes + stores v1 on first request).
     [HttpGet("{id:int}/ship-document")]
     public async Task<IActionResult> GetShipDocument(int id)
     {
         var pdf = await mediator.Send(new GenerateShipDocumentPdfQuery(id));
+        return File(pdf, "application/pdf", $"ship-document-{id}.pdf");
+    }
+
+    // Regenerate the wrapped ship document — supersedes the current version (prior one end-dated + archived).
+    [HttpPost("{id:int}/ship-document/regenerate")]
+    public async Task<IActionResult> RegenerateShipDocument(int id)
+    {
+        var pdf = await mediator.Send(new RegenerateShipDocumentCommand(id));
         return File(pdf, "application/pdf", $"ship-document-{id}.pdf");
     }
 
