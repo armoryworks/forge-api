@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Capabilities;
 using Forge.Api.Concurrency;
+using Forge.Api.Features.CustomerAddresses;
 using Forge.Api.Features.Shipments;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -95,6 +96,29 @@ public class ShipmentsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<ShippingLabel>> CreateShippingLabel(int id, CreateShippingLabelRequestModel request)
     {
         var result = await mediator.Send(new CreateShippingLabelCommand(id, request.CarrierId));
+        return Ok(result);
+    }
+
+    // Ship-to address list/create scoped to the shipment (resolves the shipment's customer) and gated by
+    // CAP-O2C-SHIP — entering a ship-to address is part of shipping, so it must NOT require the customer
+    // master-data addresses module (CAP-MD-CUSTOMER-ADDRESSES), which may be disabled. Reuses the same
+    // query/command as the customer-addresses controller (those have no capability attribute of their own).
+    [HttpGet("{id:int}/customer-addresses")]
+    public async Task<ActionResult<List<CustomerAddressResponseModel>>> GetShipmentCustomerAddresses(int id)
+    {
+        var shipment = await mediator.Send(new GetShipmentByIdQuery(id));
+        var result = await mediator.Send(new GetCustomerAddressesQuery(shipment.CustomerId));
+        return Ok(result);
+    }
+
+    [HttpPost("{id:int}/customer-addresses")]
+    public async Task<ActionResult<CustomerAddressResponseModel>> CreateShipmentCustomerAddress(
+        int id, CreateCustomerAddressRequestModel request)
+    {
+        var shipment = await mediator.Send(new GetShipmentByIdQuery(id));
+        var result = await mediator.Send(new CreateCustomerAddressCommand(
+            shipment.CustomerId, request.Label, request.AddressType, request.Line1, request.Line2,
+            request.City, request.State, request.PostalCode, request.Country, request.IsDefault));
         return Ok(result);
     }
 
