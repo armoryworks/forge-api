@@ -48,7 +48,7 @@ public class ShipmentsController(IMediator mediator) : ControllerBase
     {
         await mediator.Send(new UpdateShipmentCommand(
             id, request.Carrier, request.TrackingNumber,
-            request.ShippingCost, request.Weight, request.Notes));
+            request.ShippingCost, request.Weight, request.Notes, request.ShippingAddressId));
         return NoContent();
     }
 

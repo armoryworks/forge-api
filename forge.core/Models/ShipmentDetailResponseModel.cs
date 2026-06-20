@@ -6,6 +6,7 @@ public record ShipmentDetailResponseModel(
     int SalesOrderId,
     string SalesOrderNumber,
     string CustomerName,
+    int CustomerId,
     int? ShippingAddressId,
     string Status,
     string? Carrier,

@@ -20,6 +20,7 @@ public class GetShipmentByIdHandler(IShipmentRepository repo)
             shipment.SalesOrderId,
             shipment.SalesOrder.OrderNumber,
             shipment.SalesOrder.Customer.Name,
+            shipment.SalesOrder.CustomerId,
             shipment.ShippingAddressId,
             shipment.Status.ToString(),
             shipment.Carrier,

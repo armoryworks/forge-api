@@ -5,4 +5,5 @@ public record UpdateShipmentRequestModel(
     string? TrackingNumber,
     decimal? ShippingCost,
     decimal? Weight,
-    string? Notes);
+    string? Notes,
+    int? ShippingAddressId = null);
