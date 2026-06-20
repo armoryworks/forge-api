@@ -82,10 +82,12 @@ public class ShipmentsController(IMediator mediator) : ControllerBase
 
     // ── Shipping Rates / Labels / Tracking ──
 
-    [HttpPost("{id:int}/rates")]
-    public async Task<ActionResult<List<ShippingRate>>> GetShippingRates(int id, GetShippingRatesRequestModel request)
+    // GET (not POST): rates are a side-effect-free read keyed by shipment id — the handler derives the
+    // from/to addresses + packages from the shipment server-side, so no request body is needed.
+    [HttpGet("{id:int}/rates")]
+    public async Task<ActionResult<List<ShippingRate>>> GetShippingRates(int id)
     {
-        var result = await mediator.Send(new GetShippingRatesQuery(id, request));
+        var result = await mediator.Send(new GetShippingRatesQuery(id));
         return Ok(result);
     }
 
