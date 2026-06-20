@@ -80,7 +80,9 @@ public class CreateShippingLabelHandler(
             p.Height ?? 10m)).ToList();
 
         if (packages.Count == 0)
-            packages.Add(new ShippingPackage(shipment.Weight ?? 1m, 10m, 10m, 10m));
+            packages.Add(new ShippingPackage(
+                shipment.Weight ?? ShipmentWeight.Derive(shipment) ?? 1m,
+                shipment.Length ?? 10m, shipment.Width ?? 10m, shipment.Height ?? 10m));
 
         var shipmentRequest = new ShipmentRequest(fromAddress, toAddress, packages, null);
         var label = await shippingService.CreateLabelAsync(shipmentRequest, carrierId!, cancellationToken);

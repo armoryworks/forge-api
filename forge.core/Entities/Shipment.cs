@@ -33,6 +33,10 @@ public class Shipment : BaseAuditableEntity, IConcurrencyVersioned
     public DateTimeOffset? DeliveredDate { get; set; }
     public decimal? ShippingCost { get; set; }
     public decimal? Weight { get; set; }
+    // Package dimensions (inches) for rate-shopping + the carrier label. Derived/entered on the shipment.
+    public decimal? Length { get; set; }
+    public decimal? Width { get; set; }
+    public decimal? Height { get; set; }
     public string? Notes { get; set; }
     public string? ServiceType { get; set; }
     public DateTimeOffset? EstimatedDeliveryDate { get; set; }

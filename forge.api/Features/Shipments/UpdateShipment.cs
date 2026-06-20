@@ -15,7 +15,10 @@ public record UpdateShipmentCommand(
     decimal? ShippingCost,
     decimal? Weight,
     string? Notes,
-    int? ShippingAddressId = null) : IRequest;
+    int? ShippingAddressId = null,
+    decimal? Length = null,
+    decimal? Width = null,
+    decimal? Height = null) : IRequest;
 
 /// <summary>
 /// Corrects/adjusts a shipment's details (ship-to address, carrier, tracking, cost, weight, notes).
@@ -70,6 +73,24 @@ public class UpdateShipmentHandler(IShipmentRepository repo, AppDbContext db)
         {
             shipment.Weight = request.Weight;
             changedFields.Add("weight");
+        }
+
+        if (request.Length.HasValue && request.Length != shipment.Length)
+        {
+            shipment.Length = request.Length;
+            changedFields.Add("length");
+        }
+
+        if (request.Width.HasValue && request.Width != shipment.Width)
+        {
+            shipment.Width = request.Width;
+            changedFields.Add("width");
+        }
+
+        if (request.Height.HasValue && request.Height != shipment.Height)
+        {
+            shipment.Height = request.Height;
+            changedFields.Add("height");
         }
 
         if (request.Notes != null && request.Notes != shipment.Notes)
