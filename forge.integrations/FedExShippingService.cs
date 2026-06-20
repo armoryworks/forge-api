@@ -117,7 +117,9 @@ public class FedExShippingService(
 
         var payload = new
         {
-            labelResponseOptions = "URL_ONLY",
+            // LABEL (not URL_ONLY): FedEx returns the label image base64-encoded inline so we can compose
+            // it into the combined ship document without a second authenticated fetch of a hosted URL.
+            labelResponseOptions = "LABEL",
             requestedShipment = new
             {
                 shipper = new
@@ -182,12 +184,19 @@ public class FedExShippingService(
         var outputEl = doc.RootElement.GetProperty("output").GetProperty("transactionShipments")
             .EnumerateArray().First();
         var tracking = outputEl.GetProperty("masterTrackingNumber").GetString()!;
-        var labelUrl = outputEl.GetProperty("pieceResponses").EnumerateArray().First()
-            .GetProperty("packageDocuments").EnumerateArray().First()
-            .GetProperty("url").GetString() ?? $"fedex://label/{tracking}";
+        var pkgDoc = outputEl.GetProperty("pieceResponses").EnumerateArray().First()
+            .GetProperty("packageDocuments").EnumerateArray().First();
 
-        logger.LogInformation("[FedEx] CreateLabel — tracking {Tracking}", tracking);
-        return new ShippingLabel(tracking, labelUrl, "FedEx");
+        // LABEL mode → encodedLabel (base64 PNG). Fall back to a hosted url (URL_ONLY responses / stubs).
+        byte[]? labelBytes = null;
+        var labelUrl = $"fedex://label/{tracking}";
+        if (pkgDoc.TryGetProperty("encodedLabel", out var enc) && enc.GetString() is { Length: > 0 } b64)
+            labelBytes = Convert.FromBase64String(b64);
+        else if (pkgDoc.TryGetProperty("url", out var u) && u.GetString() is { Length: > 0 } url)
+            labelUrl = url;
+
+        logger.LogInformation("[FedEx] CreateLabel — tracking {Tracking} ({Bytes} label bytes)", tracking, labelBytes?.Length ?? 0);
+        return new ShippingLabel(tracking, labelUrl, "FedEx", labelBytes);
     }
 
     public async Task<ShipmentTracking?> GetTrackingAsync(string trackingNumber, CancellationToken ct)

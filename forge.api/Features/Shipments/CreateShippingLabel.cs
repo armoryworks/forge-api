@@ -24,6 +24,7 @@ public class CreateShippingLabelValidator : AbstractValidator<CreateShippingLabe
 public class CreateShippingLabelHandler(
     IShipmentRepository shipmentRepo,
     IShippingService shippingService,
+    IStorageService storage,
     AppDbContext db)
     : IRequestHandler<CreateShippingLabelCommand, ShippingLabel>
 {
@@ -88,6 +89,15 @@ public class CreateShippingLabelHandler(
         shipment.TrackingNumber = label.TrackingNumber;
         shipment.Carrier = label.CarrierName;
         await shipmentRepo.SaveChangesAsync(cancellationToken);
+
+        // Stash the raw carrier label PNG so the combined ship document can be (re)generated on demand —
+        // the carrier returns the label only once, here at creation.
+        if (label.LabelBytes is { Length: > 0 } labelBytes)
+        {
+            await storage.EnsureBucketExistsAsync(ShipLabelStorage.Bucket, cancellationToken);
+            using var ms = new MemoryStream(labelBytes);
+            await storage.UploadAsync(ShipLabelStorage.Bucket, ShipLabelStorage.Key(shipment.Id), ms, "image/png", cancellationToken);
+        }
 
         return label;
     }

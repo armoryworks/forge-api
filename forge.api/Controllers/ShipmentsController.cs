@@ -74,6 +74,14 @@ public class ShipmentsController(IMediator mediator) : ControllerBase
         return File(pdf, "application/pdf", $"bill-of-lading-{id}.pdf");
     }
 
+    // The combined "wrapped" ship document — carrier label + company/QR/carrier-badge, landscape.
+    [HttpGet("{id:int}/ship-document")]
+    public async Task<IActionResult> GetShipDocument(int id)
+    {
+        var pdf = await mediator.Send(new GenerateShipDocumentPdfQuery(id));
+        return File(pdf, "application/pdf", $"ship-document-{id}.pdf");
+    }
+
     [HttpPost("{id:int}/deliver")]
     public async Task<IActionResult> DeliverShipment(int id)
     {
