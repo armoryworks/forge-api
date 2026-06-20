@@ -54,6 +54,9 @@ public class ShipmentRepository(AppDbContext db) : IShipmentRepository
             .Include(s => s.Lines)
                 .ThenInclude(l => l.Part)
             .Include(s => s.Invoice)
+            // ShippingAddress drives rate-shopping + label creation (they read the navigation, not just
+            // the FK) — without this Include those handlers see a null address and wrongly 409.
+            .Include(s => s.ShippingAddress)
             .FirstOrDefaultAsync(s => s.Id == id, ct);
     }
 
