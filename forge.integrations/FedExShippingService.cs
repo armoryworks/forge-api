@@ -69,8 +69,9 @@ public class FedExShippingService(
         var body = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode)
         {
+            // Detail → logs (for us); the user gets a plain, carrier-attributed message.
             logger.LogError("[FedEx] GetRates failed: {Status} {Body}", response.StatusCode, body);
-            return [];
+            throw new InvalidOperationException($"Something went wrong on {CarrierName}'s end getting rates.");
         }
 
         var doc = JsonDocument.Parse(body);
@@ -173,8 +174,9 @@ public class FedExShippingService(
             var retryable = (int)response.StatusCode is 503 or 429;
             if (!retryable || attempt >= 3)
             {
-                logger.LogError("[FedEx] CreateLabel failed (attempt {Attempt}): {Status} {Body}", attempt, response.StatusCode, body);
-                throw new InvalidOperationException($"FedEx label creation failed: {DescribeFedExError(response.StatusCode, body)}");
+                logger.LogError("[FedEx] CreateLabel failed (attempt {Attempt}): {Status} {Body} ({Detail})",
+                    attempt, response.StatusCode, body, DescribeFedExError(response.StatusCode, body));
+                throw new InvalidOperationException($"Something went wrong on {CarrierName}'s end creating the label.");
             }
             logger.LogWarning("[FedEx] CreateLabel transient {Status} (attempt {Attempt}) — retrying", response.StatusCode, attempt);
             await Task.Delay(TimeSpan.FromMilliseconds(600 * attempt), ct);

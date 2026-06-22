@@ -30,17 +30,25 @@ public class MultiCarrierShippingService(
         {
             try
             {
-                return await c.GetRatesAsync(request, ct);
+                return (Rates: await c.GetRatesAsync(request, ct), Error: (string?)null);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "[MultiCarrier] {Carrier} GetRates failed", c.CarrierName);
-                return new List<ShippingRate>();
+                return (Rates: new List<ShippingRate>(), Error: ex.Message);
             }
         });
 
         var results = await Task.WhenAll(tasks);
-        var allRates = results.SelectMany(r => r).OrderBy(r => r.Price).ToList();
+        var allRates = results.SelectMany(r => r.Rates).OrderBy(r => r.Price).ToList();
+        var errors = results.Select(r => r.Error).Where(e => !string.IsNullOrWhiteSpace(e)).ToList();
+
+        // If nobody returned rates AND a carrier errored, surface that error rather than a blank
+        // "no rates available". (A carrier that simply has no service for the lane returns [] with no
+        // error, so a genuine empty result still reads as empty.)
+        if (allRates.Count == 0 && errors.Count > 0)
+            throw new InvalidOperationException(string.Join(" ", errors));
+
         logger.LogInformation("[MultiCarrier] GetRates — {Count} total rate(s) from {CarrierCount} carrier(s)", allRates.Count, configured.Count);
         return allRates;
     }

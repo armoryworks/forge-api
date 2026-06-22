@@ -39,8 +39,11 @@ public class ShipDocumentComposer(AppDbContext db, IStorageService storage, ISys
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            throw new InvalidOperationException(
-                "No carrier label is stored for this shipment yet — create the shipping label first.");
+            // Distinguish "no label at all" from "label exists but its image wasn't captured" (a label
+            // created before image storage, or by a carrier that only returns a hosted URL).
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(shipment.TrackingNumber)
+                ? "Create the shipping label first — there's nothing to wrap yet."
+                : "The carrier label image isn't stored for this shipment, so the ship document can't be built. Re-create the label to capture it.");
         }
 
         var companyName = (await settings.FindByKeyAsync("company_name", ct))?.Value ?? "Forge";
