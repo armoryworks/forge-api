@@ -57,6 +57,8 @@ public class ShipmentRepository(AppDbContext db) : IShipmentRepository
             // ShippingAddress drives rate-shopping + label creation (they read the navigation, not just
             // the FK) — without this Include those handlers see a null address and wrongly 409.
             .Include(s => s.ShippingAddress)
+            // AssignedCarrier so the detail can tell an integrated (API) carrier from a manual one.
+            .Include(s => s.AssignedCarrier)
             .FirstOrDefaultAsync(s => s.Id == id, ct);
     }
 

@@ -45,12 +45,21 @@ public class ShipShipmentHandler(
         // (legacy / free-text) or a carrier that opts out → no gate, unchanged flow.
         if (db is not null && shipment.CarrierId is int carrierId)
         {
-            var requiresScan = await db.Carriers
+            var carrier = await db.Carriers
                 .Where(c => c.Id == carrierId)
-                .Select(c => (bool?)c.RequiresScanToShip)
-                .FirstOrDefaultAsync(cancellationToken) ?? false;
+                .Select(c => new { c.RequiresScanToShip, c.IntegrationKind })
+                .FirstOrDefaultAsync(cancellationToken);
 
-            if (requiresScan
+            // Integrated (API) carrier: shipping is performed by CREATING THE LABEL, which assigns the
+            // tracking number and hands the parcel off to the carrier. Marking it shipped by hand without
+            // a label would record a shipment the carrier never received — block it until a label exists.
+            if (carrier?.IntegrationKind == CarrierIntegrationKind.Api
+                && string.IsNullOrWhiteSpace(shipment.TrackingNumber))
+                throw new InvalidOperationException(
+                    "This shipment uses an integrated carrier — create the shipping label (which assigns the " +
+                    "tracking number) before marking it shipped.");
+
+            if ((carrier?.RequiresScanToShip ?? false)
                 && (string.IsNullOrWhiteSpace(request.ScanCode)
                     || !string.Equals(request.ScanCode, shipment.ScanCode, StringComparison.Ordinal)))
                 throw new InvalidOperationException(

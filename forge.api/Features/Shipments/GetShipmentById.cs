@@ -1,4 +1,5 @@
 using MediatR;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 
@@ -25,6 +26,7 @@ public class GetShipmentByIdHandler(IShipmentRepository repo)
             shipment.Status.ToString(),
             shipment.Carrier,
             shipment.CarrierId,
+            shipment.AssignedCarrier != null && shipment.AssignedCarrier.IntegrationKind == CarrierIntegrationKind.Api,
             shipment.TrackingNumber,
             shipment.ScanCode,
             shipment.ShippedDate,
