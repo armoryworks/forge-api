@@ -12,8 +12,8 @@ namespace Forge.Tests.Remediation.Training;
 /// <summary>
 /// Region 5 · Training RED tests (see ../README.md). Finding F-14-BE-01: training paths
 /// were GET/seed-only (the admin dialog's POST had no backend). Now GREEN — admin
-/// create / update / delete paths. Endpoints sit behind CAP-HR-TRAINING (default OFF) +
-/// require the Admin role, so each test enables the cap first as an Admin client.
+/// create / update / delete paths. The training LMS is always available (no capability
+/// gate as of 2026-06-25); these admin mutations require the Admin role.
 /// </summary>
 [Collection(CapabilityTestCollection.Name)]
 public class TrainingRemediationTests
@@ -31,14 +31,10 @@ public class TrainingRemediationTests
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
 
-    private async Task EnableTraining(HttpClient admin) =>
-        await admin.PutAsync("/api/v1/capabilities/CAP-HR-TRAINING/enabled", JsonContent.Create(new { enabled = true }));
-
     [Fact] // F-14-BE-01 GREEN — an admin can create a training path
     public async Task Admin_can_create_a_training_path()
     {
         var admin = AuthClient();
-        await EnableTraining(admin);
 
         var body = JsonContent.Create(new
         {
@@ -63,7 +59,6 @@ public class TrainingRemediationTests
     public async Task Admin_can_delete_a_training_path()
     {
         var admin = AuthClient();
-        await EnableTraining(admin);
 
         int pathId;
         using (var scope = NewScope())

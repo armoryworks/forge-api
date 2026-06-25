@@ -99,7 +99,7 @@ public static class ModuleCatalog
         new("people", "People",
             "Manage employees, hiring, time tracking, and training.",
             "Turns on employee records.",
-            new[] { "CAP-MD-EMPLOYEES", "CAP-HR-HIRE", "CAP-HR-TERMINATION", "CAP-HR-TIMETRACK", "CAP-HR-TRAINING" }),
+            new[] { "CAP-MD-EMPLOYEES", "CAP-HR-HIRE", "CAP-HR-TERMINATION", "CAP-HR-TIMETRACK" }),
     };
 
     public static ModuleDefinition? FindById(string id) =>

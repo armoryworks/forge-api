@@ -245,7 +245,6 @@ public static class CapabilityCatalogRelations
         new("CAP-HR-SHIFTS", "CAP-MD-EMPLOYEES"),
         new("CAP-HR-SHIFTS", "CAP-MD-CALENDARS"),
         new("CAP-HR-PAYROLL", "CAP-HR-TIMETRACK"),
-        new("CAP-HR-TRAINING", "CAP-MD-EMPLOYEES"),
         new("CAP-HR-REVIEW", "CAP-MD-EMPLOYEES"),
 
         // ── RPT ─────────────────────────────────────────────────────────────

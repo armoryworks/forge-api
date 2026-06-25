@@ -14,7 +14,8 @@ namespace Forge.Api.Controllers;
 [ApiController]
 [Route("api/v1/training")]
 [Authorize]
-[RequiresCapability("CAP-HR-TRAINING")]
+// The training LMS is always available — it is no longer capability-gated. Other
+// capabilities influence which content is relevant, but the feature can't be removed.
 public class TrainingController(IMediator mediator) : ControllerBase
 {
     private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

@@ -133,7 +133,7 @@ public static class PresetCatalog
                 "CAP-QC-INSPECTION", "CAP-QC-NCR", "CAP-QC-CAPA",
                 "CAP-MAINT-PM", "CAP-MAINT-BREAKDOWN",
                 "CAP-IDEN-AUTH-KIOSK", "CAP-EXT-SHOPFLOOR-KIOSK", "CAP-EXT-ANDON",
-                "CAP-HR-LEAVE", "CAP-HR-SHIFTS", "CAP-HR-TRAINING",
+                "CAP-HR-LEAVE", "CAP-HR-SHIFTS",
                 "CAP-RPT-OEE",
             ]),
         // ── Track type bundle (G-03/04 per Artifact 3) ──
@@ -219,7 +219,7 @@ public static class PresetCatalog
                 "CAP-MAINT-PM", "CAP-MAINT-BREAKDOWN",
                 "CAP-IDEN-AUTH-KIOSK", "CAP-EXT-SHOPFLOOR-KIOSK", "CAP-EXT-ANDON",
                 "CAP-EXT-ANNOUNCEMENTS",
-                "CAP-HR-LEAVE", "CAP-HR-SHIFTS", "CAP-HR-TRAINING",
+                "CAP-HR-LEAVE", "CAP-HR-SHIFTS",
                 "CAP-RPT-OEE",
             ]));
 
@@ -245,7 +245,7 @@ public static class PresetCatalog
                 "CAP-IDEN-AUTH-KIOSK", "CAP-EXT-SHOPFLOOR-KIOSK", "CAP-EXT-ANDON",
                 "CAP-EXT-ANNOUNCEMENTS",
                 "CAP-CROSS-INTEG-EDI",
-                "CAP-HR-LEAVE", "CAP-HR-SHIFTS", "CAP-HR-TRAINING",
+                "CAP-HR-LEAVE", "CAP-HR-SHIFTS",
                 "CAP-RPT-OEE", "CAP-RPT-MRPEX",
             ]));
 
@@ -280,7 +280,7 @@ public static class PresetCatalog
                 "CAP-EXT-CHAT", "CAP-EXT-PROJECTS",
                 "CAP-CROSS-INTEG-EDI", "CAP-CROSS-WEBHOOKS", "CAP-CROSS-BI-EXPORT",
                 "CAP-HR-LEAVE", "CAP-HR-SHIFTS", "CAP-HR-PAYROLL",
-                "CAP-HR-TRAINING", "CAP-HR-REVIEW",
+                "CAP-HR-REVIEW",
                 "CAP-RPT-OEE", "CAP-RPT-MRPEX",
             ]));
 
