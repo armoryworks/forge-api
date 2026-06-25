@@ -247,6 +247,125 @@ public class PathDefinitions
             ("shipments-walkthrough", false),
         ]);
 
+        // ── Path 9: Quality Inspector ───────────────────────────────────
+        await SeedPath(new TrainingPath
+        {
+            Title = "Quality Inspector",
+            Slug = "quality-inspector",
+            Description = "Training for quality staff: inspections and NCRs, lot/serial traceability, and compliance forms.",
+            Icon = "fact_check",
+            IsAutoAssigned = false,
+            IsActive = true,
+            SortOrder = 9,
+            AllowedRoles = """["Admin","Manager","Engineer"]""",
+        }, [
+            ("quality-overview", true),
+            ("quality-walkthrough", true),
+            ("quality-field-reference", false),
+            ("quality-quiz", true),
+            ("production-lots-overview", true),
+            ("production-lots-walkthrough", true),
+            ("production-lots-quiz", true),
+            ("compliance-forms-overview", true),
+            ("compliance-forms-walkthrough", false),
+            ("compliance-forms-quiz", true),
+        ]);
+
+        // ── Path 10: Accounting / Bookkeeper ────────────────────────────
+        await SeedPath(new TrainingPath
+        {
+            Title = "Accounting / Bookkeeper",
+            Slug = "accounting-bookkeeper",
+            Description = "Training for finance staff: financial reports, invoices, payments received, and accounts payable.",
+            Icon = "account_balance",
+            IsAutoAssigned = false,
+            IsActive = true,
+            SortOrder = 10,
+            AllowedRoles = """["Admin","Manager","OfficeManager"]""",
+        }, [
+            ("accounting-overview", true),
+            ("accounting-walkthrough", true),
+            ("accounting-field-reference", false),
+            ("accounting-quiz", true),
+            ("invoices-overview", true),
+            ("invoices-walkthrough", true),
+            ("invoices-quiz", true),
+            ("payments-overview", true),
+            ("payments-walkthrough", true),
+            ("payments-quiz", true),
+            ("payables-overview", true),
+            ("payables-walkthrough", true),
+            ("payables-quiz", true),
+        ]);
+
+        // ── Path 11: Maintenance Technician ─────────────────────────────
+        await SeedPath(new TrainingPath
+        {
+            Title = "Maintenance Technician",
+            Slug = "maintenance-technician",
+            Description = "Training for maintenance staff: predictive maintenance, asset/tooling records, and PM scheduling.",
+            Icon = "handyman",
+            IsAutoAssigned = false,
+            IsActive = true,
+            SortOrder = 11,
+            AllowedRoles = """["Admin","Manager","Engineer","ProductionWorker"]""",
+        }, [
+            ("maintenance-overview", true),
+            ("maintenance-walkthrough", true),
+            ("maintenance-field-reference", false),
+            ("maintenance-quiz", true),
+            ("assets-overview", true),
+            ("assets-walkthrough", true),
+            ("assets-quiz", true),
+        ]);
+
+        // ── Path 12: Warehouse / Inventory Clerk ────────────────────────
+        await SeedPath(new TrainingPath
+        {
+            Title = "Warehouse / Inventory Clerk",
+            Slug = "warehouse-inventory-clerk",
+            Description = "Training for warehouse staff: inventory and bin management, parts catalog, and PO receiving.",
+            Icon = "warehouse",
+            IsAutoAssigned = false,
+            IsActive = true,
+            SortOrder = 12,
+            AllowedRoles = """["Admin","Manager","OfficeManager","ProductionWorker"]""",
+        }, [
+            ("inventory-overview", true),
+            ("inventory-walkthrough", true),
+            ("inventory-field-reference", false),
+            ("inventory-quiz", true),
+            ("parts-overview", true),
+            ("parts-walkthrough", false),
+            ("parts-quiz", true),
+            ("purchase-orders-overview", true),
+            ("purchase-orders-walkthrough", false),
+            ("purchase-orders-quiz", true),
+        ]);
+
+        // ── Path 13: Shipping & Receiving ───────────────────────────────
+        await SeedPath(new TrainingPath
+        {
+            Title = "Shipping & Receiving",
+            Slug = "shipping-receiving",
+            Description = "Training for shipping/receiving staff: outbound shipments and carriers, PO receiving, and inventory.",
+            Icon = "local_shipping",
+            IsAutoAssigned = false,
+            IsActive = true,
+            SortOrder = 13,
+            AllowedRoles = """["Admin","Manager","OfficeManager","ProductionWorker"]""",
+        }, [
+            ("shipments-overview", true),
+            ("shipments-walkthrough", true),
+            ("shipments-field-reference", false),
+            ("shipments-quiz", true),
+            ("purchase-orders-overview", true),
+            ("purchase-orders-walkthrough", true),
+            ("purchase-orders-quiz", true),
+            ("inventory-overview", true),
+            ("inventory-walkthrough", false),
+        ]);
+
         Log.Information("Seeded training paths");
     }
 

@@ -176,7 +176,7 @@ public class ExpensesTraining : TrainingContentBase
             EstimatedMinutes = 6,
             IsPublished = true,
             SortOrder = 4,
-            AppRoutes = """["/training"]""",
+            AppRoutes = """["/expenses"]""",
             Tags = """["expenses","quiz","approval"]""",
             ContentJson = """
 {
