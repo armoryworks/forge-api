@@ -3,6 +3,14 @@
 _Audit date: 2026-06-25. Source of truth at audit time: prod DB (154 modules, 8 paths) +
 `forge.api/Data/TrainingContent/*.cs` (37 feature seeders + `PathDefinitions.cs`)._
 
+> **STATUS — IMPLEMENTED (2026-06-26).** Sections A–E are all shipped to `main` (merged,
+> deploy-held with the rest of the training overhaul). The seeder set is now 47 feature
+> classes + `PageSpecificTraining.cs`; the base LMS is **203 modules + 13 paths**, each also
+> machine-translated to Spanish (`Data/Seeds/training-i18n/es/`). The 41 detached walkthrough
+> steps were fixed, and the Chat modules were rewritten off the stale flat-DM model onto the
+> current Channels/Teams model (commit `2b8ee2da`). This doc is retained as the audit record;
+> the A–E sections below describe the work that was done, not open work.
+
 ## How it works (so the TODO makes sense)
 
 - The header **"Help for this page"** panel (`training-context-panel`) calls
