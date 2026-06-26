@@ -30,6 +30,12 @@
             "title": "Campo de búsqueda",
             "description": "Escriba su consulta aquí. La búsqueda tiene antirrebote —los resultados aparecen después de que deja de escribir. El sistema busca en números de trabajo, nombres de clientes, números de pieza, contactos de prospectos, nombres/números de serie de activos y descripciones de gastos. Presione Ctrl+K desde cualquier lugar para saltar directamente a este campo.",
             "side": "bottom"
+          },
+          "advanceOn": {
+            "event": "input",
+            "selector": ".app-header__search input",
+            "predicate": "nonempty",
+            "hint": "Pruébelo: escriba un término de búsqueda en el cuadro de arriba para continuar."
           }
         },
         {
@@ -38,6 +44,12 @@
             "title": "Sugerencia de atajo de teclado",
             "description": "La insignia Ctrl+K le recuerda el atajo de teclado. Presione Ctrl+K desde cualquier página para enfocar de inmediato el campo de búsqueda sin usar el ratón. Presione Escape para cerrar los resultados y borrar el campo.",
             "side": "bottom"
+          },
+          "advanceOn": {
+            "event": "keydown",
+            "key": "k",
+            "ctrlKey": true,
+            "hint": "Pruébelo: presione Ctrl+K (⌘K en Mac) para continuar."
           }
         }
       ]
