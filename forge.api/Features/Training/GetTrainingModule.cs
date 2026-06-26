@@ -11,7 +11,7 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.Training;
 
-public record GetTrainingModuleQuery(int Id, int UserId, bool IsAdmin) : IRequest<TrainingModuleDetailResponseModel>;
+public record GetTrainingModuleQuery(int Id, int UserId, bool IsAdmin, string? Lang = null) : IRequest<TrainingModuleDetailResponseModel>;
 
 public class GetTrainingModuleHandler(AppDbContext db)
     : IRequestHandler<GetTrainingModuleQuery, TrainingModuleDetailResponseModel>
@@ -28,19 +28,22 @@ public class GetTrainingModuleHandler(AppDbContext db)
         var module = await query.FirstOrDefaultAsync(ct)
             ?? throw new KeyNotFoundException($"Training module {request.Id} not found.");
 
+        var translation = (await TrainingLocalization.ModuleTranslationsAsync(db, [module.Id], request.Lang, ct))
+            .GetValueOrDefault(module.Id);
+
         var progress = await db.TrainingProgress
             .FirstOrDefaultAsync(p => p.UserId == request.UserId && p.ModuleId == request.Id, ct);
 
-        var contentJson = module.ContentJson;
+        var contentJson = translation?.ContentJson ?? module.ContentJson;
 
         if (!request.IsAdmin && module.ContentType == TrainingContentType.Quiz)
             contentJson = await PrepareQuizForUserAsync(contentJson, progress, request.UserId, request.Id, ct);
 
         return new TrainingModuleDetailResponseModel(
             module.Id,
-            module.Title,
+            translation?.Title ?? module.Title,
             module.Slug,
-            module.Summary,
+            translation?.Summary ?? module.Summary,
             module.ContentType,
             module.CoverImageUrl,
             module.EstimatedMinutes,

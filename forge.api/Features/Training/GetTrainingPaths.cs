@@ -6,7 +6,7 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.Training;
 
-public record GetTrainingPathsQuery(int UserId, bool IsAdmin) : IRequest<List<TrainingPathResponseModel>>;
+public record GetTrainingPathsQuery(int UserId, bool IsAdmin, string? Lang = null) : IRequest<List<TrainingPathResponseModel>>;
 
 public class GetTrainingPathsHandler(AppDbContext db)
     : IRequestHandler<GetTrainingPathsQuery, List<TrainingPathResponseModel>>
@@ -31,12 +31,17 @@ public class GetTrainingPathsHandler(AppDbContext db)
             .Where(p => p.UserId == request.UserId && allModuleIds.Contains(p.ModuleId))
             .ToDictionaryAsync(p => p.ModuleId, ct);
 
-        return paths.Select(p => MapPath(p, progressMap)).ToList();
+        var pathTr = await TrainingLocalization.PathTranslationsAsync(db, paths.Select(p => p.Id).ToList(), request.Lang, ct);
+        var moduleTr = await TrainingLocalization.ModuleTranslationsAsync(db, allModuleIds, request.Lang, ct);
+
+        return paths.Select(p => MapPath(p, progressMap, pathTr, moduleTr)).ToList();
     }
 
     internal static TrainingPathResponseModel MapPath(
         Forge.Core.Entities.TrainingPath path,
-        Dictionary<int, Forge.Core.Entities.TrainingProgress> progressMap)
+        Dictionary<int, Forge.Core.Entities.TrainingProgress> progressMap,
+        Dictionary<int, Forge.Core.Entities.TrainingPathTranslation> pathTr,
+        Dictionary<int, Forge.Core.Entities.TrainingModuleTranslation> moduleTr)
     {
         var modules = path.PathModules
             .OrderBy(pm => pm.Position)
@@ -45,7 +50,7 @@ public class GetTrainingPathsHandler(AppDbContext db)
                 progressMap.TryGetValue(pm.ModuleId, out var prog);
                 return new TrainingPathModuleResponseModel(
                     pm.ModuleId,
-                    pm.Module.Title,
+                    moduleTr.GetValueOrDefault(pm.ModuleId)?.Title ?? pm.Module.Title,
                     pm.Module.ContentType,
                     pm.Module.EstimatedMinutes,
                     pm.Position,
@@ -56,9 +61,9 @@ public class GetTrainingPathsHandler(AppDbContext db)
 
         return new TrainingPathResponseModel(
             path.Id,
-            path.Title,
+            pathTr.GetValueOrDefault(path.Id)?.Title ?? path.Title,
             path.Slug,
-            path.Description,
+            pathTr.GetValueOrDefault(path.Id)?.Description ?? path.Description,
             path.Icon,
             path.IsAutoAssigned,
             path.IsActive,

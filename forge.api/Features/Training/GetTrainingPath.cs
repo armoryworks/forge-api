@@ -6,7 +6,7 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.Training;
 
-public record GetTrainingPathQuery(int Id, int UserId, bool IsAdmin) : IRequest<TrainingPathResponseModel>;
+public record GetTrainingPathQuery(int Id, int UserId, bool IsAdmin, string? Lang = null) : IRequest<TrainingPathResponseModel>;
 
 public class GetTrainingPathHandler(AppDbContext db)
     : IRequestHandler<GetTrainingPathQuery, TrainingPathResponseModel>
@@ -31,6 +31,9 @@ public class GetTrainingPathHandler(AppDbContext db)
             .Where(p => p.UserId == request.UserId && moduleIds.Contains(p.ModuleId))
             .ToDictionaryAsync(p => p.ModuleId, ct);
 
-        return GetTrainingPathsHandler.MapPath(path, progressMap);
+        var pathTr = await TrainingLocalization.PathTranslationsAsync(db, [path.Id], request.Lang, ct);
+        var moduleTr = await TrainingLocalization.ModuleTranslationsAsync(db, moduleIds, request.Lang, ct);
+
+        return GetTrainingPathsHandler.MapPath(path, progressMap, pathTr, moduleTr);
     }
 }

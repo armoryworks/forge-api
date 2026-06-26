@@ -1,0 +1,11 @@
+[
+  {
+    "slug": "shipments-overview",
+    "title": "Resumen de Envíos",
+    "summary": "Qué son los envíos, el ciclo de vida del envío, las líneas de artículos y cómo los envíos se conectan con los pedidos de venta y las facturas.",
+    "contentJson": {
+      "body": "## Resumen de Envíos\n\nEl módulo de Envíos rastrea cada envío saliente de su taller. Cada envío está vinculado a un Pedido de Venta y contiene una o más líneas de artículos que describen qué se envía y en qué cantidad. Los envíos avanzan por un ciclo de vida definido, desde la creación hasta la entrega, y se conectan directamente con la facturación para que siempre sepa qué se ha enviado y facturado.\n\n### ¿Qué es un envío?\n\nUn envío representa un paquete físico (o un conjunto de paquetes) que sale de sus instalaciones para cumplir, total o parcialmente, un Pedido de Venta. Cada envío tiene un número de envío único generado automáticamente, un enlace a exactamente un Pedido de Venta, una o más líneas de artículos, un transportista y número de seguimiento opcionales, y un estado que indica en qué punto del ciclo de vida se encuentra.\n\n### Ciclo de vida del envío\n\nLos envíos siguen una progresión de estados: Pendiente, Empacado, Enviado, En Tránsito, Entregado y Cancelado. Puede avanzar un envío mediante los botones de acción en la vista de detalle. Los envíos pueden marcarse como enviados desde el estado Pendiente o Empacado, y como entregados desde Enviado o En Tránsito.",
+      "sections": []
+    }
+  }
+]

@@ -323,6 +323,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<TrainingPathModule> TrainingPathModules => Set<TrainingPathModule>();
     public DbSet<TrainingPathEnrollment> TrainingPathEnrollments => Set<TrainingPathEnrollment>();
     public DbSet<TrainingProgress> TrainingProgress => Set<TrainingProgress>();
+    public DbSet<TrainingModuleTranslation> TrainingModuleTranslations => Set<TrainingModuleTranslation>();
+    public DbSet<TrainingPathTranslation> TrainingPathTranslations => Set<TrainingPathTranslation>();
 
     public DbSet<Event> Events => Set<Event>();
     public DbSet<EventAttendee> EventAttendees => Set<EventAttendee>();

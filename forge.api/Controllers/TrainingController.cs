@@ -31,10 +31,11 @@ public class TrainingController(IMediator mediator) : ControllerBase
         [FromQuery] bool includeUnpublished = false,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
+        [FromQuery] string? lang = null,
         CancellationToken ct = default)
     {
         var result = await mediator.Send(
-            new GetTrainingModulesQuery(GetUserId(), IsAdmin(), search, contentType, tag, includeUnpublished, page, pageSize), ct);
+            new GetTrainingModulesQuery(GetUserId(), IsAdmin(), search, contentType, tag, includeUnpublished, page, pageSize, lang), ct);
         return Ok(result);
     }
 
@@ -42,16 +43,17 @@ public class TrainingController(IMediator mediator) : ControllerBase
     [HttpGet("modules/by-route")]
     public async Task<ActionResult<List<TrainingModuleListItemResponseModel>>> GetModulesByRoute(
         [FromQuery] string route,
+        [FromQuery] string? lang = null,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetModulesByRouteQuery(route, GetUserId()), ct);
+        var result = await mediator.Send(new GetModulesByRouteQuery(route, GetUserId(), lang), ct);
         return Ok(result);
     }
 
     [HttpGet("modules/{id:int}")]
-    public async Task<ActionResult<TrainingModuleDetailResponseModel>> GetModule(int id, CancellationToken ct = default)
+    public async Task<ActionResult<TrainingModuleDetailResponseModel>> GetModule(int id, [FromQuery] string? lang = null, CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetTrainingModuleQuery(id, GetUserId(), IsAdmin()), ct);
+        var result = await mediator.Send(new GetTrainingModuleQuery(id, GetUserId(), IsAdmin(), lang), ct);
         return Ok(result);
     }
 
@@ -127,16 +129,16 @@ public class TrainingController(IMediator mediator) : ControllerBase
     // Paths
 
     [HttpGet("paths")]
-    public async Task<ActionResult<List<TrainingPathResponseModel>>> GetPaths(CancellationToken ct = default)
+    public async Task<ActionResult<List<TrainingPathResponseModel>>> GetPaths([FromQuery] string? lang = null, CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetTrainingPathsQuery(GetUserId(), IsAdmin()), ct);
+        var result = await mediator.Send(new GetTrainingPathsQuery(GetUserId(), IsAdmin(), lang), ct);
         return Ok(result);
     }
 
     [HttpGet("paths/{id:int}")]
-    public async Task<ActionResult<TrainingPathResponseModel>> GetPath(int id, CancellationToken ct = default)
+    public async Task<ActionResult<TrainingPathResponseModel>> GetPath(int id, [FromQuery] string? lang = null, CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetTrainingPathQuery(id, GetUserId(), IsAdmin()), ct);
+        var result = await mediator.Send(new GetTrainingPathQuery(id, GetUserId(), IsAdmin(), lang), ct);
         return Ok(result);
     }
 

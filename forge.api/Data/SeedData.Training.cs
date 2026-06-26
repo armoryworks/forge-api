@@ -78,6 +78,9 @@ public static partial class SeedData
         var pathDefs = new PathDefinitions(db, slugMap);
         await pathDefs.SeedPathsAsync();
 
+        // ── Seed per-locale translations (Data/Seeds/training-i18n/<locale>/) ──
+        await new TrainingTranslationSeeder(db).SeedAsync();
+
         // ── Back-fill enrollments for existing users ─────────────────────
         await BackfillEnrollmentsAsync(db);
     }

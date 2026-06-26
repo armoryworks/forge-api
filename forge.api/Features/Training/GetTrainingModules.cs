@@ -19,7 +19,8 @@ public record GetTrainingModulesQuery(
     string? Tag,
     bool IncludeUnpublished,
     int Page,
-    int PageSize) : IRequest<TrainingPaginatedResult<TrainingModuleListItemResponseModel>>;
+    int PageSize,
+    string? Lang = null) : IRequest<TrainingPaginatedResult<TrainingModuleListItemResponseModel>>;
 
 public class GetTrainingModulesHandler(AppDbContext db)
     : IRequestHandler<GetTrainingModulesQuery, TrainingPaginatedResult<TrainingModuleListItemResponseModel>>
@@ -63,14 +64,17 @@ public class GetTrainingModulesHandler(AppDbContext db)
         var pageSize = request.PageSize < 1 ? 25 : Math.Min(request.PageSize, 100);
         var paged = modules.Skip((page - 1) * pageSize).Take(pageSize).ToList();
 
+        var tr = await TrainingLocalization.ModuleTranslationsAsync(db, paged.Select(m => m.Id).ToList(), request.Lang, ct);
+
         var items = paged.Select(m =>
         {
             progressMap.TryGetValue(m.Id, out var prog);
+            var t = tr.GetValueOrDefault(m.Id);
             return new TrainingModuleListItemResponseModel(
                 m.Id,
-                m.Title,
+                t?.Title ?? m.Title,
                 m.Slug,
-                m.Summary,
+                t?.Summary ?? m.Summary,
                 m.ContentType,
                 m.CoverImageUrl,
                 m.EstimatedMinutes,

@@ -8,7 +8,7 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.Training;
 
-public record GetModulesByRouteQuery(string Route, int UserId) : IRequest<List<TrainingModuleListItemResponseModel>>;
+public record GetModulesByRouteQuery(string Route, int UserId, string? Lang = null) : IRequest<List<TrainingModuleListItemResponseModel>>;
 
 public class GetModulesByRouteHandler(AppDbContext db)
     : IRequestHandler<GetModulesByRouteQuery, List<TrainingModuleListItemResponseModel>>
@@ -41,14 +41,17 @@ public class GetModulesByRouteHandler(AppDbContext db)
             .Where(p => p.UserId == request.UserId && moduleIds.Contains(p.ModuleId))
             .ToDictionaryAsync(p => p.ModuleId, ct);
 
+        var tr = await TrainingLocalization.ModuleTranslationsAsync(db, moduleIds, request.Lang, ct);
+
         return matched.Select(m =>
         {
             progressMap.TryGetValue(m.Id, out var prog);
+            var t = tr.GetValueOrDefault(m.Id);
             return new TrainingModuleListItemResponseModel(
                 m.Id,
-                m.Title,
+                t?.Title ?? m.Title,
                 m.Slug,
-                m.Summary,
+                t?.Summary ?? m.Summary,
                 m.ContentType,
                 m.CoverImageUrl,
                 m.EstimatedMinutes,
