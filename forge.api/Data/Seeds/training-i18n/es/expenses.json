@@ -1,0 +1,301 @@
+[
+  {
+    "slug": "expenses-overview",
+    "title": "Visión general de Gastos",
+    "summary": "Qué hace el módulo de Gastos: flujo de envío, flujo de aprobación, seguimiento de estados y revisión del gerente.",
+    "contentJson": {
+      "body": "## Visión general de Gastos\n\nEl módulo de Gastos le permite enviar, dar seguimiento y gestionar los gastos de la empresa en una única tabla con búsqueda. Los gerentes pueden aprobar o rechazar los gastos pendientes directamente desde la tabla.\n\n### Flujo de envío\n\nPara enviar un gasto:\n1. Vaya a /expenses.\n2. Haga clic en el botón **Agregar gasto** en el encabezado de la página.\n3. Complete Monto (obligatorio, mínimo $0.01), Fecha (obligatorio) y Categoría (obligatorio —cargada desde los datos de referencia configurados en Admin).\n4. Opcionalmente, agregue una Descripción.\n5. Haga clic en **Enviar**. El gasto entra en estado **Pendiente**.\n\nUna vez enviado, el gasto aparece en la tabla principal para que todos lo vean.\n\n### Flujo de aprobación\n\nLos gerentes y administradores pueden aprobar o rechazar los gastos pendientes directamente en la tabla. Cada fila de gasto pendiente muestra dos botones de acción en línea:\n- **Aprobar** (icono de marca de verificación) — marca el gasto de inmediato como Aprobado (chip verde).\n- **Rechazar** (icono de X) — marca el gasto de inmediato como Rechazado (chip rojo).\n\nEstos botones de acción solo aparecen para los gastos con estado Pendiente.\n\n### Filtrado y búsqueda\n\nEl encabezado de la página incluye:\n- Un campo de **Búsqueda** que filtra por descripción, categoría o nombre del remitente.\n- Una lista desplegable de filtro de **Estado** con opciones: Todos, Pendiente, Aprobado, Rechazado, SelfApproved.\n- Una pantalla de **Monto total** que muestra la suma de los gastos actualmente visibles.\n\n### Estados del gasto\n\n- **Pendiente** (chip de advertencia/amarillo) — En espera de aprobación del gerente.\n- **Aprobado** (chip de éxito/verde) — Revisado y aprobado.\n- **Rechazado** (chip de error/rojo) — Revisado y rechazado.\n- **SelfApproved** (chip de éxito/verde) — Enviado por un gerente con privilegios de aprobación automática.\n\n### Autoguardado de borrador\n\nEl diálogo de gastos admite el autoguardado de borrador. Si cierra el diálogo accidentalmente antes de guardar, los datos de su formulario se conservan en IndexedDB y se restauran cuando vuelve a abrir el diálogo.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "expenses-walkthrough",
+    "title": "Gastos — Recorrido guiado",
+    "summary": "Un recorrido guiado por la página de Gastos: filtros, columnas de la tabla, acciones de aprobación en línea y creación de un nuevo gasto.",
+    "contentJson": {
+      "appRoute": "/expenses",
+      "startButtonLabel": "Recorrer Gastos",
+      "steps": [
+        {
+          "element": ".filters-bar app-input",
+          "popover": {
+            "title": "Buscar gastos",
+            "description": "Busque en todos los gastos por descripción, categoría o nombre del remitente. Los resultados se filtran en tiempo real a medida que escribe.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='status-filter']",
+          "popover": {
+            "title": "Filtro de estado",
+            "description": "Filtre los gastos por estado: Todos, Pendiente (en espera de aprobación), Aprobado, Rechazado o SelfApproved. Cada estado tiene un chip con código de color en la tabla.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de gastos",
+            "description": "Todos los gastos enviados aparecen aquí. Las columnas incluyen Fecha (MM/dd/yyyy), Categoría (chip de color), Descripción, Trabajo (si está vinculado), Enviado por, Monto ($X.XX) y Estado (chip de color). Haga clic en los encabezados de columna para ordenar. Haga clic en una fila para ver los detalles.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "[data-testid='expense-save-btn'], [data-testid='new-expense-btn'], .action-btn--primary",
+          "popover": {
+            "title": "Agregar gasto",
+            "description": "Haga clic aquí para enviar un nuevo gasto. Completará Monto (obligatorio), Fecha (obligatorio), Categoría (obligatorio, desde los datos de referencia) y una Descripción opcional. El gasto comienza en estado Pendiente.",
+            "side": "bottom"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "expenses-field-reference",
+    "title": "Referencia de campos de Gastos",
+    "summary": "Referencia completa de cada campo, botón, estado, regla de validación y columna de tabla en el módulo de Gastos.",
+    "contentJson": {
+      "title": "Referencia de campos de Gastos",
+      "groups": [
+        {
+          "heading": "Campos del diálogo Crear gasto",
+          "items": [
+            {"label": "Monto (obligatorio)", "value": "Campo de moneda, mínimo $0.01, prefijo '$'. El monto del gasto en dólares. data-testid: expense-amount"},
+            {"label": "Fecha (obligatorio)", "value": "Selector de fecha. La fecha en que se incurrió en el gasto. Se muestra como MM/dd/yyyy. data-testid: expense-date"},
+            {"label": "Categoría (obligatorio)", "value": "Lista desplegable. Las opciones se cargan desde los datos de referencia (categorías de gastos configuradas en Admin). data-testid: expense-category"},
+            {"label": "Descripción (opcional)", "value": "Área de texto. Descripción libre del gasto. data-testid: expense-description"},
+            {"label": "Botón Enviar", "value": "Deshabilitado cuando el formulario no es válido o el guardado está en curso. Al pasar el cursor se muestra un popover de validación que lista las infracciones. data-testid: expense-save-btn"}
+          ]
+        },
+        {
+          "heading": "Estados del gasto",
+          "items": [
+            {"label": "Pendiente (chip de advertencia/amarillo)", "value": "El gasto se ha enviado y está en espera de aprobación del gerente. Estado predeterminado para los gastos nuevos."},
+            {"label": "Aprobado (chip de éxito/verde)", "value": "El gasto ha sido revisado y aprobado por un gerente."},
+            {"label": "Rechazado (chip de error/rojo)", "value": "El gasto ha sido revisado y rechazado por un gerente."},
+            {"label": "SelfApproved (chip de éxito/verde)", "value": "El gasto fue enviado por un gerente que lo aprobó automáticamente. Mismo chip verde que Aprobado."}
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla",
+          "items": [
+            {"label": "Fecha", "value": "Ordenable. Fecha del gasto con formato MM/dd/yyyy."},
+            {"label": "Categoría", "value": "Ordenable. Se muestra como un chip de color."},
+            {"label": "Descripción", "value": "Ordenable. Descripción de texto libre."},
+            {"label": "Trabajo", "value": "Ordenable. Número del trabajo vinculado o '—' si no está vinculado a un trabajo."},
+            {"label": "Enviado por", "value": "Ordenable. Nombre del usuario que envió el gasto."},
+            {"label": "Monto", "value": "Ordenable. Con formato $X.XX, alineado a la derecha."},
+            {"label": "Estado", "value": "Ordenable, filtrable (enum). Chip con código de color: Pendiente (amarillo), Aprobado (verde), Rechazado (rojo), SelfApproved (verde)."},
+            {"label": "Acciones", "value": "Botones en línea para aprobar (marca de verificación) y rechazar (X). Solo visibles para los gastos Pendientes."}
+          ]
+        },
+        {
+          "heading": "Controles del encabezado de la página",
+          "items": [
+            {"label": "Búsqueda", "value": "Campo de texto. Filtra los gastos por descripción, categoría o nombre del remitente. Presione Enter para aplicar."},
+            {"label": "Filtro de estado", "value": "Lista desplegable: Todos, Pendiente, Aprobado, Rechazado, SelfApproved. data-testid: status-filter"},
+            {"label": "Monto total", "value": "Pantalla de solo lectura que muestra la suma de todos los gastos actualmente visibles (filtrados)."},
+            {"label": "Botón Agregar gasto", "value": "Abre el diálogo Crear gasto. data-testid: new-expense-btn"}
+          ]
+        },
+        {
+          "heading": "Acciones de aprobación en línea",
+          "items": [
+            {"label": "Aprobar (icono de marca de verificación)", "value": "Botón de icono verde (icon-btn--success). Aprueba el gasto de inmediato. Solo visible para los gastos Pendientes. Detiene la propagación del clic para que no se abra el detalle."},
+            {"label": "Rechazar (icono de X)", "value": "Botón de icono rojo (icon-btn--danger). Rechaza el gasto de inmediato. Solo visible para los gastos Pendientes."}
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            {"label": "Monto", "value": "Obligatorio. Debe ser un número >= $0.01."},
+            {"label": "Fecha", "value": "Obligatorio. Debe ser una fecha válida."},
+            {"label": "Categoría", "value": "Obligatorio. Debe seleccionar de las opciones de datos de referencia (configuradas en Admin → Datos de referencia)."},
+            {"label": "Descripción", "value": "Opcional. Sin restricción de longitud."},
+            {"label": "Popover del botón de envío", "value": "Cuando el formulario no es válido, al pasar el cursor sobre Guardar se muestra un popover de validación que lista qué campos necesitan atención."},
+            {"label": "Autoguardado de borrador", "value": "Los datos del formulario se guardan en IndexedDB cada 2.5 segundos mientras se edita. Se recuperan en la siguiente apertura del diálogo si no se guardaron."}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "expenses-quiz",
+    "title": "Evaluación de conocimientos de Gastos",
+    "summary": "Ponga a prueba sus conocimientos sobre el módulo de Gastos: envío, flujo de aprobación, estados y filtrado.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "ex1",
+          "text": "Necesita enviar un gasto de $150 por material de oficina. ¿Qué campos son obligatorios en el diálogo Crear gasto?",
+          "options": [
+            {"id": "a", "text": "Monto, Fecha, Categoría y Descripción son todos obligatorios"},
+            {"id": "b", "text": "Monto, Fecha y Categoría son obligatorios; Descripción es opcional", "isCorrect": true},
+            {"id": "c", "text": "Solo Monto es obligatorio —todos los demás campos son opcionales"},
+            {"id": "d", "text": "Monto, Fecha, Categoría, Descripción y Trabajo son todos obligatorios"}
+          ],
+          "explanation": "El diálogo Crear gasto requiere tres campos: Monto (mínimo $0.01), Fecha (selector de fecha) y Categoría (desde los datos de referencia). La Descripción es opcional."
+        },
+        {
+          "id": "ex2",
+          "text": "¿Con qué estado comienza un gasto recién enviado?",
+          "options": [
+            {"id": "a", "text": "Borrador —debe finalizarse antes del envío"},
+            {"id": "b", "text": "Aprobado —los gastos se aprueban automáticamente de forma predeterminada"},
+            {"id": "c", "text": "Pendiente —en espera de la aprobación del gerente", "isCorrect": true},
+            {"id": "d", "text": "SelfApproved —los gastos propios del remitente se aprueban automáticamente"}
+          ],
+          "explanation": "Todos los gastos recién enviados comienzan en estado Pendiente (chip amarillo) y esperan la revisión del gerente."
+        },
+        {
+          "id": "ex3",
+          "text": "Un gerente quiere aprobar un gasto pendiente. ¿Cómo lo hace?",
+          "options": [
+            {"id": "a", "text": "Hacer clic en el icono de marca de verificación en la fila del gasto para aprobarlo de inmediato", "isCorrect": true},
+            {"id": "b", "text": "Seleccionar el gasto y hacer clic en un botón masivo Aprobar todos"},
+            {"id": "c", "text": "Abrir el detalle del gasto y cambiar la lista desplegable de estado a Aprobado"},
+            {"id": "d", "text": "Hacer clic derecho en la fila y seleccionar Aprobar del menú contextual"}
+          ],
+          "explanation": "Cada fila de gasto pendiente tiene dos iconos de acción en línea: una marca de verificación (aprobar) y una X (rechazar). Al hacer clic en la marca de verificación, ese gasto se aprueba de inmediato."
+        },
+        {
+          "id": "ex4",
+          "text": "¿De dónde provienen las categorías de gastos?",
+          "options": [
+            {"id": "a", "text": "Están codificadas de forma fija en la aplicación y no se pueden cambiar"},
+            {"id": "b", "text": "Cada usuario define sus propias categorías en la configuración de su perfil"},
+            {"id": "c", "text": "Se cargan desde los datos de referencia configurados por un administrador", "isCorrect": true},
+            {"id": "d", "text": "Se importan de QuickBooks y no se pueden modificar localmente"}
+          ],
+          "explanation": "Las categorías de gastos se gestionan a través de los datos de referencia en la sección Admin. Un administrador puede agregar, editar o eliminar las categorías que aparecen en la lista desplegable de Categoría."
+        },
+        {
+          "id": "ex5",
+          "text": "¿Qué muestra la pantalla de Monto total en el encabezado de la página?",
+          "options": [
+            {"id": "a", "text": "El total de todos los gastos enviados alguna vez en el sistema"},
+            {"id": "b", "text": "La suma de los gastos actualmente visibles (filtrados)", "isCorrect": true},
+            {"id": "c", "text": "El total de solo los gastos Aprobados"},
+            {"id": "d", "text": "El presupuesto mensual restante del usuario actual"}
+          ],
+          "explanation": "La pantalla de Monto total en el encabezado de la página muestra dinámicamente la suma de todos los gastos actualmente visibles después de aplicar los filtros de búsqueda y estado."
+        },
+        {
+          "id": "ex6",
+          "text": "Cierra el diálogo de gastos accidentalmente antes de guardar. ¿Qué le sucede a los datos de su formulario?",
+          "options": [
+            {"id": "a", "text": "Se pierden —debe volver a ingresar todo desde cero"},
+            {"id": "b", "text": "Un diálogo de confirmación pregunta si quiere guardar un borrador antes de cerrar"},
+            {"id": "c", "text": "El autoguardado de borrador conserva los datos en IndexedDB y los restaura cuando vuelve a abrir el diálogo", "isCorrect": true},
+            {"id": "d", "text": "Los datos se guardan en el servidor como un gasto en estado Borrador"}
+          ],
+          "explanation": "El diálogo de gastos usa el autoguardado de borrador (con rebote cada 2.5 segundos). Los datos del formulario se almacenan en IndexedDB y se recuperan automáticamente cuando vuelve a abrir el diálogo."
+        },
+        {
+          "id": "ex7",
+          "text": "¿Cómo puede filtrar la tabla de gastos para ver solo los gastos rechazados?",
+          "options": [
+            {"id": "a", "text": "Escribir 'rechazado' en el campo de búsqueda"},
+            {"id": "b", "text": "Usar la lista desplegable del filtro de Estado y seleccionar 'Rechazado'", "isCorrect": true},
+            {"id": "c", "text": "Hacer clic en el encabezado de la columna Rechazado para ordenar por rechazos"},
+            {"id": "d", "text": "Navegar a una página separada de Gastos rechazados"}
+          ],
+          "explanation": "La lista desplegable del filtro de Estado en el encabezado de la página le permite seleccionar un estado específico: Todos, Pendiente, Aprobado, Rechazado o SelfApproved. Al seleccionar 'Rechazado' se muestran solo los gastos rechazados."
+        },
+        {
+          "id": "ex8",
+          "text": "¿Qué sucede cuando un gerente hace clic en el icono de X (rechazar) en un gasto pendiente?",
+          "options": [
+            {"id": "a", "text": "Se abre un diálogo que pide un motivo de rechazo antes de continuar"},
+            {"id": "b", "text": "El gasto se marca de inmediato como Rechazado con un chip de estado rojo", "isCorrect": true},
+            {"id": "c", "text": "El gasto se elimina del sistema permanentemente"},
+            {"id": "d", "text": "El gasto vuelve al estado Borrador para que el remitente lo edite"}
+          ],
+          "explanation": "Al hacer clic en el icono de X, el gasto se rechaza de inmediato. Su estado cambia a Rechazado y muestra un chip rojo en la tabla."
+        },
+        {
+          "id": "ex9",
+          "text": "El campo de búsqueda en el encabezado de la página filtra por cuáles campos?",
+          "options": [
+            {"id": "a", "text": "Solo el campo Descripción"},
+            {"id": "b", "text": "Descripción y Monto"},
+            {"id": "c", "text": "Descripción, Categoría y nombre de Enviado por", "isCorrect": true},
+            {"id": "d", "text": "Todas las columnas visibles de la tabla, incluidas Fecha y Estado"}
+          ],
+          "explanation": "El campo de búsqueda filtra por descripción, categoría y nombre del remitente. No busca por fecha, monto ni estado —use la lista desplegable de Estado para filtrar por estado."
+        },
+        {
+          "id": "ex10",
+          "text": "¿Qué significa el estado 'SelfApproved' en un gasto?",
+          "options": [
+            {"id": "a", "text": "El gasto fue aprobado por el sistema automáticamente según reglas"},
+            {"id": "b", "text": "El gasto fue enviado por un gerente que tiene privilegios de aprobación automática", "isCorrect": true},
+            {"id": "c", "text": "El remitente hizo clic en un botón Aprobar en su propio gasto"},
+            {"id": "d", "text": "El gasto estaba por debajo de un monto umbral y se aprobó automáticamente"}
+          ],
+          "explanation": "SelfApproved indica que el gasto fue enviado por un gerente con capacidad de aprobación automática. Se muestra con un chip verde, igual que Aprobado."
+        },
+        {
+          "id": "ex11",
+          "text": "¿Cuál es el monto mínimo que puede ingresar al crear un gasto?",
+          "options": [
+            {"id": "a", "text": "$0.00 —se permiten gastos de cero dólares con fines de seguimiento"},
+            {"id": "b", "text": "$0.01 —el mínimo es un centavo", "isCorrect": true},
+            {"id": "c", "text": "$1.00 —no se admiten gastos por debajo de un dólar"},
+            {"id": "d", "text": "No hay mínimo —cualquier número positivo funciona"}
+          ],
+          "explanation": "El campo Monto tiene un validador de mínimo de 0.01. No puede enviar un gasto por $0.00 ni por un monto negativo."
+        },
+        {
+          "id": "ex12",
+          "text": "¿Cuál de las siguientes NO es una columna en la tabla de datos de Gastos?",
+          "options": [
+            {"id": "a", "text": "Categoría"},
+            {"id": "b", "text": "Enviado por"},
+            {"id": "c", "text": "Proveedor", "isCorrect": true},
+            {"id": "d", "text": "Trabajo"}
+          ],
+          "explanation": "Las columnas de la tabla de Gastos son: Fecha, Categoría, Descripción, Trabajo, Enviado por, Monto, Estado y Acciones. No hay columna de Proveedor."
+        },
+        {
+          "id": "ex13",
+          "text": "¿Cuándo son visibles los botones de acción de aprobar/rechazar en línea en una fila de gasto?",
+          "options": [
+            {"id": "a", "text": "Siempre —en cada gasto sin importar su estado"},
+            {"id": "b", "text": "Solo para los gastos con estado Pendiente", "isCorrect": true},
+            {"id": "c", "text": "Solo para los gastos enviados por otros usuarios"},
+            {"id": "d", "text": "Solo para los gastos de más de $100"}
+          ],
+          "explanation": "Los botones de acción en línea de aprobar (marca de verificación) y rechazar (X) solo aparecen para los gastos que están en estado Pendiente. Una vez aprobados o rechazados, los botones se ocultan."
+        },
+        {
+          "id": "ex14",
+          "text": "¿De qué color es el chip que muestra cada estado de gasto?",
+          "options": [
+            {"id": "a", "text": "Pendiente: azul, Aprobado: verde, Rechazado: rojo, SelfApproved: gris"},
+            {"id": "b", "text": "Pendiente: amarillo, Aprobado: verde, Rechazado: rojo, SelfApproved: verde", "isCorrect": true},
+            {"id": "c", "text": "Pendiente: gris, Aprobado: azul, Rechazado: amarillo, SelfApproved: verde"},
+            {"id": "d", "text": "Todos los estados usan el mismo chip gris neutro"}
+          ],
+          "explanation": "Pendiente usa un chip de advertencia/amarillo, Aprobado y SelfApproved usan ambos chips de éxito/verde, y Rechazado usa un chip de error/rojo."
+        },
+        {
+          "id": "ex15",
+          "text": "¿Qué sucede cuando pasa el cursor sobre un botón Enviar deshabilitado en el diálogo Crear gasto?",
+          "options": [
+            {"id": "a", "text": "No sucede nada —el botón solo está atenuado"},
+            {"id": "b", "text": "Una información sobre herramientas dice 'Complete todos los campos'"},
+            {"id": "c", "text": "Un popover de validación lista qué campos específicos necesitan atención", "isCorrect": true},
+            {"id": "d", "text": "Los campos no válidos parpadean en rojo para llamar su atención"}
+          ],
+          "explanation": "Cuando el formulario no es válido, al pasar el cursor sobre el botón Guardar/Enviar se muestra un popover de validación que lista cada infracción de campo —por ejemplo, 'El monto es obligatorio' o 'La categoría es obligatoria'."
+        }
+      ]
+    }
+  }
+]

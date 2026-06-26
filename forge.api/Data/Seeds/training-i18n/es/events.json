@@ -1,0 +1,267 @@
+[
+  {
+    "slug": "events-overview",
+    "title": "Visión general de Eventos",
+    "summary": "Qué son los eventos, los cuatro tipos de evento, la gestión de asistentes, el flujo de confirmación de asistencia (RSVP) y los recordatorios automáticos.",
+    "contentJson": {
+      "body": "## Visión general de Eventos\n\nEl módulo de Eventos permite a los administradores y gerentes programar y dar seguimiento a los eventos de la empresa —reuniones, sesiones de capacitación, charlas de seguridad y otras reuniones. Se encuentra en Admin > Eventos y proporciona un calendario central de todo lo que ocurre en su organización.\n\n### Tipos de evento\n\nCada evento se clasifica en uno de cuatro tipos:\n- **Reunión** — reuniones de equipo, revisiones de proyecto, stand-ups, 1-a-1. Icono: groups.\n- **Capacitación** — capacitación en habilidades, sesiones de incorporación, preparación para certificaciones. Icono: school.\n- **Seguridad** — charlas de seguridad, simulacros de emergencia, revisiones de cumplimiento. Icono: health_and_safety.\n- **Otro** — convivencias de la empresa, anuncios, recorridos por las instalaciones o cualquier cosa que no encaje en los anteriores. Icono: event.\n\nEl tipo determina el icono que se muestra en la tabla de eventos y ayuda con el filtrado.\n\n### Asistentes y confirmación de asistencia (RSVP)\n\nAl crear o editar un evento, usted selecciona asistentes de la lista de empleados activos. Cada asistente recibe una notificación que lo invita al evento. Los asistentes pueden entonces responder con uno de estos estados:\n- **Invitado** — estado predeterminado, aún sin respuesta\n- **Aceptado** — el asistente confirmó que asistirá\n- **Rechazado** — el asistente no puede asistir\n- **Asistió** — confirmación posterior al evento de que la persona estuvo presente (útil para el seguimiento de cumplimiento)\n\nEl conteo de asistentes se muestra en la tabla de eventos para que pueda ver de un vistazo cuántas personas están invitadas a cada evento.\n\n### Eventos obligatorios frente a opcionales\n\nLos eventos pueden marcarse como Asistencia obligatoria. Cuando se activa:\n- La notificación de invitación se envía con severidad de advertencia en lugar de información\n- La tabla de eventos muestra un chip amarillo Obligatorio junto al evento\n- Esto le indica a los empleados y gerentes que la asistencia es obligatoria (p. ej., charlas de seguridad, capacitación de cumplimiento)\n\nLos eventos opcionales se muestran como texto sin formato en la tabla.\n\n### Recordatorios automáticos\n\nEl sistema ejecuta un trabajo en segundo plano que envía notificaciones de recordatorio 15 minutos antes de que comience un evento. Esto garantiza que los asistentes no se pierdan los próximos eventos, incluso si no revisaron la invitación original. El recordatorio se envía una sola vez —la marca de tiempo ReminderSentAt en el evento impide notificaciones duplicadas.\n\n### Dónde aparecen los eventos\n\n- **Admin > Eventos** — la vista principal de gestión donde los administradores crean, editan, filtran y cancelan eventos\n- **Pantalla de planta de producción (Shop Floor Display)** — los próximos eventos aparecen en la sección de próximos de la planta para que los trabajadores de producción vean lo que está programado\n- **Detalle del empleado** — el perfil de cada empleado tiene una pestaña Eventos que muestra los eventos a los que está invitado o a los que ha asistido\n\n### Cancelar eventos\n\nLos eventos se cancelan de forma lógica, no se eliminan. Cuando cancela un evento, se establece la bandera IsCancelled y el evento deja de aparecer en la vista de lista predeterminada. Los eventos cancelados se excluyen de la consulta de eventos, lo que mantiene la tabla limpia conservando el registro histórico.\n\n### Cuándo usar los eventos\n\n- Programar una reunión de equipo o una revisión de proyecto\n- Organizar charlas de seguridad obligatorias o simulacros de emergencia\n- Planificar sesiones de capacitación para nuevas contrataciones o desarrollo de habilidades\n- Dar seguimiento a la asistencia con fines de cumplimiento (quién asistió a qué capacitación de seguridad)\n- Anunciar reuniones para toda la empresa o eventos sociales",
+      "sections": []
+    }
+  },
+  {
+    "slug": "events-walkthrough",
+    "title": "Eventos — Recorrido guiado",
+    "summary": "Un recorrido guiado por Admin > Eventos: filtrar por tipo, crear eventos, gestionar asistentes y cancelar eventos.",
+    "contentJson": {
+      "appRoute": "/admin/events",
+      "startButtonLabel": "Recorrer Eventos",
+      "steps": [
+        {
+          "element": "[data-testid='new-event-btn']",
+          "popover": {
+            "title": "Botón Nuevo evento",
+            "description": "Haga clic aquí para crear un nuevo evento. Introducirá el título, el tipo, el rango de fecha/hora, la ubicación, la descripción, los asistentes y si la asistencia es obligatoria. Los asistentes reciben una notificación inmediatamente al crearlo.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".panel-header app-select",
+          "popover": {
+            "title": "Filtro de tipo",
+            "description": "Filtre los eventos por tipo: Reunión, Capacitación, Seguridad u Otro. Seleccione un tipo para acotar la tabla, o elija Todos para verlo todo. El filtro actualiza la tabla en tiempo real.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de eventos",
+            "description": "Lista todos los eventos activos (no cancelados) ordenados por hora de inicio. Las columnas incluyen Título, Tipo (con chip de icono), horas de inicio/fin, Ubicación, conteo de asistentes y estado Obligatorio. Haga clic en los encabezados de columna para ordenar. Use el icono de engranaje para personalizar las columnas visibles.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "events-field-reference",
+    "title": "Referencia de campos de Eventos",
+    "summary": "Referencia completa de cada campo, botón, tipo de evento, estado de asistente, regla de validación y acción en Eventos.",
+    "contentJson": {
+      "title": "Referencia de campos de Eventos",
+      "groups": [
+        {
+          "heading": "Campos del formulario de evento",
+          "items": [
+            {"label": "Título (obligatorio)", "value": "Campo de texto, máximo 200 caracteres. El nombre del evento que se muestra en la tabla, las notificaciones y las vistas de asistentes. Ejemplos: 'Charla semanal de seguridad', 'Revisión de proyecto del 2.º trimestre', 'Orientación de nuevas contrataciones'. data-testid: event-title"},
+            {"label": "Tipo de evento (obligatorio)", "value": "Lista desplegable: Reunión, Capacitación, Seguridad, Otro. Determina el chip de icono que se muestra en la tabla y habilita el filtrado por tipo. Predeterminado: Reunión. data-testid: event-type"},
+            {"label": "Ubicación", "value": "Campo de texto, opcional, máximo 200 caracteres. Ubicación física o virtual (p. ej., 'Sala de conferencias B', 'Bahía 3 de la planta', 'Enlace de Zoom en la descripción'). data-testid: event-location"},
+            {"label": "Fecha de inicio (obligatorio)", "value": "Selector de fecha. La fecha en que comienza el evento. Se combina con la Hora de inicio para formar la marca de tiempo de inicio completa. data-testid: event-start-date"},
+            {"label": "Hora de inicio (obligatorio)", "value": "Campo de texto, formato HH:MM (24 horas). La hora en que comienza el evento. Predeterminado: 09:00. Se combina con la Fecha de inicio. data-testid: event-start-time"},
+            {"label": "Fecha de fin (obligatorio)", "value": "Selector de fecha. La fecha en que termina el evento. Para eventos de un solo día, igual que la Fecha de inicio. data-testid: event-end-date"},
+            {"label": "Hora de fin (obligatorio)", "value": "Campo de texto, formato HH:MM (24 horas). Debe dar como resultado una marca de tiempo de fin posterior a la marca de tiempo de inicio. Predeterminado: 10:00. data-testid: event-end-time"},
+            {"label": "Descripción", "value": "Área de texto, opcional, máximo 2000 caracteres. Agenda, instrucciones de preparación o contexto adicional. data-testid: event-description"},
+            {"label": "Asistentes", "value": "Lista desplegable de selección múltiple poblada con todos los empleados activos (mostrados como Apellido, Nombre). Los usuarios seleccionados reciben una notificación de invitación cuando se crea el evento."},
+            {"label": "Asistencia obligatoria", "value": "Interruptor de palanca. Cuando está ACTIVADO, marca el evento como obligatorio. La severidad de la notificación cambia de información a advertencia. Aparece un chip amarillo 'Obligatorio' en la tabla. data-testid: event-required"}
+          ]
+        },
+        {
+          "heading": "Campos del asistente",
+          "items": [
+            {"label": "Usuario", "value": "El empleado invitado al evento. Se muestra en formato Apellido, Nombre."},
+            {"label": "Estado", "value": "Estado actual de la confirmación de asistencia (RSVP): Invitado (predeterminado), Aceptado, Rechazado o Asistió."},
+            {"label": "Respondido el", "value": "Marca de tiempo de cuándo el asistente cambió por última vez su estado de RSVP. Nulo si todavía está en estado Invitado (aún sin respuesta)."}
+          ]
+        },
+        {
+          "heading": "Tipos de evento",
+          "items": [
+            {"label": "Reunión", "value": "Icono: groups. Reuniones de equipo, revisiones de proyecto, stand-ups, 1-a-1 y otras sesiones colaborativas."},
+            {"label": "Capacitación", "value": "Icono: school. Capacitación en habilidades, incorporación, preparación para certificaciones y sesiones educativas."},
+            {"label": "Seguridad", "value": "Icono: health_and_safety. Charlas de seguridad, simulacros de emergencia, revisiones de cumplimiento y capacitación sobre riesgos."},
+            {"label": "Otro", "value": "Icono: event. Convivencias de la empresa, anuncios, recorridos por las instalaciones y cualquier cosa no cubierta por los otros tipos."}
+          ]
+        },
+        {
+          "heading": "Estados del asistente",
+          "items": [
+            {"label": "Invitado", "value": "Estado predeterminado asignado cuando se agrega un asistente a un evento. Indica que aún no se ha dado respuesta."},
+            {"label": "Aceptado", "value": "El asistente ha confirmado que asistirá al evento."},
+            {"label": "Rechazado", "value": "El asistente ha indicado que no puede asistir al evento."},
+            {"label": "Asistió", "value": "Estado posterior al evento que confirma que la persona estuvo físicamente presente. Se usa para el seguimiento de cumplimiento (p. ej., comprobar la asistencia a una capacitación de seguridad)."}
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            {"label": "Nuevo evento (botón principal)", "value": "Abre el diálogo de creación de eventos. Todos los campos se restablecen a sus valores predeterminados (tipo: Reunión, hora: 09:00–10:00, no obligatorio). data-testid: new-event-btn"},
+            {"label": "Guardar / Crear evento (diálogo)", "value": "Crea o actualiza el evento. Deshabilitado cuando el formulario no es válido o el guardado está en curso. Al pasar el cursor muestra un popover de validación si está deshabilitado. Al crear, se envían notificaciones a todos los asistentes seleccionados. data-testid: event-save-btn"},
+            {"label": "Cancelar (diálogo)", "value": "Cierra el diálogo sin guardar los cambios."},
+            {"label": "Editar (icono de fila)", "value": "Icono de lápiz en cada fila de la tabla. Abre el diálogo de edición precargado con los valores actuales del evento, incluidos los asistentes."},
+            {"label": "Cancelar evento (icono de fila)", "value": "Icono rojo de X en cada fila de la tabla. Abre un diálogo de confirmación. Al confirmar, cancela el evento de forma lógica (establece la bandera IsCancelled). El evento desaparece de la tabla pero el registro se conserva."},
+            {"label": "Filtro de tipo (encabezado)", "value": "Lista desplegable en el encabezado del panel. Filtra la tabla por tipo de evento. Opciones: Todos, Reunión, Capacitación, Seguridad, Otro."}
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            {"label": "Título", "value": "Obligatorio. No puede estar vacío. Máximo 200 caracteres."},
+            {"label": "Tipo de evento", "value": "Obligatorio. Debe ser uno de: Reunión, Capacitación, Seguridad, Otro."},
+            {"label": "Fecha de inicio", "value": "Obligatorio. Debe ser una fecha válida."},
+            {"label": "Hora de inicio", "value": "Obligatorio. Debe estar en formato HH:MM."},
+            {"label": "Fecha de fin", "value": "Obligatorio. Debe ser una fecha válida."},
+            {"label": "Hora de fin", "value": "Obligatorio. La fecha/hora de fin combinada debe ser posterior a la fecha/hora de inicio combinada."},
+            {"label": "Descripción", "value": "Opcional. Máximo 2000 caracteres."},
+            {"label": "Ubicación", "value": "Opcional. Máximo 200 caracteres."},
+            {"label": "Asistentes", "value": "Opcional. Cero o más empleados activos. Los duplicados se eliminan automáticamente."},
+            {"label": "Popover del botón de envío", "value": "Cuando el formulario no es válido, al pasar el cursor sobre Guardar/Crear se muestra un popover de validación que lista qué campos necesitan atención (p. ej., 'El título es obligatorio', 'La fecha de inicio es obligatoria')."}
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla",
+          "items": [
+            {"label": "Título", "value": "Ordenable. El nombre del evento."},
+            {"label": "Tipo", "value": "Ordenable, filtrable (enum). Muestra un chip con el icono del tipo: groups (Reunión), school (Capacitación), health_and_safety (Seguridad), event (Otro)."},
+            {"label": "Inicio", "value": "Ordenable, tipo fecha. Con formato MM/dd/yyyy hh:mm a. Ancho: 160px."},
+            {"label": "Fin", "value": "Ordenable, tipo fecha. Con formato MM/dd/yyyy hh:mm a. Ancho: 160px."},
+            {"label": "Ubicación", "value": "Ordenable. Texto de ubicación física o virtual. Ancho: 150px."},
+            {"label": "Asistentes", "value": "Ordenable, tipo numérico. Conteo de asistentes invitados. Ancho: 100px."},
+            {"label": "Obligatorio", "value": "Ordenable. Muestra un chip amarillo 'Obligatorio' si es obligatorio, de lo contrario texto atenuado 'Opcional'. Ancho: 90px."},
+            {"label": "Acciones", "value": "Botones de icono Editar (lápiz) y Cancelar (X). Ancho: 80px."}
+          ]
+        },
+        {
+          "heading": "Notificaciones y recordatorios",
+          "items": [
+            {"label": "Notificación de invitación", "value": "Se envía a cada asistente cuando se crea un evento. Formato: '{Nombre del creador} lo invitó a \"{Título del evento}\" el {MM/dd/yyyy hh:mm tt}.' Severidad: advertencia si es obligatorio, información si es opcional."},
+            {"label": "Recordatorio de 15 minutos", "value": "Un trabajo en segundo plano de Hangfire envía notificaciones de recordatorio 15 minutos antes de que comience el evento. Se envía una sola vez —la marca de tiempo ReminderSentAt impide duplicados."},
+            {"label": "Cancelación", "value": "Cuando se cancela un evento, el registro se elimina de forma lógica (bandera IsCancelled). Se notifica a los asistentes de la cancelación."}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "events-quiz",
+    "title": "Evaluación de conocimientos de Eventos",
+    "summary": "Ponga a prueba sus conocimientos sobre el módulo de Eventos: tipos, asistentes, estados de RSVP, recordatorios y flujos de trabajo de administración.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "ev1",
+          "text": "Necesita programar una charla de seguridad obligatoria para todos los trabajadores de la planta el próximo martes. ¿Dónde crea este evento?",
+          "options": [
+            {"id": "a", "text": "Tablero > widget de Calendario > hacer clic en la fecha"},
+            {"id": "b", "text": "Admin > Eventos > hacer clic en Nuevo evento, establecer el tipo en Seguridad, activar Asistencia obligatoria", "isCorrect": true},
+            {"id": "c", "text": "Seguimiento de tiempo > crear una nueva entrada de tiempo con categoría 'Seguridad'"},
+            {"id": "d", "text": "Pantalla de planta de producción > sección Próximos > Agregar evento"}
+          ],
+          "explanation": "Los eventos se crean en Admin > Eventos. Haga clic en Nuevo evento, seleccione el tipo Seguridad, complete los detalles, seleccione los asistentes y active Asistencia obligatoria. El chip amarillo Obligatorio aparecerá en la tabla, y los asistentes reciben una notificación de nivel advertencia."
+        },
+        {
+          "id": "ev2",
+          "text": "¿Cuáles son los cuatro tipos de evento disponibles en el sistema?",
+          "options": [
+            {"id": "a", "text": "Urgente, Estándar, Opcional, Recurrente"},
+            {"id": "b", "text": "Reunión, Capacitación, Seguridad, Otro", "isCorrect": true},
+            {"id": "c", "text": "Interno, Externo, Virtual, Híbrido"},
+            {"id": "d", "text": "Diario, Semanal, Mensual, Anual"}
+          ],
+          "explanation": "Los cuatro tipos de evento son Reunión (icono groups), Capacitación (icono school), Seguridad (icono health_and_safety) y Otro (icono event). Cada tipo tiene un icono distintivo que se muestra como un chip en la tabla de eventos."
+        },
+        {
+          "id": "ev3",
+          "text": "Un empleado ha sido invitado a un evento pero aún no ha respondido. ¿Cuál es su estado de asistente?",
+          "options": [
+            {"id": "a", "text": "Pendiente"},
+            {"id": "b", "text": "Sin respuesta"},
+            {"id": "c", "text": "Invitado", "isCorrect": true},
+            {"id": "d", "text": "Sin confirmar"}
+          ],
+          "explanation": "El estado predeterminado para un asistente recién agregado es Invitado. Permanece como Invitado hasta que el empleado responda. Los cuatro estados posibles son: Invitado, Aceptado, Rechazado y Asistió."
+        },
+        {
+          "id": "ev4",
+          "text": "Después de una sesión de capacitación en seguridad, necesita registrar quién realmente se presentó. ¿Qué estado de asistente debería establecer para cada persona que estuvo presente?",
+          "options": [
+            {"id": "a", "text": "Aceptado —ya lo confirmaron de antemano"},
+            {"id": "b", "text": "Asistió —esto confirma la presencia física para el seguimiento de cumplimiento", "isCorrect": true},
+            {"id": "c", "text": "Completado —marca la capacitación como finalizada"},
+            {"id": "d", "text": "Presente —estado de registro de entrada"}
+          ],
+          "explanation": "El estado Asistió está diseñado específicamente para la confirmación posterior al evento de la presencia física. Esto es fundamental para el seguimiento de cumplimiento —comprobar que los empleados realmente asistieron a las sesiones obligatorias de seguridad o capacitación, no solo que aceptaron la invitación."
+        },
+        {
+          "id": "ev5",
+          "text": "¿Cómo recuerda el sistema a los asistentes sobre los próximos eventos?",
+          "options": [
+            {"id": "a", "text": "Se envía un correo electrónico 1 hora antes de que comience el evento"},
+            {"id": "b", "text": "Se envía una notificación push a su dispositivo móvil"},
+            {"id": "c", "text": "Un trabajo en segundo plano de Hangfire envía una notificación 15 minutos antes de que comience el evento", "isCorrect": true},
+            {"id": "d", "text": "No hay recordatorios automáticos —los asistentes deben revisar el calendario por su cuenta"}
+          ],
+          "explanation": "El sistema ejecuta un trabajo en segundo plano de Hangfire que envía notificaciones de recordatorio 15 minutos antes de la hora de inicio de un evento. La marca de tiempo ReminderSentAt en el registro del evento impide que se envíen recordatorios duplicados."
+        },
+        {
+          "id": "ev6",
+          "text": "Quiere cancelar un evento programado. ¿Qué sucede cuando hace clic en el icono de cancelar (X) en una fila de evento?",
+          "options": [
+            {"id": "a", "text": "El registro del evento se elimina permanentemente de la base de datos"},
+            {"id": "b", "text": "Aparece un diálogo de confirmación, y al confirmar se cancela el evento de forma lógica —desaparece de la tabla pero el registro se conserva", "isCorrect": true},
+            {"id": "c", "text": "El evento se mueve a una sección de archivo en la parte inferior de la página"},
+            {"id": "d", "text": "Se eliminan todos los asistentes pero el evento permanece visible en la tabla"}
+          ],
+          "explanation": "Cancelar un evento es una operación lógica. Un diálogo de confirmación pregunta '¿Cancelar evento?' y advierte que se notificará a los asistentes. Al confirmar, se establece la bandera IsCancelled en el evento. Ya no aparece en la vista de tabla predeterminada, pero el registro histórico se conserva."
+        },
+        {
+          "id": "ev7",
+          "text": "¿Cuál es la diferencia entre un evento Obligatorio y uno Opcional?",
+          "options": [
+            {"id": "a", "text": "Los eventos obligatorios bloquean el calendario del asistente; los opcionales no"},
+            {"id": "b", "text": "Los eventos obligatorios muestran un chip amarillo Obligatorio en la tabla, y las notificaciones de invitación se envían con severidad de advertencia en lugar de información", "isCorrect": true},
+            {"id": "c", "text": "Los eventos obligatorios solo pueden ser creados por administradores; los opcionales pueden ser creados por cualquiera"},
+            {"id": "d", "text": "No hay diferencia funcional —es solo una etiqueta"}
+          ],
+          "explanation": "Cuando se activa Asistencia obligatoria, cambian dos cosas: la notificación de invitación se envía con severidad de advertencia (en lugar de información), lo que la hace destacar en el panel de notificaciones, y aparece un chip amarillo Obligatorio junto al evento en la tabla para énfasis visual."
+        },
+        {
+          "id": "ev8",
+          "text": "Está viendo la tabla de eventos y quiere ver solo los eventos de Capacitación. ¿Cómo filtra?",
+          "options": [
+            {"id": "a", "text": "Hacer clic en el encabezado de la columna Capacitación para ordenar por tipo"},
+            {"id": "b", "text": "Usar la lista desplegable del filtro de Tipo en el encabezado del panel y seleccionar Capacitación", "isCorrect": true},
+            {"id": "c", "text": "Escribir 'Capacitación' en el cuadro de búsqueda"},
+            {"id": "d", "text": "Hacer clic derecho en la tabla y seleccionar Filtrar > Capacitación"}
+          ],
+          "explanation": "La lista desplegable del filtro de Tipo en el encabezado del panel de eventos le permite filtrar por tipo de evento. Seleccione Capacitación para ver solo los eventos de capacitación. El filtro actualiza la tabla en tiempo real al volver a consultar la API con el tipo seleccionado."
+        },
+        {
+          "id": "ev9",
+          "text": "Al crear un evento, el botón Guardar está deshabilitado y pasa el cursor sobre él para ver un popover. ¿Qué muestra el popover?",
+          "options": [
+            {"id": "a", "text": "Un indicador de carga que señala que el guardado está en curso"},
+            {"id": "b", "text": "Una información sobre herramientas que dice 'El formulario no es válido'"},
+            {"id": "c", "text": "Una lista con viñetas de las infracciones de validación —qué campos específicos necesitan atención (p. ej., 'El título es obligatorio', 'La fecha de inicio es obligatoria')", "isCorrect": true},
+            {"id": "d", "text": "Nada —el botón simplemente no se puede hacer clic cuando está deshabilitado"}
+          ],
+          "explanation": "El patrón de popover de validación se usa en todo QB Engineer. Cuando el formulario no es válido, al pasar el cursor sobre el botón Guardar deshabilitado se muestra una lista con viñetas de exactamente qué campos tienen problemas. Esto reemplaza los mensajes de error en línea debajo de cada campo."
+        },
+        {
+          "id": "ev10",
+          "text": "¿Dónde más aparecen los eventos en la aplicación además de la página Admin > Eventos?",
+          "options": [
+            {"id": "a", "text": "Solo en Admin > Eventos —los eventos son una función exclusiva de administradores"},
+            {"id": "b", "text": "En la sección de próximos de la Pantalla de planta de producción y en la pestaña Eventos del perfil de cada empleado", "isCorrect": true},
+            {"id": "c", "text": "En el widget de calendario del Tablero y en la barra lateral del tablero Kanban"},
+            {"id": "d", "text": "En el módulo de Chat como anuncios automáticos de eventos"}
+          ],
+          "explanation": "Los eventos aparecen en tres lugares: Admin > Eventos (vista principal de gestión), la Pantalla de planta de producción (sección de próximos eventos para que los trabajadores de producción vean lo que está programado) y la vista de Detalle del empleado (pestaña Eventos que muestra los eventos a los que cada persona está invitada o ha asistido)."
+        }
+      ]
+    }
+  }
+]

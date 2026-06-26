@@ -1,0 +1,335 @@
+[
+  {
+    "slug": "purchasing-overview",
+    "title": "Visión general de Compras",
+    "summary": "Qué son las RFQ, el ciclo de vida de la solicitud de cotización, invitar proveedores, registrar respuestas, adjudicar un proveedor y cómo una adjudicación genera una Orden de compra.",
+    "contentJson": {
+      "body": "## Visión general de Compras\n\nEl módulo de Compras gestiona las **RFQ** — Solicitudes de cotización (Requests for Quote). Una RFQ es la forma en que usted pide a uno o más proveedores que coticen un precio (y condiciones) para una pieza que necesita comprar, compara las respuestas que recibe y luego **adjudica** el trabajo a un proveedor. Adjudicar una RFQ genera una Orden de compra automáticamente, por lo que la RFQ es la entrada del flujo de aprovisionamiento que termina en una OC.\n\nCompras se conecta con otras dos funciones. Cada RFQ es para una sola **Pieza**, e invita a uno o más **Proveedores** a cotizarla. Cuando adjudica una respuesta ganadora, el sistema crea la **Orden de compra** vinculada.\n\n### ¿Qué es una RFQ?\n\nUna RFQ representa una sola solicitud para aprovisionar una pieza. Cada RFQ tiene:\n- Un **N.º de RFQ** único (generado automáticamente)\n- Un vínculo a exactamente una **Pieza**\n- Una **Cantidad** que necesita\n- Una **Fecha requerida** (cuándo necesita la pieza)\n- Una **Fecha límite de respuesta** opcional (cuándo deben responder los proveedores)\n- **Descripción** e **Instrucciones especiales** opcionales\n- Un **Estado** que rastrea dónde se encuentra la RFQ en su ciclo de vida\n- Un conjunto de **Respuestas de proveedores** — una por cada proveedor invitado — cada una con la cotización de ese proveedor\n\n### Ciclo de vida de la RFQ\n\nLas RFQ avanzan a través de estos estados:\n\n1. **Borrador** — La RFQ se ha creado pero aún no se ha enviado a ningún proveedor. Este es el estado inicial. Todavía puede editarla libremente.\n2. **Enviada** — La RFQ se ha enviado a uno o más proveedores usando la acción Enviar a proveedores. Cada proveedor invitado recibe un registro de respuesta en estado Pendiente.\n3. **Recibiendo** — Las cotizaciones están regresando. A medida que registra las respuestas de los proveedores, la RFQ refleja que se están recopilando respuestas.\n4. **Evaluando** — Está comparando las respuestas que ha recibido antes de decidir a quién adjudicar.\n5. **Adjudicada** — Ha adjudicado la RFQ a la respuesta de un proveedor. Se registra la marca de tiempo de la adjudicación y se genera una Orden de compra. Esto es efectivamente terminal.\n6. **Cancelada** — La RFQ se canceló.\n7. **Vencida** — La RFQ superó su ventana sin ser adjudicada.\n\n### Invitar proveedores\n\nDesde el detalle de la RFQ, la acción **Enviar a proveedores** abre una selección múltiple de proveedores (excluye a los proveedores que ya ha invitado). Elija los proveedores de los que quiere cotizaciones y envíe. Cada proveedor invitado recibe una respuesta de proveedor en estado **Pendiente**, y la RFQ pasa a Enviada. Puede invitar proveedores mientras la RFQ está en estado Borrador o Enviada.\n\n### Registrar respuestas de proveedores\n\nCuando un proveedor cotiza de vuelta, use la acción **Registrar respuesta** (disponible mientras la RFQ está en Enviada o Recibiendo). Elija el proveedor (solo aparecen aquellos con una respuesta Pendiente), luego ingrese la cotización: **Precio unitario**, **Plazo de entrega (días)**, **Cantidad mínima de pedido (MOQ)**, **Costo de herramental**, **Cotización válida hasta** y **Notas**. Solo la selección del proveedor es requerida; cada campo de la cotización es opcional, por lo que puede registrar una cotización parcial. Registrar una respuesta mueve la respuesta de ese proveedor a **Recibida**.\n\n### Comparar y adjudicar\n\nLa tabla de respuestas de proveedores muestra cada proveedor invitado y su cotización lado a lado para que pueda comparar precio, plazo de entrega, MOQ y costo de herramental. Cuando decida, haga clic en **Adjudicar** en la respuesta ganadora. Adjudicar solo está disponible cuando la RFQ no está ya Adjudicada, Cancelada o Vencida, y solo para una respuesta en estado **Recibida**.\n\nAdjudicar confirma la elección, luego:\n- El estado de la RFQ pasa a **Adjudicada** y se registra la marca de tiempo de la adjudicación.\n- Se **genera una Orden de compra** y se vincula a la RFQ.\n- La respuesta ganadora se marca como **Adjudicada** (verde); todas las demás respuestas pasan a **No adjudicada** (ámbar).\n- Un mensaje de éxito ofrece un enlace **Ver OC**, y la OC generada aparece como un enlace en los campos de solo lectura de la RFQ.\n\nAdjudicar es una acción unidireccional e irreversible — es el único botón que crea una OC a partir de una RFQ.\n\n### Estados de la respuesta del proveedor\n\nLa respuesta de cada proveedor en una RFQ tiene su propio estado: **Pendiente** (invitado, sin cotización todavía), **Recibida** (cotización registrada), **Declinada** (el proveedor declinó cotizar), **Adjudicada** (esta respuesta ganó) y **No adjudicada** (otra respuesta ganó).\n\n### Cómo se conecta Compras con otras funciones\n\n**Proveedores:** Usted invita proveedores a una RFQ, y la cotización de cada proveedor vive en una respuesta de proveedor. Adjudicar liga la OC resultante al proveedor elegido.\n\n**Órdenes de compra:** Adjudicar una RFQ genera una Orden de compra. La OC está vinculada de vuelta desde la RFQ para que pueda abrirla directamente.\n\n**Piezas:** Cada RFQ es para una pieza del catálogo, mostrada con su número de pieza y descripción.\n\n### Cuándo usar Compras\n\n- Cuando necesita comprar una pieza y quiere cotizaciones competitivas — cree una RFQ\n- Cuando quiere que varios proveedores oferten — invite a múltiples proveedores con Enviar a proveedores\n- Cuando regresan las cotizaciones — registre la respuesta de cada proveedor para compararlas\n- Cuando haya elegido un ganador — adjudique la respuesta para generar la Orden de compra",
+      "sections": []
+    }
+  },
+  {
+    "slug": "purchasing-walkthrough",
+    "title": "Compras — Recorrido guiado",
+    "summary": "Un recorrido guiado de la página de lista de RFQ: filtros de búsqueda y estado, la tabla de datos, crear una RFQ y el cuadro de diálogo de detalle de la RFQ donde envía a proveedores, registra respuestas y adjudica.",
+    "contentJson": {
+      "appRoute": "/purchasing",
+      "startButtonLabel": "Recorrer Compras",
+      "steps": [
+        {
+          "element": "[data-testid='new-rfq-btn']",
+          "popover": {
+            "title": "Botón Nueva RFQ",
+            "description": "Haga clic aquí para crear una Solicitud de cotización. Selecciona una Pieza, ingresa la Cantidad y la Fecha requerida, y opcionalmente una Fecha límite de respuesta, una Descripción e Instrucciones especiales. Las nuevas RFQ comienzan en estado Borrador para que pueda refinarlas antes de enviarlas.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-input",
+          "popover": {
+            "title": "Buscar RFQ",
+            "description": "Busque entre el número de RFQ, el número de pieza y la descripción de la pieza. Escriba para acotar la lista de abajo; el texto de marcador de posición dice 'Search RFQs...'.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-select",
+          "popover": {
+            "title": "Filtro de estado",
+            "description": "Filtre las RFQ por estado: Borrador, Enviada, Recibiendo, Evaluando, Adjudicada, Cancelada o Vencida (además de Todos los estados). Cada estado se representa como un chip con código de color en la tabla.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de RFQ",
+            "description": "Cada fila es una RFQ: N.º de RFQ, Pieza, Descripción, Cant., un chip de Estado con código de color, Proveedores (cantidad de invitados), Recibidas (cantidad de respuestas), fecha Requerida, Fecha límite y Creada. Haga clic en cualquier fila para abrir el cuadro de diálogo de detalle de la RFQ.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Detalle de la RFQ — Enviar a proveedores",
+            "description": "Hacer clic en una fila abre el cuadro de diálogo de detalle. Muestra la pieza, la cantidad, la fecha requerida, el estado y cualquier respuesta. Mientras la RFQ está en Borrador o Enviada, la acción Enviar a proveedores abre una selección múltiple de proveedores (excluyendo a los ya invitados) para que pueda solicitar cotizaciones. Cada proveedor invitado recibe una respuesta Pendiente y la RFQ pasa a Enviada.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Detalle de la RFQ — Registrar respuesta",
+            "description": "Mientras la RFQ está en Enviada o Recibiendo, la acción Registrar respuesta le permite ingresar la cotización de un proveedor: Precio unitario, Plazo de entrega (días), MOQ, Costo de herramental, Cotización válida hasta y Notas. Solo el proveedor es requerido. Registrar una respuesta marca la respuesta de ese proveedor como Recibida para que pueda compararse y adjudicarse.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Detalle de la RFQ — Comparar y adjudicar",
+            "description": "La tabla de respuestas de proveedores lista la cotización de cada proveedor lado a lado. Haga clic en Adjudicar en la respuesta Recibida ganadora para confirmar, establecer la RFQ en Adjudicada y generar una Orden de compra vinculada. Las demás respuestas pasan a No adjudicada, y aparece un enlace Ver OC. Adjudicar es unidireccional y es el único botón que crea una OC a partir de una RFQ.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "purchasing-field-reference",
+    "title": "Referencia de campos de Compras",
+    "summary": "Referencia completa de cada campo, botón, estado, regla de validación y columna de tabla en el módulo de Compras (RFQ).",
+    "contentJson": {
+      "title": "Referencia de campos de Compras",
+      "groups": [
+        {
+          "heading": "Campos del formulario de RFQ (cuadro de diálogo Crear / Editar)",
+          "items": [
+            { "label": "Pieza (requerido)", "value": "Menú desplegable de selección. La pieza a aprovisionar, mostrada como 'PartNumber — Description'. Requerido. data-testid: rfq-part" },
+            { "label": "Cantidad (requerido)", "value": "Entrada numérica. La cantidad necesaria. Requerido, mínimo 1. data-testid: rfq-quantity" },
+            { "label": "Fecha requerida (requerido)", "value": "Selector de fecha. Para cuándo se necesita la pieza. Requerido. data-testid: rfq-required-date" },
+            { "label": "Fecha límite de respuesta (opcional)", "value": "Selector de fecha. Cuándo deben responder los proveedores. Opcional. data-testid: rfq-response-deadline" },
+            { "label": "Descripción (opcional)", "value": "Área de texto, 3 filas. Notas generales sobre la RFQ. Opcional. data-testid: rfq-description" },
+            { "label": "Instrucciones especiales (opcional)", "value": "Área de texto, 3 filas. Requisitos especiales de manejo o de cotización. Opcional. data-testid: rfq-special-instructions" }
+          ]
+        },
+        {
+          "heading": "Campos de Registrar respuesta de proveedor",
+          "items": [
+            { "label": "Proveedor (requerido)", "value": "Selección. Solo aparecen los proveedores con una respuesta Pendiente en esta RFQ. El único campo requerido en este formulario." },
+            { "label": "Precio unitario (opcional)", "value": "Entrada numérica. El precio unitario cotizado por el proveedor." },
+            { "label": "Plazo de entrega (días) (opcional)", "value": "Entrada numérica. Plazo de entrega cotizado en días." },
+            { "label": "Cantidad mínima de pedido (opcional)", "value": "Entrada numérica. El MOQ del proveedor para esta pieza." },
+            { "label": "Costo de herramental (opcional)", "value": "Entrada numérica. Cualquier cargo único de herramental en la cotización." },
+            { "label": "Cotización válida hasta (opcional)", "value": "Selector de fecha. Por cuánto tiempo se mantiene la cotización." },
+            { "label": "Notas (opcional)", "value": "Área de texto. Notas de formato libre sobre la cotización." }
+          ]
+        },
+        {
+          "heading": "Enviar a proveedores",
+          "items": [
+            { "label": "Selección múltiple de proveedores", "value": "Elija uno o más proveedores a los que solicitar cotizaciones. Los proveedores ya invitados a esta RFQ están excluidos de la lista." },
+            { "label": "Botón Enviar", "value": "Envía la RFQ a los proveedores seleccionados. Deshabilitado cuando no hay proveedores seleccionados. Cada proveedor invitado recibe una respuesta Pendiente y la RFQ pasa a Enviada." }
+          ]
+        },
+        {
+          "heading": "Estados de la RFQ",
+          "items": [
+            { "label": "Borrador (chip gris/atenuado)", "value": "Creada pero aún no enviada a ningún proveedor. Estado inicial; editable. Puede enviarse a proveedores desde aquí." },
+            { "label": "Enviada (chip azul/info)", "value": "Enviada a uno o más proveedores. Cada proveedor invitado tiene una respuesta Pendiente. Puede registrar respuestas e invitar a más proveedores." },
+            { "label": "Recibiendo (chip verde azulado/primario)", "value": "Se están recopilando las cotizaciones. Todavía pueden registrarse respuestas." },
+            { "label": "Evaluando (chip ámbar/advertencia)", "value": "Las respuestas se están comparando antes de adjudicar." },
+            { "label": "Adjudicada (chip verde/éxito)", "value": "Adjudicada a la respuesta de un proveedor; marca de tiempo de adjudicación registrada y una Orden de compra generada. Efectivamente terminal." },
+            { "label": "Cancelada (chip rojo/error)", "value": "La RFQ se canceló. Estado terminal." },
+            { "label": "Vencida (chip gris/atenuado)", "value": "La RFQ superó su ventana sin ser adjudicada. Estado terminal." }
+          ]
+        },
+        {
+          "heading": "Estados de la respuesta del proveedor",
+          "items": [
+            { "label": "Pendiente", "value": "El proveedor fue invitado pero aún no ha cotizado. Solo los proveedores Pendientes aparecen en la lista de proveedores de Registrar respuesta." },
+            { "label": "Recibida", "value": "Se ha registrado una cotización para este proveedor. Solo las respuestas Recibidas pueden adjudicarse." },
+            { "label": "Declinada", "value": "El proveedor declinó cotizar." },
+            { "label": "Adjudicada (chip verde)", "value": "Esta respuesta ganó la RFQ; la Orden de compra vinculada es para este proveedor." },
+            { "label": "No adjudicada (chip ámbar)", "value": "Otra respuesta ganó; esta no fue seleccionada. Se establece automáticamente al adjudicar." }
+          ]
+        },
+        {
+          "heading": "Campos de solo lectura de la vista de detalle",
+          "items": [
+            { "label": "Pieza", "value": "Enlace de entidad a la pieza más su número y descripción. Siempre se muestra." },
+            { "label": "Cantidad", "value": "La cantidad necesaria. Siempre se muestra." },
+            { "label": "Fecha requerida", "value": "Formato MM/dd/yyyy. Siempre se muestra." },
+            { "label": "Estado", "value": "El estado actual de la RFQ (mostrado como texto en el área del encabezado del detalle)." },
+            { "label": "Fecha límite de respuesta", "value": "Formato MM/dd/yyyy. Se muestra solo cuando está establecida." },
+            { "label": "Enviada el", "value": "Formato MM/dd/yyyy hh:mm. Se muestra solo después de que la RFQ se ha enviado." },
+            { "label": "Adjudicada el", "value": "Formato MM/dd/yyyy hh:mm. Se muestra solo después de la adjudicación." },
+            { "label": "OC generada", "value": "Enlace de entidad a la Orden de compra creada en la adjudicación (OC #id). Se muestra solo después de la adjudicación." },
+            { "label": "Descripción / Instrucciones especiales / Notas", "value": "Bloques de texto de formato libre que se muestran solo cuando están presentes; se conserva el formato." }
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            { "label": "Nueva RFQ (encabezado de la página)", "value": "Abre el cuadro de diálogo de creación de la RFQ. data-testid: new-rfq-btn" },
+            { "label": "Guardar / Crear RFQ (cuadro de diálogo)", "value": "Crea (o actualiza) la RFQ. Deshabilitado cuando el formulario es inválido o un guardado está en progreso. data-testid: rfq-save-btn" },
+            { "label": "Enviar a proveedores (detalle)", "value": "Abre la selección múltiple de proveedores para invitarlos. Disponible mientras el estado de la RFQ es Borrador o Enviada." },
+            { "label": "Registrar respuesta (detalle)", "value": "Abre el formulario para ingresar la cotización de un proveedor. Disponible mientras el estado de la RFQ es Enviada o Recibiendo." },
+            { "label": "Adjudicar (por respuesta)", "value": "Adjudica la RFQ a la respuesta de un proveedor, establece la RFQ en Adjudicada y genera una Orden de compra vinculada. Disponible solo cuando la RFQ no está Adjudicada/Cancelada/Vencida y el estado de la respuesta es Recibida. Unidireccional e irreversible." }
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            { "label": "Pieza", "value": "Requerido. Debe seleccionar una pieza del menú desplegable." },
+            { "label": "Cantidad", "value": "Requerido, mínimo 1." },
+            { "label": "Fecha requerida", "value": "Requerido." },
+            { "label": "Fecha límite de respuesta, Descripción, Instrucciones especiales", "value": "Todos opcionales." },
+            { "label": "Registrar respuesta — Proveedor", "value": "Requerido. Todos los campos de la cotización (precio unitario, plazo de entrega, MOQ, costo de herramental, válida hasta, notas) son opcionales." },
+            { "label": "Crear RFQ — Guardar deshabilitado cuando", "value": "El formulario es inválido o un guardado está en progreso. Las infracciones se listan en la ventana emergente de validación del botón Guardar." }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de RFQ",
+          "items": [
+            { "label": "N.º de RFQ", "value": "Ordenable. Número de RFQ generado automáticamente en fuente monoespaciada." },
+            { "label": "Pieza", "value": "Ordenable. El número de pieza." },
+            { "label": "Descripción", "value": "Ordenable. La descripción de la pieza." },
+            { "label": "Cant.", "value": "Ordenable. La cantidad solicitada, centrada." },
+            { "label": "Estado", "value": "Ordenable, filtrable. Chip con código de color: Borrador (gris), Enviada (azul), Recibiendo (verde azulado), Evaluando (ámbar), Adjudicada (verde), Cancelada (rojo), Vencida (gris)." },
+            { "label": "Proveedores", "value": "Ordenable. Conteo de proveedores invitados a la RFQ, centrado." },
+            { "label": "Recibidas", "value": "Ordenable. Conteo de proveedores que han respondido, centrado." },
+            { "label": "Requerida", "value": "Ordenable. Fecha requerida, formato MM/dd/yyyy." },
+            { "label": "Fecha límite", "value": "Ordenable. Fecha límite de respuesta, formato MM/dd/yyyy ('—' cuando no está establecida)." },
+            { "label": "Creada", "value": "Ordenable. Fecha de creación del registro, formato MM/dd/yyyy." }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "purchasing-quiz",
+    "title": "Evaluación de conocimientos de Compras",
+    "summary": "Ponga a prueba sus conocimientos sobre el módulo de Compras: el ciclo de vida de la RFQ, invitar proveedores, registrar respuestas, comparar cotizaciones y adjudicar para generar una Orden de compra.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "pu1",
+          "text": "Necesita comprar una pieza y quiere cotizaciones competitivas. ¿Cómo comienza en Compras?",
+          "options": [
+            { "id": "a", "text": "Crear una Orden de compra directamente y enviarla por correo electrónico a los proveedores" },
+            { "id": "b", "text": "Hacer clic en Nueva RFQ, seleccionar la pieza, ingresar la cantidad y la fecha requerida, y guardar", "isCorrect": true },
+            { "id": "c", "text": "Ir a Proveedores y agregar una cotización a cada proveedor" },
+            { "id": "d", "text": "Registrar primero una respuesta de proveedor; la RFQ se crea automáticamente" }
+          ],
+          "explanation": "Comience creando una RFQ. Haga clic en Nueva RFQ, elija la pieza, ingrese la cantidad y la fecha requerida (opcionalmente una fecha límite de respuesta, una descripción e instrucciones especiales), y guarde. La RFQ comienza en Borrador."
+        },
+        {
+          "id": "pu2",
+          "text": "¿Cuál es el ciclo de vida correcto de la RFQ?",
+          "options": [
+            { "id": "a", "text": "Abierta → Cotizada → Cerrada" },
+            { "id": "b", "text": "Borrador → Enviada → Recibiendo → Evaluando → Adjudicada", "isCorrect": true },
+            { "id": "c", "text": "Pendiente → Aprobada → Pedida → Recibida" },
+            { "id": "d", "text": "Creada → Enviada → Pagada" }
+          ],
+          "explanation": "Una RFQ comienza en Borrador, pasa a Enviada cuando la envía a los proveedores, luego a través de Recibiendo y Evaluando a medida que llegan y se comparan las cotizaciones, y finalmente a Adjudicada cuando elige un ganador. Cancelada y Vencida son estados terminales alternativos."
+        },
+        {
+          "id": "pu3",
+          "text": "¿Cómo invita a proveedores a cotizar una RFQ?",
+          "options": [
+            { "id": "a", "text": "Agregándolos como líneas en el cuadro de diálogo de creación de la RFQ" },
+            { "id": "b", "text": "Usar la acción Enviar a proveedores en el detalle, que abre una selección múltiple de proveedores (excluyendo a los ya invitados)", "isCorrect": true },
+            { "id": "c", "text": "Los proveedores se invitan automáticamente según la pieza" },
+            { "id": "d", "text": "Enviarles un correo manualmente; la aplicación no rastrea las invitaciones" }
+          ],
+          "explanation": "Desde el detalle de la RFQ, Enviar a proveedores abre una selección múltiple de proveedores y excluye a cualquiera ya invitado. Enviar crea una respuesta Pendiente para cada proveedor elegido y mueve la RFQ a Enviada. Está disponible mientras la RFQ está en Borrador o Enviada."
+        },
+        {
+          "id": "pu4",
+          "text": "Un proveedor cotiza de vuelta. ¿Cómo captura su cotización?",
+          "options": [
+            { "id": "a", "text": "Editar la RFQ y sobrescribir la cantidad con el precio" },
+            { "id": "b", "text": "Usar Registrar respuesta, seleccionar el proveedor e ingresar el precio unitario, el plazo de entrega, el MOQ, el costo de herramental, la válida hasta y las notas", "isCorrect": true },
+            { "id": "c", "text": "Crear una nueva RFQ para ese proveedor" },
+            { "id": "d", "text": "Adjudicar primero la RFQ y luego ingresar el precio" }
+          ],
+          "explanation": "Registrar respuesta (disponible mientras la RFQ está en Enviada o Recibiendo) le permite elegir el proveedor e ingresar los detalles de la cotización. Solo el proveedor es requerido; los campos de la cotización son opcionales. Registrar una respuesta marca la respuesta de ese proveedor como Recibida."
+        },
+        {
+          "id": "pu5",
+          "text": "En el formulario Registrar respuesta, ¿qué proveedores puede seleccionar?",
+          "options": [
+            { "id": "a", "text": "Cualquier proveedor del sistema" },
+            { "id": "b", "text": "Solo los proveedores que tienen una respuesta Pendiente en esta RFQ", "isCorrect": true },
+            { "id": "c", "text": "Solo los proveedores que ya han sido adjudicados" },
+            { "id": "d", "text": "Solo el proveedor preferido para la pieza" }
+          ],
+          "explanation": "El menú desplegable de proveedor en Registrar respuesta lista solo los proveedores con una respuesta Pendiente — es decir, los proveedores que fueron invitados pero para los que aún no se ha registrado una cotización."
+        },
+        {
+          "id": "pu6",
+          "text": "¿Qué sucede cuando adjudica una RFQ a la respuesta de un proveedor?",
+          "options": [
+            { "id": "a", "text": "No cambia nada hasta que cree manualmente una OC" },
+            { "id": "b", "text": "La RFQ pasa a Adjudicada, se registra la hora de adjudicación y se genera una Orden de compra vinculada", "isCorrect": true },
+            { "id": "c", "text": "La RFQ se elimina y se reemplaza por la OC" },
+            { "id": "d", "text": "Todos los proveedores son notificados por correo electrónico automáticamente" }
+          ],
+          "explanation": "Adjudicar establece el estado de la RFQ en Adjudicada, registra la marca de tiempo de la adjudicación, genera una Orden de compra vinculada a la RFQ, marca la respuesta ganadora como Adjudicada y las demás como No adjudicada, y ofrece un enlace Ver OC."
+        },
+        {
+          "id": "pu7",
+          "text": "¿Cuándo está disponible el botón Adjudicar para una respuesta de proveedor?",
+          "options": [
+            { "id": "a", "text": "Siempre, para cualquier respuesta" },
+            { "id": "b", "text": "Solo cuando la RFQ no está Adjudicada/Cancelada/Vencida y el estado de esa respuesta es Recibida", "isCorrect": true },
+            { "id": "c", "text": "Solo cuando el estado de la respuesta es Pendiente" },
+            { "id": "d", "text": "Solo después de que haya pasado la fecha límite de respuesta" }
+          ],
+          "explanation": "Adjudicar aparece solo cuando la RFQ todavía puede adjudicarse (no está ya Adjudicada, Cancelada o Vencida) y la respuesta específica ha sido Recibida — lo que significa que se registró una cotización para ella."
+        },
+        {
+          "id": "pu8",
+          "text": "¿Qué función genera adjudicar una RFQ?",
+          "options": [
+            { "id": "a", "text": "Una factura de proveedor" },
+            { "id": "b", "text": "Una Orden de compra, vinculada de vuelta a la RFQ", "isCorrect": true },
+            { "id": "c", "text": "Una orden de venta" },
+            { "id": "d", "text": "Un envío" }
+          ],
+          "explanation": "Adjudicar es la única acción que crea una Orden de compra a partir de una RFQ. La OC generada está vinculada de vuelta a la RFQ y se puede acceder a ella desde el enlace Ver OC y el campo OC generada."
+        },
+        {
+          "id": "pu9",
+          "text": "¿Qué se requiere para guardar una nueva RFQ?",
+          "options": [
+            { "id": "a", "text": "Una pieza, una cantidad de al menos 1 y una fecha requerida", "isCorrect": true },
+            { "id": "b", "text": "Una pieza, un proveedor y un precio unitario" },
+            { "id": "c", "text": "Solo una pieza" },
+            { "id": "d", "text": "Una pieza, una fecha límite de respuesta e instrucciones especiales" }
+          ],
+          "explanation": "Los campos requeridos son Pieza, Cantidad (mínimo 1) y Fecha requerida. La Fecha límite de respuesta, la Descripción y las Instrucciones especiales son opcionales. Guardar está deshabilitado hasta que el formulario sea válido."
+        },
+        {
+          "id": "pu10",
+          "text": "Después de adjudicar a un proveedor ganador, ¿qué estado obtienen las respuestas de los demás proveedores?",
+          "options": [
+            { "id": "a", "text": "Permanecen en Pendiente" },
+            { "id": "b", "text": "Se establecen automáticamente en No adjudicada", "isCorrect": true },
+            { "id": "c", "text": "Se eliminan" },
+            { "id": "d", "text": "Se establecen en Declinada" }
+          ],
+          "explanation": "Al adjudicar, la respuesta ganadora pasa a Adjudicada (verde) y todas las demás respuestas en la RFQ pasan a No adjudicada (ámbar), establecidas automáticamente por la acción de adjudicar."
+        },
+        {
+          "id": "pu11",
+          "text": "¿Cómo compara los proveedores antes de adjudicar?",
+          "options": [
+            { "id": "a", "text": "Abrir el registro de cada proveedor y revisar su catálogo" },
+            { "id": "b", "text": "Revisar la tabla de respuestas de proveedores en el detalle de la RFQ, que lista cada cotización (precio, plazo de entrega, MOQ, herramental) lado a lado", "isCorrect": true },
+            { "id": "c", "text": "Exportar la RFQ a una hoja de cálculo — no hay comparación dentro de la aplicación" },
+            { "id": "d", "text": "La comparación solo es posible después de que se crea la OC" }
+          ],
+          "explanation": "El detalle de la RFQ muestra una tabla de respuestas con la cotización registrada de cada proveedor invitado — precio unitario, plazo de entrega, MOQ, costo de herramental — para que pueda compararlos directamente y luego adjudicar al ganador."
+        },
+        {
+          "id": "pu12",
+          "text": "¿Qué le indica la columna de conteo 'Recibidas' en la lista de RFQ?",
+          "options": [
+            { "id": "a", "text": "Cuántas unidades se han entregado" },
+            { "id": "b", "text": "Cuántos de los proveedores invitados han respondido con una cotización", "isCorrect": true },
+            { "id": "c", "text": "Cuántas OC se generaron" },
+            { "id": "d", "text": "Cuántos días faltan para la fecha límite" }
+          ],
+          "explanation": "La lista muestra un conteo de Proveedores (cuántos proveedores fueron invitados) y un conteo de Recibidas (cuántos de ellos han respondido). Juntos le indican el progreso de las respuestas de un vistazo."
+        }
+      ]
+    }
+  }
+]

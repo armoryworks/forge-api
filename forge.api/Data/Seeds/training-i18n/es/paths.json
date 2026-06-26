@@ -1,7 +1,67 @@
 [
   {
     "slug": "new-employee-onboarding",
-    "title": "Incorporación de Nuevos Empleados",
-    "description": "Orientación esencial para cada nuevo empleado: navegación, configuración del perfil, formularios de cumplimiento, control de tiempo y gastos."
+    "title": "Incorporación de nuevos empleados",
+    "description": "Orientación esencial para cada nuevo empleado: navegación, configuración del perfil, cumplimiento, control de tiempo y gastos."
+  },
+  {
+    "slug": "production-engineer",
+    "title": "Ingeniero de producción",
+    "description": "Capacitación a fondo para ingenieros: tablero kanban, catálogo de piezas con listas de materiales (BOM), inspecciones de calidad y gestión de inventario."
+  },
+  {
+    "slug": "shop-floor-worker",
+    "title": "Operario de planta",
+    "description": "Capacitación para trabajadores de producción: quiosco de planta, temporizadores, escaneo de códigos de barras y acciones básicas de trabajos."
+  },
+  {
+    "slug": "project-manager",
+    "title": "Gerente de proyectos",
+    "description": "Capacitación para gerentes de proyecto: gestión del backlog, ciclos de planificación, informes, calendario y widgets del panel."
+  },
+  {
+    "slug": "office-manager",
+    "title": "Gerente de oficina",
+    "description": "Capacitación para gerentes de oficina: clientes, estimaciones, cotizaciones, órdenes de venta, facturas, pagos y envíos."
+  },
+  {
+    "slug": "purchasing",
+    "title": "Compras",
+    "description": "Capacitación para el personal de compras: proveedores, órdenes de compra, recepción y gestión de inventario."
+  },
+  {
+    "slug": "system-admin",
+    "title": "Administrador del sistema",
+    "description": "Capacitación para administradores: gestión de usuarios, configuración del sistema, EDI, eventos, políticas de MFA, asistentes de IA y registros de auditoría."
+  },
+  {
+    "slug": "sales",
+    "title": "Ventas",
+    "description": "Capacitación para el personal de ventas: embudo de prospectos, gestión de clientes, cotización, órdenes de venta y envíos."
+  },
+  {
+    "slug": "quality-inspector",
+    "title": "Inspector de calidad",
+    "description": "Capacitación para el personal de calidad: inspecciones y NCR, trazabilidad de lotes/series y formularios de cumplimiento."
+  },
+  {
+    "slug": "accounting-bookkeeper",
+    "title": "Contabilidad / Tenedor de libros",
+    "description": "Capacitación para el personal de finanzas: informes financieros, facturas, pagos recibidos y cuentas por pagar."
+  },
+  {
+    "slug": "maintenance-technician",
+    "title": "Técnico de mantenimiento",
+    "description": "Capacitación para el personal de mantenimiento: mantenimiento predictivo, registros de activos/herramental y programación de mantenimiento preventivo."
+  },
+  {
+    "slug": "warehouse-inventory-clerk",
+    "title": "Empleado de almacén / inventario",
+    "description": "Capacitación para el personal de almacén: gestión de inventario y de ubicaciones, catálogo de piezas y recepción de órdenes de compra."
+  },
+  {
+    "slug": "shipping-receiving",
+    "title": "Envíos y recepción",
+    "description": "Capacitación para el personal de envíos/recepción: envíos salientes y transportistas, recepción de órdenes de compra e inventario."
   }
 ]

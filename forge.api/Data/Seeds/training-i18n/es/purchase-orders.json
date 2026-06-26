@@ -1,0 +1,364 @@
+[
+  {
+    "slug": "purchase-orders-overview",
+    "title": "Visión general de las Órdenes de compra",
+    "summary": "Qué son las órdenes de compra, el ciclo de vida de la OC desde borrador hasta el cierre, las líneas, el flujo de recepción, las OC abiertas (blanket) y cómo las OC se conectan con proveedores, inventario y trabajos.",
+    "contentJson": {
+      "body": "## Visión general de las Órdenes de compra\n\nEl módulo de Órdenes de compra gestiona su flujo de aprovisionamiento — desde solicitar materiales hasta recibirlos en su muelle. Cada orden de compra (OC) rastrea qué pidió, a qué proveedor, cuánto pagó y qué ha llegado hasta ahora.\n\n### ¿Qué es una orden de compra?\n\nUna orden de compra es un documento formal enviado a un proveedor que lo autoriza a suministrar piezas específicas a precios acordados. Cada OC contiene:\n- **Encabezado** — proveedor, trabajo vinculado opcional, fecha de entrega esperada, notas\n- **Líneas** — una o más piezas con cantidad pedida y precio unitario\n- **Registros de recepción** — lo que realmente ha llegado contra cada línea\n\n### Ciclo de vida de la OC\n\nCada orden de compra avanza a través de un flujo de estados definido:\n\n1. **Borrador** — La OC se está preparando. Las líneas pueden agregarse, editarse o quitarse. La OC aún no se ha enviado al proveedor.\n2. **Enviada** — La OC se ha enviado al proveedor. Está esperando su acuse de recibo.\n3. **Confirmada** — El proveedor ha confirmado el pedido. Ahora puede comenzar a recibir artículos.\n4. **Recibida parcialmente** — Algunas líneas se han recibido, pero no todas. El sistema rastrea las cantidades recibidas frente a las restantes por línea.\n5. **Recibida** — Todas las líneas se han recibido por completo. La OC está completa.\n6. **Cerrada** — La OC se ha cerrado formalmente después de completar la recepción. No es posible recibir más.\n7. **Cancelada** — La OC se canceló antes de completarse. Solo las OC en Borrador, Enviada y Confirmada pueden cancelarse.\n\n### Líneas\n\nCada línea de una OC representa una pieza específica que está pidiendo:\n- **Pieza** — seleccionada de su Catálogo de piezas (los ensambles están excluidos)\n- **Cantidad pedida** — cuántas unidades necesita\n- **Precio unitario** — costo por unidad (se rellena automáticamente con el precio predeterminado de la pieza si está disponible)\n- **Total de línea** — calculado automáticamente como cantidad por precio unitario\n- **Cantidad recibida** — se actualiza a medida que llegan los artículos\n- **Cantidad restante** — pedida menos recibida, calculada automáticamente\n\nEl total de la OC es la suma de todos los totales de línea.\n\n### Flujo de recepción\n\nCuando llegan los materiales, abre el cuadro de diálogo Recibir artículos desde el detalle de la OC:\n1. El cuadro de diálogo muestra todas las líneas que todavía tienen cantidad restante\n2. Ingrese la cantidad recibida para cada línea (o haga clic en Recibir todo para rellenar las cantidades restantes)\n3. Guarde para registrar la recepción\n\nLa recepción actualiza la cantidad recibida de la línea y puede cambiar el estado de la OC:\n- Si algunas líneas todavía tienen cantidad restante → **Recibida parcialmente**\n- Si todas las líneas se reciben por completo → **Recibida**\n\nCada evento de recepción crea un registro de recepción con la cantidad, quién la recibió y notas opcionales.\n\n### Órdenes de compra abiertas (blanket)\n\nUna OC abierta (blanket PO) es un acuerdo a largo plazo con un proveedor por una cantidad total a un precio unitario acordado. En lugar de pedir todo de una vez, crea liberaciones (releases) contra la OC abierta a lo largo del tiempo:\n- **Cantidad total de la OC abierta** — la cantidad total comprometida\n- **Precio unitario acordado** — el precio negociado por unidad\n- **Fecha de vencimiento de la OC abierta** — cuándo expira el acuerdo\n- **Liberaciones** — solicitudes de entrega individuales tomadas contra la cantidad abierta\n\nCada liberación especifica una línea, una cantidad y una fecha de entrega solicitada. Las liberaciones tienen su propio seguimiento de estado (Abierta, Enviada, Recibida parcialmente, Recibida, Cancelada).\n\n### Cómo se conectan las OC con otras funciones\n\n**Proveedores:** Cada OC está vinculada a un proveedor. El menú desplegable de proveedor en el formulario de la OC se nutre de su módulo de Proveedores. Hacer clic en el nombre del proveedor en el detalle de la OC abre el registro del proveedor.\n\n**Trabajos:** Una OC puede vincularse opcionalmente a un trabajo específico (p. ej., pedir materiales para una corrida de producción). El vínculo del trabajo aparece en el detalle de la OC y en la tabla de la lista.\n\n**Catálogo de piezas:** Las líneas de la OC referencian piezas de su Catálogo de piezas. Al seleccionar una pieza, el precio unitario se rellena automáticamente con el precio predeterminado de la pieza si existe.\n\n**Inventario:** Recibir artículos contra una OC puede actualizar las cantidades de inventario cuando se especifica una ubicación de almacenamiento en el registro de recepción.\n\n**Tablero Kanban:** Cuando un trabajo en el tablero kanban llega a la etapa 'Materiales pedidos', la OC asociada rastrea qué se pidió y cuándo llega.\n\n### Cuándo usar las Órdenes de compra\n\n- Al pedir materias primas, componentes o suministros a un proveedor\n- Cuando necesita rastrear qué se ha pedido frente a qué ha llegado\n- Al vincular compras de material a trabajos específicos para el seguimiento de costos\n- Al establecer acuerdos abiertos para necesidades recurrentes de material\n- Cuando necesita un rastro documental del aprovisionamiento (exportación a PDF disponible)",
+      "sections": []
+    }
+  },
+  {
+    "slug": "purchase-orders-walkthrough",
+    "title": "Órdenes de compra — Recorrido guiado",
+    "summary": "Un recorrido guiado de la página de lista de órdenes de compra: búsqueda, filtro de proveedor, filtro de estado, tabla de datos, crear OC y ver detalles de la OC.",
+    "contentJson": {
+      "appRoute": "/purchase-orders",
+      "startButtonLabel": "Recorrer Órdenes de compra",
+      "steps": [
+        {
+          "element": "[data-testid='new-po-btn']",
+          "popover": {
+            "title": "Crear orden de compra",
+            "description": "Haga clic aquí para crear una nueva OC. Seleccionará un proveedor, opcionalmente vinculará un trabajo, agregará líneas con piezas y cantidades, y enviará cuando esté listo. El número de OC se genera automáticamente.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-input",
+          "popover": {
+            "title": "Buscar OC",
+            "description": "Busque por número de OC, nombre del proveedor o número de trabajo. Los resultados se actualizan en tiempo real a medida que escribe. Use esto para encontrar rápidamente un pedido específico.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-select:first-of-type",
+          "popover": {
+            "title": "Filtro de proveedor",
+            "description": "Filtre la tabla para mostrar las OC de un proveedor específico. Seleccione el nombre de un proveedor o elija 'Todos los proveedores' para ver todo. La lista de proveedores se carga desde su módulo de Proveedores.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-select:last-of-type",
+          "popover": {
+            "title": "Filtro de estado",
+            "description": "Filtre por estado de la OC: Borrador (aún no enviada), Enviada (enviada al proveedor), Confirmada (proveedor confirmó), Recibida parcialmente (algunos artículos llegaron), Recibida (todos los artículos llegaron), Cerrada o Cancelada. Cada estado se muestra como un chip con código de color.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de órdenes de compra",
+            "description": "Haga clic en cualquier fila para abrir el cuadro de diálogo de detalle de la OC. Verá el número de OC, el proveedor, el trabajo vinculado, el chip de estado, el conteo de líneas, las cantidades pedidas frente a las recibidas, la fecha de entrega esperada y la fecha de creación. Haga clic en los encabezados de columna para ordenar. Use el icono de engranaje para personalizar las columnas visibles.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "app-data-table thead th:nth-child(5)",
+          "popover": {
+            "title": "Columna de estado",
+            "description": "El estado se muestra como un chip con código de color: gris para Borrador, azul para Enviada, morado para Confirmada, naranja para Recibida parcialmente, verde para Recibida, gris para Cerrada y rojo para Cancelada. También puede filtrar por estado usando el filtro de columna.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table thead th:nth-child(7)",
+          "popover": {
+            "title": "Pedido frente a recibido",
+            "description": "La columna Pedido muestra el total de unidades en todas las líneas. La columna Recibido muestra cuántas han llegado. Cuando Recibido es igual a Pedido, el estado de la OC pasa automáticamente a Recibida.",
+            "side": "bottom"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "purchase-orders-field-reference",
+    "title": "Referencia de campos de las Órdenes de compra",
+    "summary": "Referencia completa de cada campo, botón, estado, regla de validación y acción en el módulo de Órdenes de compra.",
+    "contentJson": {
+      "title": "Referencia de campos de las Órdenes de compra",
+      "groups": [
+        {
+          "heading": "Campos del encabezado de la OC (cuadro de diálogo Crear)",
+          "items": [
+            { "label": "Proveedor (requerido)", "value": "Menú desplegable que selecciona el proveedor para esta OC. Se nutre del módulo de Proveedores. Debe seleccionar un proveedor antes de guardar." },
+            { "label": "Trabajo (opcional)", "value": "Vincula la OC a un trabajo específico. Útil para rastrear los costos de material contra una corrida de producción. Aparece como un enlace de entidad cliqueable en la vista de detalle." },
+            { "label": "Notas (opcional)", "value": "Área de texto para notas de formato libre sobre el pedido — instrucciones especiales, preferencias de envío o comentarios internos." }
+          ]
+        },
+        {
+          "heading": "Campos de las líneas (cuadro de diálogo Crear)",
+          "items": [
+            { "label": "Pieza (requerido)", "value": "Campo de autocompletado que busca en el Catálogo de piezas. Muestra el número y la descripción de la pieza. Las piezas de tipo ensamble están excluidas — solo aparecen las piezas comprables." },
+            { "label": "Cantidad pedida (requerido)", "value": "Entrada numérica, mínimo 1. Cuántas unidades de esta pieza pedir. Predeterminado en 1 al agregar una nueva línea." },
+            { "label": "Precio unitario (requerido)", "value": "Entrada numérica, mínimo 0. Costo por unidad. Se rellena automáticamente con el precio predeterminado de la pieza al seleccionarla (indicado por una información sobre herramientas). Puede anularse manualmente." },
+            { "label": "Total de línea (calculado)", "value": "Se muestra por línea: Cantidad pedida multiplicada por Precio unitario. No editable directamente." },
+            { "label": "Botón Agregar línea", "value": "Agrega la pieza/cantidad/precio actuales como una nueva línea. El formulario de línea se reinicia después de agregar. Se requiere al menos una línea para guardar la OC." },
+            { "label": "Quitar línea (icono de papelera)", "value": "Quita una línea de la OC antes de guardar. Botón de icono en cada fila de línea." },
+            { "label": "Total de la OC (calculado)", "value": "Suma de todos los totales de línea. Se muestra en la parte inferior de la sección de líneas en el cuadro de diálogo de creación." }
+          ]
+        },
+        {
+          "heading": "Campos del detalle de la OC (solo lectura)",
+          "items": [
+            { "label": "Número de OC", "value": "Identificador único generado automáticamente (p. ej., PO-00042). Se muestra de forma prominente en el encabezado del detalle." },
+            { "label": "Estado", "value": "Chip con código de color que muestra la etapa actual del ciclo de vida. Vea la sección Estados de la OC más abajo." },
+            { "label": "Proveedor", "value": "Enlace de entidad cliqueable al registro del proveedor. Abre el cuadro de diálogo de detalle del proveedor." },
+            { "label": "Trabajo", "value": "Enlace de entidad cliqueable al trabajo vinculado (si lo hay). Abre el cuadro de diálogo de detalle del trabajo." },
+            { "label": "Fecha de entrega esperada", "value": "Fecha en que se espera que lleguen los materiales. Se muestra en formato MM/dd/yyyy." },
+            { "label": "Fecha de envío", "value": "Cuándo se envió la OC al proveedor. Nula hasta que se envíe." },
+            { "label": "Fecha de confirmación", "value": "Cuándo el proveedor confirmó el pedido. Nula hasta que se confirme." },
+            { "label": "Fecha de recepción", "value": "Cuándo se recibieron por completo todos los artículos. Nula hasta la recepción completa." },
+            { "label": "Creada / Actualizada", "value": "Marcas de tiempo que muestran cuándo se creó la OC y cuándo se modificó por última vez." }
+          ]
+        },
+        {
+          "heading": "Campos del detalle de la línea",
+          "items": [
+            { "label": "Número de pieza", "value": "El identificador de la pieza del Catálogo de piezas. Enlace de entidad cliqueable para abrir el detalle de la pieza." },
+            { "label": "Descripción", "value": "Descripción de la pieza tomada del catálogo." },
+            { "label": "Cantidad pedida", "value": "Número de unidades pedidas en esta línea." },
+            { "label": "Cantidad recibida", "value": "Número de unidades recibidas hasta ahora. Se actualiza a través del flujo Recibir artículos." },
+            { "label": "Cantidad restante", "value": "Pedida menos Recibida. Calculada automáticamente. Cuando es cero, la línea se ha recibido por completo." },
+            { "label": "Precio unitario", "value": "Costo por unidad para esta línea." },
+            { "label": "Total de línea", "value": "Cantidad pedida por Precio unitario." },
+            { "label": "Notas", "value": "Notas opcionales por línea." }
+          ]
+        },
+        {
+          "heading": "Estados de la OC",
+          "items": [
+            { "label": "Borrador (chip gris)", "value": "La OC se está preparando. Puede agregar/quitar líneas, editar, eliminar o cancelar. Aún no se ha enviado al proveedor." },
+            { "label": "Enviada (chip azul)", "value": "La OC se ha enviado al proveedor. Esperando el acuse de recibo. Aún se puede cancelar." },
+            { "label": "Confirmada (chip morado)", "value": "El proveedor confirmó el pedido. Ahora se pueden recibir artículos. Aún se puede cancelar." },
+            { "label": "Recibida parcialmente (chip naranja)", "value": "Algunos artículos recibidos pero no todos. El botón Recibir artículos permanece disponible. No se puede cancelar." },
+            { "label": "Recibida (chip verde)", "value": "Todas las líneas se recibieron por completo. Se puede cerrar. No se necesita recibir más." },
+            { "label": "Cerrada (chip gris)", "value": "OC cerrada formalmente después de completar la recepción. No es posible ninguna acción adicional." },
+            { "label": "Cancelada (chip rojo)", "value": "La OC se canceló. Solo las OC en Borrador, Enviada y Confirmada pueden cancelarse. Requiere cuadro de diálogo de confirmación." }
+          ]
+        },
+        {
+          "heading": "Campos de recepción (cuadro de diálogo Recibir artículos)",
+          "items": [
+            { "label": "Líneas recibibles", "value": "Muestra solo las líneas con cantidad restante mayor que cero. Las líneas recibidas por completo están excluidas." },
+            { "label": "Cantidad a recibir (por línea)", "value": "Entrada numérica por línea, mínimo 0, el máximo es la cantidad restante. Ingrese cuántas unidades llegaron para cada línea." },
+            { "label": "Botón Recibir todo", "value": "Rellena la cantidad restante para cada línea recibible. Acción de conveniencia para cuando el envío completo llega entero." },
+            { "label": "Guardar", "value": "Registra el evento de recepción. Actualiza las cantidades recibidas en cada línea. Puede cambiar el estado de la OC a Recibida parcialmente o Recibida." }
+          ]
+        },
+        {
+          "heading": "Campos de la OC abierta (blanket)",
+          "items": [
+            { "label": "Es abierta (Is Blanket)", "value": "Conmutador que indica que esta es una OC abierta (a largo plazo) en lugar de un pedido único." },
+            { "label": "Cantidad total de la OC abierta", "value": "Cantidad total comprometida bajo el acuerdo abierto." },
+            { "label": "Precio unitario acordado", "value": "Precio negociado por unidad para el acuerdo abierto." },
+            { "label": "Fecha de vencimiento de la OC abierta", "value": "Cuándo expira el acuerdo abierto." },
+            { "label": "Cantidad liberada", "value": "Suma de las cantidades de todas las liberaciones creadas contra esta OC abierta." },
+            { "label": "Cantidad restante", "value": "Total de la OC abierta menos lo liberado. Calculada automáticamente." }
+          ]
+        },
+        {
+          "heading": "Campos de la liberación de la OC abierta",
+          "items": [
+            { "label": "Línea (requerido)", "value": "Menú desplegable que selecciona de qué línea de la OC toma esta liberación." },
+            { "label": "Cantidad (requerido)", "value": "Número de unidades para esta liberación. Mínimo 0.01." },
+            { "label": "Fecha de entrega solicitada (requerido)", "value": "Cuándo necesita que se entregue esta liberación." },
+            { "label": "Notas (opcional)", "value": "Notas de formato libre para esta liberación." },
+            { "label": "Estado de la liberación", "value": "Abierta (azul), Enviada (morado), Recibida parcialmente (naranja), Recibida (verde), Cancelada (rojo)." }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla (página de lista)",
+          "items": [
+            { "label": "Número de OC", "value": "Ordenable. Identificador de OC generado automáticamente. Ancho: 120px." },
+            { "label": "Proveedor", "value": "Ordenable. Nombre de la empresa del proveedor." },
+            { "label": "Trabajo", "value": "Ordenable. Número de trabajo vinculado, si lo hay. Ancho: 100px." },
+            { "label": "Estado", "value": "Ordenable, filtrable (enum). Chip con código de color. Ancho: 140px." },
+            { "label": "Líneas", "value": "Ordenable, centrado. Número de líneas en la OC. Ancho: 70px." },
+            { "label": "Pedido", "value": "Ordenable, centrado. Cantidad total pedida en todas las líneas. Ancho: 90px." },
+            { "label": "Recibido", "value": "Ordenable, centrado. Cantidad total recibida en todas las líneas. Ancho: 90px." },
+            { "label": "Esperado", "value": "Ordenable, tipo fecha. Fecha de entrega esperada. Ancho: 110px." },
+            { "label": "Creada", "value": "Ordenable, tipo fecha. Cuándo se creó la OC. Ancho: 110px." }
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            { "label": "Nueva orden de compra (botón principal)", "value": "Abre el cuadro de diálogo de creación de la OC. data-testid: new-po-btn" },
+            { "label": "Guardar (cuadro de diálogo de creación)", "value": "Crea la OC con todas las líneas. Deshabilitado cuando el formulario es inválido, no se han agregado líneas o un guardado está en progreso." },
+            { "label": "Cancelar (cuadro de diálogo de creación)", "value": "Cierra el cuadro de diálogo sin guardar." },
+            { "label": "Enviar OC", "value": "Envía la OC al proveedor. Cambia el estado de Borrador a Enviada. Disponible solo cuando el estado es Borrador." },
+            { "label": "Confirmar OC", "value": "Marca el acuse de recibo del proveedor. Cambia el estado de Enviada a Confirmada. Disponible solo cuando el estado es Enviada." },
+            { "label": "Recibir artículos", "value": "Abre el cuadro de diálogo de recepción. Disponible cuando el estado es Confirmada o Recibida parcialmente." },
+            { "label": "Cerrar OC", "value": "Cierra formalmente una OC recibida por completo. Disponible solo cuando el estado es Recibida." },
+            { "label": "Cancelar OC", "value": "Cancela la OC con un cuadro de diálogo de confirmación. Disponible cuando el estado es Borrador, Enviada o Confirmada." },
+            { "label": "Eliminar OC", "value": "Elimina permanentemente una OC en borrador con un cuadro de diálogo de confirmación. Disponible solo cuando el estado es Borrador. Severidad: peligro." },
+            { "label": "Clic en fila (tabla de lista)", "value": "Abre el cuadro de diálogo de detalle de la OC que muestra la información del encabezado, las líneas con cantidades, el historial de recepción y las acciones disponibles." },
+            { "label": "Crear liberación (OC abiertas)", "value": "Abre el cuadro de diálogo para crear una nueva liberación contra la OC abierta. Especifica la línea, la cantidad y la fecha de entrega." }
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            { "label": "Proveedor", "value": "Requerido. Debe seleccionar un proveedor del menú desplegable." },
+            { "label": "Líneas", "value": "Se requiere al menos una línea. La ventana emergente de validación muestra 'Se requiere al menos una línea' cuando no existen líneas." },
+            { "label": "Pieza (línea)", "value": "Requerido. Debe seleccionar una pieza del autocompletado." },
+            { "label": "Cantidad pedida (línea)", "value": "Requerido. Debe ser al menos 1." },
+            { "label": "Precio unitario (línea)", "value": "Requerido. Debe ser 0 o mayor." },
+            { "label": "Cantidad a recibir", "value": "Mínimo 0, el máximo es la cantidad restante para esa línea. Al menos una línea debe tener una cantidad mayor que 0 para guardar." },
+            { "label": "Información del botón de envío", "value": "Cuando el formulario es inválido, al pasar el cursor sobre Guardar se muestra una ventana emergente de validación que lista qué campos necesitan atención." }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "purchase-orders-quiz",
+    "title": "Evaluación de conocimientos de las Órdenes de compra",
+    "summary": "Ponga a prueba sus conocimientos sobre el módulo de Órdenes de compra: ciclo de vida, recepción, líneas, OC abiertas y flujos de trabajo comunes.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "po1",
+          "text": "Necesita pedir 500 soportes de aluminio a un proveedor para una próxima corrida de producción. ¿Cuál es el primer paso?",
+          "options": [
+            { "id": "a", "text": "Ir a Inventario y crear un ajuste de stock de 500 soportes" },
+            { "id": "b", "text": "Navegar a Órdenes de compra, hacer clic en Nueva orden de compra, seleccionar el proveedor y agregar una línea para los soportes", "isCorrect": true },
+            { "id": "c", "text": "Enviar un correo electrónico directamente al proveedor y actualizar las notas del trabajo después" },
+            { "id": "d", "text": "Ir al Catálogo de piezas y cambiar la cantidad en existencia del soporte" }
+          ],
+          "explanation": "Cree una OC haciendo clic en Nueva orden de compra. Seleccione el proveedor, agregue una línea para la pieza del soporte con cantidad 500 y guarde. La OC comienza en estado Borrador, lista para enviarse."
+        },
+        {
+          "id": "po2",
+          "text": "Una OC está en estado Borrador. ¿Cuáles de las siguientes acciones están disponibles?",
+          "options": [
+            { "id": "a", "text": "Enviar, Cancelar, Eliminar y Editar", "isCorrect": true },
+            { "id": "b", "text": "Recibir artículos y Cerrar" },
+            { "id": "c", "text": "Solo Enviar — ninguna otra acción hasta que el proveedor responda" },
+            { "id": "d", "text": "Confirmar y Recibir artículos" }
+          ],
+          "explanation": "Las OC en Borrador pueden enviarse al proveedor, cancelarse, eliminarse o editarse. La recepción no está disponible hasta que el proveedor confirme el pedido. Eliminar solo está disponible para las OC en Borrador."
+        },
+        {
+          "id": "po3",
+          "text": "Envió una OC a su proveedor y este confirmó la recepción. ¿A qué estado debe establecer la OC?",
+          "options": [
+            { "id": "a", "text": "Recibida parcialmente — ya que el proveedor la recibió" },
+            { "id": "b", "text": "Confirmada — el proveedor ha confirmado el pedido", "isCorrect": true },
+            { "id": "c", "text": "Recibida — porque el proveedor recibió el documento de la OC" },
+            { "id": "d", "text": "Cerrada — el proceso de envío está completo" }
+          ],
+          "explanation": "Confirmada significa que el proveedor ha confirmado el pedido. Esto es diferente de Recibida, que significa que su taller ha recibido los materiales físicos. La acción Confirmar está disponible cuando la OC está en estado Enviada."
+        },
+        {
+          "id": "po4",
+          "text": "Una OC tiene 3 líneas. Recibe artículos para 2 de ellas, pero la tercera aún no ha llegado. ¿A qué estado pasa la OC?",
+          "options": [
+            { "id": "a", "text": "Recibida — porque registró un evento de recepción" },
+            { "id": "b", "text": "Recibida parcialmente — algunas líneas están cumplidas pero no todas", "isCorrect": true },
+            { "id": "c", "text": "Confirmada — permanece aquí hasta que llegue todo" },
+            { "id": "d", "text": "Cerrada — los artículos recibidos se cierran automáticamente" }
+          ],
+          "explanation": "Cuando algunas líneas se han recibido pero otras todavía tienen cantidad restante, la OC pasa a Recibida parcialmente. Permanece en este estado hasta que todas las líneas se reciban por completo."
+        },
+        {
+          "id": "po5",
+          "text": "Al agregar una línea a una OC, selecciona una pieza y el precio unitario se rellena automáticamente a $12.50. ¿De dónde proviene este precio?",
+          "options": [
+            { "id": "a", "text": "Del precio cotizado por el proveedor en la última OC" },
+            { "id": "b", "text": "Del precio predeterminado de la pieza en el Catálogo de piezas", "isCorrect": true },
+            { "id": "c", "text": "Del promedio de todos los precios de compra anteriores para esta pieza" },
+            { "id": "d", "text": "De un precio predeterminado fijo a nivel de sistema para todas las piezas" }
+          ],
+          "explanation": "Cuando selecciona una pieza en una línea de la OC, el precio unitario se rellena automáticamente con el precio predeterminado de la pieza si hay uno configurado en el Catálogo de piezas. Una información sobre herramientas indica que el precio proviene del precio de lista de la pieza. Puede anular este precio manualmente."
+        },
+        {
+          "id": "po6",
+          "text": "Quiere cancelar una OC que está en estado Recibida parcialmente. ¿Es posible?",
+          "options": [
+            { "id": "a", "text": "Sí — cualquier OC puede cancelarse en cualquier momento" },
+            { "id": "b", "text": "No — solo las OC en Borrador, Enviada y Confirmada pueden cancelarse", "isCorrect": true },
+            { "id": "c", "text": "Sí — pero solo si devuelve primero los artículos recibidos" },
+            { "id": "d", "text": "No — debe cerrarla en lugar de cancelarla" }
+          ],
+          "explanation": "La acción Cancelar solo está disponible para las OC en estado Borrador, Enviada o Confirmada. Una vez que se han recibido artículos (Recibida parcialmente o Recibida), la OC no puede cancelarse — debe continuar a través del flujo de recepción hasta Cerrada."
+        },
+        {
+          "id": "po7",
+          "text": "En el cuadro de diálogo Recibir artículos, ¿qué hace el botón 'Recibir todo'?",
+          "options": [
+            { "id": "a", "text": "Marca toda la OC como Recibida sin importar las cantidades reales" },
+            { "id": "b", "text": "Rellena la cantidad restante para cada línea recibible", "isCorrect": true },
+            { "id": "c", "text": "Crea un nuevo registro de recepción con cantidades cero para fines de auditoría" },
+            { "id": "d", "text": "Cierra la OC y archiva todas las líneas" }
+          ],
+          "explanation": "Recibir todo es un botón de conveniencia que rellena la cantidad restante para cada línea que todavía tiene artículos pendientes. Esto es útil cuando llega un envío completo y no necesita ingresar las cantidades línea por línea. Aún debe hacer clic en Guardar para registrar la recepción."
+        },
+        {
+          "id": "po8",
+          "text": "¿Qué es una orden de compra abierta (blanket)?",
+          "options": [
+            { "id": "a", "text": "Una OC que cubre todas las piezas de un único proveedor a la vez" },
+            { "id": "b", "text": "Un acuerdo a largo plazo por una cantidad total a un precio acordado, con liberaciones individuales a lo largo del tiempo", "isCorrect": true },
+            { "id": "c", "text": "Una plantilla de OC que genera automáticamente nuevas OC según un calendario" },
+            { "id": "d", "text": "Una OC que ha sido aprobada por la gerencia para grandes desembolsos" }
+          ],
+          "explanation": "Una OC abierta es un acuerdo de compra a largo plazo con un proveedor. Usted se compromete a una cantidad total a un precio unitario acordado y luego crea liberaciones individuales a lo largo del tiempo a medida que necesita que se entreguen materiales. Cada liberación especifica una cantidad y una fecha de entrega solicitada."
+        },
+        {
+          "id": "po9",
+          "text": "Una línea de OC muestra Pedido: 100, Recibido: 75, Restante: 25. ¿Qué le indica esto?",
+          "options": [
+            { "id": "a", "text": "El proveedor ha enviado las 100 unidades pero 25 fueron rechazadas durante la inspección" },
+            { "id": "b", "text": "Han llegado 75 unidades y se han registrado; 25 unidades siguen pendientes", "isCorrect": true },
+            { "id": "c", "text": "Originalmente pidió 75 pero aumentó el pedido a 100" },
+            { "id": "d", "text": "25 unidades están en pedido pendiente (backorder) y el resto se canceló" }
+          ],
+          "explanation": "La Cantidad restante se calcula como Pedido menos Recibido. Aquí, se han recibido físicamente y registrado 75 unidades a través del flujo Recibir artículos. Todavía se esperan 25 unidades del proveedor."
+        },
+        {
+          "id": "po10",
+          "text": "Necesita eliminar una orden de compra. ¿Bajo qué condición está permitido?",
+          "options": [
+            { "id": "a", "text": "Cualquier OC puede eliminarse en cualquier momento por un administrador" },
+            { "id": "b", "text": "Solo las OC en estado Borrador pueden eliminarse", "isCorrect": true },
+            { "id": "c", "text": "Las OC solo pueden eliminarse después de ser Canceladas" },
+            { "id": "d", "text": "Las OC nunca se eliminan — solo pueden archivarse" }
+          ],
+          "explanation": "La acción Eliminar solo está disponible para las OC en Borrador. Una vez que una OC se ha enviado o ha avanzado más en el ciclo de vida, no puede eliminarse — solo puede cancelarse (si es elegible) o cerrarse. Eliminar requiere un cuadro de diálogo de confirmación con severidad de peligro."
+        },
+        {
+          "id": "po11",
+          "text": "Quiere ver todas las OC de un proveedor específico que están esperando materiales. ¿Qué filtros aplica?",
+          "options": [
+            { "id": "a", "text": "Establecer el filtro de Proveedor con el nombre del proveedor y el filtro de Estado en Confirmada o Recibida parcialmente", "isCorrect": true },
+            { "id": "b", "text": "Buscar el nombre del proveedor en el cuadro de búsqueda — no se necesitan otros filtros" },
+            { "id": "c", "text": "Establecer el filtro de Estado en Enviada y ordenar por nombre del proveedor" },
+            { "id": "d", "text": "Ir a la página de detalle del proveedor y mirar la pestaña de OC" }
+          ],
+          "explanation": "Use el menú desplegable de Proveedor para seleccionar el proveedor específico, luego establezca el filtro de Estado. Las OC que están 'esperando materiales' están en estado Confirmada (proveedor confirmó, esperando el envío) o Recibida parcialmente (algunos artículos llegaron, aún esperando más)."
+        },
+        {
+          "id": "po12",
+          "text": "Después de recibir todos los artículos de una OC, ¿cuál es el siguiente paso para finalizar el pedido?",
+          "options": [
+            { "id": "a", "text": "Eliminar la OC para quitarla de la lista" },
+            { "id": "b", "text": "Hacer clic en Cerrar OC para cerrar formalmente el pedido", "isCorrect": true },
+            { "id": "c", "text": "La OC se cierra automáticamente — no se necesita ninguna acción" },
+            { "id": "d", "text": "Enviar la OC de nuevo para confirmar la finalización con el proveedor" }
+          ],
+          "explanation": "Cuando se reciben todos los artículos, la OC pasa al estado Recibida. El paso final es hacer clic en Cerrar OC, que cierra formalmente el pedido. Esta es una acción deliberada — las OC no se cierran automáticamente. Una vez cerrada, no es posible ninguna acción adicional (recepción, cancelación)."
+        }
+      ]
+    }
+  }
+]

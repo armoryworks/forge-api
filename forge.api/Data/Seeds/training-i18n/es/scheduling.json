@@ -1,0 +1,742 @@
+[
+  {
+    "slug": "scheduling-overview",
+    "title": "Visión general de Programación",
+    "summary": "Qué es la programación de producción, los centros de trabajo y la capacidad, los turnos, la lista de despacho y cómo el programador automático asigna operaciones a franjas horarias.",
+    "contentJson": {
+      "body": "## Visión general de Programación\n\nEl módulo de Programación convierte su trabajo de producción en un plan basado en el tiempo. Toma las operaciones que componen sus trabajos y asigna cada una a un centro de trabajo (una máquina o estación de trabajo) en un momento específico, respetando al mismo tiempo cuánta capacidad tiene realmente ese centro de trabajo. El resultado es una respuesta clara a dos preguntas que todo taller se hace cada día: *qué debería ejecutar a continuación* y *¿cumpliré mis fechas de vencimiento?*.\n\n### Las cinco pestañas\n\nLa página está organizada en cinco pestañas, cada una aborda una parte diferente del flujo de trabajo de planificación:\n\n1. **Programa (Gantt)** — La línea de tiempo maestra de cada operación programada. Aquí es donde ejecuta el programador automático y bloquea operaciones individuales para que el programador no las toque.\n2. **Despacho** — Una lista específica por centro de trabajo, ordenada por prioridad, de qué ejecutar a continuación. Esta es la vista del operario de planta: elija un centro de trabajo, cargue su cola.\n3. **Centros de trabajo** — Los datos maestros de sus recursos de producción. Creación / edición / eliminación completa de cada máquina o estación de trabajo.\n4. **Turnos** — Las definiciones de horas de operación (inicio, fin, descansos) que determinan cuántas horas netas de trabajo existen en un día.\n5. **Historial de ejecuciones** — Un registro de auditoría de cada vez que se ejecutó el programador, con cuántas operaciones se programaron y cuántos conflictos se detectaron.\n\nLa pestaña activa se almacena en la URL, por lo que puede guardar como marcador o compartir un enlace directo a la vista Despacho o Centros de trabajo.\n\n### ¿Qué es un centro de trabajo?\n\nUn **centro de trabajo** es un recurso de producción físico o lógico —una máquina CNC, una estación de ensamblaje, una cabina de pintura, una mesa de inspección. La programación gira en torno a los centros de trabajo porque son donde se consume la capacidad. Cada centro de trabajo tiene:\n- Un **Código** corto (p. ej., 'CNC-01') y un **Nombre** completo\n- Una **Capacidad diaria (horas)** — cuántas horas de trabajo puede absorber el centro por día\n- Un **% de eficiencia** — un factor de realismo; 100% significa que el centro alcanza su capacidad nominal, 85% tiene en cuenta el tiempo de inactividad, el reproceso y los cambios de configuración\n- Un **Número de máquinas** — unidades idénticas en el centro que pueden funcionar en paralelo\n- **Costo de mano de obra / hora** y **Tasa de carga (burden) / hora** opcionales para el costeo\n- Un enlace opcional a un **Activo** y una **Ubicación**\n- Una marca **Activo / Inactivo**\n\n### Capacidad, turnos y calendarios\n\nLa capacidad es finita. Un centro de trabajo solo puede hacer una cantidad determinada en un día, y los **turnos** definen exactamente cuánto. Un turno tiene una hora de inicio, una hora de fin y minutos de descanso; el sistema calcula las **Horas netas** (fin − inicio − descansos). Múltiples turnos permiten a un taller modelar segundos y terceros turnos u operación las 24 horas. Los turnos son globales —compartidos entre todos los centros de trabajo en lugar de configurarse por centro.\n\nCuando las horas programadas se acercan o superan la capacidad de un centro de trabajo, tiene una sobrecarga —un conflicto que el programador informa para que pueda reaccionar.\n\n### El programador automático y las ejecuciones de programación\n\nEl **programador** es un motor automatizado que asigna operaciones a centros de trabajo y franjas horarias. Lo activa desde la pestaña Programa con el botón **Ejecutar programador**. Cada ejecución es una **ejecución de programación**, y las ejecuciones vienen en dos direcciones:\n- **Hacia adelante** — comienza desde hoy y coloca el trabajo lo antes que la capacidad lo permita (impulsado por capacidad).\n- **Hacia atrás** — comienza desde la fecha de vencimiento y trabaja hacia atrás (impulsado por fecha límite).\n\nCada ejecución se registra: su fecha, dirección, estado, el número de operaciones programadas y el número de conflictos detectados. La pestaña Historial de ejecuciones es su rastro de auditoría de cómo se construyó el plan.\n\n### Bloqueo de operaciones\n\nA veces no quiere que el programador mueva una operación en particular —ya está comprometida, configurada o prometida. Desde la pestaña Programa, puede **bloquear** una operación; el programador entonces la trata como fija y programa todo lo demás a su alrededor. Alterne el icono de candado para bloquear o desbloquear.\n\n### La lista de despacho\n\nLa **lista de despacho** es el resultado práctico, del día a día, de toda esta planificación. Elija un centro de trabajo, haga clic en Cargar y obtendrá una cola ordenada de operaciones en orden de ejecución —la lista de 'siguiente en turno' que lee un operario de máquina. Muestra la secuencia, el inicio programado, las horas de configuración y de ejecución, la prioridad del trabajo y la fecha de vencimiento del trabajo.\n\n### Cómo se conecta la Programación con otras funciones\n\n**Trabajos y operaciones:** Las operaciones programadas provienen de las operaciones definidas en sus trabajos. Cada fila del Gantt muestra un número de trabajo y un título de operación. La programación no inventa el trabajo —secuencia el trabajo que sus trabajos ya describen.\n\n**Activos:** Un centro de trabajo puede vincularse a un activo (el equipo subyacente), conectando la vista de programación con el maestro de equipos y, posteriormente, con el mantenimiento.\n\n**Planificación de capacidad:** Al mantener precisas la capacidad, la eficiencia y las horas de turno del centro de trabajo, el programa refleja la realidad —las sobrecargas surgen como conflictos en lugar de hacer que las fechas de vencimiento se incumplan en silencio.\n\n### Cuándo usar la Programación\n\n- Cuando necesita saber qué ejecutar a continuación en una máquina determinada —use Despacho\n- Cuando necesita reconstruir todo el plan después de que lleguen nuevos trabajos —Ejecutar programador\n- Cuando una operación en particular no debe moverse —bloquéela en la pestaña Programa\n- Cuando agrega o cambia una máquina o estación de trabajo —Centros de trabajo\n- Cuando cambia las horas de operación o agrega un turno —Turnos\n- Cuando necesita auditar cómo y cuándo se generó el plan —Historial de ejecuciones",
+      "sections": []
+    }
+  },
+  {
+    "slug": "scheduling-walkthrough",
+    "title": "Programación — Recorrido guiado",
+    "summary": "Un recorrido guiado por la página de programación: chips de KPI, las cinco pestañas, la ejecución del programador, el bloqueo de operaciones, la lista de despacho y la gestión de centros de trabajo.",
+    "contentJson": {
+      "appRoute": "/scheduling",
+      "startButtonLabel": "Recorrer Programación",
+      "steps": [
+        {
+          "element": ".scheduling__kpis",
+          "popover": {
+            "title": "KPI de Programación",
+            "description": "De un vistazo, estos chips muestran el recuento de Operaciones programadas, cuántas están En progreso (ámbar) y el número de Centros de trabajo. Le dan una lectura rápida del tamaño y el estado de su plan actual antes de profundizar en cualquier pestaña.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab-bar",
+          "popover": {
+            "title": "Las cinco pestañas",
+            "description": "La Programación se divide en cinco pestañas: Programa (la línea de tiempo Gantt), Despacho (la cola de siguiente en turno por centro de trabajo), Centros de trabajo (los datos maestros de sus máquinas/estaciones), Turnos (horas de operación) e Historial de ejecuciones (el registro de auditoría de las ejecuciones del programador). La pestaña activa se almacena en la URL para que pueda guardar como marcador o compartir cualquier vista.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='scheduling-run-btn']",
+          "popover": {
+            "title": "Ejecutar programador",
+            "description": "En la pestaña Programa, haga clic en Ejecutar programador para ejecutar el programador automático. Asigna las operaciones de sus trabajos a centros de trabajo y franjas horarias —Hacia adelante (lo antes que la capacidad lo permita) o Hacia atrás (desde la fecha de vencimiento). Cada ejecución se registra en el Historial de ejecuciones con cuántas operaciones se programaron y cuántos conflictos se detectaron.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab-bar .tab:first-child",
+          "popover": {
+            "title": "Línea de tiempo del Programa",
+            "description": "La pestaña Programa es la vista predeterminada y contiene la línea de tiempo maestra. Cada operación programada aparece en su tabla: número de trabajo, operación, centro de trabajo, inicio y fin programados, horas, estado (Programada, En progreso, Completa) y un interruptor de bloqueo. Haga clic en un encabezado de columna para ordenar y use el icono de engranaje para administrar qué columnas son visibles.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab-panel app-toolbar",
+          "popover": {
+            "title": "Bloquear una operación",
+            "description": "En la pestaña Programa, cada fila de operación lleva un icono de candado. Haga clic en él para bloquear esa operación —una operación bloqueada queda fija en su lugar, por lo que el programador planifica todo lo demás a su alrededor y nunca la mueve. Haga clic de nuevo para desbloquear. Use esto cuando una operación ya está configurada o prometida y no debe reprogramarse.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab-bar .tab:nth-child(3)",
+          "popover": {
+            "title": "Nuevo centro de trabajo",
+            "description": "Cambie a la pestaña Centros de trabajo y luego haga clic en Nuevo centro de trabajo para definir una máquina o estación de trabajo. Establecerá su Código, Nombre, Capacidad diaria (horas), % de eficiencia, Número de máquinas y las tasas opcionales de mano de obra y carga. Estos valores son exactamente lo que usa el programador para calcular la capacidad disponible.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab-bar",
+          "popover": {
+            "title": "Tabla de Centros de trabajo",
+            "description": "Abra la pestaña Centros de trabajo para ver la tabla: cada fila muestra el código, el nombre, la capacidad diaria, la eficiencia, el recuento de máquinas, el estado activo, el activo vinculado y la ubicación de un centro de trabajo, con botones Editar y Eliminar en la columna Acciones. Mantener precisos estos datos maestros es lo que hace que el programa refleje la capacidad real de su taller.",
+            "side": "bottom"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "scheduling-field-reference",
+    "title": "Referencia de campos de Programación",
+    "summary": "Referencia completa de cada pestaña, campo, estado, columna de tabla, botón y acción del módulo de Programación.",
+    "contentJson": {
+      "title": "Referencia de campos de Programación",
+      "groups": [
+        {
+          "heading": "Pestañas",
+          "items": [
+            {
+              "label": "Programa (Gantt)",
+              "value": "La línea de tiempo maestra de todas las operaciones programadas. Aloja el botón Ejecutar programador y el interruptor de bloqueo por operación. Pestaña predeterminada al abrir Programación."
+            },
+            {
+              "label": "Despacho",
+              "value": "Una cola específica por centro de trabajo, ordenada por prioridad, de qué ejecutar a continuación. Seleccione un centro de trabajo, haga clic en Cargar para poblar la lista."
+            },
+            {
+              "label": "Centros de trabajo",
+              "value": "Datos maestros de los recursos de producción (máquinas, estaciones). Creación / edición / eliminación completa."
+            },
+            {
+              "label": "Turnos",
+              "value": "Lista de solo lectura de definiciones de horas de operación (inicio, fin, descansos, horas netas). Los turnos son globales, compartidos entre todos los centros de trabajo."
+            },
+            {
+              "label": "Historial de ejecuciones",
+              "value": "Registro de auditoría de cada ejecución del programador con fecha de ejecución, dirección, estado, operaciones programadas y conflictos detectados."
+            }
+          ]
+        },
+        {
+          "heading": "Chips de KPI (parte superior de la página)",
+          "items": [
+            {
+              "label": "Ops programadas",
+              "value": "Recuento total de operaciones actualmente en el programa."
+            },
+            {
+              "label": "En progreso",
+              "value": "Recuento de operaciones actualmente en ejecución (valor en ámbar)."
+            },
+            {
+              "label": "Centros de trabajo",
+              "value": "Recuento de centros de trabajo (valor en color primario)."
+            }
+          ]
+        },
+        {
+          "heading": "Campos del diálogo de Centro de trabajo",
+          "items": [
+            {
+              "label": "Código (obligatorio)",
+              "value": "Identificador corto del centro de trabajo (p. ej., 'CNC-01'). Campo de texto, máximo 50 caracteres."
+            },
+            {
+              "label": "Nombre (obligatorio)",
+              "value": "Nombre descriptivo completo (p. ej., 'Centro de mecanizado'). Campo de texto, máximo 200 caracteres."
+            },
+            {
+              "label": "Descripción",
+              "value": "Descripción opcional de formato libre. Área de texto, 2 filas."
+            },
+            {
+              "label": "Capacidad diaria (horas) (obligatorio)",
+              "value": "Cuántas horas de trabajo puede absorber el centro por día. Campo numérico. Es una entrada principal para el cálculo de capacidad del programador."
+            },
+            {
+              "label": "% de eficiencia (obligatorio)",
+              "value": "Factor de realismo aplicado a la capacidad. 100% = capacidad nominal; valores más bajos tienen en cuenta el tiempo de inactividad/reproceso. Campo numérico con sufijo '%'."
+            },
+            {
+              "label": "Número de máquinas (obligatorio)",
+              "value": "Recuento de unidades idénticas en el centro que pueden funcionar en paralelo. Campo numérico."
+            },
+            {
+              "label": "Orden de clasificación",
+              "value": "Valor de orden de visualización opcional. Campo numérico."
+            },
+            {
+              "label": "Costo de mano de obra / hora",
+              "value": "Tasa de mano de obra opcional para el costeo. Campo de moneda ($)."
+            },
+            {
+              "label": "Tasa de carga (burden) / hora",
+              "value": "Tasa de gastos generales opcional para el costeo. Campo de moneda ($)."
+            },
+            {
+              "label": "Activo",
+              "value": "Interruptor, mostrado solo en modo de edición. Los centros de trabajo inactivos se excluyen de la programación."
+            }
+          ]
+        },
+        {
+          "heading": "Estados de operación programada (pestaña Programa)",
+          "items": [
+            {
+              "label": "Programada (chip info)",
+              "value": "La operación está colocada en el programa pero no ha comenzado."
+            },
+            {
+              "label": "En progreso (chip advertencia)",
+              "value": "La operación se está ejecutando actualmente."
+            },
+            {
+              "label": "Completa (chip éxito)",
+              "value": "La operación finalizó con éxito."
+            },
+            {
+              "label": "Cancelada (chip atenuado)",
+              "value": "La operación fue cancelada."
+            }
+          ]
+        },
+        {
+          "heading": "Estados de ejecución de programación (pestaña Historial de ejecuciones)",
+          "items": [
+            {
+              "label": "Completada (chip éxito)",
+              "value": "La ejecución del programador finalizó con éxito."
+            },
+            {
+              "label": "En ejecución (chip advertencia)",
+              "value": "El programador se está ejecutando actualmente."
+            },
+            {
+              "label": "Fallida (chip error)",
+              "value": "La ejecución del programador falló con un error."
+            },
+            {
+              "label": "En cola",
+              "value": "La ejecución está en cola y aún no ha comenzado."
+            }
+          ]
+        },
+        {
+          "heading": "Dirección de programación",
+          "items": [
+            {
+              "label": "Hacia adelante",
+              "value": "Programa desde hoy hacia adelante, colocando el trabajo lo antes que la capacidad lo permita (impulsado por capacidad)."
+            },
+            {
+              "label": "Hacia atrás",
+              "value": "Programa desde la fecha de vencimiento hacia atrás (impulsado por fecha límite), para cumplir justo con las fechas de entrega."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la pestaña Programa",
+          "items": [
+            {
+              "label": "Trabajo #",
+              "value": "Ordenable. El trabajo al que pertenece la operación. Ancho 100px."
+            },
+            {
+              "label": "Operación",
+              "value": "Ordenable. El título de la operación."
+            },
+            {
+              "label": "Centro de trabajo",
+              "value": "Ordenable, filtrable. El centro al que se asigna la operación."
+            },
+            {
+              "label": "Inicio / Fin",
+              "value": "Ordenable. Inicio y fin programados, tipo fecha. Ancho 140px cada uno."
+            },
+            {
+              "label": "Horas",
+              "value": "Ordenable. Total de horas programadas para la operación. Número, ancho 80px."
+            },
+            {
+              "label": "Estado",
+              "value": "Ordenable, filtrable (enum). Chip con código de color. Ancho 100px."
+            },
+            {
+              "label": "Bloqueado",
+              "value": "Icono de interruptor bloquear / desbloquear. Las operaciones bloqueadas no son movidas por el programador. Ancho 70px."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la pestaña Despacho",
+          "items": [
+            {
+              "label": "Trabajo #",
+              "value": "Ordenable. El trabajo de la operación. Ancho 100px."
+            },
+            {
+              "label": "Operación",
+              "value": "Ordenable. El título de la operación."
+            },
+            {
+              "label": "Sec.",
+              "value": "Ordenable. Número de secuencia dentro de la cola. Ancho 60px."
+            },
+            {
+              "label": "Inicio",
+              "value": "Ordenable. Inicio programado, tipo fecha. Ancho 140px."
+            },
+            {
+              "label": "Hrs configuración / Hrs ejecución",
+              "value": "Ordenable. Horas de configuración y de ejecución de la operación. Número, ancho 100px cada uno."
+            },
+            {
+              "label": "Prioridad",
+              "value": "Ordenable. La prioridad del trabajo, mostrada como chip info. Ancho 90px."
+            },
+            {
+              "label": "Fecha de vencimiento",
+              "value": "Ordenable. La fecha de vencimiento del trabajo, tipo fecha. Ancho 120px."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la pestaña Centros de trabajo",
+          "items": [
+            {
+              "label": "Código / Nombre",
+              "value": "Ordenable. Identificador del centro de trabajo y nombre completo."
+            },
+            {
+              "label": "Cap. diaria",
+              "value": "Ordenable. Horas de capacidad diaria. Número, ancho 120px."
+            },
+            {
+              "label": "Eficiencia",
+              "value": "Ordenable. Porcentaje de eficiencia. Número, ancho 110px."
+            },
+            {
+              "label": "Máquinas",
+              "value": "Ordenable. Número de máquinas. Número, ancho 90px."
+            },
+            {
+              "label": "Activo",
+              "value": "Ordenable. Chip activo/inactivo (éxito cuando está activo, atenuado cuando está inactivo). Ancho 70px."
+            },
+            {
+              "label": "Activo / Ubicación",
+              "value": "Ordenable. Nombre del activo vinculado y nombre de la ubicación."
+            },
+            {
+              "label": "Acciones",
+              "value": "Botones de icono Editar y Eliminar. Ancho 90px."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la pestaña Turnos",
+          "items": [
+            {
+              "label": "Nombre",
+              "value": "Ordenable. El nombre del turno."
+            },
+            {
+              "label": "Hora de inicio / Hora de fin",
+              "value": "Ordenable. Horas de inicio y fin del turno. Ancho 100px cada uno."
+            },
+            {
+              "label": "Min. descanso",
+              "value": "Ordenable. Minutos de descanso. Número, ancho 100px."
+            },
+            {
+              "label": "Horas netas",
+              "value": "Ordenable. Calculadas como fin − inicio − descansos. Número, ancho 100px."
+            },
+            {
+              "label": "Activo",
+              "value": "Ordenable. Chip activo/inactivo. Ancho 70px."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la pestaña Historial de ejecuciones",
+          "items": [
+            {
+              "label": "Fecha de ejecución",
+              "value": "Ordenable. Cuándo se ejecutó la ejecución. Fecha, ancho 140px."
+            },
+            {
+              "label": "Dirección",
+              "value": "Ordenable. Hacia adelante o Hacia atrás. Ancho 100px."
+            },
+            {
+              "label": "Estado",
+              "value": "Ordenable, filtrable (enum). Chip Completada / En ejecución / Fallida. Ancho 100px."
+            },
+            {
+              "label": "Ops programadas",
+              "value": "Ordenable. Cuántas operaciones programó la ejecución. Número, ancho 120px."
+            },
+            {
+              "label": "Conflictos",
+              "value": "Ordenable. Cuántos conflictos detectó la ejecución. Número, ancho 100px."
+            },
+            {
+              "label": "Completada",
+              "value": "Ordenable. Cuándo finalizó la ejecución. Fecha, ancho 140px."
+            }
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            {
+              "label": "Ejecutar programador (pestaña Programa)",
+              "value": "Ejecuta el programador automático. data-testid: scheduling-run-btn"
+            },
+            {
+              "label": "Bloquear / Desbloquear (fila de la pestaña Programa)",
+              "value": "Alterna si el programador puede mover la operación. Icono de candado (bloqueado) / icono lock_open (desbloqueado)."
+            },
+            {
+              "label": "Selector de centro de trabajo + Cargar (pestaña Despacho)",
+              "value": "Elija un centro de trabajo y luego haga clic en Cargar para poblar su cola de despacho. Cargar está deshabilitado hasta que se seleccione un centro de trabajo."
+            },
+            {
+              "label": "Nuevo centro de trabajo (pestaña Centros de trabajo)",
+              "value": "Abre el diálogo de creación de centro de trabajo. data-testid: work-center-create-btn"
+            },
+            {
+              "label": "Editar (fila de Centros de trabajo)",
+              "value": "Abre el diálogo de centro de trabajo en modo de edición para esa fila."
+            },
+            {
+              "label": "Eliminar (fila de Centros de trabajo)",
+              "value": "Elimina el centro de trabajo (botón de icono de peligro)."
+            },
+            {
+              "label": "Cancelar / Guardar (pie del diálogo)",
+              "value": "Cancelar cierra sin guardar; Guardar (o Crear) confirma. Guardar está deshabilitado mientras el formulario no es válido o se está guardando; un botón de validación muestra las infracciones."
+            }
+          ]
+        },
+        {
+          "heading": "Conceptos clave",
+          "items": [
+            {
+              "label": "Capacidad",
+              "value": "La cantidad finita de trabajo que un centro de trabajo puede absorber, derivada de las horas de capacidad diaria, la eficiencia, el recuento de máquinas y las horas de turno disponibles."
+            },
+            {
+              "label": "Conflicto",
+              "value": "Un problema de programación que la ejecución detecta —lo más común, un centro de trabajo programado más allá de su capacidad."
+            },
+            {
+              "label": "Bloqueo",
+              "value": "Una marca de 'no reprogramar' en una operación; el programador planifica a su alrededor."
+            },
+            {
+              "label": "Horas netas",
+              "value": "Las horas productivas de un turno = fin − inicio − minutos de descanso."
+            },
+            {
+              "label": "Lista de despacho",
+              "value": "La cola ordenada por prioridad y específica por centro de trabajo de las operaciones a ejecutar a continuación —la vista del operario de planta."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "scheduling-quiz",
+    "title": "Evaluación de conocimientos de Programación",
+    "summary": "Ponga a prueba su conocimiento del módulo de Programación: centros de trabajo, capacidad, turnos, la lista de despacho, el programador automático y el bloqueo.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "sc1",
+          "text": "¿Qué es un centro de trabajo en el módulo de Programación?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Una ubicación del cliente donde se entregan los productos terminados"
+            },
+            {
+              "id": "b",
+              "text": "Un recurso de producción físico o lógico (máquina o estación de trabajo) donde se realizan operaciones y se consume capacidad",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Un contenedor de almacenamiento en el almacén"
+            },
+            {
+              "id": "d",
+              "text": "Un grupo con nombre de empleados en el mismo turno"
+            }
+          ],
+          "explanation": "Un centro de trabajo es un recurso de producción —una máquina CNC, una estación de ensamblaje, una mesa de inspección. La programación gira en torno a los centros de trabajo porque son donde se consume la capacidad. Cada uno tiene un código, nombre, horas de capacidad diaria, % de eficiencia y recuento de máquinas."
+        },
+        {
+          "id": "sc2",
+          "text": "Un operario de máquina quiere saber qué ejecutar a continuación en una máquina específica. ¿Qué pestaña debe usar?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Programa (Gantt)"
+            },
+            {
+              "id": "b",
+              "text": "Despacho —seleccionar el centro de trabajo, hacer clic en Cargar y leer la cola ordenada por prioridad",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Historial de ejecuciones"
+            },
+            {
+              "id": "d",
+              "text": "Turnos"
+            }
+          ],
+          "explanation": "La pestaña Despacho es la vista del operario de planta. Elija un centro de trabajo, haga clic en Cargar y obtendrá una cola ordenada de operaciones en orden de ejecución —secuencia, inicio programado, horas de configuración/ejecución, prioridad y fecha de vencimiento."
+        },
+        {
+          "id": "sc3",
+          "text": "¿Qué representa el campo % de eficiencia en un centro de trabajo?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El porcentaje de trabajos completados a tiempo"
+            },
+            {
+              "id": "b",
+              "text": "Un factor de realismo sobre la capacidad —100% significa que el centro alcanza su capacidad nominal, valores más bajos tienen en cuenta el tiempo de inactividad, el reproceso y los cambios de configuración",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El porcentaje de margen aplicado al costo de mano de obra"
+            },
+            {
+              "id": "d",
+              "text": "El porcentaje del centro de trabajo que está actualmente programado"
+            }
+          ],
+          "explanation": "El % de eficiencia es un factor de realismo aplicado a la capacidad. Al 100% se asume que el centro alcanza su capacidad diaria nominal; establecerlo, por ejemplo, en 85% le indica al programador que espere tiempo de inactividad, reproceso y cambios de configuración, por lo que planifica de forma menos agresiva."
+        },
+        {
+          "id": "sc4",
+          "text": "Ejecuta el programador en modo Hacia adelante. ¿Cómo coloca las operaciones?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Comienza desde la fecha de vencimiento de cada trabajo y trabaja hacia atrás"
+            },
+            {
+              "id": "b",
+              "text": "Comienza desde hoy y coloca el trabajo lo antes que la capacidad lo permita (impulsado por capacidad)",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Coloca todas las operaciones en la misma hora de inicio"
+            },
+            {
+              "id": "d",
+              "text": "Solo programa las operaciones que ya están bloqueadas"
+            }
+          ],
+          "explanation": "La programación hacia adelante comienza desde hoy y coloca el trabajo lo antes que la capacidad lo permita —es impulsada por capacidad. La programación hacia atrás es lo opuesto: comienza desde la fecha de vencimiento y trabaja hacia atrás para cumplir justo con las fechas de entrega (impulsada por fecha límite)."
+        },
+        {
+          "id": "sc5",
+          "text": "Una operación ya está configurada en una máquina y el programador no debe moverla. ¿Qué hace?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Eliminar la operación y volver a agregarla después de programar"
+            },
+            {
+              "id": "b",
+              "text": "En la pestaña Programa, hacer clic en el icono de candado en la fila de esa operación para bloquearla",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Marcar el centro de trabajo como inactivo"
+            },
+            {
+              "id": "d",
+              "text": "Establecer el estado de la operación en Cancelada"
+            }
+          ],
+          "explanation": "Haga clic en el icono de candado en la fila de la operación en la pestaña Programa. Una operación bloqueada queda fija —el programador planifica todo lo demás a su alrededor y nunca la reprograma. Haga clic en el icono de nuevo para desbloquear."
+        },
+        {
+          "id": "sc6",
+          "text": "¿Qué determina las Horas netas de un turno?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El número de máquinas multiplicado por la capacidad diaria"
+            },
+            {
+              "id": "b",
+              "text": "La hora de fin menos la hora de inicio menos los minutos de descanso",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El porcentaje de eficiencia del centro de trabajo asignado"
+            },
+            {
+              "id": "d",
+              "text": "El total de horas programadas en todas las operaciones"
+            }
+          ],
+          "explanation": "Las Horas netas son el tiempo productivo de un turno: hora de fin − hora de inicio − minutos de descanso. Los turnos son globales (compartidos entre todos los centros de trabajo), y sus horas netas alimentan la capacidad disponible para la programación."
+        },
+        {
+          "id": "sc7",
+          "text": "¿Dónde puede ver cuántas operaciones colocó una ejecución del programador y cuántos conflictos detectó?",
+          "options": [
+            {
+              "id": "a",
+              "text": "La pestaña Despacho"
+            },
+            {
+              "id": "b",
+              "text": "La pestaña Historial de ejecuciones —cada ejecución registra su fecha, dirección, estado, operaciones programadas y conflictos detectados",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "La pestaña Centros de trabajo"
+            },
+            {
+              "id": "d",
+              "text": "Los chips de KPI en la parte superior de la página"
+            }
+          ],
+          "explanation": "La pestaña Historial de ejecuciones es el registro de auditoría de cada ejecución del programador. Cada fila muestra la fecha de ejecución, la dirección (Hacia adelante/Hacia atrás), el estado (Completada/En ejecución/Fallida), el número de operaciones programadas y el número de conflictos detectados."
+        },
+        {
+          "id": "sc8",
+          "text": "¿Qué campos son obligatorios al crear un centro de trabajo?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Solo Código y Nombre"
+            },
+            {
+              "id": "b",
+              "text": "Código, Nombre, Capacidad diaria (horas), % de eficiencia y Número de máquinas",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Código, Nombre, Costo de mano de obra / hora y Tasa de carga / hora"
+            },
+            {
+              "id": "d",
+              "text": "Todos los campos del diálogo son obligatorios"
+            }
+          ],
+          "explanation": "Los campos obligatorios son Código, Nombre, Capacidad diaria (horas), % de eficiencia y Número de máquinas —estos son exactamente lo que el programador necesita para calcular la capacidad. Descripción, Orden de clasificación, Costo de mano de obra / hora, Tasa de carga / hora y el interruptor Activo son opcionales."
+        },
+        {
+          "id": "sc9",
+          "text": "¿Qué es un 'conflicto' en el contexto de una ejecución del programador?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Dos usuarios editando el mismo centro de trabajo a la vez"
+            },
+            {
+              "id": "b",
+              "text": "Un problema de programación que la ejecución detecta, lo más común, un centro de trabajo programado más allá de su capacidad",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Un número de trabajo duplicado"
+            },
+            {
+              "id": "d",
+              "text": "Un turno cuya hora de fin es anterior a su hora de inicio"
+            }
+          ],
+          "explanation": "Un conflicto es un problema de programación detectado por la ejecución —normalmente un centro de trabajo cargado más allá de su capacidad disponible. La ejecución informa el recuento de conflictos para que pueda reaccionar (agregar capacidad, mover trabajo o ajustar fechas de vencimiento) en lugar de incumplir una fecha de vencimiento en silencio."
+        },
+        {
+          "id": "sc10",
+          "text": "En la pestaña Despacho, el botón Cargar está deshabilitado. ¿Por qué?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El programador nunca se ha ejecutado"
+            },
+            {
+              "id": "b",
+              "text": "Aún no se ha seleccionado ningún centro de trabajo —elija uno del selector para habilitar Cargar",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Todas las operaciones están bloqueadas"
+            },
+            {
+              "id": "d",
+              "text": "El usuario actual carece de permiso de programación"
+            }
+          ],
+          "explanation": "El botón Cargar en la pestaña Despacho está deshabilitado hasta que elija un centro de trabajo del selector. La lista de despacho es específica por centro de trabajo, por lo que el sistema necesita saber qué cola de centro cargar antes de poder poblar la tabla."
+        },
+        {
+          "id": "sc11",
+          "text": "¿De dónde provienen las operaciones que aparecen en el programa?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Se crean manualmente en la pestaña Programa"
+            },
+            {
+              "id": "b",
+              "text": "Provienen de las operaciones definidas en sus trabajos —la programación secuencia el trabajo que los trabajos ya describen",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Se generan a partir de las órdenes de compra"
+            },
+            {
+              "id": "d",
+              "text": "Se importan desde el sistema de contabilidad"
+            }
+          ],
+          "explanation": "La programación no inventa el trabajo. Cada fila programada hace referencia a un número de trabajo y un título de operación —las operaciones provienen de los trabajos mismos. El trabajo del programador es secuenciar y temporizar ese trabajo existente frente a la capacidad del centro de trabajo."
+        },
+        {
+          "id": "sc12",
+          "text": "Cambia la capacidad diaria y la eficiencia de un centro de trabajo. ¿Cuál es el efecto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Nada cambia hasta el próximo ciclo de facturación"
+            },
+            {
+              "id": "b",
+              "text": "Los valores alimentan el cálculo de capacidad del programador, por lo que las ejecuciones futuras planifican contra la capacidad actualizada",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Todas las operaciones programadas existentes se eliminan de inmediato"
+            },
+            {
+              "id": "d",
+              "text": "El centro de trabajo se establece automáticamente como inactivo"
+            }
+          ],
+          "explanation": "La Capacidad diaria (horas) y el % de eficiencia son entradas principales para cómo el programador calcula la capacidad disponible. Mantenerlos precisos es lo que hace que el programa refleje el rendimiento real de su taller; los valores actualizados se usan en las ejecuciones posteriores del programador."
+        }
+      ]
+    }
+  }
+]

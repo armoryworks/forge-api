@@ -1,0 +1,603 @@
+[
+  {
+    "slug": "vendors-overview",
+    "title": "Visión general de Proveedores",
+    "summary": "Qué son los proveedores, cómo gestionarlos, los términos de pago y cómo los proveedores se conectan con las órdenes de compra y el inventario.",
+    "contentJson": {
+      "body": "## Visión general de Proveedores\n\nEl módulo de Proveedores es su directorio centralizado de suministradores. Realiza el seguimiento de cada empresa a la que le compra —proveedores de materia prima, proveedores de herramental, prestadores de servicios y subcontratistas— junto con su información de contacto, direcciones, términos de pago e historial de compras.\n\n### ¿Qué es un proveedor?\n\nUn proveedor es cualquier empresa o persona externa a la que le compra bienes o servicios. Cada registro de proveedor almacena:\n- **Nombre de la empresa** — el nombre legal o comercial del suministrador\n- **Información de contacto** — nombre del contacto principal, correo electrónico y número de teléfono\n- **Dirección** — dirección, ciudad, estado, código postal y país\n- **Términos de pago** — términos negociados como Net 30, Net 60, Pago contra recepción, etc.\n- **Estado Activo/Inactivo** — si actualmente hace negocios con este proveedor\n\n### Cómo se conectan los proveedores con otras funciones\n\n**Órdenes de compra:** Cada orden de compra está vinculada a un proveedor. Cuando crea una OC, selecciona el proveedor, y la OC hereda la dirección y los términos de pago del proveedor. La vista de detalle del proveedor muestra un historial completo de OC para que pueda ver todas las órdenes realizadas con un suministrador.\n\n**Inventario y recepción:** Cuando llegan los materiales, los registros de recepción se vinculan de vuelta a la OC y su proveedor. Esto le brinda trazabilidad completa: qué proveedor suministró qué materiales, cuándo llegaron y si cumplieron con los estándares de calidad.\n\n**Tarjeta de calificación del proveedor:** Cada proveedor tiene una tarjeta de calificación de desempeño que rastrea el porcentaje de entregas a tiempo, la tasa de aceptación de calidad, la precisión de cantidad y el gasto total. Los proveedores reciben una puntuación general y una calificación con letra (A a F) basada en criterios ponderados: Entrega (40%), Calidad (30%), Precio (20%) y Cantidad (10%).\n\n**Integración contable:** Cuando QuickBooks u otro proveedor contable está conectado, los registros de proveedores se sincronizan automáticamente. En modo integrado, la gestión de proveedores pasa a ser de solo lectura en QB Engineer —las ediciones se realizan en el sistema contable. En modo independiente (sin proveedor conectado), tiene control CRUD completo sobre los proveedores.\n\n### Cuándo usar Proveedores\n\n- Al incorporar un nuevo suministrador antes de realizar su primera OC\n- Al actualizar la información de contacto o los términos de pago de un suministrador existente\n- Al revisar el desempeño de entrega y calidad de un proveedor mediante la tarjeta de calificación\n- Al desactivar un proveedor con el que ya no hace negocios (los registros se conservan)\n- Al consultar el historial de OC para ver qué ha ordenado a un suministrador específico",
+      "sections": []
+    }
+  },
+  {
+    "slug": "vendors-walkthrough",
+    "title": "Proveedores — Recorrido guiado",
+    "summary": "Un recorrido guiado por la página de proveedores: búsqueda, filtros, tabla de datos, creación de proveedores y visualización de detalles de proveedores.",
+    "contentJson": {
+      "appRoute": "/vendors",
+      "startButtonLabel": "Recorrer Proveedores",
+      "steps": [
+        {
+          "element": "[data-testid='new-vendor-btn']",
+          "popover": {
+            "title": "Botón Agregar proveedor",
+            "description": "Haga clic aquí para crear un nuevo proveedor. El cuadro de diálogo que se abre tiene dos secciones: un panel principal para los detalles de contacto (nombre de la empresa, persona de contacto, correo electrónico, teléfono, notas) y una barra lateral para la dirección y la configuración (términos de pago, estado activo).",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-input",
+          "popover": {
+            "title": "Buscar proveedores",
+            "description": "Busque proveedores por nombre de empresa, nombre de contacto, correo electrónico o número de teléfono. Escriba su término de búsqueda y presione Enter para filtrar la lista. Los resultados se actualizan según el texto coincidente en todos los campos buscables.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-select",
+          "popover": {
+            "title": "Filtro de estado",
+            "description": "Filtre los proveedores por estado activo: Todos (mostrar todo), Activos (con los que actualmente hace negocios) o Inactivos (proveedores desactivados). Los proveedores inactivos se conservan para el historial pero no aparecerán en las listas desplegables de proveedores de las OC.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de proveedores",
+            "description": "La tabla muestra todos los proveedores que coinciden con sus filtros actuales. Las columnas incluyen Nombre de empresa, Contacto, Correo electrónico, Teléfono, estado Activo (distintivo verde/gris), número de OC y fecha de creación. Haga clic en cualquier encabezado de columna para ordenar. Haga clic en cualquier fila para abrir el cuadro de diálogo de detalle del proveedor.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "app-data-table thead th:nth-child(6)",
+          "popover": {
+            "title": "Columna de número de OC",
+            "description": "Muestra cuántas órdenes de compra se han realizado con cada proveedor. Esto le da una idea rápida de la frecuencia con la que ordena a un suministrador sin abrir la vista de detalle.",
+            "side": "bottom"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "vendors-field-reference",
+    "title": "Referencia de campos de Proveedores",
+    "summary": "Referencia completa de cada campo, botón, estado, regla de validación y acción del módulo de Proveedores.",
+    "contentJson": {
+      "title": "Referencia de campos de Proveedores",
+      "groups": [
+        {
+          "heading": "Campos del formulario de proveedor — Sección de contacto",
+          "items": [
+            {
+              "label": "Nombre de la empresa (requerido)",
+              "value": "Campo de texto. El nombre legal o comercial del proveedor. No debe estar vacío. Es el identificador principal mostrado en tablas, listas desplegables y encabezados de OC. data-testid: vendor-company"
+            },
+            {
+              "label": "Nombre del contacto",
+              "value": "Campo de texto, opcional. La persona de contacto principal en la empresa del proveedor. Se muestra debajo del nombre de la empresa en el encabezado de detalle. data-testid: vendor-contact"
+            },
+            {
+              "label": "Correo electrónico",
+              "value": "Campo de texto con validación de correo, opcional. La dirección de correo electrónico principal del proveedor. Debe tener un formato de correo válido si se proporciona. data-testid: vendor-email"
+            },
+            {
+              "label": "Teléfono",
+              "value": "Campo de texto, opcional. El número de teléfono principal del proveedor. data-testid: vendor-phone"
+            },
+            {
+              "label": "Notas",
+              "value": "Área de texto (3 filas), opcional. Notas de forma libre sobre el proveedor —instrucciones especiales, números de cuenta o detalles de la relación. data-testid: vendor-notes"
+            }
+          ]
+        },
+        {
+          "heading": "Campos del formulario de proveedor — Sección de dirección (barra lateral)",
+          "items": [
+            {
+              "label": "Línea de dirección 1",
+              "value": "Campo de texto, opcional. Dirección del proveedor."
+            },
+            {
+              "label": "Ciudad",
+              "value": "Campo de texto, opcional. Nombre de la ciudad."
+            },
+            {
+              "label": "Estado",
+              "value": "Lista desplegable de estados de EE. UU., opcional. Código de estado de dos letras."
+            },
+            {
+              "label": "Código postal",
+              "value": "Campo de texto con máscara de formato de código postal, opcional. 5 dígitos o 9 dígitos (XXXXX o XXXXX-XXXX)."
+            },
+            {
+              "label": "País",
+              "value": "Campo de texto, opcional. Nombre o código del país. Predeterminado al contexto de EE. UU."
+            }
+          ]
+        },
+        {
+          "heading": "Campos del formulario de proveedor — Sección de configuración (barra lateral)",
+          "items": [
+            {
+              "label": "Términos de pago",
+              "value": "Lista desplegable: Pago contra recepción, Net 10, Net 15, Net 30, Net 45, Net 60, Net 90, 2/10 Net 30. Determina las expectativas de pago predeterminadas para las OC realizadas con este proveedor. data-testid: vendor-terms"
+            },
+            {
+              "label": "Activo (interruptor, solo edición)",
+              "value": "Interruptor deslizante. Controla si el proveedor aparece en las listas de proveedores activos y en las listas desplegables de proveedores de las OC. Solo se muestra al editar un proveedor existente —los nuevos proveedores son Activos de forma predeterminada."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla",
+          "items": [
+            {
+              "label": "Nombre de la empresa",
+              "value": "Ordenable. El nombre de la empresa del proveedor, mostrado en negrita."
+            },
+            {
+              "label": "Contacto",
+              "value": "Ordenable. Nombre de la persona de contacto principal. Muestra guión (—) cuando está vacío."
+            },
+            {
+              "label": "Correo electrónico",
+              "value": "Ordenable. Correo electrónico de contacto. Muestra guión (—) cuando está vacío."
+            },
+            {
+              "label": "Teléfono",
+              "value": "Ordenable. Número de teléfono de contacto. Muestra guión (—) cuando está vacío."
+            },
+            {
+              "label": "Activo",
+              "value": "Ordenable, filtrable (enum). Distintivo verde 'Activo' o distintivo gris 'Inactivo'. Ancho: 80px."
+            },
+            {
+              "label": "OC",
+              "value": "Ordenable, centrado. Conteo de órdenes de compra vinculadas a este proveedor. Ancho: 70px."
+            },
+            {
+              "label": "Creado",
+              "value": "Ordenable, tipo fecha. Fecha en que se creó el proveedor por primera vez. Formato: MM/dd/yyyy. Ancho: 110px."
+            }
+          ]
+        },
+        {
+          "heading": "Cuadro de diálogo de detalle — Pestaña Información",
+          "items": [
+            {
+              "label": "Estado",
+              "value": "Activo (distintivo verde) o Inactivo (distintivo gris). Muestra el estado actual del proveedor."
+            },
+            {
+              "label": "Correo electrónico",
+              "value": "Se muestra cuando está presente. La dirección de correo electrónico del proveedor."
+            },
+            {
+              "label": "Teléfono",
+              "value": "Se muestra cuando está presente. El número de teléfono del proveedor."
+            },
+            {
+              "label": "Términos de pago",
+              "value": "Se muestra cuando está establecido. Los términos de pago negociados del proveedor."
+            },
+            {
+              "label": "Dirección",
+              "value": "Se muestra cuando se establece cualquier campo de dirección. Muestra la calle, ciudad/estado/código postal y país en líneas separadas."
+            },
+            {
+              "label": "Notas",
+              "value": "Se muestra cuando está presente. Notas de forma libre sobre el proveedor."
+            },
+            {
+              "label": "Contabilidad — ID externo",
+              "value": "Se muestra solo cuando un proveedor contable (p. ej., QuickBooks) ha sincronizado este proveedor. Muestra el ID del sistema externo para referencia cruzada."
+            },
+            {
+              "label": "Creado / Actualizado",
+              "value": "Marcas de tiempo que muestran cuándo se creó el proveedor por primera vez y se modificó por última vez. Formato: MM/dd/yyyy."
+            },
+            {
+              "label": "Registro de actividad",
+              "value": "Feed de actividad cronológico que muestra todos los cambios al registro del proveedor."
+            }
+          ]
+        },
+        {
+          "heading": "Cuadro de diálogo de detalle — Pestaña Órdenes de compra",
+          "items": [
+            {
+              "label": "Número de OC",
+              "value": "El número de la orden de compra. Se puede hacer clic para abrir el cuadro de diálogo de detalle de la OC."
+            },
+            {
+              "label": "Estado",
+              "value": "Distintivo con código de color que muestra el estado de la OC (Borrador, Enviada, Parcialmente recibida, Recibida, Cancelada)."
+            },
+            {
+              "label": "Fecha de entrega esperada",
+              "value": "Cuándo se espera que llegue la orden. Formato: MM/dd/yyyy."
+            },
+            {
+              "label": "Creado",
+              "value": "Cuándo se creó la OC. Formato: MM/dd/yyyy."
+            },
+            {
+              "label": "Estado vacío",
+              "value": "Cuando no existen OC para este proveedor, muestra 'Sin órdenes de compra' con un icono de recibo."
+            }
+          ]
+        },
+        {
+          "heading": "Cuadro de diálogo de detalle — Pestaña Tarjeta de calificación",
+          "items": [
+            {
+              "label": "Calificación general",
+              "value": "Calificación con letra A a F mostrada como un distintivo de color: A = éxito (verde), B = éxito, C = advertencia (amarillo), D = advertencia, F = error (rojo)."
+            },
+            {
+              "label": "Puntuación general",
+              "value": "Puntuación numérica sobre 100, mostrada junto a la calificación."
+            },
+            {
+              "label": "Período de evaluación",
+              "value": "Rango de fechas que cubre la tarjeta de calificación (inicio — fin)."
+            },
+            {
+              "label": "Entrega a tiempo (peso 40%)",
+              "value": "Distintivo de KPI que muestra el porcentaje de entregas recibidas en o antes de la fecha esperada. Filas de detalle: Total de OC, Líneas recibidas, % a tiempo, conteo de entregas tardías."
+            },
+            {
+              "label": "Aceptación de calidad (peso 30%)",
+              "value": "Distintivo de KPI que muestra la tasa de aceptación. Filas de detalle: conteo de inspeccionados, conteo de rechazados, NCR (informes de no conformidad), % de tasa de aceptación."
+            },
+            {
+              "label": "Precio (peso 20%)",
+              "value": "Filas de detalle: Gasto total (moneda), % de variación de precio promedio."
+            },
+            {
+              "label": "Precisión de cantidad (peso 10%)",
+              "value": "Distintivo de KPI que muestra con qué precisión el proveedor envía las cantidades ordenadas. Fila de detalle: % de precisión de cantidad."
+            },
+            {
+              "label": "Gasto total",
+              "value": "Distintivo de KPI que muestra el monto total en dólares gastado con este proveedor durante el período de evaluación."
+            }
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            {
+              "label": "Nuevo proveedor (botón principal)",
+              "value": "Abre el cuadro de diálogo de creación de proveedor. Ubicado en el encabezado de la página. data-testid: new-vendor-btn"
+            },
+            {
+              "label": "Guardar / Crear proveedor (diálogo)",
+              "value": "Crea un nuevo proveedor o guarda los cambios de uno existente. Deshabilitado cuando el formulario no es válido o el guardado está en progreso. Muestra un cuadro emergente de validación al pasar el cursor cuando el formulario tiene errores. data-testid: vendor-save-btn"
+            },
+            {
+              "label": "Cancelar (diálogo)",
+              "value": "Cierra el cuadro de diálogo sin guardar los cambios. Si el formulario tiene cambios sin guardar, aparece un mensaje de confirmación."
+            },
+            {
+              "label": "Editar (cuadro de diálogo de detalle)",
+              "value": "Botón de icono (lápiz) en el encabezado de detalle. Abre el cuadro de diálogo de edición precargado con los valores actuales del proveedor."
+            },
+            {
+              "label": "Cerrar (cuadro de diálogo de detalle)",
+              "value": "Botón de icono (X) en el encabezado de detalle. Cierra el cuadro de diálogo de detalle y regresa a la lista de proveedores."
+            },
+            {
+              "label": "Activar / Desactivar (cuadro de diálogo de detalle)",
+              "value": "Botón de alternancia en la parte inferior de la pestaña Información. Cambia el proveedor entre el estado Activo e Inactivo. Los proveedores inactivos se conservan pero se ocultan de las listas de proveedores activos."
+            },
+            {
+              "label": "Eliminar (cuadro de diálogo de detalle)",
+              "value": "Botón de peligro en la parte inferior de la pestaña Información. Elimina el proveedor de forma lógica (establece la marca de tiempo DeletedAt). El registro se conserva pero ya no es visible."
+            },
+            {
+              "label": "Clic en fila",
+              "value": "Hacer clic en cualquier fila de la tabla de proveedores abre el cuadro de diálogo de detalle del proveedor mostrando las pestañas Información, Órdenes de compra y Tarjeta de calificación."
+            }
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            {
+              "label": "Nombre de la empresa",
+              "value": "Requerido. No puede estar vacío. El único campo obligatorio en el formulario de proveedor."
+            },
+            {
+              "label": "Correo electrónico",
+              "value": "Opcional, pero si se proporciona debe tener un formato de correo válido (p. ej., user@domain.com)."
+            },
+            {
+              "label": "Todos los demás campos",
+              "value": "Opcionales. Sin restricciones de longitud o formato más allá de los límites estándar de entrada."
+            },
+            {
+              "label": "Cuadro emergente del botón de envío",
+              "value": "Cuando el formulario no es válido, pasar el cursor sobre el botón Guardar muestra un cuadro emergente de validación que enumera qué campos necesitan atención."
+            }
+          ]
+        },
+        {
+          "heading": "Límite de integración contable",
+          "items": [
+            {
+              "label": "Modo independiente (sin proveedor)",
+              "value": "CRUD completo de proveedores —crear, editar, eliminar, activar/desactivar. Todos los campos son editables."
+            },
+            {
+              "label": "Modo integrado (QB conectado)",
+              "value": "La gestión de proveedores pasa a ser de solo lectura en QB Engineer. Los registros de proveedores se sincronizan desde QuickBooks. Las ediciones deben hacerse en el sistema contable. La lista de proveedores aún se muestra, y el historial de OC / la tarjeta de calificación permanecen completamente funcionales."
+            },
+            {
+              "label": "ID externo / Referencia externa",
+              "value": "Se completa automáticamente cuando un proveedor se sincroniza desde un proveedor contable. Muestra el ID interno del proveedor contable para referencia cruzada. No editable por el usuario."
+            },
+            {
+              "label": "Campo de proveedor contable",
+              "value": "Indica desde qué sistema contable se sincronizó el proveedor (p. ej., 'QuickBooks'). No se muestra en la interfaz pero se usa internamente para la lógica de sincronización."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "vendors-quiz",
+    "title": "Evaluación de conocimientos de Proveedores",
+    "summary": "Ponga a prueba sus conocimientos sobre el módulo de Proveedores: creación de proveedores, términos de pago, tarjeta de calificación, historial de OC e integración contable.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "vn1",
+          "text": "Necesita incorporar un nuevo proveedor de materia prima antes de realizar su primera orden de compra. ¿Cuál es el primer paso correcto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ir a Órdenes de compra y crear una OC —el proveedor se creará automáticamente"
+            },
+            {
+              "id": "b",
+              "text": "Navegar a Proveedores, hacer clic en Nuevo proveedor y completar el nombre de la empresa, los detalles de contacto, la dirección y los términos de pago",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Agregar el suministrador a Inventario como una nueva ubicación de almacenamiento"
+            },
+            {
+              "id": "d",
+              "text": "Ir a Administración → Datos de referencia y agregar el proveedor como un valor de búsqueda"
+            }
+          ],
+          "explanation": "Los nuevos suministradores deben crearse primero en el módulo de Proveedores. Haga clic en Nuevo proveedor en el encabezado de la página, complete el Nombre de la empresa requerido más los detalles de contacto, dirección y términos de pago opcionales. El proveedor queda entonces disponible en las listas desplegables de proveedores de las OC."
+        },
+        {
+          "id": "vn2",
+          "text": "¿Qué campo es el único requerido al crear un nuevo proveedor?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Nombre del contacto"
+            },
+            {
+              "id": "b",
+              "text": "Correo electrónico"
+            },
+            {
+              "id": "c",
+              "text": "Nombre de la empresa",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Términos de pago"
+            }
+          ],
+          "explanation": "El Nombre de la empresa es el único campo requerido en el formulario de proveedor. Todos los demás campos —nombre del contacto, correo electrónico, teléfono, dirección, términos de pago y notas— son opcionales."
+        },
+        {
+          "id": "vn3",
+          "text": "La tarjeta de calificación de un proveedor muestra una calificación de 'C' con una puntuación general de 68/100. ¿Qué le indica esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El proveedor ha sido desactivado por desempeño deficiente"
+            },
+            {
+              "id": "b",
+              "text": "El proveedor está rindiendo por debajo del promedio según criterios ponderados: entrega (40%), calidad (30%), precio (20%) y precisión de cantidad (10%)",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El proveedor solo ha completado unas pocas OC y no tiene suficientes datos para una evaluación completa"
+            },
+            {
+              "id": "d",
+              "text": "Los términos de pago del proveedor necesitan renegociarse"
+            }
+          ],
+          "explanation": "La tarjeta de calificación del proveedor califica el desempeño en una escala de 100 puntos usando cuatro criterios ponderados: Entrega a tiempo (40%), Aceptación de calidad (30%), Precio (20%) y Precisión de cantidad (10%). Una calificación 'C' con 68/100 indica un desempeño por debajo del promedio en estas áreas."
+        },
+        {
+          "id": "vn4",
+          "text": "Quiere ver todas las órdenes de compra realizadas con un proveedor específico. ¿Dónde encuentra esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ir a Órdenes de compra y filtrar por nombre de proveedor"
+            },
+            {
+              "id": "b",
+              "text": "Hacer clic en la fila del proveedor para abrir el cuadro de diálogo de detalle, luego seleccionar la pestaña Órdenes de compra",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Ejecutar un informe en el módulo de Informes filtrado por proveedor"
+            },
+            {
+              "id": "d",
+              "text": "Revisar el campo de Notas del proveedor en busca de referencias de OC"
+            }
+          ],
+          "explanation": "El cuadro de diálogo de detalle del proveedor tiene tres pestañas: Información, Órdenes de compra y Tarjeta de calificación. La pestaña Órdenes de compra muestra una tabla de datos con todas las OC vinculadas a ese proveedor, incluyendo número de OC, estado, fecha de entrega esperada y fecha de creación."
+        },
+        {
+          "id": "vn5",
+          "text": "Su empresa acaba de conectar QuickBooks Online como proveedor contable. ¿Qué le sucede a la gestión de proveedores en QB Engineer?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Nada cambia —los proveedores se gestionan de forma independiente en ambos sistemas"
+            },
+            {
+              "id": "b",
+              "text": "La gestión de proveedores pasa a ser de solo lectura en QB Engineer —los registros de proveedores se sincronizan desde QuickBooks, y las ediciones deben hacerse en el sistema contable",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Todos los registros de proveedores se eliminan y se reemplazan con datos de QuickBooks"
+            },
+            {
+              "id": "d",
+              "text": "Los proveedores solo pueden crearse en QB Engineer y enviarse a QuickBooks"
+            }
+          ],
+          "explanation": "Cuando un proveedor contable está conectado, la gestión de proveedores pasa a ser de solo lectura en QB Engineer. Los registros de proveedores se sincronizan desde QuickBooks automáticamente. La lista de proveedores, el historial de OC y la tarjeta de calificación permanecen completamente funcionales —solo se deshabilita la edición directa."
+        },
+        {
+          "id": "vn6",
+          "text": "Ya no hace negocios con un suministrador pero quiere conservar su historial de compras. ¿Qué debe hacer?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Eliminar el proveedor —el historial de OC se conserva por separado"
+            },
+            {
+              "id": "b",
+              "text": "Abrir el detalle del proveedor, hacer clic en el botón Desactivar en la pestaña Información para establecerlo como Inactivo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Eliminar todas las OC asociadas al proveedor, luego eliminar el registro del proveedor"
+            },
+            {
+              "id": "d",
+              "text": "Cambiar los términos de pago del proveedor a 'Suspendido'"
+            }
+          ],
+          "explanation": "Desactivar un proveedor conserva el registro completo, incluyendo todo el historial de OC, los datos de la tarjeta de calificación y la información de contacto. El proveedor simplemente no aparecerá en las listas de proveedores activos ni en las listas desplegables de proveedores de las OC. Puede reactivarlo más tarde si es necesario."
+        },
+        {
+          "id": "vn7",
+          "text": "¿Qué opciones de términos de pago están disponibles al crear un proveedor?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Solo Net 30 y Net 60"
+            },
+            {
+              "id": "b",
+              "text": "Pago contra recepción, Net 10, Net 15, Net 30, Net 45, Net 60, Net 90 y 2/10 Net 30",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Los términos de pago son de texto libre y pueden ser cualquier cosa"
+            },
+            {
+              "id": "d",
+              "text": "Los términos de pago se establecen globalmente en Administración y no pueden variar por proveedor"
+            }
+          ],
+          "explanation": "La lista desplegable de Términos de pago ofrece términos comerciales estándar: Pago contra recepción, Net 10, Net 15, Net 30, Net 45, Net 60, Net 90 y 2/10 Net 30 (2% de descuento si se paga dentro de 10 días, de lo contrario net 30). Estos términos son heredados por las nuevas OC realizadas con el proveedor."
+        },
+        {
+          "id": "vn8",
+          "text": "Busca un proveedor escribiendo en el cuadro de búsqueda pero no pasa nada. ¿Qué le falta?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Necesita presionar Enter para aplicar el filtro de búsqueda",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "La búsqueda solo funciona en el campo Nombre de la empresa —intente con un término de búsqueda diferente"
+            },
+            {
+              "id": "c",
+              "text": "Debe seleccionar un filtro de estado antes de buscar"
+            },
+            {
+              "id": "d",
+              "text": "El cuadro de búsqueda requiere al menos 3 caracteres"
+            }
+          ],
+          "explanation": "El cuadro de búsqueda de proveedores requiere presionar Enter para aplicar el filtro. Busca en los campos de nombre de empresa, nombre de contacto, correo electrónico y teléfono. El filtro de estado (Todos, Activos, Inactivos) funciona de forma independiente y no necesita establecerse antes de buscar."
+        },
+        {
+          "id": "vn9",
+          "text": "En el cuadro de diálogo de detalle del proveedor, ¿qué indica el campo ID externo?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Un número de referencia del proveedor que asigna manualmente para seguimiento interno"
+            },
+            {
+              "id": "b",
+              "text": "El número de identificación fiscal del proveedor (EIN)"
+            },
+            {
+              "id": "c",
+              "text": "Un ID que se completa automáticamente cuando el proveedor se sincroniza desde un proveedor contable como QuickBooks",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "El número de cliente del proveedor en su propio sistema"
+            }
+          ],
+          "explanation": "El ID externo se completa automáticamente cuando un registro de proveedor se sincroniza desde un proveedor contable (p. ej., QuickBooks). Almacena el identificador interno del proveedor contable para referencia cruzada. No es editable por el usuario y solo aparece cuando una integración contable ha sincronizado el proveedor."
+        },
+        {
+          "id": "vn10",
+          "text": "¿Qué factor tiene el mayor peso en el cálculo de la tarjeta de calificación del proveedor?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Aceptación de calidad (30%)"
+            },
+            {
+              "id": "b",
+              "text": "Competitividad de precio (20%)"
+            },
+            {
+              "id": "c",
+              "text": "Entrega a tiempo (40%)",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Precisión de cantidad (10%)"
+            }
+          ],
+          "explanation": "La tarjeta de calificación del proveedor usa cuatro criterios ponderados: la Entrega a tiempo tiene el mayor peso con 40%, seguida de la Aceptación de calidad con 30%, el Precio con 20% y la Precisión de cantidad con 10%. Esto refleja que la entrega confiable es el factor más crítico en el desempeño del proveedor."
+        }
+      ]
+    }
+  }
+]

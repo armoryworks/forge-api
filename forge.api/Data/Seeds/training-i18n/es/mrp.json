@@ -1,0 +1,334 @@
+[
+  {
+    "slug": "mrp-overview",
+    "title": "Resumen de MRP",
+    "summary": "Qué es la Planificación de Requerimientos de Materiales, cómo el MRP neta la demanda contra el suministro, las órdenes planificadas, las excepciones, el programa maestro y los pronósticos de demanda.",
+    "contentJson": {
+      "body": "## Resumen de MRP\n\nEl módulo MRP (Planificación de Requerimientos de Materiales) responde a una única pregunta para cada pieza que fabricas o compras: *¿qué necesito, cuánto y cuándo?* Lo hace recopilando toda la **demanda** de cada pieza (órdenes de venta, entradas del programa maestro, pronósticos, demanda manual y demanda dependiente de las BOM), netándola contra todo el **suministro** (inventario disponible, órdenes de compra abiertas, órdenes planificadas, ejecuciones de producción y existencias en tránsito) y luego generando **órdenes planificadas** para cubrir cualquier déficit restante — programadas según el tiempo de entrega de cada pieza.\n\n### La idea central: netear demanda/suministro\n\nPara cada pieza, el MRP avanza en el tiempo. Empieza con el inventario disponible proyectado, resta los requerimientos brutos (demanda) a medida que vencen, suma las recepciones programadas (suministro ya pedido) y, siempre que el saldo proyectado se volvería negativo, crea una **liberación de orden planificada** dimensionada y fechada para devolver el saldo a cero. El resultado es un plan escalonado en el tiempo: un conjunto de órdenes planificadas, cada una con una cantidad, una fecha de inicio y una fecha de vencimiento.\n\n### Ejecutar el MRP\n\nDesde el **Panel** de MRP lanzas una ejecución de dos formas:\n- **Ejecutar MRP** — confirma el plan. Las órdenes planificadas y las excepciones se guardan y se vuelven accionables.\n- **Simular** — ejecuta exactamente el mismo cálculo pero marca la ejecución como una simulación para que puedas previsualizar el impacto de un cambio sin tocar el plan en vivo.\n\nCuando lanzas una ejecución, un diálogo de parámetros pide el **tipo de ejecución** y el **horizonte de planificación** (cuántos días hacia el futuro planificar). Los tres tipos de ejecución son:\n- **Completa** — replanifica cada pieza desde cero. El valor predeterminado seguro.\n- **Cambio neto** — replanifica solo las piezas cuya demanda o suministro cambió desde la última ejecución. Más rápida, para actualizaciones incrementales.\n- **Simulación** — una ejecución hipotética que nunca altera el plan en vivo.\n\nCada ejecución registra recuentos que puedes ver de un vistazo: demandas totales, suministros totales, órdenes planificadas generadas y excepciones planteadas.\n\n### Órdenes planificadas\n\nCada orden planificada es una sugerencia de orden de **Compra** (para piezas compradas) o de **Fabricación** (para piezas fabricadas). Una orden planificada avanza por un ciclo de vida corto:\n1. **Planificada** — recién generada por el MRP. La siguiente ejecución puede cambiarla o eliminarla.\n2. **Firmada** — la has bloqueado. Una orden firmada está protegida — las futuras ejecuciones de MRP no la moverán ni eliminarán, aunque la demanda cambie. Úsala cuando te has comprometido con el calendario.\n3. **Liberada** — la has convertido en un documento real. Liberar una orden planificada de Compra crea una Orden de compra; liberar una orden planificada de Fabricación crea un Trabajo. El tipo y el ID de la entidad creada se registran en la orden.\n4. **Cancelada** — ya no es necesaria.\n\n### Excepciones\n\nEl MRP no arregla todo en silencio — cuando el plan implica una acción que deberías revisar, plantea una **excepción** con un mensaje y una acción sugerida. Los tipos de excepción son: **Acelerar** (adelantar una orden de suministro), **Aplazar** (posponer una orden de suministro), **Cancelar** (una orden de suministro ya no es necesaria), **Vencida** (una fecha requerida ya está en el pasado), **Suministro insuficiente** (no hay suficiente suministro para cubrir la demanda), **Suministro excesivo** (más en pedido del necesario) y **Violación del tiempo de entrega** (no se puede cumplir el tiempo de entrega). Resuelves cada excepción una vez que has actuado sobre ella, lo que la elimina de la lista de no resueltas.\n\n### Programa maestro (MPS)\n\nEl **Programa Maestro de Producción** es una declaración elaborada manualmente de lo que pretendes construir, independiente de las órdenes de venta confirmadas. Cada programa maestro tiene un nombre, un período (inicio/fin) y líneas (pieza + cantidad + fecha de vencimiento). Un programa se crea en **Borrador**, luego se **Activa** para que el MRP trate sus líneas como demanda; más tarde pasa a **Completado** o **Cancelado**. Para los programas activos o completados puedes abrir una vista **MPS vs Real** que compara las cantidades planificadas con lo que realmente se produjo, con la variación.\n\n### Pronósticos de demanda\n\nCuando no tienes pedidos firmes con suficiente antelación, generas un **Pronóstico de demanda** para una pieza a partir de su historial de ventas. Eliges un **método** de pronóstico — Media móvil, Media móvil ponderada o Suavizado exponencial — junto con cuántos períodos históricos aprender y cuántos períodos proyectar. Un pronóstico se crea en **Borrador**; lo **Apruebas** (convirtiéndolo en **Aprobado**), y luego se puede **Aplicar** a un programa maestro para que alimente el MRP como demanda. Los pronósticos caducan con el tiempo. Puedes anular intervalos individuales del pronóstico, y el recuento de anulaciones se rastrea.\n\n### Cómo se conecta el MRP con el resto de QB Engineer\n\nLas **órdenes de venta** alimentan el MRP como la fuente de demanda más directa. Las **BOM** impulsan la demanda dependiente — construir una pieza padre explota en requerimientos de sus componentes. Las **órdenes de compra** y los **trabajos** son las salidas posteriores: liberar una orden planificada crea uno de ellos. El **inventario** suministra el saldo inicial disponible para el neteo de cada pieza. Los **tiempos de entrega** de cada pieza determinan cuánto antes de la fecha de vencimiento debe comenzar una orden planificada.\n\n### Cuándo usar el MRP\n\n- Después de tomar nuevos pedidos, para ver qué necesitas comprar o construir y para cuándo\n- Antes de un ciclo de planificación, para convertir el programa maestro y los pronósticos en órdenes accionables\n- Para detectar a tiempo problemas de calendario mediante las excepciones (vencida, suministro insuficiente, acelerar)\n- Para simular el impacto de un cambio de demanda antes de comprometerte con él\n- Para convertir el plan en órdenes de compra y trabajos reales una vez que lo firmas",
+      "sections": []
+    }
+  },
+  {
+    "slug": "mrp-walkthrough",
+    "title": "MRP — Recorrido guiado",
+    "summary": "Un recorrido guiado por el espacio de trabajo de MRP: los KPI del panel, ejecutar y simular el MRP, las órdenes planificadas, las excepciones, el historial de ejecuciones, el programa maestro y los pronósticos.",
+    "contentJson": {
+      "appRoute": "/mrp",
+      "startButtonLabel": "Recorrer el MRP",
+      "steps": [
+        {
+          "element": ".tab-bar",
+          "popover": {
+            "title": "Pestañas de MRP",
+            "description": "El espacio de trabajo de MRP se organiza en seis pestañas: Panel (KPI y excepciones no resueltas), Órdenes planificadas, Excepciones, Historial de ejecuciones, Programa maestro y Pronósticos. La pestaña activa se almacena en la URL, por lo que puedes marcar o compartir cualquier vista.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".mrp__kpis",
+          "popover": {
+            "title": "KPI del panel",
+            "description": "Salud de tu plan de un vistazo: el número de la última ejecución, el recuento de órdenes Planificadas, el recuento de órdenes Firmadas y el recuento de excepciones no resueltas. El chip de excepciones se vuelve rojo cuando hay algo que atender y verde cuando estás al día.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='mrp-run-btn']",
+          "popover": {
+            "title": "Ejecutar MRP",
+            "description": "Lanza una ejecución de MRP confirmada. Un diálogo pide el tipo de ejecución (Completa replanifica todo, Cambio neto replanifica solo lo que se movió) y el horizonte de planificación en días. La ejecución neta la demanda contra el suministro para cada pieza y guarda las órdenes planificadas y excepciones resultantes.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='mrp-simulate-btn']",
+          "popover": {
+            "title": "Simular",
+            "description": "Ejecuta el cálculo idéntico pero lo marca como una simulación para que nunca altere tu plan en vivo. Usa esto para previsualizar el impacto de un cambio de demanda o suministro antes de confirmar con Ejecutar MRP.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".mrp__kpis",
+          "popover": {
+            "title": "Excepciones no resueltas",
+            "description": "El KPI de excepciones no resueltas aquí cuenta los problemas que planteó la última ejecución — Acelerar, Aplazar, Cancelar, Vencida, Suministro insuficiente, Suministro excesivo y Violación del tiempo de entrega. Cuando el recuento está por encima de cero, el panel enumera esas excepciones abajo con la pieza afectada, el mensaje y la acción sugerida, y haces clic en el icono de verificación de una fila para marcarla como resuelta una vez que has actuado sobre ella.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab-bar",
+          "popover": {
+            "title": "Órdenes planificadas y liberación",
+            "description": "Abre la pestaña Órdenes planificadas para ver cada sugerencia que generó el MRP — Compra o Fabricación, con cantidad, fecha de inicio y fecha de vencimiento. Usa el icono de candado para Firmar una orden (protegiéndola de futuras ejecuciones) y el icono de enviar para Liberarla, lo que crea una orden de compra o un trabajo real a partir de la sugerencia.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab-bar",
+          "popover": {
+            "title": "Programa maestro y pronósticos",
+            "description": "La pestaña Programa maestro te permite elaborar y activar un MPS (tu plan de construcción, independiente de las órdenes de venta) y comparar MPS vs Real. La pestaña Pronósticos genera pronósticos de demanda a partir del historial de ventas usando Media móvil, Media móvil ponderada o Suavizado exponencial, y luego los aprueba para que el MRP pueda planificar contra ellos.",
+            "side": "bottom"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "mrp-field-reference",
+    "title": "Referencia de campos de MRP",
+    "summary": "Referencia completa de los tipos y estados de ejecución de MRP, los campos y el ciclo de vida de las órdenes planificadas, los tipos de excepción, los campos del programa maestro y de los pronósticos, y cada acción.",
+    "contentJson": {
+      "title": "Referencia de campos de MRP",
+      "groups": [
+        {
+          "heading": "Tipos de ejecución",
+          "items": [
+            { "label": "Completa", "value": "Replanifica cada pieza desde cero. El valor predeterminado seguro — úsalo cuando la demanda o el suministro han cambiado ampliamente o quieres una replanificación limpia." },
+            { "label": "Cambio neto", "value": "Replanifica solo las piezas cuya demanda o suministro cambió desde la última ejecución. Más rápida que la Completa; úsala para actualizaciones incrementales." },
+            { "label": "Simulación", "value": "Una ejecución hipotética marcada como simulación. Ejecuta el mismo cálculo pero nunca altera el plan en vivo. Se lanza con el botón Simular." }
+          ]
+        },
+        {
+          "heading": "Estados de ejecución",
+          "items": [
+            { "label": "En cola (chip muted)", "value": "La ejecución se ha solicitado y está a la espera de comenzar." },
+            { "label": "En ejecución (chip info)", "value": "La ejecución está neteando activamente la demanda contra el suministro." },
+            { "label": "Completada (chip success)", "value": "La ejecución terminó. Las órdenes planificadas y las excepciones se guardan (a menos que fuera una simulación)." },
+            { "label": "Fallida (chip error)", "value": "La ejecución dio error. Se registra un mensaje de error en el registro de la ejecución." }
+          ]
+        },
+        {
+          "heading": "Campos del registro de ejecución",
+          "items": [
+            { "label": "Número de ejecución", "value": "Identificador único autogenerado de la ejecución." },
+            { "label": "Tipo", "value": "Completa, Cambio neto o Simulación." },
+            { "label": "Días del horizonte de planificación", "value": "Cuántos días hacia el futuro planificó la ejecución. Se establece en el diálogo de ejecución." },
+            { "label": "Recuento total de demanda", "value": "Número de registros de demanda considerados en todas las piezas." },
+            { "label": "Recuento total de suministro", "value": "Número de registros de suministro considerados en todas las piezas." },
+            { "label": "Recuento de órdenes planificadas", "value": "Número de órdenes planificadas que generó la ejecución." },
+            { "label": "Recuento de excepciones", "value": "Número de excepciones que planteó la ejecución." },
+            { "label": "Iniciada / Completada", "value": "Marcas de tiempo de la ejecución, con formato de fecha/hora. Haz clic en una fila de ejecución en el Historial de ejecuciones para abrir su detalle." }
+          ]
+        },
+        {
+          "heading": "Campos de la orden planificada",
+          "items": [
+            { "label": "Número de pieza / Descripción", "value": "La pieza para la que es la orden planificada." },
+            { "label": "Tipo de orden", "value": "Compra (sugiere comprar — se libera a una orden de compra) o Fabricación (sugiere construir — se libera a un trabajo)." },
+            { "label": "Estado", "value": "Planificada, Firmada, Liberada o Cancelada." },
+            { "label": "Cantidad", "value": "Cuántas unidades sugiere la orden, dimensionadas para cubrir el requerimiento neto." },
+            { "label": "Fecha de inicio", "value": "Cuándo debe comenzar la orden para cumplir la fecha de vencimiento, desplazada por el tiempo de entrega." },
+            { "label": "Fecha de vencimiento", "value": "Cuándo se requiere que la cantidad de la orden esté disponible." },
+            { "label": "Firmada", "value": "Indicador de bloqueo. Una orden firmada está protegida de futuras ejecuciones de MRP (icono de candado = firmada, candado abierto = no firmada)." }
+          ]
+        },
+        {
+          "heading": "Ciclo de vida de la orden planificada",
+          "items": [
+            { "label": "Planificada (chip info)", "value": "Recién generada por el MRP. Una ejecución futura puede cambiarla o eliminarla." },
+            { "label": "Firmada (chip warning)", "value": "La has bloqueado. Las futuras ejecuciones no la moverán ni eliminarán. Se establece con el icono de candado en una orden Planificada." },
+            { "label": "Liberada (chip success)", "value": "Convertida en un documento real — una orden de compra o un trabajo. El tipo y el ID de la entidad creada se registran. Se establece con el icono de enviar." },
+            { "label": "Cancelada (chip muted)", "value": "Ya no es necesaria; eliminada del plan activo." }
+          ]
+        },
+        {
+          "heading": "Tipos de excepción",
+          "items": [
+            { "label": "Acelerar", "value": "Una orden de suministro debe adelantarse (hacer que llegue antes) para cumplir la demanda." },
+            { "label": "Aplazar", "value": "Una orden de suministro puede posponerse (es más temprana de lo necesario)." },
+            { "label": "Cancelar", "value": "Una orden de suministro ya no es necesaria y debe cancelarse." },
+            { "label": "Vencida", "value": "Una fecha requerida ya está en el pasado." },
+            { "label": "Suministro insuficiente", "value": "No hay suficiente suministro para cubrir la demanda de esta pieza." },
+            { "label": "Suministro excesivo", "value": "Hay más en pedido del necesario para esta pieza." },
+            { "label": "Violación del tiempo de entrega", "value": "No se puede cumplir el tiempo de entrega de la pieza para la fecha requerida." }
+          ]
+        },
+        {
+          "heading": "Campos del programa maestro (MPS)",
+          "items": [
+            { "label": "Nombre / Descripción", "value": "Identifica el programa maestro." },
+            { "label": "Estado", "value": "Borrador (editable, aún no planifica), Activo (líneas tratadas como demanda por el MRP), Completado o Cancelado." },
+            { "label": "Inicio / Fin del período", "value": "La ventana que cubre el programa." },
+            { "label": "Líneas", "value": "Cada línea es una pieza + cantidad + fecha de vencimiento (+ notas opcionales). El recuento de líneas se muestra en la lista." },
+            { "label": "MPS vs Real", "value": "Para los programas Activos o Completados, compara la cantidad planificada con la cantidad real producida, con la variación y el porcentaje de variación. Se abre con el icono de gráfico de barras." }
+          ]
+        },
+        {
+          "heading": "Campos del pronóstico de demanda",
+          "items": [
+            { "label": "Nombre", "value": "Identifica el pronóstico." },
+            { "label": "Pieza", "value": "La pieza que se pronostica." },
+            { "label": "Método", "value": "Media móvil, Media móvil ponderada o Suavizado exponencial." },
+            { "label": "Estado", "value": "Borrador, Aprobado, Aplicado (alimentado a un programa maestro) o Caducado." },
+            { "label": "Períodos históricos", "value": "Cuántos períodos pasados aprende el método." },
+            { "label": "Períodos de pronóstico", "value": "Cuántos períodos futuros se proyectan." },
+            { "label": "Factor de suavizado", "value": "Usado por el Suavizado exponencial; pondera los datos recientes frente a los más antiguos." },
+            { "label": "Recuento de anulaciones", "value": "Cuántos intervalos individuales del pronóstico anulaste manualmente." }
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            { "label": "Ejecutar MRP (panel / historial de ejecuciones)", "value": "Abre el diálogo de ejecución y luego confirma una ejecución. data-testid: mrp-run-btn" },
+            { "label": "Simular (panel / historial de ejecuciones)", "value": "Abre el diálogo de ejecución en modo simulación — ejecuta sin alterar el plan en vivo. data-testid: mrp-simulate-btn" },
+            { "label": "Firmar (órdenes planificadas)", "value": "Icono de candado. Firma una orden Planificada para que las futuras ejecuciones no la cambien." },
+            { "label": "Liberar (órdenes planificadas)", "value": "Icono de enviar. Convierte una orden Planificada o Firmada en una orden de compra (Compra) o un trabajo (Fabricación). Disponible para órdenes Planificadas y Firmadas." },
+            { "label": "Resolver (excepciones)", "value": "Icono de verificación/hecho. Marca una excepción no resuelta como resuelta después de que hayas actuado sobre ella." },
+            { "label": "Nuevo programa maestro", "value": "Abre el diálogo de creación de un programa maestro. data-testid: mrp-schedule-new-btn" },
+            { "label": "Activar programa", "value": "Icono de reproducción. Mueve un programa maestro en Borrador a Activo para que el MRP planifique contra sus líneas." },
+            { "label": "MPS vs Real", "value": "Icono de gráfico de barras. Abre la vista de variación planificado-vs-real para los programas Activos/Completados." },
+            { "label": "Nuevo pronóstico", "value": "Abre el diálogo de generación de pronóstico. data-testid: mrp-forecast-new-btn" },
+            { "label": "Aprobar pronóstico", "value": "Icono de verificación. Mueve un pronóstico en Borrador a Aprobado para que pueda aplicarse." }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "mrp-quiz",
+    "title": "Evaluación de conocimientos de MRP",
+    "summary": "Pon a prueba tus conocimientos de MRP: neteo de demanda/suministro, tipos de ejecución, ciclo de vida de las órdenes planificadas, excepciones, el programa maestro y los pronósticos de demanda.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "mr1",
+          "text": "¿Qué hace fundamentalmente una ejecución de MRP para cada pieza?",
+          "options": [
+            { "id": "a", "text": "Elimina todas las órdenes de compra abiertas y las reconstruye" },
+            { "id": "b", "text": "Neta toda la demanda contra todo el suministro y genera órdenes planificadas para cubrir cualquier déficit, programadas según el tiempo de entrega", "isCorrect": true },
+            { "id": "c", "text": "Solo cuenta el inventario disponible actual e informa del total" },
+            { "id": "d", "text": "Envía automáticamente los productos terminados a los clientes" }
+          ],
+          "explanation": "El MRP recopila la demanda (órdenes de venta, programa maestro, pronósticos, demanda dependiente) y el suministro (disponible, OC, órdenes planificadas, ejecuciones de producción, en tránsito), los neta pieza por pieza a lo largo del tiempo y crea órdenes planificadas dimensionadas y fechadas para cubrir lo que el saldo proyectado no puede cumplir."
+        },
+        {
+          "id": "mr2",
+          "text": "Quieres previsualizar el efecto de un cambio de demanda sin tocar tu plan en vivo. ¿Qué usas?",
+          "options": [
+            { "id": "a", "text": "Ejecutar MRP con el tipo de ejecución Completa" },
+            { "id": "b", "text": "El botón Simular, que ejecuta el mismo cálculo pero lo marca como una simulación y nunca altera el plan en vivo", "isCorrect": true },
+            { "id": "c", "text": "El tipo de ejecución Cambio neto, que es de solo lectura" },
+            { "id": "d", "text": "Primero debes exportar el plan a una hoja de cálculo" }
+          ],
+          "explanation": "Simular ejecuta el cálculo de neteo idéntico pero marca la ejecución como una simulación, por lo que las órdenes planificadas y el plan en vivo quedan intactos. Es la vía hipotética. Ejecutar MRP (Completa o Cambio neto) confirma el resultado."
+        },
+        {
+          "id": "mr3",
+          "text": "¿Cuál es la diferencia entre una ejecución Completa y una ejecución de Cambio neto?",
+          "options": [
+            { "id": "a", "text": "Completa planifica solo piezas compradas; Cambio neto planifica solo piezas fabricadas" },
+            { "id": "b", "text": "Completa replanifica cada pieza desde cero; Cambio neto replanifica solo las piezas cuya demanda o suministro cambió desde la última ejecución", "isCorrect": true },
+            { "id": "c", "text": "Completa es una simulación; Cambio neto confirma" },
+            { "id": "d", "text": "No hay diferencia — son alias" }
+          ],
+          "explanation": "Completa replanifica todas las piezas (el valor predeterminado seguro). Cambio neto es la opción incremental más rápida que solo replanifica las piezas que realmente cambiaron desde la ejecución anterior."
+        },
+        {
+          "id": "mr4",
+          "text": "Firmas una orden planificada. ¿Qué ocurre en la siguiente ejecución de MRP?",
+          "options": [
+            { "id": "a", "text": "La orden firmada se elimina y se regenera" },
+            { "id": "b", "text": "La orden firmada está protegida — las futuras ejecuciones no la moverán ni eliminarán", "isCorrect": true },
+            { "id": "c", "text": "La orden firmada se libera automáticamente a una orden de compra" },
+            { "id": "d", "text": "Firmar no tiene efecto en las ejecuciones de MRP" }
+          ],
+          "explanation": "Firmar bloquea una orden planificada. Es la forma de decirle al MRP 'me he comprometido con este calendario' para que las ejecuciones posteriores no la desplacen ni la eliminen aunque la demanda cambie."
+        },
+        {
+          "id": "mr5",
+          "text": "¿Qué hace liberar una orden planificada y qué se crea?",
+          "options": [
+            { "id": "a", "text": "Siempre crea una factura" },
+            { "id": "b", "text": "Convierte la sugerencia en un documento real — una orden de compra para una orden de Compra, o un trabajo para una orden de Fabricación", "isCorrect": true },
+            { "id": "c", "text": "Solo cambia el estado de la orden sin ningún registro posterior" },
+            { "id": "d", "text": "Crea un envío" }
+          ],
+          "explanation": "Liberar convierte la sugerencia de orden planificada en un documento real: las órdenes planificadas de tipo Compra crean una orden de compra, las de tipo Fabricación crean un trabajo. El tipo y el ID de la entidad creada se registran en la orden."
+        },
+        {
+          "id": "mr6",
+          "text": "El MRP plantea una excepción de 'Suministro insuficiente' en una pieza. ¿Qué significa?",
+          "options": [
+            { "id": "a", "text": "Hay más en pedido del necesario" },
+            { "id": "b", "text": "No hay suficiente suministro para cubrir la demanda de esa pieza", "isCorrect": true },
+            { "id": "c", "text": "Una orden de suministro debe aplazarse a una fecha posterior" },
+            { "id": "d", "text": "El tiempo de entrega de la pieza se cumplió con éxito" }
+          ],
+          "explanation": "Suministro insuficiente significa que el neteo encontró suministro insuficiente para cumplir la demanda. (Suministro excesivo es lo contrario; Aplazar significa posponer un suministro; Violación del tiempo de entrega significa que no se puede cumplir el tiempo de entrega.) Actúas sobre la excepción y luego la marcas como resuelta."
+        },
+        {
+          "id": "mr7",
+          "text": "¿Qué es el Programa Maestro de Producción (MPS) y cómo afecta al MRP?",
+          "options": [
+            { "id": "a", "text": "Un informe de solo lectura de los trabajos completados" },
+            { "id": "b", "text": "Un plan de construcción elaborado manualmente (líneas de pieza + cantidad + fecha de vencimiento) que, una vez Activado, es tratado como demanda por el MRP", "isCorrect": true },
+            { "id": "c", "text": "La lista de todas las órdenes de compra a la espera de recepción" },
+            { "id": "d", "text": "Una copia de seguridad de la última ejecución de MRP" }
+          ],
+          "explanation": "El MPS es tu plan de construcción previsto, independiente de las órdenes de venta confirmadas. Se crea en Borrador, luego se Activa para que el MRP trate sus líneas como demanda. Más tarde puedes comparar MPS vs Real para ver la variación entre lo planificado y lo producido."
+        },
+        {
+          "id": "mr8",
+          "text": "Generas un pronóstico de demanda para una pieza. ¿Qué métodos están disponibles y cuál es el flujo de estados?",
+          "options": [
+            { "id": "a", "text": "Solo Regresión lineal; el estado pasa de Abierto a Cerrado" },
+            { "id": "b", "text": "Media móvil, Media móvil ponderada o Suavizado exponencial; creado en Borrador, luego Aprobado, luego opcionalmente Aplicado a un programa maestro (y los pronósticos Caducan)", "isCorrect": true },
+            { "id": "c", "text": "Cualquier método que escribas; no hay estado" },
+            { "id": "d", "text": "Los pronósticos se generan automáticamente y no se pueden aprobar" }
+          ],
+          "explanation": "Los pronósticos usan Media móvil, Media móvil ponderada o Suavizado exponencial sobre un número elegido de períodos históricos. Un pronóstico empieza en Borrador, se Aprueba y se puede Aplicar a un programa maestro para que el MRP planifique contra él. Los pronósticos caducan con el tiempo y los intervalos individuales se pueden anular."
+        },
+        {
+          "id": "mr9",
+          "text": "¿De dónde provienen los KPI del panel y qué indica el KPI de excepciones?",
+          "options": [
+            { "id": "a", "text": "Son marcadores estáticos que nunca cambian" },
+            { "id": "b", "text": "Reflejan el número de la última ejecución, el recuento de órdenes Planificadas, el recuento de órdenes Firmadas y el recuento de excepciones no resueltas — el chip de excepciones se vuelve rojo cuando hay algo que atender, verde cuando está despejado", "isCorrect": true },
+            { "id": "c", "text": "Solo se muestran en las ejecuciones de simulación" },
+            { "id": "d", "text": "Cuentan el total de clientes y proveedores" }
+          ],
+          "explanation": "Los KPI del panel resumen la salud del plan: última ejecución, órdenes Planificadas, órdenes Firmadas y excepciones no resueltas. El chip de excepciones no resueltas está codificado por color — rojo cuando es mayor que cero (acción necesaria), verde cuando es cero."
+        },
+        {
+          "id": "mr10",
+          "text": "La fecha de inicio de una orden planificada es anterior a su fecha de vencimiento. ¿Por qué?",
+          "options": [
+            { "id": "a", "text": "Es un error de introducción de datos" },
+            { "id": "b", "text": "La fecha de inicio se desplaza hacia atrás desde la fecha de vencimiento según el tiempo de entrega de la pieza, para que la orden pueda completarse a tiempo", "isCorrect": true },
+            { "id": "c", "text": "La fecha de inicio siempre es hoy, independientemente de la fecha de vencimiento" },
+            { "id": "d", "text": "Las fechas de inicio y vencimiento no están relacionadas y se eligen al azar" }
+          ],
+          "explanation": "El MRP escalona en el tiempo cada orden planificada: la fecha de vencimiento es cuándo se necesita la cantidad, y la fecha de inicio es esa fecha de vencimiento menos el tiempo de entrega de la pieza, de modo que la producción o el aprovisionamiento comience con suficiente antelación para terminar a tiempo."
+        },
+        {
+          "id": "mr11",
+          "text": "Después de actuar sobre una excepción (p. ej., aceleraste la orden de suministro), ¿qué deberías hacer en el MRP?",
+          "options": [
+            { "id": "a", "text": "Eliminar toda la ejecución de MRP" },
+            { "id": "b", "text": "Hacer clic en la acción de resolver (verificación) en la excepción para marcarla como resuelta y eliminarla de la lista de no resueltas", "isCorrect": true },
+            { "id": "c", "text": "Nada — las excepciones se despejan solas de inmediato" },
+            { "id": "d", "text": "Volver a ejecutar el MRP como una simulación para eliminarla" }
+          ],
+          "explanation": "Las excepciones son una lista de tareas. Una vez que has tomado la acción sugerida, marcas la excepción como resuelta (el icono de verificación/hecho), lo que la elimina del recuento de no resueltas del panel y del filtro de no resueltas."
+        },
+        {
+          "id": "mr12",
+          "text": "¿Cuál de estas NO es una fuente de demanda o suministro que el MRP considera?",
+          "options": [
+            { "id": "a", "text": "Órdenes de venta y demanda dependiente de las BOM (demanda)" },
+            { "id": "b", "text": "Inventario disponible y órdenes de compra abiertas (suministro)" },
+            { "id": "c", "text": "Límites de crédito de clientes y condiciones de pago", "isCorrect": true },
+            { "id": "d", "text": "Entradas del programa maestro y pronósticos aprobados (demanda)" }
+          ],
+          "explanation": "El MRP neta la demanda (órdenes de venta, programa maestro, pronósticos, demanda manual, demanda dependiente) contra el suministro (disponible, órdenes de compra, órdenes planificadas, ejecuciones de producción, en tránsito). Los límites de crédito de clientes y las condiciones de pago son asuntos contables/de ventas y no intervienen en el neteo de materiales."
+        }
+      ]
+    }
+  }
+]

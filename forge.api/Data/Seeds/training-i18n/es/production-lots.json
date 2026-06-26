@@ -1,0 +1,229 @@
+[
+  {
+    "slug": "production-lots-overview",
+    "title": "Visión general de Lotes de producción",
+    "summary": "Qué son los lotes de producción, por qué importa la trazabilidad y cómo los lotes se conectan con piezas, trabajos, órdenes de compra e inspecciones de QC.",
+    "contentJson": {
+      "body": "## Visión general de Lotes de producción\n\nUn lote de producción es un conjunto rastreado de piezas que comparten las mismas condiciones de fabricación, el mismo origen de material o el mismo evento de recepción. El seguimiento de lotes le da la capacidad de rastrear cada unidad hasta su origen: qué trabajo la produjo, qué orden de compra suministró la materia prima, de qué corrida de producción provino y qué inspecciones de QC superó.\n\n### Por qué importa el seguimiento de lotes\n\nLa trazabilidad de lotes es esencial para:\n- **Retiros del mercado (recalls)** — Si se descubre un defecto en un lote de piezas, necesita saber exactamente qué clientes recibieron unidades de ese lote, qué trabajos las usaron y dónde se almacena el stock restante.\n- **Cumplimiento FDA/médico** — Las industrias reguladas (dispositivos médicos, aeroespacial, contacto con alimentos) exigen trazabilidad completa de lotes desde la recepción de la materia prima hasta el envío final. El sistema de lotes de QB Engineer satisface los requisitos de trazabilidad de 21 CFR Part 820 e ISO 13485.\n- **Responsabilidad del proveedor** — Cuando el material entrante es defectuoso, el número de lote del proveedor vincula el problema con el lote del proveedor, lo que respalda las reclamaciones de devolución al proveedor.\n- **Investigaciones de calidad** — Las fallas de QC pueden correlacionarse con lotes específicos, revelando patrones como un lote de material defectuoso o una máquina que se salió de tolerancia durante una corrida en particular.\n\n### Qué contiene un registro de lote\n\nCada registro de lote captura:\n- **Número de lote** — Un identificador único, ya sea asignado manualmente o generado automáticamente (formato: `LOT-YYYYMMDD-NNN`, p. ej., `LOT-20260415-001`).\n- **Pieza** — La pieza con la que está asociado este lote. Cada lote debe referenciar exactamente una pieza.\n- **Cantidad** — Cuántas unidades hay en este lote.\n- **Trabajo** (opcional) — El trabajo de producción que creó estas piezas.\n- **Corrida de producción** (opcional) — La corrida de producción específica dentro de un trabajo.\n- **Línea de orden de compra** (opcional) — Si el lote se recibió de un proveedor, la línea de OC que lo originó.\n- **Número de lote del proveedor** (opcional) — El número de lote/batch propio del proveedor para el material entrante.\n- **Fecha de vencimiento** (opcional) — Para materiales con vida útil (adhesivos, productos químicos, componentes perecederos).\n- **Notas** (opcional) — Notas de formato libre sobre el lote (condiciones de almacenamiento, desviaciones, manejo especial).\n\n### Cómo se conectan los lotes con otras funciones\n\n**Piezas:** Cada lote está ligado a un número de pieza específico. Puede consultar todos los lotes de una pieza dada para ver su historial completo de producción y recepción.\n\n**Trabajos:** Cuando un trabajo produce piezas, un registro de lote vincula la salida de vuelta al trabajo. Esto responde a la pregunta: '¿Qué trabajo fabricó estas unidades específicas?'\n\n**Órdenes de compra:** Cuando llega material de un proveedor, un registro de lote liga la cantidad recibida a la línea de OC. El número de lote del proveedor conserva el identificador de lote propio del proveedor.\n\n**Corridas de producción:** Los lotes pueden vincularse a corridas de producción específicas, lo que proporciona una granularidad más fina que el seguimiento a nivel de trabajo.\n\n**Inspecciones de QC:** Las inspecciones de calidad referencian números de lote. La consulta de trazabilidad muestra todas las inspecciones realizadas sobre un lote dado.\n\n**Inventario (ubicaciones de contenedores):** El contenido de los contenedores puede rastrearse por número de lote, de modo que usted sabe exactamente qué lote está almacenado en qué contenedor.\n\n### Cuándo crear lotes\n\n- Al recibir material de un proveedor (vincular a la línea de OC + número de lote del proveedor)\n- Cuando una corrida de producción completa un lote de piezas (vincular al trabajo + corrida de producción)\n- Al dividir o combinar lotes para la gestión del inventario\n- Cuando los procesos regulados requieren documentación a nivel de lote",
+      "sections": []
+    }
+  },
+  {
+    "slug": "production-lots-walkthrough",
+    "title": "Lotes de producción — Flujo de seguimiento",
+    "summary": "Un recorrido conceptual del flujo de seguimiento de lotes: crear lotes, consultar trazabilidad y gestionar retiros del mercado.",
+    "contentJson": {
+      "body": "## Lotes de producción — Flujo de seguimiento\n\nLos lotes de producción se gestionan a través de la API y están integrados en el módulo de Calidad. Este recorrido cubre los tres flujos de trabajo principales: crear lotes, consultar trazabilidad y gestionar un escenario de retiro del mercado.\n\n### Flujo 1: Crear un lote al recibir material\n\nCuando llega materia prima de un proveedor:\n\n1. **Reciba el envío** contra la orden de compra en el módulo de Inventario.\n2. **Se crea un registro de lote** que vincula la cantidad recibida a la línea de OC. El número de lote se genera automáticamente (p. ej., `LOT-20260415-001`) o usted puede asignar un número de lote personalizado.\n3. **Registre el número de lote del proveedor** — este es el identificador de lote propio del proveedor impreso en su albarán o certificado de análisis.\n4. **Establezca una fecha de vencimiento** si el material tiene vida útil (adhesivos, productos químicos, compuestos de caucho).\n5. El lote ahora es rastreable: puede buscar este número de lote y ver qué proveedor lo suministró, en qué OC y cuándo se recibió.\n\n### Flujo 2: Crear un lote durante la producción\n\nCuando su taller produce piezas:\n\n1. **Una corrida de producción completa** un lote de piezas en un trabajo.\n2. **Se crea un registro de lote** que vincula la salida al trabajo y a la corrida de producción. La cantidad refleja cuántas piezas buenas salieron de la corrida.\n3. **Se realiza una inspección de QC** sobre una muestra del lote. La inspección referencia el número de lote.\n4. **Las piezas se almacenan** en ubicaciones de contenedores etiquetadas con el número de lote, de modo que el inventario sabe exactamente qué lote está en qué contenedor.\n\n### Flujo 3: Consulta de trazabilidad\n\nLa consulta de trazabilidad es el núcleo del sistema de lotes. Dado un número de lote, devuelve el historial completo:\n\n- **Información de la pieza** — qué número de pieza y descripción representa este lote\n- **Trabajos** — todos los trabajos que produjeron o consumieron piezas de este lote\n- **Corridas de producción** — corridas de producción específicas vinculadas al lote\n- **Órdenes de compra** — la OC y el proveedor que suministraron la materia prima (con el nombre del proveedor)\n- **Ubicaciones de contenedores** — ubicaciones de inventario actuales y cantidades para este lote\n- **Inspecciones de QC** — todas las inspecciones de calidad realizadas sobre este lote, con nombre del inspector, estado y fecha\n\nEsta única consulta le da la cadena completa desde la recepción de la materia prima hasta la producción, inspección, almacenamiento y envío.\n\n### Flujo 4: Gestionar un retiro del mercado\n\nCuando se descubre un defecto en piezas ya enviadas:\n\n1. **Identifique el número de lote** a partir de la etiqueta de la pieza defectuosa, el registro de envío o la queja del cliente.\n2. **Ejecute una consulta de trazabilidad** sobre ese número de lote para ver el historial completo.\n3. **Verifique las ubicaciones de contenedores** — ¿quedan unidades de este lote todavía en el inventario? Si es así, póngalas en cuarentena.\n4. **Revise las inspecciones de QC** — ¿la inspección detectó alguna anomalía? ¿Se cumplieron los criterios de aceptación?\n5. **Rastree al proveedor** — si la causa raíz es la materia prima, el número de lote del proveedor identifica el lote del proveedor. Contacte al proveedor con esta información.\n6. **Identifique a los clientes afectados** — cruce los trabajos del lote con los registros de envío para encontrar qué clientes recibieron piezas de este lote.\n7. **Documente la investigación** — agregue notas al registro del lote y a las inspecciones de QC relacionadas.\n\n### Formato del número de lote\n\nLos números de lote generados automáticamente siguen el patrón `LOT-YYYYMMDD-NNN`:\n- `LOT` — prefijo fijo\n- `YYYYMMDD` — fecha en que se creó el lote\n- `NNN` — contador secuencial para ese día (001, 002, 003...)\n\nEjemplo: `LOT-20260415-003` es el tercer lote creado el 15 de abril de 2026.\n\nTambién se admiten números de lote personalizados — simplemente proporcione su propio número de lote al crear el registro. Esto es útil al adoptar el esquema de numeración de lotes de un cliente o de una industria.\n\n### Mejores prácticas\n\n- **Registre siempre los números de lote del proveedor** al recibir material. Este es su vínculo de vuelta con el proveedor si un problema de material aparece meses después.\n- **Cree lotes con la granularidad más fina que sea práctica.** Un lote por corrida de producción es lo ideal. Un lote por trabajo completo es aceptable para piezas de bajo riesgo.\n- **Establezca fechas de vencimiento** en cualquier material con vida útil. Los lotes vencidos no deben usarse en producción.\n- **Vincule los lotes a las inspecciones de QC.** Incluso si su proceso no requiere un seguimiento formal de lotes, vincular las inspecciones a los lotes hace que las investigaciones sean mucho más rápidas.\n- **Use la consulta de trazabilidad con regularidad** — no espere a un retiro del mercado. Las auditorías periódicas de trazabilidad detectan brechas antes de que importen.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "production-lots-field-reference",
+    "title": "Referencia de campos de Lotes de producción",
+    "summary": "Referencia completa de los campos del registro de lote, endpoints de la API, parámetros de la consulta de trazabilidad y reglas de validación.",
+    "contentJson": {
+      "title": "Referencia de campos de Lotes de producción",
+      "groups": [
+        {
+          "heading": "Campos del registro de lote",
+          "items": [
+            { "label": "Número de lote", "value": "Cadena, máx. 100 caracteres. Se genera automáticamente si no se proporciona (formato: LOT-YYYYMMDD-NNN, p. ej., LOT-20260415-001). Puede asignarse manualmente para esquemas de numeración personalizados." },
+            { "label": "ID de pieza (requerido)", "value": "Entero, debe ser mayor que 0. Referencia la pieza con la que está asociado este lote. Cada lote debe estar ligado a exactamente una pieza." },
+            { "label": "Cantidad (requerido)", "value": "Entero, debe ser mayor que 0. El número de unidades en este lote." },
+            { "label": "ID de trabajo (opcional)", "value": "Entero. Referencia el trabajo de producción que creó este lote. Nulo para lotes creados a partir de recepciones de proveedor sin un trabajo." },
+            { "label": "ID de corrida de producción (opcional)", "value": "Entero. Referencia la corrida de producción específica dentro de un trabajo. Proporciona una granularidad más fina que el seguimiento a nivel de trabajo." },
+            { "label": "ID de línea de orden de compra (opcional)", "value": "Entero. Referencia la línea de OC que originó este lote. Se usa cuando el lote se crea a partir de la recepción de material de un proveedor." },
+            { "label": "Número de lote del proveedor (opcional)", "value": "Cadena, máx. 100 caracteres. El identificador de lote/batch propio del proveedor. Crítico para la responsabilidad del proveedor y las investigaciones de retiro del mercado." },
+            { "label": "Fecha de vencimiento (opcional)", "value": "DateTimeOffset (UTC). Para materiales con vida útil. Formato: ISO 8601. Nulo para materiales no perecederos." },
+            { "label": "Notas (opcional)", "value": "Cadena, máx. 2000 caracteres. Notas de formato libre: condiciones de almacenamiento, desviaciones, instrucciones de manejo especial." },
+            { "label": "Created At", "value": "DateTimeOffset (UTC). Se establece automáticamente cuando se crea el registro de lote. Se usa para el ordenamiento cronológico." },
+            { "label": "Created By", "value": "Cadena (ID de usuario). Se establece automáticamente a partir del usuario autenticado. Pista de auditoría de quién creó el lote." }
+          ]
+        },
+        {
+          "heading": "Endpoints de la API",
+          "items": [
+            { "label": "GET /api/v1/lots", "value": "Lista los registros de lote. Parámetros de consulta: partId (int, opcional), jobId (int, opcional), search (cadena, opcional). La búsqueda coincide con el número de lote, el número de lote del proveedor y el número de pieza. Devuelve una lista ordenada por CreatedAt descendente." },
+            { "label": "POST /api/v1/lots", "value": "Crea un nuevo registro de lote. Cuerpo de la solicitud: { partId (requerido), quantity (requerido), lotNumber (opcional), jobId (opcional), productionRunId (opcional), purchaseOrderLineId (opcional), supplierLotNumber (opcional), expirationDate (opcional), notes (opcional) }. Devuelve 201 con encabezado Location. Genera automáticamente el número de lote si no se proporciona." },
+            { "label": "GET /api/v1/lots/{lotNumber}/trace", "value": "Consulta de trazabilidad. Devuelve la cadena completa para un número de lote: información de la pieza, trabajos vinculados, corridas de producción, órdenes de compra (con nombre del proveedor), ubicaciones de contenedores (con cantidades) e inspecciones de QC (con inspector, estado, fecha). Devuelve 404 si no se encuentra el número de lote." }
+          ]
+        },
+        {
+          "heading": "Respuesta de la consulta de trazabilidad",
+          "items": [
+            { "label": "lotNumber", "value": "El número de lote consultado." },
+            { "label": "partNumber, partDescription", "value": "La pieza con la que está asociado este lote." },
+            { "label": "jobs[]", "value": "Arreglo de { id, jobNumber, title }. Todos los trabajos vinculados a registros con este número de lote." },
+            { "label": "productionRuns[]", "value": "Arreglo de { id, runNumber, status }. Todas las corridas de producción vinculadas a este lote." },
+            { "label": "purchaseOrders[]", "value": "Arreglo de { id, poNumber, vendorName }. Órdenes de compra que originaron el material de este lote." },
+            { "label": "binLocations[]", "value": "Arreglo de { locationId, locationName, quantity }. Ubicaciones de inventario actuales que contienen este lote." },
+            { "label": "inspections[]", "value": "Arreglo de { id, status, inspectorName, createdAt }. Inspecciones de QC realizadas sobre este lote." }
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            { "label": "ID de pieza", "value": "Requerido. Debe ser mayor que 0. Debe referenciar una pieza existente." },
+            { "label": "Cantidad", "value": "Requerido. Debe ser mayor que 0." },
+            { "label": "Número de lote", "value": "Opcional. Máx. 100 caracteres. Si se omite, se genera automáticamente como LOT-YYYYMMDD-NNN." },
+            { "label": "Número de lote del proveedor", "value": "Opcional. Máx. 100 caracteres." },
+            { "label": "Notas", "value": "Opcional. Máx. 2000 caracteres." },
+            { "label": "Fecha de vencimiento", "value": "Opcional. Debe ser una fecha ISO 8601 válida si se proporciona." }
+          ]
+        },
+        {
+          "heading": "Autorización",
+          "items": [
+            { "label": "Roles requeridos", "value": "Admin, Manager, Engineer o Production Worker. Los tres endpoints comparten el mismo requisito de rol." },
+            { "label": "Eliminaciones suaves", "value": "Los registros de lote usan eliminación suave (marca de tiempo DeletedAt). Los lotes eliminados se excluyen de las consultas mediante el filtro de consulta global." }
+          ]
+        },
+        {
+          "heading": "Formato del número de lote autogenerado",
+          "items": [
+            { "label": "Patrón", "value": "LOT-YYYYMMDD-NNN" },
+            { "label": "Prefijo", "value": "LOT- (fijo)" },
+            { "label": "Segmento de fecha", "value": "YYYYMMDD — la fecha UTC en que se crea el lote (p. ej., 20260415)" },
+            { "label": "Secuencia", "value": "NNN — contador de 3 dígitos rellenado con ceros, incrementado por día (001, 002, ... 999)" },
+            { "label": "Ejemplo", "value": "LOT-20260415-003 = tercer lote creado el 15 de abril de 2026" },
+            { "label": "Anulación personalizada", "value": "Proporcione su propio lotNumber en el cuerpo del POST para omitir la generación automática. Útil para numeración exigida por el cliente o específica de la industria." }
+          ]
+        },
+        {
+          "heading": "Entidades relacionadas",
+          "items": [
+            { "label": "Part", "value": "FK requerida. La pieza que rastrea este lote. Navegación: Part.PartNumber, Part.Description." },
+            { "label": "Job", "value": "FK opcional. El trabajo de producción que creó o consumió este lote. Navegación: Job.JobNumber, Job.Title." },
+            { "label": "ProductionRun", "value": "FK opcional. La corrida de producción específica. Navegación: ProductionRun.RunNumber, ProductionRun.Status." },
+            { "label": "PurchaseOrderLine", "value": "FK opcional. La línea de OC para el material recibido. Navegación: PurchaseOrderLine.PurchaseOrder.PONumber, PurchaseOrder.Vendor.CompanyName." },
+            { "label": "BinContent", "value": "El contenido de los contenedores de inventario puede referenciar números de lote. Coincide por EntityType='part', EntityId=PartId, LotNumber." },
+            { "label": "QcInspection", "value": "Las inspecciones de calidad referencian números de lote a través del campo LotNumber. Coincide directamente por la cadena del número de lote." }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "production-lots-quiz",
+    "title": "Evaluación de conocimientos de Lotes de producción",
+    "summary": "Ponga a prueba sus conocimientos sobre lotes de producción: trazabilidad, números de lote, uso de la API, cumplimiento FDA/médico y flujos de retiro del mercado.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "pl1",
+          "text": "¿Cuál es el propósito principal del seguimiento de lotes de producción en QB Engineer?",
+          "options": [
+            { "id": "a", "text": "Contar cuántas piezas hay en el inventario en un momento dado" },
+            { "id": "b", "text": "Rastrear lotes de piezas hasta su origen para la capacidad de retiro del mercado, investigaciones de calidad y cumplimiento normativo", "isCorrect": true },
+            { "id": "c", "text": "Programar las corridas de producción en el piso de planta" },
+            { "id": "d", "text": "Calcular el costo de los bienes vendidos para cada pieza" }
+          ],
+          "explanation": "El seguimiento de lotes proporciona trazabilidad completa desde la recepción de la materia prima hasta la producción, inspección y envío. Esto es esencial para retiros del mercado, cumplimiento FDA/médico, responsabilidad del proveedor e investigaciones de calidad."
+        },
+        {
+          "id": "pl2",
+          "text": "Un registro de lote siempre debe estar vinculado a ¿cuál de los siguientes?",
+          "options": [
+            { "id": "a", "text": "Un trabajo y una corrida de producción" },
+            { "id": "b", "text": "Una línea de orden de compra y un número de lote del proveedor" },
+            { "id": "c", "text": "Una pieza — cada lote debe referenciar exactamente una pieza", "isCorrect": true },
+            { "id": "d", "text": "Una inspección de QC y una ubicación de contenedor" }
+          ],
+          "explanation": "El ID de pieza es la única relación requerida. Cada lote debe estar ligado a exactamente una pieza. El trabajo, la corrida de producción, la línea de orden de compra y el número de lote del proveedor son todos opcionales y dependen de cómo se creó el lote."
+        },
+        {
+          "id": "pl3",
+          "text": "¿Qué formato usa QB Engineer para los números de lote autogenerados?",
+          "options": [
+            { "id": "a", "text": "BATCH-{partNumber}-{sequence}" },
+            { "id": "b", "text": "LOT-YYYYMMDD-NNN (p. ej., LOT-20260415-001)", "isCorrect": true },
+            { "id": "c", "text": "LR-{year}-{globalSequence}" },
+            { "id": "d", "text": "{partNumber}-{date}-{random}" }
+          ],
+          "explanation": "Los números de lote autogenerados siguen LOT-YYYYMMDD-NNN: un prefijo fijo 'LOT-', la fecha de creación UTC y un número secuencial diario rellenado con ceros. Pueden proporcionarse números de lote personalizados para anular este formato."
+        },
+        {
+          "id": "pl4",
+          "text": "Recibe materia prima de un proveedor. ¿Qué campos debe rellenar en el registro de lote?",
+          "options": [
+            { "id": "a", "text": "ID de pieza, cantidad, ID de línea de orden de compra y número de lote del proveedor", "isCorrect": true },
+            { "id": "b", "text": "ID de pieza, cantidad, ID de trabajo e ID de corrida de producción" },
+            { "id": "c", "text": "ID de pieza, cantidad y fecha de vencimiento únicamente" },
+            { "id": "d", "text": "Solo el número de lote y la cantidad — el sistema rellena el resto" }
+          ],
+          "explanation": "Para material recibido de un proveedor, vincule el lote a la línea de OC (ID de línea de orden de compra) y registre el identificador de lote propio del proveedor (número de lote del proveedor). El trabajo y la corrida de producción son para lotes producidos internamente."
+        },
+        {
+          "id": "pl5",
+          "text": "Un cliente reporta un defecto en piezas que recibió. ¿Cuál es el primer paso en el flujo de retiro del mercado?",
+          "options": [
+            { "id": "a", "text": "Detener todas las líneas de producción de inmediato" },
+            { "id": "b", "text": "Identificar el número de lote a partir de la etiqueta de la pieza, el registro de envío o la queja del cliente, y luego ejecutar una consulta de trazabilidad", "isCorrect": true },
+            { "id": "c", "text": "Contactar al proveedor y solicitar un envío de reemplazo" },
+            { "id": "d", "text": "Eliminar el registro de lote para evitar más envíos" }
+          ],
+          "explanation": "El primer paso es identificar el número de lote y ejecutar una consulta de trazabilidad. Esto revela la cadena completa: qué trabajos lo produjeron, dónde se almacena el stock restante, qué inspecciones de QC se realizaron y qué material del proveedor se usó."
+        },
+        {
+          "id": "pl6",
+          "text": "¿Qué información devuelve la consulta de trazabilidad (GET /api/v1/lots/{lotNumber}/trace)?",
+          "options": [
+            { "id": "a", "text": "Solo los campos del registro de lote y el número de pieza asociado" },
+            { "id": "b", "text": "La información de la pieza, los trabajos vinculados, las corridas de producción, las órdenes de compra con nombres de proveedor, las ubicaciones de contenedores con cantidades y las inspecciones de QC con detalles del inspector", "isCorrect": true },
+            { "id": "c", "text": "Una lista de todos los clientes que recibieron piezas de este lote" },
+            { "id": "d", "text": "El desglose del costo financiero de producir este lote" }
+          ],
+          "explanation": "La consulta de trazabilidad devuelve la cadena completa: información de la pieza, todos los trabajos vinculados, corridas de producción, órdenes de compra (con nombre del proveedor), ubicaciones de contenedores actuales (con cantidades) e inspecciones de QC (con nombre del inspector, estado y fecha)."
+        },
+        {
+          "id": "pl7",
+          "text": "¿Cuándo debe establecer una fecha de vencimiento en un registro de lote?",
+          "options": [
+            { "id": "a", "text": "Siempre — cada lote debe tener una fecha de vencimiento por cumplimiento" },
+            { "id": "b", "text": "Cuando el material tiene vida útil, como adhesivos, productos químicos o compuestos de caucho", "isCorrect": true },
+            { "id": "c", "text": "Solo para lotes recibidos de proveedores, nunca para lotes producidos internamente" },
+            { "id": "d", "text": "Solo cuando el cliente solicita específicamente el seguimiento de vencimiento de lotes" }
+          ],
+          "explanation": "Las fechas de vencimiento son para materiales con vida útil — adhesivos, productos químicos, componentes perecederos. El campo es opcional y debe ser nulo para materiales no perecederos como stock metálico o ferretería."
+        },
+        {
+          "id": "pl8",
+          "text": "¿Qué roles tienen acceso a los endpoints de la API de gestión de lotes?",
+          "options": [
+            { "id": "a", "text": "Solo Admin y Manager" },
+            { "id": "b", "text": "Admin, Manager, Engineer y Production Worker", "isCorrect": true },
+            { "id": "c", "text": "Admin, Manager y Engineer — los Production Workers tienen acceso de solo lectura" },
+            { "id": "d", "text": "Todos los roles, incluidos Office Manager y PM" }
+          ],
+          "explanation": "El LotsController está autorizado para los roles Admin, Manager, Engineer y Production Worker. Los cuatro roles pueden crear lotes y ejecutar consultas de trazabilidad."
+        },
+        {
+          "id": "pl9",
+          "text": "¿Cómo se eliminan los registros de lote en QB Engineer?",
+          "options": [
+            { "id": "a", "text": "Eliminación dura — la fila de la base de datos se elimina permanentemente" },
+            { "id": "b", "text": "Eliminación suave usando una marca de tiempo DeletedAt — el registro se conserva pero se excluye de las consultas", "isCorrect": true },
+            { "id": "c", "text": "Se archivan en una tabla de historial separada" },
+            { "id": "d", "text": "Los registros de lote no se pueden eliminar bajo ninguna circunstancia" }
+          ],
+          "explanation": "Como todas las entidades que extienden BaseEntity, los registros de lote usan eliminación suave a través de la marca de tiempo DeletedAt. El filtro de consulta global excluye automáticamente los lotes eliminados de todas las consultas, pero los datos se conservan para la pista de auditoría y el cumplimiento."
+        },
+        {
+          "id": "pl10",
+          "text": "Quiere encontrar todos los lotes de una pieza específica que se recibieron de proveedores. ¿Cómo consulta la API?",
+          "options": [
+            { "id": "a", "text": "GET /api/v1/lots?partId={id} — luego filtre los resultados del lado del cliente para aquellos con un purchaseOrderLineId", "isCorrect": true },
+            { "id": "b", "text": "GET /api/v1/lots/{partId}/vendor-lots" },
+            { "id": "c", "text": "GET /api/v1/parts/{id}/lots?source=vendor" },
+            { "id": "d", "text": "GET /api/v1/lots/trace?partId={id}&type=received" }
+          ],
+          "explanation": "El endpoint GET /api/v1/lots acepta un parámetro de consulta partId para filtrar por pieza. La respuesta incluye los campos purchaseOrderLineId y supplierLotNumber — los lotes con valores no nulos para estos se recibieron de proveedores. No hay un endpoint de lotes de proveedor dedicado."
+        }
+      ]
+    }
+  }
+]

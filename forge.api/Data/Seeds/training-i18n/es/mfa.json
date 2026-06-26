@@ -1,0 +1,276 @@
+[
+  {
+    "slug": "mfa-overview",
+    "title": "Resumen de la autenticación multifactor",
+    "summary": "Qué es la MFA, cómo funcionan las aplicaciones de autenticación TOTP, los códigos de recuperación y las políticas impuestas por el administrador.",
+    "contentJson": {
+      "body": "## Autenticación multifactor (MFA)\n\nLa autenticación multifactor añade una capa adicional de seguridad a tu cuenta de QB Engineer. En lugar de depender solo de tu contraseña, la MFA requiere un segundo paso de verificación — un código basado en el tiempo de una aplicación de autenticación — cada vez que inicias sesión.\n\n### ¿Qué es TOTP?\n\nTOTP significa Contraseña de un solo uso basada en el tiempo (Time-based One-Time Password). Cuando habilitas la MFA, QB Engineer genera una clave secreta que registras con una aplicación de autenticación en tu teléfono. La aplicación usa esta clave más la hora actual para producir un código de 6 dígitos que cambia cada 30 segundos. Cuando inicias sesión, introduces primero tu contraseña y luego el código actual de tu aplicación. Como el código cambia constantemente y requiere tu dispositivo físico, una contraseña robada por sí sola no basta para acceder a tu cuenta.\n\n### Aplicaciones de autenticación compatibles\n\nCualquier aplicación de autenticación compatible con TOTP funciona con QB Engineer:\n- **Google Authenticator** — sencilla, muy usada\n- **Authy** — admite copia de seguridad en la nube y sincronización multidispositivo\n- **Microsoft Authenticator** — se integra con las cuentas de Microsoft\n- **1Password / Bitwarden** — gestores de contraseñas con soporte TOTP integrado\n\nDurante la configuración, escaneas un código QR con la aplicación elegida, o introduces manualmente la clave secreta si no es posible escanear.\n\n### Códigos de recuperación\n\nLos códigos de recuperación son códigos de respaldo de un solo uso que te permiten iniciar sesión si pierdes el acceso a tu aplicación de autenticación (teléfono perdido, restablecimiento de fábrica, aplicación eliminada). QB Engineer genera un conjunto de códigos cuando habilitas la MFA, y puedes regenerarlos en cualquier momento desde Cuenta > Seguridad.\n\n**Reglas importantes sobre los códigos de recuperación:**\n- Cada código solo se puede usar una vez — tras usarlo se consume permanentemente\n- Generar nuevos códigos invalida todos los códigos anteriores\n- Guárdalos en un lugar seguro y separado de tu teléfono (impresos, en un gestor de contraseñas o en un documento seguro)\n- La página de Seguridad muestra cuántos códigos sin usar te quedan\n\n### El flujo de inicio de sesión con MFA\n\n1. Introduce tu correo electrónico y contraseña como de costumbre\n2. Si la MFA está habilitada, verás una pantalla de desafío que pide tu código de 6 dígitos\n3. Abre tu aplicación de autenticación e introduce el código actual\n4. Opcionalmente marca \"Recordar este dispositivo\" para omitir la MFA en dispositivos de confianza\n5. Si no puedes acceder a tu autenticador, haz clic en \"Usar código de recuperación\" e introduce uno de tus códigos de respaldo\n\n### Políticas de MFA impuestas por el administrador\n\nLos administradores pueden requerir MFA para roles específicos (p. ej., Admin, Manager). Cuando se impone una política:\n- Los usuarios de los roles afectados ven una advertencia en su página de Seguridad: \"Requerido por la política de la organización\"\n- El botón Deshabilitar MFA se oculta — no puedes desactivar la MFA mientras la política se aplique a tu rol\n- Los nuevos usuarios asignados a un rol impuesto deben configurar la MFA en su próximo inicio de sesión\n- El panel Admin > MFA muestra una tabla de cumplimiento que enumera todos los usuarios, su estado de MFA, el tipo de dispositivo y si su rol está impuesto\n\n### Cuándo usar la MFA\n\n- **Siempre recomendada** para todos los usuarios para protegerse contra filtraciones de contraseñas\n- **Requerida** cuando tu administrador ha impuesto una política de MFA para tu rol\n- **Especialmente importante** para los roles Admin y Manager que tienen acceso a datos sensibles, gestión de usuarios y configuración del sistema\n- **Crítica** si accedes a QB Engineer desde ordenadores compartidos o públicos",
+      "sections": []
+    }
+  },
+  {
+    "slug": "mfa-walkthrough",
+    "title": "Configuración de MFA — Recorrido guiado",
+    "summary": "Un recorrido guiado por la sección de MFA de Cuenta > Seguridad: habilitar la MFA, escanear códigos QR, verificar códigos, gestionar dispositivos y códigos de recuperación.",
+    "contentJson": {
+      "appRoute": "/account/security",
+      "startButtonLabel": "Recorrer la configuración de MFA",
+      "steps": [
+        {
+          "element": ".security__mfa-status",
+          "popover": {
+            "title": "Banner de estado de MFA",
+            "description": "Este banner muestra si la autenticación de dos factores está actualmente habilitada o deshabilitada en tu cuenta. Un escudo verde con 'habilitada' significa que la MFA está activa. Un escudo gris con 'no habilitada' significa que tu cuenta depende solo de la contraseña.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".account-page__actions .action-btn--primary",
+          "popover": {
+            "title": "Botón Habilitar / Añadir dispositivo",
+            "description": "Haz clic en 'Habilitar autenticación de dos factores' para iniciar el asistente de configuración. Si la MFA ya está habilitada, este se convierte en 'Añadir dispositivo' para registrar una aplicación de autenticación adicional. El diálogo de configuración te guía por el escaneo del QR y la verificación del código.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "mfa-field-reference",
+    "title": "Referencia de campos de MFA",
+    "summary": "Referencia completa de los campos de configuración de MFA, el código QR, la clave manual, los códigos de recuperación, los controles de política de administrador, el desafío de inicio de sesión y las reglas de validación.",
+    "contentJson": {
+      "title": "Referencia de campos de MFA",
+      "groups": [
+        {
+          "heading": "Estado de MFA (Cuenta > Seguridad)",
+          "items": [
+            { "label": "Banner de estado", "value": "Muestra 'La autenticación de dos factores está habilitada' (icono verified_user verde) o 'La autenticación de dos factores no está habilitada' (icono de escudo gris). Refleja el estado actual de la MFA en tu cuenta." },
+            { "label": "Distintivo de aplicación de política", "value": "Se muestra cuando un administrador ha requerido MFA para tu rol. Muestra 'Requerido por la política de la organización' con un icono de política. Cuando está impuesto y la MFA está deshabilitada, muestra un icono de advertencia con 'Requerido por la política de la organización — debes habilitar la MFA'." },
+            { "label": "Códigos de recuperación restantes", "value": "Muestra el recuento de códigos de recuperación sin usar (p. ej., '8 códigos de recuperación restantes'). Muestra un icono vpn_key. Cero restantes significa que no tienes respaldo si pierdes tu autenticador." }
+          ]
+        },
+        {
+          "heading": "Campos del diálogo de configuración de MFA",
+          "items": [
+            { "label": "Código QR", "value": "Un código QR de 200x200 píxeles que codifica el URI secreto de TOTP. Escanéalo con cualquier aplicación de autenticación compatible con TOTP (Google Authenticator, Authy, Microsoft Authenticator, 1Password, Bitwarden). Nivel de corrección de errores: M." },
+            { "label": "Clave de entrada manual", "value": "Oculta por defecto tras un conmutador '¿No puedes escanear? Introduce la clave manualmente'. Muestra el secreto de TOTP como una cadena de texto en fuente monoespaciada. Incluye un botón de copiar al portapapeles. Úsala cuando el escaneo del QR no esté disponible." },
+            { "label": "Código de verificación (obligatorio)", "value": "Entrada de texto, máx. 6 caracteres. Introduce el código actual de 6 dígitos que se muestra en tu aplicación de autenticación. Debe coincidir con el valor TOTP esperado. data-testid: mfa-verify-code" },
+            { "label": "Botón Verificar y habilitar", "value": "Envía el código de verificación. Deshabilitado cuando el campo del código está vacío o no es válido, o mientras la verificación está en curso. Al tener éxito, la MFA se habilita de inmediato. Al fallar, aparece un mensaje de error debajo de la entrada. data-testid: mfa-verify-submit" }
+          ]
+        },
+        {
+          "heading": "Pasos del diálogo de configuración de MFA",
+          "items": [
+            { "label": "Paso 1: Carga", "value": "Muestra un spinner con 'Preparando la configuración del autenticador...' mientras el servidor genera el secreto TOTP y el URI del código QR." },
+            { "label": "Paso 2: Escanear y verificar", "value": "Muestra el código QR, el conmutador de clave manual y la entrada del código de verificación. El usuario escanea el QR y luego introduce el código de su aplicación de autenticación." },
+            { "label": "Paso 3: Completado", "value": "Pantalla de éxito con icono verified_user y mensaje de confirmación. Recuerda al usuario que genere códigos de recuperación desde la página de Seguridad." }
+          ]
+        },
+        {
+          "heading": "Sección de dispositivos registrados",
+          "items": [
+            { "label": "Nombre del dispositivo", "value": "El nombre del dispositivo registrado (p. ej., 'Mi teléfono', 'Tableta del trabajo'). Recurre al tipo de dispositivo (p. ej., 'Totp') si no se proporcionó ningún nombre." },
+            { "label": "Icono de tipo de dispositivo", "value": "phone_android para dispositivos TOTP, key para WebAuthn/llaves de hardware." },
+            { "label": "Fecha de último uso", "value": "Fecha en que el dispositivo se usó por última vez para la autenticación, con formato MM/dd/yyyy. En blanco si nunca se usó." },
+            { "label": "Distintivo predeterminado", "value": "Chip azul 'Predeterminado' que se muestra en el dispositivo MFA principal. El dispositivo predeterminado se usa primero durante los desafíos de inicio de sesión." },
+            { "label": "Botón Quitar dispositivo", "value": "Botón de icono de papelera roja. Abre un diálogo de confirmación que advierte de que quitar tu único dispositivo puede bloquearte el acceso. Requiere confirmación antes de la eliminación." }
+          ]
+        },
+        {
+          "heading": "Diálogo de códigos de recuperación",
+          "items": [
+            { "label": "Mensaje de advertencia", "value": "Texto de advertencia proporcionado por el servidor que explica que generar nuevos códigos invalida todos los códigos anteriores. Se muestra con un icono de advertencia amarillo." },
+            { "label": "Cuadrícula de códigos", "value": "Muestra todos los códigos de recuperación generados en una cuadrícula de bloques de código monoespaciados. Cada código es un respaldo de un solo uso para iniciar sesión sin tu autenticador." },
+            { "label": "Botón Copiar todo", "value": "Copia todos los códigos de recuperación al portapapeles como una lista separada por saltos de línea." },
+            { "label": "Botón Descargar", "value": "Descarga todos los códigos de recuperación como un archivo de texto para almacenamiento sin conexión." },
+            { "label": "Botón He guardado estos códigos", "value": "Botón de acción principal que cierra el diálogo. Confirma que el usuario ha guardado sus códigos en un lugar seguro." }
+          ]
+        },
+        {
+          "heading": "Panel de política de MFA de administrador (Admin > MFA)",
+          "items": [
+            { "label": "Requerido para roles (multiselección)", "value": "Menú desplegable de multiselección que enumera todos los roles del sistema (p. ej., Admin, Manager, Engineer, PM, Production Worker, Office Manager). Los roles seleccionados tienen MFA impuesta — los usuarios de esos roles no pueden deshabilitar la MFA y deben configurarla si aún no está habilitada." },
+            { "label": "Botón Guardar", "value": "Guarda la política de imposición de roles seleccionada. data-testid: mfa-save-policy" },
+            { "label": "Tabla de cumplimiento de usuarios", "value": "DataTable que muestra todos los usuarios con columnas: Nombre (ordenable), Correo electrónico (ordenable), Rol (ordenable, filtrable), MFA habilitada (ordenable — chip verde 'Habilitada' o gris 'Deshabilitada'), Tipo de dispositivo (ordenable — muestra el tipo de dispositivo o un guión), Impuesto (ordenable — chip amarillo 'Impuesto' o un guión). tableId: mfa-compliance" }
+          ]
+        },
+        {
+          "heading": "Desafío de MFA en el inicio de sesión",
+          "items": [
+            { "label": "Pantalla de desafío", "value": "Aparece tras una autenticación de contraseña exitosa cuando la MFA está habilitada. Muestra un mensaje para introducir el código de 6 dígitos de tu aplicación de autenticación." },
+            { "label": "Token de desafío", "value": "Token temporal emitido por el servidor que identifica la sesión de autenticación. Se devuelve junto con el código de verificación. No visible para el usuario." },
+            { "label": "Entrada de código de verificación", "value": "Entrada numérica de 6 dígitos. Debe coincidir con el código TOTP actual del dispositivo registrado del usuario." },
+            { "label": "Recordar este dispositivo", "value": "Opción de casilla para omitir la MFA en este dispositivo en futuros inicios de sesión. Establece una cookie de dispositivo de confianza." },
+            { "label": "Usar código de recuperación", "value": "Enlace/botón para cambiar al modo de entrada de código de recuperación en lugar del código TOTP. Introduce uno de tus códigos de respaldo de un solo uso." },
+            { "label": "Destino enmascarado", "value": "Para los tipos de MFA por SMS/correo electrónico, muestra un número de teléfono o correo electrónico enmascarado (p. ej., '***-***-1234' o 'j***@example.com'). No aplicable para TOTP." }
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            { "label": "Código de verificación", "value": "Obligatorio. Debe tener exactamente 6 dígitos. Debe coincidir con el valor TOTP actual del secreto registrado. Los códigos no válidos muestran un error en línea debajo del campo de entrada." },
+            { "label": "Código de recuperación", "value": "Obligatorio. Debe coincidir con uno de los códigos de recuperación sin usar del usuario. Los códigos usados se consumen permanentemente y no se pueden reutilizar." },
+            { "label": "Eliminación de dispositivo MFA", "value": "Requiere un diálogo de confirmación (severidad: peligro). El mensaje de advertencia indica que quitar el único dispositivo puede provocar un bloqueo." },
+            { "label": "Deshabilitar MFA", "value": "Requiere un diálogo de confirmación (severidad: peligro). Quita todos los dispositivos y códigos de recuperación. No se puede realizar cuando la MFA está impuesta por una política de administrador." },
+            { "label": "Guardar política de administrador", "value": "Se pueden seleccionar al menos cero roles (una selección vacía significa que no hay imposición). Los cambios surten efecto de inmediato al guardar." }
+          ]
+        },
+        {
+          "heading": "Tipos de dispositivo MFA",
+          "items": [
+            { "label": "Totp", "value": "Contraseña de un solo uso basada en el tiempo. Método principal y recomendado. Usa aplicaciones de autenticación (Google Authenticator, Authy, etc.) para generar códigos de 6 dígitos que rotan cada 30 segundos." },
+            { "label": "WebAuthn", "value": "Llaves de seguridad de hardware (YubiKey, etc.) o autenticadores de plataforma (Windows Hello, Touch ID). Usa criptografía de clave pública — almacena CredentialId, PublicKey y SignCount." },
+            { "label": "Sms", "value": "Código de verificación enviado por SMS a un número de teléfono registrado. Menos seguro que TOTP debido a los riesgos de intercambio de SIM." },
+            { "label": "Email", "value": "Código de verificación enviado a una dirección de correo electrónico registrada. Opción de respaldo cuando otros métodos no están disponibles." }
+          ]
+        },
+        {
+          "heading": "Campos de entidad (UserMfaDevice)",
+          "items": [
+            { "label": "DeviceType", "value": "Enum: Totp, Sms, Email, WebAuthn. Determina el método de autenticación y qué campos son relevantes." },
+            { "label": "EncryptedSecret", "value": "La clave secreta TOTP, cifrada en reposo mediante la API de protección de datos de ASP.NET. Se usa para generar/validar códigos TOTP. Nunca se expone al cliente tras la configuración." },
+            { "label": "DeviceName", "value": "Nombre opcional proporcionado por el usuario para el dispositivo (p. ej., 'Mi iPhone'). Se muestra en la lista de dispositivos. Recurre a DeviceType si es nulo." },
+            { "label": "IsVerified", "value": "Booleano. True después de que el usuario verifica correctamente un código durante la configuración. Los dispositivos no verificados no se pueden usar para el inicio de sesión." },
+            { "label": "IsDefault", "value": "Booleano. El dispositivo principal que se usa primero durante los desafíos de inicio de sesión. Solo un dispositivo por usuario debería ser predeterminado." },
+            { "label": "LastUsedAt", "value": "Marca de tiempo de la última autenticación exitosa con este dispositivo. Nulo si nunca se usó. Se muestra como MM/dd/yyyy en la interfaz." },
+            { "label": "FailedAttempts", "value": "Contador de intentos de verificación fallidos consecutivos. Se usa para la lógica de bloqueo." },
+            { "label": "LockedUntil", "value": "Marca de tiempo hasta la cual el dispositivo está bloqueado debido a demasiados intentos fallidos. Nulo cuando no está bloqueado." }
+          ]
+        },
+        {
+          "heading": "Campos de entidad (MfaRecoveryCode)",
+          "items": [
+            { "label": "CodeHash", "value": "Hash PBKDF2 del código de recuperación. El código en texto plano solo se muestra una vez durante la generación y nunca se almacena." },
+            { "label": "IsUsed", "value": "Booleano. Se establece en true cuando el código se consume durante un inicio de sesión de recuperación. Los códigos usados no se pueden reutilizar." },
+            { "label": "UsedAt", "value": "Marca de tiempo de cuándo se consumió el código. Nulo si aún no se ha usado." },
+            { "label": "UsedFromIp", "value": "Dirección IP desde la que se usó el código de recuperación. Se registra con fines de auditoría de seguridad." }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "mfa-quiz",
+    "title": "Evaluación de conocimientos de MFA",
+    "summary": "Pon a prueba tus conocimientos de la autenticación multifactor: configuración de TOTP, códigos de recuperación, políticas de administrador y flujo de inicio de sesión.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "mfa1",
+          "text": "Quieres habilitar la autenticación de dos factores en tu cuenta de QB Engineer. ¿A dónde vas?",
+          "options": [
+            { "id": "a", "text": "Admin > Usuarios > edita tu perfil y activa la MFA" },
+            { "id": "b", "text": "Cuenta > Seguridad, luego haz clic en 'Habilitar autenticación de dos factores' en la tarjeta de MFA", "isCorrect": true },
+            { "id": "c", "text": "Configuración > Privacidad > pestaña Dos factores" },
+            { "id": "d", "text": "Pantalla de inicio de sesión > haz clic en el enlace 'Configurar MFA'" }
+          ],
+          "explanation": "La MFA se configura desde Cuenta > Seguridad. La tarjeta de Autenticación de dos factores muestra tu estado actual y proporciona el botón Habilitar, que abre el diálogo de configuración con código QR y verificación."
+        },
+        {
+          "id": "mfa2",
+          "text": "Durante la configuración de la MFA, tu aplicación de autenticación no puede escanear el código QR. ¿Qué deberías hacer?",
+          "options": [
+            { "id": "a", "text": "Contactar con tu administrador para habilitar manualmente la MFA en tu cuenta" },
+            { "id": "b", "text": "Hacer clic en '¿No puedes escanear? Introduce la clave manualmente' para revelar la clave secreta y luego escribirla en tu aplicación de autenticación", "isCorrect": true },
+            { "id": "c", "text": "Usar un navegador diferente e intentarlo de nuevo" },
+            { "id": "d", "text": "Omitir la configuración de la MFA — funcionará sin escanear" }
+          ],
+          "explanation": "El diálogo de configuración tiene un conmutador etiquetado '¿No puedes escanear? Introduce la clave manualmente' que revela el secreto de TOTP como una cadena de texto que se puede copiar. Puedes pegar esta clave en la opción de entrada manual de tu aplicación de autenticación."
+        },
+        {
+          "id": "mfa3",
+          "text": "Has introducido un código de 6 dígitos de tu aplicación de autenticación pero la verificación falló. ¿Por qué puede ocurrir esto?",
+          "options": [
+            { "id": "a", "text": "Tu aplicación de autenticación no es compatible con QB Engineer" },
+            { "id": "b", "text": "El código ya ha rotado — los códigos TOTP cambian cada 30 segundos, así que el código que introdujiste puede haber caducado", "isCorrect": true },
+            { "id": "c", "text": "La MFA solo funciona con Google Authenticator, no con otras aplicaciones" },
+            { "id": "d", "text": "Necesitas escanear el código QR de nuevo antes de introducir un código" }
+          ],
+          "explanation": "Los códigos TOTP rotan cada 30 segundos. Si introdujiste un código justo cuando estaba caducando, puede fallar la validación. Espera a que aparezca el siguiente código en tu aplicación de autenticación e inténtalo de nuevo."
+        },
+        {
+          "id": "mfa4",
+          "text": "Has perdido tu teléfono y no puedes acceder a tu aplicación de autenticación. ¿Cómo inicias sesión en QB Engineer?",
+          "options": [
+            { "id": "a", "text": "No puedes — contacta con tu administrador para restablecer tu cuenta" },
+            { "id": "b", "text": "En la pantalla de desafío de MFA, haz clic en 'Usar código de recuperación' e introduce uno de tus códigos de respaldo guardados", "isCorrect": true },
+            { "id": "c", "text": "Usa tu PIN de quiosco en lugar del código de MFA" },
+            { "id": "d", "text": "Espera 24 horas y la MFA se deshabilita automáticamente" }
+          ],
+          "explanation": "Los códigos de recuperación son códigos de respaldo de un solo uso generados cuando configuras la MFA. En la pantalla de desafío de MFA del inicio de sesión, cambia al modo de entrada de código de recuperación y usa uno de tus códigos guardados. Cada código solo se puede usar una vez."
+        },
+        {
+          "id": "mfa5",
+          "text": "Acabas de generar nuevos códigos de recuperación. ¿Qué ocurre con tus códigos de recuperación antiguos?",
+          "options": [
+            { "id": "a", "text": "Siguen siendo válidos junto a los nuevos durante 30 días" },
+            { "id": "b", "text": "Todos los códigos de recuperación anteriores se invalidan de inmediato — solo funciona el nuevo conjunto", "isCorrect": true },
+            { "id": "c", "text": "Los códigos antiguos siguen funcionando pero se marcan como obsoletos" },
+            { "id": "d", "text": "Nada — puedes tener varios conjuntos de códigos de recuperación activos" }
+          ],
+          "explanation": "Generar nuevos códigos de recuperación invalida de inmediato todos los códigos anteriores. Esta es una medida de seguridad para garantizar que solo exista un conjunto de códigos válidos en todo momento. El diálogo te advierte de esto antes de generar."
+        },
+        {
+          "id": "mfa6",
+          "text": "Tu administrador ha impuesto la MFA para tu rol. ¿Qué cambia en tu página de Seguridad?",
+          "options": [
+            { "id": "a", "text": "Nada cambia — la imposición solo afecta a los nuevos usuarios" },
+            { "id": "b", "text": "Aparece un distintivo de política que dice 'Requerido por la política de la organización' y el botón Deshabilitar MFA se oculta", "isCorrect": true },
+            { "id": "c", "text": "Tu MFA se habilita automáticamente sin necesidad de configuración" },
+            { "id": "d", "text": "Recibes un correo electrónico único con instrucciones pero aún puedes deshabilitar la MFA" }
+          ],
+          "explanation": "Cuando la MFA está impuesta por una política de administrador, tu página de Seguridad muestra un distintivo 'Requerido por la política de la organización' y el botón Deshabilitar MFA se oculta. No puedes desactivar la MFA mientras la política se aplique a tu rol. Si la MFA aún no está habilitada, una advertencia te insta a configurarla."
+        },
+        {
+          "id": "mfa7",
+          "text": "Como administrador, quieres requerir MFA para todos los usuarios Manager y Admin. ¿Cómo lo haces?",
+          "options": [
+            { "id": "a", "text": "Editar cada usuario individualmente y marcar 'Requerir MFA' en su perfil" },
+            { "id": "b", "text": "Ir a Admin > MFA, seleccionar Manager y Admin en la multiselección 'Requerido para roles' y hacer clic en Guardar", "isCorrect": true },
+            { "id": "c", "text": "Habilitar una configuración global que fuerce la MFA para todos los usuarios independientemente del rol" },
+            { "id": "d", "text": "Enviar una notificación por correo electrónico pidiendo a esos usuarios que habiliten la MFA voluntariamente" }
+          ],
+          "explanation": "El panel Admin > MFA tiene un menú desplegable de multiselección 'Requerido para roles'. Selecciona los roles que quieres imponer (p. ej., Manager, Admin) y haz clic en Guardar. La tabla de cumplimiento de abajo muestra qué usuarios tienen la MFA habilitada y qué roles están impuestos."
+        },
+        {
+          "id": "mfa8",
+          "text": "En la tabla de cumplimiento de MFA de administrador, un usuario muestra 'Deshabilitada' bajo MFA habilitada e 'Impuesto' en la columna Impuesto. ¿Qué significa esto?",
+          "options": [
+            { "id": "a", "text": "El usuario ha deshabilitado la MFA en contra de la política — no se necesita ninguna acción" },
+            { "id": "b", "text": "El rol del usuario requiere MFA pero aún no la ha configurado — se le pedirá en el próximo inicio de sesión", "isCorrect": true },
+            { "id": "c", "text": "Hay un error del sistema — el estado impuesto y deshabilitado no pueden coexistir" },
+            { "id": "d", "text": "El usuario fue eliminado recientemente de un rol impuesto" }
+          ],
+          "explanation": "Cuando el rol de un usuario tiene MFA impuesta pero aún no la ha configurado, la tabla de cumplimiento muestra Deshabilitada + Impuesto. El usuario verá una advertencia en su página de Seguridad y debe completar la configuración de la MFA. No puede eludir este requisito."
+        },
+        {
+          "id": "mfa9",
+          "text": "Tienes dos dispositivos de autenticación registrados. Uno muestra un chip azul 'Predeterminado'. ¿Qué significa la designación Predeterminado?",
+          "options": [
+            { "id": "a", "text": "Es el único dispositivo que se puede usar — el otro es un respaldo que debe activarse primero" },
+            { "id": "b", "text": "Es el dispositivo que se usa primero durante los desafíos de inicio de sesión — el sistema pide un código de este dispositivo antes de probar otros", "isCorrect": true },
+            { "id": "c", "text": "Es el dispositivo que se registró primero cronológicamente" },
+            { "id": "d", "text": "Recibe notificaciones push mientras que el dispositivo no predeterminado requiere la entrada manual del código" }
+          ],
+          "explanation": "El dispositivo Predeterminado es el que se usa primero durante el desafío de MFA del inicio de sesión. Cuando inicias sesión, el sistema pide un código de tu dispositivo predeterminado. Todavía puedes usar cualquier dispositivo registrado, pero el predeterminado es el principal que se presenta."
+        },
+        {
+          "id": "mfa10",
+          "text": "Quieres quitar un dispositivo de MFA de tu cuenta, pero es tu único dispositivo registrado. ¿Qué ocurre?",
+          "options": [
+            { "id": "a", "text": "El sistema impide la eliminación — debes tener al menos un dispositivo" },
+            { "id": "b", "text": "Un diálogo de confirmación advierte de que quitar tu único dispositivo puede bloquearte el acceso, y debes confirmar la eliminación", "isCorrect": true },
+            { "id": "c", "text": "El dispositivo se quita y la MFA se deshabilita automáticamente" },
+            { "id": "d", "text": "El dispositivo se quita pero se te envía por correo electrónico un código de omisión temporal" }
+          ],
+          "explanation": "Hacer clic en el icono de eliminar de tu único dispositivo abre un diálogo de confirmación de severidad de peligro que advierte de que puedes perder el acceso a tu cuenta. Si confirmas, el dispositivo se quita. Deberías tener códigos de recuperación guardados como respaldo, o deshabilitar la MFA por completo si ya no la quieres."
+        }
+      ]
+    }
+  }
+]

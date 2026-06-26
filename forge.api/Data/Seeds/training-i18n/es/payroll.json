@@ -1,0 +1,296 @@
+[
+  {
+    "slug": "payroll-overview",
+    "title": "Visión general de Nómina",
+    "summary": "Qué funciones de nómina están disponibles en QB Engineer: autoservicio de empleados, recibos de pago, documentos fiscales y flujos de carga del administrador.",
+    "contentJson": {
+      "body": "## Visión general de Nómina\n\nQB Engineer ofrece funciones de nómina de autoservicio para empleados, de modo que cada miembro del equipo pueda ver sus ingresos, deducciones y documentos fiscales de fin de año sin molestar a Recursos Humanos ni a la gerencia. Los administradores y los gerentes de oficina pueden cargar documentos en nombre de los empleados y, si hay una integración de QuickBooks Payroll conectada, los registros se sincronizan automáticamente.\n\n### Qué incluye\n\nEl módulo de nómina se encuentra en **Cuenta** en la barra lateral y tiene dos páginas:\n\n- **Recibos de pago** — Una lista cronológica de cada período de pago que muestra la fecha de pago, el rango del período, el pago bruto, las deducciones y el pago neto. Cada recibo puede tener un PDF adjunto para descargar.\n- **Documentos fiscales** — Formularios fiscales de fin de año (W-2, W-2c, 1099-MISC, 1099-NEC y Otro) organizados por año fiscal con descargas en PDF.\n\n### Autoservicio del empleado\n\nCada empleado puede acceder a sus propios registros en cualquier momento:\n\n1. Navegue a **Cuenta → Recibos de pago** para ver todos los recibos ordenados por fecha de pago más reciente primero.\n2. Navegue a **Cuenta → Documentos fiscales** para ver todos los documentos fiscales ordenados por año fiscal.\n3. Haga clic en el icono de descarga en cualquier fila que tenga un PDF adjunto para ver o guardar el documento.\n\nLos empleados solo pueden ver sus propios registros; no pueden ver la información de pago de otros usuarios.\n\n### Carga del administrador\n\nLos administradores y los gerentes de oficina pueden cargar documentos de nómina para cualquier empleado:\n\n- **Carga de recibo de pago** — Proporcione las fechas de inicio/fin del período de pago, la fecha de pago, el pago bruto, el pago neto y un archivo PDF adjunto opcional. El sistema calcula las deducciones totales como la diferencia entre el pago bruto y el neto.\n- **Carga de documento fiscal** — Seleccione el tipo de documento (W-2, W-2c, 1099-MISC, 1099-NEC u Otro), especifique el año fiscal y adjunte el PDF.\n\nLos documentos cargados manualmente muestran un chip gris 'Manual' en la columna Origen. Los documentos sincronizados desde un proveedor de contabilidad muestran un chip azul 'Sincronizado'.\n\n### Cómo se conecta Nómina con otras funciones\n\n**Integración contable:** Cuando QuickBooks Payroll (u otro proveedor) está conectado, los recibos de pago y los documentos fiscales se sincronizan automáticamente. Los registros sincronizados son de solo lectura y muestran la insignia de origen 'Sincronizado'.\n\n**Perfil de empleado:** Los recibos de pago están vinculados a la cuenta de cada usuario. Los administradores pueden ver y gestionar los registros de nómina desde el panel de administración de empleados.\n\n**Almacenamiento de archivos:** Los archivos PDF adjuntos de los recibos de pago y los documentos fiscales se almacenan en MinIO (el mismo almacenamiento de archivos seguro que se usa en toda la plataforma). Las descargas se sirven directamente desde la API.\n\n### Deducciones del recibo de pago\n\nCada recibo de pago puede incluir deducciones detalladas en 15 categorías:\n\n- **Impuestos:** Impuesto federal, Impuesto estatal, Seguro Social, Medicare\n- **Seguros:** Seguro de salud, Dental, Visión, Seguro de vida, Seguro de discapacidad\n- **Ahorros:** Jubilación 401(k), HSA, FSA\n- **Otros:** Cuotas sindicales, Embargo/Manutención infantil, Otro\n\nLas deducciones son visibles en el detalle del recibo de pago y suman el monto de Deducciones totales que se muestra en la tabla.\n\n### Cuándo usar las funciones de Nómina\n\n- Cuando necesita consultar su recibo de pago más reciente o verificar una deducción\n- Cuando descarga un W-2 o 1099 para la temporada de declaración de impuestos\n- Cuando un administrador necesita cargar manualmente un recibo de pago corregido (W-2c)\n- Cuando incorpora una nueva integración contable y verifica que los registros sincronizados coincidan",
+      "sections": []
+    }
+  },
+  {
+    "slug": "payroll-walkthrough",
+    "title": "Nómina — Recorrido guiado",
+    "summary": "Un recorrido guiado por la página Cuenta > Recibos de pago: diseño de la tabla, columnas, descarga de PDF y navegación a los documentos fiscales.",
+    "contentJson": {
+      "appRoute": "/account/pay-stubs",
+      "startButtonLabel": "Recorrer Nómina",
+      "steps": [
+        {
+          "element": ".account-sidebar",
+          "popover": {
+            "title": "Barra lateral de Cuenta",
+            "description": "La barra lateral de Cuenta enumera todas las páginas de autoservicio. Recibos de pago y Documentos fiscales están en la sección Nómina. Haga clic en cualquiera de los enlaces para cambiar entre ellos.",
+            "side": "right"
+          }
+        },
+        {
+          "element": ".pay-stubs__title",
+          "popover": {
+            "title": "Página de Recibos de pago",
+            "description": "Esta página muestra todos sus recibos de pago en orden cronológico inverso (el más reciente primero). Cada fila representa un período de pago con los totales financieros clave.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de Recibos de pago",
+            "description": "La tabla muestra columnas para Fecha de pago, Período (rango inicio-fin), Pago bruto, Pago neto, Deducciones, Origen y una acción de descarga. Haga clic en los encabezados de columna para ordenar. Todos los valores de moneda están alineados a la derecha para facilitar la lectura.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "payroll-field-reference",
+    "title": "Referencia de campos de Nómina",
+    "summary": "Referencia completa de cada campo, columna, botón, estado y regla de validación en las páginas de Recibos de pago y Documentos fiscales.",
+    "contentJson": {
+      "title": "Referencia de campos de Nómina",
+      "groups": [
+        {
+          "heading": "Recibos de pago — Columnas de la tabla",
+          "items": [
+            { "label": "Fecha de pago", "value": "Columna de fecha (MM/dd/yyyy), ordenable. La fecha en que se emitió el pago. Orden predeterminado: descendente (el más nuevo primero)." },
+            { "label": "Período", "value": "Columna de texto que muestra el rango del período de pago: fecha de inicio – fecha de fin (MM/dd/yyyy – MM/dd/yyyy). No ordenable." },
+            { "label": "Pago bruto", "value": "Columna de moneda, ordenable, alineada a la derecha. Ingresos totales antes de deducciones e impuestos." },
+            { "label": "Pago neto", "value": "Columna de moneda, ordenable, alineada a la derecha. Pago neto después de todas las deducciones." },
+            { "label": "Deducciones", "value": "Columna de moneda, ordenable, alineada a la derecha. Suma de todas las deducciones (Pago bruto menos Pago neto)." },
+            { "label": "Origen", "value": "Ordenable. Muestra un chip: azul 'Sincronizado' para importaciones del proveedor de contabilidad, gris 'Manual' para registros cargados por el administrador." },
+            { "label": "Acciones", "value": "Botón de icono de descarga. Visible solo cuando el recibo de pago tiene un archivo PDF adjunto. Abre el PDF en una nueva pestaña del navegador." }
+          ]
+        },
+        {
+          "heading": "Campos de la entidad Recibo de pago",
+          "items": [
+            { "label": "Inicio del período de pago (requerido)", "value": "Fecha. El primer día del período de pago que cubre este recibo. Se envía como cadena ISO UTC." },
+            { "label": "Fin del período de pago (requerido)", "value": "Fecha. El último día del período de pago. Debe ser igual o posterior al Inicio del período de pago." },
+            { "label": "Fecha de pago (requerido)", "value": "Fecha. La fecha en que se emitió el pago al empleado." },
+            { "label": "Pago bruto (requerido)", "value": "Monto decimal en moneda. Ingresos totales antes de deducciones. Debe ser mayor que cero." },
+            { "label": "Pago neto (requerido)", "value": "Monto decimal en moneda. Pago neto después de deducciones. Debe ser mayor que cero y menor o igual que el Pago bruto." },
+            { "label": "Deducciones totales", "value": "Calculado: Pago bruto menos Pago neto. Calculado automáticamente en el servidor." },
+            { "label": "Impuestos totales", "value": "Decimal. Suma de las deducciones de categoría de impuestos (Impuesto federal + Impuesto estatal + Seguro Social + Medicare). Establecido en 0 para las cargas manuales." },
+            { "label": "Archivo adjunto", "value": "Archivo PDF opcional. Cargado mediante el sistema de almacenamiento de archivos y vinculado por FileAttachmentId." },
+            { "label": "Origen", "value": "Enum: Accounting (sincronizado desde el proveedor) o Manual (cargado por el administrador). Establecido automáticamente según el método de carga." },
+            { "label": "ID externo", "value": "Cadena opcional. El identificador único del proveedor para los registros sincronizados. Null para las cargas manuales." }
+          ]
+        },
+        {
+          "heading": "Campos de la deducción del recibo de pago",
+          "items": [
+            { "label": "Categoría (requerido)", "value": "Enum. Una de 15 categorías: FederalTax, StateTax, SocialSecurity, Medicare, HealthInsurance, Retirement401k, Dental, Vision, HSA, FSA, LifeInsurance, DisabilityInsurance, UnionDues, GarnishmentChildSupport, Other." },
+            { "label": "Descripción", "value": "Texto. Etiqueta legible para la deducción (p. ej., 'Impuesto federal sobre la renta', 'Plan médico PPO', 'Aporte 401k')." },
+            { "label": "Monto", "value": "Monto decimal en moneda. El valor en dólares deducido para esta línea." }
+          ]
+        },
+        {
+          "heading": "Categorías de deducción del recibo de pago",
+          "items": [
+            { "label": "FederalTax", "value": "Retención de impuesto federal sobre la renta basada en las elecciones del W-4." },
+            { "label": "StateTax", "value": "Retención de impuesto estatal sobre la renta basada en el formulario de retención estatal y el lugar de trabajo." },
+            { "label": "SocialSecurity", "value": "Parte del empleado del impuesto del Seguro Social (FICA, 6.2% hasta la base salarial)." },
+            { "label": "Medicare", "value": "Parte del empleado del impuesto de Medicare (1.45%, más un 0.9% adicional por encima del umbral)." },
+            { "label": "HealthInsurance", "value": "Aporte de prima del empleado para el seguro médico/de salud." },
+            { "label": "Retirement401k", "value": "Aporte del empleado al plan de jubilación 401(k) (antes de impuestos o Roth)." },
+            { "label": "Dental", "value": "Prima del seguro dental del empleado." },
+            { "label": "Vision", "value": "Prima del seguro de visión del empleado." },
+            { "label": "HSA", "value": "Aporte a la Cuenta de Ahorros para la Salud (antes de impuestos)." },
+            { "label": "FSA", "value": "Aporte a la Cuenta de Gastos Flexibles (antes de impuestos)." },
+            { "label": "LifeInsurance", "value": "Prima de seguro de vida pagada por el empleado (por encima del monto proporcionado por el empleador)." },
+            { "label": "DisabilityInsurance", "value": "Prima de seguro de discapacidad a corto o largo plazo." },
+            { "label": "UnionDues", "value": "Cuotas de membresía sindical deducidas según el convenio colectivo de trabajo." },
+            { "label": "GarnishmentChildSupport", "value": "Embargos ordenados por la corte, manutención infantil o asignaciones salariales." },
+            { "label": "Other", "value": "Cualquier deducción que no encaje en las categorías anteriores." }
+          ]
+        },
+        {
+          "heading": "Documentos fiscales — Columnas de la tabla",
+          "items": [
+            { "label": "Año fiscal", "value": "Columna numérica, ordenable. El año calendario que cubre el documento fiscal (p. ej., 2025). Ancho: 100px." },
+            { "label": "Tipo de documento", "value": "Ordenable. Muestra la etiqueta legible: W-2, W-2c (Corregido), 1099-MISC, 1099-NEC u Otro. Ancho: 160px." },
+            { "label": "Empleador", "value": "Ordenable. El nombre del empleador en el documento. Muestra '—' (raya larga) cuando no está establecido." },
+            { "label": "Origen", "value": "Ordenable. Chip: azul 'Sincronizado' o gris 'Manual'. Mismo comportamiento que los recibos de pago." },
+            { "label": "Acciones", "value": "Botón de icono de descarga. Visible solo cuando hay un archivo PDF adjunto." }
+          ]
+        },
+        {
+          "heading": "Campos de la entidad Documento fiscal",
+          "items": [
+            { "label": "Tipo de documento (requerido)", "value": "Enum: W2 (declaración estándar de salarios/impuestos), W2c (W-2 corregido), Misc1099 (ingresos misceláneos), Nec1099 (compensación de no empleados), Other." },
+            { "label": "Año fiscal (requerido)", "value": "Entero. El año calendario al que aplica el documento (p. ej., 2025). Debe ser un año válido de 4 dígitos." },
+            { "label": "Nombre del empleador", "value": "Texto opcional. El nombre del empleador que figura en el documento. Puede ser null para los documentos cargados manualmente." },
+            { "label": "Archivo adjunto", "value": "Archivo PDF opcional. El documento del formulario fiscal real, vinculado por FileAttachmentId." },
+            { "label": "Origen", "value": "Enum: Accounting o Manual. Igual que los recibos de pago." },
+            { "label": "ID externo", "value": "Cadena opcional. ID único del proveedor para los documentos sincronizados." }
+          ]
+        },
+        {
+          "heading": "Tipos de documento fiscal",
+          "items": [
+            { "label": "W-2", "value": "Declaración de salarios e impuestos. Formulario estándar de fin de año que muestra los salarios totales, propinas e impuestos retenidos por el empleador. Se emite a todos los empleados W-2." },
+            { "label": "W-2c", "value": "Declaración corregida de salarios e impuestos. Se emite cuando el W-2 original contenía errores (SSN incorrecto, montos erróneos, etc.)." },
+            { "label": "1099-MISC", "value": "Ingresos misceláneos. Reporta pagos como rentas, regalías, premios, reconocimientos y otros ingresos de no empleados superiores a $600." },
+            { "label": "1099-NEC", "value": "Compensación de no empleados. Reporta pagos de $600 o más a contratistas independientes y trabajadores autónomos." },
+            { "label": "Other", "value": "Cualquier documento fiscal que no encaje en los tipos estándar anteriores (p. ej., formularios estatales específicos, formularios 1095 de cobertura de salud)." }
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            { "label": "Descargar PDF (botón de icono)", "value": "Abre el PDF del recibo de pago o del documento fiscal en una nueva pestaña del navegador. Visible solo cuando existe un FileAttachmentId en el registro. Información sobre herramientas: 'Descargar PDF del recibo de pago' o 'Descargar PDF del documento fiscal'." },
+            { "label": "Administrador: Cargar recibo de pago", "value": "Acción de Administrador/Gerente de oficina. Abre un formulario para ingresar las fechas del período de pago, la fecha de pago, el pago bruto, el pago neto y adjuntar un PDF para un empleado específico." },
+            { "label": "Administrador: Cargar documento fiscal", "value": "Acción de Administrador/Gerente de oficina. Abre un formulario para seleccionar el tipo de documento, el año fiscal y adjuntar un PDF para un empleado específico." },
+            { "label": "Administrador: Eliminar recibo de pago", "value": "Acción de Administrador/Gerente de oficina. Elimina de forma lógica un recibo de pago cargado manualmente. Los registros sincronizados no pueden eliminarse." },
+            { "label": "Administrador: Eliminar documento fiscal", "value": "Acción de Administrador/Gerente de oficina. Elimina de forma lógica un documento fiscal cargado manualmente. Los registros sincronizados no pueden eliminarse." },
+            { "label": "Administrador: Sincronizar nómina", "value": "Activa una sincronización manual con el proveedor de contabilidad/nómina conectado. Solo disponible cuando hay una integración configurada." }
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            { "label": "Inicio del período de pago", "value": "Requerido. Debe ser una fecha válida." },
+            { "label": "Fin del período de pago", "value": "Requerido. Debe ser una fecha válida igual o posterior al Inicio del período de pago." },
+            { "label": "Fecha de pago", "value": "Requerida. Debe ser una fecha válida." },
+            { "label": "Pago bruto", "value": "Requerido. Debe ser un número positivo." },
+            { "label": "Pago neto", "value": "Requerido. Debe ser un número positivo y menor o igual que el Pago bruto." },
+            { "label": "Año fiscal", "value": "Requerido. Debe ser un año válido de 4 dígitos." },
+            { "label": "Tipo de documento", "value": "Requerido. Debe ser uno de los cinco tipos válidos (W2, W2c, Misc1099, Nec1099, Other)." }
+          ]
+        },
+        {
+          "heading": "Control de acceso",
+          "items": [
+            { "label": "Empleado (autoservicio)", "value": "Puede ver y descargar solo sus propios recibos de pago y documentos fiscales. Sin acceso para crear, editar o eliminar." },
+            { "label": "Administrador / Gerente de oficina", "value": "Puede ver, cargar y eliminar registros de nómina de cualquier empleado. Puede activar la sincronización de nómina." },
+            { "label": "Todas las demás funciones", "value": "Igual que Empleado: vista de autoservicio solo de sus propios registros." }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "payroll-quiz",
+    "title": "Evaluación de conocimientos de Nómina",
+    "summary": "Ponga a prueba sus conocimientos de las funciones de nómina de QB Engineer: recibos de pago, documentos fiscales, deducciones y flujos de administrador.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "pr1",
+          "text": "¿Dónde encuentra sus recibos de pago en QB Engineer?",
+          "options": [
+            { "id": "a", "text": "Administración → Nómina → Recibos de pago" },
+            { "id": "b", "text": "Cuenta → Recibos de pago en la barra lateral", "isCorrect": true },
+            { "id": "c", "text": "Panel → widget de Nómina → Ver todos" },
+            { "id": "d", "text": "Reportes → Nómina → Mis recibos de pago" }
+          ],
+          "explanation": "Los recibos de pago son una función de autoservicio en Cuenta → Recibos de pago. Cada empleado puede acceder a sus propios registros desde la barra lateral de Cuenta."
+        },
+        {
+          "id": "pr2",
+          "text": "Un recibo de pago muestra un Pago bruto de $3,200 y un Pago neto de $2,450. ¿Cuál es el monto de Deducciones totales?",
+          "options": [
+            { "id": "a", "text": "$2,450" },
+            { "id": "b", "text": "$750", "isCorrect": true },
+            { "id": "c", "text": "$3,200" },
+            { "id": "d", "text": "$5,650" }
+          ],
+          "explanation": "Deducciones totales = Pago bruto − Pago neto = $3,200 − $2,450 = $750. El sistema lo calcula automáticamente."
+        },
+        {
+          "id": "pr3",
+          "text": "Ve un chip azul 'Sincronizado' en la columna Origen de un recibo de pago. ¿Qué significa esto?",
+          "options": [
+            { "id": "a", "text": "El recibo de pago fue cargado manualmente por un administrador y verificado" },
+            { "id": "b", "text": "El recibo de pago se importó automáticamente desde el proveedor de contabilidad/nómina conectado", "isCorrect": true },
+            { "id": "c", "text": "El PDF del recibo de pago se descargó y se almacenó en caché localmente" },
+            { "id": "d", "text": "El recibo de pago se ha sincronizado con su software fiscal personal" }
+          ],
+          "explanation": "Un chip azul 'Sincronizado' indica que el registro se importó automáticamente desde el proveedor de contabilidad conectado (p. ej., QuickBooks Payroll). Los chips grises 'Manual' indican registros cargados por el administrador."
+        },
+        {
+          "id": "pr4",
+          "text": "¿Cuál de las siguientes NO es una categoría de deducción de recibo de pago válida en QB Engineer?",
+          "options": [
+            { "id": "a", "text": "HealthInsurance" },
+            { "id": "b", "text": "Retirement401k" },
+            { "id": "c", "text": "ParkingBenefit", "isCorrect": true },
+            { "id": "d", "text": "GarnishmentChildSupport" }
+          ],
+          "explanation": "QB Engineer admite 15 categorías de deducción: FederalTax, StateTax, SocialSecurity, Medicare, HealthInsurance, Retirement401k, Dental, Vision, HSA, FSA, LifeInsurance, DisabilityInsurance, UnionDues, GarnishmentChildSupport y Other. ParkingBenefit no es una de ellas: encajaría en 'Other'."
+        },
+        {
+          "id": "pr5",
+          "text": "Un empleado necesita su W-2 para la declaración de impuestos. ¿Dónde lo encuentra?",
+          "options": [
+            { "id": "a", "text": "Cuenta → Documentos fiscales, filtrado por el año fiscal correspondiente", "isCorrect": true },
+            { "id": "b", "text": "Cuenta → Recibos de pago → pestaña Resumen anual" },
+            { "id": "c", "text": "Administración → Reportes → Formularios fiscales" },
+            { "id": "d", "text": "Cuenta → Formularios de cumplimiento → Documentos fiscales" }
+          ],
+          "explanation": "Los documentos fiscales (W-2, 1099, etc.) se acceden en Cuenta → Documentos fiscales. La tabla muestra las columnas Año fiscal, Tipo de documento, Empleador y Origen. El empleado hace clic en el icono de descarga para obtener el PDF."
+        },
+        {
+          "id": "pr6",
+          "text": "¿Cuál es la diferencia entre un W-2 y un W-2c?",
+          "options": [
+            { "id": "a", "text": "El W-2 es para empleados de tiempo completo, el W-2c es para contratistas" },
+            { "id": "b", "text": "El W-2 es la declaración estándar de salarios/impuestos, el W-2c es una versión corregida que se emite cuando el original tenía errores", "isCorrect": true },
+            { "id": "c", "text": "El W-2 cubre los impuestos federales, el W-2c cubre los impuestos estatales" },
+            { "id": "d", "text": "El W-2 se emite trimestralmente, el W-2c es el resumen anual" }
+          ],
+          "explanation": "Un W-2c (Declaración corregida de salarios e impuestos) se emite cuando el W-2 original contenía errores, como un SSN incorrecto, montos de salario erróneos o cifras de retención de impuestos incorrectas."
+        },
+        {
+          "id": "pr7",
+          "text": "Un administrador necesita cargar un recibo de pago para un empleado. ¿Qué campos son requeridos?",
+          "options": [
+            { "id": "a", "text": "Fecha de pago, Pago bruto y un PDF adjunto" },
+            { "id": "b", "text": "Inicio del período de pago, Fin del período de pago, Fecha de pago, Pago bruto y Pago neto", "isCorrect": true },
+            { "id": "c", "text": "Nombre del empleado, Fecha de pago, Pago neto y desglose de deducciones" },
+            { "id": "d", "text": "Fecha de pago, Pago bruto, Pago neto, montos de Impuesto federal e Impuesto estatal" }
+          ],
+          "explanation": "Los campos requeridos para cargar un recibo de pago son: Inicio del período de pago, Fin del período de pago, Fecha de pago, Pago bruto y Pago neto. El PDF adjunto es opcional, y las Deducciones totales se calculan automáticamente como la diferencia entre el Pago bruto y el Pago neto."
+        },
+        {
+          "id": "pr8",
+          "text": "¿Puede un empleado eliminar sus propios recibos de pago o documentos fiscales?",
+          "options": [
+            { "id": "a", "text": "Sí, puede eliminar cualquiera de sus propios registros" },
+            { "id": "b", "text": "Sí, pero solo los cargados manualmente" },
+            { "id": "c", "text": "No: solo los Administradores y los Gerentes de oficina pueden eliminar registros de nómina", "isCorrect": true },
+            { "id": "d", "text": "Sí, pero solo después de que el año fiscal haya cerrado" }
+          ],
+          "explanation": "Los empleados tienen acceso de solo lectura a sus propios registros de nómina. Solo los Administradores y los Gerentes de oficina pueden cargar o eliminar documentos de nómina, y los registros sincronizados desde un proveedor de contabilidad no pueden eliminarse en absoluto."
+        },
+        {
+          "id": "pr9",
+          "text": "¿Qué tipo de documento fiscal esperaría ver para un contratista independiente?",
+          "options": [
+            { "id": "a", "text": "W-2" },
+            { "id": "b", "text": "W-2c" },
+            { "id": "c", "text": "1099-NEC", "isCorrect": true },
+            { "id": "d", "text": "1099-MISC" }
+          ],
+          "explanation": "Los contratistas independientes reciben un 1099-NEC (Compensación de no empleados) por pagos de $600 o más. El 1099-MISC se usa para otros tipos de ingresos misceláneos como rentas y regalías, no para la compensación de contratistas."
+        },
+        {
+          "id": "pr10",
+          "text": "Falta el icono de descarga en la columna Acciones de un recibo de pago. ¿Qué significa esto?",
+          "options": [
+            { "id": "a", "text": "El recibo de pago se ha archivado y ya no es accesible" },
+            { "id": "b", "text": "El recibo de pago no tiene un archivo PDF adjunto", "isCorrect": true },
+            { "id": "c", "text": "No tiene permiso para descargar este recibo en particular" },
+            { "id": "d", "text": "El servidor de archivos está fuera de línea y las descargas no están disponibles temporalmente" }
+          ],
+          "explanation": "El icono de descarga solo aparece cuando el recibo de pago tiene un archivo PDF asociado (FileAttachmentId no es null). Algunos registros sincronizados pueden no incluir un PDF según el proveedor, y las cargas manuales pueden haberse creado sin adjuntar un archivo."
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,562 @@
+[
+  {
+    "slug": "quality-overview",
+    "title": "Visión general de Calidad",
+    "summary": "Qué hace el módulo de Calidad: plantillas de QC, inspecciones, seguimiento de lotes, SPC, NCR, CAPA, ECO y galgas — y cómo la calidad se conecta con trabajos, piezas y producción.",
+    "contentJson": {
+      "body": "## Visión general de Calidad\n\nEl módulo de Calidad es su centro neurálgico para el control y el aseguramiento de la calidad en todo el proceso de fabricación. Reúne inspecciones, trazabilidad de lotes, control estadístico de procesos (SPC), reportes de no conformidad (NCR), acciones correctivas/preventivas (CAPA), órdenes de cambio de ingeniería (ECO) y gestión de galgas — todo en un solo lugar.\n\n### Plantillas de QC\n\nLas plantillas definen listas de verificación reutilizables de comprobaciones de inspección. Cada plantilla tiene un nombre, una descripción opcional y un vínculo opcional a una pieza específica. Las plantillas contienen elementos de lista de verificación — cada elemento tiene una descripción, una especificación opcional (el valor esperado o la tolerancia), un orden de clasificación y un indicador de requerido. Cuando crea una inspección, puede seleccionar una plantilla y los elementos de la lista de verificación pre-rellenan la inspección.\n\n### Inspecciones de QC\n\nLas inspecciones son los registros de calidad principales. Cada inspección está vinculada a un inspector (la persona que realiza la comprobación) y puede referenciar opcionalmente un trabajo, una corrida de producción, una plantilla de QC y un número de lote. Las inspecciones rastrean su estado — En progreso, Aprobada o Fallida — y contienen resultados de inspección individuales. Cada resultado registra la descripción de la comprobación, si aprobó, el valor medido y notas. La columna de resumen de resultados muestra cuántas comprobaciones aprobaron del total (p. ej., 5/6).\n\n### Seguimiento de lotes\n\nLa pestaña Lotes rastrea los registros de lotes de material para la trazabilidad. Cada lote tiene un número de lote único, está vinculado a una pieza y registra la cantidad, la referencia opcional al trabajo, el número de lote del proveedor, la fecha de vencimiento y notas. La función de trazabilidad le permite hacer clic en cualquier lote y ver cada registro vinculado: trabajos que usaron este lote, corridas de producción, órdenes de compra, ubicaciones de contenedores donde se almacena el material e inspecciones de QC realizadas sobre él. Esto es crítico para la gestión de retiros del mercado y el cumplimiento normativo.\n\n### SPC (Control estadístico de procesos)\n\nSPC proporciona monitoreo de procesos en tiempo real a través de tres subpestañas:\n- **Gráficos SPC** — Gráficos de control X-barra y de Rango para cualquier característica medida. Muestra los límites de control (UCL, LCL, línea central), los límites de especificación (USL, LSL) y marca los puntos fuera de control.\n- **Entrada de datos SPC** — Registre subgrupos de medición para una característica seleccionada. Cada subgrupo contiene múltiples lecturas; el sistema calcula la media, el rango, la desviación estándar y detecta las condiciones OOC automáticamente.\n- **Eventos OOC** — Lista todos los eventos fuera de control con severidad (Advertencia, Fuera de control, Fuera de especificación), seguimiento de reconocimiento y la capacidad de crear un CAPA directamente desde un evento OOC.\n\nLas características SPC se definen por pieza y opcionalmente por operación. Cada característica especifica el valor nominal, los límites de especificación superior/inferior, el tamaño de muestra, el tipo de medición (variable o atributo), la unidad de medida, los lugares decimales y la referencia de la galga. Los índices de capacidad del proceso (Cp, Cpk, Pp, Ppk) se calculan automáticamente.\n\n### NCR (Reportes de no conformidad)\n\nLos NCR documentan las fallas de calidad. Cada NCR tiene un número de NCR único, un tipo (Interno, Proveedor o Cliente) y está vinculado a una pieza. Los NCR rastrean la etapa de detección (Recepción, En proceso, Inspección final, Envío, Cliente, Auditoría), las cantidades afectadas y defectuosas, las acciones de contención y la disposición (Usar tal cual, Retrabajar, Desechar, Devolver al proveedor, Clasificar y revisar, Concesión). Los NCR fluyen a través de los estados: Abierto, En revisión, Contenido, Dispuesto, Cerrado. El impacto en el costo de material y mano de obra se rastrea para el análisis del Costo de la mala calidad (COPQ). Los NCR pueden vincularse a trabajos, corridas de producción, lotes, órdenes de venta, órdenes de compra, inspecciones de QC, clientes y proveedores.\n\n### CAPA (Acciones correctivas y preventivas)\n\nLos CAPA impulsan la resolución sistemática de problemas. Cada CAPA tiene un número, un tipo (Correctiva o Preventiva), un tipo de origen (NCR, Auditoría, Queja de cliente, Evento OOC, Interno, Proveedor) y pasa por fases: Identificación, Contención, Análisis de causa raíz, Acción correctiva, Verificación, Comprobación de eficacia. Los métodos de causa raíz incluyen los 5 Porqués, el Diagrama de espina de pescado, el Árbol de fallas y el 8D. Los CAPA rastrean tareas, asignación de responsable, prioridad, fechas de vencimiento y la verificación de eficacia con una fecha de comprobación programada.\n\n### ECO (Órdenes de cambio de ingeniería)\n\nLos ECO gestionan cambios controlados en piezas, procesos y documentación. Cada ECO tiene un número, un título, una descripción, un tipo de cambio (Nuevo, Revisión, Obsolescencia, Reducción de costos, Mejora de calidad), una prioridad (Baja, Normal, Alta, Crítica) y fluye a través de los estados: Borrador, Revisión, Aprobado, En implementación, Implementado, Cancelado. Los ECO rastrean los elementos afectados (piezas, BOM, operaciones) con valores antiguos/nuevos y el estado de implementación.\n\n### Galgas\n\nLa pestaña Galgas gestiona los instrumentos de medición y su ciclo de vida de calibración. Cada galga tiene un número, una descripción, un tipo, un fabricante, un modelo, un número de serie y especificaciones de precisión/rango/resolución. Las galgas rastrean el intervalo de calibración (en días), la fecha de la última calibración y la fecha de vencimiento de la próxima calibración. Los estados incluyen En servicio, Vence calibración, En calibración, Fuera de servicio y Retirada. Cada galga mantiene un historial de registros de calibración con el resultado (Aprobado, Fallido, Ajustado, Fuera de tolerancia), el nombre del laboratorio, el archivo del certificado, los estándares utilizados y las condiciones de hallazgo/entrega.\n\n### Cómo se conecta Calidad con otras funciones\n\n**Trabajos:** Las inspecciones se vinculan a los trabajos para que pueda ver todas las comprobaciones de calidad realizadas para un trabajo específico. Los NCR referencian el trabajo donde se encontró el defecto.\n\n**Piezas:** Las plantillas y las características SPC se definen por pieza. Los NCR identifican la pieza defectuosa. Los registros de lote rastrean el material de vuelta a piezas específicas.\n\n**Lotes:** Los números de lote atraviesan inspecciones, corridas de producción, órdenes de compra y ubicaciones de contenedores — proporcionando trazabilidad completa del material desde la recepción hasta el envío.\n\n**Integración con escáner:** La página de calidad responde a los escaneos de código de barras. En la pestaña Inspecciones, un escaneo rellena el campo de búsqueda. En la pestaña Lotes, un escaneo rellena el campo de búsqueda de lotes. Esto permite la búsqueda rápida de piezas o lotes en el piso de planta.\n\n### Cuándo usar Calidad\n\n- Al realizar inspecciones entrantes, en proceso o finales\n- Al rastrear lotes de material para la trazabilidad y la preparación ante retiros del mercado\n- Al monitorear la estabilidad del proceso con gráficos SPC\n- Al documentar no conformidades e impulsar acciones correctivas\n- Al gestionar cambios de ingeniería en piezas o procesos\n- Al rastrear los calendarios y registros de calibración de galgas",
+      "sections": []
+    }
+  },
+  {
+    "slug": "quality-walkthrough",
+    "title": "Calidad — Recorrido guiado",
+    "summary": "Un recorrido guiado de la página de calidad: nueve pestañas que cubren inspecciones, lotes, SPC, NCR, CAPA, ECO y galgas.",
+    "contentJson": {
+      "appRoute": "/quality",
+      "startButtonLabel": "Recorrer Calidad",
+      "steps": [
+        {
+          "element": ".tab-bar",
+          "popover": {
+            "title": "Pestañas de Calidad",
+            "description": "El módulo de Calidad tiene nueve pestañas: Inspecciones de QC, Seguimiento de lotes, Gráficos SPC, Entrada de datos SPC, Eventos OOC, NCR, CAPA, ECO y Galgas. Cada pestaña se enfoca en un aspecto diferente de la gestión de calidad. La pestaña activa se refleja en la URL para marcar y compartir.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab:nth-child(1)",
+          "popover": {
+            "title": "Pestaña Inspecciones de QC",
+            "description": "La pestaña predeterminada. Lista todas las inspecciones de QC con fecha, número de trabajo, nombre de la plantilla, inspector, número de lote, estado (En progreso/Aprobada/Fallida mostrado como chips con código de color) y resumen de resultados (aprobadas/total). Use el filtro desplegable de Estado para acotar los resultados. Haga clic en 'Nueva inspección' para crear una.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='new-inspection-btn']",
+          "popover": {
+            "title": "Botón Nueva inspección",
+            "description": "Abre el cuadro de diálogo de creación de la inspección. Seleccione una plantilla de QC (opcional — rellena los elementos de la lista de verificación), ingrese un ID de trabajo, un número de lote y notas. El inspector se establece automáticamente como el usuario actual.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab:nth-child(2)",
+          "popover": {
+            "title": "Pestaña Seguimiento de lotes",
+            "description": "Rastrea los registros de lotes de material con número de lote, número de pieza, descripción, cantidad, trabajo, lote del proveedor, fecha de vencimiento y fecha de creación. Busque por número de lote o de pieza. Cada fila tiene un botón de trazabilidad (icono de árbol) que abre un cuadro de diálogo que muestra cada registro vinculado: trabajos, corridas de producción, órdenes de compra, ubicaciones de contenedores e inspecciones de QC.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab:nth-child(3)",
+          "popover": {
+            "title": "Pestaña Gráficos SPC",
+            "description": "Muestra gráficos de control X-barra y de Rango para las características SPC. Seleccione una característica de la lista de la barra lateral (vinculada a piezas y operaciones). El gráfico muestra los puntos de datos, los límites de control (UCL/LCL), los límites de especificación (USL/LSL), la línea central y resalta los puntos fuera de control. Los índices de capacidad del proceso (Cp, Cpk, Pp, Ppk) se muestran al lado.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab:nth-child(4)",
+          "popover": {
+            "title": "Pestaña Entrada de datos SPC",
+            "description": "Registre subgrupos de medición para una característica seleccionada. Seleccione una característica de la barra lateral, luego ingrese los valores de medición para cada subgrupo. El sistema calcula la media, el rango, la desviación estándar y comprueba automáticamente las condiciones fuera de control usando las reglas de Western Electric.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab:nth-child(5)",
+          "popover": {
+            "title": "Pestaña Eventos OOC",
+            "description": "Lista todos los eventos fuera de control detectados por el análisis SPC. Cada evento muestra la característica, la pieza, la hora de detección, la regla violada, la severidad (Advertencia/Fuera de control/Fuera de especificación) y el estado (Abierto/Reconocido/CAPA creado/Resuelto). Puede reconocer eventos y crear CAPA directamente desde los eventos OOC.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab:nth-child(6)",
+          "popover": {
+            "title": "Pestaña NCR",
+            "description": "Los Reportes de no conformidad documentan las fallas de calidad. Lista el número de NCR, el tipo (Interno/Proveedor/Cliente), la pieza, la cantidad afectada, el estado (Abierto/En revisión/Contenido/Dispuesto/Cerrado) y el impacto en el costo. Filtre por tipo y estado. Cree nuevos NCR o disponga los existentes (Usar tal cual, Retrabajar, Desechar, Devolver al proveedor, Clasificar y revisar, Concesión).",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab:nth-child(7)",
+          "popover": {
+            "title": "Pestaña CAPA",
+            "description": "Las Acciones correctivas y preventivas impulsan la resolución sistemática de problemas. Lista el número de CAPA, el tipo (Correctiva/Preventiva), el título, el estado, el responsable, la prioridad, la fecha de vencimiento y el progreso de las tareas. Los CAPA avanzan a través de fases: Identificación, Contención, Análisis de causa raíz, Acción correctiva, Verificación, Comprobación de eficacia.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab:nth-child(8)",
+          "popover": {
+            "title": "Pestaña ECO",
+            "description": "Las Órdenes de cambio de ingeniería gestionan cambios controlados en piezas, procesos y documentación. Lista el número de ECO, el título, el tipo de cambio, el estado (Borrador/Revisión/Aprobado/En implementación/Implementado/Cancelado), la prioridad y el conteo de elementos afectados. Cree, revise y rastree la implementación de los cambios de ingeniería.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab:nth-child(9)",
+          "popover": {
+            "title": "Pestaña Galgas",
+            "description": "Gestiona los instrumentos de medición y los calendarios de calibración. Lista el número de galga, la descripción, el tipo, el estado (En servicio/Vence cal/En cal/Fuera de servicio/Retirada), la fecha de vencimiento de la próxima calibración y el conteo de registros de calibración. Haga clic en una fila de galga para ver su detalle completo y su historial de calibración. Registre nuevas calibraciones con el resultado, el nombre del laboratorio, el certificado y las condiciones de hallazgo/entrega.",
+            "side": "bottom"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "quality-field-reference",
+    "title": "Referencia de campos de Calidad",
+    "summary": "Referencia completa de cada campo, botón, estado, regla de validación, columna y acción en las nueve pestañas de Calidad.",
+    "contentJson": {
+      "title": "Referencia de campos de Calidad",
+      "groups": [
+        {
+          "heading": "Campos de la plantilla de QC",
+          "items": [
+            { "label": "Nombre (requerido)", "value": "Entrada de texto. Identifica la plantilla de lista de verificación. Ejemplos: 'Inspección de material entrante', 'QC de ensamble final', 'Comprobación dimensional'." },
+            { "label": "Descripción", "value": "Entrada de texto, opcional. Explica el propósito de la plantilla o cuándo debe usarse." },
+            { "label": "Pieza", "value": "Selector de entidad, opcional. Vincula la plantilla a una pieza específica. Cuando está establecida, esta plantilla se sugiere al inspeccionar esa pieza." },
+            { "label": "IsActive", "value": "Conmutador. Las plantillas activas aparecen en el menú desplegable de plantillas al crear inspecciones. Predeterminado: true." }
+          ]
+        },
+        {
+          "heading": "Campos del elemento de lista de verificación de QC",
+          "items": [
+            { "label": "Descripción (requerido)", "value": "Entrada de texto. Lo que el inspector debe comprobar. Ejemplos: 'Acabado superficial dentro de Ra 32', 'Dimensión A = 2.500 +/- 0.005'." },
+            { "label": "Especificación", "value": "Entrada de texto, opcional. El valor esperado, la tolerancia o el criterio de aprobado/fallido. Se muestra junto a la descripción de la comprobación durante la inspección." },
+            { "label": "Orden de clasificación", "value": "Entrada numérica. Controla el orden de visualización de los elementos dentro de la plantilla. Los números más bajos aparecen primero." },
+            { "label": "IsRequired", "value": "Conmutador. Cuando está activado, esta comprobación debe completarse (aprobada o fallida) antes de que la inspección pueda finalizarse. Predeterminado: true." }
+          ]
+        },
+        {
+          "heading": "Campos del formulario de inspección",
+          "items": [
+            { "label": "Plantilla", "value": "Menú desplegable de selección, opcional. Elegir una plantilla pre-rellena la inspección con los elementos de la lista de verificación de esa plantilla. data-testid: inspection-template" },
+            { "label": "ID de trabajo", "value": "Entrada numérica, opcional. Vincula la inspección a un trabajo específico. data-testid: inspection-job" },
+            { "label": "Número de lote", "value": "Entrada de texto, opcional. Asocia la inspección con un lote de material para la trazabilidad. data-testid: inspection-lot" },
+            { "label": "Notas", "value": "Área de texto, opcional. Notas de formato libre sobre la inspección. data-testid: inspection-notes" }
+          ]
+        },
+        {
+          "heading": "Campos del resultado de inspección",
+          "items": [
+            { "label": "Descripción", "value": "Texto, pre-rellenado del elemento de la lista de verificación. La comprobación que se está realizando." },
+            { "label": "Aprobada", "value": "Booleano (conmutador aprobado/fallido). Si esta comprobación individual aprobó." },
+            { "label": "Valor medido", "value": "Entrada de texto, opcional. El valor real medido durante la comprobación (p. ej., '2.503', 'Ra 28')." },
+            { "label": "Notas", "value": "Entrada de texto, opcional. Notas del inspector para esta comprobación específica." }
+          ]
+        },
+        {
+          "heading": "Estados de inspección",
+          "items": [
+            { "label": "En progreso (chip amarillo)", "value": "La inspección se está realizando activamente. Se están registrando los resultados." },
+            { "label": "Aprobada (chip verde)", "value": "Todas las comprobaciones requeridas aprobaron. La inspección está completa con un resultado de aprobación." },
+            { "label": "Fallida (chip rojo)", "value": "Una o más comprobaciones requeridas fallaron. Puede desencadenar un NCR o una retención." }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de inspecciones",
+          "items": [
+            { "label": "Fecha", "value": "Ordenable. Cuándo se creó la inspección. Formato: MM/dd/yyyy." },
+            { "label": "Trabajo", "value": "Ordenable. El número de trabajo vinculado, o guion si no hay ninguno." },
+            { "label": "Plantilla", "value": "Ordenable. La plantilla de QC usada, o guion si es una inspección ad-hoc." },
+            { "label": "Inspector", "value": "Ordenable. Nombre de la persona que realizó la inspección." },
+            { "label": "Número de lote", "value": "Ordenable. El lote de material inspeccionado, mostrado en fuente monoespaciada." },
+            { "label": "Estado", "value": "Ordenable, filtrable (enum). Chip con código de color: En progreso (amarillo), Aprobada (verde), Fallida (rojo)." },
+            { "label": "Resumen de resultados", "value": "Centrado. Muestra el conteo de aprobadas/total (p. ej., '5/6'). Guion si no se registraron resultados." }
+          ]
+        },
+        {
+          "heading": "Campos del registro de lote",
+          "items": [
+            { "label": "Pieza (requerido)", "value": "Entrada numérica (ID de pieza). La pieza para la que es este lote. Validadores: requerido." },
+            { "label": "Cantidad (requerido)", "value": "Entrada numérica. Cuántas unidades hay en este lote. Validadores: requerido, mín. 1. Predeterminado: 1." },
+            { "label": "Número de lote", "value": "Entrada de texto, opcional. Si se deja en blanco, el sistema genera automáticamente un número de lote único." },
+            { "label": "ID de trabajo", "value": "Entrada numérica, opcional. Vincula el lote a un trabajo de producción." },
+            { "label": "Número de lote del proveedor", "value": "Entrada de texto, opcional. El número de lote del proveedor para el material entrante." },
+            { "label": "Notas", "value": "Área de texto, opcional. Notas sobre el lote (p. ej., condiciones de almacenamiento, manejo especial)." }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de lotes",
+          "items": [
+            { "label": "Número de lote", "value": "Ordenable. Mostrado en fuente monoespaciada. Ancho: 160px." },
+            { "label": "N.º de pieza", "value": "Ordenable. El número de pieza asociado con este lote. Ancho: 120px." },
+            { "label": "Descripción", "value": "Ordenable. Descripción de la pieza." },
+            { "label": "Cantidad", "value": "Ordenable, alineado a la derecha. Número de unidades en el lote. Ancho: 80px." },
+            { "label": "Trabajo", "value": "Ordenable. Número de trabajo vinculado, o guion. Ancho: 100px." },
+            { "label": "Lote del proveedor", "value": "Ordenable. Número de lote del proveedor, o guion. Ancho: 140px." },
+            { "label": "Vence", "value": "Ordenable, tipo fecha. Fecha de vencimiento o guion. Ancho: 110px." },
+            { "label": "Creado", "value": "Ordenable, tipo fecha. Cuándo se creó el lote. Ancho: 110px." },
+            { "label": "Acciones", "value": "Botón de trazabilidad centrado (icono account_tree). Abre el cuadro de diálogo de trazabilidad. Ancho: 50px." }
+          ]
+        },
+        {
+          "heading": "Secciones del cuadro de diálogo de trazabilidad",
+          "items": [
+            { "label": "Encabezado", "value": "Muestra el número de pieza y la descripción de la pieza del lote." },
+            { "label": "Trabajos", "value": "Lista todos los trabajos que usaron este lote — número y título del trabajo." },
+            { "label": "Corridas de producción", "value": "Lista las corridas de producción vinculadas — número de corrida y chip de estado." },
+            { "label": "Órdenes de compra", "value": "Lista las OC que suministraron este material — número de OC y nombre del proveedor." },
+            { "label": "Ubicaciones de contenedores", "value": "Muestra dónde se almacena el material — nombre de la ubicación y cantidad." },
+            { "label": "Inspecciones de QC", "value": "Lista las inspecciones sobre este lote — chip de estado, nombre del inspector y fecha." }
+          ]
+        },
+        {
+          "heading": "Campos de la característica SPC",
+          "items": [
+            { "label": "Pieza (requerido)", "value": "Selector de entidad. La pieza que se está midiendo." },
+            { "label": "Operación", "value": "Opcional. La operación de fabricación específica donde ocurre la medición." },
+            { "label": "Nombre (requerido)", "value": "Entrada de texto. Nombre de la característica (p. ej., 'Diámetro A', 'Rugosidad superficial')." },
+            { "label": "Descripción", "value": "Texto, opcional. Detalle adicional sobre la característica." },
+            { "label": "Tipo de medición", "value": "Selección: Variable (medición continua) o Atributo (aprobado/fallido). Predeterminado: Variable." },
+            { "label": "Valor nominal (requerido)", "value": "Número. El valor de medición objetivo/ideal." },
+            { "label": "Límite superior de especificación (requerido)", "value": "Número. Valor máximo aceptable (USL)." },
+            { "label": "Límite inferior de especificación (requerido)", "value": "Número. Valor mínimo aceptable (LSL)." },
+            { "label": "Unidad de medida", "value": "Texto, opcional (p. ej., 'mm', 'pulgadas', 'Ra')." },
+            { "label": "Lugares decimales", "value": "Número. Cuántos lugares decimales mostrar para las mediciones." },
+            { "label": "Tamaño de muestra", "value": "Número. Número de lecturas por subgrupo (p. ej., 5)." },
+            { "label": "Frecuencia de muestreo", "value": "Texto, opcional. Con qué frecuencia muestrear (p. ej., 'Cada 50 piezas', 'Por hora')." },
+            { "label": "Galga", "value": "Opcional. Se vincula a una galga de la pestaña Galgas para la trazabilidad." },
+            { "label": "IsActive", "value": "Conmutador. Las características inactivas se ocultan de la entrada de datos." },
+            { "label": "Notificar en OOC", "value": "Conmutador. Cuando está activado, genera una notificación cuando se detecta una condición fuera de control." }
+          ]
+        },
+        {
+          "heading": "Elementos del gráfico SPC",
+          "items": [
+            { "label": "UCL (Límite de control superior)", "value": "Calculado a partir de los datos de medición. Límite superior de la variación normal del proceso." },
+            { "label": "LCL (Límite de control inferior)", "value": "Calculado a partir de los datos de medición. Límite inferior de la variación normal del proceso." },
+            { "label": "Línea central", "value": "Media del proceso (gráfico X-barra) o rango promedio (gráfico R)." },
+            { "label": "USL / LSL", "value": "Límites de especificación de la definición de la característica. No es lo mismo que los límites de control." },
+            { "label": "Puntos OOC", "value": "Los puntos que violan las reglas de Western Electric se resaltan en el gráfico." },
+            { "label": "Cp / Cpk", "value": "Capacidad del proceso a corto plazo. Cp = potencial, Cpk = real (tiene en cuenta el centrado)." },
+            { "label": "Pp / Ppk", "value": "Desempeño del proceso a largo plazo. Pp = potencial, Ppk = real." }
+          ]
+        },
+        {
+          "heading": "Campos del evento OOC",
+          "items": [
+            { "label": "Severidad", "value": "Advertencia (violación menor de regla), Fuera de control (violación mayor de regla), Fuera de especificación (más allá de USL/LSL)." },
+            { "label": "Estado", "value": "Abierto (detectado, aún no revisado), Reconocido (revisado por calidad), CAPA creado (vinculado a acción correctiva), Resuelto (causa raíz abordada)." },
+            { "label": "Nombre de la regla", "value": "Qué regla de Western Electric fue violada (p. ej., 'Punto más allá de 3-sigma', 'Racha de 7')." },
+            { "label": "Reconocimiento", "value": "Quién reconoció, cuándo y sus notas." }
+          ]
+        },
+        {
+          "heading": "Campos del NCR",
+          "items": [
+            { "label": "Número de NCR", "value": "Identificador único generado automáticamente." },
+            { "label": "Tipo (requerido)", "value": "Selección: Interno (encontrado internamente), Proveedor (defecto de material entrante), Cliente (queja de cliente)." },
+            { "label": "Pieza (requerido)", "value": "Selector de entidad. La pieza no conforme." },
+            { "label": "Etapa de detección (requerido)", "value": "Selección: Recepción, En proceso, Inspección final, Envío, Cliente, Auditoría." },
+            { "label": "Descripción (requerido)", "value": "Área de texto. Cuál es el defecto y cómo se encontró." },
+            { "label": "Cantidad afectada (requerido)", "value": "Número. Cantidad total afectada." },
+            { "label": "Cantidad defectuosa", "value": "Número, opcional. Cuántas son realmente defectuosas (puede diferir de la afectada)." },
+            { "label": "Acciones de contención", "value": "Área de texto, opcional. Acciones inmediatas tomadas para contener el defecto." },
+            { "label": "Costo de material / Costo de mano de obra", "value": "Moneda, opcional. Impacto en el costo rastreado para el reporte de COPQ." }
+          ]
+        },
+        {
+          "heading": "Estados del NCR",
+          "items": [
+            { "label": "Abierto", "value": "NCR creado, investigación aún no iniciada." },
+            { "label": "En revisión", "value": "El equipo de calidad está evaluando la no conformidad." },
+            { "label": "Contenido", "value": "Acciones de contención inmediatas completadas. A la espera de disposición." },
+            { "label": "Dispuesto", "value": "Disposición formal asignada: Usar tal cual, Retrabajar, Desechar, Devolver al proveedor, Clasificar y revisar, o Concesión." },
+            { "label": "Cerrado", "value": "NCR totalmente resuelto. Acciones correctivas completas si corresponde." }
+          ]
+        },
+        {
+          "heading": "Códigos de disposición del NCR",
+          "items": [
+            { "label": "Usar tal cual", "value": "Aceptar el material no conforme sin retrabajo." },
+            { "label": "Retrabajar", "value": "Reparar o retrabajar el material para llevarlo a conformidad." },
+            { "label": "Desechar", "value": "Descartar el material no conforme." },
+            { "label": "Devolver al proveedor", "value": "Enviar el material defectuoso de vuelta al proveedor." },
+            { "label": "Clasificar y revisar", "value": "Inspeccionar todo el lote para separar las unidades buenas de las defectuosas." },
+            { "label": "Concesión", "value": "Aceptar con la aprobación del cliente o una desviación documentada." }
+          ]
+        },
+        {
+          "heading": "Campos del CAPA",
+          "items": [
+            { "label": "Número de CAPA", "value": "Identificador único generado automáticamente." },
+            { "label": "Tipo (requerido)", "value": "Selección: Correctiva (corregir un problema existente) o Preventiva (prevenir un problema potencial)." },
+            { "label": "Tipo de origen", "value": "Cómo se originó el CAPA: NCR, Auditoría, Queja de cliente, Evento OOC, Interno, Proveedor." },
+            { "label": "Título (requerido)", "value": "Entrada de texto. Breve descripción del problema que se está abordando." },
+            { "label": "Descripción del problema (requerido)", "value": "Área de texto. Descripción detallada del problema." },
+            { "label": "Descripción del impacto", "value": "Área de texto, opcional. Impacto del problema en el negocio." },
+            { "label": "Método de causa raíz", "value": "Selección, opcional: 5 Porqués, Diagrama de espina de pescado, Árbol de fallas, 8D." },
+            { "label": "Análisis de causa raíz", "value": "Área de texto, opcional. Resultados de la investigación de causa raíz." },
+            { "label": "Responsable (requerido)", "value": "La persona responsable de llevar el CAPA hasta su finalización." },
+            { "label": "Prioridad", "value": "Nivel de prioridad numérico." },
+            { "label": "Fecha de vencimiento (requerido)", "value": "Fecha objetivo de finalización." },
+            { "label": "Fecha de vencimiento de la comprobación de eficacia", "value": "Fecha, opcional. Cuándo verificar que la acción correctiva sigue siendo eficaz." }
+          ]
+        },
+        {
+          "heading": "Estados / Fases del CAPA",
+          "items": [
+            { "label": "Identificación", "value": "Problema identificado y documentado." },
+            { "label": "Contención", "value": "Acciones inmediatas para prevenir un mayor impacto." },
+            { "label": "Análisis de causa raíz", "value": "Investigar por qué ocurrió el problema." },
+            { "label": "Acción correctiva", "value": "Implementar la corrección o la mejora." },
+            { "label": "Verificación", "value": "Confirmar que la acción correctiva es eficaz." },
+            { "label": "Comprobación de eficacia", "value": "Seguimiento a largo plazo para garantizar que el problema no se repita." }
+          ]
+        },
+        {
+          "heading": "Campos del ECO",
+          "items": [
+            { "label": "Número de ECO", "value": "Identificador único generado automáticamente." },
+            { "label": "Título (requerido)", "value": "Entrada de texto. Breve descripción del cambio." },
+            { "label": "Descripción (requerido)", "value": "Área de texto. Descripción detallada de qué está cambiando y por qué." },
+            { "label": "Tipo de cambio (requerido)", "value": "Selección: Nuevo, Revisión, Obsolescencia, Reducción de costos, Mejora de calidad." },
+            { "label": "Prioridad (requerido)", "value": "Selección: Baja, Normal, Alta, Crítica." },
+            { "label": "Motivo del cambio", "value": "Área de texto, opcional. Por qué se necesita el cambio." },
+            { "label": "Análisis de impacto", "value": "Área de texto, opcional. Evaluación del impacto del cambio en la producción, el costo y la calidad." },
+            { "label": "Fecha de vigencia", "value": "Fecha, opcional. Cuándo entra en vigor el cambio." }
+          ]
+        },
+        {
+          "heading": "Estados del ECO",
+          "items": [
+            { "label": "Borrador", "value": "ECO creado, aún no enviado para revisión." },
+            { "label": "Revisión", "value": "Enviado para revisión por los interesados." },
+            { "label": "Aprobado", "value": "Cambio aprobado, listo para implementación." },
+            { "label": "En implementación", "value": "El cambio se está implementando activamente." },
+            { "label": "Implementado", "value": "Cambio totalmente implementado y verificado." },
+            { "label": "Cancelado", "value": "ECO cancelado, el cambio no se realizará." }
+          ]
+        },
+        {
+          "heading": "Campos de la galga",
+          "items": [
+            { "label": "Descripción (requerido)", "value": "Entrada de texto. Qué es la galga (p. ej., 'Calibrador digital 0-6\"', 'Micrómetro de exteriores 1-2\"')." },
+            { "label": "Tipo de galga", "value": "Entrada de texto, opcional. Categoría del instrumento (p. ej., 'Calibrador', 'Micrómetro', 'CMM', 'Bloque patrón')." },
+            { "label": "Fabricante", "value": "Entrada de texto, opcional. Fabricante del instrumento (p. ej., 'Mitutoyo', 'Starrett')." },
+            { "label": "Modelo", "value": "Entrada de texto, opcional. Número de modelo del fabricante." },
+            { "label": "Número de serie", "value": "Entrada de texto, opcional. Identificador único del instrumento." },
+            { "label": "Intervalo de calibración (requerido)", "value": "Entrada numérica (días). Con qué frecuencia se requiere la calibración (p. ej., 365 para anual)." },
+            { "label": "Especificación de precisión", "value": "Entrada de texto, opcional. Precisión declarada (p. ej., '+/- 0.001\"')." },
+            { "label": "Especificación de rango", "value": "Entrada de texto, opcional. Rango de medición (p. ej., '0-6 pulgadas')." },
+            { "label": "Resolución", "value": "Entrada de texto, opcional. Incremento más pequeño (p. ej., '0.0005\"')." },
+            { "label": "Ubicación", "value": "Selector de entidad, opcional. Ubicación de almacenamiento de la galga." },
+            { "label": "Activo", "value": "Selector de entidad, opcional. Vincula la galga a un registro de activo si corresponde." },
+            { "label": "Notas", "value": "Área de texto, opcional. Información adicional sobre la galga." }
+          ]
+        },
+        {
+          "heading": "Estados de la galga",
+          "items": [
+            { "label": "En servicio (verde)", "value": "La galga está calibrada y disponible para su uso." },
+            { "label": "Vence calibración (amarillo)", "value": "El intervalo de calibración ha transcurrido. La galga no debe usarse hasta que se recalibre." },
+            { "label": "En calibración (azul)", "value": "La galga se ha enviado a un laboratorio de calibración y está a la espera de su devolución." },
+            { "label": "Fuera de servicio (rojo)", "value": "La galga está dañada o de otro modo inutilizable. Requiere reparación." },
+            { "label": "Retirada (gris)", "value": "Galga retirada permanentemente del servicio." }
+          ]
+        },
+        {
+          "heading": "Campos del registro de calibración",
+          "items": [
+            { "label": "Calibrada el (requerido)", "value": "Selector de fecha. Cuándo se realizó la calibración." },
+            { "label": "Resultado (requerido)", "value": "Selección: Aprobado (dentro de especificación), Fallido (fuera de tolerancia, no se puede ajustar), Ajustado (fuera de tolerancia, corregido), Fuera de tolerancia (fuera de especificación, puede necesitar investigación)." },
+            { "label": "Nombre del laboratorio", "value": "Entrada de texto, opcional. Laboratorio de calibración externo o 'Interno'." },
+            { "label": "Archivo del certificado", "value": "Carga de archivo, opcional. PDF del certificado de calibración." },
+            { "label": "Estándares utilizados", "value": "Entrada de texto, opcional. Estándares trazables usados durante la calibración." },
+            { "label": "Condición de hallazgo (As Found)", "value": "Entrada de texto, opcional. Condición de la galga antes de la calibración." },
+            { "label": "Condición de entrega (As Left)", "value": "Entrada de texto, opcional. Condición de la galga después de la calibración." },
+            { "label": "Notas", "value": "Área de texto, opcional. Notas adicionales de calibración." }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de galgas",
+          "items": [
+            { "label": "N.º de galga", "value": "Ordenable. Número de galga generado automáticamente. Ancho: 110px." },
+            { "label": "Descripción", "value": "Ordenable. Descripción de la galga." },
+            { "label": "Tipo", "value": "Ordenable. Categoría del tipo de galga. Ancho: 110px." },
+            { "label": "Estado", "value": "Ordenable, filtrable (enum). Chip con código de color. Ancho: 130px." },
+            { "label": "Próx. cal. vence", "value": "Ordenable, tipo fecha. Fecha de vencimiento de la próxima calibración. Ancho: 110px." },
+            { "label": "Registros de cal.", "value": "Ordenable, tipo número, centrado. Conteo de registros de calibración. Ancho: 90px." }
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            { "label": "Nueva inspección", "value": "Abre el cuadro de diálogo de creación de inspección. Visible en la pestaña Inspecciones. data-testid: new-inspection-btn" },
+            { "label": "Nuevo lote", "value": "Abre el cuadro de diálogo de creación de lote. Visible en la pestaña Lotes." },
+            { "label": "Nueva característica", "value": "Abre la creación de característica SPC. Visible en las pestañas Gráficos SPC y Entrada de datos SPC." },
+            { "label": "Nuevo NCR", "value": "Abre el cuadro de diálogo de creación de NCR. Visible en la pestaña NCR." },
+            { "label": "Nuevo CAPA", "value": "Abre el cuadro de diálogo de creación de CAPA. Visible en la pestaña CAPA." },
+            { "label": "Nuevo ECO", "value": "Abre el cuadro de diálogo de creación de ECO. Visible en la pestaña ECO." },
+            { "label": "Nueva galga", "value": "Abre el cuadro de diálogo de creación de galga. Visible en la pestaña Galgas. data-testid: new-gage-btn" },
+            { "label": "Ver trazabilidad (icono de árbol)", "value": "Abre el cuadro de diálogo de trazabilidad del lote que muestra todos los registros vinculados. Disponible por fila de lote." },
+            { "label": "Reconocer OOC", "value": "Marca un evento fuera de control como revisado. Disponible por evento OOC." },
+            { "label": "Crear CAPA desde OOC", "value": "Crea un CAPA vinculado al evento OOC. Disponible por evento OOC no resuelto." },
+            { "label": "Crear CAPA desde NCR", "value": "Crea una acción correctiva vinculada al NCR." },
+            { "label": "Disponer NCR", "value": "Abre el cuadro de diálogo de disposición para asignar Usar tal cual, Retrabajar, Desechar, etc." },
+            { "label": "Registrar calibración", "value": "Abre el cuadro de diálogo de registro de calibración para la galga seleccionada." }
+          ]
+        },
+        {
+          "heading": "Integración con escáner",
+          "items": [
+            { "label": "Pestaña Inspecciones", "value": "Escanear un código de barras rellena el campo de búsqueda de inspección con el valor escaneado." },
+            { "label": "Pestaña Lotes", "value": "Escanear un código de barras rellena el campo de búsqueda de lotes con el valor escaneado." },
+            { "label": "Contexto del escáner", "value": "Establecido en 'quality'. Solo procesa escaneos cuando la página de Calidad está activa." }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "quality-quiz",
+    "title": "Evaluación de conocimientos de Calidad",
+    "summary": "Ponga a prueba sus conocimientos sobre el módulo de Calidad: inspecciones, plantillas, lotes, SPC, NCR, CAPA, ECO, galgas e integración con escáner.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "qc1",
+          "text": "Necesita inspeccionar material entrante para una pieza específica que tiene una lista de verificación estándar. ¿Cuál es el flujo de trabajo más eficiente?",
+          "options": [
+            { "id": "a", "text": "Ir a Calidad → pestaña Inspecciones, hacer clic en Nueva inspección, seleccionar la plantilla de QC para esa pieza, ingresar el número de lote y recorrer los elementos pre-rellenados de la lista de verificación", "isCorrect": true },
+            { "id": "b", "text": "Crear una nueva plantilla de QC desde cero cada vez que realiza una inspección" },
+            { "id": "c", "text": "Ir al módulo de Piezas y registrar los resultados de la inspección en el campo de notas de la pieza" },
+            { "id": "d", "text": "Omitir la inspección y marcar el lote como aceptado en Inventario" }
+          ],
+          "explanation": "Las plantillas de QC definen listas de verificación reutilizables. Al crear una inspección, seleccionar una plantilla pre-rellena todos los elementos de la lista de verificación. Ingrese el número de lote para la trazabilidad y registre los resultados de aprobado/fallido para cada comprobación."
+        },
+        {
+          "id": "qc2",
+          "text": "Una inspección tiene un resumen de resultados que muestra '4/6'. ¿Qué significa esto?",
+          "options": [
+            { "id": "a", "text": "4 de 6 inspectores aprobaron la pieza" },
+            { "id": "b", "text": "4 de 6 comprobaciones individuales de la lista de verificación aprobaron", "isCorrect": true },
+            { "id": "c", "text": "La pieza obtuvo 4 de 6 en una escala de calificación de calidad" },
+            { "id": "d", "text": "Se inspeccionaron 4 de 6 lotes del batch" }
+          ],
+          "explanation": "El resumen de resultados muestra cuántos elementos individuales de la lista de verificación aprobaron del total. '4/6' significa que 4 comprobaciones aprobaron y 2 fallaron. Esto da una vista rápida de un vistazo de la calidad de la inspección."
+        },
+        {
+          "id": "qc3",
+          "text": "Un cliente reporta un defecto en piezas del lote L-2024-0042. Necesita encontrar cada trabajo, OC y ubicación de contenedor que usó material de este lote. ¿Dónde busca?",
+          "options": [
+            { "id": "a", "text": "Calidad → pestaña Lotes → buscar L-2024-0042 → hacer clic en el botón de trazabilidad (icono de árbol) para ver todos los trabajos, corridas de producción, OC, ubicaciones de contenedores e inspecciones vinculados", "isCorrect": true },
+            { "id": "b", "text": "Ejecutar un reporte en el módulo de Reportes filtrado por número de lote" },
+            { "id": "c", "text": "Verificar el módulo de Inventario en busca del contenido de contenedores que coincida con ese lote" },
+            { "id": "d", "text": "Buscar el número de lote en la búsqueda del tablero Kanban" }
+          ],
+          "explanation": "La pestaña Seguimiento de lotes tiene un botón de trazabilidad por fila (icono de árbol) que abre un cuadro de diálogo que muestra cada registro vinculado: trabajos, corridas de producción, órdenes de compra, ubicaciones de contenedores e inspecciones de QC. Esta es la forma más rápida de rastrear un lote a través de su operación."
+        },
+        {
+          "id": "qc4",
+          "text": "Está monitoreando una dimensión crítica en una pieza mecanizada por CNC y nota que el gráfico SPC muestra un punto más allá del límite de control superior (UCL). ¿Qué debe esperar del sistema?",
+          "options": [
+            { "id": "a", "text": "Nada — el gráfico es solo informativo y no desencadena ninguna alerta" },
+            { "id": "b", "text": "Se genera automáticamente un evento fuera de control (OOC) en la pestaña Eventos OOC, con la severidad según la regla violada. Si la característica tiene 'Notificar en OOC' habilitado, también se envía una notificación.", "isCorrect": true },
+            { "id": "c", "text": "El sistema detiene automáticamente la máquina CNC a través de la integración IoT" },
+            { "id": "d", "text": "El estado de la pieza se cambia automáticamente a Obsoleta" }
+          ],
+          "explanation": "Cuando SPC detecta una condición fuera de control (como un punto más allá de 3-sigma), crea un evento OOC con la severidad apropiada. Si la característica tiene 'Notificar en OOC' habilitado, el personal pertinente recibe una notificación. El evento OOC puede entonces reconocerse y crearse un CAPA si es necesario."
+        },
+        {
+          "id": "qc5",
+          "text": "Un lote de material proporcionado por un proveedor falla la inspección entrante. Documenta esto como un NCR. ¿Qué tipo de NCR y etapa de detección debe seleccionar?",
+          "options": [
+            { "id": "a", "text": "Tipo: Interno, Etapa de detección: En proceso" },
+            { "id": "b", "text": "Tipo: Cliente, Etapa de detección: Recepción" },
+            { "id": "c", "text": "Tipo: Proveedor, Etapa de detección: Recepción", "isCorrect": true },
+            { "id": "d", "text": "Tipo: Proveedor, Etapa de detección: Inspección final" }
+          ],
+          "explanation": "Dado que el defecto está en material proporcionado por el proveedor, el tipo de NCR es 'Proveedor'. Dado que se detectó durante la inspección de material entrante, la etapa de detección es 'Recepción'. Esta combinación categoriza con precisión la no conformidad para el reporte y el seguimiento de la calidad del proveedor."
+        },
+        {
+          "id": "qc6",
+          "text": "Un NCR ha sido investigado y el equipo de calidad decide que las piezas no conformes pueden retrabajarse para cumplir con la especificación. ¿Cuál es el código de disposición correcto?",
+          "options": [
+            { "id": "a", "text": "Usar tal cual" },
+            { "id": "b", "text": "Retrabajar", "isCorrect": true },
+            { "id": "c", "text": "Clasificar y revisar" },
+            { "id": "d", "text": "Concesión" }
+          ],
+          "explanation": "'Retrabajar' significa que el material no conforme será reparado o retrabajado para llevarlo a conformidad con la especificación. 'Usar tal cual' lo aceptaría sin cambios, 'Clasificar y revisar' separaría lo bueno de lo malo, y 'Concesión' requeriría la aprobación del cliente."
+        },
+        {
+          "id": "qc7",
+          "text": "Se ha identificado un problema de calidad recurrente a través de múltiples NCR. Necesita realizar un análisis de causa raíz y rastrear las acciones correctivas hasta el cierre. ¿Qué función debe usar?",
+          "options": [
+            { "id": "a", "text": "Crear un ECO para documentar el cambio de ingeniería" },
+            { "id": "b", "text": "Crear un CAPA con tipo Correctiva, vincularlo a los NCR, realizar el análisis de causa raíz (p. ej., 5 Porqués o Espina de pescado), documentar las acciones correctivas y rastrear a través de la verificación y la comprobación de eficacia", "isCorrect": true },
+            { "id": "c", "text": "Agregar notas a cada NCR describiendo la acción correctiva tomada" },
+            { "id": "d", "text": "Crear un trabajo en el tablero Kanban para rastrear la corrección" }
+          ],
+          "explanation": "Los CAPA están diseñados para la resolución sistemática de problemas. Cree un CAPA Correctivo, vincúlelo a los NCR de origen, use un método de causa raíz (5 Porqués, Espina de pescado, Árbol de fallas u 8D), documente las acciones correctivas y preventivas, luego rastree a través de la verificación y la comprobación de eficacia."
+        },
+        {
+          "id": "qc8",
+          "text": "Un cambio de diseño en una pieza requiere actualizar el BOM, revisar el plano y modificar el programa CNC. ¿Qué función de Calidad gestiona este cambio controlado?",
+          "options": [
+            { "id": "a", "text": "Crear un NCR para documentar los cambios requeridos" },
+            { "id": "b", "text": "Crear un ECO con tipo de cambio 'Revisión', listar los elementos afectados (pieza, BOM, operaciones) con valores antiguos y nuevos, y avanzar a través de Borrador → Revisión → Aprobado → Implementación → Implementado", "isCorrect": true },
+            { "id": "c", "text": "Actualizar el registro de la pieza directamente en el módulo de Piezas" },
+            { "id": "d", "text": "Crear un CAPA para rastrear el cambio de diseño" }
+          ],
+          "explanation": "Las Órdenes de cambio de ingeniería (ECO) gestionan cambios controlados en piezas, procesos y documentación. Cree un ECO con el tipo de cambio apropiado, liste todos los elementos afectados con sus valores antiguos y nuevos, obtenga la aprobación a través del proceso de revisión y rastree el estado de la implementación."
+        },
+        {
+          "id": "qc9",
+          "text": "Un calibrador digital necesita su calibración anual. ¿Cómo gestiona esto en el módulo de Calidad?",
+          "options": [
+            { "id": "a", "text": "Ir a Calidad → pestaña Galgas, encontrar el calibrador, hacer clic en él para abrir el detalle, luego hacer clic en 'Registrar calibración' e ingresar la fecha, el resultado, el nombre del laboratorio, los estándares utilizados y las condiciones de hallazgo/entrega", "isCorrect": true },
+            { "id": "b", "text": "Actualizar el estado del calibrador a 'En servicio' y cambiar la fecha de la última calibración manualmente" },
+            { "id": "c", "text": "Crear una orden de trabajo de mantenimiento en el módulo de Activos" },
+            { "id": "d", "text": "Registrar la calibración como una entrada de tiempo en Seguimiento de tiempo" }
+          ],
+          "explanation": "La pestaña Galgas proporciona un flujo de trabajo completo de gestión de calibración. Abra el detalle de la galga, registre una nueva calibración con el resultado (Aprobado/Fallido/Ajustado/Fuera de tolerancia), el nombre del laboratorio, el certificado, los estándares utilizados y las condiciones de hallazgo/entrega. El sistema actualiza automáticamente la fecha de vencimiento de la próxima calibración."
+        },
+        {
+          "id": "qc10",
+          "text": "Escanea un código de barras mientras está en la pestaña Lotes de la página de Calidad. ¿Qué sucede?",
+          "options": [
+            { "id": "a", "text": "Nada — el escáner no está activo en la página de Calidad" },
+            { "id": "b", "text": "El valor escaneado rellena el campo de búsqueda de lotes, lo que le permite encontrar rápidamente el lote escaneado", "isCorrect": true },
+            { "id": "c", "text": "Se crea automáticamente una nueva inspección para el lote escaneado" },
+            { "id": "d", "text": "El sistema abre el cuadro de diálogo de trazabilidad para el lote escaneado" }
+          ],
+          "explanation": "La página de Calidad establece el contexto del escáner en 'quality'. En la pestaña Lotes, un escaneo de código de barras rellena el campo de búsqueda de lotes con el valor escaneado. En la pestaña Inspecciones, en cambio rellena el campo de búsqueda de inspección. Esto permite búsquedas rápidas en el piso de planta."
+        },
+        {
+          "id": "qc11",
+          "text": "¿Cuál es la diferencia entre los límites de control (UCL/LCL) y los límites de especificación (USL/LSL) en un gráfico SPC?",
+          "options": [
+            { "id": "a", "text": "Son lo mismo — solo diferentes convenciones de nombres" },
+            { "id": "b", "text": "Los límites de control se calculan a partir de los datos reales del proceso y muestran los límites de variación natural. Los límites de especificación los definen los requisitos de ingeniería y muestran el rango aceptable para el producto.", "isCorrect": true },
+            { "id": "c", "text": "Los límites de control los establece la gerencia, los límites de especificación los establecen los clientes" },
+            { "id": "d", "text": "Los límites de especificación siempre son más amplios que los límites de control" }
+          ],
+          "explanation": "Los límites de control (UCL/LCL) se calculan estadísticamente a partir de los datos de medición — muestran el rango esperado de variación natural del proceso (típicamente +/- 3 sigma de la media). Los límites de especificación (USL/LSL) son requisitos de ingeniería definidos en la característica SPC — definen lo que requiere el cliente o el diseño. Un proceso puede estar en control (dentro de UCL/LCL) pero aún fuera de especificación, o viceversa."
+        },
+        {
+          "id": "qc12",
+          "text": "Necesita crear una plantilla de QC para una pieza específica que incluye 5 comprobaciones requeridas y 2 comprobaciones de referencia opcionales. ¿Cómo configura las comprobaciones opcionales?",
+          "options": [
+            { "id": "a", "text": "Crear dos plantillas separadas — una para las comprobaciones requeridas y otra para las opcionales" },
+            { "id": "b", "text": "Establecer el conmutador IsRequired en OFF para las 2 comprobaciones de referencia. Seguirán apareciendo durante la inspección pero no impedirán que la inspección se finalice.", "isCorrect": true },
+            { "id": "c", "text": "Agregar las comprobaciones opcionales como notas en el campo de descripción de la plantilla" },
+            { "id": "d", "text": "Las comprobaciones opcionales no se admiten — todos los elementos de una plantilla son siempre requeridos" }
+          ],
+          "explanation": "Cada elemento de la lista de verificación en una plantilla de QC tiene un conmutador IsRequired. Cuando se establece en OFF, la comprobación todavía aparece durante la inspección como referencia pero no impide que la inspección se complete. Esto es útil para mediciones consultivas o características secundarias que es bueno registrar pero no son críticas."
+        }
+      ]
+    }
+  }
+]

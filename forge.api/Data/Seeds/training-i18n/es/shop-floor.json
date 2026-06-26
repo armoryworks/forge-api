@@ -1,0 +1,649 @@
+[
+  {
+    "slug": "shop-floor-overview",
+    "title": "Visión general de la Pantalla de Taller",
+    "summary": "Qué es la pantalla de taller, cómo funciona el modo quiosco, la autenticación basada en escaneo, las tarjetas de trabajador y las acciones de trabajo.",
+    "contentJson": {
+      "body": "## Visión general de la Pantalla de Taller\n\nLa Pantalla de Taller es una interfaz de quiosco a pantalla completa diseñada para entornos de producción. Se ejecuta en `/display/shop-floor` y ofrece un panel táctil y siempre activo donde los trabajadores pueden fichar entrada/salida, ver sus trabajos asignados, iniciar y detener temporizadores, marcar trabajos como completos, recibir mercancía y enviar órdenes —todo sin navegar por la aplicación principal.\n\n### Modo quiosco\n\nLa pantalla de taller funciona en modo quiosco —no forma parte del diseño estándar de la aplicación. No hay barra lateral, ni barra de herramientas, ni navegación de encabezado. Toda la pantalla está dedicada a la interfaz de taller. Está pensada para ejecutarse en un monitor dedicado o tableta montada en la planta de producción.\n\nLa pantalla se actualiza automáticamente cada 15 segundos para mantener al día el estado de los trabajadores y los datos de los trabajos. Se muestra un reloj en vivo en el encabezado. El tema (claro/oscuro) y el tamaño de fuente se conservan en localStorage para que el quiosco retenga su configuración entre reinicios del navegador.\n\n### Dos variantes de pantalla\n\nHay dos rutas de taller:\n- **`/display/shop-floor`** — la pantalla de taller principal con una cuadrícula de tarjetas de trabajador, una sección de trabajos sin asignar, eventos próximos y superposiciones de acción completas (reloj, temporizador, recepción, envío)\n- **`/display/shop-floor/clock`** — un quiosco dedicado de fichaje de entrada/salida con configuración de terminal, filtrado por equipo y un flujo más simple centrado en el escaneo usando el `BarcodeScanInputComponent` (campo de entrada enfocado)\n\nLa pantalla principal usa el `ScannerService` global (detección pasiva de teclado por interceptación —keyboard-wedge— en el documento), mientras que el quiosco de reloj usa un componente de entrada de escaneo de código de barras enfocado.\n\n### Flujo de autenticación\n\nLa pantalla de taller usa autenticación efímera —sin sesión de inicio de sesión persistente. Los trabajadores se autentican para una sola acción, y luego la sesión se borra automáticamente. Hay dos formas de autenticarse:\n\n1. **Escaneo + PIN:** El trabajador escanea su credencial RFID o código de barras. El sistema identifica el escaneo a través de la API (`/display/shop-floor/identify-scan`). Si coincide con un empleado, aparece una superposición de PIN. El trabajador introduce su PIN numérico (mínimo 4 dígitos) y lo envía. Tras la autenticación exitosa, aparece la superposición de acciones.\n\n2. **Toque de tarjeta + Contraseña:** El trabajador toca su tarjeta con su nombre en la cuadrícula principal. Aparece una superposición de contraseña (no PIN —contraseña completa). Tras la autenticación exitosa, aparece la superposición de acciones.\n\nAmbos flujos usan una máquina de estados basada en fases: `main → pin → actions → (job-select | receiving | shipping) → main`. Los tiempos de espera de descarte automático evitan superposiciones obsoletas:\n- Fase PIN: 20 segundos antes de la cancelación automática\n- Fase de selección de trabajo: 15 segundos antes de la cancelación automática\n- Fase de acciones: 30 segundos de inactividad antes del cierre de sesión automático\n\n### Cuadrícula de tarjetas de trabajador\n\nEl panel principal muestra a todos los trabajadores en una cuadrícula adaptable. Cada tarjeta de trabajador es un diseño horizontal con:\n- Una **franja de estado** a la izquierda cuyo color indica el estado de fichaje del trabajador (verde para trabajando, amarillo para descanso/almuerzo, gris para fichado de salida)\n- Un **avatar** con las iniciales y el color del trabajador\n- El **nombre** del trabajador y su **estado actual** (etiqueta corta de ClockEventTypeService)\n- El **tiempo transcurrido** desde que el trabajador entró en su estado actual (se actualiza en vivo cada segundo)\n- Una lista de **trabajos asignados** (hasta 4 visibles, con un indicador de desbordamiento '+N más'), cada uno mostrando el número de trabajo, el título, un punto de color de etapa y un icono de temporizador si el trabajo tiene un temporizador activo\n\nLas tarjetas de trabajador son interactivas —al tocar una se entra en la fase de PIN/contraseña. Las tarjetas también sirven como destinos de soltar para la asignación de trabajos mediante arrastrar y soltar desde la sección de trabajos sin asignar.\n\n### Acciones de trabajo\n\nDespués de autenticarse, el trabajador ve sus trabajos asignados con botones de acción:\n- **Iniciar temporizador** (`play_circle`) — comienza a registrar el tiempo del trabajo seleccionado\n- **Detener temporizador** (`stop_circle`) — detiene el temporizador en ejecución\n- **Marcar completo** (`check_circle`) — mueve el trabajo a la siguiente etapa y registra la finalización\n\nDebajo de los trabajos, se muestran **botones de acción de reloj** de forma dinámica según el estado actual del trabajador (de `ClockEventTypeService`). Estos incluyen Fichar entrada, Fichar salida, Descanso, Almuerzo y cualquier tipo de evento de reloj personalizado configurado en la administración.\n\n### Recepción y envío\n\nLas acciones de muelle restringidas por rol aparecen después de la autenticación:\n- **Recibir mercancía** — disponible para los roles Admin, Manager, OfficeManager, Engineer y ProductionWorker. Muestra órdenes de compra abiertas con líneas recibibles, ajuste de cantidad (botones +/-), selección opcional de ubicación de contenedor y un botón de confirmación Recibir todo.\n- **Enviar mercancía** — disponible para los roles Admin, Manager y OfficeManager. Muestra envíos pendientes/empacados, el detalle del envío con información de transportista y seguimiento, un botón Imprimir albarán y un botón de confirmación Marcar enviado.\n\n### Filtro de etapa IsShopFloor\n\nNo todas las etapas Kanban aparecen en el taller. La marca booleana `IsShopFloor` en las entidades `TrackType` y `JobStage` controla qué etapas son visibles. Solo las etapas marcadas con `IsShopFloor = true` muestran sus trabajos en la pantalla de taller. Esto filtra las etapas no físicas como cotización, facturación y pago.\n\n### Trabajos sin asignar y arrastrar y soltar\n\nLos trabajos sin asignar (trabajos sin `assigneeId`) aparecen en una sección separada debajo de la cuadrícula de trabajadores. Cada tarjeta de trabajo sin asignar muestra el número de trabajo, el título, el nombre de la etapa, el punto de color de etapa y la prioridad. Las tarjetas son arrastrables —arrastre un trabajo sin asignar sobre una tarjeta de trabajador para asignarlo. Después de fichar entrada, si el trabajador no tiene asignaciones, aparece automáticamente una superposición de selección de trabajos (tiempo de espera de 15 segundos).\n\n### Eventos próximos\n\nLa pantalla de taller muestra los eventos próximos (reuniones, sesiones de capacitación, eventos de seguridad) cargados desde la API de Eventos. Cada tarjeta de evento muestra el icono de tipo, el título, la hora de inicio, la ubicación y una insignia 'Obligatorio' si corresponde.\n\n### Configuración del quiosco\n\nEl encabezado incluye controles para:\n- **Tamaño de fuente** — botones de aumentar/disminuir con 5 pasos (12px, 14px, 16px, 18px, 20px), aplicados mediante CSS zoom. Conservado en localStorage como `sf-font-index`.\n- **Interruptor de tema** — cambia entre los temas claro y oscuro. Conservado en localStorage como `sf-theme`.\n- **Reloj en vivo** — muestra la hora actual en formato `HH:MM:SS`, actualizándose cada segundo.\n- **Barra de búsqueda del quiosco** — un campo de búsqueda con antirrebote (300ms, mín. 2 caracteres) que consulta `/display/shop-floor/search` en busca de trabajos, piezas y otras entidades.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "shop-floor-walkthrough",
+    "title": "Pantalla de Taller — Recorrido guiado",
+    "summary": "Un recorrido guiado por la pantalla de taller: controles de encabezado, tarjetas de trabajador, autenticación por escaneo, acciones de reloj, temporizadores de trabajo, recepción y envío.",
+    "contentJson": {
+      "appRoute": "/display/shop-floor",
+      "startButtonLabel": "Recorrer la Pantalla de Taller",
+      "steps": [
+        {
+          "element": ".sf-header",
+          "popover": {
+            "title": "Encabezado del taller",
+            "description": "El encabezado muestra el título de la página, una barra de búsqueda del quiosco, controles de tamaño de fuente, un interruptor de tema claro/oscuro y un reloj en tiempo real. Toda la configuración del quiosco se guarda en localStorage y persiste entre reinicios del navegador.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".sf-header__stats",
+          "popover": {
+            "title": "Barra de resumen de estado",
+            "description": "Recuentos en tiempo real de trabajadores actualmente Trabajando (verde), En descanso (amarillo), Trabajos sin asignar, trabajos Hechos hoy y Alertas de mantenimiento (rojo, mostrado solo cuando es > 0). Estos se actualizan automáticamente cada 15 segundos.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".sf-grid",
+          "popover": {
+            "title": "Cuadrícula de tarjetas de trabajador",
+            "description": "Todos los trabajadores se muestran en una cuadrícula adaptable. Cada tarjeta tiene una franja izquierda de color (verde = trabajando, amarillo = descanso, gris = fichado de salida), un avatar, el nombre y el estado del trabajador, el tiempo transcurrido y hasta 4 trabajos asignados. Toque una tarjeta para autenticarse y acceder a las acciones de reloj. También puede arrastrar trabajos sin asignar sobre las tarjetas de trabajador para asignarlos.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".sf-card",
+          "popover": {
+            "title": "Tarjeta de trabajador",
+            "description": "Una sola tarjeta de trabajador. El color de la franja izquierda coincide con el estado de fichaje del trabajador. La sección de identidad muestra el avatar, el nombre, la etiqueta corta de estado y el tiempo transcurrido en vivo. Debajo, los trabajos asignados se enumeran con puntos de color de etapa, números de trabajo, títulos e indicadores de temporizador.",
+            "side": "right"
+          }
+        },
+        {
+          "element": ".sf-action-bar",
+          "popover": {
+            "title": "Barra de acciones",
+            "description": "La barra inferior muestra un aviso de escaneo pasivo y muestra mensajes de retroalimentación de escaneo (p. ej., 'Trabajo 1055 — Ensamblaje de eje de precisión' o 'Escaneo no reconocido'). La retroalimentación se descarta automáticamente después de 4 segundos.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "shop-floor-field-reference",
+    "title": "Referencia de campos de la Pantalla de Taller",
+    "summary": "Referencia completa de la pantalla de taller: campos del flujo de autenticación, campos de la tarjeta de trabajador, botones de acción de trabajo, acciones de reloj, tiempos de espera de descarte automático, configuración del quiosco, recepción, envío y filtrado de etapas.",
+    "contentJson": {
+      "title": "Referencia de campos de la Pantalla de Taller",
+      "groups": [
+        {
+          "heading": "Flujo de autenticación",
+          "items": [
+            {
+              "label": "Escaneo + PIN",
+              "value": "El trabajador escanea su credencial RFID o código de barras → el sistema identifica a través de la API → aparece la superposición de PIN → el trabajador introduce el PIN numérico (mín. 4 dígitos) → lo envía → se abre la superposición de acciones. Usa el método de autenticación scanLogin()."
+            },
+            {
+              "label": "Toque de tarjeta + Contraseña",
+              "value": "El trabajador toca su tarjeta con su nombre en la cuadrícula → aparece la superposición de contraseña (contraseña completa, no PIN) → la envía → se abre la superposición de acciones. Usa el método de autenticación estándar login()."
+            },
+            {
+              "label": "Campo PIN (autenticación por escaneo)",
+              "value": "Campo numérico, type=password, mín. 4 dígitos, máx. 8 caracteres. Marcador de posición: 'Introduzca su PIN'. Enfocado automáticamente cuando se abre la fase PIN."
+            },
+            {
+              "label": "Campo Contraseña (autenticación por toque)",
+              "value": "Campo de texto, type=password, máx. 128 caracteres. Marcador de posición: 'Introduzca su contraseña'."
+            },
+            {
+              "label": "Botón Enviar",
+              "value": "Deshabilitado durante la autenticación o cuando el campo está vacío. Muestra el indicador 'Verificando...' (icono sync) durante la autenticación. Etiqueta: 'Enviar' con icono login."
+            },
+            {
+              "label": "Botón Cancelar",
+              "value": "Vuelve al panel principal. Etiqueta: 'Cancelar' con icono arrow_back."
+            },
+            {
+              "label": "Mensajes de error",
+              "value": "'Credencial o PIN no válidos' para la autenticación por escaneo fallida. 'Contraseña no válida' para la autenticación por toque fallida. 'El PIN debe tener al menos 4 dígitos' para PIN demasiado cortos."
+            }
+          ]
+        },
+        {
+          "heading": "Tiempos de espera de descarte automático",
+          "items": [
+            {
+              "label": "Tiempo de espera de la fase PIN",
+              "value": "20 segundos. Si el trabajador no envía dentro de los 20 segundos, la superposición se cancela automáticamente y vuelve al panel principal."
+            },
+            {
+              "label": "Tiempo de espera de selección de trabajo",
+              "value": "15 segundos. Si el trabajador no elige un trabajo ni omite dentro de los 15 segundos, la superposición se cancela automáticamente y cierra la sesión."
+            },
+            {
+              "label": "Cierre de sesión automático de la fase de acciones",
+              "value": "30 segundos de inactividad. Cualquier pulsación de botón reinicia el temporizador. Después de 30 segundos, la sesión se borra y la pantalla vuelve al panel principal."
+            },
+            {
+              "label": "Intervalo de actualización de datos",
+              "value": "15 segundos. El estado de los trabajadores, los datos de los trabajos y los eventos próximos se actualizan automáticamente en el panel principal."
+            },
+            {
+              "label": "Intervalo de actualización del reloj",
+              "value": "1 segundo. El reloj del encabezado y los tiempos transcurridos de los trabajadores se actualizan cada segundo."
+            },
+            {
+              "label": "Descarte automático de retroalimentación de escaneo",
+              "value": "4 segundos. Los mensajes de retroalimentación en la barra inferior desaparecen después de 4 segundos."
+            },
+            {
+              "label": "Retroalimentación de éxito de acción",
+              "value": "1,5 segundos. Después de una acción de reloj exitosa, la retroalimentación se muestra brevemente antes del cierre de sesión automático. 0,8 segundos antes de pasar al selector de trabajos (si corresponde)."
+            }
+          ]
+        },
+        {
+          "heading": "Campos de la tarjeta de trabajador",
+          "items": [
+            {
+              "label": "Franja de estado (borde izquierdo)",
+              "value": "Franja vertical de color en el borde izquierdo. Verde (sf-card--in) para estado trabajando, amarillo (sf-card--break) para descanso/almuerzo, gris (sf-card--out) para fichado de salida. El color se determina por la asignación de estado de ClockEventTypeService."
+            },
+            {
+              "label": "Avatar",
+              "value": "AvatarComponent con tamaño 'lg'. Muestra las iniciales del trabajador y el color del avatar."
+            },
+            {
+              "label": "Nombre del trabajador",
+              "value": "Nombre completo mostrado en sf-card__name."
+            },
+            {
+              "label": "Etiqueta de estado",
+              "value": "Etiqueta corta de ClockEventTypeService.getShortLabel(). Mostrada junto al nombre."
+            },
+            {
+              "label": "Tiempo transcurrido",
+              "value": "Duración que se actualiza en vivo desde que el trabajador entró en su estado actual. Formato: Xs, Xm XXs o Xh XXm XXs. Recalculado cada segundo mediante la señal tick."
+            },
+            {
+              "label": "Trabajos asignados (máx. 4 visibles)",
+              "value": "Cada fila de trabajo muestra: punto de color de etapa, número de trabajo, título del trabajo e icono de temporizador (si está activo). Los trabajos con temporizador activo se resaltan. Los trabajos atrasados reciben estilo de atrasado."
+            },
+            {
+              "label": "Indicador de desbordamiento",
+              "value": "Texto '+N más' cuando el trabajador tiene más de 4 asignaciones."
+            },
+            {
+              "label": "Resaltado de destino de soltar",
+              "value": "Resaltado visual (sf-card--drop-target) al arrastrar un trabajo sin asignar sobre la tarjeta."
+            },
+            {
+              "label": "Estados de retroalimentación",
+              "value": "Pulso verde (sf-card--feedback-success) tras una acción exitosa. Pulso rojo (sf-card--feedback-fail) tras una acción fallida."
+            }
+          ]
+        },
+        {
+          "heading": "Estadísticas del encabezado",
+          "items": [
+            {
+              "label": "Trabajando (verde)",
+              "value": "Recuento de trabajadores con un estado de reloj 'trabajando' activo. Color: var(--success)."
+            },
+            {
+              "label": "En descanso (amarillo)",
+              "value": "Recuento de trabajadores con estado de reloj de descanso o almuerzo. Color: var(--warning)."
+            },
+            {
+              "label": "Sin asignar",
+              "value": "Recuento de trabajos activos sin assigneeId."
+            },
+            {
+              "label": "Hechos hoy (acento)",
+              "value": "Recuento de trabajos completados hoy. Color: var(--accent)."
+            },
+            {
+              "label": "Alertas (rojo)",
+              "value": "Recuento de alertas de mantenimiento. Solo se muestra cuando es > 0. Color: var(--error)."
+            }
+          ]
+        },
+        {
+          "heading": "Botones de acción de trabajo (superposición de acciones)",
+          "items": [
+            {
+              "label": "Iniciar temporizador (play_circle)",
+              "value": "Comienza a registrar el tiempo del trabajo seleccionado. Llama a POST /time-tracking/timer/start con jobId. Deshabilitado mientras se procesa cualquier acción. Muestra un indicador durante la solicitud."
+            },
+            {
+              "label": "Detener temporizador (stop_circle)",
+              "value": "Detiene el temporizador en ejecución actual. Llama a POST /time-tracking/timer/stop. Solo se muestra en trabajos con un temporizador activo."
+            },
+            {
+              "label": "Marcar completo (check_circle)",
+              "value": "Marca el trabajo como completo y lo mueve a la siguiente etapa. Llama a POST /display/shop-floor/complete-job. Tras el éxito, cierra la sesión automáticamente después de 1,2 segundos."
+            }
+          ]
+        },
+        {
+          "heading": "Botones de acción de reloj (superposición de acciones)",
+          "items": [
+            {
+              "label": "Acciones dinámicas",
+              "value": "Los botones se generan a partir de ClockEventTypeService.getAvailableActions(worker.status). Cada botón muestra un icono y una etiqueta de la definición del tipo de evento de reloj, con un color personalizado mediante la variable CSS --btn-color."
+            },
+            {
+              "label": "Fichar entrada",
+              "value": "Disponible cuando el trabajador está fichado de salida. Cambia al estado 'trabajando'. Si el trabajador no tiene asignaciones después de fichar entrada, aparece la superposición del selector de trabajos."
+            },
+            {
+              "label": "Fichar salida",
+              "value": "Disponible cuando el trabajador está fichado de entrada. Cambia al estado 'fichado de salida'."
+            },
+            {
+              "label": "Descanso / Almuerzo",
+              "value": "Disponible cuando el trabajador está fichado de entrada. Cambia al estado de descanso/almuerzo."
+            },
+            {
+              "label": "Estado de procesamiento",
+              "value": "Todos los botones se deshabilitan mientras una acción está en curso. El botón activo muestra el icono sync giratorio."
+            }
+          ]
+        },
+        {
+          "heading": "Acciones de muelle (restringidas por rol)",
+          "items": [
+            {
+              "label": "Recibir mercancía (move_to_inbox)",
+              "value": "Abre la superposición de recepción. Disponible para los roles Admin, Manager, OfficeManager, Engineer y ProductionWorker. Solo se muestra cuando el trabajador está activamente fichado de entrada."
+            },
+            {
+              "label": "Enviar mercancía (local_shipping)",
+              "value": "Abre la superposición de envío. Disponible para los roles Admin, Manager y OfficeManager. Solo se muestra cuando el trabajador está activamente fichado de entrada."
+            },
+            {
+              "label": "Superposición de recepción — selección de OC",
+              "value": "Enumera las órdenes de compra abiertas (estado: Submitted, Acknowledged, PartiallyReceived) con líneas recibibles. Muestra el número de OC, el nombre del proveedor y el recuento de líneas."
+            },
+            {
+              "label": "Superposición de recepción — confirmación de línea",
+              "value": "Ajuste de cantidad por línea con botones +/-. Muestra el número de pieza, la descripción y la cantidad restante. Menú desplegable opcional de selección de ubicación de contenedor."
+            },
+            {
+              "label": "Superposición de recepción — botón Recibir todo",
+              "value": "Envía todas las líneas con cantidad > 0. Muestra un indicador durante el envío. Cierra la sesión automáticamente después de 1,5 segundos tras el éxito."
+            },
+            {
+              "label": "Superposición de envío — selección de envío",
+              "value": "Enumera los envíos pendientes y empacados. Muestra el número de envío, el nombre del cliente, el número de orden de venta y un chip de estado."
+            },
+            {
+              "label": "Superposición de envío — detalle del envío",
+              "value": "Muestra el número de envío, el cliente, el número de OV, el transportista, el número de seguimiento y las líneas de artículo con descripciones y cantidades."
+            },
+            {
+              "label": "Botón Imprimir albarán",
+              "value": "Abre el PDF del albarán en una nueva pestaña mediante GET /shipments/{id}/packing-slip."
+            },
+            {
+              "label": "Botón Marcar enviado",
+              "value": "Confirma el envío. Muestra un indicador durante el envío. Cierra la sesión automáticamente después de 1,5 segundos tras el éxito."
+            }
+          ]
+        },
+        {
+          "heading": "Configuración del quiosco (controles del encabezado)",
+          "items": [
+            {
+              "label": "Disminuir tamaño de fuente (text_decrease)",
+              "value": "Reduce el tamaño de fuente en un paso. Deshabilitado en el mínimo (12px, índice 0). Pasos: 12, 14, 16, 18, 20px. Aplicado mediante CSS zoom. Conservado en la clave de localStorage 'sf-font-index'."
+            },
+            {
+              "label": "Visualización del tamaño de fuente",
+              "value": "Muestra el tamaño de fuente actual en píxeles (p. ej., '14px')."
+            },
+            {
+              "label": "Aumentar tamaño de fuente (text_increase)",
+              "value": "Aumenta el tamaño de fuente en un paso. Deshabilitado en el máximo (20px, índice 4)."
+            },
+            {
+              "label": "Interruptor de tema (dark_mode / light_mode)",
+              "value": "Cambia entre los temas claro y oscuro. El icono cambia según el tema actual. Conservado en la clave de localStorage 'sf-theme'. Aplicado mediante el atributo data-theme en el elemento anfitrión."
+            },
+            {
+              "label": "Reloj en vivo",
+              "value": "Muestra la hora actual en formato HH:MM:SS AM/PM. Se actualiza cada segundo."
+            }
+          ]
+        },
+        {
+          "heading": "Filtrado de etapas (IsShopFloor)",
+          "items": [
+            {
+              "label": "Marca IsShopFloor",
+              "value": "Booleana en las entidades TrackType y JobStage. Controla qué etapas aparecen en la pantalla de taller. Solo las etapas con IsShopFloor = true muestran sus trabajos."
+            },
+            {
+              "label": "Propósito",
+              "value": "Filtra las etapas no físicas (cotización, facturación, pago) que son irrelevantes para los trabajadores de la planta de producción."
+            },
+            {
+              "label": "Configuración",
+              "value": "Se establece mediante Administración → Tipos de vía. Cada etapa dentro de un tipo de vía puede activarse individualmente para la visibilidad en el taller."
+            }
+          ]
+        },
+        {
+          "heading": "Superposición de selección de trabajo",
+          "items": [
+            {
+              "label": "Activación",
+              "value": "Aparece automáticamente después de fichar entrada si el trabajador no tiene trabajos asignados. Se muestra tras un retraso de retroalimentación de 0,8 segundos."
+            },
+            {
+              "label": "Lista de trabajos",
+              "value": "Muestra todos los trabajos sin asignar con punto de color de etapa, número de trabajo, título, nombre de la etapa y prioridad. Cada trabajo es un botón en el que se puede hacer clic."
+            },
+            {
+              "label": "Acción de asignar",
+              "value": "Hacer clic en un trabajo lo asigna al trabajador mediante POST /display/shop-floor/assign-job. Cierra la sesión automáticamente después de 0,8 segundos tras el éxito."
+            },
+            {
+              "label": "Botón Omitir",
+              "value": "Omite la selección de trabajo y cierra la sesión. Icono: skip_next."
+            },
+            {
+              "label": "Estado vacío",
+              "value": "Muestra 'No hay trabajos sin asignar disponibles' con el icono work_off cuando no hay trabajos disponibles."
+            }
+          ]
+        },
+        {
+          "heading": "Asignación de trabajos por arrastrar y soltar",
+          "items": [
+            {
+              "label": "Origen de arrastre",
+              "value": "Tarjetas de trabajo sin asignar en la sección de trabajos sin asignar. Cada tarjeta tiene un icono de asa drag_indicator y draggable='true'."
+            },
+            {
+              "label": "Destino de soltar",
+              "value": "Tarjetas de trabajador en la cuadrícula principal. Aparece un resaltado visual al arrastrar sobre una tarjeta."
+            },
+            {
+              "label": "Asignación",
+              "value": "Soltar un trabajo en una tarjeta de trabajador llama a POST /display/shop-floor/assign-job con jobId y userId. Los datos se actualizan después de la asignación."
+            },
+            {
+              "label": "Datos de arrastre",
+              "value": "ID del trabajo transferido mediante dataTransfer con el tipo 'application/x-job-id'."
+            }
+          ]
+        },
+        {
+          "heading": "Identificación de escaneo",
+          "items": [
+            {
+              "label": "Endpoint de la API",
+              "value": "POST /display/shop-floor/identify-scan con { scanValue }. Devuelve ScanIdentification con scanType, entityId, entityNumber, entityTitle."
+            },
+            {
+              "label": "Tipos de escaneo",
+              "value": "employee (→ fase PIN), job (→ mensaje de retroalimentación), sales-order (→ mensaje de retroalimentación), unknown (→ 'Escaneo no reconocido')."
+            },
+            {
+              "label": "Respaldo (fallback)",
+              "value": "Si la API de identificación falla, el valor de escaneo se trata como una credencial de empleado y se abre la superposición de PIN."
+            },
+            {
+              "label": "Contexto del escáner",
+              "value": "El contexto de ScannerService se establece en 'shop-floor'. Solo procesa escaneos durante la fase principal —ignora los escaneos durante las superposiciones."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "shop-floor-quiz",
+    "title": "Evaluación de conocimientos de la Pantalla de Taller",
+    "summary": "Ponga a prueba su conocimiento de la pantalla de taller: modo quiosco, autenticación, tarjetas de trabajador, acciones de trabajo, recepción, envío y filtrado de etapas.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "sf1",
+          "text": "Está configurando un nuevo quiosco de taller. Después de abrir la pantalla, ¿cuál es la forma principal en que los trabajadores se autentican para realizar acciones?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Inician sesión con su correo electrónico y contraseña a través de la página de inicio de sesión estándar"
+            },
+            {
+              "id": "b",
+              "text": "Escanean su credencial RFID o código de barras e introducen su PIN numérico",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Un administrador los inicia desde el panel de administración"
+            },
+            {
+              "id": "d",
+              "text": "Usan una contraseña de quiosco compartida publicada en la pared"
+            }
+          ],
+          "explanation": "La pantalla de taller usa autenticación efímera basada en escaneo. Los trabajadores escanean su credencial RFID o código de barras y luego introducen su PIN numérico (mínimo 4 dígitos). La sesión se borra automáticamente después de completar la acción. Alternativamente, los trabajadores pueden tocar su tarjeta con su nombre e introducir su contraseña completa."
+        },
+        {
+          "id": "sf2",
+          "text": "Un trabajador escanea su credencial en el quiosco de taller pero se aleja sin introducir su PIN. ¿Qué ocurre después de 20 segundos?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El sistema envía una notificación al teléfono del trabajador"
+            },
+            {
+              "id": "b",
+              "text": "La superposición de PIN permanece abierta indefinidamente hasta que alguien la cancela"
+            },
+            {
+              "id": "c",
+              "text": "La superposición de PIN se cancela automáticamente y la pantalla vuelve al panel principal",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "El trabajador ficha salida automáticamente"
+            }
+          ],
+          "explanation": "La fase PIN tiene un tiempo de espera de descarte automático de 20 segundos. Si el trabajador no envía dentro de ese tiempo, la superposición se cancela automáticamente y la pantalla vuelve al panel principal. Esto evita que las superposiciones obsoletas bloqueen el quiosco para otros trabajadores."
+        },
+        {
+          "id": "sf3",
+          "text": "En la cuadrícula de tarjetas de trabajador, ¿qué indica una franja izquierda amarilla en la tarjeta de un trabajador?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El trabajador está actualmente trabajando en un trabajo"
+            },
+            {
+              "id": "b",
+              "text": "El trabajador está en descanso o almuerzo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El trabajador ha fichado salida por el día"
+            },
+            {
+              "id": "d",
+              "text": "El trabajador tiene una asignación de trabajo atrasada"
+            }
+          ],
+          "explanation": "El color de la franja izquierda indica el estado de fichaje del trabajador: verde significa trabajando, amarillo significa en descanso o almuerzo, y gris significa fichado de salida. Los colores se determinan por la asignación de estado de ClockEventTypeService."
+        },
+        {
+          "id": "sf4",
+          "text": "Un trabajador ficha entrada pero no tiene trabajos asignados. ¿Qué ocurre a continuación en la pantalla de taller?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Nada —el trabajador ve la superposición de acciones estándar y puede cerrar la sesión"
+            },
+            {
+              "id": "b",
+              "text": "Aparece automáticamente una superposición de selección de trabajos, mostrando los trabajos sin asignar que el trabajador puede seleccionar",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El trabajador es redirigido al tablero Kanban para encontrar un trabajo"
+            },
+            {
+              "id": "d",
+              "text": "Se envía una alerta al gerente para que asigne un trabajo"
+            }
+          ],
+          "explanation": "Después de fichar entrada, si el trabajador no tiene trabajos asignados, aparece automáticamente una superposición de selección de trabajos (tras un breve retraso de retroalimentación de 0,8 segundos). El trabajador puede elegir un trabajo sin asignar u omitir. La superposición tiene un tiempo de espera de descarte automático de 15 segundos."
+        },
+        {
+          "id": "sf5",
+          "text": "¿Cómo asigna un trabajo sin asignar a un trabajador directamente desde el panel principal del taller (sin autenticarse)?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Hacer clic en el trabajo sin asignar y luego hacer clic en el nombre del trabajador desde un menú desplegable"
+            },
+            {
+              "id": "b",
+              "text": "Arrastrar la tarjeta del trabajo sin asignar desde la sección de trabajos sin asignar y soltarla sobre la tarjeta del trabajador",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Hacer clic derecho en el trabajo y seleccionar 'Asignar a'"
+            },
+            {
+              "id": "d",
+              "text": "No puede asignar trabajos desde el panel principal —primero debe autenticarse"
+            }
+          ],
+          "explanation": "Las tarjetas de trabajo sin asignar son arrastrables. Arrastre un trabajo desde la sección de trabajos sin asignar y suéltelo sobre cualquier tarjeta de trabajador en la cuadrícula. La asignación se realiza de inmediato a través de la API, y la pantalla se actualiza. No se requiere autenticación para la asignación por arrastrar y soltar."
+        },
+        {
+          "id": "sf6",
+          "text": "Un Trabajador de producción (ProductionWorker) se autentica en el quiosco de taller. ¿Qué acciones de muelle verá?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Tanto Recibir mercancía como Enviar mercancía"
+            },
+            {
+              "id": "b",
+              "text": "Solo Recibir mercancía",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Solo Enviar mercancía"
+            },
+            {
+              "id": "d",
+              "text": "Ninguna —las acciones de muelle son solo para usuarios Admin"
+            }
+          ],
+          "explanation": "Recibir mercancía está disponible para los roles Admin, Manager, OfficeManager, Engineer y ProductionWorker. Enviar mercancía está restringido solo a los roles Admin, Manager y OfficeManager. Ambas requieren que el trabajador esté activamente fichado de entrada."
+        },
+        {
+          "id": "sf7",
+          "text": "Ajusta el tamaño de fuente en el quiosco de taller a 18px y cambia al tema oscuro. Se reinicia el navegador. ¿Qué ocurre con estos ajustes?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Se restablecen a los valores predeterminados (12px, tema claro)"
+            },
+            {
+              "id": "b",
+              "text": "Se conservan —el tamaño de fuente y el tema se guardan en localStorage",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Solo se conserva el tema, el tamaño de fuente se restablece"
+            },
+            {
+              "id": "d",
+              "text": "Se guardan en las preferencias de la cuenta del usuario en el servidor"
+            }
+          ],
+          "explanation": "Tanto el tamaño de fuente (almacenado como 'sf-font-index' en localStorage) como el tema (almacenado como 'sf-theme' en localStorage) persisten entre reinicios del navegador. Esto garantiza que el quiosco retenga su configuración de visualización sin reconfiguración."
+        },
+        {
+          "id": "sf8",
+          "text": "¿Qué controla la marca IsShopFloor en una etapa de trabajo?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Si los trabajos en esa etapa pueden editarse desde el taller"
+            },
+            {
+              "id": "b",
+              "text": "Si los trabajos en esa etapa aparecen en la pantalla de taller",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Si los trabajadores pueden fichar entrada cuando están asignados a trabajos en esa etapa"
+            },
+            {
+              "id": "d",
+              "text": "Si la columna de la etapa es visible en el tablero Kanban"
+            }
+          ],
+          "explanation": "La marca booleana IsShopFloor en las entidades TrackType y JobStage controla la visibilidad en la pantalla de taller. Solo las etapas con IsShopFloor = true muestran sus trabajos. Esto filtra las etapas no físicas como cotización, facturación y pago que son irrelevantes para los trabajadores de la planta de producción."
+        },
+        {
+          "id": "sf9",
+          "text": "Durante el flujo de recepción en el taller, un trabajador selecciona una orden de compra. ¿Qué puede ajustar antes de confirmar la recepción?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El nombre del proveedor y el número de OC"
+            },
+            {
+              "id": "b",
+              "text": "La cantidad a recibir de cada línea de artículo y, opcionalmente, seleccionar una ubicación de contenedor",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El precio unitario y el costo total de cada línea"
+            },
+            {
+              "id": "d",
+              "text": "La fecha de entrega prevista y la información del transportista"
+            }
+          ],
+          "explanation": "La superposición de recepción muestra cada línea de OC con su cantidad restante. Los trabajadores ajustan la cantidad a recibir por línea usando botones +/- (limitada a la cantidad restante). También pueden seleccionar opcionalmente una ubicación de contenedor de un menú desplegable. Hacer clic en 'Recibir todo' envía todas las líneas con cantidad > 0."
+        },
+        {
+          "id": "sf10",
+          "text": "Un trabajador inicia un temporizador en un trabajo desde la superposición de acciones del taller. ¿Dónde aparece este temporizador?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Solo en la página de Control de tiempo —la pantalla de taller no muestra temporizadores activos"
+            },
+            {
+              "id": "b",
+              "text": "En la tarjeta del trabajador en la cuadrícula principal, como un icono de temporizador junto al trabajo, y la fila del trabajo se resalta en la superposición de acciones",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Solo en la barra de estadísticas del encabezado como un recuento global de temporizadores"
+            },
+            {
+              "id": "d",
+              "text": "En un panel de temporizador separado que se desliza desde la derecha"
+            }
+          ],
+          "explanation": "Los temporizadores activos son visibles en varios lugares del taller: la tarjeta del trabajador muestra un icono de temporizador (timer) junto al trabajo con un temporizador activo, y la fila del trabajo en la superposición de acciones recibe un resaltado activo (sf-actions-card__job--active). El temporizador se inicia mediante POST /time-tracking/timer/start y puede detenerse desde la misma superposición."
+        }
+      ]
+    }
+  }
+]

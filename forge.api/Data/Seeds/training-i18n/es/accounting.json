@@ -1,0 +1,560 @@
+[
+  {
+    "slug": "accounting-overview",
+    "title": "Resumen de Informes Financieros",
+    "summary": "Qué son los Informes Financieros integrados, las nueve páginas de informes, el límite de contabilidad autónoma y cómo se muestra el estado de conciliación.",
+    "contentJson": {
+      "body": "## Resumen de Informes Financieros\n\nEl área de Contabilidad es el conjunto de informes financieros integrado de Forge. Lee del propio libro mayor (GL) del sistema y convierte la actividad contabilizada en los nueve informes estándar que una oficina necesita para evaluar la salud del negocio: un Balance de Comprobación, un Estado de Resultados, un Balance General, un estado de Flujo de Efectivo, Antigüedad de Cuentas por Cobrar y por Pagar, un informe GRNI (Mercancía Recibida No Facturada), un gestor de Cierre de Período y una hoja de trabajo de Conciliación Bancaria. Cada informe es de solo lectura sobre el libro mayor: estás viendo lo que ya se ha contabilizado, no editando transacciones aquí.\n\n### ⚡ El Límite de Contabilidad Autónoma\n\nEstos informes son **funciones del modo autónomo**. Forge puede llevar sus propios libros o delegar la contabilidad a un proveedor contable externo (QuickBooks, Xero, etc.). Ambos son mutuamente excluyentes: el catálogo de capacidades declara `CAP-ACCT-EXTERNAL ⊥ CAP-ACCT-BUILTIN` como su único par mutex. Cuando hay un proveedor externo conectado, el GL y estos informes quedan inactivos, porque el proveedor es la fuente de verdad para los libros. Cuando **no** hay ningún proveedor externo conectado, Forge funciona en modo autónomo y el libro mayor integrado se activa. Toda el área de Contabilidad está detrás del guardia de ruta `CAP-ACCT-FULLGL`, por lo que permanece oculta hasta que se active el conjunto integrado. En resumen: estos informes solo hacen un trabajo significativo en modo autónomo, con el GL integrado activado y sin ningún sistema contable externo en el circuito.\n\n### Cómo Navegar\n\nLa página principal de Contabilidad es una cuadrícula de mosaicos —uno por informe— que enrutan a las nueve páginas de informes más un par de herramientas de apoyo (importación de Extractos Bancarios, Exportaciones). Haz clic en un mosaico para abrir ese informe. Cada página de informe se abre con un encabezado de página estándar (título + subtítulo) y carga sus datos automáticamente al llegar. La mayoría de los informes también se actualizan solos cada vez que cambia el GL subyacente, por lo que rara vez necesitas recargar manualmente.\n\n### Los Nueve Informes\n\n**Balance de Comprobación** (`/accounting/trial-balance`) — Una tabla de cada cuenta del GL con su total de débitos, total de créditos y saldo neto. Un chip en el encabezado muestra **Cuadrado** (verde) cuando el total de débitos es igual al total de créditos, o **Descuadrado** (rojo) cuando no lo es. Una franja de totales en la parte inferior suma las columnas de débito y crédito. Este es el informe base: si el balance de comprobación está descuadrado, no se puede confiar en los demás estados.\n\n**Estado de Resultados** (`/accounting/profit-loss`) — Un estado de resultados dispuesto como líneas de Ingresos, luego líneas de Gastos, cada línea mostrando su número de cuenta, nombre de cuenta e importe. El informe subtotaliza el Total de Ingresos y el Total de Gastos, y luego muestra la **Utilidad Neta** en el pie. Si el costo de los bienes vendidos aún no se ha contabilizado, aparece una nota de advertencia sobre el margen en la parte superior para que leas el margen con las expectativas correctas.\n\n**Balance General** (`/accounting/balance-sheet`) — Secciones de Activos, Pasivos y Patrimonio, cada línea mostrando número de cuenta, nombre e importe, con subtotales por sección. El Patrimonio incluye una línea de Utilidades del Ejercicio Actual. Un chip en el encabezado muestra **Cuadrado** / **Descuadrado**, y el pie cuadra el Total de Pasivos y Patrimonio contra el Total de Activos.\n\n**Flujo de Efectivo** (`/accounting/cash-flow`) — Un estado de flujos de efectivo por el método indirecto: parte de la Utilidad Neta, aplica ajustes operativos, luego agrupa las actividades de Inversión y Financiamiento, subtotalizando el efectivo neto de cada una. El pie muestra el Cambio Neto en Efectivo y lo concilia contra el Movimiento Real de Efectivo; un chip en el encabezado muestra **Conciliado** o **Descuadrado**.\n\n**Antigüedad de Cuentas por Cobrar** (`/accounting/ar-aging`) — Cuentas por cobrar agrupadas en tramos (la escala estándar es 0-30 / 31-60 / 61-90 / 91+ días). Cada cliente es una fila con un importe en cada tramo más un saldo Abierto; una franja de totales suma cada tramo y el gran total abierto. Un chip en el encabezado muestra **Cuadra con la cuenta de control** (el informe cuadra con la cuenta de control de cuentas por cobrar) o **Descuadrado**.\n\n**Antigüedad de Cuentas por Pagar** (`/accounting/ap-aging`) — La imagen espejo para las cuentas por pagar: cada proveedor agrupado en la misma escala de tramos con un saldo Abierto, una franja de totales por tramo, y un chip **Cuadra con la cuenta de control** / **Descuadrado** contra la cuenta de control de cuentas por pagar.\n\n**GRNI** (`/accounting/grni`) — Mercancía Recibida No Facturada. Compara el saldo del GL de la cuenta de compensación GRNI contra el importe abierto operacional (mercancía físicamente recibida pero aún no facturada por el proveedor) y muestra la **Variación**. Luego desglosa el importe abierto por orden de compra a través de tramos de antigüedad y, cuando corresponde, lista las recepciones sin cobertura que no cuadran con una línea de orden de compra abierta. Un chip en el encabezado muestra **Conciliado** o **Variación**.\n\n**Cierre de Período** (`/accounting/period-close`) — El gestor de períodos fiscales. Los años fiscales listan sus períodos contables; cada período está **Abierto**, **Cierre Suave** o **Cierre Definitivo**. Puedes hacer un cierre suave de un período (reversible —se reabre después—), un cierre definitivo (bloqueado), o cerrar un año entero. El cierre suave bloquea la contabilización rutinaria pero puede reabrirse; el cierre definitivo bloquea el período permanentemente.\n\n**Conciliación Bancaria** (`/accounting/bank-rec`) — Una hoja de trabajo que cuadra tu saldo de efectivo en libros con un extracto bancario. Inicias una conciliación eligiendo una cuenta de efectivo, una fecha de extracto y un saldo final; luego marcas qué líneas del libro mayor han sido liquidadas por el banco. La hoja de trabajo muestra el Saldo en Libros, el Saldo Final del Extracto, el total Liquidado y el total Pendiente, y te indica la **Diferencia**. Cuando la diferencia es cero, la hoja de trabajo queda **Conciliado** y puede **Finalizarse**.\n\n### Cómo Leer el Estado de Conciliación\n\nCasi todos los informes llevan un chip de estado en su encabezado que responde a una pregunta: *¿cuadra este informe?* Los chips verdes (Cuadrado, Conciliado, Cuadra con la cuenta de control) significan que el informe coincide con su total de control. Los chips rojos o ámbar (Descuadrado, Variación, Diferencia) significan que algo no concilia y necesita investigarse antes de confiar en las cifras. El chip es la forma más rápida de verificar de un vistazo si un informe es coherente.\n\n### Cuándo Usar los Informes Financieros\n\n- Cuando necesitas una lectura puntual del negocio: el Estado de Resultados para el período, el Balance General para la fecha\n- Cuando confirmas que los libros cuadran: el Balance de Comprobación cuadrado, la antigüedad de cuentas por cobrar/pagar cuadrando con sus cuentas de control\n- Cuando persigues dinero: la Antigüedad de Cuentas por Cobrar para saber quién te debe, la Antigüedad de Cuentas por Pagar para saber qué debes\n- Cuando cierras un período: cierre suave durante la revisión, cierre definitivo para bloquearlo\n- Cuando concilias efectivo: cuadrando el libro mayor con el extracto bancario en la hoja de trabajo de Conciliación Bancaria\n- Cuando investigas la exposición de recibido-no-facturado: la variación de GRNI y el desglose por orden de compra",
+      "sections": []
+    }
+  },
+  {
+    "slug": "accounting-walkthrough",
+    "title": "Informes Financieros — Recorrido Guiado",
+    "summary": "Un recorrido guiado por el informe de Estado de Resultados y los patrones compartidos de los informes: encabezado de página, diseño del estado, chips de estado, totales y cómo se relacionan los nueve informes.",
+    "contentJson": {
+      "appRoute": "/accounting",
+      "startButtonLabel": "Recorrer Informes Financieros",
+      "steps": [
+        {
+          "element": "app-page-header",
+          "popover": {
+            "title": "El Centro de Contabilidad",
+            "description": "Esta es la página principal de los Informes Financieros integrados. Cada informe se abre con un encabezado estándar como este que muestra un título y un subtítulo, carga sus datos automáticamente al llegar, y la mayoría se actualizan solos cada vez que cambia el libro mayor subyacente: rara vez necesitas recargar manualmente.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tile-grid",
+          "popover": {
+            "title": "Los Mosaicos de Informes",
+            "description": "La página principal es una cuadrícula de mosaicos —uno por informe— más un par de herramientas de apoyo (importación de Extractos Bancarios, Exportaciones). Haz clic en cualquier mosaico para abrir ese informe. Esta cuadrícula es la forma de moverte entre los nueve informes y las herramientas sin perder tu lugar.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".tile",
+          "popover": {
+            "title": "Abrir un Informe",
+            "description": "Cada mosaico enruta a una página de informe: Balance de Comprobación, Estado de Resultados, Balance General, Flujo de Efectivo, Antigüedad de Cuentas por Cobrar, Antigüedad de Cuentas por Pagar, GRNI, Cierre de Período y Conciliación Bancaria. Cada informe es de solo lectura sobre el libro mayor contabilizado: estás viendo lo que ya se ha contabilizado, no editando transacciones aquí.",
+            "side": "right"
+          }
+        },
+        {
+          "element": ".tile-grid",
+          "popover": {
+            "title": "Informes de Estado vs. de Tabla",
+            "description": "El Estado de Resultados, el Balance General y el Flujo de Efectivo se muestran como un 'estado' agrupado en secciones (Ingresos/Gastos, Activos/Pasivos/Patrimonio, Operativas/Inversión/Financiamiento) con subtotales y una cifra destacada en el pie como la Utilidad Neta. Los informes de antigüedad, el Balance de Comprobación, el Cierre de Período y la Conciliación Bancaria se muestran como una tabla de datos ordenable y filtrable con una franja de totales y la escala de tramos de antigüedad (0-30 / 31-60 / 61-90 / 91+).",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-page-header",
+          "popover": {
+            "title": "Chips de Estado",
+            "description": "La mayoría de los informes agregan un chip de estado a su encabezado que responde a una pregunta: ¿cuadra el informe? El Balance de Comprobación y el Balance General muestran Cuadrado / Descuadrado. El Flujo de Efectivo y el GRNI muestran Conciliado / Variación. La Antigüedad de Cuentas por Cobrar y por Pagar muestran 'Cuadra con la cuenta de control' cuando coinciden con su cuenta de control. Verde significa que concilia; rojo o ámbar significa investigar.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".page-content",
+          "popover": {
+            "title": "Por Dónde Empezar",
+            "description": "Empieza con el Balance de Comprobación para confirmar que los libros cuadran, luego lee el Estado de Resultados para el período y el Balance General para la fecha. Usa la Antigüedad de Cuentas por Cobrar y por Pagar para perseguir dinero, el GRNI para la exposición de recibido-no-facturado, el Cierre de Período para bloquear un período y la Conciliación Bancaria para cuadrar el libro mayor con un extracto bancario. Elige cualquier mosaico de arriba para profundizar.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "accounting-field-reference",
+    "title": "Referencia de Campos de Informes Financieros",
+    "summary": "Referencia de cada informe financiero: las columnas, líneas, chips de estado, totales y acciones de cada una de las nueve páginas de informes.",
+    "contentJson": {
+      "title": "Referencia de Campos de Informes Financieros",
+      "groups": [
+        {
+          "heading": "El Límite de Contabilidad Autónoma",
+          "items": [
+            {
+              "label": "Modo autónomo",
+              "value": "Los Informes Financieros integrados son funciones del modo autónomo. Funcionan sobre el propio libro mayor de Forge y solo son significativos cuando NO hay ningún proveedor contable externo (QuickBooks, Xero, etc.) conectado."
+            },
+            {
+              "label": "Par mutex",
+              "value": "El catálogo de capacidades declara CAP-ACCT-EXTERNAL ⊥ CAP-ACCT-BUILTIN: los libros integrados y un proveedor externo son mutuamente excluyentes. Conectar un proveedor deja inactivos el GL y estos informes."
+            },
+            {
+              "label": "Guardia de ruta",
+              "value": "Toda el área de Contabilidad está detrás del guardia de ruta CAP-ACCT-FULLGL, por lo que permanece oculta hasta que se active el conjunto integrado."
+            },
+            {
+              "label": "Solo lectura",
+              "value": "Cada informe lee del libro mayor contabilizado: ves lo que ya se ha contabilizado; no editas transacciones en estas páginas (el Cierre de Período y la Conciliación Bancaria son las únicas páginas con acciones)."
+            },
+            {
+              "label": "Chip de estado",
+              "value": "La mayoría de los informes llevan un chip en el encabezado que responde '¿cuadra esto?' Verde (Cuadrado / Conciliado / Cuadra con la cuenta de control) = coincide con su total de control. Rojo o ámbar (Descuadrado / Variación / Diferencia) = investigar antes de confiar en las cifras."
+            }
+          ]
+        },
+        {
+          "heading": "Antigüedad de Cuentas por Pagar (/accounting/ap-aging)",
+          "items": [
+            {
+              "label": "Propósito",
+              "value": "Cuentas por pagar agrupadas según cuánto tiempo llevan pendientes las facturas: lo que debes a los proveedores, agrupado por antigüedad."
+            },
+            {
+              "label": "Filas",
+              "value": "Una fila por proveedor (nombre de la parte), con un importe en cada tramo de antigüedad más un saldo Abierto. La primera columna queda fija durante el desplazamiento horizontal."
+            },
+            {
+              "label": "Tramos de antigüedad",
+              "value": "La escala estándar es 0-30 / 31-60 / 61-90 / 91+ días, mostrada como columnas b0..b5 (la tabla admite hasta seis tramos; las etiquetas de los tramos provienen del informe). Cada una es ordenable, alineada a la derecha, en formato de moneda."
+            },
+            {
+              "label": "Franja de totales",
+              "value": "La franja inferior suma cada tramo y muestra el gran total Abierto."
+            },
+            {
+              "label": "Chip de estado",
+              "value": "'Cuadra con la cuenta de control' (verde) cuando el informe cuadra con la cuenta de control de cuentas por pagar, o 'Descuadrado' (rojo)."
+            }
+          ]
+        },
+        {
+          "heading": "Antigüedad de Cuentas por Cobrar (/accounting/ar-aging)",
+          "items": [
+            {
+              "label": "Propósito",
+              "value": "Cuentas por cobrar agrupadas según cuánto tiempo llevan pendientes las facturas: quién te debe, agrupado por antigüedad."
+            },
+            {
+              "label": "Filas",
+              "value": "Una fila por cliente (nombre de la parte), con un importe en cada tramo de antigüedad más un saldo Abierto. La primera columna queda fija durante el desplazamiento horizontal."
+            },
+            {
+              "label": "Tramos de antigüedad",
+              "value": "La misma escala 0-30 / 31-60 / 61-90 / 91+ que las cuentas por pagar, columnas b0..b5, ordenables y con formato de moneda; las etiquetas provienen del conjunto de tramos del informe."
+            },
+            {
+              "label": "Franja de totales",
+              "value": "La franja inferior suma cada tramo y muestra el gran total Abierto."
+            },
+            {
+              "label": "Chip de estado",
+              "value": "'Cuadra con la cuenta de control' (verde) cuando el informe cuadra con la cuenta de control de cuentas por cobrar, o 'Descuadrado' (rojo)."
+            }
+          ]
+        },
+        {
+          "heading": "Balance General (/accounting/balance-sheet)",
+          "items": [
+            {
+              "label": "Propósito",
+              "value": "Estado puntual de la situación financiera: Activos, Pasivos, Patrimonio."
+            },
+            {
+              "label": "Secciones",
+              "value": "Activos, Pasivos y Patrimonio: cada línea muestra número de cuenta, nombre de cuenta e importe, con un subtotal por sección (Total de Activos, Total de Pasivos, Total de Patrimonio)."
+            },
+            {
+              "label": "Utilidades del Ejercicio Actual",
+              "value": "Una línea de patrimonio explícita; el Total de Patrimonio se muestra con las utilidades del ejercicio actual incorporadas (Total de Patrimonio con Utilidades)."
+            },
+            {
+              "label": "Pie",
+              "value": "Total de Pasivos y Patrimonio: cuadra contra el Total de Activos cuando el balance está cuadrado."
+            },
+            {
+              "label": "Chip de estado",
+              "value": "'Cuadrado' (verde) cuando los activos son iguales a los pasivos más el patrimonio, o 'Descuadrado' (rojo)."
+            }
+          ]
+        },
+        {
+          "heading": "Conciliación Bancaria (/accounting/bank-rec)",
+          "items": [
+            {
+              "label": "Propósito",
+              "value": "Cuadra el saldo de efectivo en libros con un extracto bancario marcando qué líneas del libro mayor han sido liquidadas por el banco."
+            },
+            {
+              "label": "Formulario de inicio",
+              "value": "Cuenta de Efectivo (selección obligatoria), Fecha del Extracto (obligatoria) y Saldo Final (moneda); luego haz clic en Iniciar para abrir una hoja de trabajo."
+            },
+            {
+              "label": "Tabla de resumen",
+              "value": "Saldo en Libros, Saldo Final del Extracto, total Liquidado y total Pendiente."
+            },
+            {
+              "label": "Casilla de liquidado",
+              "value": "La casilla por línea marca una entrada como liquidada. Marcarla solo PREPARA el cambio: nada se persiste hasta que haces clic en 'Actualizar liquidados'. El recuento sin guardar se muestra junto al botón (sin guardado automático)."
+            },
+            {
+              "label": "Diferencia",
+              "value": "El chip del encabezado muestra 'Conciliado' (verde) cuando la diferencia es cero, de lo contrario el importe de la 'Diferencia' (ámbar)."
+            },
+            {
+              "label": "Estado / Finalizar",
+              "value": "El estado de la hoja de trabajo es Borrador o Finalizado. Finalizar se habilita solo cuando está conciliada y no hay cambios de liquidados sin guardar. Se muestra una lista de conciliaciones anteriores cuando no hay ninguna hoja de trabajo abierta; haz clic en una fila para reabrirla."
+            }
+          ]
+        },
+        {
+          "heading": "Flujo de Efectivo (/accounting/cash-flow)",
+          "items": [
+            {
+              "label": "Propósito",
+              "value": "Estado de flujos de efectivo, método indirecto: cómo se movió el efectivo a través de las actividades operativas, de inversión y de financiamiento."
+            },
+            {
+              "label": "Operativas",
+              "value": "Parte de la Utilidad Neta, aplica líneas de ajuste operativo, subtotaliza el Efectivo Neto de Operación."
+            },
+            {
+              "label": "Inversión",
+              "value": "Se muestra solo cuando existen líneas de inversión; subtotaliza el Efectivo Neto de Inversión."
+            },
+            {
+              "label": "Financiamiento",
+              "value": "Líneas de financiamiento, subtotalizando el Efectivo Neto de Financiamiento (muestra un marcador de 'ninguno' cuando está vacío)."
+            },
+            {
+              "label": "Pie",
+              "value": "Cambio Neto en Efectivo, luego una fila de conciliación que muestra el Movimiento Real de Efectivo."
+            },
+            {
+              "label": "Chip de estado",
+              "value": "'Conciliado' (verde) cuando el cambio neto calculado coincide con el movimiento real de efectivo, o 'Descuadrado' (rojo)."
+            }
+          ]
+        },
+        {
+          "heading": "GRNI — Mercancía Recibida No Facturada (/accounting/grni)",
+          "items": [
+            {
+              "label": "Propósito",
+              "value": "Concilia la cuenta de compensación GRNI: mercancía físicamente recibida pero aún no facturada por el proveedor."
+            },
+            {
+              "label": "Resumen",
+              "value": "Saldo del GL (cuenta de compensación), Abierto Operacional (recibido-no-facturado según operaciones) y la Variación entre ambos."
+            },
+            {
+              "label": "Abierto por Orden de Compra",
+              "value": "Desglosa el importe abierto por orden de compra a través de tramos de antigüedad (b0..b5) con un Importe Abierto por fila; la primera columna queda fija. Una franja de totales suma cada tramo y el gran total Abierto."
+            },
+            {
+              "label": "Recepciones sin cobertura",
+              "value": "Cuando corresponde, lista las recepciones que no cuadran con una línea de orden de compra abierta; el encabezado muestra un recuento (con un '+' cuando está truncado). El número de recepción se reemplaza por un guion largo cuando está en blanco."
+            },
+            {
+              "label": "Chip de estado",
+              "value": "'Conciliado' (verde) cuando el saldo del GL es igual al abierto operacional, de lo contrario 'Variación'."
+            }
+          ]
+        },
+        {
+          "heading": "Cierre de Período (/accounting/period-close)",
+          "items": [
+            {
+              "label": "Propósito",
+              "value": "Gestiona los años fiscales y sus períodos contables: controla lo que todavía se puede contabilizar."
+            },
+            {
+              "label": "Año fiscal",
+              "value": "Cada año muestra un nombre y un chip Abierto/Cerrado; un año abierto tiene una acción 'Cerrar Año'."
+            },
+            {
+              "label": "Períodos",
+              "value": "Cada año lista sus períodos con un rango de fechas (inicio – fin) y un chip de estado."
+            },
+            {
+              "label": "Estados de período",
+              "value": "Abierto (verde) = contabilización permitida. Cierre Suave (ámbar) = contabilización rutinaria bloqueada pero reversible. Cierre Definitivo (atenuado) = bloqueado permanentemente."
+            },
+            {
+              "label": "Acciones de período",
+              "value": "Desde Abierto: Cierre Suave o Cierre Definitivo. Desde Cierre Suave: Reabrir o Cierre Definitivo. El Cierre Definitivo muestra 'Bloqueado' sin más acciones. Los botones se deshabilitan mientras un cierre/reapertura está en curso."
+            }
+          ]
+        },
+        {
+          "heading": "Estado de Resultados (/accounting/profit-loss)",
+          "items": [
+            {
+              "label": "Propósito",
+              "value": "Estado de resultados del período: ingresos, gastos y la utilidad neta resultante."
+            },
+            {
+              "label": "Líneas de ingresos",
+              "value": "Cada línea de ingresos muestra número de cuenta, nombre de cuenta e importe; subtotalizado como Total de Ingresos (marcador 'Sin ingresos' cuando está vacío)."
+            },
+            {
+              "label": "Líneas de gastos",
+              "value": "Cada línea de gastos muestra número de cuenta, nombre de cuenta e importe; subtotalizado como Total de Gastos (marcador 'Sin gastos' cuando está vacío)."
+            },
+            {
+              "label": "Utilidad Neta",
+              "value": "Cifra del pie: Total de Ingresos menos Total de Gastos."
+            },
+            {
+              "label": "Advertencia de margen",
+              "value": "Cuando el costo de los bienes vendidos no se ha contabilizado, aparece una nota de advertencia en la parte superior que indica que el margen está incompleto. Desaparece una vez que se contabiliza el costo de los bienes vendidos."
+            }
+          ]
+        },
+        {
+          "heading": "Balance de Comprobación (/accounting/trial-balance)",
+          "items": [
+            {
+              "label": "Propósito",
+              "value": "Lista cada cuenta del GL con su total de débitos, total de créditos y saldo neto: el informe base de todos los estados."
+            },
+            {
+              "label": "Columnas",
+              "value": "Número de Cuenta, Cuenta, Débito, Crédito, Neto. Débito/Crédito/Neto son ordenables, alineados a la derecha, en formato de moneda."
+            },
+            {
+              "label": "Franja de totales",
+              "value": "La franja inferior muestra el Total de Débitos y el Total de Créditos; son iguales cuando los libros cuadran."
+            },
+            {
+              "label": "Chip de estado",
+              "value": "'Cuadrado' (verde) cuando el total de débitos es igual al total de créditos, o 'Descuadrado' (rojo). Si el balance de comprobación está descuadrado, no se puede confiar en los demás estados."
+            }
+          ]
+        },
+        {
+          "heading": "Patrones Compartidos",
+          "items": [
+            {
+              "label": "Actualización automática",
+              "value": "La mayoría de los informes se actualizan automáticamente cuando cambia el GL subyacente: no se necesita recarga manual."
+            },
+            {
+              "label": "Estado vs. tabla",
+              "value": "El Estado de Resultados, el Balance General, el Flujo de Efectivo y el resumen de GRNI se muestran como tablas de 'estado'/'resumen'. El Balance de Comprobación, la Antigüedad de Cuentas por Cobrar/Pagar, el desglose por orden de compra del GRNI, el Cierre de Período y la Conciliación Bancaria se muestran en la tabla de datos compartida (columnas ordenables, filtros por columna)."
+            },
+            {
+              "label": "Libro predeterminado",
+              "value": "Hoy los informes consultan un único libro contable predeterminado (libro id 1); un selector de libros llega con el soporte de múltiples libros."
+            },
+            {
+              "label": "Mosaicos de la página principal",
+              "value": "La página principal de Contabilidad es una cuadrícula de mosaicos que enrutan a cada informe más herramientas de apoyo (importación de Extractos Bancarios, Exportaciones)."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "accounting-quiz",
+    "title": "Evaluación de Conocimientos de Informes Financieros",
+    "summary": "Pon a prueba tu conocimiento de los Informes Financieros integrados: el límite de contabilidad, los chips de estado, los tramos de antigüedad, el cierre de período y la conciliación bancaria.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "ac1",
+          "text": "¿Cuándo hacen un trabajo realmente significativo los Informes Financieros integrados?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Cada vez que hay un proveedor contable externo como QuickBooks conectado"
+            },
+            {
+              "id": "b",
+              "text": "En modo autónomo: cuando NO hay ningún proveedor contable externo conectado y el libro mayor integrado está activado",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Solo después de que cada período fiscal haya tenido un cierre definitivo"
+            },
+            {
+              "id": "d",
+              "text": "Solo cuando tanto un proveedor externo COMO el libro mayor integrado están habilitados al mismo tiempo"
+            }
+          ],
+          "explanation": "Estas son funciones del modo autónomo. El catálogo de capacidades declara CAP-ACCT-EXTERNAL ⊥ CAP-ACCT-BUILTIN como un mutex: los libros integrados y un proveedor externo son mutuamente excluyentes. Cuando hay un proveedor conectado, el GL y estos informes quedan inactivos; funcionan sobre el propio libro mayor de Forge solo en modo autónomo, detrás del guardia CAP-ACCT-FULLGL."
+        },
+        {
+          "id": "ac2",
+          "text": "El encabezado del Balance de Comprobación muestra un chip rojo 'Descuadrado'. ¿Qué te indica eso?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El informe no se cargó y debe actualizarse"
+            },
+            {
+              "id": "b",
+              "text": "El total de débitos no es igual al total de créditos, por lo que no se puede confiar en los demás estados hasta que se corrija",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Un período fiscal necesita un cierre definitivo antes de que el informe cuadre"
+            },
+            {
+              "id": "d",
+              "text": "Hay recepciones sin cobertura que no cuadran con una orden de compra"
+            }
+          ],
+          "explanation": "El chip del Balance de Comprobación muestra 'Cuadrado' (verde) cuando el total de débitos es igual al total de créditos y 'Descuadrado' (rojo) cuando no lo es. Es el informe base: si el balance de comprobación está descuadrado, no se puede confiar en el Estado de Resultados, el Balance General y el Flujo de Efectivo que se construyen sobre él."
+        },
+        {
+          "id": "ac3",
+          "text": "¿Cuál es la escala estándar de tramos de antigüedad que usan los informes de Antigüedad de Cuentas por Cobrar y por Pagar?",
+          "options": [
+            {
+              "id": "a",
+              "text": "0-7 / 8-14 / 15-30 / 31+ días"
+            },
+            {
+              "id": "b",
+              "text": "Corriente / Vencido / Castigado"
+            },
+            {
+              "id": "c",
+              "text": "0-30 / 31-60 / 61-90 / 91+ días",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Columnas mensuales de los doce meses anteriores"
+            }
+          ],
+          "explanation": "Ambos informes de antigüedad usan la escala estándar 0-30 / 31-60 / 61-90 / 91+ días, mostrada como columnas de tramos con un saldo Abierto por parte. La franja de totales suma cada tramo y el gran total abierto."
+        },
+        {
+          "id": "ac4",
+          "text": "En el informe de Estado de Resultados, ¿qué significa la nota de advertencia sobre el margen en la parte superior?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El informe está descuadrado"
+            },
+            {
+              "id": "b",
+              "text": "El costo de los bienes vendidos aún no se ha contabilizado, por lo que el margen que estás leyendo está incompleto",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Hay un proveedor contable externo conectado y el Estado de Resultados es de solo lectura"
+            },
+            {
+              "id": "d",
+              "text": "El período fiscal tiene un cierre definitivo y las cifras son finales"
+            }
+          ],
+          "explanation": "Cuando el costo de los bienes vendidos no se ha contabilizado, el Estado de Resultados muestra una nota de advertencia para que leas la Utilidad Neta con las expectativas correctas: el margen está incompleto hasta que se contabilice el costo de los bienes vendidos. Una vez contabilizado, la nota desaparece."
+        },
+        {
+          "id": "ac5",
+          "text": "En el Cierre de Período, ¿cuál es la diferencia entre un período en Cierre Suave y uno en Cierre Definitivo?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Son lo mismo: ambos bloquean el período permanentemente"
+            },
+            {
+              "id": "b",
+              "text": "El Cierre Suave bloquea la contabilización rutinaria pero puede reabrirse; el Cierre Definitivo bloquea el período permanentemente",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El Cierre Suave bloquea el período; el Cierre Definitivo solo advierte al contabilizar"
+            },
+            {
+              "id": "d",
+              "text": "El Cierre Suave se aplica a un período; el Cierre Definitivo se aplica a un año fiscal entero"
+            }
+          ],
+          "explanation": "Un período en Cierre Suave (chip ámbar) bloquea la contabilización rutinaria pero es reversible: puedes Reabrirlo. Un período en Cierre Definitivo (chip atenuado) está bloqueado permanentemente y muestra 'Bloqueado' sin más acciones. Desde un período Abierto puedes hacer un cierre suave o definitivo; desde el Cierre Suave puedes reabrir o hacer un cierre definitivo."
+        },
+        {
+          "id": "ac6",
+          "text": "En la hoja de trabajo de Conciliación Bancaria, marcas varias líneas como liquidadas. ¿Qué sucede?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Cada marca se guarda inmediatamente en el libro mayor"
+            },
+            {
+              "id": "b",
+              "text": "Marcar solo prepara el cambio: nada se persiste hasta que haces clic en 'Actualizar liquidados'",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "La hoja de trabajo se finaliza automáticamente en cuanto se liquida cualquier línea"
+            },
+            {
+              "id": "d",
+              "text": "Las líneas se eliminan de la conciliación"
+            }
+          ],
+          "explanation": "El estado liquidado es una selección transitoria del lado del cliente, coherente con el modelo de la aplicación basado en botones y sin guardado automático. Marcar prepara el cambio y muestra un recuento sin guardar; nada se persiste hasta que haces clic en 'Actualizar liquidados'. Finalizar solo se habilita cuando la hoja de trabajo está conciliada y no hay cambios de liquidados sin guardar."
+        },
+        {
+          "id": "ac7",
+          "text": "El informe GRNI muestra una Variación distinta de cero. ¿Qué está comparando?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El total de débitos contra el total de créditos en todo el libro mayor"
+            },
+            {
+              "id": "b",
+              "text": "El saldo del GL de la cuenta de compensación GRNI contra el importe abierto operacional (mercancía recibida pero aún no facturada)",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El saldo de efectivo en libros contra el saldo final del extracto bancario"
+            },
+            {
+              "id": "d",
+              "text": "El Total de Activos contra el Total de Pasivos y Patrimonio"
+            }
+          ],
+          "explanation": "El GRNI (Mercancía Recibida No Facturada) concilia la cuenta de compensación: compara el Saldo del GL contra el importe Abierto Operacional e informa la Variación. Un chip 'Conciliado' significa que coinciden; un chip 'Variación' significa que no. El informe también desglosa el importe abierto por orden de compra y marca las recepciones sin cobertura."
+        },
+        {
+          "id": "ac8",
+          "text": "Necesitas ver qué clientes te deben dinero y qué tan vencido está cada saldo. ¿Qué informe abres?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Antigüedad de Cuentas por Pagar"
+            },
+            {
+              "id": "b",
+              "text": "Antigüedad de Cuentas por Cobrar",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Flujo de Efectivo"
+            },
+            {
+              "id": "d",
+              "text": "Balance de Comprobación"
+            }
+          ],
+          "explanation": "La Antigüedad de Cuentas por Cobrar muestra quién te debe, con el saldo abierto de cada cliente repartido en los tramos de antigüedad 0-30 / 31-60 / 61-90 / 91+. La Antigüedad de Cuentas por Pagar es la imagen espejo de lo que debes a los proveedores. El Flujo de Efectivo y el Balance de Comprobación no desglosan los saldos por parte."
+        }
+      ]
+    }
+  }
+]

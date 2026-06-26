@@ -1,0 +1,302 @@
+[
+  {
+    "slug": "leads-overview",
+    "title": "Resumen de clientes potenciales",
+    "summary": "Qué son los clientes potenciales, cómo funciona el embudo de ventas, los estados de los clientes potenciales, la conversión de clientes potenciales en clientes y cómo se conectan con las cotizaciones y los trabajos.",
+    "contentJson": {
+      "body": "## Resumen de clientes potenciales\n\nEl módulo Clientes potenciales es tu embudo de ventas. Realiza el seguimiento de los clientes potenciales desde el primer contacto, pasando por la cualificación y la cotización, hasta la conversión o la pérdida. Cada cliente potencial representa una empresa que podría convertirse en cliente — y toda relación con un cliente empieza aquí.\n\n### ¿Qué es un cliente potencial?\n\nUn cliente potencial es un registro de cliente prospectivo. Recoge el nombre de la empresa, la persona de contacto, el correo electrónico, el teléfono, cómo te encontraron (fuente) y cualquier nota sobre la oportunidad. Los clientes potenciales avanzan por un embudo definido de estados a medida que los trabajas.\n\n### El embudo de ventas\n\nLos clientes potenciales avanzan por cinco estados:\n\n1. **Nuevo** — Un cliente potencial reciente que aún no ha sido contactado. Este es el estado predeterminado al crear un cliente potencial.\n2. **Contactado** — Te has puesto en contacto con el prospecto. Sabe quién eres y qué ofreces.\n3. **Cotizando** — El prospecto ha mostrado interés y estás preparando o has enviado una cotización/estimación.\n4. **Convertido** — El cliente potencial se convirtió en cliente. Se crea automáticamente un registro de Cliente al convertir.\n5. **Perdido** — La oportunidad no prosperó. Puedes registrar un motivo (ganó la competencia, presupuesto, tiempo, etc.) para análisis futuros.\n\nLos clientes potenciales pueden avanzar o retroceder libremente entre Nuevo, Contactado y Cotizando. Convertido y Perdido son estados terminales, aunque un cliente potencial Perdido se puede reabrir y volver a Nuevo.\n\n### Dos formas de ver tu embudo\n\nLa página Clientes potenciales ofrece dos modos de vista:\n\n- **Vista de tabla** — Una tabla de datos ordenable y filtrable que muestra todos los clientes potenciales con columnas para empresa, contacto, fuente, estado, fecha de seguimiento y fecha de creación. Ideal para buscar y revisar en masa.\n- **Vista de embudo** — Un tablero estilo kanban con columnas para cada estado. Arrastra y suelta fichas entre columnas para actualizar el estado. Ideal para la gestión visual del embudo.\n\nCambia entre vistas usando los botones de conmutación del encabezado de la página. Tu preferencia se guarda.\n\n### Fechas de seguimiento\n\nCada cliente potencial puede tener una fecha de seguimiento. Cuando la fecha de seguimiento pasa sin que el cliente potencial se actualice, la fecha se muestra en rojo (vencida) como recordatorio visual. Usa las fechas de seguimiento para asegurarte de que ningún cliente potencial se escape.\n\n### Fuentes de clientes potenciales\n\nEl campo Fuente registra cómo te encuentran los clientes potenciales — referido, sitio web, feria comercial, llamada en frío, etc. Las fuentes se configuran en Admin → Datos de referencia (grupo: lead_source), por lo que tu equipo puede añadir nuevas fuentes sin cambios de código. Hacer seguimiento de las fuentes te ayuda a entender qué canales de marketing producen resultados.\n\n### Conversión de clientes potenciales en clientes\n\nCuando un cliente potencial está listo para convertirse en cliente, tienes dos opciones de conversión:\n\n- **Convertir en cliente** — Crea un registro de Cliente a partir del nombre de la empresa, el contacto, el correo electrónico y el teléfono del cliente potencial. El estado del cliente potencial cambia a Convertido.\n- **Convertir en cliente + Crear trabajo** — Igual que lo anterior, además crea un nuevo Trabajo en el tablero kanban predeterminado vinculado al nuevo cliente. Úsalo cuando estés listo para empezar a trabajar de inmediato.\n\nLa conversión es una acción de un solo sentido. Una vez convertido, el cliente potencial muestra un distintivo de confirmación verde y enlaces al registro del cliente. No puedes convertir un cliente potencial Perdido — reábrelo primero.\n\n### Cómo se conectan los clientes potenciales con las cotizaciones y los trabajos\n\nEl flujo típico es: Cliente potencial → Cliente → Cotización/Estimación → Orden de venta → Trabajo. Convertir un cliente potencial crea el registro de Cliente. A partir de ahí, puedes crear Estimaciones (cifras aproximadas) o Cotizaciones (vinculantes, desglosadas por línea) para ese cliente. Cuando se acepta una cotización, se convierte en una Orden de venta, que puede generar Trabajos en el tablero kanban.\n\n### Marcar un cliente potencial como perdido\n\nCuando marcas un cliente potencial como Perdido (ya sea haciendo clic en el botón de estado Perdido o arrastrando la ficha a la columna Perdido en la vista de embudo), aparece un diálogo que pregunta el motivo. El motivo de la pérdida es opcional pero valioso — te ayuda a identificar patrones (precio demasiado alto, ganó la competencia, mal momento) y a mejorar tu tasa de éxito con el tiempo.\n\n### Reabrir clientes potenciales perdidos\n\nLas circunstancias cambian. Un cliente potencial Perdido se puede reabrir haciendo clic en el botón 'Reabrir cliente potencial' en la vista de detalle. Esto restablece el estado a Nuevo para que puedas trabajar la oportunidad de nuevo.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "leads-walkthrough",
+    "title": "Clientes potenciales — Recorrido guiado",
+    "summary": "Un recorrido guiado por la página de lista de clientes potenciales: búsqueda, filtros, modos de vista, creación de clientes potenciales, arrastrar y soltar en el embudo y ver los detalles de un cliente potencial.",
+    "contentJson": {
+      "appRoute": "/leads",
+      "startButtonLabel": "Recorrer clientes potenciales",
+      "steps": [
+        {
+          "element": "[data-testid='new-lead-btn']",
+          "popover": {
+            "title": "Botón Añadir cliente potencial",
+            "description": "Haz clic aquí para crear un nuevo cliente potencial. Introducirás el nombre de la empresa, el nombre del contacto, el correo electrónico, el teléfono, la fuente, la fecha de seguimiento y las notas. El nombre de la empresa es el único campo obligatorio.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".view-toggle",
+          "popover": {
+            "title": "Conmutador de modo de vista",
+            "description": "Alterna entre la vista de tabla (tabla de datos ordenable) y la vista de embudo (tablero estilo kanban con arrastrar y soltar). Tu preferencia se guarda en localStorage y persiste entre sesiones.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-input",
+          "popover": {
+            "title": "Buscar clientes potenciales",
+            "description": "Busca por nombre de empresa o nombre de contacto. Escribe tu término de búsqueda y pulsa Intro para filtrar. Los resultados se actualizan en la tabla de abajo. La vista de embudo también filtra a medida que escribes.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-select",
+          "popover": {
+            "title": "Filtro de estado",
+            "description": "Filtra los clientes potenciales por estado: Nuevo, Contactado, Cotizando, Convertido o Perdido. Selecciona 'Todos los estados' para verlo todo. En la vista de embudo, solo se muestra el cuadro de búsqueda, ya que las columnas representan los estados.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de clientes potenciales",
+            "description": "Haz clic en cualquier fila para abrir el diálogo de detalle del cliente potencial. Las columnas incluyen Empresa, Contacto, Fuente, Estado (chip codificado por color), Fecha de seguimiento (rojo cuando está vencida) y fecha de creación. Haz clic en los encabezados de columna para ordenar. Usa el icono de engranaje para gestionar la visibilidad y el orden de las columnas.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "leads-field-reference",
+    "title": "Referencia de campos de clientes potenciales",
+    "summary": "Referencia completa de cada campo, botón, estado, regla de validación y acción del módulo Clientes potenciales.",
+    "contentJson": {
+      "title": "Referencia de campos de clientes potenciales",
+      "groups": [
+        {
+          "heading": "Campos del formulario de cliente potencial",
+          "items": [
+            { "label": "Nombre de la empresa (obligatorio)", "value": "Entrada de texto, identifica la empresa prospecto. No puede estar vacío. Este se convierte en el nombre del Cliente si el cliente potencial se convierte. data-testid: lead-company-name" },
+            { "label": "Nombre del contacto", "value": "Entrada de texto, opcional. La persona de la empresa con la que estás trabajando. Si se proporciona, se crea un registro de Contacto cuando el cliente potencial se convierte (nombre/apellido separados por el espacio). data-testid: lead-contact-name" },
+            { "label": "Correo electrónico", "value": "Entrada de texto, opcional. Validado como formato de correo electrónico (debe contener @). Se traslada a los registros de Cliente y Contacto en la conversión. data-testid: lead-email" },
+            { "label": "Teléfono", "value": "Entrada de texto, opcional. Número de teléfono del contacto. Se traslada al Cliente y al Contacto en la conversión. data-testid: lead-phone" },
+            { "label": "Fuente", "value": "Menú desplegable, opcional. Cómo te encontró el cliente potencial. Las opciones se cargan desde Datos de referencia (grupo: lead_source) — configurable en Admin. Ejemplos: Referido, Sitio web, Feria comercial, Llamada en frío. Incluye una opción '-- Ninguna --'. data-testid: lead-source" },
+            { "label": "Fecha de seguimiento", "value": "Selector de fecha, opcional. Cuándo deberías hacer el próximo seguimiento de este cliente potencial. Se muestra en rojo (vencida) en la tabla y la vista de detalle cuando la fecha ya pasó. data-testid: lead-follow-up" },
+            { "label": "Notas", "value": "Área de texto, opcional. Notas libres sobre el cliente potencial, los detalles de la oportunidad, el historial de conversaciones o los requisitos. data-testid: lead-notes" }
+          ]
+        },
+        {
+          "heading": "Estados del cliente potencial",
+          "items": [
+            { "label": "Nuevo (chip primario/azul)", "value": "Estado predeterminado de los nuevos clientes potenciales. Indica que el cliente potencial aún no ha sido contactado. Clase CSS: chip--primary." },
+            { "label": "Contactado (chip info/verde azulado)", "value": "Te has puesto en contacto con el prospecto. Conoce tu empresa y tus ofertas. Clase CSS: chip--info." },
+            { "label": "Cotizando (chip warning/amarillo)", "value": "Se está preparando o se ha enviado una cotización o estimación al prospecto. Clase CSS: chip--warning." },
+            { "label": "Convertido (chip success/verde)", "value": "Estado terminal. El cliente potencial se ha convertido en un registro de Cliente. Aparece un distintivo de verificación verde en la vista de detalle. No se puede establecer manualmente — solo mediante la acción Convertir. Clase CSS: chip--success." },
+            { "label": "Perdido (chip muted/gris)", "value": "Estado terminal. La oportunidad no resultó en un cliente. Se puede registrar un motivo de pérdida. Se puede reabrir y volver a Nuevo. Clase CSS: chip--muted." }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla",
+          "items": [
+            { "label": "Empresa", "value": "Ordenable. El nombre de la empresa, mostrado en texto en negrita/destacado." },
+            { "label": "Contacto", "value": "Ordenable. Nombre de la persona de contacto. Muestra un guión largo (—) cuando está vacío." },
+            { "label": "Fuente", "value": "Ordenable. Fuente del cliente potencial de Datos de referencia. Muestra un guión largo (—) cuando está vacío." },
+            { "label": "Estado", "value": "Ordenable, filtrable (filtro de enum). Chip codificado por color: Nuevo (azul), Contactado (verde azulado), Cotizando (amarillo), Convertido (verde), Perdido (gris)." },
+            { "label": "Seguimiento", "value": "Ordenable, tipo fecha. Muestra la fecha de seguimiento en formato MM/dd/yyyy. Se muestra en rojo cuando está vencida. Muestra un guión largo (—) cuando no está establecida." },
+            { "label": "Creado", "value": "Ordenable, tipo fecha. Fecha en que se creó el cliente potencial, en formato MM/dd/yyyy." }
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            { "label": "Nuevo cliente potencial (botón primario, encabezado)", "value": "Abre el diálogo de creación de cliente potencial. data-testid: new-lead-btn" },
+            { "label": "Conmutador de vista de tabla (botón de icono)", "value": "Cambia a la vista de tabla de datos ordenable. Icono: view_list. Persistido en localStorage." },
+            { "label": "Conmutador de vista de embudo (botón de icono)", "value": "Cambia al tablero de embudo estilo kanban. Icono: view_column. Persistido en localStorage." },
+            { "label": "Guardar / Crear cliente potencial (pie del diálogo)", "value": "Crea o actualiza el cliente potencial. Deshabilitado cuando el formulario no es válido o hay un guardado en curso. Muestra un popover de validación al pasar el cursor cuando está deshabilitado. data-testid: lead-save-btn" },
+            { "label": "Cancelar (pie del diálogo)", "value": "Cierra el diálogo sin guardar." },
+            { "label": "Editar (botón de icono del diálogo de detalle)", "value": "Abre el diálogo de edición precargado con los valores actuales del cliente potencial. Icono: edit." },
+            { "label": "Cerrar (botón de icono del diálogo de detalle)", "value": "Cierra el diálogo de detalle. Icono: close." },
+            { "label": "Botones de estado (panel de detalle)", "value": "Botones de acción rápida para cambiar el estado a Nuevo, Contactado, Cotizando o Perdido directamente desde el panel de detalle. Ocultos cuando el cliente potencial está Convertido o Perdido. data-testid: lead-status-btn-{status}" },
+            { "label": "Convertir en cliente (panel de detalle)", "value": "Crea un registro de Cliente a partir de los datos del cliente potencial. Muestra primero un diálogo de confirmación. Solo disponible cuando el estado no es Convertido ni Perdido. data-testid: lead-convert-btn" },
+            { "label": "Convertir + Crear trabajo (panel de detalle)", "value": "Convierte en Cliente y crea un Trabajo en el tablero kanban predeterminado. Solo disponible cuando el estado no es Convertido ni Perdido. Icono: work." },
+            { "label": "Reabrir cliente potencial (panel de detalle)", "value": "Restablece un cliente potencial Perdido al estado Nuevo. Solo visible cuando el estado es Perdido. Icono: replay." },
+            { "label": "Confirmar pérdida (diálogo de motivo de pérdida)", "value": "Confirma el marcado del cliente potencial como Perdido con el motivo opcional." },
+            { "label": "Clic en la fila", "value": "Abre el diálogo de detalle del cliente potencial que muestra todos los campos, las acciones de estado, las opciones de conversión y el registro de actividad." },
+            { "label": "Arrastrar ficha de embudo", "value": "Arrastra una ficha entre las columnas del embudo para cambiar el estado. Soltar en Perdido abre el diálogo de motivo de pérdida." }
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            { "label": "Nombre de la empresa", "value": "Obligatorio. No puede estar vacío." },
+            { "label": "Correo electrónico", "value": "Opcional, pero debe tener un formato de correo electrónico válido si se proporciona (Validators.email)." },
+            { "label": "Todos los demás campos", "value": "Opcionales. Sin restricciones de formato adicionales." },
+            { "label": "Popover del botón de envío", "value": "Cuando el formulario no es válido, al pasar el cursor sobre Guardar se muestra un popover de validación que enumera qué campos necesitan atención (p. ej., 'El nombre de la empresa es obligatorio')." },
+            { "label": "Protección de conversión", "value": "No se puede convertir un cliente potencial que ya está Convertido o Perdido (el servidor devuelve 400/InvalidOperationException). Los clientes potenciales perdidos deben reabrirse primero." }
+          ]
+        },
+        {
+          "heading": "Secciones del diálogo de detalle",
+          "items": [
+            { "label": "Encabezado", "value": "Nombre de la empresa (negrita), nombre del contacto (subtítulo), botones de icono de editar y cerrar." },
+            { "label": "Cuadrícula de información", "value": "Chip de estado, correo electrónico, teléfono, fuente, fecha de seguimiento (rojo si está vencida), motivo de pérdida (si está Perdido). Los campos vacíos se ocultan." },
+            { "label": "Sección de notas", "value": "Muestra las notas del cliente potencial como un párrafo. Oculta cuando las notas están vacías." },
+            { "label": "Acciones de estado", "value": "Fila de botones de estado para cambios rápidos de estado. Oculta cuando está Convertido o Perdido." },
+            { "label": "Acciones de conversión", "value": "Botones Convertir en cliente y Convertir + Crear trabajo. Ocultos cuando está Convertido o Perdido." },
+            { "label": "Información de convertido", "value": "Distintivo de verificación verde con texto de confirmación. Solo se muestra cuando el estado es Convertido." },
+            { "label": "Acción de reapertura", "value": "Botón Reabrir cliente potencial. Solo se muestra cuando el estado es Perdido." },
+            { "label": "Línea de tiempo de actividad", "value": "Registro de actividad cronológico del cliente potencial (EntityActivitySectionComponent). Muestra los cambios de estado, las ediciones, las notas y los eventos de conversión." }
+          ]
+        },
+        {
+          "heading": "Detalles de la vista de embudo",
+          "items": [
+            { "label": "Columnas", "value": "Cinco columnas: Nuevo, Contactado, Cotizando, Convertido, Perdido. Las columnas Convertido y Perdido tienen un estilo atenuado." },
+            { "label": "Encabezado de columna", "value": "Nombre del estado + distintivo de recuento (chip--muted)." },
+            { "label": "Contenido de la ficha", "value": "Nombre de la empresa (negrita), nombre del contacto con iniciales de avatar, fuente con icono de etiqueta, fecha de seguimiento con icono de evento (rojo si está vencida)." },
+            { "label": "Columna vacía", "value": "Muestra un icono de bandeja de entrada con el texto 'Sin clientes potenciales'." },
+            { "label": "Arrastrar y soltar", "value": "Arrastrar-soltar de CDK. Las fichas se pueden arrastrar entre cualquier columna. Soltar en Perdido activa el diálogo de motivo de pérdida. Las listas de destino conectadas permiten el movimiento entre columnas." }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "leads-quiz",
+    "title": "Evaluación de conocimientos de clientes potenciales",
+    "summary": "Pon a prueba tus conocimientos del módulo Clientes potenciales: estados, conversión, gestión del embudo y flujos de trabajo comunes.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "ld1",
+          "text": "Un cliente potencial llamó preguntando por tus servicios de mecanizado. ¿Cuál es el primer paso para hacer el seguimiento de esta oportunidad en QB Engineer?",
+          "options": [
+            { "id": "a", "text": "Crear un registro de Cliente en el módulo Clientes" },
+            { "id": "b", "text": "Navegar a Clientes potenciales, hacer clic en Nuevo cliente potencial e introducir el nombre de la empresa, la información de contacto y la fuente", "isCorrect": true },
+            { "id": "c", "text": "Crear una Cotización en el módulo Cotizaciones con su nombre de empresa" },
+            { "id": "d", "text": "Añadir un Trabajo al tablero Kanban etiquetado como prospecto" }
+          ],
+          "explanation": "Las nuevas oportunidades de venta empiezan como Clientes potenciales. Haz clic en Nuevo cliente potencial, rellena el nombre de la empresa (obligatorio), el nombre del contacto, el correo electrónico, el teléfono y la fuente. El cliente potencial empieza en estado Nuevo. No crees un registro de Cliente hasta que el cliente potencial esté cualificado y listo para la conversión."
+        },
+        {
+          "id": "ld2",
+          "text": "Has enviado un correo electrónico de presentación a un nuevo cliente potencial. ¿En qué estado debería estar el cliente potencial ahora?",
+          "options": [
+            { "id": "a", "text": "Nuevo — el cliente potencial aún no ha respondido" },
+            { "id": "b", "text": "Contactado — te has puesto en contacto con el prospecto", "isCorrect": true },
+            { "id": "c", "text": "Cotizando — cualquier comunicación cuenta como cotización" },
+            { "id": "d", "text": "Convertido — el cliente potencial ya conoce tu empresa" }
+          ],
+          "explanation": "Contactado significa que te has puesto en contacto con el prospecto. Conoce tu empresa. Pasa a Cotizando solo cuando estés realmente preparando o hayas enviado una cotización o estimación de precio."
+        },
+        {
+          "id": "ld3",
+          "text": "¿Cuál es la diferencia entre los estados Cotizando y Convertido de un cliente potencial?",
+          "options": [
+            { "id": "a", "text": "Cotizando significa que se envió una cotización; Convertido significa que la cotización fue aceptada" },
+            { "id": "b", "text": "Cotizando significa que estás preparando o has enviado una cotización; Convertido significa que el cliente potencial se ha transformado en un registro de Cliente", "isCorrect": true },
+            { "id": "c", "text": "Son lo mismo — Convertido es solo la etapa final de Cotizando" },
+            { "id": "d", "text": "Cotizando es solo para estimaciones; Convertido es para cotizaciones formales" }
+          ],
+          "explanation": "Cotizando indica que una cotización o estimación está en curso. Convertido es un estado terminal que significa que el cliente potencial se ha transformado en un registro de Cliente mediante la acción Convertir. Son etapas distintas del embudo."
+        },
+        {
+          "id": "ld4",
+          "text": "Quieres convertir un cliente potencial en cliente e iniciar de inmediato un trabajo de producción. ¿Qué acción usas?",
+          "options": [
+            { "id": "a", "text": "Convertir en cliente y luego crear manualmente un Trabajo en el tablero Kanban" },
+            { "id": "b", "text": "Convertir en cliente + Crear trabajo — crea ambos en un solo paso", "isCorrect": true },
+            { "id": "c", "text": "Crear primero el Trabajo, luego convertir el cliente potencial y vincularlos" },
+            { "id": "d", "text": "No puedes crear un trabajo a partir de un cliente potencial — los trabajos se crean solo a partir de órdenes de venta" }
+          ],
+          "explanation": "El botón 'Convertir en cliente + Crear trabajo' crea un registro de Cliente a partir de los datos del cliente potencial Y crea un nuevo Trabajo en el tablero kanban predeterminado vinculado a ese cliente — todo en una sola acción."
+        },
+        {
+          "id": "ld5",
+          "text": "La fecha de seguimiento de un cliente potencial se muestra en rojo en la tabla. ¿Qué significa esto?",
+          "options": [
+            { "id": "a", "text": "El cliente potencial está marcado como de alta prioridad" },
+            { "id": "b", "text": "La fecha de seguimiento ya pasó y el cliente potencial no se ha actualizado — está vencido", "isCorrect": true },
+            { "id": "c", "text": "El cliente potencial está a punto de archivarse automáticamente" },
+            { "id": "d", "text": "Otra persona está trabajando actualmente en este cliente potencial" }
+          ],
+          "explanation": "Una fecha de seguimiento en rojo significa que la fecha ya pasó (vencida). Es un recordatorio visual de que necesitas hacer seguimiento con el prospecto. El cliente potencial no cambiará automáticamente — es solo un indicador visual."
+        },
+        {
+          "id": "ld6",
+          "text": "Perdiste un negocio frente a un competidor. ¿Cómo lo registras en QB Engineer?",
+          "options": [
+            { "id": "a", "text": "Eliminar el cliente potencial del sistema" },
+            { "id": "b", "text": "Cambiar el estado a Perdido — aparece un diálogo donde puedes introducir el motivo (p. ej., 'La competencia ganó por precio')", "isCorrect": true },
+            { "id": "c", "text": "Archivar el cliente potencial haciendo clic en el botón de archivar" },
+            { "id": "d", "text": "Mover el cliente potencial a la columna Convertido y añadir una nota diciendo que se perdió" }
+          ],
+          "explanation": "Haz clic en el botón de estado Perdido o arrastra la ficha a la columna Perdido. Aparece un diálogo que pregunta el motivo de la pérdida (opcional pero recomendado). El motivo se almacena para análisis. Los clientes potenciales perdidos se pueden reabrir más tarde si las circunstancias cambian."
+        },
+        {
+          "id": "ld7",
+          "text": "Un cliente potencial que marcaste como Perdido hace seis meses ha vuelto con interés renovado. ¿Qué haces?",
+          "options": [
+            { "id": "a", "text": "Crear un nuevo cliente potencial — los clientes potenciales perdidos no se pueden reutilizar" },
+            { "id": "b", "text": "Abrir el detalle del cliente potencial y hacer clic en el botón Reabrir cliente potencial para restablecerlo al estado Nuevo", "isCorrect": true },
+            { "id": "c", "text": "Cambiar el estado directamente a Contactado editando el cliente potencial" },
+            { "id": "d", "text": "Convertir el cliente potencial perdido directamente en cliente" }
+          ],
+          "explanation": "Los clientes potenciales perdidos se pueden reabrir. En la vista de detalle, haz clic en el botón 'Reabrir cliente potencial' (icono de replay). Esto restablece el estado a Nuevo para que puedas trabajar la oportunidad de nuevo. No puedes convertir un cliente potencial Perdido directamente — primero debes reabrirlo."
+        },
+        {
+          "id": "ld8",
+          "text": "En la vista de embudo, arrastras una ficha de cliente potencial de la columna Contactado a la columna Perdido. ¿Qué ocurre?",
+          "options": [
+            { "id": "a", "text": "El estado cambia a Perdido de inmediato sin más acciones" },
+            { "id": "b", "text": "La ficha se mueve de forma optimista y aparece un diálogo que pregunta el motivo de la pérdida", "isCorrect": true },
+            { "id": "c", "text": "El arrastre se rechaza — solo puedes marcar clientes potenciales como Perdido desde el panel de detalle" },
+            { "id": "d", "text": "El cliente potencial se elimina permanentemente del sistema" }
+          ],
+          "explanation": "Arrastrar una ficha a la columna Perdido activa el diálogo de motivo de pérdida. La ficha se mueve de forma optimista (aparece en la columna Perdido de inmediato), pero puedes introducir un motivo para perder el negocio. El motivo es opcional — puedes confirmar sin introducir ninguno."
+        },
+        {
+          "id": "ld9",
+          "text": "¿De dónde provienen las opciones del menú desplegable Fuente?",
+          "options": [
+            { "id": "a", "text": "Están codificadas en la aplicación y no se pueden cambiar" },
+            { "id": "b", "text": "Provienen de Datos de referencia en la configuración de Admin (grupo: lead_source) y pueden ser configuradas por los administradores", "isCorrect": true },
+            { "id": "c", "text": "Cada usuario crea su propia lista de fuentes en la configuración de su perfil" },
+            { "id": "d", "text": "Se importan automáticamente desde tu cliente de correo electrónico" }
+          ],
+          "explanation": "Las fuentes de clientes potenciales se gestionan en Admin → Datos de referencia bajo el grupo lead_source. Los administradores pueden añadir, renombrar o quitar fuentes sin cambios de código. Esto garantiza un seguimiento coherente en todo el equipo."
+        },
+        {
+          "id": "ld10",
+          "text": "Cuando conviertes un cliente potencial que tiene un nombre de contacto 'Jane Smith', ¿qué ocurre con esa información de contacto?",
+          "options": [
+            { "id": "a", "text": "Solo se usa el nombre de la empresa — los detalles del contacto deben volver a introducirse en el registro del Cliente" },
+            { "id": "b", "text": "Se crea un registro de Contacto en el nuevo Cliente con nombre 'Jane', apellido 'Smith', marcado como principal, con el correo electrónico y el teléfono del cliente potencial", "isCorrect": true },
+            { "id": "c", "text": "El nombre del contacto se almacena en el campo de notas del Cliente" },
+            { "id": "d", "text": "Se crea una cuenta de usuario separada para Jane Smith" }
+          ],
+          "explanation": "Al convertir un cliente potencial con un nombre de contacto, el sistema crea un registro de Contacto en el nuevo Cliente. El nombre se separa por el primer espacio (nombre: 'Jane', apellido: 'Smith'). El contacto recibe el correo electrónico y el teléfono del cliente potencial y se marca como el contacto principal."
+        },
+        {
+          "id": "ld11",
+          "text": "Quieres ver solo los clientes potenciales que están en la etapa Cotizando. ¿Cuál es la forma más rápida?",
+          "options": [
+            { "id": "a", "text": "Cambiar a la vista de embudo — la columna Cotizando muestra exactamente esos clientes potenciales", "isCorrect": true },
+            { "id": "b", "text": "Exportar todos los clientes potenciales a una hoja de cálculo y filtrar ahí" },
+            { "id": "c", "text": "Usar el cuadro de búsqueda para escribir 'Cotizando'" },
+            { "id": "d", "text": "Ir a Informes y ejecutar un informe de clientes potenciales por estado" }
+          ],
+          "explanation": "La vista de embudo organiza los clientes potenciales por columnas de estado, por lo que la columna Cotizando muestra exactamente lo que necesitas de un vistazo. Alternativamente, en la vista de tabla puedes usar el menú desplegable de filtro de estado para seleccionar Cotizando. Ambos funcionan, pero la vista de embudo te ofrece la visión general visual."
+        },
+        {
+          "id": "ld12",
+          "text": "¿Qué validación debe pasar antes de poder guardar un nuevo cliente potencial?",
+          "options": [
+            { "id": "a", "text": "El nombre de la empresa, el nombre del contacto y el correo electrónico son todos obligatorios" },
+            { "id": "b", "text": "Solo el nombre de la empresa es obligatorio — todos los demás campos son opcionales", "isCorrect": true },
+            { "id": "c", "text": "El nombre de la empresa y la fuente son obligatorios" },
+            { "id": "d", "text": "Todos los campos son opcionales — puedes guardar un cliente potencial completamente en blanco" }
+          ],
+          "explanation": "El nombre de la empresa es el único campo obligatorio. El nombre del contacto, el correo electrónico, el teléfono, la fuente, la fecha de seguimiento y las notas son todos opcionales. Si se proporciona el correo electrónico, debe tener un formato de correo electrónico válido (contener @). Cuando el formulario no es válido, al pasar el cursor sobre el botón Guardar se muestra un popover de validación que enumera qué campos necesitan atención."
+        }
+      ]
+    }
+  }
+]

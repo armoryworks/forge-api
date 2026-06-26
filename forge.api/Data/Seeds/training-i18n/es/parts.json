@@ -1,0 +1,476 @@
+[
+  {
+    "slug": "parts-overview",
+    "title": "Visión general del Catálogo de piezas",
+    "summary": "Qué son las piezas, los tres ejes de clasificación (abastecimiento, clase de inventario, tipo de artículo), los estados, las BOM, las fuentes de proveedores, el enrutamiento y cómo las piezas se conectan con trabajos, inventario, compras y ventas.",
+    "contentJson": {
+      "body": "## Visión general del Catálogo de piezas\n\nEl Catálogo de piezas es el registro central de cada artículo que su taller fabrica, compra o almacena. Cada registro de pieza captura la definición de ingeniería completa: qué es la pieza, cómo se abastece, dónde vive en el inventario y cómo se construye. Las piezas se conectan con casi todos los demás módulos: los trabajos consumen piezas, el inventario hace seguimiento de sus cantidades, las órdenes de compra las adquieren, las órdenes de venta las venden y las operaciones definen cómo producirlas.\n\n### ¿Qué es una pieza?\n\nUna pieza es cualquier artículo discreto del que su empresa hace seguimiento: productos terminados, materias primas, subensamblajes, componentes, consumibles, sujetadores, componentes electrónicos, embalaje y herramentales. Cada pieza recibe un número de pieza generado por el sistema y un nombre. Las piezas nuevas comienzan en estado Borrador y avanzan por Prototipo → Activo → Obsoleto.\n\n### Los tres ejes de clasificación\n\nUna pieza no se define por un único \"tipo\": ese campo solía sobrecargar tres conceptos distintos. Cada pieza ahora se clasifica por **tres ejes ortogonales**, elegidos en la pantalla Nueva pieza:\n\n1. **Fuente de abastecimiento** — cómo se abastece la pieza.\n   - **Make** — producida internamente. Aún puede enviar operaciones individuales al exterior (operaciones de subcontratación).\n   - **Buy** — comprada completa a un proveedor.\n   - **Subcontract** — pieza completa subcontratada; el proveedor la construye, nosotros nunca la tocamos.\n   - **Phantom** — un ensamblaje lógico que nunca existe físicamente; se explota hasta sus hijos para MRP.\n2. **Clase de inventario** — en qué bucket vive la pieza.\n   - **Raw**, **Component**, **Subassembly**, **FinishedGood**, **Consumable**, **Tool**.\n3. **Tipo de artículo** — taxonomía descriptiva (configurable por el administrador) como Fastener, Electronic, Packaging, Hardware, Material.\n\nNo todas las combinaciones son significativas: hay once combinaciones viables de (abastecimiento × clase de inventario) documentadas, que determinan qué pestañas de detalle aparecen, qué flujo de trabajo se ejecuta al crear y qué controles se activan al promover. El diseño de pestañas de la página de detalle se adapta automáticamente a los ejes.\n\n**Los ejes de identidad son inmutables después de crear una pieza.** La Fuente de abastecimiento y la Clase de inventario determinan todo lo posterior: qué pestañas se renderizan, qué validadores se ejecutan, qué cálculos de costo son válidos. Cambiarlos a mitad de vida invalidaría el historial. Use una herramienta de migración dedicada si una pieza realmente necesita reclasificarse.\n\n### Campos de identidad de Nivel 0\n\nMás allá de los tres ejes, cada registro de pieza incluye:\n\n- **Trazabilidad** — None (a granel), Lot (por lote) o Serial (por unidad). Reemplaza el antiguo booleano isSerialTracked.\n- **Clase ABC** — A/B/C para la priorización basada en el valor (frecuencia de conteo cíclico, intensidad de control).\n- **Fabricante** + **Número de pieza del fabricante** — la identidad del OEM (distinta del número de pieza del proveedor de un distribuidor).\n- **Revisión** — revisión de ingeniería. Predeterminado A.\n- **Descripción** — notas extensas.\n\n### Ciclo de vida del estado\n\nCuatro estados controlan lo que la pieza puede hacer:\n\n- **Draft** — el registro existe; no es visible para los flujos de trabajo de producción ni para compras.\n- **Prototype** — utilizable en trabajos e inventario, pero marcada como no finalizada.\n- **Active** — totalmente aprobada para producción, compras y ventas. Predeterminado para las piezas que sobrevivieron a su flujo de trabajo.\n- **Obsolete** — conservada para trazabilidad histórica. No aparecerá en nuevas órdenes.\n\nLas piezas nunca se eliminan de forma permanente. Los cambios de estado se hacen mediante el campo Estado del clúster Identidad en la página de detalle.\n\n### La página de detalle\n\nLa página de detalle de la pieza es un sistema de clústeres multipestaña. Las pestañas no son fijas: se resuelven por combinación de (abastecimiento, clase de inventario) mediante el resolvedor de diseño. Pestañas comunes:\n\n- **Identidad** — siempre primero. Número de pieza, ejes (solo lectura), nombre, revisión, descripción, estado. Edite nombre/descripción/revisión/estado en línea; los ejes son inmutables.\n- **Inventario** — stock mínimo, punto de reorden, cantidad de reorden, stock de seguridad, trazabilidad, clase ABC. Oculta para combinaciones no almacenadas.\n- **MRP** — política de planificación: regla de dimensionamiento de lotes, cantidad de orden fija/mínima, múltiplos, vallas de planificación y de demanda. Oculta cuando la pieza no se planifica por MRP.\n- **Costo** — anulación manual de costo, id de la instantánea de cálculo de costo actual, clase de valoración, desglose del costo de aterrizaje. Oculta para combinaciones Phantom.\n- **Precios** — precios de lista, fechas de vigencia, historial.\n- **Material** — especificación de material, peso/dimensiones/volumen (columnas SI canónicas + unidad de visualización para que el usuario escriba en su unidad preferida).\n- **UoM** — unidades de medida de stock / compra / venta. Menús desplegables basados en búsquedas.\n- **Calidad** — interruptor de inspección de recepción, plantilla, frecuencia, conteo de omisión después de N.\n- **Enrutamiento** — operaciones de fabricación (combinaciones Make y Phantom).\n- **BOM** — lista de materiales (Make / Subassembly / Phantom). Vista de tabla o de árbol.\n- **Fuentes** — fuentes de proveedores (piezas Buy / Subcontract / de doble fuente). Una fila por intersección (proveedor, pieza).\n- **Alternativas** — piezas sustitutas.\n- **Historial de compras** — las OC más recientes que incluyeron esta pieza.\n- **Visor 3D** — aparece solo cuando hay un archivo STL adjunto.\n- **Actividad** — registro cronológico de cada cambio de definición.\n- **Archivos** — siempre al final. CAD, planos, hojas de datos.\n\nCada clúster editable tiene su propio par Guardar / Cancelar (parte inferior derecha del clúster). Puede editar Identidad sin tocar Inventario; los guardados se limitan a cada clúster. La página nunca tiene un único Guardar global.\n\n### Fuentes de proveedores (pestaña Fuentes)\n\nPara las piezas que se compran (o que tienen opciones Buy en una pieza con eje Make), la pestaña **Fuentes** enumera las intersecciones (Proveedor, Pieza): una fila por cada proveedor que suministra esta pieza. Cada fuente captura datos de abastecimiento con alcance de proveedor:\n\n- Número de pieza del proveedor\n- Número de pieza del fabricante del proveedor (caso de distribuidor)\n- Tiempo de entrega, MOQ y tamaño de empaque por proveedor\n- País de origen, código HTS\n- Indicador de aprobación AVL, certificaciones, fecha de última cotización\n- Indicador **Preferido** — como máximo un proveedor preferido por pieza. Se refleja en el PreferredVendorId de la pieza.\n- **Precios escalonados** — descuentos por cantidad (gana la cantidad mínima ≤ cantidad solicitada), con fechas de vigencia desde y hasta.\n\nAgregar una fuente es una creación normal; la lista de niveles de precio se gestiona en línea. Establecer una nueva fuente preferida quita automáticamente la preferencia de la anterior.\n\n### Lista de materiales (BOM)\n\nPara los ensamblajes Make y Phantom, la pestaña BOM enumera cada componente:\n\n- **Pieza hija** — búsqueda con selector de entidades. No puede ser la pieza padre.\n- **Cantidad** — por unidad del padre.\n- **Tipo de fuente** — Make (fabricado internamente, puede generar un subtrabajo), Buy (comprado), Stock (extraído del inventario).\n- **Designador de referencia** — referencia de ingeniería (R1, C4, J2 para electrónica).\n- **Días de tiempo de entrega** — días para obtener este componente específico.\n- **Notas** — texto libre.\n\nLas líneas de BOM pueden verse como una tabla plana ordenable o un árbol jerárquico. La vista **Usado en** (BOM inversa) se accede a través de la referencia cruzada de Alternativas / Fuentes y muestra los ensamblajes padre que consumen esta pieza.\n\n### Enrutamiento (Operaciones)\n\nLas piezas con eje Make tienen una pestaña Enrutamiento que enumera las operaciones de fabricación en secuencia:\n\n- **Número de paso**, **Título**, **Instrucciones**, **Centro de trabajo**, **Minutos estimados**, **Punto de control de QC** (con Criterios de QC) y **Operación referenciada** (referencia cruzada para dependencias).\n- Cada operación puede subcontratar un paso (un indicador IsSubcontract a nivel de operación), distinto de una pieza totalmente subcontratada.\n- Las líneas de BOM pueden asignarse a operaciones como **Materiales de operación** para que el enrutamiento sepa qué materiales se consumen en cada paso.\n- Las operaciones admiten adjuntos de archivos por operación y un registro de actividad.\n\nEl enrutamiento se renderiza en modo lista (tarjetas secuenciales) o en modo flujo (diagrama visual).\n\n### Cómo se conectan las piezas con otros módulos\n\n**Trabajos** — cuando se crea un trabajo en el tablero Kanban, puede vincularse a una pieza. La BOM de la pieza determina los requisitos de materiales, y el enrutamiento define los pasos de producción.\n\n**Inventario** — las piezas se rastrean en ubicaciones de almacenamiento y contenedores. El clúster Inventario muestra la cantidad total disponible y una advertencia de bajo stock cuando la cantidad cae por debajo del umbral de stock mínimo.\n\n**Órdenes de compra** — cuando una línea de BOM tiene tipo de fuente Buy, el sistema sabe que el componente necesita abastecimiento. El proveedor preferido (de la pestaña Fuentes) impulsa la creación de la OC.\n\n**Órdenes de venta y cotizaciones** — las piezas aparecen como líneas de pedido con precios del historial de precios de la pieza (o el precio del nivel de proveedor para el margen de costo más margen).\n\n**Activos** — las piezas de clase Tool pueden vincularse a un activo de herramental para el seguimiento del conteo de disparos y la programación de mantenimiento.\n\n**Código de barras/QR** — cada pieza puede tener una etiqueta de código de barras impresa. Escanear el código de barras de una pieza en la página de Piezas completa el campo de búsqueda al instante.\n\n### Creación de una pieza\n\nNueva pieza comienza con un diálogo de bifurcación de 4 preguntas que selecciona los ejes (abastecimiento, clase de inventario, más una o dos preguntas sobre trazabilidad e inspección). Según las respuestas, el sistema elige una definición de flujo de trabajo y lo dirige a un formulario guiado de varios pasos (Básicos → Inventario → Calidad → Abastecimiento → Costeo → … → Guardar). Puede pausar en cualquier paso; el estado parcial se conserva como borrador y se muestra como una fila fantasma en la lista de piezas, reanudable desde donde lo dejó.\n\nLos casos ligeros (Materia prima, Consumible) entran directamente en un formulario rápido de una sola página en lugar de un flujo de trabajo de varios pasos.\n\n### Modos de vista\n\nLa página de lista de piezas tiene dos modos de vista: **Vista de tabla** (tabla de datos ordenable y con gestión de columnas) y **Vista de cuadrícula de tarjetas** (tarjetas visuales). Alterne en la parte superior derecha; la preferencia se guarda por usuario.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "parts-walkthrough",
+    "title": "Catálogo de piezas — Recorrido guiado",
+    "summary": "Un recorrido guiado por la lista de piezas, los filtros de ejes, el conmutador de vista, la bifurcación de Nueva pieza y un vistazo a la página de detalle impulsada por el resolvedor (Identidad / Inventario / Costo / Fuentes / BOM / Enrutamiento / Actividad / Archivos).",
+    "contentJson": {
+      "appRoute": "/parts",
+      "startButtonLabel": "Recorrer el Catálogo de piezas",
+      "steps": [
+        {
+          "element": "[data-testid='new-part-btn']",
+          "popover": {
+            "title": "Nueva pieza",
+            "description": "Haga clic aquí para iniciar una nueva pieza. Primero responderá una breve bifurcación: cómo se abastece la pieza (Make, Buy, Subcontract, Phantom), a qué bucket de inventario pertenece (Raw, Component, Subassembly, FinishedGood, Consumable, Tool) y un par de preguntas sobre trazabilidad e inspección. Según sus respuestas, el sistema elige un flujo de trabajo y lo guía por el clúster de campos correcto.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-input",
+          "popover": {
+            "title": "Buscar piezas",
+            "description": "Busque por número de pieza, nombre, fabricante o número de pieza externo. Presione Enter para aplicar. Los escáneres de código de barras alimentan este campo automáticamente: escanee una etiqueta y se encuentra la pieza correspondiente.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-select:nth-of-type(1)",
+          "popover": {
+            "title": "Filtro de estado",
+            "description": "Filtre por estado del ciclo de vida: Draft (trabajo en progreso), Prototype (en pruebas), Active (aprobada para uso) u Obsolete (conservada para historial pero no para nuevas órdenes). Elija 'Todos' para ver todo.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-select:nth-of-type(2)",
+          "popover": {
+            "title": "Filtro de Fuente de abastecimiento",
+            "description": "Filtre por el eje de abastecimiento: Make (interno), Buy (comprado), Subcontract (el proveedor la construye entera) o Phantom (ensamblaje lógico que nunca existe físicamente). Combine con el filtro de Clase de inventario para acotar más.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-select:nth-of-type(3)",
+          "popover": {
+            "title": "Filtro de Clase de inventario",
+            "description": "Filtre por bucket de inventario: Raw, Component, Subassembly, FinishedGood, Consumable o Tool. Este eje decide qué reglas de inventario se aplican (almacenamiento, trazabilidad, clase ABC).",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".view-toggle",
+          "popover": {
+            "title": "Conmutador de modo de vista",
+            "description": "Cambie entre Vista de tabla (tabla de datos ordenable con gestión de columnas) y Vista de cuadrícula de tarjetas (tarjetas visuales). Su preferencia se guarda entre sesiones.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de datos de piezas",
+            "description": "Haga clic en cualquier fila para abrir el panel de detalle de la pieza. Las columnas incluyen N.º de pieza, Nombre, Abastecimiento, Clase, Estado, conteo de BOM, Precio vigente y un indicador de Completitud. Haga clic en los encabezados para ordenar. Use el icono de engranaje para mostrar/ocultar columnas o reorganizarlas. Las filas de borrador de ejecuciones de flujo de trabajo en progreso aparecen como filas 'fantasma' fijadas en la parte superior: haga clic para reanudar o haga clic en la X para abandonar el borrador.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "parts-field-reference",
+    "title": "Referencia de campos del Catálogo de piezas",
+    "summary": "Referencia completa de cada campo, eje, estado, regla de validación, columna de tabla y clúster de la página de detalle en el Catálogo de piezas.",
+    "contentJson": {
+      "title": "Referencia de campos del Catálogo de piezas",
+      "groups": [
+        {
+          "heading": "Ejes de identidad (elegidos en la bifurcación de Nueva pieza)",
+          "items": [
+            { "label": "Fuente de abastecimiento (requerido)", "value": "Make / Buy / Subcontract / Phantom. Determina la ruta del flujo de trabajo al crear, qué pestañas de la página de detalle se renderizan y qué controles se activan al promover. Inmutable después de la creación. data-testid: part-procurement-source" },
+            { "label": "Clase de inventario (requerido)", "value": "Raw / Component / Subassembly / FinishedGood / Consumable / Tool. Determina qué reglas de inventario se aplican (almacenamiento, trazabilidad, ABC). Inmutable después de la creación. data-testid: part-inventory-class" },
+            { "label": "Tipo de artículo (opcional)", "value": "Taxonomía configurable por el administrador del grupo de reference_data 'part.item_kind' (Fastener, Electronic, Packaging, Hardware, Material, etc.). Solo descriptivo: no controla ninguna lógica." }
+          ]
+        },
+        {
+          "heading": "Campos del clúster Identidad",
+          "items": [
+            { "label": "Número de pieza", "value": "Generado por el sistema al crear. Solo lectura. Formato = prefijo categórico (PRT, ASM, RAW, CON, TLG, FST, ELC, PKG) + secuencia de 5 dígitos rellenada con ceros. No se puede cambiar." },
+            { "label": "Nombre (requerido)", "value": "Identificador canónico breve (p. ej., 'Sheath Mudkipper'). Máximo 256 caracteres. data-testid: part-identity-name / part-name" },
+            { "label": "Descripción", "value": "Notas extensas. Opcional. Máximo 2000 caracteres. data-testid: part-identity-description / part-description" },
+            { "label": "Revisión", "value": "Letra de revisión de ingeniería. Predeterminado 'A'. Máximo 5 caracteres. Incremente al cambiar el diseño (A → B → C). data-testid: part-identity-revision / part-revision" },
+            { "label": "Estado (requerido)", "value": "Draft / Prototype / Active / Obsolete. Edite en línea mediante el selector Estado del clúster Identidad. data-testid: part-identity-status" }
+          ]
+        },
+        {
+          "heading": "Campos de identidad de Nivel 0",
+          "items": [
+            { "label": "Trazabilidad", "value": "None (a granel, sin seguimiento) / Lot (por lote) / Serial (por unidad). Requerido. Reemplaza el antiguo booleano isSerialTracked." },
+            { "label": "Clase ABC", "value": "A (alto valor, control estricto) / B (moderado) / C (bajo valor, control laxo) / Sin asignar. Determina la frecuencia de conteo cíclico y el rigor del control." },
+            { "label": "Fabricante", "value": "Nombre de la empresa OEM. Opcional. Distinto del nombre del proveedor de un distribuidor." },
+            { "label": "Número de pieza del fabricante", "value": "Número de pieza del OEM. Opcional. Distinto del número de pieza del proveedor de un distribuidor: ambos pueden coexistir en una fila de VendorPart." }
+          ]
+        },
+        {
+          "heading": "Campos del clúster Inventario",
+          "items": [
+            { "label": "Stock mínimo", "value": "Cantidad mínima que mantener disponible. Cuando el inventario cae por debajo de esto, aparece una advertencia de bajo stock. Opcional. Debe ser >= 0." },
+            { "label": "Punto de reorden", "value": "Nivel de cantidad en el que debe activarse un reabastecimiento. Usado por MRP. Opcional. Debe ser >= 0." },
+            { "label": "Cantidad de reorden", "value": "Cuántas unidades ordenar al reabastecer. Opcional." },
+            { "label": "Stock de seguridad (días)", "value": "Días de stock de reserva a mantener más allá del punto de reorden calculado. Opcional." },
+            { "label": "Trazabilidad", "value": "None / Lot / Serial. Consulte Identidad de Nivel 0." },
+            { "label": "Clase ABC", "value": "A / B / C / Sin asignar. Consulte Identidad de Nivel 0." }
+          ]
+        },
+        {
+          "heading": "Campos del clúster Costo",
+          "items": [
+            { "label": "Anulación manual de costo", "value": "Entrada de moneda. Cuando se establece, anula el costo de aterrizaje calculado. Formateada con la moneda predeterminada de la empresa. Borre mediante el botón de borrado de la entrada (un valor negativo o vacío guarda null)." },
+            { "label": "Id de cálculo de costo", "value": "Solo lectura. El id de la instantánea de cálculo de costo actual. Un trabajo en segundo plano recalcula al cambiar la BOM / el proveedor / los precios." },
+            { "label": "Clase de valoración", "value": "Etiqueta de solo lectura. Agrupación de valoración del Pilar 2 (configurable por el administrador en reference_data)." },
+            { "label": "Superficie de costo de aterrizaje", "value": "Desglose de solo lectura del costo unitario + flete + arancel + tarifas. Obtenido de VendorPartPriceTier y la asignación de costo de envío." }
+          ]
+        },
+        {
+          "heading": "Pestaña Fuentes (intersección VendorPart)",
+          "items": [
+            { "label": "Agregar fuente de proveedor", "value": "Abre el diálogo para agregar una fila (Proveedor, Pieza). Requerido: Proveedor (selector de entidades)." },
+            { "label": "Número de pieza del proveedor", "value": "El número de catálogo del proveedor para esta pieza." },
+            { "label": "MPN del proveedor", "value": "Número de pieza del fabricante del proveedor: para el caso en que el proveedor es un distribuidor y la pieza tiene una identidad OEM diferente." },
+            { "label": "Tiempo de entrega (días)", "value": "Tiempo de entrega por proveedor. Anula el valor predeterminado a nivel de pieza para esta fuente." },
+            { "label": "MOQ", "value": "Cantidad mínima de orden para este proveedor." },
+            { "label": "Tamaño de empaque", "value": "El proveedor empaqueta en múltiplos de este número." },
+            { "label": "País de origen", "value": "Para fines de HTS/aduanas." },
+            { "label": "Código HTS", "value": "Código del Sistema Armonizado de Aranceles. Usado por los cálculos de aranceles de importación." },
+            { "label": "Aprobado AVL", "value": "Interruptor. Si esta fuente está en la Lista de Proveedores Aprobados." },
+            { "label": "Certificaciones", "value": "Texto libre. Certificaciones de calidad (ISO 9001, AS9100, RoHS, etc.)." },
+            { "label": "Última cotización el", "value": "Fecha en que el proveedor cotizó por última vez esta pieza. Detección de fuentes obsoletas." },
+            { "label": "Preferido", "value": "Interruptor. Como máximo una fuente preferida por pieza: activar este desactiva automáticamente el preferido anterior. Se refleja en Part.PreferredVendorId." },
+            { "label": "Niveles de precio", "value": "Filas de descuento por cantidad: cantidad mínima + precio unitario + moneda + vigencia desde + vigencia hasta. Agregar / editar / eliminar en línea." }
+          ]
+        },
+        {
+          "heading": "Clúster BOM (Make / Subassembly / Phantom)",
+          "items": [
+            { "label": "Pieza hija (requerido)", "value": "Selector de entidades que busca piezas. No puede ser la pieza padre." },
+            { "label": "Cantidad (requerido)", "value": "Cuántas piezas hijas por unidad del padre. Debe ser > 0. Predeterminado 1." },
+            { "label": "Tipo de fuente", "value": "Make (interno, puede generar un subtrabajo) / Buy (comprado) / Stock (del inventario). Predeterminado Buy." },
+            { "label": "Designador de referencia", "value": "Referencia de ingeniería (R1, C4, J2)." },
+            { "label": "Días de tiempo de entrega", "value": "Días para obtener este componente específico. Se muestra como 'Xd' en la tabla de la BOM." },
+            { "label": "Notas", "value": "Texto libre." }
+          ]
+        },
+        {
+          "heading": "Clúster Enrutamiento (solo Make)",
+          "items": [
+            { "label": "Número de paso", "value": "Secuencia (1, 2, 3...). Autocompletado para operaciones nuevas con el siguiente número disponible." },
+            { "label": "Título (requerido)", "value": "Nombre breve de la operación (p. ej., 'Desbaste CNC', 'Desbarbado', 'Tratamiento térmico'). Máximo 200 caracteres." },
+            { "label": "Instrucciones", "value": "Instrucciones de trabajo detalladas de varias líneas para el operador." },
+            { "label": "Centro de trabajo", "value": "Selector de entidades (centros de trabajo). Opcional." },
+            { "label": "Minutos estimados", "value": "Duración esperada. Opcional. Debe ser >= 1 si se proporciona." },
+            { "label": "Es subcontratación (interruptor)", "value": "Cuando está ACTIVADO, esta única operación se envía a un subcontratista. Distinto de procurementSource = Subcontract a nivel de pieza (que significa que la pieza completa se subcontrata)." },
+            { "label": "Punto de control de QC (interruptor)", "value": "Cuando está ACTIVADO, requiere inspección antes de que continúe el siguiente paso." },
+            { "label": "Criterios de QC", "value": "Área de texto, mostrada cuando el Punto de control de QC está activado." },
+            { "label": "Materiales de operación", "value": "Líneas de BOM asignadas a esta operación. Cada fila = (línea de BOM, cantidad consumida en este paso)." }
+          ]
+        },
+        {
+          "heading": "Clúster Calidad",
+          "items": [
+            { "label": "Requiere inspección de recepción (interruptor)", "value": "Cuando está ACTIVADO, cada recepción de esta pieza activa una inspección de QC." },
+            { "label": "Plantilla de inspección de recepción", "value": "FK a QcTemplate. Determina la lista de verificación de inspección." },
+            { "label": "Frecuencia de inspección", "value": "Always / Sample / Skip-after-N. Determina la lógica de omisión de inspección." },
+            { "label": "Omitir inspección después de N", "value": "Después de N inspecciones exitosas seguidas, las recepciones posteriores omiten la inspección hasta que se encuentre un defecto." }
+          ]
+        },
+        {
+          "heading": "Clúster Material",
+          "items": [
+            { "label": "Especificación de material", "value": "FK a la especificación de material (grupo de reference_data 'material.spec'). Aluminio 6061-T6, Acero inoxidable 304, Plástico ABS, etc." },
+            { "label": "Peso (g canónico) + Unidad de visualización", "value": "Peso almacenado en gramos. La unidad de visualización es la que escribió el usuario (g, kg, oz, lb). El ciclo de ida y vuelta preserva la unidad ingresada." },
+            { "label": "Longitud / Ancho / Alto (mm canónico) + Unidad de visualización", "value": "Dimensiones en mm. Unidad de visualización (mm, cm, m, in, ft) preservada." },
+            { "label": "Volumen (mL canónico) + Unidad de visualización", "value": "Volumen en mililitros. Unidad de visualización (mL, L, oz, gal) preservada." },
+            { "label": "Clase de valoración", "value": "FK al grupo de reference_data 'valuation.class'. Agrupación de valoración de inventario del Pilar 2." }
+          ]
+        },
+        {
+          "heading": "Clúster UoM",
+          "items": [
+            { "label": "UoM de stock", "value": "Unidad en la que se almacena la pieza (la unidad de inventario canónica). FK a reference_data." },
+            { "label": "UoM de compra", "value": "Unidad en la que se compra la pieza. Puede diferir de la UoM de stock (p. ej., stock por pieza, compra por caja)." },
+            { "label": "UoM de venta", "value": "Unidad en la que se vende la pieza." }
+          ]
+        },
+        {
+          "heading": "Clúster MRP",
+          "items": [
+            { "label": "Planificada por MRP (interruptor)", "value": "Si MRP incluye esta pieza en sus ejecuciones de planificación." },
+            { "label": "Regla de dimensionamiento de lotes", "value": "FixedOrderQty / LotForLot / EconomicOrderQty / FixedPeriod. Determina cómo MRP agrupa la demanda en órdenes." },
+            { "label": "Cantidad de orden fija", "value": "Para la regla FixedOrderQty. Ordene siempre esta cantidad." },
+            { "label": "Cantidad mínima de orden", "value": "Mínimo para cualquier orden individual." },
+            { "label": "Múltiplo de orden", "value": "Ordene en múltiplos de este número." },
+            { "label": "Valla de planificación (días)", "value": "Dentro de esta valla, MRP no genera automáticamente nuevas órdenes: solo control manual." },
+            { "label": "Valla de demanda (días)", "value": "Dentro de esta valla, no se permiten cambios de demanda sin anulación." }
+          ]
+        },
+        {
+          "heading": "Clúster Precios",
+          "items": [
+            { "label": "Establecer nuevo precio", "value": "Entrada de moneda. Al guardar se crea una nueva fila de precio y se marca la anterior como histórica." },
+            { "label": "Vigencia desde", "value": "Fecha en que el nuevo precio entra en vigor. Predeterminado hoy." },
+            { "label": "Notas", "value": "Opcional. Motivo del cambio de precio." },
+            { "label": "Historial de precios", "value": "Precios anteriores: precio, vigencia desde, vigencia hasta (o '---' si es el actual)." }
+          ]
+        },
+        {
+          "heading": "Diseño de pestañas de la página de detalle",
+          "items": [
+            { "label": "Impulsado por el resolvedor", "value": "Las pestañas NO son fijas: se calculan a partir de (procurementSource, inventoryClass) mediante PartDetailLayoutResolverService. Identidad siempre primero, Actividad → Archivos siempre al final." },
+            { "label": "Pestañas comunes", "value": "Identidad, Inventario, MRP, Costo, Precios, Material, UoM, Calidad, Enrutamiento, BOM, Fuentes, Alternativas, Historial de compras, Visor 3D, Actividad, Archivos." },
+            { "label": "Sincronización con la URL", "value": "La pestaña activa está vinculada a ?tab=<id> para que la actualización y los enlaces compartidos lleguen a la pestaña correcta." },
+            { "label": "Guardado por clúster", "value": "Cada clúster editable tiene su propio par Guardar / Cancelar (parte inferior derecha). Sin Guardar global a nivel de página. Los guardados están delimitados: edite Identidad sin afectar Inventario." }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de la lista de piezas",
+          "items": [
+            { "label": "N.º de pieza (partNumber)", "value": "Generado por el sistema. Ordenable. Monoespaciado en negrita. 120px." },
+            { "label": "Nombre", "value": "Nombre de la pieza. Ordenable. Ancho flexible. Incluye una insignia de completitud." },
+            { "label": "Abastecimiento (procurementSource)", "value": "Chip Make / Buy / Subcontract / Phantom. Ordenable." },
+            { "label": "Clase (inventoryClass)", "value": "Chip Raw / Component / Subassembly / FinishedGood / Consumable / Tool. Ordenable." },
+            { "label": "Estado", "value": "Insignia codificada por color: Active=verde, Draft=gris, Prototype=azul, Obsolete=rojo. Ordenable + filtrable." },
+            { "label": "Conteo de BOM", "value": "Número de líneas de BOM directas. Centrado. 60px." },
+            { "label": "Precio vigente", "value": "Precio de lista actual (o '---' si no hay precio configurado)." },
+            { "label": "Completitud", "value": "Chip que muestra qué tan completo está el registro de la pieza (cobertura de Identidad → Abastecimiento → Precios → Calidad)." }
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            { "label": "Fuente de abastecimiento / Clase de inventario", "value": "Requeridas al crear. No se pueden cambiar después." },
+            { "label": "Nombre", "value": "Requerido. Máximo 256 caracteres." },
+            { "label": "Descripción", "value": "Opcional. Máximo 2000 caracteres." },
+            { "label": "Revisión", "value": "Opcional. Máximo 5 caracteres. Predeterminado 'A'." },
+            { "label": "Trazabilidad", "value": "Requerida. None / Lot / Serial." },
+            { "label": "Stock mínimo / Punto de reorden / Stock de seguridad", "value": "Opcionales. Deben ser >= 0." },
+            { "label": "Cantidad de BOM", "value": "Requerida. Debe ser > 0." },
+            { "label": "Número de paso de operación", "value": "Requerido. Debe ser >= 1." },
+            { "label": "Título de operación", "value": "Requerido. Máximo 200 caracteres." },
+            { "label": "Unicidad del preferido de VendorPart", "value": "Del lado del servidor: como máximo un VendorPart por pieza con isPreferred=true. Establecerlo en true en una fila lo borra en todas las demás." },
+            { "label": "Botón de envío + popover de validación", "value": "Todos los formularios usan el estereotipo <app-validation-button>: cuando es inválido, aparece un pequeño icono de triángulo de advertencia junto a un Guardar deshabilitado. Haga clic en el icono para ver la lista de infracciones." }
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            { "label": "Nueva pieza (encabezado de la página)", "value": "Abre el diálogo de bifurcación de 4 preguntas. data-testid: new-part-btn" },
+            { "label": "Reanudar borrador (lista de piezas)", "value": "Haga clic en una fila de borrador 'fantasma' (una ejecución de flujo de trabajo que aún no ha materializado una pieza) para reanudar el flujo de trabajo donde lo dejó." },
+            { "label": "Abandonar borrador", "value": "Botón X en una fila de borrador fantasma. Descarta la ejecución en progreso." },
+            { "label": "Editar (encabezado del clúster)", "value": "Cada clúster editable tiene un botón Editar en línea. Haga clic para entrar en modo de edición solo de ese clúster." },
+            { "label": "Guardar / Cancelar (pie del clúster)", "value": "Por clúster. Guardar confirma los cambios de este clúster. Cancelar revierte las ediciones en progreso y sale del modo de edición." },
+            { "label": "Cambio de estado", "value": "Selector Estado del clúster Identidad: Draft / Prototype / Active / Obsolete. Sin botones de estado separados; un solo campo de formulario." },
+            { "label": "Agregar fuente de proveedor (pestaña Fuentes)", "value": "Abre el diálogo de creación de VendorPart." },
+            { "label": "Agregar nivel de precio", "value": "Acción en línea en una fuente de proveedor: agrega una fila de descuento por cantidad." },
+            { "label": "Agregar línea de BOM", "value": "Abre el diálogo de creación de línea de BOM con selector de entidades para la pieza hija." },
+            { "label": "Agregar operación", "value": "Abre el diálogo de creación de operación con número de paso autoincrementado." },
+            { "label": "Conmutador de modo de vista (a nivel de página)", "value": "Cambia entre Vista de tabla y Vista de cuadrícula de tarjetas." },
+            { "label": "Clic en fila (tabla de piezas)", "value": "Abre el panel de detalle de la pieza." }
+          ]
+        },
+        {
+          "heading": "Registro de actividad",
+          "items": [
+            { "label": "Creada", "value": "Al crear la pieza: una fila de ActivityLog anclada a la pieza con la acción 'created' y una descripción que nombra el número de pieza, el nombre, el abastecimiento y la clase de inventario." },
+            { "label": "Actualizada", "value": "Por guardado (regla de consolidación): una fila por solicitud, con una descripción que resume todos los campos cambiados." },
+            { "label": "Eliminada", "value": "Al eliminar de forma lógica: una fila anclada a la pieza con la acción 'deleted'." },
+            { "label": "Mutaciones de VendorPart", "value": "Regla de puntos de indexación: la creación / actualización / eliminación de VendorPart y la adición / eliminación de niveles de precio emiten cada una dos filas de actividad: una anclada a la Pieza, otra al Proveedor." }
+          ]
+        },
+        {
+          "heading": "Integración del escáner de código de barras",
+          "items": [
+            { "label": "Contexto del escáner", "value": "La página de Piezas establece el contexto global del escáner en 'parts'. Los escaneos en esta página completan el filtro de búsqueda." },
+            { "label": "Comportamiento del escaneo", "value": "El valor escaneado se coloca en la entrada de búsqueda y la lista de piezas se recarga con ese valor como término de búsqueda: encuentra la pieza por su número de pieza codificado en el código de barras." },
+            { "label": "Escáneres compatibles", "value": "Escáneres de código de barras USB (modo cuña de teclado) y lectores NFC (ACR122U con etiquetas NTAG215). El escáner debe estar en modo de emulación de teclado." }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "parts-quiz",
+    "title": "Evaluación de conocimientos del Catálogo de piezas",
+    "summary": "Ponga a prueba sus conocimientos: los tres ejes de clasificación, la inmutabilidad de la identidad, los tipos de fuente de BOM, las fuentes de proveedores, el enrutamiento, la trazabilidad y el modelo de guardado por clúster.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "pt1",
+          "text": "Una pieza se construye a partir de varios subcomponentes en su taller. ¿Qué combinación de Fuente de abastecimiento / Clase de inventario corresponde?",
+          "options": [
+            { "id": "a", "text": "Buy / Component" },
+            { "id": "b", "text": "Make / Subassembly", "isCorrect": true },
+            { "id": "c", "text": "Subcontract / FinishedGood" },
+            { "id": "d", "text": "Phantom / Raw" }
+          ],
+          "explanation": "Make + Subassembly: 'Make' porque la produce internamente, 'Subassembly' porque es un ensamblaje que a su vez es un componente de algo más grande. La pestaña BOM aparecerá en la página de detalle; la pestaña Enrutamiento aparecerá porque las piezas con eje Make tienen operaciones de fabricación."
+        },
+        {
+          "id": "pt2",
+          "text": "¿Cuál es la diferencia entre una pieza con procurementSource = Subcontract y una operación con isSubcontract = true?",
+          "options": [
+            { "id": "a", "text": "Significan lo mismo: ambas indican subcontratación a un proveedor" },
+            { "id": "b", "text": "Subcontract en la pieza = el proveedor construye la pieza completa; isSubcontract en una operación = SE envía UN paso al exterior, pero el resto de la pieza se fabrica internamente", "isCorrect": true },
+            { "id": "c", "text": "Subcontract en la pieza es la forma heredada; ahora solo se admite la subcontratación a nivel de operación" },
+            { "id": "d", "text": "isSubcontract en una operación activa una OC automática; Subcontract en una pieza no" }
+          ],
+          "explanation": "Modelan dos alcances diferentes. Fuente de abastecimiento = Subcontract significa que toda la pieza se subcontrata: el proveedor la entrega completa. Un indicador isSubcontract a nivel de operación en una pieza con eje Make significa que se envía un paso del enrutamiento al exterior (p. ej., mecanizamos la carcasa internamente pero la enviamos para anodizado)."
+        },
+        {
+          "id": "pt3",
+          "text": "¿Por qué la Fuente de abastecimiento y la Clase de inventario son inmutables después de crear una pieza?",
+          "options": [
+            { "id": "a", "text": "No lo son: hay un botón Editar en el clúster Identidad que permite cambiarlas" },
+            { "id": "b", "text": "Determinan qué pestañas de detalle aparecen, qué validadores se ejecutan, qué flujos de trabajo se activan al crear y qué controles se activan al promover. Cambiarlas a mitad de vida invalidaría cada referencia posterior y registro de historial", "isCorrect": true },
+            { "id": "c", "text": "Es una restricción de base de datos sin motivo de negocio" },
+            { "id": "d", "text": "Solo el eje de abastecimiento es inmutable; la clase de inventario se puede cambiar libremente" }
+          ],
+          "explanation": "Ambos ejes están integrados en cada cálculo de costo, cada BOM que usa esta pieza, cada fuente de proveedor y el propio historial de actividad de la pieza. Reclasificar a mitad de vida invalidaría silenciosamente todo eso. Si una pieza realmente necesita reclasificarse, use una herramienta de migración dedicada que vuelva a ejecutar el flujo de trabajo y escriba una nueva fila de auditoría, no una edición en línea."
+        },
+        {
+          "id": "pt4",
+          "text": "¿Qué significa Trazabilidad = Lot para una pieza?",
+          "options": [
+            { "id": "a", "text": "La pieza se rastrea por números de serie individuales, uno por unidad" },
+            { "id": "b", "text": "La pieza se rastrea por lote: las recepciones, los movimientos y el consumo se registran contra el lote, no contra unidades individuales", "isCorrect": true },
+            { "id": "c", "text": "La pieza solo se puede vender por lote, nunca dividida" },
+            { "id": "d", "text": "La pieza está exenta del seguimiento de inventario por completo" }
+          ],
+          "explanation": "La trazabilidad por lote significa que la unidad rastreada más pequeña es el lote. Las recepciones crean un LotRecord; los movimientos y el consumo hacen referencia al id del lote. Use Lot para materiales y químicos donde las unidades individuales no son distinguibles. Use Serial para artículos de alto valor o regulados donde cada unidad necesita su propia identidad. Use None para consumibles a granel donde ninguno importa."
+        },
+        {
+          "id": "pt5",
+          "text": "Está editando una pieza. Cambia el Nombre en el clúster Identidad y luego hace clic en Guardar. ¿Qué sucede?",
+          "options": [
+            { "id": "a", "text": "Se guarda toda la pieza: Identidad, Inventario, Costo y todos los demás clústeres" },
+            { "id": "b", "text": "Solo los campos del clúster Identidad se envían al servidor. Los datos de otros clústeres no se tocan", "isCorrect": true },
+            { "id": "c", "text": "Nada: no hay guardado por clúster; la página tiene un botón Guardar global" },
+            { "id": "d", "text": "El guardado falla porque el clúster Inventario también está modificado" }
+          ],
+          "explanation": "La página de detalle tiene pares de guardar / cancelar por clúster (parte inferior derecha de cada clúster). Cada Guardar envía solo los campos de ese clúster. Esto significa que puede editar Identidad de forma segura sin tocar Inventario, y viceversa: no hay riesgo de guardar accidentalmente valores obsoletos de otro clúster."
+        },
+        {
+          "id": "pt6",
+          "text": "Agrega una fuente de proveedor a una pieza y activa 'Preferido'. Otra fuente de proveedor de la misma pieza estaba previamente preferida. ¿Qué sucede?",
+          "options": [
+            { "id": "a", "text": "El guardado se rechaza: solo puede haber un preferido por pieza, primero debe desactivar la preferencia del otro" },
+            { "id": "b", "text": "Ambas filas terminan preferidas: la restricción es solo orientativa", "isCorrect": false },
+            { "id": "c", "text": "El preferido anterior se desactiva automáticamente: el servidor impone como máximo un preferido por pieza. Part.PreferredVendorId se actualiza para apuntar a la nueva fila preferida", "isCorrect": true },
+            { "id": "d", "text": "Solo la restricción de base de datos lo detecta en la siguiente lectura; el guardado en sí es silencioso" }
+          ],
+          "explanation": "La invariante de unicidad del preferido se impone del lado del servidor: establecer isPreferred=true en una fila de VendorPart la desactiva automáticamente en todas las demás VendorPart de la misma pieza dentro del mismo SaveChanges. La columna Part.PreferredVendorId es un reflejo desnormalizado que apunta a la fila preferida para acceso rápido: se mantiene sincronizada como parte de la misma operación."
+        },
+        {
+          "id": "pt7",
+          "text": "Agrega un nivel de precio a una fuente de proveedor: minQuantity=100, unitPrice=$1.50, effectiveFrom=2026-04-01. El mismo proveedor ya tiene minQuantity=10, unitPrice=$2.00 (actual). Un comprador solicita 250 unidades. ¿Qué nivel aplica?",
+          "options": [
+            { "id": "a", "text": "$2.00 porque ese nivel se creó primero" },
+            { "id": "b", "text": "$1.50 porque la cantidad solicitada (250) está en o por encima de 100, y 100 es la minQuantity más alta que aún encaja", "isCorrect": true },
+            { "id": "c", "text": "$2.00 porque los niveles no aplican a los precios cotizados por el proveedor" },
+            { "id": "d", "text": "El sistema promedia los niveles" }
+          ],
+          "explanation": "Regla de descuento por cantidad: de los niveles activos (effectiveFrom <= hoy, effectiveTo nulo o > hoy), elija aquel cuya minQuantity sea el valor más alto que siga siendo <= la cantidad solicitada. 250 >= 100, por lo que gana el nivel de $1.50. Si el comprador hubiera solicitado 50 unidades, solo calificaría el nivel minQ=10 y aplicaría $2.00."
+        },
+        {
+          "id": "pt8",
+          "text": "¿Cuál es la función del tipo de fuente de BOM 'Make' en una línea de BOM?",
+          "options": [
+            { "id": "a", "text": "Marca la entrada como obsoleta" },
+            { "id": "b", "text": "Le dice al sistema que el componente se fabrica internamente, lo que puede generar un subtrabajo durante la planificación de producción", "isCorrect": true },
+            { "id": "c", "text": "Bloquea la edición de la línea de BOM" },
+            { "id": "d", "text": "Oculta la entrada de la vista de árbol de la BOM" }
+          ],
+          "explanation": "Tipo de fuente = Make significa que el componente se fabrica internamente. Durante la planificación de producción (explosión de la BOM), el sistema puede crear un subtrabajo para producir el componente Make antes de que el trabajo padre lo necesite. Las entradas Buy activan órdenes de compra; las entradas Stock asumen que el componente está disponible."
+        },
+        {
+          "id": "pt9",
+          "text": "¿Qué pestañas muestra la página de detalle de la pieza y cómo se eligen?",
+          "options": [
+            { "id": "a", "text": "Un diseño fijo de cinco pestañas: Info, BOM, Usado en, Enrutamiento, Archivos, igual para cada pieza" },
+            { "id": "b", "text": "Un diseño multipestaña impulsado por el resolvedor: las pestañas se calculan a partir de (procurementSource, inventoryClass) mediante PartDetailLayoutResolverService. Identidad siempre primero, Actividad → Archivos siempre al final; las pestañas intermedias varían según los ejes", "isCorrect": true },
+            { "id": "c", "text": "Las pestañas que estuvieron visibles por última vez: la preferencia es por usuario" },
+            { "id": "d", "text": "Solo Identidad: cada otro clúster se abre en un diálogo separado" }
+          ],
+          "explanation": "La página de detalle usa PartDetailLayoutResolverService para mapear ejes → lista ordenada de pestañas. Una pieza Make + FinishedGood podría mostrar Identidad, Inventario, MRP, Costo, Precios, Material, UoM, Calidad, Enrutamiento, BOM, Fuentes, Alternativas, Historial de compras, Actividad, Archivos. Una pieza Buy + Consumable podría mostrar solo Identidad, Inventario, Costo, Precios, Fuentes, Actividad, Archivos. La pestaña Visor 3D aparece solo cuando hay un archivo STL adjunto."
+        },
+        {
+          "id": "pt10",
+          "text": "Elimina una pieza. ¿Qué le sucede al registro de actividad de esa pieza?",
+          "options": [
+            { "id": "a", "text": "Se elimina junto con la pieza" },
+            { "id": "b", "text": "Se conserva: la pieza se elimina de forma lógica (se marca DeletedAt, la fila permanece). Se agrega una fila de actividad 'deleted'", "isCorrect": true },
+            { "id": "c", "text": "Se archiva en una tabla separada" },
+            { "id": "d", "text": "Se elimina a menos que un administrador opte por conservarlo" }
+          ],
+          "explanation": "Las eliminaciones son lógicas: se marca DeletedAt + DeletedBy, el filtro de consulta global oculta la fila de las lecturas normales, pero sigue en el disco. El controlador DeletePart también escribe una fila de actividad 'deleted' anclada a la pieza, de modo que un flujo de restaurar e inspeccionar pueda ver exactamente qué sucedió. Lo mismo aplica a cada BaseEntity del sistema."
+        },
+        {
+          "id": "pt11",
+          "text": "¿Dónde comienza el flujo de Nueva pieza?",
+          "options": [
+            { "id": "a", "text": "Un formulario largo de una sola página con todos los campos a la vez" },
+            { "id": "b", "text": "Un diálogo de bifurcación de 4 preguntas (abastecimiento, clase de inventario, trazabilidad, inspección) que elige un flujo de trabajo y luego lo dirige a un formulario guiado de varios pasos. Los casos ligeros omiten el flujo de trabajo y usan un formulario rápido de una sola página", "isCorrect": true },
+            { "id": "c", "text": "Elige manualmente un flujo de trabajo de un menú desplegable antes de cualquier campo" },
+            { "id": "d", "text": "No hay bifurcación: cada pieza nueva usa el mismo flujo de trabajo" }
+          ],
+          "explanation": "Nueva pieza comienza con el diálogo de bifurcación. Según sus respuestas, el sistema elige la definición de flujo de trabajo correcta (diferentes combinaciones usan diferentes diseños de pasos) y lo dirige a ella. Puede pausar en cualquier lugar: el estado parcial se guarda como borrador y se muestra como una fila 'fantasma' en la lista de piezas, reanudable. Los casos Raw / Consumable entran directamente en un formulario rápido de una página porque no necesitan la guía de varios pasos."
+        },
+        {
+          "id": "pt12",
+          "text": "¿Qué pestaña de la página de detalle de la pieza muestra las filas de intersección (Proveedor, Pieza): número de pieza del proveedor, tiempo de entrega, MOQ, aprobación AVL y precios escalonados?",
+          "options": [
+            { "id": "a", "text": "BOM" },
+            { "id": "b", "text": "Fuentes", "isCorrect": true },
+            { "id": "c", "text": "Costo" },
+            { "id": "d", "text": "Material" }
+          ],
+          "explanation": "La pestaña Fuentes enumera las filas de VendorPart: una por cada proveedor que suministra esta pieza. Muestra el número de pieza del proveedor, el MPN del proveedor, el tiempo de entrega por proveedor, el MOQ, el tamaño de empaque, el país de origen, el código HTS, el indicador AVL, las certificaciones, la fecha de última cotización, el indicador de preferido y las filas de precios escalonados. La pestaña BOM muestra las piezas que ENTRAN en esta pieza; la pestaña Fuentes muestra de dónde PROVIENE esta pieza."
+        },
+        {
+          "id": "pt13",
+          "text": "Una pieza de clase Tool (procurementSource = Buy, inventoryClass = Tool) se compra y se usa para fabricar otras piezas. ¿Qué integración especial admite?",
+          "options": [
+            { "id": "a", "text": "Puede vincularse a un Activo de herramental para el seguimiento del conteo de disparos y la programación de mantenimiento", "isCorrect": true },
+            { "id": "b", "text": "Se asigna automáticamente al tablero kanban de Mantenimiento" },
+            { "id": "c", "text": "Omite el seguimiento de inventario por completo" },
+            { "id": "d", "text": "Solo se puede vender, no comprar" }
+          ],
+          "explanation": "Las piezas de clase Tool pueden vincularse a un Activo de herramental (Asset.Type = Tooling) mediante la FK ToolingAssetId. El activo rastrea el conteo de disparos actual, la vida útil esperada de la herramienta, el propietario (interno vs. propiedad del cliente) y el calendario de mantenimiento. Esto da trazabilidad completa desde el registro de la pieza hasta la herramienta física que la produce."
+        },
+        {
+          "id": "pt14",
+          "text": "¿Cómo maneja el registro de actividad una actualización de pieza con varios campos?",
+          "options": [
+            { "id": "a", "text": "Una fila de actividad por campo cambiado" },
+            { "id": "b", "text": "Una fila de actividad por solicitud, con una descripción que resume todos los campos cambiados ('Actualizó 4 campos: name, description, revision, status')", "isCorrect": true },
+            { "id": "c", "text": "Sin fila de actividad: solo se registran creación/eliminación" },
+            { "id": "d", "text": "Dos filas de actividad: una para la acción del usuario, una para cada campo" }
+          ],
+          "explanation": "Regla de consolidación: una fila de actividad por solicitud, independientemente de cuántos campos haya cambiado el usuario. La descripción resume el conteo y los nombres de los campos. Esto mantiene legible la pestaña de actividad: el historial por campo (con valores antiguo/nuevo) es tarea de la pestaña Historial, un concepto diferente y una tabla diferente."
+        },
+        {
+          "id": "pt15",
+          "text": "Escanea un código de barras en la página de Piezas. ¿Qué sucede?",
+          "options": [
+            { "id": "a", "text": "Se crea una nueva pieza con el valor escaneado como número de pieza" },
+            { "id": "b", "text": "El valor escaneado se coloca en el campo de búsqueda y la lista de piezas se recarga para encontrar la pieza correspondiente", "isCorrect": true },
+            { "id": "c", "text": "El panel de detalle de la pieza escaneada se abre de inmediato" },
+            { "id": "d", "text": "Nada: el escaneo de código de barras solo se admite en Inventario" }
+          ],
+          "explanation": "En la página de Piezas, el contexto global del escáner se establece en 'parts'. Cuando se escanea un código de barras, el valor se coloca en la entrada de búsqueda y la lista se recarga con ese valor como término de búsqueda: encuentra la pieza por su número de pieza codificado en el código de barras. Desde allí, haga clic en la fila para abrir el panel de detalle."
+        }
+      ]
+    }
+  }
+]

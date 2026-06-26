@@ -1,0 +1,947 @@
+[
+  {
+    "slug": "admin-overview",
+    "title": "Visión general del Panel de administración",
+    "summary": "Visión general completa del Panel de administración: usuarios, tipos de pista, configuración, integraciones, cumplimiento, capacitación, EDI, eventos y más.",
+    "contentJson": {
+      "body": "## Visión general del Panel de administración\n\nEl Panel de administración es el centro de configuración central de QB Engineer. Solo los usuarios con el rol Admin (o Manager para algunas subsecciones) pueden acceder a él. Navegue a **Administración** en la barra lateral para ver todas las pestañas disponibles.\n\n### Pestaña Usuarios\n\nGestione todas las cuentas de usuario. Cree nuevos usuarios (el sistema genera un token de configuración —los administradores nunca establecen contraseñas), asigne roles, configure identificadores de escaneo de quiosco (RFID/NFC/código de barras), establezca colores de avatar y desactive a empleados que se van. Cada fila de usuario muestra su avatar, nombre (formato Apellido, Nombre), correo electrónico, distintivo de rol, estado de finalización de cumplimiento e indicador activo/inactivo.\n\n### Pestaña Tipos de pista\n\nLos tipos de pista definen los diferentes tableros kanban del sistema (Producción, I+D/Herramental, Mantenimiento, etc.). Cada tipo de pista tiene una lista ordenada de etapas con nombres, códigos, colores, límites de WIP y banderas de irreversibilidad. Puede crear tipos de pista personalizados para flujos de trabajo especializados.\n\n### Pestaña Configuración\n\nConfigure el perfil de la empresa (nombre, teléfono, correo electrónico, EIN, sitio web), gestione las ubicaciones de la empresa (varios sitios físicos con uno predeterminado), suba su logo, establezca colores de marca, configure el bloqueo de períodos de pago y ajuste configuraciones del sistema como la duración del ciclo de planificación y el tiempo de autoarchivado.\n\n### Pestaña Integraciones\n\nConecte servicios externos: QuickBooks Online (OAuth), transportistas de envío (UPS, FedEx, USPS, DHL), correo electrónico SMTP y almacenamiento MinIO. Cada tarjeta de integración muestra su estado (Activa, No configurada, Independiente) con botones Probar, Conectar, Desconectar y Configurar.\n\n### Pestaña Terminología\n\nPersonalice las etiquetas de la aplicación. Si su empresa llama a los 'Trabajos' de otra manera (como 'Órdenes de trabajo'), cambie la etiqueta aquí. Los cambios se aplican de inmediato en toda la aplicación para todos los usuarios.\n\n### Pestaña Datos de referencia\n\nGestione todos los valores de búsqueda usados en las listas desplegables de toda la aplicación: categorías de gastos, fuentes de prospectos, tipos de activos, prioridades y más. Cada grupo es expandible con elementos individuales que tienen un código (inmutable) y una etiqueta (editable).\n\n### Pestaña Plantillas de cumplimiento\n\nGestione las plantillas de formularios de cumplimiento que los empleados completan (W-4, I-9, retención estatal, depósito directo, manual). Suba PDF para la extracción de campos impulsada por IA. Supervise el estado de finalización de los empleados y apruebe los envíos.\n\n### Pestaña Capacitación\n\nGestione el sistema de gestión del aprendizaje. Tres subpestañas: Contenido (crear/editar módulos de capacitación con tipos Artículo, Recorrido, Referencia rápida o Cuestionario), Rutas (organizar módulos en secuencias de aprendizaje ordenadas) y Progreso (supervisar la finalización por usuario).\n\n### Pestaña Equipos y quioscos\n\nOrganice a los usuarios en equipos con colores y descripciones. Gestione las terminales de quiosco para las pantallas del taller. Asigne miembros del equipo mediante selección con casillas de verificación.\n\n### Pestaña Eventos\n\nCree y gestione eventos de la empresa: reuniones, sesiones de capacitación, charlas de seguridad. Establezca el tipo de evento, el rango de fecha/hora, la ubicación, los asistentes y el estado requerido/opcional. Los eventos aparecen en la pantalla del taller.\n\n### Pestaña Registro de auditoría\n\nVea el rastro de auditoría completo del sistema. Cada creación, actualización y eliminación en todas las entidades se registra con marca de tiempo, usuario, acción, tipo de entidad, ID de entidad, detalles a nivel de campo y dirección IP. Filtre por tipo de entidad, acción, usuario o rango de fechas.\n\n### Pestaña EDI\n\nGestione el Intercambio Electrónico de Datos: socios comerciales (X12/EDIFACT), procesamiento de transacciones y mapeos de campos. Dos subpestañas: Socios comerciales (configuración de conexión) y Transacciones (historial de procesamiento con reintento).\n\n### Pestaña Política de MFA\n\nConfigure qué roles requieren autenticación multifactor. Vea el estado de cumplimiento de MFA en todos los usuarios mostrando quién tiene MFA habilitada y qué tipo de dispositivo está usando.\n\n### Pestaña Impuesto sobre ventas\n\nGestione las tasas de impuesto sobre ventas por estado/jurisdicción con fechas de vigencia. Configure tasas predeterminadas y anulaciones por cliente.\n\n### Pestaña Correcciones de tiempo\n\nRevise y corrija las entradas de tiempo de los empleados. Filtre por usuario y rango de fechas. Vea los detalles de la entrada original y cree correcciones con motivos requeridos que crean un rastro de auditoría.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "admin-walkthrough",
+    "title": "Panel de administración — Recorrido guiado",
+    "summary": "Un recorrido guiado por las pestañas del Panel de administración, la gestión de usuarios, la configuración de tipos de pista y la configuración del sistema.",
+    "contentJson": {
+      "appRoute": "/admin",
+      "startButtonLabel": "Recorrer el Panel de administración",
+      "steps": [
+        {
+          "element": ".admin-content",
+          "popover": {
+            "title": "Área de contenido de administración",
+            "description": "El panel de administración organiza la configuración en pestañas accesibles mediante la barra lateral. El área de contenido muestra la interfaz de gestión de la pestaña activa —usuarios, tipos de pista, configuración, integraciones, cumplimiento, capacitación o datos de referencia.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "app-page-header",
+          "popover": {
+            "title": "Encabezado de administración",
+            "description": "El encabezado de la página muestra el título de la sección de administración actual y los botones de acción. Use el botón de acción principal para crear nuevos elementos (usuarios, tipos de pista, etc.) en la pestaña activa.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='overview-card-people']",
+          "popover": {
+            "title": "Tarjeta de Personas",
+            "description": "La tarjeta de Personas resume sus cuentas de usuario —el conteo de usuarios activos y un desglose de roles. Es una de varias tarjetas de inicio en la visión general. Use su botón para saltar a la pantalla completa de gestión de Usuarios con su tabla ordenable y filtrable.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".admin-overview-card__header",
+          "popover": {
+            "title": "Encabezado de la tarjeta",
+            "description": "Cada tarjeta de visión general tiene un encabezado con un icono y un título de sección (Personas, Capacidades, Conexiones, Cumplimiento y más). El encabezado le indica de un vistazo qué área del panel de administración resume la tarjeta.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='overview-card-people-go']",
+          "popover": {
+            "title": "Botón de acción de la tarjeta",
+            "description": "El botón de acción de cada tarjeta enlaza directamente con la sección de administración correspondiente —este abre la pantalla de Usuarios. Haga clic en el botón de cualquier tarjeta para salir del inicio y gestionar esa área directamente.",
+            "side": "left"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "admin-field-reference",
+    "title": "Referencia de campos de administración",
+    "summary": "Referencia completa de cada campo, botón, cuadro de diálogo, filtro y regla de validación en todas las pestañas del Panel de administración.",
+    "contentJson": {
+      "title": "Referencia de campos de administración",
+      "groups": [
+        {
+          "heading": "Campos del formulario de usuario",
+          "items": [
+            {
+              "label": "Nombre (requerido)",
+              "value": "Campo de texto, máx. 100 caracteres. Validado como requerido."
+            },
+            {
+              "label": "Apellido (requerido)",
+              "value": "Campo de texto, máx. 100 caracteres. Validado como requerido."
+            },
+            {
+              "label": "Correo electrónico (requerido, solo creación)",
+              "value": "Campo de correo, máx. 256 caracteres. Validado como requerido + formato de correo. Oculto al editar (el correo no puede cambiar)."
+            },
+            {
+              "label": "Iniciales (opcional)",
+              "value": "Campo de texto, máx. 3 caracteres. Se generan automáticamente del nombre si está en blanco. Se muestra en el avatar."
+            },
+            {
+              "label": "Rol (requerido)",
+              "value": "Lista desplegable. Opciones: Engineer, ProductionWorker, PM, Manager, OfficeManager, Admin. Determina el acceso a las funciones."
+            },
+            {
+              "label": "Ubicación de trabajo (opcional)",
+              "value": "Lista desplegable. Solo se muestra cuando existen varias ubicaciones de empresa. Impulsa los requisitos de formularios de retención estatal."
+            },
+            {
+              "label": "Color de avatar",
+              "value": "Cuadrícula de botones de 12 colores. Haga clic en una muestra de color para establecer el color de fondo del avatar."
+            },
+            {
+              "label": "Está activo (solo edición)",
+              "value": "Interruptor de alternancia. Desactivar impide el inicio de sesión pero conserva todos los datos históricos."
+            },
+            {
+              "label": "Identificadores de escaneo (solo edición)",
+              "value": "Lista de ID de RFID/NFC/Código de barras/Biométrico. Agregue mediante lista desplegable de tipo + campo de valor + botón Agregar. Elimine individualmente."
+            }
+          ]
+        },
+        {
+          "heading": "Acciones de usuario",
+          "items": [
+            {
+              "label": "Botón Agregar usuario",
+              "value": "Abre el cuadro de diálogo de creación de usuario. El administrador nunca establece contraseñas —el sistema genera un token de configuración."
+            },
+            {
+              "label": "Obtener código de configuración",
+              "value": "Genera una URL de token segura para que el usuario complete la configuración de su cuenta. Se muestra para usuarios sin contraseñas."
+            },
+            {
+              "label": "Copiar código de configuración",
+              "value": "Copia la URL del token de configuración al portapapeles para compartir por correo electrónico o mensaje."
+            },
+            {
+              "label": "Editar usuario (icono de lápiz)",
+              "value": "Abre el cuadro de diálogo de edición precargado con los valores actuales. Información sobre herramientas: 'Editar'."
+            },
+            {
+              "label": "Alternar activo (icono de persona)",
+              "value": "Desactiva o reactiva al usuario. Información sobre herramientas: 'Desactivar' o 'Activar'."
+            },
+            {
+              "label": "Estado del lector RFID",
+              "value": "Muestra un indicador de conectado/desconectado. Botón de descarga del script de configuración RFID disponible."
+            }
+          ]
+        },
+        {
+          "heading": "Campos del cuadro de diálogo de tipo de pista",
+          "items": [
+            {
+              "label": "Nombre (requerido)",
+              "value": "Campo de texto. El nombre mostrado para este tipo de pista (p. ej., 'Producción', 'I+D/Herramental')."
+            },
+            {
+              "label": "Código (requerido)",
+              "value": "Campo de texto. Patrón: solo letras mayúsculas, números y guiones bajos (^[A-Z0-9_]+$). Identificador inmutable."
+            },
+            {
+              "label": "Descripción (opcional)",
+              "value": "Campo de texto. Breve explicación de cuándo se usa este tipo de pista."
+            },
+            {
+              "label": "Nombre de etapa",
+              "value": "Campo de texto por etapa. El nombre mostrado para cada etapa (p. ej., 'En producción', 'CC/Revisión')."
+            },
+            {
+              "label": "Código de etapa",
+              "value": "Campo de texto por etapa. Identificador inmutable por etapa."
+            },
+            {
+              "label": "Color de etapa",
+              "value": "Selector de color por etapa. Establece el color del encabezado de columna en el tablero kanban."
+            },
+            {
+              "label": "Límite de WIP",
+              "value": "Campo numérico por etapa. Cuando se excede, el encabezado de columna se vuelve rojo. 0 o en blanco = sin límite."
+            },
+            {
+              "label": "Casilla Irreversible",
+              "value": "Por etapa. Cuando está marcada, los trabajos no pueden moverse hacia atrás más allá de esta etapa (usado para las etapas de Factura, Pago con documentos contables)."
+            },
+            {
+              "label": "Botones Subir/Bajar",
+              "value": "Reordenan las etapas. Deshabilitados si ya está primero/último."
+            },
+            {
+              "label": "Botón Agregar etapa",
+              "value": "Agrega una nueva fila de etapa en blanco a la lista."
+            },
+            {
+              "label": "Botón Eliminar etapa",
+              "value": "Elimina una etapa. Se requiere al menos una etapa."
+            }
+          ]
+        },
+        {
+          "heading": "Campos del perfil de la empresa",
+          "items": [
+            {
+              "label": "Nombre de la empresa",
+              "value": "Campo de texto. Aparece en facturas, listas de empaque y documentos de cara al cliente."
+            },
+            {
+              "label": "Teléfono",
+              "value": "Campo de texto con máscara de teléfono: formato (XXX) XXX-XXXX."
+            },
+            {
+              "label": "Correo electrónico",
+              "value": "Campo de correo. Correo de contacto de toda la empresa."
+            },
+            {
+              "label": "EIN",
+              "value": "Campo de texto. Marcador de posición: XX-XXXXXXX. Número de identificación del empleador."
+            },
+            {
+              "label": "Sitio web",
+              "value": "Campo de texto. Marcador de posición: https://. URL del sitio web de la empresa."
+            }
+          ]
+        },
+        {
+          "heading": "Campos de ubicación de la empresa",
+          "items": [
+            {
+              "label": "Nombre (requerido)",
+              "value": "Campo de texto, máx. 100 caracteres. Nombre mostrado de la ubicación (p. ej., 'Oficina principal', 'Almacén B')."
+            },
+            {
+              "label": "Teléfono",
+              "value": "Campo de texto con máscara de teléfono."
+            },
+            {
+              "label": "Dirección",
+              "value": "AddressFormComponent (calle, ciudad, lista desplegable de estado, código postal). Campos de dirección completos."
+            },
+            {
+              "label": "Está activa (solo edición)",
+              "value": "Interruptor de alternancia. Las ubicaciones inactivas se ocultan de la asignación de nuevos usuarios."
+            },
+            {
+              "label": "Botón Establecer como predeterminada",
+              "value": "Marca esta ubicación como la predeterminada de la empresa. Solo se permite una predeterminada."
+            }
+          ]
+        },
+        {
+          "heading": "Campos del cuadro de diálogo de eventos",
+          "items": [
+            {
+              "label": "Título (requerido)",
+              "value": "Campo de texto, máx. 200 caracteres. data-testid: event-title"
+            },
+            {
+              "label": "Tipo de evento (requerido)",
+              "value": "Selección: Reunión, Capacitación, Seguridad, Otro. data-testid: event-type"
+            },
+            {
+              "label": "Ubicación",
+              "value": "Campo de texto, opcional. data-testid: event-location"
+            },
+            {
+              "label": "Fecha de inicio (requerido)",
+              "value": "Selector de fecha. data-testid: event-start-date"
+            },
+            {
+              "label": "Hora de inicio (requerido)",
+              "value": "Campo de texto, marcador de posición: HH:MM. data-testid: event-start-time"
+            },
+            {
+              "label": "Fecha de fin (requerido)",
+              "value": "Selector de fecha. data-testid: event-end-date"
+            },
+            {
+              "label": "Hora de fin (requerido)",
+              "value": "Campo de texto, marcador de posición: HH:MM. data-testid: event-end-time"
+            },
+            {
+              "label": "Descripción",
+              "value": "Área de texto, opcional. data-testid: event-description"
+            },
+            {
+              "label": "Asistentes",
+              "value": "Lista desplegable de selección múltiple de usuarios."
+            },
+            {
+              "label": "Requerido",
+              "value": "Interruptor. Cuando está activado, los asistentes reciben notificaciones obligatorias. data-testid: event-required"
+            },
+            {
+              "label": "Botón Guardar",
+              "value": "data-testid: event-save-btn. Deshabilitado cuando el formulario no es válido o se está guardando."
+            }
+          ]
+        },
+        {
+          "heading": "Campos del cuadro de diálogo del Asistente de IA",
+          "items": [
+            {
+              "label": "Nombre (requerido)",
+              "value": "Texto, máx. 100. Nombre mostrado en la tarjeta de la barra lateral."
+            },
+            {
+              "label": "Descripción",
+              "value": "Texto, máx. 500. Se muestra debajo del nombre en la tarjeta y en la pantalla de bienvenida."
+            },
+            {
+              "label": "Categoría (requerido)",
+              "value": "Selección: General, RR. HH., Compras, Ventas, Personalizado."
+            },
+            {
+              "label": "Icono (requerido)",
+              "value": "Texto, máx. 50. Nombre de icono de Material (p. ej., smart_toy). Predeterminado: smart_toy."
+            },
+            {
+              "label": "Color (requerido)",
+              "value": "Selector de color. Predeterminado: #0d9488. Usado para el fondo del icono."
+            },
+            {
+              "label": "Indicación del sistema (requerido)",
+              "value": "Área de texto, máx. 50000. Las instrucciones de comportamiento de la IA."
+            },
+            {
+              "label": "Tipos de entidad permitidos",
+              "value": "Selección múltiple. 20 tipos de entidad en los que el asistente puede buscar."
+            },
+            {
+              "label": "Preguntas iniciales",
+              "value": "Lista dinámica con agregar/eliminar. Iniciadores de conversación precargados."
+            },
+            {
+              "label": "Temperatura (avanzado)",
+              "value": "Número, 0-1, predeterminado 0.7. Controla la creatividad de las respuestas de la IA."
+            },
+            {
+              "label": "Máx. de fragmentos de contexto (avanzado)",
+              "value": "Número, 1-20, predeterminado 5. Cuántos fragmentos de RAG incluir."
+            }
+          ]
+        },
+        {
+          "heading": "Campos del socio comercial EDI",
+          "items": [
+            {
+              "label": "Nombre (requerido)",
+              "value": "Texto, máx. 200. Nombre mostrado del socio comercial."
+            },
+            {
+              "label": "ID de calificador (requerido)",
+              "value": "Texto, máx. 10. Predeterminado: ZZ. Código de calificador EDI."
+            },
+            {
+              "label": "Valor de calificador (requerido)",
+              "value": "Texto, máx. 100. Valor del identificador del socio comercial."
+            },
+            {
+              "label": "Formato predeterminado",
+              "value": "Selección: X12, EDIFACT."
+            },
+            {
+              "label": "Método de transporte",
+              "value": "Selección: AS2, SFTP, VAN, Email, API, Manual."
+            },
+            {
+              "label": "Procesamiento automático",
+              "value": "Interruptor, predeterminado activado. Procesa automáticamente las transacciones entrantes."
+            },
+            {
+              "label": "Requerir acuse de recibo",
+              "value": "Interruptor, predeterminado activado. Requiere acuses de recibo funcionales."
+            },
+            {
+              "label": "Notas",
+              "value": "Área de texto, opcional."
+            }
+          ]
+        },
+        {
+          "heading": "Filtros del registro de auditoría",
+          "items": [
+            {
+              "label": "Tipo de entidad",
+              "value": "Selección: Todos los tipos, Job, Part, Customer, Vendor, Invoice, Payment, etc."
+            },
+            {
+              "label": "Acción",
+              "value": "Campo de texto. Filtrar por nombre de acción (Create, Update, Delete)."
+            },
+            {
+              "label": "Fecha desde",
+              "value": "Selector de fecha. Inicio del filtro de rango de fechas."
+            },
+            {
+              "label": "Fecha hasta",
+              "value": "Selector de fecha. Fin del filtro de rango de fechas."
+            },
+            {
+              "label": "Paginación",
+              "value": "Opciones de tamaño de página: 25, 50, 100. Predeterminado: 25."
+            }
+          ]
+        },
+        {
+          "heading": "Campos de tasa de impuesto sobre ventas",
+          "items": [
+            {
+              "label": "Nombre (requerido)",
+              "value": "Texto, máx. 100. Nombre mostrado para la tasa de impuesto."
+            },
+            {
+              "label": "Código (requerido)",
+              "value": "Texto, máx. 20. Código de identificador único."
+            },
+            {
+              "label": "Código de estado",
+              "value": "Lista desplegable de selección. Estado de EE. UU. para esta tasa."
+            },
+            {
+              "label": "Porcentaje de tasa (requerido)",
+              "value": "Número, 0-100. El porcentaje de impuesto."
+            },
+            {
+              "label": "Vigente desde",
+              "value": "Selector de fecha. Cuándo entra en vigor esta tasa."
+            },
+            {
+              "label": "Descripción",
+              "value": "Área de texto, opcional."
+            },
+            {
+              "label": "Es predeterminada",
+              "value": "Interruptor. Establece esta como la tasa de impuesto predeterminada."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "admin-quiz",
+    "title": "Evaluación de conocimientos del Panel de administración",
+    "summary": "Ponga a prueba sus conocimientos sobre el Panel de administración: gestión de usuarios, tipos de pista, configuración, integraciones y configuración del sistema.",
+    "contentJson": {
+      "passingScore": 75,
+      "questionsPerQuiz": 10,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "ad1",
+          "text": "Un nuevo empleado necesita ser configurado en QB Engineer. ¿Cuál es el proceso correcto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ir a Administración → Usuarios, hacer clic en Agregar usuario, establecer su contraseña y darle sus credenciales de inicio de sesión"
+            },
+            {
+              "id": "b",
+              "text": "Ir a Administración → Usuarios, hacer clic en Agregar usuario, completar sus datos —el sistema genera un token de configuración que el empleado usa para establecer su propia contraseña",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Pedirle al empleado que se autorregistre en la página de inicio de sesión y luego aprobar su cuenta"
+            },
+            {
+              "id": "d",
+              "text": "Crear su perfil en Cuenta → Perfil y asignar una contraseña temporal"
+            }
+          ],
+          "explanation": "Los administradores nunca establecen contraseñas. El sistema genera una URL de token de configuración segura. Compártala con el empleado —él sigue el enlace para establecer su propia contraseña y completar su cuenta."
+        },
+        {
+          "id": "ad2",
+          "text": "Quiere agregar un nuevo tablero kanban para rastrear órdenes de trabajo de mantenimiento. ¿Dónde hace esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Tablero kanban → Configuración → Agregar tablero"
+            },
+            {
+              "id": "b",
+              "text": "Administración → Tipos de pista → Nuevo tipo de pista —definir el nombre, el código y las etapas",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Administración → Configuración → Configuración del tablero"
+            },
+            {
+              "id": "d",
+              "text": "No puede agregar nuevos tipos de tablero —solo están disponibles los predeterminados"
+            }
+          ],
+          "explanation": "Los tipos de pista definen los tableros kanban. Vaya a Administración → Tipos de pista y haga clic en Nuevo tipo de pista. Defina las etapas con nombres, códigos, colores, límites de WIP y banderas de irreversibilidad."
+        },
+        {
+          "id": "ad3",
+          "text": "Un empleado se va de la empresa. ¿Qué debe hacer con su cuenta?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Eliminar su cuenta desde Administración → Usuarios"
+            },
+            {
+              "id": "b",
+              "text": "Alternar su interruptor Está activo a APAGADO —esto impide el inicio de sesión pero conserva todos los datos históricos",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Quitar su rol para que no pueda acceder a nada"
+            },
+            {
+              "id": "d",
+              "text": "Cambiar su contraseña a algo aleatorio"
+            }
+          ],
+          "explanation": "Nunca elimine cuentas de usuario. Alterne Está activo a APAGADO para desactivar. El usuario ya no puede iniciar sesión, pero todos sus datos históricos (trabajos, entradas de tiempo, gastos, registros de actividad) permanecen intactos para informes y cumplimiento."
+        },
+        {
+          "id": "ad4",
+          "text": "Su empresa acaba de abrir un segundo almacén. ¿Cómo lo registra en el sistema?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Administración → Configuración → Ubicaciones de la empresa → Nueva ubicación —introducir nombre, dirección y estado",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Inventario → Ubicaciones → Crear almacén"
+            },
+            {
+              "id": "c",
+              "text": "Administración → Integraciones → Agregar ubicación"
+            },
+            {
+              "id": "d",
+              "text": "Solo puede tener una ubicación en QB Engineer"
+            }
+          ],
+          "explanation": "Las ubicaciones de la empresa se gestionan en Administración → Configuración → Ubicaciones. Agregue la nueva ubicación con su nombre y dirección. Los empleados asignados a esta ubicación recibirán los formularios de retención estatal correctos."
+        },
+        {
+          "id": "ad5",
+          "text": "Quiere renombrar 'Trabajos' a 'Órdenes de trabajo' en toda la aplicación. ¿Dónde realiza este cambio?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Administración → Configuración → Nombre de la aplicación"
+            },
+            {
+              "id": "b",
+              "text": "Administración → Terminología —busque la clave entity_job e introduzca 'Órdenes de trabajo' como la etiqueta personalizada",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Esto requiere un cambio de código —las etiquetas personalizadas no son compatibles"
+            },
+            {
+              "id": "d",
+              "text": "Administración → Datos de referencia → grupo Trabajos → renombrar la etiqueta"
+            }
+          ],
+          "explanation": "La pestaña Terminología le permite personalizar cualquier etiqueta de la aplicación. Busque entity_job, introduzca 'Órdenes de trabajo' y haga clic en Guardar. El cambio se aplica de inmediato en toda la aplicación para todos los usuarios."
+        },
+        {
+          "id": "ad6",
+          "text": "Una etapa de tipo de pista está marcada como 'Irreversible'. ¿Qué significa esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El nombre de la etapa no puede renombrarse ni editarse"
+            },
+            {
+              "id": "b",
+              "text": "Los trabajos en esta etapa no pueden moverse hacia atrás a una etapa anterior —típicamente porque hay documentos contables (facturas, pagos) adjuntos",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Solo los administradores pueden mover trabajos a esta etapa"
+            },
+            {
+              "id": "d",
+              "text": "La etapa ha alcanzado su límite de WIP y no pueden entrar más trabajos"
+            }
+          ],
+          "explanation": "Las etapas irreversibles impiden el movimiento hacia atrás. Esto se usa para etapas con documentos contables adjuntos (Factura, Pago) donde mover un trabajo hacia atrás crearía inconsistencias financieras."
+        },
+        {
+          "id": "ad7",
+          "text": "Necesita ver quién cambió una configuración del sistema el martes pasado. ¿Dónde busca?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Administración → Registro de auditoría —filtrar por tipo de entidad SystemSetting y el rango de fechas",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Administración → Configuración → Historial de cambios"
+            },
+            {
+              "id": "c",
+              "text": "Informes → Actividad de administración"
+            },
+            {
+              "id": "d",
+              "text": "No hay rastro de auditoría para los cambios de configuración"
+            }
+          ],
+          "explanation": "El registro de auditoría registra cada cambio a cada entidad, incluyendo la configuración del sistema. Filtre por tipo de entidad SystemSetting y la fecha relevante para ver exactamente quién cambió qué, con valores anteriores y posteriores."
+        },
+        {
+          "id": "ad8",
+          "text": "Está configurando la integración con QuickBooks Online. ¿Qué sucede después de hacer clic en 'Conectar QuickBooks'?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Introduce sus credenciales de QBO directamente en QB Engineer"
+            },
+            {
+              "id": "b",
+              "text": "Se le redirige a la pantalla de consentimiento OAuth de Intuit para autorizar la conexión",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "QB Engineer descarga sus datos de QBO automáticamente sin ninguna autorización"
+            },
+            {
+              "id": "d",
+              "text": "Se crea un ticket de soporte para conectar manualmente los sistemas"
+            }
+          ],
+          "explanation": "QuickBooks usa OAuth 2.0. Hacer clic en Conectar lo redirige a la pantalla de consentimiento de Intuit donde inicia sesión y autoriza QB Engineer. Luego regresa con la conexión activa."
+        },
+        {
+          "id": "ad9",
+          "text": "La credencial de un empleado no está siendo reconocida en el quiosco. ¿Dónde verifica su identificador de escaneo?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Administración → Equipos y quioscos → Gestión de credenciales"
+            },
+            {
+              "id": "b",
+              "text": "Administración → Usuarios → editar el usuario → sección Identificadores de escaneo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Cuenta → Seguridad → Configuración de credencial"
+            },
+            {
+              "id": "d",
+              "text": "La terminal del quiosco en sí tiene una pantalla de registro de credenciales"
+            }
+          ],
+          "explanation": "Los identificadores de escaneo (RFID, NFC, código de barras) se gestionan por usuario en Administración → Usuarios. Edite el usuario y observe la sección Identificadores de escaneo para agregar, eliminar o verificar su ID de credencial."
+        },
+        {
+          "id": "ad10",
+          "text": "Quiere requerir que todos los gerentes usen MFA (autenticación multifactor). ¿Dónde configura esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Administración → Configuración → Seguridad → Configuración de MFA"
+            },
+            {
+              "id": "b",
+              "text": "Administración → Política de MFA —seleccionar 'Manager' en la selección múltiple Requerido para roles y hacer clic en Guardar",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Cada gerente debe habilitar MFA individualmente desde su Cuenta → Seguridad"
+            },
+            {
+              "id": "d",
+              "text": "MFA es todo o nada —no puede aplicarla por rol"
+            }
+          ],
+          "explanation": "La pestaña Política de MFA le permite seleccionar qué roles requieren MFA. Seleccione Manager (y cualquier otro rol), haga clic en Guardar. Los usuarios en esos roles serán solicitados a configurar TOTP en su próximo inicio de sesión."
+        },
+        {
+          "id": "ad11",
+          "text": "Una plantilla de cumplimiento muestra una advertencia 'Sin definición de formulario'. ¿Qué significa esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "La plantilla se creó pero ningún empleado la ha enviado todavía"
+            },
+            {
+              "id": "b",
+              "text": "La plantilla no tiene una definición de formulario —necesita subir un PDF y ejecutar la extracción de campos, o configurar los campos manualmente",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "La plantilla está deshabilitada y necesita reactivarse"
+            },
+            {
+              "id": "d",
+              "text": "La carga del PDF falló y necesita reintentarse"
+            }
+          ],
+          "explanation": "Una advertencia 'Sin definición de formulario' significa que la plantilla existe pero no tiene campos de formulario renderizables. Haga clic en Extraer definición para subir un PDF y usar la extracción impulsada por IA, o configure manualmente el diseño de los campos."
+        },
+        {
+          "id": "ad12",
+          "text": "Necesita agregar una nueva categoría de gasto llamada 'Viaje - Alojamiento' al sistema. ¿Dónde hace esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Página de Gastos → Configuración → Categorías"
+            },
+            {
+              "id": "b",
+              "text": "Administración → Datos de referencia → expandir el grupo Categorías de gastos → Agregar elemento",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Administración → Configuración → Configuración del sistema → Categorías de gastos"
+            },
+            {
+              "id": "d",
+              "text": "Está codificado de forma fija —no puede agregar categorías de gastos personalizadas"
+            }
+          ],
+          "explanation": "Todos los valores de las listas desplegables, incluyendo las categorías de gastos, se gestionan en Administración → Datos de referencia. Busque el grupo Categorías de gastos, haga clic en Agregar elemento, introduzca la etiqueta y el código, y guarde."
+        },
+        {
+          "id": "ad13",
+          "text": "El campo de código del tipo de pista solo acepta un formato específico. ¿Cuál es?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Se permite cualquier texto —no hay restricciones de formato"
+            },
+            {
+              "id": "b",
+              "text": "Solo letras mayúsculas, números y guiones bajos (p. ej., PRODUCTION, R_AND_D)",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Letras minúsculas y guiones (p. ej., production, r-and-d)"
+            },
+            {
+              "id": "d",
+              "text": "Solo códigos numéricos (p. ej., 001, 002)"
+            }
+          ],
+          "explanation": "Los códigos de tipo de pista deben coincidir con el patrón ^[A-Z0-9_]+$ —solo letras mayúsculas, números y guiones bajos. Esto garantiza la consistencia ya que los códigos se usan internamente como identificadores inmutables."
+        },
+        {
+          "id": "ad14",
+          "text": "¿Qué sucede cuando bloquea un período de pago hasta una fecha específica?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Los empleados no pueden enviar gastos después de esa fecha"
+            },
+            {
+              "id": "b",
+              "text": "Las entradas de tiempo en o antes de esa fecha ya no pueden ser modificadas por empleados o gerentes",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El informe de nómina para ese período se genera automáticamente"
+            },
+            {
+              "id": "d",
+              "text": "Todos los trabajos con vencimiento antes de esa fecha se archivan automáticamente"
+            }
+          ],
+          "explanation": "El bloqueo de períodos de pago impide modificaciones a las entradas de tiempo dentro del período bloqueado. Esto garantiza la integridad de los datos de nómina una vez que han sido procesados."
+        },
+        {
+          "id": "ad15",
+          "text": "Creó un nuevo módulo de capacitación pero los empleados no pueden verlo. ¿Cuál es el problema más probable?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El módulo aún no se ha agregado a una ruta de capacitación"
+            },
+            {
+              "id": "b",
+              "text": "El interruptor Publicado del módulo está en APAGADO —los empleados solo ven módulos publicados",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El tipo de contenido del módulo no es compatible con el visor de capacitación"
+            },
+            {
+              "id": "d",
+              "text": "Los nuevos módulos requieren un reinicio del sistema para aparecer"
+            }
+          ],
+          "explanation": "Los módulos de capacitación tienen un interruptor Publicado. Cuando está APAGADO (Borrador), el módulo es invisible para los usuarios regulares. Alternelo a ENCENDIDO en Administración → Capacitación → pestaña Contenido para hacerlo visible."
+        }
+      ]
+    }
+  },
+  {
+    "slug": "admin-users-and-roles",
+    "title": "Administración: Gestión de usuarios y roles",
+    "summary": "Para administradores y gerentes: cómo crear usuarios, asignar roles, configurar el acceso a quioscos y gestionar equipos.",
+    "contentJson": {
+      "body": "## Administración: Gestión de usuarios y roles\n\nLa gestión de usuarios en QB Engineer se maneja a través del Panel de administración. Solo los usuarios con el rol Admin o Manager pueden acceder a esta área.\n\n### Crear un nuevo usuario\n\nNavegue a **Administración → Usuarios** y haga clic en **Nuevo usuario**. Complete el nombre, la dirección de correo electrónico y el rol del usuario. NO establezca una contraseña —el sistema genera un token de configuración seguro y se lo envía por correo al nuevo usuario. El empleado sigue el enlace para establecer su propia contraseña y completar su cuenta.\n\n### Roles\n\nQB Engineer usa roles aditivos:\n\n- **Engineer** — tablero kanban, trabajo asignado, registro de tiempo, gastos, archivos\n- **Production Worker** — lista de tareas simplificada, iniciar/detener temporizador, mover tarjetas, notas\n- **PM** — backlog, planificación, prospectos, informes (tablero de solo lectura)\n- **Manager** — todo lo de PM + asignar trabajo, aprobar gastos, establecer prioridades\n- **Office Manager** — cliente/proveedor, cola de facturas, documentos de empleados\n- **Admin** — todo + gestión de usuarios, roles, configuración del sistema, tipos de pista\n\n### Autenticación de quiosco (credencial + PIN)\n\nPara los trabajadores del taller que no usan una computadora, habilite la autenticación de quiosco de Nivel 2. En el perfil del usuario, asigne un código de barras de empleado (impreso en su credencial). El trabajador escanea su credencial en una terminal de quiosco e introduce un PIN de 4 a 6 dígitos para fichar la entrada, iniciar temporizadores y mover trabajos.\n\n### Equipos\n\nOrganice a los usuarios en equipos bajo **Administración → Equipos**. Los equipos se usan para vistas filtradas del tablero (carriles por equipo), informes de carga de trabajo y programación de turnos.\n\n### Desactivar usuarios\n\nCuando un empleado se va, desactive su cuenta desde Administración → Usuarios. Los usuarios desactivados no pueden iniciar sesión pero todos sus datos históricos (trabajos, entradas de tiempo, gastos) se conservan.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "system-settings-branding",
+    "title": "Configuración del sistema y marca",
+    "summary": "Cómo configurar los ajustes de la aplicación, el perfil de la empresa, los colores de marca, el logo y las ubicaciones de la empresa.",
+    "contentJson": {
+      "body": "## Configuración del sistema y marca\n\n### Perfil de la empresa\n\nNavegue a **Administración → Configuración → Perfil de la empresa**. Introduzca el nombre legal, el número de teléfono, el correo electrónico, el EIN y el sitio web de su empresa. Esta información aparece en facturas, listas de empaque y otros documentos de cara al cliente.\n\n### Ubicaciones de la empresa\n\nBajo **Administración → Configuración → Ubicaciones**, agregue todas sus ubicaciones físicas (oficina principal, almacén, sitios remotos). Cada ubicación tiene un nombre, una dirección y un estado. Marque una como Predeterminada —es la ubicación de trabajo predeterminada para los empleados que no han especificado una, e impulsa los requisitos de formularios de retención estatal.\n\n### Colores de marca y logo\n\nEn **Administración → Configuración**, desplácese hasta la sección Marca. Introduzca códigos de color hexadecimales para sus colores de marca primario y de acento. Estos actualizan el tema de color de toda la aplicación en tiempo real —todos los usuarios ven el cambio de inmediato.\n\nPara subir el logo de su empresa, haga clic en la sección Logo y arrastre su archivo de imagen (se recomienda PNG o SVG). El logo aparece en la barra de encabezado y en los documentos impresos.\n\n### Ajustes de la aplicación\n\nEl panel de Configuración también tiene ajustes para:\n- **Nombre de la aplicación** — mostrado en la pestaña del navegador y en el encabezado\n- **Duración del ciclo de planificación** — longitud predeterminada para nuevos ciclos de planificación\n- **Días de autoarchivado** — cuánto tiempo después de la finalización antes de que los trabajos se autoarchiven\n- **Tamaño máximo de carga** — tamaño máximo del archivo adjunto\n- **Notificaciones por correo electrónico** — habilitar/deshabilitar los correos del sistema",
+      "sections": []
+    }
+  },
+  {
+    "slug": "compliance-templates-admin",
+    "title": "Administración de plantillas de cumplimiento",
+    "summary": "Cómo gestionar las plantillas de formularios de cumplimiento: subir PDF, configurar campos y supervisar la finalización de los empleados.",
+    "contentJson": {
+      "body": "## Administración de plantillas de cumplimiento\n\n### ¿Qué son las plantillas de cumplimiento?\n\nLas plantillas de cumplimiento son las definiciones maestras de cada formulario que los empleados deben completar (W-4, I-9, retención estatal, manual del empleado, etc.). Los administradores gestionan las plantillas; los empleados las completan desde su página de Cuenta.\n\n### Crear una plantilla\n\nNavegue a **Administración → Cumplimiento** y haga clic en **Nueva plantilla**. Asígnele un título (p. ej., 'W-4 Federal 2024'), un tipo de formulario (Retención de impuestos, Verificación de identidad, Reconocimiento) y una fecha de vigencia. Luego configure qué campos del formulario completarán los empleados.\n\n### Subir un formulario PDF\n\nPara formularios gubernamentales como el W-4, suba el PDF oficial. El sistema usa extracción de PDF impulsada por IA para identificar automáticamente los campos del formulario y generar una definición de formulario renderizable. Revise los campos extraídos y ajuste cualquiera que no se haya analizado correctamente.\n\n### Configuración de campos\n\nCada campo del formulario tiene un tipo (texto, número, lista desplegable, firma, casilla de verificación), reglas de validación y texto de ayuda opcional. Algunos campos (nombre, SSN, dirección) se completan automáticamente desde el perfil del empleado.\n\n### Supervisar la finalización\n\nNavegue a **Administración → Cumplimiento → Estado de usuario** para ver el estado de finalización por empleado. La tabla muestra qué formularios ha completado cada empleado, cuáles están pendientes y cuáles están vencidos. Haga clic en cualquier fila de empleado para ver sus envíos de formularios individuales.\n\n### Flujo de aprobación\n\nCuando un empleado envía un formulario, aparece en la cola de aprobación. Revise el envío y, o bien Apruebe (bloquea el formulario) o Solicite cambios (lo devuelve con sus notas). Los formularios aprobados generan un registro PDF almacenado en los documentos del empleado.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "integration-configuration",
+    "title": "Configuración de integraciones",
+    "summary": "Cómo conectar QuickBooks Online, configurar el correo electrónico SMTP, configurar el almacenamiento MinIO y gestionar los ajustes de integración.",
+    "contentJson": {
+      "body": "## Configuración de integraciones\n\nNavegue a **Administración → Integraciones** para configurar las conexiones de servicios externos.\n\n### QuickBooks Online\n\nQB Engineer se sincroniza con QuickBooks Online para la contabilidad. Para conectar:\n1. Haga clic en **Conectar QuickBooks** —será redirigido a la pantalla de consentimiento OAuth de Intuit.\n2. Inicie sesión en su cuenta de QBO y autorice QB Engineer.\n3. Regresa a la aplicación con la conexión activa.\n\nUna vez conectado, lo siguiente se sincroniza automáticamente:\n- Clientes (bidireccional)\n- Artículos/Productos (desde QB)\n- Facturas (QB Engineer → QB)\n- Pagos (QB Engineer → QB)\n- Facturas de proveedor desde las OC (QB Engineer → QB)\n- Time Activities (QB Engineer → QB para la nómina)\n\nNota: Cuando QuickBooks está conectado, algunas funciones (facturación, pagos, antigüedad de cuentas por cobrar) son de solo lectura en QB Engineer —gestiónelas directamente en QBO.\n\n### Correo electrónico SMTP\n\nPara los correos del sistema (tokens de configuración, notificaciones, entrega de facturas), configure su servidor SMTP bajo **Integraciones → Correo electrónico**. Introduzca el host SMTP, el puerto, el nombre de usuario y la contraseña. Use el botón **Probar conexión** para enviar un correo de prueba antes de guardar.\n\n### Almacenamiento (MinIO)\n\nLos archivos adjuntos se almacenan en MinIO (compatible con S3). En una implementación de Docker Compose, esto ya está configurado. Si está usando un proveedor de almacenamiento externo (AWS S3, Cloudflare R2), introduzca el endpoint, la clave de acceso y la clave secreta aquí.\n\n### Modo simulado\n\nDurante el desarrollo o las pruebas, habilite **Integraciones simuladas** para omitir todas las API externas. Todos los servicios devuelven respuestas simuladas. Esto se controla mediante la variable de entorno `MOCK_INTEGRATIONS` en docker-compose.yml.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "reference-data-terminology",
+    "title": "Datos de referencia y terminología",
+    "summary": "Cómo gestionar los valores de búsqueda (categorías de gastos, fuentes de prospectos, prioridades) y personalizar las etiquetas de la aplicación.",
+    "contentJson": {
+      "body": "## Datos de referencia y terminología\n\n### Datos de referencia\n\nNavegue a **Administración → Datos de referencia** para gestionar todos los valores de búsqueda usados en toda la aplicación. Los grupos de datos de referencia incluyen:\n\n- **Categorías de gastos** — la lista desplegable en el formulario de gastos\n- **Fuentes de prospectos** — de dónde provinieron los prospectos (Feria comercial, Referido, Sitio web, etc.)\n- **Tipos de activos** — categorías para el registro de activos\n- **Prioridades de trabajo** — las opciones de prioridad en las tarjetas de trabajo\n\nCada grupo es expandible. Haga clic en un grupo para ver sus valores actuales. Puede agregar nuevos valores, editar etiquetas y reordenar entradas. El campo `code` es inmutable una vez establecido —se usa internamente. Solo la `label` puede cambiarse.\n\n### Agregar nuevos valores\n\nHaga clic en **Agregar elemento** dentro de un grupo. Introduzca la etiqueta (lo que los usuarios ven) y el código (identificador interno, lowercase-snake-case). Haga clic en Guardar. La nueva opción aparece de inmediato en las listas desplegables relevantes.\n\n### Terminología\n\nNavegue a **Administración → Terminología** para personalizar las etiquetas de la aplicación. Si su empresa llama a los trabajos 'Órdenes de trabajo' en lugar de 'Trabajos', introduzca 'Órdenes de trabajo' junto a la clave `entity_job`. Haga clic en **Guardar terminología**.\n\nLos cambios de terminología se aplican en toda la aplicación —todos los usuarios ven las etiquetas actualizadas de inmediato. El cambio se almacena en caché en cada navegador para un renderizado rápido.\n\n### Restablecer etiquetas\n\nElimine el texto personalizado de cualquier clave de terminología para revertir al valor predeterminado del sistema. El predeterminado se deriva del nombre de la clave (p. ej., `entity_job` → 'Job').",
+      "sections": []
+    }
+  },
+  {
+    "slug": "audit-log-monitoring",
+    "title": "Registro de auditoría y monitoreo del sistema",
+    "summary": "Referencia rápida para usar el registro de auditoría para investigar cambios, rastrear acciones de usuario y apoyar el cumplimiento.",
+    "contentJson": {
+      "title": "Registro de auditoría y monitoreo del sistema",
+      "groups": [
+        {
+          "heading": "Qué registra el registro de auditoría",
+          "items": [
+            {
+              "label": "Cambios de entidad",
+              "value": "Cada creación, actualización y eliminación en todas las entidades con valores de campo anteriores/posteriores"
+            },
+            {
+              "label": "Eventos de autenticación",
+              "value": "Inicios de sesión, intentos fallidos, generación de tokens, cambios de contraseña"
+            },
+            {
+              "label": "Acciones de administración",
+              "value": "Cambios de rol, creación/desactivación de usuarios, cambios de configuración"
+            },
+            {
+              "label": "Eventos de integración",
+              "value": "Operaciones de sincronización con QB, cargas de archivos, envíos de correo"
+            }
+          ]
+        },
+        {
+          "heading": "Filtrar el registro",
+          "items": [
+            {
+              "label": "Por tipo de entidad",
+              "value": "Filtrar solo a Trabajos, Usuarios, Facturas, etc."
+            },
+            {
+              "label": "Por usuario",
+              "value": "Ver todo lo que un usuario específico cambió"
+            },
+            {
+              "label": "Por rango de fechas",
+              "value": "Acotar al marco temporal de un incidente"
+            },
+            {
+              "label": "Por acción",
+              "value": "Filtro Crear / Actualizar / Eliminar"
+            }
+          ]
+        },
+        {
+          "heading": "Casos de uso comunes",
+          "items": [
+            {
+              "label": "¿Quién cambió un trabajo?",
+              "value": "Filtrar por entidad=Job, ID de entidad, acción=Update"
+            },
+            {
+              "label": "¿Quién inició sesión y cuándo?",
+              "value": "Filtrar por acción=Login, filtrar por usuario"
+            },
+            {
+              "label": "¿Qué cambió en una configuración?",
+              "value": "Filtrar por entidad=SystemSetting"
+            },
+            {
+              "label": "¿Quién aprobó un formulario de cumplimiento?",
+              "value": "Filtrar por entidad=ComplianceFormSubmission, acción=Update"
+            }
+          ]
+        },
+        {
+          "heading": "Retención",
+          "items": [
+            {
+              "label": "Retención predeterminada",
+              "value": "90 días (configurable en la configuración del sistema)"
+            },
+            {
+              "label": "Exportación de cumplimiento",
+              "value": "Exportar a CSV para sistemas de auditoría externos"
+            },
+            {
+              "label": "Inmutabilidad",
+              "value": "Los registros de auditoría no pueden ser editados ni eliminados por ningún usuario"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "training-module-admin",
+    "title": "Administración de módulos de capacitación",
+    "summary": "Cómo crear módulos de capacitación, gestionar rutas de aprendizaje, generar recorridos con IA y supervisar el progreso de los empleados.",
+    "contentJson": {
+      "body": "## Administración de módulos de capacitación\n\nNavegue a **Administración → Capacitación** para gestionar todo el sistema de gestión del aprendizaje.\n\n### Pestaña Contenido\n\nLa pestaña Contenido lista todos los módulos de capacitación. Cada módulo tiene un tipo (Artículo, Video, Recorrido, Referencia rápida, Cuestionario), un estado de publicación y un tiempo estimado. Use el cuadro de búsqueda para encontrar módulos.\n\n### Crear un módulo\n\nHaga clic en **Nuevo módulo** para abrir el editor. Complete el título, el resumen, el tipo de contenido y el tiempo estimado. Establezca el contenido:\n- **Artículo/Referencia rápida** — escriba el contenido en el editor de contenido JSON o use la interfaz de texto enriquecido\n- **Recorrido** — defina los pasos del recorrido de driver.js, o use **Generar con IA** para crear automáticamente pasos a partir de la página en vivo\n- **Cuestionario** — agregue preguntas con 4 opciones cada una, marque la respuesta correcta y opcionalmente agregue explicaciones\n\n### Publicación\n\nLos módulos están en Borrador hasta que alterna **Publicado**. Solo los módulos publicados son visibles para los empleados.\n\n### Generación de recorridos con IA\n\nPara los módulos de Recorrido, haga clic en el icono de destello para activar la generación con IA. El sistema abre la página de destino en un navegador sin interfaz, analiza el DOM y lo envía al modelo de IA local para generar pasos de recorrido relevantes. Revise los pasos sugeridos y edítelos según sea necesario antes de guardar.\n\n### Pestaña Rutas\n\nLas Rutas de aprendizaje agrupan módulos en secuencias ordenadas. Cree una ruta, agregue módulos en orden y márquelos como requeridos vs. opcionales. Establezca los roles permitidos y si la ruta se asigna automáticamente a los nuevos usuarios.\n\n### Pestaña Progreso\n\nLa pestaña Progreso muestra los porcentajes de finalización para todos los usuarios. Haga clic en el icono de detalle en cualquier fila de usuario para abrir su desglose por módulo en un panel lateral.",
+      "sections": []
+    }
+  }
+]

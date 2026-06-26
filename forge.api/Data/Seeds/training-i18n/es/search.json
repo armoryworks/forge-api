@@ -1,0 +1,415 @@
+[
+  {
+    "slug": "search-overview",
+    "title": "Visión general de la Búsqueda",
+    "summary": "Qué hace la búsqueda global, los tipos de entidad que busca, la búsqueda híbrida de texto completo y RAG, y los atajos de teclado.",
+    "contentJson": {
+      "body": "## Visión general de la Búsqueda global\n\nLa búsqueda global siempre está disponible desde la barra de encabezado en la parte superior de cada página. Ofrece una búsqueda instantánea y multientidad sobre seis tipos de entidad principales, combinando la búsqueda tradicional de texto completo con resultados RAG (Generación Aumentada por Recuperación) impulsados por IA cuando el módulo de IA está habilitado.\n\n### Cómo funciona\n\nEl campo de búsqueda se ubica en el encabezado de la aplicación, entre la navegación de migas de pan y los botones de acción. A medida que escribe, los resultados aparecen en una superposición desplegable agrupados por tipo de entidad. El sistema busca en seis tipos de entidad de forma simultánea:\n\n- **Trabajos** — coincide por número de trabajo y título\n- **Clientes** — coincide por nombre del cliente y nombre de la empresa\n- **Piezas** — coincide por número de pieza y descripción\n- **Prospectos** — coincide por nombre de la empresa y nombre del contacto\n- **Activos** — coincide por nombre del activo y número de serie\n- **Gastos** — coincide por descripción y categoría\n\nLa búsqueda requiere al menos 2 caracteres antes de que aparezcan resultados. Los resultados están sujetos a antirrebote (debounce), de modo que el sistema espera a que deje de escribir antes de consultar —esto mantiene la interfaz ágil incluso con grandes volúmenes de datos.\n\n### Búsqueda de texto completo\n\nLa columna izquierda de la superposición de búsqueda muestra los resultados tradicionales de texto completo. Cada resultado muestra un icono que representa el tipo de entidad, el título principal (número de trabajo, número de pieza, nombre del cliente, etc.), un subtítulo con contexto adicional y una etiqueta de tipo. Al hacer clic en cualquier resultado, navega directamente a la página de esa entidad o se abre su diálogo de detalle.\n\n### Resultados RAG impulsados por IA\n\nCuando el módulo de IA Ollama está en ejecución, la superposición de búsqueda se expande a dos columnas. La columna derecha muestra resultados de IA impulsados por RAG —Generación Aumentada por Recuperación. Esto usa incrustaciones (embeddings) de documentos almacenadas en PostgreSQL mediante pgvector para encontrar contenido relacionado semánticamente, no solo coincidencias exactas de texto.\n\nLa columna de IA muestra:\n- Una **respuesta generada** — un resumen en lenguaje natural que responde a su consulta\n- **Fragmentos de documentos relevantes** — porciones de contenido indexado que coinciden con su consulta, cada una con un porcentaje de puntuación de relevancia\n\nLos resultados RAG son especialmente útiles para preguntas como '¿qué trabajos implican mecanizado de aluminio?' o '¿qué cliente pidió la carcasa del engranaje?' —consultas donde las palabras exactas podrían no aparecer en el registro pero el significado se captura en los documentos indexados.\n\n### Atajos de teclado\n\n- **Ctrl+K** — Enfoca el campo de búsqueda desde cualquier lugar de la aplicación. Es la forma más rápida de empezar a buscar sin usar el ratón.\n- **Escape** — Cierra la superposición de resultados de búsqueda y borra el campo de búsqueda\n- **Hacer clic en un resultado** — Navega a esa entidad y cierra la superposición\n\n### Cuándo usar la búsqueda global\n\n- Cuando necesita encontrar rápidamente un trabajo por número o título\n- Cuando busca un cliente o prospecto por nombre\n- Cuando conoce un número de pieza pero no quiere navegar primero a la página de Piezas\n- Cuando tiene una consulta imprecisa y quiere que la IA le ayude a encontrar registros relevantes\n- Cuando salta entre diferentes tipos de entidad con frecuencia a lo largo del día",
+      "sections": []
+    }
+  },
+  {
+    "slug": "search-walkthrough",
+    "title": "Búsqueda — Recorrido guiado",
+    "summary": "Un recorrido guiado por la superposición de búsqueda global: el campo de búsqueda, las columnas de resultados, los atajos de teclado y los resultados impulsados por IA.",
+    "contentJson": {
+      "appRoute": "/dashboard",
+      "startButtonLabel": "Recorrer la Búsqueda",
+      "steps": [
+        {
+          "element": ".app-header__search",
+          "popover": {
+            "title": "Barra de búsqueda global",
+            "description": "Este es el campo de búsqueda global, siempre disponible en el encabezado. Escriba al menos 2 caracteres para empezar a buscar en Trabajos, Clientes, Piezas, Prospectos, Activos y Gastos de forma simultánea. Los resultados aparecen en una superposición desplegable debajo.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".app-header__search input",
+          "popover": {
+            "title": "Campo de búsqueda",
+            "description": "Escriba su consulta aquí. La búsqueda tiene antirrebote —los resultados aparecen después de que deja de escribir. El sistema busca en números de trabajo, nombres de clientes, números de pieza, contactos de prospectos, nombres/números de serie de activos y descripciones de gastos. Presione Ctrl+K desde cualquier lugar para saltar directamente a este campo.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".app-header__search kbd",
+          "popover": {
+            "title": "Sugerencia de atajo de teclado",
+            "description": "La insignia Ctrl+K le recuerda el atajo de teclado. Presione Ctrl+K desde cualquier página para enfocar de inmediato el campo de búsqueda sin usar el ratón. Presione Escape para cerrar los resultados y borrar el campo.",
+            "side": "bottom"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "search-field-reference",
+    "title": "Referencia de campos de la Búsqueda",
+    "summary": "Referencia completa del campo de búsqueda, los grupos de tipos de entidad, los campos de resultado, los atajos de teclado y la integración con RAG.",
+    "contentJson": {
+      "title": "Referencia de campos de la Búsqueda",
+      "groups": [
+        {
+          "heading": "Campo de búsqueda",
+          "items": [
+            {
+              "label": "Ubicación",
+              "value": "Barra de encabezado, entre la navegación de migas de pan y los botones de acción. Visible en todas las páginas excepto en la incorporación (onboarding)."
+            },
+            {
+              "label": "Mínimo de caracteres",
+              "value": "Se requieren 2 caracteres antes de que se ejecute la búsqueda. Las consultas de menos de 2 caracteres no devuelven resultados."
+            },
+            {
+              "label": "Antirrebote (debounce)",
+              "value": "El campo tiene antirrebote —el sistema espera a que deje de escribir antes de enviar la consulta. Esto evita llamadas excesivas a la API al escribir rápido."
+            },
+            {
+              "label": "Límite de resultados",
+              "value": "20 resultados por defecto, máximo 50. Los resultados se distribuyen equitativamente entre los tipos de entidad (al menos 3 por tipo)."
+            },
+            {
+              "label": "Comportamiento al borrar",
+              "value": "Navegar a un resultado o presionar Escape borra el campo de búsqueda y cierra la superposición de resultados."
+            }
+          ]
+        },
+        {
+          "heading": "Tipos de entidad buscados",
+          "items": [
+            {
+              "label": "Trabajo",
+              "value": "Campos buscados: job_number, title. Icono: work. Los resultados enlazan a /kanban con el trabajo seleccionado."
+            },
+            {
+              "label": "Cliente",
+              "value": "Campos buscados: name, company_name. Icono: people. Los resultados enlazan a /customers."
+            },
+            {
+              "label": "Pieza",
+              "value": "Campos buscados: part_number, description. Icono: inventory_2. Los resultados enlazan a /parts."
+            },
+            {
+              "label": "Prospecto",
+              "value": "Campos buscados: company_name, contact_name. Icono: trending_up. Los resultados enlazan a /leads."
+            },
+            {
+              "label": "Activo",
+              "value": "Campos buscados: name, serial_number. Icono: precision_manufacturing. Los resultados enlazan a /assets."
+            },
+            {
+              "label": "Gasto",
+              "value": "Campos buscados: description, category. Icono: receipt_long. Los resultados enlazan a /expenses."
+            }
+          ]
+        },
+        {
+          "heading": "Campos de resultado",
+          "items": [
+            {
+              "label": "Icono",
+              "value": "Icono de Material que representa el tipo de entidad (work, people, inventory_2, trending_up, precision_manufacturing, receipt_long)."
+            },
+            {
+              "label": "Título",
+              "value": "Identificador principal: número de trabajo, nombre del cliente, número de pieza, nombre de la empresa, nombre del activo o descripción del gasto."
+            },
+            {
+              "label": "Subtítulo",
+              "value": "Contexto secundario: título del trabajo, nombre de la empresa, descripción de la pieza, nombre del contacto, número de serie o categoría del gasto. Puede ser nulo."
+            },
+            {
+              "label": "Etiqueta de tipo de entidad",
+              "value": "Insignia de texto que muestra el tipo (Trabajo, Cliente, Pieza, Prospecto, Activo, Gasto) para una identificación rápida."
+            },
+            {
+              "label": "URL",
+              "value": "Destino de navegación al hacer clic. Cada tipo de entidad enruta a su página principal (/kanban, /customers, /parts, /leads, /assets, /expenses)."
+            }
+          ]
+        },
+        {
+          "heading": "Atajos de teclado",
+          "items": [
+            {
+              "label": "Ctrl+K",
+              "value": "Enfoca el campo de búsqueda desde cualquier lugar de la aplicación. Funciona en todas las páginas. Es la forma principal de acceder a la búsqueda sin el ratón."
+            },
+            {
+              "label": "Escape",
+              "value": "Cierra la superposición de resultados de búsqueda y borra el campo. También quita el foco del campo de búsqueda."
+            },
+            {
+              "label": "Hacer clic en un resultado",
+              "value": "Navega a la página de la entidad seleccionada y cierra la superposición. El campo de búsqueda se borra automáticamente."
+            }
+          ]
+        },
+        {
+          "heading": "Resultados RAG / IA (cuando el módulo de IA está activo)",
+          "items": [
+            {
+              "label": "Diseño de dos columnas",
+              "value": "Cuando la IA está disponible, la superposición de búsqueda se expande para mostrar dos columnas: resultados de texto completo a la izquierda, resultados de IA a la derecha."
+            },
+            {
+              "label": "Respuesta generada",
+              "value": "Un resumen en lenguaje natural que responde a su consulta, mostrado con un icono de bombilla. Generado por el modelo de IA Ollama usando contexto RAG."
+            },
+            {
+              "label": "Fragmentos de documento",
+              "value": "Fragmentos de texto relevantes de documentos indexados. Cada uno muestra el texto del fragmento, el campo de origen del que se extrajo, el tipo de entidad y una puntuación de relevancia como porcentaje."
+            },
+            {
+              "label": "Puntuación de relevancia",
+              "value": "Porcentaje que indica qué tan estrechamente coincide el fragmento de documento con su consulta a nivel semántico. Puntuaciones más altas significan mayor relevancia."
+            },
+            {
+              "label": "Indicador de procesamiento",
+              "value": "Un icono giratorio con el texto 'Pensando...' aparece mientras el modelo de IA procesa su consulta. Los resultados de IA pueden tardar un poco más que los de texto completo."
+            },
+            {
+              "label": "Respaldo (fallback)",
+              "value": "Si el módulo de IA no está en ejecución o no está disponible, la superposición de búsqueda muestra solo la única columna de resultados de texto completo. No se muestra ningún error —la IA simplemente se degrada con elegancia."
+            }
+          ]
+        },
+        {
+          "heading": "API de búsqueda",
+          "items": [
+            {
+              "label": "Endpoint",
+              "value": "GET /api/v1/search?q={term}&limit={limit}. Requiere autenticación. Devuelve una lista plana de objetos SearchResult."
+            },
+            {
+              "label": "Parámetro de consulta: q",
+              "value": "El término de búsqueda. Debe tener al menos 2 caracteres. Busca usando coincidencia de patrón ILIKE (contiene, sin distinguir mayúsculas)."
+            },
+            {
+              "label": "Parámetro de consulta: limit",
+              "value": "Número máximo de resultados a devolver. Por defecto: 20, máximo: 50. Limitado en el servidor."
+            },
+            {
+              "label": "Forma de la respuesta",
+              "value": "Arreglo de SearchResult: { entityType, entityId, title, subtitle, icon, url }. Los resultados de los 6 tipos de entidad se combinan en una sola lista."
+            },
+            {
+              "label": "Consulta UNION ALL",
+              "value": "El servidor ejecuta una sola consulta SQL con UNION ALL sobre 6 tablas de entidad. Cada subconsulta de entidad tiene su propio LIMIT (límite total / 4, mínimo 3 por tipo de entidad)."
+            },
+            {
+              "label": "Filtro de borrado lógico",
+              "value": "Todas las búsquedas excluyen los registros con borrado lógico (deleted_at IS NULL). Las búsquedas de trabajos también excluyen los trabajos archivados (is_archived = false)."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "search-quiz",
+    "title": "Evaluación de conocimientos de la Búsqueda",
+    "summary": "Ponga a prueba su conocimiento de la búsqueda global: atajos de teclado, tipos de entidad, diseño de resultados e integración con RAG.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "sr1",
+          "text": "Necesita encontrar rápidamente un trabajo pero actualmente está en la página de Gastos. ¿Cuál es la forma más rápida de empezar a buscar?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Navegar primero al tablero Kanban y luego usar el filtro de búsqueda del tablero"
+            },
+            {
+              "id": "b",
+              "text": "Presionar Ctrl+K para enfocar el campo de búsqueda global en el encabezado y luego escribir el número de trabajo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Ir a Informes y ejecutar un informe de Consulta de Trabajos"
+            },
+            {
+              "id": "d",
+              "text": "Abrir la barra lateral y hacer clic en el elemento de menú Búsqueda"
+            }
+          ],
+          "explanation": "Ctrl+K enfoca el campo de búsqueda global desde cualquier página. No necesita navegar a ningún sitio primero —solo presione Ctrl+K y empiece a escribir. La barra de búsqueda siempre está disponible en el encabezado."
+        },
+        {
+          "id": "sr2",
+          "text": "¿Cuántos tipos de entidad consulta la búsqueda global de forma simultánea?",
+          "options": [
+            {
+              "id": "a",
+              "text": "3 — Trabajos, Piezas y Clientes"
+            },
+            {
+              "id": "b",
+              "text": "4 — Trabajos, Clientes, Piezas y Prospectos"
+            },
+            {
+              "id": "c",
+              "text": "6 — Trabajos, Clientes, Piezas, Prospectos, Activos y Gastos",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Todos los tipos de entidad de la base de datos"
+            }
+          ],
+          "explanation": "La búsqueda global consulta 6 tipos de entidad en una sola consulta UNION ALL: Trabajos, Clientes, Piezas, Prospectos, Activos y Gastos. Cada tipo tiene sus propios campos buscables e icono."
+        },
+        {
+          "id": "sr3",
+          "text": "Escribe una sola letra 'A' en la barra de búsqueda. ¿Qué ocurre?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Aparecen resultados que muestran todas las entidades que empiezan por A"
+            },
+            {
+              "id": "b",
+              "text": "Nada —la búsqueda requiere al menos 2 caracteres antes de ejecutarse",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Aparece un mensaje de error pidiéndole que escriba más"
+            },
+            {
+              "id": "d",
+              "text": "El módulo de IA genera sugerencias basadas en la letra"
+            }
+          ],
+          "explanation": "La búsqueda global requiere un mínimo de 2 caracteres antes de consultar al servidor. Las consultas de menos de 2 caracteres no devuelven resultados. Esto evita búsquedas demasiado amplias que devolverían demasiados resultados."
+        },
+        {
+          "id": "sr4",
+          "text": "¿Qué información muestra cada resultado de búsqueda?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Solo el nombre de la entidad y un enlace"
+            },
+            {
+              "id": "b",
+              "text": "Un icono del tipo de entidad, el título principal, un subtítulo con contexto y una etiqueta de tipo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Una imagen en miniatura, la descripción completa y la fecha de creación"
+            },
+            {
+              "id": "d",
+              "text": "El ID de la entidad, el nombre de la tabla de la base de datos y la marca de tiempo de última modificación"
+            }
+          ],
+          "explanation": "Cada resultado de búsqueda muestra cuatro elementos: un icono que identifica el tipo de entidad (work, people, inventory_2, etc.), el título principal (número de trabajo, nombre del cliente, etc.), un subtítulo con contexto adicional y una etiqueta de tipo (Trabajo, Cliente, Pieza, etc.)."
+        },
+        {
+          "id": "sr5",
+          "text": "La superposición de búsqueda muestra dos columnas en lugar de una. ¿Qué significa esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Hay demasiados resultados para caber en una columna"
+            },
+            {
+              "id": "b",
+              "text": "El módulo de IA está activo, mostrando resultados de texto completo a la izquierda y resultados de IA impulsados por RAG a la derecha",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Está buscando en dos bases de datos diferentes"
+            },
+            {
+              "id": "d",
+              "text": "La pantalla es lo suficientemente ancha para un diseño de dos columnas"
+            }
+          ],
+          "explanation": "Cuando el módulo de IA Ollama está en ejecución, la superposición de búsqueda se expande a dos columnas. La columna izquierda muestra los resultados tradicionales de texto completo, mientras que la derecha muestra resultados de IA impulsados por RAG, incluyendo una respuesta generada y fragmentos de documentos relevantes semánticamente."
+        },
+        {
+          "id": "sr6",
+          "text": "Un resultado de búsqueda RAG muestra una puntuación de relevancia del 87%. ¿Qué representa esta puntuación?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El porcentaje de palabras clave de su consulta que se encuentran en el documento"
+            },
+            {
+              "id": "b",
+              "text": "Qué tan similar semánticamente es el fragmento de documento a su consulta de búsqueda, según las incrustaciones vectoriales",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "La confianza de que el documento no es un duplicado"
+            },
+            {
+              "id": "d",
+              "text": "El porcentaje del documento que ha sido indexado"
+            }
+          ],
+          "explanation": "La puntuación de relevancia es un porcentaje de similitud semántica basado en incrustaciones vectoriales (pgvector). Mide qué tan estrechamente coincide el significado del fragmento de documento con su consulta, no solo la coincidencia de palabras clave. Puntuaciones más altas indican una mayor relevancia semántica."
+        },
+        {
+          "id": "sr7",
+          "text": "Busca 'carcasa de aluminio' pero no existen coincidencias exactas en los títulos de trabajo ni en los números de pieza. ¿Cómo puede ayudarle aún así la búsqueda global?",
+          "options": [
+            {
+              "id": "a",
+              "text": "No puede —la búsqueda global solo coincide con texto exacto en campos específicos"
+            },
+            {
+              "id": "b",
+              "text": "La columna de IA/RAG puede encontrar registros relacionados semánticamente incluso sin coincidencias exactas de palabras clave, devolviendo fragmentos de documentos relevantes y una respuesta generada",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Cambia automáticamente a un modo de búsqueda difusa (fuzzy)"
+            },
+            {
+              "id": "d",
+              "text": "Busca en el texto completo de todos los documentos PDF cargados"
+            }
+          ],
+          "explanation": "RAG (Generación Aumentada por Recuperación) usa incrustaciones vectoriales para encontrar contenido relacionado semánticamente. Incluso si 'carcasa de aluminio' no aparece textualmente en ningún registro, la columna de IA puede encontrar documentos que tratan sobre mecanizado de aluminio o componentes de carcasa y presentar fragmentos relevantes con una respuesta generada."
+        },
+        {
+          "id": "sr8",
+          "text": "Hace clic en un resultado de Pieza en la superposición de búsqueda. ¿Qué ocurre a continuación?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Se abre un diálogo de detalle sobre la página actual"
+            },
+            {
+              "id": "b",
+              "text": "La aplicación navega a /parts, el campo de búsqueda se borra y la superposición se cierra",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "La información de la pieza se copia al portapapeles"
+            },
+            {
+              "id": "d",
+              "text": "Se abre una nueva pestaña del navegador con los detalles de la pieza"
+            }
+          ],
+          "explanation": "Hacer clic en un resultado de búsqueda le lleva a la página principal de esa entidad (en este caso /parts). El campo de búsqueda se borra automáticamente y la superposición de resultados se cierra, dejándole en la página de destino listo para trabajar con el registro seleccionado."
+        }
+      ]
+    }
+  }
+]

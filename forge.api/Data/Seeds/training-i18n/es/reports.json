@@ -1,0 +1,774 @@
+[
+  {
+    "slug": "reports-overview",
+    "title": "Visión general de Informes",
+    "summary": "Qué hace el generador de informes, las fuentes de entidad, las plantillas predefinidas, las visualizaciones de gráficos y las opciones de exportación.",
+    "contentJson": {
+      "body": "## Visión general de Informes\n\nEl módulo de Informes es el centro de análisis principal de QB Engineer. Ofrece dos sistemas complementarios: una biblioteca de 27 plantillas de informes predefinidas que cubren preguntas operativas comunes, y un Generador de Informes dinámico que le permite consultar cualquiera de las 28 fuentes de entidad con más de 350 campos para construir informes personalizados desde cero.\n\n### Tres secciones de informes\n\nLa página de Informes está organizada en tres secciones, accesibles a través de la navegación superior:\n\n1. **Informes predefinidos** — La página de inicio predeterminada. Una barra lateral izquierda enumera 27 informes ya elaborados organizados por dominio (producción, financiero, personal, calidad, etc.). Haga clic en cualquier informe para cargar su gráfico y tabla de datos. Los informes que dependen de un rango de fechas (como Tiempo por usuario o Ingresos) muestran selectores de fecha en el encabezado.\n\n2. **Generador de Informes** — Una herramienta de consulta dinámica. Seleccione una fuente de entidad (p. ej., Trabajos, Piezas, Facturas), elija columnas, agregue filtros, elija agrupación y ordenación, y luego ejecute la consulta. Los resultados se muestran en una tabla de datos con visualización de gráfico opcional. Guarde sus configuraciones como informes con nombre para reutilizarlas más tarde.\n\n3. **Informes de flujo Sankey** — Diagramas de flujo visuales que muestran cómo se mueven los datos a través de su negocio: Cotización a Cobro, Flujo de Etapa de Trabajos, Material a Producto, Órdenes de Trabajadores, Flujo de Gastos, Cadena de Suministro de Proveedores, Rechazo de Calidad, Ubicación de Inventario, Ingresos por Cliente y Finalización de Capacitación.\n\n### Plantillas de informes predefinidas (27)\n\nLos informes predefinidos cubren cada dominio principal:\n\n**Producción y operaciones:**\n- **Trabajos por etapa** — Gráfico de barras que muestra el recuento de trabajos por etapa Kanban\n- **Trabajos atrasados** — Tabla de trabajos que han superado su fecha de vencimiento\n- **Tendencia de finalización de trabajos** — Gráfico de líneas de trabajos completados a lo largo del tiempo\n- **Entrega a tiempo** — Porcentaje de trabajos entregados en o antes de la fecha de vencimiento\n- **Tiempo de entrega promedio** — Días promedio desde la creación del trabajo hasta su finalización por tipo de vía\n- **Tiempo en etapa** — Cuánto tiempo pasan los trabajos en cada etapa\n- **Margen del trabajo** — Análisis de ingresos frente a costo por trabajo\n- **Revisión de ciclo** — Resumen de rendimiento del ciclo de planificación\n- **Informe de I+D** — Actividad y resultados de la vía de I+D/herramentaje\n\n**Personas y tiempo:**\n- **Tiempo por usuario** — Horas registradas por miembro del equipo (requiere rango de fechas)\n- **Carga de trabajo del equipo** — Asignaciones de trabajo actuales por usuario\n- **Productividad del empleado** — Métricas de producción por empleado\n- **Mi historial de trabajo** — Historial personal de finalización de trabajos\n- **Mi registro de tiempo** — Entradas de tiempo personales\n- **Mi resumen de ciclo** — Rendimiento personal del ciclo de planificación\n- **Mi historial de gastos** — Envíos de gastos personales\n\n**Ventas y finanzas:**\n- **Resumen de gastos** — Gasto por categoría\n- **Embudo de prospectos** — Recuento de prospectos por estado\n- **Actividad del cliente** — Métricas de interacción del cliente\n- **Antigüedad de cuentas por cobrar (AR)** — Cuentas por cobrar pendientes por tramo de antigüedad\n- **Ingresos** — Ingresos a lo largo del tiempo\n- **Pérdidas y ganancias** — Ingresos frente a gastos simple\n- **Cotización a cierre** — Tasas y plazos de conversión de cotizaciones\n- **Prospecto a venta** — Embudo de conversión de prospectos\n\n**Logística y calidad:**\n- **Resumen de envíos** — Volumen de envíos y uso de transportistas\n- **Niveles de inventario** — Cantidades de stock actuales\n- **Mantenimiento** — Actividad y costos de mantenimiento de activos\n- **Calidad/Desecho** — Tasas de desecho y resultados de inspección de calidad\n\n### El Generador de Informes dinámico\n\nEl Generador de Informes le da control total sobre qué datos consulta y cómo se presentan.\n\n**Paso 1 — Elegir una fuente de datos:** Seleccione entre 28 fuentes de entidad. Cada fuente expone un conjunto diferente de campos. Las fuentes incluyen: Trabajos, Piezas, Clientes, Gastos, Entradas de tiempo, Facturas, Prospectos, Activos, Órdenes de Compra, Órdenes de Venta, Cotizaciones, Envíos, Inventario (Contenido de contenedores), Pagos, Proveedores, Corridas de producción, Registros de lote, Inspecciones de QC, Programas de mantenimiento, Registros de mantenimiento, Registros de tiempo de inactividad, Devoluciones de clientes, Movimientos de contenedores, Ciclos de planificación, Líneas de factura, Líneas de orden de venta, Líneas de orden de compra y Líneas de cotización.\n\n**Paso 2 — Seleccionar columnas:** Marque los campos que desea incluir en sus resultados. Cada fuente de entidad tiene de 10 a 35 campos disponibles, incluidos campos de entidades relacionadas (p. ej., Nombre del cliente en un Trabajo, Nombre del proveedor en una OC).\n\n**Paso 3 — Agregar filtros:** Construya condiciones de filtro usando campo + operador + valor. Los operadores incluyen Igual a, Distinto de, Contiene, Empieza por, Mayor que, Menor que, Mayor o igual que, Menor o igual que, Entre, Es nulo, No es nulo y En.\n\n**Paso 4 — Agrupar y ordenar:** Opcionalmente, agrupe los resultados por cualquier campo agrupable (normalmente enums, fechas y campos de categoría). Ordene por cualquier campo ordenable, ascendente o descendente.\n\n**Paso 5 — Visualizar:** Elija un tipo de gráfico: Barras, Líneas, Circular, Anillo o Tabla (solo datos). Para las visualizaciones de gráfico, seleccione un campo de etiqueta (las etiquetas de eje/segmento) y un campo de valor (debe ser numérico —la medición).\n\n**Ejecutar y guardar:** Haga clic en Ejecutar informe para ejecutar la consulta. Los resultados aparecen en una tabla de datos debajo del panel de configuración. Guarde su configuración como un informe con nombre con una descripción opcional y un interruptor compartido/privado. Los informes guardados aparecen en el menú desplegable de la barra de herramientas para un acceso rápido.\n\n### Visualizaciones de gráficos\n\nTanto los informes predefinidos como el Generador de Informes usan ng2-charts (Chart.js) para la visualización:\n\n- **Gráficos de barras** — Usados para comparaciones categóricas (trabajos por etapa, tiempo por usuario, gastos por categoría)\n- **Gráficos de líneas** — Usados para tendencias a lo largo del tiempo (tendencia de finalización, ingresos, tiempo de entrega)\n- **Gráficos circulares** — Usados para desgloses proporcionales (embudo de prospectos, distribución de gastos)\n- **Gráficos de anillo** — Similares al circular, usados para distribuciones de estado\n- **Diagramas Sankey** — Visualizaciones de flujo que muestran el movimiento de datos entre etapas\n\nLos gráficos admiten desglose detallado (drill-down): haga clic en una barra o segmento para filtrar la tabla de datos a ese segmento. Haga clic de nuevo o use la miga de pan para volver a la vista completa.\n\n### Opciones de exportación\n\n- **Exportación a CSV** — Haga clic en el botón CSV después de ejecutar un informe para descargar los resultados como un archivo separado por comas. Disponible en el Generador de Informes.\n- **Exportación a PDF** — Generación de PDF del lado del servidor mediante QuestPDF para una salida de informe con formato.\n- **Imprimir** — El estilo de impresión del navegador oculta la navegación y los controles interactivos, mostrando solo el contenido del informe.\n\n### Roles y acceso\n\nEl módulo de Informes está disponible para los roles Admin, Manager, Office Manager y PM. Los Ingenieros y los Trabajadores de producción no tienen acceso directo a la página completa de informes, aunque los informes personales (Mi historial de trabajo, Mi registro de tiempo, Mi historial de gastos) están disponibles a través de sus respectivas páginas de funciones.\n\n### Informes guardados\n\nLos informes guardados almacenan la configuración completa: fuente de entidad, columnas seleccionadas, filtros, agrupación, ordenación, tipo de gráfico y asignaciones de campos del gráfico. Los informes pueden marcarse como compartidos (visibles para todos los usuarios con acceso a informes) o privados (visibles solo para el creador). Los informes guardados se cargan desde el menú desplegable de la barra de herramientas y pueden actualizarse o eliminarse.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "reports-walkthrough",
+    "title": "Informes — Recorrido guiado",
+    "summary": "Un recorrido guiado por la página de informes: informes predefinidos, filtros de rango de fechas, gráficos, el generador de informes y los diagramas Sankey.",
+    "contentJson": {
+      "appRoute": "/reports",
+      "startButtonLabel": "Recorrer Informes",
+      "steps": [
+        {
+          "element": ".reports-sidebar",
+          "popover": {
+            "title": "Barra lateral de navegación de informes",
+            "description": "La barra lateral izquierda enumera los 27 informes predefinidos. Haga clic en cualquier nombre de informe para cargarlo. Los informes están organizados por dominio: producción, control de tiempo, financiero, calidad y personal. El informe activo se resalta.",
+            "side": "right"
+          }
+        },
+        {
+          "element": ".report-header",
+          "popover": {
+            "title": "Encabezado y filtros del informe",
+            "description": "Muestra el título del informe activo. Algunos informes incluyen filtros de rango de fechas (selectores de fecha Desde / Hasta) —estos aparecen cuando el informe seleccionado requiere un rango de fechas (p. ej., Tiempo por usuario, Ingresos, Resumen de gastos). Establezca las fechas y haga clic en Aplicar para actualizar los datos.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "canvas",
+          "popover": {
+            "title": "Visualización de gráfico",
+            "description": "Cada informe predefinido representa un gráfico: gráficos de barras para comparaciones, gráficos de líneas para tendencias, circular/anillo para proporciones. Haga clic en una barra o segmento para desglosar ese segmento —la tabla de datos de abajo se filtra para mostrar solo las filas coincidentes.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de datos del informe",
+            "description": "Debajo del gráfico, una tabla de datos muestra los datos en bruto. Las columnas son ordenables —haga clic en los encabezados para ordenar. La tabla admite todas las funciones estándar de DataTable: filtrado de columnas, visibilidad de columnas y paginación.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".report-nav-item:last-of-type",
+          "popover": {
+            "title": "Generador de Informes",
+            "description": "El Generador de Informes le permite crear informes personalizados eligiendo una fuente de entidad, seleccionando columnas, agregando filtros y configurando gráficos. Puede guardar sus configuraciones para reutilizarlas. Los diagramas de flujo Sankey también están disponibles para el análisis visual de flujos.",
+            "side": "right"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "reports-field-reference",
+    "title": "Referencia de campos de Informes",
+    "summary": "Referencia completa del generador de informes: fuentes de entidad, tipos de campo, operadores de filtro, tipos de gráfico, formatos de exportación, campos de informe guardado y acciones.",
+    "contentJson": {
+      "title": "Referencia de campos de Informes",
+      "groups": [
+        {
+          "heading": "Fuentes de entidad (28)",
+          "items": [
+            {
+              "label": "Trabajos",
+              "value": "Trabajos de producción con etapa, prioridad, cliente, pieza, tipo de vía, fechas, disposición. 33 campos."
+            },
+            {
+              "label": "Piezas",
+              "value": "Catálogo de piezas con número de pieza, tipo, estado, material, proveedor, herramentaje. 19 campos."
+            },
+            {
+              "label": "Clientes",
+              "value": "Registros de clientes con nombre, empresa, correo electrónico, teléfono, estado activo. 10 campos."
+            },
+            {
+              "label": "Gastos",
+              "value": "Registros de gastos con monto, categoría, estado, fecha, vínculo a trabajo, aprobación. 17 campos."
+            },
+            {
+              "label": "Entradas de tiempo",
+              "value": "Control de tiempo con duración, categoría, trabajo, inicio/parada del temporizador, marca manual. 14 campos."
+            },
+            {
+              "label": "Facturas",
+              "value": "Registros de facturas con número, estado, fechas, términos de crédito, tasa de impuesto, cliente, orden de venta. 19 campos."
+            },
+            {
+              "label": "Prospectos",
+              "value": "Embudo de prospectos con empresa, contacto, fuente, estado, fecha de seguimiento, motivo de pérdida. 15 campos."
+            },
+            {
+              "label": "Activos",
+              "value": "Equipos y herramentaje con tipo, estado, horas, fabricante, campos de herramentaje (recuento de cavidades, recuento de inyecciones). 22 campos."
+            },
+            {
+              "label": "Órdenes de Compra",
+              "value": "Registros de OC con número, estado, fechas, proveedor, vínculo a trabajo. 18 campos."
+            },
+            {
+              "label": "Órdenes de Venta",
+              "value": "Registros de orden de venta con número, estado, OC del cliente, términos de crédito, cliente, cotización. 17 campos."
+            },
+            {
+              "label": "Cotizaciones",
+              "value": "Registros de cotización con número, estado, fechas, tasa de impuesto, cliente. 15 campos."
+            },
+            {
+              "label": "Envíos",
+              "value": "Registros de envío con número, estado, transportista, seguimiento, fechas, costo, peso, orden de venta. 17 campos."
+            },
+            {
+              "label": "Inventario (Contenido de contenedores)",
+              "value": "Registros de contenido de contenedores con tipo de entidad, cantidad, cantidad reservada, número de lote, estado, ubicación, trabajo. 16 campos."
+            },
+            {
+              "label": "Pagos",
+              "value": "Registros de pago con número, método, monto, fecha, número de referencia, cliente. 15 campos."
+            },
+            {
+              "label": "Proveedores",
+              "value": "Registros de proveedor con empresa, contacto, dirección, términos de pago, estado activo. 17 campos."
+            },
+            {
+              "label": "Corridas de producción",
+              "value": "Registros de corrida de producción con número de corrida, estado, cantidades (objetivo, completadas, desecho), tiempos, trabajo, pieza. 20 campos."
+            },
+            {
+              "label": "Registros de lote",
+              "value": "Trazabilidad de lote con número de lote, cantidad, vencimiento, lote del proveedor, pieza, trabajo, corrida de producción. 17 campos."
+            },
+            {
+              "label": "Inspecciones de QC",
+              "value": "Registros de inspección de calidad con estado, número de lote, trabajo, corrida de producción, plantilla, inspector. 16 campos."
+            },
+            {
+              "label": "Programas de mantenimiento",
+              "value": "Mantenimiento programado con título, intervalos, último realizado, próximo vencimiento, activo. 16 campos."
+            },
+            {
+              "label": "Registros de mantenimiento",
+              "value": "Historial de mantenimiento con fecha de realización, horas, costo, programa, activo. 10 campos."
+            },
+            {
+              "label": "Registros de tiempo de inactividad",
+              "value": "Tiempo de inactividad de activos con inicio/fin, motivo, resolución, marca de planificado, activo. 13 campos."
+            },
+            {
+              "label": "Devoluciones de clientes",
+              "value": "Registros de devolución con número, estado, motivo, fechas, inspección, trabajo original/de reproceso. 17 campos."
+            },
+            {
+              "label": "Movimientos de contenedores",
+              "value": "Movimientos de inventario con entidad, cantidad, lote, motivo, ubicación de origen/destino. 12 campos."
+            },
+            {
+              "label": "Ciclos de planificación",
+              "value": "Registros de ciclo de planificación con nombre, estado, fechas, duración, objetivos. 9 campos."
+            },
+            {
+              "label": "Líneas de factura",
+              "value": "Líneas de artículo de factura con número de línea, descripción, cantidad, precio unitario, factura, pieza. 13 campos."
+            },
+            {
+              "label": "Líneas de orden de venta",
+              "value": "Líneas de artículo de OV con número de línea, descripción, cantidad, precio unitario, cantidad enviada, orden de venta, pieza. 14 campos."
+            },
+            {
+              "label": "Líneas de orden de compra",
+              "value": "Líneas de artículo de OC con descripción, cantidad pedida/recibida, precio unitario, OC, pieza. 14 campos."
+            },
+            {
+              "label": "Líneas de cotización",
+              "value": "Líneas de artículo de cotización con número de línea, descripción, cantidad, precio unitario, cotización, pieza. 14 campos."
+            }
+          ]
+        },
+        {
+          "heading": "Tipos de campo",
+          "items": [
+            {
+              "label": "string",
+              "value": "Campos de texto. Admite los operadores Contiene, Empieza por, Igual a, Distinto de, Es nulo, No es nulo."
+            },
+            {
+              "label": "number",
+              "value": "Campos numéricos. Admite los operadores Igual a, Distinto de, Mayor que, Menor que, Mayor o igual que, Menor o igual que, Entre, Es nulo, No es nulo. Se usan como campos de valor de gráfico."
+            },
+            {
+              "label": "date",
+              "value": "Campos de fecha/hora. Admite los operadores Igual a, Mayor que, Menor que, Entre, Es nulo, No es nulo. Agrupables por fecha para gráficos de series temporales."
+            },
+            {
+              "label": "boolean",
+              "value": "Campos verdadero/falso (p. ej., Archivado, Activo, Entrada manual). Admite el operador Igual a. Agrupables para segmentación."
+            },
+            {
+              "label": "enum",
+              "value": "Valores enumerados (p. ej., Estado, Prioridad, Tipo). Admite los operadores Igual a, Distinto de, En. Agrupables para gráficos categóricos."
+            }
+          ]
+        },
+        {
+          "heading": "Operadores de filtro",
+          "items": [
+            {
+              "label": "Igual a",
+              "value": "Coincidencia exacta. Funciona con todos los tipos de campo."
+            },
+            {
+              "label": "Distinto de",
+              "value": "No es una coincidencia exacta. Funciona con todos los tipos de campo."
+            },
+            {
+              "label": "Contiene",
+              "value": "Coincidencia de subcadena (sin distinguir mayúsculas). Funciona con campos de texto."
+            },
+            {
+              "label": "Empieza por",
+              "value": "Coincidencia de prefijo. Funciona con campos de texto."
+            },
+            {
+              "label": "Mayor que",
+              "value": "El valor es mayor que el valor del filtro. Funciona con campos numéricos y de fecha."
+            },
+            {
+              "label": "Menor que",
+              "value": "El valor es menor que el valor del filtro. Funciona con campos numéricos y de fecha."
+            },
+            {
+              "label": "Mayor o igual que",
+              "value": "El valor es mayor o igual. Funciona con campos numéricos y de fecha."
+            },
+            {
+              "label": "Menor o igual que",
+              "value": "El valor es menor o igual. Funciona con campos numéricos y de fecha."
+            },
+            {
+              "label": "Entre",
+              "value": "El valor está entre dos valores (inclusive). Requiere value y value2. Funciona con campos numéricos y de fecha."
+            },
+            {
+              "label": "Es nulo",
+              "value": "El campo no tiene valor. No se necesita un valor de filtro."
+            },
+            {
+              "label": "No es nulo",
+              "value": "El campo tiene un valor. No se necesita un valor de filtro."
+            },
+            {
+              "label": "En",
+              "value": "El valor coincide con uno de una lista separada por comas. Funciona con campos enum."
+            }
+          ]
+        },
+        {
+          "heading": "Tipos de gráfico",
+          "items": [
+            {
+              "label": "Barras",
+              "value": "Gráfico de barras verticales. Ideal para comparaciones categóricas (trabajos por etapa, gastos por categoría). Requiere un campo de etiqueta y un campo de valor numérico."
+            },
+            {
+              "label": "Líneas",
+              "value": "Gráfico de líneas con puntos de datos. Ideal para tendencias a lo largo del tiempo (tendencia de finalización, ingresos). Requiere un campo de etiqueta y un campo de valor numérico."
+            },
+            {
+              "label": "Circular",
+              "value": "Gráfico circular dividido en segmentos proporcionales. Ideal para mostrar composición (embudo de prospectos, distribución de estados). Requiere un campo de etiqueta y un campo de valor numérico."
+            },
+            {
+              "label": "Anillo",
+              "value": "Como el gráfico circular pero con un centro hueco. Usado para distribuciones de estado o tipo. Requiere un campo de etiqueta y un campo de valor numérico."
+            },
+            {
+              "label": "Tabla",
+              "value": "Solo tabla de datos, sin visualización de gráfico. Predeterminado cuando no se selecciona ningún tipo de gráfico. Muestra los resultados en la DataTable ordenable y filtrable."
+            }
+          ]
+        },
+        {
+          "heading": "Formatos de exportación",
+          "items": [
+            {
+              "label": "CSV",
+              "value": "Archivo de valores separados por comas. Descarga todas las filas de resultados con las columnas seleccionadas. Disponible después de ejecutar un informe en el Generador de Informes. El botón aparece en la barra de acciones."
+            },
+            {
+              "label": "PDF",
+              "value": "PDF generado en el servidor mediante QuestPDF. Informe con formato con encabezados, tabla de datos y metadatos. Generado a través del endpoint de exportación de la API."
+            },
+            {
+              "label": "Imprimir",
+              "value": "Impresión del navegador. La hoja de estilo @media print oculta la navegación, la barra lateral y los controles interactivos, mostrando solo el contenido del informe y el gráfico."
+            }
+          ]
+        },
+        {
+          "heading": "Campos de informe guardado",
+          "items": [
+            {
+              "label": "Nombre (obligatorio)",
+              "value": "Campo de texto, máximo 100 caracteres. Identifica el informe guardado en el menú desplegable de la barra de herramientas."
+            },
+            {
+              "label": "Descripción",
+              "value": "Área de texto, opcional. Contexto adicional sobre lo que muestra el informe."
+            },
+            {
+              "label": "Interruptor Compartido",
+              "value": "Cuando está ACTIVADO, el informe es visible para todos los usuarios con acceso a informes. Cuando está DESACTIVADO, solo el creador puede verlo."
+            },
+            {
+              "label": "Fuente de entidad",
+              "value": "La fuente de datos seleccionada al construir el informe (p. ej., Trabajos, Piezas). Se guarda automáticamente."
+            },
+            {
+              "label": "Columnas",
+              "value": "Los campos marcados. Se guardan automáticamente con la configuración del informe."
+            },
+            {
+              "label": "Filtros",
+              "value": "Todas las filas de filtro (campo + operador + valor). Se guardan automáticamente."
+            },
+            {
+              "label": "Agrupar por",
+              "value": "El campo de agrupación, si lo hay. Se guarda automáticamente."
+            },
+            {
+              "label": "Campo de orden + Dirección",
+              "value": "La columna de orden y la dirección asc/desc. Se guardan automáticamente."
+            },
+            {
+              "label": "Tipo de gráfico + Campos",
+              "value": "El tipo de gráfico, el campo de etiqueta y el campo de valor. Se guardan automáticamente."
+            }
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            {
+              "label": "Elementos de la barra lateral de informes",
+              "value": "Haga clic en cualquier nombre de informe predefinido para cargarlo. El informe activo se resalta. 27 informes disponibles."
+            },
+            {
+              "label": "Enlace al Generador de Informes",
+              "value": "Navega a /reports/builder. Abre la página del generador de consultas dinámico."
+            },
+            {
+              "label": "Enlace a Informes Sankey",
+              "value": "Navega a /reports/sankey. Abre la página de diagramas de flujo Sankey con 10 visualizaciones de flujo."
+            },
+            {
+              "label": "Ejecutar informe (generador)",
+              "value": "Ejecuta la consulta configurada. Deshabilitado hasta que se seleccione una fuente de entidad y se marque al menos una columna."
+            },
+            {
+              "label": "Guardar (generador)",
+              "value": "Abre el diálogo Guardar informe. Deshabilitado hasta que el informe pueda ejecutarse. Solicita nombre, descripción e interruptor de compartido."
+            },
+            {
+              "label": "CSV (generador)",
+              "value": "Exporta los resultados actuales a un archivo CSV. Solo visible después de ejecutar un informe."
+            },
+            {
+              "label": "Nuevo informe (generador)",
+              "value": "Borra la configuración actual (entidad, columnas, filtros, configuración del gráfico) y empieza de nuevo."
+            },
+            {
+              "label": "Cargar informe guardado (desplegable del generador)",
+              "value": "Menú desplegable de la barra de herramientas que enumera todos los informes guardados. Seleccionar uno carga su configuración completa. Muestra '-- Ninguno --' como primera opción."
+            },
+            {
+              "label": "Eliminar informe guardado (generador)",
+              "value": "Icono de papelera rojo junto al menú desplegable de informes guardados. Visible solo cuando se carga un informe guardado. Elimina el informe guardado."
+            },
+            {
+              "label": "Agregar filtro (generador)",
+              "value": "Agrega una nueva fila de filtro con controles de campo, operador y valor. Se pueden apilar múltiples filtros."
+            },
+            {
+              "label": "Eliminar filtro (generador)",
+              "value": "Icono X rojo en cada fila de filtro. Elimina esa condición de filtro."
+            },
+            {
+              "label": "Desglose del gráfico (drill-down)",
+              "value": "Haga clic en un segmento de barra o en un segmento circular/de anillo para filtrar la tabla de datos a ese segmento. Haga clic de nuevo para volver a la vista completa."
+            }
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            {
+              "label": "Fuente de entidad",
+              "value": "Obligatoria para ejecutar o guardar un informe. Debe seleccionar una de las 28 fuentes disponibles."
+            },
+            {
+              "label": "Columnas",
+              "value": "Debe seleccionarse al menos una columna para ejecutar el informe."
+            },
+            {
+              "label": "Valor de filtro",
+              "value": "Obligatorio para la mayoría de los operadores. No requerido para Es nulo y No es nulo."
+            },
+            {
+              "label": "Campos de etiqueta/valor del gráfico",
+              "value": "Obligatorios cuando se selecciona un tipo de gráfico distinto de Tabla. El campo de valor debe ser un campo numérico."
+            },
+            {
+              "label": "Guardar informe — Nombre",
+              "value": "Obligatorio, máximo 100 caracteres."
+            }
+          ]
+        },
+        {
+          "heading": "Informes de flujo Sankey (10)",
+          "items": [
+            {
+              "label": "Cotización a Cobro",
+              "value": "Muestra el flujo desde las cotizaciones, pasando por las órdenes de venta, los envíos y las facturas, hasta los pagos. Requiere rango de fechas."
+            },
+            {
+              "label": "Flujo de Etapa de Trabajos",
+              "value": "Visualiza cómo se mueven los trabajos entre las etapas Kanban a través de los tipos de vía."
+            },
+            {
+              "label": "Material a Producto",
+              "value": "Mapea las materias primas (BOM) a través de la producción hasta las piezas terminadas."
+            },
+            {
+              "label": "Órdenes de Trabajadores",
+              "value": "Muestra las asignaciones de trabajo fluyendo desde los trabajadores hasta el estado de finalización."
+            },
+            {
+              "label": "Flujo de Gastos",
+              "value": "Rastrea las categorías de gastos a través de la aprobación hasta el estado final. Requiere rango de fechas."
+            },
+            {
+              "label": "Cadena de Suministro de Proveedores",
+              "value": "Mapea los proveedores a través de las órdenes de compra hasta los materiales recibidos."
+            },
+            {
+              "label": "Rechazo de Calidad",
+              "value": "Muestra los resultados de inspección de calidad fluyendo a través de los resultados aprobado/rechazado/reproceso. Requiere rango de fechas."
+            },
+            {
+              "label": "Ubicación de Inventario",
+              "value": "Visualiza la distribución del inventario a través de las ubicaciones de almacenamiento y los contenedores."
+            },
+            {
+              "label": "Ingresos por Cliente",
+              "value": "Mapea los clientes a través de las órdenes y facturas hasta los ingresos. Requiere rango de fechas."
+            },
+            {
+              "label": "Finalización de Capacitación",
+              "value": "Muestra los módulos de capacitación fluyendo a través de la inscripción hasta el estado de finalización."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "reports-quiz",
+    "title": "Evaluación de conocimientos de Informes",
+    "summary": "Ponga a prueba su conocimiento del módulo de Informes: informes predefinidos, el generador de informes, fuentes de entidad, filtros, gráficos y exportación.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "rpt1",
+          "text": "Quiere ver cuántos trabajos hay actualmente en cada etapa Kanban. ¿Qué informe predefinido debe usar?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Trabajos por etapa",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Tendencia de finalización de trabajos"
+            },
+            {
+              "id": "c",
+              "text": "Tiempo en etapa"
+            },
+            {
+              "id": "d",
+              "text": "Carga de trabajo del equipo"
+            }
+          ],
+          "explanation": "Trabajos por etapa muestra un gráfico de barras del recuento de trabajos por etapa Kanban. Tendencia de finalización de trabajos muestra las finalizaciones a lo largo del tiempo, Tiempo en etapa muestra la duración pasada en cada etapa, y Carga de trabajo del equipo muestra las asignaciones por usuario."
+        },
+        {
+          "id": "rpt2",
+          "text": "En el Generador de Informes, ¿cuál es la configuración mínima necesaria para ejecutar un informe?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Seleccionar una fuente de entidad y elegir al menos una columna",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Seleccionar una fuente de entidad, agregar al menos un filtro y elegir un tipo de gráfico"
+            },
+            {
+              "id": "c",
+              "text": "Seleccionar solo una fuente de entidad —las columnas se seleccionan automáticamente"
+            },
+            {
+              "id": "d",
+              "text": "Cargar un informe guardado —no puede ejecutar una consulta ad hoc"
+            }
+          ],
+          "explanation": "El botón Ejecutar informe se habilita una vez que selecciona una fuente de entidad y marca al menos una columna. Los filtros, la agrupación, la ordenación y el tipo de gráfico son todos opcionales."
+        },
+        {
+          "id": "rpt3",
+          "text": "Necesita encontrar todas las facturas enviadas a un cliente específico en el primer trimestre (Q1). En el Generador de Informes, ¿cómo lo configura?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Seleccionar Facturas como fuente de entidad, agregar un filtro en Nombre del cliente (Igual a) y agregar un filtro en Fecha de factura (Entre) con las fechas de inicio y fin de Q1",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Seleccionar Clientes como fuente de entidad y filtrar por recuento de facturas"
+            },
+            {
+              "id": "c",
+              "text": "Usar el informe predefinido de Antigüedad de cuentas por cobrar y filtrar por cliente"
+            },
+            {
+              "id": "d",
+              "text": "Seleccionar Líneas de factura y agrupar por nombre del cliente"
+            }
+          ],
+          "explanation": "Use la fuente de entidad Facturas y luego agregue dos filtros: uno para Customer.Name (Igual a) con el nombre del cliente, y uno para InvoiceDate (Entre) con el rango de fechas de Q1. El operador Entre requiere dos valores."
+        },
+        {
+          "id": "rpt4",
+          "text": "¿Qué hace el interruptor 'Compartido' al guardar un informe en el Generador de Informes?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Cuando está ACTIVADO, el informe es visible para todos los usuarios con acceso a informes. Cuando está DESACTIVADO, solo el creador puede verlo.",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Cuando está ACTIVADO, los resultados del informe se almacenan en caché y se comparten entre sesiones"
+            },
+            {
+              "id": "c",
+              "text": "Cuando está ACTIVADO, el informe se exporta a una unidad de red compartida"
+            },
+            {
+              "id": "d",
+              "text": "Cuando está ACTIVADO, el informe envía notificaciones por correo electrónico a todos los gerentes"
+            }
+          ],
+          "explanation": "El interruptor Compartido controla la visibilidad. Los informes compartidos aparecen en el menú desplegable de Informes guardados para todos los usuarios que tienen acceso al módulo de Informes (Admin, Manager, Office Manager, PM). Los informes privados son visibles solo para el creador."
+        },
+        {
+          "id": "rpt5",
+          "text": "Quiere crear un gráfico circular que muestre los gastos por categoría. En el Generador de Informes, ¿qué campos configura?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Establecer el tipo de gráfico en Circular, el campo de etiqueta en Categoría y el campo de valor en Monto",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Establecer el tipo de gráfico en Circular y seleccionar Categoría como la única columna"
+            },
+            {
+              "id": "c",
+              "text": "Establecer el tipo de gráfico en Circular, agrupar por Categoría y ordenar por Monto"
+            },
+            {
+              "id": "d",
+              "text": "Establecer el tipo de gráfico en Barras y el campo de etiqueta en Categoría —los gráficos circulares no son compatibles"
+            }
+          ],
+          "explanation": "Para cualquier visualización de gráfico, necesita tres ajustes: Tipo de gráfico (Circular), Campo de etiqueta (el eje de categoría/segmento —Categoría) y Campo de valor (debe ser numérico —Monto). El campo de etiqueta determina qué representa cada segmento, y el campo de valor determina su tamaño."
+        },
+        {
+          "id": "rpt6",
+          "text": "¿Qué operador de filtro usaría para encontrar todos los trabajos cuya Fecha de vencimiento no se ha establecido?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Es nulo",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Igual a con un valor vacío"
+            },
+            {
+              "id": "c",
+              "text": "Distinto de con la fecha de hoy"
+            },
+            {
+              "id": "d",
+              "text": "Menor que con una fecha muy antigua"
+            }
+          ],
+          "explanation": "El operador Es nulo comprueba si un campo no tiene ningún valor. No requiere un valor de filtro. Esta es la forma correcta de encontrar registros con fechas faltantes, en lugar de comparar con cadenas vacías o fechas arbitrarias."
+        },
+        {
+          "id": "rpt7",
+          "text": "¿Cuántas fuentes de entidad están disponibles en el Generador de Informes?",
+          "options": [
+            {
+              "id": "a",
+              "text": "10"
+            },
+            {
+              "id": "b",
+              "text": "20"
+            },
+            {
+              "id": "c",
+              "text": "28",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "35"
+            }
+          ],
+          "explanation": "El Generador de Informes ofrece 28 fuentes de entidad: Trabajos, Piezas, Clientes, Gastos, Entradas de tiempo, Facturas, Prospectos, Activos, Órdenes de Compra, Órdenes de Venta, Cotizaciones, Envíos, Inventario, Pagos, Proveedores, Corridas de producción, Registros de lote, Inspecciones de QC, Programas de mantenimiento, Registros de mantenimiento, Registros de tiempo de inactividad, Devoluciones de clientes, Movimientos de contenedores, Ciclos de planificación, Líneas de factura, Líneas de orden de venta, Líneas de orden de compra y Líneas de cotización."
+        },
+        {
+          "id": "rpt8",
+          "text": "Hace clic en una barra de un gráfico dentro del Generador de Informes. ¿Qué ocurre?",
+          "options": [
+            {
+              "id": "a",
+              "text": "La tabla de datos de abajo se filtra para mostrar solo las filas que coinciden con ese segmento de barra",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Se abre un nuevo informe para ese segmento específico"
+            },
+            {
+              "id": "c",
+              "text": "La barra se resalta pero nada más cambia"
+            },
+            {
+              "id": "d",
+              "text": "El gráfico hace zoom en ese segmento de barra, mostrando subcategorías"
+            }
+          ],
+          "explanation": "Hacer clic en una barra o segmento circular/de anillo activa el filtrado de desglose (drill-down). La tabla de datos se actualiza para mostrar solo las filas que coinciden con el segmento en el que se hizo clic. Haga clic en el mismo segmento de nuevo o use la miga de pan para volver a la vista completa sin filtrar."
+        },
+        {
+          "id": "rpt9",
+          "text": "¿Qué roles tienen acceso al módulo de Informes?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Todos los roles, incluidos Ingenieros y Trabajadores de producción"
+            },
+            {
+              "id": "b",
+              "text": "Solo Admin, Manager, Office Manager y PM",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Solo Admin y Manager"
+            },
+            {
+              "id": "d",
+              "text": "Solo Admin"
+            }
+          ],
+          "explanation": "El módulo de Informes está restringido a los roles Admin, Manager, Office Manager y PM. Los Ingenieros y los Trabajadores de producción no tienen acceso directo a la página completa de informes, aunque pueden ver informes personales (Mi historial de trabajo, Mi registro de tiempo) a través de sus respectivas páginas de funciones."
+        },
+        {
+          "id": "rpt10",
+          "text": "Quiere ver un diagrama de flujo que muestre cómo las cotizaciones se convierten en efectivo a través del ciclo de vida de la orden. ¿A dónde va?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Informes → Informes de flujo Sankey → Cotización a Cobro",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Informes → Predefinidos → Cotización a cierre"
+            },
+            {
+              "id": "c",
+              "text": "Informes → Generador → seleccionar la fuente de entidad Cotizaciones"
+            },
+            {
+              "id": "d",
+              "text": "Panel → widget Financiero"
+            }
+          ],
+          "explanation": "El diagrama Sankey Cotización a Cobro es una de las 10 visualizaciones de flujo Sankey disponibles en Informes → Sankey. Muestra el flujo desde las cotizaciones, pasando por las órdenes de venta, los envíos y las facturas, hasta los pagos. El informe predefinido Cotización a cierre muestra las tasas de conversión, no el flujo visual."
+        },
+        {
+          "id": "rpt11",
+          "text": "Después de ejecutar un informe personalizado en el Generador de Informes, quiere descargar los resultados. ¿Qué opción de exportación está disponible directamente en el generador?",
+          "options": [
+            {
+              "id": "a",
+              "text": "CSV —haga clic en el botón CSV que aparece después de ejecutar el informe",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Excel —haga clic en el botón Excel de la barra de herramientas"
+            },
+            {
+              "id": "c",
+              "text": "PDF —haga clic en el botón PDF junto al gráfico"
+            },
+            {
+              "id": "d",
+              "text": "No hay exportación disponible —debe copiar y pegar desde la tabla"
+            }
+          ],
+          "explanation": "El Generador de Informes muestra un botón de exportación CSV en la barra de acciones después de ejecutar un informe. Exporta todas las filas de resultados con las columnas seleccionadas como un archivo separado por comas. La exportación a PDF está disponible a través del endpoint de la API del lado del servidor, pero la exportación principal dentro del generador es CSV."
+        },
+        {
+          "id": "rpt12",
+          "text": "Tiene un informe guardado que quiere modificar. ¿Cómo lo actualiza?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Cargar el informe guardado desde el menú desplegable, modificar la configuración y luego hacer clic en Guardar —actualiza el informe existente",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Eliminar el informe antiguo, hacer cambios y guardar como un informe nuevo"
+            },
+            {
+              "id": "c",
+              "text": "Los informes guardados no pueden modificarse —debe crear uno nuevo"
+            },
+            {
+              "id": "d",
+              "text": "Hacer clic derecho en el nombre del informe guardado y seleccionar Editar"
+            }
+          ],
+          "explanation": "Cuando carga un informe guardado desde el menú desplegable de la barra de herramientas, modifica cualquier ajuste (columnas, filtros, gráfico, etc.) y hace clic en Guardar, se actualiza el informe guardado existente con la nueva configuración. También puede eliminar un informe guardado usando el icono de papelera rojo junto al menú desplegable."
+        }
+      ]
+    }
+  }
+]

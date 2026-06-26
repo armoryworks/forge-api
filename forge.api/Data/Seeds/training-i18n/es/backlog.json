@@ -1,0 +1,694 @@
+[
+  {
+    "slug": "backlog-overview",
+    "title": "Visión general del Backlog",
+    "summary": "Qué es el backlog, cómo se relaciona con el tablero kanban, cómo filtrar trabajos, los modos de vista y la creación de nuevos trabajos.",
+    "contentJson": {
+      "body": "## Visión general del Backlog\n\nEl Backlog es su lista maestra de todos los trabajos en cada tipo de pista. Mientras que el Tablero Kanban le ofrece una vista visual, etapa por etapa, de una sola pista, el Backlog le permite ver todos los trabajos del sistema a la vez: buscar, filtrar, ordenar y clasificar el trabajo antes de que llegue al tablero.\n\n### Backlog vs. Tablero Kanban\n\nEl Tablero Kanban muestra los trabajos organizados en columnas por etapa dentro de un único tipo de pista (p. ej., Producción, I+D/Herramental, Mantenimiento). Usted interactúa con los trabajos de forma visual: arrastrando tarjetas entre etapas, viendo los límites de trabajo en curso (WIP) y siguiendo el flujo.\n\nEl Backlog es una lista plana de todos los trabajos, sin importar el tipo de pista. Es el lugar para:\n- **Encontrar cualquier trabajo** por número, título, cliente o responsable\n- **Clasificar el trabajo entrante** — revisar trabajos sin asignar o de baja prioridad\n- **Revisión masiva** — examinar todas las pistas para detectar elementos atrasados, cargas de trabajo desequilibradas o trabajos estancados\n- **Crear nuevos trabajos** que aterrizan en el tablero en la primera etapa de su pista\n\nCada trabajo del Backlog también aparece en su Tablero Kanban correspondiente. Los cambios realizados en cualquiera de los dos lugares se reflejan en ambos.\n\n### Dos modos de vista\n\nEl Backlog ofrece dos formas de ver sus trabajos:\n\n**Vista de tabla (predeterminada)** — Una tabla de datos con columnas ordenables y filtrables: Número de trabajo, Título, Etapa, Prioridad, Responsable, Cliente y Fecha de vencimiento. Haga clic en cualquier encabezado de columna para ordenar. Use los iconos de filtro de columna para filtrar por columna (búsqueda de texto, selección de enumeración o rango de fechas). Haga clic en cualquier fila para abrir el diálogo de detalle completo del trabajo.\n\n**Vista de tarjetas** — Una cuadrícula de tarjetas de trabajo que muestran el número de trabajo, el título, la ficha de etapa (codificada por color), el punto de prioridad, el avatar del responsable, el nombre del cliente y la fecha de vencimiento. Las tarjetas con retenciones activas muestran una insignia 'En espera'. Las tarjetas atrasadas se resaltan visualmente. Haga clic en cualquier tarjeta para abrir el diálogo de detalle del trabajo.\n\nAlterne entre las vistas usando los iconos de vista del encabezado de la página (view_list para la tabla, view_module para las tarjetas). Su preferencia se guarda y se restaura en su próxima visita.\n\n### Filtrado\n\nCuatro filtros en el encabezado de la página acotan la lista:\n\n- **Búsqueda** — búsqueda de texto libre en el número y el título del trabajo. Los resultados se actualizan a medida que escribe.\n- **Tipo de pista** — filtra a una pista específica (Producción, I+D/Herramental, etc.). Muestra solo los trabajos cuya etapa actual pertenece a esa pista.\n- **Prioridad** — filtra por Baja, Normal, Alta o Urgente.\n- **Responsable** — filtra a los trabajos asignados a un miembro específico del equipo.\n\nTodos los filtros funcionan en conjunto (lógica AND). El conteo filtrado se refleja tanto en la vista de tabla como en la de tarjetas.\n\n### Creación de trabajos\n\nHaga clic en el botón 'Crear trabajo' (con el icono +) del encabezado de la página para abrir el diálogo de creación de trabajos. Introducirá:\n\n- **Título** (obligatorio, máx. 200 caracteres)\n- **Descripción** (opcional, multilínea)\n- **Tipo de pista** (obligatorio) — determina a qué tablero y a qué etapa inicial ingresa el trabajo\n- **Cliente** (opcional) — vincula el trabajo a un registro de cliente\n- **Responsable** (opcional) — asigna a un miembro del equipo. Si el usuario seleccionado tiene un perfil incompleto, se muestra una advertencia.\n- **Prioridad** (predeterminada: Normal) — Baja, Normal, Alta o Urgente\n- **Fecha de vencimiento** (opcional) — se muestra en rojo cuando está atrasada\n\nEl nuevo trabajo se coloca en la primera etapa del tipo de pista seleccionado y aparece de inmediato tanto en el Backlog como en el Tablero Kanban.\n\n### Detalle del trabajo\n\nAl hacer clic en cualquier fila (vista de tabla) o tarjeta (vista de tarjetas) se abre el diálogo de detalle completo del trabajo a través del DetailDialogService. La URL se actualiza para incluir `?detail=job:{id}`, lo que hace que el enlace se pueda compartir y guardar como marcador. Desde el diálogo de detalle puede editar el trabajo, ver subtareas, archivos, registro de actividad y más.\n\n### Estilo de filas (vista de tabla)\n\n- **Filas atrasadas** reciben la clase `row--overdue`: un sutil tinte rojo que indica que la fecha de vencimiento ya pasó.\n- **Fila seleccionada** recibe la clase `row--selected`: resaltada para mostrar de qué trabajo está abierto el detalle actualmente.\n- **Tinte de color de etapa** — cada fila tiene un tenue tinte de fondo que coincide con el color de su etapa mediante la propiedad CSS personalizada `--row-tint`.\n\n### Colores de prioridad\n\nLa prioridad se muestra como un punto de color junto al nombre de la prioridad:\n- **Baja** — gris pizarra (#94a3b8)\n- **Normal** — verde azulado (#0d9488)\n- **Alta** — ámbar (#f59e0b)\n- **Urgente** — rojo (#dc2626)",
+      "sections": []
+    }
+  },
+  {
+    "slug": "backlog-walkthrough",
+    "title": "Backlog — Recorrido guiado",
+    "summary": "Un recorrido guiado por la página del backlog: búsqueda, filtros, vista de tabla, alternancia a vista de tarjetas, creación de trabajos y apertura de detalles de trabajos.",
+    "contentJson": {
+      "appRoute": "/backlog",
+      "startButtonLabel": "Recorrer Backlog",
+      "steps": [
+        {
+          "element": ".page-header app-input",
+          "popover": {
+            "title": "Buscar trabajos",
+            "description": "Escriba aquí para buscar por número o título de trabajo. Los resultados se filtran en tiempo real a medida que escribe. Funciona tanto en la vista de tabla como en la de tarjetas.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".page-header app-select:nth-of-type(1)",
+          "popover": {
+            "title": "Filtro de Tipo de pista",
+            "description": "Filtra los trabajos por tipo de pista (p. ej., Producción, I+D/Herramental, Mantenimiento). Cuando se selecciona, solo se muestran los trabajos cuya etapa actual pertenece a esa pista. Establézcalo en 'Todas las pistas' para ver todo.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".page-header app-select:nth-of-type(2)",
+          "popover": {
+            "title": "Filtro de Prioridad",
+            "description": "Filtra por nivel de prioridad: Baja, Normal, Alta o Urgente. Establézcalo en 'Todas las prioridades' para mostrar todos los trabajos sin importar la prioridad.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".page-header app-select:nth-of-type(3)",
+          "popover": {
+            "title": "Filtro de Responsable",
+            "description": "Filtra a los trabajos asignados a un miembro específico del equipo. La lista desplegable enumera a todos los usuarios. Establézcalo en 'Todos los responsables' para quitar el filtro.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".view-toggle",
+          "popover": {
+            "title": "Alternar modo de vista",
+            "description": "Cambie entre la vista de tabla (icono view_list) y la vista de tarjetas (icono view_module). La vista de tabla muestra una tabla de datos ordenable y filtrable. La vista de tarjetas muestra una cuadrícula de tarjetas de trabajo con colores de etapa, puntos de prioridad y avatares de responsable. Su preferencia se guarda automáticamente.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".new-job-btn",
+          "popover": {
+            "title": "Crear trabajo",
+            "description": "Haga clic para abrir el diálogo de creación de trabajos. Completará un título (obligatorio), una descripción opcional, el tipo de pista (obligatorio: determina a qué tablero ingresa el trabajo), el cliente, el responsable, la prioridad y la fecha de vencimiento. El trabajo se crea en la primera etapa de la pista seleccionada.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de trabajos",
+            "description": "La tabla de datos principal que muestra todos los trabajos filtrados. Columnas: Número de trabajo (80px), Título, Etapa (ficha codificada por color), Prioridad (punto de color + etiqueta), Responsable (avatar), Cliente y Fecha de vencimiento. Haga clic en cualquier encabezado de columna para ordenar. Haga clic en el icono de filtro de las columnas filtrables (Etapa, Prioridad, Responsable, Cliente, Fecha de vencimiento) para filtrar por columna. Haga clic en cualquier fila para abrir el diálogo de detalle completo del trabajo.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "backlog-field-reference",
+    "title": "Referencia de campos del Backlog",
+    "summary": "Referencia completa de cada campo, columna, filtro, botón, regla de validación, estilo de fila y modo de vista del Backlog.",
+    "contentJson": {
+      "title": "Referencia de campos del Backlog",
+      "groups": [
+        {
+          "heading": "Filtros del encabezado de la página",
+          "items": [
+            {
+              "label": "Búsqueda",
+              "value": "Entrada de texto libre. Filtra los trabajos por título o número de trabajo. No distingue mayúsculas de minúsculas, coincide en cualquier parte de la cadena. Los resultados se actualizan en tiempo real a medida que escribe."
+            },
+            {
+              "label": "Tipo de pista",
+              "value": "Lista desplegable de selección. Opciones: 'Todas las pistas' (predeterminada, muestra todos los trabajos) más una opción por cada tipo de pista configurado (p. ej., Producción, I+D/Herramental, Mantenimiento). Filtra haciendo coincidir la etapa actual del trabajo con la lista de etapas de la pista seleccionada."
+            },
+            {
+              "label": "Prioridad",
+              "value": "Lista desplegable de selección. Opciones: 'Todas las prioridades' (predeterminada), Baja, Normal, Alta, Urgente. Filtra a los trabajos que coinciden con el nivel de prioridad seleccionado."
+            },
+            {
+              "label": "Responsable",
+              "value": "Lista desplegable de selección. Opciones: 'Todos los responsables' (predeterminada) más una opción por cada usuario (mostrado por nombre). Filtra a los trabajos asignados al usuario seleccionado (coincidencia por iniciales)."
+            }
+          ]
+        },
+        {
+          "heading": "Alternar modo de vista",
+          "items": [
+            {
+              "label": "Botón de Vista de tabla (icono view_list)",
+              "value": "Cambia a la vista de tabla de datos. El estado activo se muestra mediante la clase icon-btn--active. Este es el modo de vista predeterminado."
+            },
+            {
+              "label": "Botón de Vista de tarjetas (icono view_module)",
+              "value": "Cambia a la vista de cuadrícula de tarjetas. El estado activo se muestra mediante la clase icon-btn--active."
+            },
+            {
+              "label": "Persistencia de la preferencia de vista",
+              "value": "El modo de vista se guarda en las preferencias del usuario (clave: backlog:viewMode) y se sincroniza con la URL mediante el parámetro de consulta ?view=card. La tabla es la predeterminada: solo el modo de tarjetas agrega un parámetro de consulta. La preferencia se restaura en la próxima visita, a menos que la URL especifique explícitamente una vista."
+            }
+          ]
+        },
+        {
+          "heading": "Campos del diálogo de creación/edición de trabajos",
+          "items": [
+            {
+              "label": "Título (obligatorio)",
+              "value": "Entrada de texto, máx. 200 caracteres. Validadores: required, maxLength(200). data-testid: job-title. Se muestra en las tarjetas kanban, la tabla del backlog y las vistas de detalle."
+            },
+            {
+              "label": "Descripción",
+              "value": "Área de texto, 3 filas. Opcional, sin longitud máxima impuesta en la interfaz. data-testid: job-description. Proporciona contexto adicional sobre el alcance del trabajo."
+            },
+            {
+              "label": "Tipo de pista (solo en modo de creación)",
+              "value": "Lista desplegable de selección, obligatoria. Opciones cargadas desde la API (tipos de pista configurados). Validadores: required. data-testid: job-track-type. Determina a qué tablero kanban y a qué etapa inicial ingresa el trabajo. Oculto en modo de edición: el tipo de pista no se puede cambiar después de la creación."
+            },
+            {
+              "label": "Cliente",
+              "value": "Lista desplegable de selección, opcional. Opciones cargadas desde la API (lista de clientes) más una opción nula/'-- Ninguno --'. data-testid: job-customer. Vincula el trabajo a un registro de cliente."
+            },
+            {
+              "label": "Responsable",
+              "value": "Lista desplegable de selección, opcional. Opciones cargadas desde la API (lista de usuarios) más una opción nula/'-- Ninguno --'. data-testid: job-assignee. Si el usuario seleccionado tiene un perfil incompleto (faltan campos obligatorios de incorporación), se muestra un mensaje de advertencia debajo del campo."
+            },
+            {
+              "label": "Prioridad",
+              "value": "Lista desplegable de selección. Opciones: Baja, Normal, Alta, Urgente. Predeterminada: Normal. data-testid: job-priority. Controla el color del punto de prioridad en las vistas de tabla y de tarjetas."
+            },
+            {
+              "label": "Fecha de vencimiento",
+              "value": "Selector de fecha, opcional. data-testid: job-due-date. Cuando se establece y la fecha ya pasó, el trabajo se marca como atrasado (texto rojo en la tabla, tarjeta resaltada en la cuadrícula)."
+            },
+            {
+              "label": "Botón Guardar",
+              "value": "data-testid: job-save-btn. Deshabilitado cuando el formulario no es válido o cuando hay un guardado en curso. Al pasar el cursor se muestra un popover de validación con la lista de infracciones (p. ej., 'El título es obligatorio', 'El tipo de pista es obligatorio')."
+            },
+            {
+              "label": "Botón Cancelar",
+              "value": "Cierra el diálogo sin guardar. Sin confirmación, a menos que el formulario tenga cambios sin guardar (protección de formulario modificado)."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla",
+          "items": [
+            {
+              "label": "Número de trabajo",
+              "value": "Ancho: 80px. Ordenable, filtrable (texto). Se representa en un span con estilo monoespaciado con la clase 'job-number'. Muestra el número de trabajo generado automáticamente (p. ej., J-1001)."
+            },
+            {
+              "label": "Título",
+              "value": "Ordenable, filtrable (texto). Se representa con la clase 'job-title'. El nombre principal del trabajo."
+            },
+            {
+              "label": "Etapa",
+              "value": "Ancho: 100px. Ordenable, filtrable (enumeración: opciones derivadas de los datos de trabajo actuales). Se representa como una ficha de color con --chip-color establecido en el color configurado de la etapa."
+            },
+            {
+              "label": "Prioridad",
+              "value": "Ancho: 90px. Ordenable, filtrable (enumeración: Baja/Normal/Alta/Urgente). Se representa como un punto de color (color de fondo de PRIORITY_COLORS) seguido del texto del nombre de la prioridad."
+            },
+            {
+              "label": "Responsable",
+              "value": "Ancho: 60px, alineado al centro. Filtrable (enumeración: opciones de la lista de usuarios por iniciales/nombre). Se representa como un componente app-avatar (tamaño sm) con las iniciales y el color del usuario. Sin asignar muestra una raya (—)."
+            },
+            {
+              "label": "Nombre del cliente",
+              "value": "Ancho: 120px. Ordenable, filtrable (enumeración: opciones derivadas de los datos de trabajo actuales, duplicados eliminados). Texto plano, raya (—) cuando no hay cliente asignado."
+            },
+            {
+              "label": "Fecha de vencimiento",
+              "value": "Ancho: 100px. Ordenable, filtrable (fecha). Formateada como MM/dd/yyyy mediante el DatePipe de Angular. Las fechas atrasadas se representan con la clase 'overdue-text' (color rojo)."
+            }
+          ]
+        },
+        {
+          "heading": "Estilo de filas (vista de tabla)",
+          "items": [
+            {
+              "label": "row--overdue",
+              "value": "Se aplica cuando job.isOverdue es true (la fecha de vencimiento ya pasó). Agrega un sutil tinte rojo de fondo a toda la fila."
+            },
+            {
+              "label": "row--selected",
+              "value": "Se aplica cuando el ID del trabajo coincide con el trabajo seleccionado actualmente (el diálogo de detalle está abierto para este trabajo). Resalta la fila para indicar la selección."
+            },
+            {
+              "label": "Variable CSS --row-tint",
+              "value": "Establecida en el color de etapa del trabajo. Proporciona un tenue tinte de fondo que coincide con el color de la etapa, dando una pista visual sobre en qué etapa está cada trabajo."
+            }
+          ]
+        },
+        {
+          "heading": "Elementos de la vista de tarjetas",
+          "items": [
+            {
+              "label": "Número de trabajo",
+              "value": "Se muestra en el encabezado de la tarjeta con la clase 'backlog-card__number'."
+            },
+            {
+              "label": "Insignia En espera",
+              "value": "Ficha de advertencia que se muestra en el encabezado de la tarjeta cuando job.activeHolds.length > 0. Texto: 'En espera'."
+            },
+            {
+              "label": "Título",
+              "value": "Texto del cuerpo de la tarjeta con la clase 'backlog-card__title'."
+            },
+            {
+              "label": "Ficha de etapa",
+              "value": "Ficha codificada por color con --chip-color establecido en job.stageColor. Muestra el nombre de la etapa actual."
+            },
+            {
+              "label": "Punto de prioridad + nombre",
+              "value": "Punto de color (backlog-card__priority-dot) con fondo de PRIORITY_COLORS, seguido del texto del nombre de la prioridad."
+            },
+            {
+              "label": "Avatar del responsable",
+              "value": "app-avatar (tamaño sm) que se muestra cuando el trabajo tiene un responsable. Se omite cuando no está asignado."
+            },
+            {
+              "label": "Cliente",
+              "value": "Se muestra debajo del área de metadatos con un icono de empresa. Solo se representa cuando job.customerName está presente."
+            },
+            {
+              "label": "Fecha de vencimiento",
+              "value": "Se muestra en el pie de la tarjeta con un icono de evento. Formateada como fecha corta. La clase 'backlog-card__date--overdue' se aplica cuando está atrasada (rojo). Se muestra el texto 'Sin fecha' cuando no hay fecha de vencimiento establecida."
+            },
+            {
+              "label": "backlog-card--overdue",
+              "value": "Se aplica a toda la tarjeta cuando job.isOverdue es true. Resalta visualmente la tarjeta."
+            },
+            {
+              "label": "backlog-card--selected",
+              "value": "Se aplica cuando el ID de trabajo de esta tarjeta coincide con el trabajo seleccionado. Resalta el borde/fondo de la tarjeta."
+            }
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            {
+              "label": "Crear trabajo (encabezado de la página)",
+              "value": "Botón con icono + y texto. Clase: new-job-btn. Abre el diálogo de creación de trabajos en modo 'create'. Este botón no tiene data-testid (está en el encabezado de la página, no en un diálogo)."
+            },
+            {
+              "label": "Clic en fila (tabla)",
+              "value": "Al hacer clic en cualquier fila de la tabla se abre el diálogo de detalle del trabajo mediante DetailDialogService. La URL se actualiza a ?detail=job:{id}. La fila seleccionada recibe el estilo row--selected."
+            },
+            {
+              "label": "Clic en tarjeta (vista de tarjetas)",
+              "value": "Al hacer clic en cualquier tarjeta se abre el diálogo de detalle del trabajo mediante DetailDialogService. La URL se actualiza a ?detail=job:{id}. La tarjeta seleccionada recibe el estilo backlog-card--selected."
+            },
+            {
+              "label": "Apertura automática del diálogo de detalle por URL",
+              "value": "Al cargar la página, si la URL contiene ?detail=job:{id}, el diálogo de detalle del trabajo se abre automáticamente. Esto admite enlaces directos, marcadores y la navegación atrás/adelante del navegador."
+            }
+          ]
+        },
+        {
+          "heading": "Carga de datos",
+          "items": [
+            {
+              "label": "Carga inicial",
+              "value": "Usa LoadingService.track() con forkJoin para cargar trabajos, tipos de pista y usuarios simultáneamente. Se muestra una superposición de carga global con el mensaje 'Cargando backlog...'."
+            },
+            {
+              "label": "Actualización tras guardar",
+              "value": "Después de crear o editar un trabajo mediante el diálogo, la lista de trabajos se vuelve a cargar desde la API. El diálogo se cierra y aparecen los datos actualizados."
+            },
+            {
+              "label": "Estado de error",
+              "value": "Si la carga inicial falla, la página muestra un icono de error (error_outline) con un mensaje de fallo en lugar del contenido de la tabla/tarjetas."
+            }
+          ]
+        },
+        {
+          "heading": "Colores de prioridad",
+          "items": [
+            {
+              "label": "Baja",
+              "value": "#94a3b8 (gris pizarra)"
+            },
+            {
+              "label": "Normal",
+              "value": "#0d9488 (verde azulado)"
+            },
+            {
+              "label": "Alta",
+              "value": "#f59e0b (ámbar)"
+            },
+            {
+              "label": "Urgente",
+              "value": "#dc2626 (rojo)"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "backlog-quiz",
+    "title": "Evaluación de conocimientos del Backlog",
+    "summary": "Ponga a prueba sus conocimientos del módulo Backlog: filtros, modos de vista, creación de trabajos, columnas de la tabla y elementos de las tarjetas.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "bl1",
+          "text": "¿Cuál es el propósito principal de la página del Backlog en comparación con el Tablero Kanban?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El Backlog reemplaza al Tablero Kanban para los equipos que prefieren las vistas de lista"
+            },
+            {
+              "id": "b",
+              "text": "El Backlog muestra todos los trabajos de cada tipo de pista en una lista plana para buscar, filtrar y clasificar el trabajo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El Backlog solo muestra los trabajos que aún no se han asignado a una pista"
+            },
+            {
+              "id": "d",
+              "text": "El Backlog es un archivo histórico de los trabajos completados"
+            }
+          ],
+          "explanation": "El Backlog es una lista maestra de todos los trabajos de cada tipo de pista. Mientras que el Tablero Kanban muestra una pista a la vez organizada por columnas de etapa, el Backlog le permite ver, buscar y filtrar todos los trabajos sin importar a qué pista pertenezcan."
+        },
+        {
+          "id": "bl2",
+          "text": "Desea encontrar todos los trabajos urgentes asignados a un miembro específico del equipo. ¿Qué filtros establece?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Establecer el campo de Búsqueda con el nombre del miembro del equipo y el filtro de Prioridad en Urgente"
+            },
+            {
+              "id": "b",
+              "text": "Establecer el filtro de Responsable en el miembro del equipo y el filtro de Prioridad en Urgente",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Establecer el filtro de Tipo de pista y luego ordenar la columna de Prioridad en orden descendente"
+            },
+            {
+              "id": "d",
+              "text": "Usar el campo de Búsqueda para escribir 'urgente' y examinar los resultados visualmente"
+            }
+          ],
+          "explanation": "El Backlog tiene filtros dedicados de Responsable y Prioridad en el encabezado de la página. Establezca Responsable en el nombre del miembro del equipo y Prioridad en Urgente. Estos filtros funcionan en conjunto con lógica AND, mostrando solo los trabajos que coinciden con ambos criterios."
+        },
+        {
+          "id": "bl3",
+          "text": "¿Qué sucede cuando cambia de la vista de tabla a la vista de tarjetas?",
+          "options": [
+            {
+              "id": "a",
+              "text": "La URL se actualiza para incluir ?view=card y la preferencia se guarda para su próxima visita",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Solo cambia la presentación: no se actualiza la URL ni la preferencia"
+            },
+            {
+              "id": "c",
+              "text": "Es redirigido a una ruta completamente diferente (/backlog/cards)"
+            },
+            {
+              "id": "d",
+              "text": "La vista de tarjetas se abre en una nueva pestaña del navegador"
+            }
+          ],
+          "explanation": "El modo de vista se sincroniza con la URL mediante el parámetro de consulta ?view=card y se guarda en las preferencias del usuario (clave: backlog:viewMode). La vista de tabla es la predeterminada y no agrega un parámetro de consulta. Su elección persiste entre sesiones."
+        },
+        {
+          "id": "bl4",
+          "text": "En el diálogo de creación de trabajos, ¿qué campos son obligatorios?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Título, Descripción y Tipo de pista"
+            },
+            {
+              "id": "b",
+              "text": "Título y Tipo de pista",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Título, Tipo de pista, Prioridad y Cliente"
+            },
+            {
+              "id": "d",
+              "text": "Solo el Título es obligatorio; el Tipo de pista se selecciona automáticamente"
+            }
+          ],
+          "explanation": "El diálogo de creación de trabajos requiere Título (máx. 200 caracteres) y Tipo de pista. Todos los demás campos —Descripción, Cliente, Responsable, Prioridad y Fecha de vencimiento— son opcionales. La Prioridad se establece de forma predeterminada en Normal si no se cambia."
+        },
+        {
+          "id": "bl5",
+          "text": "¿Qué atributo data-testid identifica el campo de entrada del título del trabajo en el diálogo de creación/edición?",
+          "options": [
+            {
+              "id": "a",
+              "text": "data-testid=\"backlog-title\""
+            },
+            {
+              "id": "b",
+              "text": "data-testid=\"job-title\"",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "data-testid=\"create-job-title\""
+            },
+            {
+              "id": "d",
+              "text": "data-testid=\"title-input\""
+            }
+          ],
+          "explanation": "La entrada del título del trabajo tiene data-testid=\"job-title\". Todos los campos del diálogo de trabajo siguen el patrón data-testid=\"job-{field}\": job-title, job-description, job-track-type, job-customer, job-assignee, job-priority, job-due-date y job-save-btn."
+        },
+        {
+          "id": "bl6",
+          "text": "Una fila de trabajo en la tabla tiene un tinte de fondo rojo. ¿Qué indica esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El trabajo tiene un nivel de prioridad crítico"
+            },
+            {
+              "id": "b",
+              "text": "El trabajo tiene un error y necesita atención"
+            },
+            {
+              "id": "c",
+              "text": "La fecha de vencimiento del trabajo ya pasó: está atrasado",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "El trabajo está actualmente en espera"
+            }
+          ],
+          "explanation": "La clase row--overdue se aplica cuando job.isOverdue es true (la fecha de vencimiento ya pasó). Esto agrega un sutil tinte rojo de fondo a toda la fila. Nota: el tenue tinte de color de etapa (--row-tint) es independiente y siempre está presente."
+        },
+        {
+          "id": "bl7",
+          "text": "¿Qué controla la propiedad CSS personalizada --row-tint en la tabla del backlog?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Establece el color del texto del título del trabajo para que coincida con la prioridad"
+            },
+            {
+              "id": "b",
+              "text": "Proporciona un tenue tinte de fondo que coincide con el color de la etapa actual del trabajo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Controla el color del borde del lado izquierdo de cada fila"
+            },
+            {
+              "id": "d",
+              "text": "Resalta la fila cuando el usuario pasa el cursor sobre ella"
+            }
+          ],
+          "explanation": "La propiedad CSS personalizada --row-tint se establece en el color de etapa del trabajo (job.stageColor) mediante la función backlogRowStyle. Esto le da a cada fila un sutil tinte de fondo que indica visualmente en qué etapa está el trabajo, incluso sin leer la columna Etapa."
+        },
+        {
+          "id": "bl8",
+          "text": "¿Cuándo aparece el campo Tipo de pista en el diálogo de trabajo?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Siempre aparece tanto en modo de creación como de edición"
+            },
+            {
+              "id": "b",
+              "text": "Solo aparece en modo de creación: el tipo de pista no se puede cambiar después de la creación",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Solo aparece en modo de edición: el modo de creación asigna automáticamente una pista predeterminada"
+            },
+            {
+              "id": "d",
+              "text": "Aparece como un campo de visualización de solo lectura en modo de edición"
+            }
+          ],
+          "explanation": "El selector de Tipo de pista (data-testid: job-track-type) solo se muestra en modo de creación. Una vez creado un trabajo, su tipo de pista es permanente y determina a qué tablero kanban pertenece. En modo de edición, el campo se oculta por completo."
+        },
+        {
+          "id": "bl9",
+          "text": "¿Cómo maneja el Backlog los enlaces directos al detalle de un trabajo específico?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Los ID de trabajo se almacenan en localStorage y se restauran al cargar la página"
+            },
+            {
+              "id": "b",
+              "text": "La URL incluye ?detail=job:{id}, lo que activa la apertura automática del diálogo de detalle al cargar la página",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Los enlaces directos no son compatibles: debe hacer clic en una fila para ver los detalles"
+            },
+            {
+              "id": "d",
+              "text": "El ID del trabajo se almacena en un segmento de ruta como /backlog/jobs/123"
+            }
+          ],
+          "explanation": "Cuando hace clic en una fila o tarjeta, la URL se actualiza para incluir ?detail=job:{id} mediante el DetailDialogService. Al cargar la página, si este parámetro de consulta está presente, el diálogo de detalle se abre automáticamente. Esto hace que los enlaces se puedan compartir y guardar como marcadores, y admite la navegación atrás/adelante del navegador."
+        },
+        {
+          "id": "bl10",
+          "text": "¿Qué icono se usa para el botón de alternancia de la Vista de tarjetas?",
+          "options": [
+            {
+              "id": "a",
+              "text": "grid_view"
+            },
+            {
+              "id": "b",
+              "text": "dashboard"
+            },
+            {
+              "id": "c",
+              "text": "view_module",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "apps"
+            }
+          ],
+          "explanation": "La alternancia de la Vista de tarjetas usa el icono Material view_module. La alternancia de la Vista de tabla usa view_list. Ambas están en el grupo view-toggle del encabezado de la página. El botón activo recibe la clase icon-btn--active."
+        },
+        {
+          "id": "bl11",
+          "text": "En la vista de tarjetas, ¿qué hace que aparezca la insignia 'En espera' en una tarjeta de trabajo?",
+          "options": [
+            {
+              "id": "a",
+              "text": "La prioridad del trabajo está establecida en Urgente"
+            },
+            {
+              "id": "b",
+              "text": "El trabajo ha estado en la misma etapa durante más de 7 días"
+            },
+            {
+              "id": "c",
+              "text": "El trabajo tiene una o más retenciones activas (job.activeHolds.length > 0)",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "El responsable del trabajo no ha iniciado sesión recientemente"
+            }
+          ],
+          "explanation": "La insignia 'En espera' (una ficha de color de advertencia) aparece en el encabezado de la tarjeta cuando job.activeHolds.length > 0. Las retenciones se gestionan a través de las funciones del ciclo de vida del estado del diálogo de detalle del trabajo e indican que el trabajo está bloqueado o pausado."
+        },
+        {
+          "id": "bl12",
+          "text": "¿Qué color representa el punto de un trabajo de prioridad 'Alta' en el backlog?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Rojo (#dc2626)"
+            },
+            {
+              "id": "b",
+              "text": "Verde azulado (#0d9488)"
+            },
+            {
+              "id": "c",
+              "text": "Ámbar (#f59e0b)",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Gris pizarra (#94a3b8)"
+            }
+          ],
+          "explanation": "Los colores de prioridad son: Baja = #94a3b8 (gris pizarra), Normal = #0d9488 (verde azulado), Alta = #f59e0b (ámbar), Urgente = #dc2626 (rojo). Estos colores se definen en la constante PRIORITY_COLORS y se usan tanto para el punto de la tabla como para el punto de la vista de tarjetas."
+        },
+        {
+          "id": "bl13",
+          "text": "¿Qué sucede cuando pasa el cursor sobre un botón Guardar deshabilitado en el diálogo de creación de trabajos?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Nada: el botón está atenuado sin retroalimentación adicional"
+            },
+            {
+              "id": "b",
+              "text": "Una información sobre herramientas dice 'Complete todos los campos obligatorios'"
+            },
+            {
+              "id": "c",
+              "text": "Aparece un popover de validación que indica qué campos tienen errores (p. ej., 'El título es obligatorio')",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Los campos no válidos parpadean en rojo para llamar la atención"
+            }
+          ],
+          "explanation": "El botón Guardar usa el ValidationPopoverDirective ([appValidationPopover]). Cuando el formulario no es válido y pasa el cursor sobre el botón deshabilitado, aparece un popover con una lista de infracciones de validación, como 'El título es obligatorio' o 'El tipo de pista es obligatorio'. Este es el patrón estándar de validación de formularios de QB Engineer: sin mensajes mat-error en línea."
+        },
+        {
+          "id": "bl14",
+          "text": "¿Cómo funciona el filtro de Tipo de pista en el Backlog?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Oculta todos los trabajos excepto aquellos cuyo job.trackTypeId coincide con la pista seleccionada"
+            },
+            {
+              "id": "b",
+              "text": "Filtra los trabajos haciendo coincidir el nombre de la etapa actual del trabajo con la lista de etapas del tipo de pista seleccionado",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Agrupa las filas de la tabla por tipo de pista, contrayendo las pistas no seleccionadas"
+            },
+            {
+              "id": "d",
+              "text": "Lo lleva al Tablero Kanban de la pista seleccionada"
+            }
+          ],
+          "explanation": "El filtro de Tipo de pista busca las etapas de la pista seleccionada, crea un Set de nombres de etapa y filtra los trabajos solo a aquellos cuyo stageName actual está en ese conjunto. Esto significa que si un trabajo está en una etapa que pertenece a la pista seleccionada, aparece: el filtro funciona mediante la pertenencia a la etapa, no mediante un trackTypeId directo en el trabajo."
+        },
+        {
+          "id": "bl15",
+          "text": "¿Qué data-testid usaría para localizar el selector de fecha de vencimiento en el diálogo de creación de trabajos?",
+          "options": [
+            {
+              "id": "a",
+              "text": "data-testid=\"job-dueDate\""
+            },
+            {
+              "id": "b",
+              "text": "data-testid=\"job-due-date\"",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "data-testid=\"backlog-due-date\""
+            },
+            {
+              "id": "d",
+              "text": "data-testid=\"create-due-date\""
+            }
+          ],
+          "explanation": "El selector de fecha de vencimiento tiene data-testid=\"job-due-date\". El diálogo de trabajo usa la convención de nomenclatura data-testid=\"job-{field-name}\" con nombres de campo en kebab-case: job-title, job-description, job-track-type, job-customer, job-assignee, job-priority, job-due-date y job-save-btn."
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,1018 @@
+[
+  {
+    "slug": "customers-overview",
+    "title": "Visión general de Clientes",
+    "summary": "Qué hace el módulo de Clientes, la página de detalle con 9 pestañas, los contactos, las direcciones, la gestión de crédito y cómo se conectan los clientes con las cotizaciones, las órdenes, los trabajos y las facturas.",
+    "contentJson": {
+      "body": "## Visión general de Clientes\n\nEl módulo de Clientes es su centro de relaciones con los clientes. Realiza el seguimiento de cada cliente con el que trabaja su taller: sus personas de contacto, direcciones, estado de crédito, estimados, cotizaciones, órdenes de venta, trabajos, facturas y el historial de actividad completo. Cada cliente obtiene una página de detalle dedicada con 10 pestañas que le brindan una vista de 360 grados de la relación.\n\n### Página de lista de clientes\n\nLa página principal `/customers` muestra todos los clientes en una tabla de datos buscable y ordenable. Puede filtrar por estado activo/inactivo y buscar por nombre, empresa, correo electrónico o teléfono. Haga clic en cualquier fila para navegar a la página de detalle de ese cliente. El botón Agregar cliente abre un diálogo de creación rápida con campos de nombre, nombre de la empresa, correo electrónico y teléfono.\n\n### Página de detalle del cliente — 10 pestañas\n\nCada página de detalle del cliente reside en `/customers/:id/:tab` e incluye un encabezado con el nombre del cliente, la empresa, la información de contacto, un chip de estado activo/inactivo y una insignia de integración contable cuando se sincroniza con un proveedor externo como QuickBooks.\n\n#### Barra de estadísticas\n\nDebajo del encabezado, una barra de estadísticas en la que se puede hacer clic muestra agregados en vivo:\n- **Estimados abiertos** — conteo de estimados no cerrados\n- **Cotizaciones abiertas** — conteo de cotizaciones activas\n- **Órdenes abiertas** — conteo de órdenes de venta en curso\n- **Trabajos activos** — conteo de trabajos actualmente en el tablero kanban\n- **Pendiente** — monto total en dólares de las facturas impagas\n- **Ingresos del año en curso** — ingresos totales de este cliente en el año actual\n\nAl hacer clic en una estadística se cambia a la pestaña correspondiente para profundizar rápidamente.\n\n#### Pestaña 1: Resumen\n\nMuestra los detalles de la cuenta (nombre, empresa, correo electrónico, teléfono, estado, fecha de cliente desde), la información de integración contable (proveedor, ID externo, referencia) cuando está conectada, y la tarjeta de Estado de crédito.\n\n**La tarjeta de Estado de crédito** muestra:\n- Chip de nivel de riesgo (Bajo/Medio/Alto/EnRetención)\n- Banner de Retención de crédito con motivo y botón Liberar (cuando está en retención)\n- Límite de crédito, saldo de CxC abierto, total de órdenes pendientes, exposición total, crédito disponible y porcentaje de utilización\n- Barra visual de utilización que se vuelve roja cuando se supera el límite\n- Botón Colocar retención para bloquear nuevas órdenes con un motivo obligatorio\n\n#### Pestaña 2: Contactos\n\nGestione las personas de contacto de este cliente. Cada contacto se muestra como una tarjeta con avatar, nombre (formato Apellido, Nombre), rol, correo electrónico, teléfono e insignia de contacto principal. Puede agregar, editar y eliminar contactos. Los roles de contacto provienen de los datos de referencia (basados en la base de datos, no codificados de forma fija).\n\n#### Pestaña 3: Interacciones\n\nRegistre y haga seguimiento de las interacciones con el cliente: llamadas, correos electrónicos, reuniones y notas. Cada interacción registra el tipo, el asunto, el contacto, quién la registró, la fecha, la duración y las notas. Filtre por contacto o tipo. La tabla muestra el tipo (con icono), el asunto, el nombre del contacto, el usuario que la registró, la fecha y la duración.\n\n#### Pestaña 4: Direcciones\n\nVea todas las direcciones registradas. Cada tarjeta de dirección muestra el chip del tipo de dirección (Facturación, Envío, etc.), una insignia Predeterminada si corresponde, y la dirección completa (línea 1, línea 2, ciudad, estado, código postal, país).\n\n#### Pestaña 5: Estimados\n\nCifras aproximadas no vinculantes para trabajo potencial. Cada estimado tiene un título, una descripción, un monto estimado, una fecha de validez, un estado (Borrador, Enviado, Aceptado, Rechazado, Caducado) y notas. Los estimados pueden convertirse en Cotizaciones formales mediante el botón de conversión. La tabla muestra el título, el monto, el estado, la fecha de validez, la fecha de creación y los botones de acción (convertir a cotización, eliminar).\n\n#### Pestaña 6: Cotizaciones\n\nCompromisos de precio vinculantes y desglosados por línea. La tabla muestra el número de cotización, el estado, el monto total, la fecha de vencimiento y la fecha de creación. Haga clic en una fila para abrir el diálogo de detalle completo de la cotización.\n\n#### Pestaña 7: Órdenes\n\nÓrdenes de venta de este cliente. La tabla muestra el número de orden, el estado (chip codificado por color), el total, la fecha solicitada y la fecha de creación. Haga clic para abrir el diálogo de detalle de la orden de venta.\n\n#### Pestaña 8: Trabajos\n\nTodos los trabajos kanban vinculados a este cliente. La tabla muestra el título del trabajo, la etapa (chip codificado por color que coincide con el color de la etapa kanban), la fecha de vencimiento y la fecha de creación. Haga clic para abrir el diálogo de detalle del trabajo.\n\n#### Pestaña 9: Facturas\n\nFacturas emitidas a este cliente. La tabla muestra el número de factura, el estado, el total, la fecha de vencimiento y la fecha de creación. Haga clic para abrir el diálogo de detalle de la factura.\n\n#### Pestaña 10: Actividad\n\nLínea de tiempo de actividad cronológica que muestra todos los cambios, comentarios y eventos relacionados con este cliente. Usa el componente compartido ActivityTimeline.\n\n### Cómo se conectan los clientes con otras funciones\n\n**Flujo de cotización a cobro:** Cliente → Estimado → Cotización → Orden de venta → Trabajo → Envío → Factura → Pago. Cada paso de esta cadena se vincula de vuelta al registro del cliente.\n\n**Trabajos:** Cuando se crea un trabajo en el tablero kanban, puede asignarse a un cliente. La pestaña Trabajos del cliente muestra todos los trabajos vinculados.\n\n**Gestión de crédito:** La tarjeta de estado de crédito supervisa la exposición (CxC abierto + órdenes pendientes) frente al límite de crédito. Cuando un cliente está en retención de crédito, las nuevas órdenes se bloquean hasta que se libere la retención.\n\n**Integración contable:** Cuando está conectado a QuickBooks u otro proveedor contable, el registro del cliente se sincroniza bidireccionalmente. La insignia del proveedor y los ID externos aparecen en la pestaña Resumen.\n\n### Cuándo usar Clientes\n\n- Al incorporar un nuevo cliente por primera vez\n- Al consultar el historial completo de un cliente (órdenes, trabajos, facturas)\n- Al verificar el estado de crédito antes de aceptar una nueva orden\n- Al registrar una llamada telefónica, un correo electrónico o una reunión con un contacto del cliente\n- Al gestionar las direcciones de facturación y envío\n- Al crear estimados o convertirlos en cotizaciones formales",
+      "sections": []
+    }
+  },
+  {
+    "slug": "customers-walkthrough",
+    "title": "Clientes — Recorrido guiado",
+    "summary": "Un recorrido guiado por la página de lista de clientes, la página de detalle con 10 pestañas, la barra de estadísticas, los contactos, las direcciones, los estimados, el estado de crédito y las interacciones.",
+    "contentJson": {
+      "appRoute": "/customers",
+      "startButtonLabel": "Recorrer Clientes",
+      "steps": [
+        {
+          "element": "[data-testid='new-customer-btn']",
+          "popover": {
+            "title": "Botón Agregar cliente",
+            "description": "Haga clic aquí para crear un nuevo cliente. Introducirá el nombre del cliente, el nombre de la empresa (opcional), el correo electrónico y el teléfono. Tras guardar, se le llevará a la página de detalle del nuevo cliente.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-input",
+          "popover": {
+            "title": "Buscar clientes",
+            "description": "Busque por nombre del cliente, nombre de la empresa, correo electrónico o número de teléfono. Presione Enter para aplicar la búsqueda. Los resultados se actualizan en la tabla a continuación.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-select",
+          "popover": {
+            "title": "Filtro Activo/Inactivo",
+            "description": "Filtre la lista para mostrar solo clientes Activos, solo clientes Inactivos o Todos. Los nuevos clientes tienen estado Activo de forma predeterminada.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de clientes",
+            "description": "Muestra todos los clientes con columnas para Nombre, Empresa, Correo electrónico, Teléfono, estado Activo (chip verde/gris), conteo de Contactos, conteo de Trabajos y fecha de Creación. Haga clic en cualquier fila para navegar a la página de detalle del cliente. Haga clic en los encabezados de columna para ordenar.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "customers-field-reference",
+    "title": "Referencia de campos de Clientes",
+    "summary": "Referencia completa de cada campo, botón, estado, regla de validación, pestaña, columna de tabla y acción del módulo de Clientes.",
+    "contentJson": {
+      "title": "Referencia de campos de Clientes",
+      "groups": [
+        {
+          "heading": "Campos del formulario de creación/edición de cliente",
+          "items": [
+            {
+              "label": "Nombre (obligatorio)",
+              "value": "Entrada de texto. El nombre para mostrar del cliente. No puede estar vacío. Máximo 200 caracteres."
+            },
+            {
+              "label": "Nombre de la empresa",
+              "value": "Entrada de texto, opcional. El nombre del negocio o empresa del cliente. Se muestra debajo del nombre del cliente en el encabezado de detalle."
+            },
+            {
+              "label": "Correo electrónico",
+              "value": "Entrada de texto, opcional. Debe tener un formato de correo electrónico válido cuando se proporciona. Máximo 200 caracteres. Se muestra como un enlace mailto: en el que se puede hacer clic en el encabezado de detalle."
+            },
+            {
+              "label": "Teléfono",
+              "value": "Entrada de texto con máscara telefónica, opcional. Da formato como (XXX) XXX-XXXX. Se muestra como un enlace tel: en el que se puede hacer clic en el encabezado de detalle."
+            },
+            {
+              "label": "Está activo (solo edición)",
+              "value": "Conmutador, mostrado solo en el diálogo de edición. Controla si el cliente aparece en las vistas filtradas por activos. De forma predeterminada es verdadero para los nuevos clientes."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de lista de clientes",
+          "items": [
+            {
+              "label": "Nombre",
+              "value": "Ordenable. Nombre para mostrar del cliente."
+            },
+            {
+              "label": "Empresa",
+              "value": "Ordenable. Nombre de la empresa, o un guion si no está establecido."
+            },
+            {
+              "label": "Correo electrónico",
+              "value": "Ordenable. Dirección de correo electrónico, o un guion si no está establecida."
+            },
+            {
+              "label": "Teléfono",
+              "value": "Ordenable. Número de teléfono, o un guion si no está establecido."
+            },
+            {
+              "label": "Activo",
+              "value": "Ordenable, filtrable (enum). Chip verde 'Activo' o chip gris 'Inactivo'."
+            },
+            {
+              "label": "Contactos",
+              "value": "Ordenable, centrado. Conteo de contactos vinculados a este cliente."
+            },
+            {
+              "label": "Trabajos",
+              "value": "Ordenable, centrado. Conteo de trabajos vinculados a este cliente."
+            },
+            {
+              "label": "Creado",
+              "value": "Ordenable, tipo fecha. Fecha de creación del cliente en formato MM/dd/yyyy."
+            }
+          ]
+        },
+        {
+          "heading": "Métricas de la barra de estadísticas",
+          "items": [
+            {
+              "label": "Estimados abiertos",
+              "value": "Conteo de estimados no cerrados de este cliente. Se puede hacer clic; cambia a la pestaña Estimados."
+            },
+            {
+              "label": "Cotizaciones abiertas",
+              "value": "Conteo de cotizaciones activas. Se puede hacer clic; cambia a la pestaña Cotizaciones."
+            },
+            {
+              "label": "Órdenes abiertas",
+              "value": "Conteo de órdenes de venta en curso. Se puede hacer clic; cambia a la pestaña Órdenes."
+            },
+            {
+              "label": "Trabajos activos",
+              "value": "Conteo de trabajos kanban actualmente activos. Se puede hacer clic; cambia a la pestaña Trabajos."
+            },
+            {
+              "label": "Pendiente",
+              "value": "Monto total en dólares de las facturas impagas, formateado como moneda. Se puede hacer clic; cambia a la pestaña Facturas."
+            },
+            {
+              "label": "Ingresos del año en curso",
+              "value": "Ingresos totales de este cliente en el año actual, formateados como moneda. No se puede hacer clic."
+            }
+          ]
+        },
+        {
+          "heading": "Pestañas de la página de detalle",
+          "items": [
+            {
+              "label": "Resumen",
+              "value": "Detalles de la cuenta, información de integración contable (proveedor, ID externo, referencia) y tarjeta de Estado de crédito."
+            },
+            {
+              "label": "Contactos",
+              "value": "Tarjetas de contacto con avatar, nombre, rol, correo electrónico, teléfono, insignia de principal. CRUD completo (agregar, editar, eliminar)."
+            },
+            {
+              "label": "Interacciones",
+              "value": "Registro de interacciones con el contacto: llamadas, correos electrónicos, reuniones, notas. Filtre por contacto y tipo. CRUD completo."
+            },
+            {
+              "label": "Direcciones",
+              "value": "Tarjetas de dirección con chip de tipo (Facturación/Envío/etc.), insignia Predeterminada y líneas de dirección completas. Visualización de solo lectura."
+            },
+            {
+              "label": "Estimados",
+              "value": "Cifras aproximadas no vinculantes. DataTable con título, monto, estado, validez, creación. Crear, editar, eliminar, convertir a cotización."
+            },
+            {
+              "label": "Cotizaciones",
+              "value": "Cotizaciones vinculantes desglosadas por línea. DataTable con número de cotización, estado, total, fecha de vencimiento, creación. Haga clic para abrir el diálogo de detalle de la cotización."
+            },
+            {
+              "label": "Órdenes",
+              "value": "Órdenes de venta. DataTable con número de orden, estado, total, fecha solicitada, creación. Haga clic para abrir el diálogo de detalle de la orden de venta."
+            },
+            {
+              "label": "Trabajos",
+              "value": "Trabajos kanban vinculados. DataTable con título, etapa (chip codificado por color), fecha de vencimiento, creación. Haga clic para abrir el diálogo de detalle del trabajo."
+            },
+            {
+              "label": "Facturas",
+              "value": "Facturas emitidas. DataTable con número de factura, estado, total, fecha de vencimiento, creación. Haga clic para abrir el diálogo de detalle de la factura."
+            },
+            {
+              "label": "Actividad",
+              "value": "Línea de tiempo de actividad cronológica de todos los cambios, comentarios y eventos. Usa el componente compartido ActivityTimeline."
+            }
+          ]
+        },
+        {
+          "heading": "Campos del formulario de contacto",
+          "items": [
+            {
+              "label": "Nombre (obligatorio)",
+              "value": "Entrada de texto. Máximo 100 caracteres. Se muestra en formato Apellido, Nombre en toda la aplicación."
+            },
+            {
+              "label": "Apellido (obligatorio)",
+              "value": "Entrada de texto. Máximo 100 caracteres."
+            },
+            {
+              "label": "Correo electrónico",
+              "value": "Entrada de texto, opcional. Debe tener un formato de correo electrónico válido. Máximo 200 caracteres. Se muestra como un enlace mailto: en el que se puede hacer clic en la tarjeta de contacto."
+            },
+            {
+              "label": "Teléfono",
+              "value": "Entrada de texto con máscara telefónica, opcional. Da formato como (XXX) XXX-XXXX. Se muestra como un enlace tel: en el que se puede hacer clic en la tarjeta de contacto."
+            },
+            {
+              "label": "Rol",
+              "value": "Menú desplegable de selección, opcional. Las opciones se cargan desde los datos de referencia (grupo contact_role). '-- Ninguno --' es la opción nula."
+            },
+            {
+              "label": "Contacto principal",
+              "value": "Conmutador. Cuando está ACTIVADO, marca este contacto como el contacto principal. Se muestra con una insignia de chip azul 'Principal' en la tarjeta de contacto."
+            }
+          ]
+        },
+        {
+          "heading": "Campos del formulario de interacción",
+          "items": [
+            {
+              "label": "Tipo (obligatorio)",
+              "value": "Menú desplegable de selección: Llamada, Correo electrónico, Reunión, Nota. Cada tipo tiene un icono distintivo en la visualización de la tabla."
+            },
+            {
+              "label": "Contacto",
+              "value": "Menú desplegable de selección, opcional. Vincula la interacción a un contacto específico. Las opciones muestran todos los contactos de este cliente más la opción nula '-- Todos los contactos --'."
+            },
+            {
+              "label": "Asunto (obligatorio)",
+              "value": "Entrada de texto. Máximo 200 caracteres. Breve descripción de la interacción."
+            },
+            {
+              "label": "Fecha (obligatoria)",
+              "value": "Selector de fecha. Cuándo ocurrió la interacción. De forma predeterminada es hoy."
+            },
+            {
+              "label": "Duración (minutos)",
+              "value": "Entrada numérica, opcional. Duración de la interacción en minutos. Se muestra formateada en la tabla."
+            },
+            {
+              "label": "Notas",
+              "value": "Área de texto, opcional. 4 filas. Notas detalladas sobre la interacción."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de interacciones",
+          "items": [
+            {
+              "label": "Tipo",
+              "value": "Ordenable, filtrable (enum). Chip con icono: phone (Llamada), email (Correo electrónico), groups (Reunión), note (Nota). Ancho 100px."
+            },
+            {
+              "label": "Asunto",
+              "value": "Ordenable. El texto del asunto de la interacción."
+            },
+            {
+              "label": "Contacto",
+              "value": "Ordenable. Nombre del contacto (Apellido, Nombre). Ancho 160px."
+            },
+            {
+              "label": "Registrado por",
+              "value": "Ordenable. Usuario que registró la interacción. Ancho 160px."
+            },
+            {
+              "label": "Fecha",
+              "value": "Ordenable, tipo fecha. Fecha de la interacción en formato MM/dd/yyyy. Ancho 120px."
+            },
+            {
+              "label": "Duración",
+              "value": "Ordenable, tipo numérico. Duración en minutos, formateada. Ancho 90px."
+            },
+            {
+              "label": "Acciones",
+              "value": "Botones de icono de editar y eliminar. Ancho 80px."
+            }
+          ]
+        },
+        {
+          "heading": "Campos del formulario de estimado",
+          "items": [
+            {
+              "label": "Título (obligatorio)",
+              "value": "Entrada de texto. Máximo 300 caracteres. Título breve para el estimado."
+            },
+            {
+              "label": "Descripción",
+              "value": "Área de texto, opcional. 2 filas. Descripción más detallada del alcance del estimado."
+            },
+            {
+              "label": "Monto estimado (obligatorio)",
+              "value": "Entrada de moneda con prefijo $. Debe ser >= 0."
+            },
+            {
+              "label": "Válido hasta",
+              "value": "Selector de fecha, opcional. Fecha de caducidad del estimado."
+            },
+            {
+              "label": "Estado (solo edición)",
+              "value": "Menú desplegable de selección, mostrado solo al editar. Opciones: Borrador, Enviado, Aceptado, Rechazado, Caducado."
+            },
+            {
+              "label": "Notas",
+              "value": "Área de texto, opcional. 2 filas. Notas internas."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de estimados",
+          "items": [
+            {
+              "label": "Título",
+              "value": "Ordenable. Texto del título del estimado."
+            },
+            {
+              "label": "Monto",
+              "value": "Ordenable, tipo numérico, alineado a la derecha. Monto estimado formateado como moneda. Ancho 120px."
+            },
+            {
+              "label": "Estado",
+              "value": "Ordenable, filtrable (enum). Chip codificado por color: Borrador, Enviado, Aceptado, Rechazado, Caducado. Ancho 110px."
+            },
+            {
+              "label": "Válido hasta",
+              "value": "Ordenable, tipo fecha. Fecha de caducidad en formato MM/dd/yyyy. Ancho 110px."
+            },
+            {
+              "label": "Creado",
+              "value": "Ordenable, tipo fecha. Fecha de creación en formato MM/dd/yyyy. Ancho 100px."
+            },
+            {
+              "label": "Acciones",
+              "value": "Botón Convertir a cotización (icono de avance, oculto si ya se convirtió) y botón Eliminar. Ancho 100px."
+            }
+          ]
+        },
+        {
+          "heading": "Campos de la tarjeta de Estado de crédito",
+          "items": [
+            {
+              "label": "Nivel de riesgo",
+              "value": "Insignia de chip: Bajo (verde), Medio (amarillo), Alto (rojo), EnRetención (rojo). Se calcula a partir de la utilización del crédito y el estado de retención."
+            },
+            {
+              "label": "Banner de Retención de crédito",
+              "value": "Banner rojo mostrado cuando el cliente está en retención. Muestra el motivo de la retención y un botón Liberar."
+            },
+            {
+              "label": "Límite de crédito",
+              "value": "Valor de moneda o 'Ninguno' si no se ha establecido un límite. La exposición de crédito máxima permitida."
+            },
+            {
+              "label": "CxC abierto",
+              "value": "Valor de moneda. Total de facturas impagas (cuentas por cobrar)."
+            },
+            {
+              "label": "Órdenes pendientes",
+              "value": "Valor de moneda. Total de órdenes de venta en curso aún no facturadas."
+            },
+            {
+              "label": "Exposición total",
+              "value": "Valor de moneda. CxC abierto + Órdenes pendientes combinados. Se vuelve rojo cuando se supera el límite."
+            },
+            {
+              "label": "Crédito disponible",
+              "value": "Valor de moneda. Límite de crédito menos Exposición total. Se vuelve rojo cuando es negativo. Solo se muestra cuando se establece un límite de crédito."
+            },
+            {
+              "label": "Utilización",
+              "value": "Porcentaje. Exposición total / Límite de crédito × 100. Solo se muestra cuando se establece un límite de crédito."
+            },
+            {
+              "label": "Barra de utilización",
+              "value": "Barra de progreso visual. Se vuelve roja cuando la utilización supera el 100%."
+            },
+            {
+              "label": "Botón Colocar retención",
+              "value": "Abre el diálogo para colocar una retención de crédito con un motivo obligatorio (área de texto, máximo 500 caracteres). Bloquea las nuevas órdenes de este cliente."
+            },
+            {
+              "label": "Botón Liberar",
+              "value": "Se muestra en el banner de retención. Elimina la retención de crédito y desbloquea las nuevas órdenes."
+            }
+          ]
+        },
+        {
+          "heading": "Campos de la tarjeta de dirección",
+          "items": [
+            {
+              "label": "Tipo",
+              "value": "Insignia de chip que muestra el tipo de dirección: Facturación, Envío u otros tipos configurados."
+            },
+            {
+              "label": "Predeterminada",
+              "value": "Insignia de chip azul 'Predeterminada' mostrada en la dirección predeterminada."
+            },
+            {
+              "label": "Línea 1",
+              "value": "Línea principal de la dirección."
+            },
+            {
+              "label": "Línea 2",
+              "value": "Línea secundaria de la dirección (suite, unidad, etc.). Solo se muestra si está establecida."
+            },
+            {
+              "label": "Ciudad, Estado, Código postal",
+              "value": "Nombre de la ciudad, código de estado de 2 letras y código postal en una sola línea."
+            },
+            {
+              "label": "País",
+              "value": "Nombre del país."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de la pestaña Cotizaciones",
+          "items": [
+            {
+              "label": "Cotización n.°",
+              "value": "Ordenable. El número de referencia de la cotización."
+            },
+            {
+              "label": "Estado",
+              "value": "Ordenable, filtrable (enum). Chip codificado por color: Borrador, Enviado, Aceptado, Rechazado, Caducado."
+            },
+            {
+              "label": "Total",
+              "value": "Ordenable, tipo numérico. Total de la cotización formateado como moneda."
+            },
+            {
+              "label": "Fecha de vencimiento",
+              "value": "Ordenable, tipo fecha. Cuándo vence la cotización. Formato MM/dd/yyyy."
+            },
+            {
+              "label": "Creado",
+              "value": "Ordenable, tipo fecha. Fecha de creación. Formato MM/dd/yyyy."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de la pestaña Órdenes",
+          "items": [
+            {
+              "label": "Orden n.°",
+              "value": "Ordenable. El número de referencia de la orden de venta."
+            },
+            {
+              "label": "Estado",
+              "value": "Ordenable, filtrable (enum). Chip de estado codificado por color."
+            },
+            {
+              "label": "Total",
+              "value": "Ordenable, tipo numérico. Total de la orden formateado como moneda."
+            },
+            {
+              "label": "Fecha solicitada",
+              "value": "Ordenable, tipo fecha. Fecha de entrega solicitada por el cliente. Formato MM/dd/yyyy."
+            },
+            {
+              "label": "Creado",
+              "value": "Ordenable, tipo fecha. Fecha de creación de la orden. Formato MM/dd/yyyy."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de la pestaña Trabajos",
+          "items": [
+            {
+              "label": "Título",
+              "value": "Ordenable. El título del trabajo."
+            },
+            {
+              "label": "Etapa",
+              "value": "Ordenable. Chip codificado por color que coincide con el color de la etapa del tablero kanban mediante la propiedad personalizada --chip-color."
+            },
+            {
+              "label": "Fecha de vencimiento",
+              "value": "Ordenable, tipo fecha. Fecha de vencimiento del trabajo. Formato MM/dd/yyyy."
+            },
+            {
+              "label": "Creado",
+              "value": "Ordenable, tipo fecha. Fecha de creación del trabajo. Formato MM/dd/yyyy."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de la pestaña Facturas",
+          "items": [
+            {
+              "label": "Factura n.°",
+              "value": "Ordenable. El número de referencia de la factura."
+            },
+            {
+              "label": "Estado",
+              "value": "Ordenable, filtrable (enum). Chip de estado codificado por color."
+            },
+            {
+              "label": "Total",
+              "value": "Ordenable, tipo numérico. Total de la factura formateado como moneda."
+            },
+            {
+              "label": "Fecha de vencimiento",
+              "value": "Ordenable, tipo fecha. Fecha de vencimiento del pago. Formato MM/dd/yyyy."
+            },
+            {
+              "label": "Creado",
+              "value": "Ordenable, tipo fecha. Fecha de creación de la factura. Formato MM/dd/yyyy."
+            }
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            {
+              "label": "Agregar cliente (página de lista)",
+              "value": "Botón principal. Abre el diálogo de creación rápida con Nombre, Empresa, Correo electrónico, Teléfono. data-testid: new-customer-btn"
+            },
+            {
+              "label": "Guardar (diálogo de creación)",
+              "value": "Crea el cliente. Deshabilitado cuando el formulario es inválido o el guardado está en curso. Muestra un cuadro de validación al pasar el cursor. data-testid: customer-save-btn. Tras guardar, navega a la página de detalle del nuevo cliente."
+            },
+            {
+              "label": "Editar (página de detalle)",
+              "value": "Abre el diálogo de edición prerrellenado con los valores actuales. Agrega el conmutador Está activo, no disponible en la creación."
+            },
+            {
+              "label": "Archivar (página de detalle)",
+              "value": "Botón con icono de archivar. Abre un diálogo de confirmación con severidad 'warn'. Archiva (elimina de forma lógica) al cliente y navega de vuelta a la lista."
+            },
+            {
+              "label": "Volver a Clientes",
+              "value": "Enlace con chevron izquierdo en el encabezado de detalle. Navega a /customers."
+            },
+            {
+              "label": "Agregar contacto",
+              "value": "Botón principal en la pestaña Contactos. Abre el diálogo de creación de contacto."
+            },
+            {
+              "label": "Editar contacto",
+              "value": "Botón con icono de editar en cada tarjeta de contacto. Abre el diálogo de edición de contacto prerrellenado."
+            },
+            {
+              "label": "Eliminar contacto",
+              "value": "Botón con icono de eliminar (estilo de peligro) en cada tarjeta de contacto. Se requiere diálogo de confirmación."
+            },
+            {
+              "label": "Registrar interacción",
+              "value": "Botón principal en la pestaña Interacciones. Abre el diálogo de creación de interacción."
+            },
+            {
+              "label": "Editar interacción",
+              "value": "Botón con icono de editar en la fila de la tabla de interacciones. Abre el diálogo de edición prerrellenado."
+            },
+            {
+              "label": "Eliminar interacción",
+              "value": "Botón con icono de eliminar (estilo de peligro) en la fila de la tabla de interacciones. Se requiere diálogo de confirmación."
+            },
+            {
+              "label": "Nuevo estimado",
+              "value": "Botón principal en la pestaña Estimados. Abre el diálogo de creación de estimado."
+            },
+            {
+              "label": "Convertir a cotización (estimado)",
+              "value": "Botón con icono de avance en la fila del estimado. Convierte el estimado en una cotización formal. Se oculta si ya se convirtió."
+            },
+            {
+              "label": "Eliminar estimado",
+              "value": "Botón con icono de eliminar (estilo de peligro) en la fila del estimado. Se requiere diálogo de confirmación."
+            },
+            {
+              "label": "Colocar retención",
+              "value": "Botón pequeño en la tarjeta de Estado de crédito. Abre el diálogo de motivo de retención."
+            },
+            {
+              "label": "Liberar retención",
+              "value": "Botón pequeño en el banner de retención de crédito. Libera la retención de inmediato."
+            }
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            {
+              "label": "Nombre del cliente",
+              "value": "Obligatorio. Máximo 200 caracteres. No puede estar vacío."
+            },
+            {
+              "label": "Correo electrónico del cliente",
+              "value": "Opcional. Debe tener un formato de correo electrónico válido cuando se proporciona. Máximo 200 caracteres."
+            },
+            {
+              "label": "Nombre del contacto",
+              "value": "Obligatorio. Máximo 100 caracteres."
+            },
+            {
+              "label": "Apellido del contacto",
+              "value": "Obligatorio. Máximo 100 caracteres."
+            },
+            {
+              "label": "Correo electrónico del contacto",
+              "value": "Opcional. Debe tener un formato de correo electrónico válido. Máximo 200 caracteres."
+            },
+            {
+              "label": "Tipo de interacción",
+              "value": "Obligatorio. Debe seleccionar uno de: Llamada, Correo electrónico, Reunión, Nota."
+            },
+            {
+              "label": "Asunto de la interacción",
+              "value": "Obligatorio. Máximo 200 caracteres."
+            },
+            {
+              "label": "Fecha de la interacción",
+              "value": "Obligatoria. Debe seleccionar una fecha."
+            },
+            {
+              "label": "Título del estimado",
+              "value": "Obligatorio. Máximo 300 caracteres."
+            },
+            {
+              "label": "Monto estimado",
+              "value": "Obligatorio. Debe ser un número >= 0."
+            },
+            {
+              "label": "Motivo de la retención de crédito",
+              "value": "Obligatorio al colocar una retención. Máximo 500 caracteres."
+            },
+            {
+              "label": "Cuadro del botón de envío",
+              "value": "Cuando el formulario es inválido, al pasar el cursor sobre Guardar se muestra un cuadro de validación que lista los campos que necesitan atención."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "customers-quiz",
+    "title": "Evaluación de conocimientos de Clientes",
+    "summary": "Ponga a prueba sus conocimientos sobre el módulo de Clientes: pestañas de detalle, contactos, gestión de crédito, estimados, interacciones y el flujo de cotización a cobro.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "cu1",
+          "text": "Un nuevo cliente llama para solicitar una cotización. ¿Cuál es el primer paso en QB Engineer?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Crear una cotización directamente desde la página de Cotizaciones"
+            },
+            {
+              "id": "b",
+              "text": "Navegar a Clientes, hacer clic en Agregar cliente, completar sus datos y luego crear un estimado o una cotización desde su página de detalle",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Crear un trabajo en el tablero Kanban y asignar el cliente más tarde"
+            },
+            {
+              "id": "d",
+              "text": "Agregarlo al módulo de Prospectos y esperar la conversión"
+            }
+          ],
+          "explanation": "Comience por crear el registro del cliente. Desde su página de detalle, puede crear estimados o cotizaciones directamente en las pestañas Estimados o Cotizaciones. Esto garantiza que toda la actividad esté vinculada al cliente."
+        },
+        {
+          "id": "cu2",
+          "text": "Está en la página de detalle de un cliente y quiere ver rápidamente cuántos trabajos activos tiene. ¿Dónde mira?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Hacer clic en la pestaña Trabajos y contar las filas de la tabla"
+            },
+            {
+              "id": "b",
+              "text": "Consultar la barra de estadísticas: la métrica 'Trabajos activos' muestra el conteo, y al hacer clic en ella se salta a la pestaña Trabajos",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Ejecutar un informe filtrado por el nombre del cliente"
+            },
+            {
+              "id": "d",
+              "text": "Ir al tablero Kanban y filtrar por cliente"
+            }
+          ],
+          "explanation": "La barra de estadísticas debajo del encabezado del cliente muestra agregados en vivo, incluidos los Trabajos activos. Cada estadística se puede hacer clic; al hacer clic en 'Trabajos activos' se cambia directamente a la pestaña Trabajos para ver los detalles."
+        },
+        {
+          "id": "cu3",
+          "text": "El estado de crédito de un cliente muestra 'Exposición total' en rojo. ¿Qué indica esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El cliente ha estado en retención durante más de 30 días"
+            },
+            {
+              "id": "b",
+              "text": "El saldo combinado de CxC abierto más las órdenes pendientes del cliente supera su límite de crédito",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El cliente tiene facturas vencidas hace más de 90 días"
+            },
+            {
+              "id": "d",
+              "text": "La cuenta del cliente ha sido marcada para revisión"
+            }
+          ],
+          "explanation": "Exposición total = CxC abierto + Órdenes pendientes. Cuando esto supera el límite de crédito, el valor se muestra en rojo para alertarle de que el cliente está por encima de su crédito permitido."
+        },
+        {
+          "id": "cu4",
+          "text": "Necesita bloquear a un cliente para que no realice nuevas órdenes debido a facturas impagas. ¿Cómo lo hace?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Establecer el estado del cliente en Inactivo mediante el diálogo de Edición"
+            },
+            {
+              "id": "b",
+              "text": "Eliminar todas sus órdenes de venta abiertas"
+            },
+            {
+              "id": "c",
+              "text": "En la pestaña Resumen, hacer clic en 'Colocar retención' en la tarjeta de Estado de crédito e introducir un motivo",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Comunicarse con su administrador para deshabilitar su cuenta"
+            }
+          ],
+          "explanation": "La tarjeta de Estado de crédito de la pestaña Resumen tiene un botón 'Colocar retención'. Al hacer clic en él se abre un diálogo donde debe introducir un motivo. Una vez en retención, las nuevas órdenes se bloquean hasta que se libere la retención."
+        },
+        {
+          "id": "cu5",
+          "text": "Un contacto del cliente ha sido ascendido y su rol ha cambiado. ¿Dónde actualiza esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ir a Administración → Datos de referencia y actualizar su entrada de rol"
+            },
+            {
+              "id": "b",
+              "text": "Navegar a la pestaña Contactos del cliente, hacer clic en el icono de editar de su tarjeta de contacto y cambiar el menú desplegable Rol",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Editar el contacto directamente desde la página de lista de clientes"
+            },
+            {
+              "id": "d",
+              "text": "El campo de rol es de solo lectura y no puede cambiarse tras la creación"
+            }
+          ],
+          "explanation": "En la pestaña Contactos, cada tarjeta de contacto tiene un botón de icono de editar. Haga clic en él para abrir el diálogo de edición donde puede cambiar cualquier campo, incluido el menú desplegable Rol. Las opciones de rol provienen de los datos de referencia."
+        },
+        {
+          "id": "cu6",
+          "text": "Tuvo una llamada telefónica con un cliente sobre un próximo proyecto. ¿Dónde registra esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Agregar una nota a la pestaña Actividad"
+            },
+            {
+              "id": "b",
+              "text": "Crear un nuevo estimado en la pestaña Estimados"
+            },
+            {
+              "id": "c",
+              "text": "Ir a la pestaña Interacciones, hacer clic en 'Registrar interacción', seleccionar Tipo: Llamada, completar el asunto, la fecha, la duración y las notas",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Enviar un correo electrónico desde la pestaña Contactos"
+            }
+          ],
+          "explanation": "La pestaña Interacciones está diseñada para hacer seguimiento de las comunicaciones con el cliente. Haga clic en 'Registrar interacción', seleccione Llamada como tipo y complete los detalles, incluidos el asunto, la fecha, la duración y cualquier nota de la conversación."
+        },
+        {
+          "id": "cu7",
+          "text": "Un estimado ha sido aceptado por el cliente. ¿Cuál es el siguiente paso en el flujo de cotización a cobro?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Crear un trabajo directamente desde el estimado"
+            },
+            {
+              "id": "b",
+              "text": "Hacer clic en el botón Convertir a cotización en la fila del estimado para crear una cotización formal y desglosada por línea",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Cambiar manualmente el estado del estimado a 'Convertido'"
+            },
+            {
+              "id": "d",
+              "text": "Eliminar el estimado y crear una orden de venta en su lugar"
+            }
+          ],
+          "explanation": "Los estimados son cifras aproximadas no vinculantes. Una vez aceptados, use el botón Convertir a cotización (icono de avance) para crear una cotización formal y desglosada por línea. La cotización puede luego convertirse en una orden de venta. El botón de conversión se oculta si el estimado ya se ha convertido."
+        },
+        {
+          "id": "cu8",
+          "text": "¿Cuántas pestañas tiene la página de detalle del cliente y qué pestaña muestra la tarjeta de Estado de crédito?",
+          "options": [
+            {
+              "id": "a",
+              "text": "8 pestañas; la pestaña Crédito"
+            },
+            {
+              "id": "b",
+              "text": "10 pestañas; la pestaña Resumen",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "10 pestañas; la pestaña Facturas"
+            },
+            {
+              "id": "d",
+              "text": "9 pestañas; la pestaña Finanzas"
+            }
+          ],
+          "explanation": "La página de detalle del cliente tiene 10 pestañas: Resumen, Contactos, Interacciones, Direcciones, Estimados, Cotizaciones, Órdenes, Trabajos, Facturas y Actividad. La tarjeta de Estado de crédito se muestra en la pestaña Resumen junto con los detalles de la cuenta y la información de integración."
+        },
+        {
+          "id": "cu9",
+          "text": "Quiere encontrar todos los clientes inactivos que se crearon en el último año. ¿Cómo filtra la lista de clientes?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Establecer el filtro Activo en 'Inactivo'; la tabla admite la ordenación por columna de fecha para encontrar las entradas recientes",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Buscar 'inactivo' en el cuadro de búsqueda"
+            },
+            {
+              "id": "c",
+              "text": "Ir a Informes y crear un informe de clientes personalizado"
+            },
+            {
+              "id": "d",
+              "text": "No puede filtrar clientes inactivos: están ocultos de forma predeterminada"
+            }
+          ],
+          "explanation": "La página de lista de clientes tiene un menú desplegable de filtro Activo/Inactivo. Establézcalo en 'Inactivo' para mostrar solo los clientes inactivos, luego ordene por la columna Creado (tipo fecha) para encontrar los más recientes."
+        },
+        {
+          "id": "cu10",
+          "text": "¿Qué información se muestra en una tarjeta de contacto en la pestaña Contactos?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Solo el nombre y el correo electrónico del contacto"
+            },
+            {
+              "id": "b",
+              "text": "Avatar con iniciales, nombre (formato Apellido, Nombre), rol, correo electrónico (enlace mailto), teléfono (enlace tel) e insignia de Principal si corresponde",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Nombre, puesto, departamento y ubicación de la oficina"
+            },
+            {
+              "id": "d",
+              "text": "Nombre, correo electrónico y una lista de sus interacciones recientes"
+            }
+          ],
+          "explanation": "Las tarjetas de contacto muestran un avatar (con iniciales), el nombre en formato Apellido, Nombre, su rol (de los datos de referencia), enlaces de correo electrónico y teléfono en los que se puede hacer clic, y una insignia de chip azul 'Principal' si es el contacto principal."
+        },
+        {
+          "id": "cu11",
+          "text": "La barra de utilización de crédito de un cliente está roja y muestra 115%. ¿Qué acciones puede tomar?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Nada: el sistema bloquea automáticamente las órdenes cuando se supera el límite"
+            },
+            {
+              "id": "b",
+              "text": "Colocar una retención de crédito mediante el botón Colocar retención, o aumentar el límite de crédito mediante el sistema contable, o cobrar las facturas pendientes para reducir las CxC",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Eliminar las facturas impagas más antiguas para reducir el saldo"
+            },
+            {
+              "id": "d",
+              "text": "Archivar al cliente para evitar más órdenes"
+            }
+          ],
+          "explanation": "Cuando se supera el límite de crédito, puede colocar una retención de crédito para bloquear formalmente las nuevas órdenes (con un motivo obligatorio), trabajar con contabilidad para aumentar el límite de crédito, o concentrarse en cobrar las facturas pendientes para reducir el saldo de CxC y bajar la utilización por debajo del 100%."
+        },
+        {
+          "id": "cu12",
+          "text": "Quiere compartir un enlace directo a la pestaña Órdenes de un cliente con un colega. ¿Qué formato de URL compartiría?",
+          "options": [
+            {
+              "id": "a",
+              "text": "/customers?tab=orders&id=42"
+            },
+            {
+              "id": "b",
+              "text": "/customers/42/orders",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "/customers/42?detail=orders"
+            },
+            {
+              "id": "d",
+              "text": "/orders?customer=42"
+            }
+          ],
+          "explanation": "Las páginas de detalle del cliente usan el patrón de URL /customers/:id/:tab. Cada pestaña es un segmento de ruta, por lo que la pestaña Órdenes del cliente 42 sería /customers/42/orders. Esta URL se puede marcar como favorita y compartir."
+        },
+        {
+          "id": "cu13",
+          "text": "¿Cuál es la diferencia entre un Estimado y una Cotización en el detalle del cliente?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Son lo mismo con nombres diferentes"
+            },
+            {
+              "id": "b",
+              "text": "Los estimados son cifras aproximadas no vinculantes con un único monto; las cotizaciones son compromisos vinculantes desglosados por línea con precios por artículo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Los estimados son para clientes nuevos; las cotizaciones son para clientes existentes"
+            },
+            {
+              "id": "d",
+              "text": "Los estimados requieren aprobación; las cotizaciones no"
+            }
+          ],
+          "explanation": "Los estimados son cifras aproximadas no vinculantes con un único monto estimado: rápidas e informales. Las cotizaciones son compromisos formales y vinculantes con líneas de artículo individuales (pieza, cantidad, precio unitario). Los estimados pueden convertirse en cotizaciones cuando el cliente está listo para un precio firme."
+        },
+        {
+          "id": "cu14",
+          "text": "Está filtrando la pestaña Interacciones y quiere ver solo las reuniones con un contacto específico. ¿Cómo?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Escribir 'reunión' en el cuadro de búsqueda"
+            },
+            {
+              "id": "b",
+              "text": "Establecer el filtro Contacto en el contacto específico y el filtro Tipo en 'Reunión'",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Ordenar la tabla por la columna Tipo y desplazarse hasta las filas de Reunión"
+            },
+            {
+              "id": "d",
+              "text": "Las interacciones no pueden filtrarse por contacto y tipo simultáneamente"
+            }
+          ],
+          "explanation": "La barra de herramientas de la pestaña Interacciones tiene dos menús desplegables de filtro: Contacto (para filtrar por contacto específico o '-- Todos los contactos --') y Tipo (para filtrar por Llamada, Correo electrónico, Reunión, Nota o '-- Todos los tipos --'). Ambos filtros pueden usarse simultáneamente."
+        },
+        {
+          "id": "cu15",
+          "text": "Cuando archiva un cliente, ¿qué sucede con sus datos?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Todos los datos se eliminan de forma permanente, incluidos contactos, órdenes y facturas"
+            },
+            {
+              "id": "b",
+              "text": "El registro del cliente se elimina de forma lógica: todo el historial se conserva pero el cliente no aparecerá en las vistas activas",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Solo se conserva el nombre del cliente; todos los registros relacionados se purgan"
+            },
+            {
+              "id": "d",
+              "text": "El cliente se mueve a una base de datos de Archivo separada"
+            }
+          ],
+          "explanation": "Archivar usa eliminación lógica (establece la marca de tiempo DeletedAt). Todos los datos se conservan: contactos, órdenes, trabajos, facturas, historial de actividad; nada se pierde. El cliente simplemente no aparecerá en las vistas filtradas estándar. Esto sigue la regla de toda la aplicación de nunca eliminar registros de forma permanente."
+        }
+      ]
+    }
+  }
+]

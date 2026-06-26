@@ -1,0 +1,680 @@
+[
+  {
+    "slug": "sales-orders-overview",
+    "title": "Visión general de Órdenes de Venta",
+    "summary": "Qué son las órdenes de venta, su ciclo de vida desde el borrador hasta la finalización, las líneas de artículo y cómo se conectan con cotizaciones, trabajos, envíos y facturas.",
+    "contentJson": {
+      "body": "## Visión general de Órdenes de Venta\n\nUna Orden de Venta (OV) es un compromiso confirmado de entregar piezas específicas a un cliente a precios acordados. Es el documento central en el flujo de orden a cobro (order-to-cash), que vincula las cotizaciones previas con la producción, el envío y la facturación posteriores.\n\n### ¿Qué es una Orden de Venta?\n\nUna orden de venta captura:\n- **Quién** está pidiendo (cliente, con referencia opcional a la OC del cliente)\n- **Qué** quieren (líneas de artículo —cada una hace referencia a una pieza, cantidad y precio unitario)\n- **Cuándo** lo necesitan (fecha de entrega solicitada)\n- **Términos de pago** (términos de crédito como Net 30, Net 60, etc.)\n- **Impuesto** (tasa de impuesto aplicada al subtotal)\n\nA cada OV se le asigna automáticamente un número de orden único. El número de orden aparece a lo largo de todo el sistema —en los envíos, las facturas y el tablero Kanban— para que siempre pueda rastrear de vuelta hasta el compromiso original.\n\n### Ciclo de vida de la Orden de Venta\n\nLas órdenes de venta avanzan a través de una progresión de estados definida:\n\n1. **Borrador** — La orden se está preparando. Aún puede editar todos los campos, agregar/eliminar líneas de artículo y eliminar la orden por completo. Las órdenes en borrador no se han comprometido con el cliente.\n\n2. **Confirmada** — La orden se ha revisado y confirmado. Esto fija el compromiso. La fecha de confirmación se registra automáticamente. A partir de aquí, la producción puede comenzar.\n\n3. **En Producción** — Se han creado trabajos a partir de las líneas de la OV y el trabajo está en marcha en el taller. La OV pasa a este estado cuando los trabajos vinculados están activos.\n\n4. **Enviada parcialmente** — Algunas líneas de artículo se han enviado pero otras quedan pendientes. Cada línea rastrea su propia cantidad enviada frente a la cantidad pedida, para que pueda ver exactamente qué queda pendiente.\n\n5. **Enviada** — Todas las líneas de artículo se han enviado por completo. La orden está completa desde el punto de vista del cumplimiento.\n\n6. **Completada** — La orden está totalmente cerrada —enviada y facturada. No se necesita ninguna acción adicional.\n\n7. **Cancelada** — La orden se canceló antes de completarse. La cancelación solo se permite desde el estado Borrador o Confirmada. Una vez que la producción ha comenzado, no puede cancelar.\n\n### Líneas de artículo\n\nCada orden de venta contiene una o más líneas de artículo. Una línea de artículo incluye:\n- **Pieza** — la pieza que se pide (seleccionada del Catálogo de Piezas)\n- **Descripción** — autocompletada a partir de la pieza, se puede sobrescribir\n- **Cantidad** — cuántas unidades quiere el cliente\n- **Precio unitario** — precio por unidad\n- **Total de línea** — cantidad x precio unitario (calculado automáticamente)\n- **Cantidad enviada** — cuántas se han enviado hasta ahora\n- **Cantidad restante** — cuántas quedan por enviar\n\nLa tabla de líneas de artículo en la vista de detalle codifica con color las cantidades enviadas: verde cuando se ha enviado por completo, amarillo cuando se ha enviado parcialmente.\n\n### Cómo se conectan las Órdenes de Venta con otras funciones\n\n**Cotizaciones:** Una orden de venta puede originarse a partir de una cotización aceptada. Cuando una cotización se convierte en una orden de venta, la referencia a la cotización se conserva y es visible en el detalle de la OV. El enlace de la Cotización en el panel de detalle se puede hacer clic.\n\n**Trabajos (Kanban):** Las líneas de la orden de venta impulsan la producción. Cada línea puede generar uno o más trabajos en el tablero Kanban. Mover un trabajo a través de las etapas de producción actualiza el estado de cumplimiento de la OV.\n\n**Envíos:** Cuando la mercancía está lista, crea envíos contra las líneas de la OV. Cada línea de envío hace referencia a una línea de la OV y registra cuántas unidades se envían. Se admiten envíos parciales —envíe 50 de 100 ahora y el resto después.\n\n**Facturas:** Las facturas se generan a partir de los envíos o directamente desde la OV. La factura hace referencia a la OV y sus líneas para la precisión de la facturación.\n\n**Clientes:** Cada OV pertenece a un cliente. El enlace del cliente en el panel de detalle de la OV navega directamente al registro del cliente.\n\n### Resumen financiero\n\nCada orden de venta muestra:\n- **Subtotal** — suma de todos los totales de línea\n- **Impuesto** — subtotal multiplicado por el porcentaje de la tasa de impuesto\n- **Total** — subtotal + impuesto\n\nEstos valores se actualizan automáticamente a medida que se agregan o modifican las líneas de artículo.\n\n### Cuándo usar las Órdenes de Venta\n\n- Cuando un cliente confirma una cotización y necesita formalizar el compromiso\n- Cuando un cliente envía una orden de compra (OC) que usted debe cumplir\n- Cuando necesita rastrear qué se ha enviado frente a qué queda pendiente\n- Cuando necesita generar facturas basadas en las órdenes cumplidas\n- Cuando quiere trazabilidad completa desde la orden, pasando por la producción, hasta la entrega",
+      "sections": []
+    }
+  },
+  {
+    "slug": "sales-orders-walkthrough",
+    "title": "Órdenes de Venta — Recorrido guiado",
+    "summary": "Un recorrido guiado por la página de órdenes de venta: búsqueda, filtros, columnas de la tabla de datos, creación de una nueva orden con líneas de artículo y visualización de los detalles de la orden.",
+    "contentJson": {
+      "appRoute": "/sales-orders",
+      "startButtonLabel": "Recorrer Órdenes de Venta",
+      "steps": [
+        {
+          "element": "[data-testid='new-so-btn']",
+          "popover": {
+            "title": "Nueva Orden de Venta",
+            "description": "Haga clic aquí para crear una nueva orden de venta. Se abre un diálogo de diseño dividido con las líneas de artículo a la izquierda y los detalles de la orden (cliente, términos de crédito, fecha de entrega, tasa de impuesto, notas) en la barra lateral derecha.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-input",
+          "popover": {
+            "title": "Buscar órdenes",
+            "description": "Busque por número de orden, nombre del cliente u OC del cliente. Presione Enter para aplicar la búsqueda. Los resultados se actualizan en la tabla de abajo.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-select:first-of-type",
+          "popover": {
+            "title": "Filtro de cliente",
+            "description": "Filtre las órdenes por cliente. El menú desplegable enumera todos los clientes del sistema. Seleccione un cliente para mostrar solo sus órdenes.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-select:last-of-type",
+          "popover": {
+            "title": "Filtro de estado",
+            "description": "Filtre por estado de la orden: Borrador, Confirmada, En Producción, Enviada parcialmente, Enviada, Completada o Cancelada. Cada estado tiene una etiqueta (chip) con código de color en la tabla.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de Órdenes de Venta",
+            "description": "Enumera todas las órdenes de venta con las columnas: Orden #, Cliente, OC del Cliente, Estado (chip de color), Líneas (recuento), Total (moneda), fecha de Entrega y fecha de Creación. Haga clic en cualquier fila para abrir el diálogo de detalle. Haga clic en los encabezados de columna para ordenar.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "sales-orders-field-reference",
+    "title": "Referencia de campos de Órdenes de Venta",
+    "summary": "Referencia completa de cada campo, botón, estado, regla de validación y columna de la tabla del módulo de Órdenes de Venta.",
+    "contentJson": {
+      "title": "Referencia de campos de Órdenes de Venta",
+      "groups": [
+        {
+          "heading": "Campos del formulario de orden (diálogo de crear/editar — barra lateral derecha)",
+          "items": [
+            {
+              "label": "Cliente (obligatorio)",
+              "value": "Menú desplegable que enumera todos los clientes. Determina el contexto de facturación. Debe seleccionar un cliente antes de guardar."
+            },
+            {
+              "label": "OC del Cliente",
+              "value": "Campo de texto, opcional. El número de orden de compra del cliente para su referencia. Se muestra en la tabla y la vista de detalle."
+            },
+            {
+              "label": "Términos de Crédito",
+              "value": "Menú desplegable, opcional. Términos de pago como Net 15, Net 30, Net 45, Net 60, Net 90, Pago contra recepción o 2/10 Net 30. Procedente de CREDIT_TERMS_OPTIONS centralizado."
+            },
+            {
+              "label": "Fecha de entrega solicitada",
+              "value": "Selector de fecha, opcional. La fecha en que el cliente quiere que se entregue la orden. Se muestra en la columna de la tabla y en la vista de detalle."
+            },
+            {
+              "label": "Tasa de impuesto (obligatorio)",
+              "value": "Campo numérico con sufijo %. El porcentaje de impuesto aplicado al subtotal. El valor predeterminado es 0. Debe ser >= 0. Actualiza los totales del resumen en tiempo real."
+            },
+            {
+              "label": "Notas",
+              "value": "Área de texto, opcional. Notas de formato libre sobre la orden —instrucciones especiales, requisitos de embalaje, etc. 3 filas visibles."
+            }
+          ]
+        },
+        {
+          "heading": "Campos de línea de artículo (diálogo de crear/editar — panel izquierdo)",
+          "items": [
+            {
+              "label": "Pieza (obligatorio)",
+              "value": "Campo de búsqueda con autocompletado. Escriba para buscar piezas activas por número de pieza o descripción. Muestra el formato 'Pieza # — Descripción'. Solo aparecen las piezas con estado Activo."
+            },
+            {
+              "label": "Cant. (obligatorio)",
+              "value": "Campo numérico. Cantidad pedida. Debe ser al menos 1. El valor predeterminado es 1."
+            },
+            {
+              "label": "Precio unitario (obligatorio)",
+              "value": "Campo numérico. Precio por unidad en dólares. Debe ser >= 0. El valor predeterminado es 0."
+            },
+            {
+              "label": "Botón Agregar",
+              "value": "Agrega la línea a la tabla. Deshabilitado cuando algún campo de línea no es válido. Después de agregar, el formulario de línea se restablece para la siguiente entrada."
+            },
+            {
+              "label": "Botón Eliminar (icono x)",
+              "value": "Botón de icono rojo en cada fila de línea. Elimina la línea de artículo de la orden. Sin diálogo de confirmación —eliminación inmediata del formulario en curso."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de líneas de artículo (vista de detalle)",
+          "items": [
+            {
+              "label": "Pieza #",
+              "value": "Número de pieza en fuente monoespaciada. Muestra '—' si no hay ninguna pieza vinculada."
+            },
+            {
+              "label": "Descripción",
+              "value": "Texto de descripción de la línea de artículo."
+            },
+            {
+              "label": "Cant.",
+              "value": "Cantidad pedida. Alineada a la derecha."
+            },
+            {
+              "label": "Enviado",
+              "value": "Cantidad enviada hasta ahora. Alineada a la derecha. Texto verde cuando se ha enviado por completo (enviado >= cant.). Texto amarillo cuando se ha enviado parcialmente (enviado > 0 pero < cant.)."
+            },
+            {
+              "label": "Restante",
+              "value": "Cantidad - Enviado. Alineada a la derecha. Muestra cuántas unidades quedan por cumplir."
+            },
+            {
+              "label": "Precio unitario",
+              "value": "Precio por unidad, con formato de moneda. Alineado a la derecha."
+            },
+            {
+              "label": "Total",
+              "value": "Total de línea (cant. x precio unitario), con formato de moneda. Alineado a la derecha."
+            }
+          ]
+        },
+        {
+          "heading": "Estados de la orden",
+          "items": [
+            {
+              "label": "Borrador (chip gris)",
+              "value": "La orden se está preparando. Todos los campos editables. Puede eliminarse o cancelarse. Este es el estado inicial de las órdenes nuevas."
+            },
+            {
+              "label": "Confirmada (chip azul/primario)",
+              "value": "La orden se ha confirmado y comprometido. La fecha de confirmación se establece automáticamente. Aún puede cancelarse pero no eliminarse."
+            },
+            {
+              "label": "En Producción (chip info/turquesa)",
+              "value": "Los trabajos vinculados están activos en el tablero Kanban. El trabajo de producción está en marcha."
+            },
+            {
+              "label": "Enviada parcialmente (chip amarillo/advertencia)",
+              "value": "Algunas líneas de artículo se han enviado, pero no todas. Cada línea rastrea de forma independiente su cantidad enviada frente a la restante."
+            },
+            {
+              "label": "Enviada (chip verde/éxito)",
+              "value": "Todas las líneas de artículo se han enviado por completo. El cumplimiento está completo."
+            },
+            {
+              "label": "Completada (chip verde/éxito)",
+              "value": "La orden está totalmente cerrada —enviada y facturada. No se requiere ninguna acción adicional."
+            },
+            {
+              "label": "Cancelada (chip rojo/error)",
+              "value": "La orden se canceló. Solo es posible desde el estado Borrador o Confirmada. Una vez en producción, la cancelación no está permitida."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de la página de lista",
+          "items": [
+            {
+              "label": "Orden #",
+              "value": "Ordenable. Número de orden autogenerado mostrado en monoespaciado en negrita. Ancho: 120px."
+            },
+            {
+              "label": "Cliente",
+              "value": "Ordenable. Nombre del cliente."
+            },
+            {
+              "label": "OC del Cliente",
+              "value": "Ordenable. Número de orden de compra del cliente. Muestra '—' cuando está vacío. Ancho: 100px."
+            },
+            {
+              "label": "Estado",
+              "value": "Ordenable, filtrable (enum). Chip con código de color: Borrador (gris), Confirmada (azul), En Producción (turquesa), Enviada parcialmente (amarillo), Enviada (verde), Completada (verde), Cancelada (rojo). Ancho: 140px."
+            },
+            {
+              "label": "Líneas",
+              "value": "Ordenable, alineada al centro. Recuento de líneas de artículo en la orden. Ancho: 70px."
+            },
+            {
+              "label": "Total",
+              "value": "Ordenable, alineada a la derecha. Total de la orden con formato de moneda. Ancho: 100px."
+            },
+            {
+              "label": "Entrega",
+              "value": "Ordenable, tipo fecha. Fecha de entrega solicitada en formato MM/dd/yyyy. Muestra '—' cuando no está definida. Ancho: 110px."
+            },
+            {
+              "label": "Creado",
+              "value": "Ordenable, tipo fecha. Fecha en que se creó la orden en formato MM/dd/yyyy. Ancho: 110px."
+            }
+          ]
+        },
+        {
+          "heading": "Filtros de la página de lista",
+          "items": [
+            {
+              "label": "Búsqueda",
+              "value": "Campo de texto. Filtra por número de orden, nombre del cliente u OC del cliente. Presione Enter para aplicar."
+            },
+            {
+              "label": "Cliente",
+              "value": "Menú desplegable. Enumera todos los clientes más una opción 'Todos los clientes'. Filtra la tabla para mostrar solo las órdenes del cliente seleccionado."
+            },
+            {
+              "label": "Estado",
+              "value": "Menú desplegable. Enumera todos los valores de estado más 'Todos los estados'. Filtra la tabla para mostrar solo las órdenes con el estado seleccionado."
+            }
+          ]
+        },
+        {
+          "heading": "Secciones de la vista de detalle",
+          "items": [
+            {
+              "label": "Encabezado",
+              "value": "Muestra el icono receipt_long, el número de orden y el nombre del cliente (enlace de entidad en el que se puede hacer clic hacia el detalle del cliente)."
+            },
+            {
+              "label": "Cuadrícula de estado e información",
+              "value": "Chip de estado, OC del Cliente, Cotización vinculada (enlace de entidad en el que se puede hacer clic), Términos de Crédito, fecha de Entrega solicitada, fecha de Confirmación. Condicional —los campos solo se muestran cuando tienen valores."
+            },
+            {
+              "label": "Información de código de barras",
+              "value": "Código de barras escaneable para el número de orden. Modo compacto."
+            },
+            {
+              "label": "Cuadrícula de totales",
+              "value": "Subtotal, Impuesto (con tasa %) y Total en negrita —todos con formato de moneda."
+            },
+            {
+              "label": "Notas",
+              "value": "Sección de notas de formato libre. Solo se muestra cuando hay notas presentes."
+            },
+            {
+              "label": "Tabla de líneas de artículo",
+              "value": "Tabla completa con Pieza #, Descripción, Cant., Enviado, Restante, Precio unitario, Total. Las cantidades enviadas están codificadas con color."
+            },
+            {
+              "label": "Marcas de tiempo",
+              "value": "Fechas de Creación y Actualización en formato MM/dd/yyyy."
+            },
+            {
+              "label": "Registro de actividad",
+              "value": "Línea de tiempo de actividad cronológica para la orden (EntityActivitySectionComponent)."
+            }
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            {
+              "label": "Nueva Orden de Venta (botón primario)",
+              "value": "Abre el diálogo de creación. data-testid: new-so-btn. Ubicado en el encabezado de la página."
+            },
+            {
+              "label": "Crear orden (botón primario del diálogo)",
+              "value": "Guarda la nueva orden en estado Borrador. Deshabilitado cuando el formulario no es válido, no existen líneas o el guardado está en curso. data-testid: so-save-btn. Muestra una ventana emergente de validación al pasar el ratón cuando está deshabilitado."
+            },
+            {
+              "label": "Cancelar (diálogo)",
+              "value": "Cierra el diálogo de creación sin guardar."
+            },
+            {
+              "label": "Confirmar (detalle, botón primario)",
+              "value": "Mueve las órdenes en Borrador al estado Confirmada. Registra la fecha de confirmación. Solo visible cuando el estado es Borrador."
+            },
+            {
+              "label": "Cancelar orden (detalle)",
+              "value": "Cancela la orden. Muestra primero un diálogo de confirmación. Solo disponible para órdenes en Borrador y Confirmada."
+            },
+            {
+              "label": "Eliminar (detalle, botón de peligro)",
+              "value": "Elimina lógicamente la orden. Muestra primero un diálogo de confirmación. Solo disponible para órdenes en Borrador."
+            },
+            {
+              "label": "Cerrar (detalle, icono)",
+              "value": "Cierra el diálogo de detalle. Icono X en la esquina superior derecha."
+            },
+            {
+              "label": "Clic en fila (tabla)",
+              "value": "Abre el diálogo de detalle de la orden de venta para la fila en la que se hizo clic. La URL se actualiza a ?detail=sales-order:{id} para poder compartirla."
+            }
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            {
+              "label": "Cliente",
+              "value": "Obligatorio. Debe seleccionar un cliente del menú desplegable."
+            },
+            {
+              "label": "Tasa de impuesto",
+              "value": "Obligatorio. Debe ser un número >= 0."
+            },
+            {
+              "label": "Líneas de artículo",
+              "value": "Debe agregarse al menos una línea de artículo. La ventana emergente de validación muestra 'Se requiere al menos una línea de artículo' cuando está vacía."
+            },
+            {
+              "label": "Línea — Pieza",
+              "value": "Obligatorio. Debe seleccionar una pieza del autocompletado."
+            },
+            {
+              "label": "Línea — Cantidad",
+              "value": "Obligatorio. Debe ser >= 1."
+            },
+            {
+              "label": "Línea — Precio unitario",
+              "value": "Obligatorio. Debe ser >= 0."
+            },
+            {
+              "label": "Ventana emergente de envío",
+              "value": "Cuando el formulario no es válido o faltan líneas, al pasar el ratón sobre el botón Crear orden se muestra una lista con viñetas de todas las infracciones."
+            }
+          ]
+        },
+        {
+          "heading": "Diseño del diálogo",
+          "items": [
+            {
+              "label": "Ancho",
+              "value": "1100px — diálogo de diseño dividido."
+            },
+            {
+              "label": "Panel izquierdo (principal)",
+              "value": "Sección de líneas de artículo: tabla de líneas agregadas + formulario para agregar líneas en la parte inferior (diseño de 4 columnas: autocompletado de pieza, cant., precio, botón agregar)."
+            },
+            {
+              "label": "Panel derecho (barra lateral)",
+              "value": "Sección de Detalles de la orden (cliente, OC, términos de crédito, fecha de entrega, tasa de impuesto), sección de Notas (área de texto) y sección de Resumen (subtotal, impuesto, total —todos calculados en tiempo real)."
+            },
+            {
+              "label": "Pie de página",
+              "value": "Botones Cancelar y Crear orden. Ancho igual. Cancelar a la izquierda, primario a la derecha."
+            },
+            {
+              "label": "Soporte de borradores",
+              "value": "El diálogo guarda automáticamente los borradores en IndexedDB. Recuperables al recargar la página o iniciar sesión."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "sales-orders-quiz",
+    "title": "Evaluación de conocimientos de Órdenes de Venta",
+    "summary": "Ponga a prueba su conocimiento del módulo de Órdenes de Venta: estados, líneas de artículo, conexiones con cotizaciones/envíos/facturas y flujos de trabajo comunes.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "so1",
+          "text": "Un cliente llama para confirmar su cotización y hacer un pedido. ¿Cuál es el primer paso correcto en QB Engineer?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Crear un nuevo trabajo en el tablero Kanban para las piezas del cliente"
+            },
+            {
+              "id": "b",
+              "text": "Convertir la cotización aceptada en una orden de venta, lo que conserva la referencia a la cotización y las líneas de artículo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Crear una factura directamente a partir de la cotización"
+            },
+            {
+              "id": "d",
+              "text": "Ir a Envíos y crear un envío para las piezas cotizadas"
+            }
+          ],
+          "explanation": "Cuando se acepta una cotización, la convierte en una orden de venta. Esto crea la OV con las líneas de artículo de la cotización y conserva el enlace de referencia a la cotización. Desde la OV, luego impulsa la producción, el envío y la facturación."
+        },
+        {
+          "id": "so2",
+          "text": "Está creando una nueva orden de venta. ¿Cuál de los siguientes NO es obligatorio para guardar la orden?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Seleccionar un cliente"
+            },
+            {
+              "id": "b",
+              "text": "Agregar al menos una línea de artículo"
+            },
+            {
+              "id": "c",
+              "text": "Establecer la tasa de impuesto"
+            },
+            {
+              "id": "d",
+              "text": "Introducir el número de OC del cliente",
+              "isCorrect": true
+            }
+          ],
+          "explanation": "La OC del Cliente es opcional —no todos los clientes envían órdenes de compra. Sin embargo, la selección de un cliente, al menos una línea de artículo y una tasa de impuesto (que por defecto es 0) son todos obligatorios para guardar."
+        },
+        {
+          "id": "so3",
+          "text": "Una orden de venta está en estado Confirmada. El cliente quiere cancelar. ¿Qué puede hacer?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Eliminar la orden permanentemente del sistema"
+            },
+            {
+              "id": "b",
+              "text": "Cancelar la orden —la cancelación se permite desde el estado Borrador o Confirmada",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Nada —las órdenes confirmadas no pueden cancelarse ni modificarse"
+            },
+            {
+              "id": "d",
+              "text": "Cambiar primero el estado de vuelta a Borrador y luego cancelar"
+            }
+          ],
+          "explanation": "Las órdenes pueden cancelarse desde el estado Borrador o Confirmada. Una vez que una orden pasa a En Producción o más allá, la cancelación ya no está disponible. Tenga en cuenta que Eliminar solo está disponible para las órdenes en Borrador."
+        },
+        {
+          "id": "so4",
+          "text": "Ha enviado 50 de 100 unidades en una línea de orden de venta. ¿Qué estado muestra la orden?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Enviada —cualquier envío cambia el estado"
+            },
+            {
+              "id": "b",
+              "text": "En Producción —la orden permanece en producción hasta que se envíen todas las unidades"
+            },
+            {
+              "id": "c",
+              "text": "Enviada parcialmente —algunas líneas tienen cantidades enviadas pero no todas se han cumplido por completo",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Borrador —los envíos parciales no afectan el estado"
+            }
+          ],
+          "explanation": "Cuando algunas líneas de artículo se han enviado por completo pero no todas, la orden muestra Enviada parcialmente (chip amarillo). Cada línea rastrea de forma independiente su cantidad enviada frente a la cantidad pedida. La orden pasa a Enviada solo cuando todas las líneas se cumplen por completo."
+        },
+        {
+          "id": "so5",
+          "text": "En la vista de detalle de la orden de venta, observa que la cantidad enviada de una línea de artículo se muestra en verde. ¿Qué significa esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "La línea de artículo está en reabastecimiento pendiente (backorder)"
+            },
+            {
+              "id": "b",
+              "text": "La línea de artículo se ha enviado por completo —la cantidad enviada iguala o supera la cantidad pedida",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El envío de la línea de artículo está en tránsito"
+            },
+            {
+              "id": "d",
+              "text": "La línea de artículo se ha facturado"
+            }
+          ],
+          "explanation": "El texto verde en la cantidad enviada significa que la línea se ha enviado por completo (isFullyShipped = true). El texto amarillo significa enviada parcialmente (algo enviado pero no todo). Esta codificación de color le da un estado visual rápido del cumplimiento por línea."
+        },
+        {
+          "id": "so6",
+          "text": "Al agregar una línea de artículo a una nueva orden de venta, ¿de dónde provienen las piezas?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Escribe una descripción de pieza de texto libre —sin búsqueda en el catálogo de piezas"
+            },
+            {
+              "id": "b",
+              "text": "Un autocompletado busca en el Catálogo de Piezas, mostrando solo las piezas Activas por número de pieza y descripción",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Selecciona de un menú desplegable de todas las piezas sin importar el estado"
+            },
+            {
+              "id": "d",
+              "text": "Las piezas se extraen automáticamente de la cotización vinculada"
+            }
+          ],
+          "explanation": "El campo de pieza de la línea de artículo es un autocompletado que busca solo las piezas Activas del Catálogo de Piezas. Muestra los resultados en formato 'Pieza # — Descripción'. Debe seleccionar una pieza de los resultados de búsqueda."
+        },
+        {
+          "id": "so7",
+          "text": "¿Dónde puede ver cómo se conecta una orden de venta con su cotización de origen?",
+          "options": [
+            {
+              "id": "a",
+              "text": "En la tabla de Órdenes de Venta —hay una columna Cotización que muestra el enlace"
+            },
+            {
+              "id": "b",
+              "text": "En la cuadrícula de información de la vista de detalle —el campo Cotización muestra el número de cotización como un enlace de entidad en el que se puede hacer clic",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Las cotizaciones y las órdenes de venta no están vinculadas en el sistema"
+            },
+            {
+              "id": "d",
+              "text": "Solo en el módulo de Informes, en Trazabilidad de Órdenes"
+            }
+          ],
+          "explanation": "La vista de detalle de la orden de venta muestra el número de cotización vinculada en la cuadrícula de información. El número de cotización es un enlace de entidad en el que se puede hacer clic que abre el diálogo de detalle de la cotización, dándole trazabilidad completa de la cotización a la orden."
+        },
+        {
+          "id": "so8",
+          "text": "Quiere encontrar todas las órdenes de un cliente específico que aún no se han enviado. ¿Cómo filtra la lista?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Usar el campo de Búsqueda para escribir el nombre del cliente y buscar manualmente los estados no enviados"
+            },
+            {
+              "id": "b",
+              "text": "Establecer el filtro de Cliente al cliente específico y luego establecer el filtro de Estado en Borrador, Confirmada o En Producción",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Ir a la página de detalle del cliente y revisar su pestaña Órdenes"
+            },
+            {
+              "id": "d",
+              "text": "Tanto B como C funcionarían",
+              "isCorrect": true
+            }
+          ],
+          "explanation": "La página de lista de órdenes de venta tiene filtros tanto de Cliente como de Estado. Seleccione el cliente del menú desplegable y luego filtre por estado. También podría navegar a la página de detalle del cliente y revisar su pestaña Órdenes para una vista centrada en el cliente."
+        },
+        {
+          "id": "so9",
+          "text": "¿Qué le ocurre al resumen financiero cuando cambia la tasa de impuesto en una orden de venta?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Nada cambia hasta que guarda —los totales se calculan en el servidor"
+            },
+            {
+              "id": "b",
+              "text": "El monto del Impuesto y el Total se actualizan en tiempo real a medida que escribe la nueva tasa",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Debe hacer clic en un botón Recalcular para actualizar los totales"
+            },
+            {
+              "id": "d",
+              "text": "El impuesto se calcula por línea de artículo, no a nivel de orden"
+            }
+          ],
+          "explanation": "La sección de resumen en el diálogo de crear/editar calcula el subtotal, el monto del impuesto (subtotal x tasa%) y el total general en tiempo real usando señales calculadas (computed signals). Los cambios en la tasa de impuesto o en las líneas de artículo se reflejan de inmediato."
+        },
+        {
+          "id": "so10",
+          "text": "Una orden de venta en Borrador puede eliminarse, pero una orden Confirmada no. ¿Por qué?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Las órdenes confirmadas se han comunicado al cliente —eliminarlas rompería el rastro de auditoría. La cancelación conserva el registro.",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "No hay diferencia —ambas pueden eliminarse"
+            },
+            {
+              "id": "c",
+              "text": "Las órdenes confirmadas están bloqueadas por el sistema de contabilidad"
+            },
+            {
+              "id": "d",
+              "text": "Es un error —las órdenes confirmadas también deberían poder eliminarse"
+            }
+          ],
+          "explanation": "Las órdenes en Borrador no se han comprometido, por lo que su eliminación es segura. Las órdenes confirmadas representan un compromiso comercial —eliminarlas rompería el rastro de auditoría. En su lugar, cancela una orden confirmada, lo que conserva el registro con un estado Cancelada para el historial y la trazabilidad."
+        },
+        {
+          "id": "so11",
+          "text": "¿En qué se diferencia el diálogo de creación de una orden de venta de un diálogo de formulario simple?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Usa un diseño de formulario estándar de una sola columna como otros diálogos de creación"
+            },
+            {
+              "id": "b",
+              "text": "Usa un diseño dividido —tabla de líneas de artículo y formulario para agregar líneas a la izquierda, detalles de la orden y resumen en la barra lateral derecha",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Se abre como una vista de página completa en lugar de un diálogo"
+            },
+            {
+              "id": "d",
+              "text": "Tiene un asistente de varios pasos con páginas separadas para los detalles y las líneas"
+            }
+          ],
+          "explanation": "El diálogo de creación de OV usa un diseño dividido de 1100px. El panel izquierdo (principal) contiene la tabla de líneas de artículo y el formulario para agregar líneas con autocompletado de pieza, cantidad y precio unitario. La barra lateral derecha tiene los detalles de la orden (cliente, OC, términos de crédito, fecha de entrega, tasa de impuesto), las notas y un resumen en vivo que muestra subtotal, impuesto y total."
+        },
+        {
+          "id": "so12",
+          "text": "Hace clic en una fila de orden de venta en la tabla. ¿Qué le ocurre a la URL?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Nada —el detalle se abre como una ventana emergente sin cambio de URL"
+            },
+            {
+              "id": "b",
+              "text": "La URL se actualiza para incluir ?detail=sales-order:{id}, haciendo la vista compartible y guardable como marcador",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "La página navega a /sales-orders/{id} como una ruta separada"
+            },
+            {
+              "id": "d",
+              "text": "La URL cambia a /sales-orders?selected={id}"
+            }
+          ],
+          "explanation": "Hacer clic en una fila abre el diálogo de detalle mediante DetailDialogService, que actualiza la URL para incluir ?detail=sales-order:{id}. Esto significa que puede copiar la URL y compartirla —cualquiera que la abra llegará al mismo detalle de la orden de venta. La URL se borra cuando se cierra el diálogo."
+        }
+      ]
+    }
+  }
+]

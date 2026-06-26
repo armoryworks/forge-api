@@ -1,0 +1,516 @@
+[
+  {
+    "slug": "assets-overview",
+    "title": "Visión general de Activos",
+    "summary": "Qué hace el módulo de Activos, cuándo usarlo y cómo se conecta con los trabajos, las piezas y el mantenimiento.",
+    "contentJson": {
+      "body": "## Visión general de Activos\n\nEl módulo de Activos es su registro de equipos y herramental. Realiza el seguimiento de cada activo físico que su taller posee o gestiona —máquinas, herramental, vehículos e instalaciones— junto con su historial de mantenimiento, su estado actual y sus horas de operación.\n\n### ¿Qué cuenta como un activo?\n\nLos activos se clasifican por tipo:\n- **Máquina** — fresadoras CNC, tornos, sierras, prensas y otros equipos de producción\n- **Herramental** — moldes, troqueles, plantillas, dispositivos de sujeción y herramientas de corte (incluye herramental propiedad del cliente)\n- **Instalación** — edificios, sistemas de climatización (HVAC), tableros eléctricos e infraestructura\n- **Vehículo** — camiones de reparto, montacargas, vehículos de la empresa\n- **Otro** — cualquier cosa que no encaje en las categorías anteriores\n\n### Cómo se conectan los activos con otras funciones\n\n**Herramental y piezas:** Un activo de herramental puede vincularse a una pieza específica (la pieza que produce) y al trabajo que lo creó. Esto le brinda trazabilidad completa: qué molde fabrica qué pieza y qué trabajo construyó el molde.\n\n**Mantenimiento:** Cada activo lleva el seguimiento de su historial de mantenimiento —mantenimiento programado, reparaciones e inspecciones—. Cuando un activo se pone en estado de Mantenimiento, le indica al equipo que la máquina está fuera de servicio.\n\n**Etiquetas de código de barras/QR:** Cada activo puede tener una etiqueta de código de barras impresa para una identificación rápida en el taller. Escanee la etiqueta para abrir el registro del activo al instante.\n\n### Cuándo usar Activos\n\n- Al incorporar un nuevo equipo\n- Al hacer seguimiento de herramental propiedad del cliente (moldes que le envían)\n- Al programar o registrar mantenimiento\n- Cuando un activo queda fuera de servicio y necesita registrar por qué\n- Cuando necesita conocer el número de inyecciones o la vida útil restante de la herramienta en un molde",
+      "sections": []
+    }
+  },
+  {
+    "slug": "assets-walkthrough",
+    "title": "Activos — Recorrido guiado",
+    "summary": "Un recorrido guiado por la página de activos: búsqueda, filtros, tabla de datos, creación de activos y visualización de detalles de activos.",
+    "contentJson": {
+      "appRoute": "/assets",
+      "startButtonLabel": "Recorrer Activos",
+      "steps": [
+        {
+          "element": "[data-testid='new-asset-btn']",
+          "popover": {
+            "title": "Botón Agregar activo",
+            "description": "Haga clic aquí para registrar un nuevo activo. Introducirá el nombre, el tipo, la ubicación, el fabricante y el modelo. Para los activos de herramental aparecen campos adicionales: número de cavidades, vida útil esperada de la herramienta y propiedad del cliente.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".page-header app-input",
+          "popover": {
+            "title": "Buscar activos",
+            "description": "Busque por nombre del activo, fabricante, modelo o número de serie. Los resultados se actualizan en tiempo real a medida que escribe.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".page-header app-select:first-of-type",
+          "popover": {
+            "title": "Filtro de tipo",
+            "description": "Filtre los activos por tipo: Máquina, Herramental, Instalación, Vehículo u Otro. Cada tipo tiene un icono distintivo para una identificación rápida.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".page-header app-select:last-of-type",
+          "popover": {
+            "title": "Filtro de estado",
+            "description": "Filtre por estado: Activo (en servicio), Mantenimiento (actualmente fuera de servicio), Retirado (ya no se usa) o Fuera de servicio (averiado/no disponible).",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de activos",
+            "description": "Haga clic en cualquier fila para abrir el panel de detalles del activo. Las columnas incluyen nombre, tipo, ubicación, fabricante, estado (chip codificado por color) y horas de operación actuales. Haga clic en los encabezados de columna para ordenar.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "assets-field-reference",
+    "title": "Referencia de campos de Activos",
+    "summary": "Referencia completa de cada campo, botón, estado, regla de validación y acción del módulo de Activos.",
+    "contentJson": {
+      "title": "Referencia de campos de Activos",
+      "groups": [
+        {
+          "heading": "Campos del formulario de activo",
+          "items": [
+            {
+              "label": "Nombre (obligatorio)",
+              "value": "Entrada de texto, identifica el activo. Ejemplos: 'Haas VF-2 fresadora CNC', 'Molde de cliente n.º 42'. No puede estar vacío."
+            },
+            {
+              "label": "Tipo (obligatorio)",
+              "value": "Lista desplegable: Máquina, Herramental, Instalación, Vehículo, Otro. Determina el icono que se muestra en la tabla y en la vista de detalle. Predeterminado: Máquina."
+            },
+            {
+              "label": "Ubicación",
+              "value": "Entrada de texto, opcional. Dónde se encuentra físicamente el activo (p. ej., 'Bahía 3', 'Almacén A', 'Edificio 2')."
+            },
+            {
+              "label": "Fabricante",
+              "value": "Entrada de texto, opcional. El fabricante del equipo (p. ej., 'Haas', 'DMG Mori', 'Mazak')."
+            },
+            {
+              "label": "Modelo",
+              "value": "Entrada de texto, opcional. El número de modelo del fabricante."
+            },
+            {
+              "label": "Número de serie",
+              "value": "Entrada de texto, opcional. Se muestra en fuente monoespaciada para facilitar su lectura."
+            },
+            {
+              "label": "Notas",
+              "value": "Área de texto, opcional. Notas de formato libre sobre el activo, el historial de mantenimiento o instrucciones especiales."
+            }
+          ]
+        },
+        {
+          "heading": "Campos exclusivos de herramental (se muestran cuando Tipo = Herramental)",
+          "items": [
+            {
+              "label": "Propiedad del cliente",
+              "value": "Interruptor de palanca. Cuando está ACTIVADO, indica que el molde/herramienta pertenece a un cliente, no a su taller. Afecta a los informes."
+            },
+            {
+              "label": "Número de cavidades",
+              "value": "Entrada numérica. Para moldes: cuántas cavidades (piezas por inyección). Se usa en la planificación de la producción."
+            },
+            {
+              "label": "Vida útil esperada de la herramienta",
+              "value": "Entrada numérica. Total esperado de inyecciones/ciclos antes de que la herramienta necesite reemplazo. Se compara con el Número de inyecciones actual."
+            },
+            {
+              "label": "Número de inyecciones actual",
+              "value": "Solo visualización (en la vista de detalle). Número actual de inyecciones/ciclos. Cuando se aproxima a la Vida útil esperada de la herramienta, indica que la herramienta se acerca al final de su vida útil."
+            },
+            {
+              "label": "Trabajo de origen",
+              "value": "Enlace a entidad (solo visualización). El trabajo que creó este activo de herramental. Se puede hacer clic para abrir el detalle del trabajo."
+            },
+            {
+              "label": "Pieza de origen",
+              "value": "Enlace a entidad (solo visualización). La pieza que este herramental produce. Se puede hacer clic para abrir el detalle de la pieza."
+            }
+          ]
+        },
+        {
+          "heading": "Estados del activo",
+          "items": [
+            {
+              "label": "Activo (chip verde)",
+              "value": "El activo está en servicio y disponible para su uso. Estado predeterminado para los activos nuevos."
+            },
+            {
+              "label": "Mantenimiento (chip amarillo)",
+              "value": "El activo está actualmente fuera de servicio por mantenimiento programado o no programado. Indica al equipo que la máquina no está disponible."
+            },
+            {
+              "label": "Retirado (chip gris)",
+              "value": "El activo ha sido retirado de servicio de forma permanente. El registro se conserva para el historial y el seguimiento de la depreciación."
+            },
+            {
+              "label": "Fuera de servicio (chip rojo)",
+              "value": "El activo está averiado o no disponible por otro motivo. Diferente de Mantenimiento: indica una interrupción no planificada."
+            }
+          ]
+        },
+        {
+          "heading": "Tipos de activos e iconos",
+          "items": [
+            {
+              "label": "Máquina",
+              "value": "Icono: precision_manufacturing. Equipo de producción (CNC, torno, sierra, prensa)."
+            },
+            {
+              "label": "Herramental",
+              "value": "Icono: build. Moldes, troqueles, plantillas, dispositivos de sujeción, herramientas de corte. Tiene campos adicionales para número de cavidades, número de inyecciones y propiedad del cliente."
+            },
+            {
+              "label": "Instalación",
+              "value": "Icono: apartment. Edificios, climatización (HVAC), instalación eléctrica, infraestructura."
+            },
+            {
+              "label": "Vehículo",
+              "value": "Icono: local_shipping. Camiones de reparto, montacargas, vehículos de la empresa."
+            },
+            {
+              "label": "Otro",
+              "value": "Icono: category. Cualquier cosa que no encaje en las categorías anteriores."
+            }
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            {
+              "label": "Agregar activo (botón principal)",
+              "value": "Abre el cuadro de diálogo de creación de activos. data-testid: new-asset-btn"
+            },
+            {
+              "label": "Guardar (cuadro de diálogo)",
+              "value": "Crea o actualiza el activo. Deshabilitado cuando el formulario no es válido o el guardado está en curso. data-testid: asset-save-btn"
+            },
+            {
+              "label": "Cancelar (cuadro de diálogo)",
+              "value": "Cierra el cuadro de diálogo sin guardar."
+            },
+            {
+              "label": "Editar (panel de detalle)",
+              "value": "Abre el cuadro de diálogo de edición precargado con los valores actuales del activo."
+            },
+            {
+              "label": "Botones de Establecer estado (detalle)",
+              "value": "Botones de acción rápida para cambiar el estado a Activo, Mantenimiento, Retirado o Fuera de servicio directamente desde el panel de detalle."
+            },
+            {
+              "label": "Clic en la fila",
+              "value": "Abre el panel/cuadro de diálogo de detalle del activo que muestra todos los campos, los detalles del herramental, la información del código de barras y el historial de mantenimiento."
+            }
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            {
+              "label": "Nombre",
+              "value": "Obligatorio. No puede estar vacío."
+            },
+            {
+              "label": "Tipo",
+              "value": "Obligatorio. Debe seleccionar uno de los cinco tipos."
+            },
+            {
+              "label": "Todos los demás campos",
+              "value": "Opcionales. Sin restricciones de longitud o formato más allá de límites razonables."
+            },
+            {
+              "label": "Popover del botón Enviar",
+              "value": "Cuando el formulario no es válido, al pasar el cursor sobre Guardar se muestra un popover de validación que enumera qué campos requieren atención."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla",
+          "items": [
+            {
+              "label": "Icono",
+              "value": "Icono del tipo de activo. No ordenable."
+            },
+            {
+              "label": "Nombre",
+              "value": "Ordenable. Texto del nombre del activo."
+            },
+            {
+              "label": "Tipo de activo",
+              "value": "Ordenable, filtrable (enum). Máquina/Herramental/Instalación/Vehículo/Otro."
+            },
+            {
+              "label": "Ubicación",
+              "value": "Ordenable. Texto de la ubicación física."
+            },
+            {
+              "label": "Fabricante",
+              "value": "Ordenable. Fabricante del equipo."
+            },
+            {
+              "label": "Estado",
+              "value": "Ordenable. Chip codificado por color: Activo (verde), Mantenimiento (amarillo), Retirado (gris), Fuera de servicio (rojo)."
+            },
+            {
+              "label": "Horas actuales",
+              "value": "Ordenable, alineado a la derecha. Horas de operación registradas para el activo."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "assets-quiz",
+    "title": "Evaluación de conocimientos de Activos",
+    "summary": "Ponga a prueba sus conocimientos del módulo de Activos: tipos, estados, campos de herramental y flujos de trabajo comunes.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "as1",
+          "text": "Ha recibido una nueva fresadora CNC de Haas. ¿Cuál es el primer paso para registrarla en QB Engineer?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ir a Administración → Equipos y registrar el número de serie"
+            },
+            {
+              "id": "b",
+              "text": "Navegar a Activos, hacer clic en Agregar activo, completar el nombre, el tipo (Máquina), el fabricante (Haas) y la ubicación",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Crear un trabajo en el tablero Kanban y etiquetarlo como configuración de equipo"
+            },
+            {
+              "id": "d",
+              "text": "Agregarla al Inventario como una nueva ubicación de almacenamiento"
+            }
+          ],
+          "explanation": "Los equipos nuevos se registran en el módulo de Activos. Haga clic en Agregar activo, seleccione el tipo Máquina y complete los detalles. El activo comienza en estado Activo de forma predeterminada."
+        },
+        {
+          "id": "as2",
+          "text": "Un cliente le envía un molde de su propiedad para producción. ¿Cómo lo registra en QB Engineer?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Crear un Activo con tipo Herramental y activar Propiedad del cliente",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Agregarlo como una Pieza en el Catálogo de piezas con estado Borrador"
+            },
+            {
+              "id": "c",
+              "text": "Crear una Orden de compra para registrar su recepción"
+            },
+            {
+              "id": "d",
+              "text": "Agregarlo al Inventario como existencias recibidas"
+            }
+          ],
+          "explanation": "El herramental propiedad del cliente se registra como un activo de Herramental con el interruptor Propiedad del cliente habilitado. Esto lo distingue en los informes y garantiza un manejo adecuado."
+        },
+        {
+          "id": "as3",
+          "text": "Un activo muestra un estado de 'Fuera de servicio' (chip rojo). ¿Qué significa esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El activo está programado para mantenimiento rutinario la próxima semana"
+            },
+            {
+              "id": "b",
+              "text": "El activo ha sido retirado de forma permanente y se venderá"
+            },
+            {
+              "id": "c",
+              "text": "El activo está averiado o no disponible para su uso por otro motivo: una interrupción no planificada",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Las horas de operación del activo han superado su vida útil"
+            }
+          ],
+          "explanation": "Fuera de servicio (rojo) indica una interrupción no planificada: el activo está averiado o no disponible. Esto es diferente de Mantenimiento (amarillo, que es tiempo de inactividad planificado) y de Retirado (gris, retirado de forma permanente)."
+        },
+        {
+          "id": "as4",
+          "text": "Desea ver todos los activos de herramental que están actualmente fuera de servicio por mantenimiento. ¿Cómo?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ir a Activos, establecer el filtro de Tipo en Herramental y el filtro de Estado en Mantenimiento",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Ejecutar un informe en el módulo de Informes filtrado por estado del activo"
+            },
+            {
+              "id": "c",
+              "text": "Consultar el widget de mantenimiento del Panel"
+            },
+            {
+              "id": "d",
+              "text": "Ir a Administración → Equipos → filtrar por estado"
+            }
+          ],
+          "explanation": "La página de Activos tiene dos filtros: Tipo y Estado. Establezca Tipo en Herramental y Estado en Mantenimiento para ver exactamente los activos que necesita."
+        },
+        {
+          "id": "as5",
+          "text": "¿Qué campos adicionales aparecen cuando establece el tipo de un activo en Herramental?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Fecha de garantía, Póliza de seguro y Tasa de depreciación"
+            },
+            {
+              "id": "b",
+              "text": "Interruptor Propiedad del cliente, Número de cavidades y Vida útil esperada de la herramienta",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Operador asignado, Horario de turnos y Fecha de calibración"
+            },
+            {
+              "id": "d",
+              "text": "Ningún campo adicional: todos los tipos de activos tienen el mismo formulario"
+            }
+          ],
+          "explanation": "Los activos de herramental obtienen tres campos adicionales: Propiedad del cliente (interruptor), Número de cavidades (número de cavidades en un molde) y Vida útil esperada de la herramienta (total esperado de inyecciones antes del reemplazo)."
+        },
+        {
+          "id": "as6",
+          "text": "El Número de inyecciones actual de un activo de herramental se aproxima a su Vida útil esperada de la herramienta. ¿Qué indica esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "La herramienta necesita recalibrarse antes de la próxima corrida de producción"
+            },
+            {
+              "id": "b",
+              "text": "La herramienta se acerca al final de su vida útil y puede necesitar reemplazo o reacondicionamiento pronto",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "La herramienta ha superado su período de garantía"
+            },
+            {
+              "id": "d",
+              "text": "Nada: el número de inyecciones es solo informativo y no tiene importancia"
+            }
+          ],
+          "explanation": "Cuando el Número de inyecciones actual se aproxima a la Vida útil esperada de la herramienta, es una señal de que la herramienta puede necesitar reemplazo o reacondicionamiento. Esto le ayuda a planificar con anticipación en lugar de que una herramienta falle inesperadamente durante la producción."
+        },
+        {
+          "id": "as7",
+          "text": "Desea cambiar rápidamente el estado de una máquina de Activo a Mantenimiento sin abrir el cuadro de diálogo de edición. ¿Cómo?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Hacer clic en la fila del activo y luego hacer clic en el botón de estado Mantenimiento en el panel de detalle",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Hacer clic derecho en la fila y seleccionar Establecer estado → Mantenimiento"
+            },
+            {
+              "id": "c",
+              "text": "Debe abrir el cuadro de diálogo de edición para cambiar el estado"
+            },
+            {
+              "id": "d",
+              "text": "Arrastrar la fila del activo a la sección de Mantenimiento de la tabla"
+            }
+          ],
+          "explanation": "El panel de detalle del activo tiene botones de acción rápida de estado. Haga clic en la fila para abrir el detalle y luego haga clic en el botón Mantenimiento para cambiar el estado de inmediato."
+        },
+        {
+          "id": "as8",
+          "text": "¿Qué ocurre con los datos de un activo cuando establece su estado en Retirado?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El registro se elimina de forma permanente para liberar espacio"
+            },
+            {
+              "id": "b",
+              "text": "El registro se archiva y se oculta de todas las vistas"
+            },
+            {
+              "id": "c",
+              "text": "El registro se conserva con el historial completo: simplemente no aparecerá en las vistas filtradas por Activo/Mantenimiento",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Solo se conserva el nombre: todo el historial de mantenimiento y los detalles se eliminan"
+            }
+          ],
+          "explanation": "Los activos retirados nunca se eliminan. El registro completo (historial de mantenimiento, horas de operación, detalles del herramental) se conserva como referencia y para cumplimiento. El activo simplemente deja de aparecer en los filtros activos."
+        },
+        {
+          "id": "as9",
+          "text": "Necesita encontrar el número de serie de una máquina específica. ¿Dónde lo busca?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Administración → Equipos → Números de serie"
+            },
+            {
+              "id": "b",
+              "text": "Activos → hacer clic en la fila de la máquina → campo Número de serie en la vista de detalle",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Inventario → pestaña Equipos → búsqueda de serie"
+            },
+            {
+              "id": "d",
+              "text": "Informes → Registro de activos → exportar a CSV y buscar"
+            }
+          ],
+          "explanation": "Haga clic en cualquier fila de activo para abrir su panel de detalle. El número de serie se muestra en fuente monoespaciada para facilitar su lectura. También puede buscar activos por número de serie usando el cuadro de búsqueda."
+        },
+        {
+          "id": "as10",
+          "text": "Acaban de dar servicio a un montacargas. ¿Dónde vería este evento de mantenimiento en el registro del activo?",
+          "options": [
+            {
+              "id": "a",
+              "text": "En la pestaña Registro de actividad del activo, bajo los cambios recientes"
+            },
+            {
+              "id": "b",
+              "text": "En la sección Historial de mantenimiento del panel de detalle del activo: muestra el nombre del programa, la fecha, quién lo realizó, las horas dedicadas, el costo y las notas",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "En Informes → Historial de mantenimiento filtrado por activo"
+            },
+            {
+              "id": "d",
+              "text": "En la página de Seguimiento de tiempo: el mantenimiento se registra como entradas de tiempo"
+            }
+          ],
+          "explanation": "El panel de detalle del activo tiene una sección de Historial de mantenimiento que muestra todos los eventos de mantenimiento anteriores con el nombre del programa, la fecha de realización, el técnico, las horas, el costo y las notas."
+        }
+      ]
+    }
+  }
+]

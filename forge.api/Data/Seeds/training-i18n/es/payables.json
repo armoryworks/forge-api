@@ -1,0 +1,365 @@
+[
+  {
+    "slug": "payables-overview",
+    "title": "Visión general de Cuentas por pagar",
+    "summary": "Qué abarca Cuentas por pagar: facturas de proveedores, pagos a proveedores, el ciclo de vida de la factura, la aplicación de pagos y cómo Cuentas por pagar se conecta con las Órdenes de compra y los Proveedores.",
+    "contentJson": {
+      "body": "## Visión general de Cuentas por pagar\n\nEl módulo de Cuentas por pagar es su espacio de trabajo de Cuentas por pagar (AP). Hace seguimiento del dinero que su taller debe a los proveedores: las **facturas de proveedores** que recibe, los **pagos a proveedores** que realiza para liquidarlas y la forma en que esos pagos se aplican contra los saldos abiertos. Cuentas por pagar se conecta directamente con las Órdenes de compra (para la facturación cotejada) y con los Proveedores (cada factura y cada pago pertenece a un proveedor).\n\nLa página está organizada en pestañas —**Facturas**, **Pagos**, **Lotes** y **Cuentas**— con un filtro de proveedor y un filtro de estado en la parte superior para acotar lo que ve.\n\n### ¿Qué es una factura de proveedor?\n\nUna factura de proveedor representa el dinero que usted le debe a un proveedor. Cada factura tiene:\n- Un **Número de factura** único (autogenerado)\n- Un vínculo a exactamente un **Proveedor**\n- Un **N.º de factura del proveedor** opcional (la referencia propia del proveedor)\n- Una **Fecha de la factura** y una **Fecha de vencimiento**\n- Una o más **Líneas de pedido** (descripción, cantidad, precio unitario)\n- Un **Monto de impuesto** opcional\n- Un **Estado** que determina en qué punto de su ciclo de vida está la factura\n- Totales calculados: **Total**, **Pagado** (monto pagado) y **Saldo adeudado**\n\nLas facturas pueden ingresarse de dos maneras. Una factura **independiente** se escribe a mano: usted agrega líneas de pedido de texto libre. Una factura **Desde orden de compra** se cotejada con una OC: usted elige la OC y factura contra sus líneas recibidas, y solo puede facturar hasta la cantidad que se ha recibido pero aún no se ha facturado (cotejo de tres vías).\n\n### Ciclo de vida de la factura\n\nLas facturas de proveedor avanzan por estos estados:\n\n1. **Borrador** — La factura se ha ingresado pero aún no se ha aprobado. Todavía no tiene impacto en el libro mayor. Este es el estado inicial de cada factura nueva.\n2. **Aprobada** — La factura se ha aprobado para pago. El asiento de AP se contabiliza en esta transición. Apruebe una factura desde el panel de detalle con el botón **Aprobar factura** (disponible solo desde Borrador).\n3. **Pagada parcialmente** — La factura está aprobada y uno o más pagos a proveedores han liquidado parte del saldo. El Saldo adeudado sigue siendo mayor que cero.\n4. **Pagada** — La factura está totalmente liquidada. El Saldo adeudado es cero.\n5. **Anulada** — La factura se canceló antes de pagarse. Una factura solo puede anularse desde el estado Borrador o Aprobada, solo cuando no se ha pagado nada contra ella, y solo cuando no se originó a partir de un gasto.\n\n### ¿Qué es un pago a proveedor?\n\nUn pago a proveedor registra el dinero enviado a un proveedor y cómo se aplica a las facturas abiertas de ese proveedor. Cada pago tiene:\n- Un **N.º de pago** único (autogenerado)\n- Un **Proveedor**\n- Un **Método** (Efectivo, Cheque, Tarjeta de crédito, Transferencia bancaria, Transferencia electrónica u Otro)\n- Un **Monto**\n- Una **Fecha de pago**\n- Un **N.º de referencia** opcional (número de cheque, referencia de transferencia, etc.)\n- Una o más **Aplicaciones a facturas** que distribuyen el pago entre las facturas abiertas\n\nCuando crea un pago, elige un proveedor y el sistema carga las facturas por pagar de ese proveedor (las que están en estado Aprobada o Pagada parcialmente). Usted ingresa cuánto del pago aplicar a cada factura. La suma de las aplicaciones no puede exceder el monto del pago; cualquier remanente se muestra como **No aplicado**. Aplicar un pago mueve cada factura afectada hacia Pagada parcialmente o Pagada automáticamente.\n\n### Transmisión de pagos (pagos electrónicos)\n\nLos pagos electrónicos —Transferencia bancaria y Transferencia electrónica— llevan un **Estado de transmisión** que hace seguimiento de la entrega al banco: En cola, Reintentando, Exitoso, Fallido o Cancelado. Una transmisión fallida muestra un banner en la parte superior de la página y en el detalle de la factura y del pago. Puede **Reintentar transmisión** en un pago fallido. Los pagos por transferencia electrónica añaden un paso de control dual: mientras una transferencia electrónica está En cola, debe **Atestiguar transferencia** (un segundo usuario la confirma) antes de que se transmita.\n\n### Cómo se conecta Cuentas por pagar con otras funciones\n\n**Órdenes de compra:** Una factura creada Desde orden de compra se coteja línea por línea con las cantidades recibidas de la OC. Solo puede facturar la cantidad recibida pero no facturada, y las diferencias de precio fluyen como variación del precio de compra cuando la factura se contabiliza.\n\n**Proveedores:** Cada factura y cada pago pertenece a un proveedor. El nombre del proveedor enlaza con el registro del proveedor, y el filtro de proveedor en la parte superior de la página acota tanto la pestaña Facturas como la pestaña Pagos.\n\n**Gastos:** Un gasto liquidado por un proveedor puede promoverse automáticamente a una factura de proveedor. Dicha factura muestra un chip 'Desde gasto' y no puede anularse.\n\n**Frontera contable:** Cuentas por pagar es una función contable. Cuando se conecta un proveedor de contabilidad externo, AP se gestiona allí en su lugar; el módulo de AP integrado funciona en modo independiente.\n\n### Cuándo usar Cuentas por pagar\n\n- Cuando llega una factura de proveedor: ingrésela como factura y luego apruébela para pago\n- Cuando quiera cotejo de tres vías: cree la factura Desde orden de compra para que la facturación esté limitada por la cantidad recibida\n- Cuando paga a un proveedor: registre un pago y aplíquelo entre las facturas abiertas de ese proveedor\n- Cuando un pago electrónico falla: reintente la transmisión desde el detalle del pago\n- Cuando necesita aprobar una transferencia electrónica: atestigüe la transferencia en cola antes de que se envíe",
+      "sections": []
+    }
+  },
+  {
+    "slug": "payables-walkthrough",
+    "title": "Cuentas por pagar — Recorrido guiado",
+    "summary": "Un recorrido guiado por la página de Cuentas por pagar: las pestañas Facturas y Pagos, los filtros de proveedor y estado, las tablas de datos, la creación de facturas, el registro de pagos y los paneles de detalle.",
+    "contentJson": {
+      "appRoute": "/payables",
+      "startButtonLabel": "Recorrer Cuentas por pagar",
+      "steps": [
+        {
+          "element": ".tab-bar",
+          "popover": {
+            "title": "Pestañas de Cuentas por pagar",
+            "description": "La página de Cuentas por pagar se divide en pestañas: Facturas (facturas de proveedores que debe), Pagos (dinero enviado a proveedores), Lotes (lotes de pago) y Cuentas (cuentas bancarias de proveedores). Las pestañas Facturas y Pagos son el espacio de trabajo de AP del día a día.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='new-vendor-bill-btn']",
+          "popover": {
+            "title": "Botón Nueva factura",
+            "description": "En la pestaña Facturas, haga clic aquí para ingresar una factura de proveedor. Elige un proveedor, establece las fechas de factura y vencimiento, y agrega líneas de pedido, ya sea como líneas independientes de texto libre o cotejadas Desde orden de compra. Las facturas nuevas comienzan en estado Borrador sin impacto en el libro mayor.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar app-select",
+          "popover": {
+            "title": "Filtros de proveedor y estado",
+            "description": "Filtre la tabla por proveedor (Todos los proveedores de forma predeterminada) y por estado. El filtro de estado de Facturas ofrece Borrador, Aprobada, Pagada parcialmente, Pagada y Anulada. La pestaña Pagos filtra por método de pago y estado de transmisión en su lugar.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de Facturas",
+            "description": "Cada fila es una factura de proveedor: Número de factura, Proveedor, N.º de factura del proveedor, un chip de Estado codificado por color, Fecha de la factura, Fecha de vencimiento, Total, Pagado y Saldo adeudado. El Saldo adeudado se resalta cuando es mayor que cero. Haga clic en cualquier fila para abrir el panel de detalle de la factura.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".tab-bar",
+          "popover": {
+            "title": "Botón Nuevo pago",
+            "description": "Cambie a la pestaña Pagos y use su botón Nuevo pago para registrar un pago a proveedor. Tras elegir el proveedor, el diálogo carga las facturas por pagar de ese proveedor (Aprobada o Pagada parcialmente) para que pueda aplicar el pago entre ellas. El diálogo usa data-testids como vendor-payment-method, vendor-payment-amount y vendor-payment-app-amount.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Panel de detalle de la factura",
+            "description": "Al hacer clic en una fila de factura se abre su panel de detalle: chip de estado, enlace al proveedor, Orden de compra vinculada, líneas de pedido y el bloque de totales (Subtotal, Impuesto, Total, Pagado, Saldo adeudado). Los botones de acción aparecen según el estado: Aprobar factura (data-testid approve-bill-btn) desde Borrador, y Anular factura (data-testid void-bill-btn) desde Borrador o Aprobada cuando no se ha pagado nada.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Panel de detalle del pago",
+            "description": "En la pestaña Pagos, al hacer clic en una fila de pago se abre su detalle: proveedor, método, monto, montos aplicado y no aplicado, y la tabla de aplicaciones a facturas. Para los pagos electrónicos, una sección de Transmisión bancaria muestra el estado y los intentos, con Reintentar transmisión para los fallos, Atestiguar transferencia para las transferencias electrónicas en cola y Anular pago para revertir un pago.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "payables-field-reference",
+    "title": "Referencia de campos de Cuentas por pagar",
+    "summary": "Referencia completa de cada campo, botón, estado, regla de validación y columna de tabla del módulo de Cuentas por pagar: facturas de proveedores y pagos a proveedores.",
+    "contentJson": {
+      "title": "Referencia de campos de Cuentas por pagar",
+      "groups": [
+        {
+          "heading": "Campos del formulario de factura de proveedor (diálogo de creación)",
+          "items": [
+            { "label": "Proveedor (requerido)", "value": "Menú desplegable, solo proveedores activos. El proveedor al que se debe esta factura. data-testid: bill-vendor" },
+            { "label": "N.º de factura del proveedor (opcional)", "value": "Entrada de texto. La referencia de factura propia del proveedor. Marcador de posición 'Opcional'. Se muestra en la tabla; '—' cuando está en blanco. data-testid: bill-vendor-invoice-number" },
+            { "label": "Fecha de la factura (requerido)", "value": "Selector de fecha. La fecha de la factura del proveedor. El máximo es hoy. data-testid: bill-date" },
+            { "label": "Fecha de vencimiento (requerido)", "value": "Selector de fecha. La fecha en que vence el pago. data-testid: bill-due-date" },
+            { "label": "Monto de impuesto (opcional)", "value": "Entrada de moneda. Impuesto sobre la factura, añadido sobre el subtotal de líneas. Mínimo 0, predeterminado 0. data-testid: bill-tax-amount" },
+            { "label": "Moneda (instalaciones multimoneda)", "value": "Selector. La moneda de la factura. Se muestra solo cuando existe más de una moneda activa; predeterminado a la moneda base. data-testid: bill-currency" },
+            { "label": "Tipo de cambio (moneda no base)", "value": "Entrada numérica. Tipo de cambio a la moneda base. Se muestra solo cuando se selecciona una moneda no base. data-testid: bill-fx-rate" },
+            { "label": "Desde orden de compra (interruptor)", "value": "Cambia el diálogo entre la entrada independiente y la facturación cotejada con OC. data-testid: bill-from-po-toggle" },
+            { "label": "Orden de compra (modo OC)", "value": "Selector. La OC contra la que facturar; requerido cuando Desde orden de compra está activado. data-testid: bill-po-select" },
+            { "label": "Notas (opcional)", "value": "Área de texto, 2 filas. Notas de texto libre sobre la factura. data-testid: bill-notes" }
+          ]
+        },
+        {
+          "heading": "Campos de línea de pedido de la factura",
+          "items": [
+            { "label": "Pieza (independiente, opcional)", "value": "Selector de entidades que muestra el número y el nombre de la pieza. Vínculo opcional de una línea a una pieza." },
+            { "label": "Descripción (independiente, requerido)", "value": "Entrada de texto. Requerida en cada línea independiente. data-testid: bill-line-desc" },
+            { "label": "Cantidad (independiente, requerido)", "value": "Entrada numérica, mínimo 0.0001. data-testid: bill-line-qty" },
+            { "label": "Precio unitario (independiente, requerido)", "value": "Entrada numérica, mínimo 0. data-testid: bill-line-price" },
+            { "label": "Agregar línea (independiente)", "value": "Agrega una línea de pedido independiente. data-testid: bill-add-line-btn" },
+            { "label": "Cantidad a facturar (modo OC, requerido)", "value": "Entrada numérica. No puede exceder la cantidad recibida pero no facturada de la línea de la OC (cotejo de tres vías). data-testid: bill-po-line-qty" },
+            { "label": "Precio unitario (modo OC, requerido)", "value": "Entrada numérica, precargada desde el precio de la línea de la OC. Las diferencias se contabilizan como variación del precio de compra. data-testid: bill-po-line-price" }
+          ]
+        },
+        {
+          "heading": "Estados de la factura de proveedor",
+          "items": [
+            { "label": "Borrador (chip azul)", "value": "Ingresada pero no aprobada. Sin impacto en el libro mayor. Estado inicial. Puede aprobarse o anularse." },
+            { "label": "Aprobada (chip verde azulado/primario)", "value": "Aprobada para pago; el asiento de AP se contabiliza en esta transición. Elegible para la aplicación de pagos. Aún puede anularse si no se ha pagado nada." },
+            { "label": "Pagada parcialmente (chip ámbar/advertencia)", "value": "Aprobada y parcialmente liquidada por uno o más pagos. El Saldo adeudado es mayor que cero." },
+            { "label": "Pagada (chip verde/éxito)", "value": "Totalmente liquidada. El Saldo adeudado es cero. Estado terminal." },
+            { "label": "Anulada (chip gris/atenuado)", "value": "Cancelada antes del pago. Estado terminal. Las facturas contabilizadas se revierten en lugar de anularse." },
+            { "label": "Desde gasto (chip info)", "value": "Se muestra cuando la factura se promovió automáticamente desde un gasto liquidado por un proveedor (sourceExpenseId). Dichas facturas no pueden anularse." },
+            { "label": "Pago fallido (chip de error)", "value": "Se muestra en una fila de factura cuando un pago electrónico relacionado tuvo una transmisión fallida." }
+          ]
+        },
+        {
+          "heading": "Campos del formulario de pago a proveedor (diálogo de creación)",
+          "items": [
+            { "label": "Proveedor (requerido)", "value": "Menú desplegable, solo proveedores activos. Elegir un proveedor carga las facturas por pagar de ese proveedor. data-testid: vendor-payment-vendor" },
+            { "label": "Método (requerido)", "value": "Selector: Efectivo, Cheque, Tarjeta de crédito, Transferencia bancaria, Transferencia electrónica u Otro. data-testid: vendor-payment-method" },
+            { "label": "Monto (requerido)", "value": "Entrada de moneda, mínimo 0.01. El monto total del pago. data-testid: vendor-payment-amount" },
+            { "label": "Fecha de pago (requerido)", "value": "Selector de fecha, máximo hoy. data-testid: vendor-payment-date" },
+            { "label": "N.º de referencia (opcional)", "value": "Entrada de texto. Número de cheque, referencia de transferencia, etc. data-testid: vendor-payment-ref" },
+            { "label": "Monto a aplicar (por factura)", "value": "Entrada numérica por fila de aplicación. Limitada por el Saldo adeudado de esa factura. data-testid: vendor-payment-app-amount" },
+            { "label": "Tipo de cambio de liquidación (por factura, multimoneda)", "value": "Entrada numérica por fila de aplicación cuando la multimoneda está activa. data-testid: vendor-payment-app-fx" },
+            { "label": "Notas (opcional)", "value": "Área de texto, 2 filas. data-testid: vendor-payment-notes" }
+          ]
+        },
+        {
+          "heading": "Métodos de pago",
+          "items": [
+            { "label": "Efectivo", "value": "Pago en efectivo." },
+            { "label": "Cheque", "value": "Cheque de papel; el número de cheque normalmente va en N.º de referencia." },
+            { "label": "Tarjeta de crédito", "value": "Pago con tarjeta de crédito." },
+            { "label": "Transferencia bancaria", "value": "Transferencia electrónica estilo ACH; lleva un estado de transmisión." },
+            { "label": "Transferencia electrónica", "value": "Transferencia electrónica (wire); lleva un estado de transmisión y requiere atestación de control dual mientras está en cola." },
+            { "label": "Otro", "value": "Cualquier método no cubierto anteriormente." }
+          ]
+        },
+        {
+          "heading": "Estados de transmisión de pago (pagos electrónicos)",
+          "items": [
+            { "label": "En cola (chip info)", "value": "La transmisión está esperando ser enviada. Los pagos por transferencia electrónica deben atestiguarse mientras están en este estado." },
+            { "label": "Reintentando (chip advertencia)", "value": "Un intento de envío falló y se programó un reintento; muestra el conteo de intentos y la hora del próximo intento." },
+            { "label": "Exitoso (chip éxito)", "value": "La transmisión se completó; se registra una referencia de envío." },
+            { "label": "Fallido (chip de error)", "value": "Todos los intentos fallaron. Muestra un banner y habilita Reintentar transmisión." },
+            { "label": "Cancelado (chip atenuado)", "value": "La transmisión fue cancelada." }
+          ]
+        },
+        {
+          "heading": "Botones y acciones del detalle de la factura",
+          "items": [
+            { "label": "Aprobar factura", "value": "Transiciona una factura Borrador a Aprobada y contabiliza el asiento de AP. Disponible solo desde Borrador. Confirma antes de proceder. data-testid: approve-bill-btn" },
+            { "label": "Anular factura", "value": "Cancela una factura sin impacto en el libro mayor. Disponible solo desde Borrador o Aprobada, solo cuando el monto pagado es 0 y la factura no provino de un gasto. Confirma antes de proceder. data-testid: void-bill-btn" },
+            { "label": "Guardar / Crear factura", "value": "Crea la factura. Deshabilitado cuando el formulario es inválido, no hay líneas de pedido o un guardado está en progreso. data-testid: bill-save-btn" }
+          ]
+        },
+        {
+          "heading": "Botones y acciones del detalle del pago",
+          "items": [
+            { "label": "Reintentar transmisión", "value": "Reintenta una transmisión de pago electrónico fallida. Disponible cuando el estado de transmisión es Fallido. data-testid: retry-transmission-btn" },
+            { "label": "Atestiguar transferencia", "value": "Confirmación de un segundo usuario que libera una transferencia electrónica para su transmisión. Disponible cuando el método es Transferencia electrónica y el estado de transmisión es En cola. data-testid: attest-wire-btn" },
+            { "label": "Anular pago", "value": "Revierte un pago; abre un diálogo que requiere un motivo de anulación. data-testid: void-payment-btn (motivo: void-reason, confirmar: void-confirm-btn)" },
+            { "label": "Guardar / Crear pago", "value": "Crea el pago y sus aplicaciones a facturas. Deshabilitado cuando el formulario es inválido, el pago está sobreaplicado o un guardado está en progreso. data-testid: vendor-payment-save-btn" }
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            { "label": "Factura — Proveedor", "value": "Requerido. Debe seleccionar un proveedor activo." },
+            { "label": "Factura — Fecha de la factura", "value": "Requerida. Debe ser hoy o anterior." },
+            { "label": "Factura — Fecha de vencimiento", "value": "Requerida." },
+            { "label": "Factura — Líneas de pedido", "value": "Se requiere al menos una línea activa. Las líneas independientes requieren una descripción, cantidad >= 0.0001 y precio unitario >= 0." },
+            { "label": "Factura — Desde orden de compra", "value": "Cuando está activado, se requiere una Orden de compra y la Cantidad a facturar de cada línea no puede exceder la cantidad recibida pero no facturada." },
+            { "label": "Factura — Guardar deshabilitado cuando", "value": "El formulario es inválido, no existen líneas activas o un guardado está en progreso." },
+            { "label": "Pago — Proveedor, Método, Monto, Fecha", "value": "Todos requeridos. El Monto debe ser al menos 0.01. La Fecha de pago debe ser hoy o anterior." },
+            { "label": "Pago — Aplicaciones", "value": "Cada aplicación está limitada por el Saldo adeudado de la factura. El total aplicado no puede exceder el monto del pago (de lo contrario el pago está sobreaplicado)." },
+            { "label": "Pago — Guardar deshabilitado cuando", "value": "El formulario es inválido, el pago está sobreaplicado o un guardado está en progreso." }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de Facturas",
+          "items": [
+            { "label": "Número de factura", "value": "Ordenable. Número de factura autogenerado en fuente monoespaciada." },
+            { "label": "Proveedor", "value": "Ordenable. Nombre del proveedor." },
+            { "label": "N.º de factura del proveedor", "value": "Ordenable. La referencia del proveedor, monoespaciada; '—' cuando está en blanco." },
+            { "label": "Estado", "value": "Ordenable, filtrable. Chip codificado por color: Borrador (azul), Aprobada (verde azulado), Pagada parcialmente (ámbar), Pagada (verde), Anulada (gris)." },
+            { "label": "Fecha de la factura", "value": "Ordenable. Fecha, formateada MM/dd/yyyy." },
+            { "label": "Fecha de vencimiento", "value": "Ordenable. Fecha, formateada MM/dd/yyyy." },
+            { "label": "Total", "value": "Ordenable. Moneda, alineada a la derecha." },
+            { "label": "Pagado", "value": "Ordenable. Monto pagado, moneda, alineada a la derecha." },
+            { "label": "Saldo adeudado", "value": "Ordenable. Moneda, alineada a la derecha; resaltada cuando es mayor que cero." }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de Pagos",
+          "items": [
+            { "label": "N.º de pago", "value": "Ordenable. Número de pago autogenerado en fuente monoespaciada." },
+            { "label": "Proveedor", "value": "Ordenable. Nombre del proveedor." },
+            { "label": "Método", "value": "Ordenable, filtrable. Método de pago (Efectivo, Cheque, Tarjeta de crédito, Transferencia bancaria, Transferencia electrónica, Otro)." },
+            { "label": "Monto", "value": "Ordenable. Moneda, alineada a la derecha." },
+            { "label": "Aplicado", "value": "Ordenable. Monto aplicado a facturas, moneda, alineada a la derecha." },
+            { "label": "No aplicado", "value": "Ordenable. Monto aún no aplicado, moneda; resaltado cuando es mayor que cero." },
+            { "label": "Fecha de pago", "value": "Ordenable. Fecha, formateada MM/dd/yyyy." },
+            { "label": "N.º de referencia", "value": "Ordenable. Referencia de cheque o transferencia." },
+            { "label": "Estado de transmisión", "value": "Ordenable, filtrable. Chip codificado por color para pagos electrónicos: En cola (azul), Reintentando (ámbar), Exitoso (verde), Fallido (rojo), Cancelado (gris); '—' cuando no aplica." }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "payables-quiz",
+    "title": "Evaluación de conocimientos de Cuentas por pagar",
+    "summary": "Ponga a prueba sus conocimientos del módulo de Cuentas por pagar: facturas de proveedores, el ciclo de vida de la factura, la aplicación de pagos, la facturación cotejada con OC, la transmisión y la validación.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "pa1",
+          "text": "Acaba de llegar una factura de proveedor. ¿Cuál es el primer paso para registrarla en Cuentas por pagar?",
+          "options": [
+            { "id": "a", "text": "Ir a Órdenes de compra y marcar la OC como facturada" },
+            { "id": "b", "text": "En la pestaña Facturas, hacer clic en Nueva factura, seleccionar el proveedor, establecer las fechas de factura y vencimiento, agregar líneas de pedido y guardar", "isCorrect": true },
+            { "id": "c", "text": "Registrar primero un pago y la factura se crea automáticamente" },
+            { "id": "d", "text": "Crear la factura desde la página de Proveedores en una pestaña de Facturación" }
+          ],
+          "explanation": "Las facturas de proveedores se ingresan desde la pestaña Facturas. Haga clic en Nueva factura, elija el proveedor, establezca la Fecha de la factura y la Fecha de vencimiento, agregue líneas de pedido (independientes o Desde orden de compra) y guarde. Las facturas nuevas comienzan en estado Borrador."
+        },
+        {
+          "id": "pa2",
+          "text": "¿Cuál es el ciclo de vida correcto de una factura de proveedor?",
+          "options": [
+            { "id": "a", "text": "Abierta → En proceso → Cerrada" },
+            { "id": "b", "text": "Borrador → Aprobada → Pagada parcialmente → Pagada (o Anulada desde Borrador/Aprobada)", "isCorrect": true },
+            { "id": "c", "text": "Pendiente → Enviada → Recibida → Liquidada" },
+            { "id": "d", "text": "Ingresada → Contabilizada → Conciliada" }
+          ],
+          "explanation": "Una factura comienza en Borrador (sin impacto en el libro mayor), pasa a Aprobada cuando la aprueba (el asiento de AP se contabiliza) y luego a Pagada parcialmente y Pagada a medida que se aplican los pagos. Una factura solo puede anularse desde Borrador o Aprobada."
+        },
+        {
+          "id": "pa3",
+          "text": "¿Cuándo se contabiliza una factura de proveedor en el libro mayor?",
+          "options": [
+            { "id": "a", "text": "Tan pronto como se guarda en Borrador" },
+            { "id": "b", "text": "Cuando se aprueba (la transición Borrador → Aprobada contabiliza el asiento de AP)", "isCorrect": true },
+            { "id": "c", "text": "Solo cuando se paga por completo" },
+            { "id": "d", "text": "Las facturas nunca se contabilizan en el libro mayor" }
+          ],
+          "explanation": "Una factura en Borrador no tiene impacto en el libro mayor. El asiento de AP se contabiliza en la transición a Aprobada, que usted activa con el botón Aprobar factura (disponible solo desde Borrador)."
+        },
+        {
+          "id": "pa4",
+          "text": "Quiere facturar contra una Orden de compra. ¿Qué limita cuánto puede facturar en cada línea?",
+          "options": [
+            { "id": "a", "text": "La cantidad ordenada en la OC" },
+            { "id": "b", "text": "La cantidad recibida pero no facturada (cotejo de tres vías)", "isCorrect": true },
+            { "id": "c", "text": "No hay límite; puede facturar cualquier cantidad" },
+            { "id": "d", "text": "El límite de crédito del proveedor" }
+          ],
+          "explanation": "Con el interruptor Desde orden de compra activado, la Cantidad a facturar de cada línea no puede exceder la cantidad recibida pero aún no facturada. Esto es el cotejo de tres vías; las diferencias de precio respecto a la OC se contabilizan como variación del precio de compra."
+        },
+        {
+          "id": "pa5",
+          "text": "¿Cómo se aplica un pago a proveedor a las facturas?",
+          "options": [
+            { "id": "a", "text": "Paga automáticamente la factura más antigua en su totalidad sin opciones" },
+            { "id": "b", "text": "Tras seleccionar el proveedor, el diálogo carga las facturas por pagar (Aprobada o Pagada parcialmente) y usted ingresa cuánto aplicar a cada una", "isCorrect": true },
+            { "id": "c", "text": "Los pagos no pueden aplicarse a facturas; son registros separados" },
+            { "id": "d", "text": "Debe aprobar cada aplicación desde el detalle de la factura más tarde" }
+          ],
+          "explanation": "Cuando elige un proveedor en un nuevo pago, el diálogo carga las facturas por pagar de ese proveedor (Aprobada o Pagada parcialmente). Usted ingresa un monto a aplicar por factura, cada uno limitado por el Saldo adeudado de esa factura. Aplicar el pago mueve las facturas a Pagada parcialmente o Pagada."
+        },
+        {
+          "id": "pa6",
+          "text": "En un nuevo pago, ¿qué representa el monto No aplicado?",
+          "options": [
+            { "id": "a", "text": "La porción de impuesto del pago" },
+            { "id": "b", "text": "La parte del monto del pago que aún no se ha aplicado a ninguna factura", "isCorrect": true },
+            { "id": "c", "text": "El monto que el proveedor todavía le debe a usted" },
+            { "id": "d", "text": "Un depósito requerido que debe ser igual a cero" }
+          ],
+          "explanation": "No aplicado es el monto del pago menos el total aplicado entre las facturas. Se resalta cuando es mayor que cero. El total aplicado no puede exceder el monto del pago, o el pago está sobreaplicado y Guardar se deshabilita."
+        },
+        {
+          "id": "pa7",
+          "text": "¿Qué condiciones deben cumplirse todas para anular una factura de proveedor?",
+          "options": [
+            { "id": "a", "text": "La factura debe estar Pagada" },
+            { "id": "b", "text": "La factura está en Borrador o Aprobada, no se ha pagado nada contra ella y no provino de un gasto", "isCorrect": true },
+            { "id": "c", "text": "Cualquier factura puede anularse en cualquier momento" },
+            { "id": "d", "text": "Solo las facturas con una Orden de compra vinculada pueden anularse" }
+          ],
+          "explanation": "Anular factura está disponible solo desde el estado Borrador o Aprobada, solo cuando el monto pagado es cero y solo cuando la factura no se originó a partir de un gasto promovido. Las facturas contabilizadas/pagadas se revierten en lugar de anularse."
+        },
+        {
+          "id": "pa8",
+          "text": "Un pago electrónico muestra un estado de transmisión Fallido. ¿Qué puede hacer?",
+          "options": [
+            { "id": "a", "text": "Nada; debe eliminarlo y empezar de nuevo" },
+            { "id": "b", "text": "Abrir el detalle del pago y hacer clic en Reintentar transmisión", "isCorrect": true },
+            { "id": "c", "text": "Cambiar su método a Efectivo para borrar el error" },
+            { "id": "d", "text": "Esperar; las transmisiones fallidas se reintentan indefinidamente por sí solas" }
+          ],
+          "explanation": "Una transmisión fallida muestra un banner y habilita el botón Reintentar transmisión en el detalle del pago. Los pagos por Transferencia bancaria y Transferencia electrónica llevan un estado de transmisión (En cola, Reintentando, Exitoso, Fallido, Cancelado)."
+        },
+        {
+          "id": "pa9",
+          "text": "¿Qué paso adicional requiere un pago por Transferencia electrónica antes de transmitirse?",
+          "options": [
+            { "id": "a", "text": "Nada diferente de una Transferencia bancaria" },
+            { "id": "b", "text": "Mientras la transferencia electrónica está En cola, un segundo usuario debe Atestiguar transferencia (control dual)", "isCorrect": true },
+            { "id": "c", "text": "El proveedor debe confirmar primero la recepción" },
+            { "id": "d", "text": "Debe dividirse en varios pagos más pequeños" }
+          ],
+          "explanation": "Los pagos por transferencia electrónica añaden un paso de control dual: mientras la transmisión está En cola, el botón Atestiguar transferencia permite que un segundo usuario confirme y libere la transferencia antes de que se envíe."
+        },
+        {
+          "id": "pa10",
+          "text": "¿Qué se requiere para guardar una nueva factura de proveedor?",
+          "options": [
+            { "id": "a", "text": "Solo una selección de proveedor" },
+            { "id": "b", "text": "Un proveedor, una Fecha de la factura (hoy o anterior), una Fecha de vencimiento y al menos una línea de pedido válida", "isCorrect": true },
+            { "id": "c", "text": "Un proveedor, un monto de impuesto y notas" },
+            { "id": "d", "text": "Una Orden de compra vinculada en todos los casos" }
+          ],
+          "explanation": "Guardar se deshabilita hasta que el formulario sea válido y exista al menos una línea activa. Los campos requeridos son Proveedor, Fecha de la factura (máximo hoy) y Fecha de vencimiento; las líneas independientes necesitan una descripción, cantidad y precio unitario. Una OC se requiere solo cuando Desde orden de compra está activado."
+        },
+        {
+          "id": "pa11",
+          "text": "Una fila de factura muestra un chip 'Desde gasto'. ¿Qué le indica esto?",
+          "options": [
+            { "id": "a", "text": "La factura está vencida" },
+            { "id": "b", "text": "La factura se promovió automáticamente desde un gasto liquidado por un proveedor y no puede anularse", "isCorrect": true },
+            { "id": "c", "text": "La factura no tiene líneas de pedido" },
+            { "id": "d", "text": "La factura se importó desde un sistema contable externo" }
+          ],
+          "explanation": "Un chip 'Desde gasto' significa que la factura se creó al promover un gasto liquidado por un proveedor (lleva un sourceExpenseId). Una consecuencia es que dichas facturas no pueden anularse."
+        },
+        {
+          "id": "pa12",
+          "text": "¿Cómo se comportan los filtros de proveedor y estado en la parte superior de la página?",
+          "options": [
+            { "id": "a", "text": "Solo afectan a la pestaña Lotes" },
+            { "id": "b", "text": "El filtro de proveedor acota las filas visibles, y el filtro de estado ofrece opciones de estado apropiadas a la pestaña activa (estados de factura en Facturas, método/transmisión en Pagos)", "isCorrect": true },
+            { "id": "c", "text": "Eliminan permanentemente las filas que no coinciden" },
+            { "id": "d", "text": "Son de solo lectura y solo muestran el proveedor actual" }
+          ],
+          "explanation": "El filtro de proveedor acota las filas a un proveedor (Todos los proveedores de forma predeterminada). El filtro de estado se adapta a la pestaña: la pestaña Facturas filtra por estado de factura (Borrador, Aprobada, Pagada parcialmente, Pagada, Anulada), mientras que la pestaña Pagos filtra por método y estado de transmisión."
+        }
+      ]
+    }
+  }
+]

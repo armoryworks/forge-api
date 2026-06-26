@@ -1,0 +1,547 @@
+[
+  {
+    "slug": "inventory-overview",
+    "title": "Visión general de Inventario",
+    "summary": "Qué hace el módulo de Inventario: seguimiento de existencias, ubicaciones de contenedores, movimientos, recepción de OC, reservas, conteos cíclicos y reabastecimiento.",
+    "contentJson": {
+      "body": "## Visión general de Inventario\n\nEl módulo de Inventario rastrea cada pieza de material y producto terminado en su instalación —dónde está, cuánto tiene y cómo llegó allí. Es el centro principal para la visibilidad de existencias, la recepción, las transferencias, los ajustes y la planificación de reabastecimiento.\n\n### Conceptos básicos\n\n**Ubicaciones de almacenamiento** forman una jerarquía: Área → Estantería → Repisa → Contenedor. Un Área podría ser 'Almacén A', una Estantería es un estante físico dentro de esa área, una Repisa es un nivel del estante y un Contenedor es una ranura específica. Cada pieza de existencia vive en un Contenedor —el nivel más bajo de la jerarquía. Cada ubicación puede tener un código de barras para un escaneo rápido.\n\n**Contenido del contenedor** representa lo que está físicamente almacenado en un contenedor. Cada registro de contenido del contenedor rastrea el tipo de entidad (pieza, corrida de producción, ensamblaje o herramental), la cantidad, el número de lote, el estado (Almacenado, Reservado, Listo para enviar o Retención de QC) y quién lo colocó allí. Un solo contenedor puede contener varios artículos.\n\n**Movimientos de contenedor** registran cada movimiento de existencias con trazabilidad completa. Cada movimiento captura el artículo, la cantidad, la ubicación de origen, la ubicación de destino, la persona que lo movió y el motivo (Recibir, Recoger, Reabastecer, Liberación de QC, Enviar, Mover, Ajuste, Devolución, Transferencia o Conteo cíclico).\n\n### Cómo se conecta el inventario con otras funciones\n\n**Órdenes de compra:** Cuando los materiales llegan de un proveedor, la pestaña Recepción le permite recibir contra las líneas de OC abiertas. Seleccione la línea de OC, ingrese la cantidad recibida, asigne una ubicación de almacenamiento y un número de lote opcional. Esto crea un registro de contenido del contenedor y un registro de movimiento con motivo 'Recibir'.\n\n**Catálogo de piezas:** La pestaña Existencias muestra el inventario resumido por pieza —total disponible, cantidad reservada y cantidad disponible. Al expandir una fila se revela el desglose a nivel de contenedor que muestra exactamente dónde está almacenada cada pieza.\n\n**Trabajos y producción:** Las existencias se pueden reservar para trabajos específicos. Las reservas reducen la cantidad disponible sin mover las existencias físicas. Cuando la producción recoge el material, la reserva se libera y se registra un movimiento con motivo 'Recoger'.\n\n**Control de calidad:** Los bienes recibidos se pueden colocar en estado de Retención de QC, lo que impide que se recojan o envíen hasta que se complete la inspección de calidad. La Liberación de QC cambia el estado de vuelta a Almacenado y registra un movimiento.\n\n**Envíos:** Cuando las órdenes se envían, el inventario se decrementa con un motivo de movimiento 'Enviar'. Las existencias marcadas como 'Listo para enviar' se preparan para los envíos salientes.\n\n### Las pestañas de un vistazo\n\n- **Existencias** — Resumen de inventario a nivel de pieza con detalles de contenedor expandibles. Busque por número de pieza. Las alertas de existencias bajas resaltan las piezas por debajo de los umbrales mínimos.\n- **Ubicaciones** — Vista de árbol jerárquica de todas las ubicaciones de almacenamiento. Cree, expanda y explore la estructura Área → Estantería → Repisa → Contenedor. Seleccione un contenedor para ver su contenido.\n- **Movimientos** — Registro cronológico de cada movimiento de existencias. Muestra el artículo, la cantidad, las ubicaciones de origen/destino, el motivo, quién lo movió y cuándo.\n- **Recepción** — Historial de bienes recibidos contra órdenes de compra. Reciba existencias nuevas seleccionando una línea de OC abierta.\n- **Operaciones de existencias** — Transfiera existencias entre contenedores o ajuste cantidades con un motivo. Dos diálogos: Transferir (mover existencias de un contenedor a otro) y Ajustar (corregir una cantidad con un motivo obligatorio).\n- **Conteos cíclicos** — Cree y revise conteos cíclicos para ubicaciones específicas. Cada conteo captura las cantidades esperadas frente a las reales y calcula la varianza. Los conteos pueden estar Pendientes, Aprobados o Rechazados.\n- **Reservas** — Vea y gestione las reservas de existencias vinculadas a trabajos u órdenes de venta. Cree nuevas reservas o libere las existentes.\n- **Reabastecimiento** — Análisis de la tasa de consumo y sugerencias de reorden. Muestra las tasas de consumo de 30/60/90 días, los días de existencias restantes, las fechas proyectadas de agotamiento y las sugerencias de reorden generadas automáticamente que se pueden aprobar para convertirlas en órdenes de compra.\n- **UOM** — Gestión de unidades de medida y conversiones.\n\n### Escaneo de códigos de barras\n\nEl módulo de Inventario reconoce el escáner. Cuando se escanea un código de barras en esta página, completa automáticamente el campo de búsqueda y cambia a la pestaña Existencias. A las ubicaciones de almacenamiento también se les pueden asignar códigos de barras para una identificación rápida durante la recepción y la recolección.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "inventory-walkthrough",
+    "title": "Inventario — Recorrido guiado",
+    "summary": "Un recorrido guiado por las pestañas de inventario: tabla de existencias, recepción, árbol de ubicaciones, registro de movimientos, operaciones de existencias, conteos cíclicos, reservas y reabastecimiento.",
+    "contentJson": {
+      "appRoute": "/inventory/stock",
+      "startButtonLabel": "Recorrer Inventario",
+      "steps": [
+        {
+          "element": ".tab-bar",
+          "popover": {
+            "title": "Pestañas de Inventario",
+            "description": "El módulo de Inventario está organizado en pestañas: Existencias, Ubicaciones, Movimientos, Recepción, Operaciones de existencias, Conteos cíclicos, Reservas, Reabastecimiento y UOM. Haga clic en cualquier pestaña para cambiar de vista —la URL se actualiza para que pueda marcar como favorito o compartir un enlace directo a cualquier pestaña.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de existencias",
+            "description": "La pestaña Existencias muestra el inventario agrupado por pieza. Cada fila muestra el número de pieza, la descripción, el material, la cantidad disponible, la cantidad reservada y la cantidad disponible para uso. Las filas se vuelven rojas cuando las existencias disponibles son cero, y amarillas cuando las existencias están críticamente bajas (por debajo del 20% del disponible). Haga clic en los encabezados de columna para ordenar.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "app-input",
+          "popover": {
+            "title": "Buscar piezas",
+            "description": "Busque por número de pieza, descripción o material. Los resultados se actualizan al presionar Enter o hacer clic en el botón de búsqueda. Los escaneos de código de barras completan automáticamente este campo.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab-bar .tab:nth-child(2)",
+          "popover": {
+            "title": "Pestaña Ubicaciones",
+            "description": "Cambie a la pestaña Ubicaciones para ver y gestionar su jerarquía de ubicaciones de almacenamiento. Las ubicaciones se organizan como Área → Estantería → Repisa → Contenedor. Puede crear nuevas ubicaciones en cualquier nivel de la jerarquía.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab-bar .tab:nth-child(3)",
+          "popover": {
+            "title": "Pestaña Movimientos",
+            "description": "La pestaña Movimientos muestra un registro cronológico de cada movimiento de existencias. Cada entrada registra qué se movió, cuánto, desde dónde, hacia dónde, quién lo hizo, el motivo (Recibir, Recoger, Enviar, Transferir, etc.) y cuándo ocurrió. Este es su registro de auditoría completo.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab-bar .tab:nth-child(4)",
+          "popover": {
+            "title": "Pestaña Recepción",
+            "description": "La pestaña Recepción muestra un historial de todos los bienes recibidos contra órdenes de compra. Haga clic en 'Recibir bienes' para registrar un envío entrante —seleccione la línea de OC, ingrese la cantidad, asigne una ubicación de almacenamiento y, opcionalmente, registre un número de lote.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab-bar .tab:nth-child(5)",
+          "popover": {
+            "title": "Pestaña Operaciones de existencias",
+            "description": "Operaciones de existencias ofrece dos operaciones clave: Transferir (mover existencias de un contenedor a otro) y Ajustar (corregir una cantidad con un motivo obligatorio). Ambas operaciones crean registros de movimiento para una trazabilidad completa.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab-bar .tab:nth-child(6)",
+          "popover": {
+            "title": "Pestaña Conteos cíclicos",
+            "description": "Cree conteos cíclicos para ubicaciones específicas para verificar que las existencias físicas coincidan con los registros del sistema. Cada conteo muestra las cantidades esperadas frente a las reales, calcula la varianza y puede aprobarse o rechazarse. Los conteos aprobados generan automáticamente movimientos de ajuste.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab-bar .tab:nth-child(7)",
+          "popover": {
+            "title": "Pestaña Reservas",
+            "description": "Vea todas las reservas de existencias activas. Las reservas retienen existencias para trabajos u órdenes de venta específicos sin moverlas físicamente. La cantidad reservada reduce las existencias disponibles. Libere una reserva cuando las existencias se recojan o ya no se necesiten.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab-bar .tab:nth-child(9)",
+          "popover": {
+            "title": "Pestaña Reabastecimiento",
+            "description": "Reabastecimiento muestra el análisis de la tasa de consumo (consumo de 30/60/90 días), los días de existencias restantes, las fechas proyectadas de agotamiento y las sugerencias de reorden generadas automáticamente. Apruebe las sugerencias para crear órdenes de compra, o descártelas con un motivo.",
+            "side": "bottom"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "inventory-field-reference",
+    "title": "Referencia de campos de Inventario",
+    "summary": "Referencia completa de cada campo, columna, estado, motivo de movimiento, tipo de ubicación, botón y regla de validación en todas las pestañas de Inventario.",
+    "contentJson": {
+      "title": "Referencia de campos de Inventario",
+      "groups": [
+        {
+          "heading": "Pestaña Existencias — Columnas de la tabla",
+          "items": [
+            {"label": "N.º de pieza", "value": "Ordenable. El número de pieza del Catálogo de piezas. Ancho: 120px."},
+            {"label": "Descripción", "value": "Ordenable. El texto de descripción de la pieza."},
+            {"label": "Material", "value": "Ordenable. El tipo de material de la pieza (p. ej., 'Aluminio 6061', 'Acero 1018'). Ancho: 140px."},
+            {"label": "Disponible (físico)", "value": "Ordenable, alineado a la derecha. Cantidad total de esta pieza en todos los contenedores. Ancho: 90px."},
+            {"label": "Reservado", "value": "Ordenable, alineado a la derecha. Cantidad reservada para trabajos u órdenes de venta. Ancho: 90px."},
+            {"label": "Disponible para uso", "value": "Ordenable, alineado a la derecha. Disponible (físico) menos Reservado. Esta es la cantidad que se puede recoger o enviar. Ancho: 90px."}
+          ]
+        },
+        {
+          "heading": "Pestaña Existencias — Detalle de contenedor expandido",
+          "items": [
+            {"label": "Ruta de ubicación", "value": "Ruta jerárquica completa al contenedor (p. ej., 'Almacén A > Estantería 1 > Repisa 3 > Contenedor 5')."},
+            {"label": "Cantidad", "value": "Cantidad de la pieza en este contenedor específico."},
+            {"label": "Cantidad reservada", "value": "Cantidad reservada de este contenedor para trabajos/órdenes."},
+            {"label": "Cantidad disponible", "value": "Cantidad del contenedor menos la reservada. Lo que realmente se puede recoger."},
+            {"label": "Estado", "value": "Estado del contenido del contenedor: Almacenado (predeterminado), Reservado (retenido para un trabajo), Listo para enviar (preparado para salida), Retención de QC (en espera de inspección)."},
+            {"label": "Número de lote", "value": "Número de lote/partida opcional para trazabilidad. Se muestra si está asignado."},
+            {"label": "Fecha de vencimiento del lote", "value": "Fecha de vencimiento para los artículos rastreados por lote. Se muestra si corresponde."},
+            {"label": "Número de lote del proveedor", "value": "El número de lote del proveedor, distinto de su número de lote interno."}
+          ]
+        },
+        {
+          "heading": "Pestaña Existencias — Resaltado de filas",
+          "items": [
+            {"label": "Fila roja (stock-level--empty)", "value": "La cantidad disponible es cero o negativa. Esta pieza no tiene existencias para recoger."},
+            {"label": "Fila amarilla (stock-level--low)", "value": "La cantidad disponible es menor que el 20% del disponible físico. Las existencias están críticamente bajas."},
+            {"label": "Fila normal", "value": "Niveles de existencias adecuados."}
+          ]
+        },
+        {
+          "heading": "Alertas de existencias bajas",
+          "items": [
+            {"label": "Número de pieza", "value": "La pieza que está baja en existencias."},
+            {"label": "Descripción", "value": "Descripción de la pieza para identificación."},
+            {"label": "Existencias actuales", "value": "Cantidad actual disponible físicamente."},
+            {"label": "Umbral mínimo de existencias", "value": "El nivel mínimo de existencias configurado. La alerta se activa cuando las existencias actuales caen por debajo de esto."},
+            {"label": "Punto de reorden", "value": "El punto de reorden configurado. Cuando las existencias caen a este nivel, se debe activar un reorden."}
+          ]
+        },
+        {
+          "heading": "Tipos de ubicación",
+          "items": [
+            {"label": "Área", "value": "Zona de nivel superior (p. ej., 'Almacén A', 'Muelle de recepción', 'Área de envíos'). Icono: warehouse."},
+            {"label": "Estantería", "value": "Un estante físico o unidad de almacenamiento dentro de un área. Icono: view_column."},
+            {"label": "Repisa", "value": "Un nivel/repisa de un estante. Icono: shelves."},
+            {"label": "Contenedor", "value": "El nivel más bajo —una ranura o recipiente específico. Aquí es donde realmente se almacenan las existencias. Icono: inventory_2."}
+          ]
+        },
+        {
+          "heading": "Campos del formulario de ubicación (Diálogo Crear ubicación)",
+          "items": [
+            {"label": "Nombre (obligatorio)", "value": "Campo de texto. Identifica la ubicación (p. ej., 'Estantería A1', 'Repisa 3', 'Contenedor 5'). No puede estar vacío."},
+            {"label": "Tipo (obligatorio)", "value": "Lista desplegable: Área, Estantería, Repisa, Contenedor. Determina el nivel en la jerarquía. Predeterminado: Área (sin padre) o Estantería (con padre)."},
+            {"label": "Padre", "value": "Lista desplegable de ubicaciones existentes. Opcional. Cuando se establece, anida esta ubicación bajo el padre. Muestra '-- Ninguno --' para las ubicaciones de nivel superior."},
+            {"label": "Código de barras", "value": "Campo de texto, opcional. Un valor de código de barras asignado a esta ubicación para la identificación por escáner."},
+            {"label": "Descripción", "value": "Campo de texto, opcional. Descripción libre o notas sobre la ubicación."}
+          ]
+        },
+        {
+          "heading": "Estados del contenido del contenedor",
+          "items": [
+            {"label": "Almacenado", "value": "Estado predeterminado. Las existencias están disponibles para recolección, transferencia o reserva."},
+            {"label": "Reservado", "value": "Las existencias están retenidas para un trabajo u orden de venta específico. No se pueden recoger para otros fines hasta que se liberen."},
+            {"label": "Listo para enviar", "value": "Las existencias se han preparado para un envío saliente. En espera de que el envío se despache."},
+            {"label": "Retención de QC", "value": "Las existencias están en espera de inspección de calidad. No se pueden recoger ni enviar hasta que el QC las libere."}
+          ]
+        },
+        {
+          "heading": "Motivos de movimiento",
+          "items": [
+            {"label": "Recibir", "value": "Existencias recibidas de una orden de compra. Se registra automáticamente cuando se reciben bienes a través de la pestaña Recepción."},
+            {"label": "Recoger", "value": "Existencias recogidas para producción o cumplimiento. Quita existencias de un contenedor para un trabajo u orden."},
+            {"label": "Reabastecer", "value": "Existencias devueltas a un contenedor después de ser recogidas pero no utilizadas."},
+            {"label": "Liberación de QC", "value": "Existencias liberadas del estado de Retención de QC después de pasar la inspección."},
+            {"label": "Enviar", "value": "Existencias enviadas a un cliente. Se registra cuando se despacha un envío."},
+            {"label": "Mover", "value": "Reubicación general de existencias entre contenedores sin un motivo comercial específico."},
+            {"label": "Ajuste", "value": "Corrección manual de cantidad. Siempre requiere una nota de motivo (p. ej., 'dañado', 'mal contado')."},
+            {"label": "Devolución", "value": "Existencias devueltas por un cliente o devueltas a un proveedor."},
+            {"label": "Transferencia", "value": "Transferencia formal entre contenedores, típicamente entre diferentes áreas o instalaciones."},
+            {"label": "Conteo cíclico", "value": "Ajuste de cantidad resultante de una varianza de conteo cíclico. Generado por el sistema cuando se aprueba un conteo."}
+          ]
+        },
+        {
+          "heading": "Pestaña Movimientos — Columnas de la tabla",
+          "items": [
+            {"label": "Artículo", "value": "Ordenable. El nombre/número del artículo que se movió."},
+            {"label": "Cant.", "value": "Ordenable, alineado a la derecha. Cantidad movida. Ancho: 70px."},
+            {"label": "Desde", "value": "Ordenable. Ruta de la ubicación de origen. En blanco para los movimientos entrantes (p. ej., Recibir)."},
+            {"label": "Hacia", "value": "Ordenable. Ruta de la ubicación de destino. En blanco para los movimientos salientes (p. ej., Enviar)."},
+            {"label": "Motivo", "value": "Ordenable. Motivo del movimiento mostrado como una etiqueta amigable (p. ej., 'Recibido', 'Recogido', 'Transferido'). Ancho: 120px."},
+            {"label": "Por", "value": "Ordenable. Nombre de la persona que realizó el movimiento."},
+            {"label": "Cuándo", "value": "Ordenable, tipo fecha. Marca de tiempo del movimiento. Ancho: 120px."}
+          ]
+        },
+        {
+          "heading": "Pestaña Recepción — Columnas de la tabla",
+          "items": [
+            {"label": "N.º de OC", "value": "Ordenable. Número de orden de compra. Ancho: 110px."},
+            {"label": "N.º de pieza", "value": "Ordenable. Número de pieza recibida. Ancho: 120px."},
+            {"label": "Cant.", "value": "Ordenable, alineado a la derecha. Cantidad recibida. Ancho: 70px."},
+            {"label": "Recibido por", "value": "Ordenable. Nombre de la persona que recibió los bienes."},
+            {"label": "Ubicación", "value": "Ordenable. Ubicación de almacenamiento donde se colocaron los bienes."},
+            {"label": "N.º de lote", "value": "Ordenable. Número de lote o partida asignado durante la recepción. Ancho: 100px."},
+            {"label": "Fecha", "value": "Ordenable, tipo fecha. Fecha/hora de la recepción. Ancho: 120px."}
+          ]
+        },
+        {
+          "heading": "Campos del diálogo Recibir bienes",
+          "items": [
+            {"label": "Línea de OC (obligatorio)", "value": "Lista desplegable que muestra las líneas de OC abiertas con la cantidad restante. Formato: 'OC-1001 — Pieza ABC (50 restantes)'. Solo aparecen las líneas de OC de órdenes de compra Enviadas, Confirmadas o Recibidas parcialmente."},
+            {"label": "Cantidad recibida (obligatorio)", "value": "Campo numérico. Debe ser al menos 1. La cantidad de artículos recibidos en este envío."},
+            {"label": "Ubicación", "value": "Lista desplegable de ubicaciones de contenedor. Opcional. Dónde se almacenarán los bienes recibidos."},
+            {"label": "Número de lote", "value": "Campo de texto, opcional. Asigne un número de lote/partida para trazabilidad."},
+            {"label": "Notas", "value": "Campo de texto, opcional. Cualquier nota sobre la recepción (condición, discrepancias, etc.)."}
+          ]
+        },
+        {
+          "heading": "Campos del diálogo Transferir",
+          "items": [
+            {"label": "Contenido del contenedor de origen (obligatorio)", "value": "Identifica el registro de contenido del contenedor específico que se transfiere. Se precarga cuando se abre desde una fila de detalle de contenedor."},
+            {"label": "Ubicación de destino (obligatorio)", "value": "Lista desplegable de ubicaciones de contenedor. A dónde se mueven las existencias."},
+            {"label": "Cantidad (obligatorio)", "value": "Campo numérico. Debe ser al menos 1. Cantidad a transferir."},
+            {"label": "Notas", "value": "Campo de texto, opcional. Motivo o notas de la transferencia."}
+          ]
+        },
+        {
+          "heading": "Campos del diálogo Ajustar existencias",
+          "items": [
+            {"label": "Contenido del contenedor (obligatorio)", "value": "Identifica el registro de contenido del contenedor específico que se ajusta. Se precarga cuando se abre desde una fila de detalle de contenedor."},
+            {"label": "Nueva cantidad (obligatorio)", "value": "Campo numérico. Debe ser 0 o mayor. La cantidad corregida —reemplaza la cantidad actual."},
+            {"label": "Motivo (obligatorio)", "value": "Campo de texto. Explicación obligatoria del ajuste (p. ej., 'bienes dañados', 'recuento corregido', 'desecho'). No puede estar en blanco."},
+            {"label": "Notas", "value": "Campo de texto, opcional. Detalles adicionales sobre el ajuste."}
+          ]
+        },
+        {
+          "heading": "Pestaña Conteos cíclicos — Columnas de la tabla",
+          "items": [
+            {"label": "Ubicación", "value": "Ordenable. La ubicación de almacenamiento que se contó."},
+            {"label": "Contado por", "value": "Ordenable. Nombre de la persona que realizó el conteo."},
+            {"label": "Fecha", "value": "Ordenable, tipo fecha. Cuándo se realizó el conteo. Ancho: 120px."},
+            {"label": "Estado", "value": "Ordenable, filtrable (enum). Pendiente (en espera de revisión), Aprobado (ajustes aplicados) o Rechazado (descartado). Ancho: 110px."},
+            {"label": "Artículos", "value": "Ordenable, alineado a la derecha. Número de líneas en el conteo. Ancho: 70px."},
+            {"label": "Varianza", "value": "Ordenable, alineado a la derecha. Varianza absoluta total en todas las líneas. Ancho: 90px."}
+          ]
+        },
+        {
+          "heading": "Campos de la línea de conteo cíclico",
+          "items": [
+            {"label": "Nombre de la entidad", "value": "La pieza o el artículo que se cuenta."},
+            {"label": "Cantidad esperada", "value": "Cantidad registrada por el sistema en el contenedor antes del conteo."},
+            {"label": "Cantidad real", "value": "Cantidad contada físicamente."},
+            {"label": "Varianza", "value": "Real menos Esperada. Positiva = excedente, negativa = faltante."},
+            {"label": "Notas", "value": "Notas opcionales que explican la varianza."}
+          ]
+        },
+        {
+          "heading": "Campos del diálogo Crear conteo cíclico",
+          "items": [
+            {"label": "Ubicación (obligatorio)", "value": "Lista desplegable de ubicaciones de almacenamiento. Seleccione el contenedor o la ubicación a contar."},
+            {"label": "Notas", "value": "Campo de texto, opcional. Notas para el conteo (p. ej., 'auditoría trimestral', 'verificación puntual')."}
+          ]
+        },
+        {
+          "heading": "Pestaña Reservas — Columnas de la tabla",
+          "items": [
+            {"label": "N.º de pieza", "value": "Ordenable. Número de pieza de las existencias reservadas. Ancho: 120px."},
+            {"label": "Descripción", "value": "Ordenable. Descripción de la pieza."},
+            {"label": "Ubicación del contenedor", "value": "Ordenable. Ruta de ubicación completa donde se encuentran las existencias reservadas."},
+            {"label": "Cant.", "value": "Ordenable, alineado a la derecha. Cantidad reservada. Ancho: 80px."},
+            {"label": "N.º de trabajo", "value": "Ordenable. Número del trabajo para el que están reservadas las existencias (si corresponde). Ancho: 100px."},
+            {"label": "Trabajo", "value": "Ordenable. Título del trabajo."},
+            {"label": "Notas", "value": "No ordenable. Notas de la reserva."},
+            {"label": "Reservado", "value": "Ordenable, tipo fecha. Cuándo se creó la reserva. Ancho: 120px."},
+            {"label": "Acciones", "value": "Botón Liberar para eliminar la reserva. Ancho: 60px."}
+          ]
+        },
+        {
+          "heading": "Campos del diálogo Crear reserva",
+          "items": [
+            {"label": "ID de pieza (obligatorio)", "value": "Identifica la pieza a reservar."},
+            {"label": "ID de contenido del contenedor (obligatorio)", "value": "Identifica el contenido del contenedor específico desde el cual reservar."},
+            {"label": "ID de trabajo", "value": "Opcional. El trabajo para el que es esta reserva. Vincula la reserva a un trabajo de producción."},
+            {"label": "Cantidad (obligatorio)", "value": "Campo numérico. Debe ser mayor que 0. Cantidad a reservar."},
+            {"label": "Notas", "value": "Campo de texto, opcional. Por qué se reservan las existencias."}
+          ]
+        },
+        {
+          "heading": "Pestaña Reabastecimiento — Columnas de la tasa de consumo",
+          "items": [
+            {"label": "Número de pieza / Descripción", "value": "La pieza que se analiza."},
+            {"label": "Proveedor preferido", "value": "El proveedor preferido configurado para esta pieza."},
+            {"label": "Existencias disponibles (físico)", "value": "Cantidad total actual disponible físicamente."},
+            {"label": "Existencias disponibles para uso", "value": "Disponible físico menos reservado."},
+            {"label": "Cantidad de OC entrante", "value": "Cantidad en órdenes de compra abiertas aún no recibidas."},
+            {"label": "Llegada más temprana de OC", "value": "Fecha de llegada esperada de la OC abierta más temprana."},
+            {"label": "Tasa de consumo (30/60/90 días)", "value": "Consumo diario promedio durante los últimos 30, 60 o 90 días."},
+            {"label": "Días de existencias restantes", "value": "Calculado a partir de las existencias disponibles para uso divididas por la tasa de consumo."},
+            {"label": "Fecha proyectada de agotamiento", "value": "Fecha estimada en que las existencias llegarán a cero a la tasa de consumo actual."},
+            {"label": "Umbral mínimo de existencias", "value": "Nivel mínimo de existencias configurado."},
+            {"label": "Punto de reorden", "value": "Nivel de existencias que activa un reorden."},
+            {"label": "Cantidad de reorden", "value": "Cantidad de orden sugerida."},
+            {"label": "Días de tiempo de entrega", "value": "Tiempo de entrega esperado del proveedor."},
+            {"label": "Días de existencias de seguridad", "value": "Días de existencias de reserva a mantener por encima del tiempo de entrega."},
+            {"label": "Necesita reorden", "value": "Bandera booleana. Verdadera cuando las existencias disponibles para uso están en o por debajo del punto de reorden."}
+          ]
+        },
+        {
+          "heading": "Pestaña Reabastecimiento — Sugerencias de reorden",
+          "items": [
+            {"label": "Estado de la sugerencia", "value": "Pendiente (en espera de decisión), Aprobada (OC creada), Descartada (rechazada con motivo), Vencida (ya no relevante)."},
+            {"label": "Cantidad sugerida", "value": "Cantidad de reorden calculada por el sistema con base en la tasa de consumo, el tiempo de entrega y las existencias de seguridad."},
+            {"label": "OC resultante", "value": "Si se aprueba, se vincula a la orden de compra que se creó."},
+            {"label": "Motivo de descarte", "value": "Obligatorio al descartar una sugerencia. Explica por qué no se necesitaba el reorden."},
+            {"label": "Aprobación masiva", "value": "Seleccione varias sugerencias y apruébelas todas a la vez. Crea órdenes de compra agrupadas por proveedor."}
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            {"label": "Recibir bienes (pestaña Recepción)", "value": "Abre el diálogo de recepción. data-testid: receive-goods-btn"},
+            {"label": "Crear ubicación (pestaña Ubicaciones)", "value": "Abre el diálogo de creación de ubicación. data-testid: create-location-btn"},
+            {"label": "Transferir (pestaña Operaciones de existencias)", "value": "Abre el diálogo de transferencia de existencias."},
+            {"label": "Ajustar (pestaña Operaciones de existencias)", "value": "Abre el diálogo de ajuste de existencias."},
+            {"label": "Crear conteo cíclico", "value": "Abre el diálogo de creación de conteo cíclico."},
+            {"label": "Crear reserva", "value": "Abre el diálogo de creación de reserva."},
+            {"label": "Liberar (pestaña Reservas)", "value": "Libera una reserva de existencias, haciendo que la cantidad vuelva a estar disponible."},
+            {"label": "Crear OC (alerta de existencias bajas)", "value": "Navega a la página de Órdenes de compra para crear una nueva OC para la pieza con existencias bajas."},
+            {"label": "Buscar / Limpiar", "value": "La búsqueda filtra la tabla de existencias por número de pieza/descripción/material. Limpiar restablece la búsqueda."}
+          ]
+        },
+        {
+          "heading": "Integración con escáner de código de barras",
+          "items": [
+            {"label": "Comportamiento del escaneo", "value": "Cuando se escanea un código de barras mientras se está en la página de Inventario, el valor escaneado se coloca en el campo de búsqueda y la vista cambia a la pestaña Existencias. Contexto: 'inventory'."},
+            {"label": "Códigos de barras de ubicación", "value": "A cada ubicación de almacenamiento se le puede asignar un código de barras para una identificación rápida durante la recepción y las operaciones de existencias."}
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            {"label": "Nombre de ubicación", "value": "Obligatorio. No puede estar vacío."},
+            {"label": "Tipo de ubicación", "value": "Obligatorio. Debe ser uno de: Área, Estantería, Repisa, Contenedor."},
+            {"label": "Línea de OC (Recepción)", "value": "Obligatorio. Debe seleccionar una línea de OC abierta con cantidad restante."},
+            {"label": "Cantidad recibida", "value": "Obligatorio. Debe ser al menos 1."},
+            {"label": "Origen de transferencia", "value": "Obligatorio. Debe seleccionar un registro de contenido del contenedor."},
+            {"label": "Destino de transferencia", "value": "Obligatorio. Debe seleccionar una ubicación de destino."},
+            {"label": "Cantidad de transferencia", "value": "Obligatorio. Debe ser al menos 1."},
+            {"label": "Motivo de ajuste", "value": "Obligatorio. No puede estar en blanco —cada ajuste debe explicarse con fines de auditoría."},
+            {"label": "Nueva cantidad de ajuste", "value": "Obligatorio. Debe ser 0 o mayor."},
+            {"label": "Ubicación de conteo cíclico", "value": "Obligatorio. Debe seleccionar una ubicación a contar."},
+            {"label": "Pieza / Contenido del contenedor de reserva", "value": "Obligatorio. Debe identificar la pieza y el contenido del contenedor específico."},
+            {"label": "Cantidad de reserva", "value": "Obligatorio. Debe ser mayor que 0."}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "inventory-quiz",
+    "title": "Evaluación de conocimientos de Inventario",
+    "summary": "Ponga a prueba sus conocimientos sobre el módulo de Inventario: seguimiento de existencias, ubicaciones, movimientos, recepción, conteos cíclicos, reservas y reabastecimiento.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "inv1",
+          "text": "Un envío de materias primas acaba de llegar de su proveedor con una orden de compra. ¿Cómo lo registra en QB Engineer?",
+          "options": [
+            {"id": "a", "text": "Ir a Inventario → pestaña Recepción, hacer clic en Recibir bienes, seleccionar la línea de OC, ingresar la cantidad, asignar una ubicación y, opcionalmente, registrar un número de lote", "isCorrect": true},
+            {"id": "b", "text": "Ir al Catálogo de piezas y aumentar manualmente la cantidad disponible de cada pieza"},
+            {"id": "c", "text": "Crear un nuevo movimiento de contenedor con motivo 'Recibir' en la pestaña Movimientos"},
+            {"id": "d", "text": "Ir a Órdenes de compra y marcar la OC como 'Recibida'"}
+          ],
+          "explanation": "La recepción se realiza desde la pestaña Inventario → Recepción. Haga clic en Recibir bienes, seleccione la línea de OC abierta (solo aparecen las líneas con cantidad restante), ingrese la cantidad recibida, y opcionalmente asigne una ubicación de almacenamiento y un número de lote. Esto crea automáticamente un registro de contenido del contenedor, actualiza la línea de OC y registra un movimiento con motivo 'Recibir'."
+        },
+        {
+          "id": "inv2",
+          "text": "¿Cuál es la jerarquía correcta para las ubicaciones de almacenamiento en el módulo de Inventario?",
+          "options": [
+            {"id": "a", "text": "Almacén → Zona → Pasillo → Posición"},
+            {"id": "b", "text": "Edificio → Piso → Sala → Gabinete"},
+            {"id": "c", "text": "Área → Estantería → Repisa → Contenedor", "isCorrect": true},
+            {"id": "d", "text": "Sección → Fila → Columna → Ranura"}
+          ],
+          "explanation": "Las ubicaciones de almacenamiento siguen la jerarquía Área → Estantería → Repisa → Contenedor. Área es el nivel superior (p. ej., 'Almacén A'), Estantería es una unidad de almacenamiento dentro de un área, Repisa es un nivel del estante, y Contenedor es el nivel más bajo donde realmente se almacenan las existencias."
+        },
+        {
+          "id": "inv3",
+          "text": "Nota que la cantidad disponible de una pieza no coincide con lo que está físicamente en la repisa. ¿Cuál es la forma correcta de corregir esto?",
+          "options": [
+            {"id": "a", "text": "Editar el registro de contenido del contenedor directamente en la base de datos"},
+            {"id": "b", "text": "Ir a la pestaña Operaciones de existencias, hacer clic en Ajustar, seleccionar el contenido del contenedor, ingresar la cantidad correcta y proporcionar un motivo obligatorio", "isCorrect": true},
+            {"id": "c", "text": "Eliminar el contenido del contenedor y volver a crearlo con la cantidad correcta"},
+            {"id": "d", "text": "Crear una Transferencia moviendo existencias al mismo contenedor con el monto corregido"}
+          ],
+          "explanation": "Los ajustes de existencias se realizan a través del diálogo Ajustar en la pestaña Operaciones de existencias. Debe proporcionar la nueva cantidad y un motivo obligatorio (p. ej., 'recuento corregido', 'bienes dañados'). Esto crea un registro de movimiento con motivo 'Ajuste' para una trazabilidad de auditoría completa. El campo de motivo no puede dejarse en blanco."
+        },
+        {
+          "id": "inv4",
+          "text": "Una fila en la tabla de Existencias está resaltada en rojo. ¿Qué indica esto?",
+          "options": [
+            {"id": "a", "text": "La pieza se ha descontinuado y no debe reordenarse"},
+            {"id": "b", "text": "La cantidad disponible para uso es cero o negativa —no hay existencias para recoger", "isCorrect": true},
+            {"id": "c", "text": "La pieza está en Retención de QC y no se puede usar"},
+            {"id": "d", "text": "El lote de la pieza ha vencido y debe desecharse"}
+          ],
+          "explanation": "Una fila roja en la tabla de Existencias significa que la cantidad disponible para uso (disponible físico menos reservado) es cero o negativa. Esto significa que no hay existencias disponibles para recoger o enviar. Una fila amarilla indica existencias bajas (el disponible para uso es menor que el 20% del disponible físico)."
+        },
+        {
+          "id": "inv5",
+          "text": "¿Cuál es la diferencia entre el estado 'Reservado' del contenido del contenedor y un registro de 'Reserva'?",
+          "options": [
+            {"id": "a", "text": "Son lo mismo —ambos se refieren a existencias retenidas para un trabajo"},
+            {"id": "b", "text": "'Reservado' es la bandera de estado del contenido del contenedor, mientras que una Reserva es un registro separado que vincula existencias a un trabajo u orden de venta específico con cantidad y notas", "isCorrect": true},
+            {"id": "c", "text": "'Reservado' se aplica a contenedores completos, mientras que las Reservas se aplican a artículos individuales"},
+            {"id": "d", "text": "'Reservado' es para existencias propiedad del cliente, mientras que las Reservas son para uso interno"}
+          ],
+          "explanation": "'Reservado' es un estado en un registro de contenido del contenedor que indica que las existencias están retenidas. Una Reserva es un registro separado que vincula una cantidad específica de un contenido del contenedor a un trabajo u orden de venta, con notas opcionales. Las Reservas reducen la cantidad 'disponible para uso' que se muestra en la pestaña Existencias. Liberar una reserva hace que la cantidad vuelva a estar disponible."
+        },
+        {
+          "id": "inv6",
+          "text": "Necesita mover 50 unidades de una pieza de Almacén A, Estantería 1, Contenedor 3 a Almacén B, Estantería 2, Contenedor 1. ¿Qué función usa?",
+          "options": [
+            {"id": "a", "text": "Crear un nuevo registro de Recepción con el contenedor de destino"},
+            {"id": "b", "text": "Ir a la pestaña Operaciones de existencias, hacer clic en Transferir, seleccionar el contenido del contenedor de origen, elegir el contenedor de destino e ingresar la cantidad 50", "isCorrect": true},
+            {"id": "c", "text": "Eliminar las existencias del primer contenedor y colocar existencias nuevas en el segundo contenedor"},
+            {"id": "d", "text": "Usar la pestaña Movimientos para crear manualmente un registro de movimiento"}
+          ],
+          "explanation": "Las transferencias de existencias se realizan a través del diálogo Transferir en la pestaña Operaciones de existencias. Seleccione el registro de contenido del contenedor de origen, elija la ubicación de destino e ingrese la cantidad. Esto crea un registro de movimiento con motivo 'Transferencia' y actualiza ambos contenidos del contenedor automáticamente."
+        },
+        {
+          "id": "inv7",
+          "text": "¿Qué motivos de movimiento son generados automáticamente por el sistema (no creados manualmente)?",
+          "options": [
+            {"id": "a", "text": "Recibir (de la recepción de OC) y Conteo cíclico (de los conteos cíclicos aprobados)", "isCorrect": true},
+            {"id": "b", "text": "Todos los motivos son seleccionados manualmente por el usuario"},
+            {"id": "c", "text": "Solo Enviar y Recoger son automáticos"},
+            {"id": "d", "text": "Mover y Transferencia son los únicos motivos automáticos"}
+          ],
+          "explanation": "Los movimientos 'Recibir' se crean automáticamente cuando se reciben bienes contra una línea de OC a través de la pestaña Recepción. Los movimientos 'Conteo cíclico' se generan automáticamente cuando se aprueba un conteo cíclico con varianza, creando registros de ajuste. Otros motivos como Transferencia, Ajuste, Recoger y Enviar se crean a través de sus respectivas operaciones."
+        },
+        {
+          "id": "inv8",
+          "text": "Un conteo cíclico muestra una varianza de -5 para una pieza en el Contenedor 12. ¿Qué significa esto?",
+          "options": [
+            {"id": "a", "text": "Se encontraron cinco unidades adicionales que el sistema no conocía"},
+            {"id": "b", "text": "El sistema esperaba 5 unidades más de las que se contaron físicamente —hay un faltante de 5", "isCorrect": true},
+            {"id": "c", "text": "Se movieron cinco unidades a un contenedor diferente durante el conteo"},
+            {"id": "d", "text": "El conteo se rechazó porque la varianza supera el umbral"}
+          ],
+          "explanation": "Una varianza negativa significa que el conteo real fue menor que la cantidad esperada (del sistema). Una varianza de -5 significa que se encontraron 5 unidades menos de las que el sistema registró. Cuando se aprueba el conteo cíclico, se crea un movimiento de ajuste para corregir la cantidad del sistema para que coincida con el conteo físico."
+        },
+        {
+          "id": "inv9",
+          "text": "¿Qué estados de OC permiten recibir bienes en el módulo de Inventario?",
+          "options": [
+            {"id": "a", "text": "Solo se puede recibir contra órdenes de compra 'Enviadas'"},
+            {"id": "b", "text": "Enviadas, Confirmadas y Recibidas parcialmente", "isCorrect": true},
+            {"id": "c", "text": "Cualquier estado de OC excepto Cancelada y Cerrada"},
+            {"id": "d", "text": "Solo 'Confirmada' —el proveedor debe confirmar antes de permitir la recepción"}
+          ],
+          "explanation": "El diálogo Recibir bienes solo muestra las líneas de OC de órdenes de compra con estado Enviada, Confirmada o Recibida parcialmente. Además, solo se muestran las líneas con cantidad restante (ordenada menos ya recibida) mayor que cero."
+        },
+        {
+          "id": "inv10",
+          "text": "¿Qué representa la métrica 'Días de existencias restantes' en la pestaña Reabastecimiento?",
+          "options": [
+            {"id": "a", "text": "El número de días hasta que llegue la próxima entrega programada"},
+            {"id": "b", "text": "Existencias disponibles para uso divididas por el consumo diario promedio (tasa de consumo) —cuánto durarán las existencias actuales a la tasa de uso actual", "isCorrect": true},
+            {"id": "c", "text": "El número de días hábiles desde la última recepción de existencias"},
+            {"id": "d", "text": "El tiempo de entrega en días para que el proveedor preferido entregue"}
+          ],
+          "explanation": "Los Días de existencias restantes se calculan dividiendo las existencias disponibles para uso por la tasa de consumo (consumo diario promedio). Por ejemplo, si tiene 100 unidades disponibles y consume 10 por día, tiene 10 días de existencias restantes. Esto impulsa la Fecha proyectada de agotamiento y las sugerencias de reorden."
+        },
+        {
+          "id": "inv11",
+          "text": "Escanea un código de barras mientras está en la página de Inventario. ¿Qué sucede?",
+          "options": [
+            {"id": "a", "text": "Se abre un diálogo que pregunta qué acción tomar con el código escaneado"},
+            {"id": "b", "text": "El valor escaneado se coloca en el campo de búsqueda y la vista cambia a la pestaña Existencias", "isCorrect": true},
+            {"id": "c", "text": "El sistema busca el código de barras en la base de datos de ubicaciones y navega a ese contenedor"},
+            {"id": "d", "text": "Nada —el escaneo de código de barras solo funciona en la pantalla de planta de producción"}
+          ],
+          "explanation": "El módulo de Inventario reconoce el escáner con contexto 'inventory'. Cuando se escanea un código de barras, el valor se coloca automáticamente en el campo de búsqueda y la vista cambia a la pestaña Existencias. Esto le permite consultar rápidamente una pieza escaneando su etiqueta."
+        },
+        {
+          "id": "inv12",
+          "text": "¿Para qué se usa el estado 'Retención de QC' del contenido del contenedor?",
+          "options": [
+            {"id": "a", "text": "Existencias que no pasaron la inspección de calidad y deben desecharse"},
+            {"id": "b", "text": "Existencias en espera de inspección de calidad —no se pueden recoger ni enviar hasta que el QC las libere", "isCorrect": true},
+            {"id": "c", "text": "Existencias que están reservadas para muestras de pruebas de control de calidad"},
+            {"id": "d", "text": "Existencias devueltas por un cliente pendientes de revisión de calidad"}
+          ],
+          "explanation": "La Retención de QC impide que las existencias se recojan o envíen hasta que pasen la inspección de calidad. Una vez completada la inspección, un movimiento de 'Liberación de QC' cambia el estado de vuelta a Almacenado, haciendo que las existencias estén disponibles. Esto se usa comúnmente para materiales entrantes que requieren inspección antes de usarse en producción."
+        },
+        {
+          "id": "inv13",
+          "text": "¿Cómo se crean las sugerencias de reorden en la pestaña Reabastecimiento?",
+          "options": [
+            {"id": "a", "text": "Los usuarios crean sugerencias manualmente haciendo clic en 'Agregar sugerencia'"},
+            {"id": "b", "text": "El sistema genera automáticamente sugerencias con base en el análisis de la tasa de consumo, los puntos de reorden, los tiempos de entrega y los niveles de existencias de seguridad", "isCorrect": true},
+            {"id": "c", "text": "Las sugerencias se importan del sistema de catálogo del proveedor"},
+            {"id": "d", "text": "Se copian de las órdenes de compra del mes anterior"}
+          ],
+          "explanation": "Las sugerencias de reorden las genera el sistema con base en el análisis de la tasa de consumo (consumo de 30/60/90 días), los puntos de reorden configurados, los tiempos de entrega y los días de existencias de seguridad. Cuando las existencias disponibles para uso caen a o por debajo del punto de reorden, se crea una sugerencia con una cantidad de orden calculada. Las sugerencias se pueden aprobar (creando una OC) o descartar (con un motivo obligatorio)."
+        },
+        {
+          "id": "inv14",
+          "text": "Quiere crear una nueva ubicación de almacenamiento llamada 'Contenedor 7' dentro de 'Estantería B2' en 'Almacén A'. ¿Qué establece en el diálogo Crear ubicación?",
+          "options": [
+            {"id": "a", "text": "Nombre: 'Contenedor 7', Tipo: Contenedor, Padre: seleccionar 'Estantería B2' de la lista desplegable", "isCorrect": true},
+            {"id": "b", "text": "Nombre: 'Almacén A > Estantería B2 > Contenedor 7', Tipo: Área, sin padre"},
+            {"id": "c", "text": "Nombre: 'Contenedor 7', Tipo: Repisa, Padre: 'Almacén A'"},
+            {"id": "d", "text": "Primero debe crear 'Contenedor 7' como un Área, luego moverlo bajo Estantería B2"}
+          ],
+          "explanation": "Para crear un contenedor dentro de una estantería existente, establezca el Nombre en 'Contenedor 7', seleccione el Tipo como 'Contenedor' (el nivel más bajo) y establezca el Padre en 'Estantería B2' de la lista desplegable. El sistema lo anidará en la jerarquía: Almacén A → Estantería B2 → Contenedor 7. La ruta completa se muestra en las tablas de existencias y en los registros de movimiento."
+        },
+        {
+          "id": "inv15",
+          "text": "¿Qué sucede cuando aprueba un conteo cíclico que tiene varianzas?",
+          "options": [
+            {"id": "a", "text": "Las varianzas se registran pero no se cambian las cantidades —debe ajustar cada una manualmente"},
+            {"id": "b", "text": "Se generan automáticamente movimientos de ajuste para corregir las cantidades del sistema para que coincidan con los conteos físicos", "isCorrect": true},
+            {"id": "c", "text": "Se envía un correo electrónico al gerente del almacén listando todas las discrepancias"},
+            {"id": "d", "text": "El conteo se marca para una segunda verificación antes de realizar cualquier cambio"}
+          ],
+          "explanation": "Aprobar un conteo cíclico con varianzas genera automáticamente movimientos de ajuste con motivo 'Conteo cíclico' para corregir las cantidades del sistema. Cada línea con una varianza distinta de cero recibe un ajuste para que la cantidad del sistema coincida con la cantidad contada real. Esto mantiene el registro de auditoría mientras conserva el inventario preciso."
+        }
+      ]
+    }
+  }
+]

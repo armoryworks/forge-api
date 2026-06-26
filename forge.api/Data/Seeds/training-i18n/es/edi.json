@@ -1,0 +1,720 @@
+[
+  {
+    "slug": "edi-overview",
+    "title": "Introducción al EDI",
+    "summary": "Qué es el EDI, los formatos X12 y EDIFACT, y cómo los socios comerciales, las transacciones y los mapeos funcionan juntos en QB Engineer.",
+    "contentJson": {
+      "body": "## Introducción al EDI\n\nEl Intercambio Electrónico de Datos (EDI) permite que su taller intercambie documentos comerciales estructurados — órdenes de compra, facturas, avisos de envío y más — con socios comerciales de forma electrónica, en lugar de mediante papel, correo electrónico o entrada manual de datos.\n\nEl módulo EDI de QB Engineer se encuentra en Administración > EDI y ofrece un lugar central para gestionar socios comerciales, supervisar transacciones entrantes y salientes, configurar mapeos de campos y gestionar errores con soporte de reintento.\n\n### ¿Qué es el EDI?\n\nEl EDI reemplaza el intercambio manual de documentos por formatos electrónicos estandarizados. Cuando un cliente le envía una orden de compra por EDI, llega como un archivo de datos estructurado que QB Engineer puede analizar, validar y aplicar automáticamente — creando una Orden de Venta, una Orden de Compra u otra entidad sin que nadie vuelva a teclear la información.\n\nLo contrario también funciona: cuando usted envía un pedido, QB Engineer puede generar un documento EDI saliente (como un ASN o una factura) y enviarlo al socio comercial automáticamente.\n\n### Formatos EDI\n\nQB Engineer admite dos estándares EDI principales:\n\n- **X12** — El estándar dominante en Norteamérica. Los conjuntos de transacciones se identifican con números de tres dígitos: 850 (Orden de Compra), 810 (Factura), 856 (Aviso Anticipado de Envío), 855 (Acuse de Orden de Compra) y muchos más.\n- **EDIFACT** — El estándar internacional ampliamente utilizado fuera de los EE. UU. Usa códigos de tipo de mensaje alfabéticos como ORDERS, INVOIC, DESADV.\n\nCada socio comercial se configura con un formato predeterminado, pero cada transacción individual puede usar cualquiera de los dos formatos.\n\n### Socios comerciales\n\nUn socio comercial es cualquier empresa con la que intercambia documentos EDI — normalmente clientes o proveedores. Cada registro de socio almacena:\n\n- **Identificadores EDI** — Un ID de calificador (Qualifier ID) y un valor de calificador (Qualifier Value) que identifican de forma única al socio en los sobres EDI. Los ID de intercambio de emisor/receptor y los ID de aplicación de emisor/receptor enrutan los documentos correctamente.\n- **Formato y transporte** — Si el socio usa X12 o EDIFACT, y cómo se entregan los documentos (AS2, SFTP, VAN, correo electrónico, API o manual).\n- **Reglas de procesamiento** — Si los documentos entrantes se procesan automáticamente o se retienen para revisión manual, y si el socio requiere acuses de recibo funcionales (997/CONTRL).\n- **Vínculos** — Un socio puede vincularse a un registro de Cliente o Proveedor existente en QB Engineer para la coincidencia automática de entidades.\n\n### Transacciones\n\nCada intercambio de documentos EDI crea un registro de transacción. Las transacciones registran:\n\n- **Dirección** — Entrante (recibido del socio) o Saliente (enviado al socio).\n- **Conjunto de transacciones** — El tipo de documento (p. ej., 850 para una Orden de Compra, 810 para una Factura).\n- **Números de control** — Los números de control de intercambio, de grupo y de transacción que identifican de forma única el documento en el sobre EDI.\n- **Ciclo de vida del estado** — Cada transacción avanza por una secuencia de procesamiento: Recibido → Analizando → Analizado → Validando → Validado → Procesando → Aplicado (éxito) o Error/Rechazado (fallo).\n- **Entidad relacionada** — Una vez procesada, la transacción se vincula a la entidad de QB Engineer que creó o actualizó (p. ej., una Orden de Venta, una Orden de Compra o una Factura).\n- **Gestión de errores** — Las transacciones fallidas muestran el mensaje de error y pueden reintentarse. Se registran el número de reintentos y la marca de tiempo del último reintento.\n- **Acuses de recibo** — Cuando un socio requiere acuses de recibo, el sistema registra si se envió el 997/CONTRL y vincula la transacción de acuse.\n\n### Mapeos\n\nLos mapeos definen cómo los campos de un documento EDI se traducen a los campos de las entidades de QB Engineer. Cada mapeo pertenece a un socio comercial y a un conjunto de transacciones específico.\n\n- **Mapeos de campos** — Asignan rutas de segmento/elemento EDI a campos de entidad de QB Engineer (p. ej., PO1-07 → Número de Pieza, N1-04 → ID de Cliente).\n- **Traducciones de valores** — Convierten códigos específicos del socio a valores de QB Engineer (p. ej., el código de artículo '12345' del socio se asigna a su Número de Pieza 'WIDGET-001').\n- **Mapeo predeterminado** — Un mapeo por conjunto de transacciones puede marcarse como predeterminado. Cuando llega un documento, el sistema usa el mapeo predeterminado salvo que se anule.\n\n### Métodos de transporte\n\nQB Engineer admite múltiples formas de enviar y recibir documentos EDI:\n\n- **AS2** — El protocolo B2B más común. Cifrado, firmado y con soporte de acuse de recibo (MDN) incorporado.\n- **SFTP** — Transferencia segura de archivos. Los documentos se colocan en directorios específicos de cada socio.\n- **VAN** — Red de Valor Agregado (Value Added Network). Un servicio de terceros que enruta documentos entre socios (p. ej., SPS Commerce, TrueCommerce).\n- **Correo electrónico** — Documentos EDI enviados como archivos adjuntos de correo. Sencillo pero menos automatizado.\n- **API** — Integración directa por API REST/SOAP con el sistema del socio.\n- **Manual** — Los documentos se cargan/descargan manualmente a través de la interfaz de QB Engineer. Ideal para socios de bajo volumen o para pruebas.\n\n### Sondeo de entrada y procesamiento automático\n\nCuando se habilita Procesamiento automático (Auto Process) en un socio comercial, QB Engineer procesa automáticamente los documentos entrantes a través de toda la secuencia — analizando el contenido EDI, validándolo según las reglas de mapeo y aplicando los datos para crear o actualizar entidades. Cuando Procesamiento automático está desactivado, los documentos entrantes se detienen en el estado Recibido para revisión manual antes del procesamiento.\n\n### Cuándo usar el EDI\n\n- Cuando un cliente o proveedor requiere el intercambio electrónico de documentos\n- Cuando desea eliminar la entrada manual de datos para pedidos recurrentes\n- Cuando necesita un rastro auditable de cada documento intercambiado con un socio\n- Cuando su socio comercial usa una VAN o AS2 y espera acuses de recibo automatizados",
+      "sections": []
+    }
+  },
+  {
+    "slug": "edi-walkthrough",
+    "title": "EDI — Recorrido guiado",
+    "summary": "Un recorrido guiado por la página Administración > EDI: subpestañas, tabla de socios comerciales, diálogo de socio, lista de transacciones, filtros, detalle de transacción y reintento.",
+    "contentJson": {
+      "appRoute": "/admin/edi",
+      "startButtonLabel": "Recorrer EDI",
+      "steps": [
+        {
+          "element": ".edi-panel .tab-bar",
+          "popover": {
+            "title": "Subpestañas de EDI",
+            "description": "La página de EDI tiene dos subpestañas: Socios comerciales (gestione las configuraciones de sus socios EDI) y Transacciones (supervise todos los intercambios de documentos EDI entrantes y salientes). Haga clic en una pestaña para cambiar de vista.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".edi-panel__toolbar .action-btn--create",
+          "popover": {
+            "title": "Nuevo socio comercial",
+            "description": "Haga clic aquí para agregar un nuevo socio comercial. Ingresará el nombre del socio, los ID de calificador EDI, el formato predeterminado (X12 o EDIFACT), el método de transporte y las reglas de procesamiento. El socio puede vincularse opcionalmente a un registro de Cliente o Proveedor existente.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table[tableId='edi-partners']",
+          "popover": {
+            "title": "Tabla de socios comerciales",
+            "description": "Enumera todos los socios comerciales configurados. Las columnas muestran el nombre del socio, el cliente/proveedor vinculado, el formato predeterminado, el método de transporte, el recuento de transacciones, el recuento de errores y el estado de actividad. Haga clic en los encabezados de columna para ordenar. Cada fila tiene botones de acción para probar la conexión, editar y eliminar.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".tab:nth-child(2)",
+          "popover": {
+            "title": "Pestaña Transacciones",
+            "description": "Cambie a la pestaña Transacciones para ver todos los intercambios de documentos EDI. Cada fila muestra el socio comercial, la dirección (Entrante/Saliente), el código del conjunto de transacciones, el número de control, el estado de procesamiento, la entidad relacionada, la marca de tiempo de recepción y el recuento de reintentos.",
+            "side": "bottom"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "edi-field-reference",
+    "title": "Referencia de campos de EDI",
+    "summary": "Referencia completa de cada campo, estado, formato, método de transporte, botón y regla de validación del módulo EDI.",
+    "contentJson": {
+      "title": "Referencia de campos de EDI",
+      "groups": [
+        {
+          "heading": "Campos del formulario de socio comercial",
+          "items": [
+            {
+              "label": "Nombre (obligatorio)",
+              "value": "Campo de texto, máximo 200 caracteres. El nombre para mostrar de este socio comercial (p. ej., 'Acme Corp EDI', 'SPS Commerce - Grainger')."
+            },
+            {
+              "label": "ID de calificador (obligatorio)",
+              "value": "Campo de texto, máximo 10 caracteres. El código de calificador EDI que identifica cómo está formateado el ID del socio. Predeterminado: 'ZZ' (Mutuamente Definido). Valores comunes: '01' (DUNS), '08' (UCC/EAN), '12' (Teléfono), '14' (DUNS+4), 'ZZ' (Mutuamente Definido)."
+            },
+            {
+              "label": "Valor de calificador (obligatorio)",
+              "value": "Campo de texto, máximo 100 caracteres. El valor identificador real del socio que corresponde al ID de calificador (p. ej., un número DUNS, un número de teléfono o un código mutuamente acordado)."
+            },
+            {
+              "label": "Formato predeterminado (obligatorio)",
+              "value": "Lista desplegable: X12, EDIFACT. El estándar EDI predeterminado para este socio. X12 es el estándar norteamericano; EDIFACT es el estándar internacional. Predeterminado: X12."
+            },
+            {
+              "label": "Método de transporte (obligatorio)",
+              "value": "Lista desplegable: AS2, SFTP, VAN, Email, API, Manual. Cómo se envían y reciben los documentos EDI con este socio. Predeterminado: Manual."
+            },
+            {
+              "label": "Procesamiento automático (interruptor)",
+              "value": "Cuando está ACTIVADO (predeterminado), los documentos entrantes se analizan, validan y aplican automáticamente. Cuando está DESACTIVADO, los documentos se detienen en el estado Recibido para revisión manual."
+            },
+            {
+              "label": "Requerir acuse de recibo (interruptor)",
+              "value": "Cuando está ACTIVADO (predeterminado), el sistema envía acuses de recibo funcionales (997 para X12, CONTRL para EDIFACT) por los documentos recibidos. La transacción de acuse se vincula a la original."
+            },
+            {
+              "label": "Notas",
+              "value": "Área de texto, opcional. Notas de formato libre sobre el socio comercial — detalles de conexión, información de contacto, requisitos especiales o notas de integración."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de socios comerciales",
+          "items": [
+            {
+              "label": "Nombre",
+              "value": "Ordenable. Nombre para mostrar del socio."
+            },
+            {
+              "label": "Cliente",
+              "value": "Ordenable. Nombre del cliente vinculado, o '—' si no está vinculado."
+            },
+            {
+              "label": "Proveedor",
+              "value": "Ordenable. Nombre del proveedor vinculado, o '—' si no está vinculado."
+            },
+            {
+              "label": "Formato",
+              "value": "Ordenable. Formato EDI predeterminado: X12 o EDIFACT."
+            },
+            {
+              "label": "Transporte",
+              "value": "Ordenable. Método de transporte: AS2, SFTP, VAN, Email, API o Manual."
+            },
+            {
+              "label": "Trans.",
+              "value": "Ordenable, alineado a la derecha. Número total de transacciones de este socio."
+            },
+            {
+              "label": "Errores",
+              "value": "Ordenable, alineado a la derecha. Número de transacciones en estado Error. Se muestra como una etiqueta roja cuando es > 0."
+            },
+            {
+              "label": "Activo",
+              "value": "Centrado. Ícono verde check_circle cuando está activo, ícono gris cancel cuando está inactivo."
+            },
+            {
+              "label": "Acciones",
+              "value": "Tres botones de ícono: Probar conexión (wifi_tethering), Editar (edit), Eliminar (delete, estilo de peligro)."
+            }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla de transacciones",
+          "items": [
+            {
+              "label": "Socio",
+              "value": "Ordenable. Nombre del socio comercial."
+            },
+            {
+              "label": "Dir.",
+              "value": "Ordenable, filtrable (enum). Dirección: Entrante (etiqueta azul) o Saliente (etiqueta primaria)."
+            },
+            {
+              "label": "Conjunto",
+              "value": "Ordenable, centrado. Código del conjunto de transacciones (p. ej., 850, 810, 856 para X12)."
+            },
+            {
+              "label": "N.º de control",
+              "value": "Ordenable. Número de control de intercambio para la identificación del documento."
+            },
+            {
+              "label": "Estado",
+              "value": "Ordenable, filtrable (enum). Etiqueta con código de color que muestra el estado de procesamiento."
+            },
+            {
+              "label": "Entidad",
+              "value": "Ordenable. Tipo de entidad relacionada (p. ej., SalesOrder, PurchaseOrder) o '—' si aún no se ha aplicado."
+            },
+            {
+              "label": "Recibido",
+              "value": "Ordenable, tipo fecha. Marca de tiempo en que se recibió el documento, con formato MM/dd/yyyy HH:mm."
+            },
+            {
+              "label": "Reintentos",
+              "value": "Ordenable, alineado a la derecha. Número de intentos de reintento para transacciones fallidas."
+            },
+            {
+              "label": "Acciones",
+              "value": "El botón Reintentar (ícono refresh) aparece solo para transacciones en estado Error."
+            }
+          ]
+        },
+        {
+          "heading": "Campos del detalle de transacción",
+          "items": [
+            {
+              "label": "Socio",
+              "value": "Solo lectura. El nombre del socio comercial asociado a esta transacción."
+            },
+            {
+              "label": "Dirección",
+              "value": "Solo lectura. Entrante (etiqueta azul) o Saliente (etiqueta primaria)."
+            },
+            {
+              "label": "Conjunto de transacciones",
+              "value": "Solo lectura. El código de tipo de documento (p. ej., 850, 810, 856)."
+            },
+            {
+              "label": "Estado",
+              "value": "Solo lectura. Etiqueta con código de color que muestra el estado de procesamiento actual."
+            },
+            {
+              "label": "Mensaje de error",
+              "value": "Solo lectura. Se muestra en un cuadro rojo de error cuando la transacción tiene un error. Describe qué salió mal durante el análisis, la validación o el procesamiento."
+            },
+            {
+              "label": "Carga útil sin procesar",
+              "value": "Solo lectura. El contenido completo del documento EDI sin procesar en un bloque de código monoespaciado. Muestra los segmentos X12 o mensajes EDIFACT reales tal como se recibieron/enviaron."
+            },
+            {
+              "label": "Datos analizados",
+              "value": "Solo lectura. La representación JSON analizada del documento EDI, mostrada cuando el análisis fue exitoso. Muestra los datos estructurados extraídos de la carga útil sin procesar."
+            }
+          ]
+        },
+        {
+          "heading": "Estados de transacción",
+          "items": [
+            {
+              "label": "Recibido (etiqueta azul/info)",
+              "value": "Documento recibido pero aún no procesado. Es el estado inicial de todos los documentos entrantes y el estado de retención cuando Procesamiento automático está desactivado."
+            },
+            {
+              "label": "Analizando (etiqueta amarilla/advertencia)",
+              "value": "El documento se está analizando del formato EDI sin procesar a datos estructurados."
+            },
+            {
+              "label": "Analizado (etiqueta predeterminada)",
+              "value": "El análisis se completó correctamente. El EDI sin procesar se ha convertido en JSON estructurado."
+            },
+            {
+              "label": "Validando (etiqueta amarilla/advertencia)",
+              "value": "Los datos analizados se están validando según las reglas de mapeo y la lógica de negocio."
+            },
+            {
+              "label": "Validado (etiqueta predeterminada)",
+              "value": "La validación se aprobó. Los datos están listos para el procesamiento."
+            },
+            {
+              "label": "Procesando (etiqueta amarilla/advertencia)",
+              "value": "Los datos se están aplicando a las entidades de QB Engineer (creando/actualizando Órdenes de Venta, Órdenes de Compra, etc.)."
+            },
+            {
+              "label": "Aplicado (etiqueta verde/éxito)",
+              "value": "La transacción se procesó correctamente. La entidad relacionada se ha creado o actualizado. La columna Entidad relacionada muestra lo que se creó."
+            },
+            {
+              "label": "Error (etiqueta roja/error)",
+              "value": "El procesamiento falló en alguna etapa. El mensaje de error describe el problema. Aparece un botón Reintentar en la columna de acciones."
+            },
+            {
+              "label": "Con acuse (etiqueta gris/atenuada)",
+              "value": "Se ha enviado un acuse de recibo funcional (997/CONTRL) por esta transacción entrante."
+            },
+            {
+              "label": "Rechazado (etiqueta roja/error)",
+              "value": "El documento fue rechazado durante la validación — los datos no cumplieron las reglas requeridas o no se pudo aplicar el mapeo del socio comercial."
+            }
+          ]
+        },
+        {
+          "heading": "Formatos EDI",
+          "items": [
+            {
+              "label": "X12",
+              "value": "Estándar ANSI ASC X12. Dominante en Norteamérica. Conjuntos de transacciones identificados por números de 3 dígitos (850=OC, 810=Factura, 856=ASN, 855=Acuse de OC, 997=Acuse Funcional). Segmentos delimitados por ~ (tilde), elementos por * (asterisco)."
+            },
+            {
+              "label": "EDIFACT",
+              "value": "Estándar internacional UN/EDIFACT. Usado globalmente, especialmente en Europa y Asia. Los tipos de mensaje usan códigos alfabéticos (ORDERS, INVOIC, DESADV, CONTRL). Segmentos delimitados por ' (apóstrofo), elementos por + (signo más)."
+            }
+          ]
+        },
+        {
+          "heading": "Métodos de transporte",
+          "items": [
+            {
+              "label": "AS2",
+              "value": "Applicability Statement 2. El protocolo EDI B2B más común. Usa HTTP/HTTPS con cifrado (S/MIME), firmas digitales y Notificaciones de Disposición de Mensaje (MDN) para la confirmación de entrega."
+            },
+            {
+              "label": "SFTP",
+              "value": "Protocolo de Transferencia de Archivos SSH. Los documentos se colocan en directorios específicos de cada socio en un servidor seguro. Sencillo, fiable y ampliamente compatible."
+            },
+            {
+              "label": "VAN",
+              "value": "Red de Valor Agregado. Un servicio de terceros (p. ej., SPS Commerce, TrueCommerce, Cleo) que enruta documentos entre socios comerciales. Gestiona la traducción de formatos, la verificación de cumplimiento y la entrega."
+            },
+            {
+              "label": "Email",
+              "value": "Documentos EDI enviados como archivos adjuntos de correo. Baja automatización, normalmente usado para socios de bajo volumen o como alternativa de respaldo."
+            },
+            {
+              "label": "API",
+              "value": "Integración directa por API REST o SOAP con el sistema del socio. Alternativa moderna al transporte EDI tradicional."
+            },
+            {
+              "label": "Manual",
+              "value": "Documentos cargados y descargados manualmente a través de la interfaz de QB Engineer. Ideal para pruebas, socios de bajo volumen o la configuración inicial antes de automatizar el transporte."
+            }
+          ]
+        },
+        {
+          "heading": "Campos de mapeo",
+          "items": [
+            {
+              "label": "Conjunto de transacciones",
+              "value": "El tipo de documento EDI al que se aplica este mapeo (p. ej., 850, 810). Cada mapeo se limita a un conjunto de transacciones por socio comercial."
+            },
+            {
+              "label": "Nombre",
+              "value": "Nombre para mostrar del perfil de mapeo (p. ej., 'Mapeo de OC de Acme', 'Factura 810 estándar')."
+            },
+            {
+              "label": "Mapeos de campos (JSON)",
+              "value": "Arreglo de mapeos campo a campo. Cada entrada asigna una ruta de segmento/elemento EDI (p. ej., PO1-07) a un campo de entidad de QB Engineer (p. ej., partNumber). Se almacena como JSON."
+            },
+            {
+              "label": "Traducciones de valores (JSON)",
+              "value": "Arreglo de reglas de traducción de valores. Convierte códigos específicos del socio a valores de QB Engineer (p. ej., el código de artículo del socio → su número de pieza). Se almacena como JSON."
+            },
+            {
+              "label": "Es predeterminado",
+              "value": "Interruptor. Cuando está ACTIVADO, este mapeo se usa automáticamente para el conjunto de transacciones especificado de este socio. Solo un mapeo por conjunto de transacciones puede ser predeterminado."
+            },
+            {
+              "label": "Notas",
+              "value": "Notas opcionales sobre el mapeo — explicaciones de campos, requisitos del socio, historial de versiones."
+            }
+          ]
+        },
+        {
+          "heading": "Botones y acciones",
+          "items": [
+            {
+              "label": "Nuevo socio comercial",
+              "value": "Botón principal en la barra de herramientas (pestaña Socios). Abre el diálogo de creación de socio."
+            },
+            {
+              "label": "Probar conexión",
+              "value": "Botón de ícono wifi_tethering en las acciones de la fila del socio. Envía una prueba de conectividad al extremo de transporte configurado del socio. Muestra una notificación de éxito o fallo."
+            },
+            {
+              "label": "Editar socio",
+              "value": "Botón de ícono edit en las acciones de la fila del socio. Abre el diálogo del socio rellenado con los valores actuales."
+            },
+            {
+              "label": "Eliminar socio",
+              "value": "Botón de ícono delete (estilo de peligro) en las acciones de la fila del socio. Realiza una eliminación lógica del socio comercial."
+            },
+            {
+              "label": "Reintentar transacción",
+              "value": "Botón de ícono refresh en las acciones de la fila de la transacción. Visible solo para transacciones en estado Error. Vuelve a poner en cola la transacción para su procesamiento. Muestra la notificación 'Reintento en cola'."
+            },
+            {
+              "label": "Ver transacción",
+              "value": "Haga clic en cualquier fila de transacción para abrir el diálogo de detalle que muestra el socio, la dirección, el conjunto, el estado, la carga útil sin procesar, los datos analizados y los errores."
+            },
+            {
+              "label": "Cerrar (detalle de transacción)",
+              "value": "Botón principal en el pie del diálogo de detalle de transacción. Cierra la vista de detalle."
+            },
+            {
+              "label": "Guardar / Crear (diálogo de socio)",
+              "value": "Botón principal en el pie del diálogo de socio. Crea o actualiza el socio comercial. Se desactiva cuando el formulario es inválido o el guardado está en curso. Al pasar el cursor cuando está desactivado, muestra un mensaje emergente de validación."
+            },
+            {
+              "label": "Cancelar (diálogo de socio)",
+              "value": "Botón secundario en el pie del diálogo de socio. Cierra el diálogo sin guardar."
+            }
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            {
+              "label": "Nombre",
+              "value": "Obligatorio. No debe estar vacío. Máximo 200 caracteres."
+            },
+            {
+              "label": "ID de calificador",
+              "value": "Obligatorio. No debe estar vacío. Máximo 10 caracteres. Predeterminado: 'ZZ'."
+            },
+            {
+              "label": "Valor de calificador",
+              "value": "Obligatorio. No debe estar vacío. Máximo 100 caracteres."
+            },
+            {
+              "label": "Formato predeterminado",
+              "value": "Obligatorio. Debe ser X12 o EDIFACT."
+            },
+            {
+              "label": "Método de transporte",
+              "value": "Obligatorio. Debe ser uno de: AS2, SFTP, VAN, Email, API, Manual."
+            },
+            {
+              "label": "Botón de envío",
+              "value": "Se desactiva cuando el formulario es inválido o se está guardando. Al pasar el cursor sobre el botón desactivado, muestra un mensaje emergente de validación que indica qué campos requieren atención."
+            }
+          ]
+        },
+        {
+          "heading": "Filtros de transacción",
+          "items": [
+            {
+              "label": "Filtro de dirección",
+              "value": "Lista desplegable: Todas (predeterminado), Entrante, Saliente. Filtra la lista de transacciones por dirección del documento."
+            },
+            {
+              "label": "Filtro de estado",
+              "value": "Lista desplegable: Todos (predeterminado), Recibido, Analizando, Analizado, Procesando, Aplicado, Error, Con acuse, Rechazado. Filtra por estado de procesamiento."
+            },
+            {
+              "label": "Comportamiento del filtro",
+              "value": "Al seleccionar cualquier valor de filtro, la lista de transacciones se actualiza inmediatamente desde la API con los filtros aplicados."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "edi-quiz",
+    "title": "Evaluación de conocimientos de EDI",
+    "summary": "Ponga a prueba sus conocimientos del módulo EDI: formatos, socios comerciales, transacciones, mapeos, estados y métodos de transporte.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "edi1",
+          "text": "Un nuevo cliente requiere el intercambio de documentos EDI para órdenes de compra. ¿Dónde lo configura en QB Engineer?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ir a Clientes, abrir el detalle del cliente y activar el interruptor de EDI"
+            },
+            {
+              "id": "b",
+              "text": "Navegar a Administración > EDI, hacer clic en Nuevo socio comercial y configurar el socio con los identificadores EDI, el formato y el método de transporte del cliente",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Crear una nueva integración en Administración > Integraciones y seleccionar EDI como tipo"
+            },
+            {
+              "id": "d",
+              "text": "Ir a Administración > Configuración y agregar las credenciales EDI del cliente a la configuración del sistema"
+            }
+          ],
+          "explanation": "Los socios comerciales se gestionan en Administración > EDI. Haga clic en Nuevo socio comercial y complete el nombre, el ID/valor de calificador, el formato predeterminado (X12 o EDIFACT), el método de transporte y las reglas de procesamiento. Puede vincular el socio a un registro de Cliente existente."
+        },
+        {
+          "id": "edi2",
+          "text": "¿Cuál es la diferencia entre X12 y EDIFACT?",
+          "options": [
+            {
+              "id": "a",
+              "text": "X12 es solo para facturas, EDIFACT es solo para órdenes de compra"
+            },
+            {
+              "id": "b",
+              "text": "X12 es el estándar norteamericano que usa códigos numéricos de conjunto de transacciones (como 850, 810); EDIFACT es el estándar internacional que usa tipos de mensaje alfabéticos (como ORDERS, INVOIC)",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "X12 es más nuevo y reemplaza a EDIFACT, que está obsoleto"
+            },
+            {
+              "id": "d",
+              "text": "X12 solo funciona con transporte AS2, mientras que EDIFACT solo funciona con SFTP"
+            }
+          ],
+          "explanation": "X12 (ANSI ASC X12) es el estándar dominante en Norteamérica, que usa códigos numéricos de 3 dígitos para los conjuntos de transacciones (850=Orden de Compra, 810=Factura). EDIFACT (UN/EDIFACT) es el estándar internacional que usa códigos alfabéticos (ORDERS, INVOIC). Ambos se usan activamente."
+        },
+        {
+          "id": "edi3",
+          "text": "Ve una transacción en la pestaña Transacciones con estado 'Error' (etiqueta roja). ¿Qué acción puede realizar?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Eliminar la transacción y pedir al socio que la reenvíe"
+            },
+            {
+              "id": "b",
+              "text": "Hacer clic en la fila de la transacción para ver los detalles del error y luego hacer clic en el botón Reintentar para volver a ponerla en cola para su procesamiento",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Cambiar el estado manualmente a Aplicado para forzar su avance"
+            },
+            {
+              "id": "d",
+              "text": "Nada — las transacciones con error fallan permanentemente y deben gestionarse fuera de QB Engineer"
+            }
+          ],
+          "explanation": "Las transacciones en estado Error muestran un botón Reintentar (ícono refresh) en la columna de acciones. Haga clic en la fila para ver el mensaje de error y la carga útil sin procesar en el diálogo de detalle, luego haga clic en Reintentar para volver a poner en cola la transacción. El recuento de reintentos registra cuántos intentos se han realizado."
+        },
+        {
+          "id": "edi4",
+          "text": "¿Qué controla el interruptor 'Procesamiento automático' en un socio comercial?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Si los documentos salientes se envían automáticamente o se ponen en cola para revisión manual"
+            },
+            {
+              "id": "b",
+              "text": "Si los documentos entrantes se analizan, validan y aplican automáticamente, o se retienen en el estado Recibido para revisión manual",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Si la conexión del socio se prueba automáticamente cada hora"
+            },
+            {
+              "id": "d",
+              "text": "Si los documentos duplicados de este socio se rechazan automáticamente"
+            }
+          ],
+          "explanation": "Cuando Procesamiento automático está ACTIVADO (predeterminado), los documentos EDI entrantes se procesan automáticamente a través de toda la secuencia: Recibido → Analizando → Analizado → Validando → Validado → Procesando → Aplicado. Cuando está DESACTIVADO, los documentos se detienen en el estado Recibido y requieren acción manual para continuar."
+        },
+        {
+          "id": "edi5",
+          "text": "El ID de calificador de un socio comercial está configurado como 'ZZ'. ¿Qué significa esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El socio usa un código postal como su identificador"
+            },
+            {
+              "id": "b",
+              "text": "El tipo de identificador es 'Mutuamente Definido' — el Valor de calificador es un código acordado por ambas partes",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El socio aún no se ha configurado por completo y 'ZZ' es un marcador de posición"
+            },
+            {
+              "id": "d",
+              "text": "El socio usa un número DUNS para la identificación"
+            }
+          ],
+          "explanation": "'ZZ' es el código de calificador EDI para 'Mutuamente Definido', lo que significa que ambos socios comerciales han acordado el formato y el significado del Valor de calificador. Es el calificador más común cuando los socios no usan un identificador estándar como DUNS ('01') o UCC/EAN ('08'). También es el predeterminado en QB Engineer."
+        },
+        {
+          "id": "edi6",
+          "text": "¿Cuál es el propósito de un mapeo EDI en QB Engineer?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Asigna la ruta de red entre su servidor y el servidor del socio para la entrega de documentos"
+            },
+            {
+              "id": "b",
+              "text": "Define cómo los campos de un documento EDI se traducen a los campos de las entidades de QB Engineer, y cómo los códigos específicos del socio se convierten a sus valores internos",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Crea un diagrama visual del flujo de datos EDI con fines de documentación"
+            },
+            {
+              "id": "d",
+              "text": "Asigna roles de usuario a permisos EDI para que solo los usuarios autorizados puedan enviar documentos"
+            }
+          ],
+          "explanation": "Los mapeos EDI definen dos cosas: mapeos de campos (qué segmento/elemento EDI se asigna a qué campo de QB Engineer, como PO1-07 → Número de Pieza) y traducciones de valores (convertir códigos específicos del socio a sus valores internos, como su código de artículo '12345' a su número de pieza 'WIDGET-001')."
+        },
+        {
+          "id": "edi7",
+          "text": "Desea ver solo las transacciones entrantes que fallaron en el procesamiento. ¿Cómo filtra la lista de transacciones?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Configurar el filtro de Dirección en Entrante y el filtro de Estado en Error",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Hacer clic en el encabezado de la columna Estado y escribir 'Error' en el cuadro de búsqueda"
+            },
+            {
+              "id": "c",
+              "text": "Usar la barra de búsqueda en la parte superior y escribir 'Entrante Error'"
+            },
+            {
+              "id": "d",
+              "text": "Cambiar a la pestaña Socios y buscar socios con recuentos de error > 0"
+            }
+          ],
+          "explanation": "La pestaña Transacciones tiene dos listas desplegables de filtro en la parte superior: Dirección y Estado. Configure Dirección en 'Entrante' y Estado en 'Error' para ver exactamente las transacciones entrantes fallidas. La lista se actualiza inmediatamente al cambiar cualquiera de los filtros."
+        },
+        {
+          "id": "edi8",
+          "text": "¿Qué método de transporte proporciona cifrado, firmas digitales y acuses de entrega (MDN) incorporados?",
+          "options": [
+            {
+              "id": "a",
+              "text": "SFTP"
+            },
+            {
+              "id": "b",
+              "text": "Email"
+            },
+            {
+              "id": "c",
+              "text": "AS2",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "VAN"
+            }
+          ],
+          "explanation": "AS2 (Applicability Statement 2) es el protocolo EDI B2B más común. Usa HTTP/HTTPS con cifrado S/MIME, firmas digitales para la autenticación y Notificaciones de Disposición de Mensaje (MDN) para confirmar la entrega. Es el transporte preferido para intercambios EDI de alto volumen y sensibles a la seguridad."
+        },
+        {
+          "id": "edi9",
+          "text": "Un socio comercial tiene 'Requerir acuse de recibo' habilitado. ¿Qué sucede cuando recibe un documento entrante de él?",
+          "options": [
+            {
+              "id": "a",
+              "text": "QB Engineer envía un acuse de recibo funcional (997 para X12 o CONTRL para EDIFACT) de vuelta al socio confirmando la recepción y el estado de procesamiento",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "QB Engineer envía una notificación por correo electrónico al usuario administrador de que se recibió un documento"
+            },
+            {
+              "id": "c",
+              "text": "La transacción se retiene hasta que un usuario haga clic manualmente en un botón Acusar recibo"
+            },
+            {
+              "id": "d",
+              "text": "El sistema del socio marca automáticamente el documento como entregado sin ninguna acción de QB Engineer"
+            }
+          ],
+          "explanation": "Cuando Requerir acuse de recibo está ACTIVADO, QB Engineer envía automáticamente un acuse de recibo funcional — un conjunto de transacciones 997 para X12 o un mensaje CONTRL para EDIFACT — de vuelta al socio comercial. La transacción de acuse se vincula a la transacción entrante original para su trazabilidad."
+        },
+        {
+          "id": "edi10",
+          "text": "¿Qué hace el botón 'Probar conexión' (ícono wifi) en la fila de un socio comercial?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Envía un documento EDI de prueba al socio para verificar el procesamiento de extremo a extremo"
+            },
+            {
+              "id": "b",
+              "text": "Envía una prueba de conectividad al extremo de transporte configurado del socio e informa el éxito o el fallo mediante un mensaje de notificación",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Hace ping a la dirección IP del socio para comprobar si su servidor está en línea"
+            },
+            {
+              "id": "d",
+              "text": "Alterna el socio entre el modo de prueba y el modo de producción"
+            }
+          ],
+          "explanation": "El botón Probar conexión envía una prueba de conectividad al extremo de transporte del socio (URL de AS2, servidor SFTP, buzón de VAN, etc.). Muestra una notificación de éxito si la conexión es correcta o una notificación de error con el mensaje de fallo si no lo es. No envía ningún documento EDI real."
+        },
+        {
+          "id": "edi11",
+          "text": "Una transacción EDI muestra un estado de 'Con acuse' (etiqueta gris). ¿Qué significa esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "La transacción se recibió pero está esperando a que un usuario acuse el recibo y comience el procesamiento"
+            },
+            {
+              "id": "b",
+              "text": "Se ha enviado un acuse de recibo funcional (997/CONTRL) por esta transacción entrante, confirmando la recepción al socio comercial",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "La entidad relacionada (p. ej., Orden de Venta) ha sido confirmada por el equipo de almacén"
+            },
+            {
+              "id": "d",
+              "text": "La transacción falló pero se reconoció como un problema conocido que no se reintentará"
+            }
+          ],
+          "explanation": "El estado Con acuse significa que se envió un acuse de recibo funcional (997 para X12 o CONTRL para EDIFACT) al socio comercial confirmando que el documento entrante fue recibido y procesado. La transacción de acuse se vincula a la original para una trazabilidad completa."
+        },
+        {
+          "id": "edi12",
+          "text": "Necesita configurar EDI para un proveedor de bajo volumen que envía órdenes de compra ocasionalmente. Todavía está configurando la integración. ¿Qué método de transporte es el más apropiado para empezar?",
+          "options": [
+            {
+              "id": "a",
+              "text": "AS2 — es el estándar de la industria y debe usarse desde el primer día"
+            },
+            {
+              "id": "b",
+              "text": "Manual — cargar y descargar documentos a través de la interfaz de QB Engineer mientras configura y prueba la integración completa",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "VAN — siempre use una VAN para socios de bajo volumen para reducir la complejidad"
+            },
+            {
+              "id": "d",
+              "text": "API — configurar una conexión directa por API REST para máxima velocidad"
+            }
+          ],
+          "explanation": "El transporte Manual le permite cargar y descargar documentos EDI directamente a través de la interfaz de QB Engineer. Es la mejor opción para la configuración inicial, las pruebas y los socios de bajo volumen porque no requiere infraestructura externa. Puede cambiar a AS2, SFTP o una VAN más tarde, una vez validada la integración."
+        }
+      ]
+    }
+  }
+]

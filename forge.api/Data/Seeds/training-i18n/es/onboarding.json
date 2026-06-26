@@ -1,0 +1,253 @@
+[
+  {
+    "slug": "welcome-to-forge",
+    "title": "Bienvenido a QB Engineer",
+    "summary": "Familiarícese con QB Engineer: qué hace, cómo está organizado y qué usará todos los días.",
+    "contentJson": {
+      "body": "## Bienvenido a QB Engineer\n\nQB Engineer es una plataforma de operaciones de fabricación creada para pequeños talleres de ingeniería. Conecta cada parte de su flujo de trabajo —desde la cotización de un trabajo hasta su envío— en un único sistema unificado. Lo usará todos los días para hacer seguimiento del trabajo, registrar tiempo, enviar gastos y mantener el cumplimiento normativo.\n\n### Qué hace\n\nEn esencia, QB Engineer gestiona los trabajos en un tablero kanban. Cada trabajo avanza por etapas, desde Cotización solicitada hasta Pago recibido, reflejando cómo fluye realmente el trabajo en un taller mecánico. En el camino, se integra con QuickBooks Online para mantener sus finanzas sincronizadas automáticamente.\n\nMás allá de los trabajos, QB Engineer gestiona catálogos de piezas (incluidas las listas de materiales o BOM), inventario, órdenes de compra, órdenes de venta, envíos e inspecciones de calidad. Todo está conectado: un trabajo se vincula a una pieza, que se vincula a su BOM, que se vincula a las órdenes de compra de proveedores.\n\n### Cómo está organizado\n\nLa barra lateral izquierda es su navegación principal. Los iconos se expanden a secciones con etiquetas al pasar el cursor. Las áreas principales que usará:\n\n- **Panel** — su resumen diario: trabajos abiertos, tareas, temporizadores, progreso del ciclo\n- **Tablero** — el tablero kanban de todos los trabajos activos\n- **Registro de tiempo** — inicie/detenga temporizadores y revise sus horas registradas\n- **Cuenta** — su perfil, formularios de cumplimiento, recibos de pago y configuración de seguridad\n\n### Qué hacer a continuación\n\nComience completando los módulos restantes de esta ruta de incorporación. Lo guiarán para configurar su perfil, completar los formularios de cumplimiento requeridos, registrar tiempo y enviar gastos. La ruta completa toma unos 25 minutos.\n\nDespués de la incorporación, su gerente le asignará rutas de capacitación adicionales según su función.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "setting-up-your-profile",
+    "title": "Configuración de su perfil",
+    "summary": "Cómo completar su información de contacto, contacto de emergencia y configuración de seguridad de la cuenta.",
+    "contentJson": {
+      "body": "## Configuración de su perfil\n\nSu perfil de empleado es la forma en que el sistema sabe quién es usted, dónde contactarlo y cómo pagarle. Completarlo con precisión es importante: su lugar de trabajo determina qué formularios de retención estatal deberá completar.\n\n### Sección de perfil\n\nNavegue a **Cuenta → Perfil**. Complete su nombre y apellido, luego confirme su lugar de trabajo. Si trabaja en un lugar distinto al predeterminado de la empresa, actualícelo ahora: afecta su retención de impuestos estatales.\n\n### Información de contacto\n\nVaya a **Cuenta → Contacto**. Ingrese su número de teléfono personal y su domicilio. Esto se mantiene confidencial y solo se usa para fines de Recursos Humanos y nómina.\n\n### Contacto de emergencia\n\nEn **Cuenta → Emergencia**, agregue el nombre, número de teléfono y relación de alguien a quien contactar en caso de emergencia. Esto es obligatorio como parte de su incorporación.\n\n### Configuración de seguridad\n\nVisite **Cuenta → Seguridad** para revisar la configuración de su inicio de sesión. Si su empleador usa inicio de sesión por quiosco con credencial/PIN, usará el PIN de 4 a 6 dígitos que se le asignó. Puede cambiar este PIN aquí en cualquier momento.\n\n### Por qué es importante\n\nSu perfil determina sus requisitos de formularios de cumplimiento. Un lugar de trabajo incompleto significa que el sistema no puede determinar qué formulario de retención estatal mostrarle. Una dirección o un contacto de emergencia incompletos mostrarán una advertencia amarilla en su indicador de completitud del perfil.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "onboarding-quiz",
+    "title": "Evaluación de conocimientos de incorporación",
+    "summary": "Un breve cuestionario para confirmar que está listo para trabajar en QB Engineer.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 10,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "ob1",
+          "text": "¿Adónde va para iniciar un temporizador de trabajo para un trabajo específico?",
+          "options": [
+            { "id": "a", "text": "La página de Reportes: hace seguimiento de toda la actividad de los trabajos" },
+            { "id": "b", "text": "La tarjeta del trabajo en el Tablero Kanban o la página de Registro de tiempo", "isCorrect": true },
+            { "id": "c", "text": "El panel de Administración, en Configuración de tiempo" },
+            { "id": "d", "text": "El Backlog: seleccione el trabajo y haga clic en Iniciar" }
+          ],
+          "explanation": "Los temporizadores se pueden iniciar desde la tarjeta del trabajo en el Tablero Kanban o desde la página de Registro de tiempo. Ambos le dan un reloj en marcha vinculado a ese trabajo específico."
+        },
+        {
+          "id": "ob2",
+          "text": "Olvidó iniciar su temporizador esta mañana. ¿Cómo registra esas horas?",
+          "options": [
+            { "id": "a", "text": "Pedirle a su gerente que las agregue a su hoja de tiempo" },
+            { "id": "b", "text": "No puede: solo se permiten temporizadores en tiempo real" },
+            { "id": "c", "text": "Agregar una entrada de tiempo manual en la página de Registro de tiempo", "isCorrect": true },
+            { "id": "d", "text": "Editar la descripción del trabajo para anotar el tiempo trabajado" }
+          ],
+          "explanation": "La página de Registro de tiempo admite entradas manuales para los casos en que olvidó iniciar un temporizador. Ingrese la fecha, el trabajo y la duración directamente."
+        },
+        {
+          "id": "ob3",
+          "text": "¿Qué sección muestra todos sus formularios de cumplimiento requeridos (W-4, I-9, etc.)?",
+          "options": [
+            { "id": "a", "text": "Cuenta → Formularios fiscales", "isCorrect": true },
+            { "id": "b", "text": "Administración → Plantillas de cumplimiento" },
+            { "id": "c", "text": "Panel → Primeros pasos" },
+            { "id": "d", "text": "Reportes → Documentos de empleados" }
+          ],
+          "explanation": "Todos los formularios personales fiscales y de cumplimiento se encuentran en Cuenta → Formularios fiscales. Verá el estado de su envío y cualquier formulario que aún deba completarse."
+        },
+        {
+          "id": "ob4",
+          "text": "Necesita enviar un gasto de combustible de $45 por una visita a un sitio de trabajo. ¿Qué debe hacer?",
+          "options": [
+            { "id": "a", "text": "Enviar por correo electrónico el recibo a su gerente y él lo ingresará" },
+            { "id": "b", "text": "Ir a Gastos, hacer clic en Nuevo gasto, completar los detalles, cargar su recibo y enviarlo", "isCorrect": true },
+            { "id": "c", "text": "Agregar una nota a la tarjeta del trabajo con el monto en dólares" },
+            { "id": "d", "text": "Registrarlo como tiempo facturable, ya que estaba viajando" }
+          ],
+          "explanation": "Todos los reembolsos de gastos pasan por la página de Gastos. Cargue su recibo, seleccione la categoría, vincúlelo a un trabajo si corresponde y envíelo para su aprobación."
+        },
+        {
+          "id": "ob5",
+          "text": "¿Dónde actualiza la información de su contacto de emergencia?",
+          "options": [
+            { "id": "a", "text": "Cuenta → Emergencia", "isCorrect": true },
+            { "id": "b", "text": "Administración → Usuarios → su perfil" },
+            { "id": "c", "text": "Panel → tarjeta de Perfil" },
+            { "id": "d", "text": "Cuenta → Seguridad" }
+          ],
+          "explanation": "Los contactos de emergencia se gestionan en Cuenta → Emergencia. Manténgalo actualizado: es obligatorio para completar la incorporación."
+        },
+        {
+          "id": "ob6",
+          "text": "Quiere ver qué tan completo está su perfil de empleado. ¿Dónde lo mira?",
+          "options": [
+            { "id": "a", "text": "Panel → widget de Completitud del perfil", "isCorrect": true },
+            { "id": "b", "text": "Administración → Usuarios → su cuenta" },
+            { "id": "c", "text": "Reportes → Estado de empleados" },
+            { "id": "d", "text": "Cuenta → Seguridad → Puntuación del perfil" }
+          ],
+          "explanation": "El Panel muestra un widget de Completitud del perfil que enumera exactamente qué elementos aún faltan. Desaparece una vez que ha terminado todas las secciones requeridas."
+        },
+        {
+          "id": "ob7",
+          "text": "Quiere cambiar su contraseña de inicio de sesión. ¿Adónde va?",
+          "options": [
+            { "id": "a", "text": "Administración → Usuarios: su administrador puede restablecerla" },
+            { "id": "b", "text": "Cuenta → Seguridad", "isCorrect": true },
+            { "id": "c", "text": "Panel → Configuración → Contraseña" },
+            { "id": "d", "text": "Cuenta → Perfil → Editar" }
+          ],
+          "explanation": "Su contraseña y la configuración de autenticación están en Cuenta → Seguridad. Puede actualizar su contraseña allí en cualquier momento sin contactar a un administrador."
+        },
+        {
+          "id": "ob8",
+          "text": "Aparece una insignia de notificación en el icono de campana del encabezado. ¿Qué indica?",
+          "options": [
+            { "id": "a", "text": "Tiene un mensaje nuevo en la función de Chat" },
+            { "id": "b", "text": "Su sesión está a punto de expirar" },
+            { "id": "c", "text": "Tiene notificaciones no leídas del sistema o de sus compañeros de equipo", "isCorrect": true },
+            { "id": "d", "text": "Un formulario de cumplimiento está vencido: la insignia siempre significa eso" }
+          ],
+          "explanation": "La insignia de la campana muestra el conteo de notificaciones no leídas. Haga clic en ella para abrir el panel de notificaciones, donde puede ver, descartar y fijar notificaciones individuales."
+        },
+        {
+          "id": "ob9",
+          "text": "Necesita adjuntar un plano en PDF a un trabajo. ¿Cuál es el mejor lugar en el trabajo para hacerlo?",
+          "options": [
+            { "id": "a", "text": "Panel de detalle del trabajo → sección Archivos (arrastrar y soltar o hacer clic para examinar)", "isCorrect": true },
+            { "id": "b", "text": "Catálogo de piezas → adjuntarlo a la pieza relacionada en su lugar" },
+            { "id": "c", "text": "Reportes → cargar a un reporte guardado" },
+            { "id": "d", "text": "Administración → Almacenamiento de documentos" }
+          ],
+          "explanation": "El panel de detalle del trabajo tiene una sección Archivos donde puede adjuntar PDF, imágenes, archivos CAD y otros documentos directamente al registro del trabajo."
+        },
+        {
+          "id": "ob10",
+          "text": "¿Qué le sucede a un trabajo cuando se archiva?",
+          "options": [
+            { "id": "a", "text": "Se elimina permanentemente del sistema" },
+            { "id": "b", "text": "Se mueve a una base de datos de archivo separada a la que pueden acceder los administradores" },
+            { "id": "c", "text": "Se retira del tablero, pero se conserva en el sistema para reportes y trazabilidad", "isCorrect": true },
+            { "id": "d", "text": "Se bloquea y no se pueden hacer más cambios" }
+          ],
+          "explanation": "Los trabajos nunca se eliminan en QB Engineer: se archivan. Un trabajo archivado desaparece del tablero, pero sigue siendo totalmente buscable y visible en el Backlog con el filtro Archivados."
+        },
+        {
+          "id": "ob11",
+          "text": "¿Dónde encontraría los trabajos que se le asignaron y que vencen hoy?",
+          "options": [
+            { "id": "a", "text": "Reportes → Mis trabajos que vencen hoy" },
+            { "id": "b", "text": "Panel → widget Tareas de hoy", "isCorrect": true },
+            { "id": "c", "text": "Backlog → filtrar por asignado y fecha de vencimiento" },
+            { "id": "d", "text": "Tablero Kanban → desplazarse para encontrar sus tarjetas" }
+          ],
+          "explanation": "El widget Tareas de hoy en el Panel muestra todos los trabajos activos que se le asignaron, ordenados por fecha de vencimiento, con los trabajos vencidos resaltados."
+        },
+        {
+          "id": "ob12",
+          "text": "Inició un temporizador en el trabajo equivocado. ¿Qué debe hacer?",
+          "options": [
+            { "id": "a", "text": "Dejarlo correr: no se puede detener un temporizador una vez iniciado" },
+            { "id": "b", "text": "Detener el temporizador y luego editar manualmente la entrada de tiempo para corregir el trabajo", "isCorrect": true },
+            { "id": "c", "text": "Pedirle a su gerente que lo elimine" },
+            { "id": "d", "text": "Archivar el trabajo y empezar de nuevo" }
+          ],
+          "explanation": "Detenga el temporizador en marcha, luego vaya a Registro de tiempo para editar la entrada: puede corregir el trabajo vinculado, ajustar la duración o eliminarla por completo."
+        },
+        {
+          "id": "ob13",
+          "text": "¿Qué página muestra todas las órdenes de compra abiertas de materiales que su equipo está esperando?",
+          "options": [
+            { "id": "a", "text": "Inventario → Recepciones pendientes" },
+            { "id": "b", "text": "Backlog → filtrar por estado Materiales ordenados" },
+            { "id": "c", "text": "Página de Órdenes de compra", "isCorrect": true },
+            { "id": "d", "text": "Panel → el widget Órdenes abiertas muestra todas las OC" }
+          ],
+          "explanation": "La página de Órdenes de compra enumera todas las OC con su estado (Borrador, Enviada, Recibida parcialmente, Recibida). Puede ver qué está pendiente y cuándo se esperan las entregas."
+        },
+        {
+          "id": "ob14",
+          "text": "Quiere enviar un mensaje a un compañero de trabajo sobre un trabajo específico sin salir de la aplicación. ¿Qué usa?",
+          "options": [
+            { "id": "a", "text": "Enviarle un correo electrónico desde su cliente de correo habitual" },
+            { "id": "b", "text": "Agregar una nota a la tarjeta del trabajo y @mencionarlo", "isCorrect": true },
+            { "id": "c", "text": "Actualizar la descripción del trabajo y esperar que lo note" },
+            { "id": "d", "text": "Usar la página de Reportes para marcar el trabajo para revisión" }
+          ],
+          "explanation": "Escribir un comentario en el registro de actividad del trabajo y @mencionar a un compañero de equipo le envía una notificación dentro de la aplicación. Pueden responder directamente en la tarjeta del trabajo."
+        },
+        {
+          "id": "ob15",
+          "text": "Su W-4 se actualizó recientemente y necesita volver a enviarlo. ¿Adónde va?",
+          "options": [
+            { "id": "a", "text": "Administración → Cumplimiento → volver a cargar" },
+            { "id": "b", "text": "Cuenta → Formularios fiscales: busque el W-4 y haga clic para completarlo de nuevo", "isCorrect": true },
+            { "id": "c", "text": "Reportes → Empleado → Documentos fiscales" },
+            { "id": "d", "text": "Contactar a nómina: no puede autoenviar" }
+          ],
+          "explanation": "Cuenta → Formularios fiscales le permite ver y volver a enviar formularios de cumplimiento como el W-4 siempre que sea necesario actualizarlos. Su historial de envíos también es visible allí."
+        },
+        {
+          "id": "ob16",
+          "text": "El tablero Kanban muestra una columna con un encabezado rojo. ¿Qué indica esto?",
+          "options": [
+            { "id": "a", "text": "La columna contiene al menos un trabajo vencido" },
+            { "id": "b", "text": "La columna ha sido bloqueada por un administrador" },
+            { "id": "c", "text": "El conteo de trabajos en esa columna ha superado el límite de WIP", "isCorrect": true },
+            { "id": "d", "text": "La columna contiene trabajos con prioridad Crítica" }
+          ],
+          "explanation": "Los encabezados de columna se vuelven rojos cuando el número de trabajos supera el límite de WIP (trabajo en progreso) configurado. Es una señal visual para terminar el trabajo antes de añadir más a esa etapa."
+        },
+        {
+          "id": "ob17",
+          "text": "Quiere ver todo lo que le ocurrió a un trabajo específico: quién lo movió, qué cambió, qué notas se agregaron. ¿Dónde está esto?",
+          "options": [
+            { "id": "a", "text": "Reportes → Historial del trabajo" },
+            { "id": "b", "text": "Panel de detalle del trabajo → pestaña Actividad", "isCorrect": true },
+            { "id": "c", "text": "Administración → Registro de auditoría: filtrar por trabajo" },
+            { "id": "d", "text": "Backlog → fila del trabajo → expandir" }
+          ],
+          "explanation": "Cada trabajo tiene una línea de tiempo de actividad completa en su panel de detalle. Muestra los movimientos de etapa, las ediciones de campos, las cargas de archivos, los comentarios, las @menciones y los inicios/detenciones de temporizadores en orden cronológico."
+        },
+        {
+          "id": "ob18",
+          "text": "¿Adónde va para ver sus recibos de pago recientes?",
+          "options": [
+            { "id": "a", "text": "Panel → widget de Nómina" },
+            { "id": "b", "text": "Administración → Nómina → sus registros" },
+            { "id": "c", "text": "Cuenta → Recibos de pago", "isCorrect": true },
+            { "id": "d", "text": "Reportes → Nómina → filtrar por empleado" }
+          ],
+          "explanation": "Sus recibos de pago personales están disponibles en Cuenta → Recibos de pago. Los administradores cargan los recibos de pago allí y usted recibe una notificación cuando hay uno nuevo disponible."
+        },
+        {
+          "id": "ob19",
+          "text": "¿Cuál es la forma correcta de registrar tiempo de un trabajo que terminó ayer pero olvidó registrar?",
+          "options": [
+            { "id": "a", "text": "No puede registrar tiempo de una fecha anterior: solo de hoy" },
+            { "id": "b", "text": "Pedirle a su gerente que lo ingrese en el sistema por usted" },
+            { "id": "c", "text": "Abrir Registro de tiempo, hacer clic en Nueva entrada, establecer la fecha de ayer e ingresar la duración", "isCorrect": true },
+            { "id": "d", "text": "Agregar un comentario al trabajo explicando las horas trabajadas" }
+          ],
+          "explanation": "Las entradas de tiempo manuales admiten cualquier fecha pasada. Abra Registro de tiempo → Nueva entrada, seleccione la fecha y el trabajo correctos, ingrese las horas y guarde."
+        },
+        {
+          "id": "ob20",
+          "text": "Quiere imprimir una etiqueta de código de barras para un trabajo. ¿Dónde lo hace?",
+          "options": [
+            { "id": "a", "text": "Reportes → Etiquetas → generar desde la lista de trabajos" },
+            { "id": "b", "text": "Panel de detalle del trabajo → imprimir una etiqueta desde el menú de acciones del trabajo", "isCorrect": true },
+            { "id": "c", "text": "Administración → Plantillas de etiquetas → seleccionar e imprimir" },
+            { "id": "d", "text": "Inventario → Etiquetas de contenedor: todas las etiquetas se imprimen desde allí" }
+          ],
+          "explanation": "Las etiquetas de trabajo se imprimen directamente desde el panel de detalle del trabajo. La etiqueta incluye el número de trabajo, el código QR y el código de barras para usar con los escáneres del taller."
+        }
+      ]
+    }
+  }
+]

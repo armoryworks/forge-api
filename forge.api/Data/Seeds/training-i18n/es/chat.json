@@ -1,0 +1,507 @@
+[
+  {
+    "slug": "chat-overview",
+    "title": "Visión general del Chat",
+    "summary": "Una visión general del sistema de chat integrado, incluidos los mensajes directos 1:1, las salas grupales, la entrega en tiempo real mediante SignalR y el uso compartido de archivos y entidades.",
+    "contentJson": {
+      "body": "## Visión general del Chat\n\nQB Engineer incluye un sistema de chat integrado para la comunicación interna en tiempo real. Puede acceder a él desde la barra lateral o haciendo clic en el icono de chat de la barra de encabezado.\n\n### Acceso al Chat\n\nEl chat se abre como un panel deslizable desde el lado derecho de la pantalla. Puede abrirlo o cerrarlo en cualquier momento sin perder su lugar en la página actual. El icono de chat del encabezado también muestra una insignia con el conteo de mensajes no leídos, de modo que siempre sepa cuándo llegan mensajes nuevos.\n\n### Mensajes directos 1:1\n\nEl modo de chat principal es la mensajería directa uno a uno. Haga clic en el botón **Nuevo mensaje** (icono +) para abrir el selector de usuarios, busque a un colega por su nombre e inicie una conversación. Los mensajes se entregan en tiempo real mediante SignalR, sin necesidad de actualizar la página.\n\n### Salas grupales\n\nMás allá de las conversaciones 1:1, el chat admite salas grupales. Las salas grupales permiten que varios miembros del equipo colaboren en un hilo compartido. Los miembros de la sala ven todos los mensajes publicados en ella en tiempo real.\n\n### Entrega en tiempo real (SignalR)\n\nTodos los mensajes de chat se entregan al instante mediante la conexión SignalR de ChatHub. Cuando envía un mensaje, el destinatario lo ve aparecer de inmediato sin ningún sondeo ni actualización. La conexión se establece automáticamente al iniciar sesión y se vuelve a conectar con retroceso exponencial si se interrumpe.\n\n### Uso compartido de archivos y entidades\n\nPuede compartir archivos y referencias a entidades (trabajos, piezas, órdenes de compra, etc.) directamente dentro de los mensajes de chat. Las entidades compartidas se representan como enlaces en los que se puede hacer clic y que abren el diálogo de detalle correspondiente.\n\n### Lista de conversaciones\n\nLa vista de chat predeterminada muestra todas sus conversaciones ordenadas por la actividad más reciente. Cada fila de conversación muestra:\n- **Avatar** con las iniciales y el color del otro usuario\n- **Nombre del usuario** en formato Apellido, Nombre Inicial\n- **Vista previa del último mensaje** (truncada para ajustarse)\n- **Marca de tiempo** — formato relativo (ahora mismo, 5 m, 2 h, 3 d) o fecha completa para mensajes más antiguos\n- **Insignia de no leídos** que muestra el conteo de mensajes sin leer\n\n### Hilo de mensajes\n\nAl abrir una conversación se muestra el hilo de mensajes completo con:\n- **Avatar del remitente** con iniciales y color de fondo\n- **Texto del mensaje** con los saltos de línea conservados\n- **Marca de tiempo** en formato HH:MM\n- **Líneas separadoras de fecha** — Hoy, Ayer o la fecha completa para mensajes más antiguos\n- **Distinción visual** entre sus propios mensajes y los mensajes recibidos\n\n### Confirmaciones de lectura\n\nCuando abre una conversación, todos los mensajes de ese hilo se marcan automáticamente como leídos mediante `POST /api/v1/chat/messages/{otherUserId}/read`. La insignia de no leídos de la lista de conversaciones se actualiza en consecuencia.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "chat-walkthrough",
+    "title": "Chat — Recorrido guiado",
+    "summary": "Un recorrido guiado por la apertura del panel de chat, el inicio de una nueva conversación, el envío de mensajes y la comprensión de los indicadores de mensajes no leídos.",
+    "contentJson": {
+      "appRoute": "/chat",
+      "startButtonLabel": "Iniciar recorrido del Chat",
+      "steps": [
+        {
+          "element": ".chat-panel--page",
+          "popover": {
+            "title": "El panel de chat",
+            "description": "Este es el panel de chat, abierto a página completa en /chat. El mismo panel también se despliega desde la derecha en cualquier parte de la aplicación cuando hace clic en el icono de chat del encabezado; la insignia del encabezado muestra su conteo de mensajes no leídos.",
+            "side": "left"
+          }
+        },
+        {
+          "element": ".chat-panel__channel-list",
+          "popover": {
+            "title": "Conversaciones y canales",
+            "description": "Sus mensajes directos y canales se listan aquí. Cada fila de mensaje directo muestra el avatar de la otra persona, el nombre, la vista previa del último mensaje, la marca de tiempo y el conteo de no leídos, ordenados por la actividad más reciente. Haga clic en cualquier fila para abrir la conversación.",
+            "side": "left"
+          }
+        },
+        {
+          "element": ".chat-panel .action-btn--create",
+          "popover": {
+            "title": "Iniciar una nueva conversación",
+            "description": "Haga clic en Nuevo mensaje para abrir el selector de usuarios. Busque a un colega por su nombre para iniciar una nueva conversación 1:1. Si ya tiene una conversación con esa persona, se abre el hilo existente.",
+            "side": "left"
+          }
+        },
+        {
+          "element": ".chat-panel__channel-list",
+          "popover": {
+            "title": "Redactar un mensaje",
+            "description": "Abra una conversación (haga clic en un mensaje directo o canal) para revelar el cuadro de mensaje en la parte inferior del panel. Escriba ahí y presione Enter para enviar, o Shift+Enter para agregar una nueva línea. El botón de enviar permanece deshabilitado mientras el cuadro está vacío o contiene solo espacios en blanco.",
+            "side": "left"
+          }
+        },
+        {
+          "element": ".chat-panel--page",
+          "popover": {
+            "title": "Enviar mensaje",
+            "description": "Dentro de una conversación abierta, haga clic en el botón de enviar (o presione Enter) para enviar su mensaje. Los mensajes se entregan al instante mediante SignalR a los demás participantes, sin necesidad de actualizar.",
+            "side": "left"
+          }
+        },
+        {
+          "element": ".chat-panel__channel-list",
+          "popover": {
+            "title": "Indicadores de no leídos",
+            "description": "Los mensajes no leídos muestran una insignia con el conteo en la fila de la conversación o el canal, y en el icono de chat del encabezado. Al abrir una conversación se marcan automáticamente todos sus mensajes como leídos, y cada insignia se actualiza en tiempo real.",
+            "side": "left"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "chat-field-reference",
+    "title": "Referencia de campos del Chat",
+    "summary": "Referencia completa de cada botón, campo de entrada, atajo de teclado, formato de marca de tiempo, indicador de no leídos y flujo de API del chat.",
+    "contentJson": {
+      "title": "Referencia de campos del Chat",
+      "groups": [
+        {
+          "heading": "Botones",
+          "items": [
+            {
+              "label": "Abrir chat (icono del encabezado)",
+              "value": "Abre o cierra el panel deslizable de chat. Muestra una insignia con el conteo de mensajes no leídos. Disponible desde cualquier página."
+            },
+            {
+              "label": "Cerrar (icono: close)",
+              "value": "Cierra el panel de chat y regresa a la página subyacente."
+            },
+            {
+              "label": "Nuevo mensaje (icono: add)",
+              "value": "Abre el selector de usuarios para iniciar una nueva conversación. Busque usuarios por su nombre para comenzar un mensaje directo 1:1."
+            },
+            {
+              "label": "Volver a conversaciones (icono: arrow_back)",
+              "value": "Regresa desde la vista del hilo de mensajes o del selector de usuarios a la lista de conversaciones."
+            },
+            {
+              "label": "Enviar (icono: send, data-testid: chat-send-btn)",
+              "value": "Envía el mensaje redactado a la conversación actual. Deshabilitado cuando la entrada está vacía o contiene solo espacios en blanco. Los mensajes se recortan antes de enviarse."
+            },
+            {
+              "label": "Cancelar selector de usuarios (icono: close)",
+              "value": "Cierra el selector de usuarios y regresa a la lista de conversaciones sin iniciar una nueva conversación."
+            }
+          ]
+        },
+        {
+          "heading": "Campos de entrada",
+          "items": [
+            {
+              "label": "Entrada de mensaje (data-testid: chat-message-input)",
+              "value": "Entrada de texto para redactar mensajes. Admite entrada multilínea mediante Shift+Enter. El contenido se recorta antes de enviarse; los mensajes vacíos o que contienen solo espacios en blanco se bloquean."
+            },
+            {
+              "label": "Búsqueda de usuarios",
+              "value": "Entrada de texto en el selector de usuarios para filtrar los usuarios disponibles. Filtra en tiempo real a medida que escribe. Muestra los usuarios coincidentes con su avatar, nombre y rol."
+            }
+          ]
+        },
+        {
+          "heading": "Atajos de teclado",
+          "items": [
+            {
+              "label": "Enter",
+              "value": "Envía el mensaje actual (cuando la entrada de mensaje está enfocada y no está vacía)"
+            },
+            {
+              "label": "Shift+Enter",
+              "value": "Inserta una nueva línea en la entrada de mensaje sin enviar"
+            },
+            {
+              "label": "Escape",
+              "value": "Cierra el panel de chat"
+            }
+          ]
+        },
+        {
+          "heading": "Formatos de marca de tiempo",
+          "items": [
+            {
+              "label": "Lista de conversaciones — ahora mismo",
+              "value": "Mensaje enviado hace menos de 1 minuto"
+            },
+            {
+              "label": "Lista de conversaciones — 5 m, 2 h, 3 d",
+              "value": "Tiempo relativo para mensajes de la última semana"
+            },
+            {
+              "label": "Lista de conversaciones — fecha completa",
+              "value": "Formato MM/dd/yyyy para mensajes de más de una semana de antigüedad"
+            },
+            {
+              "label": "Hilo de mensajes — hora",
+              "value": "Formato HH:MM en cada burbuja de mensaje"
+            },
+            {
+              "label": "Hilo de mensajes — separadores de fecha",
+              "value": "'Hoy', 'Ayer' o la fecha completa (MM/dd/yyyy) separando los grupos de mensajes por día"
+            }
+          ]
+        },
+        {
+          "heading": "Indicadores de no leídos",
+          "items": [
+            {
+              "label": "Insignia del icono de chat del encabezado",
+              "value": "Insignia roja que muestra el conteo total de mensajes no leídos en todas las conversaciones. Se actualiza en tiempo real mediante SignalR."
+            },
+            {
+              "label": "Insignia de fila de conversación",
+              "value": "Conteo de no leídos por conversación mostrado junto a la marca de tiempo. Se borra cuando se abre la conversación."
+            },
+            {
+              "label": "Marcar como leído",
+              "value": "Al abrir una conversación se llama automáticamente a POST /api/v1/chat/messages/{otherUserId}/read para marcar todos los mensajes como leídos."
+            }
+          ]
+        },
+        {
+          "heading": "Flujo de API",
+          "items": [
+            {
+              "label": "GET /api/v1/chat/conversations",
+              "value": "Carga la lista de conversaciones con la vista previa del último mensaje, el conteo de no leídos y los detalles de los participantes."
+            },
+            {
+              "label": "GET /api/v1/chat/messages/{otherUserId}",
+              "value": "Carga el historial completo de mensajes de una conversación 1:1 con el usuario especificado."
+            },
+            {
+              "label": "POST /api/v1/chat/messages",
+              "value": "Envía un nuevo mensaje. Cuerpo: { recipientId: number, content: string }. Devuelve el mensaje creado. Lo difunde mediante SignalR ChatHub."
+            },
+            {
+              "label": "POST /api/v1/chat/messages/{otherUserId}/read",
+              "value": "Marca como leídos todos los mensajes del usuario especificado. Se llama automáticamente al abrir una conversación."
+            },
+            {
+              "label": "SignalR ChatHub",
+              "value": "Entrega de mensajes en tiempo real. Se conecta al iniciar sesión, se vuelve a conectar automáticamente con retroceso exponencial. Envía mensajes nuevos y confirmaciones de lectura a los clientes conectados."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "chat-quiz",
+    "title": "Evaluación de conocimientos del Chat",
+    "summary": "Ponga a prueba sus conocimientos sobre el sistema de chat, incluida la mensajería, los atajos de teclado, los indicadores de no leídos y la entrega en tiempo real.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "chat1",
+          "text": "¿Cómo abre el panel de chat desde cualquier página de la aplicación?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Navegando a /chat en la barra lateral"
+            },
+            {
+              "id": "b",
+              "text": "Haciendo clic en el icono de chat de la barra de encabezado",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Presionando Ctrl+C para alternar el chat"
+            },
+            {
+              "id": "d",
+              "text": "Abriendo el panel de notificaciones y cambiando a la pestaña Mensajes"
+            }
+          ],
+          "explanation": "El icono de chat de la barra de encabezado abre y cierra el panel deslizable de chat desde cualquier página. También puede navegar a /chat mediante la barra lateral, pero el icono del encabezado está disponible en todas partes."
+        },
+        {
+          "id": "chat2",
+          "text": "Quiere enviar un mensaje a un colega al que no le ha escrito antes. ¿Qué hace?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Va a Administración > Usuarios y busca su perfil"
+            },
+            {
+              "id": "b",
+              "text": "Hace clic en el botón Nuevo mensaje (icono +) y busca su nombre en el selector de usuarios",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Le envía una notificación y le responderá por chat"
+            },
+            {
+              "id": "d",
+              "text": "Crea una sala grupal y lo agrega a ella"
+            }
+          ],
+          "explanation": "El botón Nuevo mensaje abre el selector de usuarios, donde puede buscar a cualquier usuario por su nombre. Al seleccionar un usuario se inicia una nueva conversación 1:1 o se abre una existente."
+        },
+        {
+          "id": "chat3",
+          "text": "¿Qué atajo de teclado envía un mensaje en la entrada del chat?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ctrl+Enter"
+            },
+            {
+              "id": "b",
+              "text": "Shift+Enter"
+            },
+            {
+              "id": "c",
+              "text": "Enter",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Tab y luego Enter"
+            }
+          ],
+          "explanation": "Presione Enter para enviar el mensaje actual. Use Shift+Enter si necesita insertar una nueva línea sin enviar."
+        },
+        {
+          "id": "chat4",
+          "text": "¿Cómo inserta un salto de línea en un mensaje de chat sin enviarlo?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Presionando Enter dos veces"
+            },
+            {
+              "id": "b",
+              "text": "Presionando Shift+Enter",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Escribiendo \\n en el mensaje"
+            },
+            {
+              "id": "d",
+              "text": "No puede agregar saltos de línea en los mensajes de chat"
+            }
+          ],
+          "explanation": "Shift+Enter inserta una nueva línea en la entrada de mensaje. Enter por sí solo envía el mensaje de inmediato."
+        },
+        {
+          "id": "chat5",
+          "text": "El botón de enviar está deshabilitado. ¿Cuál es la razón más probable?",
+          "options": [
+            {
+              "id": "a",
+              "text": "No está conectado a internet"
+            },
+            {
+              "id": "b",
+              "text": "La entrada de mensaje está vacía o contiene solo espacios en blanco",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El destinatario lo ha bloqueado"
+            },
+            {
+              "id": "d",
+              "text": "Ha alcanzado el límite diario de mensajes"
+            }
+          ],
+          "explanation": "El botón de enviar se deshabilita cuando la entrada está vacía o contiene solo espacios en blanco. Los mensajes se recortan antes de la verificación, por lo que una entrada compuesta únicamente por espacios cuenta como vacía."
+        },
+        {
+          "id": "chat6",
+          "text": "¿Cómo se entregan los mensajes de chat al destinatario en tiempo real?",
+          "options": [
+            {
+              "id": "a",
+              "text": "La aplicación sondea el servidor cada 5 segundos en busca de mensajes nuevos"
+            },
+            {
+              "id": "b",
+              "text": "Se envían notificaciones push mediante la API de Notificaciones del navegador"
+            },
+            {
+              "id": "c",
+              "text": "Los mensajes se entregan al instante mediante la conexión SignalR ChatHub",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "El destinatario debe actualizar la página para ver los mensajes nuevos"
+            }
+          ],
+          "explanation": "El chat usa SignalR (conexión WebSocket) para la entrega en tiempo real. ChatHub envía los mensajes al instante a los clientes conectados sin sondeo ni actualización de la página."
+        },
+        {
+          "id": "chat7",
+          "text": "Ve una insignia roja con '3' en el icono de chat del encabezado. ¿Qué significa esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Hay 3 usuarios conectados actualmente"
+            },
+            {
+              "id": "b",
+              "text": "Tiene 3 conversaciones en total"
+            },
+            {
+              "id": "c",
+              "text": "Tiene 3 mensajes no leídos en todas las conversaciones",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "3 salas grupales tienen actividad nueva"
+            }
+          ],
+          "explanation": "La insignia del icono de chat del encabezado muestra el conteo total de mensajes no leídos en todas las conversaciones. Se actualiza en tiempo real a medida que llegan mensajes nuevos o se leen conversaciones."
+        },
+        {
+          "id": "chat8",
+          "text": "¿Cómo se marcan como leídos los mensajes de una conversación?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Debe hacer clic en un botón 'Marcar como leído' en cada mensaje"
+            },
+            {
+              "id": "b",
+              "text": "Al abrir la conversación se marcan automáticamente como leídos todos sus mensajes",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Los mensajes se marcan como leídos después de 10 segundos de visualización"
+            },
+            {
+              "id": "d",
+              "text": "Debe desplazarse hasta el final de la conversación"
+            }
+          ],
+          "explanation": "Al abrir una conversación se llama automáticamente al endpoint de lectura de la API para marcar como leídos todos los mensajes de ese usuario. La insignia de no leídos se actualiza de inmediato."
+        },
+        {
+          "id": "chat9",
+          "text": "En la lista de conversaciones, la marca de tiempo de un mensaje muestra '3 d'. ¿Qué significa esto?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El mensaje se envió a las 3:00 a. m. del día actual"
+            },
+            {
+              "id": "b",
+              "text": "El mensaje se eliminará en 3 días"
+            },
+            {
+              "id": "c",
+              "text": "El último mensaje de esta conversación se envió hace 3 días",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Hay 3 mensajes no leídos en esta conversación"
+            }
+          ],
+          "explanation": "Las marcas de tiempo de la lista de conversaciones usan un formato relativo: 'ahora mismo' para menos de un minuto, '5 m'/'2 h'/'3 d' para mensajes recientes y la fecha completa (MM/dd/yyyy) para mensajes de más de una semana de antigüedad."
+        },
+        {
+          "id": "chat10",
+          "text": "¿Qué formato de separador de fecha se usa en los hilos de mensajes para los mensajes de hace dos semanas?",
+          "options": [
+            {
+              "id": "a",
+              "text": "'La semana pasada'"
+            },
+            {
+              "id": "b",
+              "text": "El nombre del día (p. ej., 'Lunes')"
+            },
+            {
+              "id": "c",
+              "text": "La fecha completa en formato MM/dd/yyyy",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "No se muestra ningún separador para los mensajes más antiguos"
+            }
+          ],
+          "explanation": "Los hilos de mensajes muestran separadores de fecha entre los grupos de mensajes. Las etiquetas son 'Hoy', 'Ayer' o la fecha completa en formato MM/dd/yyyy para todos los demás días."
+        },
+        {
+          "id": "chat11",
+          "text": "Hace clic en la flecha de retroceso (arrow_back) mientras ve un hilo de mensajes. ¿A dónde lo lleva?",
+          "options": [
+            {
+              "id": "a",
+              "text": "A la página anterior en la que estaba antes de abrir el chat"
+            },
+            {
+              "id": "b",
+              "text": "De vuelta a la lista de conversaciones",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Al perfil del usuario"
+            },
+            {
+              "id": "d",
+              "text": "Cierra el panel de chat por completo"
+            }
+          ],
+          "explanation": "La flecha de retroceso navega desde la vista del hilo de mensajes o del selector de usuarios de vuelta a la lista de conversaciones. Para cerrar todo el panel de chat, use el botón de cerrar (X)."
+        },
+        {
+          "id": "chat12",
+          "text": "¿Qué sucede si se pierde la conexión SignalR mientras está chateando?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Todos los mensajes no enviados se pierden de forma permanente"
+            },
+            {
+              "id": "b",
+              "text": "La aplicación cambia automáticamente al modo de sondeo"
+            },
+            {
+              "id": "c",
+              "text": "La conexión se vuelve a conectar automáticamente con retroceso exponencial",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Debe cerrar la sesión y volver a iniciarla para restaurar la conexión"
+            }
+          ],
+          "explanation": "Las conexiones SignalR se vuelven a conectar automáticamente con retroceso exponencial cuando se interrumpen. Aparece un banner de conexión que muestra el estado de reconexión/desconexión hasta que se restaura la conexión."
+        }
+      ]
+    }
+  }
+]
