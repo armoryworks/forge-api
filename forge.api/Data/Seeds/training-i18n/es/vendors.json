@@ -19,8 +19,8 @@
         {
           "element": "[data-testid='new-vendor-btn']",
           "popover": {
-            "title": "Botón Agregar proveedor",
-            "description": "Haga clic aquí para crear un nuevo proveedor. El cuadro de diálogo que se abre tiene dos secciones: un panel principal para los detalles de contacto (nombre de la empresa, persona de contacto, correo electrónico, teléfono, notas) y una barra lateral para la dirección y la configuración (términos de pago, estado activo).",
+            "title": "Botón Nuevo proveedor",
+            "description": "Haga clic aquí para crear un nuevo proveedor. Esto abre un cuadro de diálogo de bifurcación donde elige cómo configurar el proveedor: Alta rápida (diálogo plano —solo el nombre de la empresa y el contacto básico, complete el resto más tarde) o Configuración guiada (un asistente paso a paso en /vendors/new para proveedores estratégicos o aprobados —clasificación, dirección, términos y las piezas que suministran). El resto de este recorrido cubre el diálogo de Alta rápida.",
             "side": "bottom"
           }
         },
@@ -367,7 +367,7 @@
             },
             {
               "id": "b",
-              "text": "Navegar a Proveedores, hacer clic en Nuevo proveedor y completar el nombre de la empresa, los detalles de contacto, la dirección y los términos de pago",
+              "text": "Navegar a Proveedores, hacer clic en Nuevo proveedor, luego elegir una vía de configuración (Alta rápida o Configuración guiada) y completar al menos el nombre de la empresa",
               "isCorrect": true
             },
             {
@@ -379,7 +379,7 @@
               "text": "Ir a Administración → Datos de referencia y agregar el proveedor como un valor de búsqueda"
             }
           ],
-          "explanation": "Los nuevos suministradores deben crearse primero en el módulo de Proveedores. Haga clic en Nuevo proveedor en el encabezado de la página, complete el Nombre de la empresa requerido más los detalles de contacto, dirección y términos de pago opcionales. El proveedor queda entonces disponible en las listas desplegables de proveedores de las OC."
+          "explanation": "Los nuevos suministradores deben crearse primero en el módulo de Proveedores. Haga clic en Nuevo proveedor en el encabezado de la página —esto abre una bifurcación donde elige Alta rápida (un diálogo plano que solo necesita el nombre de la empresa para comenzar) o Configuración guiada (un asistente paso a paso para proveedores estratégicos o aprobados). De cualquier forma, el único campo requerido es el Nombre de la empresa; el proveedor queda entonces disponible en las listas desplegables de proveedores de las OC."
         },
         {
           "id": "vn2",

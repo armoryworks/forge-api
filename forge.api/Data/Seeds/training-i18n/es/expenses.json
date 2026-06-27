@@ -209,14 +209,14 @@
         },
         {
           "id": "ex8",
-          "text": "¿Qué sucede cuando un gerente hace clic en el icono de X (rechazar) en un gasto pendiente?",
+          "text": "En la Cola de aprobación de gastos, un gerente abre un gasto y quiere rechazarlo (o devolverlo para cambios). ¿Qué exige el diálogo de revisión?",
           "options": [
-            {"id": "a", "text": "Se abre un diálogo que pide un motivo de rechazo antes de continuar"},
-            {"id": "b", "text": "El gasto se marca de inmediato como Rechazado con un chip de estado rojo", "isCorrect": true},
-            {"id": "c", "text": "El gasto se elimina del sistema permanentemente"},
-            {"id": "d", "text": "El gasto vuelve al estado Borrador para que el remitente lo edite"}
+            {"id": "a", "text": "Nada adicional —Rechazar es un solo clic sin nota"},
+            {"id": "b", "text": "Una nota de revisión de al menos 10 caracteres antes de poder Rechazar o Solicitar revisión", "isCorrect": true},
+            {"id": "c", "text": "Se debe adjuntar un recibo antes de poder rechazar el gasto"},
+            {"id": "d", "text": "El gasto se debe eliminar y el remitente lo vuelve a crear desde cero"}
           ],
-          "explanation": "Al hacer clic en el icono de X, el gasto se rechaza de inmediato. Su estado cambia a Rechazado y muestra un chip rojo en la tabla."
+          "explanation": "Al abrir un gasto en la Cola de aprobación se muestra un diálogo de revisión con tres resultados: Aprobar, Solicitar revisión y Rechazar. Tanto Rechazar como Solicitar revisión exigen una nota de revisión de al menos 10 caracteres; solo Aprobar puede continuar sin ella. Rechazado muestra un chip rojo, mientras que Solicitar revisión deja el gasto en Necesita revisión para que el remitente lo revise y lo reenvíe."
         },
         {
           "id": "ex9",

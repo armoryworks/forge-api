@@ -4,14 +4,14 @@
     "title": "Visión general del Panel",
     "summary": "Qué muestra el Panel, cómo funcionan los widgets y cómo personalizar su diseño para la productividad diaria.",
     "contentJson": {
-      "body": "## Visión general del Panel\n\nEl Panel es su pantalla de inicio: lo primero que ve después de iniciar sesión. Le brinda un resumen de un vistazo de su día: tareas vencidas, temporizadores en marcha, órdenes en curso y estado del ciclo de planificación. Todo está organizado en widgets arrastrables que puede reorganizar para que coincidan con su flujo de trabajo.\n\n### Diseño basado en widgets\n\nEl Panel usa un diseño de cuadrícula impulsado por gridstack. Cada pieza de información reside en su propia tarjeta de widget. Puede arrastrar los widgets para reorganizarlos, y su diseño se guarda en sus preferencias de usuario para que persista entre sesiones y dispositivos.\n\n### Widgets principales\n\n**Tareas de hoy:** Muestra sus trabajos asignados ordenados por fecha de vencimiento. Los trabajos vencidos se resaltan para que pueda ver qué necesita atención inmediata. Haga clic en cualquier trabajo para abrir su diálogo de detalle.\n\n**Temporizadores activos:** Si tiene un temporizador en marcha, este widget muestra el tiempo transcurrido, un botón de detener y un enlace al trabajo en el que está trabajando. Cuando no hay ningún temporizador en marcha, el widget muestra una indicación para iniciar uno.\n\n**Órdenes abiertas por etapa:** Un resumen de las órdenes abiertas agrupadas por etapa: conteos de Cotización, Producción, QC y Enviado. Le da una idea rápida de la cartera sin salir del panel.\n\n**Progreso del ciclo:** Muestra el porcentaje de finalización de su ciclo de planificación actual. La barra de progreso se vuelve amarilla cuando va atrasado, lo que le ayuda a priorizar.\n\n**Minicalendario:** Un pequeño widget de calendario que resalta las fechas con elementos vencidos. Haga clic en una fecha para ver qué vence.\n\n**Chips de KPI:** Visualizaciones de métricas compactas que muestran cifras clave (trabajos completados esta semana, horas registradas, etc.).\n\n### Banner de Primeros pasos\n\nLos usuarios nuevos ven un banner de Primeros pasos que rastrea el progreso de la incorporación: configurar su perfil, completar los formularios de cumplimiento, revisar los módulos de capacitación. El banner desaparece una vez que se completan todos los pasos de incorporación.\n\n### Completitud del perfil\n\nPara los usuarios nuevos, un widget de Completitud del perfil muestra qué elementos aún faltan: información de contacto, contactos de emergencia, formularios de cumplimiento, etc. Esto ayuda a garantizar que su cuenta esté completamente configurada.\n\n### Carga y rendimiento\n\nEl Panel se carga con una superposición de carga global (LoadingService) porque obtiene datos de varios endpoints simultáneamente. Una vez que todos los widgets tienen sus datos, la superposición se borra y ve el panel completo de una vez, sin carga parcial ni parpadeo.",
+      "body": "## Visión general del Panel\n\nEl Panel es su pantalla de inicio: lo primero que ve después de iniciar sesión. Le brinda un resumen de un vistazo de su día: tareas vencidas, trabajos por etapa, órdenes en curso y estado del ciclo de planificación. Todo está organizado en widgets arrastrables que puede reorganizar para que coincidan con su flujo de trabajo.\n\n### Diseño basado en widgets\n\nEl Panel usa un diseño de cuadrícula impulsado por gridstack. Cada pieza de información reside en su propia tarjeta de widget. Puede arrastrar los widgets para reorganizarlos, y su diseño se guarda en sus preferencias de usuario para que persista entre sesiones y dispositivos. En el modo de edición puede agregar o quitar widgets del catálogo.\n\n### Widgets principales\n\n**Tareas de hoy:** Muestra sus trabajos asignados ordenados por prioridad (los vencidos primero). Los trabajos vencidos se resaltan para que pueda ver qué necesita atención inmediata. Haga clic en cualquier trabajo para abrir su diálogo de detalle.\n\n**Trabajos por etapa:** Un gráfico de barras horizontal que muestra cuántos trabajos hay en cada etapa del tablero, para que pueda ver dónde se concentra el trabajo.\n\n**Órdenes abiertas:** Un resumen de las órdenes de venta abiertas con el conteo total más un desglose por Confirmadas, En producción y Parcialmente enviadas. Le da una idea rápida de la cartera sin salir del panel.\n\n**Progreso del ciclo:** Muestra el porcentaje de finalización de su ciclo de planificación actual. La etiqueta de progreso muestra las entradas completadas frente al total, y un chip de estado señala cuando el ciclo está vencido, lo que le ayuda a priorizar.\n\n**Fin del día:** Una indicación para registrar sus 3 prioridades principales para mañana. Escriba sus prioridades y guárdelas; una vez guardadas, el widget muestra su respuesta con un botón Editar.\n\n**Resumen de margen:** Porcentaje de margen promedio más los totales de ingresos, costo y margen de los trabajos recientes (solo en modo de contabilidad independiente).\n\n### Banner de Primeros pasos\n\nLos usuarios nuevos ven un banner de Primeros pasos que rastrea el progreso de la incorporación: crear su primer trabajo, agregar un cliente, configurar tipos de pista y explorar informes. El banner desaparece una vez que se completan suficientes pasos de incorporación; también puede descartarlo manualmente.\n\n### Otros widgets\n\nEl catálogo de widgets también incluye Carga del equipo (barras de carga de trabajo por persona), Fechas límite (próximas fechas de vencimiento), Actividad (feed de actividad reciente), Elementos de acción (tareas de seguimiento que puede completar o descartar) e Instantánea de inventario (conteos de piezas y alertas de bajo stock). Los widgets disponibles dependen de las capacidades que su instalación tenga habilitadas.\n\n### Carga y rendimiento\n\nEl Panel se carga con una superposición de carga global (LoadingService) porque obtiene datos de varios endpoints simultáneamente. Una vez que todos los widgets tienen sus datos, la superposición se borra y ve el panel completo de una vez, sin carga parcial ni parpadeo.",
       "sections": []
     }
   },
   {
     "slug": "dashboard-walkthrough",
     "title": "Panel — Recorrido guiado",
-    "summary": "Un recorrido guiado por el Panel: widgets, lista de tareas, temporizadores, resumen de órdenes, progreso del ciclo y personalización del diseño.",
+    "summary": "Un recorrido guiado por el Panel: widgets, lista de tareas, trabajos por etapa, órdenes abiertas, progreso del ciclo y personalización del diseño.",
     "contentJson": {
       "appRoute": "/dashboard",
       "startButtonLabel": "Recorrer Panel",
@@ -28,7 +28,7 @@
           "element": ".dashboard-kpis",
           "popover": {
             "title": "Resumen de KPI",
-            "description": "Indicadores clave de rendimiento mostrados como chips compactos en la parte superior del panel. Muestra métricas como trabajos completados, horas registradas y artículos enviados para una verificación rápida del estado.",
+            "description": "Indicadores clave de rendimiento mostrados como chips compactos en la parte superior del panel. Muestra su conteo de trabajos activos, conteo de vencidos y total de horas para una verificación rápida del estado. Estos chips aparecen cuando el módulo de trabajos está habilitado.",
             "side": "bottom"
           }
         },
@@ -44,7 +44,7 @@
           "element": "app-dashboard-widget",
           "popover": {
             "title": "Widget del Panel",
-            "description": "Cada widget de la cuadrícula muestra una pieza de información diferente: tareas, temporizadores, órdenes, calendario o progreso del ciclo. El orden de los widgets se puede personalizar arrastrándolos. Los widgets se actualizan en tiempo real a medida que el trabajo avanza por el tablero.",
+            "description": "Cada widget de la cuadrícula muestra una pieza de información diferente: tareas, trabajos por etapa, órdenes abiertas, progreso del ciclo o su indicación de fin del día. El orden de los widgets se puede personalizar arrastrándolos. Los widgets se actualizan en tiempo real a medida que el trabajo avanza por el tablero.",
             "side": "right"
           }
         }
@@ -80,40 +80,40 @@
           ]
         },
         {
-          "heading": "Widget de Temporizadores activos",
+          "heading": "Widget de Fin del día",
           "items": [
             {
-              "label": "Temporizador en marcha",
-              "value": "Muestra el tiempo transcurrido (horas:minutos:segundos) actualizándose en tiempo real. Muestra el nombre del trabajo como un enlace en el que se puede hacer clic."
+              "label": "Indicación de los 3 principales",
+              "value": "Un área de texto que le pide registrar sus 3 prioridades principales para mañana. Escriba sus prioridades y guárdelas al final de su día."
             },
             {
-              "label": "Botón Detener",
-              "value": "Detiene el temporizador en marcha y registra la entrada de tiempo. Solo es visible cuando hay un temporizador activo."
+              "label": "Botón Guardar",
+              "value": "Guarda su respuesta de fin del día. Una vez guardada, el widget cambia a una vista de confirmación que muestra lo que ingresó."
             },
             {
-              "label": "Enlace del nombre del trabajo",
-              "value": "Haga clic en el nombre del trabajo para abrir el diálogo de detalle del trabajo sin detener el temporizador."
+              "label": "Estado guardado",
+              "value": "Después de guardar, el widget muestra su respuesta registrada con un icono de verificación y un botón Editar para revisarla."
             },
             {
-              "label": "Estado sin temporizador",
-              "value": "Cuando no hay ningún temporizador en marcha, el widget muestra una indicación o estado vacío señalando que puede iniciar un temporizador desde la vista de detalle de un trabajo."
+              "label": "Acción de editar",
+              "value": "Haga clic en Editar en la vista guardada para volver al área de texto y actualizar sus 3 principales para mañana."
             }
           ]
         },
         {
-          "heading": "Widget de Órdenes abiertas por etapa",
+          "heading": "Widget de Órdenes abiertas",
           "items": [
             {
-              "label": "Conteos por etapa",
-              "value": "Muestra el número de órdenes abiertas en cada etapa principal: Cotización, Producción, QC y Enviado."
+              "label": "Conteo total",
+              "value": "Muestra el número total de órdenes de venta abiertas como una única cifra destacada."
             },
             {
-              "label": "Diseño visual",
-              "value": "Se muestra como un resumen horizontal con conteos por etapa, lo que brinda una visión general de la cartera."
+              "label": "Desglose por etapa",
+              "value": "Desglosa las órdenes abiertas por conteos de Confirmadas, En producción y Parcialmente enviadas, lo que brinda una visión general de la cartera."
             },
             {
-              "label": "Acción de clic",
-              "value": "Las etapas pueden ser clicables para navegar a la vista filtrada correspondiente (p. ej., el tablero Kanban filtrado a esa etapa)."
+              "label": "Enlace Ver todo",
+              "value": "Un enlace 'Ver todas las órdenes' navega a la página de Órdenes de venta para ver la lista completa."
             }
           ]
         },
@@ -122,36 +122,36 @@
           "items": [
             {
               "label": "Barra de progreso",
-              "value": "Barra horizontal que muestra el porcentaje de elementos completados del ciclo de planificación actual."
+              "value": "Barra horizontal que muestra el porcentaje de entradas completadas del ciclo de planificación actual."
             },
             {
-              "label": "Advertencia amarilla",
-              "value": "La barra se vuelve amarilla cuando la finalización va atrasada en relación con el tiempo transcurrido del ciclo."
+              "label": "Estado de vencimiento",
+              "value": "Un chip de estado muestra los días restantes del ciclo, cambiando a una etiqueta 'Vencido' cuando el ciclo ha superado su fecha de finalización."
             },
             {
-              "label": "Etiqueta de porcentaje",
-              "value": "Muestra el porcentaje exacto de finalización como un número."
+              "label": "Etiqueta de progreso",
+              "value": "Muestra las entradas completadas frente al total con el porcentaje exacto de finalización, p. ej. '3/8 (38%)'."
             },
             {
-              "label": "Acción de clic",
-              "value": "Haga clic para navegar a la página de Planificación para ver el detalle completo del ciclo."
+              "label": "Lista de entradas y enlace",
+              "value": "Enumera las primeras entradas del ciclo con marcas de finalización; el nombre del ciclo y un enlace 'más' navegan a la página de Planificación para ver el detalle completo."
             }
           ]
         },
         {
-          "heading": "Widget de Completitud del perfil (Usuarios nuevos)",
+          "heading": "Widget de Trabajos por etapa",
           "items": [
             {
-              "label": "Lista de elementos faltantes",
-              "value": "Muestra qué elementos del perfil aún están incompletos: información de contacto, contactos de emergencia, formularios de cumplimiento, módulos de capacitación."
+              "label": "Barras por etapa",
+              "value": "Una barra horizontal por cada etapa del tablero, con la longitud de la barra escalada al conteo de trabajos de cada etapa en relación con la etapa más ocupada."
             },
             {
-              "label": "Indicador de progreso",
-              "value": "Progreso visual que muestra cuánto de la configuración del perfil está hecho."
+              "label": "Conteos por etapa",
+              "value": "Cada fila muestra la etiqueta de la etapa y el número de trabajos que se encuentran actualmente en esa etapa."
             },
             {
-              "label": "Visibilidad",
-              "value": "Solo se muestra a los usuarios nuevos que no han completado su perfil. Desaparece una vez que todos los elementos están completados."
+              "label": "Cartera de un vistazo",
+              "value": "Le permite ver dónde se concentra el trabajo en el tablero sin abrir la vista Kanban."
             }
           ]
         },
@@ -160,28 +160,28 @@
           "items": [
             {
               "label": "Lista de verificación de incorporación",
-              "value": "Rastrea el progreso de la incorporación: configuración del perfil, formularios de cumplimiento, finalización de la capacitación, primera vista de trabajo."
+              "value": "Rastrea el progreso de la configuración con pasos como crear su primer trabajo, agregar un cliente, configurar tipos de pista, recibir el primer stock y explorar informes. Los pasos se filtran según las capacidades que su instalación tenga habilitadas."
             },
             {
               "label": "Comportamiento de descarte",
-              "value": "El banner desaparece automáticamente cuando se completan todos los pasos de incorporación. No puede descartarse manualmente mientras queden pasos."
+              "value": "El banner se oculta automáticamente una vez que se completan suficientes pasos, y también puede descartarse manualmente con el botón de cerrar (el descarte se guarda en sus preferencias)."
             }
           ]
         },
         {
-          "heading": "Widget de Minicalendario",
+          "heading": "Widget de Carga del equipo",
           "items": [
             {
-              "label": "Cuadrícula del calendario",
-              "value": "Pequeño calendario mensual (mat-calendar) que muestra el mes actual con flechas de navegación."
+              "label": "Filas por miembro",
+              "value": "Una fila por cada miembro del equipo con su avatar y nombre, que muestra cómo se distribuye el trabajo entre el equipo."
             },
             {
-              "label": "Fechas resaltadas",
-              "value": "Las fechas con elementos vencidos (trabajos, órdenes, eventos) se resaltan visualmente con un punto o color."
+              "label": "Barra de carga de trabajo",
+              "value": "Una barra horizontal por miembro llenada en proporción a su conteo de tareas frente a su capacidad."
             },
             {
-              "label": "Clic en fecha",
-              "value": "Haga clic en una fecha resaltada para ver los elementos vencidos de ese día."
+              "label": "Conteo de tareas",
+              "value": "Un conteo numérico de las tareas actuales del miembro mostrado junto a la barra."
             }
           ]
         },
@@ -190,11 +190,11 @@
           "items": [
             {
               "label": "Métricas mostradas",
-              "value": "Chips compactos que muestran indicadores clave de rendimiento: trabajos completados esta semana, horas registradas, artículos enviados, etc."
+              "value": "Una franja fija de chips en la parte superior del panel que muestra su conteo de trabajos activos, conteo de vencidos y total de horas, cada uno con un indicador de cambio de tendencia."
             },
             {
               "label": "Estilo visual",
-              "value": "Pequeños chips de color que usan el KpiChipComponent. Cada uno muestra una etiqueta y un valor."
+              "value": "Pequeños chips que usan el KpiChipComponent. Cada uno muestra un valor, una etiqueta y una dirección de cambio; el chip de vencidos usa el color de advertencia. La franja aparece solo cuando el módulo de trabajos está habilitado."
             }
           ]
         },
@@ -234,7 +234,7 @@
   {
     "slug": "dashboard-quiz",
     "title": "Evaluación de conocimientos del Panel",
-    "summary": "Ponga a prueba sus conocimientos sobre el Panel: widgets, personalización del diseño, temporizadores, tareas y progreso del ciclo.",
+    "summary": "Ponga a prueba sus conocimientos sobre el Panel: widgets, personalización del diseño, indicación de fin del día, tareas y progreso del ciclo.",
     "contentJson": {
       "passingScore": 80,
       "questionsPerQuiz": 8,
@@ -339,27 +339,27 @@
         },
         {
           "id": "db5",
-          "text": "Quiere detener un temporizador en marcha desde el Panel. ¿Cómo?",
+          "text": "Quiere registrar sus 3 prioridades principales para mañana desde el Panel. ¿Cómo?",
           "options": [
             {
               "id": "a",
-              "text": "Navegar a Seguimiento de tiempo y hacer clic en el botón de detener allí"
+              "text": "Navegar a la página de Planificación y agregarlas al siguiente ciclo"
             },
             {
               "id": "b",
-              "text": "Hacer clic en el botón de detener en el widget Temporizadores activos del Panel",
+              "text": "Escribirlas en el área de texto del widget Fin del día y hacer clic en Guardar",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Cerrar el navegador: el temporizador se detiene automáticamente después de 30 minutos de inactividad"
+              "text": "Se generan automáticamente: no puede ingresarlas usted mismo"
             },
             {
               "id": "d",
-              "text": "Solo puede detener temporizadores desde el panel de detalle del trabajo"
+              "text": "Solo puede ingresarlas desde el panel de detalle del trabajo"
             }
           ],
-          "explanation": "El widget Temporizadores activos muestra su temporizador en marcha con un botón de detener directamente en el Panel. Haga clic en él para detener el temporizador y registrar la entrada de tiempo sin navegar a otra parte."
+          "explanation": "El widget Fin del día le pide registrar sus 3 principales para mañana. Escríbalas en el área de texto y haga clic en Guardar; el widget muestra entonces su respuesta guardada con un botón Editar para revisarla más tarde."
         },
         {
           "id": "db6",
@@ -383,7 +383,7 @@
               "text": "Se le navega a la página de Pendientes con ese trabajo seleccionado"
             }
           ],
-          "explanation": "Al hacer clic en un trabajo en Tareas de hoy se abre el diálogo de detalle completo del trabajo. Desde ahí puede ver y gestionar subtareas, archivos, historial de actividad y tomar acciones como iniciar un temporizador o actualizar el estado."
+          "explanation": "Al hacer clic en un trabajo en Tareas de hoy se abre el diálogo de detalle completo del trabajo. Desde ahí puede ver y gestionar subtareas, archivos, historial de actividad y tomar acciones como actualizar el estado."
         },
         {
           "id": "db7",
@@ -411,51 +411,51 @@
         },
         {
           "id": "db8",
-          "text": "Ve fechas resaltadas en el widget de Minicalendario. ¿Qué representan?",
+          "text": "Echa un vistazo al widget Trabajos por etapa. ¿Qué representa la longitud de cada barra?",
           "options": [
             {
               "id": "a",
-              "text": "Días festivos de la empresa y días libres"
+              "text": "Cuánto tiempo han estado los trabajos en esa etapa"
             },
             {
               "id": "b",
-              "text": "Fechas con elementos vencidos: trabajos, órdenes o eventos",
+              "text": "El número de trabajos en esa etapa, escalado frente a la etapa más ocupada",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Días en los que fichó la entrada el mes pasado"
+              "text": "El valor total en dólares de los trabajos en esa etapa"
             },
             {
               "id": "d",
-              "text": "Solo las fechas de inicio y fin del ciclo de planificación"
+              "text": "Cuán vencidos están los trabajos en esa etapa"
             }
           ],
-          "explanation": "El Minicalendario resalta las fechas que tienen elementos vencidos (trabajos, órdenes, eventos). Haga clic en una fecha resaltada para ver qué vence ese día."
+          "explanation": "El widget Trabajos por etapa dibuja una barra por cada etapa del tablero, con la longitud de cada barra proporcional al conteo de trabajos de esa etapa en relación con la etapa más ocupada. El conteo también se muestra numéricamente junto a cada barra."
         },
         {
           "id": "db9",
-          "text": "El widget de Completitud del perfil muestra 'Contacto de emergencia' como un elemento faltante. ¿Qué debe hacer?",
+          "text": "El widget Instantánea de inventario muestra un conteo de bajo stock distinto de cero resaltado en color de alerta. ¿Qué le está indicando?",
           "options": [
             {
               "id": "a",
-              "text": "Pedirle a su gerente que lo complete por usted en Administración"
+              "text": "Que muchas piezas no tienen descripción"
             },
             {
               "id": "b",
-              "text": "Ir a la configuración de su Cuenta y agregar la información de su contacto de emergencia",
+              "text": "Que algunas piezas han caído a su umbral mínimo de stock o por debajo de él",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Ignorarlo: los contactos de emergencia son opcionales"
+              "text": "Que los conteos de inventario no se han conciliado este mes"
             },
             {
               "id": "d",
-              "text": "Enviar un ticket de soporte para que lo agreguen"
+              "text": "Que se acaba de recibir nuevo stock"
             }
           ],
-          "explanation": "El widget de Completitud del perfil muestra los elementos que debe completar usted mismo. Navegue a la configuración de su Cuenta para agregar el contacto de emergencia faltante. El widget se actualiza una vez que se guarda la información."
+          "explanation": "El widget Instantánea de inventario muestra el conteo de piezas, el total en existencia y un conteo de bajo stock. Cuando las piezas caen a su umbral mínimo o por debajo de él, la cifra de bajo stock se resalta y las piezas afectadas se enumeran con sus cantidades actuales frente a las mínimas."
         },
         {
           "id": "db10",
@@ -467,23 +467,23 @@
             },
             {
               "id": "b",
-              "text": "Por prioridad (la más alta primero), luego por fecha de vencimiento"
-            },
-            {
-              "id": "c",
-              "text": "Por fecha de vencimiento: la fecha de vencimiento más próxima primero",
+              "text": "Por prioridad de estado: vencidos primero, luego activos, próximos y completados",
               "isCorrect": true
             },
             {
-              "id": "d",
+              "id": "c",
               "text": "Por fecha de creación: los más nuevos primero"
+            },
+            {
+              "id": "d",
+              "text": "Aleatoriamente cada vez que se carga la página"
             }
           ],
-          "explanation": "Tareas de hoy ordena los trabajos por fecha de vencimiento con el más próximo (el más urgente) en la parte superior. Los trabajos vencidos aparecen primero ya que su fecha de vencimiento ya ha pasado."
+          "explanation": "Tareas de hoy ordena los trabajos por su estado: los vencidos van primero para que reciban atención inmediata, seguidos de los activos, próximos y completados. El widget muestra los primeros varios y presenta un banner de alerta de vencidos cuando alguno ha pasado su fecha."
         },
         {
           "id": "db11",
-          "text": "Quiere ver cuántas órdenes están actualmente en producción. ¿Dónde mira en el Panel?",
+          "text": "Quiere ver cuántas órdenes de venta están actualmente en producción. ¿Dónde mira en el Panel?",
           "options": [
             {
               "id": "a",
@@ -491,7 +491,7 @@
             },
             {
               "id": "b",
-              "text": "El widget Órdenes abiertas por etapa: muestra conteos de Cotización, Producción, QC y Enviado",
+              "text": "El widget Órdenes abiertas: desglosa el total de órdenes abiertas por Confirmadas, En producción y Parcialmente enviadas",
               "isCorrect": true
             },
             {
@@ -503,31 +503,31 @@
               "text": "El widget Progreso del ciclo: lo desglosa por etapa"
             }
           ],
-          "explanation": "El widget Órdenes abiertas por etapa muestra un resumen de la cartera con conteos en cada etapa principal: Cotización, Producción, QC y Enviado. Mire el conteo de Producción para su respuesta."
+          "explanation": "El widget Órdenes abiertas muestra el total de órdenes de venta abiertas más un desglose por Confirmadas, En producción y Parcialmente enviadas. Mire el conteo de En producción para su respuesta."
         },
         {
           "id": "db12",
-          "text": "El widget Temporizadores activos está vacío y no muestra ningún temporizador. ¿Qué significa esto?",
+          "text": "El widget Elementos de acción enumera una tarea de seguimiento. ¿Qué dos acciones rápidas puede realizar directamente desde el widget?",
           "options": [
             {
               "id": "a",
-              "text": "La función de temporizador está deshabilitada para su cuenta"
+              "text": "Reasignarla o cambiar su prioridad"
             },
             {
               "id": "b",
-              "text": "No tiene ningún trabajo asignado"
-            },
-            {
-              "id": "c",
-              "text": "Ningún temporizador está en marcha actualmente: puede iniciar uno desde la vista de detalle de un trabajo",
+              "text": "Completarla (marca) o descartarla (cerrar)",
               "isCorrect": true
             },
             {
+              "id": "c",
+              "text": "Imprimirla o exportarla a PDF"
+            },
+            {
               "id": "d",
-              "text": "Su último temporizador se detuvo automáticamente por inactividad"
+              "text": "Posponerla o escalarla a un gerente"
             }
           ],
-          "explanation": "Cuando no hay ningún temporizador en marcha, el widget Temporizadores activos muestra un estado vacío/de indicación. Para iniciar un temporizador, abra el diálogo de detalle de un trabajo (desde Tareas de hoy, Kanban o Pendientes) y use los controles del temporizador allí."
+          "explanation": "Cada fila de Elementos de acción tiene un botón de marca para completar la tarea y un botón de cerrar para descartarla, de modo que puede despejar los seguimientos sin salir del panel. Cuando la lista está vacía, el widget muestra un estado vacío."
         }
       ]
     }

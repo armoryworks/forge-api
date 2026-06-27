@@ -264,14 +264,14 @@ public class ExpensesTraining : TrainingContentBase
     },
     {
       "id": "ex8",
-      "text": "What happens when a manager clicks the X (reject) icon on a pending expense?",
+      "text": "In the Expense Approval Queue, a manager opens an expense and wants to reject it (or send it back for changes). What does the review dialog require?",
       "options": [
-        {"id": "a", "text": "A dialog opens asking for a rejection reason before proceeding"},
-        {"id": "b", "text": "The expense is immediately marked as Rejected with a red status chip", "isCorrect": true},
-        {"id": "c", "text": "The expense is deleted from the system permanently"},
-        {"id": "d", "text": "The expense is returned to Draft status for the submitter to edit"}
+        {"id": "a", "text": "Nothing extra — Reject is a single click with no note"},
+        {"id": "b", "text": "A review note of at least 10 characters before Reject or Request Revision is allowed", "isCorrect": true},
+        {"id": "c", "text": "A receipt must be attached before the expense can be rejected"},
+        {"id": "d", "text": "The expense must be deleted and the submitter re-creates it from scratch"}
       ],
-      "explanation": "Clicking the X icon immediately rejects the expense. Its status changes to Rejected and it displays a red chip in the table."
+      "explanation": "Opening an expense in the Approval Queue shows a review dialog with three outcomes: Approve, Request Revision, and Reject. Both Reject and Request Revision require a review note of at least 10 characters; only Approve can proceed without one. Rejected shows a red chip, while Request Revision sets the expense to Needs Revision so the submitter can revise and resubmit it."
     },
     {
       "id": "ex9",

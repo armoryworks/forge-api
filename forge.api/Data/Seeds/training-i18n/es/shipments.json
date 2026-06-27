@@ -4,7 +4,7 @@
     "title": "Visión general de Envíos",
     "summary": "Qué son los envíos, el ciclo de vida del envío, las líneas de artículo y cómo los envíos se conectan con las órdenes de venta y las facturas.",
     "contentJson": {
-      "body": "## Visión general de Envíos\n\nEl módulo de Envíos rastrea cada envío saliente de su taller. Cada envío está vinculado a una Orden de Venta y contiene una o más líneas de artículo que describen qué se envía y en qué cantidad. Los envíos avanzan a través de un ciclo de vida definido, desde la creación hasta la entrega, y se conectan directamente con la facturación para que siempre sepa qué se ha enviado y facturado.\n\n### ¿Qué es un envío?\n\nUn envío representa un paquete físico o conjunto de paquetes que salen de su instalación para cumplir (o cumplir parcialmente) una Orden de Venta. Cada envío tiene:\n- Un **Número de envío** único (autogenerado)\n- Un enlace a exactamente una **Orden de Venta**\n- Una o más **Líneas de artículo** que especifican piezas y cantidades\n- **Transportista** y **Número de seguimiento** opcionales para la logística\n- **Peso** y **Costo de envío** opcionales para el registro\n- Un **Estado** que indica en qué punto del ciclo de vida se encuentra el envío\n\n### Ciclo de vida del envío\n\nLos envíos siguen una progresión de estados lineal:\n\n1. **Pendiente** — El envío se ha creado pero aún no se ha empacado nada. Este es el estado inicial de todos los envíos nuevos.\n2. **Empacado** — Los artículos se han empacado físicamente y están listos para enviarse. El envío espera la recogida o la entrega al transportista.\n3. **Enviado** — El envío ha salido de su instalación. La fecha de envío se registra automáticamente cuando lo marca como enviado.\n4. **En tránsito** — El transportista tiene el envío y está en camino al cliente. Las actualizaciones de información de seguimiento están disponibles si se proporciona un número de seguimiento.\n5. **Entregado** — El cliente ha recibido el envío. La fecha de entrega se registra automáticamente.\n6. **Cancelado** — El envío se canceló antes de la entrega. Los envíos cancelados se conservan con fines de auditoría.\n\nPuede hacer avanzar un envío a través de los estados usando los botones de acción en la vista de detalle. Los envíos pueden marcarse como enviados desde el estado Pendiente o Empacado, y marcarse como entregados desde el estado Enviado o En tránsito.\n\n### Líneas de artículo\n\nCada línea de envío hace referencia a una Pieza de su Catálogo de Piezas y a una cantidad. Las líneas pueden vincularse opcionalmente a una Línea de Orden de Venta específica para rastrear el cumplimiento parcial. Al crear un envío, primero selecciona una Orden de Venta y luego agrega piezas y cantidades. Una sola Orden de Venta puede tener múltiples envíos (entregas parciales), y cada envío rastrea exactamente qué artículos y cantidades se incluyeron.\n\n### Cómo se conectan los envíos con otras funciones\n\n**Órdenes de Venta:** Cada envío pertenece a una Orden de Venta. La Orden de Venta rastrea el cumplimiento general a través de todos sus envíos. Puede ver la Orden de Venta vinculada directamente desde la vista de detalle del envío.\n\n**Facturas:** Después de que un envío se ha enviado, puede vincularse a una Factura. La vista de detalle del envío muestra la factura vinculada cuando existe una, proporcionando un rastro de auditoría claro desde la orden hasta el envío y la facturación.\n\n**Clientes:** El nombre del cliente y la dirección de envío provienen de la Orden de Venta. La vista de detalle del envío muestra el nombre del cliente y permite navegar a la Orden de Venta para obtener el contexto completo de la orden.\n\n**Integración con transportistas:** El sistema admite la comparación de tarifas de transportistas y la generación de etiquetas. Desde el detalle del envío, puede solicitar tarifas de envío de los transportistas configurados, comparar opciones y crear una etiqueta de envío —todo sin salir de QB Engineer.\n\n**Seguimiento:** Cuando se introduce un número de seguimiento (manualmente o mediante la creación de etiquetas), puede ver la línea de tiempo de seguimiento directamente en el detalle del envío. La línea de tiempo muestra cada evento de seguimiento con ubicación, estado y marca de tiempo.\n\n**PDF de albarán:** Cada envío puede generar un albarán imprimible que incluye el número de envío, la información del cliente, la dirección de envío y una tabla de todas las líneas de artículo con cantidades. Esto es útil para incluirlo en el paquete físico.\n\n### Cuándo usar los envíos\n\n- Al cumplir una Orden de Venta —cree un envío para registrar lo que se envía\n- Al enviar órdenes parciales —cree múltiples envíos contra la misma Orden de Venta\n- Cuando necesite comparar tarifas de transportistas antes de elegir un método de envío\n- Cuando necesite visibilidad de seguimiento para los paquetes salientes\n- Al generar albaranes para incluir con los envíos\n- Cuando necesite un rastro de auditoría que conecte órdenes, envíos y facturas",
+      "body": "## Visión general de Envíos\n\nEl módulo de Envíos rastrea cada envío saliente de su taller. Cada envío está vinculado a una Orden de Venta y contiene una o más líneas de artículo que describen qué se envía y en qué cantidad. Los envíos avanzan a través de un ciclo de vida definido, desde la creación hasta la entrega, y se conectan directamente con la facturación para que siempre sepa qué se ha enviado y facturado.\n\n### ¿Qué es un envío?\n\nUn envío representa un paquete físico o conjunto de paquetes que salen de su instalación para cumplir (o cumplir parcialmente) una Orden de Venta. Cada envío tiene:\n- Un **Número de envío** único (autogenerado)\n- Un enlace a exactamente una **Orden de Venta**\n- Una o más **Líneas de artículo** que especifican piezas y cantidades\n- **Transportista** y **Número de seguimiento** opcionales para la logística\n- **Peso** y **Costo de envío** opcionales para el registro\n- Un **Estado** que indica en qué punto del ciclo de vida se encuentra el envío\n\n### Ciclo de vida del envío\n\nLos envíos siguen una progresión de estados lineal:\n\n1. **Pendiente** — El envío se ha creado pero aún no se ha empacado nada. Este es el estado inicial de todos los envíos nuevos.\n2. **Empacado** — Los artículos se han empacado físicamente y están listos para enviarse. El envío espera la recogida o la entrega al transportista.\n3. **Enviado** — El envío ha salido de su instalación. La fecha de envío se registra automáticamente cuando lo marca como enviado.\n4. **En tránsito** — El transportista tiene el envío y está en camino al cliente. Las actualizaciones de información de seguimiento están disponibles si se proporciona un número de seguimiento.\n5. **Entregado** — El cliente ha recibido el envío. La fecha de entrega se registra automáticamente.\n6. **Cancelado** — El envío se canceló antes de la entrega. Los envíos cancelados se conservan con fines de auditoría.\n\nPuede hacer avanzar un envío a través de los estados usando los botones de acción en la vista de detalle. Los envíos pueden marcarse como enviados desde el estado Pendiente o Empacado, y marcarse como entregados desde el estado Enviado o En tránsito.\n\n### Líneas de artículo\n\nCada línea de envío se crea **a partir de una línea de la Orden de Venta vinculada** —no elige piezas de un catálogo libre. Al crear un envío, primero selecciona una Orden de Venta, y el diálogo solo ofrece entonces las líneas abiertas de esa orden. Elige una Línea de Orden de Venta y una cantidad; la cantidad está **limitada a lo que queda por enviar** en esa línea (la orden nunca puede sobreenviarse). Una sola Orden de Venta puede tener múltiples envíos (entregas parciales), y cada envío rastrea exactamente qué líneas de orden y cantidades se incluyeron.\n\n### Cómo se conectan los envíos con otras funciones\n\n**Órdenes de Venta:** Cada envío pertenece a una Orden de Venta. La Orden de Venta rastrea el cumplimiento general a través de todos sus envíos. Puede ver la Orden de Venta vinculada directamente desde la vista de detalle del envío.\n\n**Facturas:** Después de que un envío se ha enviado, puede vincularse a una Factura. La vista de detalle del envío muestra la factura vinculada cuando existe una, proporcionando un rastro de auditoría claro desde la orden hasta el envío y la facturación.\n\n**Clientes:** El nombre del cliente y la dirección de envío provienen de la Orden de Venta. La vista de detalle del envío muestra el nombre del cliente y permite navegar a la Orden de Venta para obtener el contexto completo de la orden.\n\n**Integración con transportistas:** El sistema admite la comparación de tarifas de transportistas y la generación de etiquetas. Desde el detalle del envío, puede solicitar tarifas de envío de los transportistas configurados, comparar opciones y crear una etiqueta de envío —todo sin salir de QB Engineer.\n\n**Seguimiento:** Cuando se introduce un número de seguimiento (manualmente o mediante la creación de etiquetas), puede ver la línea de tiempo de seguimiento directamente en el detalle del envío. La línea de tiempo muestra cada evento de seguimiento con ubicación, estado y marca de tiempo.\n\n**Documento de envío:** Una vez que un envío tiene un número de seguimiento, la vista de detalle muestra un botón **Descargar documento de envío** (un PDF versionado que incluye el número de envío, la información del cliente, la dirección de envío y una tabla de todas las líneas de artículo con cantidades), además de un botón **Regenerar documento de envío** para producir una copia nueva. Ambos botones aparecen solo después de que exista un número de seguimiento. Este es el documento que imprime e incluye en el paquete físico.\n\n### Cuándo usar los envíos\n\n- Al cumplir una Orden de Venta —cree un envío para registrar lo que se envía\n- Al enviar órdenes parciales —cree múltiples envíos contra la misma Orden de Venta\n- Cuando necesite comparar tarifas de transportistas antes de elegir un método de envío\n- Cuando necesite visibilidad de seguimiento para los paquetes salientes\n- Al descargar el documento de envío para incluir con los envíos\n- Cuando necesite un rastro de auditoría que conecte órdenes, envíos y facturas",
       "sections": []
     }
   },
@@ -20,7 +20,7 @@
           "element": "[data-testid='new-shipment-btn']",
           "popover": {
             "title": "Botón Nuevo envío",
-            "description": "Haga clic aquí para crear un nuevo envío. Seleccionará una Orden de Venta, agregará líneas de artículo con piezas y cantidades, y opcionalmente introducirá información de transportista y seguimiento. El diálogo usa un diseño dividido: líneas de artículo a la izquierda, detalles del envío y notas a la derecha.",
+            "description": "Haga clic aquí para crear un nuevo envío. Primero seleccionará una Orden de Venta, luego agregará líneas de artículo eligiendo entre las líneas abiertas de esa orden (la cantidad está limitada a lo que queda por enviar) y, opcionalmente, introducirá información de transportista y seguimiento. El diálogo usa un diseño dividido: líneas de artículo a la izquierda, detalles del envío y notas a la derecha.",
             "side": "bottom"
           }
         },
@@ -52,7 +52,7 @@
           "element": "[data-testid='new-shipment-btn']",
           "popover": {
             "title": "Crear un envío — Recorrido",
-            "description": "Al hacer clic en Nuevo envío, se abre un diálogo con un diseño dividido. A la izquierda, gestiona las líneas de artículo: seleccione una pieza del menú desplegable de autocompletado, introduzca una cantidad y haga clic en Agregar. Cada línea aparece en una tabla donde puede eliminarla. En la barra lateral derecha, seleccione la Orden de Venta (obligatorio) e, opcionalmente, introduzca Transportista, Número de seguimiento, Peso, Costo de envío y Notas. Guardar está deshabilitado hasta que tenga al menos una línea de artículo y una Orden de Venta seleccionada.",
+            "description": "Al hacer clic en Nuevo envío, se abre un diálogo con un diseño dividido. En la barra lateral derecha, seleccione primero la Orden de Venta (obligatorio) —esto impulsa todo lo demás. A la izquierda, agregue luego las líneas de artículo eligiendo una de las líneas abiertas de esa orden del menú desplegable; la cantidad se rellena con lo que queda por enviar y está limitada a ese valor (no puede superar la cantidad restante). Haga clic en Agregar y cada línea aparece en una tabla donde puede eliminarla. Opcionalmente, introduzca Transportista, Número de seguimiento, Peso, Costo de envío y Notas. Guardar está deshabilitado hasta que tenga al menos una línea de artículo y una Orden de Venta seleccionada.",
             "side": "left"
           }
         },
@@ -107,16 +107,16 @@
           "heading": "Campos de línea de artículo (diálogo de creación — área principal)",
           "items": [
             {
-              "label": "Pieza (obligatorio)",
-              "value": "Menú desplegable de autocompletado. Seleccione una pieza del Catálogo de Piezas (solo se muestran las piezas Activas). Se muestra como 'NúmeroPieza — Descripción'. Cada línea debe tener una pieza seleccionada."
+              "label": "Línea de orden (obligatorio)",
+              "value": "Menú desplegable de autocompletado. Elija una de las líneas abiertas de la Orden de Venta seleccionada —no hay selector de piezas libre. Solo se muestran las líneas con cantidad pendiente de enviar; cada una muestra la pieza/descripción y la cantidad restante. Debe seleccionar primero una Orden de Venta; de lo contrario el mensaje es 'Seleccione una orden primero', y si todo ya se envió dice 'Todas las líneas enviadas'. data-testid: shipment-line-so-line"
             },
             {
               "label": "Cantidad (obligatorio)",
-              "value": "Campo numérico. Debe ser al menos 1. El valor predeterminado es 1 al agregar una nueva línea. data-testid: shipment-line-qty"
+              "value": "Campo numérico. Se rellena con la cantidad restante por enviar de la línea y está limitada a ella —intentar superar la cantidad restante se rechaza. Debe ser mayor que 0. data-testid: shipment-line-qty"
             },
             {
               "label": "Botón Agregar",
-              "value": "Agrega la pieza y la cantidad seleccionadas como una nueva línea de artículo. Deshabilitado cuando el formulario de línea no es válido (no hay pieza seleccionada o cantidad < 1)."
+              "value": "Agrega la línea de orden y la cantidad seleccionadas como una nueva línea de artículo. Deshabilitado cuando el formulario de línea no es válido (no hay línea de orden seleccionada o la cantidad está por debajo del mínimo)."
             },
             {
               "label": "Botón Eliminar (X)",
@@ -263,12 +263,12 @@
               "value": "Se requiere al menos una línea de artículo. El botón Guardar está deshabilitado y aparece un mensaje de validación si no hay líneas presentes."
             },
             {
-              "label": "Pieza (por línea)",
-              "value": "Obligatorio. Debe seleccionar una pieza válida del autocompletado."
+              "label": "Línea de orden (por línea)",
+              "value": "Obligatorio. Debe seleccionar una de las líneas abiertas de la Orden de Venta vinculada del autocompletado —no una pieza libre."
             },
             {
               "label": "Cantidad (por línea)",
-              "value": "Obligatorio. Debe ser al menos 1."
+              "value": "Obligatorio. Debe ser mayor que 0 y no puede superar la cantidad restante por enviar de la línea."
             },
             {
               "label": "Transportista, Número de seguimiento, Peso, Costo de envío, Notas",
@@ -340,7 +340,7 @@
             },
             {
               "id": "b",
-              "text": "Navegar a Envíos, hacer clic en Nuevo envío, seleccionar la Orden de Venta, agregar líneas de artículo con piezas y cantidades, y luego guardar",
+              "text": "Navegar a Envíos, hacer clic en Nuevo envío, seleccionar la Orden de Venta, agregar líneas de artículo eligiendo las líneas abiertas de la orden y las cantidades, y luego guardar",
               "isCorrect": true
             },
             {
@@ -352,7 +352,7 @@
               "text": "Crear primero una Factura y el envío se genera automáticamente"
             }
           ],
-          "explanation": "Los envíos se crean desde la página de Envíos. Haga clic en Nuevo envío, seleccione la Orden de Venta del autocompletado, agregue las piezas y cantidades que se envían como líneas de artículo, y guarde. El envío comienza en estado Pendiente."
+          "explanation": "Los envíos se crean desde la página de Envíos. Haga clic en Nuevo envío, seleccione la Orden de Venta del autocompletado, luego agregue líneas de artículo eligiendo entre las líneas abiertas de esa orden (no hay selector de piezas libre; la cantidad está limitada a lo que queda por enviar en cada línea), y guarde. El envío comienza en estado Pendiente."
         },
         {
           "id": "sh2",
@@ -436,7 +436,7 @@
             },
             {
               "id": "b",
-              "text": "Una selección de Orden de Venta y al menos una línea de artículo con una pieza y una cantidad",
+              "text": "Una selección de Orden de Venta y al menos una línea de artículo tomada de las líneas abiertas de esa orden",
               "isCorrect": true
             },
             {
@@ -448,7 +448,7 @@
               "text": "Una Orden de Venta, líneas de artículo, transportista, número de seguimiento y peso"
             }
           ],
-          "explanation": "Se requieren dos cosas: debe seleccionarse una Orden de Venta (el único campo obligatorio de la barra lateral) y debe agregarse al menos una línea de artículo (cada línea necesita una pieza y una cantidad de al menos 1). El transportista, el número de seguimiento, el peso, el costo de envío y las notas son todos opcionales."
+          "explanation": "Se requieren dos cosas: debe seleccionarse una Orden de Venta (el único campo obligatorio de la barra lateral) y debe agregarse al menos una línea de artículo. Las líneas se toman de las líneas abiertas de la orden seleccionada (no hay selector de piezas libre), y la cantidad de cada línea está limitada a lo que queda por enviar. El transportista, el número de seguimiento, el peso, el costo de envío y las notas son todos opcionales."
         },
         {
           "id": "sh6",
@@ -548,7 +548,7 @@
         },
         {
           "id": "sh10",
-          "text": "Necesita generar un albarán para incluirlo en un paquete físico. ¿Cómo lo hace?",
+          "text": "Necesita un documento imprimible para incluir en un paquete físico. ¿Qué le ofrece la vista de detalle del envío?",
           "options": [
             {
               "id": "a",
@@ -556,19 +556,19 @@
             },
             {
               "id": "b",
-              "text": "Generar un PDF de albarán desde el envío, que incluye el número de envío, la información del cliente, la dirección de envío y las líneas de artículo con cantidades",
+              "text": "Descargar documento de envío (un PDF versionado con el número de envío, la información del cliente, la dirección de envío y las líneas de artículo con cantidades), con un botón Regenerar documento de envío al lado",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Los albaranes solo están disponibles a través del detalle de la Orden de Venta"
+              "text": "Los documentos solo están disponibles a través del detalle de la Orden de Venta"
             },
             {
               "id": "d",
               "text": "Crear un informe personalizado en el módulo de Informes filtrado por número de envío"
             }
           ],
-          "explanation": "Cada envío puede generar un PDF de albarán. El albarán incluye el número de envío, la información de la empresa, los detalles del cliente, la dirección de envío y una tabla de todas las líneas de artículo con números de pieza, descripciones y cantidades. Está diseñado para imprimirse e incluirse en el paquete físico."
+          "explanation": "Una vez que existe un número de seguimiento, la vista de detalle del envío muestra un botón Descargar documento de envío —un PDF versionado que incluye el número de envío, los detalles del cliente, la dirección de envío y una tabla de todas las líneas de artículo con descripciones y cantidades— además de un botón Regenerar documento de envío para producir una copia nueva. Estos botones solo aparecen después de que haya un número de seguimiento. (No hay un botón de 'albarán' separado accesible desde el envío.)"
         },
         {
           "id": "sh11",
