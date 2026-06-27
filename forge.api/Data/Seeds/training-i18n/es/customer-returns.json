@@ -247,6 +247,82 @@
     }
   },
   {
+    "slug": "customer-returns-using-the-ui",
+    "title": "Devoluciones de Clientes — Uso de la pantalla",
+    "summary": "Un recorrido guiado por la página de Devoluciones de Clientes: búsqueda y filtrado de la lista, apertura del diálogo de Nueva devolución y clic en una fila para abrir el panel de detalle de una devolución.",
+    "contentJson": {
+      "appRoute": "/customer-returns",
+      "startButtonLabel": "Recorrer Devoluciones de Clientes",
+      "steps": [
+        {
+          "element": "app-page-header",
+          "popover": {
+            "title": "Devoluciones de Clientes",
+            "description": "Esta es la página de Devoluciones de Clientes. Lista cada RMA (Autorización de Devolución de Mercancía) del sistema: devoluciones enviadas de vuelta por los clientes debido a defectos, especificaciones incorrectas, daños de envío u otros problemas de calidad. Cada devolución lleva un número de RMA autogenerado y avanza por un ciclo de vida desde Recibida hasta Cerrada.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-input",
+          "popover": {
+            "title": "Buscar devoluciones",
+            "description": "Escriba aquí para acotar la lista, por ejemplo por número de RMA, nombre del cliente o número del trabajo original. La búsqueda le ayuda a encontrar rápidamente la devolución de un cliente específico cuando la lista es larga.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-select",
+          "popover": {
+            "title": "Filtrar por estado",
+            "description": "Use este desplegable para mostrar solo las devoluciones en una etapa concreta del ciclo de vida: Recibida, Retrabajo ordenado, En inspección, Resuelta o Cerrada. Déjelo en 'Todos los estados' para verlo todo. Filtrar por estado es la forma más rápida de encontrar devoluciones que aún requieren acción (p. ej., todo lo que aún no está Resuelto).",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".action-btn:not(.action-btn--create)",
+          "popover": {
+            "title": "Aplicar filtros",
+            "description": "Haga clic en Filtrar para aplicar su texto de búsqueda y la selección de estado. La lista se recarga para mostrar solo las devoluciones coincidentes.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='new-return-btn']",
+          "popover": {
+            "title": "Nueva devolución",
+            "description": "Haga clic en Nueva devolución para registrar una devolución de cliente. El diálogo de creación solicita el Cliente, el Trabajo original que produjo la mercancía, un Motivo de la devolución, una Fecha de devolución opcional y Notas opcionales. Al guardar se genera el número de RMA y se establece el estado en Recibida.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "La lista de devoluciones",
+            "description": "Cada fila muestra el número de RMA, el cliente, el trabajo original, un chip de estado con código de color, el motivo, la fecha de devolución y cuándo se creó. Haga clic en cualquier encabezado de columna para ordenar. El color del chip de estado indica la etapa de un vistazo: azul = Recibida, morado = En inspección, ámbar = Retrabajo ordenado, verde = Resuelta, gris = Cerrada.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Abrir una devolución",
+            "description": "Haga clic en cualquier fila para abrir el panel de detalle de esa devolución. El panel muestra el registro completo — cliente, trabajos, motivo, hallazgos de inspección y una línea de tiempo de actividad — y es donde se Resuelve la devolución y luego se Cierra. El panel de detalle también enlaza directamente: la URL incorpora ?detail=customer-return:{id}, por lo que puede marcar o compartir un enlace directo a una devolución específica.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "customer-returns-resolving-and-closing",
+    "title": "Devoluciones de Clientes — Resolver y cerrar",
+    "summary": "Cómo trabajar una devolución desde el panel de detalle: registrar hallazgos de inspección, resolver con notas, cerrar con confirmación y leer la línea de tiempo de actividad.",
+    "contentJson": {
+      "body": "## Devoluciones de Clientes — Resolver y cerrar\n\nUna vez que existe una devolución, el resto del trabajo ocurre en su **panel de detalle**. Desde la lista de Devoluciones de Clientes, haga clic en cualquier fila para abrir el panel. La URL se actualiza a `?detail=customer-return:{id}`, de modo que la devolución abierta se puede marcar y compartir: pegue ese enlace a un compañero y se abrirá la misma devolución.\n\n### Lectura del panel de detalle\n\nEl encabezado del panel muestra el número de RMA (p. ej., RMA-00007). Debajo, una cuadrícula de campos presenta todo sobre la devolución:\n\n- **Estado** — un chip con código de color que muestra la etapa actual del ciclo de vida (Recibida, En inspección, Retrabajo ordenado, Resuelta o Cerrada).\n- **Cliente** — la cuenta que devolvió la mercancía.\n- **Trabajo original** — el número del trabajo que produjo la mercancía devuelta.\n- **Trabajo de retrabajo** — se muestra solo cuando se ha creado un trabajo de retrabajo para esta devolución.\n- **Fecha de devolución** — cuándo se devolvió o se devolverá la mercancía.\n- **Motivo** — por qué se devolvió la mercancía (siempre presente).\n- **Notas** — contexto adicional, mostrado solo si se ingresó.\n- **Notas de inspección / Inspeccionado por / Inspeccionado el** — se rellenan después de que la devolución se inspecciona y se resuelve.\n\nLos botones de acción disponibles en el panel dependen del estado actual de la devolución, de modo que solo ve la acción que tiene sentido a continuación.\n\n### Resolver una devolución\n\nCuando una devolución está en **Recibida**, **En inspección** o **Retrabajo ordenado**, aparece un botón verde **Resolver** en el panel.\n\n1. Haga clic en **Resolver**. Se abre un pequeño diálogo con un único campo: **Notas de inspección (opcional)**.\n2. Registre lo que encontró durante la inspección — mediciones, el defecto, la causa raíz o la acción correctiva tomada. Estas notas pasan a formar parte del registro permanente y alimentan el análisis de tendencias de calidad. (El campo es opcional, por lo que puede resolver sin notas, pero se recomienda encarecidamente capturar los hallazgos).\n3. Haga clic en **Resolver** para confirmar. El estado cambia a **Resuelta**, las notas de inspección se guardan y el panel se actualiza para mostrar el nuevo estado. Aparece un mensaje de confirmación.\n\nResolver significa que el problema se ha abordado — mediante retrabajo, reemplazo, crédito o una decisión de que no se justifica ninguna acción. Una devolución puede resolverse directamente desde cualquier estado activo; no tiene que pasar primero por En inspección o Retrabajo ordenado.\n\n### Cerrar una devolución\n\nUna vez que una devolución está **Resuelta**, el botón Resolver se reemplaza por un botón **Cerrar**.\n\n1. Haga clic en **Cerrar**. Aparece un diálogo de confirmación que le pide confirmar el cierre de esta RMA específica — el cierre es definitivo.\n2. Confirme. El estado cambia a **Cerrada** y aparece un mensaje de confirmación.\n\n**El cierre es irreversible.** Una devolución cerrada no puede reabrirse, resolverse de nuevo ni editarse. Solo las devoluciones resueltas pueden cerrarse — esa secuencia de dos pasos Resolver-luego-Cerrar es lo que mantiene limpio el registro de auditoría: cada devolución que termina en Cerrada pasó primero por una resolución explícita. Como el cierre es definitivo, el sistema requiere el clic de confirmación antes de confirmarlo.\n\n### La línea de tiempo de actividad\n\nEn la parte inferior del panel de detalle está la **línea de tiempo de actividad** — un registro de auditoría cronológico e inmutable para esa devolución. Cada evento significativo se registra aquí: cuándo se creó la devolución, cuándo se actualizó, cuándo se resolvió y cuándo se cerró, junto con quién lo hizo y cuándo.\n\nUse la línea de tiempo para responder '¿qué le pasó a esta devolución y quién la gestionó?' sin salir del panel. Como las entradas son inmutables, la línea de tiempo es un registro de auditoría confiable — útil durante disputas con clientes, revisiones de calidad o al reconstruir cómo se gestionó un problema recurrente a lo largo de varias devoluciones.\n\n### Consejos\n\n- **Siempre resuelva antes de cerrar.** El botón Cerrar solo aparece en las devoluciones resueltas; no hay atajo desde un estado activo directamente a Cerrada.\n- **Capture las notas de inspección al momento de resolver.** Es el momento natural, y las notas quedan luego visibles para cualquiera que abra la devolución más tarde.\n- **Use la URL de enlace directo** para dirigir a un compañero a una devolución específica en lugar de describir cómo encontrarla.\n- **Revise la línea de tiempo antes de cerrar** para confirmar que la acción correctiva realmente se completó.",
+      "sections": []
+    }
+  },
+  {
     "slug": "customer-returns-quiz",
     "title": "Evaluación de conocimientos de las Devoluciones de Clientes",
     "summary": "Ponga a prueba sus conocimientos sobre el módulo de Devoluciones de Clientes: ciclo de vida de RMA, estados, trabajos de retrabajo, endpoints de API y reglas de validación.",

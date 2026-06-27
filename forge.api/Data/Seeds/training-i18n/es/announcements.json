@@ -1,0 +1,311 @@
+[
+  {
+    "slug": "announcements-admin-overview",
+    "title": "Administración de Anuncios",
+    "summary": "Cómo los administradores y gerentes envían anuncios de la empresa: el panel Administración > Anuncios, enviar un nuevo anuncio (severidad, alcance, confirmación, vencimiento), la lista de anuncios enviados y el registro de confirmaciones, y las plantillas reutilizables.",
+    "contentJson": {
+      "body": "## Administración de Anuncios\n\nLos anuncios son mensajes oficiales que los administradores y gerentes difunden a la empresa. A diferencia de un mensaje de chat, un anuncio es dirigido y rastreable: usted elige quién lo ve, qué tan urgente es, si las personas deben confirmarlo y cuándo vence. Los destinatarios lo ven como un banner superpuesto en el momento en que se envía (entregado en tiempo real), y usted puede verificar exactamente quién lo ha confirmado.\n\nEste panel de administración es el único lugar para **enviar** anuncios, **revisar** todo lo que se ha enviado, ver **quién confirmó** cada uno y gestionar **plantillas** reutilizables. (El envío de anuncios solía describirse como parte del Chat —no lo es. El canal de difusión del Chat muestra los anuncios, pero usted los redacta y gestiona aquí, en Administración.)\n\n### Encontrar el panel\n\nVaya a **Administración → Anuncios** (ruta `/admin/announcements`). El panel tiene dos pestañas:\n\n- **Anuncios** — la lista de todo lo enviado, con su botón Nuevo Anuncio.\n- **Plantillas** — preajustes de anuncios reutilizables, con su botón Nueva Plantilla.\n\nEl panel está restringido por rol: enviar anuncios y ver la lista de enviados / las confirmaciones requiere **Administrador o Gerente**; crear y eliminar **plantillas** requiere **Administrador**.\n\n### Enviar un nuevo anuncio\n\nDesde la pestaña **Anuncios**, haga clic en **Nuevo Anuncio** (el ícono de megáfono) para abrir el diálogo Enviar Anuncio. Complete:\n\n- **Plantilla** (opcional) — elija una plantilla guardada para precargar el contenido, la severidad, el alcance y el interruptor de confirmación. Luego puede editar cualquier campo antes de enviar.\n- **Título** (obligatorio, hasta 200 caracteres) — el encabezado que ven los destinatarios.\n- **Contenido** (obligatorio, hasta 5000 caracteres) — el cuerpo del mensaje.\n- **Severidad** (obligatorio) — **Información**, **Advertencia** o **Crítico**. La severidad colorea el chip y señala la urgencia.\n- **Alcance** (obligatorio) — quién lo recibe (vea más abajo).\n- **Equipos Objetivo** — aparece solo para los alcances basados en equipos; elija uno o más equipos.\n- **Vence el** (opcional) — una fecha después de la cual el anuncio deja de mostrarse. Déjelo en blanco para que no venza.\n- **Requerir Confirmación** (interruptor) — cuando está activado, los destinatarios deben hacer clic para confirmar, y usted puede rastrear quién lo hizo.\n\nHaga clic en **Enviar**. El anuncio se entrega de inmediato a su audiencia y aparece en la parte superior de la lista de enviados.\n\n### Alcance — quién lo recibe\n\nEl alcance controla la audiencia:\n\n- **Toda la Empresa** — todos en la empresa.\n- **Equipos Seleccionados** — miembros de uno o más equipos que elige en Equipos Objetivo.\n- **Equipo Individual** — un solo equipo que elige en Equipos Objetivo.\n- **Solo Líderes de Equipo** — solo los líderes de los equipos objetivo, no todos los miembros.\n\nPara cualquiera de los alcances basados en equipos, aparece el selector múltiple **Equipos Objetivo** para que pueda elegir a qué equipos se dirige el anuncio.\n\n### La lista de anuncios enviados\n\nLa pestaña **Anuncios** muestra todo lo enviado, lo más reciente primero. Las columnas incluyen el **Título**, un chip de **Severidad** coloreado, el **Alcance**, **Enviado Por** (quién lo creó), **Enviado** (fecha y hora) y **Conf.** —el conteo de personas que lo han confirmado. Los nuevos anuncios aparecen en la parte superior en tiempo real, incluso los enviados por un colega mientras usted mira la lista.\n\n### El registro de confirmaciones\n\nHaga clic en cualquier fila (o en el ícono de visibilidad / ojo) para abrir el diálogo **Confirmaciones**. Muestra un conteo de cuántas personas han confirmado, una nota si se requería confirmación y una lista de cada persona que confirmó con la fecha y hora en que lo hizo. Si el anuncio no requería confirmación, el registro simplemente refleja a quien eligió confirmar. Así es como confirma que un aviso crítico realmente llegó a las personas que necesitaban verlo.\n\n### Plantillas\n\nLos anuncios que se repiten con frecuencia (un recordatorio de seguridad mensual, un aviso de ventana de mantenimiento) vale la pena guardarlos como **plantillas**. Cambie a la pestaña **Plantillas** y haga clic en **Nueva Plantilla** para crear una con:\n\n- **Nombre** (obligatorio) — cómo aparece la plantilla en el selector.\n- **Contenido** (obligatorio) — el texto del cuerpo predeterminado.\n- **Severidad Predeterminada** y **Alcance Predeterminado** — los valores precargados cuando se elige la plantilla.\n- **Requerir Confirmación de Forma Predeterminada** — si el interruptor de confirmación comienza activado.\n\nLas plantillas guardadas aparecen en la lista de Plantillas y en el menú desplegable **Plantilla** del diálogo Enviar Anuncio. Para eliminar una, haga clic en el ícono de **eliminar** de su fila y confirme —la eliminación es permanente, pero no afecta a los anuncios ya enviados desde ella.\n\n### Severidad, confirmación y vencimiento de un vistazo\n\n- **La severidad** es puramente una señal de urgencia y el color del chip —no cambia la audiencia.\n- **Requerir Confirmación** es lo que hace que el conteo de Confirmaciones y el registro sean significativos —sin ello, las personas simplemente leen el banner.\n- **Vence el** evita que el anuncio se muestre después de la fecha; no elimina el registro, por lo que sigue apareciendo en la lista de enviados y su registro permanece disponible.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "announcements-admin-walkthrough",
+    "title": "Administración de Anuncios — Recorrido guiado",
+    "summary": "Un recorrido guiado por el panel Administración > Anuncios: las dos pestañas, enviar un nuevo anuncio, la lista de enviados, el registro de confirmaciones y crear una plantilla.",
+    "contentJson": {
+      "appRoute": "/admin/announcements",
+      "startButtonLabel": "Recorrer Anuncios",
+      "steps": [
+        {
+          "element": ".tab-bar",
+          "popover": {
+            "title": "Dos pestañas: Anuncios y Plantillas",
+            "description": "El panel Administración > Anuncios tiene dos pestañas. Anuncios es la lista de todo lo que ha enviado. Plantillas contiene preajustes reutilizables desde los que puede precargar al enviar. Haga clic en una pestaña para cambiar —comienza en Anuncios.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='new-announcement-btn']",
+          "popover": {
+            "title": "Enviar un nuevo anuncio",
+            "description": "Haga clic en Nuevo Anuncio para abrir el diálogo Enviar Anuncio. Allí establece un Título y Contenido, elige una Severidad (Información / Advertencia / Crítico), elige un Alcance (quién lo recibe), opcionalmente elige una Plantilla para precargar, establece una fecha Vence el y activa Requerir Confirmación. Haga clic en Enviar para difundirlo al instante.",
+            "side": "left"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "La lista de anuncios enviados",
+            "description": "Cada anuncio que ha enviado aparece aquí, lo más reciente primero: Título, un chip de Severidad coloreado, Alcance, Enviado Por, fecha/hora de Enviado y Conf. —el conteo de personas que lo han confirmado. Los nuevos anuncios aparecen en la parte superior en tiempo real.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Abrir el registro de confirmaciones",
+            "description": "Haga clic en cualquier fila (o en el ícono de ojo) para abrir el diálogo Confirmaciones. Muestra cuántas personas confirmaron, si se requería confirmación y cada persona que confirmó con la fecha y hora —para que pueda confirmar que un aviso crítico realmente llegó a su audiencia.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".tab-bar .tab:nth-child(2)",
+          "popover": {
+            "title": "Pestaña Plantillas",
+            "description": "Cambie a la pestaña Plantillas para gestionar preajustes reutilizables. Cada plantilla almacena un nombre, contenido predeterminado, severidad predeterminada, alcance predeterminado y una configuración de confirmación predeterminada. Las plantillas aparecen en el menú desplegable Plantilla al enviar un anuncio.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='new-template-btn']",
+          "popover": {
+            "title": "Crear una plantilla",
+            "description": "En la pestaña Plantillas, haga clic en Nueva Plantilla para guardar un preajuste reutilizable (nombre, contenido, severidad predeterminada, alcance predeterminado y si se requiere confirmación de forma predeterminada). Elimine una plantilla desde el ícono de papelera de su fila —eso no afecta a los anuncios ya enviados desde ella.",
+            "side": "left"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "announcements-admin-field-reference",
+    "title": "Referencia de campos de Administración de Anuncios",
+    "summary": "Referencia para el panel Administración > Anuncios: pestañas, columnas de la lista de enviados, campos del diálogo Enviar Anuncio, opciones de alcance, severidad, el registro de confirmaciones, campos de plantilla, roles y reglas de validación.",
+    "contentJson": {
+      "title": "Referencia de campos de Administración de Anuncios",
+      "groups": [
+        {
+          "heading": "Pestañas del panel",
+          "items": [
+            { "label": "Anuncios", "value": "La pestaña predeterminada. Muestra todos los anuncios enviados y contiene el botón Nuevo Anuncio." },
+            { "label": "Plantillas", "value": "Preajustes de anuncios reutilizables. Contiene el botón Nueva Plantilla. Las plantillas precargan el diálogo Enviar Anuncio." }
+          ]
+        },
+        {
+          "heading": "Lista de anuncios enviados — Columnas",
+          "items": [
+            { "label": "Título", "value": "Ordenable. El encabezado del anuncio." },
+            { "label": "Severidad", "value": "Ordenable, filtrable (enum). Un chip coloreado: Crítico (rojo), Advertencia (ámbar), Información (azul). Ancho: 100px." },
+            { "label": "Alcance", "value": "Ordenable. La audiencia: Toda la Empresa, Equipos Seleccionados, Equipo Individual o Solo Líderes de Equipo. Ancho: 140px." },
+            { "label": "Enviado Por", "value": "Ordenable. Nombre del administrador o gerente que creó el anuncio. Ancho: 140px." },
+            { "label": "Enviado", "value": "Ordenable, tipo fecha. Cuándo se envió (MM/dd/yyyy hh:mm). Ancho: 140px." },
+            { "label": "Conf.", "value": "Ordenable, tipo número. Conteo de personas que lo han confirmado. Ancho: 80px." },
+            { "label": "Acciones (ícono de ojo)", "value": "Abre el diálogo del registro de Confirmaciones. Hacer clic en la fila misma hace lo mismo. Ancho: 60px." }
+          ]
+        },
+        {
+          "heading": "Diálogo Enviar Anuncio — Campos",
+          "items": [
+            { "label": "Plantilla", "value": "Menú desplegable opcional. Seleccionar una plantilla precarga el Contenido, la Severidad, el Alcance y el interruptor de confirmación. Aún puede editar cada campo después. '-- Ninguno --' comienza en blanco." },
+            { "label": "Título (obligatorio)", "value": "Campo de texto, hasta 200 caracteres. El encabezado que ven los destinatarios." },
+            { "label": "Contenido (obligatorio)", "value": "Área de texto, hasta 5000 caracteres. El cuerpo del mensaje." },
+            { "label": "Severidad (obligatorio)", "value": "Menú desplegable: Información, Advertencia, Crítico. Predeterminado Información. Colorea el chip y señala la urgencia; no cambia la audiencia." },
+            { "label": "Alcance (obligatorio)", "value": "Menú desplegable: Toda la Empresa, Equipos Seleccionados, Equipo Individual, Solo Líderes de Equipo. Predeterminado Toda la Empresa." },
+            { "label": "Equipos Objetivo", "value": "Selección múltiple. Aparece solo cuando el Alcance es Equipos Seleccionados o Equipo Individual. Elija el/los equipo(s) al que se dirige el anuncio." },
+            { "label": "Vence el", "value": "Selector de fecha opcional. Después de esta fecha el anuncio deja de mostrarse; el registro y su lista de confirmaciones permanecen. En blanco = sin vencimiento." },
+            { "label": "Requerir Confirmación", "value": "Interruptor. Cuando está activado, los destinatarios deben confirmar y usted puede rastrear quién lo hizo a través del registro y el conteo de Confirmaciones." },
+            { "label": "Botón Enviar (ícono de megáfono)", "value": "Difunde el anuncio de inmediato. Deshabilitado hasta que se completen el Título y el Contenido." }
+          ]
+        },
+        {
+          "heading": "Opciones de alcance",
+          "items": [
+            { "label": "Toda la Empresa", "value": "Todos en la empresa. No se necesita selección de equipo." },
+            { "label": "Equipos Seleccionados", "value": "Miembros de uno o más equipos elegidos en Equipos Objetivo." },
+            { "label": "Equipo Individual", "value": "Un solo equipo elegido en Equipos Objetivo." },
+            { "label": "Solo Líderes de Equipo", "value": "Solo los líderes de los equipos objetivo, no todos los miembros." }
+          ]
+        },
+        {
+          "heading": "Niveles de severidad",
+          "items": [
+            { "label": "Información", "value": "Chip azul. Avisos rutinarios. Severidad predeterminada." },
+            { "label": "Advertencia", "value": "Chip ámbar. Importante pero no urgente." },
+            { "label": "Crítico", "value": "Chip rojo. Urgente; generalmente se combina con Requerir Confirmación." }
+          ]
+        },
+        {
+          "heading": "Diálogo del registro de confirmaciones",
+          "items": [
+            { "label": "Conteo del encabezado", "value": "'N confirmado(s)' —cuántas personas han confirmado el anuncio." },
+            { "label": "Nota de confirmación requerida", "value": "Se muestra cuando el anuncio requería confirmación." },
+            { "label": "Lista del registro", "value": "Cada persona que confirmó, con su nombre y la fecha/hora en que confirmó (MM/dd/yyyy hh:mm)." },
+            { "label": "Estado vacío", "value": "'Aún no hay confirmaciones' cuando nadie ha confirmado." },
+            { "label": "Cerrar", "value": "Descarta el diálogo." }
+          ]
+        },
+        {
+          "heading": "Campos de plantilla (Diálogo Nueva Plantilla)",
+          "items": [
+            { "label": "Nombre (obligatorio)", "value": "Campo de texto, hasta 200 caracteres. Cómo aparece la plantilla en la lista de Plantillas y en el menú desplegable Plantilla." },
+            { "label": "Contenido (obligatorio)", "value": "Área de texto, hasta 5000 caracteres. El texto del cuerpo predeterminado que proporciona la plantilla." },
+            { "label": "Severidad Predeterminada (obligatorio)", "value": "Menú desplegable: Información, Advertencia, Crítico. La severidad precargada cuando se elige la plantilla." },
+            { "label": "Alcance Predeterminado (obligatorio)", "value": "Menú desplegable: Toda la Empresa, Equipos Seleccionados, Equipo Individual, Solo Líderes de Equipo. El alcance precargado cuando se elige la plantilla." },
+            { "label": "Requerir Confirmación de Forma Predeterminada", "value": "Interruptor. Si el interruptor de confirmación comienza activado cuando se usa esta plantilla." },
+            { "label": "Botón Crear Plantilla", "value": "Guarda la plantilla. Deshabilitado hasta que se completen el Nombre y el Contenido." }
+          ]
+        },
+        {
+          "heading": "Lista de plantillas — Columnas",
+          "items": [
+            { "label": "Nombre", "value": "Ordenable. El nombre de la plantilla." },
+            { "label": "Severidad", "value": "Ordenable. El chip de severidad predeterminada de la plantilla. Ancho: 100px." },
+            { "label": "Alcance", "value": "Ordenable. El alcance predeterminado de la plantilla. Ancho: 140px." },
+            { "label": "Conf. Requerida", "value": "'Sí' (chip de advertencia) o 'No' —la configuración de confirmación predeterminada de la plantilla. Ancho: 110px." },
+            { "label": "Acciones (ícono de eliminar)", "value": "Elimina la plantilla tras una confirmación. No afecta a los anuncios ya enviados. Ancho: 60px." }
+          ]
+        },
+        {
+          "heading": "Roles y permisos",
+          "items": [
+            { "label": "Enviar un anuncio", "value": "Administrador o Gerente." },
+            { "label": "Ver la lista de enviados y las confirmaciones", "value": "Administrador o Gerente." },
+            { "label": "Crear o eliminar una plantilla", "value": "Solo Administrador." },
+            { "label": "Recibir / confirmar anuncios", "value": "Cualquier usuario dentro del alcance del anuncio." }
+          ]
+        },
+        {
+          "heading": "Reglas de validación",
+          "items": [
+            { "label": "Título", "value": "Obligatorio. Máximo 200 caracteres." },
+            { "label": "Contenido", "value": "Obligatorio. Máximo 5000 caracteres." },
+            { "label": "Severidad", "value": "Obligatorio. Una de Información, Advertencia, Crítico." },
+            { "label": "Alcance", "value": "Obligatorio. Una de las cuatro opciones de alcance." },
+            { "label": "Equipos Objetivo", "value": "Obligatorio cuando el Alcance es un alcance basado en equipos (para que el anuncio tenga una audiencia definida)." },
+            { "label": "Nombre / Contenido de la plantilla", "value": "Ambos obligatorios. Nombre y Contenido con un máximo de 200 / 5000 caracteres respectivamente." }
+          ]
+        },
+        {
+          "heading": "Comportamiento en tiempo real",
+          "items": [
+            { "label": "Entrega instantánea", "value": "Un anuncio enviado se envía a su audiencia de inmediato (en tiempo real) y se muestra como un banner superpuesto." },
+            { "label": "Actualizaciones de lista en vivo", "value": "Los nuevos anuncios aparecen en la parte superior de la lista de enviados en tiempo real, incluidos los enviados por un colega mientras usted mira la lista." }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "announcements-admin-quiz",
+    "title": "Evaluación de Administración de Anuncios",
+    "summary": "Ponga a prueba su conocimiento del panel Administración > Anuncios: enviar un anuncio, alcance y severidad, el registro de confirmaciones y las plantillas.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 7,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "ann1",
+          "text": "¿Dónde redacta y gestiona los anuncios de la empresa?",
+          "options": [
+            { "id": "a", "text": "En el panel de Chat —escriba el mensaje en cualquier canal y márquelo como anuncio" },
+            { "id": "b", "text": "En Administración → Anuncios, que tiene una pestaña Anuncios y una pestaña Plantillas", "isCorrect": true },
+            { "id": "c", "text": "En Notificaciones → Preferencias" },
+            { "id": "d", "text": "En el Tablero, a través del widget de Anuncios" }
+          ],
+          "explanation": "Los anuncios se redactan y gestionan en el panel Administración > Anuncios (ruta /admin/announcements). Tiene dos pestañas —Anuncios (la lista de enviados + Nuevo Anuncio) y Plantillas. El canal de difusión del Chat muestra los anuncios, pero usted los redacta y gestiona aquí, no en el Chat."
+        },
+        {
+          "id": "ann2",
+          "text": "Desea que un aviso de seguridad Crítico llegue solo a los líderes de dos equipos específicos. ¿Qué Alcance elige?",
+          "options": [
+            { "id": "a", "text": "Toda la Empresa" },
+            { "id": "b", "text": "Equipos Seleccionados" },
+            { "id": "c", "text": "Solo Líderes de Equipo, luego elija los dos equipos en Equipos Objetivo", "isCorrect": true },
+            { "id": "d", "text": "Equipo Individual" }
+          ],
+          "explanation": "Solo Líderes de Equipo se dirige únicamente a los líderes de los equipos objetivo en lugar de a todos los miembros. El selector múltiple Equipos Objetivo aparece para que pueda elegir qué líderes de equipos lo reciben. (Equipos Seleccionados llegaría a todos los miembros de esos equipos, no solo a los líderes.)"
+        },
+        {
+          "id": "ann3",
+          "text": "¿Cuándo aparece el selector múltiple Equipos Objetivo en el diálogo Enviar Anuncio?",
+          "options": [
+            { "id": "a", "text": "Siempre —cada anuncio debe dirigirse al menos a un equipo" },
+            { "id": "b", "text": "Solo cuando el Alcance es Equipos Seleccionados o Equipo Individual (los alcances basados en equipos)", "isCorrect": true },
+            { "id": "c", "text": "Solo cuando la Severidad se establece en Crítico" },
+            { "id": "d", "text": "Solo después de elegir una plantilla" }
+          ],
+          "explanation": "Equipos Objetivo aparece solo para los alcances basados en equipos —Equipos Seleccionados y Equipo Individual— para que pueda definir qué equipos reciben el anuncio. Para Toda la Empresa no hay selección de equipo, y Solo Líderes de Equipo también muestra el selector de equipos para elegir a qué líderes se dirige."
+        },
+        {
+          "id": "ann4",
+          "text": "¿Cómo ve exactamente quién ha confirmado un anuncio que envió?",
+          "options": [
+            { "id": "a", "text": "Haga clic en la fila del anuncio (o en su ícono de ojo) para abrir el diálogo del registro de Confirmaciones", "isCorrect": true },
+            { "id": "b", "text": "Pase el cursor sobre el número de Confirmaciones para ver una lista en un tooltip" },
+            { "id": "c", "text": "Exporte el anuncio a CSV" },
+            { "id": "d", "text": "Revise el panel de Notificaciones para ver los acuses de lectura" }
+          ],
+          "explanation": "Hacer clic en una fila (o en el ícono de visibilidad/ojo) abre el diálogo Confirmaciones. Muestra un conteo de cuántos confirmaron, si se requería confirmación, y el nombre de cada persona con la fecha/hora en que confirmó."
+        },
+        {
+          "id": "ann5",
+          "text": "¿Qué hace realmente activar 'Requerir Confirmación'?",
+          "options": [
+            { "id": "a", "text": "Cambia la audiencia del anuncio solo a gerentes" },
+            { "id": "b", "text": "Hace que los destinatarios hagan clic para confirmar, de modo que el conteo de Confirmaciones y el registro se convierten en un seguimiento significativo", "isCorrect": true },
+            { "id": "c", "text": "Elimina automáticamente el anuncio una vez que todos lo leen" },
+            { "id": "d", "text": "Cambia el chip de severidad a rojo" }
+          ],
+          "explanation": "Requerir Confirmación hace que los destinatarios confirmen explícitamente el anuncio. Eso es lo que llena el conteo de Confirmaciones y el registro de confirmaciones, permitiéndole confirmar que un aviso llegó a las personas que necesitaban verlo. Sin ello, las personas simplemente leen el banner."
+        },
+        {
+          "id": "ann6",
+          "text": "Envía el mismo aviso de ventana de mantenimiento cada mes. ¿Cuál es la mejor manera de agilizarlo?",
+          "options": [
+            { "id": "a", "text": "Copie y pegue el texto de un mensaje de chat antiguo cada vez" },
+            { "id": "b", "text": "Cree una Plantilla en la pestaña Plantillas, luego elíjala en el menú desplegable Plantilla al enviar para precargar los campos", "isCorrect": true },
+            { "id": "c", "text": "Edite un anuncio enviado anteriormente y reenvíelo" },
+            { "id": "d", "text": "No hay reutilización —debe volver a escribirlo cada vez" }
+          ],
+          "explanation": "Guarde una Plantilla reutilizable (nombre, contenido predeterminado, severidad predeterminada, alcance predeterminado, configuración de confirmación predeterminada) en la pestaña Plantillas. Al enviar, elegir esa plantilla en el menú desplegable Plantilla precarga el Contenido, la Severidad, el Alcance y el interruptor de confirmación —puede editar cualquier campo antes de enviar."
+        },
+        {
+          "id": "ann7",
+          "text": "¿Qué controla la configuración de Severidad (Información / Advertencia / Crítico)?",
+          "options": [
+            { "id": "a", "text": "Quién recibe el anuncio" },
+            { "id": "b", "text": "La señal de urgencia y el color del chip —no cambia la audiencia", "isCorrect": true },
+            { "id": "c", "text": "Si el anuncio vence" },
+            { "id": "d", "text": "Si se requiere confirmación" }
+          ],
+          "explanation": "La severidad es una señal de urgencia y el color del chip (Información azul, Advertencia ámbar, Crítico rojo). Es independiente de la audiencia (eso es el Alcance), el vencimiento (Vence el) y la confirmación (Requerir Confirmación)."
+        },
+        {
+          "id": "ann8",
+          "text": "Un compañero envía un anuncio mientras usted mira la lista de anuncios enviados. ¿Qué sucede?",
+          "options": [
+            { "id": "a", "text": "Nada hasta que actualice manualmente la página" },
+            { "id": "b", "text": "Aparece en la parte superior de la lista en tiempo real", "isCorrect": true },
+            { "id": "c", "text": "Se cierra su sesión y debe volver a iniciarla para verlo" },
+            { "id": "d", "text": "Solo aparece después de que el anuncio vence" }
+          ],
+          "explanation": "La lista de anuncios enviados se actualiza en tiempo real. Un nuevo anuncio —incluido uno enviado por un colega mientras usted mira la lista— se envía a la parte superior sin una actualización manual."
+        },
+        {
+          "id": "ann9",
+          "text": "Elimina una plantilla de la pestaña Plantillas. ¿Qué sucede con los anuncios ya enviados desde ella?",
+          "options": [
+            { "id": "a", "text": "Se retiran de todos los que los recibieron" },
+            { "id": "b", "text": "No se ven afectados —eliminar una plantilla no toca los anuncios ya enviados", "isCorrect": true },
+            { "id": "c", "text": "Sus registros de confirmaciones se borran" },
+            { "id": "d", "text": "Pierden su severidad y se convierten en Información" }
+          ],
+          "explanation": "Eliminar una plantilla solo elimina el preajuste reutilizable. Los anuncios ya enviados desde ella permanecen en la lista de enviados con sus registros y severidad intactos —la plantilla es solo un punto de partida para redactar, no un vínculo en vivo con los envíos anteriores."
+        },
+        {
+          "id": "ann10",
+          "text": "¿Qué roles pueden crear y eliminar plantillas de anuncios?",
+          "options": [
+            { "id": "a", "text": "Cualquier usuario" },
+            { "id": "b", "text": "Solo Administrador", "isCorrect": true },
+            { "id": "c", "text": "Administrador o Gerente" },
+            { "id": "d", "text": "Líderes de equipo" }
+          ],
+          "explanation": "Enviar anuncios y ver la lista de enviados / las confirmaciones está abierto a Administrador o Gerente, pero crear y eliminar plantillas es solo para Administrador."
+        }
+      ]
+    }
+  }
+]

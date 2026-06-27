@@ -1014,5 +1014,220 @@
         }
       ]
     }
+  },
+  {
+    "slug": "customers-creating",
+    "title": "Creación de clientes",
+    "summary": "Las tres formas de crear un cliente — Agregar rápido, Convertir desde prospecto y Configuración guiada — y cómo recorrer el asistente guiado de clientes en /customers/new.",
+    "contentJson": {
+      "body": "## Creación de clientes\n\nHacer clic en **+ Nuevo cliente** en la página de lista de clientes no abre directamente un formulario. En su lugar, abre un pequeño **diálogo de bifurcación** que pregunta *cómo* desea crear el cliente. Hay tres rutas, y elegir la correcta ahorra tiempo.\n\n### La bifurcación de creación de tres vías\n\nAl hacer clic en **+ Nuevo cliente**, el diálogo de bifurcación presenta tres tarjetas:\n\n1. **Agregar rápido** (la opción destacada y principal — icono de rayo, insignia 'Más rápido'). Abre el diálogo plano original: Nombre, Nombre de la empresa, Correo electrónico, Teléfono, más Límite de crédito, Moneda predeterminada y direcciones de facturación/envío opcionales. Ideal cuando solo necesita el registro en el sistema *ahora* y completará el resto más tarde. Solo el **Nombre** es obligatorio.\n2. **Convertir desde prospecto** (icono de agregar persona). Abre un **selector de prospectos**: busque entre sus prospectos existentes, haga clic en uno y el sistema ejecuta una conversión de un solo clic que crea el cliente, vincula el prospecto de origen y traslada sus contactos y preferencias de comunicación en una sola transacción. Úselo siempre que ya exista un prospecto para no volver a teclear los datos de la empresa y el contacto.\n3. **Configuración guiada** (icono de ajuste). Dirige al asistente guiado de varios pasos en `/customers/new`. Ideal para un cliente nuevo que merece una incorporación minuciosa y estructurada (términos de crédito, exención fiscal, direcciones capturadas desde el inicio).\n\nHaga clic en **Cancelar** para salir de la bifurcación sin crear nada.\n\n### Ruta 1 — Agregar rápido\n\nEl diálogo rápido es una sola pantalla. Introduzca el **Nombre** (obligatorio) y, opcionalmente, Nombre de la empresa, Correo electrónico, Teléfono, Límite de crédito, Moneda predeterminada y una dirección de facturación o envío. El botón **Guardar** permanece deshabilitado hasta que el formulario sea válido; el icono de advertencia de validación junto a él enumera lo que necesita atención. Tras guardar, llega a la página de detalle del nuevo cliente.\n\nLos nuevos clientes se crean **Activos** de forma predeterminada, por lo que un registro recién creado sin negocio abierto muestra el conjunto de pestañas de **Prospecto** hasta que comience el negocio.\n\n### Ruta 2 — Convertir desde prospecto\n\nElegir **Convertir desde prospecto** abre el selector de prospectos. Escriba en el cuadro de búsqueda para filtrar por empresa o contacto, luego haga clic en la fila del prospecto (muestra el chip de estado del prospecto y su forma de interacción). La conversión es de **un solo clic**: ya no hay un asistente de varios pasos para crédito/impuestos/direcciones en el medio. El servidor crea el cliente de forma atómica y lo lleva a la página del nuevo cliente. Complete el límite de crédito, los impuestos y las direcciones después, en la página de detalle, usando los flujos de edición normales.\n\n### Ruta 3 — Asistente de configuración guiada (/customers/new)\n\nEl asistente guiado usa el shell de flujo de trabajo compartido (el mismo paso a paso de pastillas y chevrones que se usa para Piezas y Proveedores). Tiene cuatro pasos:\n\n1. **Identidad** (obligatorio) — Nombre (obligatorio), Nombre de la empresa, Correo electrónico, Teléfono. Este paso materializa el registro del cliente al primer guardado.\n2. **Direcciones** (opcional) — capture las direcciones de facturación y envío desde el inicio.\n3. **Crédito e impuestos** (opcional) — Límite de crédito, Moneda predeterminada y un conmutador de Exento de impuestos. Activar **Exento de impuestos** revela un campo obligatorio de **ID de exención fiscal**.\n4. **Revisión** (obligatorio) — un resumen de solo lectura de todo lo introducido. Confirme para finalizar.\n\nEl asistente ofrece un conmutador de modo **Exprés** que colapsa los pasos en una sola pantalla para los usuarios que quieren completarlo todo de una vez. Cada paso se guarda a medida que avanza, y la URL contiene el estado de la ejecución (`?workflow=customer-guided-v1&step=…`) para que pueda actualizar o compartir el enlace en curso sin perder el trabajo.\n\n### ¿Qué ruta debo usar?\n\n- **¿Solo necesita el registro rápido?** Agregar rápido.\n- **¿Ya existe un prospecto?** Convertir desde prospecto: nunca vuelva a teclear lo que ya capturó durante la captación.\n- **¿Una cuenta nueva importante que quiere configurar correctamente?** Configuración guiada.\n\nLas tres rutas terminan en el mismo lugar: la página de detalle del cliente, donde las pestañas según el ciclo de vida toman el control.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "customers-creating-walkthrough",
+    "title": "Creación de clientes — Recorrido guiado",
+    "summary": "Un recorrido guiado por el diálogo de bifurcación de Nuevo cliente: dónde está el botón y qué hacen las opciones Agregar rápido, Convertir desde prospecto y Configuración guiada.",
+    "contentJson": {
+      "appRoute": "/customers",
+      "startButtonLabel": "Recorrer la creación de un cliente",
+      "steps": [
+        {
+          "element": "[data-testid='new-customer-btn']",
+          "popover": {
+            "title": "Empiece aquí: + Nuevo cliente",
+            "description": "Haga clic en este botón para comenzar a crear un cliente. NO abre un formulario de inmediato; en su lugar, abre un diálogo de bifurcación que pregunta cómo desea crear el cliente. Haga clic ahora para ver las tres opciones.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='customer-fork-quick']",
+          "popover": {
+            "title": "Agregar rápido (Más rápido)",
+            "description": "La opción principal destacada. Abre un único diálogo plano donde solo el Nombre es obligatorio. Elija esta opción cuando solo necesite el registro en el sistema ahora y completará los detalles más tarde. Los nuevos clientes se crean Activos de forma predeterminada.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='customer-fork-fromLead']",
+          "popover": {
+            "title": "Convertir desde prospecto",
+            "description": "Abre un selector de prospectos. Busque entre sus prospectos existentes, haga clic en uno y una conversión de un solo clic crea el cliente, vincula el prospecto de origen y traslada sus contactos, sin volver a teclear. Úselo siempre que ya exista un prospecto.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='customer-fork-guided']",
+          "popover": {
+            "title": "Configuración guiada",
+            "description": "Dirige al asistente de varios pasos en /customers/new: Identidad, Direcciones, Crédito e impuestos y Revisión. Ideal para una cuenta nueva importante que quiere configurar a fondo. Un conmutador Exprés colapsa los pasos en una sola pantalla.",
+            "side": "bottom"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "customers-pricing",
+    "title": "Precios específicos del cliente",
+    "summary": "Cómo funciona la pestaña Precios: crear listas de precios negociados, agregar entradas de descuento por cantidad, editar precios en línea e importar entradas de forma masiva desde CSV.",
+    "contentJson": {
+      "body": "## Precios específicos del cliente\n\nLa pestaña **Precios** en la página de detalle de un cliente es donde registra los precios negociados que recibe ese cliente, anulando el precio estándar del catálogo. Aparece para clientes **Activos** (los Gerentes de Oficina la usan para ajustar precios específicos del cliente en contexto). Los clientes Prospecto y Archivado no muestran la pestaña Precios.\n\n### Listas de precios\n\nUn cliente puede tener una o más **listas de precios**. Una lista de precios es un contenedor con nombre, con fechas de validez opcionales y un indicador de predeterminada.\n\n- Haga clic en **+ Nueva lista** para crear una. El diálogo captura **Nombre** (obligatorio), Descripción, un rango de fechas **Válido desde** y **Válido hasta**, un conmutador **Predeterminada** y un conmutador **Activa**.\n- Si un cliente tiene más de una lista, aparece un menú desplegable **selector de listas** en el encabezado de la pestaña para que pueda cambiar entre ellas.\n- El encabezado muestra el nombre de la lista seleccionada y su rango de validez (o 'Always'/Siempre cuando ambas fechas están en blanco).\n- Use el icono de **editar** (lápiz) para cambiar los metadatos de la lista, o el icono de **eliminar** (papelera) para quitarla. Eliminar una lista que tiene entradas le advierte cuántas entradas se eliminarán.\n- Cuando aún no existe ninguna lista, un estado vacío ofrece **Crear primera lista**.\n\n### Entradas de la lista de precios (descuentos por cantidad)\n\nCada lista de precios contiene **entradas**. Una entrada vincula una **pieza** a un **precio unitario** a partir de una **cantidad mínima**: así funcionan los precios por volumen (descuento por cantidad): gana la entrada cuya cantidad mínima sea el valor más alto que aún sea ≤ a la cantidad pedida.\n\n- Haga clic en **+ Agregar** para abrir el diálogo de entrada. Elija la **Pieza** (búsqueda por escritura anticipada; incluso puede crear una nueva pieza en línea), introduzca el **Precio unitario** (obligatorio), la **Cantidad mínima** (obligatoria — el umbral de cantidad al que se aplica este precio) y la **Moneda** (obligatoria). Un campo opcional de **Notas** captura el contexto.\n- En una entrada existente, la **Pieza** está bloqueada; para volver a poner precio a otra pieza, agregue una nueva entrada.\n- **Edición de celda en línea:** en la tabla de entradas puede hacer clic directamente en una celda de **Cantidad mínima** o **Precio unitario** para editarla en el lugar. Presione **Enter** para confirmar o **Escape** para cancelar; un pequeño indicador giratorio se muestra al guardar y aparece un marcador de error si el valor es inválido. Esta es la forma más rápida de ajustar un solo número sin abrir el diálogo.\n- Cada fila también tiene botones de icono de **editar** y **eliminar** para ediciones de diálogo completo y eliminaciones.\n\n### Importación masiva desde CSV\n\nCuando tiene muchas entradas que cargar, use **Importar** (el botón de archivo de carga en el encabezado de entradas):\n\n1. **Elija un archivo** — arrastre un `.csv` a la zona de soltado o haga clic en **Examinar**. Un enlace **Descargar plantilla** le proporciona el diseño de columnas correcto.\n2. **Vista previa** — el sistema analiza el archivo y muestra una tabla de vista previa con un resumen de cuántas filas se **agregarán**, **actualizarán** o están en **error**. Cada fila se etiqueta con su acción; las filas con error muestran el motivo (p. ej., número de pieza desconocido, precio incorrecto).\n3. **Aplicar** — el botón Aplicar está deshabilitado mientras alguna fila esté en error. Corrija el archivo y vuelva a cargarlo, o continúe una vez que esté limpio. Use **Atrás** para volver al selector de archivos.\n\nLas entradas importadas se emparejan con las entradas existentes por pieza + cantidad mínima, de modo que volver a importar un archivo actualizado actualiza las filas coincidentes en lugar de duplicarlas.\n\n### Cómo se usan los precios aguas abajo\n\nEstos precios negociados alimentan el resto del flujo de cotización a cobro: cuando agrega una línea a una Orden de venta (o Cotización) para este cliente y selecciona una pieza, el precio unitario de la línea se autocompleta a partir de la entrada de la lista de precios aplicable del cliente para la cantidad pedida. Eso mantiene los precios negociados consistentes sin que nadie tenga que volver a teclearlos en cada orden.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "customers-pricing-field-reference",
+    "title": "Referencia de campos de Precios del cliente",
+    "summary": "Referencia de la pestaña Precios: campos de la lista de precios, campos de entrada, comportamiento de edición en línea, el flujo de importación masiva por CSV y cómo se resuelven las listas de precios en las líneas de orden.",
+    "contentJson": {
+      "title": "Referencia de campos de Precios del cliente",
+      "groups": [
+        {
+          "heading": "Dónde encontrarlo",
+          "items": [
+            {
+              "label": "Pestaña Precios",
+              "value": "En la página de detalle del cliente, solo para clientes Activos. Ruta: /customers/:id/pricing. Oculta para clientes Prospecto y Archivado."
+            },
+            {
+              "label": "Quién la usa",
+              "value": "Los Gerentes de Oficina (y Administrador/Gerente) ajustan las listas de precios específicas del cliente en contexto."
+            }
+          ]
+        },
+        {
+          "heading": "Campos del formulario de lista de precios",
+          "items": [
+            {
+              "label": "Nombre (obligatorio)",
+              "value": "Entrada de texto, máximo 100 caracteres. Identifica la lista de precios (p. ej., 'Precios de contrato 2026')."
+            },
+            {
+              "label": "Descripción",
+              "value": "Área de texto, 2 filas, opcional. Notas libres sobre la lista."
+            },
+            {
+              "label": "Válido desde",
+              "value": "Selector de fecha, opcional. Inicio de la ventana de fechas en que se aplica la lista."
+            },
+            {
+              "label": "Válido hasta",
+              "value": "Selector de fecha, opcional. Fin de la ventana. El encabezado muestra 'Siempre' cuando ambas fechas están en blanco, 'Desde X' / 'Hasta Y' cuando solo se establece una."
+            },
+            {
+              "label": "Predeterminada",
+              "value": "Conmutador. Marca esta como la lista de precios predeterminada del cliente; se selecciona automáticamente cuando se abre la pestaña."
+            },
+            {
+              "label": "Activa",
+              "value": "Conmutador. Las listas inactivas se conservan pero no se aplican."
+            }
+          ]
+        },
+        {
+          "heading": "Campos del formulario de entrada de lista de precios",
+          "items": [
+            {
+              "label": "Pieza",
+              "value": "Selector de entidad por escritura anticipada (búsqueda por número/nombre de pieza). Obligatorio. Puede crear una nueva pieza en línea. Bloqueado al editar una entrada existente."
+            },
+            {
+              "label": "Precio unitario (obligatorio)",
+              "value": "Entrada de moneda. El precio negociado por unidad en este descuento por cantidad."
+            },
+            {
+              "label": "Cantidad mínima (obligatoria)",
+              "value": "Entrada numérica. El umbral de cantidad al que se aplica este precio. Gana la Cantidad mínima más alta que aún sea <= a la cantidad pedida."
+            },
+            {
+              "label": "Moneda (obligatoria)",
+              "value": "Menú desplegable de selección. La moneda del precio de esta entrada."
+            },
+            {
+              "label": "Notas",
+              "value": "Área de texto, 3 filas, opcional. Contexto para la entrada."
+            }
+          ]
+        },
+        {
+          "heading": "Edición de celda en línea",
+          "items": [
+            {
+              "label": "Celdas editables",
+              "value": "Columnas de Cantidad mínima y Precio unitario. Haga clic en la celda para editarla en el lugar."
+            },
+            {
+              "label": "Confirmar / cancelar",
+              "value": "Enter confirma; Escape cancela. Un indicador giratorio se muestra al guardar; aparece un marcador de error (!) con información sobre herramientas en valores inválidos."
+            },
+            {
+              "label": "Acciones de fila",
+              "value": "Editar (lápiz) abre el diálogo de entrada completo; Eliminar (papelera) quita la entrada tras confirmación."
+            }
+          ]
+        },
+        {
+          "heading": "Importación masiva por CSV",
+          "items": [
+            {
+              "label": "Botón Importar",
+              "value": "Botón de archivo de carga en el encabezado de entradas. Abre el diálogo de importación de dos pasos para la lista seleccionada."
+            },
+            {
+              "label": "Descargar plantilla",
+              "value": "Enlace en el paso de selección de archivo que descarga un CSV con el diseño de columnas correcto."
+            },
+            {
+              "label": "Resumen de vista previa",
+              "value": "Tras el análisis, muestra conteos de filas para Agregar, Actualizar y filas en Error. Cada fila de vista previa se etiqueta con su acción y cualquier mensaje de error."
+            },
+            {
+              "label": "Aplicar",
+              "value": "Deshabilitado mientras alguna fila esté en error. Aplica la importación; el emparejamiento es por pieza + cantidad mínima, de modo que las reimportaciones actualizan en lugar de duplicar."
+            },
+            {
+              "label": "Atrás / Cancelar",
+              "value": "Atrás vuelve al selector de archivos desde la vista previa; Cancelar cierra el diálogo."
+            }
+          ]
+        },
+        {
+          "heading": "Gestión de listas",
+          "items": [
+            {
+              "label": "+ Nueva lista",
+              "value": "Crea una lista de precios. El estado vacío muestra 'Crear primera lista' cuando no existe ninguna."
+            },
+            {
+              "label": "Selector de listas",
+              "value": "El menú desplegable aparece en el encabezado solo cuando el cliente tiene más de una lista."
+            },
+            {
+              "label": "Editar / Eliminar lista",
+              "value": "Iconos de lápiz y papelera en el encabezado de entradas. Eliminar una lista con entradas advierte primero sobre el conteo de entradas."
+            }
+          ]
+        },
+        {
+          "heading": "Uso aguas abajo",
+          "items": [
+            {
+              "label": "Autocompletado de línea de orden/cotización",
+              "value": "Seleccionar una pieza en una línea de Orden de venta o Cotización para este cliente autocompleta el precio unitario a partir de la entrada de la lista de precios aplicable para la cantidad pedida."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "customers-portal-access",
+    "title": "Acceso al portal del cliente",
+    "summary": "Cómo aprovisionar, habilitar y deshabilitar inicios de sesión del portal externo para los contactos del cliente desde la página de administración /customers/portal-access.",
+    "contentJson": {
+      "body": "## Acceso al portal del cliente\n\nLa página **Acceso al portal** (`/customers/portal-access`) es la superficie de administración entre clientes para otorgar a los contactos de sus clientes un inicio de sesión en el portal externo del cliente. Desde una sola pantalla puede ver quién tiene acceso, aprovisionar nuevos inicios de sesión y activar o desactivar el acceso.\n\n### El registro de acceso\n\nLa página es una sola tabla que enumera todos los contactos que han sido aprovisionados, con columnas:\n- **Nombre del contacto** (formato Apellido, Nombre)\n- **Cliente** — la empresa a la que pertenece el contacto\n- **Correo electrónico** — el identificador de inicio de sesión del portal (el correo electrónico del contacto *es* su nombre de usuario)\n- **Último inicio de sesión** — fecha/hora de su último inicio de sesión en el portal, o 'Nunca inició sesión' si aún no lo ha hecho\n- **Creado** — cuándo se aprovisionó el acceso\n- **Habilitado** — un conmutador para activar o desactivar el inicio de sesión\n\nHaga clic en una fila para saltar a la pestaña **Contactos** de ese cliente. La tabla es buscable y ordenable como cualquier otra tabla de datos.\n\n### Aprovisionar acceso para un contacto\n\nHaga clic en **Aprovisionar acceso al portal** para abrir el diálogo de aprovisionamiento:\n\n1. El diálogo carga la lista de **contactos elegibles**: estos son contactos que tienen una **dirección de correo electrónico** (obligatoria, ya que el correo electrónico es el identificador de inicio de sesión) y que **aún no** tienen una fila de acceso al portal.\n2. Elija un contacto del menú desplegable y confirme. El sistema crea el registro de acceso al portal (la operación es idempotente, por lo que aprovisionar un contacto que ya tiene acceso es seguro).\n3. Si no hay contactos elegibles, el diálogo se lo indica; esto generalmente significa que todos los contactos con correo electrónico ya tienen acceso, o que ningún contacto tiene un correo electrónico registrado todavía. Agregue un correo electrónico al contacto primero (en la pestaña Contactos del cliente), luego aprovisione.\n\n### Habilitar y deshabilitar el acceso\n\nEl conmutador **Habilitado** en cada fila activa o desactiva el inicio de sesión del portal de un contacto sin eliminar el registro:\n- Desactívelo para revocar de inmediato la capacidad de un contacto de iniciar sesión (p. ej., dejó la empresa) mientras conserva el rastro de auditoría y el historial de último inicio de sesión.\n- Actívelo para restaurar el acceso.\n- El conmutador se deshabilita brevemente mientras se guarda el cambio, y un mensaje de confirmación nombra al contacto afectado.\n\n### Puntos clave\n\n- **El correo electrónico es obligatorio** — un contacto sin correo electrónico no puede ser aprovisionado, porque el portal usa el correo electrónico como nombre de usuario.\n- **El aprovisionamiento es por contacto, no por cliente** — cada persona individual obtiene su propio inicio de sesión. Una sola empresa cliente puede tener varios usuarios del portal.\n- **Deshabilitar es reversible** — conserva el registro y el historial; no está reaprovisionando desde cero al volver a habilitar.\n- **El registro es entre clientes** — esta página muestra los usuarios del portal de todos los clientes en un solo lugar, por lo que reside bajo el centro de Clientes en lugar de en la página de detalle de un solo cliente.",
+      "sections": []
+    }
   }
 ]

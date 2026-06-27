@@ -249,5 +249,175 @@
         }
       ]
     }
+  },
+  {
+    "slug": "onboarding-wizard-overview",
+    "title": "Asistente de incorporación de nuevos empleados",
+    "summary": "El asistente de documentación de nuevos empleados de 7 pasos en /onboarding: Datos personales, Dirección, W-4, Retención estatal, I-9, Depósito directo y Reconocimientos — qué recopila cada paso y cómo se guarda el progreso.",
+    "contentJson": {
+      "body": "## Asistente de incorporación de nuevos empleados\n\nCuando inicia sesión por primera vez como nuevo empleado, QB Engineer lo lleva al asistente de incorporación en **/onboarding**. Es un único formulario guiado que recopila toda la documentación estándar de un nuevo empleado en un solo lugar: los mismos documentos que llenaría en papel su primer día, pero escritos una sola vez y reutilizados en todas partes. Tiene **siete pasos**, mostrados como una barra de pasos numerada en la parte superior.\n\n### Cómo funciona el asistente\n\n- **Un paso a la vez.** Cada paso es un formulario enfocado. El botón **Continuar** en la parte inferior derecha lo hace avanzar; **Atrás** regresa al paso anterior. También puede hacer clic en el número de un paso completado en la barra para volver a él.\n- **No puede saltarse trabajo sin terminar.** Continuar permanece deshabilitado hasta que los campos requeridos del paso actual sean válidos. Un pequeño icono de advertencia junto al botón enumera exactamente lo que falta — haga clic en él para ver la lista.\n- **La URL rastrea su paso** (`/onboarding?step=0` hasta `?step=6`). Actualizar la página o volver más tarde lo devuelve a donde lo dejó — sus respuestas se guardan en un borrador seguro del lado del servidor a medida que avanza, no solo en el navegador.\n- **Los valores sensibles se almacenan de forma segura.** Su número de Seguro Social, los números de ruta/cuenta bancaria y los números de documento del I-9 se cifran. Cuando regrese a un paso que ya tiene uno guardado, verá una nota de bloqueo de **\"Almacenado de forma segura\"** en lugar del valor — deje el campo en blanco para conservar lo guardado, o escriba un valor nuevo para sobrescribirlo.\n\n### Los siete pasos\n\n**1. Información personal** — Su nombre legal (nombre, segundo nombre, apellido), cualquier otro apellido usado, fecha de nacimiento, número de Seguro Social, correo electrónico y teléfono. El nombre y el correo electrónico pueden estar ya completados desde su cuenta.\n\n**2. Domicilio** — Calle, ciudad, estado y código postal. Su **estado** aquí importa: determina si el Paso 4 (Retención estatal) le aplica.\n\n**3. Retención de impuestos federales (W-4)** — Sus elecciones del Formulario W-4 del IRS: estado civil para efectos de la declaración, la casilla de múltiples empleos, dependientes (el asistente multiplica los hijos calificados × $2,000 y otros dependientes × $500 y le muestra el total del crédito acumulado), ajustes opcionales de otros ingresos/deducciones/retención adicional, y un interruptor de exención de retención.\n\n**4. Retención estatal** — El equivalente estatal del W-4. Si vive en un **estado sin impuesto sobre la renta** (Alaska, Florida, Nevada, Dakota del Sur, Tennessee, Texas, Washington, Wyoming), el asistente lo detecta a partir de su dirección del Paso 2 y muestra un aviso verde de \"no hay nada que hacer aquí\" — solo continúa. De lo contrario, establece su estado civil estatal, asignaciones, cualquier retención adicional y un interruptor de exención.\n\n**5. Elegibilidad de empleo I-9** — Sección 1 del Formulario I-9 federal. Usted declara su estado de ciudadanía/autorización de trabajo y luego comprueba su identidad y autorización de trabajo proporcionando **ya sea un documento de la Lista A** (p. ej., pasaporte de EE. UU. — comprueba ambos) **o un documento de la Lista B más uno de la Lista C** (p. ej., licencia de conducir + tarjeta de Seguro Social). Para cada documento elige el tipo, ingresa el número de documento y la autoridad emisora, opcionalmente una fecha de vencimiento, y **carga una foto o un PDF** del mismo. Hay disponible una sección de preparador/traductor si alguien le ayudó a completar el formulario.\n\n**6. Depósito directo** — El nombre de su banco, el número de ruta de 9 dígitos, el número de cuenta y el tipo de cuenta (Corriente o de Ahorros) para que nómina pueda pagarle electrónicamente. Un pequeño diagrama de un cheque muestra dónde encontrar los números de ruta y de cuenta.\n\n**7. Reconocimientos** — Confirma que ha revisado las políticas requeridas. El reconocimiento de **Compensación al Trabajador** siempre es obligatorio; un reconocimiento del **Manual del Empleado** aparece solo si su empleador ha cargado un manual. Cada uno muestra un enlace al documento y luego un interruptor para confirmar.\n\n### Para terminar: Enviar y firmar\n\nEl botón final es **Enviar y firmar**. Guarda todos sus datos y luego lo lleva al flujo de revisión y firma, donde obtiene una vista previa de cada formulario completado (W-4, I-9, formulario estatal) y lo firma electrónicamente. Consulte el módulo **Revisar y firmar electrónicamente sus formularios** para esa parte. Una vez firmados todos los formularios, llega a una pantalla de finalización con un botón para ir a su panel.\n\n### Si necesita detenerse\n\nNo tiene que terminar de una sola vez. Como su progreso se guarda en el servidor después de cada paso, puede cerrar la pestaña y volver — incluso en otro dispositivo — y continuar donde lo dejó. Nada es definitivo hasta que envíe y firme.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "onboarding-wizard-walkthrough",
+    "title": "Asistente de incorporación de nuevos empleados — Recorrido guiado",
+    "summary": "Un recorrido guiado por el asistente de incorporación: la barra de pasos, los campos del primer paso, el indicador de almacenamiento seguro y las acciones Continuar / Enviar y firmar.",
+    "contentJson": {
+      "appRoute": "/onboarding",
+      "startButtonLabel": "Recorrer el asistente",
+      "steps": [
+        {
+          "element": ".onboarding__header",
+          "popover": {
+            "title": "Incorporación de nuevos empleados",
+            "description": "Este es el asistente de incorporación. Recopila toda su documentación estándar de nuevo empleado —datos personales, formularios fiscales (W-4 y estatal), elegibilidad de empleo I-9, depósito directo y reconocimientos de políticas— en un solo flujo guiado. Solo escribe cada cosa una vez.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".onboarding__stepper",
+          "popover": {
+            "title": "Los siete pasos",
+            "description": "La barra numerada en la parte superior muestra los siete pasos: Personal, Dirección, Impuestos federales (W-4), Impuestos estatales, I-9, Depósito directo y Reconocimientos. El paso resaltado es donde se encuentra ahora. Una vez que haya completado un paso, puede hacer clic en su número para volver y editarlo.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".step-content",
+          "popover": {
+            "title": "Un paso a la vez",
+            "description": "Cada paso es un formulario enfocado. Complete los campos y luego use Continuar para avanzar. Sus respuestas se guardan en un borrador seguro del lado del servidor a medida que avanza — si cierra la pestaña y vuelve más tarde, incluso en otro dispositivo, regresará aquí mismo.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "[data-testid='onboarding-ssn']",
+          "popover": {
+            "title": "Campos almacenados de forma segura",
+            "description": "Los valores sensibles como su número de Seguro Social, los números bancarios y los números de documento del I-9 se cifran. Cuando regrese a un paso que ya tiene uno guardado, verá una nota de bloqueo de 'Almacenado de forma segura' — deje el campo en blanco para conservarlo, o escriba un valor nuevo para sobrescribirlo.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".onboarding__actions",
+          "popover": {
+            "title": "Continuar — y Enviar y firmar",
+            "description": "Continuar avanza al siguiente paso; permanece deshabilitado hasta que los campos requeridos del paso actual sean válidos (el icono de advertencia enumera lo que falta). En el último paso, esto se convierte en 'Enviar y firmar', que guarda todo y lo lleva al flujo de revisión y firma de sus formularios fiscales y del I-9.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "onboarding-review-esign",
+    "title": "Revisar y firmar electrónicamente sus formularios",
+    "summary": "Después de enviar el asistente de incorporación, revise cada formulario precompletado (W-4, I-9, retención estatal) como PDF y fírmelo electrónicamente. Cómo funciona el ciclo de vista previa → firma por formulario y cómo corregir un error antes de firmar.",
+    "contentJson": {
+      "body": "## Revisar y firmar electrónicamente sus formularios\n\nCuando hace clic en **Enviar y firmar** en el último paso del asistente de incorporación, QB Engineer guarda todos sus datos y luego lo guía para revisar y firmar electrónicamente cada formulario oficial que generaron sus entradas — normalmente su **W-4**, su **formulario de retención estatal** y su **I-9**. Los firma uno a la vez.\n\n### La franja de progreso\n\nEn la parte superior de esta pantalla hay una fila con los nombres de los formularios e iconos de estado — uno por cada formulario que necesita firmar. El formulario en el que se encuentra actualmente está resaltado, los formularios terminados obtienen una marca de verificación y los formularios pendientes muestran un círculo vacío. Este es su mapa a través del flujo de firma.\n\n### Paso 1 — Vista previa del formulario completado\n\nPara cada formulario, el asistente primero le muestra una **vista previa**: el PDF gubernamental real, completado con las respuestas que escribió en el asistente, representado directamente en el navegador. Léalo con atención. Todo lo que contiene proviene de sus entradas en el asistente — esta es su oportunidad de detectar un error tipográfico antes de que quede en un documento firmado.\n\nSi un formulario no tiene una plantilla PDF configurada, verá en su lugar un breve **resumen** de los valores clave (por ejemplo, su estado civil del W-4, o su selección de ciudadanía del I-9 y qué documentos proporcionó) para que aún pueda confirmarlos antes de firmar.\n\n### ¿Encontró un error? Vuelva a editar\n\nSi la vista previa está mal, haga clic en **Volver a editar**. Eso lo saca del flujo de firma y lo regresa al asistente para que pueda corregirlo. (Aterrizará en el paso de Reconocimientos; desde ahí use el botón Atrás del asistente para llegar al paso del W-4, el I-9 o el estatal que necesita cambiar.) Luego envíe de nuevo — la vista previa se regenera a partir de sus respuestas corregidas.\n\n### Paso 2 — Firmar\n\nCuando la vista previa se vea bien, haga clic en **Firmar formulario**. El asistente carga una sesión de firma segura (con tecnología de DocuSeal, incrustada en la página) donde aplica su firma. Cuando complete la firma, el asistente marca automáticamente ese formulario como terminado y avanza al siguiente — de vuelta a una vista previa, luego firmar, y así sucesivamente.\n\nMientras está en la vista de firma, puede hacer clic en **Volver a la vista previa** para ver el PDF completado de nuevo antes de confirmar.\n\n### Para finalizar\n\nDespués de firmar el último formulario, llega a la **pantalla de finalización** — una confirmación de que la incorporación está completa, con un botón para ir a su panel. Sus formularios firmados se almacenan en su registro; un administrador o gerente puede completar después cualquier parte del lado del empleador (como la Sección 2 del I-9).\n\n### Si se interrumpe\n\nEl flujo de firma recuerda dónde está. Si actualiza la página o cierra la pestaña a mitad de la firma, será devuelto al mismo formulario y fase (vista previa o firma) en lugar de al inicio del asistente — para que nunca tenga que rehacer firmas que ya completó.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "onboarding-wizard-quiz",
+    "title": "Evaluación de conocimientos del asistente de incorporación",
+    "summary": "Ponga a prueba su comprensión del asistente de incorporación de nuevos empleados: los siete pasos, el W-4 y el I-9, los campos almacenados de forma segura, el guardado del progreso y el flujo de revisión y firma.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 8,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "ow1",
+          "text": "¿Cuántos pasos tiene el asistente de incorporación de nuevos empleados y cómo se desplaza por ellos?",
+          "options": [
+            { "id": "a", "text": "Siete pasos; use el botón Continuar (o haga clic en el número de un paso completado) para avanzar, y Atrás para regresar", "isCorrect": true },
+            { "id": "b", "text": "Tres pasos, todos en una sola página con desplazamiento" },
+            { "id": "c", "text": "Siete pasos, pero debe completarlos de una sola vez sin posibilidad de retroceder" },
+            { "id": "d", "text": "Tantos pasos como requiera su función — varía según el usuario" }
+          ],
+          "explanation": "El asistente tiene siete pasos mostrados en una barra de pasos numerada: Personal, Dirección, W-4, Retención estatal, I-9, Depósito directo y Reconocimientos. Continuar lo hace avanzar, Atrás regresa, y puede hacer clic en el número de un paso completado para volver y editarlo."
+        },
+        {
+          "id": "ow2",
+          "text": "Vuelve al asistente de incorporación al día siguiente. ¿Qué encuentra?",
+          "options": [
+            { "id": "a", "text": "Tiene que empezar de nuevo — la incorporación no se puede pausar" },
+            { "id": "b", "text": "Su progreso se restaura desde un borrador seguro del lado del servidor, devolviéndolo a donde lo dejó", "isCorrect": true },
+            { "id": "c", "text": "Solo se conservan los pasos que completó en la sesión del navegador; todo lo demás se pierde" },
+            { "id": "d", "text": "Un gerente debe volver a habilitar el asistente antes de que pueda continuar" }
+          ],
+          "explanation": "El asistente guarda sus respuestas en un borrador seguro del lado del servidor a medida que completa cada paso, y la URL rastrea su paso. Puede cerrar la pestaña y volver — incluso en otro dispositivo — y continuar justo donde se detuvo. Nada es definitivo hasta que envíe y firme."
+        },
+        {
+          "id": "ow3",
+          "text": "Vuelve al paso Personal y el campo del SSN está en blanco con una nota de bloqueo de 'Almacenado de forma segura'. ¿Qué significa y qué debe hacer?",
+          "options": [
+            { "id": "a", "text": "Su SSN se perdió y debe volver a ingresarlo" },
+            { "id": "b", "text": "Su SSN ya está guardado y cifrado — deje el campo en blanco para conservarlo, o escriba un valor nuevo solo si necesita sobrescribirlo", "isCorrect": true },
+            { "id": "c", "text": "El campo está dañado y debe contactar a un administrador" },
+            { "id": "d", "text": "Debe volver a ingresar el SSN cada vez que visite el paso" }
+          ],
+          "explanation": "Los valores sensibles (SSN, números de ruta/cuenta bancaria, números de documento del I-9) se cifran y nunca se envían de vuelta al navegador. El indicador 'Almacenado de forma segura' significa que ya hay un valor guardado. Deje el campo en blanco para conservarlo; escriba un valor nuevo solo para sobrescribir."
+        },
+        {
+          "id": "ow4",
+          "text": "En el paso de Retención estatal ve un aviso verde que dice que no hay nada que completar. ¿Por qué?",
+          "options": [
+            { "id": "a", "text": "Su empleador deshabilitó la retención estatal para todos los empleados" },
+            { "id": "b", "text": "La dirección que ingresó está en un estado sin impuesto sobre la renta, por lo que no se necesita un formulario de retención estatal", "isCorrect": true },
+            { "id": "c", "text": "Ya completó el W-4 federal, que reemplaza el formulario estatal" },
+            { "id": "d", "text": "La retención estatal solo es obligatoria para los gerentes" }
+          ],
+          "explanation": "El asistente lee el estado a partir de su dirección del Paso 2. Para los estados sin impuesto sobre la renta (Alaska, Florida, Nevada, Dakota del Sur, Tennessee, Texas, Washington, Wyoming) no hay formulario de retención estatal, por lo que muestra un aviso verde y usted simplemente continúa."
+        },
+        {
+          "id": "ow5",
+          "text": "En el paso del I-9, ¿cómo comprueba su identidad y autorización de trabajo?",
+          "options": [
+            { "id": "a", "text": "Proporcionando solo su SSN — no se necesitan documentos" },
+            { "id": "b", "text": "Proporcionando ya sea un documento de la Lista A, O un documento de la Lista B más uno de la Lista C — y cargando una foto/PDF de cada uno", "isCorrect": true },
+            { "id": "c", "text": "Cargando tres documentos de cualquier lista" },
+            { "id": "d", "text": "Los documentos los recopila RR. HH. más tarde; el asistente solo registra su nombre" }
+          ],
+          "explanation": "El Formulario I-9 requiere ya sea un único documento de la Lista A (que comprueba tanto la identidad como la autorización de trabajo, p. ej., un pasaporte de EE. UU.) o la combinación de un documento de la Lista B (identidad, p. ej., una licencia de conducir) y uno de la Lista C (autorización de trabajo, p. ej., una tarjeta de Seguro Social). Para cada uno, elige el tipo, ingresa los detalles y carga una imagen o PDF."
+        },
+        {
+          "id": "ow6",
+          "text": "En el paso del W-4 ingresa 2 hijos calificados y 1 otro dependiente. ¿Qué le muestra el asistente?",
+          "options": [
+            { "id": "a", "text": "Nada — el W-4 no calcula nada" },
+            { "id": "b", "text": "Un total de crédito acumulado: 2 × $2,000 más 1 × $500 = $4,500", "isCorrect": true },
+            { "id": "c", "text": "Una advertencia de que ha reclamado demasiados dependientes" },
+            { "id": "d", "text": "Multiplica cada dependiente por $2,000 sin importar el tipo" }
+          ],
+          "explanation": "El paso del W-4 calcula el crédito por dependientes de la manera en que lo hace el formulario del IRS: los hijos calificados se multiplican por $2,000 y otros dependientes por $500, y el asistente muestra el total acumulado ($4,500 en este ejemplo) para que pueda ver el resultado de sus entradas."
+        },
+        {
+          "id": "ow7",
+          "text": "Después de hacer clic en Enviar y firmar, ¿qué ocurre a continuación?",
+          "options": [
+            { "id": "a", "text": "La incorporación se completa de inmediato sin más acciones" },
+            { "id": "b", "text": "Entra en un flujo de revisión y firma donde obtiene una vista previa de cada formulario completado como PDF y lo firma electrónicamente, uno a la vez", "isCorrect": true },
+            { "id": "c", "text": "Los formularios se le envían por correo electrónico para imprimirlos, firmarlos a mano y enviarlos de vuelta por correo" },
+            { "id": "d", "text": "Un gerente firma los formularios en su nombre" }
+          ],
+          "explanation": "Enviar y firmar guarda sus datos y lo lleva al flujo de revisión y firma por formulario. Para cada formulario (normalmente W-4, retención estatal e I-9) obtiene una vista previa del PDF precompletado y luego lo firma electrónicamente mediante la sesión de firma incrustada. Después de firmar el último formulario, llega a la pantalla de finalización."
+        },
+        {
+          "id": "ow8",
+          "text": "Mientras revisa su W-4 completado antes de firmar, detecta un estado civil incorrecto. ¿Cuál es la acción correcta?",
+          "options": [
+            { "id": "a", "text": "Firmarlo de todos modos y pedirle a nómina que lo corrija más tarde" },
+            { "id": "b", "text": "Hacer clic en 'Volver a editar' para regresar al asistente, corregir la entrada y luego enviar de nuevo para regenerar la vista previa", "isCorrect": true },
+            { "id": "c", "text": "No hay forma de corregirlo una vez que ha llegado a la vista previa" },
+            { "id": "d", "text": "Eliminar todo su borrador de incorporación y empezar desde cero" }
+          ],
+          "explanation": "La vista previa es específicamente su oportunidad de detectar errores antes de firmar. 'Volver a editar' lo saca del flujo de firma y lo regresa al asistente para que pueda corregir el campo, y al enviar de nuevo se regenera la vista previa a partir de sus respuestas corregidas."
+        }
+      ]
+    }
   }
 ]

@@ -355,6 +355,218 @@ public class ExpensesTraining : TrainingContentBase
 """
         });
 
+        // ── Receipts & Vendor-Settled (Article) ──────────────────────────
+        await GetOrCreateModule(new TrainingModule
+        {
+            Title = "Expense Receipts & Vendor-Settled Expenses",
+            Slug = "expenses-receipts-vendor-settled",
+            Summary = "Attach a receipt (and when it's mandatory), plus how naming a vendor routes the expense to Accounts Payable and becomes a vendor bill on approval.",
+            ContentType = TrainingContentType.Article,
+            EstimatedMinutes = 6,
+            IsPublished = true,
+            SortOrder = 5,
+            AppRoutes = """["/expenses"]""",
+            Tags = """["expenses","receipts","vendor","payables"]""",
+            ContentJson = """
+{
+  "body": "## Receipts and Vendor-Settled Expenses\n\nThe expense dialog has two fields that change *how* an expense is handled downstream: the **receipt attachment** and the **Vendor** selector. This module explains both.\n\n### Attaching a Receipt\n\nIn the Create/Resubmit Expense dialog, the **Receipt** row lets you attach proof of purchase:\n\n1. Click **Upload Receipt**.\n2. Pick an image (`image/*`) or a PDF. The file uploads immediately and the row switches to show the file name with a paperclip icon.\n3. To swap it, click the red **X** next to the file name to remove it, then upload a different file.\n\nA receipt is stored as a file attachment on the expense; reviewers can open it from the approval queue when deciding.\n\n### When a Receipt Is Required\n\nYour company can turn on a **require-receipt policy** in expense settings. When it's on:\n\n- The Receipt label shows a red asterisk (**\\***), the same required marker used on other mandatory fields.\n- The **Submit** button stays disabled until a receipt is attached — even if every other field is valid.\n- Hovering the disabled Submit button shows a hint explaining that a receipt is required.\n\nSo if Submit won't enable and all your fields look filled in, check whether a receipt is still missing. The block is policy-driven: when the policy is off, the receipt is optional and Submit doesn't wait on it.\n\n### Out-of-Pocket vs Vendor-Settled\n\nEvery expense is one of two kinds, decided by the **Vendor** field:\n\n- **Out-of-pocket (cash)** — leave Vendor set to *No vendor*. This is the default. The expense represents money an employee spent personally and expects to be reimbursed for. It stays entirely inside the Expenses module.\n- **Vendor-settled** — pick a vendor from the **Vendor** dropdown. This tells the system the money is owed to that vendor (the company hasn't paid yet). A hint appears under the field explaining the consequence.\n\n### What a Vendor-Settled Expense Does on Approval\n\nNaming a vendor routes the expense to **Accounts Payable**. When the expense is **approved**, it is *promoted into a vendor bill* that is paid through Payables — the normal AP pipeline (vendor bills → vendor payments) takes over from there.\n\nOnce promotion happens, the expense row in the Expenses table shows a small **info chip with the vendor-bill number** next to its status. That chip is a live link: clicking it opens the linked vendor bill. This is how you trace an approved vendor-settled expense to the bill it became.\n\nKey points:\n- The **Vendor** field is part of the create/resubmit dialog — it is *not* a column in the main expenses table, so don't look for a Vendor column there. The linkage surfaces as the bill-number chip beside the status instead.\n- Promotion happens at **approval**, not at submission. A pending vendor-settled expense has no bill yet.\n- Out-of-pocket expenses never create a vendor bill — they're reimbursements, not payables.\n\n### Quick Decision Guide\n\n| You spent money… | Vendor field | What happens on approval |\n|---|---|---|\n| Personally, expect reimbursement | *No vendor* | Stays an expense (reimbursement) |\n| On the company's behalf, vendor not yet paid | Select the vendor | Becomes a vendor bill in Payables |",
+  "sections": []
+}
+"""
+        });
+
+        // ── Approval Queue & Revision (Walkthrough) ──────────────────────
+        await GetOrCreateModule(new TrainingModule
+        {
+            Title = "Expense Approval Queue & Requesting Revision",
+            Slug = "expenses-approval-queue",
+            Summary = "Work the dedicated Expense Approval Queue: open an expense to review it, and use Approve, Request Revision, or Reject with the required review note.",
+            ContentType = TrainingContentType.Walkthrough,
+            EstimatedMinutes = 7,
+            IsPublished = true,
+            SortOrder = 6,
+            AppRoutes = """["/expenses/approval"]""",
+            Tags = """["expenses","approval","walkthrough","manager"]""",
+            ContentJson = """
+{
+  "appRoute": "/expenses/approval",
+  "startButtonLabel": "Tour the Approval Queue",
+  "steps": [
+    {
+      "element": "app-page-layout",
+      "popover": {
+        "title": "Expense Approval Queue",
+        "description": "This dedicated queue at /expenses/approval lists every expense that is still Pending — across all submitters — so managers can review them in one place instead of hunting through the main table. It is separate from the inline approve/reject buttons on the main /expenses list.",
+        "side": "bottom"
+      }
+    },
+    {
+      "element": "app-input",
+      "popover": {
+        "title": "Search Pending Expenses",
+        "description": "Narrow the queue by typing a submitter, category, or description and pressing Enter. Only Pending expenses are ever shown here.",
+        "side": "bottom"
+      }
+    },
+    {
+      "element": ".approval-queue__summary",
+      "popover": {
+        "title": "Pending Count & Total",
+        "description": "The summary shows how many expenses are awaiting your decision and their combined dollar total — a quick read on your outstanding approval workload.",
+        "side": "left"
+      }
+    },
+    {
+      "element": "app-data-table",
+      "popover": {
+        "title": "Open an Expense to Review",
+        "description": "Click any row (or its check/X buttons) to open the review dialog. The dialog shows the submitter, date, category, amount, description, and linked job, plus a Review Note field and three decision buttons: Approve, Request Revision, and Reject.",
+        "side": "top"
+      }
+    }
+  ]
+}
+"""
+        });
+
+        // ── Approval Queue & Revision detail (Article) ───────────────────
+        await GetOrCreateModule(new TrainingModule
+        {
+            Title = "Reviewing Expenses: Approve, Request Revision, or Reject",
+            Slug = "expenses-review-decisions",
+            Summary = "The three outcomes in the expense review dialog and the 10-character note rule that governs Reject and Request Revision.",
+            ContentType = TrainingContentType.Article,
+            EstimatedMinutes = 5,
+            IsPublished = true,
+            SortOrder = 7,
+            AppRoutes = """["/expenses/approval"]""",
+            Tags = """["expenses","approval","manager","revision"]""",
+            ContentJson = """
+{
+  "body": "## Reviewing an Expense\n\nClicking a row in the Expense Approval Queue (`/expenses/approval`) opens the **review dialog**. It shows the read-only details of the submission — submitter, date, category, amount, description, and linked job (when present) — above a **Review Note** field and three decision buttons.\n\n### The Three Outcomes\n\n- **Approve** — accepts the expense. It moves to Approved (green chip). If the expense named a vendor, approval also promotes it into a vendor bill (see *Expense Receipts & Vendor-Settled Expenses*). Approve does **not** require a note; you can add one for context, but it's optional.\n- **Request Revision** — sends the expense back to the submitter without rejecting it outright. The status becomes **Needs Revision**, and your note becomes the reviewer feedback the submitter sees. Use this when the expense is fixable — wrong category, missing receipt, amount needs explaining — and you'd rather the submitter correct and resubmit than start over.\n- **Reject** — declines the expense outright (red chip). Use this when the expense should not be reimbursed at all.\n\n### The Review-Note Rule\n\nThe **Review Note** field governs the two negative outcomes:\n\n- **Reject and Request Revision both require a note of at least 10 characters.** Until the note reaches 10 characters, both buttons stay disabled, and a hint under the field counts your progress toward the minimum.\n- **Approve has no note requirement.** It's enabled regardless of the note field.\n\nThis is intentional: telling a submitter *why* their expense was bounced is mandatory, so they can fix it (Request Revision) or understand the decision (Reject). A silent rejection isn't possible.\n\n### After You Decide\n\nThe dialog closes, the queue reloads (the expense you just handled drops off the Pending list), and a confirmation snackbar reports the outcome. A Needs-Revision expense reappears for the submitter to edit and resubmit; an Approved or Rejected one is final from the queue's perspective.\n\n### Who Sees This Queue\n\nThe Approval Queue is a manager-facing surface. Regular submitters use the main `/expenses` list to create and track their own expenses; the queue is where reviewers clear the pending backlog."
+}
+"""
+        });
+
+        // ── Editing, Resubmitting & Deleting (Walkthrough) ───────────────
+        await GetOrCreateModule(new TrainingModule
+        {
+            Title = "Editing, Resubmitting & Deleting Your Expenses",
+            Slug = "expenses-edit-resubmit-delete",
+            Summary = "Fix and resubmit an expense that came back as Needs Revision, and manage your own expense submissions.",
+            ContentType = TrainingContentType.Walkthrough,
+            EstimatedMinutes = 6,
+            IsPublished = true,
+            SortOrder = 8,
+            AppRoutes = """["/expenses"]""",
+            Tags = """["expenses","walkthrough","revision","resubmit"]""",
+            ContentJson = """
+{
+  "appRoute": "/expenses",
+  "startButtonLabel": "Tour Editing & Resubmitting",
+  "steps": [
+    {
+      "element": "[data-testid='status-filter']",
+      "popover": {
+        "title": "Find Returned Expenses",
+        "description": "When a reviewer sends an expense back, it gets the Needs Revision status (a yellow chip). Use this Status filter and pick 'Needs Revision' to see just the ones waiting on you to fix.",
+        "side": "bottom"
+      }
+    },
+    {
+      "element": "app-data-table",
+      "popover": {
+        "title": "The Resubmit Action",
+        "description": "A Needs-Revision row shows a pencil (edit) action at the right end of the row. Clicking it reopens the expense in a dialog titled 'Resubmit Expense' — pre-filled with everything you originally entered.",
+        "side": "top"
+      }
+    },
+    {
+      "element": "[data-testid='new-expense-btn']",
+      "popover": {
+        "title": "Or Create a Fresh Expense",
+        "description": "This same dialog is used to create new expenses. The difference when resubmitting is that the dialog shows the reviewer's feedback note at the top so you know exactly what to change.",
+        "side": "bottom"
+      }
+    }
+  ]
+}
+"""
+        });
+
+        // ── Recurring & Upcoming Expenses (Article) ──────────────────────
+        await GetOrCreateModule(new TrainingModule
+        {
+            Title = "Recurring & Upcoming Expenses",
+            Slug = "expenses-recurring-upcoming",
+            Summary = "Set up recurring expense templates that auto-generate on a schedule, and read the 90-day Upcoming forecast.",
+            ContentType = TrainingContentType.Article,
+            EstimatedMinutes = 6,
+            IsPublished = true,
+            SortOrder = 9,
+            AppRoutes = """["/expenses/upcoming"]""",
+            Tags = """["expenses","recurring","forecast","upcoming"]""",
+            ContentJson = """
+{
+  "body": "## Recurring & Upcoming Expenses\n\nThe expense ledger at `/expenses/upcoming` handles predictable, repeating costs — subscriptions, leases, insurance, utilities — so you don't have to remember to file them by hand each cycle. It has two tabs: **Upcoming** and **Recurring**.\n\n### Recurring Tab — the Templates\n\nA **recurring expense** is a template that generates real expenses automatically on a schedule. Click **New Recurring** to create one:\n\n- **Amount** (required) and **Frequency** (required) — Weekly, Bi-weekly, Monthly, Quarterly, or Annually.\n- **Category** (required) and **Classification** (required). Classification is the recurring-cost taxonomy (Subscription, Lease, Insurance, Utility, Maintenance Contract, License, Membership, Other) and drives the colored chip.\n- **Description** (required) and **Vendor** (optional).\n- **Start Date** (required) and an optional **End Date** — leave End Date blank for an open-ended commitment.\n- **Auto-approve** toggle — when on, the expenses this template generates skip the pending queue.\n\nThe Recurring tab lists every template with its **Next Due** date and an **Active** chip. Two row actions let you manage a template:\n\n- The **pause / play** button toggles the template Active or Paused. Pausing stops it from generating new expenses without deleting its history.\n- The **delete** (trash) button removes the template after a confirmation. Note recurring templates are **delete-only / pause-only** — there is no in-place edit; to change terms, delete and recreate, or pause the old one.\n\n### How Generation Works\n\nActive templates auto-generate their expense on each occurrence — you don't click anything. A template with Auto-approve on produces already-approved expenses; without it, each generated expense lands in the normal Pending queue for review like any hand-entered one.\n\n### Upcoming Tab — the 90-Day Forecast\n\nThe **Upcoming** tab is a forward-looking view: it projects every occurrence your active recurring templates will generate over the next **90 days**. It does not create anything — it's a forecast so you can see what's coming.\n\n- The **90-Day Total** sums every projected occurrence in the window.\n- A **monthly breakdown** strip shows per-month totals and item counts, so you can see how the load distributes.\n- The **Highlight Classification** selector lets you spotlight one classification (e.g., all Subscriptions) — matching rows are highlighted in the table rather than filtered away, so you keep the full picture while emphasizing one cost type.\n- Each row shows the projected Due Date, Classification, Category, Description, Vendor, Amount, and Frequency.\n\nUse Upcoming to anticipate cash needs; use Recurring to control the templates that drive it. Pausing a template on the Recurring tab immediately removes its future occurrences from the Upcoming forecast."
+}
+"""
+        });
+
+        // ── Recurring & Upcoming Quick Reference (QuickRef) ──────────────
+        await GetOrCreateModule(new TrainingModule
+        {
+            Title = "Recurring & Upcoming Expenses — Quick Reference",
+            Slug = "expenses-recurring-quickref",
+            Summary = "Fast reference for recurring-expense fields, frequencies, classifications, row actions, and the Upcoming forecast.",
+            ContentType = TrainingContentType.QuickRef,
+            EstimatedMinutes = 4,
+            IsPublished = true,
+            SortOrder = 10,
+            AppRoutes = """["/expenses/upcoming"]""",
+            Tags = """["expenses","recurring","reference"]""",
+            ContentJson = """
+{
+  "title": "Recurring & Upcoming Expenses Quick Reference",
+  "groups": [
+    {
+      "heading": "New Recurring Expense Fields",
+      "items": [
+        {"label": "Amount (required)", "value": "Currency, min $0.01. The amount each generated occurrence will be for. data-testid: recurring-amount"},
+        {"label": "Frequency (required)", "value": "Weekly, Bi-weekly, Monthly, Quarterly, or Annually. Drives how often the template generates. data-testid: recurring-frequency"},
+        {"label": "Category (required)", "value": "Expense category for the generated expenses. data-testid: recurring-category"},
+        {"label": "Classification (required)", "value": "Recurring-cost type: Subscription, Lease, Insurance, Utility, Maintenance Contract, License, Membership, Other. data-testid: recurring-classification"},
+        {"label": "Description (required)", "value": "What the recurring cost is for. data-testid: recurring-description"},
+        {"label": "Vendor (optional)", "value": "Free-text vendor name. data-testid: recurring-vendor"},
+        {"label": "Start Date (required)", "value": "First occurrence date. data-testid: recurring-start"},
+        {"label": "End Date (optional)", "value": "Leave blank for open-ended. data-testid: recurring-end"},
+        {"label": "Auto-approve", "value": "Toggle. When on, generated expenses skip the Pending queue. data-testid: recurring-auto-approve"}
+      ]
+    },
+    {
+      "heading": "Recurring Tab Columns & Actions",
+      "items": [
+        {"label": "Next Due", "value": "The next date this template will generate an expense."},
+        {"label": "Active chip", "value": "Green 'Active' or muted 'Paused' — whether the template is currently generating."},
+        {"label": "Pause / Play action", "value": "Toggles the template between Active and Paused. Pausing keeps history but stops new generation."},
+        {"label": "Delete action", "value": "Removes the template after a confirmation dialog. Templates are delete-only — no in-place edit."}
+      ]
+    },
+    {
+      "heading": "Upcoming (Forecast) Tab",
+      "items": [
+        {"label": "Window", "value": "Projects the next 90 days of occurrences from active templates. Read-only forecast — generates nothing."},
+        {"label": "90-Day Total", "value": "Sum of every projected occurrence in the window."},
+        {"label": "Monthly breakdown", "value": "Per-month total + item count chips."},
+        {"label": "Highlight Classification", "value": "Spotlights one classification by highlighting matching rows (does not hide the rest)."},
+        {"label": "Pausing effect", "value": "Pausing a template on the Recurring tab immediately drops its future occurrences from this forecast."}
+      ]
+    }
+  ]
+}
+"""
+        });
+
         Log.Information("Seeded Expenses training modules");
     }
 }

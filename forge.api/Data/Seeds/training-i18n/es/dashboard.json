@@ -531,5 +531,169 @@
         }
       ]
     }
+  },
+  {
+    "slug": "dashboard-customize-walkthrough",
+    "title": "Personalización de su Panel",
+    "summary": "Entre en el modo de edición para agregar, quitar, reorganizar y redimensionar widgets, y restablecer todo el diseño a los valores predeterminados.",
+    "contentJson": {
+      "appRoute": "/dashboard",
+      "startButtonLabel": "Personalizar Panel",
+      "steps": [
+        {
+          "element": ".page-header__actions",
+          "popover": {
+            "title": "Controles del Panel",
+            "description": "Todos los controles del panel residen en el encabezado de la página: Modo enfoque, Ambiente, Exportar y Personalizar. La personalización de su diseño siempre comienza aquí; el panel es de solo lectura hasta que active el modo de edición.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".page-header__actions .btn:last-child",
+          "popover": {
+            "title": "Haga clic en Personalizar para editar",
+            "description": "Este es el botón Personalizar. Haga clic en él para entrar en el modo de edición: el icono cambia a una marca de verificación y el botón se resalta. El modo de edición es OBLIGATORIO antes de poder arrastrar, redimensionar, agregar o quitar widgets; fuera del modo de edición la cuadrícula está bloqueada para que nunca altere su diseño por accidente. Haga clic de nuevo (ahora etiquetado como 'Listo') para salir del modo de edición y guardar.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".dashboard-content",
+          "popover": {
+            "title": "Arrastrar y redimensionar en modo de edición",
+            "description": "Una vez activado el modo de edición, aparece una barra de edición sobre la cuadrícula y cada widget obtiene un controlador de arrastre y agarres de redimensionamiento. Tome un widget por su encabezado para moverlo, o arrastre su esquina inferior derecha para redimensionarlo. La cuadrícula encaja los widgets en su lugar, y cada cambio se guarda automáticamente en sus preferencias de usuario; su diseño se restaura en el siguiente inicio de sesión desde cualquier dispositivo.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".page-header__actions",
+          "popover": {
+            "title": "Agregar widget, quitar y restablecer",
+            "description": "En el modo de edición, la barra de edición le ofrece 'Agregar widget' (un menú de todos los widgets que aún no están en su panel, filtrados según los módulos que su instalación tenga habilitados) y 'Restablecer', que restaura el conjunto de widgets y la disposición predeterminados. Cada widget también muestra una pequeña X en su esquina para quitarlo. Quitar un widget solo lo oculta; puede volver a agregarlo en cualquier momento desde el menú Agregar widget.",
+            "side": "bottom"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "dashboard-display-modes",
+    "title": "Modos de visualización del Panel — Enfoque y Ambiente",
+    "summary": "El Modo enfoque reduce el panel a solo sus tareas y órdenes; el Modo ambiente lo convierte en una pantalla de estado a pantalla completa. Cómo entrar, salir y qué persiste.",
+    "contentJson": {
+      "body": "## Modos de visualización del Panel\n\nMás allá de la cuadrícula de widgets estándar, el Panel ofrece dos modos de visualización alternativos: **Modo enfoque** y **Modo ambiente**. Ambos se alternan desde botones en el encabezado del panel, y cada uno responde a una necesidad diferente.\n\n### Modo enfoque\n\nEl Modo enfoque reduce el panel a las tres cosas sobre las que usted actúa personalmente: **Mis tareas**, **Órdenes abiertas** y la indicación de **Fin del día**. Todo lo demás (chips de KPI, gráficos, carga del equipo) se oculta para que pueda concentrarse en su propio trabajo sin distracciones.\n\n**Entrar y salir:** Haga clic en el botón **Modo enfoque** en el encabezado (el icono de mira / `center_focus_strong`). El botón se resalta mientras el Modo enfoque está activo. Haga clic de nuevo, o use el botón de cerrar (X) dentro del panel de enfoque, para volver al panel completo.\n\n**Vive en la URL.** Activar el Modo enfoque agrega `?focus=true` a la URL de la página. Eso significa que el modo se puede marcar como favorito y compartir: puede guardar un enlace directo que siempre se abra directamente en el Modo enfoque, y al actualizar el navegador permanece ahí. Su elección también se guarda en sus preferencias de usuario, por lo que el panel recuerda su última configuración.\n\n**Mutuamente excluyente con Ambiente.** El Modo enfoque y el Modo ambiente no pueden estar activos al mismo tiempo: entrar en el Modo enfoque sale automáticamente del Modo ambiente.\n\n### Modo ambiente\n\nEl Modo ambiente convierte el panel en una pantalla de estado a pantalla completa y de un vistazo: un reloj y una fecha grandes, KPI destacados (trabajos activos, vencidos, horas de hoy) y una breve lista de próximas fechas límite. Está diseñado para un monitor montado en la pared o una pantalla por la que pasa: legible desde el otro lado de la sala, sin controles que manipular.\n\n**Entrar manualmente:** Haga clic en el botón **Ambiente** en el encabezado (el icono `nightlight`).\n\n**Entrar automáticamente (inactividad):** El panel también pasa al Modo ambiente por sí solo tras un período de inactividad. El tiempo de espera de inactividad es configurable; el modo ambiente automático se suprime mientras está editando el diseño o ya está en el Modo enfoque, de modo que nunca interrumpe el trabajo deliberado.\n\n**Salir:** El Modo ambiente está pensado para descartarse al instante: presione **Escape**, o simplemente haga clic en cualquier parte de la pantalla, y volverá al panel normal. Una indicación en la parte inferior de la pantalla ambiente se lo recuerda.\n\n**Datos en vivo.** Mientras está en modo ambiente, la pantalla se mantiene actualizada: el reloj avanza cada segundo y los KPI/fechas límite se actualizan en segundo plano, por lo que una pantalla de pared nunca queda obsoleta.\n\n### Cuál usar y cuándo\n\n- **¿Concentrado en su propio trabajo?** Modo enfoque: menos widgets, solo sus tareas, órdenes y nota de fin del día.\n- **¿Maneja un monitor compartido/de pared, o se está alejando?** Modo ambiente: reloj grande, cifras destacadas, fechas límite, descarte con un toque o Escape.\n- **¿Operación diaria?** La cuadrícula de widgets estándar, que puede adaptar con los controles de Personalizar.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "dashboard-widgets-catalog",
+    "title": "Catálogo de widgets del Panel",
+    "summary": "Cada widget que puede colocar en el Panel: qué muestra, a dónde enlaza y qué módulo lo habilita.",
+    "contentJson": {
+      "title": "Catálogo de widgets del Panel",
+      "groups": [
+        {
+          "heading": "Widgets operativos (módulo de Trabajos)",
+          "items": [
+            {
+              "label": "Tareas de hoy",
+              "value": "Sus trabajos asignados ordenados por estado: vencidos primero, luego activos, próximos y completados. Las filas vencidas están en rojo. Haga clic en una fila para abrir el diálogo de detalle del trabajo. 'Ver tablero' enlaza al Kanban. Requiere el módulo de Trabajos/Kanban."
+            },
+            {
+              "label": "Trabajos por etapa",
+              "value": "Una barra horizontal por cada etapa del tablero, con la longitud de cada barra escalada al conteo de trabajos de esa etapa en relación con la etapa más ocupada, y el conteo mostrado numéricamente. Vea dónde se concentra el trabajo sin abrir el tablero. Requiere el módulo de Trabajos/Kanban."
+            },
+            {
+              "label": "Carga del equipo",
+              "value": "Una fila por cada miembro del equipo con avatar, nombre, una barra de carga de trabajo proporcional a su conteo de tareas frente a su capacidad, y un conteo numérico de tareas. Muestra cómo se distribuye el trabajo. Enlace 'Seguimiento de tiempo'. Requiere el módulo de Trabajos/Kanban."
+            },
+            {
+              "label": "Fechas límite",
+              "value": "Próximas fechas de vencimiento con número de trabajo, descripción y fecha; los elementos vencidos están marcados. Enlace 'Ver calendario'. Requiere el módulo de Trabajos/Kanban."
+            }
+          ]
+        },
+        {
+          "heading": "Widgets de cartera y planificación",
+          "items": [
+            {
+              "label": "Órdenes abiertas",
+              "value": "Total de órdenes de venta abiertas como una cifra destacada, desglosado por Confirmadas, En producción y Parcialmente enviadas. 'Todas las órdenes' enlaza a Órdenes de venta. Requiere el módulo de Órdenes de venta."
+            },
+            {
+              "label": "Progreso del ciclo",
+              "value": "Finalización del ciclo de planificación actual: una barra de progreso, entradas completadas frente al total con porcentaje, un chip de estado de días restantes / Vencido, y las primeras entradas del ciclo con marcas. Enlace 'Ciclos de planificación'. Requiere el módulo de Planificación/MRP."
+            },
+            {
+              "label": "Resumen de margen",
+              "value": "Porcentaje de margen promedio más los totales de ingresos, costo y margen de los trabajos recientes. Solo contabilidad independiente: aparece cuando el módulo de contabilidad integrada está habilitado."
+            }
+          ]
+        },
+        {
+          "heading": "Widgets personales y de seguimiento",
+          "items": [
+            {
+              "label": "Fin del día",
+              "value": "Una indicación para registrar sus 3 prioridades principales para mañana. Escríbalas en el área de texto y guarde; el widget muestra entonces su nota guardada con un botón Editar. Se guarda por día en sus preferencias. Requiere el módulo de Seguimiento de tiempo."
+            },
+            {
+              "label": "Elementos de acción",
+              "value": "Tareas de seguimiento que el sistema genera (cotización por vencer, lead estancado, factura vencida, entrega en riesgo, mantenimiento debido, falla de control de calidad, devolución recibida y más). Cada fila enlaza a su registro de origen, muestra una fecha de vencimiento (los vencidos marcados) y tiene un botón de marca para completar y un botón de cerrar para descartar. Estado vacío cuando no hay nada que hacer."
+            },
+            {
+              "label": "Actividad",
+              "value": "Un feed de actividad reciente en todo el sistema. Siempre disponible (sin restricción de módulo)."
+            }
+          ]
+        },
+        {
+          "heading": "Widget de inventario",
+          "items": [
+            {
+              "label": "Instantánea de inventario",
+              "value": "Conteo de piezas, total en existencia y un conteo de bajo stock que se resalta en color de alerta cuando las piezas caen a su umbral mínimo o por debajo de él; las piezas afectadas se enumeran con sus cantidades actuales frente a las mínimas. Enlace 'Ver inventario'. Este es el widget principal en una instalación solo de inventario. Requiere el módulo de Inventario."
+            }
+          ]
+        },
+        {
+          "heading": "Cómo funciona la disponibilidad de widgets",
+          "items": [
+            {
+              "label": "Restricción por capacidad",
+              "value": "Cada widget está vinculado a un módulo (capacidad). Un widget solo aparece en su panel, y en el menú Agregar widget, si ese módulo está habilitado para su instalación. Una instalación solo de inventario ve la Instantánea de inventario en lugar de los chips de KPI de trabajos."
+            },
+            {
+              "label": "Agregar un widget oculto",
+              "value": "Active Personalizar (modo de edición), abra el menú Agregar widget y elija cualquier widget habilitado que aún no esté en su panel."
+            },
+            {
+              "label": "Diseño predeterminado",
+              "value": "Los paneles nuevos comienzan con el conjunto completo de widgets habilitados en una disposición predeterminada. El botón Restablecer (modo de edición) lo restaura en cualquier momento."
+            }
+          ]
+        },
+        {
+          "heading": "Controles del marco del widget",
+          "items": [
+            {
+              "label": "Título e icono",
+              "value": "Cada widget se representa dentro de un marco compartido con su título e icono en la parte superior."
+            },
+            {
+              "label": "Enlace Ver todo",
+              "value": "Los widgets que resumen una superficie más amplia muestran un enlace en su encabezado (p. ej. 'Ver tablero', 'Todas las órdenes', 'Ciclos de planificación', 'Ver inventario') que salta a la función completa."
+            },
+            {
+              "label": "Quitar (X)",
+              "value": "Visible solo en el modo de edición: quita el widget de su panel. Vuelva a agregarlo más tarde desde el menú Agregar widget."
+            },
+            {
+              "label": "Estados vacíos",
+              "value": "Los widgets sin datos muestran un estado vacío amigable (icono + mensaje) en lugar de una tarjeta en blanco, p. ej. Tareas de hoy sin asignaciones, o Elementos de acción sin pendientes."
+            }
+          ]
+        }
+      ]
+    }
   }
 ]

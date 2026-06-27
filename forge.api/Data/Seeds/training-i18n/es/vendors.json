@@ -599,5 +599,256 @@
         }
       ]
     }
+  },
+  {
+    "slug": "vendors-create-quick-vs-guided",
+    "title": "Crear un proveedor: Rápido vs. Guiado",
+    "summary": "La bifurcación Nuevo proveedor: cuándo usar el Alta rápida frente al asistente de Configuración guiada de 5 pasos, y qué captura cada vía.",
+    "contentJson": {
+      "body": "## Crear un proveedor: Rápido vs. Guiado\n\nHacer clic en **+ Nuevo proveedor** en la página de Proveedores ya no lo lleva directamente a un formulario —abre un pequeño **cuadro de diálogo de bifurcación** que le pregunta *cómo* quiere configurar el proveedor. Hay dos vías, y elegir la correcta ahorra retrabajo más adelante.\n\n### El cuadro de diálogo de bifurcación\n\nLa bifurcación muestra dos tarjetas:\n\n- **Alta rápida** (con distintivo *Rápido*) — \"Solo lo esencial —nombre de la empresa y contacto básico. Complete el resto más tarde.\" Esta es la vía dominante, de uso diario.\n- **Configuración guiada** — \"Paso a paso para proveedores estratégicos o aprobados —clasificación, dirección, términos y las piezas que suministran.\"\n\nHaga clic en una tarjeta para elegir; el botón **Cancelar** en la parte inferior cancela sin crear nada.\n\n### Alta rápida — la vía de uso diario\n\nEl Alta rápida abre el diálogo plano de proveedor. El único campo requerido es el **Nombre de la empresa**; nombre de contacto, correo electrónico, teléfono, dirección, términos de pago y notas son todos opcionales y pueden completarse más tarde. Use el Alta rápida cuando:\n\n- Solo necesita que el proveedor exista para poder ponerlo en una orden de compra.\n- Es un suministrador transaccional puntual o de bajo volumen.\n- Enriquecerá el registro más tarde (o dejará que una sincronización contable complete los detalles).\n\nEl proveedor se crea de inmediato y queda disponible en las listas desplegables de proveedores de las OC. Siempre puede abrir el proveedor más tarde y agregar una dirección, términos o piezas del catálogo.\n\n### Configuración guiada — para proveedores estratégicos / aprobados\n\nElegir **Configuración guiada** lo dirige a un asistente dedicado en **/vendors/new** construido sobre el shell de flujo de trabajo guiado compartido (el mismo marco que usa Piezas). Vale la pena el esfuerzo adicional para suministradores estratégicos, socios de la lista de proveedores aprobados (AVL), o cualquier proveedor cuya dirección, términos y piezas suministradas quiera capturar por adelantado. El asistente recorre cinco pasos:\n\n1. **Identidad** *(requerido)* — Nombre de la empresa, nombre de contacto, correo electrónico y teléfono. Este es el paso que realmente crea (materializa) la fila del proveedor, por lo que el nombre de la empresa es requerido aquí. Hasta que complete Identidad, no se guarda nada.\n2. **Dirección** *(opcional)* — Calle, ciudad, estado, código postal y país para la dirección de pago / de envío del proveedor.\n3. **Términos** *(opcional)* — Términos de pago (Net 30, etc.) y configuraciones de facturación relacionadas.\n4. **Artículos suministrados** *(opcional)* — Un paso de referencia. Las entradas del catálogo de piezas del proveedor (las piezas que este proveedor suministra, con sus distintivos AVL/preferido y precios) se agregan en la pestaña **Catálogo** del proveedor después de que el proveedor exista —el asistente le recuerda hacerlo en lugar de forzar la carga masiva a mitad del asistente.\n5. **Revisión** *(requerido)* — Un resumen final; confirme para terminar.\n\n### Modo Exprés vs. Guiado dentro del asistente\n\nEl shell de flujo de trabajo tiene un **interruptor de modo**. El modo *Guiado* muestra un paso a la vez con la justificación disponible en un panel lateral; el modo *Exprés* contrae los pasos opcionales en una sola pantalla consolidada para usuarios que ya saben lo que están ingresando. Ambos modos pasan por los mismos pasos y las mismas compuertas requeridas (Identidad + Revisión).\n\n### La URL es la fuente de verdad\n\nEl asistente mantiene su estado en la URL (`?workflow=vendor-guided-v1&step=…&mode=…`). Después de que el paso de Identidad materializa el proveedor, la ruta se actualiza de /vendors/new a /vendors/{id} para que pueda guardar como marcador, compartir o reanudar una configuración a medias —reabrir esa URL lo devuelve a donde lo dejó.\n\n### ¿Cuál debería elegir?\n\n| Situación | Vía |\n|---|---|\n| Necesita el proveedor en una OC ahora mismo | Alta rápida |\n| Suministrador puntual o de bajo volumen | Alta rápida |\n| Socio estratégico / fuente única / AVL | Configuración guiada |\n| Quiere capturar dirección + términos + piezas suministradas por adelantado | Configuración guiada |\n| Importando muchas piezas suministradas por el proveedor | Configuración guiada, luego importación masiva por CSV en la pestaña Catálogo |\n\nNo hay vía de \"convertir desde prospecto\" para proveedores (los prospectos se convierten en clientes, no en suministradores), por lo que la bifurcación es de dos vías en lugar de tres.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "vendors-catalog-avl",
+    "title": "Catálogo de proveedor y Lista de proveedores aprobados (AVL)",
+    "summary": "La pestaña Catálogo de un proveedor: las piezas que un proveedor suministra, los distintivos Aprobado (AVL) y Fuente preferida, la importación masiva por CSV y cómo se vincula con las compras.",
+    "contentJson": {
+      "body": "## Catálogo de proveedor y Lista de proveedores aprobados (AVL)\n\nCada panel de detalle de proveedor tiene una pestaña **Catálogo**. Aquí es donde registra las **piezas que un proveedor suministra** —la relación pieza-proveedor que vincula una Pieza de su catálogo con un Proveedor, con detalles de aprovisionamiento de alcance por proveedor. Es el lado de suministro de los mismos datos que ve en la pestaña **Fuentes** de una Pieza; la pestaña Catálogo simplemente los mira desde el punto de vista del proveedor (\"¿qué nos vende *este proveedor*?\").\n\n### Abrir la pestaña Catálogo\n\nDesde la lista de Proveedores, haga clic en una fila de proveedor para abrir su panel de detalle, luego haga clic en la pestaña **Catálogo** (junto a Información, Órdenes de compra y Tarjeta de calificación). La pestaña carga la lista de piezas-proveedor de ese proveedor.\n\n### Qué contiene una fila de pieza-proveedor\n\nCada fila del catálogo es una pieza que este proveedor puede suministrar, con campos específicos del proveedor:\n\n- **Pieza** — el número y nombre de la pieza de su catálogo de Piezas.\n- **Número de pieza del proveedor** — el SKU / número de catálogo propio del proveedor para la pieza.\n- **MPN del proveedor** — el número de pieza del fabricante cuando el proveedor es un distribuidor que revende la pieza de otra persona (distinto del MPN de ingeniería propio de la pieza).\n- **Plazo de entrega (días)**, **Cant. mín. de pedido (MOQ)**, **Tamaño de paquete** — parámetros de aprovisionamiento de alcance por proveedor.\n- **País de origen** y **Código HTS** — campos de cumplimiento comercial.\n- **Niveles de precio** — precios por escala de cantidad (cubiertos en el módulo *Gestión de precios de proveedor*).\n- **Distintivos Aprobado y Preferido** — ver abajo.\n- **Notas** y **Fecha de última cotización**.\n\n### El distintivo Aprobado (AVL)\n\nEl interruptor **Aprobado** es su marcador de la **Lista de proveedores aprobados (AVL)**. Una pieza-proveedor aprobada significa \"este proveedor está autorizado para suministrar esta pieza\" —ha pasado cualquier calificación que su taller requiera. En la lista, las filas aprobadas muestran un icono verde **check_circle**; las filas no aprobadas muestran un icono **block**. Las compras usan este distintivo para orientar a los compradores hacia fuentes calificadas.\n\n### El distintivo Fuente preferida\n\nEl interruptor **Preferido** marca la fuente *de referencia* para una pieza. Las filas preferidas muestran una **estrella** rellena; puede alternarlo directamente desde la lista del catálogo usando el botón de estrella. Hay un invariante estricto: **como máximo una pieza-proveedor por Pieza puede ser Preferida a la vez.** Establecer Preferido en una fuente lo borra automáticamente en todos los demás proveedores de esa misma pieza —así la pregunta de \"fuente preferida\" siempre tiene exactamente una respuesta. La pieza-proveedor preferida también alimenta la instantánea de plazo de entrega / MOQ / tamaño de paquete de la Pieza que leen el reabastecimiento y la OC automática.\n\n### Agregar, editar y eliminar entradas del catálogo\n\n- **+ Agregar** abre el cuadro de diálogo del formulario de pieza-proveedor. El proveedor está bloqueado (ya está dentro de ese proveedor), por lo que elige la **Pieza** y completa los campos de alcance por proveedor, incluyendo los interruptores Aprobado y Preferido.\n- La acción de fila **editar** (lápiz) reabre el mismo formulario para cambiar cualquier campo.\n- La acción de fila **eliminar** (papelera) quita la pieza del catálogo de este proveedor. Esto desvincula la relación pieza-proveedor; no elimina la Pieza en sí.\n- El interruptor **Es fabricante** en el formulario le indica al sistema que el proveedor *es* el fabricante (así el nombre del fabricante se deriva del proveedor e ingresa un solo número de pieza) frente a un distribuidor (donde registra tanto un número de pieza del proveedor como el MPN del fabricante).\n\n### Importación masiva por CSV\n\nPara incorporar el catálogo de un distribuidor o una lista de precios larga, use **Importar** (el botón upload_file en la parte superior de la pestaña Catálogo). El flujo es un cuadro de diálogo de dos estados:\n\n1. **Elegir un archivo** — arrastre y suelte o busque un `.csv`. Un enlace **Descargar plantilla** le da la disposición exacta de columnas.\n2. **Vista previa** — el sistema analiza el archivo y muestra cada fila etiquetada como **Agregar**, **Actualizar** o **Error**, con un conteo de resumen. Las filas que fallan la validación se marcan con un mensaje de error y el botón **Aplicar** permanece deshabilitado hasta que se resuelvan los errores (corrige el CSV y vuelve a importar).\n\nAplicar confirma las adiciones y actualizaciones en una sola pasada. La importación coincide por número de pieza, por lo que las piezas-proveedor existentes se actualizan en lugar de duplicarse.\n\n### Cómo el catálogo alimenta las compras\n\nEl catálogo de piezas-proveedor son datos maestros definitivos que las compras posteriores leen:\n\n- El **Reabastecimiento y la OC automática** miran la fuente preferida y su plazo de entrega / MOQ / precios para sugerir reordenes.\n- Las **Órdenes de compra** extraen el número de pieza del proveedor y el precio escalonado cuando agrega una línea para una pieza que este proveedor suministra.\n- El **distintivo AVL (Aprobado)** mantiene a los compradores ordenando de fuentes calificadas.\n\nDado que son datos maestros, las ediciones a una pieza-proveedor se registran en **ambos** registros de actividad, el del Proveedor y el de la Pieza (la pieza-proveedor se sitúa en el punto de indexación entre ambos).",
+      "sections": []
+    }
+  },
+  {
+    "slug": "vendors-catalog-walkthrough",
+    "title": "Catálogo de proveedor — Recorrido guiado",
+    "summary": "Un recorrido guiado por la pestaña Catálogo (AVL) de un proveedor: abrirla, agregar una pieza suministrada, importación masiva por CSV y los controles Aprobado/Preferido.",
+    "contentJson": {
+      "appRoute": "/vendors",
+      "startButtonLabel": "Recorrer la pestaña Catálogo",
+      "steps": [
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Abrir un proveedor",
+            "description": "Comience en la lista de Proveedores y haga clic en cualquier fila de proveedor para abrir su panel de detalle. El panel de detalle tiene las pestañas que usaremos a continuación —Información, Órdenes de compra, Catálogo y Tarjeta de calificación.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "[data-testid='vendor-tab-catalog']",
+          "popover": {
+            "title": "Pestaña Catálogo",
+            "description": "Haga clic en la pestaña Catálogo para ver las piezas que este proveedor suministra. Cada fila es una pieza-proveedor: la pieza vinculada, el número de pieza del proveedor, el plazo de entrega, la MOQ, el tamaño de paquete, el nivel de precio más bajo y el distintivo Aprobado (AVL). Esta es la misma relación que vería en la pestaña Fuentes de una Pieza, vista desde el lado del proveedor.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='vendor-part-add-btn']",
+          "popover": {
+            "title": "Agregar una pieza suministrada",
+            "description": "Haga clic en + Agregar para registrar una nueva pieza que este proveedor suministra. El proveedor está bloqueado (está dentro de él), por lo que elige la Pieza y completa los campos de alcance por proveedor: número de pieza del proveedor, plazo de entrega, MOQ, tamaño de paquete, país de origen y los interruptores Aprobado y Preferido.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='vendor-part-import-btn']",
+          "popover": {
+            "title": "Importación masiva por CSV",
+            "description": "Para todo un catálogo o lista de precios, haga clic en Importar. Arrastre un .csv (un enlace Descargar plantilla le da las columnas exactas), luego revise la vista previa —cada fila se etiqueta Agregar, Actualizar o Error. Corrija los errores marcados, luego Aplique para confirmar las adiciones y actualizaciones en una sola pasada.",
+            "side": "bottom"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "vendors-price-tiers",
+    "title": "Gestión de precios de proveedor — Niveles de precio",
+    "summary": "Niveles de precio por escala de cantidad en una pieza-proveedor: cómo se eligen los niveles, la moneda, la vigencia por fechas, la visualización del historial de niveles y cómo las compras resuelven un precio.",
+    "contentJson": {
+      "body": "## Gestión de precios de proveedor — Niveles de precio\n\nLos proveedores rara vez cotizan un precio único fijo —cotizan **escalas de cantidad**: más barato por unidad a medida que compra más. Forge captura esto con **niveles de precio** en cada pieza-proveedor. Un nivel es una fila que dice \"a esta cantidad mínima (y en o después de esta fecha), el precio unitario es X en esta moneda.\"\n\n### Abrir el cuadro de diálogo de niveles de precio\n\nEn la pestaña **Catálogo** de un proveedor, la columna **Niveles de precio** muestra el precio actual más bajo más un pequeño distintivo de conteo de cuántos niveles existen. Haga clic en ese precio (o en la acción **price_change** en la tarjeta de fuente única en línea) para abrir el cuadro de diálogo **Niveles de precio** para esa pieza-proveedor. El cuadro de diálogo enumera los niveles existentes y tiene un formulario **Agregar nivel** en la parte inferior.\n\n### Qué contiene un nivel\n\n- **Cantidad mínima** *(requerido)* — la cantidad de pedido más baja a la que se aplica el precio de este nivel. El nivel con la Cantidad mínima más grande que aún sea ≤ su cantidad de pedido gana.\n- **Precio unitario** *(requerido)* — el precio por unidad en esa escala.\n- **Moneda** *(requerido)* — la moneda del precio. Los niveles pueden cotizarse en diferentes monedas; las compras convierten según sea necesario.\n- **Vigente desde / Vigente hasta** *(opcional)* — la ventana de fechas en que el nivel es válido. Deje Vigente hasta en blanco para \"actual, sin fecha de fin.\" Así es como prepara un cambio de precio futuro sin perder el precio anterior.\n- **Opción (unidad de compra)** — cuando la pieza tiene múltiples unidades de compra, el nivel puede limitarse a una; una vista previa por unidad base muestra el precio equivalente por unidad base.\n- **Notas** *(opcional)*.\n\n### Cómo se resuelve un precio\n\nCuando las compras necesitan un precio para una cantidad, eligen el nivel cuya **Cantidad mínima ≤ cantidad solicitada** con la Cantidad mínima más alta, entre los niveles cuya **ventana de fecha de vigencia** contiene la fecha del pedido. Ese es el precio por unidad usado en la línea de la OC. Si ordena por debajo de la Cantidad mínima del nivel más bajo, el nivel más bajo aún se aplica como precio mínimo (y el sistema puede advertir sobre pedidos por debajo del mínimo o fuera de nivel).\n\n### Ejemplo de escala de cantidad\n\n| Cant. mín. | Precio unitario |\n|---|---|\n| 1 | $2.00 |\n| 100 | $1.60 |\n| 500 | $1.35 |\n\n- Ordene 50 → $2.00 cada uno (el nivel de cant. 1; ningún nivel superior alcanzado aún).\n- Ordene 250 → $1.60 cada uno (el nivel de cant. 100 gana; 500 no alcanzado).\n- Ordene 1,000 → $1.35 cada uno (el nivel de cant. 500 gana).\n\n### Vigencia por fechas e historial de precios\n\nLos niveles son **de agregar y reemplazar**, no de editar en el lugar —agrega un nuevo nivel (a menudo con un Vigente desde futuro) en lugar de sobrescribir un precio anterior, lo que preserva lo que realmente pagó históricamente. Para revisar precios pasados, use la acción **historial** (reloj) en una fila del catálogo para abrir el **Historial de niveles de precio** —el registro de cambios de niveles agregados y eliminados a lo largo del tiempo. Esto es lo que permite que la tarjeta de calificación del proveedor calcule la variación de precio promedio y lo que los auditores usan para ver cuándo se movió un precio.\n\n### Agregar y eliminar niveles\n\n- Complete el formulario **Agregar nivel** (Cantidad mínima, Precio unitario, Moneda, fechas y notas opcionales) y haga clic en **Agregar nivel**. La acción principal del cuadro de diálogo es *Agregar nivel*; el botón izquierdo es **Cerrar** (cerrar no confirma una fila sin terminar —solo Agregar nivel confirma).\n- Elimine un nivel con su acción de fila **eliminar**. Como el historial se preserva, eliminar un nivel registra la eliminación en lugar de borrar el hecho de que existió.\n\n### Dónde aparecen los niveles más adelante\n\n- La lista de Catálogo/Fuentes muestra el **nivel actual más bajo** como precio destacado.\n- Las líneas de **Orden de compra** autocompletan el precio escalonado resuelto para la cantidad ordenada.\n- El **Reabastecimiento / OC automática** usan los precios de la fuente preferida en el cálculo de reorden.\n- El factor **Precio (20%)** de la Tarjeta de calificación compara los precios reales de las OC contra los precios escalonados esperados para calcular la variación de precio.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "vendors-catalog-quiz",
+    "title": "Evaluación de conocimientos de Catálogo y Precios de proveedor",
+    "summary": "Ponga a prueba sus conocimientos sobre la pestaña Catálogo/AVL del proveedor, los distintivos Aprobado y Preferido, la importación masiva, los niveles de precio y la bifurcación de creación Rápido vs. Guiado.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 7,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "vc1",
+          "text": "Hace clic en + Nuevo proveedor para agregar un suministrador estratégico de fuente única y quiere capturar su dirección, términos de pago y las piezas que suministra por adelantado. ¿Qué vía debe elegir en el cuadro de diálogo de bifurcación?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Alta rápida —captura todo en un solo formulario plano"
+            },
+            {
+              "id": "b",
+              "text": "Configuración guiada —el asistente de 5 pasos en /vendors/new para proveedores estratégicos o aprobados",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Convertir desde prospecto —promover el prospecto de suministrador a proveedor"
+            },
+            {
+              "id": "d",
+              "text": "No hay bifurcación; Nuevo proveedor siempre abre el mismo cuadro de diálogo"
+            }
+          ],
+          "explanation": "La bifurcación Nuevo proveedor ofrece Alta rápida (solo lo esencial, más rápido) y Configuración guiada. Para un suministrador estratégico o aprobado (AVL) donde quiere capturar clasificación, dirección, términos y piezas suministradas por adelantado, elija Configuración guiada —dirige al asistente de 5 pasos en /vendors/new (Identidad, Dirección, Términos, Artículos suministrados, Revisión). No hay vía de convertir-desde-prospecto para proveedores."
+        },
+        {
+          "id": "vc2",
+          "text": "En el asistente de proveedor Guiado, ¿qué paso realmente crea (materializa) el registro del proveedor y, por lo tanto, es requerido?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Dirección"
+            },
+            {
+              "id": "b",
+              "text": "Términos"
+            },
+            {
+              "id": "c",
+              "text": "Identidad (nombre de la empresa + contacto)",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Artículos suministrados"
+            }
+          ],
+          "explanation": "El paso de Identidad (nombre de la empresa, nombre de contacto, correo electrónico, teléfono) materializa la fila del proveedor, por lo que el nombre de la empresa es requerido allí. Hasta que se complete Identidad, no se guarda nada. Dirección, Términos y Artículos suministrados son opcionales; Revisión es la confirmación final requerida."
+        },
+        {
+          "id": "vc3",
+          "text": "En la pestaña Catálogo de un proveedor, ¿qué representa el distintivo Aprobado (check_circle verde) en una pieza-proveedor?",
+          "options": [
+            {
+              "id": "a",
+              "text": "La pieza-proveedor se ha sincronizado desde QuickBooks"
+            },
+            {
+              "id": "b",
+              "text": "El proveedor está autorizado para suministrar esta pieza —el marcador de la Lista de proveedores aprobados (AVL)",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "La pieza tiene al menos un nivel de precio definido"
+            },
+            {
+              "id": "d",
+              "text": "La orden de compra de esta pieza ha sido aprobada"
+            }
+          ],
+          "explanation": "El interruptor Aprobado es el marcador de la Lista de proveedores aprobados (AVL): este proveedor está calificado/autorizado para suministrar esta pieza. Las filas aprobadas muestran un check_circle verde; las no aprobadas muestran un icono block. Las compras lo usan para orientar a los compradores hacia fuentes calificadas. No está relacionado con la sincronización contable, los precios ni la aprobación de OC."
+        },
+        {
+          "id": "vc4",
+          "text": "Establece el distintivo Preferido (estrella) en el Proveedor A para la Pieza X. El Proveedor B era anteriormente la fuente preferida para la Pieza X. ¿Qué sucede?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Tanto el Proveedor A como el Proveedor B ahora son preferidos para la Pieza X"
+            },
+            {
+              "id": "b",
+              "text": "El distintivo Preferido del Proveedor B se borra automáticamente —como máximo una pieza-proveedor por pieza puede ser Preferida",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El sistema bloquea el cambio hasta que desmarque manualmente el Proveedor B"
+            },
+            {
+              "id": "d",
+              "text": "La Pieza X se elimina por completo del catálogo del Proveedor B"
+            }
+          ],
+          "explanation": "Hay un invariante estricto: como máximo una pieza-proveedor por Pieza puede ser Preferida a la vez. Establecer Preferido en el Proveedor A lo borra automáticamente en todos los demás proveedores de esa pieza (incluido el Proveedor B), así la pregunta de 'fuente preferida' siempre tiene exactamente una respuesta. El Proveedor B conserva la pieza en su catálogo —solo se mueve el distintivo Preferido."
+        },
+        {
+          "id": "vc5",
+          "text": "Una pieza-proveedor tiene niveles de precio de $2.00 a cant. mín. 1, $1.60 a cant. mín. 100 y $1.35 a cant. mín. 500. ¿Qué precio unitario aplica a un pedido de 250 unidades?",
+          "options": [
+            {
+              "id": "a",
+              "text": "$2.00 —el nivel base siempre aplica"
+            },
+            {
+              "id": "b",
+              "text": "$1.60 —el nivel de cant. 100 gana porque 100 ≤ 250 < 500",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "$1.35 —el precio más bajo disponible siempre aplica"
+            },
+            {
+              "id": "d",
+              "text": "Un promedio de los tres niveles"
+            }
+          ],
+          "explanation": "La resolución de precio elige el nivel con la Cantidad mínima más alta que aún sea ≤ la cantidad solicitada. Para 250 unidades, el nivel de cant. 100 ($1.60) gana porque 100 ≤ 250 pero el nivel de cant. 500 no se alcanza. Ordene 1,000 y el nivel de cant. 500 ($1.35) ganaría."
+        },
+        {
+          "id": "vc6",
+          "text": "Necesita incorporar el catálogo completo de un distribuidor de las piezas que suministra, con números de pieza del proveedor y plazos de entrega. ¿Cuál es la forma más eficiente?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Agregar cada pieza una a la vez con el botón + Agregar"
+            },
+            {
+              "id": "b",
+              "text": "Usar el botón Importar en la pestaña Catálogo: descargar la plantilla, completar el CSV, luego revisar la vista previa Agregar/Actualizar/Error y Aplicar",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Ingresar todas las piezas durante el paso Artículos suministrados del asistente guiado"
+            },
+            {
+              "id": "d",
+              "text": "Crear una orden de compra —la recepción creará automáticamente las piezas-proveedor"
+            }
+          ],
+          "explanation": "El botón Importar de la pestaña Catálogo maneja la incorporación masiva. Descargue la plantilla para las columnas exactas, complete el CSV, y el cuadro de diálogo de dos estados muestra una vista previa etiquetando cada fila Agregar, Actualizar o Error con un resumen. Aplicar permanece deshabilitado hasta que se corrijan los errores. La importación coincide por número de pieza, por lo que las entradas existentes se actualizan en lugar de duplicarse. El paso Artículos suministrados del asistente es solo un recordatorio para hacer esto en la pestaña Catálogo después."
+        },
+        {
+          "id": "vc7",
+          "text": "¿Por qué los niveles de precio son de agregar-y-reemplazar (con fechas de vigencia) en lugar de editarse en el lugar, y dónde revisa los precios pasados?",
+          "options": [
+            {
+              "id": "a",
+              "text": "No lo son —editar un nivel sobrescribe el precio sin conservar registro"
+            },
+            {
+              "id": "b",
+              "text": "Para preservar el historial de precios; lo revisa mediante la acción historial (reloj) que abre el Historial de niveles de precio",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Porque los niveles son de solo lectura una vez que se coloca una OC"
+            },
+            {
+              "id": "d",
+              "text": "El historial de precios vive solo en QuickBooks después de una sincronización"
+            }
+          ],
+          "explanation": "Los niveles son de agregar y reemplazar para preservar el registro de lo que realmente pagó —agrega un nuevo nivel (a menudo con un Vigente desde futuro) en lugar de sobrescribir. La acción historial (reloj) en una fila del catálogo abre el registro de cambios del Historial de niveles de precio. Este historial preservado alimenta el cálculo de variación de precio promedio de la tarjeta de calificación."
+        }
+      ]
+    }
   }
 ]

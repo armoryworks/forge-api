@@ -360,5 +360,125 @@
         }
       ]
     }
+  },
+  {
+    "slug": "purchase-orders-shipping-currency-freight",
+    "title": "Envío, moneda y flete de la OC",
+    "summary": "Capture el Incoterm, el flete estimado y la moneda de cotización en una OC; bloquee el tipo de cambio al enviar; y registre el flete real con un método de asignación al recibir los bienes.",
+    "contentJson": {
+      "body": "## Envío, moneda y flete de la OC\n\nMás allá de las piezas y los precios, una orden de compra lleva los términos comerciales que determinan el costo de adquisición total: quién paga el flete, en qué moneda cotizó el proveedor y cuánto costó realmente el envío cuando llegan los bienes. Este artículo cubre la sección Envío y moneda de una OC y el paso de captura de flete dentro de la recepción.\n\n### Envío y moneda en una OC\n\nCuando crea una OC, la barra lateral tiene una sección **Envío y moneda** con tres campos. Estos se rellenan previamente con los valores predeterminados de la pieza del proveedor preferido al momento de crear, y puede anularlos.\n\n- **Incoterm** — el término de comercio internacional (Incoterms 2020) que define quién organiza y paga el transporte, quién asegura y cuándo se transfiere el título. Ejemplos: **EXW** (En fábrica — el comprador organiza todo el transporte), **FOB Origen** (el comprador toma el título en el punto de embarque — el predeterminado común para EE. UU. nacional), **FOB Destino** (el vendedor retiene el título hasta su muelle), **CFR/CIF/CPT/CIP** (el vendedor paga el flete), **DAP/DPU** (entregado en lugar) y **DDP** (Entregado con derechos pagados — el vendedor paga el flete y los aranceles). Los términos en los que el vendedor paga el flete establecen de forma predeterminada el tratamiento de flete-incluido de la línea.\n- **Flete estimado** — su costo de envío esperado para el pedido, ingresado como un importe en moneda. Alimenta el resumen del pedido (Subtotal + Flete estimado = Total) y la verificación de por debajo del mínimo del proveedor.\n- **Moneda de cotización** — la moneda en la que cotizó el proveedor (USD, EUR, GBP, CAD, MXN, JPY, CNY, y cualquier moneda que un administrador haya agregado a la lista de monedas de datos de referencia). Predeterminada en USD.\n\n### Editar el envío y la moneda más tarde\n\nEl panel de detalle de la OC muestra el mismo bloque de Envío y moneda, y mientras la OC todavía está en **Borrador** aparece un botón **Editar** junto a él. El cuadro de diálogo de edición le permite cambiar el Incoterm, el Flete estimado, la Moneda de cotización, y también establecer el **Tipo de cambio** y la **Fuente del tipo de cambio** (p. ej., el proveedor de la tasa o la fecha en que la obtuvo). Una vez que la OC sale de Borrador, estos pasan a ser de solo lectura.\n\n### Tipo de cambio — bloqueado al enviar\n\nPara una OC en moneda extranjera, el tipo de cambio usado para convertir la cotización del proveedor a su moneda local se **bloquea cuando envía** la OC. Esto congela el valor en moneda local del compromiso en el momento en que coloca el pedido, de modo que las fluctuaciones posteriores de la moneda no revalúen silenciosamente la OC. El **Tipo de cambio** bloqueado y su **Fuente** se muestran en el bloque de Envío y moneda del panel de detalle. Si necesita corregir la tasa antes de enviar, use el cuadro de diálogo de edición de Borrador descrito arriba.\n\n### Advertencia de por debajo del mínimo del proveedor\n\nSi el total de la OC (líneas más flete estimado) cae por debajo del importe mínimo de pedido del proveedor, el panel de detalle muestra un banner no bloqueante de **por debajo del mínimo del proveedor** con el importe mínimo. Es informativo —no le impide enviar— pero es un aviso para consolidar el pedido o agregar líneas de modo que supere el mínimo del proveedor.\n\n### Captura de flete en la recepción\n\nEl flete estimado es lo que esperaba; el **flete real** es lo que el envío realmente costó. Lo registra cuando llegan los bienes. El cuadro de diálogo Recibir artículos tiene una sección **Envío y moneda** debajo de las cantidades de línea:\n\n- **Flete real** — el cargo de flete real para esta recepción. **Se establece de forma predeterminada con el flete estimado de la OC**, de modo que el caso común de 'coincide con la estimación' es un solo clic. Anúlelo con la cifra de la factura del transportista o de los documentos de empaque.\n- **Método de asignación de flete** — cómo se distribuye el costo del flete entre las líneas recibidas para fines de costo de adquisición:\n  - **Por valor extendido (predeterminado)** — asigna proporcionalmente al valor extendido de cada línea (cantidad por precio unitario). Las líneas de mayor valor absorben más flete.\n  - **Por cantidad** — asigna proporcionalmente a las unidades recibidas en cada línea. Cada unidad lleva la misma parte de flete sin importar el precio.\n  - **Manual (por línea)** — usted asigna la división del flete por sí mismo, línea por línea.\n\n### Varianza de flete\n\nCuando el flete real que ingresa difiere de la estimación de la OC, aparece un chip de **Varianza** junto a los campos de flete que muestra la diferencia porcentual. Está codificado por color como una señal rápida —informativo, dentro de aproximadamente ±10%; cauteloso en el rango medio; y prominente cuando el flete real está muy alejado de la estimación (más allá de aproximadamente ±25%). La varianza nunca bloquea la recepción; simplemente señala las recepciones en las que el flete llegó materialmente diferente de lo planeado, lo cual es útil para revisar las estimaciones y el desempeño del proveedor.\n\n### Juntándolo todo\n\nUn flujo típico: elija el Incoterm e ingrese un flete estimado al construir la OC → el tipo de cambio se bloquea cuando envía un pedido en moneda extranjera → cuando llega el envío, abra Recibir artículos, confirme o anule el flete real, elija un método de asignación y guarde. La OC ahora lleva tanto el flete planeado como el real, asignado a las líneas correctas para un costo de adquisición preciso.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "purchase-orders-auto-po-settings",
+    "title": "Sugerencias y configuración de Auto-OC",
+    "summary": "Cómo el trabajo nocturno de análisis de demanda convierte la demanda no satisfecha en sugerencias de órdenes de compra, y cómo un administrador habilita Auto-OC, elige el modo Sugerir / Borrador / Automático, establece los días de margen y activa las notificaciones de chat.",
+    "contentJson": {
+      "body": "## Sugerencias y configuración de Auto-OC\n\nAuto-OC es la automatización de aprovisionamiento que vigila la demanda y propone las órdenes de compra que necesita para cubrirla —de modo que los compradores dediquen su tiempo a revisar y aprobar en lugar de buscar faltantes. Vive en la página de Órdenes de compra a través de dos pestañas: **Sugerencias** (donde aparecen las propuestas) y **Configuración** (solo para administradores, donde configura el comportamiento).\n\n### Cómo funciona\n\nUn **trabajo nocturno de análisis de demanda** escanea la demanda abierta —principalmente los requisitos de órdenes de venta y las existencias que han caído por debajo de su punto de reorden— frente al suministro entrante (OC abiertas) y el inventario disponible. Dondequiera que haya demanda no satisfecha y escalonada en el tiempo, agrupa el faltante por pieza y proveedor preferido y produce una **sugerencia de Auto-OC**: qué pieza, qué proveedor, la cantidad sugerida, la fecha en que se necesita y las órdenes de venta de origen que impulsaron la demanda.\n\nEl trabajo se ejecuta automáticamente cada noche. Un administrador también puede forzar una ejecución bajo demanda desde la pestaña Sugerencias (vea el recorrido de Sugerencias de Auto-OC) en lugar de esperar al ciclo nocturno.\n\n### Tres modos\n\nLa configuración de **Modo predeterminado** controla qué hace el trabajo nocturno con las sugerencias que produce:\n\n- **Sugerir** — el trabajo solo crea sugerencias. No se pide nada automáticamente. Un comprador revisa cada sugerencia en la pestaña Sugerencias y decide si la convierte en una OC o la descarta. Este es el modo más conservador y el punto de partida habitual.\n- **Borrador** — el trabajo va un paso más allá y crea órdenes de compra en **Borrador** a partir de las sugerencias, pero se detiene ahí. Los borradores esperan en la pestaña Órdenes a que un comprador los revise, ajuste y envíe. Obtiene el ahorro de tiempo de las OC preconstruidas mientras mantiene una compuerta humana antes de enviar algo a un proveedor.\n- **Automático** — el trabajo crea las órdenes de compra sin una compuerta manual. Use esto solo para reabastecimiento confiable y bien ajustado donde la señal de demanda y los términos del proveedor son fiables.\n\n### Campos de configuración (Administrador)\n\nLa pestaña **Configuración** es visible solo para los administradores. Tiene:\n\n- **Habilitar Auto-OC** — el interruptor maestro. Cuando está apagado, el trabajo nocturno no genera sugerencias ni OC. Active esto antes de que cualquiera de las otras configuraciones surta efecto.\n- **Modo predeterminado** — Sugerir, Borrador o Automático, como se describe arriba. Obligatorio.\n- **Días de margen** — un colchón de tiempo de entrega (0–365). El trabajo adelanta la demanda por esta cantidad de días para que una sugerencia se levante con tiempo suficiente para pedir, enviar y recibir antes de la fecha de necesidad. Márgenes más grandes piden antes y llevan más existencias; márgenes más pequeños piden después y operan de forma más ajustada. Obligatorio.\n- **Notificar al chat** — cuando está habilitado, el sistema publica un mensaje en el chat después de una ejecución para que el equipo vea que hay nuevas sugerencias (u OC) esperando, sin tener que vigilar la pestaña.\n\nHaga sus cambios y haga clic en **Guardar**. El botón Guardar está deshabilitado hasta que el formulario sea válido y haya cambiado algo.\n\n### Capacidad y roles\n\nAuto-OC está controlado por la capacidad **CAP-P2P-AUTOPO** —si está deshabilitada para su instalación, las pestañas Sugerencias y Configuración no funcionarán. Ver y actuar sobre las sugerencias está disponible para los roles **Administrador, Gerente y Gerente de oficina**; **editar la Configuración y activar una ejecución bajo demanda son solo para administradores**.\n\n### Elegir un modo\n\nLa mayoría de los talleres comienzan en **Sugerir**, ganan confianza en la señal de demanda y luego promueven las categorías confiables a **Borrador** de modo que las OC queden preparadas para una revisión rápida. Reserve **Automático** para las piezas en las que de todos modos aprobaría cada sugerencia. Puede cambiar el modo en cualquier momento —solo afecta las futuras ejecuciones nocturnas.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "purchase-orders-auto-po-walkthrough",
+    "title": "Revisar las sugerencias de Auto-OC",
+    "summary": "Un recorrido guiado por la pestaña Sugerencias de Auto-OC: el filtro de estado, la tabla de sugerencias, convertir y descartar sugerencias (individuales y masivas), y activar un análisis bajo demanda.",
+    "contentJson": {
+      "appRoute": "/purchase-orders/suggestions",
+      "startButtonLabel": "Recorrer Sugerencias de Auto-OC",
+      "steps": [
+        {
+          "element": ".tab-bar",
+          "popover": {
+            "title": "Pestañas de Órdenes de compra",
+            "description": "La página de Órdenes de compra tiene hasta tres pestañas: Órdenes (sus OC), Sugerencias (propuestas de Auto-OC —está aquí) y Configuración (configuración de Auto-OC solo para administradores). Una insignia en la pestaña Sugerencias muestra cuántas propuestas siguen pendientes.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='auto-po-status-filter']",
+          "popover": {
+            "title": "Filtro de estado",
+            "description": "Filtre las sugerencias por estado: Pendiente (en espera de su decisión), Convertida (ya convertida en una OC) o Descartada (rechazada). La pestaña se abre en Pendiente para que vea primero lo que necesita acción.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tabla de sugerencias",
+            "description": "Cada fila es una compra propuesta: la pieza, el proveedor preferido, la cantidad sugerida, la fecha en que se necesita, las órdenes de venta de origen que impulsaron la demanda y el estado. La pieza y el proveedor son enlaces cliqueables a sus registros. Seleccione una o más filas con las casillas de verificación para actuar sobre ellas de forma masiva.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "[data-testid='auto-po-run-btn']",
+          "popover": {
+            "title": "Ejecutar análisis ahora",
+            "description": "Auto-OC recalcula la demanda cada noche, pero los administradores pueden forzar un análisis nuevo aquí en lugar de esperar. Después de que se ejecute, actualice para ver las sugerencias recién levantadas. (Este botón es solo para administradores.)",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Convertir o descartar",
+            "description": "Cuando selecciona una o más sugerencias pendientes, los botones Convertir a OC y Descartar aparecen en la barra de herramientas. Convertir transforma cada sugerencia seleccionada en una orden de compra (una o muchas a la vez); Descartar elimina las propuestas que no piensa pedir. Las sugerencias convertidas pasan al estado Convertida y aparece una nueva OC en la pestaña Órdenes.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "purchase-orders-short-close",
+    "title": "Cerrar una OC de forma anticipada (short-close)",
+    "summary": "Cuándo y cómo cerrar de forma anticipada una orden de compra recibida parcialmente: la diferencia con un cierre normal, el motivo obligatorio, quién puede hacerlo y cómo se registran las cantidades cerradas anticipadamente para auditoría.",
+    "contentJson": {
+      "title": "Cerrar una OC de forma anticipada (short-close)",
+      "groups": [
+        {
+          "heading": "Qué significa el cierre anticipado",
+          "items": [
+            { "label": "Definición", "value": "El cierre anticipado finaliza una OC recibida parcialmente cuando la cantidad restante (no recibida) nunca llegará —y usted lo acepta. Cierra el pedido con un motivo documentado en lugar de esperar indefinidamente el saldo." },
+            { "label": "Cierre normal vs. cierre anticipado", "value": "La acción Cerrar normal solo funciona en una OC recibida por completo —cerrar una OC que todavía tiene cantidad restante se rechaza. El Cierre anticipado es la vía para cerrar una OC que solo está recibida parcialmente." },
+            { "label": "Motivos típicos", "value": "Se canceló un pedido pendiente (backorder) del proveedor, el artículo se descontinuó, el resto ya no se necesita, o el pequeño saldo pendiente no vale la pena perseguir." }
+          ]
+        },
+        {
+          "heading": "Cuándo aparece el botón",
+          "items": [
+            { "label": "Estado", "value": "El botón Cierre anticipado se muestra en el panel de detalle de la OC para cualquier OC que NO esté en Borrador, Cerrada o Cancelada —en la práctica, pedidos Enviados, Confirmados o Recibidos parcialmente que todavía tienen un saldo pendiente." },
+            { "label": "Se requiere saldo pendiente", "value": "Al menos una línea debe tener todavía una cantidad pedida mayor que la recibida más cualquier cantidad previamente cerrada de forma anticipada. Si todo está recibido, usa la acción Cerrar normal en su lugar." },
+            { "label": "Quién puede hacerlo", "value": "Restringido a los roles Administrador, Gerente, Gerente de oficina y Compras (Procurement). Otros usuarios no verán el botón Cierre anticipado." }
+          ]
+        },
+        {
+          "heading": "Cómo cerrar de forma anticipada",
+          "items": [
+            { "label": "1. Abrir la OC", "value": "Haga clic en la fila de la OC en la pestaña Órdenes para abrir su panel de detalle." },
+            { "label": "2. Hacer clic en Cierre anticipado", "value": "Encuentre la acción Cierre anticipado en la fila de acciones (junto a Cancelar y Cerrar). Su icono es un glifo de 'cancelar envío programado'." },
+            { "label": "3. Ingresar un motivo", "value": "Se abre un cuadro de diálogo que requiere un motivo. El motivo es obligatorio —el botón de confirmar permanece deshabilitado hasta que proporcione uno, y el servidor rechaza un motivo en blanco." },
+            { "label": "4. Confirmar", "value": "Haga clic en Cierre anticipado en el cuadro de diálogo. La OC pasa a Cerrada y las cantidades pendientes se registran como cerradas anticipadamente." }
+          ]
+        },
+        {
+          "heading": "Qué se registra",
+          "items": [
+            { "label": "Cantidad cancelada / cerrada anticipadamente", "value": "El resto no recibido de cada línea se captura como su cantidad cerrada anticipadamente. Después de un cierre anticipado, la tabla de líneas muestra una columna adicional de Cantidad cerrada anticipadamente con estos importes." },
+            { "label": "Motivo y fecha (banner de auditoría)", "value": "El panel de detalle muestra un banner de 'Cerrada anticipadamente' con el motivo que ingresó y la fecha, para que Cuentas por pagar y compras puedan ver de un vistazo por qué se cerró la OC con un saldo no cumplido." },
+            { "label": "Estado final", "value": "La OC termina en estado Cerrada. No es posible recibir, cancelar ni realizar otras acciones —el cierre anticipado es terminal, igual que un cierre normal." }
+          ]
+        },
+        {
+          "heading": "Cierre anticipado vs. Cancelar",
+          "items": [
+            { "label": "Cancelar", "value": "Solo disponible para OC en Borrador, Enviada y Confirmada —es decir, antes de que se haya recibido algo. Anula todo el pedido." },
+            { "label": "Cierre anticipado", "value": "Se usa después de la recepción parcial. Mantiene intacta la porción recibida (y sus registros de recepción) y solo cierra el resto no cumplido." },
+            { "label": "Regla práctica", "value": "Nada recibido todavía y todo el pedido está muerto → Cancelar. Algo recibido, el resto no vendrá → Cierre anticipado." }
+          ]
+        }
+      ]
+    }
   }
 ]

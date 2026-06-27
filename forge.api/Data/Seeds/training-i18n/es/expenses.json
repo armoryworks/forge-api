@@ -297,5 +297,151 @@
         }
       ]
     }
+  },
+  {
+    "slug": "expenses-receipts-vendor-settled",
+    "title": "Recibos de gastos y gastos liquidados por proveedor",
+    "summary": "Adjunte un recibo (y cuándo es obligatorio), además de cómo nombrar a un proveedor enruta el gasto a Cuentas por pagar y se convierte en una factura de proveedor al aprobarse.",
+    "contentJson": {
+      "body": "## Recibos y gastos liquidados por proveedor\n\nEl diálogo de gastos tiene dos campos que cambian *cómo* se maneja un gasto más adelante: el **adjunto de recibo** y el selector de **Proveedor**. Este módulo explica ambos.\n\n### Adjuntar un recibo\n\nEn el diálogo Crear/Reenviar gasto, la fila **Recibo** le permite adjuntar comprobante de compra:\n\n1. Haga clic en **Subir recibo**.\n2. Elija una imagen (`image/*`) o un PDF. El archivo se sube de inmediato y la fila cambia para mostrar el nombre del archivo con un icono de clip.\n3. Para reemplazarlo, haga clic en la **X** roja junto al nombre del archivo para quitarlo y luego suba un archivo diferente.\n\nUn recibo se almacena como un adjunto de archivo en el gasto; los revisores pueden abrirlo desde la cola de aprobación al decidir.\n\n### Cuándo se exige un recibo\n\nSu empresa puede activar una **política de recibo obligatorio** en la configuración de gastos. Cuando está activada:\n\n- La etiqueta Recibo muestra un asterisco rojo (**\\***), el mismo marcador de obligatorio que se usa en otros campos requeridos.\n- El botón **Enviar** permanece deshabilitado hasta que se adjunte un recibo —incluso si todos los demás campos son válidos.\n- Al pasar el cursor sobre el botón Enviar deshabilitado se muestra una sugerencia que explica que se requiere un recibo.\n\nAsí que si Enviar no se habilita y todos sus campos parecen completos, verifique si todavía falta un recibo. El bloqueo lo impone la política: cuando la política está desactivada, el recibo es opcional y Enviar no espera por él.\n\n### De bolsillo vs. liquidado por proveedor\n\nCada gasto es de uno de dos tipos, decidido por el campo **Proveedor**:\n\n- **De bolsillo (efectivo)** — deje Proveedor en *Sin proveedor*. Es el valor predeterminado. El gasto representa dinero que un empleado gastó personalmente y espera que se le reembolse. Permanece por completo dentro del módulo de Gastos.\n- **Liquidado por proveedor** — elija un proveedor del menú desplegable **Proveedor**. Esto le indica al sistema que el dinero se le debe a ese proveedor (la empresa aún no ha pagado). Aparece una sugerencia debajo del campo que explica la consecuencia.\n\n### Qué hace un gasto liquidado por proveedor al aprobarse\n\nNombrar a un proveedor enruta el gasto a **Cuentas por pagar**. Cuando el gasto se **aprueba**, se *promueve a una factura de proveedor* que se paga a través de Cuentas por pagar —el flujo normal de CxP (facturas de proveedor → pagos a proveedor) toma el control desde ahí.\n\nUna vez que ocurre la promoción, la fila del gasto en la tabla de Gastos muestra un pequeño **chip informativo con el número de factura de proveedor** junto a su estado. Ese chip es un enlace activo: al hacer clic se abre la factura de proveedor vinculada. Así es como se rastrea un gasto aprobado liquidado por proveedor hasta la factura en que se convirtió.\n\nPuntos clave:\n- El campo **Proveedor** es parte del diálogo crear/reenviar —*no* es una columna en la tabla principal de gastos, así que no busque una columna de Proveedor ahí. En su lugar, el vínculo aparece como el chip del número de factura junto al estado.\n- La promoción ocurre al **aprobar**, no al enviar. Un gasto pendiente liquidado por proveedor todavía no tiene factura.\n- Los gastos de bolsillo nunca crean una factura de proveedor —son reembolsos, no cuentas por pagar.\n\n### Guía rápida de decisión\n\n| Gastó dinero… | Campo Proveedor | Qué pasa al aprobarse |\n|---|---|---|\n| Personalmente, espera reembolso | *Sin proveedor* | Sigue siendo un gasto (reembolso) |\n| A cuenta de la empresa, proveedor aún sin pagar | Seleccione el proveedor | Se convierte en factura de proveedor en CxP |",
+      "sections": []
+    }
+  },
+  {
+    "slug": "expenses-approval-queue",
+    "title": "Cola de aprobación de gastos y solicitud de revisión",
+    "summary": "Trabaje la Cola de aprobación de gastos dedicada: abra un gasto para revisarlo y use Aprobar, Solicitar revisión o Rechazar con la nota de revisión obligatoria.",
+    "contentJson": {
+      "appRoute": "/expenses/approval",
+      "startButtonLabel": "Recorrer la cola de aprobación",
+      "steps": [
+        {
+          "element": "app-page-layout",
+          "popover": {
+            "title": "Cola de aprobación de gastos",
+            "description": "Esta cola dedicada en /expenses/approval lista todos los gastos que aún están Pendientes —de todos los remitentes— para que los gerentes puedan revisarlos en un solo lugar en vez de buscar en la tabla principal. Es independiente de los botones de aprobar/rechazar en línea de la lista principal /expenses.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-input",
+          "popover": {
+            "title": "Buscar gastos pendientes",
+            "description": "Acote la cola escribiendo un remitente, categoría o descripción y presionando Enter. Aquí solo se muestran gastos Pendientes.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".approval-queue__summary",
+          "popover": {
+            "title": "Conteo y total de pendientes",
+            "description": "El resumen muestra cuántos gastos esperan su decisión y su total combinado en dólares —una lectura rápida de su carga de aprobaciones pendientes.",
+            "side": "left"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Abrir un gasto para revisar",
+            "description": "Haga clic en cualquier fila (o en sus botones de marca/X) para abrir el diálogo de revisión. El diálogo muestra el remitente, fecha, categoría, monto, descripción y el trabajo vinculado, más un campo de Nota de revisión y tres botones de decisión: Aprobar, Solicitar revisión y Rechazar.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "expenses-review-decisions",
+    "title": "Revisión de gastos: Aprobar, Solicitar revisión o Rechazar",
+    "summary": "Los tres resultados del diálogo de revisión de gastos y la regla de la nota de 10 caracteres que rige Rechazar y Solicitar revisión.",
+    "contentJson": {
+      "body": "## Revisar un gasto\n\nHacer clic en una fila de la Cola de aprobación de gastos (`/expenses/approval`) abre el **diálogo de revisión**. Muestra los detalles de solo lectura del envío —remitente, fecha, categoría, monto, descripción y el trabajo vinculado (cuando lo hay)— encima de un campo **Nota de revisión** y tres botones de decisión.\n\n### Los tres resultados\n\n- **Aprobar** — acepta el gasto. Pasa a Aprobado (chip verde). Si el gasto nombró a un proveedor, la aprobación también lo promueve a una factura de proveedor (vea *Recibos de gastos y gastos liquidados por proveedor*). Aprobar **no** requiere una nota; puede agregar una para dar contexto, pero es opcional.\n- **Solicitar revisión** — devuelve el gasto al remitente sin rechazarlo del todo. El estado pasa a **Necesita revisión** y su nota se convierte en la retroalimentación del revisor que ve el remitente. Use esto cuando el gasto es corregible —categoría equivocada, recibo faltante, un monto que necesita explicación— y prefiere que el remitente lo corrija y lo reenvíe en lugar de empezar de cero.\n- **Rechazar** — declina el gasto del todo (chip rojo). Use esto cuando el gasto no debe reembolsarse en absoluto.\n\n### La regla de la nota de revisión\n\nEl campo **Nota de revisión** rige los dos resultados negativos:\n\n- **Tanto Rechazar como Solicitar revisión requieren una nota de al menos 10 caracteres.** Hasta que la nota alcance los 10 caracteres, ambos botones permanecen deshabilitados y una sugerencia debajo del campo cuenta su progreso hacia el mínimo.\n- **Aprobar no tiene requisito de nota.** Está habilitado sin importar el campo de nota.\n\nEsto es intencional: decirle a un remitente *por qué* se devolvió su gasto es obligatorio, para que pueda corregirlo (Solicitar revisión) o entender la decisión (Rechazar). No es posible un rechazo silencioso.\n\n### Después de decidir\n\nEl diálogo se cierra, la cola se recarga (el gasto que acaba de manejar desaparece de la lista de Pendientes) y un snackbar de confirmación informa el resultado. Un gasto en Necesita revisión reaparece para que el remitente lo edite y lo reenvíe; uno Aprobado o Rechazado es definitivo desde la perspectiva de la cola.\n\n### Quién ve esta cola\n\nLa Cola de aprobación es una superficie para gerentes. Los remitentes regulares usan la lista principal `/expenses` para crear y dar seguimiento a sus propios gastos; la cola es donde los revisores despejan el atraso de pendientes."
+    }
+  },
+  {
+    "slug": "expenses-edit-resubmit-delete",
+    "title": "Editar, reenviar y eliminar sus gastos",
+    "summary": "Corrija y reenvíe un gasto que volvió como Necesita revisión, y administre sus propios envíos de gastos.",
+    "contentJson": {
+      "appRoute": "/expenses",
+      "startButtonLabel": "Recorrer Edición y reenvío",
+      "steps": [
+        {
+          "element": "[data-testid='status-filter']",
+          "popover": {
+            "title": "Encontrar gastos devueltos",
+            "description": "Cuando un revisor devuelve un gasto, recibe el estado Necesita revisión (chip amarillo). Use este filtro de Estado y elija 'Necesita revisión' para ver solo los que esperan que usted corrija.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "La acción de reenviar",
+            "description": "Una fila en Necesita revisión muestra una acción de lápiz (editar) en el extremo derecho de la fila. Al hacer clic se reabre el gasto en un diálogo titulado 'Reenviar gasto' —precargado con todo lo que ingresó originalmente.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "[data-testid='new-expense-btn']",
+          "popover": {
+            "title": "O crear un gasto nuevo",
+            "description": "Este mismo diálogo se usa para crear gastos nuevos. La diferencia al reenviar es que el diálogo muestra la nota de retroalimentación del revisor en la parte superior para que sepa exactamente qué cambiar.",
+            "side": "bottom"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "expenses-recurring-upcoming",
+    "title": "Gastos recurrentes y próximos",
+    "summary": "Configure plantillas de gastos recurrentes que se generan automáticamente según un calendario, y lea la previsión de 90 días de Próximos.",
+    "contentJson": {
+      "body": "## Gastos recurrentes y próximos\n\nEl libro de gastos en `/expenses/upcoming` maneja costos predecibles y repetitivos —suscripciones, arrendamientos, seguros, servicios— para que no tenga que acordarse de registrarlos a mano en cada ciclo. Tiene dos pestañas: **Próximos** y **Recurrentes**.\n\n### Pestaña Recurrentes — las plantillas\n\nUn **gasto recurrente** es una plantilla que genera gastos reales automáticamente según un calendario. Haga clic en **Nuevo recurrente** para crear uno:\n\n- **Monto** (obligatorio) y **Frecuencia** (obligatorio) — Semanal, Quincenal, Mensual, Trimestral o Anual.\n- **Categoría** (obligatorio) y **Clasificación** (obligatorio). La clasificación es la taxonomía de costos recurrentes (Suscripción, Arrendamiento, Seguro, Servicio, Contrato de mantenimiento, Licencia, Membresía, Otro) y determina el chip de color.\n- **Descripción** (obligatorio) y **Proveedor** (opcional).\n- **Fecha de inicio** (obligatorio) y una **Fecha de fin** opcional —deje la Fecha de fin en blanco para un compromiso indefinido.\n- Interruptor de **Aprobación automática** — cuando está activado, los gastos que genera esta plantilla omiten la cola de pendientes.\n\nLa pestaña Recurrentes lista cada plantilla con su fecha de **Próximo vencimiento** y un chip **Activo**. Dos acciones de fila le permiten administrar una plantilla:\n\n- El botón **pausar / reproducir** alterna la plantilla entre Activa y Pausada. Pausar detiene la generación de nuevos gastos sin eliminar su historial.\n- El botón **eliminar** (papelera) quita la plantilla tras una confirmación. Tenga en cuenta que las plantillas recurrentes son **solo eliminar / solo pausar** —no hay edición en el lugar; para cambiar los términos, elimine y vuelva a crear, o pause la anterior.\n\n### Cómo funciona la generación\n\nLas plantillas activas generan su gasto automáticamente en cada ocurrencia —usted no hace clic en nada. Una plantilla con Aprobación automática activada produce gastos ya aprobados; sin ella, cada gasto generado cae en la cola normal de Pendientes para revisión como cualquier otro ingresado a mano.\n\n### Pestaña Próximos — la previsión de 90 días\n\nLa pestaña **Próximos** es una vista prospectiva: proyecta cada ocurrencia que sus plantillas recurrentes activas generarán durante los próximos **90 días**. No crea nada —es una previsión para que vea lo que viene.\n\n- El **Total de 90 días** suma cada ocurrencia proyectada en la ventana.\n- Una tira de **desglose mensual** muestra los totales por mes y los conteos de elementos, para que vea cómo se distribuye la carga.\n- El selector **Resaltar clasificación** le permite destacar una clasificación (p. ej., todas las Suscripciones) —las filas coincidentes se resaltan en la tabla en vez de filtrarse, así conserva la imagen completa mientras enfatiza un tipo de costo.\n- Cada fila muestra la Fecha de vencimiento proyectada, Clasificación, Categoría, Descripción, Proveedor, Monto y Frecuencia.\n\nUse Próximos para anticipar necesidades de efectivo; use Recurrentes para controlar las plantillas que la impulsan. Pausar una plantilla en la pestaña Recurrentes elimina de inmediato sus ocurrencias futuras de la previsión de Próximos."
+    }
+  },
+  {
+    "slug": "expenses-recurring-quickref",
+    "title": "Gastos recurrentes y próximos — Referencia rápida",
+    "summary": "Referencia rápida de los campos de gastos recurrentes, frecuencias, clasificaciones, acciones de fila y la previsión de Próximos.",
+    "contentJson": {
+      "title": "Referencia rápida de gastos recurrentes y próximos",
+      "groups": [
+        {
+          "heading": "Campos del nuevo gasto recurrente",
+          "items": [
+            {"label": "Monto (obligatorio)", "value": "Moneda, mínimo $0.01. El monto de cada ocurrencia generada. data-testid: recurring-amount"},
+            {"label": "Frecuencia (obligatorio)", "value": "Semanal, Quincenal, Mensual, Trimestral o Anual. Determina con qué frecuencia genera la plantilla. data-testid: recurring-frequency"},
+            {"label": "Categoría (obligatorio)", "value": "Categoría de gasto para los gastos generados. data-testid: recurring-category"},
+            {"label": "Clasificación (obligatorio)", "value": "Tipo de costo recurrente: Suscripción, Arrendamiento, Seguro, Servicio, Contrato de mantenimiento, Licencia, Membresía, Otro. data-testid: recurring-classification"},
+            {"label": "Descripción (obligatorio)", "value": "Para qué es el costo recurrente. data-testid: recurring-description"},
+            {"label": "Proveedor (opcional)", "value": "Nombre de proveedor en texto libre. data-testid: recurring-vendor"},
+            {"label": "Fecha de inicio (obligatorio)", "value": "Fecha de la primera ocurrencia. data-testid: recurring-start"},
+            {"label": "Fecha de fin (opcional)", "value": "Deje en blanco para indefinido. data-testid: recurring-end"},
+            {"label": "Aprobación automática", "value": "Interruptor. Cuando está activado, los gastos generados omiten la cola de Pendientes. data-testid: recurring-auto-approve"}
+          ]
+        },
+        {
+          "heading": "Columnas y acciones de la pestaña Recurrentes",
+          "items": [
+            {"label": "Próximo vencimiento", "value": "La próxima fecha en que esta plantilla generará un gasto."},
+            {"label": "Chip Activo", "value": "'Activo' verde o 'Pausado' atenuado —si la plantilla está generando actualmente."},
+            {"label": "Acción Pausar / Reproducir", "value": "Alterna la plantilla entre Activa y Pausada. Pausar conserva el historial pero detiene la nueva generación."},
+            {"label": "Acción Eliminar", "value": "Quita la plantilla tras un diálogo de confirmación. Las plantillas son solo eliminar —sin edición en el lugar."}
+          ]
+        },
+        {
+          "heading": "Pestaña Próximos (previsión)",
+          "items": [
+            {"label": "Ventana", "value": "Proyecta los próximos 90 días de ocurrencias de plantillas activas. Previsión de solo lectura —no genera nada."},
+            {"label": "Total de 90 días", "value": "Suma de cada ocurrencia proyectada en la ventana."},
+            {"label": "Desglose mensual", "value": "Chips de total por mes + conteo de elementos."},
+            {"label": "Resaltar clasificación", "value": "Destaca una clasificación resaltando las filas coincidentes (no oculta el resto)."},
+            {"label": "Efecto de pausar", "value": "Pausar una plantilla en la pestaña Recurrentes elimina de inmediato sus ocurrencias futuras de esta previsión."}
+          ]
+        }
+      ]
+    }
   }
 ]

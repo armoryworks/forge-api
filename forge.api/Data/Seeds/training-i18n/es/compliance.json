@@ -663,5 +663,278 @@
         }
       ]
     }
+  },
+  {
+    "slug": "compliance-admin-templates",
+    "title": "Formularios de Cumplimiento para Administradores",
+    "summary": "Cómo los administradores gestionan las plantillas de formularios de cumplimiento desde Administración > Cumplimiento: crear/editar/eliminar plantillas personalizadas, configurar los indicadores que controlan el comportamiento (requiere documentos de identidad, bloquea la asignación de trabajos, sincronización automática), extraer una definición de formulario electrónico de un PDF gubernamental y resolver el estado de 'configuración pendiente'.",
+    "contentJson": {
+      "body": "## Formularios de Cumplimiento para Administradores\n\nLos administradores configuran qué formularios de cumplimiento debe completar un empleado, cómo se comporta cada formulario y cómo el sistema lo representa electrónicamente. Todo esto reside en la pestaña **Cumplimiento** del área de Administración (Administración > Cumplimiento), que abre el panel de plantillas de formulario. Esta pestaña es la pestaña de inicio predeterminada para los Gerentes y Gerentes de Oficina que no tienen las pestañas de Administración más amplias.\n\n> Acceso: la creación/edición/eliminación de plantillas es **solo para administradores**. El control de capacidad es **CAP-QC-COMPLIANCE-FORMS**: si los formularios de cumplimiento están deshabilitados para su instalación, toda la pestaña está oculta.\n\n### El panel de plantillas\n\nEl encabezado del panel muestra el conteo de plantillas más dos acciones: **Sincronizar todo** (vuelve a extraer el PDF de origen de cada plantilla con sincronización automática) y **Nueva plantilla** (el botón verde de crear). Debajo hay una tabla de datos de cada plantilla con estas columnas:\n\n- **Icono** — el icono de Material que se muestra a los empleados en su lista de Formularios Fiscales.\n- **Nombre** — el nombre oficial del formulario. Si una plantilla aún necesita una definición de formulario electrónico, aparece un chip amarillo **Sin definición de formulario** junto al nombre.\n- **Tipo** — el tipo de formulario: W-4, I-9, Retención Estatal, Depósito Directo, Compensación al Trabajador o Manual.\n- **Chip Auto / Manual** — si la plantilla se sincroniza automáticamente desde una URL de origen.\n- **Última sincronización** — la última extracción de origen exitosa, o *Nunca*.\n- **Activo** / **Inactivo** — si los empleados ven el formulario.\n- **Acciones** — botones de icono a nivel de fila (véase a continuación).\n\n### Plantillas del sistema frente a plantillas personalizadas\n\nLos seis tipos de formulario integrados (W-4, I-9, Retención Estatal, Depósito Directo, Compensación al Trabajador, Manual) se entregan como **plantillas del sistema**. Las plantillas del sistema no pueden eliminarse, y al hacer clic en su botón de acción de fila de edición se abre un diálogo **solo de carga** (el icono es `upload_file`, no `edit`): puede adjuntar un documento de anulación manual y configurar el llenado de PDF, pero no puede renombrar el formulario ni cambiar su identidad principal. Las plantillas personalizadas que crea usted mismo tienen un diálogo de edición completo y pueden eliminarse.\n\n### Crear una plantilla personalizada\n\nHaga clic en **Nueva plantilla** para abrir el diálogo de creación. Los campos son:\n\n- **Nombre** (obligatorio) — el nombre visible del formulario.\n- **Tipo de formulario** (obligatorio) — uno de los seis tipos. Esto impulsa la tarjeta de resumen, el comportamiento de los documentos de identidad y las reglas de reenvío.\n- **Descripción** — se muestra bajo el nombre en la tarjeta del empleado.\n- **Icono** (obligatorio) — un nombre de icono de Material (p. ej., `description`, `badge`).\n- **Clave de finalización de perfil** (obligatorio) — la clave de perfil que satisface este formulario. Cuando el empleado completa el formulario, esta clave pasa a estado completado, que es lo que leen el progreso de incorporación y el control de asignación de trabajos.\n- **URL de origen** — la URL del PDF gubernamental oficial. Obligatoria si desea que el sistema extraiga una definición de formulario electrónico o se sincronice automáticamente.\n- **Orden de clasificación** — posición en la lista de formularios del empleado.\n- **Interruptores**: **Sincronización automática desde el origen** (vuelve a extraer el PDF según una programación), **Activo** (visible para los empleados), **Requiere documentos de identidad** (activa el diálogo de carga de Lista A / Lista B / Lista C, usado por el I-9) y **Bloquea la asignación de trabajos** (un formulario incompleto impide que el empleado sea asignado a trabajos de producción y muestra una insignia roja *Requerido*).\n\nHaga clic en **Crear** para guardar. El botón de validación muestra cualquier campo obligatorio faltante.\n\n### Editar una plantilla\n\nPara una plantilla personalizada, el diálogo de edición tiene los mismos campos más un área de texto JSON de **Mapa de campos AcroField**. El mapa AcroField indica al motor de llenado de PDF qué campo recopilado se asigna a qué campo con nombre en el formulario (su AcroForm) del PDF gubernamental oficial. Esto es lo que permite al sistema prerrellenar el W-4 o I-9 real antes de enviarlo a DocuSeal para la firma.\n\n### Extraer una definición de formulario electrónico\n\nLos formularios W-4, I-9 y de Retención Estatal se representan electrónicamente: el empleado completa el diseño gubernamental real, no una aproximación simplificada. Ese diseño es una **definición de formulario** que el sistema genera a partir del PDF oficial:\n\n1. Establezca una **URL de origen** (o cargue una anulación de documento manual) en la plantilla.\n2. En las acciones de la fila de la plantilla, haga clic en el botón **Extraer definición** (el icono de varita `auto_fix_high`). Aparece solo cuando la plantilla no tiene una definición de formulario actual Y tiene una URL de origen o una anulación cargada.\n3. La canalización ejecuta la extracción con pdf.js → análisis inteligente del diseño → verificación/refinamiento por IA, produciendo una definición de formulario JSON (secciones de pasos, grupos de opciones de estado civil, líneas de montos, bloques de firma, hojas de trabajo).\n4. Cuando finaliza la extracción, el chip **Sin definición de formulario** desaparece y los empleados pueden completar el formulario.\n\n### El estado de 'configuración pendiente'\n\nHasta que una plantilla que debería tener una definición electrónica (W-4 / I-9 / Retención Estatal, o cualquier plantilla con una URL de origen) haya sido extraída, permanece en un estado de *configuración pendiente*. La fila de la plantilla muestra el chip amarillo **Sin definición de formulario**, y cualquier empleado que abra ese formulario ve un banner de *configuración pendiente* (un icono de reloj de arena con un mensaje para comunicarse con el administrador) en lugar de un formulario rellenable. Resuélvalo ejecutando Extraer definición. Hasta entonces, los empleados no pueden completar el formulario.\n\n### Configurar el llenado de PDF (plantillas del sistema)\n\nPara las plantillas del sistema, el diálogo de carga también expone una sección de **configuración de llenado de PDF**: cargue un PDF rellenable en blanco (el `filledPdfTemplateId`) y proporcione el JSON del **Mapa de campos AcroField**. Juntos permiten al sistema llenar el PDF oficial con los datos recopilados antes de la ceremonia de firma de DocuSeal. Un chip verde confirma cuándo se ha vinculado un PDF en blanco.\n\n### Sincronización\n\n**Sincronizar todo** en el encabezado vuelve a extraer el origen de cada plantilla con sincronización automática. Un botón **Sincronizar** a nivel de fila (el icono `sync`) aparece en plantillas individuales que tienen sincronización automática y una URL de origen, lo que le permite actualizar solo una. La columna *Última sincronización* muestra cuándo se extrajo cada plantilla por última vez.\n\n### Lo que los administradores no pueden hacer\n\nLos administradores configuran plantillas y pueden ejecutar el lado del empleador del cumplimiento (véase *Gestión del Cumplimiento de Empleados* y *Completar la Sección 2 del I-9*). **No** completan los datos personales del W-4/I-9 de un empleado: los empleados completan sus propios formularios mediante el asistente de incorporación o su página de Formularios Fiscales. Los administradores tampoco pueden editar un I-9 enviado (ley federal); las correcciones requieren un nuevo envío según las reglas del USCIS.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "compliance-state-withholding",
+    "title": "Configuración de la Retención Estatal",
+    "summary": "Cómo los administradores usan el diálogo de configuración de Retención Estatal (Administración > Cumplimiento) para ver qué estados están listos para la firma electrónica, cuáles necesitan que se cargue un PDF, cuáles aceptan el W-4 federal y cuáles no tienen impuesto sobre la renta, y cómo la ubicación de trabajo de un empleado decide qué formulario recibe.",
+    "contentJson": {
+      "body": "## Configuración de la Retención Estatal\n\nLa retención del impuesto estatal sobre la renta es más complicada que un solo formulario: cada estado lo maneja de manera diferente. Algunos tienen su propio certificado de retención, algunos solo usan el W-4 federal y algunos no tienen impuesto sobre la renta en absoluto. El **diálogo de configuración de Retención Estatal** de QB Engineer ofrece a los administradores un único tablero para ver y gestionar la preparación de todos los estados.\n\n> Acceda a esto desde Administración > Cumplimiento: en la tabla de plantillas de formulario, la fila de **Retención Estatal** tiene un botón de acción `open_in_new` que abre el diálogo de configuración.\n\n### Cómo se elige un formulario estatal para un empleado\n\nEste es el modelo mental clave. Un empleado nunca elige su estado de un menú desplegable. En cambio, el sistema resuelve el formulario de retención estatal correcto a partir de la **ubicación de trabajo asignada** del empleado (el `WorkLocationId` en su registro de usuario, que apunta a una CompanyLocation; una ubicación de trabajo nula recurre a la ubicación predeterminada de la instalación). El estado de la ubicación determina cuál de los cuatro grupos siguientes aplica.\n\n### Los cuatro grupos de estados\n\nEl diálogo se abre con una franja de resumen de cuatro conteos, luego lista cada estado agrupado en cuatro categorías:\n\n1. **Listo para firma electrónica** (icono `verified`) — estados que tienen su propio formulario de retención Y ya tienen una definición de formulario electrónico extraída. Los empleados en estos estados obtienen una experiencia de completar y firmar totalmente electrónica. Algunos ejemplos incluyen estados como California y Nueva York una vez configurados sus formularios.\n\n2. **Necesita carga de PDF** (icono `upload_file`) — estados que tienen su propio formulario de retención pero **aún no tienen una definición electrónica**. Los empleados en estos estados no pueden completar el formulario hasta que un administrador cargue el PDF del estado y extraiga una definición. Estas tarjetas tienen un estilo pendiente. Este grupo es su lista de tareas: le indica exactamente qué formularios estatales aún necesitan trabajo de configuración.\n\n3. **Aceptan el W-4 federal** (icono `description`) — estados que no publican su propio certificado y en su lugar usan el W-4 federal como base de la retención estatal. Los empleados en estos estados no completan un formulario estatal separado; sus elecciones del W-4 federal se trasladan.\n\n4. **Sin impuesto estatal sobre la renta** (icono `block`) — estados sin impuesto sobre la renta (Texas, Florida, Nevada, Washington, etc.). Los empleados en estos estados ven un mensaje de que no se requiere ningún formulario de retención estatal y no completan nada.\n\n### Leer y seleccionar una tarjeta de estado\n\nCada tarjeta de estado muestra el **código del estado** (p. ej., TX), el **nombre del estado**, el **nombre del formulario** donde corresponda y un **chip de estado** con un icono. La tarjeta del estado resuelto actualmente del empleado se resalta como activa. Al hacer clic en una tarjeta se selecciona ese estado, usado cuando está configurando o revisando la configuración de un estado específico. Las tarjetas se deshabilitan mientras un guardado está en curso.\n\n### Flujo de trabajo típico del administrador\n\n1. Abra el diálogo y observe el conteo de **Necesita carga de PDF**. Si es cero, cada estado con su propio formulario está listo.\n2. Para cada estado en ese grupo, obtenga el PDF de retención estatal oficial, adjúntelo (como anulación manual o URL de origen en la plantilla correspondiente) y ejecute **Extraer definición** (véase *Formularios de Cumplimiento para Administradores*).\n3. Una vez extraído, el estado pasa a **Listo para firma electrónica** y los empleados en ubicaciones de ese estado pueden completar el formulario electrónicamente.\n4. Los estados en los grupos **Aceptan el W-4 federal** y **Sin impuesto estatal sobre la renta** no necesitan ninguna acción: son informativos y se resuelven automáticamente.\n\n### Por qué esto importa\n\nSi la ubicación de trabajo de un empleado está en un estado atascado en **Necesita carga de PDF**, ese empleado llegará a un estado de *configuración pendiente* en su formulario de retención estatal y no podrá terminar el paso fiscal de la incorporación. Mantener el grupo Necesita-carga-de-PDF vacío para los estados en los que realmente emplea personas es el objetivo práctico: no necesita configurar todos los estados de EE. UU., solo aquellos que cubren sus CompanyLocations.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "compliance-managing-employees",
+    "title": "Gestión del Cumplimiento de Empleados",
+    "summary": "El flujo de trabajo del lado del empleador en Administración > Cumplimiento: elegir un empleado, revisar su panel de cumplimiento por empleado (envíos de formularios con estados y subestados del I-9, documentos de identidad, recibos de pago, documentos fiscales), verificar los documentos de identidad cargados, descargar PDF firmados y enviar un recordatorio de cumplimiento.",
+    "contentJson": {
+      "body": "## Gestión del Cumplimiento de Empleados\n\nMás allá de configurar plantillas, los administradores, gerentes y gerentes de oficina manejan el lado del empleador del cumplimiento: confirmar que los empleados han completado sus formularios, verificar los documentos de identidad que cargaron, descargar los PDF firmados para el archivo y avisar a quienes van atrasados.\n\n> Acceso: las acciones de revisión por empleado (ver detalle, verificar documentos, enviar recordatorio, completar la Sección 2 del I-9) están abiertas a los roles de **Administrador, Gerente y Gerente de Oficina**, no solo a los administradores completos. La tabla de Usuarios en la vista general de Administración también muestra un chip de progreso de cumplimiento por usuario (p. ej., 6/8) para que pueda detectar de un vistazo quién está incompleto.\n\n### Abrir el panel de cumplimiento de un empleado\n\nDesde Administración > Cumplimiento, elija un empleado. El panel de cumplimiento por empleado carga su panorama de cumplimiento completo. Si no se selecciona ningún empleado, el panel muestra un estado vacío de *seleccionar un empleado*.\n\nEl encabezado del panel muestra el nombre y el correo electrónico del empleado, y un botón **Enviar recordatorio** (una campana `notifications_active`). Debajo del encabezado, un **banner de retención estatal** resume cómo se maneja el estado de ese empleado: sin impuesto estatal, usa el W-4 federal o un formulario estatal con nombre, y muestra el origen de la resolución (su ubicación de trabajo).\n\n### Tabla de envíos de formularios\n\nLa sección **Envíos de formularios** lista cada formulario de cumplimiento del empleado con:\n\n- **Formulario** — el nombre de la plantilla.\n- **Estado** — el estado del envío (Pendiente, Abierto, Completado, Caducado, Rechazado).\n- **Chip de subestado del I-9** — solo para las filas del I-9, un chip adicional muestra el estado de dos secciones del I-9 (Sección 1 realizada por el empleado, Sección 2 realizada por el empleador). Así es como sabe de un vistazo si todavía debe la Sección 2.\n- **Firmado** — la fecha de firma, o un guion si no está firmado.\n- **Acciones** — un botón **Descargar** (aparece una vez que existe un PDF firmado) para obtener el PDF firmado para sus registros, y —para un I-9 donde el empleado ha firmado la Sección 1 pero la Sección 2 no está lista— una acción **Completar Sección 2** (icono `how_to_reg`). Véase *Completar la Sección 2 del I-9* para ese flujo.\n\n### Tabla de documentos de identidad\n\nLa sección **Documentos de identidad** lista los documentos de la Lista A / Lista B / Lista C que el empleado cargó para su I-9, con:\n\n- **Tipo** — el tipo/categoría del documento.\n- **Archivo** — el nombre del archivo cargado.\n- **Cargado** — la fecha de carga.\n- **Verificado** — un chip verde *Verificado* una vez que un administrador/gerente lo ha confirmado contra el documento físico, o un chip amarillo *Pendiente* hasta entonces.\n- **Acciones** — para los documentos no verificados, un botón **Verificar** (la marca de verificación `verified`). Haga clic para marcar el documento como verificado después de haberlo inspeccionado físicamente. Este es un paso humano deliberado: el sistema almacena y muestra la carga, pero una persona debe confirmar que es auténtico.\n\nSi el empleado aún no tiene envíos ni documentos de identidad, cada sección muestra su propio estado vacío.\n\n### Recibos de pago y documentos fiscales\n\nEl mismo panel también muestra los **recibos de pago** y los **documentos fiscales** del empleado (W-2 / 1099, etc.), cada uno en su propia tabla con acciones de descarga, y zonas de carga para agregar registros manuales. Los registros provenientes de un proveedor de contabilidad conectado muestran un chip *Sincronizado*; los cargados manualmente muestran *Manual* y pueden eliminarse. (Estos se superponen con la función de Nómina, cubierta allí en profundidad).\n\n### Enviar un recordatorio de cumplimiento\n\nCuando un empleado va atrasado en los formularios requeridos, haga clic en **Enviar recordatorio** en el encabezado del panel. Esto despacha una notificación que le pide que termine sus formularios de cumplimiento pendientes. Úselo en lugar de perseguir a las personas manualmente: queda registrado y se enruta a través del sistema de notificaciones normal.\n\n### Lo que está confirmando\n\nEl trabajo del lado del empleador es la verificación y el mantenimiento de registros, no la entrada de datos: confirme que cada formulario requerido llegó a **Completado**, confirme que los documentos de identidad están **Verificados**, complete la **Sección 2 del I-9** dentro del plazo y mantenga los PDF firmados en el archivo. Nunca edita las entradas personales del empleado en un W-4 o I-9: esas pertenecen al empleado, y un I-9 enviado es inmutable según la ley federal.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "compliance-i9-section2",
+    "title": "Completar la Sección 2 del I-9",
+    "summary": "La responsabilidad del empleador en el I-9: después de que el empleado firma la Sección 1, un Administrador/Gerente/Gerente de Oficina completa la Sección 2 dentro de los 3 días hábiles registrando los documentos de identidad inspeccionados (Lista A, o Lista B + Lista C) y cualquier caducidad de la autorización de trabajo para la reverificación.",
+    "contentJson": {
+      "body": "## Completar la Sección 2 del I-9\n\nEl I-9 es un formulario de dos partes por diseño. La **Sección 1** es la atestación del empleado sobre su identidad y autorización de trabajo: la completan y firman ellos mismos. La **Sección 2** es la responsabilidad del **empleador**: un representante de la empresa examina físicamente los documentos de identidad del empleado y registra lo que vio. QB Engineer enruta la Sección 2 a Administradores, Gerentes y Gerentes de Oficina.\n\n> La regla estricta: **la Sección 2 debe completarse dentro de los 3 días hábiles posteriores al primer día de trabajo del empleado.** El sistema marca un plazo de vencimiento (`i9Section2OverdueAt`) cuando se firma la Sección 1, y lo rastrea para fines de cumplimiento. La Sección 1 debe estar firmada antes de que pueda comenzar la Sección 2.\n\n### Dónde iniciarla\n\nAbra el panel de cumplimiento del empleado (Administración > Cumplimiento, luego seleccione al empleado; véase *Gestión del Cumplimiento de Empleados*). En la tabla de **Envíos de formularios**, una fila del I-9 que tiene la Sección 1 firmada pero la Sección 2 pendiente muestra una acción **Completar Sección 2** (el icono `how_to_reg`). Haga clic para abrir el diálogo Completar la Sección 2 del I-9.\n\n### Lo que pide el diálogo\n\n**Tipo de lista de documentos** (obligatorio) — elija cómo el empleado comprobó su identidad y autorización de trabajo:\n\n- **Lista A** — un solo documento que establece **tanto** la identidad como la autorización de empleo (p. ej., Pasaporte de EE. UU., Tarjeta de Residente Permanente, Documento de Autorización de Empleo). Un documento de la Lista A es suficiente.\n- **Lista B + C** — un documento de la **Lista B** para la identidad (p. ej., Licencia de conducir, Identificación estatal) **más** un documento de la **Lista C** para la autorización de empleo (p. ej., Tarjeta de Seguro Social, Certificado de nacimiento). Necesita uno de cada uno.\n\n**Primer día de empleo** (obligatorio) — la fecha de inicio del empleado, que ancla el plazo de 3 días hábiles.\n\nSegún su elección de Tipo de lista, el diálogo revela campos de documentos:\n\n- Para la **Lista A**: tipo de documento, número de documento, autoridad emisora y fecha de caducidad, para el único documento de la Lista A que inspeccionó.\n- Para la **Lista B + C**: los mismos cuatro campos para el documento de la **Lista B**, y luego de nuevo para el documento de la **Lista C**.\n\nRegistre exactamente lo que figura en el documento físico que examinó. Está certificando que los documentos parecen auténticos y corresponden al empleado.\n\n### Reverificación\n\nEn la parte inferior, el campo de fecha de **Caducidad de la autorización de trabajo** captura cuándo caduca la autorización de trabajo del empleado, si corresponde. Cuando se establece, el sistema programa un recordatorio de **reverificación** (`i9ReverificationDueAt`) para que se avise a RR. HH. antes de que la autorización caduque. Déjelo en blanco para los documentos que no caducan (p. ej., un Pasaporte de EE. UU. para un ciudadano).\n\n### Guardar\n\nHaga clic en **Completar Sección 2** (`how_to_reg`). El botón de validación muestra cualquier campo obligatorio faltante. Al guardar, se registra la sección del empleador del I-9 y el subestado del I-9 del envío avanza: la acción *Completar Sección 2* desaparece de la fila y el I-9 se lee como totalmente completado.\n\n### Lo que no puede hacer después\n\nComo el resto del I-9, una Sección 2 completada forma parte de un registro federal inmutable. El empleado no puede editar su I-9 enviado, y las correcciones a un I-9 completado siguen las reglas de corrección del USCIS en lugar de una edición en la aplicación. Si se da cuenta de que registró el documento incorrecto, siga el procedimiento de corrección del I-9 de su organización; no intente eliminar y recrear el registro.\n\n### Por qué el plazo de 3 días es estricto\n\nLa ventana de 3 días hábiles es un requisito federal, no un objetivo flexible. Incumplirla es una infracción de cumplimiento del I-9. El seguimiento del vencimiento existe para que el plazo sea visible y accionable: haga que completar la Sección 2 sea parte de la primera semana de cada nueva contratación, junto con entregarle su equipo.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "compliance-admin-quickref",
+    "title": "Referencia de campos de Administración de Cumplimiento",
+    "summary": "Referencia rápida del lado del administrador de los Formularios de Cumplimiento: el panel de plantillas, los campos e indicadores de creación/edición de plantillas, la mecánica de extracción/sincronización/configuración pendiente, los grupos de Retención Estatal y las acciones de revisión por empleado (verificar documentos, enviar recordatorio, completar la Sección 2 del I-9).",
+    "contentJson": {
+      "title": "Referencia de campos de Administración de Cumplimiento",
+      "groups": [
+        {
+          "heading": "Acceso y ubicación",
+          "items": [
+            {
+              "label": "Dónde",
+              "value": "La pestaña Administración > Cumplimiento abre el panel de plantillas de formulario. Es la pestaña de inicio predeterminada para los roles de Gerente y Gerente de Oficina."
+            },
+            {
+              "label": "Capacidad",
+              "value": "CAP-QC-COMPLIANCE-FORMS. Si está deshabilitada para la instalación, toda el área de cumplimiento está oculta."
+            },
+            {
+              "label": "Roles de CRUD de plantillas",
+              "value": "La creación / edición / eliminación de plantillas es solo para administradores."
+            },
+            {
+              "label": "Roles de revisión del empleador",
+              "value": "Ver el cumplimiento por empleado, verificar documentos de identidad, enviar recordatorios y completar la Sección 2 del I-9 están abiertos a Administrador, Gerente y Gerente de Oficina."
+            }
+          ]
+        },
+        {
+          "heading": "Panel de plantillas",
+          "items": [
+            {
+              "label": "Sincronizar todo",
+              "value": "Botón del encabezado que vuelve a extraer el PDF de origen de cada plantilla con sincronización automática."
+            },
+            {
+              "label": "Nueva plantilla",
+              "value": "Botón verde de crear. Abre el diálogo de creación de plantilla (solo plantillas personalizadas)."
+            },
+            {
+              "label": "Chip Sin definición de formulario",
+              "value": "Chip amarillo junto al nombre de una plantilla cuando la plantilla necesita una definición electrónica (W-4/I-9/Retención Estatal, o cualquier plantilla con una URL de origen) pero aún no se ha extraído."
+            },
+            {
+              "label": "Chip Auto / Manual",
+              "value": "Si la plantilla se sincroniza automáticamente desde su URL de origen."
+            },
+            {
+              "label": "Última sincronización",
+              "value": "Fecha de la última extracción de origen exitosa, o Nunca."
+            },
+            {
+              "label": "Activo / Inactivo",
+              "value": "Si los empleados ven el formulario en su lista de Formularios Fiscales."
+            },
+            {
+              "label": "Plantilla del sistema",
+              "value": "Los seis tipos integrados (W-4, I-9, Retención Estatal, Depósito Directo, Compensación al Trabajador, Manual). No pueden eliminarse; su acción de edición es solo de carga (icono upload_file)."
+            },
+            {
+              "label": "Plantilla personalizada",
+              "value": "Una plantilla que creó usted. Diálogo de edición completo; puede eliminarse (icono de eliminar)."
+            }
+          ]
+        },
+        {
+          "heading": "Campos de creación/edición de plantillas",
+          "items": [
+            {
+              "label": "Nombre (obligatorio)",
+              "value": "El nombre visible del formulario."
+            },
+            {
+              "label": "Tipo de formulario (obligatorio)",
+              "value": "W-4, I-9, Retención Estatal, Depósito Directo, Compensación al Trabajador o Manual."
+            },
+            {
+              "label": "Descripción",
+              "value": "Se muestra bajo el nombre en la tarjeta de formulario del empleado."
+            },
+            {
+              "label": "Icono (obligatorio)",
+              "value": "Nombre de icono de Material (p. ej., description, badge)."
+            },
+            {
+              "label": "Clave de finalización de perfil (obligatorio)",
+              "value": "La clave de perfil que satisface el formulario; impulsa el progreso de incorporación y el control de asignación de trabajos."
+            },
+            {
+              "label": "URL de origen",
+              "value": "URL del PDF gubernamental oficial. Necesaria para extraer una definición o sincronizar automáticamente."
+            },
+            {
+              "label": "Orden de clasificación",
+              "value": "Posición del formulario en la lista del empleado."
+            },
+            {
+              "label": "Sincronización automática desde el origen",
+              "value": "Interruptor: vuelve a extraer el PDF de origen según una programación."
+            },
+            {
+              "label": "Activo",
+              "value": "Interruptor: visible para los empleados."
+            },
+            {
+              "label": "Requiere documentos de identidad",
+              "value": "Interruptor: activa el diálogo de carga de Lista A / B / C (usado por el I-9)."
+            },
+            {
+              "label": "Bloquea la asignación de trabajos",
+              "value": "Interruptor: un formulario incompleto bloquea la asignación de trabajos de producción y muestra una insignia roja Requerido al empleado."
+            },
+            {
+              "label": "Mapa de campos AcroField (solo edición)",
+              "value": "JSON que asigna los campos recopilados a los nombres de campo del AcroForm del PDF oficial; impulsa el prerrelleno del PDF antes de la firma de DocuSeal."
+            }
+          ]
+        },
+        {
+          "heading": "Extracción / Sincronización / Configuración pendiente",
+          "items": [
+            {
+              "label": "Extraer definición",
+              "value": "Acción de fila con icono de varita (auto_fix_high). Visible solo cuando la plantilla no tiene una definición actual Y tiene una URL de origen o una anulación cargada. Ejecuta la extracción con pdf.js + verificación por IA para construir el diseño del formulario electrónico."
+            },
+            {
+              "label": "Estado de configuración pendiente",
+              "value": "Una plantilla que necesita una definición electrónica que no se ha extraído. Muestra el chip Sin-definición-de-formulario; los empleados ven un banner de configuración pendiente con reloj de arena y no pueden completar el formulario. Resuélvalo con Extraer definición."
+            },
+            {
+              "label": "Sincronización de fila",
+              "value": "Acción de fila con icono sync. Aparece en plantillas con sincronización automática y una URL de origen; actualiza solo esa plantilla."
+            },
+            {
+              "label": "PDF en blanco + llenado de PDF (plantillas del sistema)",
+              "value": "En el diálogo de carga: vincule un PDF rellenable en blanco (filledPdfTemplateId) y proporcione el Mapa de campos AcroField para que el PDF oficial pueda prerrellenarse antes de firmar. Un chip verde confirma que el PDF en blanco está vinculado."
+            }
+          ]
+        },
+        {
+          "heading": "Diálogo de Retención Estatal",
+          "items": [
+            {
+              "label": "Cómo abrirlo",
+              "value": "En la tabla de plantillas, la acción open_in_new de la fila de Retención Estatal abre el diálogo de configuración."
+            },
+            {
+              "label": "Listo para firma electrónica",
+              "value": "Estados con su propio formulario Y una definición extraída. Los empleados obtienen una experiencia totalmente electrónica."
+            },
+            {
+              "label": "Necesita carga de PDF",
+              "value": "Estados con su propio formulario pero sin definición aún. Los empleados allí llegan a configuración pendiente hasta que un administrador cargue el PDF y lo extraiga. Este es el grupo de tareas del administrador."
+            },
+            {
+              "label": "Aceptan el W-4 federal",
+              "value": "Estados que usan el W-4 federal como base de retención; sin formulario estatal separado."
+            },
+            {
+              "label": "Sin impuesto estatal sobre la renta",
+              "value": "Estados sin impuesto sobre la renta (TX, FL, NV, etc.); los empleados no completan nada."
+            },
+            {
+              "label": "Resolución del estado",
+              "value": "El formulario estatal de un empleado se elige a partir de su ubicación de trabajo (WorkLocationId / CompanyLocation), no de un menú desplegable. Una ubicación de trabajo nula usa la ubicación predeterminada."
+            },
+            {
+              "label": "Tarjeta de estado",
+              "value": "Muestra el código del estado, el nombre, el nombre del formulario (donde corresponda) y un chip de estado. El estado resuelto del empleado se resalta como activo. Al hacer clic se selecciona el estado."
+            }
+          ]
+        },
+        {
+          "heading": "Revisión por empleado",
+          "items": [
+            {
+              "label": "Enviar recordatorio",
+              "value": "Botón de campana (notifications_active) en el encabezado del panel. Notifica al empleado para que termine los formularios de cumplimiento pendientes."
+            },
+            {
+              "label": "Banner de retención estatal",
+              "value": "Resume el manejo del estado del empleado (sin impuesto / W-4 federal / formulario estatal con nombre) y el origen de la resolución."
+            },
+            {
+              "label": "Estado del envío",
+              "value": "Pendiente, Abierto, Completado, Caducado o Rechazado para cada formulario."
+            },
+            {
+              "label": "Chip de subestado del I-9",
+              "value": "En las filas del I-9, muestra si la Sección 1 (empleado) y la Sección 2 (empleador) están listas."
+            },
+            {
+              "label": "Descargar PDF firmado",
+              "value": "Icono de descarga en los envíos que tienen un PDF firmado; obtiene el documento firmado para sus registros."
+            },
+            {
+              "label": "Verificar documento de identidad",
+              "value": "Acción de marca de verificación (verified) en un documento de identidad no verificado. Lo marca como verificado después de inspeccionarlo físicamente. Hasta entonces muestra un chip Pendiente."
+            }
+          ]
+        },
+        {
+          "heading": "Completar la Sección 2 del I-9",
+          "items": [
+            {
+              "label": "Quién y plazo",
+              "value": "Administrador/Gerente/Gerente de Oficina completa la Sección 2 dentro de los 3 días hábiles posteriores al primer día del empleado. La Sección 1 debe firmarse primero."
+            },
+            {
+              "label": "Punto de entrada",
+              "value": "Acción Completar Sección 2 (icono how_to_reg) en una fila del I-9 donde la Sección 1 está firmada pero la Sección 2 no."
+            },
+            {
+              "label": "Tipo de lista de documentos (obligatorio)",
+              "value": "Lista A (un documento que comprueba identidad + autorización de trabajo) O Lista B+C (documento de identidad de la Lista B + documento de autorización de trabajo de la Lista C)."
+            },
+            {
+              "label": "Primer día de empleo (obligatorio)",
+              "value": "Ancla el plazo de 3 días hábiles."
+            },
+            {
+              "label": "Campos por documento",
+              "value": "Tipo de documento, número, autoridad emisora, fecha de caducidad, para el documento de la Lista A, o para cada uno de los documentos de la Lista B y la Lista C."
+            },
+            {
+              "label": "Caducidad de la autorización de trabajo",
+              "value": "Fecha opcional que programa un recordatorio de reverificación del I-9 antes de que caduque la autorización. Déjelo en blanco para los documentos que no caducan."
+            },
+            {
+              "label": "Inmutabilidad",
+              "value": "Un I-9 completado (incluida la Sección 2) es un registro federal inmutable; las correcciones siguen las reglas del USCIS, no una edición en la aplicación."
+            }
+          ]
+        }
+      ]
+    }
   }
 ]

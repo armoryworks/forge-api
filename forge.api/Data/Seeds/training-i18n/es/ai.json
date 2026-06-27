@@ -503,5 +503,167 @@
         }
       ]
     }
+  },
+  {
+    "slug": "ai-help-and-search",
+    "title": "Ayuda de IA y Búsqueda inteligente",
+    "summary": "Las dos superficies de IA que se encuentran en el encabezado global en todas las páginas: el panel de Ayuda de IA (un chat persistente y en streaming que sugiere capacitación relacionada) y la columna de IA en la búsqueda global (respuestas RAG y fragmentos de resultados que saltan a los registros).",
+    "contentJson": {
+      "body": "## Ayuda de IA y Búsqueda inteligente\n\nMás allá de la página dedicada de IA (/ai), hay dos superficies de IA integradas en el encabezado global que le acompañan en todas las páginas. Son diferentes de los asistentes de /ai y se comportan de manera distinta — este módulo cubre ambas.\n\n### 1. El panel de Ayuda de IA\n\nHaga clic en el **icono de robot** (smart_toy) en la fila de acciones del encabezado para abrir el panel de Ayuda de IA — un chat desplegable en el lado derecho de la pantalla. Este es su asistente de ayuda dentro de la aplicación: pregúntele cómo hacer algo en Forge y le responde en lenguaje sencillo. El panel solo aparece cuando la IA está disponible para su instalación (el icono se oculta cuando la capacidad de IA está desactivada o el servicio de IA está caído).\n\n**Pantalla de bienvenida y preguntas iniciales.** Cuando el panel está vacío muestra un mensaje de bienvenida y cuatro botones de preguntas iniciales — '¿Cómo creo un nuevo trabajo?', '¿Cómo funciona el flujo de cotización a pedido?', '¿Cómo realizo el seguimiento del inventario?' y '¿Qué atajos de teclado están disponibles?'. Haga clic en cualquiera para enviarla, o escriba su propia pregunta en el campo de la parte inferior y presione Enter.\n\n**Respuestas en streaming.** Las respuestas llegan token por token, de modo que ve la respuesta construirse en tiempo real (un cursor parpadeante marca la posición del streaming). Las respuestas del asistente se renderizan como Markdown con formato — encabezados, listas, negrita y código se muestran correctamente.\n\n**Enlaces de capacitación relacionada.** Después de que termina una respuesta, el panel puede mostrar una sección 'Capacitación relacionada:' con hasta tres enlaces a módulos elegidos según la página en la que se encuentra actualmente. Haga clic en uno para abrir ese módulo de capacitación — el panel pasa su ruta actual para que las sugerencias sean relevantes a donde está trabajando.\n\n**Las conversaciones se conservan.** A diferencia de la página /ai (que mantiene los chats solo en memoria), el panel de Ayuda de IA guarda su conversación en el almacenamiento local del navegador bajo una clave por usuario. Su chat sobrevive a una actualización de página, al cierre de la pestaña y a reabrirla más tarde — y se sincroniza entre las pestañas del navegador, de modo que la misma conversación aparece en todas partes donde tenga Forge abierto. El historial está limitado a los 50 mensajes más recientes.\n\n**Borrar.** Haga clic en el icono **restart_alt** en el encabezado del panel para iniciar una conversación nueva. Esto borra el historial almacenado. Haga clic en el icono **close** (X), en el fondo o en el icono de robot de nuevo para ocultar el panel sin borrar nada.\n\n### 2. La columna de IA en la Búsqueda global\n\nEl cuadro de búsqueda del encabezado (presione **Ctrl+K** para enfocarlo) es una búsqueda de entidades normal — escriba y encuentra trabajos, piezas, clientes y otros registros por palabra clave. Cuando la IA está disponible, el menú desplegable de resultados se divide en **dos columnas**:\n\n- **Columna izquierda — Resultados:** las coincidencias estándar por palabra clave. Haga clic en una para navegar a ese registro.\n- **Columna derecha — Resultados de IA:** una vista con tecnología de IA (RAG) de la misma consulta. Mientras la IA trabaja verá un indicador de carga 'auto_awesome' y una etiqueta 'Pensando…'.\n\n**La respuesta de IA.** En la parte superior de la columna de IA, el asistente puede mostrar una breve **respuesta** generada (con un icono de bombilla) — una respuesta directa y en lenguaje sencillo sintetizada a partir de sus datos indexados.\n\n**Fragmentos de resultados de IA.** Debajo de la respuesta hay una lista de fragmentos coincidentes semánticamente. Cada fragmento muestra el texto coincidente, el tipo de entidad, el campo de origen del que provino y una **puntuación** de relevancia en porcentaje. Haga clic en cualquier resultado de IA para **navegar directamente a ese registro** — la columna de IA no es solo informativa, es una forma de encontrar y abrir registros que una búsqueda por palabra clave podría pasar por alto.\n\n### Cuándo usar cuál\n\n- **Use el panel de Ayuda de IA** cuando tenga una pregunta de '¿cómo hago…?' o '¿qué hace esto?' sobre el propio Forge — proceso, flujo de trabajo, dónde hacer clic, atajos de teclado.\n- **Use la búsqueda de IA** cuando busque un registro específico pero solo recuerde una descripción o un detalle, no el número exacto — la columna RAG muestra coincidencias por significado, no solo por texto exacto, y le permite saltar directamente al registro.\n\n### Disponibilidad\n\nAmbas superficies dependen de que el servicio de IA sea accesible y de que la capacidad de IA esté habilitada para su instalación. Si la IA está desactivada o el contenedor de IA está caído, el icono de robot desaparece del encabezado y el menú desplegable de búsqueda muestra solo la columna estándar de Resultados — el resto de Forge funciona exactamente igual que antes.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "ai-drafting-summarizing",
+    "title": "Redacción y Resumen con IA",
+    "summary": "Referencia para las funciones de generación (redacción) y resumen con IA: qué hacen, dónde aparecen, qué envían y cómo se comportan cuando la IA no está disponible.",
+    "contentJson": {
+      "title": "Redacción y Resumen con IA",
+      "groups": [
+        {
+          "heading": "Qué hacen",
+          "items": [
+            {
+              "label": "Redacción (generar)",
+              "value": "Produce texto nuevo a partir de una indicación que usted proporciona — por ejemplo, redactar una descripción de puesto, un correo a un cliente, una descripción de pieza o documentación. Usted da una instrucción; devuelve contenido escrito que puede editar y usar."
+            },
+            {
+              "label": "Resumen (resumir)",
+              "value": "Condensa un bloque de texto existente en un resumen breve — por ejemplo, reducir una nota, descripción o hilo largo a sus puntos clave."
+            },
+            {
+              "label": "Relación con el chat",
+              "value": "La redacción y el resumen son operaciones de texto de un solo paso, no una conversación de ida y vuelta. A diferencia del panel de Ayuda de IA o de un asistente de /ai, no hay historial de mensajes — cada llamada es independiente."
+            }
+          ]
+        },
+        {
+          "heading": "Cómo se comportan",
+          "items": [
+            {
+              "label": "Una solicitud, una respuesta",
+              "value": "Cada redacción o resumen es una solicitud y un bloque de texto devuelto. No hay cursor de streaming ni turnos de seguimiento — obtiene el resultado completo de una vez."
+            },
+            {
+              "label": "La salida es editable",
+              "value": "La salida de la IA es un punto de partida, nunca un resultado final. Revise y edite el texto generado antes de guardarlo en un registro. La IA no escribe en sus datos por sí sola."
+            },
+            {
+              "label": "Fundamentación",
+              "value": "La redacción funciona a partir de la indicación que le da. El resumen funciona a partir del texto que le entrega. Ninguno extrae de sus registros indexados como lo hace la búsqueda RAG — lo que usted proporciona es con lo que trabaja."
+            }
+          ]
+        },
+        {
+          "heading": "Disponibilidad y límites",
+          "items": [
+            {
+              "label": "Restringido por capacidad",
+              "value": "Ambos requieren que la capacidad de IA esté habilitada para su instalación (CAP-EXT-AI-ASSISTANT) y que el servicio de IA sea accesible. Cuando la IA está desactivada o el contenedor está caído, las funciones de redacción y resumen se ocultan o se deshabilitan — la pantalla subyacente sigue funcionando sin ellas."
+            },
+            {
+              "label": "Degradación elegante",
+              "value": "Si una solicitud de redacción o resumen falla, la función se degrada en silencio: conserva lo que tenía y no se escribe ningún texto parcial o defectuoso en un registro."
+            },
+            {
+              "label": "Respaldado por el mismo motor",
+              "value": "La redacción y el resumen usan el mismo motor de IA autoalojado que el resto de las funciones de IA (los endpoints generate y summarize del servicio de IA). Ningún dato sale de su instalación hacia un proveedor de IA externo."
+            }
+          ]
+        },
+        {
+          "heading": "Buenos casos de uso",
+          "items": [
+            {
+              "label": "Escritura de primer borrador",
+              "value": "Descripciones de puestos, correos de cara al cliente, descripciones de piezas o procesos, documentación interna — cualquier lugar donde la página en blanco sea lo difícil."
+            },
+            {
+              "label": "Condensar",
+              "value": "Convertir una nota, comentario de inspección o descripción larga en un resumen de una o dos líneas para un encabezado o informe."
+            },
+            {
+              "label": "No es un sistema de registro",
+              "value": "No trate la salida de la IA como datos autorizados. Es una ayuda para escribir — una persona revisa y es responsable del texto final."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "ai-configuring-assistants",
+    "title": "Configuración de Asistentes de IA (Admin)",
+    "summary": "Recorrido de administrador por el panel de Asistentes de IA: crear, editar y eliminar asistentes; escribir una indicación del sistema; limitar un asistente a tipos de entidad permitidos para la fundamentación RAG; administrar preguntas iniciales, estado activo y orden de clasificación.",
+    "contentJson": {
+      "appRoute": "/admin/ai-assistants",
+      "startButtonLabel": "Recorrer la configuración de Asistentes de IA",
+      "steps": [
+        {
+          "element": ".panel-header",
+          "popover": {
+            "title": "Panel de Asistentes de IA",
+            "description": "Este es el hogar de administración para los asistentes de IA, en Admin → Asistentes de IA. El encabezado muestra cuántos asistentes existen. Cada asistente configurado aquí aparece en la página /ai para los usuarios (cuando está activo). Solo administradores — esta pestaña no es visible para los usuarios regulares.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".action-btn--create",
+          "popover": {
+            "title": "Nuevo asistente",
+            "description": "Haga clic en 'Nuevo asistente' para abrir el diálogo del editor de asistentes. El mismo diálogo se abre cuando hace clic en una fila existente para editarla. A continuación recorreremos cada campo del diálogo.",
+            "side": "left"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "La lista de asistentes",
+            "description": "Cada fila muestra el icono de color del asistente, el nombre (los asistentes integrados llevan una etiqueta 'Integrado'), la categoría, cuántos filtros de tipo de entidad están configurados ('Todos' cuando no hay ninguno) y el estado activo. Haga clic en cualquier fila para editarla. Los asistentes integrados se pueden editar pero no eliminar; los asistentes personalizados que cree muestran una acción de eliminar.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Identidad: Nombre, Categoría, Descripción, Icono, Color",
+            "description": "En el diálogo del editor, los campos superiores definen cómo aparece el asistente a los usuarios. Nombre y Categoría son obligatorios. La categoría es una de General, RR. HH., Compras, Ventas o Personalizado — la página /ai resuelve la ruta 'general' al asistente cuya categoría es General. La descripción se muestra en la tarjeta del asistente y en la pantalla de bienvenida. El icono (un nombre de icono de Material) y el color establecen la identidad visual; una vista previa en vivo renderiza el icono en el color elegido.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Indicación del sistema — el comportamiento del asistente",
+            "description": "La Indicación del sistema (obligatoria, hasta 50.000 caracteres) es la instrucción que da forma a cómo responde el asistente — su personalidad, tono, enfoque de dominio y cualquier regla. Aquí es donde le dice a un asistente de RR. HH. que responda como especialista de RR. HH., o a un asistente de Compras que se centre en el abastecimiento y las órdenes de compra. Los usuarios nunca ven la indicación del sistema; se ejecuta detrás de cada respuesta.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Tipos de entidad permitidos — alcance de la fundamentación RAG",
+            "description": "El selector múltiple de Filtros de tipo de entidad limita cuáles de sus registros indexados puede usar el asistente al responder (fundamentación RAG). Déjelo vacío para permitir TODOS los tipos de entidad (la lista muestra 'Todos'); o elija tipos específicos — Trabajo, Pieza, Cliente, Proveedor, Prospecto, Cotización, Pedido de venta, Orden de compra, Factura y más — para mantener, por ejemplo, un asistente de RR. HH. fundamentado solo en datos de empleados. Así es como mantiene a cada asistente enfocado y evita que responda a partir de datos fuera de su área.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Preguntas iniciales",
+            "description": "Agregue las preguntas sugeridas que aparecen en la pantalla de bienvenida del asistente. Escriba una pregunta, haga clic en Agregar y se une a la lista; elimine cualquiera con la X. Estas son las indicaciones en las que se puede hacer clic que los usuarios ven antes de escribir nada — dele a cada asistente algunas buenas preguntas de punto de entrada para su dominio.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Activo, Orden de clasificación y Avanzado",
+            "description": "El interruptor Activo controla si los usuarios ven este asistente en la página /ai — desactívelo para retirar un asistente sin eliminarlo. El Orden de clasificación establece su posición en la lista de la barra lateral. En 'Configuración avanzada' puede ajustar la Temperatura (0–1, creatividad de las respuestas) y los Máximos fragmentos de contexto (1–20, cuántos datos recuperados considera el asistente) — deje los valores predeterminados a menos que tenga una razón para cambiarlos. Guardar confirma el asistente; aparece para los usuarios de inmediato.",
+            "side": "top"
+          }
+        }
+      ]
+    }
   }
 ]
