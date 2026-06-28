@@ -4,7 +4,7 @@
     "title": "Transportistas de envío",
     "summary": "Gestione los transportistas de envío y las credenciales de API que impulsan las tarifas en vivo, las etiquetas y el seguimiento.",
     "contentJson": {
-      "body": "## Transportistas de envío\n\nEsta página es el único hogar para sus transportistas de envío y el único lugar donde se introducen las credenciales de API de los transportistas. Cada fila es un transportista —uno integrado como UPS, FedEx, USPS o DHL, o un transportista \"fantasma\" personalizado que usted mismo define.\n\n### Acciones clave\n\n- **Nuevo transportista** abre un diálogo donde establece el nombre, el código, el tipo de integración (Manual o Api), el modo de entrega (Manual, Poll o Webhook), un ID de servicio de integración opcional y si se requiere un escaneo.\n- **Credenciales** (el icono de llave) abre un formulario de solo escritura para el ID de cliente, el secreto, un número de cuenta opcional y el entorno (sandbox o producción). Los secretos se cifran del lado del servidor y nunca se devuelven, por lo que el secreto siempre se vuelve a introducir al editar.\n- **Probar** (el icono de señal) ejecuta `POST /carriers/{id}/test` contra la API en vivo del transportista e informa del éxito o del error en un snackbar. Está deshabilitado hasta que existan credenciales.\n\n### Cómo leer la tabla\n\nLas columnas muestran el Nombre, el Código, el Tipo de integración, si se requiere escaneo, un chip de Credenciales configuradas (verde cuando están establecidas, una advertencia cuando un transportista de tipo Api no tiene ninguna) y un chip de Activo. Los transportistas configurados aquí alimentan las funciones de comparación de tarifas, creación de etiquetas y seguimiento en el módulo de Envíos —configure correctamente las credenciales y deje la prueba en verde antes de confiar en un transportista en producción.",
+      "body": "## Transportistas de envío\n\nEsta página es el único hogar para sus transportistas de envío y el único lugar donde se introducen las credenciales de API de los transportistas. Cada fila es un transportista —uno integrado como UPS, FedEx, USPS o DHL, o un transportista \"fantasma\" personalizado que usted mismo define.\n\n### Acciones clave\n\n- **Nuevo transportista** abre un diálogo donde establece el nombre, el código, el tipo de integración (Manual o Api), el modo de entrega (Manual, Poll o Webhook), un ID de servicio de integración opcional y si se requiere un escaneo.\n- **Credenciales** (el icono de llave) abre un formulario de solo escritura para el ID de cliente, el secreto, un número de cuenta opcional y el entorno (sandbox o producción). Los secretos se cifran del lado del servidor y nunca se devuelven, por lo que el secreto siempre se vuelve a introducir al editar.\n- **Probar** (el icono de señal) ejecuta `POST /carriers/{id}/test` contra la API en vivo del transportista e informa del éxito o del error en un snackbar. Está deshabilitado hasta que existan credenciales.\n\n### Transportistas Manual frente a Api\n\nEl **Tipo de integración** que elija cambia todo lo demás en la fila. Un transportista **Manual** es solo una etiqueta —sus encargados de envío escriben un número de seguimiento a mano, así que no hay credenciales, ni botón de Probar, ni ID de servicio de integración. Un transportista **Api** se comunica con el sistema en vivo del transportista, por lo que muestra el campo de ID de servicio de integración en la creación, exhibe los iconos de llave (credenciales) y de señal (probar) en su fila, y advierte con un chip amarillo hasta que se guardan las credenciales. Elija Manual cuando solo necesite registrar un número de seguimiento; elija Api cuando quiera tarifas en vivo, impresión de etiquetas y seguimiento automático en el módulo de Envíos.\n\n### Modo de actualización de entrega\n\nEsto controla cómo se actualiza el estado de seguimiento de un envío después de que sale. **Manual** significa que una persona actualiza el estado a mano. **Poll** significa que Forge consulta periódicamente la API del transportista para obtener los últimos eventos de seguimiento. **Webhook** significa que el transportista envía los cambios de estado a Forge a medida que ocurren —la opción más oportuna, pero solo para transportistas que la admiten. Manual es el valor predeterminado seguro para un transportista de tipo Manual.\n\n### Ciclo de vida — no hay edición ni desactivación de fila\n\nLa tabla es deliberadamente sencilla: una fila de transportista no tiene acción de editar ni de desactivar. Los únicos controles por fila son Credenciales y Probar, y esos aparecen solo en los transportistas Api. Para cambiar el nombre, el tipo o el modo de entrega de un transportista después de la creación, trabaja a través de la API o lo vuelve a crear —la pantalla está construida para dejar un transportista configurado y probado, no para editarlo repetidamente. Planifique el nombre, el código y el tipo antes de guardar.\n\n### Cómo leer la tabla\n\nLas columnas muestran el Nombre, el Código, el Tipo de integración, si se requiere escaneo, un chip de Credenciales configuradas (verde cuando están establecidas, una advertencia cuando un transportista de tipo Api no tiene ninguna) y un chip de Activo. Los transportistas configurados aquí alimentan las funciones de comparación de tarifas, creación de etiquetas y seguimiento en el módulo de Envíos —configure correctamente las credenciales y deje la prueba en verde antes de confiar en un transportista en producción.",
       "sections": []
     }
   },
@@ -113,6 +113,264 @@
     "summary": "Defina plantillas que generan automáticamente una nueva orden de venta según un calendario establecido.",
     "contentJson": {
       "body": "## Pedidos recurrentes\n\nLos pedidos recurrentes son plantillas que generan automáticamente una nueva orden de venta según un calendario que usted establece —ideal para clientes permanentes o recurrentes, como consumibles o servicio recurrente. Un trabajo nocturno en segundo plano convierte cada plantilla vencida en una orden de venta en vivo con sus líneas clonadas.\n\n### Cómo leer la tabla\n\nCada plantilla muestra su nombre, el cliente, el intervalo en días, la próxima fecha de generación, la última fecha de generación (\"Nunca\" hasta que se ejecuta por primera vez), el recuento de líneas y un chip de estado activo. Todas las columnas se ordenan. Las plantillas inactivas son omitidas por el trabajo nocturno.\n\n### Acciones clave\n\n- **Nuevo recurrente** abre el diálogo de creación. No hay edición en línea —cambiar una plantilla significa eliminarla y volver a crearla, lo que mantiene estable la lógica de generación automática.\n- El icono de **eliminar** quita permanentemente una plantilla y cancela su generación futura, tras una confirmación.\n- En el diálogo establece un nombre (hasta 200 caracteres), elige el cliente, escoge la próxima fecha de generación, establece el intervalo en días (de 1 a 365 —30 es aproximadamente mensual) y agrega notas opcionales. Luego agrega al menos una línea, cada una con una pieza, una descripción, una cantidad y un precio unitario.\n\n### Cómo encaja\n\nCada noche, el trabajo encuentra las plantillas cuya próxima fecha de generación ha llegado, crea una orden de venta a partir de las líneas de la plantilla y avanza la próxima fecha según el intervalo.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "carriers-walkthrough",
+    "title": "Transportistas — Recorrido guiado",
+    "summary": "Un recorrido guiado por Admin > Transportistas: cree un transportista, introduzca las credenciales de API y ejecute una prueba de conexión.",
+    "contentJson": {
+      "appRoute": "/admin/carriers",
+      "startButtonLabel": "Recorrer transportistas",
+      "steps": [
+        {
+          "element": "[data-testid='carrier-new-btn']",
+          "popover": {
+            "title": "Nuevo transportista",
+            "description": "Haga clic aquí para agregar un transportista. El diálogo pide un nombre, un código opcional, el tipo de integración (Manual o Api), un modo de actualización de entrega (Manual, Poll o Webhook) y si se requiere un escaneo para enviar. Elija Api cuando quiera tarifas en vivo, etiquetas y seguimiento; elija Manual cuando solo registre un número de seguimiento a mano.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "La tabla de transportistas",
+            "description": "Cada transportista es una fila aquí. Las columnas muestran el Nombre, el Código, el Tipo de integración, Escaneo, un chip de Credenciales y Activo. Un transportista Api sin credenciales muestra un chip de advertencia amarillo —esa es su señal para abrir Credenciales a continuación. No hay acción de editar ni de desactivar en una fila; los únicos controles por fila son Credenciales y Probar, y aparecen solo en los transportistas Api.",
+            "side": "top"
+          }
+        },
+        {
+          "element": "[data-testid='carrier-credentials-btn']",
+          "popover": {
+            "title": "Introducir credenciales",
+            "description": "En un transportista Api, el icono de llave abre un formulario de credenciales de solo escritura: ID de cliente, secreto, un número de cuenta opcional y el entorno (sandbox o producción). El secreto se cifra del lado del servidor y nunca se vuelve a leer, así que lo vuelve a introducir cada vez que edita. Guarde para poner verde el chip de Credenciales.",
+            "side": "left"
+          }
+        },
+        {
+          "element": "[data-testid='carrier-test-btn']",
+          "popover": {
+            "title": "Probar la conexión",
+            "description": "El icono de señal ejecuta una prueba de conexión en vivo contra la API del transportista e informa del éxito o del error en un snackbar. Permanece deshabilitado hasta que existan credenciales. Déjelo en verde en sandbox antes de confiar en el transportista en producción.",
+            "side": "left"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "carriers-field-reference",
+    "title": "Referencia de campos de transportistas",
+    "summary": "Referencia de cada campo, chip y acción en la página de administración de Transportistas, incluyendo Manual frente a Api y los tres modos de actualización de entrega.",
+    "contentJson": {
+      "title": "Referencia de campos de transportistas",
+      "groups": [
+        {
+          "heading": "Diálogo de nuevo transportista",
+          "items": [
+            { "label": "Nombre (obligatorio)", "value": "Entrada de texto, máx. 100 caracteres. El nombre visible del transportista (p. ej. 'UPS', 'FedEx', 'Mensajería local'). data-testid: carrier-name" },
+            { "label": "Código", "value": "Código corto opcional, máx. 50 caracteres, usado para identificar el transportista en listas y documentos." },
+            { "label": "Tipo de integración (obligatorio)", "value": "Manual o Api. Manual = solo etiqueta, sin credenciales/prueba. Api = se comunica con el sistema en vivo del transportista, muestra el campo de ID de servicio más las acciones de fila Credenciales y Probar. Predeterminado: Manual." },
+            { "label": "Modo de actualización de entrega (obligatorio)", "value": "Manual, Poll o Webhook —cómo se actualiza el estado de seguimiento después de que un envío sale. Predeterminado: Manual." },
+            { "label": "ID de servicio de integración", "value": "Se muestra solo cuando el Tipo de integración es Api. Un identificador opcional que asigna esta fila de transportista a la integración de envío subyacente. Máx. 50 caracteres." },
+            { "label": "Requiere escaneo para enviar", "value": "Interruptor (predeterminado ACTIVADO). Cuando está activado, un paquete debe escanearse antes de poder marcarse como enviado para este transportista." }
+          ]
+        },
+        {
+          "heading": "Diálogo de credenciales (solo transportistas Api)",
+          "items": [
+            { "label": "ID de cliente (obligatorio)", "value": "El identificador de cliente/cuenta de la API del transportista, máx. 200 caracteres. No es secreto —se muestra precargado al reabrir el diálogo. data-testid: carrier-client-id" },
+            { "label": "Secreto (obligatorio)", "value": "El secreto/clave de la API del transportista. De solo escritura: se cifra del lado del servidor y nunca se devuelve, así que lo vuelve a introducir cada vez que edita. data-testid: carrier-secret" },
+            { "label": "Número de cuenta", "value": "Número de cuenta del transportista opcional, máx. 50 caracteres." },
+            { "label": "Entorno (obligatorio)", "value": "sandbox o producción. Use sandbox para probar la conexión sin afectar envíos reales; cambie a producción cuando entre en funcionamiento." }
+          ]
+        },
+        {
+          "heading": "Tipo de integración — qué cambia",
+          "items": [
+            { "label": "Manual", "value": "Sin credenciales, sin botón de Probar, sin campo de ID de servicio. Sus encargados de envío escriben el número de seguimiento a mano. Use cuando no necesita tarifas/etiquetas en vivo." },
+            { "label": "Api", "value": "Muestra el campo de ID de servicio en la creación y los iconos de llave (Credenciales) y señal (Probar) en la fila. Impulsa la comparación de tarifas en vivo, la creación de etiquetas y el seguimiento automático en el módulo de Envíos." }
+          ]
+        },
+        {
+          "heading": "Modo de actualización de entrega",
+          "items": [
+            { "label": "Manual", "value": "Una persona actualiza el estado de seguimiento del envío a mano. El valor predeterminado seguro para un transportista de tipo Manual." },
+            { "label": "Poll", "value": "Forge consulta periódicamente la API del transportista para obtener los últimos eventos de seguimiento y actualiza el estado." },
+            { "label": "Webhook", "value": "El transportista envía los cambios de estado a Forge a medida que ocurren —la opción más oportuna, disponible solo para transportistas que admiten webhooks." }
+          ]
+        },
+        {
+          "heading": "Columnas de la tabla",
+          "items": [
+            { "label": "Transportista / Código", "value": "Nombre y código corto opcional. Ambos ordenables." },
+            { "label": "Integración", "value": "Manual o Api." },
+            { "label": "Escaneo", "value": "Un icono de escáner cuando Requiere escaneo para enviar está activado, de lo contrario un guion." },
+            { "label": "Credenciales", "value": "Chip verde 'Configurado' cuando existen credenciales; chip de advertencia amarillo 'No configurado' cuando un transportista Api no tiene ninguna; un guion para transportistas Manual." },
+            { "label": "Activo", "value": "Chip de Activo o Inactivo." },
+            { "label": "Acciones", "value": "Iconos de llave (Credenciales) y señal (Probar) —solo transportistas Api. Probar está deshabilitado hasta que existan credenciales. No hay acción de editar ni de desactivar en una fila." }
+          ]
+        },
+        {
+          "heading": "Acciones",
+          "items": [
+            { "label": "Nuevo transportista", "value": "Abre el diálogo de creación. data-testid: carrier-new-btn" },
+            { "label": "Credenciales (icono de llave)", "value": "Abre el formulario de credenciales de solo escritura para un transportista Api. data-testid: carrier-credentials-btn" },
+            { "label": "Probar (icono de señal)", "value": "Ejecuta una prueba de conexión en vivo contra la API del transportista; informa del éxito o del error en un snackbar. Deshabilitado hasta que existan credenciales. data-testid: carrier-test-btn" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "carriers-quiz",
+    "title": "Verificación de conocimientos de transportistas",
+    "summary": "Ponga a prueba su conocimiento de la página de administración de Transportistas: Manual frente a Api, credenciales, la prueba de conexión y los modos de actualización de entrega.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 6,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "ca1",
+          "text": "Agrega un transportista y establece su Tipo de integración en Manual. ¿Qué controles NO verá para ese transportista?",
+          "options": [
+            { "id": "a", "text": "Los campos de Nombre y Código" },
+            { "id": "b", "text": "Las acciones de fila Credenciales (llave) y Probar (señal), y el campo de ID de servicio de integración", "isCorrect": true },
+            { "id": "c", "text": "El chip de Activo en la tabla" },
+            { "id": "d", "text": "La lista desplegable de Modo de actualización de entrega" }
+          ],
+          "explanation": "Un transportista Manual es solo una etiqueta —sus encargados de envío escriben el número de seguimiento a mano. Así que no tiene credenciales, ni botón de Probar, ni campo de ID de servicio de integración. Solo los transportistas Api muestran esos porque se comunican con el sistema en vivo del transportista."
+        },
+        {
+          "id": "ca2",
+          "text": "Después de guardar un transportista Api con credenciales válidas, reabre el diálogo de Credenciales. ¿Qué nota sobre el campo de Secreto?",
+          "options": [
+            { "id": "a", "text": "Muestra el secreto guardado para que pueda confirmar que es correcto" },
+            { "id": "b", "text": "Está vacío —el secreto se cifra del lado del servidor y nunca se devuelve, así que debe volver a introducirlo para guardar de nuevo", "isCorrect": true },
+            { "id": "c", "text": "Está bloqueado y no se puede cambiar" },
+            { "id": "d", "text": "Muestra los primeros y últimos cuatro caracteres como una vista previa enmascarada" }
+          ],
+          "explanation": "El secreto es de solo escritura. Se cifra del lado del servidor y nunca se vuelve a leer, así que el diálogo precarga el ID de cliente (no secreto) y el entorno, pero deja el secreto en blanco. Vuelve a introducir el secreto cada vez que edita las credenciales."
+        },
+        {
+          "id": "ca3",
+          "text": "El botón Probar (señal) está atenuado en una fila de transportista. ¿Por qué?",
+          "options": [
+            { "id": "a", "text": "El transportista está configurado como tipo de integración Manual, o es un transportista Api sin credenciales guardadas todavía", "isCorrect": true },
+            { "id": "b", "text": "Su rol de usuario no puede probar transportistas" },
+            { "id": "c", "text": "El módulo de Envíos está deshabilitado" },
+            { "id": "d", "text": "El transportista ya se probó una vez y no se puede volver a probar" }
+          ],
+          "explanation": "Probar solo aparece en los transportistas Api, y permanece deshabilitado hasta que existan credenciales. Si no lo ve en absoluto, el transportista es Manual; si está ahí pero atenuado, guarde las credenciales primero. La prueba ejecuta una conexión en vivo contra la API del transportista."
+        },
+        {
+          "id": "ca4",
+          "text": "Quiere que el estado de seguimiento de un transportista se actualice en el instante en que el transportista informa de un evento de escaneo, sin que Forge tenga que seguir preguntando. ¿Qué Modo de actualización de entrega admite esto?",
+          "options": [
+            { "id": "a", "text": "Manual" },
+            { "id": "b", "text": "Poll" },
+            { "id": "c", "text": "Webhook", "isCorrect": true },
+            { "id": "d", "text": "Auto" }
+          ],
+          "explanation": "Webhook significa que el transportista envía los cambios de estado a Forge a medida que ocurren —la opción más oportuna. Poll significa que Forge consulta periódicamente la API del transportista para obtener actualizaciones. Manual significa que una persona actualiza el estado a mano. Webhook está disponible solo para transportistas que lo admiten."
+        },
+        {
+          "id": "ca5",
+          "text": "Necesita renombrar un transportista y cambiar su modo de actualización de entrega. ¿Qué le permite hacer la tabla de Transportistas?",
+          "options": [
+            { "id": "a", "text": "Hacer clic en el lápiz de Editar de la fila para cambiar cualquier campo" },
+            { "id": "b", "text": "No hay acción de editar ni de desactivar en una fila —los únicos controles por fila son Credenciales y Probar (solo transportistas Api)", "isCorrect": true },
+            { "id": "c", "text": "Hacer doble clic en la celda para editarla en línea" },
+            { "id": "d", "text": "Arrastrar la fila a un área de 'Cambios pendientes'" }
+          ],
+          "explanation": "La tabla de Transportistas es deliberadamente sencilla. Una fila expone solo Credenciales y Probar, y esos aparecen en los transportistas Api. No hay acción de editar en línea ni de desactivar, así que planifique el nombre, el código y el tipo antes de guardar."
+        },
+        {
+          "id": "ca6",
+          "text": "Antes de confiar en un nuevo transportista Api para envíos reales, ¿cuál es la secuencia recomendada?",
+          "options": [
+            { "id": "a", "text": "Guardar el transportista en el entorno de producción y enviar un paquete real para confirmar" },
+            { "id": "b", "text": "Crear el transportista, guardar las credenciales con el entorno establecido en sandbox, ejecutar Probar hasta que esté verde, luego cambiar a producción", "isCorrect": true },
+            { "id": "c", "text": "Crear el transportista e inmediatamente marcarlo como activo —no se necesita probar" },
+            { "id": "d", "text": "Enviar un correo al transportista para confirmar la cuenta antes de configurar nada en Forge" }
+          ],
+          "explanation": "Cree el transportista, introduzca las credenciales con Entorno = sandbox y ejecute la Prueba hasta que informe éxito. Una vez verificada la conexión en sandbox, cambie el entorno a producción. El resultado verde de la Prueba es su confirmación de que la integración funciona antes de que los envíos reales dependan de ella."
+        }
+      ]
+    }
+  },
+  {
+    "slug": "sales-tax-rates",
+    "title": "Tasas de impuesto sobre las ventas",
+    "summary": "Agregue, edite y elimine las tasas de impuesto sobre las ventas que Forge aplica a los clientes, y comprenda cómo se resuelven las tasas predeterminadas frente a las de estado.",
+    "contentJson": {
+      "body": "## Tasas de impuesto sobre las ventas\n\nLa pestaña de Impuesto sobre las ventas en Admin contiene las sencillas tasas de impuesto por estado que Forge aplica cuando se usa la facturación independiente. (Cuando hay un proveedor de contabilidad externo conectado, ese proveedor es dueño del impuesto —estas tasas respaldan la propia facturación de Forge). Aquí es donde agrega una tasa, la edita, la elimina y decide cuál es la predeterminada del sistema.\n\n### Cómo leer la lista\n\nCada fila muestra el Nombre de la tasa, el Código, la Tasa (con formato de porcentaje), un chip de Predeterminada en la única tasa predeterminada y un chip de Activa o Inactiva. La lista muestra un recuento de cuántas tasas tiene en la parte superior. Haga clic en el botón **Agregar tasa** para crear una; cada fila lleva un icono de **editar** (lápiz) y uno de **eliminar** (papelera).\n\n### Agregar o editar una tasa\n\nEl diálogo pide:\n- **Nombre** (obligatorio) —una etiqueta legible como 'Impuesto sobre las ventas de California'.\n- **Código** (obligatorio) —un identificador corto como 'CA-SALES'.\n- **Estado** —elija un estado de EE. UU., o déjelo como '-- Todos los estados / Sin estado --' para una tasa que no esté ligada a un estado específico.\n- **Tasa (%)** (obligatorio) —se introduce como porcentaje (por ejemplo 8.25), se almacena internamente como decimal.\n- **Vigente desde** —la fecha en que la tasa entra en vigor.\n- **Descripción** —notas opcionales.\n- **Establecer como tasa predeterminada** —marca esta como la tasa de respaldo (vea la resolución a continuación).\n- **Tasa exenta** —marca esta fila como un marcador de exención (una preocupación local, para situaciones de cero/exento).\n- **Cuenta contable de registro** —opcional; la cuenta del libro mayor en la que se registra este impuesto. Normalmente la rellena la sincronización contable cuando hay una configurada.\n\nEditar reabre el mismo diálogo precargado. Guardar actualiza la fila en su lugar.\n\n### Eliminar una tasa\n\nEl icono de papelera solicita una confirmación antes de quitar la tasa. Eliminar es una acción exclusiva de Admin.\n\n### Resolución predeterminada frente a por estado\n\nCuando Forge necesita la tasa de impuesto para un cliente, observa el **estado** de la dirección de facturación predeterminada del cliente y usa la tasa por estado coincidente. Si ninguna tasa coincide con ese estado, recurre a la tasa que marcó como **predeterminada**. Por eso exactamente una tasa debe llevar el chip de Predeterminada —es la red de seguridad para cualquier cliente cuyo estado no haya configurado con una tasa específica.\n\n### Quién puede hacer qué\n\nCrear y editar tasas está abierto a los roles de Admin y Manager; eliminar está restringido a Admin.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "sales-tax-field-reference",
+    "title": "Referencia de campos de impuesto sobre las ventas",
+    "summary": "Referencia de cada campo, columna y acción en la pestaña de administración de Impuesto sobre las ventas, incluyendo Exenta y Cuenta contable de registro.",
+    "contentJson": {
+      "title": "Referencia de campos de impuesto sobre las ventas",
+      "groups": [
+        {
+          "heading": "Campos del diálogo de tasa",
+          "items": [
+            { "label": "Nombre (obligatorio)", "value": "Etiqueta legible para la tasa, máx. 100 caracteres (p. ej. 'Impuesto sobre las ventas de California')." },
+            { "label": "Código (obligatorio)", "value": "Identificador corto, máx. 20 caracteres (p. ej. 'CA-SALES'). Se usa para referenciar la tasa." },
+            { "label": "Estado", "value": "Lista desplegable de estados de EE. UU. Déjelo como '-- Todos los estados / Sin estado --' para una tasa no ligada a un estado específico. Impulsa la resolución predeterminada frente a por estado." },
+            { "label": "Tasa (%) (obligatorio)", "value": "Se introduce como porcentaje (p. ej. 8.25). Debe estar entre 0 y 100. Se almacena internamente como decimal (8.25% → 0.0825)." },
+            { "label": "Vigente desde", "value": "Fecha en que la tasa entra en vigor. Predeterminado hoy." },
+            { "label": "Descripción", "value": "Notas de texto libre opcionales sobre la tasa." },
+            { "label": "Establecer como tasa predeterminada", "value": "Interruptor. Marca esta fila como la tasa de respaldo del sistema usada cuando ninguna tasa específica de estado coincide con un cliente." },
+            { "label": "Tasa exenta", "value": "Interruptor. Marca esta fila como un marcador de exención —una preocupación local para situaciones de cero/exento. data-testid: sales-tax-exempt-flag" },
+            { "label": "Cuenta contable de registro", "value": "Cuenta del libro mayor opcional en la que se registra el impuesto (p. ej. '2200-Sales-Tax'). Normalmente la rellena la sincronización contable cuando hay un proveedor configurado. data-testid: sales-tax-gl-posting-account" }
+          ]
+        },
+        {
+          "heading": "Columnas de la lista",
+          "items": [
+            { "label": "Nombre", "value": "Ordenable. La etiqueta de la tasa." },
+            { "label": "Código", "value": "Ordenable. El identificador corto." },
+            { "label": "Tasa", "value": "Ordenable. La tasa mostrada como un porcentaje recortado (sin ceros finales)." },
+            { "label": "Predeterminada", "value": "Un chip de Predeterminada en la única tasa predeterminada; en blanco en las demás." },
+            { "label": "Activa", "value": "Chip de Activa (verde) o Inactiva (atenuado)." },
+            { "label": "Acciones", "value": "Editar (lápiz) abre el diálogo precargado; Eliminar (papelera) solicita una confirmación." }
+          ]
+        },
+        {
+          "heading": "Resolución y permisos",
+          "items": [
+            { "label": "Resolución por cliente", "value": "Forge elige la tasa que coincide con el estado de la dirección de facturación predeterminada del cliente; si ninguna coincide, usa la tasa marcada como Predeterminada." },
+            { "label": "Tasa predeterminada", "value": "Exactamente una tasa debe ser la Predeterminada —es el respaldo para cualquier estado no configurado." },
+            { "label": "Crear / Editar", "value": "Permitido para los roles Admin y Manager." },
+            { "label": "Eliminar", "value": "Restringido solo a Admin. Siempre detrás de un diálogo de confirmación." },
+            { "label": "Límite contable", "value": "Estas tasas respaldan la facturación independiente de Forge. Cuando hay un proveedor de contabilidad externo conectado, ese proveedor es dueño del impuesto." }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "capability-detail-page",
+    "title": "Página de detalle de capacidad",
+    "summary": "Profundice en una sola capacidad para ver sus dependencias, qué depende de ella, conflictos, configuración e historial de auditoría.",
+    "contentJson": {
+      "body": "## Página de detalle de capacidad\n\nHacer clic en el chevron de cualquier fila del Explorador de capacidades abre la página de detalle de esa capacidad en `/admin/capabilities/:code`. Donde la cuadrícula sirve para explorar y activar/desactivar en masa, la página de detalle sirve para entender una capacidad en profundidad antes de cambiarla —qué necesita, qué la necesita y con qué entra en conflicto.\n\n### Encabezado e interruptor\n\nLa parte superior de la página muestra el nombre de la capacidad, su código, su área funcional, si está activada de forma predeterminada y cualquier rol que requiera. Un **interruptor** a la derecha habilita o deshabilita la capacidad directamente desde aquí, con un indicador de carga mientras se guarda el cambio. Si el cambio está bloqueado, un snackbar explica por qué —dependencias faltantes que habilitar primero, dependientes que deshabilitar primero, o una capacidad par mutuamente excluyente que apagar primero.\n\n### Relaciones\n\nLa sección de Relaciones es el corazón de la página. Enumera tres grupos como chips en los que se puede hacer clic:\n- **Depende de** —las capacidades que esta necesita. Cada chip muestra si ese prerrequisito está habilitado actualmente, para que vea de un vistazo qué falta.\n- **Requerida por** —las capacidades que dependen de esta. Una lista vacía dice 'Sin dependientes —seguro de deshabilitar.'\n- **Mutuamente excluyente con** —pares que no pueden estar activos al mismo tiempo (por ejemplo, contabilidad integrada frente a externa). Este grupo solo aparece cuando existe una exclusión mutua.\n\nCada chip es un enlace: haga clic en él para saltar a la página de detalle de esa capacidad relacionada y seguir trazando el grafo.\n\n### Configuración\n\nAlgunas capacidades llevan una carga útil de configuración JSON opaca. La sección de Configuración muestra si existe una. Editar esa carga útil desde la interfaz es una iteración futura —por ahora es de solo lectura y los cambios pasan directamente por la API.\n\n### Actividad reciente\n\nLa sección de Actividad reciente muestra un registro de auditoría acotado solo para esta capacidad —las últimas acciones de habilitar/deshabilitar/configurar/aplicar preajuste, cada una con una marca de tiempo, la acción, el usuario (o '(sistema)') y un resumen de estilo activado→desactivado que incluye el motivo cuando se proporcionó uno. Este es su registro de quién cambió esta capacidad y cuándo.\n\n### Modo consultor\n\nCon el modo consultor activado, cada chip de relación también muestra el código de capacidad sin procesar junto al nombre amigable —útil cuando está cruzando referencias con el catálogo.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "custom-configuration",
+    "title": "Configuración personalizada de capacidades",
+    "summary": "Elija a mano el conjunto exacto de capacidades para su instalación, resuelva las violaciones de restricciones y aplique con una vista previa.",
+    "contentJson": {
+      "body": "## Configuración personalizada de capacidades\n\nCuando ningún preajuste encaja y prefiere no activar las capacidades una por una en la cuadrícula, la pantalla de Configuración personalizada le permite elegir a mano el conjunto exacto que desea. Llega a ella desde la tarjeta Personalizada del explorador de Preajustes (`/admin/presets/custom`). Parte de los valores predeterminados del catálogo y le permite construir su instalación a partir de ahí.\n\n### Cómo funciona\n\nCada capacidad se lista agrupada por área, cada una con una casilla de verificación. Al alternar una casilla se establece esa capacidad como activada o desactivada. Una capacidad que cambia respecto a su predeterminado se etiqueta con un chip de **Anulación** para que quede claro qué difiere del estado de fábrica; las capacidades que siguen en su predeterminado muestran una etiqueta de **Activada por defecto** donde corresponde. Vuelva a alternar una capacidad a su predeterminado y la etiqueta de Anulación desaparece.\n\n### Comprobación de restricciones en vivo\n\nCada cambio vuelve a validar contra las reglas de dependencia y exclusión mutua del sistema. Tres contadores en la parte superior lo mantienen orientado: **Capacidades habilitadas** (cuántas estarán activadas), **Cambiará si se aplica** (la diferencia respecto a su instalación actual) y **Violaciones de restricciones**. Si existe una violación —por ejemplo, habilitó algo cuyo prerrequisito está desactivado, o activó dos capacidades mutuamente excluyentes— un panel de Violaciones de restricciones enumera cada una en lenguaje claro, y el botón **Aplicar personalizado** se deshabilita hasta que las resuelva todas.\n\n### Restablecer a valores predeterminados\n\nEl botón **Restablecer a valores predeterminados** de la barra de herramientas borra todas las anulaciones de una vez, devolviendo todo el conjunto a los valores predeterminados del catálogo para que pueda empezar de nuevo de forma limpia.\n\n### Aplicar\n\nCuando el recuento de violaciones es cero, **Aplicar personalizado** abre un diálogo de vista previa que muestra las diferencias exactas (qué se activa, qué se desactiva) y le pide que confirme, opcionalmente con un motivo para el registro de auditoría. Confirmar escribe la nueva configuración, tras lo cual regresa a la cuadrícula de Capacidades. Si su selección ya coincide con la instalación actual, aplicar no hace nada y Forge se lo indica.\n\n### Cómo encaja\n\nLa Configuración personalizada, el explorador de Preajustes, el asistente de Descubrimiento y la cuadrícula de Capacidades escriben todos en el mismo estado de capacidades. Use Personalizada cuando quiera control manual completo con la red de seguridad de la comprobación de violaciones en vivo.",
       "sections": []
     }
   }

@@ -556,5 +556,306 @@
         }
       ]
     }
+  },
+  {
+    "slug": "accounting-exports-guide",
+    "title": "Exportar para tu Contador / QuickBooks",
+    "summary": "Cómo la página de Exportaciones entrega tus libros a un contador público: las tres descargas CSV sobre un rango de fechas, y el envío opcional unidireccional de un resumen de asientos del período a QuickBooks Online.",
+    "contentJson": {
+      "body": "## Exportar para tu Contador / QuickBooks\n\nLa mayoría de los talleres que usan los libros integrados de Forge aún tienen un contador externo que prepara la declaración de impuestos y revisa el año. La página de **Exportaciones** (un mosaico en la página principal de Contabilidad, ruta `/accounting/exports`) es la forma de entregar a esa persona los datos que necesita, sin darle un acceso y sin hacer de QuickBooks la fuente de verdad. La página tiene dos mitades: las descargas CSV, que siempre están disponibles, y un envío unidireccional opcional a QuickBooks Online que solo aparece cuando tu instalación lo ha activado.\n\n### Las Dos Formas de Compartir\n\n**Descargas CSV (siempre activas).** Tres botones bajo el encabezado *Exportación CSV* descargan cada uno un archivo de valores separados por comas que tu contador puede abrir en Excel o importar a su propio software:\n\n- **CSV de Balance de Comprobación** — cada cuenta del GL con su débito, crédito y neto para el rango de fechas elegido. Este es el archivo más solicitado; es la instantánea que un contador concilia.\n- **CSV de Detalle del GL** — el detalle del libro mayor línea por línea detrás del balance de comprobación, para que el contador pueda rastrear cualquier saldo hasta las contabilizaciones individuales.\n- **CSV de Resumen de Asientos** — la actividad del período resumida a una cifra neta por cuenta (los mismos datos que envía el envío a QuickBooks). Úsalo cuando el contador solo quiera el movimiento del período, no cada línea.\n\nLos tres respetan el **rango de fechas** que estableces con el selector de rango en la parte superior de la página. Por defecto es del mes a la fecha y ofrece dos preajustes —*Este Mes* y *Últimos 30 Días*— o puedes elegir tu propio inicio y fin. Haz clic en un botón de descarga y el archivo se guarda con un nombre suministrado por el servidor; solo se ejecuta una descarga a la vez.\n\n**Enviar a QuickBooks Online (opcional, desactivado por defecto).** Cuando tu instalación activa la capacidad `CAP-ACCT-QBO-EXPORT` *y* hay una conexión OAuth de QuickBooks establecida, aparece una segunda sección debajo de los botones CSV. Hace una sola cosa: contabiliza el neto por cuenta del período como **un único asiento contable cuadrado** en QuickBooks Online. Este es un envío unidireccional, hacia abajo: QuickBooks nunca se lee de vuelta, y nada de lo que contenga sobrescribe tus libros de Forge. Si la capacidad está desactivada (lo predeterminado), simplemente no verás esta sección, y el CSV es tu método de entrega.\n\n### El Mapeo de Cuentas QBO\n\nQuickBooks tiene su propio catálogo de cuentas con sus propios identificadores internos, que no coincidirán con los números de cuenta de Forge. Por eso, antes de poder enviar, cada cuenta del GL de Forge que tenga actividad debe mapearse al identificador de cuenta de QuickBooks correspondiente. El editor de mapeo es una tabla: una fila por cuenta del GL, mostrando el número y nombre de cuenta de Forge, con un campo para escribir el identificador de cuenta de QuickBooks y un icono de guardar (disco) para almacenarlo. Una fila mapeada también muestra un icono de eliminar para borrar el mapeo. Configuras esto una vez; los mapeos persisten para envíos futuros.\n\n### Hacer un Envío\n\n1. Establece el **rango de fechas** al período que estás entregando (p. ej. el mes pasado, o el trimestre).\n2. Asegúrate de que cada cuenta con actividad en ese rango tenga un **identificador de QuickBooks** guardado en la tabla de mapeo.\n3. Haz clic en **Enviar a QuickBooks**. Un diálogo de confirmación reitera las fechas de inicio/fin: esto es una escritura en QuickBooks, así que pregunta antes de actuar.\n4. Al tener éxito recibes una confirmación con el identificador del documento de QuickBooks del asiento contable que se creó.\n\n### Cuando un Envío Es Rechazado (409)\n\nEl envío rechaza deliberadamente en lugar de enviar datos incompletos o duplicados, mostrando el motivo como una advertencia en pantalla:\n\n- **Una cuenta con un neto distinto de cero no está mapeada.** Mapéala (dale un identificador de QuickBooks) y vuelve a enviar: el resumen tiene que estar completo y cuadrado antes de poder contabilizarse.\n- **El rango se solapa con un período que ya enviaste.** Esta protección evita que dupliques la contabilización de la misma actividad en QuickBooks. Solo lo anularías deliberadamente.\n\n### Modelo Mental\n\nForge lleva los libros; el contador los revisa. El CSV es la forma universal y sin configuración de entregar el balance de comprobación y su detalle a cualquiera. El envío a QuickBooks es una comodidad para las instalaciones cuyo contador prefiere que las cifras lleguen directamente a QBO como un asiento contable ordenado por período, pero es estrictamente reporte unidireccional, nunca una sincronización. Sea cual sea el camino que uses, los datos viven primero en Forge; la exportación es una copia que sale, no una fuente que entra.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "accounting-exports-walkthrough",
+    "title": "Exportar para tu Contador — Recorrido Guiado",
+    "summary": "Un recorrido guiado por la página de Exportaciones: el rango de fechas del CSV, los tres botones de descarga y (cuando está activado) el mapeo y el envío a QuickBooks.",
+    "contentJson": {
+      "appRoute": "/accounting/exports",
+      "startButtonLabel": "Recorrer la Página de Exportaciones",
+      "steps": [
+        {
+          "element": "app-page-header",
+          "popover": {
+            "title": "La Página de Exportaciones",
+            "description": "Esta página entrega tus libros a un contador externo sin darle un acceso. Tiene dos mitades: descargas CSV siempre disponibles y —solo cuando tu instalación activa el envío a QuickBooks— un envío unidireccional a QuickBooks Online. Llega a ella desde el mosaico Exportaciones en la página principal de Contabilidad.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".exports-toolbar",
+          "popover": {
+            "title": "Elige el Rango de Fechas Primero",
+            "description": "Cada exportación respeta este rango de fechas. Por defecto es del mes a la fecha y ofrece dos preajustes —Este Mes y Últimos 30 Días— o establece tu propio inicio y fin. Elige el período que estás entregando antes de descargar o enviar.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".exports-buttons",
+          "popover": {
+            "title": "Las Tres Descargas CSV",
+            "description": "Cada botón descarga un archivo que tu contador puede abrir en Excel. El CSV de Balance de Comprobación es la instantánea a nivel de cuenta que un contador concilia; el CSV de Detalle del GL son las contabilizaciones línea por línea detrás de él; el CSV de Resumen de Asientos es el período resumido a un neto por cuenta. Solo se ejecuta una descarga a la vez.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".exports-section",
+          "popover": {
+            "title": "El CSV Siempre Está Disponible",
+            "description": "La sección CSV no necesita configuración ni integración: es el método de entrega universal para cualquier contador. Debajo de ella, una sección de QuickBooks aparece solo cuando tu instalación ha activado la capacidad de envío a QBO y conectado QuickBooks. Si no ves esa sección, el CSV es tu camino.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".page-content",
+          "popover": {
+            "title": "Unidireccional, Nunca una Sincronización",
+            "description": "Cuando el envío a QuickBooks está activado, contabiliza el neto por cuenta del período como un único asiento contable cuadrado en QuickBooks Online: una copia hacia abajo, nunca leída de vuelta. Un envío es rechazado (409) si una cuenta con actividad no está mapeada, o si el rango se solapa con un período que ya enviaste. Forge siempre lleva los libros; la exportación es una copia que sale.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "accounting-bank-statements-guide",
+    "title": "Importar y Conciliar Extractos Bancarios",
+    "summary": "Cómo importar un extracto bancario OFX/QFX/CSV, leer las sugerencias de conciliación automática y confirmar las coincidencias para que las líneas liquidadas alimenten tu conciliación bancaria.",
+    "contentJson": {
+      "body": "## Importar y Conciliar Extractos Bancarios\n\nConciliar el efectivo a mano significa cotejar un extracto en papel contra el libro mayor línea por línea. La página de **Extractos Bancarios** (un mosaico en la página principal de Contabilidad, ruta `/accounting/bank-statements`) automatiza la parte tediosa: subes el archivo que te da tu banco, Forge coteja cada línea bancaria con un asiento del libro mayor donde puede, y tú confirmas las coincidencias. Las líneas confirmadas luego alimentan directamente la hoja de trabajo de Conciliación Bancaria, así que las dos pantallas trabajan juntas: importa aquí, finaliza en Conciliación Bancaria.\n\n### Elige la Cuenta de Efectivo y Luego Importa\n\nCada extracto pertenece a una cuenta de efectivo (banco), por lo que el primer control de la página es un selector de **Cuenta de Efectivo**. Elige la cuenta a la que corresponde el extracto antes de importar: si haces clic en Importar sin elegir una, se te recordará. Luego haz clic en el botón **Importar** en el encabezado de la página y elige tu archivo. Forge acepta los formatos que los bancos realmente entregan: **OFX, QFX, CSV y TXT**. OFX/QFX son los formatos estructurados de descarga bancaria; CSV/TXT cubren las exportaciones simples.\n\n### Qué Sucede al Importar\n\nDos cosas se ejecutan automáticamente en el momento en que llega el archivo:\n\n- **Detección de duplicados.** Cada transacción en un archivo OFX/QFX lleva un identificador bancario único (FITID). Forge deduplica sobre él, así que reimportar el mismo extracto —o uno que se solape— no creará líneas dobles. El resultado de la importación te indica cuántas líneas se importaron y cuántas se omitieron como duplicados.\n- **Conciliación automática.** Forge intenta de inmediato cotejar cada línea bancaria importada con un asiento abierto del libro mayor en esa cuenta de efectivo (por importe y proximidad de fecha). El resultado te indica cuántas sugerencias encontró.\n\nDespués de importar, el nuevo extracto aparece en la **lista de importaciones**: una fila por archivo, mostrando el nombre del archivo, el formato, el conteo de líneas, el conteo de duplicados, un resumen del estado de coincidencia (conteos de Sugerido / Sin Coincidencia / Confirmado) y la fecha de importación. Haz clic en una fila para abrir sus líneas debajo.\n\n### Leer las Líneas y su Estado de Coincidencia\n\nCada línea importada muestra su fecha contabilizada, descripción, importe (las salidas se muestran en un color de advertencia), un **estado** y —cuando está coincidida— el asiento del libro mayor con el que coincidió (número de asiento, fecha, memo). El estado es el corazón de la pantalla:\n\n- **Sin Coincidencia** (ámbar) — Forge no pudo encontrar un asiento del libro mayor para esta línea bancaria. Necesita tu atención.\n- **Sugerido** (azul) — Forge propuso una coincidencia. Revísala, luego confírmala o recházala.\n- **Confirmado** (verde) — aceptaste la coincidencia; la línea está liquidada y se compensará en la conciliación.\n- **Ignorado** (atenuado) — apartaste esta línea (p. ej. una comisión bancaria que manejarás por separado) para que deje de pedir una coincidencia.\n\n### Trabajar la Cola\n\nPara cada línea tienes un pequeño conjunto de acciones de fila; cuál se ofrece depende de su estado:\n\n- En una línea **Sugerido**: **Confirmar** (icono de check) acepta la coincidencia propuesta, o **Ignorar** (ojo tachado) la aparta.\n- En una línea **Sin Coincidencia**: **Ignorar** para aparcarla.\n- En una línea **Confirmado** o **Ignorado**: **Deshacer coincidencia** (deshacer) revierte tu decisión y devuelve la línea a la cola.\n\nSi has contabilizado nuevos asientos del libro mayor desde que importaste, haz clic en **Volver a ejecutar conciliación automática** (encima de las líneas) para que Forge dé otra pasada a las líneas aún sin coincidencia y proponga sugerencias nuevas.\n\n### Cómo Alimenta la Conciliación\n\nConfirmar una coincidencia es una declaración de que el banco liquidó ese asiento del libro mayor. Eso es exactamente lo que necesita la hoja de trabajo de **Conciliación Bancaria**: los asientos que confirmas aquí son los que aparecen como liquidados allí. Así que el flujo de trabajo es: importa el extracto y confirma las coincidencias en esta página, luego abre Conciliación Bancaria, donde el total liquidado refleja tus confirmaciones y la hoja de trabajo te indica si cuadras. La importación es el paso de captura de datos; la Conciliación Bancaria es donde finalizas.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "accounting-bank-statements-walkthrough",
+    "title": "Importar Extractos Bancarios — Recorrido Guiado",
+    "summary": "Un recorrido guiado por la página de Extractos Bancarios: elegir la cuenta de efectivo, importar un archivo, leer la lista de importaciones y confirmar las sugerencias de conciliación automática.",
+    "contentJson": {
+      "appRoute": "/accounting/bank-statements",
+      "startButtonLabel": "Recorrer la Importación de Extractos",
+      "steps": [
+        {
+          "element": "app-page-header",
+          "popover": {
+            "title": "La Página de Extractos Bancarios",
+            "description": "Sube el archivo que te da tu banco y Forge coteja cada línea bancaria con un asiento del libro mayor. Las coincidencias confirmadas alimentan directamente la hoja de trabajo de Conciliación Bancaria, así que importas aquí y finalizas en Conciliación Bancaria. Llega a esta página desde el mosaico Extractos Bancarios en la página principal de Contabilidad.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".filters-bar",
+          "popover": {
+            "title": "Elige la Cuenta de Efectivo Primero",
+            "description": "Cada extracto pertenece a una cuenta bancaria. Elige aquí la cuenta de efectivo a la que corresponde el extracto antes de importar. Si intentas importar sin elegir una, Forge te lo recuerda.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid=\"import-statement-btn\"]",
+          "popover": {
+            "title": "Importar un Archivo",
+            "description": "Haz clic en Importar y elige tu archivo de extracto. Forge acepta los formatos que los bancos entregan: OFX, QFX, CSV y TXT. Al importar, deduplica sobre el identificador bancario de cada transacción (para que reimportar no cuente doble) y ejecuta de inmediato la conciliación automática, luego te indica cuántas líneas se importaron, cuántas eran duplicados y cuántas coincidencias sugirió.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".imports-section",
+          "popover": {
+            "title": "La Lista de Importaciones",
+            "description": "Cada extracto importado es una fila aquí: nombre del archivo, formato, conteo de líneas, conteo de duplicados, un resumen del estado de coincidencia (conteos de Sugerido / Sin Coincidencia / Confirmado) y la fecha de importación. Haz clic en una fila para abrir sus líneas debajo y empezar a trabajar las coincidencias.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".statements-content",
+          "popover": {
+            "title": "Trabaja la Cola de Coincidencias",
+            "description": "Al abrir una importación se listan sus líneas con un estado: Sin Coincidencia (ámbar, necesita atención), Sugerido (azul, Forge propuso una coincidencia: Confírmala o Ignórala), Confirmado (verde, liquidado) o Ignorado (aparcado). Confirmar acepta una sugerencia; Ignorar aparca una línea; Deshacer coincidencia revierte una decisión. Usa Volver a ejecutar conciliación automática después de contabilizar nuevos asientos del libro mayor. Cada línea que confirmas se compensa en la hoja de trabajo de Conciliación Bancaria.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "accounting-exports-bank-quiz",
+    "title": "Verificación de Conocimientos: Exportaciones y Extractos Bancarios",
+    "summary": "Pon a prueba tus conocimientos sobre la exportación para tu contador (CSV + envío a QuickBooks) y la importación y conciliación de extractos bancarios.",
+    "contentJson": {
+      "passingScore": 80,
+      "questionsPerQuiz": 7,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "ax1",
+          "text": "¿Qué archivo de exportación está siempre disponible en la página de Exportaciones, sin requerir integración ni configuración?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El envío de asiento contable a QuickBooks Online"
+            },
+            {
+              "id": "b",
+              "text": "Las tres descargas CSV: Balance de Comprobación, Detalle del GL y Resumen de Asientos",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Un enlace de solo lectura en vivo a tu archivo de empresa de QuickBooks"
+            },
+            {
+              "id": "d",
+              "text": "Nada: exportar requiere conectar primero un proveedor contable"
+            }
+          ],
+          "explanation": "Las descargas CSV (Balance de Comprobación, Detalle del GL, Resumen de Asientos) siempre están disponibles y no necesitan configuración: son la forma universal de entregar tus libros a cualquier contador. El envío a QuickBooks es opcional y solo aparece cuando la instalación activa CAP-ACCT-QBO-EXPORT y conecta QuickBooks."
+        },
+        {
+          "id": "ax2",
+          "text": "¿Qué envía realmente la acción 'Enviar a QuickBooks'?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Una sincronización bidireccional completa de cada transacción"
+            },
+            {
+              "id": "b",
+              "text": "El neto por cuenta del período como un único asiento contable cuadrado: unidireccional, nunca leído de vuelta",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Un PDF de los estados financieros"
+            },
+            {
+              "id": "d",
+              "text": "Todo tu catálogo de cuentas, sobrescribiendo QuickBooks"
+            }
+          ],
+          "explanation": "El envío contabiliza el neto por cuenta del período como UN asiento contable cuadrado en QuickBooks Online. Es estrictamente unidireccional hacia abajo: QuickBooks nunca es la fuente de verdad y nada se sincroniza de vuelta a Forge."
+        },
+        {
+          "id": "ax3",
+          "text": "El botón 'Enviar a QuickBooks' devuelve un 409 y rechaza. ¿Cuál es una causa probable?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Los archivos CSV aún no se han descargado"
+            },
+            {
+              "id": "b",
+              "text": "Una cuenta con un neto distinto de cero no está mapeada a un identificador de cuenta de QuickBooks, o el rango se solapa con un período que ya enviaste",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El balance de comprobación está cuadrado"
+            },
+            {
+              "id": "d",
+              "text": "Elegiste el preajuste Últimos 30 Días en vez de Este Mes"
+            }
+          ],
+          "explanation": "El envío rechaza en lugar de enviar datos incompletos o duplicados: un 409 significa que una cuenta con actividad aún no está mapeada (mapéala y vuelve a enviar) o que el rango de fechas se solapa con un período ya enviado (una protección contra la doble contabilización)."
+        },
+        {
+          "id": "ax4",
+          "text": "Cuando importas un extracto bancario, ¿qué formatos de archivo acepta la página?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Solo PDF"
+            },
+            {
+              "id": "b",
+              "text": "OFX, QFX, CSV y TXT",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Solo Excel .xlsx"
+            },
+            {
+              "id": "d",
+              "text": "Un archivo de empresa .qbo de QuickBooks"
+            }
+          ],
+          "explanation": "El importador acepta los formatos que los bancos realmente entregan: OFX y QFX (los formatos estructurados de descarga bancaria) más CSV y TXT (exportaciones simples). Eliges primero la cuenta de efectivo, luego importas el archivo."
+        },
+        {
+          "id": "ax5",
+          "text": "Reimportas el mismo archivo de extracto por error. ¿Qué sucede?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Cada línea se duplica, duplicando tus saldos"
+            },
+            {
+              "id": "b",
+              "text": "Forge deduplica sobre el identificador bancario de cada transacción, así que los duplicados se omiten (y se cuentan en el resultado de la importación)",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "La importación se rechaza por completo con un error"
+            },
+            {
+              "id": "d",
+              "text": "La importación anterior se elimina y se reemplaza en silencio"
+            }
+          ],
+          "explanation": "Cada transacción lleva un identificador bancario único (FITID); Forge deduplica sobre él, así que reimportar el mismo extracto o uno que se solape no creará líneas dobles. El resultado de la importación informa cuántas líneas se omitieron como duplicados."
+        },
+        {
+          "id": "ax6",
+          "text": "Una línea bancaria muestra el estado 'Sugerido'. ¿Qué significa y qué haces?",
+          "options": [
+            {
+              "id": "a",
+              "text": "La línea ya está liquidada: no se necesita ninguna acción"
+            },
+            {
+              "id": "b",
+              "text": "Forge propuso una coincidencia con un asiento del libro mayor; revísala y Confírmala (o Ignora la línea)",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "La línea no se importó y debe volver a subirse"
+            },
+            {
+              "id": "d",
+              "text": "La línea se eliminó permanentemente"
+            }
+          ],
+          "explanation": "Sugerido (azul) significa que la conciliación automática propuso un asiento del libro mayor para esa línea bancaria. Revisas la coincidencia propuesta y la Confirmas (aceptar) o Ignoras la línea (aparcarla). Las líneas confirmadas se vuelven verdes; Deshacer coincidencia revierte una decisión y devuelve la línea a la cola."
+        },
+        {
+          "id": "ax7",
+          "text": "¿Cuál es la relación entre la página de Extractos Bancarios y la hoja de trabajo de Conciliación Bancaria?",
+          "options": [
+            {
+              "id": "a",
+              "text": "No están relacionadas: Extractos Bancarios es solo un archivo de los ficheros subidos"
+            },
+            {
+              "id": "b",
+              "text": "Las coincidencias que confirmas en Extractos Bancarios son las líneas que aparecen como liquidadas en la hoja de trabajo de Conciliación Bancaria",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "La Conciliación Bancaria importa el archivo; Extractos Bancarios lo finaliza"
+            },
+            {
+              "id": "d",
+              "text": "Confirmar una coincidencia finaliza automáticamente la conciliación"
+            }
+          ],
+          "explanation": "Confirmar una coincidencia declara que el banco liquidó ese asiento del libro mayor, exactamente lo que necesita la Conciliación Bancaria. Así que importas y confirmas las coincidencias en la página de Extractos Bancarios, luego abres la Conciliación Bancaria, donde el total liquidado refleja tus confirmaciones y finalizas una vez que cuadras."
+        }
+      ]
+    }
   }
 ]

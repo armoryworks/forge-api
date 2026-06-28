@@ -4,7 +4,7 @@
     "title": "Visión general de Activos",
     "summary": "Qué hace el módulo de Activos, cuándo usarlo y cómo se conecta con los trabajos, las piezas y el mantenimiento.",
     "contentJson": {
-      "body": "## Visión general de Activos\n\nEl módulo de Activos es su registro de equipos y herramental. Realiza el seguimiento de cada activo físico que su taller posee o gestiona —máquinas, herramental, vehículos e instalaciones— junto con su historial de mantenimiento, su estado actual y sus horas de operación.\n\n### ¿Qué cuenta como un activo?\n\nLos activos se clasifican por tipo:\n- **Máquina** — fresadoras CNC, tornos, sierras, prensas y otros equipos de producción\n- **Herramental** — moldes, troqueles, plantillas, dispositivos de sujeción y herramientas de corte (incluye herramental propiedad del cliente)\n- **Instalación** — edificios, sistemas de climatización (HVAC), tableros eléctricos e infraestructura\n- **Vehículo** — camiones de reparto, montacargas, vehículos de la empresa\n- **Otro** — cualquier cosa que no encaje en las categorías anteriores\n\n### Cómo se conectan los activos con otras funciones\n\n**Herramental y piezas:** Un activo de herramental puede vincularse a una pieza específica (la pieza que produce) y al trabajo que lo creó. Esto le brinda trazabilidad completa: qué molde fabrica qué pieza y qué trabajo construyó el molde.\n\n**Mantenimiento:** Cada activo lleva el seguimiento de su historial de mantenimiento —mantenimiento programado, reparaciones e inspecciones—. Cuando un activo se pone en estado de Mantenimiento, le indica al equipo que la máquina está fuera de servicio.\n\n**Etiquetas de código de barras/QR:** Cada activo puede tener una etiqueta de código de barras impresa para una identificación rápida en el taller. Escanee la etiqueta para abrir el registro del activo al instante.\n\n### Cuándo usar Activos\n\n- Al incorporar un nuevo equipo\n- Al hacer seguimiento de herramental propiedad del cliente (moldes que le envían)\n- Al programar o registrar mantenimiento\n- Cuando un activo queda fuera de servicio y necesita registrar por qué\n- Cuando necesita conocer el número de inyecciones o la vida útil restante de la herramienta en un molde",
+      "body": "## Visión general de Activos\n\nEl módulo de Activos es su registro de equipos y herramental. Realiza el seguimiento de cada activo físico que su taller posee o gestiona —máquinas, herramental, vehículos e instalaciones— junto con su historial de mantenimiento, su estado actual, sus horas de operación y sus datos de adquisición/contabilidad.\n\n### ¿Qué cuenta como un activo?\n\nLos activos se clasifican por tipo:\n- **Máquina** — fresadoras CNC, tornos, sierras, prensas y otros equipos de producción\n- **Herramental** — moldes, troqueles, plantillas, dispositivos de sujeción y herramientas de corte (incluye herramental propiedad del cliente)\n- **Instalación** — edificios, sistemas de climatización (HVAC), tableros eléctricos e infraestructura\n- **Vehículo** — camiones de reparto, montacargas, vehículos de la empresa\n- **Otro** — cualquier cosa que no encaje en las categorías anteriores\n\n### Dos clases de campos adicionales\n\nCada activo comparte los campos de identidad básicos (nombre, tipo, ubicación, fabricante, modelo, serie). Más allá de esos, aparecen dos grupos de campos distintos:\n\n1. **Adquisición y contabilidad** — se muestran para **todos** los tipos de activo. Capturan el costo de adquisición, el método de depreciación, el centro de trabajo donde está estacionado el activo y una cuenta de mayor (GL). Describen lo que costó el activo y cómo se deprecia.\n2. **Campos exclusivos de herramental** — se muestran **solo** cuando Tipo = Herramental. Capturan la propiedad del cliente, el número de cavidades y la vida útil esperada de la herramienta. Describen cómo funciona un molde o troquel en producción.\n\nPor lo tanto, los campos de herramental *no* son los únicos extras: la sección de Adquisición y contabilidad se aplica tanto a una fresadora CNC o un montacargas como a un molde.\n\n### Cómo se conectan los activos con otras funciones\n\n**Herramental y piezas:** Un activo de herramental puede vincularse a una pieza específica (la pieza que produce) y al trabajo que lo creó. Esto le brinda trazabilidad completa: qué molde fabrica qué pieza y qué trabajo construyó el molde.\n\n**Mantenimiento:** Cada activo lleva el seguimiento de su historial de mantenimiento —mantenimiento programado, reparaciones e inspecciones—. Cuando un activo se pone en estado de Mantenimiento, le indica al equipo que la máquina está fuera de servicio. Los eventos de tiempo de inactividad (averías no planificadas) y los programas de mantenimiento recurrente se rastrean por separado: consulte los módulos dedicados de tiempo de inactividad y de programas de mantenimiento.\n\n**Contabilidad:** Cuando hay un proveedor de contabilidad externo conectado, la cuenta de mayor del activo se completa mediante la sincronización contable. En modo autónomo puede ingresarla manualmente.\n\n**Etiquetas de código de barras/QR:** Cada activo recibe una etiqueta de código de barras/QR que puede imprimir para una identificación rápida en el taller. Escanee la etiqueta para abrir el registro del activo al instante.\n\n### Cuándo usar Activos\n\n- Al incorporar un nuevo equipo (y registrar lo que costó)\n- Al hacer seguimiento de herramental propiedad del cliente (moldes que le envían)\n- Al programar o registrar mantenimiento, o al registrar una avería\n- Cuando un activo queda fuera de servicio y necesita registrar por qué\n- Cuando necesita conocer el número de inyecciones o la vida útil restante de la herramienta en un molde",
       "sections": []
     }
   },
@@ -20,7 +20,7 @@
           "element": "[data-testid='new-asset-btn']",
           "popover": {
             "title": "Botón Agregar activo",
-            "description": "Haga clic aquí para registrar un nuevo activo. Introducirá el nombre, el tipo, la ubicación, el fabricante y el modelo. Para los activos de herramental aparecen campos adicionales: número de cavidades, vida útil esperada de la herramienta y propiedad del cliente.",
+            "description": "Haga clic aquí para registrar un nuevo activo. Introducirá el nombre, el tipo, la ubicación, el fabricante y el modelo. Debajo de esos, la sección de Adquisición captura el costo, el método de depreciación, el centro de trabajo y la cuenta de mayor (GL), para todos los tipos de activo. Si establece el tipo en Herramental, aparecen tres campos más: número de cavidades, vida útil esperada de la herramienta y propiedad del cliente.",
             "side": "bottom"
           }
         },
@@ -51,8 +51,8 @@
         {
           "element": "app-data-table",
           "popover": {
-            "title": "Tabla de activos",
-            "description": "Haga clic en cualquier fila para abrir el panel de detalles del activo. Las columnas incluyen nombre, tipo, ubicación, fabricante, estado (chip codificado por color) y horas de operación actuales. Haga clic en los encabezados de columna para ordenar.",
+            "title": "Tabla de activos — Haga clic para abrir y editar",
+            "description": "Haga clic en cualquier fila para abrir el cuadro de diálogo de detalle del activo. Dentro, el icono de lápiz (Editar) en la parte superior derecha reabre el mismo formulario precargado con los valores del activo para que pueda cambiar los campos de identidad, el estado, las notas y los detalles del herramental. Aquí las columnas incluyen nombre, tipo, ubicación, fabricante, estado (chip codificado por color) y horas de operación actuales. Haga clic en los encabezados de columna para ordenar.",
             "side": "top"
           }
         }
@@ -96,6 +96,31 @@
             {
               "label": "Notas",
               "value": "Área de texto, opcional. Notas de formato libre sobre el activo, el historial de mantenimiento o instrucciones especiales."
+            }
+          ]
+        },
+        {
+          "heading": "Campos de adquisición y contabilidad (se muestran para TODOS los tipos de activo)",
+          "items": [
+            {
+              "label": "Costo de adquisición",
+              "value": "Entrada numérica, opcional. Lo que costó adquirir el activo. Validado: debe ser ≥ 0 y ≤ 1.000.000.000. data-testid: asset-acquisition-cost"
+            },
+            {
+              "label": "Método de depreciación",
+              "value": "Lista desplegable, opcional. Uno de: Línea recta, Saldo decreciente, Unidades de producción (coincide exactamente con el enum del servidor) o — (ninguno). Describe cómo se amortiza el valor del activo con el tiempo. data-testid: asset-depreciation-method"
+            },
+            {
+              "label": "Centro de trabajo",
+              "value": "Entrada numérica (ID del centro de trabajo), opcional. Vincula el activo a la estación/centro de trabajo donde opera. data-testid: asset-work-center-id"
+            },
+            {
+              "label": "Cuenta de mayor (GL)",
+              "value": "Entrada de texto, opcional. La cuenta de mayor a la que se asigna el activo. Cuando hay un proveedor de contabilidad externo conectado, se completa mediante la sincronización contable; en modo autónomo se ingresa manualmente. data-testid: asset-gl-account"
+            },
+            {
+              "label": "Dónde aparecen",
+              "value": "La sección de Adquisición se ubica debajo de los campos básicos en el cuadro de diálogo Agregar activo y se muestra para todos los tipos: Máquina, Herramental, Instalación, Vehículo, Otro. Es independiente de los campos exclusivos de herramental que aparecen a continuación."
             }
           ]
         },
@@ -204,6 +229,23 @@
           ]
         },
         {
+          "heading": "Horas de operación de la máquina",
+          "items": [
+            {
+              "label": "Horas actuales (tabla + detalle)",
+              "value": "Total acumulado de horas de operación del activo. Se muestra en la columna de tabla Horas actuales (alineada a la derecha, '—' cuando es cero) y en la fila Horas del panel de detalle. Solo visualización en esas pantallas."
+            },
+            {
+              "label": "Cómo se actualizan las horas",
+              "value": "Las horas de operación se actualizan mediante el endpoint de horas de máquina (PATCH /assets/{id}/hours), no escribiendo en el panel de detalle. Las horas alimentan el seguimiento de la vida útil de la herramienta y de los intervalos de mantenimiento. Hoy no hay un cuadro de edición de texto libre para las horas en el panel de detalle: las actualizaciones provienen de la acción/integración de horas."
+            },
+            {
+              "label": "Por qué importan las horas",
+              "value": "El aumento de las horas es la forma en que avanzan los intervalos de mantenimiento basados en uso y (para herramental) las comparaciones de vida útil de la herramienta. Manténgalas actualizadas para que el mantenimiento programado se active a tiempo."
+            }
+          ]
+        },
+        {
           "heading": "Reglas de validación",
           "items": [
             {
@@ -215,12 +257,16 @@
               "value": "Obligatorio. Debe seleccionar uno de los cinco tipos."
             },
             {
+              "label": "Costo de adquisición",
+              "value": "Opcional, pero si se ingresa debe ser ≥ 0 y ≤ 1.000.000.000. Los valores negativos o fuera de rango bloquean el Guardado."
+            },
+            {
               "label": "Todos los demás campos",
               "value": "Opcionales. Sin restricciones de longitud o formato más allá de límites razonables."
             },
             {
               "label": "Popover del botón Enviar",
-              "value": "Cuando el formulario no es válido, al pasar el cursor sobre Guardar se muestra un popover de validación que enumera qué campos requieren atención."
+              "value": "Cuando el formulario no es válido, el icono del botón de validación junto a Guardar enumera qué campos requieren atención."
             }
           ]
         },
@@ -368,7 +414,7 @@
         },
         {
           "id": "as5",
-          "text": "¿Qué campos adicionales aparecen cuando establece el tipo de un activo en Herramental?",
+          "text": "Más allá de la sección de Adquisición (que tiene todo activo), ¿qué campos adicionales aparecen específicamente cuando establece el tipo de un activo en Herramental?",
           "options": [
             {
               "id": "a",
@@ -385,10 +431,10 @@
             },
             {
               "id": "d",
-              "text": "Ningún campo adicional: todos los tipos de activos tienen el mismo formulario"
+              "text": "Ningún campo adicional: todos los tipos de activos tienen exactamente el mismo formulario"
             }
           ],
-          "explanation": "Los activos de herramental obtienen tres campos adicionales: Propiedad del cliente (interruptor), Número de cavidades (número de cavidades en un molde) y Vida útil esperada de la herramienta (total esperado de inyecciones antes del reemplazo)."
+          "explanation": "Además de la sección de Adquisición y contabilidad que muestra todo activo, los activos de herramental obtienen tres campos adicionales: Propiedad del cliente (interruptor), Número de cavidades (número de cavidades en un molde) y Vida útil esperada de la herramienta (total esperado de inyecciones antes del reemplazo)."
         },
         {
           "id": "as6",
@@ -509,8 +555,161 @@
             }
           ],
           "explanation": "El panel de detalle del activo tiene una sección de Historial de mantenimiento que muestra todos los eventos de mantenimiento anteriores con el nombre del programa, la fecha de realización, el técnico, las horas, el costo y las notas."
+        },
+        {
+          "id": "as11",
+          "text": "Está registrando una nueva fresadora CNC (tipo Máquina) y desea registrar lo que costó y cómo se deprecia. ¿Dónde lo ingresa?",
+          "options": [
+            {
+              "id": "a",
+              "text": "No puede: los campos de costo y depreciación solo aparecen para activos de tipo Herramental"
+            },
+            {
+              "id": "b",
+              "text": "En la sección de Adquisición del cuadro de diálogo Agregar activo: Costo de adquisición y Método de depreciación, que aparecen para todos los tipos de activo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "En un módulo de Contabilidad separado: los activos no almacenan el costo"
+            },
+            {
+              "id": "d",
+              "text": "En el campo Notas como texto libre"
+            }
+          ],
+          "explanation": "La sección de Adquisición y contabilidad (Costo de adquisición, Método de depreciación, Centro de trabajo, Cuenta de mayor) se muestra para todos los tipos de activo, no solo para Herramental. Una máquina, un montacargas o un molde capturan sus datos de adquisición allí."
+        },
+        {
+          "id": "as12",
+          "text": "Su taller tiene un proveedor de contabilidad externo conectado. ¿Cómo se completa la Cuenta de mayor (GL) de un activo?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Se completa automáticamente mediante la sincronización contable; la ingresaría manualmente solo en modo autónomo",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Siempre debe ingresarla a mano en cada activo"
+            },
+            {
+              "id": "c",
+              "text": "Las cuentas de mayor nunca se almacenan en los activos"
+            },
+            {
+              "id": "d",
+              "text": "Se copia del número de serie del activo"
+            }
+          ],
+          "explanation": "Cuando hay un proveedor de contabilidad externo conectado, la cuenta de mayor se completa mediante la sincronización contable. En modo autónomo (sin proveedor), la ingresa manualmente."
         }
       ]
+    }
+  },
+  {
+    "slug": "assets-acquisition-accounting",
+    "title": "Campos de adquisición y contabilidad de activos",
+    "summary": "Cómo registrar lo que costó un activo y cómo se deprecia: costo de adquisición, método de depreciación, centro de trabajo y cuenta de mayor, para todos los tipos de activo.",
+    "contentJson": {
+      "title": "Adquisición y contabilidad de activos",
+      "groups": [
+        {
+          "heading": "Dónde encontrarlo",
+          "items": [
+            {
+              "label": "Ubicación",
+              "value": "La sección de Adquisición se ubica debajo de los campos de identidad básicos (nombre, tipo, ubicación, fabricante, modelo, serie, notas) en el cuadro de diálogo Agregar activo."
+            },
+            {
+              "label": "Se aplica a",
+              "value": "TODOS los tipos de activo: Máquina, Herramental, Instalación, Vehículo, Otro. Esto es independiente de los campos exclusivos de herramental, que solo aparecen cuando Tipo = Herramental."
+            },
+            {
+              "label": "Cuándo completarlo",
+              "value": "En el momento de la adquisición, cuando registra el activo. Los cuatro campos son opcionales, por lo que puede dejarlos en blanco y agregarlos más tarde mediante Editar."
+            }
+          ]
+        },
+        {
+          "heading": "Los cuatro campos",
+          "items": [
+            {
+              "label": "Costo de adquisición",
+              "value": "Lo que costó adquirir el activo. Entrada numérica. Debe ser ≥ 0 y ≤ 1.000.000.000: los valores fuera de rango bloquean el Guardado. data-testid: asset-acquisition-cost"
+            },
+            {
+              "label": "Método de depreciación",
+              "value": "Cómo se amortiza el valor del activo con el tiempo. Opciones: Línea recta, Saldo decreciente, Unidades de producción o — (ninguno). Coinciden exactamente con el enum del servidor. data-testid: asset-depreciation-method"
+            },
+            {
+              "label": "Centro de trabajo",
+              "value": "La estación/centro de trabajo donde opera el activo, ingresado como un ID de centro de trabajo (número). Vincula el activo al lugar donde funciona físicamente. data-testid: asset-work-center-id"
+            },
+            {
+              "label": "Cuenta de mayor (GL)",
+              "value": "La cuenta de mayor a la que se asigna el activo (texto). data-testid: asset-gl-account"
+            }
+          ]
+        },
+        {
+          "heading": "Cuenta de mayor y la frontera contable",
+          "items": [
+            {
+              "label": "Modo integrado",
+              "value": "Cuando hay un proveedor de contabilidad externo (p. ej., QuickBooks) conectado, la cuenta de mayor se completa mediante la sincronización contable: no la escribe."
+            },
+            {
+              "label": "Modo autónomo",
+              "value": "Sin un proveedor de contabilidad conectado, ingresa la cuenta de mayor manualmente."
+            },
+            {
+              "label": "Calendarios de depreciación",
+              "value": "La aplicación almacena el MÉTODO de depreciación en el activo pero no calcula calendarios completos de depreciación: eso permanece en su sistema contable. El método aquí es informativo/para exportación."
+            }
+          ]
+        },
+        {
+          "heading": "Editar más tarde",
+          "items": [
+            {
+              "label": "Cómo cambiarlos",
+              "value": "Abra el activo (haga clic en su fila), haga clic en el icono de lápiz/Editar, actualice los valores y Guarde. Se reutiliza el mismo cuadro de diálogo para crear y editar."
+            },
+            {
+              "label": "Error común",
+              "value": "Suponer que los campos de costo/depreciación son exclusivos del herramental. No lo son: un montacargas o una fresadora CNC capturan sus datos de adquisición exactamente en la misma sección."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "assets-downtime",
+    "title": "Seguimiento del tiempo de inactividad de activos",
+    "summary": "Qué es el tiempo de inactividad de un activo, cómo funciona el registro de averías y en qué se diferencia iniciar y finalizar un evento de inactividad del estado de Mantenimiento.",
+    "contentJson": {
+      "body": "## Seguimiento del tiempo de inactividad de activos\n\nCuando una máquina se avería a mitad del turno, pierde tiempo de producción que normalmente quiere medir. El **seguimiento del tiempo de inactividad** registra cada interrupción no planificada como un evento discreto con un inicio, un fin y un motivo, para que pueda totalizar las horas de inactividad por activo y detectar las máquinas que siguen fallando.\n\nEl tiempo de inactividad está controlado por la capacidad **CAP-MAINT-BREAKDOWN**. Si su instalación no tiene activado el seguimiento de averías, no verá datos de inactividad y los endpoints devuelven una respuesta de 'no disponible'.\n\n### Tiempo de inactividad vs. el estado de Mantenimiento\n\nEstos dos son fáciles de confundir:\n\n- El **estado de Mantenimiento** (el chip amarillo que establece desde el panel de detalle) es un *indicador de estado actual*. Le dice al equipo \"esta máquina no está disponible ahora mismo\". No conlleva duración.\n- Un **evento de tiempo de inactividad** es un *registro de tiempo*. Tiene una marca de tiempo de inicio, una marca de tiempo de fin opcional y un motivo. Mientras un evento de inactividad está abierto, el activo está efectivamente fuera de servicio; cuando lo finaliza, el reloj se detiene y se captura el tiempo transcurrido.\n\nUse el estado para señalar la disponibilidad en el taller; use un evento de inactividad cuando necesite las *horas* para OEE, fiabilidad o informes de costos.\n\n### El ciclo de vida de un evento de inactividad\n\n1. **Una máquina se detiene.** Algo falla: una alarma de husillo, una fuga hidráulica, una falla de energía.\n2. **Inicie un registro de inactividad** para ese activo, registrando el motivo. El evento ahora está abierto (sin hora de fin todavía).\n3. **Opcionalmente cambie el estado del activo** a Mantenimiento o Fuera de servicio para que el taller vea que no está disponible.\n4. **La máquina vuelve a funcionar.** Finalice el evento de inactividad: el sistema marca la hora de fin y las horas transcurridas ahora forman parte del total de inactividad del activo.\n5. **Vuelva a establecer el estado en Activo** para que el activo esté disponible de nuevo.\n\nUn activo puede tener muchos eventos de inactividad a lo largo de su vida; cada uno es una fila separada vinculada a ese activo.\n\n### Dónde residen los datos de inactividad\n\nLos eventos de inactividad se almacenan por activo y se pueden listar para un solo activo o para todo el taller. Hoy la lista de inactividad y las acciones de inicio/fin se gestionan a través de la API de activos (los mismos datos que utilizan las vistas de OEE y de mantenimiento predictivo) en lugar de un botón dedicado en el panel de detalle del activo. Esto significa que la inactividad la suele capturar un supervisor o un flujo de trabajo de técnico de mantenimiento, no cada operador desde la pantalla de activos.\n\n### Buenos hábitos\n\n- **Inicie el evento cuando la máquina realmente se detenga, no cuando tenga tiempo** — las marcas de tiempo son lo que hace que las horas sean significativas.\n- **Siempre finalice el evento cuando la máquina vuelva** — un evento dejado abierto parece que la máquina sigue fuera de servicio e infla los totales de inactividad.\n- **Escriba un motivo real** — \"rodamiento del husillo\" es mucho más útil tres meses después que \"se rompió\".\n- **Combínelo con el estado** — evento de inactividad para las horas, estado Mantenimiento/Fuera de servicio para la señal visible de un vistazo.\n\n### Relacionado\n\n- *Programas de mantenimiento de activos* — para el mantenimiento planificado y recurrente (frente a las averías no planificadas de aquí).\n- *Visión general de Activos* — para los chips de estado y la diferencia entre Mantenimiento, Retirado y Fuera de servicio.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "assets-maintenance-schedules",
+    "title": "Programas de mantenimiento de activos",
+    "summary": "Cómo encajan los programas de mantenimiento recurrente, los registros de mantenimiento y los trabajos de mantenimiento, además de cómo leer el historial de mantenimiento de un activo.",
+    "contentJson": {
+      "body": "## Programas de mantenimiento de activos\n\nEl mantenimiento planificado es lo contrario de una avería: en lugar de reaccionar a una falla, da servicio al activo en un intervalo recurrente para *prevenir* una. Forge modela esto con tres piezas conectadas: **programas**, **registros** y **trabajos de mantenimiento**. Todo esto está controlado por la capacidad **CAP-MAINT-PM** (mantenimiento preventivo/predictivo).\n\n### Las tres piezas\n\n1. **Programa de mantenimiento** — un plan recurrente vinculado a un activo (\"engrasar las guías cada 250 horas\", \"reemplazar el filtro cada 90 días\"). Define *qué* debe suceder y *con qué frecuencia*. Un activo puede tener varios programas.\n2. **Registro de mantenimiento** — un registro de que una tarea de mantenimiento se realizó realmente. Cada registro captura el programa que satisfizo, cuándo se hizo, quién lo hizo, las horas dedicadas, el costo y las notas. Registrar el mantenimiento es la forma de cerrar el ciclo de un programa y construir el historial.\n3. **Trabajo de mantenimiento** — cuando una tarea de mantenimiento pendiente necesita trabajo real de taller (un técnico, piezas, seguimiento de tiempo), puede generar un Trabajo a partir del programa. Ese Trabajo fluye en el tablero como cualquier otro trabajo y vincula el mantenimiento con su seguimiento de trabajos normal.\n\n### Quién puede hacer qué\n\nCrear y gestionar programas, registrar mantenimiento y crear trabajos de mantenimiento son acciones de **nivel Administrador / Gerente** (requieren CAP-MAINT-PM y el rol apropiado). Un operador regular puede *ver* el historial de mantenimiento de un activo pero normalmente no será quien cree los programas. Si no tiene la capacidad o el rol, las acciones de gestión de mantenimiento no estarán disponibles para usted.\n\n### Cómo leer el historial de mantenimiento de un activo\n\nEsta parte es visible para cualquiera con acceso a activos. Abra un activo (haga clic en su fila para abrir el panel de detalle) y desplácese hasta la sección **Historial de mantenimiento**. Para cada evento de mantenimiento anterior verá:\n\n- **Nombre del programa** — qué plan satisfizo\n- **Fecha de realización** — cuándo se hizo (MM/DD/AAAA)\n- **Realizado por** — el nombre del técnico\n- **Horas dedicadas** — horas de mano de obra, mostradas p. ej. como `2h`\n- **Costo** — costo de piezas/mano de obra, mostrado como un importe en dólares\n- **Notas** — cualquier cosa que el técnico haya registrado\n\nSi el activo nunca ha recibido servicio, verá un estado vacío (\"No hay registros de mantenimiento\") con un icono de llave inglesa. Esta sección es de solo lectura: refleja los registros que se han creado, no es donde los crea.\n\n### Cómo se conecta todo\n\n- Un **programa** indica que una tarea está pendiente.\n- Realizarla produce un **registro** (que luego aparece en el Historial de mantenimiento).\n- Si la tarea necesita trabajo de taller rastreado, se convierte en un **Trabajo de mantenimiento**.\n- Las **horas** de operación (consulte la Referencia de campos) son la forma en que los programas basados en uso saben cuándo están pendientes: mantenga las horas actualizadas para que los intervalos se activen a tiempo.\n\n### Programas vs. inactividad vs. predictivo\n\n- **Programas de mantenimiento** = *planificados*, recurrentes, basados en calendario o en horas.\n- **Eventos de inactividad** = averías *no planificadas* que registra después del hecho (consulte *Seguimiento del tiempo de inactividad de activos*).\n- **Mantenimiento predictivo** = el área de Mantenimiento separada, donde el sistema pronostica fallas probables y puede programar contra una predicción. Los programas de aquí son la contraparte manual basada en reglas.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "assets-labels",
+    "title": "Impresión y escaneo de etiquetas de activos",
+    "summary": "Cómo funciona el widget de etiquetas de código de barras/QR en el panel de detalle del activo: copiar, imprimir, regenerar y escanear una etiqueta para abrir un activo.",
+    "contentJson": {
+      "body": "## Impresión y escaneo de etiquetas de activos\n\nCada activo puede llevar una etiqueta de código de barras/QR para que cualquiera en el taller pueda identificarlo y abrir su registro escaneando. Las herramientas de etiquetas residen en un pequeño widget de **Código de barras** dentro del panel de detalle del activo.\n\n### Encontrar el widget de código de barras\n\n1. Vaya a **Activos**.\n2. Haga clic en la fila del activo para abrir su **panel de detalle**.\n3. Desplácese más allá de los botones de estado: el widget de Código de barras se encuentra allí, marcado con un icono de QR y la etiqueta \"Código de barras\".\n\n### Qué muestra el widget\n\n- **El valor del código de barras** — el código del activo, mostrado en un estilo de `código` monoespaciado.\n- **Un botón Copiar** — copia el valor del código de barras al portapapeles (útil para pegarlo en otro sistema).\n- **Una vista previa QR** — una imagen QR escaneable del valor. (En el panel de detalle del activo, el widget se ejecuta en modo compacto, que oculta la vista previa QR grande para ahorrar espacio pero conserva el valor y las acciones).\n\n### Las acciones\n\n- **Imprimir** — abre la etiqueta para imprimir. Use esto para poner una etiqueta física en la máquina, el molde o el vehículo. Las etiquetas se generan del lado del cliente (bwip-js) para que se impriman en el tamaño correcto para una impresora de etiquetas.\n- **Regenerar** — emite un nuevo código de barras para el activo, derivado de su identificador natural (el número de serie, o el nombre si no hay serie). Use esto si nunca se asignó un código o necesita reemitir uno.\n- **Generar código de barras** — si el activo aún no tiene código de barras, el widget muestra un estado de \"No hay código de barras asignado\" con un botón para generar uno (de nuevo, a partir de la serie/nombre).\n\n### Escanear una etiqueta\n\nForge escucha lectores de código de barras USB y lectores NFC de forma global (modo emulación de teclado). En las pantallas configuradas para ello —Piezas, Inventario, Kanban, Calidad y el reloj de taller— el escaneo enruta el valor a la búsqueda o consulta de esa página. Para los activos, el flujo de trabajo es: **imprimir la etiqueta, pegarla en el equipo y escanearla desde una pantalla compatible con escaneo** para saltar directamente al registro correcto en lugar de escribir un número de serie.\n\n### Por qué etiquetar sus activos\n\n- **Identificación más rápida** en un taller concurrido — escanee en lugar de leer una placa.\n- **Menos errores de activo equivocado** — el escaneo se resuelve exactamente a un registro.\n- **Registro de mantenimiento e inactividad más limpio** — empiece desde el activo correcto cada vez.\n\n### Buenos hábitos\n\n- **Establezca primero un número de serie** si puede — el código de barras se deriva del identificador natural, y una serie es más estable que un nombre que podría renombrar más tarde.\n- **Vuelva a imprimir tras un renombre o un cambio de serie** para que la etiqueta física coincida con el registro.\n- **No regenere a la ligera** — reemitir un código significa que la etiqueta impresa antigua ya no se resuelve; solo regenere cuando tenga la intención de reetiquetar.",
+      "sections": []
     }
   }
 ]

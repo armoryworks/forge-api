@@ -814,7 +814,7 @@
     "title": "Configuración del sistema y marca",
     "summary": "Cómo configurar los ajustes de la aplicación, el perfil de la empresa, los colores de marca, el logo y las ubicaciones de la empresa.",
     "contentJson": {
-      "body": "## Configuración del sistema y marca\n\n### Perfil de la empresa\n\nNavegue a **Administración → Configuración → Perfil de la empresa**. Introduzca el nombre legal, el número de teléfono, el correo electrónico, el EIN y el sitio web de su empresa. Esta información aparece en facturas, listas de empaque y otros documentos de cara al cliente.\n\n### Ubicaciones de la empresa\n\nBajo **Administración → Configuración → Ubicaciones**, agregue todas sus ubicaciones físicas (oficina principal, almacén, sitios remotos). Cada ubicación tiene un nombre, una dirección y un estado. Marque una como Predeterminada —es la ubicación de trabajo predeterminada para los empleados que no han especificado una, e impulsa los requisitos de formularios de retención estatal.\n\n### Colores de marca y logo\n\nEn **Administración → Configuración**, desplácese hasta la sección Marca. Introduzca códigos de color hexadecimales para sus colores de marca primario y de acento. Estos actualizan el tema de color de toda la aplicación en tiempo real —todos los usuarios ven el cambio de inmediato.\n\nPara subir el logo de su empresa, haga clic en la sección Logo y arrastre su archivo de imagen (se recomienda PNG o SVG). El logo aparece en la barra de encabezado y en los documentos impresos.\n\n### Ajustes de la aplicación\n\nEl panel de Configuración también tiene ajustes para:\n- **Nombre de la aplicación** — mostrado en la pestaña del navegador y en el encabezado\n- **Duración del ciclo de planificación** — longitud predeterminada para nuevos ciclos de planificación\n- **Días de autoarchivado** — cuánto tiempo después de la finalización antes de que los trabajos se autoarchiven\n- **Tamaño máximo de carga** — tamaño máximo del archivo adjunto\n- **Notificaciones por correo electrónico** — habilitar/deshabilitar los correos del sistema",
+      "body": "## Configuración del sistema y marca\n\n### Perfil de la empresa\n\nNavegue a **Administración → Configuración → Perfil de la empresa**. Introduzca el nombre legal, el número de teléfono, el correo electrónico, el EIN y el sitio web de su empresa. Esta información aparece en facturas, listas de empaque y otros documentos de cara al cliente.\n\n### Ubicaciones de la empresa\n\nBajo **Administración → Configuración → Ubicaciones**, agregue todas sus ubicaciones físicas (oficina principal, almacén, sitios remotos). Cada ubicación tiene un nombre, una dirección y un estado. Marque una como Predeterminada —es la ubicación de trabajo predeterminada para los empleados que no han especificado una, e impulsa los requisitos de formularios de retención estatal.\n\n### Colores de marca y logo\n\nEn **Administración → Configuración**, desplácese hasta la sección Marca. Introduzca códigos de color hexadecimales para sus colores de marca primario y de acento. Estos actualizan el tema de color de toda la aplicación en tiempo real —todos los usuarios ven el cambio de inmediato.\n\nPara subir el logo de su empresa, haga clic en la sección Logo y arrastre su archivo de imagen (se recomienda PNG o SVG). El logo aparece en la barra de encabezado y en los documentos impresos.\n\n### Ajustes de la aplicación\n\nEl panel de Configuración también tiene ajustes para:\n- **Nombre de la aplicación** — mostrado en la pestaña del navegador y en el encabezado\n- **Duración del ciclo de planificación** — longitud predeterminada para nuevos ciclos de planificación\n- **Días de autoarchivado** — cuánto tiempo después de la finalización antes de que los trabajos se autoarchiven\n- **Tamaño máximo de carga** — tamaño máximo del archivo adjunto\n- **Notificaciones por correo electrónico** — habilitar/deshabilitar los correos del sistema\n\n### Bloqueo de períodos de pago\n\nLa pestaña Configuración también contiene el **Bloqueo de períodos de pago**. Elija una fecha en **Bloquear entradas hasta** y haga clic en **Bloquear período**. Tras confirmar, cada entrada de tiempo no bloqueada en o antes de esa fecha se congela —los empleados y gerentes ya no pueden editarla ni eliminarla, lo que protege los datos de nómina una vez procesados. Un snackbar informa cuántas entradas se bloquearon.\n\nEl bloqueo es unidireccional y la confirmación advierte que no se puede deshacer, así que bloquee solo después de que el tiempo del período sea definitivo. La excepción deliberada es **Administración → Correcciones de tiempo**: un administrador todavía puede corregir una entrada bloqueada allí, y esa vía mantiene un registro del historial de correcciones y notifica al empleado afectado, de modo que el cambio permanece auditable.",
       "sections": []
     }
   },
@@ -942,6 +942,397 @@
     "contentJson": {
       "body": "## Administración de módulos de capacitación\n\nNavegue a **Administración → Capacitación** para gestionar todo el sistema de gestión del aprendizaje.\n\n### Pestaña Contenido\n\nLa pestaña Contenido lista todos los módulos de capacitación. Cada módulo tiene un tipo (Artículo, Video, Recorrido, Referencia rápida, Cuestionario), un estado de publicación y un tiempo estimado. Use el cuadro de búsqueda para encontrar módulos.\n\n### Crear un módulo\n\nHaga clic en **Nuevo módulo** para abrir el editor. Complete el título, el resumen, el tipo de contenido y el tiempo estimado. Establezca el contenido:\n- **Artículo/Referencia rápida** — escriba el contenido en el editor de contenido JSON o use la interfaz de texto enriquecido\n- **Recorrido** — defina los pasos del recorrido de driver.js, o use **Generar con IA** para crear automáticamente pasos a partir de la página en vivo\n- **Cuestionario** — agregue preguntas con 4 opciones cada una, marque la respuesta correcta y opcionalmente agregue explicaciones\n\n### Publicación\n\nLos módulos están en Borrador hasta que alterna **Publicado**. Solo los módulos publicados son visibles para los empleados.\n\n### Generación de recorridos con IA\n\nPara los módulos de Recorrido, haga clic en el icono de destello para activar la generación con IA. El sistema abre la página de destino en un navegador sin interfaz, analiza el DOM y lo envía al modelo de IA local para generar pasos de recorrido relevantes. Revise los pasos sugeridos y edítelos según sea necesario antes de guardar.\n\n### Pestaña Rutas\n\nLas Rutas de aprendizaje agrupan módulos en secuencias ordenadas. Cree una ruta, agregue módulos en orden y márquelos como requeridos vs. opcionales. Establezca los roles permitidos y si la ruta se asigna automáticamente a los nuevos usuarios.\n\n### Pestaña Progreso\n\nLa pestaña Progreso muestra los porcentajes de finalización para todos los usuarios. Haga clic en el icono de detalle en cualquier fila de usuario para abrir su desglose por módulo en un panel lateral.",
       "sections": []
+    }
+  },
+  {
+    "slug": "admin-role-templates",
+    "title": "Plantillas de roles (Acumulados)",
+    "summary": "Cómo agrupar varios roles base en una sola plantilla acumulada, asignarla en el formulario de usuario y comprender el impacto de la eliminación.",
+    "contentJson": {
+      "body": "## Plantillas de roles (Acumulados)\n\nForge incluye seis roles base (Engineer, Production Worker, PM, Manager, Office Manager, Admin). En un taller pequeño, una persona a menudo desempeña varias funciones —el encargado de envíos que también recibe piezas y aprueba tiempo. Las **plantillas de roles** (también llamadas *acumulados*) le permiten agrupar varios roles base bajo un nombre amigable para que asigne una sola cosa en lugar de recordar qué combinación otorgar.\n\nNavegue a **Administración → Plantillas de roles** para gestionarlas.\n\n### Qué es una plantilla\n\nUna plantilla tiene un **nombre**, una **descripción** opcional y una lista de **roles incluidos**. Cuando se asigna una plantilla a un usuario, cada rol de esa lista se otorga en sus reclamos de inicio de sesión (JWT). Los roles son *aditivos* —una plantilla que incluye Manager y Office Manager otorga la unión de ambos, nunca menos.\n\nLa lista muestra el nombre de cada plantilla, la descripción, los distintivos de roles incluidos, un **conteo de asignados** (cuántos usuarios la tienen actualmente) y un distintivo Sistema/Personalizado.\n\n### Predeterminados del sistema vs. Personalizados\n\nLas plantillas marcadas como **Sistema** se siembran en la instalación y son **de solo lectura** —muestran un icono de candado en lugar de botones de editar/eliminar. Brindan a cada instalación un conjunto inicial sensato. Para personalizar, cree su propia plantilla **Personalizada**; solo las plantillas Personalizadas pueden editarse o eliminarse.\n\n### Crear una plantilla\n\nHaga clic en **Nueva plantilla**. Introduzca un nombre (máx. 100 caracteres) y una descripción opcional, luego elija al menos un rol en **Roles incluidos** (una selección múltiple). Haga clic en **Crear plantilla**. El acumulado ya está disponible en el formulario de usuario.\n\n### Asignar una plantilla en el formulario de usuario\n\nLas plantillas de roles se asignan por usuario en **Administración → Usuarios**. Edite (o cree) un usuario y busque la lista desplegable **Plantilla de rol (Acumulado)** —aparece solo cuando existe al menos una plantilla. Es opcional: elija un acumulado si el usuario desempeña varias funciones, o déjelo en blanco para depender únicamente del campo **Rol** base. La fila del avatar del usuario muestra entonces un distintivo que nombra la plantilla y los roles a los que se expande.\n\n### Impacto de la eliminación\n\nEliminar una plantilla Personalizada **no** elimina ni desactiva a los usuarios que la tenían —simplemente quita el acumulado. Esos usuarios conservan su **Rol** base pero pierden los roles adicionales que la plantilla otorgaba en el inicio de sesión. Vuelva a otorgar acceso asignando una plantilla diferente o editando el rol base de cada usuario. Debido a este efecto dominó, verifique el **conteo de asignados** antes de eliminar: una plantilla con muchos asignados debe retirarse deliberadamente, no por capricho.\n\n### Cuándo usar una plantilla vs. el rol base\n\nUse el campo **Rol** base único cuando una persona encaja limpiamente en uno de los seis roles. Recurra a una plantilla solo cuando la misma combinación de varios roles se repite entre varias personas —entonces un acumulado con nombre es más fácil de asignar de forma consistente y auditar que elegir roles a mano cada vez.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "admin-role-templates-quiz",
+    "title": "Evaluación de conocimientos de Plantillas de roles",
+    "summary": "Ponga a prueba su comprensión de los acumulados de plantillas de roles: roles incluidos, predeterminados del sistema, asignación e impacto de la eliminación.",
+    "contentJson": {
+      "passingScore": 75,
+      "questionsPerQuiz": 4,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "rt1",
+          "text": "¿Qué hace una plantilla de rol (acumulado) cuando se asigna a un usuario?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Reemplaza el rol base del usuario con un solo rol nuevo"
+            },
+            {
+              "id": "b",
+              "text": "Otorga cada rol base listado en la plantilla en el inicio de sesión —los roles son aditivos",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Programa al usuario para una revisión de rol"
+            },
+            {
+              "id": "d",
+              "text": "Limita al usuario solo a los roles de la plantilla, eliminando todos los demás"
+            }
+          ],
+          "explanation": "Una plantilla agrupa varios roles base bajo un nombre. Asignarla otorga la unión de cada rol incluido en los reclamos de inicio de sesión del usuario. Los roles son aditivos —el usuario obtiene todos."
+        },
+        {
+          "id": "rt2",
+          "text": "Una plantilla muestra un icono de candado en lugar de botones de Editar y Eliminar. ¿Por qué?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ha alcanzado su número máximo de asignados"
+            },
+            {
+              "id": "b",
+              "text": "Es un predeterminado del Sistema —sembrado en la instalación y de solo lectura; duplíquela para personalizar",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Otro administrador la está editando actualmente"
+            },
+            {
+              "id": "d",
+              "text": "Aún no tiene roles incluidos"
+            }
+          ],
+          "explanation": "Las plantillas predeterminadas del sistema se siembran en la instalación y no pueden editarse ni eliminarse. Muestran un icono de candado. Cree su propia plantilla Personalizada si necesita una combinación diferente."
+        },
+        {
+          "id": "rt3",
+          "text": "¿Dónde asigna una plantilla de rol a un usuario?",
+          "options": [
+            {
+              "id": "a",
+              "text": "En el panel de Plantillas de roles, arrastrando el usuario sobre la plantilla"
+            },
+            {
+              "id": "b",
+              "text": "En Administración → Usuarios —edite el usuario y elija la plantilla en la lista desplegable Plantilla de rol (Acumulado)",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Las plantillas se asignan automáticamente según el puesto del usuario"
+            },
+            {
+              "id": "d",
+              "text": "En Cuenta → Perfil por el propio usuario"
+            }
+          ],
+          "explanation": "Las plantillas de roles se asignan por usuario en el formulario de usuario en Administración → Usuarios. La lista desplegable Plantilla de rol (Acumulado) aparece cuando existe al menos una plantilla y es opcional."
+        },
+        {
+          "id": "rt4",
+          "text": "Elimina una plantilla de rol Personalizada que 8 usuarios tienen actualmente. ¿Qué les sucede a esos usuarios?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Los 8 usuarios se desactivan"
+            },
+            {
+              "id": "b",
+              "text": "Conservan su Rol base pero pierden los roles adicionales que la plantilla otorgaba; vuelva a otorgar asignando una plantilla diferente o editando su rol base",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "La eliminación se bloquea hasta que cada usuario sea reasignado"
+            },
+            {
+              "id": "d",
+              "text": "Nada cambia —los usuarios conservan todos los roles de la plantilla permanentemente"
+            }
+          ],
+          "explanation": "Eliminar una plantilla no toca a los usuarios —conservan su Rol base pero pierden los roles adicionales del acumulado en el próximo inicio de sesión. Verifique el conteo de asignados antes de eliminar y vuelva a otorgar el acceso deliberadamente."
+        }
+      ]
+    }
+  },
+  {
+    "slug": "admin-teams-management",
+    "title": "Gestión de equipos y miembros",
+    "summary": "Un recorrido guiado por el panel de Equipos: crear y editar un equipo, elegir un color y asignar miembros.",
+    "contentJson": {
+      "appRoute": "/admin/teams",
+      "startButtonLabel": "Recorrer Equipos",
+      "steps": [
+        {
+          "element": ".panel-header",
+          "popover": {
+            "title": "Panel de Equipos",
+            "description": "El panel de Equipos lista cada equipo con su punto de color, nombre, descripción y conteo de miembros. Los equipos impulsan vistas filtradas del tablero (carriles), informes de carga de trabajo y la vinculación de quioscos del taller. El encabezado muestra el conteo de equipos y los botones de acción.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".action-btn--create",
+          "popover": {
+            "title": "Nuevo equipo",
+            "description": "Haga clic en Nuevo equipo para abrir el cuadro de diálogo de creación. Asigne al equipo un nombre y una descripción opcional, luego elija un color de la cuadrícula de muestras —el color es lo que tiñe el punto del equipo y el carril del tablero.",
+            "side": "left"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Lista de equipos",
+            "description": "Cada fila es un equipo. El botón de conteo de miembros (el icono de personas con un número) abre el cuadro de diálogo de asignación de miembros. Las acciones de la fila le permiten gestionar miembros, editar el equipo o eliminarlo.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".member-count-btn",
+          "popover": {
+            "title": "Gestionar miembros",
+            "description": "Haga clic en el conteo de miembros de un equipo —o en el icono de agregar grupo en su fila— para abrir el cuadro de diálogo Miembros. Lista a cada usuario activo con un avatar; haga clic en una fila para alternar a esa persona dentro o fuera del equipo, luego Guardar miembros. El botón muestra cuántos están seleccionados.",
+            "side": "left"
+          }
+        },
+        {
+          "element": ".action-cell",
+          "popover": {
+            "title": "Acciones de la fila",
+            "description": "De izquierda a derecha: Gestionar miembros, Editar (renombrar, cambiar color o alternar Activo) y Eliminar. Eliminar un equipo pide confirmación; quita el equipo pero nunca elimina a los usuarios que pertenecían a él.",
+            "side": "left"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "admin-connections-registry",
+    "title": "Registro de conexiones",
+    "summary": "Cómo leer el registro de Conexiones de solo lectura: cada credencial que la instalación ha emitido o aceptado, su estado y el enlace Gestionar.",
+    "contentJson": {
+      "body": "## Registro de conexiones\n\nNavegue a **Administración → Conexiones** para obtener un resumen único y de solo lectura de cada credencial y conexión que su instalación ha emitido o aceptado. No crea ni cambia nada —es una vista de auditoría que responde \"¿qué está conectado, quién lo posee y está en buen estado?\" en un solo lugar. Cualquier operación real (emitir, revocar, reconectar) se realiza en la propia página de administración nativa de la conexión, a la que se llega mediante el botón **Gestionar** en su fila.\n\n### Qué aparece aquí\n\nEl registro federa varias fuentes de credenciales en una sola tabla:\n\n- **Clave de API de BI** — claves de informes/BI (consulte el módulo de Claves de API)\n- **Clave de API del sistema** — claves de integración sin interfaz vinculadas a un usuario\n- **Socio comercial EDI** — conexiones de socios X12/EDIFACT\n- **OAuth de QuickBooks** — el enlace OAuth del proveedor de contabilidad\n- **Sincronización de comunicaciones** — enlaces de sincronización de correo/comunicaciones\n- **Enlace de almacenamiento en la nube** — conexiones de almacenamiento externo\n\n### Leer una fila\n\nCada fila muestra:\n\n- **Tipo** — un icono + etiqueta para el tipo de conexión anterior\n- **Nombre** — la etiqueta legible para esa conexión específica\n- **Propietario** — el correo del usuario para credenciales con alcance de usuario, o **Nivel de instalación** cuando la conexión pertenece a toda la instalación en lugar de a una persona\n- **Estado** — la propia palabra de la fuente nativa para el estado de salud (vea abajo)\n- **Último uso** / **Creado** — marcas de tiempo; Último uso muestra **Nunca** cuando la credencial aún no se ha usado\n\n### Vocabulario de estado\n\nCada fuente usa sus propias palabras de estado, que el registro codifica por colores en una paleta de distintivos compartida:\n\n- **Verde (en buen estado):** Active, Connected, Linked\n- **Ámbar (atención):** Expired\n- **Neutral (inactivo):** Revoked, Disconnected, Inactive\n\nUn distintivo verde significa que la conexión está activa; ámbar significa que necesita renovación pronto; neutral significa que está apagada o fue revocada.\n\n### El botón Gestionar\n\nEl registro nunca muta. Para actuar sobre una conexión, haga clic en **Gestionar** en su fila —le enlaza directamente con la superficie de administración nativa de esa conexión (por ejemplo, una fila de Clave de API del sistema lo envía a **Administración → Claves de API del sistema**, una fila de QuickBooks a **Administración → Integraciones**, un socio EDI a **Administración → EDI**). Haga allí el trabajo de emitir/revocar/reconectar, luego regrese al registro para confirmar el nuevo estado.\n\n### Restricción por capacidad\n\nEl registro de Conexiones es **solo para administradores** y está restringido por la capacidad **CAP-IDEN-AUTH-API-KEYS**. Debido a que el listado expone la presencia, el propietario y las marcas de tiempo de último uso de cada credencial de la instalación, se trata como sensible aunque nunca se muestre ningún secreto en texto plano. Si la capacidad está deshabilitada para su instalación, un mensaje lo explica y la tabla permanece vacía.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "admin-integrations-tour",
+    "title": "Integraciones — Recorrido guiado",
+    "summary": "Un recorrido guiado por la página de Integraciones: cambio de proveedor de contabilidad, Probar, Configurar/Reconfigurar/Activar, Desconectar, la tarjeta de Estado de sincronización y los transportistas de envío.",
+    "contentJson": {
+      "appRoute": "/admin/integrations",
+      "startButtonLabel": "Recorrer Integraciones",
+      "steps": [
+        {
+          "element": ".integrations-tabs__lead",
+          "popover": {
+            "title": "Página de Integraciones",
+            "description": "Esta página lista los servicios externos a los que Forge se conecta —su proveedor de contabilidad, transportistas de envío y otras integraciones de servicios. Cada uno es una tarjeta que muestra su estado actual y las acciones disponibles para él.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".section-header",
+          "popover": {
+            "title": "Sección de contabilidad",
+            "description": "La sección de Contabilidad es donde elige su proveedor. Un distintivo le indica el modo actual: 'Independiente' cuando no hay proveedor conectado (Forge posee facturas y pagos localmente), o el nombre del proveedor + 'Activa' cuando uno está conectado.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".integration-card",
+          "popover": {
+            "title": "Tarjeta de proveedor",
+            "description": "Cada proveedor es una tarjeta. La tarjeta Independiente (Local) le permite operar sin un proveedor de contabilidad. La tarjeta de QuickBooks se conecta a través de la pantalla de consentimiento OAuth de Intuit. Otros proveedores muestran un paso Configurar para las credenciales antes de poder conectarse.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".integration-card__status",
+          "popover": {
+            "title": "Indicador de estado",
+            "description": "La línea de estado muestra si una tarjeta está Conectada/Activa o No configurada. Una vez que un proveedor no local está activo, la facturación y los pagos se vuelven de solo lectura en Forge y se gestionan en ese proveedor en su lugar.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".integration-card__actions",
+          "popover": {
+            "title": "Acciones de la tarjeta",
+            "description": "Las acciones dependen del estado de la tarjeta. Un proveedor conectado ofrece Probar (verificar la conexión) y Desconectar. Un proveedor no conectado basado en credenciales ofrece Configurar (o Reconfigurar) y luego Activar. La tarjeta independiente ofrece Usar independiente.",
+            "side": "left"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "admin-time-corrections",
+    "title": "Correcciones de tiempo",
+    "summary": "Cómo los gerentes y administradores corrigen la entrada de tiempo de un empleado: filtrar, editar fecha/inicio/fin, proporcionar un motivo requerido y leer el historial de correcciones.",
+    "contentJson": {
+      "body": "## Correcciones de tiempo\n\nLos empleados a veces olvidan fichar la salida, escriben mal una hora de inicio o registran en el día equivocado. **Administración → Correcciones de tiempo** permite que un Gerente o Administrador corrija una entrada de tiempo existente mientras mantiene un registro permanente de qué se cambió y por qué. Esta pestaña está disponible para **Gerentes y Administradores** (no para trabajadores regulares).\n\n### Encontrar la entrada\n\nLa parte superior del panel tiene tres filtros: una lista desplegable **Empleado** más un rango de **Fecha desde** y **Fecha hasta**. Elija el empleado y acote las fechas al turno en cuestión. La tabla **Entradas de tiempo** de abajo lista las entradas coincidentes con su fecha, inicio, fin y duración.\n\n### Hacer una corrección\n\nHaga clic en el icono de **edición (lápiz)** en la entrada que desea corregir. Se abre el cuadro de diálogo Corregir entrada de tiempo con los valores originales mostrados de solo lectura en la parte superior (empleado, fecha original, inicio, fin, duración) para que siempre tenga la imagen del antes frente a usted. Luego ajuste cualquiera de:\n\n- **Fecha** — mueva la entrada al día correcto\n- **Hora de inicio** y **Hora de fin** — corrija la entrada/salida\n- **Categoría** y **Notas** — reclasificación opcional\n\nCuando establece tanto una hora de inicio como de fin, el cuadro de diálogo **calcula automáticamente la duración** y la previsualiza (\"Duración calculada: …\") para que pueda verificar antes de guardar.\n\n### El motivo es requerido\n\nEl campo **Motivo de la corrección** es obligatorio —Guardar permanece deshabilitado hasta que lo complete. Este es el núcleo de la función: es lo que hace que una corrección sea auditable en lugar de una edición silenciosa. Escriba un motivo breve y honesto (\"El empleado olvidó fichar la salida; se confirmó la hora real de salida de las 4:30 PM con el supervisor\").\n\n### Qué sucede al guardar\n\nGuardar hace tres cosas:\n\n1. **Toma una instantánea de los valores originales** en un registro del historial de correcciones antes de aplicar sus cambios.\n2. **Aplica** la nueva fecha/hora/categoría/notas a la entrada en vivo (los administradores no están bloqueados por los bloqueos de fecha de período de pago).\n3. **Notifica al empleado afectado** automáticamente, incluido el motivo que introdujo —no hay cambios silenciosos en el registro de pago de alguien.\n\n### Historial de correcciones\n\nDebajo de la tabla de entradas, la tabla **Historial de correcciones** es el rastro de auditoría. Cada fila registra cuándo se hizo la corrección y la fecha, inicio, fin y duración *originales* —de modo que siempre puede ver cómo se veía una entrada antes de tocarla. Úsela para responder \"¿quién cambió esto y qué decía antes?\"\n\n### Relación con el bloqueo de períodos de pago\n\nBloquear un período de pago (Administración → Configuración) congela las entradas de tiempo para que empleados y gerentes no puedan modificarlas. Las correcciones de tiempo de administrador son la vía de excepción deliberada y auditada: un administrador todavía puede corregir una entrada, y el historial + la notificación al empleado mantienen el cambio responsable.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "admin-time-corrections-walkthrough",
+    "title": "Corregir una entrada de tiempo — Recorrido",
+    "summary": "Un recorrido guiado por el panel de Correcciones de tiempo: filtrar por un empleado, abrir el cuadro de diálogo de corrección y leer el historial de correcciones.",
+    "contentJson": {
+      "appRoute": "/admin/time-corrections",
+      "startButtonLabel": "Recorrer Correcciones de tiempo",
+      "steps": [
+        {
+          "element": ".time-corrections-panel__filters",
+          "popover": {
+            "title": "Filtrar a la entrada",
+            "description": "Empiece aquí. Elija el Empleado cuyo tiempo necesita corregir, luego establezca la Fecha desde y la Fecha hasta para cubrir el turno en cuestión. La tabla Entradas de tiempo de abajo se actualiza para mostrar las entradas coincidentes.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".time-corrections-panel__section-title",
+          "popover": {
+            "title": "Entradas de tiempo",
+            "description": "Esta tabla lista las entradas de tiempo del empleado para el rango seleccionado —fecha, inicio, fin y duración. Encuentre la entrada incorrecta y use su icono de edición para abrir el cuadro de diálogo de corrección.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Abrir una corrección",
+            "description": "Haga clic en el icono de lápiz en una fila para abrir el cuadro de diálogo Corregir entrada de tiempo. Los valores originales se muestran de solo lectura en la parte superior; usted ajusta la fecha, las horas de inicio/fin, la categoría y las notas —y debe introducir un Motivo de la corrección antes de que Guardar se habilite.",
+            "side": "top"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "admin-api-keys",
+    "title": "Claves de API para integraciones y BI",
+    "summary": "Cómo emitir claves de API del sistema (integraciones sin interfaz) y claves de BI/informes: secretos de copia única, vinculación de usuario, herencia de plantilla de rol y revocación.",
+    "contentJson": {
+      "body": "## Claves de API para integraciones y BI\n\nForge puede entregar claves de larga duración para que el software —no una persona en un navegador— pueda llamar a su API. Hay dos tipos, en dos pestañas de administración:\n\n- **Claves de API del sistema** (**Administración → Claves de API del sistema**) — para integraciones sin interfaz que actúan *como* un usuario real (un script de sincronización nocturna, un conector de middleware).\n- **Claves de API de BI** (**Administración → Claves de API de BI**) — para herramientas de informes e inteligencia empresarial orientadas a la lectura (Power BI, Metabase) que extraen datos.\n\nAmbas pestañas son **solo para administradores** y están restringidas por la capacidad **CAP-IDEN-AUTH-API-KEYS**. Si esa capacidad está apagada para su instalación, el botón Nueva clave está deshabilitado y un mensaje explica por qué.\n\n### Emitir una clave\n\nHaga clic en **Nueva clave**. Asígnele un **Nombre** claro (lo reconocerá más tarde en la lista —\"Extracción nocturna de Power BI\", no \"clave 3\"). Luego:\n\n- **Usuario** — cada clave está **vinculada a un usuario real**. La clave se autentica *como* esa persona y hereda sus permisos. Elija un usuario cuyo acceso coincida con lo que la integración legítimamente necesita; no vincule una herramienta de informes a un administrador completo.\n- **Plantilla de rol** (opcional) — restrinja los roles efectivos de la clave a una plantilla acumulada en lugar del conjunto completo de roles del usuario. Así es como le da a una clave *menos* de lo que tiene su usuario propietario.\n- **Vence el** (opcional) — establezca una fecha de vencimiento para las claves que deben retirarse automáticamente; déjelo en blanco para una clave sin vencimiento.\n\n### Cópiela una vez —se muestra solo una vez\n\nCuando hace clic en **Emitir clave**, Forge muestra la clave en texto plano **una vez** en un cuadro de diálogo de revelación con un botón de copiar. Forge almacena solo un hash —nunca puede volver a mostrarle el secreto. Cópiela de inmediato en la configuración de su integración o almacén de secretos. Si la pierde, no la recupera; revoca la clave y emite una nueva.\n\n### Las claves no pueden emitir claves\n\nUna barrera de protección deliberada: el usuario como el que se autentica una clave **no** obtiene acceso al endpoint de emisión de claves. Solo un administrador interactivo puede crear claves. Esto evita que una clave de integración filtrada cree más claves y escale privilegios.\n\n### La lista de claves\n\nCada fila muestra el nombre de la clave, el correo del usuario vinculado, su plantilla de rol (si la hay), un distintivo de estado Activa/Revocada, las fechas de último uso y vencimiento. **Último uso** muestra *Nunca* hasta que la clave hace su primera llamada —una forma rápida de detectar una clave que se emitió pero nunca se conectó.\n\n### Revocar una clave\n\nPara retirar una clave, haga clic en el icono de **bloqueo** en su fila. La revocación es inmediata y permanente —la clave deja de funcionar en su próxima llamada. Revoque una clave en el momento en que una integración se desmantele o sospeche que el secreto se filtró, luego emita una nueva si la integración todavía se necesita.\n\n### Reglas rápidas de higiene\n\n- Una clave por integración, nombrada para que sepa qué es.\n- Vincule al usuario con menos privilegios que aún funcione; use una plantilla de rol para restringir más.\n- Establezca un vencimiento en cualquier cosa temporal.\n- Revoque las claves no usadas o comprometidas con prontitud —el rastro de auditoría y la columna **Último uso** le ayudan a encontrarlas.\n- El registro de Conexiones (Administración → Conexiones) lista cada clave emitida junto con otras credenciales para una vista de auditoría única.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "admin-api-keys-quiz",
+    "title": "Evaluación de conocimientos de Claves de API",
+    "summary": "Ponga a prueba su comprensión de las claves de API del sistema y de BI: secretos de copia única, vinculación de usuario, la regla de que las claves no pueden emitir claves y la revocación.",
+    "contentJson": {
+      "passingScore": 75,
+      "questionsPerQuiz": 4,
+      "shuffleOptions": true,
+      "showExplanationsAfterSubmit": true,
+      "questions": [
+        {
+          "id": "ak1",
+          "text": "Emite una nueva clave de API del sistema. ¿Cuándo puede ver el valor de la clave en texto plano?",
+          "options": [
+            {
+              "id": "a",
+              "text": "En cualquier momento, haciendo clic en la fila de la clave para revelarla"
+            },
+            {
+              "id": "b",
+              "text": "Solo una vez, en el cuadro de diálogo de revelación justo después de emitirla —Forge almacena solo un hash y nunca puede volver a mostrarla",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Durante 24 horas después de emitirla, luego se oculta"
+            },
+            {
+              "id": "d",
+              "text": "Se envía por correo al usuario vinculado"
+            }
+          ],
+          "explanation": "El texto plano se muestra exactamente una vez, inmediatamente después de emitir, con un botón de copiar. Forge conserva solo un hash. Si pierde el valor debe revocar la clave y emitir una nueva."
+        },
+        {
+          "id": "ak2",
+          "text": "¿A qué debe estar vinculada cada clave de API?",
+          "options": [
+            {
+              "id": "a",
+              "text": "A una dirección IP específica"
+            },
+            {
+              "id": "b",
+              "text": "A un usuario real —la clave se autentica como esa persona y hereda sus permisos",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "A una ubicación de empresa"
+            },
+            {
+              "id": "d",
+              "text": "A nada —las claves son anónimas"
+            }
+          ],
+          "explanation": "Las claves están vinculadas a un usuario. La clave actúa como el usuario elegido, así que elija un usuario con menos privilegios que aún cumpla las necesidades de la integración. Una plantilla de rol opcional puede restringir aún más los roles efectivos de la clave."
+        },
+        {
+          "id": "ak3",
+          "text": "¿Por qué el usuario como el que se autentica una clave de API no puede emitir más claves de API?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Porque las claves vencen demasiado rápido para ser útiles para eso"
+            },
+            {
+              "id": "b",
+              "text": "Es una barrera contra la escalada de privilegios —solo un administrador interactivo puede crear claves, así que una clave filtrada no puede crear más claves",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Porque la pestaña de emisión de claves solo es visible en escritorio"
+            },
+            {
+              "id": "d",
+              "text": "Sí pueden, si la clave tiene una fecha de vencimiento establecida"
+            }
+          ],
+          "explanation": "El endpoint de emisión de claves es solo para administradores y se retiene deliberadamente de la identidad como la que se autentica una clave. Esto evita que una clave de integración filtrada cree claves adicionales y escale el acceso."
+        },
+        {
+          "id": "ak4",
+          "text": "Sospecha que el secreto de una clave de API del sistema se ha filtrado. ¿Qué debe hacer?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Renombrar la clave para que el nombre antiguo ya no sea válido"
+            },
+            {
+              "id": "b",
+              "text": "Hacer clic en el icono de bloqueo (revocar) en su fila —la revocación es inmediata; luego emitir una nueva clave si la integración todavía se necesita",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Cambiar la contraseña del usuario vinculado, lo que rota la clave"
+            },
+            {
+              "id": "d",
+              "text": "Nada —las claves no se pueden revocar una vez emitidas"
+            }
+          ],
+          "explanation": "Revocar una clave detiene su funcionamiento en su próxima llamada, de inmediato y permanentemente. Revoque una clave comprometida o desmantelada de inmediato, luego emita una nueva si se necesita."
+        }
+      ]
     }
   }
 ]

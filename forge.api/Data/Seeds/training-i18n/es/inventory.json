@@ -543,5 +543,98 @@
         }
       ]
     }
+  },
+  {
+    "slug": "inventory-home",
+    "title": "Inicio de Inventario — La pantalla principal amigable",
+    "summary": "La pantalla principal predeterminada de Inventario, diseñada para la planta de producción: tres pestañas (Quiosco, Tareas, Tablero) sobre verbos de existencias amigables —Recibir, Usar, Contar, Buscar— con un acceso de un clic a la vista detallada avanzada.",
+    "contentJson": {
+      "body": "## Inicio de Inventario\n\nCuando abre Inventario, aterriza en el **Inicio de Inventario** —no en la cuadrícula detallada de pestañas. Inicio es una superficie deliberadamente simple y de baja fricción, diseñada para las personas que realmente manipulan las existencias: empleados de recepción, operarios y cualquiera que necesite registrar un cambio de existencias en unos pocos toques sin tener que aprender el modelo completo de almacén.\n\nLa URL es `/inventory/home/kiosk`. Inicio tiene tres pestañas en la parte superior, y el nombre de la pestaña forma parte de la URL para que pueda marcar como favorito o compartir un enlace directo (`/inventory/home/tasks`, `/inventory/home/dashboard`).\n\n### Dos vistas del inventario, una sola función\n\nForge ofrece **dos** superficies de inventario sobre los mismos datos:\n\n- **Inicio de Inventario** (donde aterriza) —verbos amigables, botones grandes, tres pestañas de un vistazo. Diseñado para el uso diario en la planta.\n- **La vista detallada avanzada** (Existencias / Ubicaciones / Movimientos / Recepción / Operaciones de existencias / Conteos cíclicos / Reservas / Reabastecimiento / UOM) —el modelo completo de almacén con contenedores, lotes y registros de auditoría. Acceda a ella desde el enlace **Gestionar inventario** en la parte superior derecha de Inicio, o navegando directamente a `/inventory/stock`.\n\nNada de lo que hace en Inicio son \"datos distintos\" —recibir una pieza en Inicio y recibirla en la pestaña detallada de Recepción escriben el mismo contenido de contenedor y los mismos registros de movimiento. Inicio es simplemente una puerta más rápida al mismo almacén.\n\n### Los verbos de existencias amigables\n\nInicio está organizado en torno a cuatro verbos en lenguaje sencillo en lugar de jerga de almacén:\n\n- **Recibir** —las existencias ENTRARON. Agregue cantidad a una pieza (p. ej., llegó una entrega o terminó de fabricar algo). Recibir también le permite registrar un número de lote.\n- **Usar** —las existencias SALIERON. Reste cantidad de una pieza (p. ej., fue consumida por un trabajo o desechada).\n- **Contar** —establezca la cantidad disponible REAL. Use esto cuando haya contado físicamente la repisa y quiera que el sistema coincida con la realidad. Contar sobrescribe el número disponible en lugar de sumar o restar.\n- **Buscar** —consulte una pieza. En la pestaña Quiosco esto lo lleva a la pestaña Tareas para que pueda buscar; es un atajo de navegación, no un cambio de existencias.\n\nRecibir, Usar y Contar abren cada uno un pequeño diálogo: elija la pieza (precargada si comenzó desde una fila), ingrese una cantidad, opcionalmente elija una ubicación y agregue un motivo/notas. Recibir muestra además un campo de número de lote. Toque el botón de acción y el cambio se registra de inmediato con una confirmación.\n\n### Las tres pestañas\n\n**Quiosco (predeterminada).** Cuatro botones grandes y táctiles —Recibir, Usar, Contar, Buscar— dispuestos de dos por fila. Esta es la vista de tocar y listo para una tableta montada en la pared o una acción rápida en una estación de trabajo. Una acción a la vez, nada más compitiendo por la atención.\n\n**Tareas.** Una lista de trabajo: un cuadro de búsqueda, una fila de los mismos botones de verbo, una franja de existencias bajas y una tabla de piezas con cantidades disponibles. Cada fila de la tabla tiene botones integrados de Recibir y Usar para que pueda actuar sobre una pieza específica sin volver a escribir su número. Si una pieza está por debajo de su mínimo, aparece como una etiqueta de advertencia en la franja de existencias bajas —toque la etiqueta para Recibir contra ella.\n\n**Tablero.** Números de un vistazo: total de piezas rastreadas, total de unidades disponibles y un conteo de existencias bajas (que se vuelve ámbar cuando algo está bajo). Debajo de los números está la lista completa de existencias bajas —número de pieza, descripción, cantidad actual frente a mínima, y un atajo de Recibir en cada línea. Cuando nada está bajo, obtiene una confirmación limpia de \"todo abastecido\".\n\n### Las ubicaciones son opcionales aquí\n\nSi su instalación funciona con inventario de una sola ubicación, el campo **Ubicación** se oculta en los diálogos de verbo y el servidor coloca silenciosamente todo en la ubicación predeterminada —no tiene que pensar en contenedores. Si la multiubicación está habilitada (la capacidad `CAP-INV-MULTILOC`), aparece la lista desplegable de Ubicación para que pueda indicar exactamente en qué contenedor entraron o de cuál salieron las existencias. De cualquier manera, el verbo en sí es el mismo; solo cambia el detalle opcional de la ubicación.\n\n### Cuándo usar Inicio frente a la vista detallada\n\nUse **Inicio** para las acciones cotidianas: llegó una entrega, un trabajo consumió material, recontó una repisa, necesita echar un vistazo a lo que está bajo. Use la **vista detallada** cuando necesite la mecánica del almacén: mover existencias entre contenedores específicos, transferir entre áreas, ejecutar y aprobar conteos cíclicos, gestionar reservas contra trabajos, recibir formalmente contra una línea de orden de compra, o revisar el registro de auditoría completo de movimientos y el análisis de reabastecimiento.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "inventory-home-walkthrough",
+    "title": "Inicio de Inventario — Recorrido guiado",
+    "summary": "Un breve recorrido por la pantalla principal amigable de Inventario: la vista Quiosco de botones grandes, las tres pestañas, los verbos de existencias y el acceso a la vista detallada Gestionar inventario.",
+    "contentJson": {
+      "appRoute": "/inventory/home/kiosk",
+      "startButtonLabel": "Recorrer Inicio de Inventario",
+      "steps": [
+        {
+          "element": ".inv-home__hero",
+          "popover": {
+            "title": "Inicio de Inventario",
+            "description": "Aquí es donde se abre Inventario de forma predeterminada —una pantalla principal amigable y de baja fricción diseñada para la planta de producción. El título y el subtítulo le indican dónde está; todo lo de abajo funciona sobre los mismos datos que la vista detallada del almacén.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".inv-home__manage",
+          "popover": {
+            "title": "Gestionar inventario",
+            "description": "¿Necesita el modelo completo de almacén —contenedores, ubicaciones, movimientos, conteos cíclicos, reservas, reabastecimiento? Este enlace en la parte superior derecha lo lleva a la vista detallada avanzada en /inventory/stock. Inicio y la vista detallada comparten las mismas existencias; esto es solo la puerta a las herramientas avanzadas.",
+            "side": "left"
+          }
+        },
+        {
+          "element": ".tab-bar",
+          "popover": {
+            "title": "Tres pestañas",
+            "description": "Inicio tiene tres vistas: Quiosco (botones grandes, una acción a la vez —la predeterminada), Tareas (búsqueda + una lista de trabajo de piezas con acciones integradas) y Tablero (totales de un vistazo y la lista de existencias bajas). La pestaña activa forma parte de la URL, así que puede marcar como favorito un enlace directo a cualquiera de ellas.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab:nth-child(1)",
+          "popover": {
+            "title": "Pestaña Quiosco",
+            "description": "La pestaña Quiosco —donde está ahora— es la vista de tocar y listo, ideal para una tableta montada en la pared. Muestra cuatro botones grandes para los verbos de existencias amigables y nada más, así que no hay que buscar el control correcto.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".inv-home__hint",
+          "popover": {
+            "title": "Una acción a la vez",
+            "description": "La indicación le recuerda que Quiosco está diseñado para acciones individuales y enfocadas. Toque un verbo, complete el pequeño diálogo y listo —el cambio se registra al instante con una confirmación.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-quick-action-panel",
+          "popover": {
+            "title": "Los verbos de existencias",
+            "description": "Cuatro acciones en lenguaje sencillo: Recibir (las existencias entraron —también captura un número de lote), Usar (las existencias salieron), Contar (establecer la cantidad disponible real tras un conteo físico) y Buscar (consultar una pieza —este lo lleva a la pestaña Tareas para buscar). Recibir, Usar y Contar abren cada uno un diálogo rápido: elija la pieza, ingrese una cantidad, opcionalmente una ubicación y un motivo, luego confirme.",
+            "side": "top"
+          }
+        },
+        {
+          "element": ".tab:nth-child(2)",
+          "popover": {
+            "title": "Pestaña Tareas",
+            "description": "Cambie aquí para una lista de trabajo: un cuadro de búsqueda, los mismos botones de verbo, una franja de advertencia de existencias bajas y una tabla de piezas con cantidades disponibles. Cada fila tiene botones integrados de Recibir y Usar para que pueda actuar sobre una pieza específica sin volver a escribir su número.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".tab:nth-child(3)",
+          "popover": {
+            "title": "Pestaña Tablero",
+            "description": "El Tablero muestra números de un vistazo —total de piezas, total de unidades disponibles y un conteo de existencias bajas que se vuelve ámbar cuando algo está bajo— seguidos de la lista completa de existencias bajas con un atajo de Recibir en cada línea. Úselo para una verificación rápida del estado de sus existencias.",
+            "side": "bottom"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "inventory-uom",
+    "title": "Unidades de medida y conversiones",
+    "summary": "Gestione las unidades en que una pieza puede contarse, almacenarse y comprarse —y los factores de conversión entre ellas— desde la pestaña Unidades de medida de Inventario.",
+    "contentJson": {
+      "body": "## Unidades de medida y conversiones\n\nUna unidad de medida (UOM) es la forma en que se cuenta una pieza —Cada, Pie, Libra, Litro, etc. La pestaña **Unidades de medida** en Inventario (la pestaña más a la derecha, en `/inventory/uom`) es donde define el catálogo de unidades que usa su taller y los factores de conversión entre ellas, de modo que una pieza comprada por caja aún pueda almacenarse y consumirse por unidad.\n\nLa pestaña tiene dos secciones, alternadas con los botones de la parte superior: **Unidades de medida** y **Conversiones**.\n\n### Unidades de medida\n\nLa lista de Unidades de medida muestra cada unidad con su código, nombre, símbolo, categoría, decimales y una marca de verificación en la unidad base de su categoría. Haga clic en **Nueva UOM** para agregar una, o haga clic en cualquier fila para editarla.\n\nEl diálogo de UOM tiene estos campos:\n\n- **Código** (obligatorio, hasta 10 caracteres) —el identificador corto, p. ej. `EA`, `FT`, `LB`, `KG`. Esto es lo que aparece de forma compacta en tablas y documentos.\n- **Nombre** (obligatorio, hasta 50 caracteres) —el nombre completo, p. ej. `Cada`, `Pie`, `Libra`, `Kilogramo`.\n- **Categoría** (obligatorio) —la dimensión que mide la unidad: **Conteo, Longitud, Peso, Volumen, Área o Tiempo**. Las conversiones solo tienen sentido dentro de una sola categoría —puede convertir pies a pulgadas (ambas Longitud), pero no libras a pies.\n- **Símbolo** (opcional) —el símbolo de visualización, p. ej. `ft`, `lb`, `kg`.\n- **Decimales** (obligatorio, 0–6) —cuántos decimales permite esta unidad. Establezca `0` para cosas contadas en unidades enteras (Cada) y un valor más alto para cantidades medidas (p. ej. `3` para kilogramos).\n- **Orden** (opcional) —controla dónde aparece la unidad en las listas de selección.\n- **Unidad base para la categoría** (interruptor) —marca esta unidad como la unidad de referencia contra la que convierten otras unidades de la misma categoría. Para Longitud podría hacer de Pulgada (o Milímetro) la base; para Peso, Gramo o Libra. La unidad base es el ancla sobre el que pivotan todas las conversiones de esa categoría.\n\n### Conversiones\n\nCambie a la sección **Conversiones** para definir cómo se relaciona una unidad con otra. La lista muestra Desde, Hacia, el factor de conversión y si la conversión es reversible. Haga clic en **Nueva conversión** para agregar una.\n\nEl diálogo de Conversión:\n\n- **UOM de origen** (obligatorio) —la unidad desde la que está convirtiendo.\n- **UOM de destino** (obligatorio) —la unidad hacia la que está convirtiendo.\n- **Factor de conversión** (obligatorio, mayor que cero) —cuántas unidades de *destino* equivalen a una unidad de *origen*. Por ejemplo, `1 FT = 12 IN`, así que Origen = FT, Destino = IN, Factor = `12`. El texto de ejemplo del diálogo le recuerda esta forma (`12 (1 ft = 12 in)`).\n- **Reversible (crea automáticamente la inversa)** (interruptor, activado de forma predeterminada) —cuando está habilitado, guardar `1 FT = 12 IN` también hace que el sistema entienda `1 IN = 1/12 FT` automáticamente, para que no tenga que ingresar la inversa a mano. Déjelo activado a menos que tenga una relación unidireccional.\n\n### Por qué esto importa\n\nLas UOM y sus conversiones permiten que una pieza fluya por su operación en la unidad que convenga a cada paso: podría **comprar** alambre por carrete, **almacenarlo** por pie y **emitirlo** a un trabajo por pulgada. Mientras las unidades compartan una categoría y exista una conversión entre ellas, Forge mantiene la matemática consistente —las cantidades de compra, los saldos disponibles y el consumo de los trabajos se reconcilian todos con el mismo material físico. Defina las unidades una vez en esta pestaña y el resto del sistema (Piezas, Compras, Inventario) podrá hablarlas.\n\n### Consejos\n\n- Elija **una unidad base por categoría** y defina cada otra unidad de esa categoría como una conversión a ella —eso mantiene el grafo de conversión simple y evita cadenas contradictorias.\n- Establezca los **Decimales** para que coincidan con cómo se usa realmente la unidad. Contar en unidades fraccionarias suele indicar la unidad equivocada; un material medido como el área de una lámina puede necesitar 2–3 decimales.\n- Mantenga **Reversible** activado para las unidades físicas normales. El único momento para desactivarlo es una relación genuinamente unidireccional.",
+      "sections": []
+    }
   }
 ]

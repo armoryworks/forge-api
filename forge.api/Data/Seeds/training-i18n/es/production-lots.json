@@ -223,5 +223,73 @@
         }
       ]
     }
+  },
+  {
+    "slug": "production-lots-create-trace-walkthrough",
+    "title": "Crear un lote y leer su trazabilidad",
+    "summary": "Un recorrido en pantalla de la lista de Lotes: buscar, abrir el diálogo de Nuevo lote y hacer clic en una fila para leer su línea de tiempo de trazabilidad.",
+    "contentJson": {
+      "appRoute": "/lots",
+      "startButtonLabel": "Recorrer Lotes de producción",
+      "steps": [
+        {
+          "element": "app-page-header",
+          "popover": {
+            "title": "La lista de Lotes",
+            "description": "Esta es la pantalla de Lotes de producción en /lots. Cada lote que ha registrado aparece en una sola tabla: su número de lote, número y descripción de pieza, cantidad, trabajo vinculado, número de lote del proveedor, fecha de vencimiento y la fecha en que se creó. Esta única lista es su punto de entrada tanto para crear nuevos lotes como para buscar el historial de uno existente.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".page-header",
+          "popover": {
+            "title": "Buscar lotes",
+            "description": "Use este cuadro de búsqueda para encontrar un lote rápidamente. Coincide con el número de lote, el número de lote del proveedor y el número de pieza, de modo que puede pegar un número de una etiqueta, un albarán o un certificado de análisis y llegar al registro correcto. Escriba su término y haga clic en Buscar (o presione Enter) para filtrar la tabla.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "[data-testid='new-lot-btn']",
+          "popover": {
+            "title": "Crear un nuevo lote",
+            "description": "Los lotes se crean aquí, manualmente — el sistema no los genera automáticamente en segundo plano. Haga clic en Nuevo lote para abrir el diálogo de creación. Usted elige la Pieza (requerido) e ingresa una Cantidad (requerido); todo lo demás — un Trabajo vinculado, el Lote del proveedor, una Fecha de vencimiento y Notas — es opcional. El número de lote en sí se genera automáticamente al guardar, por lo que nunca lo escribe. Si recibe material para una pieza que aún no está catalogada, el campo Pieza le permite crear la pieza en línea sin salir del diálogo.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": ".page-header",
+          "popover": {
+            "title": "La cantidad es decimal",
+            "description": "El campo Cantidad acepta montos fraccionarios — avanza en incrementos de 0.0001. Esto significa que registra material rastreado por peso, volumen o longitud exactamente como llega (por ejemplo 12.5 kg o 3.75 m), no solo conteos de unidades enteras. Ingrese la cantidad real medida en lugar de redondear a un entero.",
+            "side": "bottom"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Abrir un lote para rastrearlo",
+            "description": "Haga clic en cualquier fila de esta tabla para abrir el panel de detalle de ese lote. El panel se abre sobre la lista y la URL se actualiza a ?detail=lot:<id>, de modo que la vista que está mirando es compartible y sobrevive a una actualización. Así es como pasa de '¿qué lote es este?' a su historial completo.",
+            "side": "left"
+          }
+        },
+        {
+          "element": "app-data-table",
+          "popover": {
+            "title": "Leer la línea de tiempo de trazabilidad",
+            "description": "Dentro del panel de detalle, un encabezado muestra el número de pieza, la cantidad (con hasta 4 decimales) y, cuando están presentes, el número de lote del proveedor y la fecha de vencimiento. Debajo, el Historial de trazabilidad es una única línea de tiempo cronológica: trabajos, corridas de producción, órdenes de compra, ubicaciones de contenedores e inspecciones de QC se fusionan en un solo flujo ordenado por fecha, cada uno con su propio icono, un número de referencia, una descripción y una fecha. Léala de arriba hacia abajo para seguir la cadena desde la recepción de la materia prima pasando por la producción, la inspección y el almacenamiento. Una pestaña de Historial en el panel registra los cambios al registro de lote en sí.",
+            "side": "left"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "slug": "production-lots-reading-trace-timeline",
+    "title": "Leer la línea de tiempo de trazabilidad del lote",
+    "summary": "Cómo interpretar el panel de detalle de un lote: el encabezado de la pieza y la única línea de tiempo combinada de Historial de trazabilidad de trabajos, corridas, OC, contenedores e inspecciones.",
+    "contentJson": {
+      "body": "## Leer la línea de tiempo de trazabilidad del lote\n\nLa recompensa del seguimiento de lotes es el **panel de detalle** al que llega haciendo clic en un lote de la lista en `/lots`. Responde, en un solo lugar, '¿qué es este lote y qué le ha pasado?' Este artículo recorre cada parte de ese panel para que pueda leer el historial de un lote con confianza.\n\n### Abrir el panel\n\nDesde la lista de Lotes, haga clic en cualquier fila. El panel de detalle del lote se abre sobre la lista y la URL gana un segmento `?detail=lot:<id>`, de modo que la vista exacta es compartible y sobrevive a una actualización del navegador. Ciérrelo con la X en el encabezado del panel o con la tecla Escape. El título del panel es el número de lote en sí.\n\n### El encabezado de la pieza\n\nEn la parte superior del panel hay un encabezado compacto que identifica el lote:\n\n- **Número de pieza** — la pieza a la que pertenece este lote.\n- **Cantidad** — la cantidad del lote, mostrada con **hasta 4 decimales**. Como los lotes pueden rastrear material por peso, volumen o longitud, puede ver valores como `12.5000` o `3.7500`, no solo números enteros.\n- **Lote del proveedor** — el identificador de lote propio del proveedor. Esta fila aparece **solo cuando se registró un número de lote del proveedor**, por lo que su presencia le indica de un vistazo que el lote provino de una recepción de proveedor.\n- **Vence** — la fecha de vencimiento en formato `MM/dd/yyyy`. Esta fila aparece **solo cuando se estableció una fecha de vencimiento**, lo que marca el lote como material sensible a la vida útil.\n\nSi las filas de lote del proveedor o de vencimiento están ausentes, ese campo simplemente se dejó en blanco en el lote — no es un error.\n\n### Historial de trazabilidad — Una línea de tiempo combinada\n\nDebajo del encabezado está el **Historial de trazabilidad**. Este es el corazón del panel, y lo más importante que hay que entender sobre él es que es **una sola línea de tiempo cronológica, no cinco listas separadas**. Registros de cinco tipos diferentes se intercalan en un único flujo de eventos ordenado por fecha:\n\n| Icono | Tipo de evento | Qué significa |\n|---|---|---|\n| work | **Trabajo** | Un trabajo de producción que produjo o consumió piezas de este lote. |\n| precision_manufacturing | **Corrida de producción** | Una corrida de producción específica vinculada al lote — más granular que el trabajo. |\n| description | **Orden de compra** | La OC (y el proveedor) que suministró la materia prima de este lote. |\n| inventory_2 | **Ubicación de contenedor** | Una ubicación de inventario que actualmente contiene unidades de este lote. |\n| fact_check | **Inspección de QC** | Una inspección de calidad realizada contra este número de lote. |\n\nCada fila de evento muestra su **icono**, un **número de referencia** (el número de trabajo, número de OC, número de corrida, ruta del contenedor o identificador de inspección), una breve **descripción** y una **fecha** en formato `MM/dd/yyyy`. Como todo está combinado y ordenado por fecha, lee el panel de arriba hacia abajo para seguir la cadena del mundo real: recepción de materia prima (Orden de compra) → producción (Trabajo / Corrida de producción) → inspección (Inspección de QC) → almacenamiento (Ubicación de contenedor). No tiene que cruzar referencias entre cinco pestañas para armar esa historia — la línea de tiempo ya lo hizo.\n\nSi un lote aún no tiene registros relacionados, el Historial de trazabilidad muestra un breve mensaje vacío en lugar de eventos. Eso es normal para un lote que acaba de crear y que aún no ha consumido, inspeccionado ni almacenado.\n\n### La pestaña de Historial (cambios del registro)\n\n Debajo de la línea de tiempo de trazabilidad, el panel también presenta una vista de **Historial** acotada a este lote. Mientras que el Historial de trazabilidad muestra eventos *operativos* que tocaron el material del lote, la vista de Historial muestra *ediciones al registro del lote en sí* — la pista de auditoría de quién cambió qué en el lote. Mantenga los dos claros: el Historial de trazabilidad responde '¿a dónde fue y de dónde vino este material?', el Historial responde '¿quién cambió este registro?'.\n\n### Usar el panel en la práctica\n\n**Un cliente reporta un defecto.** Lea el número de lote de la pieza o del registro de envío, búsquelo en la lista y abra el panel. El evento de Orden de compra le dice qué lote del proveedor suministró la materia prima; los eventos de Inspección de QC le dicen si la inspección detectó algo; los eventos de Ubicación de contenedor le dicen si todavía queda algo de este lote en el estante para poner en cuarentena.\n\n**Una auditoría periódica de trazabilidad.** Abra una muestra de lotes y confirme que cada uno muestra la cadena que espera — un lote de materia prima recibido debe tener un evento de Orden de compra y un número de lote del proveedor; un lote producido debe tener un Trabajo (e idealmente una Corrida de producción) y al menos una Inspección de QC. Las brechas que encuentre aquí son brechas que quiere corregir *antes* de un retiro del mercado, no durante uno.\n\n**Confirmar la vida útil.** La fila Vence en el encabezado es la comprobación más rápida de si el material aún es utilizable. La ausencia de la fila Vence significa que no se registró ningún vencimiento — para material sensible a la vida útil, eso en sí mismo es un hallazgo.\n\n### Puntos clave\n\n- El panel de detalle = **encabezado de la pieza** + **una línea de tiempo combinada de Historial de trazabilidad** + una vista de **Historial** de cambios del registro.\n- La cantidad se muestra con 4 decimales; las filas de lote del proveedor y de vencimiento aparecen solo cuando esos valores existen.\n- El Historial de trazabilidad intercala Trabajos, Corridas de producción, Órdenes de compra, Ubicaciones de contenedores e Inspecciones de QC en un único flujo ordenado por fecha — léalo de arriba hacia abajo para seguir la cadena completa del material.",
+      "sections": []
+    }
   }
 ]

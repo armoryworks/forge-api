@@ -4,7 +4,7 @@
     "title": "Visión general de la Búsqueda",
     "summary": "Qué hace la búsqueda global, los tipos de entidad que busca, la búsqueda híbrida de texto completo y RAG, y los atajos de teclado.",
     "contentJson": {
-      "body": "## Visión general de la Búsqueda global\n\nLa búsqueda global siempre está disponible desde la barra de encabezado en la parte superior de cada página. Ofrece una búsqueda instantánea y multientidad sobre seis tipos de entidad principales, combinando la búsqueda tradicional de texto completo con resultados RAG (Generación Aumentada por Recuperación) impulsados por IA cuando el módulo de IA está habilitado.\n\n### Cómo funciona\n\nEl campo de búsqueda se ubica en el encabezado de la aplicación, entre la navegación de migas de pan y los botones de acción. A medida que escribe, los resultados aparecen en una superposición desplegable agrupados por tipo de entidad. El sistema busca en seis tipos de entidad de forma simultánea:\n\n- **Trabajos** — coincide por número de trabajo y título\n- **Clientes** — coincide por nombre del cliente y nombre de la empresa\n- **Piezas** — coincide por número de pieza y descripción\n- **Prospectos** — coincide por nombre de la empresa y nombre del contacto\n- **Activos** — coincide por nombre del activo y número de serie\n- **Gastos** — coincide por descripción y categoría\n\nLa búsqueda requiere al menos 2 caracteres antes de que aparezcan resultados. Los resultados están sujetos a antirrebote (debounce), de modo que el sistema espera a que deje de escribir antes de consultar —esto mantiene la interfaz ágil incluso con grandes volúmenes de datos.\n\n### Búsqueda de texto completo\n\nLa columna izquierda de la superposición de búsqueda muestra los resultados tradicionales de texto completo. Cada resultado muestra un icono que representa el tipo de entidad, el título principal (número de trabajo, número de pieza, nombre del cliente, etc.), un subtítulo con contexto adicional y una etiqueta de tipo. Al hacer clic en cualquier resultado, navega directamente a la página de esa entidad o se abre su diálogo de detalle.\n\n### Resultados RAG impulsados por IA\n\nCuando el módulo de IA Ollama está en ejecución, la superposición de búsqueda se expande a dos columnas. La columna derecha muestra resultados de IA impulsados por RAG —Generación Aumentada por Recuperación. Esto usa incrustaciones (embeddings) de documentos almacenadas en PostgreSQL mediante pgvector para encontrar contenido relacionado semánticamente, no solo coincidencias exactas de texto.\n\nLa columna de IA muestra:\n- Una **respuesta generada** — un resumen en lenguaje natural que responde a su consulta\n- **Fragmentos de documentos relevantes** — porciones de contenido indexado que coinciden con su consulta, cada una con un porcentaje de puntuación de relevancia\n\nLos resultados RAG son especialmente útiles para preguntas como '¿qué trabajos implican mecanizado de aluminio?' o '¿qué cliente pidió la carcasa del engranaje?' —consultas donde las palabras exactas podrían no aparecer en el registro pero el significado se captura en los documentos indexados.\n\n### Atajos de teclado\n\n- **Ctrl+K** — Enfoca el campo de búsqueda desde cualquier lugar de la aplicación. Es la forma más rápida de empezar a buscar sin usar el ratón.\n- **Escape** — Cierra la superposición de resultados de búsqueda y borra el campo de búsqueda\n- **Hacer clic en un resultado** — Navega a esa entidad y cierra la superposición\n\n### Cuándo usar la búsqueda global\n\n- Cuando necesita encontrar rápidamente un trabajo por número o título\n- Cuando busca un cliente o prospecto por nombre\n- Cuando conoce un número de pieza pero no quiere navegar primero a la página de Piezas\n- Cuando tiene una consulta imprecisa y quiere que la IA le ayude a encontrar registros relevantes\n- Cuando salta entre diferentes tipos de entidad con frecuencia a lo largo del día",
+      "body": "## Visión general de la Búsqueda global\n\nLa búsqueda global siempre está disponible desde la barra de encabezado en la parte superior de cada página. Ofrece una búsqueda instantánea y multientidad sobre seis tipos de entidad principales, combinando la búsqueda tradicional de texto completo con resultados RAG (Generación Aumentada por Recuperación) impulsados por IA cuando el módulo de IA está habilitado.\n\n### Cómo funciona\n\nEl campo de búsqueda se ubica en el encabezado de la aplicación, entre la navegación de migas de pan y los botones de acción. A medida que escribe, los resultados aparecen en una superposición desplegable agrupados por tipo de entidad. El sistema busca en seis tipos de entidad de forma simultánea:\n\n- **Trabajos** — coincide por número de trabajo y título\n- **Clientes** — coincide por nombre del cliente y nombre de la empresa\n- **Piezas** — coincide por número de pieza y descripción\n- **Prospectos** — coincide por nombre de la empresa y nombre del contacto\n- **Activos** — coincide por nombre del activo y número de serie\n- **Gastos** — coincide por descripción y categoría\n\nLa búsqueda requiere al menos 2 caracteres antes de que aparezcan resultados. Los resultados están sujetos a antirrebote (debounce), de modo que el sistema espera a que deje de escribir antes de consultar —esto mantiene la interfaz ágil incluso con grandes volúmenes de datos.\n\n### Una superficie solo para escritorio\n\nLa barra de búsqueda del encabezado es una función de escritorio. Se oculta en anchos de tableta y menores (móvil) para mantener el encabezado compacto utilizable —en esas pantallas debe navegar a la página de lista de la propia entidad (Piezas, Clientes, Trabajos, etc.) y usar el filtro de esa página en su lugar. En un navegador de escritorio, la barra de búsqueda siempre está presente en el encabezado (excepto durante el flujo de incorporación de nuevos empleados, que no tiene los elementos del encabezado).\n\n### Búsqueda de texto completo\n\nLa columna izquierda de la superposición de búsqueda muestra los resultados tradicionales de texto completo. Cada resultado muestra un icono que representa el tipo de entidad, el título principal (número de trabajo, número de pieza, nombre del cliente, etc.), un subtítulo con contexto adicional y una etiqueta de tipo.\n\n**Qué ocurre al hacer clic en un resultado.** Al hacer clic en un resultado, se le lleva a la ruta principal de la entidad y se abre el **diálogo de detalle** de ese registro encima de ella —no le deja simplemente en una página de lista. Internamente, la barra de búsqueda navega a la ruta de lista de la entidad con un parámetro de consulta `?detail=type:id` (por ejemplo, al hacer clic en un resultado de pieza va a `/parts?detail=part:42`, lo que abre el diálogo de detalle de la Pieza sobre la lista de Piezas; un trabajo va a `/kanban?detail=job:1055`). Como el detalle se codifica en la URL, la vista se puede compartir y sobrevive a una recarga. Cinco de los seis tipos buscables —Trabajo, Pieza, Cliente, Prospecto y Activo— abren su diálogo de detalle de esta forma. **Los Gastos son la excepción:** un resultado de gasto simplemente le lleva a la página de lista de Gastos (no existe un diálogo de detalle de gasto), por lo que termina de abrirlo desde allí.\n\n### Resultados RAG impulsados por IA\n\nCuando el módulo de IA Ollama está en ejecución, la superposición de búsqueda se expande a dos columnas. La columna derecha muestra resultados de IA impulsados por RAG —Generación Aumentada por Recuperación. Esto usa incrustaciones (embeddings) de documentos almacenadas en PostgreSQL mediante pgvector para encontrar contenido relacionado semánticamente, no solo coincidencias exactas de texto.\n\nLa columna de IA muestra:\n- Una **respuesta generada** — un resumen en lenguaje natural que responde a su consulta\n- **Fragmentos de documentos relevantes** — porciones de contenido indexado que coinciden con su consulta, cada una con un porcentaje de puntuación de relevancia\n\nLos resultados RAG son especialmente útiles para preguntas como '¿qué trabajos implican mecanizado de aluminio?' o '¿qué cliente pidió la carcasa del engranaje?' —consultas donde las palabras exactas podrían no aparecer en el registro pero el significado se captura en los documentos indexados.\n\n### Atajos de teclado\n\n- **Ctrl+K** — Enfoca el campo de búsqueda desde cualquier lugar de la aplicación. Es la forma más rápida de empezar a buscar sin usar el ratón.\n- **Escape** — Cierra la superposición de resultados de búsqueda y borra el campo de búsqueda\n- **Hacer clic en un resultado** — Abre el diálogo de detalle de esa entidad (o, para un gasto, su página de lista) y cierra la superposición\n\n### Cuándo usar la búsqueda global\n\n- Cuando necesita encontrar rápidamente un trabajo por número o título\n- Cuando busca un cliente o prospecto por nombre\n- Cuando conoce un número de pieza pero no quiere navegar primero a la página de Piezas\n- Cuando tiene una consulta imprecisa y quiere que la IA le ayude a encontrar registros relevantes\n- Cuando salta entre diferentes tipos de entidad con frecuencia a lo largo del día",
       "sections": []
     }
   },
@@ -70,6 +70,10 @@
               "value": "Barra de encabezado, entre la navegación de migas de pan y los botones de acción. Visible en todas las páginas excepto en la incorporación (onboarding)."
             },
             {
+              "label": "Disponibilidad",
+              "value": "Solo para escritorio. La barra de búsqueda lleva la clase hide-tablet —se oculta en ancho de tableta y menores. En tableta/móvil, use la página de lista de la entidad de destino y su filtro en su lugar."
+            },
+            {
               "label": "Mínimo de caracteres",
               "value": "Se requieren 2 caracteres antes de que se ejecute la búsqueda. Las consultas de menos de 2 caracteres no devuelven resultados."
             },
@@ -92,27 +96,27 @@
           "items": [
             {
               "label": "Trabajo",
-              "value": "Campos buscados: job_number, title. Icono: work. Los resultados enlazan a /kanban con el trabajo seleccionado."
+              "value": "Campos buscados: job_number, title. Icono: work. Al hacer clic abre /kanban?detail=job:{id} —el diálogo de detalle del trabajo sobre el tablero."
             },
             {
               "label": "Cliente",
-              "value": "Campos buscados: name, company_name. Icono: people. Los resultados enlazan a /customers."
+              "value": "Campos buscados: name, company_name. Icono: people. Al hacer clic abre /customers?detail=customer:{id} —el diálogo de detalle del cliente."
             },
             {
               "label": "Pieza",
-              "value": "Campos buscados: part_number, description. Icono: inventory_2. Los resultados enlazan a /parts."
+              "value": "Campos buscados: part_number, description. Icono: inventory_2. Al hacer clic abre /parts?detail=part:{id} —el diálogo de detalle de la pieza sobre la lista de Piezas."
             },
             {
               "label": "Prospecto",
-              "value": "Campos buscados: company_name, contact_name. Icono: trending_up. Los resultados enlazan a /leads."
+              "value": "Campos buscados: company_name, contact_name. Icono: trending_up. Al hacer clic abre /leads?detail=lead:{id} —el diálogo de detalle del prospecto."
             },
             {
               "label": "Activo",
-              "value": "Campos buscados: name, serial_number. Icono: precision_manufacturing. Los resultados enlazan a /assets."
+              "value": "Campos buscados: name, serial_number. Icono: precision_manufacturing. Al hacer clic abre /assets?detail=asset:{id} —el diálogo de detalle del activo."
             },
             {
               "label": "Gasto",
-              "value": "Campos buscados: description, category. Icono: receipt_long. Los resultados enlazan a /expenses."
+              "value": "Campos buscados: description, category. Icono: receipt_long. Al hacer clic navega a /expenses (la página de lista). Gasto es el único tipo buscable sin diálogo de detalle, por lo que no se agrega el parámetro ?detail."
             }
           ]
         },
@@ -137,7 +141,7 @@
             },
             {
               "label": "URL",
-              "value": "Destino de navegación al hacer clic. Cada tipo de entidad enruta a su página principal (/kanban, /customers, /parts, /leads, /assets, /expenses)."
+              "value": "La ruta principal de la entidad devuelta por el servidor (/kanban, /customers, /parts, /leads, /assets, /expenses). Al hacer clic, la barra de búsqueda agrega ?detail={type}:{id} a esta ruta para que el diálogo de detalle de la entidad se abra sobre su lista —excepto Gasto, que navega a la ruta /expenses sin más (no existe un diálogo de detalle)."
             }
           ]
         },
@@ -154,7 +158,7 @@
             },
             {
               "label": "Hacer clic en un resultado",
-              "value": "Navega a la página de la entidad seleccionada y cierra la superposición. El campo de búsqueda se borra automáticamente."
+              "value": "Navega a la entidad seleccionada y abre su diálogo de detalle mediante ?detail=type:id (los gastos van a la página de lista /expenses en su lugar), luego cierra la superposición. El campo de búsqueda se borra automáticamente."
             }
           ]
         },
@@ -403,12 +407,12 @@
           "options": [
             {
               "id": "a",
-              "text": "Se abre un diálogo de detalle sobre la página actual"
+              "text": "La aplicación navega a /parts?detail=part:{id}, abriendo el diálogo de detalle de la Pieza sobre la lista de Piezas; el campo se borra y la superposición se cierra",
+              "isCorrect": true
             },
             {
               "id": "b",
-              "text": "La aplicación navega a /parts, el campo de búsqueda se borra y la superposición se cierra",
-              "isCorrect": true
+              "text": "La aplicación navega a la página de lista /parts sin nada seleccionado"
             },
             {
               "id": "c",
@@ -419,7 +423,7 @@
               "text": "Se abre una nueva pestaña del navegador con los detalles de la pieza"
             }
           ],
-          "explanation": "Hacer clic en un resultado de búsqueda le lleva a la página principal de esa entidad (en este caso /parts). El campo de búsqueda se borra automáticamente y la superposición de resultados se cierra, dejándole en la página de destino listo para trabajar con el registro seleccionado."
+          "explanation": "Hacer clic en un resultado no le deja simplemente en una página de lista —agrega ?detail=type:id a la ruta de la entidad (aquí /parts?detail=part:{id}), lo que abre el diálogo de detalle de ese registro justo sobre su lista. Como el detalle está en la URL, se puede compartir y sobrevive a una recarga. Trabajo/Cliente/Prospecto/Activo se comportan igual; un resultado de Gasto es la única excepción (sin diálogo de detalle —cae en la lista /expenses)."
         }
       ]
     }

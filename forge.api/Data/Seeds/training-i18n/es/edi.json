@@ -4,7 +4,7 @@
     "title": "Introducción al EDI",
     "summary": "Qué es el EDI, los formatos X12 y EDIFACT, y cómo los socios comerciales, las transacciones y los mapeos funcionan juntos en QB Engineer.",
     "contentJson": {
-      "body": "## Introducción al EDI\n\nEl Intercambio Electrónico de Datos (EDI) permite que su taller intercambie documentos comerciales estructurados — órdenes de compra, facturas, avisos de envío y más — con socios comerciales de forma electrónica, en lugar de mediante papel, correo electrónico o entrada manual de datos.\n\nEl módulo EDI de QB Engineer se encuentra en Administración > EDI y ofrece un lugar central para gestionar socios comerciales, supervisar transacciones entrantes y salientes, configurar mapeos de campos y gestionar errores con soporte de reintento.\n\n### ¿Qué es el EDI?\n\nEl EDI reemplaza el intercambio manual de documentos por formatos electrónicos estandarizados. Cuando un cliente le envía una orden de compra por EDI, llega como un archivo de datos estructurado que QB Engineer puede analizar, validar y aplicar automáticamente — creando una Orden de Venta, una Orden de Compra u otra entidad sin que nadie vuelva a teclear la información.\n\nLo contrario también funciona: cuando usted envía un pedido, QB Engineer puede generar un documento EDI saliente (como un ASN o una factura) y enviarlo al socio comercial automáticamente.\n\n### Formatos EDI\n\nQB Engineer admite dos estándares EDI principales:\n\n- **X12** — El estándar dominante en Norteamérica. Los conjuntos de transacciones se identifican con números de tres dígitos: 850 (Orden de Compra), 810 (Factura), 856 (Aviso Anticipado de Envío), 855 (Acuse de Orden de Compra) y muchos más.\n- **EDIFACT** — El estándar internacional ampliamente utilizado fuera de los EE. UU. Usa códigos de tipo de mensaje alfabéticos como ORDERS, INVOIC, DESADV.\n\nCada socio comercial se configura con un formato predeterminado, pero cada transacción individual puede usar cualquiera de los dos formatos.\n\n### Socios comerciales\n\nUn socio comercial es cualquier empresa con la que intercambia documentos EDI — normalmente clientes o proveedores. Cada registro de socio almacena:\n\n- **Identificadores EDI** — Un ID de calificador (Qualifier ID) y un valor de calificador (Qualifier Value) que identifican de forma única al socio en los sobres EDI. Los ID de intercambio de emisor/receptor y los ID de aplicación de emisor/receptor enrutan los documentos correctamente.\n- **Formato y transporte** — Si el socio usa X12 o EDIFACT, y cómo se entregan los documentos (AS2, SFTP, VAN, correo electrónico, API o manual).\n- **Reglas de procesamiento** — Si los documentos entrantes se procesan automáticamente o se retienen para revisión manual, y si el socio requiere acuses de recibo funcionales (997/CONTRL).\n- **Vínculos** — Un socio puede vincularse a un registro de Cliente o Proveedor existente en QB Engineer para la coincidencia automática de entidades.\n\n### Transacciones\n\nCada intercambio de documentos EDI crea un registro de transacción. Las transacciones registran:\n\n- **Dirección** — Entrante (recibido del socio) o Saliente (enviado al socio).\n- **Conjunto de transacciones** — El tipo de documento (p. ej., 850 para una Orden de Compra, 810 para una Factura).\n- **Números de control** — Los números de control de intercambio, de grupo y de transacción que identifican de forma única el documento en el sobre EDI.\n- **Ciclo de vida del estado** — Cada transacción avanza por una secuencia de procesamiento: Recibido → Analizando → Analizado → Validando → Validado → Procesando → Aplicado (éxito) o Error/Rechazado (fallo).\n- **Entidad relacionada** — Una vez procesada, la transacción se vincula a la entidad de QB Engineer que creó o actualizó (p. ej., una Orden de Venta, una Orden de Compra o una Factura).\n- **Gestión de errores** — Las transacciones fallidas muestran el mensaje de error y pueden reintentarse. Se registran el número de reintentos y la marca de tiempo del último reintento.\n- **Acuses de recibo** — Cuando un socio requiere acuses de recibo, el sistema registra si se envió el 997/CONTRL y vincula la transacción de acuse.\n\n### Mapeos\n\nLos mapeos definen cómo los campos de un documento EDI se traducen a los campos de las entidades de QB Engineer. Cada mapeo pertenece a un socio comercial y a un conjunto de transacciones específico.\n\n- **Mapeos de campos** — Asignan rutas de segmento/elemento EDI a campos de entidad de QB Engineer (p. ej., PO1-07 → Número de Pieza, N1-04 → ID de Cliente).\n- **Traducciones de valores** — Convierten códigos específicos del socio a valores de QB Engineer (p. ej., el código de artículo '12345' del socio se asigna a su Número de Pieza 'WIDGET-001').\n- **Mapeo predeterminado** — Un mapeo por conjunto de transacciones puede marcarse como predeterminado. Cuando llega un documento, el sistema usa el mapeo predeterminado salvo que se anule.\n\n### Métodos de transporte\n\nQB Engineer admite múltiples formas de enviar y recibir documentos EDI:\n\n- **AS2** — El protocolo B2B más común. Cifrado, firmado y con soporte de acuse de recibo (MDN) incorporado.\n- **SFTP** — Transferencia segura de archivos. Los documentos se colocan en directorios específicos de cada socio.\n- **VAN** — Red de Valor Agregado (Value Added Network). Un servicio de terceros que enruta documentos entre socios (p. ej., SPS Commerce, TrueCommerce).\n- **Correo electrónico** — Documentos EDI enviados como archivos adjuntos de correo. Sencillo pero menos automatizado.\n- **API** — Integración directa por API REST/SOAP con el sistema del socio.\n- **Manual** — Los documentos se cargan/descargan manualmente a través de la interfaz de QB Engineer. Ideal para socios de bajo volumen o para pruebas.\n\n### Sondeo de entrada y procesamiento automático\n\nCuando se habilita Procesamiento automático (Auto Process) en un socio comercial, QB Engineer procesa automáticamente los documentos entrantes a través de toda la secuencia — analizando el contenido EDI, validándolo según las reglas de mapeo y aplicando los datos para crear o actualizar entidades. Cuando Procesamiento automático está desactivado, los documentos entrantes se detienen en el estado Recibido para revisión manual antes del procesamiento.\n\n### Cuándo usar el EDI\n\n- Cuando un cliente o proveedor requiere el intercambio electrónico de documentos\n- Cuando desea eliminar la entrada manual de datos para pedidos recurrentes\n- Cuando necesita un rastro auditable de cada documento intercambiado con un socio\n- Cuando su socio comercial usa una VAN o AS2 y espera acuses de recibo automatizados",
+      "body": "## Introducción al EDI\n\nEl Intercambio Electrónico de Datos (EDI) permite que su taller intercambie documentos comerciales estructurados — órdenes de compra, facturas, avisos de envío y más — con socios comerciales de forma electrónica, en lugar de mediante papel, correo electrónico o entrada manual de datos.\n\nEl módulo EDI de QB Engineer se encuentra en Administración > EDI y ofrece un lugar central para gestionar socios comerciales, supervisar transacciones entrantes y salientes, configurar mapeos de campos y gestionar errores con soporte de reintento.\n\n### ¿Qué es el EDI?\n\nEl EDI reemplaza el intercambio manual de documentos por formatos electrónicos estandarizados. Cuando un cliente le envía una orden de compra por EDI, llega como un archivo de datos estructurado que QB Engineer puede analizar, validar y aplicar automáticamente — creando una Orden de Venta, una Orden de Compra u otra entidad sin que nadie vuelva a teclear la información.\n\nLo contrario también funciona: cuando usted envía un pedido, QB Engineer puede generar un documento EDI saliente (como un ASN o una factura) y enviarlo al socio comercial automáticamente.\n\n### Formatos EDI\n\nQB Engineer admite dos estándares EDI principales:\n\n- **X12** — El estándar dominante en Norteamérica. Los conjuntos de transacciones se identifican con números de tres dígitos: 850 (Orden de Compra), 810 (Factura), 856 (Aviso Anticipado de Envío), 855 (Acuse de Orden de Compra) y muchos más.\n- **EDIFACT** — El estándar internacional ampliamente utilizado fuera de los EE. UU. Usa códigos de tipo de mensaje alfabéticos como ORDERS, INVOIC, DESADV.\n\nCada socio comercial se configura con un formato predeterminado, pero cada transacción individual puede usar cualquiera de los dos formatos.\n\n### Socios comerciales\n\nUn socio comercial es cualquier empresa con la que intercambia documentos EDI — normalmente clientes o proveedores. Cada registro de socio almacena:\n\n- **Identificadores EDI** — Un ID de calificador (Qualifier ID) y un valor de calificador (Qualifier Value) que identifican de forma única al socio en los sobres EDI. Los ID de intercambio de emisor/receptor y los ID de aplicación de emisor/receptor enrutan los documentos correctamente.\n- **Formato y transporte** — Si el socio usa X12 o EDIFACT, y cómo se entregan los documentos (AS2, SFTP, VAN, correo electrónico, API o manual).\n- **Reglas de procesamiento** — Si los documentos entrantes se procesan automáticamente o se retienen para revisión manual, y si el socio requiere acuses de recibo funcionales (997/CONTRL).\n- **Vínculos** — Un socio puede vincularse a un registro de Cliente o Proveedor existente en QB Engineer para la coincidencia automática de entidades.\n\n### Transacciones\n\nCada intercambio de documentos EDI crea un registro de transacción. Las transacciones registran:\n\n- **Dirección** — Entrante (recibido del socio) o Saliente (enviado al socio).\n- **Conjunto de transacciones** — El tipo de documento (p. ej., 850 para una Orden de Compra, 810 para una Factura).\n- **Números de control** — Los números de control de intercambio, de grupo y de transacción que identifican de forma única el documento en el sobre EDI.\n- **Ciclo de vida del estado** — Cada transacción avanza por una secuencia de procesamiento: Recibido → Analizando → Analizado → Validando → Validado → Procesando → Aplicado (éxito) o Error/Rechazado (fallo).\n- **Entidad relacionada** — Una vez procesada, la transacción se vincula a la entidad de QB Engineer que creó o actualizó (p. ej., una Orden de Venta, una Orden de Compra o una Factura).\n- **Gestión de errores** — Las transacciones fallidas muestran el mensaje de error y pueden reintentarse. Se registran el número de reintentos y la marca de tiempo del último reintento.\n- **Acuses de recibo** — Cuando un socio requiere acuses de recibo, el sistema registra si se envió el 997/CONTRL y vincula la transacción de acuse.\n\n### Traducción de números de pieza (el Mapa de números de pieza)\n\nLos socios comerciales casi nunca hacen pedidos usando *sus* números de pieza — usan los suyos propios. La traducción EDI cubre esa diferencia. Cada socio comercial tiene un **Mapa de números de pieza**: una tabla sencilla de dos columnas que dice \"cuando este socio dice la pieza X, se refiere a nuestra pieza Y.\"\n\nEl mapa se abre desde la **acción ⇄ (intercambio)** de la fila del socio en la pestaña Socios comerciales. El mapa es una cuadrícula con tipos — una fila por cada par de (N.º de pieza del socio, Nuestro n.º de pieza) — no un editor de código ni JSON. A medida que escribe su número de pieza, el mapa lo resuelve contra el catálogo de piezas en vivo y muestra la descripción de la pieza coincidente; un número de pieza que no coincide con nada en el catálogo se marca para que pueda ver la brecha de calidad de datos antes de que llegue un pedido.\n\nPuede construir el mapa de dos maneras:\n\n- **Agregar filas a mano** — para unas pocas piezas, haga clic en Agregar fila y escriba cada par.\n- **Importar un CSV** — para una referencia cruzada larga, importe un CSV de dos columnas (N.º de pieza del socio, Nuestro n.º de pieza). La importación actualiza por número de socio, así que reimportar un archivo actualizado refresca las filas existentes en lugar de duplicarlas.\n\nEl mapa es por socio porque cada cliente numera las piezas de forma diferente.\n\n### Cómo se traduce un 850 entrante (modelo mental)\n\nCuando un cliente envía una Orden de Compra EDI (conjunto de transacciones **850**), cada línea del pedido lleva el número de pieza *del socio*. QB Engineer traduce cada línea antes de que se convierta en una Orden de Venta:\n\n1. El número de pieza del socio de la línea se busca en el **Mapa de números de pieza de ese socio**.\n2. Si el mapa tiene una coincidencia, la línea se asocia a su pieza del catálogo y la línea de la Orden de Venta se crea contra su pieza.\n3. Si la línea no está mapeada — o se asigna a un número de pieza que aún no existe en su catálogo — la línea **igual se crea**, pero conserva el número del socio en las notas de la línea del pedido para que alguien pueda completar la coincidencia a mano.\n\nEsto es intencionalmente un *intercambio de números* — el caso del 90 %. La traducción de unidad de medida y de cantidad por paquete son extensiones documentadas, no construidas hoy. La conclusión: mantenga actualizado el Mapa de números de pieza de cada socio y eliminará el paso de coincidencia manual en cada pedido entrante.\n\n### Métodos de transporte\n\nQB Engineer admite múltiples formas de enviar y recibir documentos EDI:\n\n- **AS2** — El protocolo B2B más común. Cifrado, firmado y con soporte de acuse de recibo (MDN) incorporado.\n- **SFTP** — Transferencia segura de archivos. Los documentos se colocan en directorios específicos de cada socio.\n- **VAN** — Red de Valor Agregado (Value Added Network). Un servicio de terceros que enruta documentos entre socios (p. ej., SPS Commerce, TrueCommerce).\n- **Correo electrónico** — Documentos EDI enviados como archivos adjuntos de correo. Sencillo pero menos automatizado.\n- **API** — Integración directa por API REST/SOAP con el sistema del socio.\n- **Manual** — Los documentos se cargan/descargan manualmente a través de la interfaz de QB Engineer. Ideal para socios de bajo volumen o para pruebas.\n\n### Sondeo de entrada y procesamiento automático\n\nCuando se habilita Procesamiento automático (Auto Process) en un socio comercial, QB Engineer procesa automáticamente los documentos entrantes a través de toda la secuencia — analizando el contenido EDI, validándolo según las reglas de mapeo y aplicando los datos para crear o actualizar entidades. Cuando Procesamiento automático está desactivado, los documentos entrantes se detienen en el estado Recibido para revisión manual antes del procesamiento.\n\n### Cuándo usar el EDI\n\n- Cuando un cliente o proveedor requiere el intercambio electrónico de documentos\n- Cuando desea eliminar la entrada manual de datos para pedidos recurrentes\n- Cuando necesita un rastro auditable de cada documento intercambiado con un socio\n- Cuando su socio comercial usa una VAN o AS2 y espera acuses de recibo automatizados",
       "sections": []
     }
   },
@@ -28,7 +28,7 @@
           "element": ".edi-panel__toolbar .action-btn--create",
           "popover": {
             "title": "Nuevo socio comercial",
-            "description": "Haga clic aquí para agregar un nuevo socio comercial. Ingresará el nombre del socio, los ID de calificador EDI, el formato predeterminado (X12 o EDIFACT), el método de transporte y las reglas de procesamiento. El socio puede vincularse opcionalmente a un registro de Cliente o Proveedor existente.",
+            "description": "Haga clic aquí para agregar un nuevo socio comercial. Ingresará el nombre del socio, los ID de calificador EDI, el formato predeterminado (X12 o EDIFACT), el método de transporte y las reglas de procesamiento. El socio puede vincularse opcionalmente a un registro de Cliente o Proveedor existente. Si elige el transporte SFTP, el diálogo se expande para recoger el host SFTP, el puerto, el usuario, la contraseña y los directorios de entrada/salida.",
             "side": "bottom"
           }
         },
@@ -36,8 +36,24 @@
           "element": "app-data-table[tableId='edi-partners']",
           "popover": {
             "title": "Tabla de socios comerciales",
-            "description": "Enumera todos los socios comerciales configurados. Las columnas muestran el nombre del socio, el cliente/proveedor vinculado, el formato predeterminado, el método de transporte, el recuento de transacciones, el recuento de errores y el estado de actividad. Haga clic en los encabezados de columna para ordenar. Cada fila tiene botones de acción para probar la conexión, editar y eliminar.",
+            "description": "Enumera todos los socios comerciales configurados. Las columnas muestran el nombre del socio, el cliente/proveedor vinculado, el formato predeterminado, el método de transporte, el recuento de transacciones, el recuento de errores y el estado de actividad. Haga clic en los encabezados de columna para ordenar.",
             "side": "top"
+          }
+        },
+        {
+          "element": ".edi-panel__actions",
+          "popover": {
+            "title": "Acciones por fila del socio",
+            "description": "Cada fila de socio tiene cuatro botones de ícono: Probar conexión (wifi), Mapa de números de pieza (⇄ intercambio) para abrir la tabla de traducción de números de pieza de este socio, Editar (lápiz) para reabrir el diálogo del socio con los valores actuales y Eliminar (papelera). Al Editar, el campo de contraseña SFTP queda en blanco — déjelo en blanco para conservar la contraseña almacenada, o escriba una nueva para reemplazarla.",
+            "side": "left"
+          }
+        },
+        {
+          "element": ".gap-note",
+          "popover": {
+            "title": "Traducción de números de pieza",
+            "description": "Esta nota apunta al Mapa de números de pieza (la acción ⇄ en cada socio). Ese mapa traduce los números de pieza de un socio a los suyos para que las líneas de orden de compra 850 entrantes coincidan con su catálogo automáticamente. Ábralo para agregar filas a mano o importar un CSV.",
+            "side": "bottom"
           }
         },
         {
@@ -132,7 +148,7 @@
             },
             {
               "label": "Acciones",
-              "value": "Tres botones de ícono: Probar conexión (wifi_tethering), Editar (edit), Eliminar (delete, estilo de peligro)."
+              "value": "Cuatro botones de ícono: Probar conexión (wifi_tethering), Mapa de números de pieza (swap_horiz / ⇄ — abre la tabla de traducción de números de pieza de este socio), Editar (edit), Eliminar (delete, estilo de peligro)."
             }
           ]
         },
@@ -298,31 +314,72 @@
           ]
         },
         {
-          "heading": "Campos de mapeo",
+          "heading": "Campos de transporte SFTP (se muestran solo cuando Transporte = SFTP)",
           "items": [
             {
-              "label": "Conjunto de transacciones",
-              "value": "El tipo de documento EDI al que se aplica este mapeo (p. ej., 850, 810). Cada mapeo se limita a un conjunto de transacciones por socio comercial."
+              "label": "Host",
+              "value": "El nombre de host o la IP del servidor SFTP donde este socio intercambia archivos."
             },
             {
-              "label": "Nombre",
-              "value": "Nombre para mostrar del perfil de mapeo (p. ej., 'Mapeo de OC de Acme', 'Factura 810 estándar')."
+              "label": "Puerto",
+              "value": "Puerto SFTP. Predeterminado: 22."
             },
             {
-              "label": "Mapeos de campos (JSON)",
-              "value": "Arreglo de mapeos campo a campo. Cada entrada asigna una ruta de segmento/elemento EDI (p. ej., PO1-07) a un campo de entidad de QB Engineer (p. ej., partNumber). Se almacena como JSON."
+              "label": "Usuario",
+              "value": "El nombre de usuario de inicio de sesión de la cuenta SFTP."
             },
             {
-              "label": "Traducciones de valores (JSON)",
-              "value": "Arreglo de reglas de traducción de valores. Convierte códigos específicos del socio a valores de QB Engineer (p. ej., el código de artículo del socio → su número de pieza). Se almacena como JSON."
+              "label": "Contraseña",
+              "value": "Escriba la contraseña SFTP. Se cifra en reposo y nunca se vuelve a mostrar. Al Editar, este campo está en blanco — déjelo en blanco para conservar la contraseña almacenada, o escriba un nuevo valor para reemplazarla."
             },
             {
-              "label": "Es predeterminado",
-              "value": "Interruptor. Cuando está ACTIVADO, este mapeo se usa automáticamente para el conjunto de transacciones especificado de este socio. Solo un mapeo por conjunto de transacciones puede ser predeterminado."
+              "label": "Directorio de salida (nosotros enviamos)",
+              "value": "El directorio del servidor en el que QB Engineer escribe los documentos salientes. Predeterminado: /inbound."
             },
             {
-              "label": "Notas",
-              "value": "Notas opcionales sobre el mapeo — explicaciones de campos, requisitos del socio, historial de versiones."
+              "label": "Directorio de entrada (nosotros sondeamos)",
+              "value": "El directorio del servidor que QB Engineer sondea en busca de documentos entrantes. Predeterminado: /outbound."
+            },
+            {
+              "label": "Aviso de conservar-contraseña-al-editar",
+              "value": "Una nota de escudo en la sección SFTP: cuando ya hay una contraseña almacenada dice 'Hay una contraseña almacenada. Déjelo en blanco para conservarla; escriba una nueva para reemplazarla'; de lo contrario dice 'La contraseña se cifra en reposo y nunca se vuelve a mostrar.'"
+            }
+          ]
+        },
+        {
+          "heading": "Mapa de números de pieza (la acción ⇄ en cada socio)",
+          "items": [
+            {
+              "label": "Qué es",
+              "value": "Una tabla de dos columnas por socio que traduce los números de pieza del socio a los suyos. Se abre desde la acción swap_horiz (⇄) de la fila del socio. Es una cuadrícula con tipos — no un editor de JSON ni de código."
+            },
+            {
+              "label": "N.º de pieza del socio",
+              "value": "El número de pieza que el socio comercial usa en sus documentos."
+            },
+            {
+              "label": "Nuestro n.º de pieza",
+              "value": "El número de pieza de su catálogo al que se asigna el número del socio."
+            },
+            {
+              "label": "Se resuelve en",
+              "value": "Solo lectura. Cuando Nuestro n.º de pieza coincide con una pieza real del catálogo, su descripción se muestra aquí. Si no coincide con nada, se muestra una etiqueta de advertencia 'Sin pieza coincidente' — la fila igual se guarda, pero una línea 850 que la use llegará sin resolver hasta que esa pieza exista."
+            },
+            {
+              "label": "Agregar fila",
+              "value": "Agrega una fila en blanco para escribir un nuevo par (N.º de pieza del socio, Nuestro n.º de pieza)."
+            },
+            {
+              "label": "Importar CSV",
+              "value": "Importa de forma masiva un CSV de dos columnas. Actualiza por número de socio — reimportar un archivo actualizado refresca las filas existentes. Consulte la referencia de Importación de CSV."
+            },
+            {
+              "label": "Guardar",
+              "value": "Persiste todo el mapa (reemplaza todas las filas). Al guardar, la cuadrícula se recarga con una resolución de catálogo actualizada."
+            },
+            {
+              "label": "Eliminar fila",
+              "value": "El ícono de papelera de cada fila elimina ese par del mapa (surte efecto al Guardar)."
             }
           ]
         },
@@ -338,8 +395,12 @@
               "value": "Botón de ícono wifi_tethering en las acciones de la fila del socio. Envía una prueba de conectividad al extremo de transporte configurado del socio. Muestra una notificación de éxito o fallo."
             },
             {
+              "label": "Mapa de números de pieza",
+              "value": "Botón de ícono swap_horiz (⇄) en las acciones de la fila del socio. Abre la tabla de traducción de números de pieza de este socio (cuadrícula con tipos + importación de CSV)."
+            },
+            {
               "label": "Editar socio",
-              "value": "Botón de ícono edit en las acciones de la fila del socio. Abre el diálogo del socio rellenado con los valores actuales."
+              "value": "Botón de ícono edit en las acciones de la fila del socio. Abre el diálogo del socio rellenado con los valores actuales. El campo de contraseña SFTP se abre en blanco — déjelo en blanco para conservar la contraseña almacenada, o escriba una nueva para reemplazarla."
             },
             {
               "label": "Eliminar socio",
@@ -548,27 +609,27 @@
         },
         {
           "id": "edi6",
-          "text": "¿Cuál es el propósito de un mapeo EDI en QB Engineer?",
+          "text": "Un cliente envía órdenes de compra EDI usando sus propios números de pieza, no los suyos. ¿Cómo hace que las líneas 850 entrantes coincidan con su catálogo automáticamente?",
           "options": [
             {
               "id": "a",
-              "text": "Asigna la ruta de red entre su servidor y el servidor del socio para la entrega de documentos"
+              "text": "Editar un archivo de mapeo JSON en el registro del socio que asigne cada segmento EDI a un campo"
             },
             {
               "id": "b",
-              "text": "Define cómo los campos de un documento EDI se traducen a los campos de las entidades de QB Engineer, y cómo los códigos específicos del socio se convierten a sus valores internos",
+              "text": "Abrir el Mapa de números de pieza de ese socio (la acción ⇄) y agregar filas — o importar un CSV — emparejando cada número de pieza del socio con su número de pieza",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Crea un diagrama visual del flujo de datos EDI con fines de documentación"
+              "text": "Renombrar las piezas de su catálogo para que coincidan con el esquema de numeración del cliente"
             },
             {
               "id": "d",
-              "text": "Asigna roles de usuario a permisos EDI para que solo los usuarios autorizados puedan enviar documentos"
+              "text": "Nada — EDI siempre coincide por la descripción de la pieza, así que la numeración no importa"
             }
           ],
-          "explanation": "Los mapeos EDI definen dos cosas: mapeos de campos (qué segmento/elemento EDI se asigna a qué campo de QB Engineer, como PO1-07 → Número de Pieza) y traducciones de valores (convertir códigos específicos del socio a sus valores internos, como su código de artículo '12345' a su número de pieza 'WIDGET-001')."
+          "explanation": "Cada socio comercial tiene un Mapa de números de pieza, que se abre desde la acción ⇄ (swap_horiz) de la fila del socio. Es una tabla con tipos de dos columnas (N.º de pieza del socio → Nuestro n.º de pieza), construida a mano o mediante importación de CSV — no un editor JSON. Las líneas 850 entrantes se traducen a través de este mapa antes de coincidir con su catálogo; una línea no mapeada igual se crea pero conserva el número del socio en las notas de la línea del pedido para su finalización manual."
         },
         {
           "id": "edi7",
@@ -713,6 +774,147 @@
             }
           ],
           "explanation": "El transporte Manual le permite cargar y descargar documentos EDI directamente a través de la interfaz de QB Engineer. Es la mejor opción para la configuración inicial, las pruebas y los socios de bajo volumen porque no requiere infraestructura externa. Puede cambiar a AS2, SFTP o una VAN más tarde, una vez validada la integración."
+        }
+      ]
+    }
+  },
+  {
+    "slug": "edi-part-number-translation",
+    "title": "Traducción de números de pieza EDI",
+    "summary": "Cómo el Mapa de números de pieza por socio traduce los números de pieza de un socio comercial a los suyos para que las líneas 850 entrantes coincidan con su catálogo — construyendo el mapa a mano o importando un CSV.",
+    "contentJson": {
+      "body": "## Traducción de números de pieza EDI\n\nLos socios comerciales hacen pedidos usando *sus* números de pieza, no los suyos. El **Mapa de números de pieza** es la forma en que QB Engineer cubre esa diferencia: una tabla por socio que empareja cada número de pieza del socio con el número de pieza coincidente en su catálogo. Manténgalo actualizado y las órdenes de compra entrantes coincidirán con sus piezas automáticamente — nadie vuelve a teclear nada.\n\nEsta es una cuadrícula con tipos de dos columnas, no un editor de código ni JSON. Gestiona un mapa por socio comercial porque cada cliente numera las piezas de forma diferente.\n\n### Dónde encontrarlo\n\n1. Vaya a **Administración > EDI** y permanezca en la pestaña **Socios comerciales**.\n2. Encuentre el socio en la tabla.\n3. En los botones de acción de esa fila, haga clic en la acción **Mapa de números de pieza** — el ícono **⇄ (swap_horiz)**, entre Probar conexión y Editar.\n4. Se abre el diálogo del Mapa de números de pieza, titulado con el nombre del socio.\n\n### Leer la cuadrícula\n\nCada fila tiene tres columnas significativas más una acción de eliminar:\n\n- **N.º de pieza del socio** — el número que el socio usa en sus documentos.\n- **Nuestro n.º de pieza** — el número de pieza de su catálogo al que se asigna.\n- **Se resuelve en** — una vista previa en vivo. Tan pronto como su número de pieza coincide con una pieza real del catálogo, su descripción aparece aquí. Si no coincide con nada, se muestra una etiqueta amarilla de **Sin pieza coincidente**.\n\nEsa vista previa de resolución es su control de calidad de datos. Una fila con una etiqueta 'Sin pieza coincidente' igual se guarda — pero una línea de pedido entrante que la use llegará sin resolver hasta que esa pieza exista realmente en su catálogo. Use la vista previa para detectar errores de tipeo y piezas faltantes antes de que fluyan pedidos reales.\n\n### Construir el mapa a mano\n\nPara unas pocas piezas:\n\n1. Haga clic en **Agregar fila**. Aparece una fila en blanco.\n2. Escriba el número de pieza del socio en **N.º de pieza del socio**.\n3. Escriba su número de pieza en **Nuestro n.º de pieza**. Observe cómo la columna **Se resuelve en** confirma la coincidencia.\n4. Repita por cada par. Elimine una fila incorrecta con su ícono de papelera.\n5. Haga clic en **Guardar**. Todo el mapa se guarda y la cuadrícula se recarga con una resolución de catálogo actualizada.\n\n### Importar un CSV\n\nPara una referencia cruzada larga, no la escriba a mano — impórtela. Haga clic en **Importar CSV**, elija un archivo de dos columnas (N.º de pieza del socio, Nuestro n.º de pieza), y las filas se fusionan en el mapa. La importación **actualiza por número de socio**: un número de socio que ya está en el mapa se actualiza; uno nuevo se agrega. Así que puede reimportar un archivo corregido sin crear duplicados. Tras la importación, la notificación informa cuántas filas fueron nuevas, cuántas se actualizaron y cuántas aún no tienen pieza coincidente. (La referencia complementaria 'Importación de CSV del Mapa de números de pieza' cubre el formato exacto del archivo.)\n\n### Cómo se ejecuta realmente la traducción (850 entrante)\n\nCuando un cliente envía una Orden de Compra EDI (conjunto de transacciones **850**), QB Engineer traduce cada línea del pedido *antes* de que se convierta en una línea de Orden de Venta:\n\n1. El número de pieza del socio de la línea se busca en el Mapa de números de pieza de **este socio**.\n2. **Mapeado y resuelto** → la línea de la Orden de Venta se crea contra su pieza del catálogo. Hecho automáticamente.\n3. **No mapeado, o mapeado a un número que aún no está en su catálogo** → la línea **igual se crea**, pero el número del socio se conserva en las notas de la línea del pedido para que alguien termine la coincidencia a mano.\n\nNada se descarta en silencio. Un mapa incompleto solo significa más coincidencias manuales, no pedidos perdidos — que es exactamente por qué mantener el mapa actualizado rinde frutos en cada documento entrante.\n\n### Alcance\n\nEl Mapa de números de pieza es intencionalmente un *intercambio de números* — el caso del 90 %. La traducción de unidad de medida y de cantidad por paquete son extensiones documentadas, no construidas hoy. Si un socio las necesita, eso es una conversación de configuración, no algo que configure en esta cuadrícula.\n\n### Consejos\n\n- Construya el mapa **antes** de que el socio empiece a enviar pedidos en vivo — así el primer 850 llega limpio.\n- La coincidencia no distingue mayúsculas de minúsculas, por lo que 'widget-001' y 'WIDGET-001' se resuelven igual.\n- Revise el mapa cada vez que agregue piezas al catálogo que un socio ya referencia — esas filas antes sin resolver empezarán a resolverse.",
+      "sections": []
+    }
+  },
+  {
+    "slug": "edi-part-number-map-csv-import",
+    "title": "Importación de CSV del Mapa de números de pieza",
+    "summary": "El formato CSV exacto, los nombres de encabezado aceptados y los recuentos de resultados para importar de forma masiva el mapa de traducción de números de pieza de un socio comercial.",
+    "contentJson": {
+      "title": "Importación de CSV del Mapa de números de pieza",
+      "groups": [
+        {
+          "heading": "Dónde importar",
+          "items": [
+            {
+              "label": "Abrir el mapa",
+              "value": "Administración > EDI > pestaña Socios comerciales > la acción Mapa de números de pieza ⇄ (swap_horiz) de la fila del socio."
+            },
+            {
+              "label": "Botón Importar CSV",
+              "value": "En la barra de herramientas del diálogo, junto a Agregar fila. Abre un selector de archivos (.csv o .txt)."
+            },
+            {
+              "label": "Por socio",
+              "value": "La importación se dirige al único socio cuyo mapa está abierto. Cada socio tiene su propio mapa."
+            }
+          ]
+        },
+        {
+          "heading": "Formato de archivo",
+          "items": [
+            {
+              "label": "Dos columnas",
+              "value": "Columna 1 = el número de pieza del socio. Columna 2 = su (nuestro) número de pieza."
+            },
+            {
+              "label": "Fila de encabezado obligatoria",
+              "value": "La primera fila debe ser un encabezado. Un archivo con solo filas de datos (sin encabezado) no importa nada."
+            },
+            {
+              "label": "Codificación",
+              "value": "CSV simple. Se admiten campos entre comillas y comillas dobles escapadas (\"\") dentro de comillas."
+            },
+            {
+              "label": "Líneas en blanco",
+              "value": "Las filas completamente en blanco se ignoran."
+            }
+          ]
+        },
+        {
+          "heading": "Encabezados de columna aceptados",
+          "items": [
+            {
+              "label": "Columna del socio",
+              "value": "Un encabezado que contenga cualquiera de: 'partner', 'their' o 'customer' (sin distinción de mayúsculas). P. ej. 'Partner Part #', 'Their Number', 'Customer Item'."
+            },
+            {
+              "label": "Columna nuestra",
+              "value": "Un encabezado que contenga cualquiera de: 'our', 'forge' o 'internal'. P. ej. 'Our Part #', 'Internal Number'."
+            },
+            {
+              "label": "Respaldo posicional",
+              "value": "Si los encabezados no se reconocen, la importación recurre a la posición: columna 1 = socio, columna 2 = nuestra. (Aún se requiere una fila de encabezado.)"
+            }
+          ]
+        },
+        {
+          "heading": "Cómo se fusionan las filas (upsert)",
+          "items": [
+            {
+              "label": "Actualizar por número de socio",
+              "value": "Un número de socio que ya está en el mapa se ACTUALIZA con el nuevo número 'nuestro'; un número de socio aún no presente se AGREGA. Reimportar un archivo corregido no crea duplicados."
+            },
+            {
+              "label": "Recorte de espacios",
+              "value": "Se recortan los espacios iniciales/finales de ambos números."
+            },
+            {
+              "label": "Claves sin distinción de mayúsculas",
+              "value": "Los números de socio coinciden sin distinguir mayúsculas de minúsculas, por lo que 'ABC' y 'abc' se tratan como la misma clave (gana el último)."
+            },
+            {
+              "label": "Celdas vacías omitidas",
+              "value": "Una fila que carezca de cualquiera de los números se omite (se cuenta en Omitidas)."
+            }
+          ]
+        },
+        {
+          "heading": "Recuentos de resultados (mostrados tras la importación)",
+          "items": [
+            {
+              "label": "Importadas",
+              "value": "Filas agregadas como nuevas entradas de número de socio."
+            },
+            {
+              "label": "Actualizadas",
+              "value": "Entradas de número de socio existentes cuyo número 'nuestro' se cambió."
+            },
+            {
+              "label": "Omitidas",
+              "value": "Filas omitidas porque una celda de número estaba en blanco."
+            },
+            {
+              "label": "Sin resolver",
+              "value": "Tras la fusión, cuántas filas del mapa apuntan a un número de pieza que no coincide con ninguna pieza del catálogo — una señal de calidad de datos para corregir antes de que fluyan pedidos."
+            },
+            {
+              "label": "Total de filas",
+              "value": "Total de filas en el mapa una vez completada la importación."
+            }
+          ]
+        },
+        {
+          "heading": "Archivo de ejemplo",
+          "items": [
+            {
+              "label": "Encabezado",
+              "value": "PartnerPartNumber,OurPartNumber"
+            },
+            {
+              "label": "Fila 1",
+              "value": "AC-1000,WIDGET-001"
+            },
+            {
+              "label": "Fila 2",
+              "value": "AC-1001,WIDGET-002"
+            },
+            {
+              "label": "Resultado",
+              "value": "Se agregan dos pares nuevos; si WIDGET-002 aún no está en su catálogo, Sin resolver = 1 y esa fila muestra una etiqueta 'Sin pieza coincidente' en la cuadrícula."
+            }
+          ]
         }
       ]
     }

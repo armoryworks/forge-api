@@ -4,7 +4,7 @@
     "title": "Visión general del Chat",
     "summary": "Una visión general del sistema de chat integrado: mensajes directos, canales agrupados por equipos, hilos, @menciones y enlaces a registros, uso compartido de archivos, anuncios, roles de canal y entrega en tiempo real mediante SignalR.",
     "contentJson": {
-      "body": "## Visión general del Chat\n\nQB Engineer incluye un sistema de mensajería integrado y en tiempo real para la comunicación interna. Admite mensajes directos uno a uno, canales compartidos agrupados por equipos, respuestas en hilos, @menciones, enlaces a registros, archivos adjuntos y anuncios para toda la empresa. Ábralo a página completa en /chat o como un panel deslizable desde el ícono de chat en el encabezado — el ícono del encabezado muestra su recuento total de no leídos.\n\n### Mensajes directos\n\nUn mensaje directo (MD) es una conversación privada uno a uno con un colega. Aparecen en la sección **Mensajes directos** de la barra lateral. Haga clic en **Nuevo mensaje** (+), busque a una persona por su nombre y empiece a escribir. Los mensajes se entregan al instante mediante SignalR — sin necesidad de actualizar.\n\n### Canales\n\nUn canal es una conversación compartida entre varias personas. Los canales aparecen en la sección **Canales** y son de varios tipos: un canal de **Grupo** que usted crea para un tema, un canal de **Departamento**, un canal **Personalizado**, un canal de **Difusión** (anuncios) de solo lectura y canales del **Sistema** creados automáticamente. Haga clic en **Nuevo grupo** para crear uno (nombre, tipo, descripción, miembros), o en **Explorar canales** para descubrir y unirse a canales existentes.\n\n### Equipos\n\nUn **Equipo** agrupa canales relacionados bajo un único encabezado contraíble en la barra lateral (por ejemplo, un equipo de Ingeniería con su propio conjunto de canales). Los canales de equipo se crean automáticamente para un equipo y se enumeran juntos para que los miembros los encuentren rápidamente.\n\n### Hilos\n\nCualquier mensaje puede iniciar un hilo. Haga clic en **Responder en hilo** en un mensaje para abrir el panel de hilos a la derecha y responder sin saturar la conversación principal. Un mensaje con respuestas muestra un enlace **“N respuestas”** que reabre el hilo.\n\n### Menciones y enlaces a registros\n\nEscriba **@** en el cuadro de mensaje para abrir el menú emergente de menciones. Elija a un compañero para @mencionarlo, o elija un registro — un trabajo, pieza, orden de compra, orden de venta, cotización y más — para insertar un enlace en su mensaje. Los enlaces a registros se muestran como etiquetas en las que se puede hacer clic y que abren el diálogo de detalle correspondiente.\n\n### Archivos adjuntos\n\nAdjunte un archivo (PDF, imagen, documento de oficina o un plano de ingeniería como STEP/STL/DXF) de hasta 10 MB con el botón de clip. El archivo se carga, se previsualiza en el redactor y se envía con su próximo mensaje.\n\n### Anuncios\n\nLos administradores y gerentes publican **anuncios** dirigidos a toda la empresa, a un departamento o a equipos específicos. Los anuncios tienen una severidad (Info, Advertencia o Crítica), pueden requerir confirmación de lectura, pueden caducar y pueden crearse a partir de plantillas reutilizables. Se entregan en tiempo real y aparecen junto al chat. Los canales de difusión son de solo lectura — solo los administradores y gerentes pueden publicar en ellos.\n\n### Roles de canal\n\nCada miembro de un canal tiene un rol: **Miembro** (leer y publicar), **Administrador** (editar y gestionar el canal) o **Propietario** (control total, incluida la eliminación). Los roles se muestran en el diálogo de configuración del canal.\n\n### No leídos, estado de lectura y silenciar\n\nCada fila de MD y de canal muestra una insignia de no leídos, y el ícono de chat del encabezado muestra su recuento total de no leídos. Al abrir una conversación, sus mensajes se marcan como leídos automáticamente. **Silencie** un canal ruidoso desde su fila para acallar sus notificaciones sin abandonarlo.\n\n### Entrega en tiempo real (SignalR)\n\nTodos los mensajes, respuestas y anuncios se entregan al instante a través de la conexión SignalR de **ChatHub** en /hubs/chat. La conexión se establece al iniciar sesión y se reconecta automáticamente con retroceso exponencial si se interrumpe.",
+      "body": "## Visión general del Chat\n\nQB Engineer incluye un sistema de mensajería integrado y en tiempo real para la comunicación interna. Admite mensajes directos uno a uno, canales compartidos agrupados por equipos, respuestas en hilos, enlaces a registros, archivos adjuntos y anuncios para toda la empresa. Ábralo a página completa en /chat o como un panel deslizable desde el ícono de chat en el encabezado — el ícono del encabezado muestra su recuento total de no leídos. También puede **abrir el chat en su propia ventana** para que permanezca visible junto a lo que esté haciendo.\n\n### Mensajes directos\n\nUn mensaje directo (MD) es una conversación privada uno a uno con un colega. Aparecen en la sección **Mensajes directos** de la barra lateral. Haga clic en **Nuevo mensaje** (+), busque a una persona por su nombre y empiece a escribir. Los mensajes se entregan al instante mediante SignalR — sin necesidad de actualizar.\n\n### Canales\n\nUn canal es una conversación compartida entre varias personas. Los canales aparecen en la sección **Canales** y son de varios tipos: un canal de **Grupo** que usted crea para un tema, un canal de **Departamento**, un canal **Personalizado**, un canal de **Difusión** (anuncios) de solo lectura y canales del **Sistema** creados automáticamente. Haga clic en **Nuevo grupo** para crear uno (nombre, tipo, descripción, miembros), o en **Explorar canales** para descubrir y unirse a canales existentes.\n\n### Equipos\n\nUn **Equipo** agrupa canales relacionados bajo un único encabezado contraíble en la barra lateral (por ejemplo, un equipo de Ingeniería con su propio conjunto de canales). Los canales de equipo se crean automáticamente para un equipo y se enumeran juntos para que los miembros los encuentren rápidamente.\n\n### Hilos\n\nCualquier mensaje puede iniciar un hilo. Haga clic en **Responder en hilo** en un mensaje para abrir el panel de hilos a la derecha y responder sin saturar la conversación principal. Un mensaje con respuestas muestra un enlace **“N respuestas”** que reabre el hilo.\n\n### Abrir en una ventana aparte\n\nCuando el chat está abierto como panel deslizable (no como la página completa /chat), el encabezado muestra un botón **Abrir en ventana** (el ícono open_in_new). Haga clic en él para abrir el chat en su propia ventana del navegador, que puede mover a un segundo monitor y mantener visible mientras trabaja en otra parte de la aplicación. Mientras la ventana emergente está abierta, el panel deslizable muestra un banner **“El chat está abierto en una ventana aparte”** y el botón del encabezado cambia a **Enfocar ventana** (el ícono launch) — al hacer clic en él, la ventana emergente pasa al frente. A partir de ese momento, al hacer clic en un MD o canal del panel deslizable, este se abre en la ventana emergente en lugar de en el panel. Al cerrar la ventana emergente, el chat vuelve al comportamiento normal del panel deslizable. (Solo existe una ventana emergente a la vez; abrirla de nuevo simplemente enfoca la existente.)\n\n### Enlaces a registros\n\nLos mensajes pueden contener enlaces a registros — un trabajo, pieza, orden de compra, orden de venta, cotización y más. Un enlace a un registro se muestra en línea como una etiqueta de color en la que se puede hacer clic y que abre el diálogo de detalle correspondiente. (Los enlaces a registros y las @menciones llegan en mensajes desde otras partes del sistema; el redactor de mensajes en vivo es un cuadro de texto sencillo — todavía no hay un selector de @ en el propio cuadro, así que no espere un menú emergente de menciones o registros mientras escribe un mensaje de chat.)\n\n### Archivos adjuntos\n\nAdjunte un archivo (PDF, imagen, documento de oficina o un plano de ingeniería como STEP/STL/DXF) de hasta 10 MB con el botón de clip. El archivo se carga, se previsualiza en el redactor y se envía con su próximo mensaje. (Adjuntar archivos está disponible en los canales.)\n\n### Anuncios\n\nLos **anuncios** los publican los administradores y gerentes y se entregan en tiempo real, apareciendo junto al chat y en los canales de **Difusión** de solo lectura. Un anuncio puede dirigirse a toda la empresa, a un departamento o a equipos específicos; tiene una severidad (Info, Advertencia o Crítica); puede requerir confirmación de lectura; puede caducar; y puede crearse a partir de plantillas reutilizables. Tenga en cuenta que **redacta** un anuncio desde **Administración > Anuncios** (el panel de Anuncios del administrador), no desde dentro del panel de chat — el chat es donde los anuncios se *reciben y leen*. Los canales de difusión son de solo lectura, así que solo los administradores y gerentes pueden publicar en ellos.\n\n### Roles de canal\n\nCada miembro de un canal tiene un rol: **Miembro** (leer y publicar), **Administrador** (editar y gestionar el canal) o **Propietario** (control total, incluida la eliminación). Los roles se muestran en el diálogo de configuración del canal.\n\n### No leídos, estado de lectura y silenciar\n\nCada fila de MD y de canal muestra una insignia de no leídos, y el ícono de chat del encabezado muestra su recuento total de no leídos. Al abrir una conversación, sus mensajes se marcan como leídos automáticamente. **Silencie** un canal ruidoso desde su fila para acallar sus notificaciones sin abandonarlo.\n\n### Entrega en tiempo real (SignalR)\n\nTodos los mensajes, respuestas y anuncios se entregan al instante a través de la conexión SignalR de **ChatHub** en /hubs/chat. La conexión se establece al iniciar sesión y se reconecta automáticamente con retroceso exponencial si se interrumpe.",
       "sections": []
     }
   },
@@ -44,15 +44,23 @@
           "element": ".chat-panel__channel-list",
           "popover": {
             "title": "Abra una conversación y redacte",
-            "description": "Haga clic en un MD o canal para abrirlo. El cuadro de mensaje está en la parte inferior — escriba y presione Enter para enviar (los mensajes son de una sola línea y se entregan al instante mediante SignalR). Use el clip para adjuntar un archivo (hasta 10 MB), o escriba @ para mencionar a un compañero o enlazar un registro (un trabajo, pieza, OC y más).",
+            "description": "Haga clic en un MD o canal para abrirlo. El cuadro de mensaje está en la parte inferior — escriba y presione Enter para enviar (los mensajes son de una sola línea y se entregan al instante mediante SignalR). Use el clip para adjuntar un archivo (hasta 10 MB) en un canal. El redactor es un cuadro de texto sencillo; los enlaces a registros y las @menciones que ve en los mensajes entrantes se muestran como etiquetas en las que se puede hacer clic, pero no hay un selector de @ en el cuadro mientras escribe.",
             "side": "right"
           }
         },
         {
           "element": ".chat-panel--page",
           "popover": {
+            "title": "Abra el chat en una ventana",
+            "description": "Cuando el chat está abierto como panel deslizable (no esta página completa /chat), el encabezado del panel muestra un botón Abrir en ventana (ícono open_in_new). Haga clic en él para abrir el chat en su propia ventana del navegador que puede colocar en un segundo monitor. El panel muestra entonces un banner “El chat está abierto en una ventana aparte” y un botón Enfocar ventana (ícono launch), y al hacer clic en una conversación del panel esta se abre en la ventana emergente. Al cerrar la ventana emergente, el chat vuelve al panel deslizable normal.",
+            "side": "left"
+          }
+        },
+        {
+          "element": ".chat-panel--page",
+          "popover": {
             "title": "Hilos y anuncios",
-            "description": "Responda a cualquier mensaje con Responder en hilo para mantener ordenada una conversación lateral; un enlace “N respuestas” reabre ese hilo. Los anuncios — publicados por administradores y gerentes, dirigidos a toda la empresa, a un departamento o a equipos — llegan en tiempo real; los canales de difusión son de solo lectura, así que solo los administradores y gerentes publican en ellos.",
+            "description": "Responda a cualquier mensaje con Responder en hilo para mantener ordenada una conversación lateral; un enlace “N respuestas” reabre ese hilo. Los anuncios llegan aquí en tiempo real y aparecen en los canales de Difusión de solo lectura — pero usted los redacta desde Administración > Anuncios, no desde el chat. Pueden dirigirse a toda la empresa, a un departamento o a equipos, y solo los administradores y gerentes pueden publicar en los canales de difusión.",
             "side": "left"
           }
         },
@@ -140,6 +148,14 @@
               "value": "Alterna el panel deslizable de chat desde cualquier página y muestra la insignia de no leídos total."
             },
             {
+              "label": "Abrir en ventana (ícono: open_in_new)",
+              "value": "En el encabezado del panel deslizable — abre el chat en su propia ventana del navegador (ruta /chat/popout). Se muestra solo cuando no hay una ventana emergente ya abierta. No se muestra en la página completa /chat."
+            },
+            {
+              "label": "Enfocar ventana (ícono: launch)",
+              "value": "Reemplaza al botón Abrir en ventana mientras hay una ventana emergente abierta — trae la ventana emergente existente al frente. También aparece en el banner de la ventana emergente."
+            },
+            {
               "label": "Cerrar (ícono: close)",
               "value": "Cierra el panel de chat y vuelve a la página subyacente."
             },
@@ -193,12 +209,12 @@
               "value": "Los mensajes son de una sola línea — no hay salto de línea con Shift+Enter; Enter siempre envía."
             },
             {
-              "label": "@ (mención)",
-              "value": "Abre el menú emergente de menciones para @mencionar a un compañero o enlazar un registro en el mensaje."
+              "label": "@ en el redactor",
+              "value": "No hay un selector de @ integrado en el cuadro de mensaje en vivo — al escribir @ se inserta un carácter @ literal. (Las menciones/enlaces a registros pueden existir en los mensajes, pero el redactor no los crea hoy.)"
             },
             {
               "label": "Adjuntar archivo",
-              "value": "Botón de clip; acepta PDF, imágenes, documentos de oficina y STEP/STL/DXF de hasta 10 MB."
+              "value": "Botón de clip (canales); acepta PDF, imágenes, documentos de oficina y STEP/STL/DXF de hasta 10 MB."
             },
             {
               "label": "Envío desactivado",
@@ -224,25 +240,58 @@
           ]
         },
         {
-          "heading": "Menciones y enlaces a registros",
+          "heading": "Menciones y enlaces a registros (visualización)",
           "items": [
             {
-              "label": "@ mención de usuario",
-              "value": "Escriba @ y elija a un compañero; se almacena y se muestra como una etiqueta de mención."
+              "label": "Mención de usuario",
+              "value": "Una referencia a un compañero que se muestra como una etiqueta de mención en un mensaje. (Las menciones no se crean desde el redactor en vivo hoy.)"
             },
             {
-              "label": "@ enlace a registro",
-              "value": "Escriba @ y elija un registro — trabajo, pieza, orden de compra, orden de venta, cotización, etc. — para incrustar un enlace."
+              "label": "Enlace a registro",
+              "value": "Un enlace a un registro — trabajo, pieza, orden de compra, orden de venta, cotización, etc. — que viaja en un mensaje y se muestra en línea."
             },
             {
               "label": "Etiqueta de mención",
-              "value": "Se muestra como una etiqueta de color en la que se puede hacer clic y que abre el diálogo de detalle del registro enlazado."
+              "value": "Se muestra (mediante el pipe mentionRender) como una etiqueta de color en la que se puede hacer clic y que abre el diálogo de detalle del registro enlazado."
+            }
+          ]
+        },
+        {
+          "heading": "Ventana emergente",
+          "items": [
+            {
+              "label": "Abrir en ventana",
+              "value": "Botón del encabezado (open_in_new) en el panel deslizable — abre el chat en su propia ventana en /chat/popout. Oculto en la página completa /chat."
+            },
+            {
+              "label": "Banner de ventana emergente",
+              "value": "Se muestra en el panel deslizable mientras hay una ventana emergente abierta: 'El chat está abierto en una ventana aparte' con una acción Enfocar ventana."
+            },
+            {
+              "label": "Enfocar ventana (launch)",
+              "value": "Trae al frente la ventana emergente existente; existe una ventana emergente a la vez."
+            },
+            {
+              "label": "Enrutamiento con la ventana abierta",
+              "value": "Con una ventana emergente abierta, al hacer clic en un MD o canal del panel deslizable, este se abre dentro de la ventana emergente en lugar del panel."
+            },
+            {
+              "label": "Cierre",
+              "value": "Cerrar la ventana emergente (o mediante beforeunload) devuelve el chat al comportamiento normal del panel deslizable; el banner y el botón Enfocar desaparecen."
+            },
+            {
+              "label": "Características de la ventana",
+              "value": "Se abre a 800x600 con el nombre 'qb-chat'; la sincronización entre pestañas/ventanas se realiza mediante el BroadcastChannel 'qb-chat-sync'."
             }
           ]
         },
         {
           "heading": "Anuncios",
           "items": [
+            {
+              "label": "Dónde se redactan",
+              "value": "Desde Administración > Anuncios (el panel de Anuncios del administrador) — no desde el panel de chat. El chat es donde los anuncios se reciben y leen."
+            },
             {
               "label": "Quién puede publicar",
               "value": "Solo administradores y gerentes (los anuncios y los canales de difusión son de solo lectura para los demás)."
@@ -528,27 +577,27 @@
         },
         {
           "id": "chat7",
-          "text": "Desea enlazar un trabajo específico en un mensaje de chat para que la gente pueda ir directo a él. ¿Cómo?",
+          "text": "Un mensaje de chat contiene un enlace a un trabajo. ¿Qué ocurre cuando ese enlace a registro aparece en la conversación?",
           "options": [
             {
               "id": "a",
-              "text": "Pegar la URL del trabajo como texto sin formato"
+              "text": "Se muestra como texto sin formato que debe copiar y pegar en la barra de direcciones"
             },
             {
               "id": "b",
-              "text": "Escribir @ en el cuadro de mensaje y elegir el trabajo del menú emergente de menciones",
+              "text": "Se muestra en línea como una etiqueta en la que se puede hacer clic y que abre el diálogo de detalle del trabajo",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Adjuntar el trabajo como un archivo"
+              "text": "Descarga el trabajo como un archivo"
             },
             {
               "id": "d",
-              "text": "No se pueden enlazar registros en el chat"
+              "text": "Nada — los enlaces a registros no se admiten en ninguna parte del chat"
             }
           ],
-          "explanation": "Al escribir @ se abre el menú emergente de menciones donde puede @mencionar a un compañero o enlazar un registro — un trabajo, pieza, OC, orden de venta, cotización y más. El enlace se muestra como una etiqueta en la que se puede hacer clic y que abre el diálogo de detalle del registro."
+          "explanation": "Los enlaces a registros (trabajo, pieza, OC, orden de venta, cotización y más) se muestran en línea como etiquetas de color en las que se puede hacer clic y que abren el diálogo de detalle del registro. Nota: el redactor de mensajes en vivo es un cuadro de texto sencillo — escribir @ no abre un selector de menciones/registros hoy, así que estos enlaces llegan en mensajes desde otras partes del sistema."
         },
         {
           "id": "chat8",
@@ -576,27 +625,27 @@
         },
         {
           "id": "chat9",
-          "text": "Un administrador está publicando un anuncio. ¿Cuáles de estos puede controlar?",
+          "text": "¿Adónde va un administrador para redactar y enviar un anuncio para la empresa, y qué puede controlar?",
           "options": [
             {
               "id": "a",
-              "text": "Solo el texto del mensaje — nada más es configurable"
+              "text": "Desde el redactor del chat — escribe el anuncio directamente en el cuadro de mensaje de un canal"
             },
             {
               "id": "b",
-              "text": "El alcance (toda la empresa, departamento o equipos específicos), una severidad, si se requiere confirmación de lectura y una caducidad",
+              "text": "Desde Administración > Anuncios — controlando el alcance (toda la empresa, departamento o equipos específicos), la severidad, si se requiere confirmación de lectura y una caducidad",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Solo qué usuario único lo recibe"
+              "text": "En cualquier parte — cualquier usuario puede publicar un anuncio desde cualquier MD"
             },
             {
               "id": "d",
-              "text": "La fuente y el color del mensaje"
+              "text": "Desde la pestaña de redacción del panel de notificaciones del encabezado"
             }
           ],
-          "explanation": "Los anuncios pueden dirigirse a toda la empresa, a un departamento o a equipos específicos; tienen una severidad (Info/Advertencia/Crítica); opcionalmente requieren confirmación de lectura; opcionalmente caducan; y pueden crearse a partir de plantillas reutilizables."
+          "explanation": "Los anuncios se redactan desde Administración > Anuncios (el panel de Anuncios del administrador), no desde el panel de chat. El chat es donde los anuncios se reciben y leen. Desde el panel de administración, un administrador/gerente establece el alcance (toda la empresa, departamento o equipos específicos), una severidad (Info/Advertencia/Crítica), confirmación de lectura opcional requerida, una caducidad opcional y puede reutilizar plantillas."
         },
         {
           "id": "chat10",
@@ -669,6 +718,30 @@
             }
           ],
           "explanation": "Los roles de canal rigen los permisos: un Miembro puede leer y publicar, un Administrador puede editar y gestionar el canal (nombre, descripción, ícono, miembros) y un Propietario tiene control total, incluida la eliminación del canal."
+        },
+        {
+          "id": "chat13",
+          "text": "Desea mantener el chat visible en un segundo monitor mientras trabaja en la aplicación. ¿Qué hace?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Abrir el panel deslizable de chat y hacer clic en Abrir en ventana (open_in_new) para abrir el chat en su propia ventana",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Redimensionar el navegador para que el chat ocupe toda la pantalla"
+            },
+            {
+              "id": "c",
+              "text": "No puede — el chat debe permanecer dentro de la aplicación"
+            },
+            {
+              "id": "d",
+              "text": "Marcar /chat como favorito y actualizarlo cada pocos minutos"
+            }
+          ],
+          "explanation": "Desde el panel deslizable de chat, el botón Abrir en ventana (open_in_new) abre el chat en su propia ventana (/chat/popout) que puede mover a un segundo monitor. Mientras está abierta, el panel muestra un banner 'El chat está abierto en una ventana aparte' y un botón Enfocar ventana, y las conversaciones en las que hace clic en el panel se abren en la ventana emergente. Al cerrar la ventana emergente, vuelve al panel deslizable normal."
         }
       ]
     }

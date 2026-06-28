@@ -4,7 +4,7 @@
     "title": "Visión general del Backlog",
     "summary": "Qué es el backlog, cómo se relaciona con el tablero kanban, cómo filtrar trabajos, los modos de vista y la creación de nuevos trabajos.",
     "contentJson": {
-      "body": "## Visión general del Backlog\n\nEl Backlog es su lista maestra de todos los trabajos en cada tipo de pista. Mientras que el Tablero Kanban le ofrece una vista visual, etapa por etapa, de una sola pista, el Backlog le permite ver todos los trabajos del sistema a la vez: buscar, filtrar, ordenar y clasificar el trabajo antes de que llegue al tablero.\n\n### Backlog vs. Tablero Kanban\n\nEl Tablero Kanban muestra los trabajos organizados en columnas por etapa dentro de un único tipo de pista (p. ej., Producción, I+D/Herramental, Mantenimiento). Usted interactúa con los trabajos de forma visual: arrastrando tarjetas entre etapas, viendo los límites de trabajo en curso (WIP) y siguiendo el flujo.\n\nEl Backlog es una lista plana de todos los trabajos, sin importar el tipo de pista. Es el lugar para:\n- **Encontrar cualquier trabajo** por número, título, cliente o responsable\n- **Clasificar el trabajo entrante** — revisar trabajos sin asignar o de baja prioridad\n- **Revisión masiva** — examinar todas las pistas para detectar elementos atrasados, cargas de trabajo desequilibradas o trabajos estancados\n- **Crear nuevos trabajos** que aterrizan en el tablero en la primera etapa de su pista\n\nCada trabajo del Backlog también aparece en su Tablero Kanban correspondiente. Los cambios realizados en cualquiera de los dos lugares se reflejan en ambos.\n\n### Dos modos de vista\n\nEl Backlog ofrece dos formas de ver sus trabajos:\n\n**Vista de tabla (predeterminada)** — Una tabla de datos con columnas ordenables y filtrables: Número de trabajo, Título, Etapa, Prioridad, Responsable, Cliente y Fecha de vencimiento. Haga clic en cualquier encabezado de columna para ordenar. Use los iconos de filtro de columna para filtrar por columna (búsqueda de texto, selección de enumeración o rango de fechas). Haga clic en cualquier fila para abrir el diálogo de detalle completo del trabajo.\n\n**Vista de tarjetas** — Una cuadrícula de tarjetas de trabajo que muestran el número de trabajo, el título, la ficha de etapa (codificada por color), el punto de prioridad, el avatar del responsable, el nombre del cliente y la fecha de vencimiento. Las tarjetas con retenciones activas muestran una insignia 'En espera'. Las tarjetas atrasadas se resaltan visualmente. Haga clic en cualquier tarjeta para abrir el diálogo de detalle del trabajo.\n\nAlterne entre las vistas usando los iconos de vista del encabezado de la página (view_list para la tabla, view_module para las tarjetas). Su preferencia se guarda y se restaura en su próxima visita.\n\n### Filtrado\n\nCuatro filtros en el encabezado de la página acotan la lista:\n\n- **Búsqueda** — búsqueda de texto libre en el número y el título del trabajo. Los resultados se actualizan a medida que escribe.\n- **Tipo de pista** — filtra a una pista específica (Producción, I+D/Herramental, etc.). Muestra solo los trabajos cuya etapa actual pertenece a esa pista.\n- **Prioridad** — filtra por Baja, Normal, Alta o Urgente.\n- **Responsable** — filtra a los trabajos asignados a un miembro específico del equipo.\n\nTodos los filtros funcionan en conjunto (lógica AND). El conteo filtrado se refleja tanto en la vista de tabla como en la de tarjetas.\n\n### Creación de trabajos\n\nHaga clic en el botón 'Crear trabajo' (con el icono +) del encabezado de la página para abrir el diálogo de creación de trabajos. Introducirá:\n\n- **Título** (obligatorio, máx. 200 caracteres)\n- **Descripción** (opcional, multilínea)\n- **Tipo de pista** (obligatorio) — determina a qué tablero y a qué etapa inicial ingresa el trabajo\n- **Cliente** (opcional) — vincula el trabajo a un registro de cliente\n- **Responsable** (opcional) — asigna a un miembro del equipo. Si el usuario seleccionado tiene un perfil incompleto, se muestra una advertencia.\n- **Prioridad** (predeterminada: Normal) — Baja, Normal, Alta o Urgente\n- **Fecha de vencimiento** (opcional) — se muestra en rojo cuando está atrasada\n\nEl nuevo trabajo se coloca en la primera etapa del tipo de pista seleccionado y aparece de inmediato tanto en el Backlog como en el Tablero Kanban.\n\n### Detalle del trabajo\n\nAl hacer clic en cualquier fila (vista de tabla) o tarjeta (vista de tarjetas) se abre el diálogo de detalle completo del trabajo a través del DetailDialogService. La URL se actualiza para incluir `?detail=job:{id}`, lo que hace que el enlace se pueda compartir y guardar como marcador. Desde el diálogo de detalle puede editar el trabajo, ver subtareas, archivos, registro de actividad y más.\n\n### Estilo de filas (vista de tabla)\n\n- **Filas atrasadas** reciben la clase `row--overdue`: un sutil tinte rojo que indica que la fecha de vencimiento ya pasó.\n- **Fila seleccionada** recibe la clase `row--selected`: resaltada para mostrar de qué trabajo está abierto el detalle actualmente.\n- **Tinte de color de etapa** — cada fila tiene un tenue tinte de fondo que coincide con el color de su etapa mediante la propiedad CSS personalizada `--row-tint`.\n\n### Colores de prioridad\n\nLa prioridad se muestra como un punto de color junto al nombre de la prioridad:\n- **Baja** — gris pizarra (#94a3b8)\n- **Normal** — verde azulado (#0d9488)\n- **Alta** — ámbar (#f59e0b)\n- **Urgente** — rojo (#dc2626)",
+      "body": "## Visión general del Backlog\n\nEl Backlog es su lista maestra de todos los trabajos en cada tipo de pista. Mientras que el Tablero Kanban le ofrece una vista visual, etapa por etapa, de una sola pista, el Backlog le permite ver todos los trabajos del sistema a la vez: buscar, filtrar, ordenar y clasificar el trabajo antes de que llegue al tablero.\n\n### Backlog vs. Tablero Kanban\n\nEl Tablero Kanban muestra los trabajos organizados en columnas por etapa dentro de un único tipo de pista (p. ej., Producción, I+D/Herramental, Mantenimiento). Usted interactúa con los trabajos de forma visual: arrastrando tarjetas entre etapas, viendo los límites de trabajo en curso (WIP) y siguiendo el flujo.\n\nEl Backlog es una lista plana de todos los trabajos, sin importar el tipo de pista. Es el lugar para:\n- **Encontrar cualquier trabajo** por número, título, cliente o responsable\n- **Clasificar el trabajo entrante** — revisar trabajos sin asignar o de baja prioridad\n- **Revisión masiva** — examinar todas las pistas para detectar elementos atrasados, cargas de trabajo desequilibradas o trabajos estancados\n- **Crear nuevos trabajos** que aterrizan en el tablero en la primera etapa de su pista\n\nCada trabajo del Backlog también aparece en su Tablero Kanban correspondiente. Los cambios realizados en cualquiera de los dos lugares se reflejan en ambos.\n\n### Dos modos de vista\n\nEl Backlog ofrece dos formas de ver sus trabajos:\n\n**Vista de tabla (predeterminada)** — Una tabla de datos con columnas ordenables y filtrables: Número de trabajo, Título, Etapa, Prioridad, Responsable, Cliente y Fecha de vencimiento. Haga clic en cualquier encabezado de columna para ordenar. Use los iconos de filtro de columna para filtrar por columna (búsqueda de texto, selección de enumeración o rango de fechas). Haga clic en cualquier fila para abrir el diálogo de detalle completo del trabajo.\n\n**Vista de tarjetas** — Una cuadrícula de tarjetas de trabajo que muestran el número de trabajo, el título, la ficha de etapa (codificada por color), el punto de prioridad, el avatar del responsable, el nombre del cliente y la fecha de vencimiento. Las tarjetas con retenciones activas muestran una insignia 'En espera'. Las tarjetas atrasadas se resaltan visualmente. Haga clic en cualquier tarjeta para abrir el diálogo de detalle del trabajo.\n\nAlterne entre las vistas usando los iconos de vista del encabezado de la página (view_list para la tabla, view_module para las tarjetas). Su preferencia se guarda y se restaura en su próxima visita.\n\n### Filtrado\n\nCuatro filtros en el encabezado de la página acotan la lista:\n\n- **Búsqueda** — búsqueda de texto libre en el número y el título del trabajo. Los resultados se actualizan a medida que escribe.\n- **Tipo de pista** — filtra a una pista específica (Producción, I+D/Herramental, etc.). Muestra solo los trabajos cuya etapa actual pertenece a esa pista.\n- **Prioridad** — filtra por Baja, Normal, Alta o Urgente.\n- **Responsable** — filtra a los trabajos asignados a un miembro específico del equipo.\n\nTodos los filtros funcionan en conjunto (lógica AND). El conteo filtrado se refleja tanto en la vista de tabla como en la de tarjetas.\n\n### Creación de trabajos\n\nHaga clic en el botón 'Crear trabajo' (con el icono +) del encabezado de la página para abrir el diálogo de creación de trabajos. Introducirá:\n\n- **Título** (obligatorio, máx. 200 caracteres)\n- **Descripción** (opcional, multilínea)\n- **Tipo de pista** (obligatorio) — determina a qué tablero y a qué etapa inicial ingresa el trabajo\n- **Cliente** (opcional) — vincula el trabajo a un registro de cliente\n- **Responsable** (opcional) — asigna a un miembro del equipo. Si el usuario seleccionado tiene un perfil incompleto, se muestra una advertencia.\n- **Prioridad** (predeterminada: Normal) — Baja, Normal, Alta o Urgente\n- **Fecha de vencimiento** (opcional) — se muestra en rojo cuando está atrasada\n\nEl nuevo trabajo se coloca en la primera etapa del tipo de pista seleccionado y aparece de inmediato tanto en el Backlog como en el Tablero Kanban.\n\n### Detalle del trabajo\n\nAl hacer clic en cualquier fila (vista de tabla) o tarjeta (vista de tarjetas) se abre el diálogo de detalle completo del trabajo a través del DetailDialogService. La URL se actualiza para incluir `?detail=job:{id}`, lo que hace que el enlace se pueda compartir y guardar como marcador. Desde el diálogo de detalle puede editar el trabajo, ver subtareas, archivos, registro de actividad y más.\n\n### Edición de un trabajo existente\n\nNo hay un botón de Editar directamente en la fila ni en la tarjeta del backlog. Para editar un trabajo, ábralo primero: haga clic en la fila o la tarjeta para abrir el diálogo de detalle del trabajo y luego use su acción **Editar**. El diálogo de detalle se cierra y el trabajo se vuelve a abrir en el mismo diálogo que usa para crear trabajos, pero ahora en **modo de edición** (el título dice 'Editar trabajo'). Al guardar, la lista se vuelve a cargar y sus cambios aparecen.\n\nDos cosas se comportan de forma diferente en el modo de edición frente al modo de creación:\n- **El Tipo de pista es inmutable.** El campo Tipo de pista se oculta por completo al editar. El tipo de pista de un trabajo se fija en el momento de la creación porque determina en qué tablero Kanban vive el trabajo; mover un trabajo a un tablero diferente dejaría huérfano su historial de etapas, por lo que el sistema no lo permite. Si un trabajo está en la pista equivocada, archívelo y cree uno de reemplazo en la pista correcta.\n- **La asociación de línea de pedido de venta es solo para creación.** El campo que vincula un trabajo nuevo a una línea de pedido de venta aparece solo en modo de creación y se oculta al editar.\n\nTodo lo demás —Título, Descripción, Cliente, Responsable, Prioridad y Fecha de vencimiento— es editable. El botón de guardar dice 'Guardar cambios' en lugar de 'Crear trabajo'.\n\n### Administrador: Trabajos archivados\n\nLos trabajos nunca se eliminan de forma permanente; cuando un trabajo se retira de un tablero se **archiva** (eliminación lógica), por lo que desaparece del backlog y del tablero activos pero es totalmente recuperable. Los administradores obtienen una vía de recuperación directamente en el backlog.\n\n**Alternar Mostrar archivados / Mostrar activos.** Los administradores ven un botón de icono adicional en el encabezado de la página (un icono de caja de inventario). Haga clic en él para cambiar la lista de trabajos activos a trabajos archivados; la información sobre herramientas y el icono alternan entre 'Mostrar trabajos archivados' y 'Mostrar trabajos activos'. La lista se vuelve a obtener del servidor con el indicador de archivado establecido, por lo que está viendo un conjunto de trabajos genuinamente separado, no un filtro del lado del cliente. Los no administradores nunca ven esta alternancia y no pueden acceder a la vista de archivados.\n\n**Desarchivar a nivel de fila.** En la vista de archivados, la tabla incorpora una columna **Acciones** con un botón Desarchivar en cada fila. Al hacer clic en él se le pide confirmar ('¿Restaurar este trabajo?') y luego se restaura ese único trabajo a la lista activa. Como el trabajo vuelve a estar activo, desaparece de la vista de archivados en la próxima recarga y reaparece en su tablero Kanban.\n\n**Desarchivar en masa.** La tabla de archivados también se vuelve seleccionable: aparece una casilla de verificación en cada fila. Seleccione uno o más trabajos archivados y una barra de acción masiva se despliega desde la parte inferior mostrando el conteo seleccionado y un botón **Desarchivar seleccionados**. Confirme el aviso ('¿Restaurar los trabajos seleccionados?') y todos los trabajos seleccionados se restauran en una sola operación. Un mensaje de éxito informa cuántos se restauraron. Use la X de la barra masiva para borrar la selección sin actuar.\n\nTanto la alternancia como las acciones de desarchivar son exclusivas del administrador en la interfaz, y el servidor impone de forma independiente el rol de Administrador; restaurar trabajo que alguien archivó deliberadamente es de alto impacto, por lo que está restringido a propósito.\n\n### Estilo de filas (vista de tabla)\n\n- **Filas atrasadas** reciben la clase `row--overdue`: un sutil tinte rojo que indica que la fecha de vencimiento ya pasó.\n- **Fila seleccionada** recibe la clase `row--selected`: resaltada para mostrar de qué trabajo está abierto el detalle actualmente.\n- **Tinte de color de etapa** — cada fila tiene un tenue tinte de fondo que coincide con el color de su etapa mediante la propiedad CSS personalizada `--row-tint`.\n\n### Colores de prioridad\n\nLa prioridad se muestra como un punto de color junto al nombre de la prioridad:\n- **Baja** — gris pizarra (#94a3b8)\n- **Normal** — verde azulado (#0d9488)\n- **Alta** — ámbar (#f59e0b)\n- **Urgente** — rojo (#dc2626)",
       "sections": []
     }
   },
@@ -133,7 +133,7 @@
             },
             {
               "label": "Tipo de pista (solo en modo de creación)",
-              "value": "Lista desplegable de selección, obligatoria. Opciones cargadas desde la API (tipos de pista configurados). Validadores: required. data-testid: job-track-type. Determina a qué tablero kanban y a qué etapa inicial ingresa el trabajo. Oculto en modo de edición: el tipo de pista no se puede cambiar después de la creación."
+              "value": "Lista desplegable de selección, obligatoria. Opciones cargadas desde la API (tipos de pista configurados). Validadores: required. data-testid: job-track-type. Determina a qué tablero kanban y a qué etapa inicial ingresa el trabajo. Oculto en modo de edición: el tipo de pista no se puede cambiar después de la creación. Para poner un trabajo en una pista diferente, archívelo y cree uno de reemplazo en la pista correcta."
             },
             {
               "label": "Cliente",
@@ -274,6 +274,35 @@
             {
               "label": "Apertura automática del diálogo de detalle por URL",
               "value": "Al cargar la página, si la URL contiene ?detail=job:{id}, el diálogo de detalle del trabajo se abre automáticamente. Esto admite enlaces directos, marcadores y la navegación atrás/adelante del navegador."
+            },
+            {
+              "label": "Editar un trabajo (punto de entrada)",
+              "value": "No hay un botón de Editar en la fila ni en la tarjeta. Abra el trabajo (haga clic en la fila/tarjeta) para mostrar el diálogo de detalle y luego haga clic en su acción Editar. El diálogo de detalle se cierra devolviendo {action:'edit'} y el backlog vuelve a abrir el mismo diálogo en modo de edición (título 'Editar trabajo', botón de guardar 'Guardar cambios'). En modo de edición, el selector de Tipo de pista y la asociación de línea de pedido de venta se ocultan ambos; Título, Descripción, Cliente, Responsable, Prioridad y Fecha de vencimiento siguen siendo editables."
+            }
+          ]
+        },
+        {
+          "heading": "Vista de trabajos archivados (solo administrador)",
+          "items": [
+            {
+              "label": "Alternar Mostrar archivados / Mostrar activos",
+              "value": "Botón de icono adicional en el encabezado de la página, representado solo cuando el usuario tiene el rol de Administrador. Icono: 'inventory' (vista activa) cambia a 'inventory_2' (vista de archivados); la información sobre herramientas y el aria-label alternan entre 'Mostrar trabajos archivados' y 'Mostrar trabajos activos'; aria-pressed refleja el estado. Al hacer clic se invierte showArchived() y se vuelve a obtener la lista mediante getJobs({ isArchived: true/false }): es una obtención del lado del servidor de un conjunto de trabajos separado, no un filtro del cliente. Al cambiar también se borra cualquier selección actual."
+            },
+            {
+              "label": "Columna Acciones (Desarchivar)",
+              "value": "Se agrega una columna Acciones final (90px, alineada al centro) a la tabla solo cuando showArchived() && isAdmin(). Cada fila archivada recibe un botón de icono Desarchivar (icono 'unarchive', información sobre herramientas 'Desarchivar'). Al hacer clic (event.stopPropagation para que NO se abra el diálogo de detalle de la fila) se muestra un diálogo de confirmación ('¿Restaurar este trabajo?', el mensaje nombra el número de trabajo); al confirmar, hace POST a /jobs/{id}/unarchive, muestra un snackbar de éxito y recarga para que el trabajo ahora activo salga de la vista de archivados."
+            },
+            {
+              "label": "Selección de filas (vista de archivados)",
+              "value": "La tabla de datos es [selectable] solo cuando showArchived() && isAdmin(), agregando una columna de casilla de verificación. selectionChange alimenta selectedJobs(); selectionCount() impulsa la barra masiva. La selección se borra al cambiar de vista o tras una acción masiva exitosa."
+            },
+            {
+              "label": "Barra de acción masiva",
+              "value": "Aparece (clase bulk-bar, fija en la parte inferior) solo cuando showArchived() && isAdmin() && selectionCount() > 0. Muestra '{n} seleccionados', un botón 'Desarchivar seleccionados' y una X para borrar la selección. El botón Desarchivar seleccionados confirma ('¿Restaurar los trabajos seleccionados?', el conteo en el mensaje), luego hace PATCH a /jobs/bulk/unarchive con los ids seleccionados; un snackbar de éxito informa cuántos se restauraron."
+            },
+            {
+              "label": "Restricción de administrador",
+              "value": "La alternancia, la columna Acciones, la selección de filas y la barra masiva están todas restringidas en el cliente detrás de isAdmin(). El servidor impone de forma independiente [Authorize(Roles = \"Admin\")] en los endpoints de desarchivar, por lo que la vía de recuperación está protegida incluso si se eluden las comprobaciones del cliente."
             }
           ]
         },
@@ -687,6 +716,78 @@
             }
           ],
           "explanation": "El selector de fecha de vencimiento tiene data-testid=\"job-due-date\". El diálogo de trabajo usa la convención de nomenclatura data-testid=\"job-{field-name}\" con nombres de campo en kebab-case: job-title, job-description, job-track-type, job-customer, job-assignee, job-priority, job-due-date y job-save-btn."
+        },
+        {
+          "id": "bl16",
+          "text": "Usted es administrador y desea revisar los trabajos que se archivaron del tablero. ¿Cómo llega a ellos desde el Backlog?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Establecer el filtro de Tipo de pista en 'Archivado'"
+            },
+            {
+              "id": "b",
+              "text": "Hacer clic en el botón de alternancia de caja de inventario del encabezado de la página para cambiar de trabajos activos a archivados",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Escribir 'archivado' en el campo de Búsqueda"
+            },
+            {
+              "id": "d",
+              "text": "Los trabajos archivados no se pueden ver: se eliminan de forma permanente"
+            }
+          ],
+          "explanation": "Los administradores obtienen un botón de icono adicional (un icono de caja de inventario) en el encabezado de la página. Al hacer clic se invierte la alternancia Mostrar archivados / Mostrar activos y se vuelve a obtener la lista del servidor con el indicador de archivado establecido: un conjunto de trabajos separado, no un filtro del lado del cliente. Los no administradores nunca ven esta alternancia. Los trabajos se archivan (eliminación lógica), nunca se eliminan de forma permanente, por lo que siguen siendo totalmente recuperables."
+        },
+        {
+          "id": "bl17",
+          "text": "En la vista de archivados del administrador, ¿cómo restaura varios trabajos a la lista activa a la vez?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Seleccionar las filas archivadas con sus casillas de verificación, luego hacer clic en 'Desarchivar seleccionados' en la barra de acción masiva y confirmar",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "No hay opción masiva: debe desarchivar cada trabajo de fila en fila"
+            },
+            {
+              "id": "c",
+              "text": "Arrastrar los trabajos seleccionados de vuelta al tablero Kanban"
+            },
+            {
+              "id": "d",
+              "text": "Cambiar el estado de cada trabajo a 'Activo' en el diálogo de creación"
+            }
+          ],
+          "explanation": "En la vista de archivados, la tabla se vuelve seleccionable (una casilla de verificación por fila). Al seleccionar uno o más trabajos se levanta una barra de acción masiva en la parte inferior que muestra el conteo y un botón 'Desarchivar seleccionados'. Después de confirmar '¿Restaurar los trabajos seleccionados?', todos los trabajos seleccionados se restauran en una sola operación (PATCH /jobs/bulk/unarchive) y un mensaje de éxito informa cuántos se restauraron. Un botón Desarchivar de una sola fila en la columna Acciones maneja el caso de uno en uno."
+        },
+        {
+          "id": "bl18",
+          "text": "Abre un trabajo y necesita cambiar su tipo de pista de Producción a Mantenimiento. ¿Qué le permite hacer la interfaz?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Abrir el diálogo de detalle del trabajo, hacer clic en Editar y elegir un nuevo Tipo de pista de la lista desplegable"
+            },
+            {
+              "id": "b",
+              "text": "Nada: el tipo de pista es inmutable; el campo Tipo de pista se oculta en modo de edición, por lo que archiva el trabajo y crea uno de reemplazo en la pista correcta",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Arrastrar el trabajo al tablero de Mantenimiento, lo que reasigna su tipo de pista"
+            },
+            {
+              "id": "d",
+              "text": "El tipo de pista cambia automáticamente según el equipo del responsable"
+            }
+          ],
+          "explanation": "Para editar un trabajo lo abre (haga clic en la fila/tarjeta), luego usa la acción Editar del diálogo de detalle, que vuelve a abrir el trabajo en el diálogo de creación/edición en modo de edición. En modo de edición, el campo Tipo de pista se oculta por completo: el tipo de pista de un trabajo se fija en el momento de la creación porque determina en qué tablero Kanban vive el trabajo. Para mover un trabajo a una pista diferente, archívelo y cree uno de reemplazo en la pista correcta."
         }
       ]
     }
