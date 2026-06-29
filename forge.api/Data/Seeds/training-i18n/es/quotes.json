@@ -85,125 +85,332 @@
         {
           "heading": "Campos del formulario de cotización (cuadro de diálogo Crear — Barra lateral)",
           "items": [
-            { "label": "Cliente (requerido)", "value": "Menú desplegable de selección. Elija el cliente para el que es esta cotización. Al seleccionarlo, la tasa de impuesto se rellena automáticamente según la tasa de impuesto sobre ventas del estado del cliente. data-testid: quote-customer" },
-            { "label": "Fecha de vencimiento", "value": "Selector de fecha, opcional. Cuándo vence la cotización si no se acepta. Las cotizaciones que superan esta fecha pueden marcarse como Vencidas. data-testid: quote-expiry" },
-            { "label": "Tasa de impuesto (requerido)", "value": "Entrada numérica con sufijo %. Rellenada automáticamente desde la tasa de impuesto del estado del cliente (mostrada con una insignia como 'CA 7.25%'). Puede anularse manualmente. Se aplica al subtotal para calcular el monto del impuesto. Predeterminado: 0. data-testid: quote-tax-rate" },
-            { "label": "Notas", "value": "Área de texto, opcional. Notas de formato libre visibles en el detalle de la cotización. 3 filas. data-testid: quote-notes" }
+            {
+              "label": "Cliente (requerido)",
+              "value": "Menú desplegable de selección. Elija el cliente para el que es esta cotización. Al seleccionarlo, la tasa de impuesto se rellena automáticamente según la tasa de impuesto sobre ventas del estado del cliente. data-testid: quote-customer"
+            },
+            {
+              "label": "Fecha de vencimiento",
+              "value": "Selector de fecha, opcional. Cuándo vence la cotización si no se acepta. Las cotizaciones que superan esta fecha pueden marcarse como Vencidas. data-testid: quote-expiry"
+            },
+            {
+              "label": "Tasa de impuesto (requerido)",
+              "value": "Entrada numérica con sufijo %. Rellenada automáticamente desde la tasa de impuesto del estado del cliente (mostrada con una insignia como 'CA 7.25%'). Puede anularse manualmente. Se aplica al subtotal para calcular el monto del impuesto. Predeterminado: 0. data-testid: quote-tax-rate"
+            },
+            {
+              "label": "Notas",
+              "value": "Área de texto, opcional. Notas de formato libre visibles en el detalle de la cotización. 3 filas. data-testid: quote-notes"
+            }
           ]
         },
         {
           "heading": "Campos de las líneas (cuadro de diálogo Crear — Área principal)",
           "items": [
-            { "label": "Pieza (requerido)", "value": "Búsqueda con autocompletado. Busque por número de pieza o descripción. Se muestra como 'PartNumber — Description'. Al seleccionarla, el precio unitario se rellena automáticamente desde el precio de lista de la pieza (mostrado con una insignia 'LIST'). data-testid: quote-line-part" },
-            { "label": "Cant. (requerido)", "value": "Entrada numérica. Cantidad de piezas para esta línea. Mínimo 1. data-testid: quote-line-qty" },
-            { "label": "Precio (requerido)", "value": "Entrada numérica. Precio unitario por pieza. Se predetermina en el precio de lista de la pieza al seleccionarla; editable manualmente. Mínimo 0. data-testid: quote-line-price" },
-            { "label": "Botón Agregar", "value": "Agrega la pieza/cant./precio actuales como una nueva línea. Deshabilitado cuando el formulario de línea es inválido. Reinicia el formulario de línea después de agregar. data-testid: quote-add-line-btn" },
-            { "label": "Botón Quitar (X)", "value": "Botón de icono rojo en cada fila de línea. Quita esa línea de la cotización." }
+            {
+              "label": "Pieza (requerido)",
+              "value": "Búsqueda con autocompletado. Busque por número de pieza o descripción. Se muestra como 'PartNumber — Description'. Al seleccionarla, el precio unitario se rellena automáticamente desde el precio de lista de la pieza (mostrado con una insignia 'LIST'). data-testid: quote-line-part"
+            },
+            {
+              "label": "Cant. (requerido)",
+              "value": "Entrada numérica. Cantidad de piezas para esta línea. Mínimo 1. data-testid: quote-line-qty"
+            },
+            {
+              "label": "Precio (requerido)",
+              "value": "Entrada numérica. Precio unitario por pieza. Se predetermina en el precio de lista de la pieza al seleccionarla; editable manualmente. Mínimo 0. data-testid: quote-line-price"
+            },
+            {
+              "label": "Botón Agregar",
+              "value": "Agrega la pieza/cant./precio actuales como una nueva línea. Deshabilitado cuando el formulario de línea es inválido. Reinicia el formulario de línea después de agregar. data-testid: quote-add-line-btn"
+            },
+            {
+              "label": "Botón Quitar (X)",
+              "value": "Botón de icono rojo en cada fila de línea. Quita esa línea de la cotización."
+            }
           ]
         },
         {
           "heading": "Campos de resumen calculados (cuadro de diálogo Crear — Barra lateral)",
           "items": [
-            { "label": "Subtotal", "value": "Suma de todos los totales de línea (Cantidad × Precio unitario para cada línea). Solo lectura." },
-            { "label": "Impuesto", "value": "Subtotal × Tasa de impuesto %. Se muestra con el porcentaje actual de la tasa de impuesto. Solo lectura." },
-            { "label": "Total", "value": "Subtotal + Impuesto. Total general mostrado en negrita. Solo lectura." }
+            {
+              "label": "Subtotal",
+              "value": "Suma de todos los totales de línea (Cantidad × Precio unitario para cada línea). Solo lectura."
+            },
+            {
+              "label": "Impuesto",
+              "value": "Subtotal × Tasa de impuesto %. Se muestra con el porcentaje actual de la tasa de impuesto. Solo lectura."
+            },
+            {
+              "label": "Total",
+              "value": "Subtotal + Impuesto. Total general mostrado en negrita. Solo lectura."
+            }
           ]
         },
         {
           "heading": "Estados de la cotización y colores de chip",
           "items": [
-            { "label": "Borrador (gris — chip--muted)", "value": "Estado inicial. La cotización es editable. Puede enviarse o eliminarse." },
-            { "label": "Enviada (azul — chip--info)", "value": "La cotización se ha enviado al cliente. Registra la fecha de envío. Puede aceptarse o rechazarse." },
-            { "label": "Aceptada (verde — chip--success)", "value": "El cliente aceptó la cotización. Registra la fecha de aceptación. Puede convertirse en una orden de venta." },
-            { "label": "Declinada (rojo — chip--error)", "value": "El cliente declinó la cotización. Estado terminal — no hay más acciones disponibles." },
-            { "label": "Vencida (amarillo — chip--warning)", "value": "La cotización superó su fecha de vencimiento sin aceptación. Estado terminal." },
-            { "label": "Convertida en orden (morado — chip--primary)", "value": "La cotización se convirtió en una orden de venta. Muestra un enlace a la orden de venta generada. Estado terminal." }
+            {
+              "label": "Borrador (gris — chip--muted)",
+              "value": "Estado inicial. La cotización es editable. Puede enviarse o eliminarse."
+            },
+            {
+              "label": "Enviada (azul — chip--info)",
+              "value": "La cotización se ha enviado al cliente. Registra la fecha de envío. Puede aceptarse o rechazarse."
+            },
+            {
+              "label": "Aceptada (verde — chip--success)",
+              "value": "El cliente aceptó la cotización. Registra la fecha de aceptación. Puede convertirse en una orden de venta."
+            },
+            {
+              "label": "Declinada (rojo — chip--error)",
+              "value": "El cliente declinó la cotización. Estado terminal — no hay más acciones disponibles."
+            },
+            {
+              "label": "Vencida (amarillo — chip--warning)",
+              "value": "La cotización superó su fecha de vencimiento sin aceptación. Estado terminal."
+            },
+            {
+              "label": "Convertida en orden (morado — chip--primary)",
+              "value": "La cotización se convirtió en una orden de venta. Muestra un enlace a la orden de venta generada. Estado terminal."
+            }
           ]
         },
         {
           "heading": "Columnas de la tabla (página de lista)",
           "items": [
-            { "label": "N.º de cotización", "value": "Ordenable. Número de cotización generado automáticamente, mostrado en fuente monoespaciada. Ancho: 120px." },
-            { "label": "Cliente", "value": "Ordenable. Nombre del cliente del registro del cliente vinculado." },
-            { "label": "Estado", "value": "Ordenable, filtrable (enum). Chip con código de color que muestra el estado actual del ciclo de vida. Ancho: 140px." },
-            { "label": "Líneas", "value": "Ordenable, centrado. Número de líneas en la cotización. Ancho: 70px." },
-            { "label": "Total", "value": "Ordenable, alineado a la derecha. Total general (subtotal + impuesto) formateado como moneda. Ancho: 100px." },
-            { "label": "Vence", "value": "Ordenable, tipo fecha. Fecha de vencimiento en formato MM/dd/yyyy. Muestra '---' si no hay vencimiento establecido. Ancho: 110px." },
-            { "label": "Creada", "value": "Ordenable, tipo fecha. Fecha de creación en formato MM/dd/yyyy. Ancho: 110px." }
+            {
+              "label": "N.º de cotización",
+              "value": "Ordenable. Número de cotización generado automáticamente, mostrado en fuente monoespaciada. Ancho: 120px."
+            },
+            {
+              "label": "Cliente",
+              "value": "Ordenable. Nombre del cliente del registro del cliente vinculado."
+            },
+            {
+              "label": "Estado",
+              "value": "Ordenable, filtrable (enum). Chip con código de color que muestra el estado actual del ciclo de vida. Ancho: 140px."
+            },
+            {
+              "label": "Líneas",
+              "value": "Ordenable, centrado. Número de líneas en la cotización. Ancho: 70px."
+            },
+            {
+              "label": "Total",
+              "value": "Ordenable, alineado a la derecha. Total general (subtotal + impuesto) formateado como moneda. Ancho: 100px."
+            },
+            {
+              "label": "Vence",
+              "value": "Ordenable, tipo fecha. Fecha de vencimiento en formato MM/dd/yyyy. Muestra '---' si no hay vencimiento establecido. Ancho: 110px."
+            },
+            {
+              "label": "Creada",
+              "value": "Ordenable, tipo fecha. Fecha de creación en formato MM/dd/yyyy. Ancho: 110px."
+            }
           ]
         },
         {
           "heading": "Campos del cuadro de diálogo de detalle",
           "items": [
-            { "label": "Número de cotización", "value": "Se muestra en el encabezado con un icono request_quote. Generado automáticamente, solo lectura." },
-            { "label": "Cliente", "value": "Enlace de entidad cliqueable a la página de detalle del cliente." },
-            { "label": "Estado", "value": "Chip con código de color en la cuadrícula de información." },
-            { "label": "Fecha de vencimiento", "value": "Se muestra si está establecida. Formato MM/dd/yyyy." },
-            { "label": "Fecha de envío", "value": "Se muestra solo después de que la cotización se ha enviado. Formato MM/dd/yyyy." },
-            { "label": "Fecha de aceptación", "value": "Se muestra solo después de que la cotización se ha aceptado. Formato MM/dd/yyyy." },
-            { "label": "Orden vinculada", "value": "Se muestra solo después de la conversión. Enlace de entidad cliqueable a la orden de venta generada." },
-            { "label": "Notas", "value": "Se muestra solo si se ingresaron notas. Bloque de texto de formato libre." },
-            { "label": "Tabla de líneas", "value": "Columnas: Número de pieza (monoespaciado), Descripción, Cant., Precio unitario, Margen % y Total para cada línea. Mientras la cotización está en Borrador también se muestra una columna Acciones (Editar/Eliminar)." },
-            { "label": "Subtotal / Impuesto / Total", "value": "Sección de resumen financiero en la parte inferior de las líneas." },
-            { "label": "Creada / Actualizada", "value": "Marcas de tiempo en formato MM/dd/yyyy." },
-            { "label": "Registro de actividad", "value": "Feed de actividad cronológico en la parte inferior del panel de detalle." }
+            {
+              "label": "Número de cotización",
+              "value": "Se muestra en el encabezado con un icono request_quote. Generado automáticamente, solo lectura."
+            },
+            {
+              "label": "Cliente",
+              "value": "Enlace de entidad cliqueable a la página de detalle del cliente."
+            },
+            {
+              "label": "Estado",
+              "value": "Chip con código de color en la cuadrícula de información."
+            },
+            {
+              "label": "Fecha de vencimiento",
+              "value": "Se muestra si está establecida. Formato MM/dd/yyyy."
+            },
+            {
+              "label": "Fecha de envío",
+              "value": "Se muestra solo después de que la cotización se ha enviado. Formato MM/dd/yyyy."
+            },
+            {
+              "label": "Fecha de aceptación",
+              "value": "Se muestra solo después de que la cotización se ha aceptado. Formato MM/dd/yyyy."
+            },
+            {
+              "label": "Orden vinculada",
+              "value": "Se muestra solo después de la conversión. Enlace de entidad cliqueable a la orden de venta generada."
+            },
+            {
+              "label": "Notas",
+              "value": "Se muestra solo si se ingresaron notas. Bloque de texto de formato libre."
+            },
+            {
+              "label": "Tabla de líneas",
+              "value": "Columnas: Número de pieza (monoespaciado), Descripción, Cant., Precio unitario, Margen % y Total para cada línea. Mientras la cotización está en Borrador también se muestra una columna Acciones (Editar/Eliminar)."
+            },
+            {
+              "label": "Subtotal / Impuesto / Total",
+              "value": "Sección de resumen financiero en la parte inferior de las líneas."
+            },
+            {
+              "label": "Creada / Actualizada",
+              "value": "Marcas de tiempo en formato MM/dd/yyyy."
+            },
+            {
+              "label": "Registro de actividad",
+              "value": "Feed de actividad cronológico en la parte inferior del panel de detalle."
+            }
           ]
         },
         {
           "heading": "Panel de detalle — Edición de líneas (solo Borrador)",
           "items": [
-            { "label": "Cuándo está disponible", "value": "El botón Agregar línea y las acciones de Editar/Eliminar por línea se muestran SOLO cuando el estado de la cotización es Borrador. En cualquier otro estado (Enviada, Aceptada, Declinada, Vencida, Convertida en orden) las líneas son de solo lectura." },
-            { "label": "Botón Agregar línea", "value": "Abre un formulario de agregar en línea debajo de la tabla de líneas. Deshabilitado mientras otra línea ya se está editando. data-testid: quote-add-line-btn" },
-            { "label": "Formulario en línea — Pieza (opcional)", "value": "Selector de entidad con autocompletado sobre el catálogo de piezas (solo se muestra al AGREGAR una línea, no al editar). Seleccionar una pieza rellena la Descripción (si está vacía) y resuelve el precio unitario específico del cliente en el campo Precio automáticamente. Déjelo vacío para una línea de texto libre / monto global. data-testid: quote-line-part" },
-            { "label": "Formulario en línea — Descripción (requerido)", "value": "Entrada de texto. Requerido. Descripción de línea de texto libre." },
-            { "label": "Formulario en línea — Cant. (requerido)", "value": "Entrada numérica. Requerido, mínimo 0.0001 — se admiten cantidades fraccionarias de hasta cuatro decimales (paso 0.0001)." },
-            { "label": "Formulario en línea — Precio unitario (requerido)", "value": "Entrada de moneda. Requerido, mínimo 0. Resuelto automáticamente desde la lista de precios del cliente al seleccionar la pieza; editable libremente." },
-            { "label": "Formulario en línea — Guardar / Cancelar", "value": "Guardar confirma el agregar o editar y actualiza los totales; deshabilitado mientras el formulario es inválido o un guardado está en progreso. Cancelar cierra el formulario en línea sin cambios." },
-            { "label": "Editar por línea (icono de lápiz)", "value": "Reabre el formulario en línea precargado con la descripción, la cantidad y el precio de esa fila. La pieza en sí no cambia al editar — solo descripción/cant./precio." },
-            { "label": "Eliminar por línea (icono de papelera)", "value": "Quita la línea tras un cuadro de diálogo de confirmación de peligro. Recalcula los totales." }
+            {
+              "label": "Cuándo está disponible",
+              "value": "El botón Agregar línea y las acciones de Editar/Eliminar por línea se muestran SOLO cuando el estado de la cotización es Borrador. En cualquier otro estado (Enviada, Aceptada, Declinada, Vencida, Convertida en orden) las líneas son de solo lectura."
+            },
+            {
+              "label": "Botón Agregar línea",
+              "value": "Abre un formulario de agregar en línea debajo de la tabla de líneas. Deshabilitado mientras otra línea ya se está editando. data-testid: quote-add-line-btn"
+            },
+            {
+              "label": "Formulario en línea — Pieza (opcional)",
+              "value": "Selector de entidad con autocompletado sobre el catálogo de piezas (solo se muestra al AGREGAR una línea, no al editar). Seleccionar una pieza rellena la Descripción (si está vacía) y resuelve el precio unitario específico del cliente en el campo Precio automáticamente. Déjelo vacío para una línea de texto libre / monto global. data-testid: quote-line-part"
+            },
+            {
+              "label": "Formulario en línea — Descripción (requerido)",
+              "value": "Entrada de texto. Requerido. Descripción de línea de texto libre."
+            },
+            {
+              "label": "Formulario en línea — Cant. (requerido)",
+              "value": "Entrada numérica. Requerido, mínimo 0.0001 — se admiten cantidades fraccionarias de hasta cuatro decimales (paso 0.0001)."
+            },
+            {
+              "label": "Formulario en línea — Precio unitario (requerido)",
+              "value": "Entrada de moneda. Requerido, mínimo 0. Resuelto automáticamente desde la lista de precios del cliente al seleccionar la pieza; editable libremente."
+            },
+            {
+              "label": "Formulario en línea — Guardar / Cancelar",
+              "value": "Guardar confirma el agregar o editar y actualiza los totales; deshabilitado mientras el formulario es inválido o un guardado está en progreso. Cancelar cierra el formulario en línea sin cambios."
+            },
+            {
+              "label": "Editar por línea (icono de lápiz)",
+              "value": "Reabre el formulario en línea precargado con la descripción, la cantidad y el precio de esa fila. La pieza en sí no cambia al editar — solo descripción/cant./precio."
+            },
+            {
+              "label": "Eliminar por línea (icono de papelera)",
+              "value": "Quita la línea tras un cuadro de diálogo de confirmación de peligro. Recalcula los totales."
+            }
           ]
         },
         {
           "heading": "Panel de detalle — Margen y desglose de costos",
           "items": [
-            { "label": "Columna Margen %", "value": "Margen efectivo por línea = (precio unitario − costo unitario) ÷ precio unitario, mostrado como porcentaje con un decimal. Solo se completa para las líneas que llevan un costo subyacente (valoradas con el motor de estimación); las líneas valoradas manualmente muestran un guion (—)." },
-            { "label": "Fila de desglose de costos", "value": "Una fila expandible debajo de una línea que detalla su costo: Mano de obra, Carga, Material, OSP (procesamiento externo / subcontratación) y Total. Presente solo cuando la línea tiene un desglose de costos. Solo interno — nunca se muestra en la cotización orientada al cliente." }
+            {
+              "label": "Columna Margen %",
+              "value": "Margen efectivo por línea = (precio unitario − costo unitario) ÷ precio unitario, mostrado como porcentaje con un decimal. Solo se completa para las líneas que llevan un costo subyacente (valoradas con el motor de estimación); las líneas valoradas manualmente muestran un guion (—)."
+            },
+            {
+              "label": "Fila de desglose de costos",
+              "value": "Una fila expandible debajo de una línea que detalla su costo: Mano de obra, Carga, Material, OSP (procesamiento externo / subcontratación) y Total. Presente solo cuando la línea tiene un desglose de costos. Solo interno — nunca se muestra en la cotización orientada al cliente."
+            }
           ]
         },
         {
           "heading": "Botones y acciones",
           "items": [
-            { "label": "Nueva cotización (página de lista, principal)", "value": "Abre el cuadro de diálogo de creación. data-testid: new-quote-btn" },
-            { "label": "Guardar / Crear cotización (cuadro de diálogo, principal)", "value": "Crea la cotización. Deshabilitado cuando el formulario es inválido, no existen líneas o un guardado está en progreso. Al pasar el cursor se muestra la ventana emergente de validación. data-testid: quote-save-btn" },
-            { "label": "Cancelar (cuadro de diálogo)", "value": "Cierra el cuadro de diálogo de creación sin guardar." },
-            { "label": "Enviar (detalle, principal)", "value": "Marca la cotización como Enviada. Solo disponible cuando el estado es Borrador. data-testid: quote-send-btn" },
-            { "label": "Aceptar (detalle, principal)", "value": "Marca la cotización como Aceptada. Solo disponible cuando el estado es Enviada. data-testid: quote-accept-btn" },
-            { "label": "Rechazar (detalle)", "value": "Marca la cotización como Declinada. Solo disponible cuando el estado es Enviada. Abre un cuadro de diálogo de confirmación antes de continuar. data-testid: quote-reject-btn" },
-            { "label": "Convertir en orden (detalle, principal)", "value": "Convierte la cotización aceptada en una orden de venta. Solo disponible cuando el estado es Aceptada. Crea la orden de venta y la vincula a la cotización. data-testid: quote-convert-btn" },
-            { "label": "Eliminar (detalle, peligro)", "value": "Elimina suavemente la cotización. Solo disponible cuando el estado es Borrador. Abre un cuadro de diálogo de confirmación antes de continuar. data-testid: quote-delete-btn" },
-            { "label": "Cerrar (detalle, icono)", "value": "Cierra el cuadro de diálogo de detalle." },
-            { "label": "Clic en fila (tabla)", "value": "Abre el cuadro de diálogo de detalle de la cotización para la fila en la que se hizo clic." }
+            {
+              "label": "Nueva cotización (página de lista, principal)",
+              "value": "Abre el cuadro de diálogo de creación. data-testid: new-quote-btn"
+            },
+            {
+              "label": "Guardar / Crear cotización (cuadro de diálogo, principal)",
+              "value": "Crea la cotización. Deshabilitado cuando el formulario es inválido, no existen líneas o un guardado está en progreso. Al pasar el cursor se muestra la ventana emergente de validación. data-testid: quote-save-btn"
+            },
+            {
+              "label": "Cancelar (cuadro de diálogo)",
+              "value": "Cierra el cuadro de diálogo de creación sin guardar."
+            },
+            {
+              "label": "Enviar (detalle, principal)",
+              "value": "Marca la cotización como Enviada. Solo disponible cuando el estado es Borrador. data-testid: quote-send-btn"
+            },
+            {
+              "label": "Aceptar (detalle, principal)",
+              "value": "Marca la cotización como Aceptada. Solo disponible cuando el estado es Enviada. data-testid: quote-accept-btn"
+            },
+            {
+              "label": "Rechazar (detalle)",
+              "value": "Marca la cotización como Declinada. Solo disponible cuando el estado es Enviada. Abre un cuadro de diálogo de confirmación antes de continuar. data-testid: quote-reject-btn"
+            },
+            {
+              "label": "Convertir en orden (detalle, principal)",
+              "value": "Convierte la cotización aceptada en una orden de venta. Solo disponible cuando el estado es Aceptada. Crea la orden de venta y la vincula a la cotización. data-testid: quote-convert-btn"
+            },
+            {
+              "label": "Eliminar (detalle, peligro)",
+              "value": "Elimina suavemente la cotización. Solo disponible cuando el estado es Borrador. Abre un cuadro de diálogo de confirmación antes de continuar. data-testid: quote-delete-btn"
+            },
+            {
+              "label": "Cerrar (detalle, icono)",
+              "value": "Cierra el cuadro de diálogo de detalle."
+            },
+            {
+              "label": "Clic en fila (tabla)",
+              "value": "Abre el cuadro de diálogo de detalle de la cotización para la fila en la que se hizo clic."
+            }
           ]
         },
         {
           "heading": "Reglas de validación",
           "items": [
-            { "label": "Cliente", "value": "Requerido. Debe seleccionar un cliente del menú desplegable." },
-            { "label": "Tasa de impuesto", "value": "Requerido. Debe ser un número >= 0. Se ingresa como un porcentaje (p. ej., 7.25 para 7.25%)." },
-            { "label": "Líneas", "value": "Se requiere al menos una línea. El botón de guardar está deshabilitado y la ventana emergente de validación muestra 'Se requiere al menos una línea' si no existen líneas." },
-            { "label": "Línea — Pieza", "value": "Requerido para cada línea. Debe seleccionar una pieza del autocompletado." },
-            { "label": "Línea — Cantidad", "value": "Requerido. Debe ser >= 1." },
-            { "label": "Línea — Precio unitario", "value": "Requerido. Debe ser >= 0." },
-            { "label": "Fecha de vencimiento", "value": "Opcional. Sin restricciones de validación." },
-            { "label": "Notas", "value": "Opcional. Sin restricciones de longitud." }
+            {
+              "label": "Cliente",
+              "value": "Requerido. Debe seleccionar un cliente del menú desplegable."
+            },
+            {
+              "label": "Tasa de impuesto",
+              "value": "Requerido. Debe ser un número >= 0. Se ingresa como un porcentaje (p. ej., 7.25 para 7.25%)."
+            },
+            {
+              "label": "Líneas",
+              "value": "Se requiere al menos una línea. El botón de guardar está deshabilitado y la ventana emergente de validación muestra 'Se requiere al menos una línea' si no existen líneas."
+            },
+            {
+              "label": "Línea — Pieza",
+              "value": "Requerido para cada línea. Debe seleccionar una pieza del autocompletado."
+            },
+            {
+              "label": "Línea — Cantidad",
+              "value": "Requerido. Debe ser >= 1."
+            },
+            {
+              "label": "Línea — Precio unitario",
+              "value": "Requerido. Debe ser >= 0."
+            },
+            {
+              "label": "Fecha de vencimiento",
+              "value": "Opcional. Sin restricciones de validación."
+            },
+            {
+              "label": "Notas",
+              "value": "Opcional. Sin restricciones de longitud."
+            }
           ]
         },
         {
           "heading": "Valores predeterminados inteligentes y rellenado automático",
           "items": [
-            { "label": "Rellenado automático de la tasa de impuesto", "value": "Cuando se selecciona un cliente, el sistema busca la tasa de impuesto sobre ventas para el estado del cliente y rellena automáticamente el campo de la tasa de impuesto. Una insignia (p. ej., 'CA 7.25%') aparece junto al campo. Editar manualmente la tasa borra la insignia de rellenado automático." },
-            { "label": "Rellenado automático del precio unitario", "value": "Cuando se selecciona una pieza para una línea, el precio unitario se rellena automáticamente desde el precio predeterminado/de lista de la pieza. Una insignia 'LIST' aparece junto al campo de precio. Editar manualmente el precio borra la insignia." },
-            { "label": "Reinicio del formulario de línea", "value": "Después de agregar una línea, el formulario de línea se reinicia a: Pieza = vacío, Cantidad = 1, Precio unitario = 0." }
+            {
+              "label": "Rellenado automático de la tasa de impuesto",
+              "value": "Cuando se selecciona un cliente, el sistema busca la tasa de impuesto sobre ventas para el estado del cliente y rellena automáticamente el campo de la tasa de impuesto. Una insignia (p. ej., 'CA 7.25%') aparece junto al campo. Editar manualmente la tasa borra la insignia de rellenado automático."
+            },
+            {
+              "label": "Rellenado automático del precio unitario",
+              "value": "Cuando se selecciona una pieza para una línea, el precio unitario se rellena automáticamente desde el precio predeterminado/de lista de la pieza. Una insignia 'LIST' aparece junto al campo de precio. Editar manualmente el precio borra la insignia."
+            },
+            {
+              "label": "Reinicio del formulario de línea",
+              "value": "Después de agregar una línea, el formulario de línea se reinicia a: Pieza = vacío, Cantidad = 1, Precio unitario = 0."
+            }
           ]
         }
       ]
@@ -223,10 +430,23 @@
           "id": "qt1",
           "text": "Un cliente pide una cifra aproximada sobre un proyecto antes de comprometerse con detalles. ¿Qué tipo de documento debe crear?",
           "options": [
-            { "id": "a", "text": "Una Cotización con una sola línea por el total estimado" },
-            { "id": "b", "text": "Una Estimación — una cifra aproximada no vinculante con un único monto global", "isCorrect": true },
-            { "id": "c", "text": "Una Orden de venta con estado 'Pendiente'" },
-            { "id": "d", "text": "Una Cotización en estado Borrador sin líneas" }
+            {
+              "id": "a",
+              "text": "Una Cotización con una sola línea por el total estimado"
+            },
+            {
+              "id": "b",
+              "text": "Una Estimación — una cifra aproximada no vinculante con un único monto global",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Una Orden de venta con estado 'Pendiente'"
+            },
+            {
+              "id": "d",
+              "text": "Una Cotización en estado Borrador sin líneas"
+            }
           ],
           "explanation": "Las estimaciones son cifras aproximadas no vinculantes con un único monto. Las cotizaciones son compromisos vinculantes desglosados por líneas. Use primero una Estimación, luego conviértala en una Cotización cuando el cliente quiera precios detallados."
         },
@@ -234,10 +454,23 @@
           "id": "qt2",
           "text": "¿Cuál es el requisito mínimo para guardar una nueva cotización?",
           "options": [
-            { "id": "a", "text": "Debe seleccionarse un cliente y agregarse al menos una línea", "isCorrect": true },
-            { "id": "b", "text": "Solo se requiere la selección de un cliente — las líneas pueden agregarse después" },
-            { "id": "c", "text": "Un cliente, una fecha de vencimiento y al menos dos líneas" },
-            { "id": "d", "text": "Debe ingresarse manualmente un número de cotización junto con el cliente" }
+            {
+              "id": "a",
+              "text": "Debe seleccionarse un cliente y agregarse al menos una línea",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Solo se requiere la selección de un cliente — las líneas pueden agregarse después"
+            },
+            {
+              "id": "c",
+              "text": "Un cliente, una fecha de vencimiento y al menos dos líneas"
+            },
+            {
+              "id": "d",
+              "text": "Debe ingresarse manualmente un número de cotización junto con el cliente"
+            }
           ],
           "explanation": "El botón de guardar está deshabilitado hasta que se selecciona un cliente y existe al menos una línea. La ventana emergente de validación muestra 'Se requiere al menos una línea' si no se han agregado líneas. Los números de cotización se generan automáticamente."
         },
@@ -245,10 +478,23 @@
           "id": "qt3",
           "text": "Selecciona 'Acme Corp' como cliente y nota que la tasa de impuesto se rellena automáticamente a 7.25% con una insignia que muestra 'CA 7.25%'. ¿Qué sucedió?",
           "options": [
-            { "id": "a", "text": "El sistema buscó la tasa de impuesto sobre ventas de California (el estado del cliente) y la rellenó automáticamente", "isCorrect": true },
-            { "id": "b", "text": "7.25% es la tasa de impuesto predeterminada para todos los clientes" },
-            { "id": "c", "text": "La tasa de impuesto se copió de la última cotización de Acme Corp" },
-            { "id": "d", "text": "La tasa se tomó de la tabla de impuestos federales" }
+            {
+              "id": "a",
+              "text": "El sistema buscó la tasa de impuesto sobre ventas de California (el estado del cliente) y la rellenó automáticamente",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "7.25% es la tasa de impuesto predeterminada para todos los clientes"
+            },
+            {
+              "id": "c",
+              "text": "La tasa de impuesto se copió de la última cotización de Acme Corp"
+            },
+            {
+              "id": "d",
+              "text": "La tasa se tomó de la tabla de impuestos federales"
+            }
           ],
           "explanation": "Cuando selecciona un cliente, el sistema busca la tasa de impuesto sobre ventas aplicable según el estado del cliente. La insignia (p. ej., 'CA 7.25%') confirma la fuente. Puede anular la tasa manualmente si es necesario."
         },
@@ -256,10 +502,23 @@
           "id": "qt4",
           "text": "Al agregar una línea, selecciona una pieza y ve aparecer una insignia 'LIST' junto al precio unitario. ¿Qué indica esto?",
           "options": [
-            { "id": "a", "text": "El precio se rellenó automáticamente desde el precio de lista/predeterminado de la pieza y puede anularse", "isCorrect": true },
-            { "id": "b", "text": "El precio está bloqueado y no se puede cambiar" },
-            { "id": "c", "text": "La pieza está en una lista de precios especial para este cliente" },
-            { "id": "d", "text": "El precio incluye un descuento por volumen" }
+            {
+              "id": "a",
+              "text": "El precio se rellenó automáticamente desde el precio de lista/predeterminado de la pieza y puede anularse",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "El precio está bloqueado y no se puede cambiar"
+            },
+            {
+              "id": "c",
+              "text": "La pieza está en una lista de precios especial para este cliente"
+            },
+            {
+              "id": "d",
+              "text": "El precio incluye un descuento por volumen"
+            }
           ],
           "explanation": "Cuando selecciona una pieza, el precio unitario se rellena automáticamente desde el precio predeterminado/de lista de la pieza. La insignia 'LIST' indica que este es el precio del catálogo. Editar manualmente el precio borra la insignia — siempre puede anular el valor predeterminado."
         },
@@ -267,10 +526,23 @@
           "id": "qt5",
           "text": "Una cotización está actualmente en estado 'Enviada'. ¿Qué acciones están disponibles?",
           "options": [
-            { "id": "a", "text": "Solo Aceptar y Rechazar", "isCorrect": true },
-            { "id": "b", "text": "Enviar, Aceptar, Rechazar y Eliminar" },
-            { "id": "c", "text": "Aceptar, Rechazar, Convertir en orden y Eliminar" },
-            { "id": "d", "text": "Solo Convertir en orden" }
+            {
+              "id": "a",
+              "text": "Solo Aceptar y Rechazar",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Enviar, Aceptar, Rechazar y Eliminar"
+            },
+            {
+              "id": "c",
+              "text": "Aceptar, Rechazar, Convertir en orden y Eliminar"
+            },
+            {
+              "id": "d",
+              "text": "Solo Convertir en orden"
+            }
           ],
           "explanation": "Cuando una cotización está Enviada, solo Aceptar y Rechazar están disponibles. Enviar es solo para cotizaciones en Borrador. Convertir en orden requiere el estado Aceptada. Eliminar solo está disponible para cotizaciones en Borrador."
         },
@@ -278,10 +550,23 @@
           "id": "qt6",
           "text": "¿Qué sucede cuando hace clic en 'Convertir en orden' en una cotización aceptada?",
           "options": [
-            { "id": "a", "text": "El sistema crea una nueva orden de venta con líneas que coinciden con la cotización, vincula la cotización a la orden y actualiza el estado de la cotización a Convertida en orden", "isCorrect": true },
-            { "id": "b", "text": "La cotización se renombra como orden de venta — el mismo registro, etiqueta diferente" },
-            { "id": "c", "text": "Se crea una orden de venta en blanco y debe copiar manualmente las líneas" },
-            { "id": "d", "text": "La cotización se archiva y se envía una notificación para crear una orden de venta manualmente" }
+            {
+              "id": "a",
+              "text": "El sistema crea una nueva orden de venta con líneas que coinciden con la cotización, vincula la cotización a la orden y actualiza el estado de la cotización a Convertida en orden",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "La cotización se renombra como orden de venta — el mismo registro, etiqueta diferente"
+            },
+            {
+              "id": "c",
+              "text": "Se crea una orden de venta en blanco y debe copiar manualmente las líneas"
+            },
+            {
+              "id": "d",
+              "text": "La cotización se archiva y se envía una notificación para crear una orden de venta manualmente"
+            }
           ],
           "explanation": "Convertir crea una nueva orden de venta con líneas que coinciden con las líneas de la cotización, heredando el cliente y los detalles. La cotización se vincula a la nueva orden de venta (visible como 'Orden vinculada' en el detalle) y su estado cambia a Convertida en orden."
         },
@@ -289,10 +574,23 @@
           "id": "qt7",
           "text": "Quiere eliminar una cotización que ya se ha enviado al cliente. ¿Puede hacerlo?",
           "options": [
-            { "id": "a", "text": "Sí — cualquier cotización puede eliminarse en cualquier momento" },
-            { "id": "b", "text": "No — solo las cotizaciones en Borrador pueden eliminarse. Las cotizaciones Enviada, Aceptada, Declinada y Vencida no pueden eliminarse.", "isCorrect": true },
-            { "id": "c", "text": "Sí, pero solo si el cliente no ha respondido en 30 días" },
-            { "id": "d", "text": "No — las cotizaciones nunca pueden eliminarse, solo archivarse" }
+            {
+              "id": "a",
+              "text": "Sí — cualquier cotización puede eliminarse en cualquier momento"
+            },
+            {
+              "id": "b",
+              "text": "No — solo las cotizaciones en Borrador pueden eliminarse. Las cotizaciones Enviada, Aceptada, Declinada y Vencida no pueden eliminarse.",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Sí, pero solo si el cliente no ha respondido en 30 días"
+            },
+            {
+              "id": "d",
+              "text": "No — las cotizaciones nunca pueden eliminarse, solo archivarse"
+            }
           ],
           "explanation": "La acción Eliminar solo está disponible cuando el estado de la cotización es Borrador. Una vez que una cotización se ha enviado, se convierte en parte de la pista de auditoría y no puede eliminarse. Esto garantiza que mantenga un registro completo de todas las comunicaciones de precios."
         },
@@ -300,10 +598,23 @@
           "id": "qt8",
           "text": "¿Qué color de chip representa una cotización que ha sido declinada por el cliente?",
           "options": [
-            { "id": "a", "text": "Amarillo (advertencia)" },
-            { "id": "b", "text": "Gris (atenuado)" },
-            { "id": "c", "text": "Rojo (error)", "isCorrect": true },
-            { "id": "d", "text": "Azul (info)" }
+            {
+              "id": "a",
+              "text": "Amarillo (advertencia)"
+            },
+            {
+              "id": "b",
+              "text": "Gris (atenuado)"
+            },
+            {
+              "id": "c",
+              "text": "Rojo (error)",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Azul (info)"
+            }
           ],
           "explanation": "Las cotizaciones declinadas muestran un chip rojo (chip--error). El mapeo de colores completo: Borrador = gris, Enviada = azul, Aceptada = verde, Declinada = rojo, Vencida = amarillo, Convertida en orden = morado/primario."
         },
@@ -311,10 +622,23 @@
           "id": "qt9",
           "text": "Una estimación se convirtió en una cotización. ¿Dónde puede ver el vínculo de vuelta a la estimación original?",
           "options": [
-            { "id": "a", "text": "En el cuadro de diálogo de detalle de la cotización — el campo sourceEstimateId vincula de vuelta a la estimación de origen", "isCorrect": true },
-            { "id": "b", "text": "No hay vínculo — las estimaciones y las cotizaciones están completamente separadas" },
-            { "id": "c", "text": "Solo en la base de datos — la interfaz no muestra los vínculos de estimación a cotización" },
-            { "id": "d", "text": "Solo en el registro de actividad del cliente" }
+            {
+              "id": "a",
+              "text": "En el cuadro de diálogo de detalle de la cotización — el campo sourceEstimateId vincula de vuelta a la estimación de origen",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "No hay vínculo — las estimaciones y las cotizaciones están completamente separadas"
+            },
+            {
+              "id": "c",
+              "text": "Solo en la base de datos — la interfaz no muestra los vínculos de estimación a cotización"
+            },
+            {
+              "id": "d",
+              "text": "Solo en el registro de actividad del cliente"
+            }
           ],
           "explanation": "Cuando una estimación se convierte en una cotización, la cotización resultante almacena un sourceEstimateId que vincula de vuelta a la estimación de origen. Esto proporciona trazabilidad completa del historial de precios desde la cifra aproximada inicial hasta el compromiso formal."
         },
@@ -322,10 +646,23 @@
           "id": "qt10",
           "text": "¿Cómo se calcula el total general de una cotización?",
           "options": [
-            { "id": "a", "text": "Se ingresa manualmente por el usuario" },
-            { "id": "b", "text": "Subtotal (suma de todos los totales de línea) más Impuesto (subtotal × porcentaje de la tasa de impuesto)", "isCorrect": true },
-            { "id": "c", "text": "Suma de todas las cantidades de las líneas multiplicada por un único precio unitario" },
-            { "id": "d", "text": "El total de la estimación vinculada más un porcentaje de margen" }
+            {
+              "id": "a",
+              "text": "Se ingresa manualmente por el usuario"
+            },
+            {
+              "id": "b",
+              "text": "Subtotal (suma de todos los totales de línea) más Impuesto (subtotal × porcentaje de la tasa de impuesto)",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Suma de todas las cantidades de las líneas multiplicada por un único precio unitario"
+            },
+            {
+              "id": "d",
+              "text": "El total de la estimación vinculada más un porcentaje de margen"
+            }
           ],
           "explanation": "El total general se calcula: Subtotal = suma de (Cantidad × Precio unitario) para cada línea. Impuesto = Subtotal × Tasa de impuesto %. Total general = Subtotal + Impuesto. Los tres valores se muestran en la sección de resumen."
         },
@@ -333,10 +670,23 @@
           "id": "qt11",
           "text": "Está en la página de lista de cotizaciones y quiere ver solo las cotizaciones que han sido aceptadas pero aún no convertidas. ¿Cómo filtra?",
           "options": [
-            { "id": "a", "text": "Usar el menú desplegable del filtro de estado y seleccionar 'Aceptada'", "isCorrect": true },
-            { "id": "b", "text": "Escribir 'aceptada' en el cuadro de búsqueda" },
-            { "id": "c", "text": "Hacer clic en el encabezado de la columna para ordenar por estado, luego desplazarse a la sección Aceptada" },
-            { "id": "d", "text": "No hay forma de filtrar por estado — debe revisar la lista completa" }
+            {
+              "id": "a",
+              "text": "Usar el menú desplegable del filtro de estado y seleccionar 'Aceptada'",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Escribir 'aceptada' en el cuadro de búsqueda"
+            },
+            {
+              "id": "c",
+              "text": "Hacer clic en el encabezado de la columna para ordenar por estado, luego desplazarse a la sección Aceptada"
+            },
+            {
+              "id": "d",
+              "text": "No hay forma de filtrar por estado — debe revisar la lista completa"
+            }
           ],
           "explanation": "El menú desplegable del filtro de estado en la página de lista de cotizaciones le permite filtrar por cualquier estado individual. Seleccione 'Aceptada' para ver solo las cotizaciones aceptadas que aún no se han convertido. La tabla también admite el filtrado de estado a nivel de columna a través del filtro del encabezado de columna."
         },
@@ -344,10 +694,23 @@
           "id": "qt12",
           "text": "¿Qué columnas son visibles en la tabla de datos de cotizaciones de forma predeterminada?",
           "options": [
-            { "id": "a", "text": "N.º de cotización, Cliente, Estado, Líneas, Total, Vence y Creada", "isCorrect": true },
-            { "id": "b", "text": "N.º de cotización, Cliente y Total únicamente" },
-            { "id": "c", "text": "N.º de cotización, Cliente, Estado, Asignado a, Prioridad y Fecha de entrega" },
-            { "id": "d", "text": "N.º de cotización, Descripción, Monto, Impuesto y Total general" }
+            {
+              "id": "a",
+              "text": "N.º de cotización, Cliente, Estado, Líneas, Total, Vence y Creada",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "N.º de cotización, Cliente y Total únicamente"
+            },
+            {
+              "id": "c",
+              "text": "N.º de cotización, Cliente, Estado, Asignado a, Prioridad y Fecha de entrega"
+            },
+            {
+              "id": "d",
+              "text": "N.º de cotización, Descripción, Monto, Impuesto y Total general"
+            }
           ],
           "explanation": "La tabla de cotizaciones muestra siete columnas: N.º de cotización (monoespaciado), Nombre del cliente, Estado (chip con código de color), conteo de Líneas (centrado), Total (moneda, alineado a la derecha), Vence (fecha) y Creada (fecha). Todas las columnas son ordenables. Puede gestionar la visibilidad de las columnas a través del icono de engranaje."
         },
@@ -355,10 +718,23 @@
           "id": "qt13",
           "text": "Guardó una cotización en Borrador y ahora necesita agregar otra línea y corregir una cantidad en una existente. ¿Dónde lo hace?",
           "options": [
-            { "id": "a", "text": "Desde el panel de detalle de la cotización — mientras la cotización está en Borrador, la sección de Líneas tiene un botón Agregar línea más acciones de Editar y Eliminar en cada fila", "isCorrect": true },
-            { "id": "b", "text": "Debe eliminar la cotización y volver a crearla con las líneas correctas" },
-            { "id": "c", "text": "Solo en el cuadro de diálogo de creación original, que puede reabrirse desde la fila de la tabla" },
-            { "id": "d", "text": "Las líneas nunca pueden cambiarse una vez guardada la cotización" }
+            {
+              "id": "a",
+              "text": "Desde el panel de detalle de la cotización — mientras la cotización está en Borrador, la sección de Líneas tiene un botón Agregar línea más acciones de Editar y Eliminar en cada fila",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Debe eliminar la cotización y volver a crearla con las líneas correctas"
+            },
+            {
+              "id": "c",
+              "text": "Solo en el cuadro de diálogo de creación original, que puede reabrirse desde la fila de la tabla"
+            },
+            {
+              "id": "d",
+              "text": "Las líneas nunca pueden cambiarse una vez guardada la cotización"
+            }
           ],
           "explanation": "Las líneas son editables directamente desde el panel de detalle mientras la cotización está en Borrador. Agregar línea abre un formulario en línea (selector de pieza, descripción, cant., precio); cada fila tiene un icono de lápiz (editar) y de papelera (eliminar). Cada cambio recalcula el subtotal, el impuesto y el total. Una vez que la cotización está Enviada, estos controles desaparecen y las líneas se vuelven de solo lectura."
         },
@@ -366,14 +742,36 @@
           "id": "qt14",
           "text": "En el panel de detalle de una cotización en Borrador, una línea muestra '42.5%' en la columna Margen y un desglose de costos expandible, mientras que otra línea muestra un guion (—) y ningún desglose. ¿Por qué la diferencia?",
           "options": [
-            { "id": "a", "text": "La línea de 42.5% se valoró con el motor de estimación, por lo que lleva un costo subyacente (mano de obra/carga/material/OSP); la línea con guion se valoró manualmente sin costo contra el cual calcular el margen", "isCorrect": true },
-            { "id": "b", "text": "La línea con guion aún se está cargando y mostrará un porcentaje en breve" },
-            { "id": "c", "text": "La línea con guion tiene cantidad cero, por lo que no puede calcularse el margen" },
-            { "id": "d", "text": "El margen solo se muestra en la primera línea de cada cotización" }
+            {
+              "id": "a",
+              "text": "La línea de 42.5% se valoró con el motor de estimación, por lo que lleva un costo subyacente (mano de obra/carga/material/OSP); la línea con guion se valoró manualmente sin costo contra el cual calcular el margen",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "La línea con guion aún se está cargando y mostrará un porcentaje en breve"
+            },
+            {
+              "id": "c",
+              "text": "La línea con guion tiene cantidad cero, por lo que no puede calcularse el margen"
+            },
+            {
+              "id": "d",
+              "text": "El margen solo se muestra en la primera línea de cada cotización"
+            }
           ],
           "explanation": "La columna Margen % muestra (precio − costo) ÷ precio, pero solo para las líneas que llevan un costo subyacente — las valoradas con el motor de estimación, que también exponen el desglose de costos Mano de obra / Carga / Material / OSP / Total. Una línea valorada manualmente no tiene base de costo, por lo que su margen se muestra como un guion. El desglose es solo interno y nunca aparece en la cotización orientada al cliente."
         }
       ]
+    }
+  },
+  {
+    "slug": "quotes-reference",
+    "title": "Cotizaciones y estimaciones — Referencia avanzada",
+    "summary": "Notas de casos límite y de usuario avanzado: el motor de estimación de costos respaldado por simulación, la resolución de la lista de precios al seleccionar la pieza, el guardado automático de borrador y la referencia de validación/colores de chip.",
+    "contentJson": {
+      "body": "## Herramienta detallada de estimación de costos (respaldada por simulación, aún sin conectar)\n\nHay un motor de estimación ascendente completo montado en la interfaz, pero **no está conectado a un backend en vivo**. `EstimateService.compute()` lleva `useMock = true`, por lo que devuelve una curva de precio unitario fabricada y plausiblemente decreciente mediante un `mockCompute()` en memoria, en lugar de llamar al servidor. El endpoint previsto es `POST /api/v1/estimates/compute` (ruta/verbo pendiente de confirmación del líder de ingeniería, señalado el 2026-05-21).\n\n- El contrato de solicitud/respuesta está congelado según la especificación del líder de ingeniería (`docs/estimating-engine-contract.md`, publicado el 2026-05-21): `EstimateRequest` (partId, `breakQuantities[]` ascendente, `pricing`, `operations[]`, `nreLines[]`) se convierte en `EstimateResult` (`breaks[]`, `inputHash`, `warnings[]`). Los DTO son estables aunque la matemática del servidor no esté resuelta.\n- **El modo de precio** es un discriminado `'Margin' | 'Markup'` (nunca intercambiables). La interfaz almacena el margen/sobreprecio como un porcentaje 0-99 y lo divide entre 100 antes de enviarlo. Margen: `unitPrice = unitCost / (1 - value)`; Sobreprecio: `unitPrice = unitCost * (1 + value)`.\n- **Entradas por operación**: `setupMinutes` (una vez por lote), `runMinutesEach` (escala con la cantidad ajustada por rendimiento), `runMinutesLot` (una vez por lote), `scrapFactor` (Qeff = Q / (1 - scrapFactor)), tasas de mano de obra/carga, e `isSubcontract` con `subcontractUnitCost` / `subcontractMinimum`. Las entradas de material llevan `qtyPerUnit`, `dropFactor` (desperdicio aditivo), `uom`, `unitCost`.\n- **Las líneas de NRE** se cuentan exactamente una vez - no por unidad, ni multiplicadas por la cantidad del tramo.\n- **Desglose de costos del resultado** por tramo: `laborCost`, `burdenCost`, `materialCost`, `ospCost`, `nreCost`, `totalCost`, más `unitCost`, `unitPrice`, `extendedPrice`, y un `effectiveMargin` recalculado ((precio - costo) / precio) - el margen mostrado, no el valor de precio de entrada. `inputHash` es un SHA-256 de las entradas normalizadas que prueba un recálculo determinista.\n- Las preguntas matemáticas abiertas (convención de desperdicio, precedencia de tasas, base de OSP, selección de tramo, `RunMinutesLot`, redondeo) se resuelven en el servidor dentro de `Compute`; los DTO no cambian cuando se resuelven.\n- **Para activarlo**: cambie `EstimateService.useMock` a `false` una vez que el endpoint esté desplegado. Hasta entonces, trate todos los números de estimación como ficticios.\n\n## Resolución de la lista de precios al seleccionar la pieza\n\nSeleccionar una pieza del catálogo resuelve un precio unitario específico del cliente, pero las dos superficies de cotización lo resuelven de manera diferente:\n\n- **Cuadro de diálogo de creación** (`quote-dialog`): usa el `effectivePrice` / `effectivePriceSource` ya resuelto que lleva `PartListItem`. Solo rellena previamente cuando `effectivePriceSource !== 'Default'` Y `effectivePrice > 0` - una fuente `'Default'` significa que el resolvedor devolvió 0 (sin precios configurados), por lo que el campo se deja para entrada manual. Un valor rellenado previamente establece `priceIsDefault` en true (la insignia **LIST**); editar el precio lo borra.\n- **Panel de detalle** (`quote-detail-panel`, AUDIT-19-S1 / #26): llama a `GET /api/v1/quotes/resolve-price?customerId={id}&partId={id}` en vivo en cada selección de pieza (`QuoteService.resolvePrice`). Un precio no nulo rellena `unitPrice`; un resultado nulo (o un error) deja el campo para entrada manual. Seleccionar una pieza también rellena previamente la **Descripción** de la línea desde el `name` de la pieza solo cuando el campo de descripción aún está vacío.\n\nLa resolución del panel de detalle es el precio de la lista de precios del cliente; el `effectivePrice` del cuadro de diálogo de creación es el mismo valor resuelto precalculado en el elemento de la lista.\n\n## Guardado automático de borrador\n\nEl cuadro de diálogo de creación guarda automáticamente una cotización en progreso para que una entrada interrumpida pueda recuperarse:\n\n- `DraftConfig` es `{ entityType: 'quote', entityId: 'new', route: '/quotes' }`.\n- `snapshotFn` captura `{ ...form.getRawValue(), lines }` - cliente, vencimiento, tasa de impuesto, notas y el arreglo completo de líneas.\n- `restoreFn` aplica los valores al formulario, restaura `lines` y marca el formulario como modificado para que el borrador sobreviva a una recarga.\n- Tras una creación exitosa, el cuadro de diálogo llama a `dialogRef.clearDraft()` para que el borrador recuperado se descarte una vez que la cotización realmente exista.\n- El guardado automático de borrador está conectado solo en el cuadro de diálogo de **creación**. El editor de líneas en línea del panel de detalle confirma cada agregar/editar/eliminar directamente en el servidor (sin borrador del lado del cliente).\n\n## Restricciones de validación y mapeo de colores de chip\n\n**Validación del cuadro de diálogo de creación** (`save` se bloquea y el botón de validación lista las infracciones hasta que todas pasen):\n\n- **customerId** - requerido.\n- **taxRate** - requerido, mínimo 0. Se ingresa como un porcentaje; se divide entre 100 (`taxRate / 100`) antes de enviar la solicitud.\n- **Al menos una línea** - infracción sintética 'Se requiere al menos una línea' agregada cuando `lines().length === 0`.\n- **Línea - partId** - requerido (cuadro de diálogo de creación).\n- **Línea - quantity** - requerido, mínimo **0.0001** (Fase 3 / WU-23: cantidades fraccionarias compatibles con UoM de hasta cuatro decimales).\n- **Línea - unitPrice** - requerido, mínimo 0.\n- **expirationDate** / **notes** - opcionales, sin restricciones.\n\n**El formulario de línea en línea del panel de detalle** difiere: allí **partId es opcional** (vacío = línea de texto libre / monto global), **description es requerido**, quantity mínimo 0.0001, unitPrice mínimo 0.\n\n**Rellenado automático del impuesto**: seleccionar un cliente llama a `AdminService.getTaxRateForCustomer`; una tasa devuelta establece `taxRate` (sin emitir) y muestra una etiqueta como `CA 7.25%` (o `Default 7.25%` cuando no hay código de estado). Cualquier edición manual de la tasa de impuesto borra la insignia de rellenado automático.\n\n**Mapeo de colores de chip de estado** (`QuoteStatus` a clase de chip):\n\n- **Borrador** - gris (`chip--muted`)\n- **Enviada** - azul (`chip--info`)\n- **Aceptada** - verde (`chip--success`)\n- **Declinada** - rojo (`chip--error`)\n- **Vencida** - amarillo (`chip--warning`)\n- **Convertida en orden** - morado (`chip--primary`)\n\nTenga en cuenta que el enum `QuoteStatus` también lleva `ConvertedToQuote` (una estimación promovida a cotización) junto con `ConvertedToOrder`; solo la conversión a orden es un estado terminal de la cotización con una orden de venta vinculada.",
+      "sections": []
     }
   }
 ]

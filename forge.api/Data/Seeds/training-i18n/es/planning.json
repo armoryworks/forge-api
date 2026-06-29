@@ -77,105 +77,267 @@
         {
           "heading": "Campos del formulario del ciclo (cuadro de diálogo Crear/Editar)",
           "items": [
-            { "label": "Nombre (requerido)", "value": "Entrada de texto, máx. 100 caracteres (cliente) / 200 caracteres (servidor). Identifica el ciclo. Ejemplos: 'Sprint 12', 'Semana del 11 de mar', 'Empujón final Q1'. No debe estar vacío." },
-            { "label": "Fecha de inicio (requerido)", "value": "Selector de fecha. Cuándo comienza el ciclo. Para ciclos nuevos, viene predeterminada con la fecha de hoy. Debe ser una fecha válida." },
-            { "label": "Fecha de fin (requerido)", "value": "Selector de fecha. Cuándo termina el ciclo. Para ciclos nuevos, viene predeterminada con 14 días después de la fecha de inicio. Debe ser posterior a la fecha de inicio (validado en el servidor)." },
-            { "label": "Objetivos", "value": "Área de texto, opcional, máx. 2000 caracteres (servidor). Texto de formato libre que describe lo que el equipo busca lograr en este ciclo. Se muestra en el tablero del ciclo cuando está presente." }
+            {
+              "label": "Nombre (requerido)",
+              "value": "Entrada de texto, máx. 100 caracteres (cliente) / 200 caracteres (servidor). Identifica el ciclo. Ejemplos: 'Sprint 12', 'Semana del 11 de mar', 'Empujón final Q1'. No debe estar vacío."
+            },
+            {
+              "label": "Fecha de inicio (requerido)",
+              "value": "Selector de fecha. Cuándo comienza el ciclo. Para ciclos nuevos, viene predeterminada con la fecha de hoy. Debe ser una fecha válida."
+            },
+            {
+              "label": "Fecha de fin (requerido)",
+              "value": "Selector de fecha. Cuándo termina el ciclo. Para ciclos nuevos, viene predeterminada con 14 días después de la fecha de inicio. Debe ser posterior a la fecha de inicio (validado en el servidor)."
+            },
+            {
+              "label": "Objetivos",
+              "value": "Área de texto, opcional, máx. 2000 caracteres (servidor). Texto de formato libre que describe lo que el equipo busca lograr en este ciclo. Se muestra en el tablero del ciclo cuando está presente."
+            }
           ]
         },
         {
           "heading": "Campos de la entrada del ciclo",
           "items": [
-            { "label": "Número de trabajo", "value": "Solo lectura. El número de trabajo del trabajo comprometido (p. ej., 'J-1055'). Se muestra en negrita en cada fila de entrada." },
-            { "label": "Título del trabajo", "value": "Solo lectura. El título del trabajo comprometido. Se muestra junto al número de trabajo." },
-            { "label": "Etapa", "value": "Solo lectura. La etapa kanban actual del trabajo, mostrada como un chip con código de color que coincide con el color de la etapa." },
-            { "label": "Prioridad", "value": "Solo lectura. El nivel de prioridad del trabajo (Urgente, Alta, Normal, Baja). Texto con código de color." },
-            { "label": "Responsable", "value": "Solo lectura. La persona asignada al trabajo. Se muestra como texto de nombre en la fila de entrada. En el panel del backlog, se muestra como un avatar con iniciales." },
-            { "label": "Orden de clasificación", "value": "Reordenable por arrastre. Determina el orden de visualización de las entradas en el tablero del ciclo. Reordene arrastrando el asidero (grip) a la izquierda de cada entrada." },
-            { "label": "Committed At", "value": "Marca de tiempo establecida automáticamente cuando el trabajo se agregó al ciclo. No es visible directamente en la interfaz, pero se rastrea en la base de datos." },
-            { "label": "Completed At", "value": "Marca de tiempo establecida cuando la entrada se marca como completada. Las entradas con una marca de tiempo de completitud muestran un icono de círculo de verificación relleno en lugar del contorno." },
-            { "label": "Is Rolled Over", "value": "Indicador booleano. Verdadero cuando esta entrada se arrastró automáticamente del trabajo incompleto de un ciclo anterior. Se muestra como una insignia de icono de repetición en la entrada." }
+            {
+              "label": "Número de trabajo",
+              "value": "Solo lectura. El número de trabajo del trabajo comprometido (p. ej., 'J-1055'). Se muestra en negrita en cada fila de entrada."
+            },
+            {
+              "label": "Título del trabajo",
+              "value": "Solo lectura. El título del trabajo comprometido. Se muestra junto al número de trabajo."
+            },
+            {
+              "label": "Etapa",
+              "value": "Solo lectura. La etapa kanban actual del trabajo, mostrada como un chip con código de color que coincide con el color de la etapa."
+            },
+            {
+              "label": "Prioridad",
+              "value": "Solo lectura. El nivel de prioridad del trabajo (Urgente, Alta, Normal, Baja). Texto con código de color."
+            },
+            {
+              "label": "Responsable",
+              "value": "Solo lectura. La persona asignada al trabajo. Se muestra como texto de nombre en la fila de entrada. En el panel del backlog, se muestra como un avatar con iniciales."
+            },
+            {
+              "label": "Orden de clasificación",
+              "value": "Reordenable por arrastre. Determina el orden de visualización de las entradas en el tablero del ciclo. Reordene arrastrando el asidero (grip) a la izquierda de cada entrada."
+            },
+            {
+              "label": "Committed At",
+              "value": "Marca de tiempo establecida automáticamente cuando el trabajo se agregó al ciclo. No es visible directamente en la interfaz, pero se rastrea en la base de datos."
+            },
+            {
+              "label": "Completed At",
+              "value": "Marca de tiempo establecida cuando la entrada se marca como completada. Las entradas con una marca de tiempo de completitud muestran un icono de círculo de verificación relleno en lugar del contorno."
+            },
+            {
+              "label": "Is Rolled Over",
+              "value": "Indicador booleano. Verdadero cuando esta entrada se arrastró automáticamente del trabajo incompleto de un ciclo anterior. Se muestra como una insignia de icono de repetición en la entrada."
+            }
           ]
         },
         {
           "heading": "Estados del ciclo",
           "items": [
-            { "label": "Planificación (chip)", "value": "El estado inicial de todo ciclo nuevo. Los trabajos pueden agregarse, quitarse, reordenarse y marcarse como completados libremente. NOTA: el estilo del chip de estado activa el aspecto atenuado a partir de la cadena 'Draft', pero el servidor emite 'Planning' — por eso el chip se muestra sin el tinte atenuado y el botón Activar (también condicionado a 'Draft') no aparece. Vea la fila Activar más abajo." },
-            { "label": "Activo (chip primario/azul)", "value": "El ciclo está en progreso. Muestra la cuenta regresiva de 'días restantes' en el encabezado. Los trabajos aún pueden agregarse o quitarse. Los botones Completar y traspasar y Completar están disponibles para los ciclos Activos." },
-            { "label": "Completado (chip de éxito/verde)", "value": "El ciclo ha terminado. Todas las entradas están congeladas en su estado final. Sin más modificaciones. El ciclo se convierte en un registro histórico de lo que se planificó y se logró." }
+            {
+              "label": "Planificación (chip)",
+              "value": "El estado inicial de todo ciclo nuevo. Los trabajos pueden agregarse, quitarse, reordenarse y marcarse como completados libremente. NOTA: el estilo del chip de estado activa el aspecto atenuado a partir de la cadena 'Draft', pero el servidor emite 'Planning' — por eso el chip se muestra sin el tinte atenuado y el botón Activar (también condicionado a 'Draft') no aparece. Vea la fila Activar más abajo."
+            },
+            {
+              "label": "Activo (chip primario/azul)",
+              "value": "El ciclo está en progreso. Muestra la cuenta regresiva de 'días restantes' en el encabezado. Los trabajos aún pueden agregarse o quitarse. Los botones Completar y traspasar y Completar están disponibles para los ciclos Activos."
+            },
+            {
+              "label": "Completado (chip de éxito/verde)",
+              "value": "El ciclo ha terminado. Todas las entradas están congeladas en su estado final. Sin más modificaciones. El ciclo se convierte en un registro histórico de lo que se planificó y se logró."
+            }
           ]
         },
         {
           "heading": "Diseño de panel dividido",
           "items": [
-            { "label": "Panel izquierdo — Backlog", "value": "Muestra todos los trabajos del backlog que NO están ya comprometidos al ciclo seleccionado actualmente. Filtrado por búsqueda (número o título de trabajo) y menú desplegable de prioridad. Los trabajos desaparecen de esta lista cuando se comprometen y reaparecen cuando se quitan." },
-            { "label": "Panel derecho — Tablero del ciclo", "value": "Muestra los detalles completos del ciclo seleccionado: encabezado (nombre, fechas, días restantes, conteo de completitud, chip de estado), barra de progreso, sección de objetivos y la lista de entradas comprometidas. También sirve como zona de destino para arrastrar y soltar desde el backlog." },
-            { "label": "Arrastrar y soltar", "value": "El arrastrar y soltar de CDK conecta la lista del backlog con el panel del ciclo. Arrastre una tarjeta de trabajo desde la izquierda y suéltela en cualquier parte del panel derecho para comprometerla. Dentro del tablero del ciclo, arrastre las entradas por su asidero para reordenarlas." }
+            {
+              "label": "Panel izquierdo — Backlog",
+              "value": "Muestra todos los trabajos del backlog que NO están ya comprometidos al ciclo seleccionado actualmente. Filtrado por búsqueda (número o título de trabajo) y menú desplegable de prioridad. Los trabajos desaparecen de esta lista cuando se comprometen y reaparecen cuando se quitan."
+            },
+            {
+              "label": "Panel derecho — Tablero del ciclo",
+              "value": "Muestra los detalles completos del ciclo seleccionado: encabezado (nombre, fechas, días restantes, conteo de completitud, chip de estado), barra de progreso, sección de objetivos y la lista de entradas comprometidas. También sirve como zona de destino para arrastrar y soltar desde el backlog."
+            },
+            {
+              "label": "Arrastrar y soltar",
+              "value": "El arrastrar y soltar de CDK conecta la lista del backlog con el panel del ciclo. Arrastre una tarjeta de trabajo desde la izquierda y suéltela en cualquier parte del panel derecho para comprometerla. Dentro del tablero del ciclo, arrastre las entradas por su asidero para reordenarlas."
+            }
           ]
         },
         {
           "heading": "Selector de ciclo y encabezado",
           "items": [
-            { "label": "Menú desplegable de ciclo", "value": "Componente de selección en el encabezado de la página. Lista todos los ciclos con su estado entre paréntesis — p. ej., 'Sprint 12 (Activo)'. Cambiar la selección carga los detalles de ese ciclo en el panel derecho." },
-            { "label": "Botón Nuevo ciclo", "value": "Botón de acción principal en el encabezado de la página. Abre el cuadro de diálogo de creación del ciclo con la fecha de inicio predeterminada en hoy y la fecha de fin en hoy + 14 días." }
+            {
+              "label": "Menú desplegable de ciclo",
+              "value": "Componente de selección en el encabezado de la página. Lista todos los ciclos con su estado entre paréntesis — p. ej., 'Sprint 12 (Activo)'. Cambiar la selección carga los detalles de ese ciclo en el panel derecho."
+            },
+            {
+              "label": "Botón Nuevo ciclo",
+              "value": "Botón de acción principal en el encabezado de la página. Abre el cuadro de diálogo de creación del ciclo con la fecha de inicio predeterminada en hoy y la fecha de fin en hoy + 14 días."
+            }
           ]
         },
         {
           "heading": "Botones y acciones",
           "items": [
-            { "label": "Botón + (comprometer) en el trabajo del backlog", "value": "Botón de icono en el lado derecho de cada tarjeta de trabajo del backlog. Compromete el trabajo al ciclo seleccionado de inmediato sin arrastrar y soltar. Solo visible cuando hay un ciclo seleccionado. Información sobre herramientas: 'Comprometer al ciclo'. data-testid: N/A (usa la clase icon-btn)." },
-            { "label": "Editar (icono de lápiz)", "value": "Botón de icono en las acciones del panel del ciclo. Abre el cuadro de diálogo del ciclo precargado con el nombre, las fechas y los objetivos del ciclo actual para editarlo. Información sobre herramientas: 'Editar ciclo'." },
-            { "label": "Activar (defecto de interfaz conocido — no se muestra)", "value": "Botón de acción pequeño destinado a transicionar un ciclo de Planificación a Activo (sin confirmación — acción inmediata). Su visibilidad está condicionada a status === 'Draft', un valor que el servidor nunca devuelve (el servidor emite 'Planning'), por lo que el botón NO se muestra en la versión actual. El endpoint /activate existe y funciona (POST /api/v1/planning-cycles/{id}/activate, solo Admin/Gerente); solo falta el disparador en la interfaz. Registrado como un defecto de discrepancia en el nombre del estado. Solución alterna: un ciclo en Planificación es totalmente utilizable — puede comprometer, reordenar, completar entradas y completar/traspasar sin activarlo." },
-            { "label": "Completar y traspasar", "value": "Botón de acción pequeño. Solo se muestra cuando el ciclo está Activo. Abre un cuadro de diálogo de confirmación. Al confirmar: marca el ciclo como Completado, crea un nuevo ciclo que comienza el día después de que termina el anterior con la misma duración, y copia todas las entradas incompletas al nuevo ciclo con el indicador de traspasado." },
-            { "label": "Completar (sin traspaso)", "value": "Botón de acción pequeño. Solo se muestra cuando el ciclo está Activo. Abre un cuadro de diálogo de confirmación con severidad 'warn'. Al confirmar: marca el ciclo como Completado. Las entradas incompletas regresan al backlog. No se crea ningún ciclo nuevo." },
-            { "label": "Marcar como completada (contorno de círculo de verificación)", "value": "Botón de icono en cada entrada no completada. Marca la entrada como completada, estableciendo la marca de tiempo CompletedAt. El icono cambia a un círculo de verificación relleno. Información sobre herramientas: 'Marcar como completada'." },
-            { "label": "Quitar (icono X)", "value": "Botón de icono de peligro en cada entrada. Abre un cuadro de diálogo de confirmación (severidad 'warn') pidiendo confirmar la eliminación. Al confirmar: quita la entrada del ciclo y el trabajo reaparece en el backlog. Información sobre herramientas: 'Quitar del ciclo'." },
-            { "label": "Asidero de arrastre (icono de grip)", "value": "Asidero de arrastre a la izquierda de cada entrada. Arrastre para reordenar las entradas dentro del ciclo. El reordenamiento se envía a la API como una actualización por lotes de los órdenes de clasificación." },
-            { "label": "Guardar (cuadro de diálogo)", "value": "Botón principal en el cuadro de diálogo de creación/edición del ciclo. Deshabilitado cuando el formulario es inválido o un guardado está en progreso. Muestra un icono de sincronización giratorio mientras guarda. Crea o actualiza el ciclo." },
-            { "label": "Cancelar (cuadro de diálogo)", "value": "Botón secundario en el cuadro de diálogo de creación/edición del ciclo. Cierra el cuadro de diálogo sin guardar." }
+            {
+              "label": "Botón + (comprometer) en el trabajo del backlog",
+              "value": "Botón de icono en el lado derecho de cada tarjeta de trabajo del backlog. Compromete el trabajo al ciclo seleccionado de inmediato sin arrastrar y soltar. Solo visible cuando hay un ciclo seleccionado. Información sobre herramientas: 'Comprometer al ciclo'. data-testid: N/A (usa la clase icon-btn)."
+            },
+            {
+              "label": "Editar (icono de lápiz)",
+              "value": "Botón de icono en las acciones del panel del ciclo. Abre el cuadro de diálogo del ciclo precargado con el nombre, las fechas y los objetivos del ciclo actual para editarlo. Información sobre herramientas: 'Editar ciclo'."
+            },
+            {
+              "label": "Activar (defecto de interfaz conocido — no se muestra)",
+              "value": "Botón de acción pequeño destinado a transicionar un ciclo de Planificación a Activo (sin confirmación — acción inmediata). Su visibilidad está condicionada a status === 'Draft', un valor que el servidor nunca devuelve (el servidor emite 'Planning'), por lo que el botón NO se muestra en la versión actual. El endpoint /activate existe y funciona (POST /api/v1/planning-cycles/{id}/activate, solo Admin/Gerente); solo falta el disparador en la interfaz. Registrado como un defecto de discrepancia en el nombre del estado. Solución alterna: un ciclo en Planificación es totalmente utilizable — puede comprometer, reordenar, completar entradas y completar/traspasar sin activarlo."
+            },
+            {
+              "label": "Completar y traspasar",
+              "value": "Botón de acción pequeño. Solo se muestra cuando el ciclo está Activo. Abre un cuadro de diálogo de confirmación. Al confirmar: marca el ciclo como Completado, crea un nuevo ciclo que comienza el día después de que termina el anterior con la misma duración, y copia todas las entradas incompletas al nuevo ciclo con el indicador de traspasado."
+            },
+            {
+              "label": "Completar (sin traspaso)",
+              "value": "Botón de acción pequeño. Solo se muestra cuando el ciclo está Activo. Abre un cuadro de diálogo de confirmación con severidad 'warn'. Al confirmar: marca el ciclo como Completado. Las entradas incompletas regresan al backlog. No se crea ningún ciclo nuevo."
+            },
+            {
+              "label": "Marcar como completada (contorno de círculo de verificación)",
+              "value": "Botón de icono en cada entrada no completada. Marca la entrada como completada, estableciendo la marca de tiempo CompletedAt. El icono cambia a un círculo de verificación relleno. Información sobre herramientas: 'Marcar como completada'."
+            },
+            {
+              "label": "Quitar (icono X)",
+              "value": "Botón de icono de peligro en cada entrada. Abre un cuadro de diálogo de confirmación (severidad 'warn') pidiendo confirmar la eliminación. Al confirmar: quita la entrada del ciclo y el trabajo reaparece en el backlog. Información sobre herramientas: 'Quitar del ciclo'."
+            },
+            {
+              "label": "Asidero de arrastre (icono de grip)",
+              "value": "Asidero de arrastre a la izquierda de cada entrada. Arrastre para reordenar las entradas dentro del ciclo. El reordenamiento se envía a la API como una actualización por lotes de los órdenes de clasificación."
+            },
+            {
+              "label": "Guardar (cuadro de diálogo)",
+              "value": "Botón principal en el cuadro de diálogo de creación/edición del ciclo. Deshabilitado cuando el formulario es inválido o un guardado está en progreso. Muestra un icono de sincronización giratorio mientras guarda. Crea o actualiza el ciclo."
+            },
+            {
+              "label": "Cancelar (cuadro de diálogo)",
+              "value": "Botón secundario en el cuadro de diálogo de creación/edición del ciclo. Cierra el cuadro de diálogo sin guardar."
+            }
           ]
         },
         {
           "heading": "Progreso y estadísticas",
           "items": [
-            { "label": "Conteo de completitud", "value": "Se muestra como 'X / Y' en el encabezado del tablero del ciclo (p. ej., '5 / 12'). X = entradas completadas, Y = total de entradas." },
-            { "label": "Barra de progreso", "value": "Barra horizontal debajo del encabezado. El ancho del relleno equivale al porcentaje de completitud. La etiqueta muestra el porcentaje entero (p. ej., '42%')." },
-            { "label": "Días restantes", "value": "Se muestra solo cuando el ciclo está Activo. Cuenta los días calendario desde hoy hasta la fecha de fin. Muestra '0' el último día. No se muestra para ciclos en Planificación o Completados." },
-            { "label": "Conteo del backlog", "value": "Se muestra en el encabezado del panel del backlog como 'N trabajos'. Refleja el conteo filtrado después de excluir los trabajos comprometidos y aplicar los filtros de búsqueda/prioridad." }
+            {
+              "label": "Conteo de completitud",
+              "value": "Se muestra como 'X / Y' en el encabezado del tablero del ciclo (p. ej., '5 / 12'). X = entradas completadas, Y = total de entradas."
+            },
+            {
+              "label": "Barra de progreso",
+              "value": "Barra horizontal debajo del encabezado. El ancho del relleno equivale al porcentaje de completitud. La etiqueta muestra el porcentaje entero (p. ej., '42%')."
+            },
+            {
+              "label": "Días restantes",
+              "value": "Se muestra solo cuando el ciclo está Activo. Cuenta los días calendario desde hoy hasta la fecha de fin. Muestra '0' el último día. No se muestra para ciclos en Planificación o Completados."
+            },
+            {
+              "label": "Conteo del backlog",
+              "value": "Se muestra en el encabezado del panel del backlog como 'N trabajos'. Refleja el conteo filtrado después de excluir los trabajos comprometidos y aplicar los filtros de búsqueda/prioridad."
+            }
           ]
         },
         {
           "heading": "Reglas de validación",
           "items": [
-            { "label": "Nombre", "value": "Requerido. Máx. 100 caracteres (cliente), 200 caracteres (servidor). No puede estar vacío." },
-            { "label": "Fecha de inicio", "value": "Requerido. Debe ser una fecha válida." },
-            { "label": "Fecha de fin", "value": "Requerido. Debe ser una fecha válida. El servidor valida que la fecha de fin sea posterior a la fecha de inicio." },
-            { "label": "Objetivos", "value": "Opcional. Máx. 2000 caracteres (servidor). Sin restricciones de formato." },
-            { "label": "Días de duración", "value": "Calculado automáticamente a partir de (Fecha de fin - Fecha de inicio). Se envía a la API en la creación. Se usa al crear ciclos de traspaso para conservar la misma duración del ciclo." },
-            { "label": "Información del botón de envío", "value": "Cuando el formulario es inválido, al pasar el cursor sobre el botón Guardar se muestra una ventana emergente de validación que lista qué campos necesitan atención (Nombre, Fecha de inicio, Fecha de fin)." }
+            {
+              "label": "Nombre",
+              "value": "Requerido. Máx. 100 caracteres (cliente), 200 caracteres (servidor). No puede estar vacío."
+            },
+            {
+              "label": "Fecha de inicio",
+              "value": "Requerido. Debe ser una fecha válida."
+            },
+            {
+              "label": "Fecha de fin",
+              "value": "Requerido. Debe ser una fecha válida. El servidor valida que la fecha de fin sea posterior a la fecha de inicio."
+            },
+            {
+              "label": "Objetivos",
+              "value": "Opcional. Máx. 2000 caracteres (servidor). Sin restricciones de formato."
+            },
+            {
+              "label": "Días de duración",
+              "value": "Calculado automáticamente a partir de (Fecha de fin - Fecha de inicio). Se envía a la API en la creación. Se usa al crear ciclos de traspaso para conservar la misma duración del ciclo."
+            },
+            {
+              "label": "Información del botón de envío",
+              "value": "Cuando el formulario es inválido, al pasar el cursor sobre el botón Guardar se muestra una ventana emergente de validación que lista qué campos necesitan atención (Nombre, Fecha de inicio, Fecha de fin)."
+            }
           ]
         },
         {
           "heading": "Roles y permisos (Quién puede hacer qué)",
           "items": [
-            { "label": "Ver / leer (abrir la página, leer ciclos + backlog + progreso)", "value": "Permitido para Admin, Gerente, PM, Ingeniero y Trabajador de producción. La página de planificación y todos los endpoints de lectura (listar ciclos, ciclo actual, detalle del ciclo) están abiertos a este conjunto amplio de roles para que todo el equipo pueda observar el plan." },
-            { "label": "Crear un ciclo", "value": "Solo Admin o Gerente. POST /api/v1/planning-cycles. Un Trabajador de producción, Ingeniero o PM recibe un 403." },
-            { "label": "Editar un ciclo (nombre/fechas/objetivos)", "value": "Solo Admin o Gerente. PUT /api/v1/planning-cycles/{id}." },
-            { "label": "Activar un ciclo", "value": "Solo Admin o Gerente. POST .../{id}/activate. (El disparador en la interfaz falta actualmente — vea la fila del botón Activar)." },
-            { "label": "Completar / Traspasar un ciclo", "value": "Solo Admin o Gerente. POST .../{id}/complete." },
-            { "label": "Comprometer un trabajo al ciclo", "value": "Solo Admin o Gerente. POST .../{id}/entries. El botón + y arrastrar para comprometer llaman a este endpoint, por lo que el intento de un trabajador se rechaza en la API." },
-            { "label": "Quitar un trabajo del ciclo", "value": "Solo Admin o Gerente. DELETE .../{id}/entries/{jobId}." },
-            { "label": "Reordenar entradas", "value": "Solo Admin o Gerente. PUT .../{id}/entries/order." },
-            { "label": "Marcar una entrada como completada", "value": "Solo Admin o Gerente. POST .../{id}/entries/{jobId}/complete." },
-            { "label": "Gate de capacidad", "value": "Todos los endpoints de planificación también requieren CAP-PLAN-MRP. Si esa capacidad está desactivada para la instalación, el área de planificación se oculta por completo sin importar el rol." }
+            {
+              "label": "Ver / leer (abrir la página, leer ciclos + backlog + progreso)",
+              "value": "Permitido para Admin, Gerente, PM, Ingeniero y Trabajador de producción. La página de planificación y todos los endpoints de lectura (listar ciclos, ciclo actual, detalle del ciclo) están abiertos a este conjunto amplio de roles para que todo el equipo pueda observar el plan."
+            },
+            {
+              "label": "Crear un ciclo",
+              "value": "Solo Admin o Gerente. POST /api/v1/planning-cycles. Un Trabajador de producción, Ingeniero o PM recibe un 403."
+            },
+            {
+              "label": "Editar un ciclo (nombre/fechas/objetivos)",
+              "value": "Solo Admin o Gerente. PUT /api/v1/planning-cycles/{id}."
+            },
+            {
+              "label": "Activar un ciclo",
+              "value": "Solo Admin o Gerente. POST .../{id}/activate. (El disparador en la interfaz falta actualmente — vea la fila del botón Activar)."
+            },
+            {
+              "label": "Completar / Traspasar un ciclo",
+              "value": "Solo Admin o Gerente. POST .../{id}/complete."
+            },
+            {
+              "label": "Comprometer un trabajo al ciclo",
+              "value": "Solo Admin o Gerente. POST .../{id}/entries. El botón + y arrastrar para comprometer llaman a este endpoint, por lo que el intento de un trabajador se rechaza en la API."
+            },
+            {
+              "label": "Quitar un trabajo del ciclo",
+              "value": "Solo Admin o Gerente. DELETE .../{id}/entries/{jobId}."
+            },
+            {
+              "label": "Reordenar entradas",
+              "value": "Solo Admin o Gerente. PUT .../{id}/entries/order."
+            },
+            {
+              "label": "Marcar una entrada como completada",
+              "value": "Solo Admin o Gerente. POST .../{id}/entries/{jobId}/complete."
+            },
+            {
+              "label": "Gate de capacidad",
+              "value": "Todos los endpoints de planificación también requieren CAP-PLAN-MRP. Si esa capacidad está desactivada para la instalación, el área de planificación se oculta por completo sin importar el rol."
+            }
           ]
         },
         {
           "heading": "Estados vacíos",
           "items": [
-            { "label": "Ningún ciclo seleccionado", "value": "El panel derecho muestra un estado vacío con el icono 'event_note', el mensaje 'Ningún ciclo seleccionado' y un botón de acción 'Crear primer ciclo'." },
-            { "label": "Ningún trabajo comprometido", "value": "El área de entradas del tablero del ciclo muestra un estado vacío con el icono 'assignment' y el mensaje 'Ningún trabajo comprometido'." },
-            { "label": "Ningún trabajo disponible en el backlog", "value": "La lista del backlog muestra un estado vacío con el icono 'inbox' y el mensaje 'Ningún trabajo disponible'." }
+            {
+              "label": "Ningún ciclo seleccionado",
+              "value": "El panel derecho muestra un estado vacío con el icono 'event_note', el mensaje 'Ningún ciclo seleccionado' y un botón de acción 'Crear primer ciclo'."
+            },
+            {
+              "label": "Ningún trabajo comprometido",
+              "value": "El área de entradas del tablero del ciclo muestra un estado vacío con el icono 'assignment' y el mensaje 'Ningún trabajo comprometido'."
+            },
+            {
+              "label": "Ningún trabajo disponible en el backlog",
+              "value": "La lista del backlog muestra un estado vacío con el icono 'inbox' y el mensaje 'Ningún trabajo disponible'."
+            }
           ]
         }
       ]
@@ -195,10 +357,23 @@
           "id": "pl1",
           "text": "¿Cuál es la duración predeterminada de un ciclo de planificación en QB Engineer?",
           "options": [
-            { "id": "a", "text": "7 días (una semana)" },
-            { "id": "b", "text": "14 días (dos semanas)", "isCorrect": true },
-            { "id": "c", "text": "30 días (un mes)" },
-            { "id": "d", "text": "No hay valor predeterminado — siempre debe establecerlo manualmente" }
+            {
+              "id": "a",
+              "text": "7 días (una semana)"
+            },
+            {
+              "id": "b",
+              "text": "14 días (dos semanas)",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "30 días (un mes)"
+            },
+            {
+              "id": "d",
+              "text": "No hay valor predeterminado — siempre debe establecerlo manualmente"
+            }
           ],
           "explanation": "La duración predeterminada del ciclo es de 14 días (dos semanas). Al crear un nuevo ciclo, la fecha de fin se precarga automáticamente a 14 días después de la fecha de inicio. Puede ajustar esto a cualquier duración que funcione para su equipo."
         },
@@ -206,10 +381,23 @@
           "id": "pl2",
           "text": "Está en la página de planificación y quiere agregar un trabajo del backlog al ciclo actual. ¿Cuáles son las dos formas de hacerlo?",
           "options": [
-            { "id": "a", "text": "Arrastrar el trabajo desde el panel izquierdo del backlog hacia el panel derecho del ciclo, o hacer clic en el botón + de la tarjeta del trabajo", "isCorrect": true },
-            { "id": "b", "text": "Hacer clic derecho en el trabajo y seleccionar 'Agregar al ciclo', o usar el atajo de teclado Ctrl+A" },
-            { "id": "c", "text": "Abrir el cuadro de diálogo de detalle del trabajo y hacer clic en 'Comprometer al ciclo', o editar el ciclo y agregar trabajos desde un menú desplegable" },
-            { "id": "d", "text": "Navegar al tablero Kanban y mover el trabajo a una columna 'Planificado', o usar la acción masiva de la página del Backlog" }
+            {
+              "id": "a",
+              "text": "Arrastrar el trabajo desde el panel izquierdo del backlog hacia el panel derecho del ciclo, o hacer clic en el botón + de la tarjeta del trabajo",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Hacer clic derecho en el trabajo y seleccionar 'Agregar al ciclo', o usar el atajo de teclado Ctrl+A"
+            },
+            {
+              "id": "c",
+              "text": "Abrir el cuadro de diálogo de detalle del trabajo y hacer clic en 'Comprometer al ciclo', o editar el ciclo y agregar trabajos desde un menú desplegable"
+            },
+            {
+              "id": "d",
+              "text": "Navegar al tablero Kanban y mover el trabajo a una columna 'Planificado', o usar la acción masiva de la página del Backlog"
+            }
           ],
           "explanation": "La página de planificación admite dos métodos para comprometer trabajos: arrastrar y soltar desde el panel del backlog (izquierda) al panel del ciclo (derecha), o hacer clic en el botón de icono + en el lado derecho de cada tarjeta de trabajo del backlog."
         },
@@ -217,10 +405,23 @@
           "id": "pl3",
           "text": "Un ciclo de planificación tiene el estado 'Planificación'. ¿Qué significa esto y qué puede hacer?",
           "options": [
-            { "id": "a", "text": "El ciclo está en progreso y el equipo está trabajando activamente en los trabajos comprometidos" },
-            { "id": "b", "text": "Es el estado predeterminado de un ciclo nuevo — puede agregar, quitar, reordenar y completar trabajos, e incluso completar/traspasar el ciclo, todo sin activarlo", "isCorrect": true },
-            { "id": "c", "text": "El ciclo se ha completado y ahora está en un estado de revisión de solo lectura" },
-            { "id": "d", "text": "El ciclo está en pausa y espera la aprobación del gerente antes de poder ser activado" }
+            {
+              "id": "a",
+              "text": "El ciclo está en progreso y el equipo está trabajando activamente en los trabajos comprometidos"
+            },
+            {
+              "id": "b",
+              "text": "Es el estado predeterminado de un ciclo nuevo — puede agregar, quitar, reordenar y completar trabajos, e incluso completar/traspasar el ciclo, todo sin activarlo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El ciclo se ha completado y ahora está en un estado de revisión de solo lectura"
+            },
+            {
+              "id": "d",
+              "text": "El ciclo está en pausa y espera la aprobación del gerente antes de poder ser activado"
+            }
           ],
           "explanation": "Planificación es el estado predeterminado de todo ciclo nuevo, y es totalmente operable: agregar, quitar, reordenar y marcar entradas como completadas, y completar o traspasar el ciclo desde aquí. Un botón Activar debía pasar de Planificación → Activo, pero está condicionado a un estado 'Draft' que el servidor nunca produce, así que no se muestra hoy — un defecto de interfaz registrado. Lo único que agregaría Activar es la cuenta regresiva de días restantes."
         },
@@ -228,10 +429,23 @@
           "id": "pl4",
           "text": "Completa un ciclo y elige 'Completar y traspasar'. ¿Qué les sucede a los tres trabajos incompletos?",
           "options": [
-            { "id": "a", "text": "Se eliminan permanentemente y deben volver a crearse desde cero" },
-            { "id": "b", "text": "Permanecen en el ciclo completado y se marcan como fallidos" },
-            { "id": "c", "text": "Se copian automáticamente a un nuevo ciclo que comienza el día después de que termina el anterior, con una insignia de traspasado", "isCorrect": true },
-            { "id": "d", "text": "Regresan al backlog y pierden todo el contexto de planificación" }
+            {
+              "id": "a",
+              "text": "Se eliminan permanentemente y deben volver a crearse desde cero"
+            },
+            {
+              "id": "b",
+              "text": "Permanecen en el ciclo completado y se marcan como fallidos"
+            },
+            {
+              "id": "c",
+              "text": "Se copian automáticamente a un nuevo ciclo que comienza el día después de que termina el anterior, con una insignia de traspasado",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Regresan al backlog y pierden todo el contexto de planificación"
+            }
           ],
           "explanation": "Completar y traspasar crea un nuevo ciclo que comienza el día después de que termina el ciclo completado, usando la misma duración. Todas las entradas incompletas se copian al nuevo ciclo con el indicador IsRolledOver establecido en verdadero, mostrado como una insignia de icono de repetición en la interfaz."
         },
@@ -239,10 +453,23 @@
           "id": "pl5",
           "text": "¿Cómo sabe el panel del backlog a la izquierda qué trabajos mostrar?",
           "options": [
-            { "id": "a", "text": "Muestra todos los trabajos del sistema sin importar su estado o ciclo" },
-            { "id": "b", "text": "Muestra todos los trabajos del backlog que NO están ya comprometidos al ciclo seleccionado actualmente, filtrados por búsqueda y prioridad", "isCorrect": true },
-            { "id": "c", "text": "Solo muestra los trabajos asignados al usuario que ha iniciado sesión" },
-            { "id": "d", "text": "Muestra solo los trabajos de la primera columna del tablero Kanban" }
+            {
+              "id": "a",
+              "text": "Muestra todos los trabajos del sistema sin importar su estado o ciclo"
+            },
+            {
+              "id": "b",
+              "text": "Muestra todos los trabajos del backlog que NO están ya comprometidos al ciclo seleccionado actualmente, filtrados por búsqueda y prioridad",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Solo muestra los trabajos asignados al usuario que ha iniciado sesión"
+            },
+            {
+              "id": "d",
+              "text": "Muestra solo los trabajos de la primera columna del tablero Kanban"
+            }
           ],
           "explanation": "El panel del backlog muestra todos los trabajos del backlog menos cualquiera que ya esté comprometido al ciclo seleccionado. También respeta los filtros de búsqueda (por número o título de trabajo) y de prioridad. Cuando compromete un trabajo, desaparece al instante de la lista del backlog."
         },
@@ -250,10 +477,23 @@
           "id": "pl6",
           "text": "Quiere cambiar el orden de los trabajos comprometidos en el tablero del ciclo. ¿Cómo lo hace?",
           "options": [
-            { "id": "a", "text": "Hacer clic en los encabezados de columna para ordenar alfabéticamente o por prioridad" },
-            { "id": "b", "text": "Arrastrar las entradas por el asidero (icono drag_indicator) en el lado izquierdo de cada entrada para reordenarlas", "isCorrect": true },
-            { "id": "c", "text": "Abrir el cuadro de diálogo de edición del ciclo y usar un menú desplegable de 'Orden' para cada entrada" },
-            { "id": "d", "text": "No se pueden reordenar las entradas — siempre se ordenan por la fecha en que se comprometieron" }
+            {
+              "id": "a",
+              "text": "Hacer clic en los encabezados de columna para ordenar alfabéticamente o por prioridad"
+            },
+            {
+              "id": "b",
+              "text": "Arrastrar las entradas por el asidero (icono drag_indicator) en el lado izquierdo de cada entrada para reordenarlas",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Abrir el cuadro de diálogo de edición del ciclo y usar un menú desplegable de 'Orden' para cada entrada"
+            },
+            {
+              "id": "d",
+              "text": "No se pueden reordenar las entradas — siempre se ordenan por la fecha en que se comprometieron"
+            }
           ],
           "explanation": "Cada entrada en el tablero del ciclo tiene un asidero de arrastre (icono de grip) en su lado izquierdo. Arrastre las entradas hacia arriba o hacia abajo para cambiar su orden de prioridad. El reordenamiento se guarda en la API como una actualización por lotes de los órdenes de clasificación."
         },
@@ -261,10 +501,23 @@
           "id": "pl7",
           "text": "¿Qué información muestra el encabezado del tablero del ciclo cuando un ciclo está Activo?",
           "options": [
-            { "id": "a", "text": "Solo el nombre del ciclo y el estado" },
-            { "id": "b", "text": "Nombre del ciclo, rango de fechas (inicio – fin), cuenta regresiva de días restantes, conteo de completitud (X / Y) y un chip de estado", "isCorrect": true },
-            { "id": "c", "text": "Un diagrama de Gantt que muestra la línea de tiempo de cada trabajo dentro del ciclo" },
-            { "id": "d", "text": "El nombre del ciclo y una lista de los miembros del equipo asignados al ciclo" }
+            {
+              "id": "a",
+              "text": "Solo el nombre del ciclo y el estado"
+            },
+            {
+              "id": "b",
+              "text": "Nombre del ciclo, rango de fechas (inicio – fin), cuenta regresiva de días restantes, conteo de completitud (X / Y) y un chip de estado",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Un diagrama de Gantt que muestra la línea de tiempo de cada trabajo dentro del ciclo"
+            },
+            {
+              "id": "d",
+              "text": "El nombre del ciclo y una lista de los miembros del equipo asignados al ciclo"
+            }
           ],
           "explanation": "El encabezado del tablero del ciclo activo muestra el nombre del ciclo, el rango de fechas, los días restantes (contando hacia atrás hasta la fecha de fin), el conteo de completitud (p. ej., '5 / 12') y un chip de estado con código de color (azul para Activo). Una barra de progreso debajo muestra el porcentaje de completitud."
         },
@@ -272,10 +525,23 @@
           "id": "pl8",
           "text": "Hace clic en 'Completar' (sin traspaso) en un ciclo activo que tiene 4 trabajos incompletos. ¿Qué les sucede a esos trabajos?",
           "options": [
-            { "id": "a", "text": "Se eliminan del sistema" },
-            { "id": "b", "text": "Permanecen en el ciclo completado marcados como incompletos, y regresan al backlog para futura planificación", "isCorrect": true },
-            { "id": "c", "text": "Se mueven automáticamente al siguiente ciclo activo" },
-            { "id": "d", "text": "Se archivan y ya no se puede acceder a ellos" }
+            {
+              "id": "a",
+              "text": "Se eliminan del sistema"
+            },
+            {
+              "id": "b",
+              "text": "Permanecen en el ciclo completado marcados como incompletos, y regresan al backlog para futura planificación",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Se mueven automáticamente al siguiente ciclo activo"
+            },
+            {
+              "id": "d",
+              "text": "Se archivan y ya no se puede acceder a ellos"
+            }
           ],
           "explanation": "Completar un ciclo sin traspaso marca el ciclo como Completado. Las entradas incompletas permanecen en el registro del ciclo como datos históricos, y los trabajos mismos regresan al backlog donde pueden comprometerse a un ciclo futuro."
         },
@@ -283,10 +549,23 @@
           "id": "pl9",
           "text": "¿Qué campos son requeridos al crear un nuevo ciclo de planificación?",
           "options": [
-            { "id": "a", "text": "Nombre, Fecha de inicio, Fecha de fin y Objetivos son todos requeridos" },
-            { "id": "b", "text": "Nombre, Fecha de inicio y Fecha de fin son requeridos. Objetivos es opcional.", "isCorrect": true },
-            { "id": "c", "text": "Solo el Nombre es requerido — las fechas se calculan automáticamente desde el calendario del equipo" },
-            { "id": "d", "text": "Fecha de inicio y Fecha de fin son requeridas. El Nombre se genera automáticamente a partir del rango de fechas." }
+            {
+              "id": "a",
+              "text": "Nombre, Fecha de inicio, Fecha de fin y Objetivos son todos requeridos"
+            },
+            {
+              "id": "b",
+              "text": "Nombre, Fecha de inicio y Fecha de fin son requeridos. Objetivos es opcional.",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Solo el Nombre es requerido — las fechas se calculan automáticamente desde el calendario del equipo"
+            },
+            {
+              "id": "d",
+              "text": "Fecha de inicio y Fecha de fin son requeridas. El Nombre se genera automáticamente a partir del rango de fechas."
+            }
           ],
           "explanation": "Crear un ciclo requiere un Nombre, una Fecha de inicio y una Fecha de fin. El campo Objetivos es opcional (máx. 2000 caracteres). La Fecha de fin debe ser posterior a la Fecha de inicio — esto se valida en el servidor. Los Días de duración se calculan automáticamente a partir de la diferencia de fechas."
         },
@@ -294,10 +573,23 @@
           "id": "pl10",
           "text": "Una entrada comprometida en el tablero del ciclo muestra una insignia de icono de repetición. ¿Qué indica esto?",
           "options": [
-            { "id": "a", "text": "El trabajo se ha reiniciado después de haber sido completado previamente" },
-            { "id": "b", "text": "La entrada se traspasó automáticamente del trabajo incompleto de un ciclo anterior", "isCorrect": true },
-            { "id": "c", "text": "El trabajo está en espera y aguardando materiales" },
-            { "id": "d", "text": "La entrada se ha editado desde que se comprometió originalmente" }
+            {
+              "id": "a",
+              "text": "El trabajo se ha reiniciado después de haber sido completado previamente"
+            },
+            {
+              "id": "b",
+              "text": "La entrada se traspasó automáticamente del trabajo incompleto de un ciclo anterior",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El trabajo está en espera y aguardando materiales"
+            },
+            {
+              "id": "d",
+              "text": "La entrada se ha editado desde que se comprometió originalmente"
+            }
           ],
           "explanation": "La insignia de icono de repetición indica que la entrada se traspasó de un ciclo anterior. Cuando usa 'Completar y traspasar', las entradas incompletas del ciclo finalizado se copian al nuevo ciclo con el indicador IsRolledOver establecido en verdadero."
         },
@@ -305,10 +597,23 @@
           "id": "pl11",
           "text": "Quiere quitar un trabajo del ciclo actual sin completarlo. ¿Qué sucede?",
           "options": [
-            { "id": "a", "text": "El trabajo se quita de inmediato sin confirmación" },
-            { "id": "b", "text": "Aparece un cuadro de diálogo de confirmación (severidad: warn). Al confirmar, el trabajo se quita del ciclo y reaparece en el panel del backlog.", "isCorrect": true },
-            { "id": "c", "text": "El trabajo se archiva y se quita tanto del ciclo como del backlog" },
-            { "id": "d", "text": "No se pueden quitar trabajos de un ciclo — solo puede marcarlos como completados o esperar a que termine el ciclo" }
+            {
+              "id": "a",
+              "text": "El trabajo se quita de inmediato sin confirmación"
+            },
+            {
+              "id": "b",
+              "text": "Aparece un cuadro de diálogo de confirmación (severidad: warn). Al confirmar, el trabajo se quita del ciclo y reaparece en el panel del backlog.",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El trabajo se archiva y se quita tanto del ciclo como del backlog"
+            },
+            {
+              "id": "d",
+              "text": "No se pueden quitar trabajos de un ciclo — solo puede marcarlos como completados o esperar a que termine el ciclo"
+            }
           ],
           "explanation": "Hacer clic en el botón X (quitar) de una entrada del ciclo abre un cuadro de diálogo de confirmación con severidad 'warn' pidiéndole confirmar la eliminación. Si se confirma, la entrada se elimina del ciclo y el trabajo reaparece en el panel del backlog a la izquierda."
         },
@@ -316,10 +621,23 @@
           "id": "pl12",
           "text": "La barra de progreso en el tablero del ciclo muestra '75%' y el conteo muestra '6 / 8'. ¿Qué le indica esto?",
           "options": [
-            { "id": "a", "text": "Ha transcurrido el 75% del tiempo del ciclo y 6 de 8 miembros del equipo están asignados" },
-            { "id": "b", "text": "6 de 8 entradas comprometidas se han marcado como completadas, lo que equivale al 75% del total", "isCorrect": true },
-            { "id": "c", "text": "6 trabajos están en progreso y 8 están en el backlog, con el 75% del backlog comprometido" },
-            { "id": "d", "text": "El presupuesto del ciclo está gastado en un 75% con 6 de 8 órdenes de compra cumplidas" }
+            {
+              "id": "a",
+              "text": "Ha transcurrido el 75% del tiempo del ciclo y 6 de 8 miembros del equipo están asignados"
+            },
+            {
+              "id": "b",
+              "text": "6 de 8 entradas comprometidas se han marcado como completadas, lo que equivale al 75% del total",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "6 trabajos están en progreso y 8 están en el backlog, con el 75% del backlog comprometido"
+            },
+            {
+              "id": "d",
+              "text": "El presupuesto del ciclo está gastado en un 75% con 6 de 8 órdenes de compra cumplidas"
+            }
           ],
           "explanation": "El conteo de completitud 'X / Y' muestra las entradas completadas frente al total de entradas comprometidas. La barra de progreso se rellena hasta el porcentaje correspondiente. En este caso, 6 de 8 entradas están marcadas como completadas (6/8 = 75%)."
         },
@@ -327,10 +645,23 @@
           "id": "pl13",
           "text": "Un Trabajador de producción (o Ingeniero/PM) abre la página de planificación e intenta comprometer un trabajo del backlog al ciclo actual. ¿Qué sucede?",
           "options": [
-            { "id": "a", "text": "Funciona igual que para un gerente — cualquier rol que pueda ver un ciclo también puede modificarlo" },
-            { "id": "b", "text": "El servidor rechaza la acción con un 403 — comprometer, quitar, reordenar, completar entradas y crear/activar/completar ciclos requieren todos un rol de Admin o Gerente", "isCorrect": true },
-            { "id": "c", "text": "El trabajo se compromete pero queda marcado para aprobación del gerente antes de contar" },
-            { "id": "d", "text": "La página de planificación nunca carga para los no gerentes, así que la pregunta no puede surgir" }
+            {
+              "id": "a",
+              "text": "Funciona igual que para un gerente — cualquier rol que pueda ver un ciclo también puede modificarlo"
+            },
+            {
+              "id": "b",
+              "text": "El servidor rechaza la acción con un 403 — comprometer, quitar, reordenar, completar entradas y crear/activar/completar ciclos requieren todos un rol de Admin o Gerente",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El trabajo se compromete pero queda marcado para aprobación del gerente antes de contar"
+            },
+            {
+              "id": "d",
+              "text": "La página de planificación nunca carga para los no gerentes, así que la pregunta no puede surgir"
+            }
           ],
           "explanation": "Leer un ciclo está abierto a Admin, Gerente, PM, Ingeniero y Trabajador de producción, pero TODA mutación — crear, editar, activar, completar/traspasar, comprometer un trabajo, quitar un trabajo, reordenar entradas y marcar una entrada como completada — está restringida a Admin y Gerente en el servidor. Un no gerente que dispare una acción que muta los datos recibe un 403. La planificación es una actividad dirigida por gerentes que todo el equipo puede observar."
         },
@@ -338,14 +669,36 @@
           "id": "pl14",
           "text": "Creó un ciclo nuevo y quiere pasarlo de Planificación a Activo, pero no encuentra un botón Activar en ninguna parte del tablero del ciclo. ¿Qué está pasando?",
           "options": [
-            { "id": "a", "text": "Primero debe comprometer al menos tres trabajos antes de que aparezca el botón Activar" },
-            { "id": "b", "text": "El botón Activar es un defecto de interfaz conocido — su visibilidad está condicionada a un estado 'Draft' que el servidor nunca devuelve (el servidor usa 'Planning'), por lo que no se muestra. El ciclo sigue siendo totalmente utilizable en estado Planificación.", "isCorrect": true },
-            { "id": "c", "text": "Solo los administradores del sistema pueden ver el botón Activar; los gerentes no" },
-            { "id": "d", "text": "Los ciclos se activan automáticamente a medianoche en su fecha de inicio, así que no hay botón" }
+            {
+              "id": "a",
+              "text": "Primero debe comprometer al menos tres trabajos antes de que aparezca el botón Activar"
+            },
+            {
+              "id": "b",
+              "text": "El botón Activar es un defecto de interfaz conocido — su visibilidad está condicionada a un estado 'Draft' que el servidor nunca devuelve (el servidor usa 'Planning'), por lo que no se muestra. El ciclo sigue siendo totalmente utilizable en estado Planificación.",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Solo los administradores del sistema pueden ver el botón Activar; los gerentes no"
+            },
+            {
+              "id": "d",
+              "text": "Los ciclos se activan automáticamente a medianoche en su fecha de inicio, así que no hay botón"
+            }
           ],
           "explanation": "El @if del botón Activar está condicionado a status === 'Draft', pero el servidor emite 'Planning', 'Active' o 'Completed' — nunca 'Draft'. Por eso el botón nunca se muestra. Este es un defecto registrado de discrepancia en el nombre del estado. El endpoint /activate sí funciona; solo falta el disparador en la interfaz. Un ciclo en Planificación es totalmente operable mientras tanto — lo único que pierde sin activar es la cuenta regresiva de días restantes."
         }
       ]
+    }
+  },
+  {
+    "slug": "planning-reference",
+    "title": "Ciclos de planificación — Referencia avanzada",
+    "summary": "Referencia de casos límite: restricción por CAP-PLAN-MRP + estados vacíos, la matriz de permisos por rol, los límites de validación del servidor y cómo el panel elige el ciclo actual.",
+    "contentJson": {
+      "body": "## Restricción por capacidad (CAP-PLAN-MRP) y estado vacío\n\nLos Ciclos de planificación están restringidos por la capacidad `CAP-PLAN-MRP`. El `PlanningCyclesController` lleva `[RequiresCapability(\"CAP-PLAN-MRP\")]` a nivel de clase, por lo que **todos** los endpoints (listar, actual, detalle y todas las mutaciones) devuelven un envoltorio (envelope) de capacidad 403 cuando la capacidad está desactivada para la instalación.\n\n- **Lado servidor:** el `CapabilityGateMiddleware` corta la solicitud antes de que se ejecute la acción; la respuesta es un 403 con el envoltorio de capacidad estándar, no datos.\n- **Lado cliente (ruta sin 403):** `PlanningService.getCurrentCycle()` precomprueba la capacidad con `isDisabled()` y corta a `of(null)` *sin* disparar la llamada HTTP, estableciendo una señal interna `capabilityDisabled`. Por eso el widget del panel `cycle-progress-widget` puede mostrar su estado vacío \"ningún ciclo activo\" limpiamente cuando CAP-PLAN-MRP está desactivada — nunca toca la red y nunca expone un toast de 403. `getCycles()` sigue el mismo patrón (`handleErrorAsEmpty` → `[]`).\n- **Navegación:** cuando la capacidad está desactivada, el área de planificación se oculta por completo (ruta + barra lateral), así que los usuarios no llegan a la página en navegación normal; el guard a nivel de servicio solo importa para el widget del panel y para cualquier enlace directo.\n- **Estados vacíos propiamente dichos** (capacidad ACTIVADA, sin datos): el panel derecho muestra `event_note` + \"Ningún ciclo seleccionado\" + un CTA \"Crear primer ciclo\"; el área de entradas muestra `assignment` + \"Ningún trabajo comprometido\"; la lista del backlog muestra `inbox` + \"Ningún trabajo disponible\". Estos son estados vacíos por *datos*, distintos del caso de capacidad desactivada anterior.\n\n## Matriz de permisos por rol\n\nEl controlador separa el acceso en **lectura** (amplio) y **mutación** (restringido). El atributo a nivel de clase es `[Authorize(Roles = \"Admin,Manager,PM,Engineer,ProductionWorker\")]`; cada acción que muta los datos lleva además `[Authorize(Roles = MutateRoles)]` donde `MutateRoles = \"Admin,Manager\"`.\n\n| Acción | Endpoint | Roles permitidos |\n|--------|----------|------------------|\n| Listar ciclos | `GET /api/v1/planning-cycles` | Admin, Manager, PM, Engineer, ProductionWorker |\n| Ciclo actual | `GET /api/v1/planning-cycles/current` | Admin, Manager, PM, Engineer, ProductionWorker |\n| Detalle del ciclo | `GET /api/v1/planning-cycles/{id}` | Admin, Manager, PM, Engineer, ProductionWorker |\n| Crear ciclo | `POST /api/v1/planning-cycles` | Admin, Manager |\n| Editar ciclo | `PUT /api/v1/planning-cycles/{id}` | Admin, Manager |\n| Activar ciclo | `POST /api/v1/planning-cycles/{id}/activate` | Admin, Manager |\n| Completar / traspasar | `POST /api/v1/planning-cycles/{id}/complete` | Admin, Manager |\n| Comprometer un trabajo | `POST /api/v1/planning-cycles/{id}/entries` | Admin, Manager |\n| Quitar un trabajo | `DELETE /api/v1/planning-cycles/{id}/entries/{jobId}` | Admin, Manager |\n| Reordenar entradas | `PUT /api/v1/planning-cycles/{id}/entries/order` | Admin, Manager |\n| Marcar entrada completada | `POST /api/v1/planning-cycles/{id}/entries/{jobId}/complete` | Admin, Manager |\n\nUn no gerente con permiso de lectura (PM, Engineer, ProductionWorker) que dispare cualquier mutación —incluido el botón `+`/arrastrar para comprometer y la marca de completar por entrada— es rechazado en la API con un 403. La interfaz no deshabilita previamente estos controles por rol, así que el rechazo ocurre en el servidor. Por lo tanto, la planificación es una actividad dirigida por gerentes que todo el taller puede observar en tiempo real.\n\n## Límites de validación del servidor\n\n`CreatePlanningCycleValidator` (FluentValidation) impone, al crear:\n\n- **Nombre** — `NotEmpty()` y `MaximumLength(200)`. (El formulario del cliente limita a 100 caracteres; el techo del servidor es 200, así que 101–200 es aceptado por el servidor pero bloqueado por el cliente.)\n- **Fecha de inicio (StartDate)** — `NotEmpty()`.\n- **Fecha de fin (EndDate)** — `NotEmpty()` y `GreaterThan(StartDate)` con el mensaje \"End date must be after start date\". Las fechas iguales se rechazan (estrictamente mayor).\n- **Objetivos (Goals)** — `MaximumLength(2000)`; opcional/anulable.\n- **Días de duración (DurationDays)** — opcional en el comando. Cuando se omite, el manejador lo deriva como `(int)(EndDate - StartDate).TotalDays`. Cuando se suministra (p. ej., por la ruta de traspaso) se conserva tal cual para que el nuevo ciclo mantenga la cadencia anterior.\n\nUn ciclo nuevo siempre se persiste con `Status = PlanningCycleStatus.Planning` sin importar la entrada — el estado no es un campo de creación establecible por el cliente. La ruta de edición (`UpdatePlanningCycleCommand`) cubre solo Nombre / Fecha de inicio / Fecha de fin / Objetivos; no cambia el estado (las transiciones de estado pasan por los endpoints dedicados `/activate` y `/complete`). Los fallos de validación se exponen como un 400 ProblemDetails desde el middleware global de excepciones.\n\n## Selección del ciclo actual en el panel\n\nEl \"ciclo actual\" es una selección calculada por el servidor, no una elección del usuario. `GET /api/v1/planning-cycles/current` llama a `PlanningCycleRepository.GetCurrentAsync`, que:\n\n1. Filtra a los ciclos cuyo `Status != PlanningCycleStatus.Completed` (así que tanto los ciclos en **Planificación** como **Activos** son candidatos; los Completados se excluyen).\n2. Ordena por `StartDate` **descendente**.\n3. Toma `FirstOrDefault` — es decir, el ciclo no completado que se inició más recientemente.\n\nDevuelve `null` cuando no existe ningún ciclo no completado. El endpoint precarga (eager-load) por cada entrada el Job → CurrentStage y el Job → TrackType (entradas ordenadas por `SortOrder`) para que el widget pueda mostrar los chips de etapa y el progreso sin llamadas adicionales.\n\nEl widget del panel `CycleProgressWidgetComponent` lo consume:\n- Calcula `totalEntries`, `completedEntries` (entradas con un `completedAt` no nulo) y `progressPercent` en el cliente a partir de las entradas devueltas.\n- `daysRemaining` = `ceil((endDate - now) / 1 día)`, con piso en 0; `isOverdue` es verdadero cuando `endDate` está en el pasado — ambos calculados en el cliente contra el reloj del sistema, independientemente del estado del ciclo.\n- Un resultado nulo (sin ciclo actual, o CAP-PLAN-MRP desactivada) muestra el estado vacío con un enlace hacia `/planning`.\n\nDado que la selección se basa en la `StartDate` más reciente entre los ciclos no completados, crear un nuevo ciclo con una fecha de inicio posterior lo convierte de inmediato en el ciclo \"actual\" del panel, incluso mientras un ciclo Activo más antiguo sigue abierto.\n",
+      "sections": []
     }
   }
 ]

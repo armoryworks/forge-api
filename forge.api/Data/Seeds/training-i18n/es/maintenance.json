@@ -85,80 +85,197 @@
         {
           "heading": "Franja de KPI (parte superior de la página)",
           "items": [
-            { "label": "Predicciones activas", "value": "Recuento de predicciones que están actualmente abiertas (no cerradas)." },
-            { "label": "Críticas", "value": "Recuento de predicciones de severidad Crítica. Se muestra en una tarjeta resaltada con un acento rojo." },
-            { "label": "Pendientes de reconocimiento", "value": "Recuento de predicciones que siguen en el estado Predicha, a la espera de reconocimiento." },
-            { "label": "Mantenimiento programado", "value": "Recuento de predicciones con un trabajo de mantenimiento preventivo vinculado." },
-            { "label": "Precisión del modelo", "value": "La precisión general del modelo en todas las predicciones, mostrada como porcentaje." },
-            { "label": "Tiempo de inactividad evitado", "value": "Horas estimadas de tiempo de inactividad evitadas al actuar sobre las predicciones, mostradas en horas." }
+            {
+              "label": "Predicciones activas",
+              "value": "Recuento de predicciones que están actualmente abiertas (no cerradas)."
+            },
+            {
+              "label": "Críticas",
+              "value": "Recuento de predicciones de severidad Crítica. Se muestra en una tarjeta resaltada con un acento rojo."
+            },
+            {
+              "label": "Pendientes de reconocimiento",
+              "value": "Recuento de predicciones que siguen en el estado Predicha, a la espera de reconocimiento."
+            },
+            {
+              "label": "Mantenimiento programado",
+              "value": "Recuento de predicciones con un trabajo de mantenimiento preventivo vinculado."
+            },
+            {
+              "label": "Precisión del modelo",
+              "value": "La precisión general del modelo en todas las predicciones, mostrada como porcentaje."
+            },
+            {
+              "label": "Tiempo de inactividad evitado",
+              "value": "Horas estimadas de tiempo de inactividad evitadas al actuar sobre las predicciones, mostradas en horas."
+            }
           ]
         },
         {
           "heading": "Filtros",
           "items": [
-            { "label": "Severidad", "value": "Menú desplegable. Opciones: all, Crítica, Alta, Media, Baja. Filtra la tabla a la severidad elegida." },
-            { "label": "Estado", "value": "Menú desplegable. Opciones: all, open, Predicha, Reconocida, MantenimientoProgramado, Resuelta, FalsoPositivo, Caducada. Por defecto es 'open', que muestra solo las predicciones que aún necesitan acción." }
+            {
+              "label": "Severidad",
+              "value": "Menú desplegable. Opciones: all, Crítica, Alta, Media, Baja. Filtra la tabla a la severidad elegida."
+            },
+            {
+              "label": "Estado",
+              "value": "Menú desplegable. Opciones: all, open, Predicha, Reconocida, MantenimientoProgramado, Resuelta, FalsoPositivo, Caducada. Por defecto es 'open', que muestra solo las predicciones que aún necesitan acción."
+            }
           ]
         },
         {
           "heading": "Niveles de severidad",
           "items": [
-            { "label": "Crítica (chip error)", "value": "Riesgo de fallo inmediato; requiere atención urgente. Actúa sobre estas primero." },
-            { "label": "Alta (chip warning)", "value": "Alta probabilidad de fallo en cuestión de días." },
-            { "label": "Media (chip info)", "value": "Riesgo de fallo moderado; se recomienda acción preventiva." },
-            { "label": "Baja (chip muted)", "value": "Riesgo de fallo bajo; vigila el deterioro." }
+            {
+              "label": "Crítica (chip error)",
+              "value": "Riesgo de fallo inmediato; requiere atención urgente. Actúa sobre estas primero."
+            },
+            {
+              "label": "Alta (chip warning)",
+              "value": "Alta probabilidad de fallo en cuestión de días."
+            },
+            {
+              "label": "Media (chip info)",
+              "value": "Riesgo de fallo moderado; se recomienda acción preventiva."
+            },
+            {
+              "label": "Baja (chip muted)",
+              "value": "Riesgo de fallo bajo; vigila el deterioro."
+            }
           ]
         },
         {
           "heading": "Estados de la predicción (ciclo de vida)",
           "items": [
-            { "label": "Predicha (chip warning)", "value": "Estado inicial. El modelo señaló un fallo probable y necesita atención. Abierta. Se puede reconocer, programar, resolver o marcar como falso positivo." },
-            { "label": "Reconocida (chip info)", "value": "Has visto y aceptado la predicción; aún no programada. Abierta. Se puede programar, resolver o marcar como falso positivo." },
-            { "label": "MantenimientoProgramado (chip primary)", "value": "Se ha creado y vinculado un trabajo de mantenimiento preventivo. Abierta. Se puede resolver o marcar como falso positivo." },
-            { "label": "Resuelta (chip success)", "value": "Mantenimiento completado; cerrada con notas de resolución. Terminal." },
-            { "label": "FalsoPositivo (chip muted)", "value": "Determinada como incorrecta y marcada como falsa con un motivo. Terminal." },
-            { "label": "Caducada (chip muted)", "value": "La fecha de fallo previsto pasó y la predicción ya no es relevante. Terminal." }
+            {
+              "label": "Predicha (chip warning)",
+              "value": "Estado inicial. El modelo señaló un fallo probable y necesita atención. Abierta. Se puede reconocer, programar, resolver o marcar como falso positivo."
+            },
+            {
+              "label": "Reconocida (chip info)",
+              "value": "Has visto y aceptado la predicción; aún no programada. Abierta. Se puede programar, resolver o marcar como falso positivo."
+            },
+            {
+              "label": "MantenimientoProgramado (chip primary)",
+              "value": "Se ha creado y vinculado un trabajo de mantenimiento preventivo. Abierta. Se puede resolver o marcar como falso positivo."
+            },
+            {
+              "label": "Resuelta (chip success)",
+              "value": "Mantenimiento completado; cerrada con notas de resolución. Terminal."
+            },
+            {
+              "label": "FalsoPositivo (chip muted)",
+              "value": "Determinada como incorrecta y marcada como falsa con un motivo. Terminal."
+            },
+            {
+              "label": "Caducada (chip muted)",
+              "value": "La fecha de fallo previsto pasó y la predicción ya no es relevante. Terminal."
+            }
           ]
         },
         {
           "heading": "Columnas de la tabla",
           "items": [
-            { "label": "Centro de trabajo", "value": "Ordenable. El activo / centro de trabajo al que se aplica la predicción. Texto plano." },
-            { "label": "Tipo", "value": "Ordenable. El tipo de predicción — la naturaleza del fallo previsto. Ancho 160px." },
-            { "label": "Severidad", "value": "Ordenable. Chip codificado por color (Crítica / Alta / Media / Baja). Ancho 110px." },
-            { "label": "% de confianza", "value": "Ordenable. La certeza del modelo, con formato de porcentaje (p. ej., 92,5%). Número, alineado a la derecha, ancho 110px." },
-            { "label": "Fallo previsto", "value": "Ordenable. Fecha y hora del fallo previsto, con formato MM/dd/yyyy hh:mm. Fecha, ancho 160px." },
-            { "label": "Estado", "value": "Ordenable. Chip de ciclo de vida codificado por color. Ancho 140px." },
-            { "label": "Acciones", "value": "Botones de respuesta de fila (Reconocer / Programar / Resolver / Falso positivo), mostrados según el estado. Alineados a la derecha, ancho 180px." }
+            {
+              "label": "Centro de trabajo",
+              "value": "Ordenable. El activo / centro de trabajo al que se aplica la predicción. Texto plano."
+            },
+            {
+              "label": "Tipo",
+              "value": "Ordenable. El tipo de predicción — la naturaleza del fallo previsto. Ancho 160px."
+            },
+            {
+              "label": "Severidad",
+              "value": "Ordenable. Chip codificado por color (Crítica / Alta / Media / Baja). Ancho 110px."
+            },
+            {
+              "label": "% de confianza",
+              "value": "Ordenable. La certeza del modelo, con formato de porcentaje (p. ej., 92,5%). Número, alineado a la derecha, ancho 110px."
+            },
+            {
+              "label": "Fallo previsto",
+              "value": "Ordenable. Fecha y hora del fallo previsto, con formato MM/dd/yyyy hh:mm. Fecha, ancho 160px."
+            },
+            {
+              "label": "Estado",
+              "value": "Ordenable. Chip de ciclo de vida codificado por color. Ancho 140px."
+            },
+            {
+              "label": "Acciones",
+              "value": "Botones de respuesta de fila (Reconocer / Programar / Resolver / Falso positivo), mostrados según el estado. Alineados a la derecha, ancho 180px."
+            }
           ]
         },
         {
           "heading": "Acciones de fila (dependientes del estado)",
           "items": [
-            { "label": "Reconocer (icono check_circle)", "value": "Disponible en un elemento Predicho. Marca que lo has visto y mueve el estado a Reconocida." },
-            { "label": "Programar mantenimiento (icono schedule)", "value": "Disponible en elementos Predichos o Reconocidos. Crea y vincula un trabajo de mantenimiento preventivo; mueve el estado a MantenimientoProgramado." },
-            { "label": "Resolver (icono task_alt)", "value": "Disponible en cualquier elemento abierto. Abre el diálogo de resolución para notas y luego cierra la predicción como Resuelta." },
-            { "label": "Falso positivo (icono cancel)", "value": "Disponible en cualquier elemento abierto. Abre el diálogo de falso positivo para un motivo y luego cierra la predicción como FalsoPositivo." }
+            {
+              "label": "Reconocer (icono check_circle)",
+              "value": "Disponible en un elemento Predicho. Marca que lo has visto y mueve el estado a Reconocida."
+            },
+            {
+              "label": "Programar mantenimiento (icono schedule)",
+              "value": "Disponible en elementos Predichos o Reconocidos. Crea y vincula un trabajo de mantenimiento preventivo; mueve el estado a MantenimientoProgramado."
+            },
+            {
+              "label": "Resolver (icono task_alt)",
+              "value": "Disponible en cualquier elemento abierto. Abre el diálogo de resolución para notas y luego cierra la predicción como Resuelta."
+            },
+            {
+              "label": "Falso positivo (icono cancel)",
+              "value": "Disponible en cualquier elemento abierto. Abre el diálogo de falso positivo para un motivo y luego cierra la predicción como FalsoPositivo."
+            }
           ]
         },
         {
           "heading": "Diálogo de resolver / falso positivo",
           "items": [
-            { "label": "Título", "value": "Cambia según el modo: 'Resolver predicción' al resolver, 'Marcar como falso positivo' al descartar." },
-            { "label": "Notas (obligatorio)", "value": "Área de texto. Las notas de resolución (modo resolver) o el motivo por el que fue un falso positivo. Obligatorio, máx. 2000 caracteres. data-testid: resolve-notes" },
-            { "label": "Cancelar", "value": "Cierra el diálogo sin guardar." },
-            { "label": "Confirmar", "value": "Envía la resolución / falso positivo con las notas y cierra la predicción. Deshabilitado mientras el formulario no es válido; un botón de validación muestra las infracciones. data-testid: resolve-confirm-btn" }
+            {
+              "label": "Título",
+              "value": "Cambia según el modo: 'Resolver predicción' al resolver, 'Marcar como falso positivo' al descartar."
+            },
+            {
+              "label": "Notas (obligatorio)",
+              "value": "Área de texto. Las notas de resolución (modo resolver) o el motivo por el que fue un falso positivo. Obligatorio, máx. 2000 caracteres. data-testid: resolve-notes"
+            },
+            {
+              "label": "Cancelar",
+              "value": "Cierra el diálogo sin guardar."
+            },
+            {
+              "label": "Confirmar",
+              "value": "Envía la resolución / falso positivo con las notas y cierra la predicción. Deshabilitado mientras el formulario no es válido; un botón de validación muestra las infracciones. data-testid: resolve-confirm-btn"
+            }
           ]
         },
         {
           "heading": "Conceptos clave",
           "items": [
-            { "label": "Predicción", "value": "El pronóstico del modelo de que un centro de trabajo específico experimentará un tipo específico de fallo para una fecha determinada." },
-            { "label": "% de confianza", "value": "Cuán seguro está el modelo de que la predicción es correcta (0–100%). Úsalo para decidir cuánto confiar en una predicción." },
-            { "label": "Severidad", "value": "Cuán consecuente y urgente es el fallo previsto (Crítica / Alta / Media / Baja). Úsala para decidir sobre qué actuar primero." },
-            { "label": "Abierta vs Cerrada", "value": "Predicha, Reconocida y MantenimientoProgramado están abiertas (necesitan acción); Resuelta, FalsoPositivo y Caducada están cerradas (terminales)." },
-            { "label": "Trabajo de mantenimiento preventivo (MP)", "value": "El trabajo de mantenimiento planificado que la programación crea y vincula a una predicción para prevenir el fallo pronosticado." },
-            { "label": "Retroalimentación de precisión", "value": "Resolver o descartar una predicción le dice al sistema si fue correcta, lo que alimenta el KPI de precisión general del modelo." }
+            {
+              "label": "Predicción",
+              "value": "El pronóstico del modelo de que un centro de trabajo específico experimentará un tipo específico de fallo para una fecha determinada."
+            },
+            {
+              "label": "% de confianza",
+              "value": "Cuán seguro está el modelo de que la predicción es correcta (0–100%). Úsalo para decidir cuánto confiar en una predicción."
+            },
+            {
+              "label": "Severidad",
+              "value": "Cuán consecuente y urgente es el fallo previsto (Crítica / Alta / Media / Baja). Úsala para decidir sobre qué actuar primero."
+            },
+            {
+              "label": "Abierta vs Cerrada",
+              "value": "Predicha, Reconocida y MantenimientoProgramado están abiertas (necesitan acción); Resuelta, FalsoPositivo y Caducada están cerradas (terminales)."
+            },
+            {
+              "label": "Trabajo de mantenimiento preventivo (MP)",
+              "value": "El trabajo de mantenimiento planificado que la programación crea y vincula a una predicción para prevenir el fallo pronosticado."
+            },
+            {
+              "label": "Retroalimentación de precisión",
+              "value": "Resolver o descartar una predicción le dice al sistema si fue correcta, lo que alimenta el KPI de precisión general del modelo."
+            }
           ]
         }
       ]
@@ -178,10 +295,23 @@
           "id": "mn1",
           "text": "¿Cómo se crean las predicciones en el módulo Mantenimiento predictivo?",
           "options": [
-            { "id": "a", "text": "Un usuario hace clic en un botón 'Nueva predicción' y rellena un formulario" },
-            { "id": "b", "text": "Las genera un modelo a partir de los datos de los equipos — la página es de solo lectura para la creación; respondes a las predicciones, no las añades a mano", "isCorrect": true },
-            { "id": "c", "text": "Se importan desde las órdenes de compra" },
-            { "id": "d", "text": "Las introduce el cliente a través de un portal" }
+            {
+              "id": "a",
+              "text": "Un usuario hace clic en un botón 'Nueva predicción' y rellena un formulario"
+            },
+            {
+              "id": "b",
+              "text": "Las genera un modelo a partir de los datos de los equipos — la página es de solo lectura para la creación; respondes a las predicciones, no las añades a mano",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Se importan desde las órdenes de compra"
+            },
+            {
+              "id": "d",
+              "text": "Las introduce el cliente a través de un portal"
+            }
           ],
           "explanation": "No añades predicciones manualmente. El modelo las genera a partir de los datos de los equipos. La página es un panel de supervisión y respuesta — lo que haces es reconocer, programar mantenimiento, resolver o marcar como falso positivo."
         },
@@ -189,10 +319,23 @@
           "id": "mn2",
           "text": "¿Qué representa el % de confianza de una predicción?",
           "options": [
-            { "id": "a", "text": "El porcentaje de vida útil restante del activo" },
-            { "id": "b", "text": "Cuán seguro está el modelo de que la predicción es correcta (0–100%)", "isCorrect": true },
-            { "id": "c", "text": "El porcentaje de descuento sobre el costo del mantenimiento" },
-            { "id": "d", "text": "Cuántos activos similares han fallado este año" }
+            {
+              "id": "a",
+              "text": "El porcentaje de vida útil restante del activo"
+            },
+            {
+              "id": "b",
+              "text": "Cuán seguro está el modelo de que la predicción es correcta (0–100%)",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El porcentaje de descuento sobre el costo del mantenimiento"
+            },
+            {
+              "id": "d",
+              "text": "Cuántos activos similares han fallado este año"
+            }
           ],
           "explanation": "El % de confianza es la certeza del modelo de que la predicción es correcta, de 0 a 100%. Una predicción de alta confianza es una de la que el modelo está seguro; usa la confianza para decidir cuánto confiar en una predicción al priorizar."
         },
@@ -200,10 +343,23 @@
           "id": "mn3",
           "text": "¿Qué severidad significa riesgo de fallo inminente que requiere atención urgente?",
           "options": [
-            { "id": "a", "text": "Baja" },
-            { "id": "b", "text": "Media" },
-            { "id": "c", "text": "Crítica", "isCorrect": true },
-            { "id": "d", "text": "Alta" }
+            {
+              "id": "a",
+              "text": "Baja"
+            },
+            {
+              "id": "b",
+              "text": "Media"
+            },
+            {
+              "id": "c",
+              "text": "Crítica",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Alta"
+            }
           ],
           "explanation": "Crítica significa riesgo de fallo inmediato que requiere atención urgente — actúa sobre estas primero. Alta significa que el fallo es probable en cuestión de días, Media es un riesgo moderado donde se recomienda acción preventiva, y Baja es un riesgo bajo que conviene vigilar."
         },
@@ -211,10 +367,23 @@
           "id": "mn4",
           "text": "¿Cuál es el ciclo de vida correcto de la predicción desde la creación hasta un arreglo completado?",
           "options": [
-            { "id": "a", "text": "Abierta → En curso → Hecha" },
-            { "id": "b", "text": "Predicha → Reconocida → MantenimientoProgramado → Resuelta", "isCorrect": true },
-            { "id": "c", "text": "Borrador → Enviada → Aceptada → Cerrada" },
-            { "id": "d", "text": "Nueva → Priorizada → Escalada → Archivada" }
+            {
+              "id": "a",
+              "text": "Abierta → En curso → Hecha"
+            },
+            {
+              "id": "b",
+              "text": "Predicha → Reconocida → MantenimientoProgramado → Resuelta",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Borrador → Enviada → Aceptada → Cerrada"
+            },
+            {
+              "id": "d",
+              "text": "Nueva → Priorizada → Escalada → Archivada"
+            }
           ],
           "explanation": "Una predicción empieza como Predicha, pasa a Reconocida cuando la aceptas, MantenimientoProgramado cuando se crea y vincula un trabajo de MP, y Resuelta una vez hecho el trabajo y la cierras con notas. (FalsoPositivo y Caducada son los otros dos estados terminales.)"
         },
@@ -222,10 +391,23 @@
           "id": "mn5",
           "text": "Por defecto, el filtro de Estado de la página de predicciones está en 'abiertas'. ¿Qué muestra eso?",
           "options": [
-            { "id": "a", "text": "Todas las predicciones que se hayan hecho" },
-            { "id": "b", "text": "Solo las predicciones que aún necesitan acción — Predicha, Reconocida y MantenimientoProgramado — excluyendo las cerradas", "isCorrect": true },
-            { "id": "c", "text": "Solo las predicciones de severidad Crítica" },
-            { "id": "d", "text": "Solo las predicciones que se marcaron como falso positivo" }
+            {
+              "id": "a",
+              "text": "Todas las predicciones que se hayan hecho"
+            },
+            {
+              "id": "b",
+              "text": "Solo las predicciones que aún necesitan acción — Predicha, Reconocida y MantenimientoProgramado — excluyendo las cerradas",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Solo las predicciones de severidad Crítica"
+            },
+            {
+              "id": "d",
+              "text": "Solo las predicciones que se marcaron como falso positivo"
+            }
           ],
           "explanation": "El filtro predeterminado 'abiertas' muestra los tres estados abiertos (Predicha, Reconocida, MantenimientoProgramado) y oculta los cerrados/terminales (Resuelta, FalsoPositivo, Caducada), para que te centres en lo que aún necesita acción."
         },
@@ -233,10 +415,23 @@
           "id": "mn6",
           "text": "Has revisado un elemento Predicho y quieres ponerlo en el radar sin programar trabajo todavía. ¿Qué acción realizas?",
           "options": [
-            { "id": "a", "text": "Resolver" },
-            { "id": "b", "text": "Reconocer — mueve el estado a Reconocida", "isCorrect": true },
-            { "id": "c", "text": "Falso positivo" },
-            { "id": "d", "text": "Eliminar la predicción" }
+            {
+              "id": "a",
+              "text": "Resolver"
+            },
+            {
+              "id": "b",
+              "text": "Reconocer — mueve el estado a Reconocida",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Falso positivo"
+            },
+            {
+              "id": "d",
+              "text": "Eliminar la predicción"
+            }
           ],
           "explanation": "Reconocer (el icono check_circle) está disponible en un elemento Predicho. Marca que has visto y aceptado la predicción y la mueve a Reconocida — sigue abierta, pero ahora en el radar y a la espera de que se programe mantenimiento."
         },
@@ -244,10 +439,23 @@
           "id": "mn7",
           "text": "¿Qué ocurre cuando haces clic en Programar mantenimiento en una predicción?",
           "options": [
-            { "id": "a", "text": "La predicción se elimina permanentemente" },
-            { "id": "b", "text": "Se crea y vincula un trabajo de mantenimiento preventivo a la predicción, y el estado pasa a MantenimientoProgramado", "isCorrect": true },
-            { "id": "c", "text": "El activo se pone fuera de servicio de inmediato" },
-            { "id": "d", "text": "Se genera una factura por la reparación" }
+            {
+              "id": "a",
+              "text": "La predicción se elimina permanentemente"
+            },
+            {
+              "id": "b",
+              "text": "Se crea y vincula un trabajo de mantenimiento preventivo a la predicción, y el estado pasa a MantenimientoProgramado",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El activo se pone fuera de servicio de inmediato"
+            },
+            {
+              "id": "d",
+              "text": "Se genera una factura por la reparación"
+            }
           ],
           "explanation": "Programar mantenimiento (el icono schedule, disponible en elementos Predichos o Reconocidos) crea y vincula un trabajo de mantenimiento preventivo — el trabajo planificado que aborda el fallo pronosticado — y mueve la predicción a MantenimientoProgramado."
         },
@@ -255,10 +463,23 @@
           "id": "mn8",
           "text": "Determinas que una predicción fue errónea. ¿Qué haces y qué se requiere?",
           "options": [
-            { "id": "a", "text": "Hacer clic en Falso positivo; no se necesita ninguna otra entrada" },
-            { "id": "b", "text": "Hacer clic en Falso positivo, que abre un diálogo donde introduces un motivo (notas) obligatorio antes de confirmar; la predicción se cierra como FalsoPositivo", "isCorrect": true },
-            { "id": "c", "text": "Cambiar la severidad a Baja" },
-            { "id": "d", "text": "Esperar a que caduque por sí sola" }
+            {
+              "id": "a",
+              "text": "Hacer clic en Falso positivo; no se necesita ninguna otra entrada"
+            },
+            {
+              "id": "b",
+              "text": "Hacer clic en Falso positivo, que abre un diálogo donde introduces un motivo (notas) obligatorio antes de confirmar; la predicción se cierra como FalsoPositivo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Cambiar la severidad a Baja"
+            },
+            {
+              "id": "d",
+              "text": "Esperar a que caduque por sí sola"
+            }
           ],
           "explanation": "Falso positivo (el icono cancel) abre un diálogo con un campo de Notas obligatorio (máx. 2000 caracteres). Tras introducir el motivo y confirmar, la predicción se cierra como FalsoPositivo. Esta retroalimentación ayuda al seguimiento de la precisión general del modelo."
         },
@@ -266,10 +487,23 @@
           "id": "mn9",
           "text": "¿Cuál es la diferencia entre Severidad y Confianza al priorizar una predicción?",
           "options": [
-            { "id": "a", "text": "Son lo mismo medido en escalas diferentes" },
-            { "id": "b", "text": "La severidad trata de la consecuencia y la urgencia del fallo; la confianza trata de cuán seguro está el modelo de que la predicción es correcta", "isCorrect": true },
-            { "id": "c", "text": "La severidad la establece el usuario; la confianza la establece el cliente" },
-            { "id": "d", "text": "La severidad se aplica al activo; la confianza se aplica a la orden de trabajo" }
+            {
+              "id": "a",
+              "text": "Son lo mismo medido en escalas diferentes"
+            },
+            {
+              "id": "b",
+              "text": "La severidad trata de la consecuencia y la urgencia del fallo; la confianza trata de cuán seguro está el modelo de que la predicción es correcta",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "La severidad la establece el usuario; la confianza la establece el cliente"
+            },
+            {
+              "id": "d",
+              "text": "La severidad se aplica al activo; la confianza se aplica a la orden de trabajo"
+            }
           ],
           "explanation": "La severidad te dice cuán consecuente y urgente es un fallo (Crítica/Alta/Media/Baja), mientras que la confianza te dice cuán seguro está el modelo de que la predicción es correcta. Una predicción Crítica de alta confianza es el tipo de elemento sobre el que actúas primero."
         },
@@ -277,10 +511,23 @@
           "id": "mn10",
           "text": "Cuando resuelves una predicción, ¿qué se requiere en el diálogo de resolución?",
           "options": [
-            { "id": "a", "text": "Nada — simplemente haces clic en Confirmar" },
-            { "id": "b", "text": "Notas de resolución (un área de texto de Notas obligatoria, máx. 2000 caracteres)", "isCorrect": true },
-            { "id": "c", "text": "Subir una foto de la pieza reparada" },
-            { "id": "d", "text": "El costo del mantenimiento en dólares" }
+            {
+              "id": "a",
+              "text": "Nada — simplemente haces clic en Confirmar"
+            },
+            {
+              "id": "b",
+              "text": "Notas de resolución (un área de texto de Notas obligatoria, máx. 2000 caracteres)",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Subir una foto de la pieza reparada"
+            },
+            {
+              "id": "d",
+              "text": "El costo del mantenimiento en dólares"
+            }
           ],
           "explanation": "La acción Resolver abre un diálogo con un campo de Notas obligatorio (máx. 2000 caracteres). Introduces las notas de resolución y confirmas; la predicción se cierra como Resuelta. El botón Confirmar permanece deshabilitado hasta que se rellenan las notas."
         },
@@ -288,10 +535,23 @@
           "id": "mn11",
           "text": "¿Qué tarjeta de KPI se resalta con un acento rojo para llamar la atención sobre ella?",
           "options": [
-            { "id": "a", "text": "Precisión del modelo" },
-            { "id": "b", "text": "Tiempo de inactividad evitado" },
-            { "id": "c", "text": "Predicciones críticas", "isCorrect": true },
-            { "id": "d", "text": "Predicciones activas" }
+            {
+              "id": "a",
+              "text": "Precisión del modelo"
+            },
+            {
+              "id": "b",
+              "text": "Tiempo de inactividad evitado"
+            },
+            {
+              "id": "c",
+              "text": "Predicciones críticas",
+              "isCorrect": true
+            },
+            {
+              "id": "d",
+              "text": "Predicciones activas"
+            }
           ],
           "explanation": "La tarjeta Crítica se representa en una tarjeta resaltada con un acento rojo porque las predicciones Críticas conllevan un riesgo de fallo inminente. Cuando ese número no sea cero, esos elementos deberían ser tu primera parada en la tabla."
         },
@@ -299,14 +559,36 @@
           "id": "mn12",
           "text": "¿Cómo ayuda al sistema con el tiempo resolver o descartar predicciones?",
           "options": [
-            { "id": "a", "text": "No tiene ningún efecto duradero" },
-            { "id": "b", "text": "Le dice al sistema si la predicción fue correcta, lo que alimenta el KPI de precisión general del modelo para que el programa mejore", "isCorrect": true },
-            { "id": "c", "text": "Aumenta automáticamente la capacidad de cada centro de trabajo" },
-            { "id": "d", "text": "Elimina el activo del sistema" }
+            {
+              "id": "a",
+              "text": "No tiene ningún efecto duradero"
+            },
+            {
+              "id": "b",
+              "text": "Le dice al sistema si la predicción fue correcta, lo que alimenta el KPI de precisión general del modelo para que el programa mejore",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Aumenta automáticamente la capacidad de cada centro de trabajo"
+            },
+            {
+              "id": "d",
+              "text": "Elimina el activo del sistema"
+            }
           ],
           "explanation": "Resolver una predicción o marcarla como falsa proporciona retroalimentación de precisión — el sistema aprende si la predicción resultó correcta. Esa retroalimentación se refleja en el KPI de precisión general del modelo, de modo que el programa predictivo mejora con el tiempo."
         }
       ]
+    }
+  },
+  {
+    "slug": "maintenance-reference",
+    "title": "Mantenimiento — Referencia avanzada",
+    "summary": "Referencia para usuarios avanzados y administradores del Mantenimiento predictivo: TriggerRun manual, los endpoints de registro/rendimiento de modelos de ML, las puntuaciones de riesgo por centro de trabajo, el diccionario de datos de la predicción (RUL, id/versión del modelo), el bucle de retroalimentación y el gate CAP-MAINT-PREDICTIVE.",
+    "contentJson": {
+      "body": "## Ejecuciones manuales de predicción (TriggerRun)\n\nLas predicciones las produce normalmente el modelo según su propio calendario, pero un Admin o Manager puede forzar una nueva pasada de inferencia para un único centro de trabajo bajo demanda.\n\n- **Endpoint:** `POST /api/v1/predictions/run/{workCenterId}` devuelve `202 Accepted` — la ejecución se pone en cola/inicia, sin cuerpo de respuesta.\n- **Autorización:** `[Authorize(Roles = \"Admin,Manager\")]` por encima del gate de capacidad de todo el controlador. Los operarios no pueden lanzar ejecuciones.\n- **Manejador:** `TriggerPredictionRunCommand` -> `IPredictiveMaintenanceService.TriggerPredictionRunAsync(workCenterId)`.\n- Hoy no se expone en la página `/maintenance/predictions` — es una acción solo de API (se usa para pruebas, tras un mantenimiento o para reevaluar un centro de trabajo de inmediato en lugar de esperar a la siguiente pasada programada).\n\n## Registro y rendimiento de modelos de ML\n\nDetrás de las predicciones hay uno o varios modelos de ML entrenados, expuestos mediante dos endpoints de lectura (rutas hermanas bajo `/api/v1/ml-models`, no bajo `/predictions`).\n\n- **Registro — `GET /api/v1/ml-models`** devuelve `MlModelResponseModel[]`: `ModelId`, `Name`, `ModelType`, `Version`, `Status`, `TrainedAt`, `TrainingSampleCount`, y las métricas de entrenamiento sin conexión `Accuracy`, `Precision`, `Recall`, `F1Score` (todas anulables), además de `PredictionType` y el opcional `WorkCenterName` (un modelo puede ser global o estar limitado a un centro de trabajo).\n- **`Status` (`MlModelStatus`):** `Training`, `Active`, `Inactive`, `Failed`. Solo los modelos `Active` producen predicciones en vivo.\n- **Rendimiento — `GET /api/v1/ml-models/{modelId}/performance`** devuelve `MlModelPerformanceResponseModel`: `Accuracy`, `Precision`, `Recall`, `F1Score` en vivo; los recuentos `TotalPredictions`, `TruePredictions`, `FalsePredictions`; `AverageLeadTimeHours` (con cuánta antelación, en promedio, avisa el modelo); y `AccuracyTrend` — una lista de `PredictionAccuracyTrendPoint` (`Period` como fecha, `Accuracy`, `Predictions`) para graficar la deriva a lo largo del tiempo.\n- Las métricas de rendimiento se alimentan del bucle de resolver / falso positivo / retroalimentación — reflejan resultados reales, no solo las puntuaciones de entrenamiento sin conexión del registro.\n\n## Puntuaciones de riesgo por centro de trabajo\n\nEl endpoint del panel `GET /api/v1/predictions/dashboard` (`PredictiveMaintenanceDashboardResponseModel`) lleva los recuentos de KPI más dos listas de resumen.\n\n- **`WorkCenterRisks`** — `WorkCenterRiskScoreResponseModel[]`: `WorkCenterId`, `WorkCenterName`, `RiskScore` (una puntuación de urgencia compuesta que agrega las predicciones abiertas de ese centro de trabajo), `HighestSeverityPrediction` (la peor severidad abierta del activo) y `NextPredictedFailure` (anulable — la fecha de fallo previsto más próxima).\n- **`UpcomingPredictions`** — `UpcomingPredictionResponseModel[]`: una fuente esbelta orientada al futuro (`Id`, `WorkCenterName`, `PredictionType`, `ConfidencePercent`, `PredictedFailureDate`, `Severity`).\n- Usa las puntuaciones de riesgo para clasificar *activos* (qué máquina necesita atención), mientras que la tabla principal clasifica *predicciones* individuales.\n\n## Diccionario de datos — Campos de la predicción\n\nMás allá de las columnas mostradas en la página, cada `MaintenancePredictionResponseModel` lleva campos de diagnóstico usados para trazabilidad y retroalimentación:\n\n- **`RemainingUsefulLifeHours` (RUL)** — estimación anulable de cuántas horas de operación quedan antes del fallo previsto. Distinto de `PredictedFailureDate` (una fecha de calendario): la RUL se expresa en horas de funcionamiento, por lo que tiene en cuenta el uso, no solo el tiempo transcurrido.\n- **`ModelId` / `ModelVersion`** — qué modelo y qué versión entrenada produjo esta predicción. Esencial para auditar: si una versión del modelo se degrada, puedes identificar todas las predicciones que emitió.\n- **`InputFeaturesJson`** — la carga de características en bruto (lecturas de sensores, contadores, etc.) que el modelo puntuó, almacenada como una cadena JSON; el valor predeterminado es `\"{}\"`.\n- **`WasAccurate`** — indicador booleano de resultado que se establece cuando la predicción se resuelve o se registra retroalimentación; impulsa las métricas de precisión anteriores.\n- **`PredictedAt`**, **`AcknowledgedAt`**, **`AcknowledgedByName`**, **`PreventiveMaintenanceJobId`**, **`ResolutionNotes`** — rastro de auditoría del ciclo de vida.\n\n## Bucle de retroalimentación\n\nAparte de las acciones Resolver / Falso positivo en la página, existe un endpoint de retroalimentación explícito que cierra el bucle de verdad de campo para el modelo.\n\n- **Endpoint:** `POST /api/v1/predictions/{id}/feedback` -> `204 No Content`.\n- **`RecordPredictionFeedbackRequestModel`:** `ActualFailureOccurred` (bool — si el fallo realmente ocurrió), `ActualFailureDate` (anulable), `Notes` (anulable). La validación requiere que la fecha de fallo real esté presente/sea coherente cuando se reporta un fallo.\n- Esta es la señal de verdad que actualiza `WasAccurate` y alimenta las métricas de rendimiento en vivo — distinta de `ResolutionNotes`, que solo documenta el trabajo de mantenimiento.\n\n## Gate de capacidad — CAP-MAINT-PREDICTIVE\n\nTodo el `PredictiveMaintenanceController` está protegido por `[RequiresCapability(\"CAP-MAINT-PREDICTIVE\")]`.\n\n- Cuando la capacidad está deshabilitada para una instalación, cada endpoint — lista de predicciones, panel, reconocer/programar/resolver, ejecución manual y las rutas `ml-models` — devuelve `403` con el envoltorio de capacidad, y la ruta `/maintenance/predictions` se oculta en el cliente (`capabilityGuard` + `*appCap`).\n- El gate se aplica a nivel de la clase del controlador, por lo que no hay anulación por acción — el mantenimiento predictivo es todo o nada para una instalación.\n- El gate por rol se superpone al gate de capacidad: Programar mantenimiento y la TriggerRun manual requieren además `Admin` o `Manager`.",
+      "sections": []
     }
   }
 ]

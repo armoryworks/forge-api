@@ -302,10 +302,23 @@
           "id": "cal1",
           "text": "¿Cuáles son los tres modos de vista disponibles en el módulo Calendario?",
           "options": [
-            { "id": "a", "text": "Mes, Semana y Día", "isCorrect": true },
-            { "id": "b", "text": "Línea de tiempo, Gantt y Lista" },
-            { "id": "c", "text": "Diaria, Trimestral y Anual" },
-            { "id": "d", "text": "Tablero, Tabla y Calendario" }
+            {
+              "id": "a",
+              "text": "Mes, Semana y Día",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Línea de tiempo, Gantt y Lista"
+            },
+            {
+              "id": "c",
+              "text": "Diaria, Trimestral y Anual"
+            },
+            {
+              "id": "d",
+              "text": "Tablero, Tabla y Calendario"
+            }
           ],
           "explanation": "El calendario ofrece tres vistas — Mes, Semana y Día — que se alternan con botones en el encabezado. Cada una muestra los mismos datos con un nivel de zoom diferente."
         },
@@ -313,10 +326,23 @@
           "id": "cal2",
           "text": "Quieres ver las fechas de entrega previstas de las órdenes de compra junto a tus trabajos en el calendario. ¿Cómo lo habilitas?",
           "options": [
-            { "id": "a", "text": "Ve a Administración → Configuración del calendario y marca 'Mostrar entregas de OC'" },
-            { "id": "b", "text": "Haz clic en el botón conmutador de entregas de OC (icono local_shipping) en el encabezado del calendario", "isCorrect": true },
-            { "id": "c", "text": "Cambia a la página de Órdenes de compra y habilita la vista de calendario" },
-            { "id": "d", "text": "Las entregas de OC siempre se muestran — no se pueden desactivar" }
+            {
+              "id": "a",
+              "text": "Ve a Administración → Configuración del calendario y marca 'Mostrar entregas de OC'"
+            },
+            {
+              "id": "b",
+              "text": "Haz clic en el botón conmutador de entregas de OC (icono local_shipping) en el encabezado del calendario",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Cambia a la página de Órdenes de compra y habilita la vista de calendario"
+            },
+            {
+              "id": "d",
+              "text": "Las entregas de OC siempre se muestran — no se pueden desactivar"
+            }
           ],
           "explanation": "El conmutador de entregas de OC en el encabezado controla si las fechas de entrega de las órdenes de compra aparecen en el calendario. Cuando está activo, el botón se resalta en el color primario."
         },
@@ -324,10 +350,23 @@
           "id": "cal3",
           "text": "En la vista Mes, una celda de día muestra '3 fichas de trabajo y +4 más'. ¿Qué significa la etiqueta '+4 más'?",
           "options": [
-            { "id": "a", "text": "Se archivaron recientemente 4 trabajos de esa fecha" },
-            { "id": "b", "text": "Hay 4 trabajos adicionales pendientes en esa fecha, pero están ocultos para ahorrar espacio", "isCorrect": true },
-            { "id": "c", "text": "Se esperan 4 entregas de OC en esa fecha" },
-            { "id": "d", "text": "Los trabajos llevan 4 o más días vencidos" }
+            {
+              "id": "a",
+              "text": "Se archivaron recientemente 4 trabajos de esa fecha"
+            },
+            {
+              "id": "b",
+              "text": "Hay 4 trabajos adicionales pendientes en esa fecha, pero están ocultos para ahorrar espacio",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Se esperan 4 entregas de OC en esa fecha"
+            },
+            {
+              "id": "d",
+              "text": "Los trabajos llevan 4 o más días vencidos"
+            }
           ],
           "explanation": "La vista Mes muestra hasta 3 fichas de trabajo por celda de día. Cuando existen más trabajos, aparece un recuento de desbordamiento '+N más'. Haz clic en el día para cambiar a la vista Día y ver todos los trabajos."
         },
@@ -335,10 +374,23 @@
           "id": "cal4",
           "text": "¿Qué indica un icono priority_high en una ficha de trabajo?",
           "options": [
-            { "id": "a", "text": "El trabajo es de prioridad Alta" },
-            { "id": "b", "text": "El trabajo es de prioridad Crítica", "isCorrect": true },
-            { "id": "c", "text": "El trabajo está vencido" },
-            { "id": "d", "text": "El trabajo se ha marcado para revisión" }
+            {
+              "id": "a",
+              "text": "El trabajo es de prioridad Alta"
+            },
+            {
+              "id": "b",
+              "text": "El trabajo es de prioridad Crítica",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El trabajo está vencido"
+            },
+            {
+              "id": "d",
+              "text": "El trabajo se ha marcado para revisión"
+            }
           ],
           "explanation": "El icono priority_high indica prioridad Crítica. Los trabajos de prioridad Alta usan en su lugar el icono arrow_upward. Ambos te ayudan a detectar rápidamente el trabajo importante en el calendario."
         },
@@ -346,10 +398,23 @@
           "id": "cal5",
           "text": "Estás en la vista Semana y quieres ver todos los detalles de los trabajos del miércoles. ¿Cómo navegas hasta ahí?",
           "options": [
-            { "id": "a", "text": "Haz doble clic en la columna del miércoles para expandirla" },
-            { "id": "b", "text": "Haz clic en el encabezado de fecha del miércoles para cambiar a la vista Día de esa fecha", "isCorrect": true },
-            { "id": "c", "text": "Pasa el cursor sobre la columna del miércoles para ver una información sobre herramientas con los detalles de los trabajos" },
-            { "id": "d", "text": "Haz clic derecho y selecciona 'Ver detalles del día'" }
+            {
+              "id": "a",
+              "text": "Haz doble clic en la columna del miércoles para expandirla"
+            },
+            {
+              "id": "b",
+              "text": "Haz clic en el encabezado de fecha del miércoles para cambiar a la vista Día de esa fecha",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Pasa el cursor sobre la columna del miércoles para ver una información sobre herramientas con los detalles de los trabajos"
+            },
+            {
+              "id": "d",
+              "text": "Haz clic derecho y selecciona 'Ver detalles del día'"
+            }
           ],
           "explanation": "Al hacer clic en un encabezado de fecha en la vista Semana (o en una celda de día en la vista Mes) se cambia a la vista Día para esa fecha, mostrando todos los detalles del trabajo, incluidos cliente, etapa, responsable y prioridad."
         },
@@ -357,10 +422,23 @@
           "id": "cal6",
           "text": "¿Qué representa el borde izquierdo coloreado de una ficha de trabajo?",
           "options": [
-            { "id": "a", "text": "El nivel de prioridad del trabajo (rojo = Crítica, naranja = Alta, etc.)" },
-            { "id": "b", "text": "El color de la etapa kanban del trabajo", "isCorrect": true },
-            { "id": "c", "text": "El color del tipo de pista del tablero del trabajo" },
-            { "id": "d", "text": "El color asignado al cliente" }
+            {
+              "id": "a",
+              "text": "El nivel de prioridad del trabajo (rojo = Crítica, naranja = Alta, etc.)"
+            },
+            {
+              "id": "b",
+              "text": "El color de la etapa kanban del trabajo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El color del tipo de pista del tablero del trabajo"
+            },
+            {
+              "id": "d",
+              "text": "El color asignado al cliente"
+            }
           ],
           "explanation": "Cada ficha de trabajo tiene un borde izquierdo coloreado según el color de su etapa kanban (stageColor). Esto te permite identificar visualmente en qué etapa se encuentra un trabajo sin leer el texto."
         },
@@ -368,10 +446,23 @@
           "id": "cal7",
           "text": "Ves un icono warning en una ficha de trabajo. ¿Qué significa esto?",
           "options": [
-            { "id": "a", "text": "El trabajo tiene problemas de calidad sin resolver" },
-            { "id": "b", "text": "La fecha de vencimiento del trabajo ya pasó y aún no está completo", "isCorrect": true },
-            { "id": "c", "text": "Al trabajo le faltan materiales necesarios" },
-            { "id": "d", "text": "El trabajo no tiene responsable" }
+            {
+              "id": "a",
+              "text": "El trabajo tiene problemas de calidad sin resolver"
+            },
+            {
+              "id": "b",
+              "text": "La fecha de vencimiento del trabajo ya pasó y aún no está completo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Al trabajo le faltan materiales necesarios"
+            },
+            {
+              "id": "d",
+              "text": "El trabajo no tiene responsable"
+            }
           ],
           "explanation": "El icono warning aparece en los trabajos que están vencidos — su fecha de vencimiento ya pasó pero no se han completado. Esto te ayuda a detectar rápidamente el trabajo atrasado en el calendario."
         },
@@ -379,10 +470,23 @@
           "id": "cal8",
           "text": "¿Cómo funciona el filtro de tipo de pista en el encabezado del calendario?",
           "options": [
-            { "id": "a", "text": "Filtra qué trabajos de qué pista kanban se muestran en el calendario", "isCorrect": true },
-            { "id": "b", "text": "Cambia el tema de color del calendario para que coincida con el tipo de pista" },
-            { "id": "c", "text": "Alterna entre diferentes disposiciones del calendario" },
-            { "id": "d", "text": "Filtra las entregas de OC según la asignación de pista del proveedor" }
+            {
+              "id": "a",
+              "text": "Filtra qué trabajos de qué pista kanban se muestran en el calendario",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "Cambia el tema de color del calendario para que coincida con el tipo de pista"
+            },
+            {
+              "id": "c",
+              "text": "Alterna entre diferentes disposiciones del calendario"
+            },
+            {
+              "id": "d",
+              "text": "Filtra las entregas de OC según la asignación de pista del proveedor"
+            }
           ],
           "explanation": "El menú desplegable de tipo de pista filtra los trabajos según su tipo de pista kanban (Producción, I+D, Mantenimiento, etc.). Esto te permite centrarte en un área del negocio al planificar."
         },
@@ -390,10 +494,23 @@
           "id": "cal9",
           "text": "En la vista Día, ¿qué información se muestra en la fila de metadatos de un trabajo?",
           "options": [
-            { "id": "a", "text": "Fecha de creación, fecha de última modificación y recuento de archivos adjuntos" },
-            { "id": "b", "text": "Nombre del cliente, nombre de la etapa, nombre del responsable y ficha de prioridad", "isCorrect": true },
-            { "id": "c", "text": "Estimación de costo del trabajo, horas registradas y porcentaje de finalización" },
-            { "id": "d", "text": "Número de pieza, cantidad pedida y tipo de material" }
+            {
+              "id": "a",
+              "text": "Fecha de creación, fecha de última modificación y recuento de archivos adjuntos"
+            },
+            {
+              "id": "b",
+              "text": "Nombre del cliente, nombre de la etapa, nombre del responsable y ficha de prioridad",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Estimación de costo del trabajo, horas registradas y porcentaje de finalización"
+            },
+            {
+              "id": "d",
+              "text": "Número de pieza, cantidad pedida y tipo de material"
+            }
           ],
           "explanation": "La vista Día muestra el mayor detalle. Cada trabajo muestra su número, título e icono de prioridad en la línea principal, con una fila de metadatos debajo que muestra el nombre del cliente, la etapa actual, la persona asignada y una ficha de prioridad."
         },
@@ -401,10 +518,23 @@
           "id": "cal10",
           "text": "¿Qué ocurre cuando haces clic en el botón Hoy?",
           "options": [
-            { "id": "a", "text": "Crea un nuevo trabajo con vencimiento hoy" },
-            { "id": "b", "text": "Restablece el calendario a la fecha actual en la vista que esté activa", "isCorrect": true },
-            { "id": "c", "text": "Cambia a la vista Día para hoy" },
-            { "id": "d", "text": "Resalta todos los trabajos vencidos en todo el calendario" }
+            {
+              "id": "a",
+              "text": "Crea un nuevo trabajo con vencimiento hoy"
+            },
+            {
+              "id": "b",
+              "text": "Restablece el calendario a la fecha actual en la vista que esté activa",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Cambia a la vista Día para hoy"
+            },
+            {
+              "id": "d",
+              "text": "Resalta todos los trabajos vencidos en todo el calendario"
+            }
           ],
           "explanation": "El botón Hoy restablece el calendario a la fecha actual manteniendo tu modo de vista actual (Mes, Semana o Día). No cambia la vista activa — solo el enfoque de la fecha."
         },
@@ -412,10 +542,23 @@
           "id": "cal11",
           "text": "En la vista Día, cuando no existen trabajos ni eventos de OC para la fecha seleccionada, ¿qué se muestra?",
           "options": [
-            { "id": "a", "text": "Un espacio en blanco sin indicadores" },
-            { "id": "b", "text": "Un icono event_available y un mensaje de estado vacío", "isCorrect": true },
-            { "id": "c", "text": "Una sugerencia para crear un nuevo trabajo para esa fecha" },
-            { "id": "d", "text": "Una lista de trabajos completados recientemente de fechas cercanas" }
+            {
+              "id": "a",
+              "text": "Un espacio en blanco sin indicadores"
+            },
+            {
+              "id": "b",
+              "text": "Un icono event_available y un mensaje de estado vacío",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Una sugerencia para crear un nuevo trabajo para esa fecha"
+            },
+            {
+              "id": "d",
+              "text": "Una lista de trabajos completados recientemente de fechas cercanas"
+            }
           ],
           "explanation": "Los días vacíos en la vista Día muestran un estado vacío con el icono event_available y un mensaje que indica que no hay trabajo programado. Esto sigue el patrón de toda la aplicación de mostrar estados vacíos significativos en lugar de espacio en blanco."
         },
@@ -423,10 +566,23 @@
           "id": "cal12",
           "text": "Un evento de OC en el calendario muestra 'PO-2048 · Acme Metals · 5 líneas'. ¿Qué representa '5 líneas'?",
           "options": [
-            { "id": "a", "text": "La OC tiene 5 fechas de entrega separadas" },
-            { "id": "b", "text": "La OC contiene 5 líneas", "isCorrect": true },
-            { "id": "c", "text": "La OC se ha revisado 5 veces" },
-            { "id": "d", "text": "Se esperan 5 unidades en esta entrega" }
+            {
+              "id": "a",
+              "text": "La OC tiene 5 fechas de entrega separadas"
+            },
+            {
+              "id": "b",
+              "text": "La OC contiene 5 líneas",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "La OC se ha revisado 5 veces"
+            },
+            {
+              "id": "d",
+              "text": "Se esperan 5 unidades en esta entrega"
+            }
           ],
           "explanation": "El recuento de líneas en un evento de OC del calendario muestra cuántas líneas hay en la orden de compra. Esto te da una idea rápida del alcance de la entrega sin abrir el detalle completo de la OC."
         },
@@ -434,14 +590,36 @@
           "id": "cal13",
           "text": "Detectas un trabajo con vencimiento mañana en el calendario y quieres pasarlo a la siguiente etapa. ¿Qué ocurre cuando haces clic en la ficha del trabajo?",
           "options": [
-            { "id": "a", "text": "Se abre un formulario de edición en línea en el calendario para que cambies la etapa ahí mismo" },
-            { "id": "b", "text": "Abre el trabajo en el tablero Kanban (/kanban?jobId=...), donde puedes cambiar su etapa y editarlo", "isCorrect": true },
-            { "id": "c", "text": "Cambia el calendario a la vista Día para la fecha de vencimiento de ese trabajo" },
-            { "id": "d", "text": "Abre un diálogo de detalle de solo lectura — el calendario no tiene enlace al tablero" }
+            {
+              "id": "a",
+              "text": "Se abre un formulario de edición en línea en el calendario para que cambies la etapa ahí mismo"
+            },
+            {
+              "id": "b",
+              "text": "Abre el trabajo en el tablero Kanban (/kanban?jobId=...), donde puedes cambiar su etapa y editarlo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Cambia el calendario a la vista Día para la fecha de vencimiento de ese trabajo"
+            },
+            {
+              "id": "d",
+              "text": "Abre un diálogo de detalle de solo lectura — el calendario no tiene enlace al tablero"
+            }
           ],
           "explanation": "El calendario es una línea de tiempo de solo lectura. Al hacer clic en una ficha de trabajo en cualquier vista se navega al tablero Kanban con ese trabajo preseleccionado, donde ocurre toda la edición (cambios de etapa, detalles, registro de tiempo). En cambio, al hacer clic en el área vacía de una celda de día se cambia a la vista Día. Las fichas de entrega de OC no navegan."
         }
       ]
+    }
+  },
+  {
+    "slug": "calendar-reference",
+    "title": "Calendario y eventos — Referencia avanzada",
+    "summary": "Referencia de casos límite y configuración de administración: persistencia del conmutador de OC, rango de obtención mensual, reglas de fuentes de datos, desbordamiento de 3 fichas, validación y recordatorios de eventos, y Calendarios laborales.",
+    "contentJson": {
+      "body": "## Conmutador de entregas de OC: persistencia y rango de obtención\n\nEl conmutador de entregas de OC es **persistente por usuario**. Su estado de activación/desactivación se almacena bajo la clave de preferencia de usuario `calendar:showPo` (mediante `UserPreferencesService`) y se restaura en la siguiente visita; su valor predeterminado es `false`. Al activarlo se llama de inmediato a `loadPoEvents()`; al desactivarlo se borra el conjunto `poEvents` en memoria sin ninguna llamada al servidor.\n\nLos eventos de OC se obtienen para **toda la cuadrícula del mes visible**, no solo para el mes calendario. `loadPoEvents()` calcula `gridStart` (la primera celda de la primera semana, incluidos los días finales del mes anterior) hasta `gridEnd` (la última celda de la última semana) y solicita `GET /api/v1/purchase-orders/calendar?from={gridStart}&to={gridEnd}`. Un `effect()` vuelve a ejecutar la obtención cada vez que cambia `currentDate` (navegación de mes), leyendo `showPoDeliveries()` a través de `untracked()` para que el conmutador no provoque una doble carga. Las fechas se intercambian como `YYYY-MM-DD` (serialización DateOnly).\n\n## Fuentes de datos y desbordamiento de 3 fichas\n\nEl calendario se nutre de **dos endpoints independientes**:\n\n- **Trabajos:** `GET /api/v1/jobs?isArchived=false&pageSize=200`. El servidor devuelve un envoltorio paginado; `CalendarService.getJobs()` solicita el tope del servidor de **200** y desempaqueta `items`. No hay más paginación — un inquilino con más de 200 trabajos activos no verá el excedente en el calendario.\n- **Entregas de OC:** `GET /api/v1/purchase-orders/calendar` (solo cuando el conmutador de OC está activo).\n\nLos trabajos se agrupan en el cliente en un `Map<YYYY-MM-DD, CalendarJob[]>` indexado por `dueDate`; los trabajos sin `dueDate` se descartan. Los eventos de OC se agrupan de la misma forma por `expectedDeliveryDate`.\n\nEn la **vista Mes**, cada celda de día muestra como máximo `MAX_VISIBLE_JOBS = 3` fichas de trabajo. `visibleJobs()` recorta las primeras 3; `overflowCount()` devuelve `max(0, jobs.length - 3)`, que se muestra como una etiqueta `+N más`. Las vistas Semana y Día no tienen tope. El filtrado por tipo de pista ocurre en el cliente sobre el conjunto ya obtenido (el cálculo `jobs` filtra `allJobs` por `trackTypeId`); cambiar el filtro no vuelve a obtener datos.\n\n## Eventos: entrada de hora, validación y recordatorios\n\nLos eventos son una **función independiente** de la cuadrícula del calendario, expuesta mediante `EventsController` en `/api/v1/events` y restringida por **CAP-MD-EMPLOYEES**. Los endpoints de lectura (`GET /events`, `/events/{id}`, `/events/upcoming`) están abiertos a cualquier usuario autenticado; **crear / actualizar / eliminar requiere el rol `Admin` o `Manager`**. Responder a una invitación (`POST /events/{id}/respond`) está abierto al asistente.\n\nLos campos de hora son `DateTimeOffset` (`StartTime`, `EndTime`). `CreateEventValidator` / `UpdateEventValidator` exigen: `Title` obligatorio, máximo 200; `Description` máximo 2000; `Location` máximo 200; `EventType` debe analizarse al enum `EventType` (Meeting, Training, Safety, Other); y **`EndTime` debe ser mayor que `StartTime`** (\"End time must be after start time\").\n\nLos recordatorios los envía el trabajo recurrente de Hangfire **`event-reminders`** (`EventReminderJob.SendRemindersAsync`), programado como `*/15 * * * *` (cada 15 minutos). Selecciona los eventos cuyo `StartTime` está dentro de los próximos 30 minutos, que no están cancelados y tienen `ReminderSentAt == null`, luego escribe una notificación `event_reminder` a cada asistente **excepto los que tienen `AttendeeStatus.Declined`**, marca `ReminderSentAt` para evitar el reenvío y establece la severidad `warning` para los eventos obligatorios o `info` en caso contrario. Crear un evento también dispara una notificación inmediata `event_invite` a cada asistente.\n\n## Dónde aparecen los eventos (solo lectura)\n\nLa propia página `/calendar` muestra **únicamente trabajos y entregas de OC** — los eventos no se representan en ella. Los eventos se crean de forma centralizada en el **panel de Eventos de administración** y aparecen de solo lectura en otros lugares: la pantalla de planta, la pestaña Eventos del detalle del empleado, el feed `events/upcoming` y como notificaciones/recordatorios. Fuera del panel de administración, estos son solo de visualización y respuesta — no hay edición de eventos en línea en esas superficies.\n\n## Calendarios laborales: una función de administración distinta\n\nNo confundas la página Calendario con los **Calendarios laborales**, una función de administración independiente en `/admin/working-calendars` (`WorkingCalendarsController`, restringida por **CAP-MD-CALENDARS**, **solo `Admin`**). Los calendarios laborales definen las reglas de días hábiles — zona horaria, una `WorkingDaysMask`, días festivos (con fecha observada y recurrencia) y turnos (con capacidad semanal calculada) — e impulsan todos los ayudantes de días hábiles del sistema: plazo de entrega del proveedor, MRP, programación de mantenimiento y temporizadores de SLA. La resolución es **predeterminada por inquilino con anulación por `CompanyLocation`**, gestionada en tiempo de ejecución por `IWorkingCalendarService`. Los días festivos y los turnos son recursos anidados (`/{id}/holidays`, `/{id}/shifts`) propiedad de su calendario (eliminación en cascada); exactamente un calendario es el predeterminado, establecido mediante `POST /{id}/set-default`.",
+      "sections": []
     }
   }
 ]

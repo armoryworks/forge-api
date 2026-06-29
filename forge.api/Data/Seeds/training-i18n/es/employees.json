@@ -85,103 +85,274 @@
         {
           "heading": "Directorio — Filtros y acciones",
           "items": [
-            {"label": "Buscar empleados", "value": "Campo de texto. Busca por nombre, correo electrónico o teléfono. Presione Enter para aplicar."},
-            {"label": "Filtro de rol", "value": "Selección. Filtra el directorio por rol; las opciones se cargan desde la lista de roles del sistema (no codificadas de forma fija). Predeterminado es '-- Todos los roles --'."},
-            {"label": "Filtro de estado", "value": "Selección. Filtra por estado de empleo: Todos, Activo o Inactivo."},
-            {"label": "Invitar empleado", "value": "Botón verde mostrado solo a los administradores. Navega a Admin > Usuarios para crear un nuevo empleado —los empleados no se crean en esta página. data-testid: employees-invite-btn"}
+            {
+              "label": "Buscar empleados",
+              "value": "Campo de texto. Busca por nombre, correo electrónico o teléfono. Presione Enter para aplicar."
+            },
+            {
+              "label": "Filtro de rol",
+              "value": "Selección. Filtra el directorio por rol; las opciones se cargan desde la lista de roles del sistema (no codificadas de forma fija). Predeterminado es '-- Todos los roles --'."
+            },
+            {
+              "label": "Filtro de estado",
+              "value": "Selección. Filtra por estado de empleo: Todos, Activo o Inactivo."
+            },
+            {
+              "label": "Invitar empleado",
+              "value": "Botón verde mostrado solo a los administradores. Navega a Admin > Usuarios para crear un nuevo empleado —los empleados no se crean en esta página. data-testid: employees-invite-btn"
+            }
           ]
         },
         {
           "heading": "Columnas de la tabla del directorio",
           "items": [
-            {"label": "Nombre", "value": "Avatar más el nombre del empleado representado como Apellido, Nombre. Ordenable."},
-            {"label": "Rol", "value": "El rol del empleado. Ordenable y filtrable."},
-            {"label": "Equipo", "value": "Nombre del equipo, o un guion si no hay ninguno. Ordenable."},
-            {"label": "Puesto", "value": "Puesto de trabajo, o un guion si no hay ninguno. Ordenable."},
-            {"label": "Correo electrónico", "value": "Correo electrónico de trabajo. Ordenable."},
-            {"label": "Teléfono", "value": "Número de teléfono, o un guion si no hay ninguno. Ordenable."},
-            {"label": "Estado", "value": "Chip: 'Activo' verde o 'Inactivo' gris. Ordenable."},
-            {"label": "Fecha de inicio", "value": "Fecha de contratación, con formato MM/dd/yyyy. Ordenable (tipo fecha)."}
+            {
+              "label": "Nombre",
+              "value": "Avatar más el nombre del empleado representado como Apellido, Nombre. Ordenable."
+            },
+            {
+              "label": "Rol",
+              "value": "El rol del empleado. Ordenable y filtrable."
+            },
+            {
+              "label": "Equipo",
+              "value": "Nombre del equipo, o un guion si no hay ninguno. Ordenable."
+            },
+            {
+              "label": "Puesto",
+              "value": "Puesto de trabajo, o un guion si no hay ninguno. Ordenable."
+            },
+            {
+              "label": "Correo electrónico",
+              "value": "Correo electrónico de trabajo. Ordenable."
+            },
+            {
+              "label": "Teléfono",
+              "value": "Número de teléfono, o un guion si no hay ninguno. Ordenable."
+            },
+            {
+              "label": "Estado",
+              "value": "Chip: 'Activo' verde o 'Inactivo' gris. Ordenable."
+            },
+            {
+              "label": "Fecha de inicio",
+              "value": "Fecha de contratación, con formato MM/dd/yyyy. Ordenable (tipo fecha)."
+            }
           ]
         },
         {
           "heading": "Encabezado del perfil",
           "items": [
-            {"label": "Nombre", "value": "Mostrado como Apellido, Nombre (p. ej., 'Hartman, Daniel'). Se muestra junto al avatar."},
-            {"label": "Chip de rol", "value": "El rol del empleado representado como un chip de color informativo."},
-            {"label": "Chip de estado", "value": "Chip 'Activo' verde o chip 'Inactivo' gris."},
-            {"label": "Enlaces de contacto", "value": "El puesto, el equipo, un enlace mailto de correo electrónico y un enlace tel de teléfono aparecen cuando están presentes."},
-            {"label": "Volver a Empleados", "value": "Enlace en el encabezado que regresa al directorio. CSS: .ed-back"}
+            {
+              "label": "Nombre",
+              "value": "Mostrado como Apellido, Nombre (p. ej., 'Hartman, Daniel'). Se muestra junto al avatar."
+            },
+            {
+              "label": "Chip de rol",
+              "value": "El rol del empleado representado como un chip de color informativo."
+            },
+            {
+              "label": "Chip de estado",
+              "value": "Chip 'Activo' verde o chip 'Inactivo' gris."
+            },
+            {
+              "label": "Enlaces de contacto",
+              "value": "El puesto, el equipo, un enlace mailto de correo electrónico y un enlace tel de teléfono aparecen cuando están presentes."
+            },
+            {
+              "label": "Volver a Empleados",
+              "value": "Enlace en el encabezado que regresa al directorio. CSS: .ed-back"
+            }
           ]
         },
         {
           "heading": "Tarjetas de estadísticas del perfil",
           "items": [
-            {"label": "Horas de este período", "value": "Total de horas del período actual. Haga clic para saltar a la pestaña Tiempo."},
-            {"label": "% de cumplimiento", "value": "Porcentaje de elementos de cumplimiento completados. Haga clic para saltar a la pestaña Cumplimiento."},
-            {"label": "Trabajos activos", "value": "Conteo de trabajos activos asignados. Haga clic para saltar a la pestaña Trabajos."},
-            {"label": "% de capacitación", "value": "Porcentaje de progreso de capacitación. Haga clic para saltar a la pestaña Capacitación."},
-            {"label": "Gastos pendientes", "value": "Conteo de gastos pendientes. Haga clic para saltar a la pestaña Gastos."}
+            {
+              "label": "Horas de este período",
+              "value": "Total de horas del período actual. Haga clic para saltar a la pestaña Tiempo."
+            },
+            {
+              "label": "% de cumplimiento",
+              "value": "Porcentaje de elementos de cumplimiento completados. Haga clic para saltar a la pestaña Cumplimiento."
+            },
+            {
+              "label": "Trabajos activos",
+              "value": "Conteo de trabajos activos asignados. Haga clic para saltar a la pestaña Trabajos."
+            },
+            {
+              "label": "% de capacitación",
+              "value": "Porcentaje de progreso de capacitación. Haga clic para saltar a la pestaña Capacitación."
+            },
+            {
+              "label": "Gastos pendientes",
+              "value": "Conteo de gastos pendientes. Haga clic para saltar a la pestaña Gastos."
+            }
           ]
         },
         {
           "heading": "Pestaña Resumen — Detalles de empleo",
           "items": [
-            {"label": "Rol", "value": "El rol del empleado (RBAC). Siempre se muestra."},
-            {"label": "Puesto", "value": "Clasificación del puesto. Opcional."},
-            {"label": "Departamento", "value": "Departamento de la organización. Opcional."},
-            {"label": "Equipo", "value": "Asignación de equipo. Opcional."},
-            {"label": "Ubicación de trabajo", "value": "Ubicación de la empresa vinculada. Determina la retención estatal y qué reglas estatales se aplican. Opcional; toma de forma predeterminada la ubicación predeterminada de la empresa cuando no se establece."},
-            {"label": "Fecha de inicio", "value": "Fecha de contratación, con formato MM/dd/yyyy. Opcional."},
-            {"label": "Estado", "value": "Chip Activo o Inactivo."}
+            {
+              "label": "Rol",
+              "value": "El rol del empleado (RBAC). Siempre se muestra."
+            },
+            {
+              "label": "Puesto",
+              "value": "Clasificación del puesto. Opcional."
+            },
+            {
+              "label": "Departamento",
+              "value": "Departamento de la organización. Opcional."
+            },
+            {
+              "label": "Equipo",
+              "value": "Asignación de equipo. Opcional."
+            },
+            {
+              "label": "Ubicación de trabajo",
+              "value": "Ubicación de la empresa vinculada. Determina la retención estatal y qué reglas estatales se aplican. Opcional; toma de forma predeterminada la ubicación predeterminada de la empresa cuando no se establece."
+            },
+            {
+              "label": "Fecha de inicio",
+              "value": "Fecha de contratación, con formato MM/dd/yyyy. Opcional."
+            },
+            {
+              "label": "Estado",
+              "value": "Chip Activo o Inactivo."
+            }
           ]
         },
         {
           "heading": "Pestaña Resumen — Contacto, Dirección, Emergencia, Acceso al sistema",
           "items": [
-            {"label": "Correo electrónico de trabajo", "value": "Correo electrónico de trabajo principal (enlace mailto). Siempre se muestra."},
-            {"label": "Correo electrónico personal", "value": "Correo electrónico de contacto secundario. Opcional."},
-            {"label": "Teléfono", "value": "Número de teléfono (enlace tel). Opcional."},
-            {"label": "Dirección", "value": "Calle, ciudad, estado, código postal. La sección se muestra solo cuando existe una dirección de calle."},
-            {"label": "Contacto de emergencia", "value": "Nombre, relación y teléfono. La sección se muestra solo cuando existe un nombre de contacto de emergencia."},
-            {"label": "PIN configurado", "value": "Sí/No —si hay un PIN de quiosco configurado."},
-            {"label": "RFID / NFC", "value": "Configurado / No configurado —identificador de escaneo de credencial de la planta de producción."},
-            {"label": "Código de barras", "value": "Configurado / No configurado —identificador de escáner de código de barras."},
-            {"label": "Contador de cumplimiento", "value": "Elementos de cumplimiento completados / totales (p. ej., 3 / 5)."}
+            {
+              "label": "Correo electrónico de trabajo",
+              "value": "Correo electrónico de trabajo principal (enlace mailto). Siempre se muestra."
+            },
+            {
+              "label": "Correo electrónico personal",
+              "value": "Correo electrónico de contacto secundario. Opcional."
+            },
+            {
+              "label": "Teléfono",
+              "value": "Número de teléfono (enlace tel). Opcional."
+            },
+            {
+              "label": "Dirección",
+              "value": "Calle, ciudad, estado, código postal. La sección se muestra solo cuando existe una dirección de calle."
+            },
+            {
+              "label": "Contacto de emergencia",
+              "value": "Nombre, relación y teléfono. La sección se muestra solo cuando existe un nombre de contacto de emergencia."
+            },
+            {
+              "label": "PIN configurado",
+              "value": "Sí/No —si hay un PIN de quiosco configurado."
+            },
+            {
+              "label": "RFID / NFC",
+              "value": "Configurado / No configurado —identificador de escaneo de credencial de la planta de producción."
+            },
+            {
+              "label": "Código de barras",
+              "value": "Configurado / No configurado —identificador de escáner de código de barras."
+            },
+            {
+              "label": "Contador de cumplimiento",
+              "value": "Elementos de cumplimiento completados / totales (p. ej., 3 / 5)."
+            }
           ]
         },
         {
           "heading": "Pestañas del perfil",
           "items": [
-            {"label": "Resumen", "value": "Detalles de empleo, información de contacto, dirección, contacto de emergencia y acceso al sistema."},
-            {"label": "Tiempo", "value": "Entradas de tiempo para un período seleccionable (semana, período de pago, mes). Columnas: Fecha, Duración, Categoría, N.º de trabajo, Título del trabajo, Notas, Tipo (Manual/Automático)."},
-            {"label": "Pago", "value": "Recibos de pago. Columnas: Fecha de pago, Inicio del período, Fin del período, Bruto, Deducciones, Impuestos, Pago neto (moneda)."},
-            {"label": "Capacitación", "value": "Registros de capacitación. Columnas: Módulo, Tipo, Estado (chip), Puntaje, Iniciado, Completado."},
-            {"label": "Cumplimiento", "value": "Formularios de cumplimiento. Columnas: Formulario, Tipo, Estado (chip), Firmado, Creado."},
-            {"label": "Trabajos", "value": "Trabajos activos asignados. Columnas: N.º de trabajo, Título, Pista, Etapa (chip de color), Prioridad, Vencimiento. Las filas abren el trabajo en el tablero Kanban."},
-            {"label": "Eventos", "value": "Próximos eventos. Columnas: Título, Tipo (chip de icono), Inicio, Fin, Ubicación, Obligatorio, estado de RSVP."},
-            {"label": "Gastos", "value": "Registros de gastos. Columnas: Fecha, Categoría, Descripción, Monto, Estado (chip)."},
-            {"label": "Documentos", "value": "Zona de carga por arrastrar y soltar. Acepta PDF, Word e imágenes de hasta 25 MB por archivo."},
-            {"label": "Actividad", "value": "Registro de auditoría cronológico de los cambios en el registro del empleado."}
+            {
+              "label": "Resumen",
+              "value": "Detalles de empleo, información de contacto, dirección, contacto de emergencia y acceso al sistema."
+            },
+            {
+              "label": "Tiempo",
+              "value": "Entradas de tiempo para un período seleccionable (semana, período de pago, mes). Columnas: Fecha, Duración, Categoría, N.º de trabajo, Título del trabajo, Notas, Tipo (Manual/Automático)."
+            },
+            {
+              "label": "Pago",
+              "value": "Recibos de pago. Columnas: Fecha de pago, Inicio del período, Fin del período, Bruto, Deducciones, Impuestos, Pago neto (moneda)."
+            },
+            {
+              "label": "Capacitación",
+              "value": "Registros de capacitación. Columnas: Módulo, Tipo, Estado (chip), Puntaje, Iniciado, Completado."
+            },
+            {
+              "label": "Cumplimiento",
+              "value": "Formularios de cumplimiento. Columnas: Formulario, Tipo, Estado (chip), Firmado, Creado."
+            },
+            {
+              "label": "Trabajos",
+              "value": "Trabajos activos asignados. Columnas: N.º de trabajo, Título, Pista, Etapa (chip de color), Prioridad, Vencimiento. Las filas abren el trabajo en el tablero Kanban."
+            },
+            {
+              "label": "Eventos",
+              "value": "Próximos eventos. Columnas: Título, Tipo (chip de icono), Inicio, Fin, Ubicación, Obligatorio, estado de RSVP."
+            },
+            {
+              "label": "Gastos",
+              "value": "Registros de gastos. Columnas: Fecha, Categoría, Descripción, Monto, Estado (chip)."
+            },
+            {
+              "label": "Documentos",
+              "value": "Zona de carga por arrastrar y soltar. Acepta PDF, Word e imágenes de hasta 25 MB por archivo."
+            },
+            {
+              "label": "Actividad",
+              "value": "Registro de auditoría cronológico de los cambios en el registro del empleado."
+            }
           ]
         },
         {
           "heading": "Estados y enumeraciones",
           "items": [
-            {"label": "Estado de empleo", "value": "Activo (chip verde) o Inactivo (chip gris)."},
-            {"label": "Estado de capacitación", "value": "NotStarted (gris), InProgress (azul), Completed (verde), Failed (rojo)."},
-            {"label": "Estado de cumplimiento", "value": "Pending (advertencia), Signed/Completed (verde), Expired (rojo)."},
-            {"label": "Estado de gasto", "value": "Pending (advertencia), Approved (verde), Rejected (rojo), Reimbursed (informativo)."},
-            {"label": "RSVP de evento", "value": "Invited (informativo), Accepted (verde), Declined (rojo)."}
+            {
+              "label": "Estado de empleo",
+              "value": "Activo (chip verde) o Inactivo (chip gris)."
+            },
+            {
+              "label": "Estado de capacitación",
+              "value": "NotStarted (gris), InProgress (azul), Completed (verde), Failed (rojo)."
+            },
+            {
+              "label": "Estado de cumplimiento",
+              "value": "Pending (advertencia), Signed/Completed (verde), Expired (rojo)."
+            },
+            {
+              "label": "Estado de gasto",
+              "value": "Pending (advertencia), Approved (verde), Rejected (rojo), Reimbursed (informativo)."
+            },
+            {
+              "label": "RSVP de evento",
+              "value": "Invited (informativo), Accepted (verde), Declined (rojo)."
+            }
           ]
         },
         {
           "heading": "Acceso y conexiones",
           "items": [
-            {"label": "Acceso a la función", "value": "Protegido por roles para Admin y Manager. Los perfiles son de solo lectura en esta página."},
-            {"label": "Crear / editar", "value": "Se realiza en Admin > Usuarios, accesible mediante el botón Invitar empleado (solo administradores)."},
-            {"label": "Rol", "value": "Determina el RBAC en toda la aplicación. Cargado desde la lista de roles del sistema, mostrado como un chip y filtrable en el directorio."},
-            {"label": "Ubicación de trabajo", "value": "FK a una Ubicación de la empresa. Determina la retención de impuestos estatales y las reglas estatales aplicables."}
+            {
+              "label": "Acceso a la función",
+              "value": "Protegido por roles para Admin y Manager. Los perfiles son de solo lectura en esta página."
+            },
+            {
+              "label": "Crear / editar",
+              "value": "Se realiza en Admin > Usuarios, accesible mediante el botón Invitar empleado (solo administradores)."
+            },
+            {
+              "label": "Rol",
+              "value": "Determina el RBAC en toda la aplicación. Cargado desde la lista de roles del sistema, mostrado como un chip y filtrable en el directorio."
+            },
+            {
+              "label": "Ubicación de trabajo",
+              "value": "FK a una Ubicación de la empresa. Determina la retención de impuestos estatales y las reglas estatales aplicables."
+            }
           ]
         }
       ]
@@ -201,10 +372,23 @@
           "id": "em1",
           "text": "¿Quién puede acceder al módulo de Empleados?",
           "options": [
-            {"id": "a", "text": "Todos los usuarios autenticados"},
-            {"id": "b", "text": "Solo los administradores y gerentes", "isCorrect": true},
-            {"id": "c", "text": "Solo el empleado que ve su propio registro"},
-            {"id": "d", "text": "Cualquiera con un PIN de la planta de producción"}
+            {
+              "id": "a",
+              "text": "Todos los usuarios autenticados"
+            },
+            {
+              "id": "b",
+              "text": "Solo los administradores y gerentes",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Solo el empleado que ve su propio registro"
+            },
+            {
+              "id": "d",
+              "text": "Cualquiera con un PIN de la planta de producción"
+            }
           ],
           "explanation": "La función de Empleados está protegida por roles para los usuarios Admin y Manager. Otros roles no pueden abrirla, e incluso los Admin/Manager ven los perfiles como de solo lectura aquí."
         },
@@ -212,10 +396,23 @@
           "id": "em2",
           "text": "¿Cómo se crea un nuevo empleado?",
           "options": [
-            {"id": "a", "text": "Hacer clic en 'Nuevo empleado' en el directorio y completar un diálogo"},
-            {"id": "b", "text": "Usar el botón Invitar empleado, que lo lleva a Admin > Usuarios donde se crean las cuentas", "isCorrect": true},
-            {"id": "c", "text": "Hacer clic derecho en la tabla del directorio y elegir 'Agregar'"},
-            {"id": "d", "text": "Los empleados se importan automáticamente desde las entradas de tiempo"}
+            {
+              "id": "a",
+              "text": "Hacer clic en 'Nuevo empleado' en el directorio y completar un diálogo"
+            },
+            {
+              "id": "b",
+              "text": "Usar el botón Invitar empleado, que lo lleva a Admin > Usuarios donde se crean las cuentas",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Hacer clic derecho en la tabla del directorio y elegir 'Agregar'"
+            },
+            {
+              "id": "d",
+              "text": "Los empleados se importan automáticamente desde las entradas de tiempo"
+            }
           ],
           "explanation": "Los empleados no se crean en esta función. El botón Invitar empleado (mostrado a los administradores) navega a Admin > Usuarios, donde se configura la cuenta y sus campos principales. El módulo de Empleados luego muestra el perfil resultante."
         },
@@ -223,10 +420,23 @@
           "id": "em3",
           "text": "En el directorio, ¿cómo se muestra el nombre de un empleado?",
           "options": [
-            {"id": "a", "text": "Nombre Apellido (p. ej., Daniel Hartman)"},
-            {"id": "b", "text": "Apellido, Nombre (p. ej., Hartman, Daniel)", "isCorrect": true},
-            {"id": "c", "text": "Solo el nombre de usuario"},
-            {"id": "d", "text": "Dirección de correo electrónico"}
+            {
+              "id": "a",
+              "text": "Nombre Apellido (p. ej., Daniel Hartman)"
+            },
+            {
+              "id": "b",
+              "text": "Apellido, Nombre (p. ej., Hartman, Daniel)",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Solo el nombre de usuario"
+            },
+            {
+              "id": "d",
+              "text": "Dirección de correo electrónico"
+            }
           ],
           "explanation": "Según la convención de nombres de la aplicación, el nombre completo de una persona se representa como Apellido, Nombre —por lo que el directorio y el encabezado del perfil muestran 'Hartman, Daniel' en lugar de 'Daniel Hartman'."
         },
@@ -234,10 +444,23 @@
           "id": "em4",
           "text": "¿Por qué importa la Ubicación de trabajo de un empleado?",
           "options": [
-            {"id": "a", "text": "Establece el color de su avatar"},
-            {"id": "b", "text": "Determina la retención estatal y qué reglas estatales se aplican", "isCorrect": true},
-            {"id": "c", "text": "Controla en qué tablero Kanban aparecen"},
-            {"id": "d", "text": "Decide su tarifa de pago"}
+            {
+              "id": "a",
+              "text": "Establece el color de su avatar"
+            },
+            {
+              "id": "b",
+              "text": "Determina la retención estatal y qué reglas estatales se aplican",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Controla en qué tablero Kanban aparecen"
+            },
+            {
+              "id": "d",
+              "text": "Decide su tarifa de pago"
+            }
           ],
           "explanation": "La Ubicación de trabajo se vincula a una Ubicación de la empresa y determina el comportamiento de RR. HH./impuestos —específicamente la retención estatal y qué reglas estatales se aplican al empleado. Aparece bajo Detalles de empleo en la pestaña Resumen."
         },
@@ -245,10 +468,23 @@
           "id": "em5",
           "text": "Quiere ver los recibos de pago de un empleado con bruto, impuestos y pago neto. ¿Qué pestaña abre?",
           "options": [
-            {"id": "a", "text": "Tiempo"},
-            {"id": "b", "text": "Pago", "isCorrect": true},
-            {"id": "c", "text": "Cumplimiento"},
-            {"id": "d", "text": "Actividad"}
+            {
+              "id": "a",
+              "text": "Tiempo"
+            },
+            {
+              "id": "b",
+              "text": "Pago",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Cumplimiento"
+            },
+            {
+              "id": "d",
+              "text": "Actividad"
+            }
           ],
           "explanation": "La pestaña Pago lista los recibos de pago con columnas para Fecha de pago, Inicio/Fin del período, Bruto, Deducciones, Impuestos y Pago neto. La pestaña Tiempo es para entradas de tiempo, no para pagos."
         },
@@ -256,10 +492,23 @@
           "id": "em6",
           "text": "¿Qué sucede cuando hace clic en una de las cinco tarjetas de estadísticas en el encabezado del perfil (p. ej., Trabajos activos)?",
           "options": [
-            {"id": "a", "text": "Abre un informe imprimible"},
-            {"id": "b", "text": "Salta a la pestaña de detalle correspondiente (p. ej., la pestaña Trabajos)", "isCorrect": true},
-            {"id": "c", "text": "Edita esa estadística en línea"},
-            {"id": "d", "text": "Actualiza toda la página"}
+            {
+              "id": "a",
+              "text": "Abre un informe imprimible"
+            },
+            {
+              "id": "b",
+              "text": "Salta a la pestaña de detalle correspondiente (p. ej., la pestaña Trabajos)",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Edita esa estadística en línea"
+            },
+            {
+              "id": "d",
+              "text": "Actualiza toda la página"
+            }
           ],
           "explanation": "En cada tarjeta de estadística se puede hacer clic y navega directamente a su pestaña correspondiente —Horas a Tiempo, % de cumplimiento a Cumplimiento, Trabajos activos a Trabajos, % de capacitación a Capacitación y Gastos pendientes a Gastos."
         },
@@ -267,10 +516,23 @@
           "id": "em7",
           "text": "¿Dónde filtra el directorio por un rol en particular, y de dónde provienen las opciones de rol?",
           "options": [
-            {"id": "a", "text": "El filtro de Rol en la barra de filtros; las opciones se cargan desde la lista de roles del sistema", "isCorrect": true},
-            {"id": "b", "text": "El filtro de Rol; las opciones están codificadas de forma fija en el componente"},
-            {"id": "c", "text": "No hay filtro de rol —debe buscar por nombre"},
-            {"id": "d", "text": "Solo en Admin > Usuarios"}
+            {
+              "id": "a",
+              "text": "El filtro de Rol en la barra de filtros; las opciones se cargan desde la lista de roles del sistema",
+              "isCorrect": true
+            },
+            {
+              "id": "b",
+              "text": "El filtro de Rol; las opciones están codificadas de forma fija en el componente"
+            },
+            {
+              "id": "c",
+              "text": "No hay filtro de rol —debe buscar por nombre"
+            },
+            {
+              "id": "d",
+              "text": "Solo en Admin > Usuarios"
+            }
           ],
           "explanation": "La barra de filtros incluye una selección de Rol cuyas opciones provienen de la lista de roles del sistema respaldada por la base de datos (no codificada de forma fija, según la regla de la aplicación contra la codificación fija de opciones de selección). Elija un rol para acotar el directorio."
         },
@@ -278,10 +540,23 @@
           "id": "em8",
           "text": "¿Qué le dice la sección Acceso al sistema en la pestaña Resumen sobre un empleado?",
           "options": [
-            {"id": "a", "text": "Su salario y prestaciones"},
-            {"id": "b", "text": "Si tiene configurado un PIN, un identificador RFID/NFC y un código de barras", "isCorrect": true},
-            {"id": "c", "text": "Qué gerentes pueden aprobar su tiempo"},
-            {"id": "d", "text": "La marca de tiempo de su último inicio de sesión"}
+            {
+              "id": "a",
+              "text": "Su salario y prestaciones"
+            },
+            {
+              "id": "b",
+              "text": "Si tiene configurado un PIN, un identificador RFID/NFC y un código de barras",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Qué gerentes pueden aprobar su tiempo"
+            },
+            {
+              "id": "d",
+              "text": "La marca de tiempo de su último inicio de sesión"
+            }
           ],
           "explanation": "Acceso al sistema muestra las credenciales de quiosco/planta de producción que el empleado ha configurado: PIN configurado (Sí/No), RFID/NFC (Configurado/No configurado) y Código de barras (Configurado/No configurado), además de un contador de elementos de cumplimiento."
         },
@@ -289,10 +564,23 @@
           "id": "em9",
           "text": "¿Cuántas pestañas tiene el perfil del empleado y cuál es la predeterminada?",
           "options": [
-            {"id": "a", "text": "Cinco pestañas, con Pago como predeterminada"},
-            {"id": "b", "text": "Diez pestañas, con Resumen como predeterminada", "isCorrect": true},
-            {"id": "c", "text": "Tres pestañas, con Actividad como predeterminada"},
-            {"id": "d", "text": "Diez pestañas, con Documentos como predeterminada"}
+            {
+              "id": "a",
+              "text": "Cinco pestañas, con Pago como predeterminada"
+            },
+            {
+              "id": "b",
+              "text": "Diez pestañas, con Resumen como predeterminada",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Tres pestañas, con Actividad como predeterminada"
+            },
+            {
+              "id": "d",
+              "text": "Diez pestañas, con Documentos como predeterminada"
+            }
           ],
           "explanation": "El perfil tiene diez pestañas —Resumen, Tiempo, Pago, Capacitación, Cumplimiento, Trabajos, Eventos, Gastos, Documentos y Actividad— y se abre en Resumen de forma predeterminada. La pestaña activa se almacena en la URL."
         },
@@ -300,10 +588,23 @@
           "id": "em10",
           "text": "En la pestaña Trabajos, ¿qué sucede cuando hace clic en una fila de trabajo?",
           "options": [
-            {"id": "a", "text": "Elimina la asignación del trabajo"},
-            {"id": "b", "text": "Abre el trabajo en el tablero Kanban", "isCorrect": true},
-            {"id": "c", "text": "Marca el trabajo como completado"},
-            {"id": "d", "text": "Exporta el trabajo a PDF"}
+            {
+              "id": "a",
+              "text": "Elimina la asignación del trabajo"
+            },
+            {
+              "id": "b",
+              "text": "Abre el trabajo en el tablero Kanban",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Marca el trabajo como completado"
+            },
+            {
+              "id": "d",
+              "text": "Exporta el trabajo a PDF"
+            }
           ],
           "explanation": "La pestaña Trabajos lista los trabajos activos asignados al empleado. Al hacer clic en una fila se navega a ese trabajo en el tablero Kanban para que pueda verlo en contexto."
         },
@@ -311,10 +612,23 @@
           "id": "em11",
           "text": "¿Qué tipos de archivo y tamaño acepta la pestaña Documentos?",
           "options": [
-            {"id": "a", "text": "Solo PDF, de hasta 5 MB"},
-            {"id": "b", "text": "PDF, Word e imágenes, de hasta 25 MB por archivo", "isCorrect": true},
-            {"id": "c", "text": "Cualquier tipo de archivo, sin límite de tamaño"},
-            {"id": "d", "text": "Solo imágenes, de hasta 25 MB"}
+            {
+              "id": "a",
+              "text": "Solo PDF, de hasta 5 MB"
+            },
+            {
+              "id": "b",
+              "text": "PDF, Word e imágenes, de hasta 25 MB por archivo",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "Cualquier tipo de archivo, sin límite de tamaño"
+            },
+            {
+              "id": "d",
+              "text": "Solo imágenes, de hasta 25 MB"
+            }
           ],
           "explanation": "La pestaña Documentos es una zona de carga por arrastrar y soltar que acepta archivos PDF, Word e imágenes (jpg/jpeg/png), con un límite de 25 MB por archivo."
         },
@@ -322,14 +636,36 @@
           "id": "em12",
           "text": "En el directorio, una columna muestra un guion en lugar de un valor (p. ej., en Equipo o Teléfono). ¿Qué significa eso?",
           "options": [
-            {"id": "a", "text": "Los datos se están cargando y aparecerán en breve"},
-            {"id": "b", "text": "Ese campo opcional no tiene valor para el empleado", "isCorrect": true},
-            {"id": "c", "text": "El campo está restringido y oculto para usted"},
-            {"id": "d", "text": "El empleado está inactivo"}
+            {
+              "id": "a",
+              "text": "Los datos se están cargando y aparecerán en breve"
+            },
+            {
+              "id": "b",
+              "text": "Ese campo opcional no tiene valor para el empleado",
+              "isCorrect": true
+            },
+            {
+              "id": "c",
+              "text": "El campo está restringido y oculto para usted"
+            },
+            {
+              "id": "d",
+              "text": "El empleado está inactivo"
+            }
           ],
           "explanation": "Los campos opcionales como Equipo, Puesto y Teléfono muestran un guion cuando están vacíos. Simplemente significa que no se ha ingresado ningún valor para ese empleado —no que los datos estén ocultos o cargándose."
         }
       ]
+    }
+  },
+  {
+    "slug": "employees-reference",
+    "title": "Empleados / RR. HH. — Referencia avanzada",
+    "summary": "Notas de casos límite y de usuario avanzado para Empleados / RR. HH.: el filtro de departamento cableado pero no expuesto y las funciones avanzadas de la DataTable compartida detrás del directorio.",
+    "contentJson": {
+      "body": "## Filtro de departamento del directorio (cableado, no expuesto)\n\nEl directorio de Empleados admite un cuarto filtro —por **departamento**— que está completamente cableado de extremo a extremo pero que **actualmente no se representa en la interfaz**. Es una capacidad construida pero no expuesta, documentada aquí para que los administradores sepan que existe.\n\n- **Cableado del cliente.** `EmployeeListComponent` declara `departmentControl` (un `FormControl<string | null>` de texto libre, con rebote de 300 ms, `distinctUntilChanged`). Al cambiar, vuelve a disparar `loadEmployees()`, que recorta el valor y lo pasa como `department` a `getEmployeesPaged({ q, role, isActive, department, pageSize: 200, sort: 'lastName', order: 'asc' })`.\n- **Servicio + API.** `EmployeeService` lo reenvía como el parámetro de cadena de consulta `department`. El endpoint del servidor lo acepta: `GET /employees?...&department=Engineering`. La coincidencia es un filtro de texto libre contra `EmployeeProfile.Department`.\n- **Por qué no lo ve.** La plantilla de la página (`employee-list.component.html`) representa solo tres controles en `.filters-bar` —Búsqueda, Rol y Estado. No hay ningún `<app-input>` vinculado a `departmentControl`, por lo que, aunque cada capa por debajo de la plantilla respeta un filtro de departamento, hoy nadie puede establecerlo desde la pantalla del directorio.\n- **Efecto práctico.** El departamento sigue siendo visible por empleado en la pestaña Resumen (Detalles de empleo) y es un campo opcional de texto libre. Para filtrar el directorio por departamento hoy, use los filtros de Rol/Estado más el filtrado por columna propio de la tabla de datos (a continuación), o busque por nombre.\n- **Origen.** Etiquetado en el código como `Phase 3 F7-broad / WU-22`. Exponer el control es un pequeño seguimiento (agregar un `<app-input>` a la barra de filtros); el trabajo del backend ya está hecho.\n\n## Funciones avanzadas de la DataTable compartida\n\nEl directorio se representa con el `AppDataTableComponent` compartido (`tableId=\"employees-list\"`), no con una tabla hecha a mano —por lo que hereda todas las funciones avanzadas que ofrece la tabla compartida. Estas no son específicas de Empleados; se aplican a cualquier función sobre la tabla compartida (Piezas, Prospectos, Inventario, etc.).\n\n- **Ordenación.** Haga clic en cualquier encabezado de columna ordenable para ordenar; **Shift+clic** en un segundo encabezado para ordenación de varias columnas. Cada columna del directorio es ordenable: Nombre, Rol, Equipo, Puesto, Correo electrónico, Teléfono, Estado, Fecha de inicio.\n- **Filtrado por columna.** Las columnas filtrables exponen un popover de filtro de columna (`ColumnFilterPopoverComponent`) según el tipo de columna —texto, número, fecha o enumeración. En el directorio, Rol es un filtro de tipo `enum` originado en la lista de roles del sistema. Esto es independiente de la barra de filtros superior y se acumula con ella.\n- **Gestión de columnas.** El icono de engranaje abre `ColumnManagerPanelComponent`: alternar la **visibilidad** de las columnas, **reordenar** columnas arrastrando, **redimensionar** anchos y **restablecer** a los valores predeterminados.\n- **Menú contextual del encabezado.** Hacer clic derecho en un encabezado de columna abre un menú contextual: ordenar asc/desc, borrar orden, filtrar, borrar filtro, borrar todos los filtros, ocultar columna, restablecer ancho.\n- **Paginación.** Tamaños de página integrados de 25 / 50 / 100. Tenga en cuenta que el directorio obtiene hasta `pageSize: 200` en el servidor y la tabla pagina del lado del cliente dentro de ese conjunto; el contador del encabezado muestra el `totalCount` del servidor.\n- **Persistencia de preferencias.** Todo lo anterior (estado de orden, filtros, visibilidad/orden/ancho de columnas) persiste **por usuario por `tableId`** mediante `UserPreferencesService` —caché de localStorage más un PATCH con rebote a `UserPreferencesController`. Su diseño del directorio se restaura en el siguiente inicio de sesión desde cualquier dispositivo.\n- **Estado vacío.** Cuando no coincide ninguna fila, la tabla muestra el estado vacío compartido (icono `badge`, mensaje \"No employees\") en lugar de una cuadrícula en blanco.\n- **Interacción con filas.** Las filas son `clickableRows` —al hacer clic en una fila se abre el perfil de ese empleado. Las plantillas de celda personalizadas representan el avatar+nombre (Apellido, Nombre), el chip de estado Activo/Inactivo y el guion-para-vacío en los campos opcionales (Equipo, Puesto, Teléfono).\n",
+      "sections": []
     }
   }
 ]
