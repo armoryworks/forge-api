@@ -195,7 +195,7 @@
             },
             {
               "label": "Tabla de flujos",
-              "value": "Enumera todos los flujos definidos. Columnas: nombre del flujo, tipo de entidad, chip de estado Activo/Inactivo y fecha de creación. Las filas son clicables para editar. tableId: approval-workflows"
+              "value": "Enumera todos los flujos definidos. Columnas: nombre del flujo, tipo de entidad, chip de estado Activo/Inactivo, número de pasos y fecha de creación. Las filas son clicables para editar. tableId: approval-workflows"
             },
             {
               "label": "Chip Activo / Inactivo",

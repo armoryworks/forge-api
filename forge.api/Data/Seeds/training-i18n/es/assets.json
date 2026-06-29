@@ -28,7 +28,7 @@
           "element": ".page-header app-input",
           "popover": {
             "title": "Buscar activos",
-            "description": "Busque por nombre del activo, fabricante, modelo o número de serie. Los resultados se actualizan en tiempo real a medida que escribe.",
+            "description": "Busque por nombre del activo, fabricante o número de serie. Los resultados se actualizan en tiempo real a medida que escribe.",
             "side": "bottom"
           }
         },

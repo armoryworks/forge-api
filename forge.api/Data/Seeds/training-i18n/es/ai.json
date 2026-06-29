@@ -4,7 +4,7 @@
     "title": "Descripción general del Asistente de IA",
     "summary": "Qué hace la función de Asistente de IA, cómo funcionan las conversaciones y cómo aprovechar al máximo los asistentes especializados por dominio.",
     "contentJson": {
-      "body": "## Descripción general del Asistente de IA\n\nLa función de Asistente de IA le brinda acceso a asistentes de IA especializados por dominio que pueden responder preguntas, redactar contenido y ayudar con las tareas del día a día. Cada asistente está capacitado para un área específica — Recursos Humanos, Compras, Ventas o ingeniería general — de modo que las respuestas que reciba sean relevantes para su trabajo.\n\n### Cómo funciona\n\nLa página de IA utiliza un diseño de dos paneles:\n- **Barra lateral (izquierda):** Una lista de tarjetas de asistentes que muestra el icono, el nombre y la descripción de cada asistente, además de un indicador de actividad para aquel con el que está conversando en ese momento.\n- **Área de chat (derecha):** Donde ocurre la conversación. Cuando selecciona un asistente por primera vez, verá una pantalla de bienvenida con el icono, el nombre y la descripción del asistente, así como una cuadrícula de preguntas iniciales para ayudarle a comenzar.\n\n### Iniciar una conversación\n\nHaga clic en cualquier tarjeta de asistente en la barra lateral para seleccionarla. Si todavía no ha conversado con ese asistente, verá la pantalla de bienvenida con preguntas iniciales. Haga clic en una pregunta inicial o escriba la suya propia en el campo de mensaje en la parte inferior.\n\n### Campo de mensaje\n\n- Escriba su pregunta en el campo de texto (el marcador de posición muestra 'Preguntar a {assistantName}')\n- Presione **Enter** para enviar, **Shift+Enter** para agregar una nueva línea\n- El botón **Send** (icono send) está deshabilitado cuando el campo está vacío o cuando se está generando una respuesta\n- El botón **Clear Chat** (icono delete_sweep) borra la conversación actual y regresa a la pantalla de bienvenida — está deshabilitado cuando no hay mensajes\n\n### Cómo funciona el contexto\n\nEl asistente ve los últimos 10 mensajes de su conversación como contexto, de modo que pueda dar seguimiento a preguntas anteriores. Las conversaciones se mantienen por asistente en memoria — cambiar a un asistente diferente y volver conservará su historial de chat durante la sesión actual. Sin embargo, las conversaciones no se conservan entre sesiones (cerrar el navegador las borra).\n\n### Respuestas del asistente\n\nLos mensajes del asistente aparecen con un avatar y un icono. Mientras el asistente está pensando, verá un indicador de escritura (tres puntos animados). Las respuestas pueden incluir texto con formato, listas y fragmentos de código según la pregunta.\n\n### Cuándo usar el Asistente de IA\n\n- Cuando necesite una respuesta rápida sobre un proceso o una política\n- Cuando redacte descripciones de puestos, correos electrónicos o documentación\n- Cuando quiera buscar entre documentos cargados (con tecnología RAG)\n- Cuando explore escenarios hipotéticos para compras o ventas\n- Cuando necesite ayuda para interpretar datos de control de calidad o métricas de producción",
+      "body": "## Descripción general del Asistente de IA\n\nLa función de Asistente de IA le brinda acceso a asistentes de IA especializados por dominio que pueden responder preguntas, redactar contenido y ayudar con las tareas del día a día. Cada asistente está capacitado para un área específica — Recursos Humanos, Compras, Ventas o ingeniería general — de modo que las respuestas que reciba sean relevantes para su trabajo.\n\n### Cómo funciona\n\nLa página de IA utiliza un diseño de dos paneles:\n- **Barra lateral (izquierda):** Una lista de tarjetas de asistentes que muestra el icono, el nombre y la descripción de cada asistente, además de un indicador de actividad para aquel con el que está conversando en ese momento.\n- **Área de chat (derecha):** Donde ocurre la conversación. Cuando selecciona un asistente por primera vez, verá una pantalla de bienvenida con el icono, el nombre y la descripción del asistente, así como una cuadrícula de preguntas iniciales para ayudarle a comenzar.\n\n### Iniciar una conversación\n\nHaga clic en cualquier tarjeta de asistente en la barra lateral para seleccionarla. Si todavía no ha conversado con ese asistente, verá la pantalla de bienvenida con preguntas iniciales. Haga clic en una pregunta inicial o escriba la suya propia en el campo de mensaje en la parte inferior.\n\n### Campo de mensaje\n\n- Escriba su pregunta en el campo de texto (el marcador de posición muestra 'Preguntar a {assistantName}')\n- Presione **Enter** para enviar, **Shift+Enter** para agregar una nueva línea\n- El botón **Send** (icono send) está deshabilitado cuando el campo está vacío o cuando se está generando una respuesta\n- El botón **Clear Chat** (icono delete_sweep) borra la conversación actual y regresa a la pantalla de bienvenida — aparece en el encabezado del chat solo cuando la conversación tiene al menos un mensaje (está oculto cuando no hay mensajes)\n\n### Cómo funciona el contexto\n\nEl asistente ve los últimos 10 mensajes de su conversación como contexto, de modo que pueda dar seguimiento a preguntas anteriores. Las conversaciones se mantienen por asistente en memoria — cambiar a un asistente diferente y volver conservará su historial de chat durante la sesión actual. Sin embargo, las conversaciones no se conservan entre sesiones (cerrar el navegador las borra).\n\n### Respuestas del asistente\n\nLos mensajes del asistente aparecen con un avatar y un icono. Mientras el asistente está pensando, verá un indicador de escritura (tres puntos animados). Las respuestas pueden incluir texto con formato, listas y fragmentos de código según la pregunta.\n\n### Cuándo usar el Asistente de IA\n\n- Cuando necesite una respuesta rápida sobre un proceso o una política\n- Cuando redacte descripciones de puestos, correos electrónicos o documentación\n- Cuando quiera buscar entre documentos cargados (con tecnología RAG)\n- Cuando explore escenarios hipotéticos para compras o ventas\n- Cuando necesite ayuda para interpretar datos de control de calidad o métricas de producción",
       "sections": []
     }
   },
@@ -142,7 +142,7 @@
             },
             {
               "label": "Clear Chat (icono delete_sweep)",
-              "value": "Borra todos los mensajes del asistente actual y regresa a la pantalla de bienvenida. Deshabilitado cuando no hay mensajes. No afecta las conversaciones de otros asistentes."
+              "value": "Borra todos los mensajes del asistente actual y regresa a la pantalla de bienvenida. Aparece en el encabezado del chat solo cuando la conversación tiene al menos un mensaje — cuando no hay mensajes está oculto, no se muestra deshabilitado. No afecta las conversaciones de otros asistentes."
             },
             {
               "label": "Pregunta inicial (clic en tarjeta)",
@@ -184,11 +184,11 @@
           "items": [
             {
               "label": "Lista de asistentes",
-              "value": "Se carga desde GET /api/v1/ai/assistants. Devuelve objetos AiAssistantListItem con id, name, description, icon, color, category, starterQuestions y el indicador isActive."
+              "value": "Se carga desde GET /api/v1/ai-assistants. Devuelve objetos AiAssistantListItem con id, name, description, icon, color, category, starterQuestions y el indicador isActive."
             },
             {
               "label": "Solicitud de chat",
-              "value": "POST /api/v1/ai/assistants/{id}/chat con el cuerpo {text, history[]}. El historial incluye los últimos 10 mensajes como contexto."
+              "value": "POST /api/v1/ai/assistants/{id}/chat con el cuerpo {question, history[]}. El historial incluye los últimos 10 mensajes como contexto."
             },
             {
               "label": "Almacenamiento de la conversación",
@@ -403,7 +403,7 @@
               "text": "Se extraen de las preguntas del cuestionario del módulo de Capacitación"
             }
           ],
-          "explanation": "Las preguntas iniciales forman parte de la configuración de cada asistente (el campo starterQuestions en AiAssistantListItem). Los administradores las configuran en Admin → Asistentes de IA. Se cargan desde GET /api/v1/ai/assistants."
+          "explanation": "Las preguntas iniciales forman parte de la configuración de cada asistente (el campo starterQuestions en AiAssistantListItem). Los administradores las configuran en Admin → Asistentes de IA. Se cargan desde GET /api/v1/ai-assistants."
         },
         {
           "id": "ai9",
@@ -499,7 +499,7 @@
               "text": "En Admin → Configuración del sistema, en la sección de IA"
             }
           ],
-          "explanation": "Los asistentes de IA se administran en el panel de Admin → Asistentes de IA. Allí los administradores pueden crear, editar y desactivar asistentes. La lista de asistentes se carga desde la API (GET /api/v1/ai/assistants), por lo que los cambios se reflejan de inmediato."
+          "explanation": "Los asistentes de IA se administran en el panel de Admin → Asistentes de IA. Allí los administradores pueden crear, editar y desactivar asistentes. La lista de asistentes se carga desde la API (GET /api/v1/ai-assistants), por lo que los cambios se reflejan de inmediato."
         }
       ]
     }

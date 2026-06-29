@@ -4,7 +4,7 @@
     "title": "Visión general de Gastos",
     "summary": "Qué hace el módulo de Gastos: flujo de envío, flujo de aprobación, seguimiento de estados y revisión del gerente.",
     "contentJson": {
-      "body": "## Visión general de Gastos\n\nEl módulo de Gastos le permite enviar, dar seguimiento y gestionar los gastos de la empresa en una única tabla con búsqueda. Los gerentes pueden aprobar o rechazar los gastos pendientes directamente desde la tabla.\n\n### Flujo de envío\n\nPara enviar un gasto:\n1. Vaya a /expenses.\n2. Haga clic en el botón **Agregar gasto** en el encabezado de la página.\n3. Complete Monto (obligatorio, mínimo $0.01), Fecha (obligatorio) y Categoría (obligatorio —cargada desde los datos de referencia configurados en Admin).\n4. Opcionalmente, agregue una Descripción.\n5. Haga clic en **Enviar**. El gasto entra en estado **Pendiente**.\n\nUna vez enviado, el gasto aparece en la tabla principal para que todos lo vean.\n\n### Flujo de aprobación\n\nLos gerentes y administradores pueden aprobar o rechazar los gastos pendientes directamente en la tabla. Cada fila de gasto pendiente muestra dos botones de acción en línea:\n- **Aprobar** (icono de marca de verificación) — marca el gasto de inmediato como Aprobado (chip verde).\n- **Rechazar** (icono de X) — marca el gasto de inmediato como Rechazado (chip rojo).\n\nEstos botones de acción solo aparecen para los gastos con estado Pendiente.\n\n### Filtrado y búsqueda\n\nEl encabezado de la página incluye:\n- Un campo de **Búsqueda** que filtra por descripción, categoría o nombre del remitente.\n- Una lista desplegable de filtro de **Estado** con opciones: Todos, Pendiente, Aprobado, Rechazado, SelfApproved.\n- Una pantalla de **Monto total** que muestra la suma de los gastos actualmente visibles.\n\n### Estados del gasto\n\n- **Pendiente** (chip de advertencia/amarillo) — En espera de aprobación del gerente.\n- **Aprobado** (chip de éxito/verde) — Revisado y aprobado.\n- **Rechazado** (chip de error/rojo) — Revisado y rechazado.\n- **SelfApproved** (chip de éxito/verde) — Enviado por un gerente con privilegios de aprobación automática.\n\n### Autoguardado de borrador\n\nEl diálogo de gastos admite el autoguardado de borrador. Si cierra el diálogo accidentalmente antes de guardar, los datos de su formulario se conservan en IndexedDB y se restauran cuando vuelve a abrir el diálogo.",
+      "body": "## Visión general de Gastos\n\nEl módulo de Gastos le permite enviar, dar seguimiento y gestionar los gastos de la empresa en una única tabla con búsqueda. Los gerentes pueden aprobar o rechazar los gastos pendientes directamente desde la tabla.\n\n### Flujo de envío\n\nPara enviar un gasto:\n1. Vaya a /expenses.\n2. Haga clic en el botón **Agregar gasto** en el encabezado de la página.\n3. Complete Monto (obligatorio, mínimo $0.01), Fecha (obligatorio) y Categoría (obligatorio —cargada desde los datos de referencia configurados en Admin).\n4. Opcionalmente, agregue una Descripción.\n5. Haga clic en **Enviar**. El gasto entra en estado **Pendiente**.\n\nUna vez enviado, el gasto aparece en la tabla principal para que todos lo vean.\n\n### Flujo de aprobación\n\nLos gerentes y administradores pueden aprobar o rechazar los gastos pendientes directamente en la tabla. Cada fila de gasto pendiente muestra dos botones de acción en línea:\n- **Aprobar** (icono de marca de verificación) — marca el gasto de inmediato como Aprobado (chip verde).\n- **Rechazar** (icono de X) — marca el gasto de inmediato como Rechazado (chip rojo).\n\nEstos botones de acción solo aparecen para los gastos con estado Pendiente.\n\n### Filtrado y búsqueda\n\nEl encabezado de la página incluye:\n- Un campo de **Búsqueda** que filtra por descripción o categoría.\n- Una lista desplegable de filtro de **Estado** con opciones: Todos, Pendiente, Aprobado, Rechazado, SelfApproved, NeedsRevision.\n- Una pantalla de **Monto total** que muestra la suma de los gastos actualmente visibles.\n\n### Estados del gasto\n\n- **Pendiente** (chip de advertencia/amarillo) — En espera de aprobación del gerente.\n- **Aprobado** (chip de éxito/verde) — Revisado y aprobado.\n- **Rechazado** (chip de error/rojo) — Revisado y rechazado.\n- **SelfApproved** (chip de éxito/verde) — Enviado por un gerente con privilegios de aprobación automática.\n\n### Autoguardado de borrador\n\nEl diálogo de gastos admite el autoguardado de borrador. Si cierra el diálogo accidentalmente antes de guardar, los datos de su formulario se conservan en IndexedDB y se restauran cuando vuelve a abrir el diálogo.",
       "sections": []
     }
   },
@@ -20,7 +20,7 @@
           "element": ".filters-bar app-input",
           "popover": {
             "title": "Buscar gastos",
-            "description": "Busque en todos los gastos por descripción, categoría o nombre del remitente. Los resultados se filtran en tiempo real a medida que escribe.",
+            "description": "Busque en todos los gastos por descripción o categoría. Escriba un término y presione Enter para aplicar el filtro.",
             "side": "bottom"
           }
         },
@@ -28,7 +28,7 @@
           "element": "[data-testid='status-filter']",
           "popover": {
             "title": "Filtro de estado",
-            "description": "Filtre los gastos por estado: Todos, Pendiente (en espera de aprobación), Aprobado, Rechazado o SelfApproved. Cada estado tiene un chip con código de color en la tabla.",
+            "description": "Filtre los gastos por estado: Todos, Pendiente (en espera de aprobación), Aprobado, Rechazado, SelfApproved o NeedsRevision. Cada estado tiene un chip con código de color en la tabla.",
             "side": "bottom"
           }
         },
@@ -36,7 +36,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Tabla de gastos",
-            "description": "Todos los gastos enviados aparecen aquí. Las columnas incluyen Fecha (MM/dd/yyyy), Categoría (chip de color), Descripción, Trabajo (si está vinculado), Enviado por, Monto ($X.XX) y Estado (chip de color). Haga clic en los encabezados de columna para ordenar. Haga clic en una fila para ver los detalles.",
+            "description": "Todos los gastos enviados aparecen aquí. Las columnas incluyen Fecha (MM/dd/yyyy), Categoría (chip de color), Descripción, Trabajo (si está vinculado), Enviado por, Monto ($X.XX) y Estado (chip de color). Haga clic en los encabezados de columna para ordenar. Las filas Pendientes muestran acciones en línea de aprobar/rechazar.",
             "side": "top"
           }
         },
@@ -93,8 +93,8 @@
         {
           "heading": "Controles del encabezado de la página",
           "items": [
-            {"label": "Búsqueda", "value": "Campo de texto. Filtra los gastos por descripción, categoría o nombre del remitente. Presione Enter para aplicar."},
-            {"label": "Filtro de estado", "value": "Lista desplegable: Todos, Pendiente, Aprobado, Rechazado, SelfApproved. data-testid: status-filter"},
+            {"label": "Búsqueda", "value": "Campo de texto. Filtra los gastos por descripción o categoría. Presione Enter para aplicar."},
+            {"label": "Filtro de estado", "value": "Lista desplegable: Todos, Pendiente, Aprobado, Rechazado, SelfApproved, NeedsRevision. data-testid: status-filter"},
             {"label": "Monto total", "value": "Pantalla de solo lectura que muestra la suma de todos los gastos actualmente visibles (filtrados)."},
             {"label": "Botón Agregar gasto", "value": "Abre el diálogo Crear gasto. data-testid: new-expense-btn"}
           ]
@@ -205,7 +205,7 @@
             {"id": "c", "text": "Hacer clic en el encabezado de la columna Rechazado para ordenar por rechazos"},
             {"id": "d", "text": "Navegar a una página separada de Gastos rechazados"}
           ],
-          "explanation": "La lista desplegable del filtro de Estado en el encabezado de la página le permite seleccionar un estado específico: Todos, Pendiente, Aprobado, Rechazado o SelfApproved. Al seleccionar 'Rechazado' se muestran solo los gastos rechazados."
+          "explanation": "La lista desplegable del filtro de Estado en el encabezado de la página le permite seleccionar un estado específico: Todos, Pendiente, Aprobado, Rechazado, SelfApproved o NeedsRevision. Al seleccionar 'Rechazado' se muestran solo los gastos rechazados."
         },
         {
           "id": "ex8",
@@ -224,10 +224,10 @@
           "options": [
             {"id": "a", "text": "Solo el campo Descripción"},
             {"id": "b", "text": "Descripción y Monto"},
-            {"id": "c", "text": "Descripción, Categoría y nombre de Enviado por", "isCorrect": true},
+            {"id": "c", "text": "Descripción y Categoría", "isCorrect": true},
             {"id": "d", "text": "Todas las columnas visibles de la tabla, incluidas Fecha y Estado"}
           ],
-          "explanation": "El campo de búsqueda filtra por descripción, categoría y nombre del remitente. No busca por fecha, monto ni estado —use la lista desplegable de Estado para filtrar por estado."
+          "explanation": "El campo de búsqueda filtra solo por descripción y categoría. No busca por nombre del remitente, fecha, monto ni estado —use la lista desplegable de Estado para filtrar por estado."
         },
         {
           "id": "ex10",
@@ -327,7 +327,7 @@
           "element": "app-input",
           "popover": {
             "title": "Buscar gastos pendientes",
-            "description": "Acote la cola escribiendo un remitente, categoría o descripción y presionando Enter. Aquí solo se muestran gastos Pendientes.",
+            "description": "Acote la cola escribiendo una categoría o descripción y presionando Enter. Aquí solo se muestran gastos Pendientes.",
             "side": "bottom"
           }
         },

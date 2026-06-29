@@ -162,8 +162,8 @@
           "items": [
             {"label": "Nombre (obligatorio)", "value": "Campo de texto. Identifica la ubicación (p. ej., 'Estantería A1', 'Repisa 3', 'Contenedor 5'). No puede estar vacío."},
             {"label": "Tipo (obligatorio)", "value": "Lista desplegable: Área, Estantería, Repisa, Contenedor. Determina el nivel en la jerarquía. Predeterminado: Área (sin padre) o Estantería (con padre)."},
-            {"label": "Padre", "value": "Lista desplegable de ubicaciones existentes. Opcional. Cuando se establece, anida esta ubicación bajo el padre. Muestra '-- Ninguno --' para las ubicaciones de nivel superior."},
-            {"label": "Código de barras", "value": "Campo de texto, opcional. Un valor de código de barras asignado a esta ubicación para la identificación por escáner."},
+            {"label": "Padre", "value": "No es un campo del diálogo —el padre se determina por dónde lo abre. El botón 'Agregar ubicación' del encabezado de página crea una ubicación de nivel superior (sin padre), mientras que el botón 'Agregar hijo' en una ubicación seleccionada preestablece esa ubicación como el padre."},
+            {"label": "Código de barras", "value": "Campo de texto, opcional. Solo se muestra cuando el Tipo es Contenedor. Un valor de código de barras asignado al contenedor para la identificación por escáner."},
             {"label": "Descripción", "value": "Campo de texto, opcional. Descripción libre o notas sobre la ubicación."}
           ]
         },
@@ -329,7 +329,7 @@
           "heading": "Botones y acciones",
           "items": [
             {"label": "Recibir bienes (pestaña Recepción)", "value": "Abre el diálogo de recepción. data-testid: receive-goods-btn"},
-            {"label": "Crear ubicación (pestaña Ubicaciones)", "value": "Abre el diálogo de creación de ubicación. data-testid: create-location-btn"},
+            {"label": "Crear ubicación (pestaña Ubicaciones)", "value": "Abre el diálogo de creación de ubicación. data-testid: add-location-btn"},
             {"label": "Transferir (pestaña Operaciones de existencias)", "value": "Abre el diálogo de transferencia de existencias."},
             {"label": "Ajustar (pestaña Operaciones de existencias)", "value": "Abre el diálogo de ajuste de existencias."},
             {"label": "Crear conteo cíclico", "value": "Abre el diálogo de creación de conteo cíclico."},

@@ -28,7 +28,7 @@
           "element": ".filters-bar app-input",
           "popover": {
             "title": "Buscar proveedores",
-            "description": "Busque proveedores por nombre de empresa, nombre de contacto, correo electrónico o número de teléfono. Escriba su término de búsqueda y presione Enter para filtrar la lista. Los resultados se actualizan según el texto coincidente en todos los campos buscables.",
+            "description": "Busque proveedores por nombre de empresa, nombre de contacto, correo electrónico o número de teléfono. Solo escriba —la lista se filtra automáticamente un momento después de que deja de escribir (un breve retardo); presionar Enter la aplica de inmediato. Los resultados se actualizan según el texto coincidente en todos los campos buscables.",
             "side": "bottom"
           }
         },
@@ -121,7 +121,7 @@
           "items": [
             {
               "label": "Términos de pago",
-              "value": "Lista desplegable: Pago contra recepción, Net 10, Net 15, Net 30, Net 45, Net 60, Net 90, 2/10 Net 30. Determina las expectativas de pago predeterminadas para las OC realizadas con este proveedor. data-testid: vendor-terms"
+              "value": "Lista desplegable: Pago contra recepción, Net 15, Net 30, Net 45, Net 60, COD (más una opción 'ninguno' en blanco). Determina las expectativas de pago predeterminadas para las OC realizadas con este proveedor. data-testid: vendor-terms"
             },
             {
               "label": "Activo (interruptor, solo edición)",
@@ -212,7 +212,7 @@
             },
             {
               "label": "Estado",
-              "value": "Distintivo con código de color que muestra el estado de la OC (Borrador, Enviada, Parcialmente recibida, Recibida, Cancelada)."
+              "value": "Distintivo con código de color que muestra el estado de la OC (Borrador, Enviada para revisión, Reconocida, Parcialmente recibida, Recibida, Cerrada, Cancelada)."
             },
             {
               "label": "Fecha de entrega esperada",
@@ -233,7 +233,7 @@
           "items": [
             {
               "label": "Calificación general",
-              "value": "Calificación con letra A a F mostrada como un distintivo de color: A = éxito (verde), B = éxito, C = advertencia (amarillo), D = advertencia, F = error (rojo)."
+              "value": "Calificación con letra A a F mostrada como un distintivo de color: A = éxito (verde), B = info (azul), C = advertencia (amarillo), D = error, F = error (rojo)."
             },
             {
               "label": "Puntuación general",
@@ -511,7 +511,7 @@
             },
             {
               "id": "b",
-              "text": "Pago contra recepción, Net 10, Net 15, Net 30, Net 45, Net 60, Net 90 y 2/10 Net 30",
+              "text": "Pago contra recepción, Net 15, Net 30, Net 45, Net 60 y COD",
               "isCorrect": true
             },
             {
@@ -523,31 +523,31 @@
               "text": "Los términos de pago se establecen globalmente en Administración y no pueden variar por proveedor"
             }
           ],
-          "explanation": "La lista desplegable de Términos de pago ofrece términos comerciales estándar: Pago contra recepción, Net 10, Net 15, Net 30, Net 45, Net 60, Net 90 y 2/10 Net 30 (2% de descuento si se paga dentro de 10 días, de lo contrario net 30). Estos términos son heredados por las nuevas OC realizadas con el proveedor."
+          "explanation": "La lista desplegable de Términos de pago ofrece términos comerciales estándar: Pago contra recepción, Net 15, Net 30, Net 45, Net 60 y COD (más una opción 'ninguno' en blanco). Estos términos son heredados por las nuevas OC realizadas con el proveedor."
         },
         {
           "id": "vn8",
-          "text": "Busca un proveedor escribiendo en el cuadro de búsqueda pero no pasa nada. ¿Qué le falta?",
+          "text": "¿Cómo aplica el cuadro de búsqueda de proveedores su término de búsqueda?",
           "options": [
             {
               "id": "a",
-              "text": "Necesita presionar Enter para aplicar el filtro de búsqueda",
+              "text": "Filtra automáticamente un momento después de que deja de escribir (un breve retardo); presionar Enter lo aplica de inmediato",
               "isCorrect": true
             },
             {
               "id": "b",
-              "text": "La búsqueda solo funciona en el campo Nombre de la empresa —intente con un término de búsqueda diferente"
+              "text": "La búsqueda solo funciona en el campo Nombre de la empresa —los demás campos se ignoran"
             },
             {
               "id": "c",
-              "text": "Debe seleccionar un filtro de estado antes de buscar"
+              "text": "Debe seleccionar un filtro de estado antes de que se ejecute la búsqueda"
             },
             {
               "id": "d",
-              "text": "El cuadro de búsqueda requiere al menos 3 caracteres"
+              "text": "No pasa nada hasta que ha escrito al menos 3 caracteres"
             }
           ],
-          "explanation": "El cuadro de búsqueda de proveedores requiere presionar Enter para aplicar el filtro. Busca en los campos de nombre de empresa, nombre de contacto, correo electrónico y teléfono. El filtro de estado (Todos, Activos, Inactivos) funciona de forma independiente y no necesita establecerse antes de buscar."
+          "explanation": "La búsqueda de proveedores filtra automáticamente con un breve retardo después de que deja de escribir; presionar Enter la aplica de inmediato. Busca en los campos de nombre de empresa, nombre de contacto, correo electrónico y teléfono. El filtro de estado (Todos, Activos, Inactivos) funciona de forma independiente y no necesita establecerse antes de buscar."
         },
         {
           "id": "vn9",

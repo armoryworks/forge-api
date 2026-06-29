@@ -153,7 +153,7 @@
             },
             {
               "label": "Botón Guardar",
-              "value": "data-testid: job-save-btn. Deshabilitado cuando el formulario no es válido o cuando hay un guardado en curso. Al pasar el cursor se muestra un popover de validación con la lista de infracciones (p. ej., 'El título es obligatorio', 'El tipo de pista es obligatorio')."
+              "value": "data-testid: job-save-btn. Deshabilitado cuando el formulario no es válido o cuando hay un guardado en curso. Cuando el formulario no es válido, aparece un icono de triángulo de advertencia rojo con un conteo de problemas a la izquierda del botón Guardar; al hacer clic en él se abre un popover con la lista de infracciones (p. ej., 'El título es obligatorio', 'El tipo de pista es obligatorio')."
             },
             {
               "label": "Botón Cancelar",
@@ -232,7 +232,7 @@
             },
             {
               "label": "Punto de prioridad + nombre",
-              "value": "Punto de color (backlog-card__priority-dot) con fondo de PRIORITY_COLORS, seguido del texto del nombre de la prioridad."
+              "value": "Punto de color (backlog-card__priority-dot) seguido del texto del nombre de la prioridad. El color del punto proviene del mapa priorityDotColor propio de la cuadrícula de tarjetas (NO de la constante PRIORITY_COLORS de la tabla); sus claves no coinciden con los nombres reales de prioridad, por lo que solo Baja y Alta resuelven un color y Normal/Urgente caen a gris. Vea la Referencia avanzada para esta discrepancia de paleta conocida."
             },
             {
               "label": "Avatar del responsable",
@@ -643,11 +643,11 @@
               "text": "Gris pizarra (#94a3b8)"
             }
           ],
-          "explanation": "Los colores de prioridad son: Baja = #94a3b8 (gris pizarra), Normal = #0d9488 (verde azulado), Alta = #f59e0b (ámbar), Urgente = #dc2626 (rojo). Estos colores se definen en la constante PRIORITY_COLORS y se usan tanto para el punto de la tabla como para el punto de la vista de tarjetas."
+          "explanation": "Los colores de prioridad son: Baja = #94a3b8 (gris pizarra), Normal = #0d9488 (verde azulado), Alta = #f59e0b (ámbar), Urgente = #dc2626 (rojo). Estos colores canónicos se definen en la constante PRIORITY_COLORS que usa el punto de la tabla. (La vista de tarjetas resuelve los colores del punto mediante un mapa separado y no coincidente; vea la Referencia avanzada para esa discrepancia de paleta.)"
         },
         {
           "id": "bl13",
-          "text": "¿Qué sucede cuando pasa el cursor sobre un botón Guardar deshabilitado en el diálogo de creación de trabajos?",
+          "text": "¿Cómo se muestran los errores de validación cuando el botón Guardar está deshabilitado en el diálogo de creación de trabajos?",
           "options": [
             {
               "id": "a",
@@ -659,7 +659,7 @@
             },
             {
               "id": "c",
-              "text": "Aparece un popover de validación que indica qué campos tienen errores (p. ej., 'El título es obligatorio')",
+              "text": "Un icono de triángulo de advertencia rojo con un conteo de problemas se ubica a la izquierda del botón Guardar; al hacer clic en él se abre un popover con la lista de errores (p. ej., 'El título es obligatorio')",
               "isCorrect": true
             },
             {
@@ -667,7 +667,7 @@
               "text": "Los campos no válidos parpadean en rojo para llamar la atención"
             }
           ],
-          "explanation": "El botón Guardar usa el ValidationPopoverDirective ([appValidationPopover]). Cuando el formulario no es válido y pasa el cursor sobre el botón deshabilitado, aparece un popover con una lista de infracciones de validación, como 'El título es obligatorio' o 'El tipo de pista es obligatorio'. Este es el patrón estándar de validación de formularios de QB Engineer: sin mensajes mat-error en línea."
+          "explanation": "El botón Guardar está envuelto en el estereotipo <app-validation-button> (ValidationButtonComponent). Cuando el formulario no es válido, aparece un icono de triángulo de advertencia rojo con un conteo de problemas a la izquierda del botón Guardar, que sigue deshabilitado. Al hacer clic en ese icono se abre un popover con la lista de infracciones, como 'El título es obligatorio' o 'El tipo de pista es obligatorio'. Este es el patrón estándar de validación de formularios de Forge: sin mensajes mat-error en línea, y se revela al hacer clic en lugar de con un tooltip al pasar el cursor."
         },
         {
           "id": "bl14",

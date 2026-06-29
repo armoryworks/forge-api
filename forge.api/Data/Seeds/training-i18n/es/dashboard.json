@@ -63,7 +63,7 @@
           "items": [
             {
               "label": "Lista de trabajos",
-              "value": "Muestra sus trabajos asignados ordenados por fecha de vencimiento (los más próximos primero). Cada fila muestra el título del trabajo, la fecha de vencimiento, el indicador de prioridad y la etapa actual."
+              "value": "Muestra sus trabajos asignados ordenados por estado: vencidos primero, luego activos, próximos y completados. Cada fila muestra el título del trabajo, el número de trabajo, el avatar del asignado y una insignia de estado."
             },
             {
               "label": "Resaltado de vencidos",
@@ -395,11 +395,11 @@
             },
             {
               "id": "b",
-              "text": "Cuando el empleado hace clic en 'Descartar' en el banner"
+              "text": "Solo después de que cada paso de incorporación muestre una marca de verificación"
             },
             {
               "id": "c",
-              "text": "Cuando se completan todos los pasos de incorporación: perfil, formularios de cumplimiento, capacitación",
+              "text": "Cuando se completan suficientes pasos de incorporación (como crear un trabajo, agregar un cliente y configurar tipos de pista), o cuando el empleado lo descarta con el botón de cerrar",
               "isCorrect": true
             },
             {
@@ -407,7 +407,7 @@
               "text": "Nunca desaparece: se transforma en un widget normal"
             }
           ],
-          "explanation": "El banner de Primeros pasos rastrea el progreso de la incorporación y desaparece automáticamente una vez que se completan todos los pasos. No puede descartarse manualmente mientras queden pasos de incorporación."
+          "explanation": "El banner de Primeros pasos rastrea los pasos de configuración (crear su primer trabajo, agregar un cliente, configurar tipos de pista, recibir el primer stock, explorar informes, filtrados según los módulos que su instalación tenga habilitados). Se oculta automáticamente una vez que se completan suficientes pasos, y también puede descartarlo manualmente con el botón de cerrar."
         },
         {
           "id": "db8",

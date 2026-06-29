@@ -57,10 +57,10 @@
           }
         },
         {
-          "element": "app-data-table thead th:nth-child(5)",
+          "element": "app-data-table thead th:nth-child(4)",
           "popover": {
             "title": "Columna de estado",
-            "description": "El estado se muestra como un chip con código de color: gris para Borrador, azul para Enviada, morado para Confirmada, naranja para Recibida parcialmente, verde para Recibida, gris para Cerrada y rojo para Cancelada. También puede filtrar por estado usando el filtro de columna.",
+            "description": "El estado se muestra como un chip con código de color: gris para Borrador, azul para Enviada, turquesa para Confirmada, naranja para Recibida parcialmente, verde para Recibida, gris para Cerrada y rojo para Cancelada. También puede filtrar por estado usando el filtro de columna.",
             "side": "bottom"
           }
         },
@@ -134,7 +134,7 @@
           "items": [
             { "label": "Borrador (chip gris)", "value": "La OC se está preparando. Puede agregar/quitar líneas, editar, eliminar o cancelar. Aún no se ha enviado al proveedor." },
             { "label": "Enviada (chip azul)", "value": "La OC se ha enviado al proveedor. Esperando el acuse de recibo. Aún se puede cancelar." },
-            { "label": "Confirmada (chip morado)", "value": "El proveedor confirmó el pedido. Ahora se pueden recibir artículos. Aún se puede cancelar." },
+            { "label": "Confirmada (chip turquesa)", "value": "El proveedor confirmó el pedido. Ahora se pueden recibir artículos. Aún se puede cancelar." },
             { "label": "Recibida parcialmente (chip naranja)", "value": "Algunos artículos recibidos pero no todos. El botón Recibir artículos permanece disponible. No se puede cancelar." },
             { "label": "Recibida (chip verde)", "value": "Todas las líneas se recibieron por completo. Se puede cerrar. No se necesita recibir más." },
             { "label": "Cerrada (chip gris)", "value": "OC cerrada formalmente después de completar la recepción. No es posible ninguna acción adicional." },
@@ -168,7 +168,7 @@
             { "label": "Cantidad (requerido)", "value": "Número de unidades para esta liberación. Mínimo 0.01." },
             { "label": "Fecha de entrega solicitada (requerido)", "value": "Cuándo necesita que se entregue esta liberación." },
             { "label": "Notas (opcional)", "value": "Notas de formato libre para esta liberación." },
-            { "label": "Estado de la liberación", "value": "Abierta (azul), Enviada (morado), Recibida parcialmente (naranja), Recibida (verde), Cancelada (rojo)." }
+            { "label": "Estado de la liberación", "value": "Abierta (azul), Enviada (turquesa), Recibida parcialmente (naranja), Recibida (verde), Cancelada (rojo)." }
           ]
         },
         {

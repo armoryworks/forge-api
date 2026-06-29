@@ -49,7 +49,7 @@
           }
         },
         {
-          "element": ".calendar-grid,.week-grid,.day-list",
+          "element": ".calendar-grid,.week-grid,.day-view",
           "popover": {
             "title": "Área de contenido del calendario",
             "description": "Aquí es donde se muestran los trabajos y las entregas de OC. En la vista Mes, haz clic en cualquier fecha para cambiar a la vista Día de esa fecha. En la vista Semana, haz clic en el encabezado de una fecha para saltar a ese día. Las fichas de trabajo están codificadas por color según la etapa y muestran iconos de prioridad para el trabajo de prioridad Crítica y Alta.",

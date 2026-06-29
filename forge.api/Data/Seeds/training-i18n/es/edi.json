@@ -420,7 +420,7 @@
             },
             {
               "label": "Guardar / Crear (diálogo de socio)",
-              "value": "Botón principal en el pie del diálogo de socio. Crea o actualiza el socio comercial. Se desactiva cuando el formulario es inválido o el guardado está en curso. Al pasar el cursor cuando está desactivado, muestra un mensaje emergente de validación."
+              "value": "Botón principal en el pie del diálogo de socio. Crea o actualiza el socio comercial. Se desactiva cuando el formulario es inválido o el guardado está en curso. Cuando está desactivado, aparece a su izquierda un ícono de triángulo de advertencia rojo — haga clic en él para mostrar un mensaje emergente que enumera los campos que requieren atención."
             },
             {
               "label": "Cancelar (diálogo de socio)",
@@ -453,7 +453,7 @@
             },
             {
               "label": "Botón de envío",
-              "value": "Se desactiva cuando el formulario es inválido o se está guardando. Al pasar el cursor sobre el botón desactivado, muestra un mensaje emergente de validación que indica qué campos requieren atención."
+              "value": "Se desactiva cuando el formulario es inválido o se está guardando. Cuando está desactivado, aparece a la izquierda del botón un ícono de triángulo de advertencia rojo — haga clic en él para mostrar un mensaje emergente que indica qué campos requieren atención."
             }
           ]
         },

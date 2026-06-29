@@ -126,7 +126,7 @@
           "heading": "Botones y acciones",
           "items": [
             { "label": "Registrar pago (botón primario, encabezado de la página)", "value": "Abre el diálogo de creación de pago. Solo visible en modo independiente. data-testid: new-payment-btn" },
-            { "label": "Crear pago (botón primario, pie del diálogo)", "value": "Guarda el nuevo pago y sus aplicaciones a facturas. Deshabilitado cuando el formulario es inválido o un guardado está en progreso. Muestra un popover de validación al pasar el cursor cuando está deshabilitado. data-testid: payment-save-btn" },
+            { "label": "Crear pago (botón primario, pie del diálogo)", "value": "Guarda el nuevo pago y sus aplicaciones a facturas. Deshabilitado cuando el formulario es inválido o un guardado está en progreso. Cuando es inválido, aparece a su izquierda un icono de advertencia con un conteo de problemas; haga clic en el icono para abrir un popover de validación que enumera qué campos necesitan atención. data-testid: payment-save-btn" },
             { "label": "Cancelar (pie del diálogo)", "value": "Cierra el diálogo de creación sin guardar." },
             { "label": "Cerrar (panel de detalle, icono X)", "value": "Cierra el diálogo/panel de detalle." },
             { "label": "Eliminar (panel de detalle, botón de peligro)", "value": "Elimina el pago tras confirmación. Solo visible cuando el pago tiene cero aplicaciones. Abre un diálogo de confirmación con severidad de peligro. Elimina el registro de forma lógica." },
@@ -143,7 +143,7 @@
             { "label": "Montos de aplicación", "value": "Cada aplicación debe ser mayor que $0.00. Una aplicación individual no puede exceder el saldo restante de la factura de destino." },
             { "label": "Total aplicado", "value": "La suma de todos los montos de aplicación no puede exceder el monto del pago." },
             { "label": "Restricción de eliminación", "value": "Un pago solo puede eliminarse si no tiene aplicaciones a facturas. Los pagos con aplicaciones deben tener sus aplicaciones eliminadas primero." },
-            { "label": "Popover del botón de envío", "value": "Cuando el formulario es inválido, al pasar el cursor sobre Crear pago se muestra un popover de validación que enumera qué campos necesitan atención." }
+            { "label": "Popover del botón de envío", "value": "Cuando el formulario es inválido, aparece junto a Crear pago un icono de advertencia con un conteo de problemas; al hacer clic en el icono se abre un popover de validación que enumera qué campos necesitan atención." }
           ]
         },
         {

@@ -4,7 +4,7 @@
     "title": "Navegar por la aplicación",
     "summary": "Un resumen completo de la barra lateral, el encabezado, las notificaciones, la búsqueda, el cambio de tema y la estructura de navegación.",
     "contentJson": {
-      "body": "## Navegar por la aplicación\n\nQB Engineer tiene un diseño coherente en cada página: una barra lateral plegable a la izquierda, una barra de encabezado fija en la parte superior y un área de contenido desplazable en el centro.\n\n### Navegación de la barra lateral\n\nLa barra lateral es tu herramienta de navegación principal. En su estado plegado, muestra solo iconos (52px de ancho). Pasa el cursor o haz clic en el conmutador de expansión para ver las etiquetas completas (200px de ancho). El estado de tu barra lateral se guarda en tus preferencias — persiste entre sesiones y dispositivos.\n\n**Secciones de la barra lateral:**\n- **Panel** — tu página de inicio diaria con widgets\n- **Tablero** — el tablero kanban de los trabajos activos\n- **Backlog** — todos los trabajos que no están en el tablero\n- **Planificación** — gestión de ciclos de planificación\n- **Piezas** — catálogo de piezas con BOM y pasos de proceso\n- **Inventario** — niveles de existencias, contenedores, movimientos\n- **Clientes** — CRM con contactos y direcciones\n- **Proveedores** — gestión de proveedores e historial de OC\n- **Órdenes de compra** — creación de OC y recepción\n- **Órdenes de venta** — gestión de pedidos\n- **Cotizaciones** — cotización de precios\n- **Envíos** — envío y seguimiento\n- **Facturas** — facturación (modo independiente)\n- **Pagos** — registro de pagos (modo independiente)\n- **Clientes potenciales** — embudo de ventas\n- **Gastos** — presentación y aprobación de gastos\n- **Activos** — registro de equipos y herramental\n- **Seguimiento de tiempo** — temporizadores y entradas manuales\n- **Calidad** — plantillas e inspecciones de control de calidad\n- **Informes** — generador de informes e informes guardados\n- **Calendario** — fechas de vencimiento de trabajos y entregas de OC\n- **Chat** — mensajería interna\n- **IA** — asistente de IA\n- **Capacitación** — módulos y rutas de aprendizaje\n- **Admin** — configuración del sistema (solo administradores)\n- **Cuenta** — tu perfil, cumplimiento, seguridad\n\n### Barra de encabezado\n\nLa barra de encabezado de 44px permanece fija en la parte superior de cada página. Contiene:\n- **Icono de búsqueda** — abre la búsqueda global (busca trabajos, piezas, clientes, proveedores y más)\n- **Campana de notificaciones** — muestra un distintivo con el recuento de no leídas; haz clic para abrir el panel de notificaciones\n- **Icono de chat** — abre el panel de chat; muestra el recuento de mensajes no leídos\n- **Avatar de usuario** — abre el menú de usuario con conmutador de tema, enlace a la cuenta y cierre de sesión\n\n### Cambio de tema\n\nHaz clic en tu avatar en la parte superior derecha y alterna entre los temas Claro y Oscuro. Tu elección se guarda en localStorage y se sincroniza al instante entre pestañas mediante el evento de almacenamiento. El tema Oscuro intercambia todas las propiedades personalizadas de CSS (--bg, --surface, --text, etc.).\n\n### Atajos de teclado\n\nPulsa **?** (signo de interrogación) en cualquier lugar para ver los atajos de teclado disponibles. Los atajos comunes incluyen:\n- **/** — enfocar la búsqueda global\n- **Ctrl+K** — abrir la paleta de comandos\n- **Escape** — cerrar el diálogo o panel actual\n\n### Navegación basada en URL\n\nCada estado de vista significativo se refleja en la URL. Esto significa:\n- Puedes marcar cualquier página, pestaña o vista filtrada\n- Los botones de avance/retroceso del navegador funcionan de forma natural\n- Compartir una URL coloca al destinatario en exactamente la misma vista\n- Actualizar la página conserva tu estado",
+      "body": "## Navegar por la aplicación\n\nForge tiene un diseño coherente en cada página: una barra lateral plegable a la izquierda, una barra de encabezado fija en la parte superior y un área de contenido desplazable en el centro.\n\n### Navegación de la barra lateral\n\nLa barra lateral es tu herramienta de navegación principal. En su estado plegado, muestra solo iconos (52px de ancho). Haz clic en el conmutador de chevron en la parte superior para ver las etiquetas completas (200px de ancho). El estado de tu barra lateral se guarda en localStorage, por lo que persiste entre sesiones en el mismo navegador.\n\n**Secciones de la barra lateral:**\n- **Panel** — tu página de inicio diaria con widgets\n- **Tablero** — el tablero kanban de los trabajos activos\n- **Backlog** — todos los trabajos que no están en el tablero\n- **Planificación** — gestión de ciclos de planificación\n- **Piezas** — catálogo de piezas con BOM y pasos de proceso\n- **Inventario** — niveles de existencias, contenedores, movimientos\n- **Clientes** — CRM con contactos y direcciones\n- **Proveedores** — gestión de proveedores e historial de OC\n- **Órdenes de compra** — creación de OC y recepción\n- **Órdenes de venta** — gestión de pedidos\n- **Cotizaciones** — cotización de precios\n- **Envíos** — envío y seguimiento\n- **Facturas** — facturación (modo independiente)\n- **Pagos** — registro de pagos (modo independiente)\n- **Clientes potenciales** — embudo de ventas\n- **Gastos** — presentación y aprobación de gastos\n- **Activos** — registro de equipos y herramental\n- **Seguimiento de tiempo** — temporizadores y entradas manuales\n- **Calidad** — plantillas e inspecciones de control de calidad\n- **Informes** — generador de informes e informes guardados\n- **Calendario** — fechas de vencimiento de trabajos y entregas de OC\n- **Chat** — mensajería interna\n- **IA** — asistente de IA\n- **Capacitación** — módulos y rutas de aprendizaje\n- **Admin** — configuración del sistema (solo administradores)\n- **Cuenta** — tu perfil, cumplimiento, seguridad\n\n### Barra de encabezado\n\nLa barra de encabezado de 44px permanece fija en la parte superior de cada página. Contiene:\n- **Icono de búsqueda** — abre la búsqueda global (busca trabajos, piezas, clientes, proveedores y más)\n- **Campana de notificaciones** — muestra un distintivo con el recuento de no leídas; haz clic para abrir el panel de notificaciones\n- **Icono de chat** — abre el panel de chat; muestra el recuento de mensajes no leídos\n- **Conmutador de tema** — un icono de sol/luna que alterna entre los temas Claro y Oscuro\n- **Avatar de usuario** — abre el menú de usuario con configuración de cuenta, idioma y cierre de sesión\n\n### Cambio de tema\n\nHaz clic en el icono de conmutador de tema (sol/luna) en el encabezado para alternar entre los temas Claro y Oscuro. Tu elección se guarda en localStorage y se sincroniza al instante entre las pestañas de tu navegador. El tema Oscuro intercambia todas las propiedades personalizadas de CSS (--bg, --surface, --text, etc.).\n\n### Atajos de teclado\n\nPulsa **/** (barra inclinada) en cualquier lugar para ver los atajos de teclado disponibles. Los atajos comunes incluyen:\n- **Ctrl+K** — enfocar la búsqueda global\n- **/** — abrir la ayuda de atajos de teclado\n- **Escape** — cerrar el diálogo o panel actual\n\n### Navegación basada en URL\n\nCada estado de vista significativo se refleja en la URL. Esto significa:\n- Puedes marcar cualquier página, pestaña o vista filtrada\n- Los botones de avance/retroceso del navegador funcionan de forma natural\n- Compartir una URL coloca al destinatario en exactamente la misma vista\n- Actualizar la página conserva tu estado",
       "sections": []
     }
   },
@@ -20,7 +20,7 @@
           "element": ".sidebar",
           "popover": {
             "title": "Navegación de la barra lateral",
-            "description": "La barra lateral contiene todos tus enlaces de navegación. Los iconos de la izquierda se expanden en menús etiquetados cuando pasas el cursor sobre ellos. Haz clic en cualquier icono para navegar a esa sección.",
+            "description": "La barra lateral contiene todos tus enlaces de navegación, organizados en grupos (Operaciones, Ventas, Producción y más). Haz clic en un grupo para desplegar sus elementos; haz clic en el conmutador de chevron en la parte superior para mostrar u ocultar las etiquetas completas.",
             "side": "right"
           }
         },
@@ -44,7 +44,7 @@
           "element": ".user-trigger",
           "popover": {
             "title": "Menú de usuario",
-            "description": "Tu avatar en la parte superior derecha abre el menú de usuario. Desde aquí puedes cambiar de tema, acceder a la configuración de tu cuenta o cerrar sesión.",
+            "description": "Tu avatar en la parte superior derecha abre el menú de usuario. Desde aquí puedes acceder a la configuración de tu cuenta, cambiar de idioma o cerrar sesión. (El conmutador de tema es un icono de sol/luna separado en el encabezado).",
             "side": "bottom"
           }
         },
@@ -69,28 +69,28 @@
         {
           "heading": "Controles de la barra de encabezado",
           "items": [
-            { "label": "Icono de búsqueda (lupa)", "value": "Abre la superposición de búsqueda global. Escribe para buscar en trabajos, piezas, clientes, proveedores, OC y más. Los resultados se agrupan por tipo de entidad. Pulsa / para enfocar." },
+            { "label": "Icono de búsqueda (lupa)", "value": "Abre la superposición de búsqueda global. Escribe para buscar en trabajos, piezas, clientes, proveedores, OC y más. Los resultados se agrupan por tipo de entidad. Pulsa Ctrl+K para enfocar." },
             { "label": "Campana de notificaciones", "value": "Muestra el recuento de notificaciones no leídas como un distintivo rojo. Haz clic para abrir el panel de notificaciones. El panel tiene pestañas: Todas, Mensajes, Alertas. Admite marcar como leída, fijar, descartar y descartar todas." },
             { "label": "Icono de chat", "value": "Abre el panel deslizable de chat. Muestra un distintivo con el recuento de mensajes no leídos. El panel enumera las conversaciones con una vista previa del último mensaje y la marca de tiempo." },
-            { "label": "Avatar de usuario", "value": "Abre el menú desplegable de usuario. Contiene: conmutador de tema (claro/oscuro), enlace a Cuenta, Cerrar sesión. El avatar muestra tus iniciales sobre el color de fondo elegido." }
+            { "label": "Avatar de usuario", "value": "Abre el menú desplegable de usuario. Contiene: Configuración de cuenta, Acerca de, selector de idioma, Cerrar sesión. El conmutador de tema claro/oscuro es un icono de sol/luna separado en el encabezado, no en este menú. El avatar muestra tus iniciales sobre el color de fondo elegido." }
           ]
         },
         {
           "heading": "Secciones de la barra lateral",
           "items": [
             { "label": "Ancho de la barra lateral", "value": "Plegada: 52px (solo iconos). Expandida: 200px (iconos + etiquetas). El estado se guarda en las preferencias de usuario." },
-            { "label": "Plegar/expandir", "value": "Haz clic en el conmutador de chevron en la parte inferior de la barra lateral, o pasa el cursor para expandir temporalmente." },
+            { "label": "Plegar/expandir", "value": "Haz clic en el conmutador de chevron en la parte superior de la barra lateral para expandirla o plegarla." },
             { "label": "Indicador de activo", "value": "La página actual se resalta con un acento de borde izquierdo y un tinte de fondo en el icono de la barra lateral." },
-            { "label": "Agrupación por secciones", "value": "Los elementos relacionados se agrupan visualmente. Los divisores separan las secciones principales (Operaciones, Ventas, Finanzas, Admin)." }
+            { "label": "Agrupación por secciones", "value": "Los elementos relacionados se agrupan en grupos desplegables (Operaciones, Ventas, Producción, Inventario, Compras, Personas, Análisis). Los divisores separan el Panel, los grupos principales y los anclados Planta de producción + Admin." }
           ]
         },
         {
           "heading": "Atajos de teclado",
           "items": [
-            { "label": "/ (barra inclinada)", "value": "Enfocar la entrada de búsqueda global" },
-            { "label": "? (signo de interrogación)", "value": "Abrir el diálogo de ayuda de atajos de teclado" },
+            { "label": "/ (barra inclinada)", "value": "Abrir el diálogo de ayuda de atajos de teclado" },
+            { "label": "Ctrl+K", "value": "Enfocar la entrada de búsqueda global" },
             { "label": "Escape", "value": "Cerrar el diálogo, panel o superposición actual" },
-            { "label": "Ctrl+K", "value": "Abrir la paleta de comandos (navegación rápida)" }
+            { "label": "Q y luego una letra", "value": "Combinaciones de navegación: Q y luego D (Panel), K (Tablero), B (Backlog), P (Piezas), I (Inventario), R (Informes), T (Tiempo)" }
           ]
         },
         {
@@ -106,9 +106,9 @@
         {
           "heading": "Sistema de temas",
           "items": [
-            { "label": "Tema claro", "value": "Predeterminado. Fondos blancos, texto oscuro. Propiedades personalizadas de CSS: --bg: #ffffff, --surface: #f8f8f8" },
-            { "label": "Tema oscuro", "value": "Fondos oscuros, texto claro. Se alterna mediante data-theme='dark' en <html>. Las propiedades personalizadas de CSS se intercambian automáticamente." },
-            { "label": "Persistencia", "value": "Se guarda en la clave de localStorage 'themeMode'. Se sincroniza entre pestañas mediante el evento de almacenamiento." },
+            { "label": "Tema claro", "value": "Fondos blancos, texto oscuro. Propiedades personalizadas de CSS: --bg: #ffffff, --surface: #f8f8f8" },
+            { "label": "Tema oscuro", "value": "Predeterminado. Fondos oscuros, texto claro. Se alterna mediante data-theme='dark' en <html>. Las propiedades personalizadas de CSS se intercambian automáticamente." },
+            { "label": "Persistencia", "value": "Se guarda en la clave de localStorage 'forge-theme'. Se sincroniza entre pestañas." },
             { "label": "Movimiento reducido", "value": "Las animaciones se deshabilitan cuando prefers-reduced-motion está establecido en la configuración del sistema operativo." }
           ]
         }
@@ -130,11 +130,11 @@
           "text": "Quieres buscar un número de trabajo específico en toda la aplicación. ¿Cuál es la forma más rápida?",
           "options": [
             { "id": "a", "text": "Navegar a Backlog y usar el filtro de búsqueda" },
-            { "id": "b", "text": "Hacer clic en el icono de búsqueda del encabezado o pulsar / para abrir la búsqueda global", "isCorrect": true },
+            { "id": "b", "text": "Usar el campo de búsqueda global del encabezado o pulsar Ctrl+K para enfocarlo", "isCorrect": true },
             { "id": "c", "text": "Ir a Informes y ejecutar un informe de resumen de trabajos" },
             { "id": "d", "text": "Abrir el tablero Kanban y desplazarte por las columnas" }
           ],
-          "explanation": "La búsqueda global del encabezado busca en todos los tipos de entidad (trabajos, piezas, clientes, etc.) simultáneamente. Pulsa / para enfocarla al instante desde cualquier página."
+          "explanation": "La búsqueda global del encabezado busca en todos los tipos de entidad (trabajos, piezas, clientes, etc.) simultáneamente. Pulsa Ctrl+K para enfocarla al instante desde cualquier página."
         },
         {
           "id": "nav2",
@@ -163,11 +163,11 @@
           "text": "¿Cómo cambias entre el tema Claro y Oscuro?",
           "options": [
             { "id": "a", "text": "Admin → Configuración → Tema" },
-            { "id": "b", "text": "Hacer clic en tu avatar en la parte superior derecha y alternar el conmutador de tema", "isCorrect": true },
+            { "id": "b", "text": "Hacer clic en el icono de conmutador de tema (sol/luna) en el encabezado", "isCorrect": true },
             { "id": "c", "text": "Cuenta → Perfil → Apariencia" },
             { "id": "d", "text": "Pulsar Ctrl+D para alternar" }
           ],
-          "explanation": "El conmutador de tema está en el menú desplegable de usuario, al que se accede haciendo clic en tu avatar en la esquina superior derecha. Tu elección se guarda y se sincroniza entre las pestañas del navegador."
+          "explanation": "El conmutador de tema es un icono de sol/luna dedicado en el encabezado (no está en el menú del avatar). Tu elección se guarda y se sincroniza entre las pestañas del navegador."
         },
         {
           "id": "nav5",
@@ -186,21 +186,21 @@
           "options": [
             { "id": "a", "text": "Ctrl+H" },
             { "id": "b", "text": "F1" },
-            { "id": "c", "text": "? (signo de interrogación)", "isCorrect": true },
+            { "id": "c", "text": "/ (barra inclinada)", "isCorrect": true },
             { "id": "d", "text": "Ctrl+/" }
           ],
-          "explanation": "Pulsa ? (signo de interrogación) desde cualquier página para ver todos los atajos de teclado disponibles. Esto funciona independientemente de la página en la que estés."
+          "explanation": "Pulsa / (barra inclinada) desde cualquier página para ver todos los atajos de teclado disponibles. Esto funciona independientemente de la página en la que estés."
         },
         {
           "id": "nav7",
           "text": "La barra lateral está plegada y solo muestra iconos. ¿Cómo ves las etiquetas completas?",
           "options": [
-            { "id": "a", "text": "Hacer clic en el conmutador de chevron en la parte inferior de la barra lateral, o pasar el cursor para expandir temporalmente", "isCorrect": true },
+            { "id": "a", "text": "Hacer clic en el conmutador de chevron en la parte superior de la barra lateral", "isCorrect": true },
             { "id": "b", "text": "Pulsar Ctrl+B para alternar la barra lateral" },
             { "id": "c", "text": "Ir a Cuenta → Preferencias → Barra lateral" },
             { "id": "d", "text": "No puedes expandirla — los iconos son la única navegación" }
           ],
-          "explanation": "Pasa el cursor sobre la barra lateral para expandirla temporalmente con las etiquetas completas. Haz clic en el conmutador de chevron en la parte inferior para expandirla de forma permanente. Tu preferencia se guarda."
+          "explanation": "Haz clic en el conmutador de chevron en la parte superior de la barra lateral para expandirla con las etiquetas completas. Tu preferencia se guarda en localStorage."
         },
         {
           "id": "nav8",

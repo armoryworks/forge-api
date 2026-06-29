@@ -26,7 +26,7 @@ public class ExpensesTraining : TrainingContentBase
             Tags = """["expenses","approval"]""",
             ContentJson = """
 {
-  "body": "## Expenses Overview\n\nThe Expenses module lets you submit, track, and manage company expenses in a single searchable table. Managers can approve or reject pending expenses directly from the table.\n\n### Submission Flow\n\nTo submit an expense:\n1. Navigate to /expenses.\n2. Click the **Add Expense** button in the page header.\n3. Fill in Amount (required, min $0.01), Date (required), and Category (required — loaded from reference data configured in Admin).\n4. Optionally add a Description.\n5. Click **Submit**. The expense enters **Pending** status.\n\nOnce submitted, the expense appears in the main table for everyone to see.\n\n### Approval Workflow\n\nManagers and Admins can approve or reject pending expenses directly in the table. Each pending expense row shows two inline action buttons:\n- **Approve** (checkmark icon) — immediately marks the expense as Approved (green chip).\n- **Reject** (X icon) — immediately marks the expense as Rejected (red chip).\n\nThese action buttons only appear for expenses with Pending status.\n\n### Filtering and Search\n\nThe page header includes:\n- A **Search** input that filters by description, category, or submitter name.\n- A **Status** filter dropdown with options: All, Pending, Approved, Rejected, SelfApproved.\n- A **Total Amount** display showing the sum of currently visible expenses.\n\n### Expense Statuses\n\n- **Pending** (warning/yellow chip) — Awaiting manager approval.\n- **Approved** (success/green chip) — Reviewed and approved.\n- **Rejected** (error/red chip) — Reviewed and rejected.\n- **SelfApproved** (success/green chip) — Submitted by a manager with auto-approve privileges.\n\n### Draft Auto-Save\n\nThe expense dialog supports draft auto-save. If you accidentally close the dialog before saving, your form data is preserved in IndexedDB and restored when you reopen the dialog.",
+  "body": "## Expenses Overview\n\nThe Expenses module lets you submit, track, and manage company expenses in a single searchable table. Managers can approve or reject pending expenses directly from the table.\n\n### Submission Flow\n\nTo submit an expense:\n1. Navigate to /expenses.\n2. Click the **Add Expense** button in the page header.\n3. Fill in Amount (required, min $0.01), Date (required), and Category (required — loaded from reference data configured in Admin).\n4. Optionally add a Description.\n5. Click **Submit**. The expense enters **Pending** status.\n\nOnce submitted, the expense appears in the main table for everyone to see.\n\n### Approval Workflow\n\nManagers and Admins can approve or reject pending expenses directly in the table. Each pending expense row shows two inline action buttons:\n- **Approve** (checkmark icon) — immediately marks the expense as Approved (green chip).\n- **Reject** (X icon) — immediately marks the expense as Rejected (red chip).\n\nThese action buttons only appear for expenses with Pending status.\n\n### Filtering and Search\n\nThe page header includes:\n- A **Search** input that filters by description or category.\n- A **Status** filter dropdown with options: All, Pending, Approved, Rejected, SelfApproved, NeedsRevision.\n- A **Total Amount** display showing the sum of currently visible expenses.\n\n### Expense Statuses\n\n- **Pending** (warning/yellow chip) — Awaiting manager approval.\n- **Approved** (success/green chip) — Reviewed and approved.\n- **Rejected** (error/red chip) — Reviewed and rejected.\n- **SelfApproved** (success/green chip) — Submitted by a manager with auto-approve privileges.\n\n### Draft Auto-Save\n\nThe expense dialog supports draft auto-save. If you accidentally close the dialog before saving, your form data is preserved in IndexedDB and restored when you reopen the dialog.",
   "sections": []
 }
 """
@@ -53,7 +53,7 @@ public class ExpensesTraining : TrainingContentBase
       "element": ".filters-bar app-input",
       "popover": {
         "title": "Search Expenses",
-        "description": "Search across all expenses by description, category, or submitter name. Results filter in real time as you type.",
+        "description": "Search across all expenses by description or category. Type a term and press Enter to apply the filter.",
         "side": "bottom"
       }
     },
@@ -61,7 +61,7 @@ public class ExpensesTraining : TrainingContentBase
       "element": "[data-testid='status-filter']",
       "popover": {
         "title": "Status Filter",
-        "description": "Filter expenses by status: All, Pending (awaiting approval), Approved, Rejected, or SelfApproved. Each status has a color-coded chip in the table.",
+        "description": "Filter expenses by status: All, Pending (awaiting approval), Approved, Rejected, SelfApproved, or NeedsRevision. Each status has a color-coded chip in the table.",
         "side": "bottom"
       }
     },
@@ -69,7 +69,7 @@ public class ExpensesTraining : TrainingContentBase
       "element": "app-data-table",
       "popover": {
         "title": "Expenses Table",
-        "description": "All submitted expenses appear here. Columns include Date (MM/dd/yyyy), Category (colored chip), Description, Job (if linked), Submitted By, Amount ($X.XX), and Status (color chip). Click column headers to sort. Click a row for details.",
+        "description": "All submitted expenses appear here. Columns include Date (MM/dd/yyyy), Category (colored chip), Description, Job (if linked), Submitted By, Amount ($X.XX), and Status (color chip). Click column headers to sort. Pending rows show inline approve/reject actions.",
         "side": "top"
       }
     },
@@ -137,8 +137,8 @@ public class ExpensesTraining : TrainingContentBase
     {
       "heading": "Page Header Controls",
       "items": [
-        {"label": "Search", "value": "Text input. Filters expenses by description, category, or submitter name. Press Enter to apply."},
-        {"label": "Status Filter", "value": "Select dropdown: All, Pending, Approved, Rejected, SelfApproved. data-testid: status-filter"},
+        {"label": "Search", "value": "Text input. Filters expenses by description or category. Press Enter to apply."},
+        {"label": "Status Filter", "value": "Select dropdown: All, Pending, Approved, Rejected, SelfApproved, NeedsRevision. data-testid: status-filter"},
         {"label": "Total Amount", "value": "Read-only display showing the sum of all currently visible (filtered) expenses."},
         {"label": "Add Expense button", "value": "Opens the Create Expense dialog. data-testid: new-expense-btn"}
       ]
@@ -260,7 +260,7 @@ public class ExpensesTraining : TrainingContentBase
         {"id": "c", "text": "Click the Rejected column header to sort by rejections"},
         {"id": "d", "text": "Navigate to a separate Rejected Expenses page"}
       ],
-      "explanation": "The Status filter dropdown in the page header lets you select a specific status: All, Pending, Approved, Rejected, or SelfApproved. Selecting 'Rejected' shows only rejected expenses."
+      "explanation": "The Status filter dropdown in the page header lets you select a specific status: All, Pending, Approved, Rejected, SelfApproved, or NeedsRevision. Selecting 'Rejected' shows only rejected expenses."
     },
     {
       "id": "ex8",
@@ -279,10 +279,10 @@ public class ExpensesTraining : TrainingContentBase
       "options": [
         {"id": "a", "text": "Only the Description field"},
         {"id": "b", "text": "Description and Amount"},
-        {"id": "c", "text": "Description, Category, and Submitted By name", "isCorrect": true},
+        {"id": "c", "text": "Description and Category", "isCorrect": true},
         {"id": "d", "text": "All visible table columns including Date and Status"}
       ],
-      "explanation": "The search input filters across description, category, and submitter name. It does not search by date, amount, or status — use the Status dropdown for status filtering."
+      "explanation": "The search input filters across description and category only. It does not search by submitter name, date, amount, or status — use the Status dropdown for status filtering."
     },
     {
       "id": "ex10",
@@ -404,7 +404,7 @@ public class ExpensesTraining : TrainingContentBase
       "element": "app-input",
       "popover": {
         "title": "Search Pending Expenses",
-        "description": "Narrow the queue by typing a submitter, category, or description and pressing Enter. Only Pending expenses are ever shown here.",
+        "description": "Narrow the queue by typing a category or description and pressing Enter. Only Pending expenses are ever shown here.",
         "side": "bottom"
       }
     },

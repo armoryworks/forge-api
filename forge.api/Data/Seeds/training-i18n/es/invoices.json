@@ -85,7 +85,7 @@
             {"label": "ID de pieza", "value": "Campo numérico, opcional. Vincula la línea a un registro de pieza en el sistema para la trazabilidad."},
             {"label": "Número de pieza", "value": "Campo de texto, opcional. El número de pieza que se muestra en la factura. Se muestra en fuente monoespaciada tanto en la tabla del diálogo como en la vista de detalle. data-testid: invoice-line-desc (en la descripción)"},
             {"label": "Descripción (obligatorio)", "value": "Campo de texto. Describe los bienes o servicios que se facturan. No puede estar vacío."},
-            {"label": "Cant. (obligatorio)", "value": "Campo numérico. Cantidad de artículos. Debe ser al menos 1. data-testid: invoice-line-qty"},
+            {"label": "Cant. (obligatorio)", "value": "Campo numérico. Cantidad de artículos. Predeterminado en 1; debe ser mayor que 0 (se permiten cantidades fraccionarias, p. ej. 0.5). data-testid: invoice-line-qty"},
             {"label": "Precio unitario (obligatorio)", "value": "Campo numérico. Precio por unidad. Debe ser >= 0. Se muestra como moneda. data-testid: invoice-line-price"},
             {"label": "Total (calculado)", "value": "Calculado automáticamente como Cant. x Precio unitario. Se muestra como moneda. No editable."},
             {"label": "Botón Agregar", "value": "Agrega la línea a la factura. Deshabilitado cuando el formulario de línea no es válido (falta la descripción o la cant./precio no es válida). data-testid: invoice-add-line-btn"},
@@ -156,7 +156,7 @@
             {"label": "Tasa de impuesto", "value": "Obligatorio. Debe ser un número >= 0."},
             {"label": "Al menos una línea", "value": "El botón guardar está deshabilitado hasta que se haya agregado al menos una línea."},
             {"label": "Descripción de la línea", "value": "Obligatorio para cada línea. No puede estar vacía."},
-            {"label": "Cantidad de la línea", "value": "Obligatorio. Debe ser >= 1."},
+            {"label": "Cantidad de la línea", "value": "Obligatorio. Debe ser mayor que 0 (se permiten cantidades fraccionarias)."},
             {"label": "Precio unitario de la línea", "value": "Obligatorio. Debe ser >= 0."},
             {"label": "Popover de validación", "value": "Al pasar el cursor sobre el botón Guardar deshabilitado se muestra una lista con viñetas de qué campos necesitan atención."}
           ]
