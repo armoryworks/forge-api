@@ -109,7 +109,7 @@ public class ExpensesTraining : TrainingContentBase
         {"label": "Date (required)", "value": "Datepicker. The date the expense was incurred. Displayed as MM/dd/yyyy. data-testid: expense-date"},
         {"label": "Category (required)", "value": "Select dropdown. Options loaded from reference data (expense categories configured in Admin). data-testid: expense-category"},
         {"label": "Description (optional)", "value": "Textarea. Free-form description of the expense. data-testid: expense-description"},
-        {"label": "Submit button", "value": "Disabled when form is invalid or save is in progress. Hover shows validation popover listing violations. data-testid: expense-save-btn"}
+        {"label": "Submit button", "value": "Disabled when form is invalid or save is in progress. Click the warning-triangle icon to the left of the (disabled) Submit button to see a popover listing violations. data-testid: expense-save-btn"}
       ]
     },
     {
@@ -157,7 +157,7 @@ public class ExpensesTraining : TrainingContentBase
         {"label": "Date", "value": "Required. Must be a valid date."},
         {"label": "Category", "value": "Required. Must select from reference data options (configured in Admin → Reference Data)."},
         {"label": "Description", "value": "Optional. No length restriction."},
-        {"label": "Submit button popover", "value": "When form is invalid, hovering over Save shows a validation popover listing which fields need attention."},
+        {"label": "Submit button popover", "value": "When form is invalid, click the warning-triangle icon to the left of the (disabled) Save button to see a validation popover listing which fields need attention."},
         {"label": "Draft Auto-Save", "value": "Form data saved to IndexedDB every 2.5 seconds while editing. Recovered on next dialog open if unsaved."}
       ]
     }
@@ -341,14 +341,14 @@ public class ExpensesTraining : TrainingContentBase
     },
     {
       "id": "ex15",
-      "text": "What happens when you hover over a disabled Submit button in the Create Expense dialog?",
+      "text": "The Submit button in the Create Expense dialog is disabled. How do you find out which fields still need attention?",
       "options": [
         {"id": "a", "text": "Nothing happens — the button is just grayed out"},
         {"id": "b", "text": "A tooltip says 'Please fill in all fields'"},
-        {"id": "c", "text": "A validation popover lists which specific fields need attention", "isCorrect": true},
+        {"id": "c", "text": "Click the warning-triangle icon to the left of the Submit button to open a popover listing which specific fields need attention", "isCorrect": true},
         {"id": "d", "text": "The invalid fields flash red to draw your attention"}
       ],
-      "explanation": "When the form is invalid, hovering over the Save/Submit button displays a validation popover that lists each field violation — for example, 'Amount is required' or 'Category is required'."
+      "explanation": "When the form is invalid, click the warning-triangle icon to the left of the (disabled) Save/Submit button to open a validation popover that lists each field violation — for example, 'Amount is required' or 'Category is required'."
     }
   ]
 }

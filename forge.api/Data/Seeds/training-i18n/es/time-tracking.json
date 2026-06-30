@@ -68,7 +68,7 @@
           "element": ".entry-type",
           "popover": {
             "title": "Distintivo de tipo de entrada",
-            "description": "Cada entrada muestra 'Temporizador' (azul) o 'Manual' (gris) para indicar cómo se registró el tiempo. Las entradas de temporizador tienen marcas de tiempo de inicio/fin precisas; las entradas manuales tienen una duración introducida por el usuario.",
+            "description": "Cada entrada muestra 'Temporizador' (verde azulado) o 'Manual' (gris) para indicar cómo se registró el tiempo. Las entradas de temporizador tienen marcas de tiempo de inicio/fin precisas; las entradas manuales tienen una duración introducida por el usuario.",
             "side": "left"
           }
         }
@@ -183,7 +183,7 @@
             },
             {
               "label": "Tipo",
-              "value": "Distintivo que muestra 'Temporizador' (azul) o 'Manual' (gris). Ancho: 80px."
+              "value": "Distintivo que muestra 'Temporizador' (verde azulado) o 'Manual' (gris). Ancho: 80px."
             },
             {
               "label": "Acciones",
@@ -684,7 +684,7 @@
             },
             {
               "id": "b",
-              "text": "Si la entrada se creó mediante un temporizador en vivo (distintivo 'Temporizador', azul) o se registró después del hecho (distintivo 'Manual', gris)",
+              "text": "Si la entrada se creó mediante un temporizador en vivo (distintivo 'Temporizador', verde azulado) o se registró después del hecho (distintivo 'Manual', gris)",
               "isCorrect": true
             },
             {
@@ -696,7 +696,7 @@
               "text": "Si la entrada ha sido aprobada por un gerente (azul) o está pendiente (gris)"
             }
           ],
-          "explanation": "El distintivo de Tipo distingue cómo se registró el tiempo. 'Temporizador' (azul) significa que se rastreó mediante la función Iniciar/Detener temporizador con marcas de tiempo precisas. 'Manual' (gris) significa que el usuario lo introdujo después de realizar el trabajo con una duración especificada."
+          "explanation": "El distintivo de Tipo distingue cómo se registró el tiempo. 'Temporizador' (verde azulado) significa que se rastreó mediante la función Iniciar/Detener temporizador con marcas de tiempo precisas. 'Manual' (gris) significa que el usuario lo introdujo después de realizar el trabajo con una duración especificada."
         }
       ]
     }

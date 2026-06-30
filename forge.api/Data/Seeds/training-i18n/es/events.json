@@ -95,7 +95,7 @@
           "heading": "Botones y acciones",
           "items": [
             {"label": "Nuevo evento (botón principal)", "value": "Abre el diálogo de creación de eventos. Todos los campos se restablecen a sus valores predeterminados (tipo: Reunión, hora: 09:00–10:00, no obligatorio). data-testid: new-event-btn"},
-            {"label": "Guardar / Crear evento (diálogo)", "value": "Crea o actualiza el evento. Deshabilitado cuando el formulario no es válido o el guardado está en curso. Al pasar el cursor muestra un popover de validación si está deshabilitado. Al crear, se envían notificaciones a todos los asistentes seleccionados. data-testid: event-save-btn"},
+            {"label": "Guardar / Crear evento (diálogo)", "value": "Crea o actualiza el evento. Deshabilitado cuando el formulario no es válido o el guardado está en curso. Cuando está deshabilitado, haga clic en el icono de triángulo de advertencia a la izquierda del botón para ver un popover de validación. Al crear, se envían notificaciones a todos los asistentes seleccionados. data-testid: event-save-btn"},
             {"label": "Cancelar (diálogo)", "value": "Cierra el diálogo sin guardar los cambios."},
             {"label": "Editar (icono de fila)", "value": "Icono de lápiz en cada fila de la tabla. Abre el diálogo de edición precargado con los valores actuales del evento, incluidos los asistentes."},
             {"label": "Cancelar evento (icono de fila)", "value": "Icono rojo de X en cada fila de la tabla. Abre un diálogo de confirmación. Al confirmar, cancela el evento de forma lógica (establece la bandera IsCancelled). El evento desaparece de la tabla pero el registro se conserva."},
@@ -114,7 +114,7 @@
             {"label": "Descripción", "value": "Opcional. Máximo 2000 caracteres."},
             {"label": "Ubicación", "value": "Opcional. Máximo 200 caracteres."},
             {"label": "Asistentes", "value": "Opcional. Cero o más empleados activos. Los duplicados se eliminan automáticamente."},
-            {"label": "Popover del botón de envío", "value": "Cuando el formulario no es válido, al pasar el cursor sobre Guardar/Crear se muestra un popover de validación que lista qué campos necesitan atención (p. ej., 'El título es obligatorio', 'La fecha de inicio es obligatoria')."}
+            {"label": "Popover del botón de envío", "value": "Cuando el formulario no es válido, haga clic en el icono de triángulo de advertencia a la izquierda del botón Guardar/Crear (deshabilitado) para ver un popover de validación que lista qué campos necesitan atención (p. ej., 'El título es obligatorio', 'La fecha de inicio es obligatoria')."}
           ]
         },
         {
@@ -241,14 +241,14 @@
         },
         {
           "id": "ev9",
-          "text": "Al crear un evento, el botón Guardar está deshabilitado y pasa el cursor sobre él para ver un popover. ¿Qué muestra el popover?",
+          "text": "Al crear un evento, el botón Guardar está deshabilitado y hace clic en el icono de triángulo de advertencia a su izquierda para ver un popover. ¿Qué muestra el popover?",
           "options": [
             {"id": "a", "text": "Un indicador de carga que señala que el guardado está en curso"},
             {"id": "b", "text": "Una información sobre herramientas que dice 'El formulario no es válido'"},
             {"id": "c", "text": "Una lista con viñetas de las infracciones de validación —qué campos específicos necesitan atención (p. ej., 'El título es obligatorio', 'La fecha de inicio es obligatoria')", "isCorrect": true},
             {"id": "d", "text": "Nada —el botón simplemente no se puede hacer clic cuando está deshabilitado"}
           ],
-          "explanation": "El patrón de popover de validación se usa en todo QB Engineer. Cuando el formulario no es válido, al pasar el cursor sobre el botón Guardar deshabilitado se muestra una lista con viñetas de exactamente qué campos tienen problemas. Esto reemplaza los mensajes de error en línea debajo de cada campo."
+          "explanation": "El patrón de popover de validación se usa en todo QB Engineer. Cuando el formulario no es válido, haga clic en el icono de triángulo de advertencia a la izquierda del botón Guardar (deshabilitado) para ver una lista con viñetas de exactamente qué campos tienen problemas. Esto reemplaza los mensajes de error en línea debajo de cada campo."
         },
         {
           "id": "ev10",

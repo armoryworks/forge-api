@@ -20,7 +20,7 @@
           "element": ".account-page",
           "popover": {
             "title": "Tarjeta de formulario",
-            "description": "Cada formulario de cumplimiento aparece como una tarjeta que muestra el nombre del formulario, la descripción y el estado actual. Un icono check_circle verde significa que el formulario está completo, con la fecha de finalización mostrada a la derecha. Los formularios incompletos muestran el icono original del formulario. Los formularios que bloquean la asignación de trabajos muestran una insignia roja 'Requerido'.",
+            "description": "Cada formulario de cumplimiento aparece como una tarjeta que muestra el nombre del formulario, la descripción y el estado actual. Un icono check_circle verde significa que el formulario está completo, con la fecha de finalización mostrada a la derecha. Los formularios incompletos muestran el icono original del formulario. Los formularios que bloquean la asignación de trabajos muestran una insignia ámbar 'Requerido'.",
             "side": "bottom"
           }
         },
@@ -79,11 +79,11 @@
             },
             {
               "label": "Insignia Requerido",
-              "value": "Texto rojo 'Requerido' mostrado en los formularios donde blocksJobAssignment es verdadero. Estos formularios deben completarse antes de que el empleado pueda ser asignado a trabajos de producción."
+              "value": "Texto ámbar 'Requerido' mostrado en los formularios donde blocksJobAssignment es verdadero. Estos formularios deben completarse antes de que el empleado pueda ser asignado a trabajos de producción."
             },
             {
               "label": "Insignia de incorporación",
-              "value": "Insignia azul 'Se completa en el asistente de incorporación' mostrada en los formularios incompletos gestionados por el asistente (W-4, I-9, retención estatal, depósito directo, compensación al trabajador, manual). Indica que el formulario debe completarse mediante el asistente de incorporación en lugar de individualmente."
+              "value": "Insignia verde azulado 'Se completa en el asistente de incorporación' mostrada en los formularios incompletos gestionados por el asistente (W-4, I-9, retención estatal, depósito directo, compensación al trabajador, manual). Indica que el formulario debe completarse mediante el asistente de incorporación en lugar de individualmente."
             },
             {
               "label": "Icono de chevron",
@@ -121,7 +121,7 @@
           "items": [
             {
               "label": "Banner del asistente de incorporación",
-              "value": "Banner amarillo en la parte superior de la página de lista de Formularios Fiscales. Enlaza a /onboarding. Se muestra solo cuando el estado de incorporación no es allComplete. Contiene el icono assignment_ind y una pista de navegación arrow_forward."
+              "value": "Banner verde azulado en la parte superior de la página de lista de Formularios Fiscales. Enlaza a /onboarding. Se muestra solo cuando el estado de incorporación no es allComplete. Contiene el icono assignment_ind y una pista de navegación arrow_forward."
             },
             {
               "label": "Botón Atrás",
@@ -447,7 +447,7 @@
         },
         {
           "id": "cf7",
-          "text": "Una tarjeta de formulario en la página de Formularios Fiscales muestra una insignia roja 'Requerido'. ¿Qué significa esto?",
+          "text": "Una tarjeta de formulario en la página de Formularios Fiscales muestra una insignia ámbar 'Requerido'. ¿Qué significa esto?",
           "options": [
             {
               "id": "a",
@@ -467,7 +467,7 @@
               "text": "Un administrador ha marcado el formulario para atención inmediata"
             }
           ],
-          "explanation": "La insignia roja 'Requerido' aparece en los formularios donde blocksJobAssignment es verdadero en la plantilla. Esto significa que el empleado no puede ser asignado a trabajos de producción en el tablero Kanban hasta que se complete el formulario. Esto lo aplica del lado del servidor la API de asignación de trabajos."
+          "explanation": "La insignia ámbar 'Requerido' aparece en los formularios donde blocksJobAssignment es verdadero en la plantilla. Esto significa que el empleado no puede ser asignado a trabajos de producción en el tablero Kanban hasta que se complete el formulario. Esto lo aplica del lado del servidor la API de asignación de trabajos."
         },
         {
           "id": "cf8",

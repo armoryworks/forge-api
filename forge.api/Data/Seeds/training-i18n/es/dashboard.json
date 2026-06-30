@@ -315,7 +315,7 @@
         },
         {
           "id": "db4",
-          "text": "La barra de Progreso del ciclo se ha vuelto amarilla. ¿Qué indica esto?",
+          "text": "El chip de estado del widget Progreso del ciclo se ha vuelto rojo y dice 'Vencido'. ¿Qué indica esto?",
           "options": [
             {
               "id": "a",
@@ -323,19 +323,19 @@
             },
             {
               "id": "b",
-              "text": "Va adelantado y tiene capacidad adicional"
+              "text": "Todas las entradas del ciclo ya están completadas"
             },
             {
               "id": "c",
-              "text": "Va atrasado: el porcentaje de finalización es menor de lo esperado para el tiempo transcurrido",
+              "text": "El ciclo ha superado su fecha de finalización: va atrasado y aún tiene trabajo pendiente",
               "isCorrect": true
             },
             {
               "id": "d",
-              "text": "El ciclo termina hoy y debería empezar a planificar el siguiente"
+              "text": "El widget no se pudo cargar y muestra un estado de error"
             }
           ],
-          "explanation": "La barra de progreso se vuelve amarilla cuando su tasa de finalización está por detrás de donde debería estar dado cuánto del ciclo ha transcurrido. Esta es una señal visual para priorizar los elementos del ciclo."
+          "explanation": "El chip de estado del widget Progreso del ciclo normalmente cuenta los días restantes del ciclo. Una vez que el ciclo supera su fecha de finalización, cambia a una etiqueta roja 'Vencido': una señal de que el ciclo va atrasado. (El relleno de progreso en sí es de color verde azulado y solo se vuelve verde al 100%; nunca se vuelve rojo ni amarillo.)"
         },
         {
           "id": "db5",

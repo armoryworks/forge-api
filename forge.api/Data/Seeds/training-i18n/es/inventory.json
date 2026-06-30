@@ -36,7 +36,7 @@
           "element": "app-input",
           "popover": {
             "title": "Buscar piezas",
-            "description": "Busque por número de pieza, descripción o material. Los resultados se actualizan al presionar Enter o hacer clic en el botón de búsqueda. Los escaneos de código de barras completan automáticamente este campo.",
+            "description": "Busque por número de pieza, descripción o material. Los resultados se filtran en vivo a medida que escribe —no hay botón de búsqueda— y un botón Limpiar (✕) restablece el campo. Los escaneos de código de barras completan automáticamente este campo.",
             "side": "bottom"
           }
         },
@@ -336,7 +336,7 @@
             {"label": "Crear reserva", "value": "Abre el diálogo de creación de reserva."},
             {"label": "Liberar (pestaña Reservas)", "value": "Libera una reserva de existencias, haciendo que la cantidad vuelva a estar disponible."},
             {"label": "Crear OC (alerta de existencias bajas)", "value": "Navega a la página de Órdenes de compra para crear una nueva OC para la pieza con existencias bajas."},
-            {"label": "Buscar / Limpiar", "value": "La búsqueda filtra la tabla de existencias por número de pieza/descripción/material. Limpiar restablece la búsqueda."}
+            {"label": "Buscar / Limpiar", "value": "La búsqueda filtra la tabla de existencias en vivo a medida que escribe por número de pieza/descripción/material —no hay botón de búsqueda. El botón Limpiar (✕) restablece la búsqueda."}
           ]
         },
         {

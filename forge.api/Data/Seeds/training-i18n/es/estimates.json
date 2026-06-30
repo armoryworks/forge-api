@@ -84,7 +84,7 @@
             {"label": "Enviada (chip azul)", "value": "La estimación se ha compartido con el cliente. Todavía editable."},
             {"label": "Aceptada (chip verde)", "value": "El cliente acordó proceder con base en esta cifra aproximada."},
             {"label": "Rechazada (chip rojo)", "value": "El cliente decidió no proceder."},
-            {"label": "Vencida (chip amarillo)", "value": "La estimación superó su fecha de Válido hasta sin una decisión del cliente."},
+            {"label": "Vencida (chip ámbar)", "value": "La estimación superó su fecha de Válido hasta sin una decisión del cliente."},
             {"label": "Convertida en cotización (chip verde azulado)", "value": "La estimación se convirtió en una cotización formal. Lo establece automáticamente la acción Convertir. El ID de la cotización generada queda vinculado."}
           ]
         },
@@ -118,7 +118,7 @@
           "items": [
             {"label": "Título", "value": "Ordenable. El texto del título de la estimación."},
             {"label": "Monto", "value": "Ordenable (tipo numérico). Alineado a la derecha. Se muestra como moneda con formato (p. ej., $12,500.00)."},
-            {"label": "Estado", "value": "Ordenable, filtrable (enum). Chip con código de color: Borrador (gris), Enviada (azul), Aceptada (verde), Rechazada (rojo), Vencida (amarillo), Convertida en cotización (verde azulado)."},
+            {"label": "Estado", "value": "Ordenable, filtrable (enum). Chip con código de color: Borrador (gris), Enviada (azul), Aceptada (verde), Rechazada (rojo), Vencida (ámbar), Convertida en cotización (verde azulado)."},
             {"label": "Válido hasta", "value": "Ordenable (tipo fecha). Se muestra como MM/dd/yyyy. En blanco si no se establece vencimiento."},
             {"label": "Creada", "value": "Ordenable (tipo fecha). Se muestra como MM/dd/yyyy. Cuándo se creó la estimación por primera vez."},
             {"label": "Acciones", "value": "No ordenable. Contiene los botones Convertir en cotización (flecha hacia adelante, oculta si ya se convirtió) y Eliminar (icono de papelera)."}
@@ -225,14 +225,14 @@
         },
         {
           "id": "est7",
-          "text": "Una estimación muestra un chip de estado amarillo 'Vencida'. ¿Qué significa esto?",
+          "text": "Una estimación muestra un chip de estado ámbar 'Vencida'. ¿Qué significa esto?",
           "options": [
             {"id": "a", "text": "La estimación fue rechazada por el cliente"},
             {"id": "b", "text": "La estimación superó su fecha de Válido hasta sin una decisión del cliente", "isCorrect": true},
             {"id": "c", "text": "La estimación se ha convertido en una cotización"},
             {"id": "d", "text": "La estimación se creó hace más de 30 días"}
           ],
-          "explanation": "Vencida (chip amarillo) significa que la estimación superó su fecha de Válido hasta sin que el cliente la aceptara o la rechazara. Todavía puede editar la estimación y extender la fecha si es necesario."
+          "explanation": "Vencida (chip ámbar) significa que la estimación superó su fecha de Válido hasta sin que el cliente la aceptara o la rechazara. Todavía puede editar la estimación y extender la fecha si es necesario."
         },
         {
           "id": "est8",

@@ -36,7 +36,7 @@
           "element": ".filters-bar app-input",
           "popover": {
             "title": "Buscar facturas",
-            "description": "Busque por número de factura, nombre del cliente u otros campos de texto. Presione Enter para aplicar el filtro de búsqueda. Los resultados se actualizan en la tabla de abajo.",
+            "description": "Busque por número de factura, nombre del cliente u otros campos de texto. Los resultados se filtran en vivo a medida que escribe (presionar Enter también aplica el filtro). Los resultados se actualizan en la tabla de abajo.",
             "side": "bottom"
           }
         },

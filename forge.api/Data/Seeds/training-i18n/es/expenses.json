@@ -65,7 +65,7 @@
             {"label": "Fecha (obligatorio)", "value": "Selector de fecha. La fecha en que se incurrió en el gasto. Se muestra como MM/dd/yyyy. data-testid: expense-date"},
             {"label": "Categoría (obligatorio)", "value": "Lista desplegable. Las opciones se cargan desde los datos de referencia (categorías de gastos configuradas en Admin). data-testid: expense-category"},
             {"label": "Descripción (opcional)", "value": "Área de texto. Descripción libre del gasto. data-testid: expense-description"},
-            {"label": "Botón Enviar", "value": "Deshabilitado cuando el formulario no es válido o el guardado está en curso. Al pasar el cursor se muestra un popover de validación que lista las infracciones. data-testid: expense-save-btn"}
+            {"label": "Botón Enviar", "value": "Deshabilitado cuando el formulario no es válido o el guardado está en curso. Haga clic en el icono de triángulo de advertencia a la izquierda del botón Enviar (deshabilitado) para ver un popover que lista las infracciones. data-testid: expense-save-btn"}
           ]
         },
         {
@@ -113,7 +113,7 @@
             {"label": "Fecha", "value": "Obligatorio. Debe ser una fecha válida."},
             {"label": "Categoría", "value": "Obligatorio. Debe seleccionar de las opciones de datos de referencia (configuradas en Admin → Datos de referencia)."},
             {"label": "Descripción", "value": "Opcional. Sin restricción de longitud."},
-            {"label": "Popover del botón de envío", "value": "Cuando el formulario no es válido, al pasar el cursor sobre Guardar se muestra un popover de validación que lista qué campos necesitan atención."},
+            {"label": "Popover del botón de envío", "value": "Cuando el formulario no es válido, haga clic en el icono de triángulo de advertencia a la izquierda del botón Guardar (deshabilitado) para ver un popover de validación que lista qué campos necesitan atención."},
             {"label": "Autoguardado de borrador", "value": "Los datos del formulario se guardan en IndexedDB cada 2.5 segundos mientras se edita. Se recuperan en la siguiente apertura del diálogo si no se guardaron."}
           ]
         }
@@ -286,14 +286,14 @@
         },
         {
           "id": "ex15",
-          "text": "¿Qué sucede cuando pasa el cursor sobre un botón Enviar deshabilitado en el diálogo Crear gasto?",
+          "text": "El botón Enviar en el diálogo Crear gasto está deshabilitado. ¿Cómo averigua qué campos todavía necesitan atención?",
           "options": [
             {"id": "a", "text": "No sucede nada —el botón solo está atenuado"},
             {"id": "b", "text": "Una información sobre herramientas dice 'Complete todos los campos'"},
-            {"id": "c", "text": "Un popover de validación lista qué campos específicos necesitan atención", "isCorrect": true},
+            {"id": "c", "text": "Haga clic en el icono de triángulo de advertencia a la izquierda del botón Enviar para abrir un popover que lista qué campos específicos necesitan atención", "isCorrect": true},
             {"id": "d", "text": "Los campos no válidos parpadean en rojo para llamar su atención"}
           ],
-          "explanation": "Cuando el formulario no es válido, al pasar el cursor sobre el botón Guardar/Enviar se muestra un popover de validación que lista cada infracción de campo —por ejemplo, 'El monto es obligatorio' o 'La categoría es obligatoria'."
+          "explanation": "Cuando el formulario no es válido, haga clic en el icono de triángulo de advertencia a la izquierda del botón Guardar/Enviar (deshabilitado) para abrir un popover de validación que lista cada infracción de campo —por ejemplo, 'El monto es obligatorio' o 'La categoría es obligatoria'."
         }
       ]
     }

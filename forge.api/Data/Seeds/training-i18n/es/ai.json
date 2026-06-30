@@ -311,7 +311,7 @@
         },
         {
           "id": "ai5",
-          "text": "El botón Clear Chat (icono delete_sweep) está atenuado. ¿Por qué?",
+          "text": "Acaba de seleccionar un asistente y el botón Clear Chat (icono delete_sweep) no aparece por ninguna parte en el encabezado del chat. ¿Por qué no se muestra?",
           "options": [
             {
               "id": "a",
@@ -331,7 +331,7 @@
               "text": "Clear Chat solo está disponible para los roles de Admin y Gerente"
             }
           ],
-          "explanation": "El botón Clear Chat está deshabilitado cuando no hay mensajes. Una vez que envía al menos un mensaje, el botón se activa."
+          "explanation": "El botón Clear Chat está oculto cuando no hay mensajes — todavía no hay nada que borrar. Una vez que envía al menos un mensaje, el botón aparece en el encabezado del chat."
         },
         {
           "id": "ai6",

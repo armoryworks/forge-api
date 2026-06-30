@@ -13,7 +13,7 @@
     "title": "Configuración de su perfil",
     "summary": "Cómo completar su información de contacto, contacto de emergencia y configuración de seguridad de la cuenta.",
     "contentJson": {
-      "body": "## Configuración de su perfil\n\nSu perfil de empleado es la forma en que el sistema sabe quién es usted, dónde contactarlo y cómo pagarle. Completarlo con precisión es importante: su lugar de trabajo determina qué formularios de retención estatal deberá completar.\n\n### Sección de perfil\n\nNavegue a **Cuenta → Perfil**. Complete su nombre y apellido, luego confirme su lugar de trabajo. Si trabaja en un lugar distinto al predeterminado de la empresa, actualícelo ahora: afecta su retención de impuestos estatales.\n\n### Información de contacto\n\nVaya a **Cuenta → Contacto**. Ingrese su número de teléfono personal y su domicilio. Esto se mantiene confidencial y solo se usa para fines de Recursos Humanos y nómina.\n\n### Contacto de emergencia\n\nEn **Cuenta → Emergencia**, agregue el nombre, número de teléfono y relación de alguien a quien contactar en caso de emergencia. Esto es obligatorio como parte de su incorporación.\n\n### Configuración de seguridad\n\nVisite **Cuenta → Seguridad** para revisar la configuración de su inicio de sesión. Si su empleador usa inicio de sesión por quiosco con credencial/PIN, usará el PIN de 4 a 8 dígitos que se le asignó. Puede cambiar este PIN aquí en cualquier momento.\n\n### Por qué es importante\n\nSu perfil determina sus requisitos de formularios de cumplimiento. Un lugar de trabajo incompleto significa que el sistema no puede determinar qué formulario de retención estatal mostrarle. Una dirección o un contacto de emergencia incompletos mostrarán una advertencia amarilla en su indicador de completitud del perfil.",
+      "body": "## Configuración de su perfil\n\nSu perfil de empleado es la forma en que el sistema sabe quién es usted, dónde contactarlo y cómo pagarle. Completarlo con precisión es importante: mantiene su registro correcto y sus datos de Recursos Humanos y nómina actualizados.\n\n### Sección de perfil\n\nNavegue a **Cuenta → Perfil**. Complete su nombre y apellido, sus iniciales, su fecha de nacimiento y su género, y elija un color de avatar. Estos datos lo identifican en toda la aplicación: sus iniciales y su color aparecen en su avatar dondequiera que figure su nombre.\n\n### Información de contacto\n\nVaya a **Cuenta → Contacto**. Ingrese su número de teléfono personal y su domicilio. Esto se mantiene confidencial y solo se usa para fines de Recursos Humanos y nómina.\n\n### Contacto de emergencia\n\nEn **Cuenta → Emergencia**, agregue el nombre, número de teléfono y relación de alguien a quien contactar en caso de emergencia. Esto es obligatorio como parte de su incorporación.\n\n### Configuración de seguridad\n\nVisite **Cuenta → Seguridad** para revisar la configuración de su inicio de sesión. Si su empleador usa inicio de sesión por quiosco con credencial/PIN, usará el PIN de 4 a 8 dígitos que se le asignó. Puede cambiar este PIN aquí en cualquier momento.\n\n### Por qué es importante\n\nUn perfil completo mantiene su registro preciso para Recursos Humanos y nómina. El formulario de retención estatal que necesitará no se define aquí: lo determina el ESTADO de su domicilio que ingresa en el asistente de incorporación de nuevos empleados (Paso 2, Dirección). A medida que completa cada sección de Cuenta, la barra lateral de Cuenta a la izquierda marca con una advertencia amarilla cualquier sección que aún esté incompleta, para que pueda ver de un vistazo lo que falta por hacer.",
       "sections": []
     }
   },
@@ -86,12 +86,12 @@
           "id": "ob6",
           "text": "Quiere ver qué tan completo está su perfil de empleado. ¿Dónde lo mira?",
           "options": [
-            { "id": "a", "text": "Panel → widget de Completitud del perfil", "isCorrect": true },
+            { "id": "a", "text": "La página de Cuenta: la barra lateral marca cada sección incompleta con un icono de advertencia", "isCorrect": true },
             { "id": "b", "text": "Administración → Usuarios → su cuenta" },
             { "id": "c", "text": "Reportes → Estado de empleados" },
-            { "id": "d", "text": "Cuenta → Seguridad → Puntuación del perfil" }
+            { "id": "d", "text": "Panel → widget de Completitud del perfil" }
           ],
-          "explanation": "El Panel muestra un widget de Completitud del perfil que enumera exactamente qué elementos aún faltan. Desaparece una vez que ha terminado todas las secciones requeridas."
+          "explanation": "En la página de Cuenta, la barra lateral de la izquierda muestra un estado por elemento junto a cada sección (Perfil, Contacto, Emergencia, etc.): una marca de verificación verde cuando está completa y un icono de advertencia amarillo cuando aún requiere atención. Ahí es donde ve de un vistazo lo que falta por terminar."
         },
         {
           "id": "ob7",
