@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Forge.Api.Features.Accounting;
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -115,8 +116,16 @@ public class UpdateExpenseStatusHandler(
                     var syncStatus = await accountingService.GetSyncStatusAsync(cancellationToken);
                     if (syncStatus.Connected)
                     {
+                        // F-26B-02: carry the vendor through to QBO so a vendor-settled
+                        // expense syncs as a purchase against that vendor (not a vendorless
+                        // cash purchase). The expense loaded by FindAsync doesn't Include the
+                        // Vendor nav, so resolve the vendor's ExternalId on demand. Null when
+                        // the expense has no vendor or the vendor isn't yet synced to QBO —
+                        // unchanged (vendorless) behavior.
+                        var vendorExternalId = await ResolveVendorExternalIdAsync(expense, cancellationToken);
+
                         var accountingExpense = new AccountingExpense(
-                            VendorExternalId: null,
+                            VendorExternalId: vendorExternalId,
                             CustomerExternalId: null,
                             Amount: expense.Amount,
                             Date: expense.ExpenseDate,
@@ -136,5 +145,31 @@ public class UpdateExpenseStatusHandler(
         }
 
         return (await repo.GetByIdAsync(expense.Id, cancellationToken))!;
+    }
+
+    /// <summary>
+    /// The QBO <see cref="Vendor.ExternalId"/> for a vendor-settled expense, or null
+    /// (out-of-pocket / cash expense, or a vendor not yet synced to the provider).
+    /// Prefers the already-loaded <see cref="Expense.Vendor"/> nav; falls back to a
+    /// read-only lookup by <see cref="Expense.VendorId"/> since the approve path's
+    /// expense (from FindAsync) doesn't Include the vendor. Returns null when there is
+    /// no AppDbContext (isolated unit tests) and the nav isn't already populated.
+    /// </summary>
+    private async Task<string?> ResolveVendorExternalIdAsync(Expense expense, CancellationToken cancellationToken)
+    {
+        if (expense.VendorId is null)
+            return null;
+
+        if (expense.Vendor is not null)
+            return expense.Vendor.ExternalId;
+
+        if (db is null)
+            return null;
+
+        return await db.Vendors
+            .AsNoTracking()
+            .Where(v => v.Id == expense.VendorId.Value)
+            .Select(v => v.ExternalId)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 }
