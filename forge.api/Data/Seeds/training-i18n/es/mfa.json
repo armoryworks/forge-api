@@ -25,7 +25,7 @@
           }
         },
         {
-          "element": ".account-page__actions .action-btn--primary",
+          "element": "[data-testid='enable-mfa-btn']",
           "popover": {
             "title": "Botón Habilitar / Añadir dispositivo",
             "description": "Haz clic en 'Habilitar autenticación de dos factores' para iniciar el asistente de configuración. Si la MFA ya está habilitada, este se convierte en 'Añadir dispositivo' para registrar una aplicación de autenticación adicional. El diálogo de configuración te guía por el escaneo del QR y la verificación del código.",
