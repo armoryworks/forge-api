@@ -1,18 +1,35 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
+
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.PlanningCycles;
 
 public record GetPlanningCycleByIdQuery(int Id) : IRequest<PlanningCycleDetailResponseModel>;
 
-public class GetPlanningCycleByIdHandler(IPlanningCycleRepository repo)
+public class GetPlanningCycleByIdHandler(IPlanningCycleRepository repo, AppDbContext db)
     : IRequestHandler<GetPlanningCycleByIdQuery, PlanningCycleDetailResponseModel>
 {
     public async Task<PlanningCycleDetailResponseModel> Handle(GetPlanningCycleByIdQuery request, CancellationToken cancellationToken)
     {
         var cycle = await repo.FindWithDetailsAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Planning cycle {request.Id} not found");
+
+        // Resolve assignee names in one query (no N+1) — key by user id.
+        var assigneeIds = cycle.Entries
+            .Where(e => e.Job.AssigneeId.HasValue)
+            .Select(e => e.Job.AssigneeId!.Value)
+            .Distinct()
+            .ToList();
+
+        var assigneeNames = assigneeIds.Count > 0
+            ? await db.Users
+                .Where(u => assigneeIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.FirstName, u.LastName })
+                .ToDictionaryAsync(u => u.Id, u => $"{u.LastName}, {u.FirstName}", cancellationToken)
+            : [];
 
         return new PlanningCycleDetailResponseModel(
             cycle.Id,
@@ -27,7 +44,7 @@ public class GetPlanningCycleByIdHandler(IPlanningCycleRepository repo)
                 e.JobId,
                 e.Job.JobNumber,
                 e.Job.Title,
-                null,
+                e.Job.AssigneeId.HasValue && assigneeNames.TryGetValue(e.Job.AssigneeId.Value, out var name) ? name : null,
                 e.Job.CurrentStage.Name,
                 e.Job.CurrentStage.Color,
                 e.Job.Priority.ToString(),
