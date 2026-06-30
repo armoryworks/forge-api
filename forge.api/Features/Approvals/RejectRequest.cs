@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.DomainEvents;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -18,12 +19,21 @@ public class RejectRequestValidator : AbstractValidator<RejectRequestCommand>
     }
 }
 
-public class RejectRequestHandler(IApprovalService approvalService, AppDbContext db)
+public class RejectRequestHandler(IApprovalService approvalService, AppDbContext db, IMediator mediator)
     : IRequestHandler<RejectRequestCommand, ApprovalRequestResponseModel>
 {
     public async Task<ApprovalRequestResponseModel> Handle(RejectRequestCommand request, CancellationToken ct)
     {
+        // RejectAsync sets the terminal Status=Rejected + CompletedAt and SaveChanges; the
+        // terminal status is persisted before this returns. F-26B-05 — publish the completion
+        // event (Approved=false) AFTER that persist so a downstream re-query sees it terminal.
         var result = await approvalService.RejectAsync(request.RequestId, request.DecidedById, request.Comments, ct);
+
+        await mediator.Publish(
+            new ApprovalCompletedEvent(
+                result.EntityType, result.EntityId,
+                Approved: false, request.DecidedById, request.Comments),
+            ct);
 
         var r = await db.ApprovalRequests
             .AsNoTracking()

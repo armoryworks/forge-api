@@ -15,7 +15,14 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.Expenses;
 
-public record UpdateExpenseStatusCommand(int Id, UpdateExpenseStatusRequestModel Data) : IRequest<ExpenseResponseModel>;
+/// <param name="ActorUserId">
+/// F-26B-05 — when set, the user recorded as the approver (overrides the HTTP-context
+/// principal). The controller PATCH path leaves this null so the actor is derived from the
+/// caller's token as before. The event-driven path
+/// (<see cref="DomainEvents.Handlers.OnApprovalCompleted_UpdateExpenseStatus"/>) supplies the
+/// terminal-decision's DecidedById, and this also lets the command run without an HTTP context.
+/// </param>
+public record UpdateExpenseStatusCommand(int Id, UpdateExpenseStatusRequestModel Data, int? ActorUserId = null) : IRequest<ExpenseResponseModel>;
 
 public class UpdateExpenseStatusValidator : AbstractValidator<UpdateExpenseStatusCommand>
 {
@@ -26,10 +33,16 @@ public class UpdateExpenseStatusValidator : AbstractValidator<UpdateExpenseStatu
         RuleFor(x => x.Id).GreaterThan(0);
         RuleFor(x => x.Data.Status).IsInEnum();
         RuleFor(x => x.Data.ApprovalNotes).MaximumLength(1000).When(x => x.Data.ApprovalNotes is not null);
+        // The decline-note minimum is a human-entry guard for the direct PATCH path. The
+        // workflow-driven path (ActorUserId set — F-26B-05) carries the decision comments from
+        // the approval action, which RejectRequestValidator already requires to be non-empty;
+        // re-imposing the 10-char minimum there would fail the event-driven status sync (and
+        // silently dead-letter it). So scope this rule to the PATCH path only.
         RuleFor(x => x.Data.ApprovalNotes)
             .NotEmpty()
             .MinimumLength(DeclineNoteMinLength)
-            .When(x => x.Data.Status is ExpenseStatus.Rejected or ExpenseStatus.NeedsRevision)
+            .When(x => x.ActorUserId is null
+                && x.Data.Status is ExpenseStatus.Rejected or ExpenseStatus.NeedsRevision)
             .WithMessage($"A note of at least {DeclineNoteMinLength} characters is required when rejecting or requesting revision.");
     }
 }
@@ -59,7 +72,37 @@ public class UpdateExpenseStatusHandler(
         var expense = await repo.FindAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException("Expense not found.");
 
-        var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        // F-26B-05 — block a direct decision-PATCH that would bypass the configured
+        // multi-step approval workflow. When the requested status is a decision outcome
+        // (Approved / Rejected / NeedsRevision) AND a NON-TERMINAL governing ApprovalRequest
+        // exists for this expense (Status in {Pending, Escalated}), the decision MUST go
+        // through /api/v1/approvals/{id}/(approve|reject) — which advances the workflow and,
+        // on the terminal step, fires ApprovalCompletedEvent → this very command (by which
+        // point the request is terminal, so this guard no longer trips). The no-workflow
+        // small-shop case (no request row at all) is unaffected. db is null only in isolated
+        // unit tests (mocked repo) → no governing request to find, guard is a no-op.
+        var isDecisionOutcome = request.Data.Status
+            is ExpenseStatus.Approved or ExpenseStatus.Rejected or ExpenseStatus.NeedsRevision;
+        if (isDecisionOutcome && db is not null)
+        {
+            var hasPendingWorkflow = await db.ApprovalRequests
+                .AsNoTracking()
+                .AnyAsync(r => r.EntityType == "Expense"
+                    && r.EntityId == expense.Id
+                    && (r.Status == ApprovalRequestStatus.Pending
+                        || r.Status == ApprovalRequestStatus.Escalated),
+                    cancellationToken);
+
+            if (hasPendingWorkflow)
+                throw new InvalidOperationException(
+                    "This expense must be approved or rejected through its approval workflow.");
+        }
+
+        // The actor recorded as approver: the event-driven path supplies the terminal
+        // decision's DecidedById; the controller PATCH path leaves ActorUserId null and we
+        // fall back to the calling principal (unchanged behavior).
+        var userId = request.ActorUserId
+            ?? int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         expense.Status = request.Data.Status;
         expense.ApprovedBy = userId;

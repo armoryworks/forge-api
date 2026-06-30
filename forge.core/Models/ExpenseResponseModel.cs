@@ -23,4 +23,9 @@ public record ExpenseResponseModel(
     int? VendorId = null,
     string? VendorName = null,
     int? LinkedVendorBillId = null,
-    string? LinkedVendorBillNumber = null);
+    string? LinkedVendorBillNumber = null,
+    // F-26B-05 — id of the NON-TERMINAL governing ApprovalRequest (EntityType="Expense",
+    // EntityId, Status in {Pending, Escalated}) or null. The UI uses this to route the decision
+    // through /api/v1/approvals/{id}/(approve|reject) instead of PATCHing the status directly
+    // (which the workflow guard now blocks while a request is pending).
+    int? PendingApprovalRequestId = null);

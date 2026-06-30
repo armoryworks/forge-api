@@ -40,9 +40,11 @@ public class ExpenseRepository(AppDbContext db) : IExpenseRepository
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, ct);
 
-        var promotedBills = await GetLivePromotedBillsAsync(expenses.Select(e => e.Id).ToList(), ct);
+        var expenseIds = expenses.Select(e => e.Id).ToList();
+        var promotedBills = await GetLivePromotedBillsAsync(expenseIds, ct);
+        var pendingApprovals = await GetPendingApprovalRequestIdsAsync(expenseIds, ct);
 
-        return expenses.Select(e => ToResponseModel(e, users, promotedBills)).ToList();
+        return expenses.Select(e => ToResponseModel(e, users, promotedBills, pendingApprovals)).ToList();
     }
 
     public async Task<ExpenseResponseModel?> GetByIdAsync(int id, CancellationToken ct)
@@ -61,8 +63,9 @@ public class ExpenseRepository(AppDbContext db) : IExpenseRepository
             .ToDictionaryAsync(u => u.Id, ct);
 
         var promotedBills = await GetLivePromotedBillsAsync([expense.Id], ct);
+        var pendingApprovals = await GetPendingApprovalRequestIdsAsync([expense.Id], ct);
 
-        return ToResponseModel(expense, users, promotedBills);
+        return ToResponseModel(expense, users, promotedBills, pendingApprovals);
     }
 
     public Task<Expense?> FindAsync(int id, CancellationToken ct)
@@ -95,10 +98,34 @@ public class ExpenseRepository(AppDbContext db) : IExpenseRepository
             .ToDictionary(b => b.ExpenseId, b => (b.Id, b.BillNumber));
     }
 
+    /// <summary>
+    /// F-26B-05 — the id of the NON-TERMINAL governing ApprovalRequest per expense id
+    /// (EntityType="Expense", Status in {Pending, Escalated}), keyed by ExpenseId. One grouped
+    /// query for the list path (no N+1). At most one non-terminal request governs an expense at
+    /// a time; if several somehow exist, the most recently requested wins.
+    /// </summary>
+    private async Task<Dictionary<int, int>> GetPendingApprovalRequestIdsAsync(
+        IReadOnlyCollection<int> expenseIds, CancellationToken ct)
+    {
+        if (expenseIds.Count == 0) return [];
+
+        return (await db.ApprovalRequests.AsNoTracking()
+                .Where(r => r.EntityType == "Expense"
+                    && expenseIds.Contains(r.EntityId)
+                    && (r.Status == ApprovalRequestStatus.Pending
+                        || r.Status == ApprovalRequestStatus.Escalated))
+                .OrderByDescending(r => r.RequestedAt)
+                .Select(r => new { r.EntityId, r.Id })
+                .ToListAsync(ct))
+            .GroupBy(r => r.EntityId)
+            .ToDictionary(g => g.Key, g => g.First().Id);
+    }
+
     private static ExpenseResponseModel ToResponseModel(
         Expense e,
         Dictionary<int, ApplicationUser> users,
-        Dictionary<int, (int BillId, string BillNumber)> promotedBills)
+        Dictionary<int, (int BillId, string BillNumber)> promotedBills,
+        Dictionary<int, int> pendingApprovals)
     {
         var userName = users.TryGetValue(e.UserId, out var user)
             ? $"{user.FirstName} {user.LastName}" : "Unknown";
@@ -107,6 +134,9 @@ public class ExpenseRepository(AppDbContext db) : IExpenseRepository
         var promotedBill = promotedBills.TryGetValue(e.Id, out var bill)
             ? bill
             : ((int BillId, string BillNumber)?)null;
+        var pendingApprovalRequestId = pendingApprovals.TryGetValue(e.Id, out var reqId)
+            ? reqId
+            : (int?)null;
 
         return new ExpenseResponseModel(
             e.Id, e.UserId, userName, e.JobId, e.Job?.JobNumber,
@@ -114,6 +144,7 @@ public class ExpenseRepository(AppDbContext db) : IExpenseRepository
             e.Status, e.ApprovedBy, approvedByName, e.ApprovalNotes,
             e.ExpenseDate, e.CreatedAt,
             e.VendorId, e.Vendor?.CompanyName,
-            promotedBill?.BillId, promotedBill?.BillNumber);
+            promotedBill?.BillId, promotedBill?.BillNumber,
+            pendingApprovalRequestId);
     }
 }
