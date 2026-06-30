@@ -48,6 +48,43 @@ public class DeleteEventHandlerTests
     }
 
     [Fact]
+    public async Task Handle_NotifiesAttendees_ExcludingActor()
+    {
+        const int actorUserId = 10;
+
+        var evt = new Event
+        {
+            Title = "Team Sync",
+            EventType = EventType.Meeting,
+            StartTime = DateTimeOffset.UtcNow.AddDays(1),
+            EndTime = DateTimeOffset.UtcNow.AddDays(1).AddHours(1),
+            CreatedByUserId = actorUserId,
+            Attendees =
+            {
+                new EventAttendee { UserId = actorUserId, Status = AttendeeStatus.Accepted },
+                new EventAttendee { UserId = 20, Status = AttendeeStatus.Invited },
+                new EventAttendee { UserId = 30, Status = AttendeeStatus.Accepted },
+            },
+        };
+        _db.Events.Add(evt);
+        await _db.SaveChangesAsync();
+
+        // Middleware sets CurrentUserId to the actor cancelling the event.
+        _db.CurrentUserId = actorUserId;
+
+        await _handler.Handle(new DeleteEventCommand(evt.Id), CancellationToken.None);
+
+        var notifications = _db.Notifications.Where(n => n.EntityId == evt.Id).ToList();
+        notifications.Should().HaveCount(2);
+        notifications.Select(n => n.UserId).Should().BeEquivalentTo(new[] { 20, 30 });
+        notifications.Should().OnlyContain(n =>
+            n.Type == "event_cancelled" &&
+            n.Source == "events" &&
+            n.EntityType == "events" &&
+            n.Title.Contains("Team Sync"));
+    }
+
+    [Fact]
     public async Task Handle_NonExistentEvent_ThrowsKeyNotFoundException()
     {
         var act = () => _handler.Handle(new DeleteEventCommand(999), CancellationToken.None);
