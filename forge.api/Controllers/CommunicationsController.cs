@@ -18,9 +18,11 @@ namespace Forge.Api.Controllers;
 ///
 /// Capability gating is per-endpoint rather than per-controller because
 /// email and voice use distinct caps (CAP-EXT-EMAIL-SYNC vs
-/// CAP-EXT-VOIP-SYNC) and the read endpoints are kind-agnostic. The
-/// per-kind enforcement on Create/Ingest happens at the handler tier
-/// via <see cref="ICapabilitySnapshotProvider"/>.
+/// CAP-EXT-VOIP-SYNC). The mutating endpoints (Create/Ingest) gate per-kind
+/// via <see cref="EnsureKindEnabled"/>; the read endpoint (GetConnections)
+/// filters its result per-kind via <see cref="CapabilityForKind"/> so configs
+/// for a disabled kind are never surfaced (G-39-EMAIL-1). Both share the same
+/// snapshot via <see cref="ICapabilitySnapshotProvider"/>.
 /// </summary>
 [ApiController]
 [Route("api/v1/communications")]
@@ -28,14 +30,26 @@ namespace Forge.Api.Controllers;
 public class CommunicationsController(IMediator mediator, ICapabilitySnapshotProvider snapshots) : ControllerBase
 {
     /// <summary>
-    /// List the calling user's connections. Kind-agnostic — surfaces both
-    /// email and voice rows. The read path is intentionally NOT capability-
-    /// gated so a user can still see (and remove) a stale connection after
-    /// an admin disables the underlying capability.
+    /// List the calling user's connections. Surfaces both email and voice
+    /// rows, but each row is filtered out unless its kind's capability
+    /// (CAP-EXT-EMAIL-SYNC / CAP-EXT-VOIP-SYNC) is enabled for this install.
+    ///
+    /// This read path is per-kind gated rather than blanket-gated: an install
+    /// with email enabled but voice disabled must still list its email rows
+    /// (a blanket [RequiresCapability] would 403 the whole endpoint). The
+    /// filter mirrors the per-kind enforcement on the mutating endpoints via
+    /// <see cref="CapabilityForKind"/>, closing the G-39-EMAIL-1 read-leak
+    /// where configs for a disabled kind were returned regardless. Removal
+    /// stays open (see <see cref="DeleteConnection"/>) so a stale connection
+    /// is never stranded — it just doesn't list while its kind is off.
     /// </summary>
     [HttpGet("connections")]
     public async Task<ActionResult<List<CommunicationSyncConfigResponseModel>>> GetConnections(CancellationToken ct)
-        => Ok(await mediator.Send(new GetCommunicationSyncConfigsQuery(), ct));
+    {
+        var configs = await mediator.Send(new GetCommunicationSyncConfigsQuery(), ct);
+        var visible = configs.Where(c => snapshots.Current.IsEnabled(CapabilityForKind(c.Kind))).ToList();
+        return Ok(visible);
+    }
 
     /// <summary>
     /// Create a new connection. The relevant capability (email or voice)
@@ -191,7 +205,7 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
 
     private void EnsureKindEnabled(CommunicationKind kind)
     {
-        var capability = kind == CommunicationKind.Email ? "CAP-EXT-EMAIL-SYNC" : "CAP-EXT-VOIP-SYNC";
+        var capability = CapabilityForKind(kind);
         if (!snapshots.Current.IsEnabled(capability))
         {
             // Throw the same exception type the MediatR gate-behavior throws so
@@ -200,4 +214,13 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
             throw new CapabilityDisabledException(capability);
         }
     }
+
+    /// <summary>
+    /// Maps a communication kind to the capability that gates it. Single
+    /// source of truth for the per-kind mapping shared by the mutating
+    /// endpoints (<see cref="EnsureKindEnabled"/>) and the read filter on
+    /// <see cref="GetConnections"/>.
+    /// </summary>
+    private static string CapabilityForKind(CommunicationKind kind)
+        => kind == CommunicationKind.Email ? "CAP-EXT-EMAIL-SYNC" : "CAP-EXT-VOIP-SYNC";
 }
