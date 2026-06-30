@@ -48,9 +48,9 @@ public class CustomerReturnsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/resolve")]
-    public async Task<IActionResult> ResolveReturn(int id)
+    public async Task<IActionResult> ResolveReturn(int id, ResolveCustomerReturnRequestModel request)
     {
-        await mediator.Send(new ResolveCustomerReturnCommand(id));
+        await mediator.Send(new ResolveCustomerReturnCommand(id, request.InspectionNotes));
         return NoContent();
     }
 
