@@ -641,12 +641,24 @@ public class PathDefinitions
         var existingPath = await _db.TrainingPaths
             .FirstOrDefaultAsync(p => p.Slug == path.Slug);
 
-        if (existingPath != null) return;
+        if (existingPath == null)
+        {
+            _db.TrainingPaths.Add(path);
+            await _db.SaveChangesAsync();
+            existingPath = path;
+        }
 
-        _db.TrainingPaths.Add(path);
-        await _db.SaveChangesAsync();
+        // Additively reconcile module assignments so curation (new modules added to an
+        // already-seeded path) takes effect on reseed. We only ADD links that don't exist
+        // yet — existing assignments and ordering (incl. any admin edits) are left untouched.
+        var existing = await _db.TrainingPathModules
+            .Where(m => m.PathId == existingPath.Id)
+            .Select(m => new { m.ModuleId, m.Position })
+            .ToListAsync();
+        var existingModuleIds = existing.Select(e => e.ModuleId).ToHashSet();
+        var position = existing.Count == 0 ? 1 : existing.Max(e => e.Position) + 1;
 
-        var position = 1;
+        var added = false;
         foreach (var (slug, required) in modules)
         {
             var moduleId = Lookup(slug);
@@ -656,15 +668,18 @@ public class PathDefinitions
                 continue;
             }
 
+            if (!existingModuleIds.Add(moduleId)) continue;
+
             _db.TrainingPathModules.Add(new TrainingPathModule
             {
-                PathId = path.Id,
+                PathId = existingPath.Id,
                 ModuleId = moduleId,
                 Position = position++,
                 IsRequired = required,
             });
+            added = true;
         }
 
-        await _db.SaveChangesAsync();
+        if (added) await _db.SaveChangesAsync();
     }
 }
