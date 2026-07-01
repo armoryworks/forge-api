@@ -24,6 +24,12 @@
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
+    <!-- Pin Microsoft.OpenApi over the transitive 2.0.0 pulled by AspNetCore.OpenApi:
+         2.0.0 is flagged by GHSA-v5pm-xwqc-g5wc (stack overflow parsing untrusted
+         OpenAPI docs), which -warnaserror escalates to a build error. 2.7.5 is the
+         first patched 2.x. Forge only generates OpenAPI docs, so the vuln surface
+         doesn't apply — this pin just clears the NuGet audit gate. -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
