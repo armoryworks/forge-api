@@ -170,6 +170,15 @@ public class AuthController(IMediator mediator, ISsoHandoffStore handoffStore) :
         return NoContent();
     }
 
+    [HttpPost("change-email")]
+    [Authorize]
+    public async Task<IActionResult> ChangeEmail(ChangeEmailCommand command)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        await mediator.Send(command with { UserId = userId });
+        return NoContent();
+    }
+
     [HttpGet("sso/providers")]
     [AllowAnonymous]
     public async Task<IActionResult> GetSsoProviders()
