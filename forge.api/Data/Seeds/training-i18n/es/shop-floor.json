@@ -619,11 +619,11 @@
         },
         {
           "id": "sf7",
-          "text": "Ajusta el tamaño de fuente en el quiosco de taller a 18px y cambia al tema oscuro. Se reinicia el navegador. ¿Qué ocurre con estos ajustes?",
+          "text": "Agranda la fuente en el quiosco de taller y cambia al tema oscuro, luego se reinicia el navegador. ¿Qué ocurre con estos ajustes?",
           "options": [
             {
               "id": "a",
-              "text": "Se restablecen a los valores predeterminados (12px, tema claro)"
+              "text": "Se restablecen a los valores predeterminados (tamaño de fuente estándar, tema claro)"
             },
             {
               "id": "b",
@@ -632,7 +632,7 @@
             },
             {
               "id": "c",
-              "text": "Solo se conserva el tema, el tamaño de fuente se restablece"
+              "text": "Solo se conserva el tema, la fuente más grande se restablece"
             },
             {
               "id": "d",

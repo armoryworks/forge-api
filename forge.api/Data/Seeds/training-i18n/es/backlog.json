@@ -455,27 +455,27 @@
         },
         {
           "id": "bl5",
-          "text": "¿Qué atributo data-testid identifica el campo de entrada del título del trabajo en el diálogo de creación/edición?",
+          "text": "Desea agregar un trabajo completamente nuevo al Backlog. ¿Qué hace?",
           "options": [
             {
               "id": "a",
-              "text": "data-testid=\"backlog-title\""
-            },
-            {
-              "id": "b",
-              "text": "data-testid=\"job-title\"",
+              "text": "Hacer clic en el botón Crear trabajo del encabezado de la página y luego completar los detalles —al menos un título y una pista— en el panel que se abre y guardar",
               "isCorrect": true
             },
             {
+              "id": "b",
+              "text": "Hacer doble clic en un área vacía de la lista de trabajos para iniciar una fila nueva y escribir el trabajo ahí mismo"
+            },
+            {
               "id": "c",
-              "text": "data-testid=\"create-job-title\""
+              "text": "Abrir cualquier trabajo existente, editar su título y su pista, y guardarlo como una copia"
             },
             {
               "id": "d",
-              "text": "data-testid=\"title-input\""
+              "text": "Cambiar primero a la vista de tarjetas: los trabajos nuevos solo se pueden crear desde la cuadrícula de tarjetas"
             }
           ],
-          "explanation": "La entrada del título del trabajo tiene data-testid=\"job-title\". Todos los campos del diálogo de trabajo siguen el patrón data-testid=\"job-{field}\": job-title, job-description, job-track-type, job-customer, job-assignee, job-priority, job-due-date y job-save-btn."
+          "explanation": "Haga clic en el botón Crear trabajo (el del icono de más) del encabezado de la página. Se abre un panel donde introduce los detalles del trabajo: el Título y el Tipo de pista son obligatorios, y también puede establecer una Descripción, Cliente, Responsable, Prioridad y Fecha de vencimiento. Al guardar, el nuevo trabajo aterriza en la primera etapa de la pista que eligió y aparece tanto en el Backlog como en su tablero Kanban. No hay edición de filas en el lugar, no hay guardar como copia, y crear un trabajo funciona igual en cualquiera de las vistas."
         },
         {
           "id": "bl6",
@@ -575,27 +575,27 @@
         },
         {
           "id": "bl10",
-          "text": "¿Qué icono se usa para el botón de alternancia de la Vista de tarjetas?",
+          "text": "Cambió a la vista de tarjetas y luego cerró el Backlog. Cuando vuelve a él más tarde, ¿qué vista verá?",
           "options": [
             {
               "id": "a",
-              "text": "grid_view"
-            },
-            {
-              "id": "b",
-              "text": "dashboard"
-            },
-            {
-              "id": "c",
-              "text": "view_module",
+              "text": "La vista de tarjetas: el Backlog recuerda la última vista que usó y la restaura",
               "isCorrect": true
             },
             {
+              "id": "b",
+              "text": "La vista de tabla: el Backlog siempre vuelve a la tabla cada vez que lo abre"
+            },
+            {
+              "id": "c",
+              "text": "La vista que un compañero usó más recientemente, ya que la configuración es compartida"
+            },
+            {
               "id": "d",
-              "text": "apps"
+              "text": "Le pide elegir una vista de nuevo cada vez que se carga la página"
             }
           ],
-          "explanation": "La alternancia de la Vista de tarjetas usa el icono Material view_module. La alternancia de la Vista de tabla usa view_list. Ambas están en el grupo view-toggle del encabezado de la página. El botón activo recibe la clase icon-btn--active."
+          "explanation": "Su elección de vista se recuerda y se restaura la próxima vez que entra, así que si dejó el Backlog en la vista de tarjetas volverá a la vista de tarjetas. La preferencia es solo suya, no se comparte con los compañeros. La única excepción es un enlace que especifica una vista: al abrir ese enlace se muestra la vista que indica, sin importar su elección guardada."
         },
         {
           "id": "bl11",
@@ -695,27 +695,27 @@
         },
         {
           "id": "bl15",
-          "text": "¿Qué data-testid usaría para localizar el selector de fecha de vencimiento en el diálogo de creación de trabajos?",
+          "text": "¿Qué significa la Fecha de vencimiento de un trabajo y cómo la usa el Backlog?",
           "options": [
             {
               "id": "a",
-              "text": "data-testid=\"job-dueDate\""
-            },
-            {
-              "id": "b",
-              "text": "data-testid=\"job-due-date\"",
+              "text": "Es la fecha objetivo de finalización del trabajo. El Backlog la usa para ordenar el trabajo y marca los trabajos como atrasados una vez que la fecha ya pasó",
               "isCorrect": true
             },
             {
+              "id": "b",
+              "text": "Es la fecha en que se creó el trabajo, y no se puede cambiar después"
+            },
+            {
               "id": "c",
-              "text": "data-testid=\"backlog-due-date\""
+              "text": "Es el último día en que puede editar el trabajo antes de que se bloquee"
             },
             {
               "id": "d",
-              "text": "data-testid=\"create-due-date\""
+              "text": "Es obligatoria en cada trabajo, y el trabajo no se puede guardar sin ella"
             }
           ],
-          "explanation": "El selector de fecha de vencimiento tiene data-testid=\"job-due-date\". El diálogo de trabajo usa la convención de nomenclatura data-testid=\"job-{field-name}\" con nombres de campo en kebab-case: job-title, job-description, job-track-type, job-customer, job-assignee, job-priority, job-due-date y job-save-btn."
+          "explanation": "La Fecha de vencimiento es la fecha objetivo de finalización del trabajo. Es opcional: un trabajo puede no tener ninguna fecha de vencimiento. Una vez que la fecha ya pasó, el trabajo se marca como atrasado: su fila se pone tenuemente roja en la lista y su tarjeta se resalta en la cuadrícula, para que pueda detectar de un vistazo el trabajo atrasado o próximo a vencer y priorizar en consecuencia. No es la fecha de creación, no bloquea el trabajo y no es obligatoria."
         },
         {
           "id": "bl16",

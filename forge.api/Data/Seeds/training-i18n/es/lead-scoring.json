@@ -344,14 +344,14 @@
         },
         {
           "id": "ls5",
-          "text": "La Especificación de coincidencia de una dimensión ICP es el arreglo JSON [\"aerospace\",\"defense\"]. ¿Cómo se hace coincidir un prospecto con ella?",
+          "text": "Configura una dimensión ICP para que coincida con una simple lista de palabras como 'aerospace' y 'defense'. ¿Cómo cuenta un prospecto como coincidencia para esa dimensión?",
           "options": [
-            { "id": "a", "text": "La industria del prospecto debe ser exactamente igual a 'aerospace' o 'defense'" },
-            { "id": "b", "text": "Una búsqueda de subcadena sin distinción de mayúsculas de esas cadenas en el nombre de empresa, la fuente, el correo y los campos de la cuenta del prospecto — cualquier acierto cuenta", "isCorrect": true },
-            { "id": "c", "text": "El prospecto debe contener AMBAS cadenas para coincidir" },
-            { "id": "d", "text": "Los arreglos no son una forma válida de Especificación de coincidencia y se ignoran" }
+            { "id": "a", "text": "El campo de industria del prospecto debe estar escrito exactamente como 'aerospace' o 'defense', sin aceptar nada más" },
+            { "id": "b", "text": "Si cualquiera de esas palabras aparece en cualquier parte del nombre de empresa, la fuente, el correo del prospecto o la industria, el estado, el tamaño o el nombre de su cuenta vinculada (sin distinción de mayúsculas), la dimensión coincide", "isCorrect": true },
+            { "id": "c", "text": "Cada palabra de la lista tiene que aparecer en el prospecto antes de que cuente como coincidencia" },
+            { "id": "d", "text": "Una lista simple de palabras no puede usarse para coincidencias — siempre hay que elegir un solo campo" }
           ],
-          "explanation": "Un arreglo de cadenas es una coincidencia de SUBCADENA sin distinción de mayúsculas. El trabajo prueba cada cadena contra el nombre de empresa, la fuente, el correo del prospecto y (si está en una Cuenta) la industria, el estado, el rango de tamaño y el nombre de la cuenta. Si cualquier cadena se encuentra dentro de cualquier campo, la dimensión acierta y se añade su peso. Para una coincidencia exacta de campo, use la forma de objeto con clave como { \"industries\": [...] }."
+          "explanation": "Una simple lista de palabras es una búsqueda laxa de 'contiene' sin distinción de mayúsculas. La ejecución de puntuación busca cualquiera de esas palabras en cualquier parte del nombre de empresa, la fuente y el correo del prospecto y —cuando el prospecto está ligado a una cuenta— la industria, el estado, el tamaño y el nombre de esa cuenta. Encontrar una sola palabra en cualquiera de esos lugares basta para que la dimensión coincida y sume su peso. Si en cambio necesita que la palabra coincida exactamente con un campo específico, usa la forma con clave más específica que nombra ese campo."
         },
         {
           "id": "ls6",
@@ -388,36 +388,36 @@
         },
         {
           "id": "ls9",
-          "text": "Un proveedor de completitud debe tener una identificación fiscal Y al menos una dirección. ¿Qué predicado expresa eso?",
+          "text": "Quiere que un registro de proveedor cuente como completo solo una vez que tenga tanto una identificación fiscal como al menos una dirección registrada. En la administración de Completitud de entidades, ¿cómo lo configura?",
           "options": [
-            { "id": "a", "text": "{ \"type\": \"any\", \"of\": [ {\"type\":\"fieldPresent\",\"field\":\"taxId\"}, {\"type\":\"relationExists\",\"relation\":\"addresses\",\"minCount\":1} ] }" },
-            { "id": "b", "text": "{ \"type\": \"all\", \"of\": [ {\"type\":\"fieldPresent\",\"field\":\"taxId\"}, {\"type\":\"relationExists\",\"relation\":\"addresses\",\"minCount\":1} ] }", "isCorrect": true },
-            { "id": "c", "text": "{ \"type\": \"fieldEquals\", \"field\": \"taxId\", \"value\": \"addresses\" }" },
-            { "id": "d", "text": "{ \"type\": \"fieldPresent\", \"field\": \"taxId,addresses\" }" }
+            { "id": "a", "text": "Añade un requisito de completitud para la identificación fiscal y otro para tener una dirección, de modo que cada uno aparezca como su propio elemento que un usuario puede completar", "isCorrect": true },
+            { "id": "b", "text": "Marca los campos de identificación fiscal y dirección como favoritos en la pantalla del proveedor" },
+            { "id": "c", "text": "Sube la puntuación de calidad del proveedor hasta que las piezas faltantes desaparezcan por sí solas" },
+            { "id": "d", "text": "La completitud la fija el sistema y no puede adaptarse a las necesidades de un proveedor" }
           ],
-          "explanation": "Use 'all' para exigir que cada predicado anidado pase (Y lógico). 'any' pasaría si cualquiera de los dos se satisficiera (O), así que la opción A es la versión O y no exige AMBOS. Los predicados anidados van bajo el arreglo 'of', fieldPresent comprueba que la identificación fiscal esté establecida y relationExists (con la clave 'relation') comprueba que la colección de direcciones tenga al menos un elemento. Los nombres de campo se escriben en camelCase."
+          "explanation": "La administración de Completitud de entidades es donde redacta qué significa 'lo suficientemente completo para usarse' para un registro. Añade un requisito por cada cosa que debe ser cierta — aquí, un requisito de identificación fiscal y un requisito de tener una dirección — cada uno ligado al tipo de registro de proveedor y a la función a la que sirve. Mantenerlos como requisitos separados hace que cada uno aparezca en su propia línea para que un usuario pueda verlos y corregirlos individualmente, en lugar de agrupar varias comprobaciones."
         },
         {
           "id": "ls10",
-          "text": "¿Qué sucede si un predicado de completitud hace referencia a un campo desconocido o contiene JSON mal formado?",
+          "text": "Un registro de proveedor aún no satisface uno de sus requisitos de completitud. ¿Qué ve el usuario que le sucede a ese registro?",
           "options": [
-            { "id": "a", "text": "La ficha de completitud lanza un error y no se representa" },
-            { "id": "b", "text": "Se evalúa de forma segura como falso (el requisito cuenta como no cumplido) y registra una advertencia", "isCorrect": true },
-            { "id": "c", "text": "El requisito se elimina automáticamente" },
-            { "id": "d", "text": "Se evalúa como verdadero para que el registro no se bloquee" }
+            { "id": "a", "text": "El registro se elimina hasta que se proporcione la información faltante" },
+            { "id": "b", "text": "El registro se marca como incompleto y el requisito no cumplido aparece en su lista de lo que aún falta", "isCorrect": true },
+            { "id": "c", "text": "Se le bloquea al usuario el acceso al registro y no puede abrirlo en absoluto" },
+            { "id": "d", "text": "No se muestra nada en absoluto, así que no hay forma de saber que al registro le falta algo" }
           ],
-          "explanation": "El motor de predicados cortocircuita los campos desconocidos, operadores desconocidos y JSON mal formado a falso, emitiendo una sola advertencia. El registro simplemente se ve incompleto (el requisito aparece en la lista de faltantes) hasta que corrige el predicado. Nunca rompe la ficha y nunca pasa en silencio."
+          "explanation": "Un requisito no cumplido no elimina el registro ni bloquea al usuario de forma estricta. En cambio, el registro se marca como incompleto y ese requisito aparece en la lista de faltantes del registro — el recuento continuo de lo que todavía hay que completar. El usuario puede seguir trabajando con el registro y simplemente ver, de un vistazo, exactamente qué piezas están pendientes para saber qué proporcionar a continuación."
         },
         {
           "id": "ls11",
-          "text": "En una fila de completitud, la ficha muestra el token crudo 'entityCompleteness.fields.taxId' en lugar de 'Identificación fiscal'. ¿Por qué?",
+          "text": "Un usuario abre un registro de cliente y ve el indicador de completitud enumerando 'Identificación fiscal' y 'Dirección de facturación'. ¿Qué le está diciendo y qué debería hacer?",
           "options": [
-            { "id": "a", "text": "El predicado es inválido" },
-            { "id": "b", "text": "La Clave de nombre visible no tiene una entrada de traducción correspondiente en los archivos de idioma, así que la interfaz recurre a la clave cruda", "isCorrect": true },
-            { "id": "c", "text": "La capacidad está deshabilitada" },
-            { "id": "d", "text": "El Orden de visualización está demasiado alto" }
+            { "id": "a", "text": "Son las piezas de información que aún faltan en el registro; el usuario debería completarlas para que el registro quede completo", "isCorrect": true },
+            { "id": "b", "text": "Son campos que al usuario no se le permite ver, así que debería ignorarlos" },
+            { "id": "c", "text": "Son cambios recientes que hizo otro usuario, así que no se necesita ninguna acción" },
+            { "id": "d", "text": "Son sugerencias opcionales que nunca afectan si el registro puede usarse" }
           ],
-          "explanation": "La Clave de nombre visible y la Clave de mensaje de faltante son CLAVES i18n, no texto literal. La ficha representa el valor traducido solo si existe una entrada correspondiente en en.json (y es.json para paridad). Un token crudo en pantalla es la señal reveladora de que falta la conexión de traducción. Añada las entradas bajo los prefijos entityCompleteness.fields.* / entityCompleteness.messages.*."
+          "explanation": "El indicador de completitud enumera exactamente las piezas de información requeridas que a este registro todavía le faltan, cada una mostrada con una etiqueta corta y legible y una explicación más completa al pasar el cursor. Es una lista de tareas para hacer que el registro sea utilizable: el usuario actúa sobre ella proporcionando cada elemento enumerado, y a medida que lo hace, esas entradas desaparecen de la lista hasta que el registro queda como completo."
         },
         {
           "id": "ls12",

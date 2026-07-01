@@ -520,7 +520,7 @@
         },
         {
           "id": "kb20",
-          "text": "El banner de conexión de SignalR en la parte superior de la página se vuelve amarillo y dice 'Reconectando...'. ¿Qué está pasando y qué deberías hacer?",
+          "text": "El banner de conexión en la parte superior de la página se vuelve amarillo y dice 'Reconectando...'. ¿Qué está pasando y qué deberías hacer?",
           "options": [
             { "id": "a", "text": "La conexión con el servidor se cayó y se está reconectando sola — espera unos segundos y las actualizaciones en vivo se reanudan cuando vuelva", "isCorrect": true },
             { "id": "b", "text": "El servidor se está apagando por mantenimiento — guarda tu trabajo y cierra la aplicación" },

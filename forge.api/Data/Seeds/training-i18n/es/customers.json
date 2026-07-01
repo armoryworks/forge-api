@@ -918,27 +918,27 @@
         },
         {
           "id": "cu12",
-          "text": "Quiere compartir un enlace directo a la pestaña Órdenes de un cliente con un colega. ¿Qué enlace compartiría?",
+          "text": "Quiere compartir un enlace directo a la pestaña Órdenes de un cliente con un colega. ¿Cómo obtiene ese enlace?",
           "options": [
             {
               "id": "a",
-              "text": "/customers?tab=orders&id=42"
+              "text": "No puede enlazar a una sola pestaña: un enlace compartido siempre abre solo la lista de clientes"
             },
             {
               "id": "b",
-              "text": "/customers/42/orders",
+              "text": "Abra el cliente, haga clic en la pestaña Órdenes y copie el enlace de la página desde su navegador: se actualiza para apuntar justo a esa pestaña",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "/customers/42?detail=orders"
+              "text": "Tiene que decirle a su colega con palabras qué pestaña abrir; no hay un enlace que se pueda compartir"
             },
             {
               "id": "d",
-              "text": "/orders?customer=42"
+              "text": "Escriba el nombre del cliente en el cuadro de búsqueda y envíe ese texto en su lugar"
             }
           ],
-          "explanation": "La pestaña Órdenes de un cliente tiene su propia dirección web, como /customers/42/orders, donde 42 es el cliente. Ese enlace se puede marcar como favorito y compartir."
+          "explanation": "Cuando abre un cliente y cambia de pestaña, el enlace de la página se actualiza para apuntar a ese cliente en esa pestaña. Cópielo desde su navegador para marcarlo como favorito o compartirlo: al abrirlo más tarde se reabre ese cliente con la pestaña Órdenes ya seleccionada."
         },
         {
           "id": "cu13",

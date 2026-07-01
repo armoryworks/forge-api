@@ -212,14 +212,14 @@
         },
         {
           "id": "pl10",
-          "text": "Quiere encontrar todos los lotes de una pieza específica que se recibieron de proveedores. ¿Cómo consulta la API?",
+          "text": "En la lista de Lotes filtra por una sola pieza y ve tanto lotes que recibió de proveedores como lotes que produjo su taller. ¿Cómo distingue cuáles vinieron de un proveedor?",
           "options": [
-            { "id": "a", "text": "GET /api/v1/lots?partId={id} — luego filtre los resultados del lado del cliente para aquellos con un purchaseOrderLineId", "isCorrect": true },
-            { "id": "b", "text": "GET /api/v1/lots/{partId}/vendor-lots" },
-            { "id": "c", "text": "GET /api/v1/parts/{id}/lots?source=vendor" },
-            { "id": "d", "text": "GET /api/v1/lots/trace?partId={id}&type=received" }
+            { "id": "a", "text": "Los lotes recibidos de un proveedor son los que están vinculados a una orden de compra y llevan el número de lote propio del proveedor; los lotes internos no tienen ninguno de los dos y en su lugar están ligados a un trabajo o corrida de producción", "isCorrect": true },
+            { "id": "b", "text": "Los lotes de proveedor siempre aparecen resaltados en rojo en la lista; los lotes internos se muestran en texto plano" },
+            { "id": "c", "text": "No hay forma de distinguirlos en la lista — tiene que abrir cada lote y leer sus notas" },
+            { "id": "d", "text": "Los lotes de proveedor siempre tienen fecha de vencimiento, así que cualquier lote sin fecha de vencimiento se hizo internamente" }
           ],
-          "explanation": "El endpoint GET /api/v1/lots acepta un parámetro de consulta partId para filtrar por pieza. La respuesta incluye los campos purchaseOrderLineId y supplierLotNumber — los lotes con valores no nulos para estos se recibieron de proveedores. No hay un endpoint de lotes de proveedor dedicado."
+          "explanation": "Un lote recibido de un proveedor está vinculado a la línea de orden de compra por la que llegó y registra el número de lote propio del proveedor, por lo que el panel de detalle muestra una fila de Lote del proveedor y un evento de Orden de compra en la línea de tiempo de trazabilidad. Un lote que produjo su taller está ligado a un trabajo (y corrida de producción) en su lugar y no tiene número de lote del proveedor. La fecha de vencimiento no tiene relación — depende de si el material tiene vida útil, no de dónde provino el lote."
         }
       ]
     }
