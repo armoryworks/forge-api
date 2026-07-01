@@ -4,7 +4,7 @@
     "title": "Visión general de Pagos",
     "summary": "Qué hace el módulo de Pagos, el modo independiente frente al integrado, los métodos de pago y cómo los pagos se aplican a las facturas.",
     "contentJson": {
-      "body": "## Visión general de Pagos\n\nEl módulo de Pagos registra los pagos entrantes de los clientes y los aplica a las facturas pendientes. Forma parte de la frontera contable, lo que significa que opera en **modo independiente** cuando no hay ningún proveedor de contabilidad externo (QuickBooks, Xero, etc.) conectado. Cuando se integra un proveedor de contabilidad, los pagos se sincronizan desde el sistema externo y el módulo pasa a ser de solo lectura.\n\n### Modo independiente frente a integrado\n\n**Modo independiente (sin proveedor de contabilidad):** Tiene control total. Cree pagos, aplíquelos a facturas, elimine pagos no aplicados y haga seguimiento del historial de pagos directamente en QB Engineer. Este es el modo predeterminado para los talleres que no usan un sistema contable externo.\n\n**Modo integrado (proveedor de contabilidad conectado):** Aparece un banner azul en la parte superior de la página de Pagos que indica que los pagos los gestiona el proveedor conectado (p. ej., QuickBooks Online). Los datos de pago se sincronizan automáticamente: puede ver los pagos, pero no puede crearlos, editarlos ni eliminarlos desde QB Engineer. Todas las operaciones de pago ocurren en el sistema contable.\n\n### Métodos de pago\n\nCada pago registra cómo se recibió. Los métodos compatibles son:\n- **Efectivo** — moneda física recibida\n- **Cheque** — cheque de papel (use el campo Número de referencia para registrar el número de cheque)\n- **Tarjeta de crédito** — pago con tarjeta (el número de referencia puede contener los últimos cuatro dígitos o el ID de la transacción)\n- **Transferencia bancaria** — ACH o transferencia bancaria directa\n- **Transferencia electrónica** — transferencia electrónica (el número de referencia contiene la confirmación de la transferencia)\n- **Otro** — cualquier método no cubierto anteriormente\n\n### Aplicación de pagos a facturas\n\nUn pago puede aplicarse a una o más facturas. Cada aplicación especifica qué factura recibe cuánto del pago. Esto permite:\n\n- **Pago completo** — el monto total del pago cubre una factura exactamente\n- **Pago parcial** — solo parte del pago va a una factura (la factura pasa al estado Pagada parcialmente)\n- **Pago dividido** — un pago cubre porciones de varias facturas\n- **Pago no aplicado** — un pago (o una porción de él) se registra sin vincularse a ninguna factura todavía. El monto no aplicado se muestra en la tabla y se resalta en la vista de detalle.\n\nCuando una aplicación de pago cubre por completo el saldo restante de una factura, esa factura pasa automáticamente al estado Pagada. Si se aplica un monto parcial, la factura pasa a Pagada parcialmente.\n\n### Reglas de validación\n\nEl total de todas las aplicaciones de un pago no puede exceder el monto del pago. Cada monto de aplicación individual debe ser positivo, y no puede exceder el saldo restante de su factura de destino.\n\n### Cuándo usar Pagos\n\n- Cuando recibe un cheque, efectivo o pago electrónico de un cliente\n- Cuando necesita registrar un pago parcial contra una factura grande\n- Cuando un solo pago de cliente cubre varias facturas\n- Cuando necesita hacer seguimiento de pagos no aplicados (dinero recibido antes de facturar)\n- Cuando revisa el historial de pagos de un cliente a través del diálogo de detalle",
+      "body": "## Visión general de Pagos\n\nEl módulo de Pagos registra los pagos entrantes de los clientes y los aplica a las facturas pendientes. Forma parte de la frontera contable, lo que significa que opera en **modo independiente** cuando no hay ningún proveedor de contabilidad externo (QuickBooks, Xero, etc.) conectado. Cuando se integra un proveedor de contabilidad, los pagos se sincronizan desde el sistema externo y el módulo pasa a ser de solo lectura.\n\n### Modo independiente frente a integrado\n\n**Modo independiente (sin proveedor de contabilidad):** Tiene control total. Cree pagos, aplíquelos a facturas, elimine pagos no aplicados y haga seguimiento del historial de pagos directamente en QB Engineer. Este es el modo predeterminado para los talleres que no usan un sistema contable externo.\n\n**Modo integrado (proveedor de contabilidad conectado):** Aparece un banner azul en la parte superior de la página de Pagos que indica que los pagos los gestiona el proveedor conectado (p. ej., QuickBooks Online). Los datos de pago se sincronizan automáticamente: puede ver los pagos, pero no puede crearlos, editarlos ni eliminarlos desde QB Engineer. Todas las operaciones de pago ocurren en el sistema contable.\n\n### Métodos de pago\n\nCada pago registra cómo se recibió. Los métodos compatibles son:\n- **Efectivo** — moneda física recibida\n- **Cheque** — cheque de papel (use el campo Número de referencia para registrar el número de cheque)\n- **Tarjeta de crédito** — pago con tarjeta (el número de referencia puede contener los últimos cuatro dígitos o el ID de la transacción)\n- **Transferencia bancaria** — ACH o transferencia bancaria directa\n- **Transferencia electrónica** — transferencia electrónica (el número de referencia contiene la confirmación de la transferencia)\n- **Otro** — cualquier método no cubierto anteriormente\n\n### Aplicación de pagos a facturas\n\nUn pago puede aplicarse a una o más facturas. Cada aplicación especifica qué factura recibe cuánto del pago. Esto permite:\n\n- **Pago completo** — el monto total del pago cubre una factura exactamente\n- **Pago parcial** — solo parte del pago va a una factura (la factura pasa al estado Pagada parcialmente)\n- **Pago dividido** — un pago cubre porciones de varias facturas\n- **Pago no aplicado** — un pago (o una porción de él) se registra sin vincularse a ninguna factura todavía. El monto no aplicado se muestra en la tabla y se resalta en la vista de detalle.\n\nCuando una aplicación de pago cubre por completo el saldo restante de una factura, esa factura pasa automáticamente al estado Pagada. Si se aplica un monto parcial, la factura pasa a Pagada parcialmente.\n\n### Reglas de validación\n\nEl total de todas las aplicaciones de un pago no puede exceder el monto del pago. Cada monto de aplicación individual debe ser positivo, y no puede exceder el saldo restante de su factura de destino.\n\n### Cuándo usar Pagos\n\n- Cuando recibe un cheque, efectivo o pago electrónico de un cliente\n- Cuando necesita registrar un pago parcial contra una factura grande\n- Cuando un solo pago de cliente cubre varias facturas\n- Cuando necesita hacer seguimiento de pagos no aplicados (dinero recibido antes de facturar)\n- Cuando revisa el historial de pagos de un cliente abriendo un pago",
       "sections": []
     }
   },
@@ -19,8 +19,8 @@
         {
           "element": "[data-testid='new-payment-btn']",
           "popover": {
-            "title": "Botón Registrar pago",
-            "description": "Haga clic aquí para registrar un nuevo pago. Seleccionará el cliente, elegirá un método de pago, ingresará el monto y la fecha y, opcionalmente, aplicará el pago a una o más facturas. Este botón solo está disponible en modo independiente (sin proveedor de contabilidad conectado).",
+            "title": "Registrar un pago",
+            "description": "Haga clic aquí para registrar un nuevo pago. Elija el cliente, cómo pagó, ingrese el monto y la fecha y, si quiere, aplíquelo a una o más facturas. Este botón solo aparece cuando no está conectado a un sistema de contabilidad externo.",
             "side": "bottom"
           }
         },
@@ -28,23 +28,23 @@
           "element": ".filters-bar app-input",
           "popover": {
             "title": "Buscar pagos",
-            "description": "Busque por número de pago, nombre del cliente o número de referencia. Los resultados se filtran en tiempo real a medida que escribe.",
+            "description": "Busque por número de pago, nombre del cliente o número de referencia. La lista se reduce a medida que escribe.",
             "side": "bottom"
           }
         },
         {
           "element": ".filters-bar app-select",
           "popover": {
-            "title": "Filtro de método de pago",
-            "description": "Filtre la tabla por método de pago: Efectivo, Cheque, Tarjeta de crédito, Transferencia bancaria, Transferencia electrónica u Otro. Seleccione 'Todos los métodos' para borrar el filtro.",
+            "title": "Filtrar por método",
+            "description": "Muestre solo un tipo de pago: efectivo, cheque, tarjeta de crédito, transferencia bancaria, transferencia electrónica u otro. Elija 'Todos los métodos' para borrar el filtro.",
             "side": "bottom"
           }
         },
         {
           "element": "app-data-table",
           "popover": {
-            "title": "Tabla de Pagos",
-            "description": "Muestra todos los pagos registrados. Las columnas incluyen N.º de pago, Cliente, Método, Monto, monto Aplicado, monto No aplicado (resaltado en amarillo cuando es > $0), Fecha, N.º de referencia y fecha de Creación. Haga clic en cualquier fila para abrir el diálogo de detalle del pago. Haga clic en los encabezados de columna para ordenar; use el icono de engranaje para gestionar la visibilidad de las columnas.",
+            "title": "La lista de Pagos",
+            "description": "Aquí aparece cada pago que ha registrado, con detalles como el número de pago, el cliente, el método, el monto y la fecha. El dinero aún no aplicado a una factura se resalta en amarillo. Haga clic en cualquier fila para abrir un pago. Haga clic en el título de una columna para ordenar.",
             "side": "top"
           }
         }
@@ -59,99 +59,99 @@
       "title": "Referencia de campos de Pagos",
       "groups": [
         {
-          "heading": "Campos del formulario de pago (barra lateral del diálogo de creación)",
+          "heading": "Detalles del pago (panel de Nuevo pago)",
           "items": [
-            { "label": "Cliente (requerido)", "value": "Menú desplegable poblado desde el módulo de Clientes. Selecciona qué cliente realizó el pago. data-testid: payment-customer" },
-            { "label": "Método de pago (requerido)", "value": "Menú desplegable: Efectivo, Cheque, Tarjeta de crédito, Transferencia bancaria, Transferencia electrónica, Otro. Determina el tipo de pago recibido. data-testid: payment-method" },
-            { "label": "Monto (requerido)", "value": "Entrada numérica, debe ser mayor que $0.00. El monto total del pago recibido. data-testid: payment-amount" },
-            { "label": "Fecha de pago (requerido)", "value": "Selector de fecha. La fecha en que se recibió el pago. Se almacena como UTC. data-testid: payment-date" },
-            { "label": "Número de referencia (opcional)", "value": "Entrada de texto. Número de cheque, confirmación de transferencia electrónica, ID de transacción o cualquier referencia externa. data-testid: payment-ref" },
-            { "label": "Notas (opcional)", "value": "Área de texto, 3 filas. Notas de texto libre sobre el pago. data-testid: payment-notes" }
+            { "label": "Cliente (requerido)", "value": "Elija en el menú qué cliente realizó el pago, de entre sus clientes." },
+            { "label": "Método de pago (requerido)", "value": "Elija cómo pagó: efectivo, cheque, tarjeta de crédito, transferencia bancaria, transferencia electrónica u otro." },
+            { "label": "Monto (requerido)", "value": "Cuánto recibió. Debe ser mayor que $0.00." },
+            { "label": "Fecha de pago (requerido)", "value": "La fecha en que recibió el pago." },
+            { "label": "Número de referencia (opcional)", "value": "Un número de cheque, una confirmación de transferencia, un ID de transacción o cualquier referencia externa que quiera guardar." },
+            { "label": "Notas (opcional)", "value": "Cualquier otra cosa que quiera anotar sobre el pago." }
           ]
         },
         {
-          "heading": "Campos de aplicación a facturas (panel principal del diálogo de creación)",
+          "heading": "Aplicar a facturas (panel de Nuevo pago)",
           "items": [
-            { "label": "ID de factura (requerido)", "value": "Entrada numérica. El ID de la factura contra la que aplicar el pago." },
-            { "label": "Número de factura (requerido)", "value": "Entrada de texto. El número de factura para fines de visualización." },
-            { "label": "Monto (requerido)", "value": "Entrada numérica, debe ser mayor que $0.00. La porción del pago a aplicar a esta factura. No puede exceder el saldo restante de la factura." },
-            { "label": "Botón Agregar", "value": "Agrega la entrada de aplicación a la tabla. Deshabilitado cuando algún campo de aplicación está vacío o es inválido." },
-            { "label": "Botón Eliminar (icono X)", "value": "Elimina una entrada de aplicación de la tabla. Botón de icono de peligro en rojo con información sobre herramientas." },
-            { "label": "Total aplicado", "value": "Se muestra en el pie de la tabla de aplicaciones y en el resumen de la barra lateral. Suma de todos los montos de aplicación. No puede exceder el monto del pago." }
+            { "label": "Factura (requerido)", "value": "La factura a la que quiere destinar este pago." },
+            { "label": "Número de factura (requerido)", "value": "El número de la factura, que se muestra para que confirme que eligió la correcta." },
+            { "label": "Monto (requerido)", "value": "Cuánto del pago va a esta factura. Debe ser mayor que $0.00 y no más de lo que la factura aún debe." },
+            { "label": "Botón Agregar", "value": "Agrega esta factura a la lista de abajo. Permanece atenuado hasta que todos los campos estén completos y correctos." },
+            { "label": "Botón Eliminar", "value": "Quita una factura de la lista." },
+            { "label": "Total aplicado", "value": "Suma todo lo que ha aplicado hasta ahora. No puede ser más que el monto del pago." }
           ]
         },
         {
           "heading": "Métodos de pago",
           "items": [
-            { "label": "Efectivo", "value": "Moneda física recibida del cliente." },
-            { "label": "Cheque", "value": "Cheque de papel. Use Número de referencia para registrar el número de cheque." },
-            { "label": "Tarjeta de crédito", "value": "Pago con tarjeta. Número de referencia puede contener los últimos cuatro dígitos o el ID de la transacción." },
-            { "label": "Transferencia bancaria", "value": "ACH o transferencia bancaria directa. Número de referencia puede contener la confirmación de la transferencia." },
-            { "label": "Transferencia electrónica", "value": "Transferencia electrónica (wire). Número de referencia contiene el número de confirmación de la transferencia." },
-            { "label": "Otro", "value": "Cualquier método de pago no cubierto anteriormente. Use Notas para describirlo." }
+            { "label": "Efectivo", "value": "Efectivo físico recibido del cliente." },
+            { "label": "Cheque", "value": "Un cheque de papel. Ponga el número de cheque en Número de referencia." },
+            { "label": "Tarjeta de crédito", "value": "Un pago con tarjeta. Número de referencia puede contener los últimos cuatro dígitos o el ID de la transacción." },
+            { "label": "Transferencia bancaria", "value": "Una transferencia ACH o bancaria directa. Número de referencia puede contener la confirmación." },
+            { "label": "Transferencia electrónica", "value": "Una transferencia electrónica. Número de referencia contiene el número de confirmación de la transferencia." },
+            { "label": "Otro", "value": "Cualquier método no listado arriba. Use Notas para describirlo." }
           ]
         },
         {
-          "heading": "Columnas de la tabla (lista de Pagos)",
+          "heading": "Columnas de la lista de Pagos",
           "items": [
-            { "label": "N.º de pago", "value": "Ordenable. Número de pago autogenerado mostrado en fuente monoespaciada. Ancho: 120px." },
-            { "label": "Cliente", "value": "Ordenable. Nombre del cliente del registro de cliente vinculado." },
-            { "label": "Método", "value": "Ordenable, filtrable (enum). Etiqueta del método de pago (Efectivo, Cheque, Tarjeta de crédito, etc.). Ancho: 100px." },
-            { "label": "Monto", "value": "Ordenable, alineado a la derecha. Monto total del pago formateado como moneda. Ancho: 100px." },
-            { "label": "Aplicado", "value": "Ordenable, alineado a la derecha. Suma de todas las aplicaciones a facturas formateada como moneda. Ancho: 100px." },
-            { "label": "No aplicado", "value": "Ordenable, alineado a la derecha. Monto del pago menos el monto aplicado. Resaltado en amarillo (clase text-warning) cuando es mayor que $0.00. Ancho: 100px." },
-            { "label": "Fecha", "value": "Ordenable, tipo fecha. Fecha de pago formateada MM/dd/yyyy. Ancho: 110px." },
-            { "label": "N.º de referencia", "value": "Ordenable. Texto del número de referencia, o '---' cuando está vacío. Ancho: 120px." },
-            { "label": "Creación", "value": "Ordenable, tipo fecha. Fecha de creación del registro formateada MM/dd/yyyy. Ancho: 110px." }
+            { "label": "N.º de pago", "value": "El número del pago, creado por usted. Haga clic para ordenar." },
+            { "label": "Cliente", "value": "El cliente que realizó el pago. Haga clic para ordenar." },
+            { "label": "Método", "value": "Cómo pagó, como efectivo o cheque. Ordene o filtre por él." },
+            { "label": "Monto", "value": "El monto total recibido. Haga clic para ordenar." },
+            { "label": "Aplicado", "value": "Cuánto se ha destinado a facturas. Haga clic para ordenar." },
+            { "label": "No aplicado", "value": "Lo que queda, aún no en ninguna factura. Se pone amarillo cuando supera $0.00. Haga clic para ordenar." },
+            { "label": "Fecha", "value": "La fecha en que se recibió el pago. Haga clic para ordenar." },
+            { "label": "N.º de referencia", "value": "El número de referencia, o '---' si no hay ninguno. Haga clic para ordenar." },
+            { "label": "Creación", "value": "La fecha en que se ingresó el pago. Haga clic para ordenar." }
           ]
         },
         {
-          "heading": "Campos del diálogo / panel de detalle",
+          "heading": "Lo que ve al abrir un pago",
           "items": [
-            { "label": "Número de pago", "value": "Solo visualización. Identificador autogenerado mostrado en el encabezado del detalle junto al icono de pagos." },
-            { "label": "Cliente", "value": "Visualización con enlace a entidad. Se puede hacer clic para navegar al detalle del cliente." },
-            { "label": "Método", "value": "Solo visualización. Etiqueta del método de pago traducida." },
-            { "label": "Fecha de pago", "value": "Solo visualización. Formateada MM/dd/yyyy." },
-            { "label": "Número de referencia", "value": "Solo visualización. Se muestra condicionalmente: oculto cuando está vacío." },
-            { "label": "Monto", "value": "Solo visualización. Monto total del pago como moneda." },
-            { "label": "Aplicado", "value": "Solo visualización. Total aplicado en todas las aplicaciones a facturas." },
-            { "label": "No aplicado", "value": "Solo visualización. Resaltado en amarillo cuando es mayor que $0.00." },
-            { "label": "Notas", "value": "Solo visualización. Se muestra condicionalmente: oculto cuando está vacío." },
-            { "label": "Tabla de aplicaciones", "value": "Enumera todas las aplicaciones a facturas con Número de factura (monoespaciado) y Monto (moneda). Incluye el conteo de aplicaciones en el encabezado de la sección." },
-            { "label": "Creación / Actualización", "value": "Solo visualización. Marcas de tiempo del registro formateadas MM/dd/yyyy." },
-            { "label": "Historial de actividad", "value": "Sección de actividad de entidad que muestra la línea de tiempo del historial del pago." }
+            { "label": "Número de pago", "value": "El número del pago, mostrado en la parte superior." },
+            { "label": "Cliente", "value": "El cliente que pagó. Haga clic en su nombre para abrir su registro." },
+            { "label": "Método", "value": "Cómo pagó." },
+            { "label": "Fecha de pago", "value": "La fecha en que se recibió el pago." },
+            { "label": "Número de referencia", "value": "El número de referencia. Oculto cuando no hay ninguno." },
+            { "label": "Monto", "value": "El monto total recibido." },
+            { "label": "Aplicado", "value": "Cuánto se ha destinado a facturas." },
+            { "label": "No aplicado", "value": "Lo que queda. Se pone amarillo cuando supera $0.00." },
+            { "label": "Notas", "value": "Cualquier nota del pago. Oculto cuando no hay ninguna." },
+            { "label": "Lista de aplicaciones", "value": "Cada factura a la que se destinó este pago, con su número y monto. El título indica cuántas hay." },
+            { "label": "Creación / Actualización", "value": "Cuándo se ingresó el pago y cuándo se cambió por última vez." },
+            { "label": "Historial de actividad", "value": "Una línea de tiempo de lo que ha ocurrido con este pago." }
           ]
         },
         {
           "heading": "Botones y acciones",
           "items": [
-            { "label": "Registrar pago (botón primario, encabezado de la página)", "value": "Abre el diálogo de creación de pago. Solo visible en modo independiente. data-testid: new-payment-btn" },
-            { "label": "Crear pago (botón primario, pie del diálogo)", "value": "Guarda el nuevo pago y sus aplicaciones a facturas. Deshabilitado cuando el formulario es inválido o un guardado está en progreso. Cuando es inválido, aparece a su izquierda un icono de advertencia con un conteo de problemas; haga clic en el icono para abrir un popover de validación que enumera qué campos necesitan atención. data-testid: payment-save-btn" },
-            { "label": "Cancelar (pie del diálogo)", "value": "Cierra el diálogo de creación sin guardar." },
-            { "label": "Cerrar (panel de detalle, icono X)", "value": "Cierra el diálogo/panel de detalle." },
-            { "label": "Eliminar (panel de detalle, botón de peligro)", "value": "Elimina el pago tras confirmación. Solo visible cuando el pago tiene cero aplicaciones. Abre un diálogo de confirmación con severidad de peligro. Elimina el registro de forma lógica." },
-            { "label": "Clic en fila", "value": "Abre el diálogo de detalle del pago que muestra todos los campos, la tabla de aplicaciones, el historial de actividad y la acción de eliminar." }
+            { "label": "Registrar pago (parte superior de la página)", "value": "Abre el panel para registrar un nuevo pago. Solo aparece cuando no está conectado a un sistema de contabilidad externo." },
+            { "label": "Crear pago (parte inferior del panel)", "value": "Guarda el nuevo pago y las facturas a las que lo aplicó. Atenuado hasta que el formulario esté completo. Si falta algo, un icono de advertencia indica cuántos elementos necesitan atención; haga clic para ver cuáles." },
+            { "label": "Cancelar", "value": "Cierra el panel sin guardar." },
+            { "label": "Cerrar", "value": "Cierra el pago que estaba viendo." },
+            { "label": "Eliminar", "value": "Quita el pago tras confirmarlo. Solo aparece cuando el pago no está aplicado a ninguna factura." },
+            { "label": "Clic en una fila", "value": "Abre ese pago para ver todos sus detalles, las facturas a las que se destinó, su historial y la opción de eliminar." }
           ]
         },
         {
-          "heading": "Reglas de validación",
+          "heading": "Reglas que conviene saber",
           "items": [
-            { "label": "Cliente", "value": "Requerido. Debe seleccionar un cliente válido del menú desplegable." },
-            { "label": "Método de pago", "value": "Requerido. Debe seleccionar uno de los seis métodos." },
+            { "label": "Cliente", "value": "Requerido. Elija un cliente antes de guardar." },
+            { "label": "Método de pago", "value": "Requerido. Elija uno de los seis métodos." },
             { "label": "Monto", "value": "Requerido. Debe ser mayor que $0.00." },
-            { "label": "Fecha de pago", "value": "Requerida. Debe seleccionar una fecha válida." },
-            { "label": "Montos de aplicación", "value": "Cada aplicación debe ser mayor que $0.00. Una aplicación individual no puede exceder el saldo restante de la factura de destino." },
-            { "label": "Total aplicado", "value": "La suma de todos los montos de aplicación no puede exceder el monto del pago." },
-            { "label": "Restricción de eliminación", "value": "Un pago solo puede eliminarse si no tiene aplicaciones a facturas. Los pagos con aplicaciones deben tener sus aplicaciones eliminadas primero." },
-            { "label": "Popover del botón de envío", "value": "Cuando el formulario es inválido, aparece junto a Crear pago un icono de advertencia con un conteo de problemas; al hacer clic en el icono se abre un popover de validación que enumera qué campos necesitan atención." }
+            { "label": "Fecha de pago", "value": "Requerida. Elija una fecha." },
+            { "label": "Monto aplicado a cada factura", "value": "Debe ser mayor que $0.00 y no más de lo que esa factura aún debe." },
+            { "label": "Total aplicado", "value": "Todo lo aplicado en conjunto no puede ser más que el monto del pago." },
+            { "label": "Eliminar", "value": "Solo puede eliminar un pago que no esté aplicado a ninguna factura. Quítelo de cada factura primero." },
+            { "label": "Aviso de información faltante", "value": "Cuando falta algo, un icono de advertencia junto a Crear pago indica cuántos elementos necesitan atención. Haga clic para ver cuáles." }
           ]
         },
         {
-          "heading": "Comportamiento de la frontera contable",
+          "heading": "¿Conectado a un sistema de contabilidad?",
           "items": [
-            { "label": "Modo independiente", "value": "CRUD completo: crear, ver detalles, eliminar (si no hay aplicaciones). Botón Registrar pago visible. Todos los campos editables en el diálogo de creación." },
-            { "label": "Modo integrado", "value": "Solo lectura. Un banner azul muestra 'Los pagos los gestiona [proveedor]'. Botón Registrar pago oculto. Los datos se sincronizan desde el proveedor de contabilidad. Vista de detalle disponible, pero sin acciones de crear/eliminar." },
-            { "label": "Ubicación del banner", "value": "Aparece entre el encabezado de la página y el área de contenido cuando hay un proveedor de contabilidad conectado." }
+            { "label": "Sin conectar", "value": "Puede hacerlo todo: registrar pagos, ver detalles y eliminar (cuando no está aplicado). El botón Registrar pago está presente y todos los campos se pueden editar." },
+            { "label": "Conectado", "value": "Solo lectura. Un banner azul indica que los pagos los gestiona su sistema de contabilidad. El botón Registrar pago se oculta y los pagos llegan desde ese sistema. Puede abrir un pago para verlo, pero no crear ni eliminar." },
+            { "label": "Dónde aparece el banner", "value": "Justo debajo del título de la página, cuando hay un sistema de contabilidad conectado." }
           ]
         }
       ]

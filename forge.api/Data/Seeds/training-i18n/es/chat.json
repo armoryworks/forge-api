@@ -2,16 +2,16 @@
   {
     "slug": "chat-overview",
     "title": "Visión general del Chat",
-    "summary": "Una visión general del sistema de chat integrado: mensajes directos, canales agrupados por equipos, hilos, @menciones y enlaces a registros, uso compartido de archivos, anuncios, roles de canal y entrega en tiempo real mediante SignalR.",
+    "summary": "Una visión general del chat integrado: mensajes directos, canales agrupados por equipos, hilos, enlaces a personas y registros, compartir archivos, anuncios, roles de canal y entrega instantánea.",
     "contentJson": {
-      "body": "## Visión general del Chat\n\nQB Engineer incluye un sistema de mensajería integrado y en tiempo real para la comunicación interna. Admite mensajes directos uno a uno, canales compartidos agrupados por equipos, respuestas en hilos, enlaces a registros, archivos adjuntos y anuncios para toda la empresa. Ábralo a página completa en /chat o como un panel deslizable desde el ícono de chat en el encabezado — el ícono del encabezado muestra su recuento total de no leídos. También puede **abrir el chat en su propia ventana** para que permanezca visible junto a lo que esté haciendo.\n\n### Mensajes directos\n\nUn mensaje directo (MD) es una conversación privada uno a uno con un colega. Aparecen en la sección **Mensajes directos** de la barra lateral. Haga clic en **Nuevo mensaje** (+), busque a una persona por su nombre y empiece a escribir. Los mensajes se entregan al instante mediante SignalR — sin necesidad de actualizar.\n\n### Canales\n\nUn canal es una conversación compartida entre varias personas. Los canales aparecen en la sección **Canales** y son de varios tipos: un canal de **Grupo** que usted crea para un tema, un canal de **Departamento**, un canal **Personalizado**, un canal de **Difusión** (anuncios) de solo lectura y canales del **Sistema** creados automáticamente. Haga clic en **Nuevo grupo** para crear uno (nombre, tipo, descripción, miembros), o en **Explorar canales** para descubrir y unirse a canales existentes.\n\n### Equipos\n\nUn **Equipo** agrupa canales relacionados bajo un único encabezado contraíble en la barra lateral (por ejemplo, un equipo de Ingeniería con su propio conjunto de canales). Los canales de equipo se crean automáticamente para un equipo y se enumeran juntos para que los miembros los encuentren rápidamente.\n\n### Hilos\n\nCualquier mensaje puede iniciar un hilo. Haga clic en **Responder en hilo** en un mensaje para abrir el panel de hilos a la derecha y responder sin saturar la conversación principal. Un mensaje con respuestas muestra un enlace **“N respuestas”** que reabre el hilo.\n\n### Abrir en una ventana aparte\n\nCuando el chat está abierto como panel deslizable (no como la página completa /chat), el encabezado muestra un botón **Abrir en ventana** (el ícono open_in_new). Haga clic en él para abrir el chat en su propia ventana del navegador, que puede mover a un segundo monitor y mantener visible mientras trabaja en otra parte de la aplicación. Mientras la ventana emergente está abierta, el panel deslizable muestra un banner **“El chat está abierto en una ventana aparte”** y el botón del encabezado cambia a **Enfocar ventana** (el ícono launch) — al hacer clic en él, la ventana emergente pasa al frente. A partir de ese momento, al hacer clic en un MD o canal del panel deslizable, este se abre en la ventana emergente en lugar de en el panel. Al cerrar la ventana emergente, el chat vuelve al comportamiento normal del panel deslizable. (Solo existe una ventana emergente a la vez; abrirla de nuevo simplemente enfoca la existente.)\n\n### Enlaces a registros\n\nLos mensajes pueden contener enlaces a registros — un trabajo, pieza, orden de compra, orden de venta, cotización y más. Un enlace a un registro se muestra en línea como una etiqueta de color en la que se puede hacer clic y que abre el diálogo de detalle correspondiente. (Los enlaces a registros y las @menciones llegan en mensajes desde otras partes del sistema; el redactor de mensajes en vivo es un cuadro de texto sencillo — todavía no hay un selector de @ en el propio cuadro, así que no espere un menú emergente de menciones o registros mientras escribe un mensaje de chat.)\n\n### Archivos adjuntos\n\nAdjunte un archivo (PDF, imagen, documento de oficina o un plano de ingeniería como STEP/STL/DXF) de hasta 10 MB con el botón de clip. El archivo se carga, se previsualiza en el redactor y se envía con su próximo mensaje. (Adjuntar archivos está disponible en los canales.)\n\n### Anuncios\n\nLos **anuncios** los publican los administradores y gerentes y se entregan en tiempo real, apareciendo junto al chat y en los canales de **Difusión** de solo lectura. Un anuncio puede dirigirse a toda la empresa, a un departamento o a equipos específicos; tiene una severidad (Info, Advertencia o Crítica); puede requerir confirmación de lectura; puede caducar; y puede crearse a partir de plantillas reutilizables. Tenga en cuenta que **redacta** un anuncio desde **Administración > Anuncios** (el panel de Anuncios del administrador), no desde dentro del panel de chat — el chat es donde los anuncios se *reciben y leen*. Los canales de difusión son de solo lectura, así que solo los administradores y gerentes pueden publicar en ellos.\n\n### Roles de canal\n\nCada miembro de un canal tiene un rol: **Miembro** (leer y publicar), **Administrador** (editar y gestionar el canal) o **Propietario** (control total, incluida la eliminación). Los roles se muestran en el diálogo de configuración del canal.\n\n### No leídos, estado de lectura y silenciar\n\nCada fila de MD y de canal muestra una insignia de no leídos, y el ícono de chat del encabezado muestra su recuento total de no leídos. Al abrir una conversación, sus mensajes se marcan como leídos automáticamente. **Silencie** un canal ruidoso desde su fila para acallar sus notificaciones sin abandonarlo.\n\n### Entrega en tiempo real (SignalR)\n\nTodos los mensajes, respuestas y anuncios se entregan al instante a través de la conexión SignalR de **ChatHub** en /hubs/chat. La conexión se establece al iniciar sesión y se reconecta automáticamente con retroceso exponencial si se interrumpe.",
+      "body": "## Visión general del Chat\n\nForge tiene mensajería integrada para hablar con sus compañeros, y los mensajes llegan en el momento en que se envían. Puede enviar mensajes privados uno a uno, chatear en canales compartidos, agrupar canales por equipos, responder en hilos, enlazar a registros, adjuntar archivos y leer anuncios de la empresa. Abra el chat a pantalla completa desde su propia página, o despliéguelo desde el ícono de chat de la barra superior — ese ícono muestra cuántos mensajes no ha leído. También puede **mover el chat a su propia ventana** para que quede visible junto a lo que esté haciendo.\n\n### Mensajes directos\n\nUn mensaje directo es un chat privado uno a uno con un solo compañero. Están en la sección **Mensajes directos**. Haga clic en **Nuevo mensaje**, busque a una persona por su nombre y empiece a escribir. Su mensaje sale de inmediato — sin necesidad de actualizar.\n\n### Canales\n\nUn canal es un chat compartido para un grupo de personas. Los canales están en la sección **Canales** y son de varios tipos: un canal de **grupo** que crea para un tema, un canal de **departamento**, un canal **abierto** al que cualquiera puede unirse, un canal de **difusión** (anuncios) de solo lectura y canales que la aplicación configura por usted. Haga clic en **Nuevo grupo** para crear uno — nombre, tipo, descripción y personas — o en **Explorar canales** para encontrar y unirse a canales que ya existen.\n\n### Equipos\n\nUn **equipo** reúne canales relacionados bajo un encabezado que puede abrir y cerrar (por ejemplo, un equipo de Ingeniería con su propio conjunto de canales). Los canales de equipo se configuran para el equipo y se enumeran juntos para que la gente los encuentre rápido.\n\n### Hilos\n\nCualquier mensaje puede iniciar un hilo. Haga clic en **Responder en hilo** en un mensaje para abrir un panel lateral y responder sin saturar el chat principal. Un mensaje con respuestas muestra un enlace de **respuestas** que reabre el hilo.\n\n### El chat en su propia ventana\n\nCuando el chat es el panel deslizable (no la página completa), la barra superior muestra un botón **Abrir en ventana**. Haga clic en él para mover el chat a su propia ventana que puede colocar en un segundo monitor y mantener a la vista mientras trabaja en otra parte. Mientras esa ventana está abierta, el panel deslizable muestra una nota que dice **“El chat está abierto en una ventana aparte”** y el botón cambia a **Enfocar ventana** — haga clic para traer la ventana al frente. A partir de ahí, al hacer clic en un chat o canal del panel, este se abre en esa ventana en lugar del panel. Cierre la ventana para volver al panel deslizable normal. (Solo hay una ventana de chat a la vez; volver a hacer clic simplemente la trae al frente.)\n\n### Enlaces a registros\n\nLos mensajes pueden llevar enlaces a registros — un trabajo, pieza, orden de compra, orden de venta, cotización y más. Un enlace aparece como una etiqueta de color en la que se puede tocar y que abre los detalles de ese registro. (Estos enlaces, y las menciones de personas, llegan en mensajes desde otras partes de la aplicación. El cuadro de mensaje es un cuadro de texto sencillo por ahora — todavía no tiene un selector de personas ni de registros, así que no espere que aparezca uno mientras escribe.)\n\n### Archivos adjuntos\n\nUse el botón de clip para adjuntar un archivo de hasta 10 MB — un PDF, imagen, documento de oficina o plano de ingeniería. El archivo se carga, muestra una vista previa y sale con su próximo mensaje. (Puede adjuntar archivos en los canales.)\n\n### Anuncios\n\nLos **anuncios** los publican los administradores y gerentes y llegan en el momento en que se envían, apareciendo junto al chat y en los canales de **difusión** de solo lectura. Un anuncio puede llegar a toda la empresa, a un departamento o a equipos específicos; tiene una importancia (Info, Advertencia o Crítica); puede pedir a la gente que confirme que lo leyó; puede caducar; y puede crearse a partir de una plantilla reutilizable. Usted **redacta** un anuncio desde el área de **Administración**, no desde dentro del chat — el chat es donde los anuncios se *reciben y leen*. Los canales de difusión son de solo lectura, así que solo los administradores y gerentes pueden publicar en ellos.\n\n### Roles de canal\n\nCada persona en un canal tiene un rol: **Miembro** (leer y publicar), **Administrador** (editar y gestionar el canal) o **Propietario** (control total, incluida su eliminación). Puede ver los roles en la configuración del canal.\n\n### No leídos, leídos y silenciar\n\nCada fila de chat y de canal muestra cuántos mensajes no ha leído, y el ícono de chat de la barra superior muestra su total. Al abrir una conversación se marcan sus mensajes como leídos. **Silencie** un canal ruidoso desde su fila para acallar sus alertas sin abandonarlo.\n\n### Entrega instantánea\n\nCada mensaje, respuesta y anuncio llega en el momento en que se envía — nada que actualizar. Si su conexión se cae, el chat se reconecta solo y lo pone al día.",
       "sections": []
     }
   },
   {
     "slug": "chat-walkthrough",
     "title": "Chat — Recorrido guiado",
-    "summary": "Un recorrido guiado por el panel de chat: mensajes directos, canales y equipos, crear y explorar canales, el redactor, hilos, anuncios, insignias de no leídos, silenciar y configuración del canal.",
+    "summary": "Un recorrido guiado por el chat: mensajes directos, canales y equipos, crear y explorar canales, escribir y enviar mensajes, hilos, anuncios, recuentos de no leídos, silenciar y configuración del canal.",
     "contentJson": {
       "appRoute": "/chat",
       "startButtonLabel": "Iniciar recorrido del chat",
@@ -20,55 +20,55 @@
           "element": ".chat-panel--page",
           "popover": {
             "title": "El panel de chat",
-            "description": "Este es el panel de chat, abierto a página completa en /chat. El mismo panel también se despliega desde la derecha en cualquier parte de la aplicación al hacer clic en el ícono de chat del encabezado — la insignia del encabezado muestra su recuento total de no leídos.",
+            "description": "Este es el chat, mostrado a pantalla completa en su propia página. El mismo chat también se despliega desde la derecha en cualquier parte de la aplicación al hacer clic en el ícono de chat de la barra superior. El número en ese ícono es cuántos mensajes no ha leído.",
             "side": "left"
           }
         },
         {
           "element": ".chat-panel__channel-list",
           "popover": {
-            "title": "Mensajes directos, canales y equipos",
-            "description": "Sus conversaciones viven aquí en secciones contraíbles: Mensajes directos (chats privados uno a uno), Canales (conversaciones compartidas de grupo/departamento/difusión) y Equipos (canales agrupados bajo un equipo). Use el cuadro de búsqueda para filtrar y haga clic en cualquier fila para abrirla.",
+            "title": "Sus conversaciones",
+            "description": "Todas sus conversaciones están aquí en secciones que puede abrir y cerrar: Mensajes directos son chats privados uno a uno, Canales son chats compartidos de grupo y Equipos agrupa un conjunto de canales. Escriba en el cuadro de búsqueda para filtrar y haga clic en cualquier fila para abrirla.",
             "side": "right"
           }
         },
         {
           "element": ".chat-panel__channel-list .action-btn--create",
           "popover": {
-            "title": "Inicie un MD o cree un canal",
-            "description": "Use Nuevo mensaje para iniciar un mensaje directo uno a uno con un colega, o Nuevo grupo para crear un canal (asígnele un nombre, tipo, descripción y miembros). Explorar canales le permite descubrir y unirse a canales que ya existen.",
+            "title": "Inicie un chat o cree un canal",
+            "description": "Haga clic en Nuevo mensaje para iniciar un chat privado uno a uno con un compañero. Haga clic en Nuevo grupo para crear un canal compartido — asígnele un nombre, elija un tipo y agregue personas. Haga clic en Explorar canales para encontrar y unirse a canales que ya existen.",
             "side": "right"
+          }
+        },
+        {
+          "element": ".chat-panel__input-area",
+          "popover": {
+            "title": "Escriba y envíe un mensaje",
+            "description": "Abra primero una conversación, luego escriba aquí abajo y presione Enter para enviar. Los mensajes aparecen de inmediato. Haga clic en el clip para adjuntar un archivo (hasta 10 MB) en un canal. Este es un cuadro de texto sencillo — los enlaces a trabajos o personas que llegan en los mensajes aparecen como etiquetas de color en las que se puede tocar.",
+            "side": "right"
+          }
+        },
+        {
+          "element": ".chat-panel__header",
+          "popover": {
+            "title": "Mueva el chat a su propia ventana",
+            "description": "Cuando el chat es el panel deslizable (no esta página completa), esta barra muestra un botón Abrir en ventana. Haga clic en él para mover el chat a su propia ventana que puede mantener en una segunda pantalla. El panel muestra entonces una nota de que el chat está abierto en una ventana aparte, más un botón Enfocar ventana que la trae al frente. Cierre esa ventana para volver al panel deslizable.",
+            "side": "left"
+          }
+        },
+        {
+          "element": ".chat-panel__content-area",
+          "popover": {
+            "title": "Respuestas y anuncios",
+            "description": "Para responder a un solo mensaje sin saturar el chat, haga clic en Responder en hilo — un panel lateral mantiene ese ida y vuelta junto, y un enlace de respuestas lo reabre después. Los anuncios aparecen aquí en el momento en que se publican, y también en los canales de Difusión de solo lectura. Los anuncios se redactan desde Administración, no desde el chat, y solo los administradores y gerentes pueden publicarlos.",
+            "side": "left"
           }
         },
         {
           "element": ".chat-panel__channel-list",
           "popover": {
-            "title": "Abra una conversación y redacte",
-            "description": "Haga clic en un MD o canal para abrirlo. El cuadro de mensaje está en la parte inferior — escriba y presione Enter para enviar (los mensajes son de una sola línea y se entregan al instante mediante SignalR). Use el clip para adjuntar un archivo (hasta 10 MB) en un canal. El redactor es un cuadro de texto sencillo; los enlaces a registros y las @menciones que ve en los mensajes entrantes se muestran como etiquetas en las que se puede hacer clic, pero no hay un selector de @ en el cuadro mientras escribe.",
-            "side": "right"
-          }
-        },
-        {
-          "element": ".chat-panel--page",
-          "popover": {
-            "title": "Abra el chat en una ventana",
-            "description": "Cuando el chat está abierto como panel deslizable (no esta página completa /chat), el encabezado del panel muestra un botón Abrir en ventana (ícono open_in_new). Haga clic en él para abrir el chat en su propia ventana del navegador que puede colocar en un segundo monitor. El panel muestra entonces un banner “El chat está abierto en una ventana aparte” y un botón Enfocar ventana (ícono launch), y al hacer clic en una conversación del panel esta se abre en la ventana emergente. Al cerrar la ventana emergente, el chat vuelve al panel deslizable normal.",
-            "side": "left"
-          }
-        },
-        {
-          "element": ".chat-panel--page",
-          "popover": {
-            "title": "Hilos y anuncios",
-            "description": "Responda a cualquier mensaje con Responder en hilo para mantener ordenada una conversación lateral; un enlace “N respuestas” reabre ese hilo. Los anuncios llegan aquí en tiempo real y aparecen en los canales de Difusión de solo lectura — pero usted los redacta desde Administración > Anuncios, no desde el chat. Pueden dirigirse a toda la empresa, a un departamento o a equipos, y solo los administradores y gerentes pueden publicar en los canales de difusión.",
-            "side": "left"
-          }
-        },
-        {
-          "element": ".chat-panel__channel-list",
-          "popover": {
-            "title": "No leídos, silenciar y configuración del canal",
-            "description": "Cada fila muestra una insignia de no leídos, y el ícono del encabezado muestra su total; al abrir una conversación se marca como leída. Silencie un canal ruidoso desde su fila para acallar las notificaciones sin abandonarlo. Abra Configuración del canal (el engranaje) para renombrar o editar un canal o abandonarlo — los miembros son Miembro, Administrador o Propietario.",
+            "title": "No leídos, silenciar y configuración",
+            "description": "Cada fila muestra cuántos mensajes no ha leído, y abrir una conversación borra su recuento. Silencie un canal ruidoso desde su fila para apagar sus alertas sin abandonarlo. Haga clic en el engranaje de un canal para renombrarlo, editarlo o abandonarlo — cada persona es un Miembro, un Administrador o el Propietario.",
             "side": "right"
           }
         }
@@ -78,7 +78,7 @@
   {
     "slug": "chat-field-reference",
     "title": "Referencia de campos del Chat",
-    "summary": "Referencia completa de los tipos de conversación del chat, la navegación de la barra lateral, los botones, el redactor y los atajos, los hilos, las menciones, los anuncios, los roles de canal, las marcas de tiempo, el estado de no leídos y la API.",
+    "summary": "Una referencia completa del chat: tipos de conversación, cómo moverse, botones, escribir y atajos, hilos, enlaces a personas y registros, anuncios, roles de canal, horas y fechas y recuentos de no leídos.",
     "contentJson": {
       "title": "Referencia de campos del Chat",
       "groups": [
@@ -86,57 +86,57 @@
           "heading": "Tipos de conversación",
           "items": [
             {
-              "label": "Mensaje directo (MD)",
-              "value": "Una conversación privada uno a uno con un colega. Aparece en la sección Mensajes directos."
+              "label": "Mensaje directo",
+              "value": "Un chat privado uno a uno con un solo compañero. Se encuentra en la sección Mensajes directos."
             },
             {
               "label": "Canal de grupo",
-              "value": "Un canal compartido entre varias personas que usted crea para un tema. Aparece en la sección Canales."
+              "value": "Un chat compartido para un tema que usted crea e invita a personas. Se encuentra en la sección Canales."
             },
             {
               "label": "Canal de equipo",
-              "value": "Un canal que pertenece a un Equipo (ChannelType TeamAuto), agrupado bajo el encabezado del equipo en la barra lateral."
+              "value": "Un canal que pertenece a un equipo. Está agrupado bajo el encabezado de ese equipo en la lista."
             },
             {
               "label": "Canal de difusión / anuncios",
-              "value": "Un canal de solo lectura (ChannelType Broadcast, IsReadOnly) donde solo los administradores y gerentes pueden publicar."
+              "value": "Un canal de solo lectura donde solo los administradores y gerentes pueden publicar. Los demás solo leen."
             },
             {
               "label": "Canal del sistema",
-              "value": "Un canal creado automáticamente por el sistema para fines integrados."
+              "value": "Un canal que la aplicación configura por usted automáticamente para fines integrados."
             }
           ]
         },
         {
-          "heading": "Navegación de la barra lateral",
+          "heading": "Cómo moverse",
           "items": [
             {
-              "label": "Búsqueda (data-testid: channel-list-search)",
-              "value": "Filtra las conversaciones y los canales en tiempo real a medida que escribe."
+              "label": "Cuadro de búsqueda",
+              "value": "Escriba en él para filtrar sus conversaciones y canales a medida que avanza."
             },
             {
               "label": "Encabezados de sección",
-              "value": "Mensajes directos, Canales y Equipos — cada uno contraíble mediante el botón de chevron."
+              "value": "Mensajes directos, Canales y Equipos. Haga clic en un encabezado para abrir o cerrar esa sección."
             },
             {
-              "label": "Nuevo mensaje (ícono: add)",
-              "value": "En el encabezado de la sección Mensajes directos — abre el selector de usuarios para iniciar un MD uno a uno."
+              "label": "Nuevo mensaje",
+              "value": "En el encabezado de Mensajes directos. Abre una búsqueda para elegir a alguien e iniciar un chat privado."
             },
             {
-              "label": "Nuevo grupo (ícono: add)",
-              "value": "En el encabezado de la sección Canales — abre el diálogo de creación de canal."
+              "label": "Nuevo grupo",
+              "value": "En el encabezado de Canales. Abre la ventana para crear un canal nuevo."
             },
             {
               "label": "Explorar canales",
-              "value": "Descubre canales existentes a los que puede unirse (GET /chat/channels/discover)."
+              "value": "Muestra los canales que ya existen para que pueda encontrarlos y unirse a ellos."
             },
             {
-              "label": "Fila de conversación / canal",
-              "value": "Muestra avatar/ícono, nombre, vista previa del último mensaje, marca de tiempo e insignia de no leídos. Haga clic para abrir."
+              "label": "Fila de conversación",
+              "value": "Muestra con quién es, el nombre, una vista previa del último mensaje, cuándo llegó y cuántos no leídos hay. Haga clic para abrir."
             },
             {
-              "label": "Insignia de no leídos / ícono de silencio",
-              "value": "Recuento de no leídos por fila; un ícono notifications_off marca un canal silenciado."
+              "label": "Marcas de no leídos y silencio",
+              "value": "Un número muestra los mensajes no leídos en esa fila; una campana tachada significa que el canal está silenciado."
             }
           ]
         },
@@ -144,81 +144,81 @@
           "heading": "Botones y acciones",
           "items": [
             {
-              "label": "Abrir Chat (ícono del encabezado)",
-              "value": "Alterna el panel deslizable de chat desde cualquier página y muestra la insignia de no leídos total."
+              "label": "Abrir Chat (ícono de la barra superior)",
+              "value": "Abre o cierra el chat deslizable desde cualquier página. El número en él muestra su total de no leídos."
             },
             {
-              "label": "Abrir en ventana (ícono: open_in_new)",
-              "value": "En el encabezado del panel deslizable — abre el chat en su propia ventana del navegador (ruta /chat/popout). Se muestra solo cuando no hay una ventana emergente ya abierta. No se muestra en la página completa /chat."
+              "label": "Abrir en ventana",
+              "value": "En la barra superior del chat deslizable. Mueve el chat a su propia ventana. Solo aparece cuando el chat no está ya en su propia ventana, y no en la página completa de chat."
             },
             {
-              "label": "Enfocar ventana (ícono: launch)",
-              "value": "Reemplaza al botón Abrir en ventana mientras hay una ventana emergente abierta — trae la ventana emergente existente al frente. También aparece en el banner de la ventana emergente."
+              "label": "Enfocar ventana",
+              "value": "Ocupa el lugar de Abrir en ventana una vez que el chat está en su propia ventana. La trae al frente."
             },
             {
-              "label": "Cerrar (ícono: close)",
-              "value": "Cierra el panel de chat y vuelve a la página subyacente."
+              "label": "Cerrar",
+              "value": "Cierra el panel de chat y lo devuelve a la página de abajo."
             },
             {
-              "label": "Nuevo mensaje (ícono: add)",
-              "value": "Abre el selector de usuarios para iniciar un mensaje directo uno a uno."
+              "label": "Nuevo mensaje",
+              "value": "Abre una búsqueda para elegir a un compañero e iniciar un chat privado uno a uno."
             },
             {
-              "label": "Nuevo grupo / canal (ícono: add)",
-              "value": "Abre el diálogo de creación de canal (nombre, tipo, descripción, miembros)."
+              "label": "Nuevo grupo / canal",
+              "value": "Abre la ventana para crear un canal nuevo — nombre, tipo, descripción y personas."
             },
             {
               "label": "Explorar canales",
-              "value": "Abre el explorador de canales para encontrar y unirse a canales existentes."
+              "value": "Abre la lista de canales existentes para que pueda encontrar uno y unirse a él."
             },
             {
-              "label": "Configuración del canal (ícono: settings, aria-label: Channel settings)",
-              "value": "Abre el diálogo de configuración del canal para renombrar/editar, ver miembros y roles, o abandonar."
+              "label": "Configuración del canal (engranaje)",
+              "value": "Abre la configuración de un canal para renombrarlo o editarlo, ver quiénes están y sus roles, o abandonarlo."
             },
             {
-              "label": "Responder en hilo (ícono: reply)",
-              "value": "En cualquier mensaje — abre el panel de hilos y publica una respuesta a ese mensaje."
+              "label": "Responder en hilo",
+              "value": "En cualquier mensaje. Abre un panel lateral y publica su respuesta adjunta a ese mensaje."
             },
             {
-              "label": "Enviar (ícono: send, data-testid: chat-send-btn)",
-              "value": "Envía el mensaje redactado. Se desactiva cuando la entrada está vacía/solo espacios (y no hay archivo) o mientras se carga un archivo."
+              "label": "Enviar",
+              "value": "Envía lo que ha escrito. Se atenúa cuando el cuadro está vacío (y no hay archivo adjunto) o mientras un archivo aún se carga."
             },
             {
               "label": "Adjuntar archivo (clip)",
-              "value": "Carga un archivo (≤10 MB) que se envía con su próximo mensaje."
+              "value": "Adjunta un archivo (hasta 10 MB) que sale con su próximo mensaje."
             },
             {
               "label": "Silenciar / Reactivar, Abandonar canal",
-              "value": "Silenciar acalla las notificaciones de un canal desde su fila; Abandonar (en la configuración del canal) lo quita del canal."
+              "value": "Silenciar apaga las alertas de un canal desde su fila. Abandonar (en la configuración del canal) lo saca del canal."
             }
           ]
         },
         {
-          "heading": "Redactor y teclado",
+          "heading": "Escribir y teclado",
           "items": [
             {
-              "label": "Entrada de mensaje (data-testid: chat-message-input)",
-              "value": "Entrada de texto de una sola línea vinculada a messageControl. El contenido se recorta antes de enviarse."
+              "label": "Cuadro de mensaje",
+              "value": "Un cuadro de una sola línea para su mensaje. Los espacios de más al inicio y al final se recortan al enviar."
             },
             {
               "label": "Enter",
-              "value": "Envía el mensaje actual (cuando no está vacío)."
+              "value": "Envía su mensaje (cuando el cuadro no está vacío)."
             },
             {
-              "label": "Entrada de una sola línea",
-              "value": "Los mensajes son de una sola línea — no hay salto de línea con Shift+Enter; Enter siempre envía."
+              "label": "Una línea a la vez",
+              "value": "Los mensajes son de una sola línea. No hay forma de agregar un salto de línea — Enter siempre envía."
             },
             {
-              "label": "@ en el redactor",
-              "value": "No hay un selector de @ integrado en el cuadro de mensaje en vivo — al escribir @ se inserta un carácter @ literal. (Las menciones/enlaces a registros pueden existir en los mensajes, pero el redactor no los crea hoy.)"
+              "label": "Escribir @",
+              "value": "Todavía no hay un selector de nombres en el cuadro de mensaje, así que escribir @ solo agrega un carácter @ normal. Los enlaces a personas y registros aún pueden aparecer en mensajes que llegan desde otras partes de la aplicación."
             },
             {
               "label": "Adjuntar archivo",
-              "value": "Botón de clip (canales); acepta PDF, imágenes, documentos de oficina y STEP/STL/DXF de hasta 10 MB."
+              "value": "El botón de clip (en los canales). Acepta PDF, imágenes, documentos de oficina y planos de ingeniería de hasta 10 MB."
             },
             {
-              "label": "Envío desactivado",
-              "value": "Cuando la entrada está vacía o solo tiene espacios (y no hay archivo pendiente), o mientras se carga un archivo."
+              "label": "Enviar atenuado",
+              "value": "Cuando el cuadro está vacío o solo tiene espacios (y no hay archivo en espera), o mientras un archivo aún se carga."
             }
           ]
         },
@@ -226,62 +226,62 @@
           "heading": "Hilos",
           "items": [
             {
-              "label": "Responder en hilo (ícono: reply)",
-              "value": "Abre el panel de hilos de un mensaje y publica respuestas allí (POST /chat/messages/{messageId}/reply)."
+              "label": "Responder en hilo",
+              "value": "Abre un panel lateral para un mensaje y mantiene sus respuestas adjuntas a él."
             },
             {
-              "label": "Enlace “N respuestas” (ícono: forum)",
-              "value": "Se muestra en cualquier mensaje con respuestas; haga clic para reabrir su hilo."
+              "label": "Enlace de respuestas",
+              "value": "Aparece en cualquier mensaje que tenga respuestas. Haga clic para reabrir ese hilo."
             },
             {
-              "label": "Panel de hilos",
-              "value": "Panel lateral que muestra el mensaje principal, un divisor 'N respuestas' y todas las respuestas con su propio redactor."
+              "label": "Panel de hilo",
+              "value": "Un panel lateral que muestra el mensaje original, un divisor con el recuento de respuestas y cada respuesta, con su propio cuadro para agregar más."
             }
           ]
         },
         {
-          "heading": "Menciones y enlaces a registros (visualización)",
+          "heading": "Enlaces a personas y registros",
           "items": [
             {
-              "label": "Mención de usuario",
-              "value": "Una referencia a un compañero que se muestra como una etiqueta de mención en un mensaje. (Las menciones no se crean desde el redactor en vivo hoy.)"
+              "label": "Mención de una persona",
+              "value": "Una etiqueta que apunta a un compañero y que aparece como una etiqueta en un mensaje. Todavía no se escriben desde el cuadro de mensaje."
             },
             {
-              "label": "Enlace a registro",
-              "value": "Un enlace a un registro — trabajo, pieza, orden de compra, orden de venta, cotización, etc. — que viaja en un mensaje y se muestra en línea."
+              "label": "Enlace a un registro",
+              "value": "Un enlace en un mensaje a algo de la aplicación — un trabajo, pieza, orden de compra, orden de venta, cotización y más."
             },
             {
-              "label": "Etiqueta de mención",
-              "value": "Se muestra (mediante el pipe mentionRender) como una etiqueta de color en la que se puede hacer clic y que abre el diálogo de detalle del registro enlazado."
+              "label": "Cómo se ven los enlaces",
+              "value": "Aparecen como una etiqueta de color en la que se puede tocar. Haga clic para abrir los detalles de ese registro."
             }
           ]
         },
         {
-          "heading": "Ventana emergente",
+          "heading": "El chat en su propia ventana",
           "items": [
             {
               "label": "Abrir en ventana",
-              "value": "Botón del encabezado (open_in_new) en el panel deslizable — abre el chat en su propia ventana en /chat/popout. Oculto en la página completa /chat."
+              "value": "Un botón en la barra superior del chat deslizable que mueve el chat a su propia ventana. Oculto en la página completa de chat."
             },
             {
-              "label": "Banner de ventana emergente",
-              "value": "Se muestra en el panel deslizable mientras hay una ventana emergente abierta: 'El chat está abierto en una ventana aparte' con una acción Enfocar ventana."
+              "label": "Nota de la ventana",
+              "value": "Mientras el chat está en su propia ventana, el panel deslizable muestra una nota que lo indica, junto con un botón Enfocar ventana."
             },
             {
-              "label": "Enfocar ventana (launch)",
-              "value": "Trae al frente la ventana emergente existente; existe una ventana emergente a la vez."
+              "label": "Enfocar ventana",
+              "value": "Trae al frente la ventana de chat existente. Solo hay una ventana de chat abierta a la vez."
             },
             {
-              "label": "Enrutamiento con la ventana abierta",
-              "value": "Con una ventana emergente abierta, al hacer clic en un MD o canal del panel deslizable, este se abre dentro de la ventana emergente en lugar del panel."
+              "label": "Hacer clic mientras está abierta",
+              "value": "Con el chat en su propia ventana, al hacer clic en una conversación del panel deslizable, esta se abre en esa ventana en lugar del panel."
             },
             {
-              "label": "Cierre",
-              "value": "Cerrar la ventana emergente (o mediante beforeunload) devuelve el chat al comportamiento normal del panel deslizable; el banner y el botón Enfocar desaparecen."
+              "label": "Cerrar",
+              "value": "Cierre la ventana de chat para volver al panel deslizable normal. La nota y el botón Enfocar desaparecen."
             },
             {
-              "label": "Características de la ventana",
-              "value": "Se abre a 800x600 con el nombre 'qb-chat'; la sincronización entre pestañas/ventanas se realiza mediante el BroadcastChannel 'qb-chat-sync'."
+              "label": "Entre pestañas",
+              "value": "El chat se mantiene sincronizado en sus pestañas y ventanas abiertas, así que ve lo mismo en todas partes."
             }
           ]
         },
@@ -290,27 +290,27 @@
           "items": [
             {
               "label": "Dónde se redactan",
-              "value": "Desde Administración > Anuncios (el panel de Anuncios del administrador) — no desde el panel de chat. El chat es donde los anuncios se reciben y leen."
+              "value": "Desde el área de Administración, no desde el chat. El chat es donde recibe y lee los anuncios."
             },
             {
               "label": "Quién puede publicar",
-              "value": "Solo administradores y gerentes (los anuncios y los canales de difusión son de solo lectura para los demás)."
+              "value": "Solo administradores y gerentes. Para los demás, los anuncios y los canales de difusión son de solo lectura."
             },
             {
-              "label": "Alcance",
-              "value": "Toda la empresa, un departamento específico o equipos específicos (targetTeamIds)."
+              "label": "A quién llegan",
+              "value": "A toda la empresa, a un departamento o a equipos específicos."
             },
             {
-              "label": "Severidad",
+              "label": "Importancia",
               "value": "Info, Advertencia o Crítica."
             },
             {
-              "label": "Confirmación de lectura",
-              "value": "Algunos anuncios requieren que el lector confirme la lectura (POST /announcements/{id}/acknowledge)."
+              "label": "Confirmación",
+              "value": "Algunos anuncios le piden que confirme que los ha leído."
             },
             {
               "label": "Plantillas y caducidad",
-              "value": "Las plantillas reutilizables (administrador) agilizan la creación; los anuncios pueden tener una fecha de caducidad."
+              "value": "Los administradores pueden reutilizar plantillas para redactarlos más rápido, y un anuncio puede configurarse para caducar en una fecha."
             }
           ]
         },
@@ -319,102 +319,102 @@
           "items": [
             {
               "label": "Miembro",
-              "value": "Puede leer y publicar en el canal y silenciar sus propias notificaciones."
+              "value": "Puede leer y publicar en el canal y silenciar sus propias alertas."
             },
             {
               "label": "Administrador",
-              "value": "Puede editar el canal (nombre, descripción, ícono) y gestionarlo."
+              "value": "Puede hacer todo lo que puede un Miembro, más renombrar y editar el canal y gestionarlo."
             },
             {
               "label": "Propietario",
-              "value": "Control total, incluida la eliminación del canal."
+              "value": "Tiene control total, incluida la eliminación del canal."
             }
           ]
         },
         {
-          "heading": "Marcas de tiempo y separadores de fecha",
+          "heading": "Horas y fechas",
           "items": [
             {
-              "label": "Tiempo relativo",
-              "value": "'justo ahora' si es menos de un minuto; '5m', '2h', '3d' para mensajes recientes en la lista."
+              "label": "Horas recientes",
+              "value": "'justo ahora' si es menos de un minuto, luego '5m', '2h', '3d' para mensajes recientes en su lista."
             },
             {
-              "label": "Fecha completa",
-              "value": "MM/dd/yyyy para mensajes de más de una semana en la lista de conversaciones."
+              "label": "Fechas más antiguas",
+              "value": "Aparece una fecha completa para mensajes de más de una semana en su lista de conversaciones."
             },
             {
               "label": "Hora del mensaje",
-              "value": "HH:MM en cada burbuja de mensaje."
+              "value": "La hora del día aparece en cada mensaje."
             },
             {
-              "label": "Separadores de fecha",
-              "value": "'Hoy', 'Ayer' o la fecha completa (MM/dd/yyyy) entre grupos de mensajes."
+              "label": "Divisores de día",
+              "value": "'Hoy', 'Ayer' o la fecha completa aparecen entre grupos de mensajes."
             }
           ]
         },
         {
-          "heading": "No leídos y estado de lectura",
+          "heading": "No leídos y leídos",
           "items": [
             {
-              "label": "Insignia del ícono de chat del encabezado",
-              "value": "Total de no leídos en todos los MD y canales; se actualiza en tiempo real mediante SignalR."
+              "label": "Número de la barra superior",
+              "value": "Cuántos mensajes no ha leído en todos sus chats y canales. Se actualiza en el momento en que llegan nuevos mensajes."
             },
             {
-              "label": "Insignia por fila",
-              "value": "Recuento de no leídos por MD y por canal, que se borra al abrir la conversación."
+              "label": "Número de fila",
+              "value": "Recuento de no leídos de un solo chat o canal. Se borra al abrir esa conversación."
             },
             {
               "label": "Marcar como leído",
-              "value": "Al abrir una conversación se marca como leída (POST /chat/messages/{otherUserId}/read o /chat/channels/{channelId}/read)."
+              "value": "Con solo abrir una conversación se marcan sus mensajes como leídos."
             },
             {
               "label": "Silenciar",
-              "value": "Acalla las notificaciones de un canal (POST /chat/channels/{channelId}/mute) sin abandonarlo."
+              "value": "Apaga las alertas de un canal sin sacarlo de él."
             }
           ]
         },
         {
-          "heading": "API y tiempo real",
+          "heading": "Detrás de escena",
           "items": [
             {
-              "label": "GET /api/v1/chat/conversations",
-              "value": "Enumera las conversaciones de MD con vista previa del último mensaje y recuento de no leídos."
+              "label": "Entrega instantánea",
+              "value": "Los mensajes, respuestas y anuncios llegan en el momento en que se envían — sin necesidad de actualizar."
             },
             {
-              "label": "GET /api/v1/chat/messages/{otherUserId}",
-              "value": "Carga el historial de mensajes uno a uno con un usuario (paginado)."
+              "label": "Mensajes directos",
+              "value": "Sus chats privados se cargan con una vista previa del último mensaje y cuántos no leídos hay."
             },
             {
-              "label": "POST /api/v1/chat/messages",
-              "value": "Envía un MD. Cuerpo: recipientId, content, opcional fileAttachmentId / linkedEntityType / linkedEntityId."
+              "label": "Historial de mensajes",
+              "value": "Los mensajes más antiguos de una conversación se cargan por páginas a medida que se desplaza hacia atrás."
             },
             {
-              "label": "POST /api/v1/chat/messages/{otherUserId}/read",
-              "value": "Marca como leídos todos los mensajes de un usuario."
+              "label": "Enviar",
+              "value": "Puede enviar texto sencillo, adjuntar un archivo o incluir un enlace a un registro."
             },
             {
-              "label": "GET / POST /api/v1/chat/channels",
-              "value": "Enumera canales / crea un canal (name, channelType, description, iconName, memberIds)."
+              "label": "Canales",
+              "value": "Puede crear canales, explorar y unirse a los abiertos, y silenciarlos o abandonarlos."
             },
             {
-              "label": "GET /api/v1/chat/channels/discover",
-              "value": "Encuentra canales a los que unirse (opcional ?search=)."
+              "label": "Hilos",
+              "value": "Cualquier mensaje puede iniciar un hilo, manteniendo ordenadas las conversaciones laterales."
             },
             {
-              "label": "POST /api/v1/chat/channels/{channelId}/join | leave | mute | read",
-              "value": "Unirse, abandonar, silenciar o marcar como leído un canal; /upload adjunta un archivo."
+              "label": "Marcar como leído",
+              "value": "Abrir un chat o canal borra su recuento de no leídos para usted."
             },
             {
-              "label": "GET /api/v1/chat/messages/{messageId}/thread, POST .../reply",
-              "value": "Carga un hilo / publica una respuesta en hilo."
+              "label": "Anuncios",
+              "value": "Los publican los administradores y gerentes, y puede confirmar que ha leído los que lo piden."
             },
             {
-              "label": "GET / POST /api/v1/announcements",
-              "value": "Enumera los anuncios activos / crea uno (administrador/gerente); /{id}/acknowledge, /templates."
+              "label": "Archivos",
+              "value": "Los adjuntos salen con su próximo mensaje y se pueden abrir directamente desde el chat."
             },
             {
-              "label": "SignalR ChatHub (/hubs/chat)",
-              "value": "Entrega en tiempo real: messageReceived, roomMessageReceived, announcementReceived. Se reconecta automáticamente con retroceso exponencial."
+              "label": "Seguir conectado",
+              "value": "Si su conexión se cae, el chat se reconecta solo y lo pone al día."
             }
           ]
         }
@@ -424,7 +424,7 @@
   {
     "slug": "chat-quiz",
     "title": "Evaluación de conocimientos del Chat",
-    "summary": "Ponga a prueba sus conocimientos del sistema de chat: mensajes directos frente a canales, equipos, crear y explorar canales, el redactor, hilos, menciones, anuncios, roles de canal, silenciar y entrega en tiempo real.",
+    "summary": "Ponga a prueba sus conocimientos del chat: mensajes directos frente a canales, equipos, crear y explorar canales, escribir mensajes, hilos, enlaces a personas y registros, anuncios, roles de canal, silenciar y entrega instantánea.",
     "contentJson": {
       "passingScore": 80,
       "questionsPerQuiz": 8,
@@ -433,51 +433,51 @@
       "questions": [
         {
           "id": "chat1",
-          "text": "¿Cómo abre el panel de chat desde cualquier página de la aplicación?",
+          "text": "¿Cómo abre el chat desde cualquier página de la aplicación?",
           "options": [
             {
               "id": "a",
-              "text": "Navegando a /chat solo desde la barra lateral"
+              "text": "Solo yendo a la página de chat desde la barra lateral"
             },
             {
               "id": "b",
-              "text": "Haciendo clic en el ícono de chat de la barra del encabezado (también muestra su recuento total de no leídos)",
+              "text": "Haciendo clic en el ícono de chat de la barra superior (también muestra cuántos mensajes no ha leído)",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Presionando Ctrl+C para alternar el chat"
+              "text": "Presionando Ctrl+C para abrir el chat"
             },
             {
               "id": "d",
-              "text": "Abriendo el panel de notificaciones y cambiando a la pestaña Mensajes"
+              "text": "Abriendo el panel de notificaciones y cambiando a una pestaña de Mensajes"
             }
           ],
-          "explanation": "El ícono de chat del encabezado alterna el panel deslizable de chat desde cualquier página y muestra su insignia de no leídos total. También puede abrir el chat a página completa en /chat."
+          "explanation": "El ícono de chat de la barra superior abre el chat deslizable desde cualquier página, y su número le dice su total de no leídos. También puede abrir el chat a pantalla completa desde su propia página."
         },
         {
           "id": "chat2",
-          "text": "¿Cuál es la diferencia entre un Mensaje directo y un Canal?",
+          "text": "¿Cuál es la diferencia entre un mensaje directo y un canal?",
           "options": [
             {
               "id": "a",
-              "text": "Un Mensaje directo es una conversación privada uno a uno; un Canal es una conversación compartida entre varias personas (y puede agruparse bajo un Equipo)",
+              "text": "Un mensaje directo es un chat privado uno a uno; un canal es un chat compartido para un grupo (y puede estar bajo un equipo)",
               "isCorrect": true
             },
             {
               "id": "b",
-              "text": "Un Canal solo puede tener dos personas; un Mensaje directo puede tener muchas"
+              "text": "Un canal solo puede tener dos personas; un mensaje directo puede tener muchas"
             },
             {
               "id": "c",
-              "text": "Los Mensajes directos son en tiempo real pero los Canales requieren actualizar la página"
+              "text": "Los mensajes directos son instantáneos pero los canales necesitan actualizar la página"
             },
             {
               "id": "d",
               "text": "No hay diferencia — son dos nombres para lo mismo"
             }
           ],
-          "explanation": "Un MD es una conversación privada uno a uno en la sección Mensajes directos. Un Canal es una conversación compartida en la sección Canales que puede incluir a muchos miembros y puede pertenecer a un Equipo."
+          "explanation": "Un mensaje directo es un chat privado uno a uno en la sección Mensajes directos. Un canal es un chat compartido en la sección Canales que puede incluir a muchas personas y puede pertenecer a un equipo."
         },
         {
           "id": "chat3",
@@ -485,55 +485,55 @@
           "options": [
             {
               "id": "a",
-              "text": "Enviar un MD a cada persona individualmente"
+              "text": "Enviar un mensaje directo a cada persona una por una"
             },
             {
               "id": "b",
-              "text": "Hacer clic en Nuevo grupo y completar el nombre del canal, el tipo, la descripción y los miembros",
+              "text": "Hacer clic en Nuevo grupo y completar el nombre del canal, el tipo, la descripción y las personas",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Ir a Administración > Usuarios y crear un grupo allí"
+              "text": "Ir al área de Administración y crear un grupo allí"
             },
             {
               "id": "d",
               "text": "Publicar un anuncio y pedir a la gente que responda"
             }
           ],
-          "explanation": "Nuevo grupo abre el diálogo de creación de canal donde establece el nombre, el tipo de canal, la descripción y los miembros iniciales. El canal aparece luego en la sección Canales."
+          "explanation": "Nuevo grupo abre la ventana donde establece el nombre, el tipo, la descripción y los miembros iniciales. El canal aparece luego en la sección Canales."
         },
         {
           "id": "chat4",
-          "text": "Existe un canal del que usted no es miembro. ¿Cómo lo encuentra y se une a él?",
+          "text": "Existe un canal en el que usted no está. ¿Cómo lo encuentra y se une a él?",
           "options": [
             {
               "id": "a",
-              "text": "Hacer clic en Explorar canales para descubrir canales existentes y unirse a uno",
+              "text": "Hacer clic en Explorar canales para ver canales existentes y unirse a uno",
               "isCorrect": true
             },
             {
               "id": "b",
-              "text": "No puede unirse a un canal — un administrador debe agregarlo"
+              "text": "No puede unirse a un canal — un administrador tiene que agregarlo"
             },
             {
               "id": "c",
-              "text": "Buscarlo en la barra de búsqueda global en la parte superior de la aplicación"
+              "text": "Buscarlo en la barra de búsqueda principal de la aplicación en la parte superior"
             },
             {
               "id": "d",
               "text": "Crear un nuevo canal con el mismo nombre"
             }
           ],
-          "explanation": "Explorar canales abre el explorador de canales (respaldado por /chat/channels/discover) donde puede encontrar canales en los que no está y unirse a ellos."
+          "explanation": "Explorar canales le muestra los canales en los que aún no está para que pueda encontrar uno y unirse a él."
         },
         {
           "id": "chat5",
-          "text": "¿Cómo envía un mensaje que ha escrito en el redactor?",
+          "text": "¿Cómo envía un mensaje que ha escrito?",
           "options": [
             {
               "id": "a",
-              "text": "Presionar Enter — el mensaje se envía al instante mediante SignalR",
+              "text": "Presionar Enter — el mensaje se envía de inmediato",
               "isCorrect": true
             },
             {
@@ -542,14 +542,14 @@
             },
             {
               "id": "c",
-              "text": "Hacer clic fuera del cuadro de entrada"
+              "text": "Hacer clic fuera del cuadro de mensaje"
             },
             {
               "id": "d",
-              "text": "Esperar 5 segundos para que se envíe automáticamente"
+              "text": "Esperar 5 segundos para que se envíe solo"
             }
           ],
-          "explanation": "Presione Enter para enviar. La entrada de mensaje es de una sola línea, así que no hay salto de línea con Shift+Enter — Enter siempre envía. La entrega es instantánea mediante el ChatHub de SignalR."
+          "explanation": "Presione Enter para enviar. El cuadro de mensaje es de una sola línea, así que no hay salto de línea con Shift+Enter — Enter siempre envía, y el mensaje sale de inmediato."
         },
         {
           "id": "chat6",
@@ -557,12 +557,12 @@
           "options": [
             {
               "id": "a",
-              "text": "Responder en hilo — abre el panel de hilos y mantiene la conversación lateral junta",
+              "text": "Responder en hilo — abre un panel lateral y mantiene ese ida y vuelta junto",
               "isCorrect": true
             },
             {
               "id": "b",
-              "text": "Iniciar un nuevo MD con todos los del canal"
+              "text": "Iniciar un nuevo mensaje directo con todos los del canal"
             },
             {
               "id": "c",
@@ -573,19 +573,19 @@
               "text": "Citar el mensaje en un canal nuevo"
             }
           ],
-          "explanation": "Responder en hilo abre el panel de hilos de ese mensaje. Un mensaje con respuestas muestra un enlace 'N respuestas' que reabre el hilo, manteniendo las conversaciones laterales fuera del flujo principal."
+          "explanation": "Responder en hilo abre un panel lateral para ese mensaje. Un mensaje con respuestas muestra un enlace de respuestas que reabre el hilo, manteniendo las conversaciones laterales fuera del flujo principal."
         },
         {
           "id": "chat7",
-          "text": "Un mensaje de chat contiene un enlace a un trabajo. ¿Qué ocurre cuando ese enlace a registro aparece en la conversación?",
+          "text": "Un mensaje incluye un enlace a un trabajo. ¿Qué ocurre cuando ese enlace aparece en la conversación?",
           "options": [
             {
               "id": "a",
-              "text": "Se muestra como texto sin formato que debe copiar y pegar en la barra de direcciones"
+              "text": "Aparece como texto sencillo que tiene que copiar y pegar en la barra de direcciones"
             },
             {
               "id": "b",
-              "text": "Se muestra en línea como una etiqueta en la que se puede hacer clic y que abre el diálogo de detalle del trabajo",
+              "text": "Aparece como una etiqueta de color en la que se puede tocar y que abre los detalles del trabajo",
               "isCorrect": true
             },
             {
@@ -594,18 +594,18 @@
             },
             {
               "id": "d",
-              "text": "Nada — los enlaces a registros no se admiten en ninguna parte del chat"
+              "text": "Nada — los enlaces a registros no funcionan en ninguna parte del chat"
             }
           ],
-          "explanation": "Los enlaces a registros (trabajo, pieza, OC, orden de venta, cotización y más) se muestran en línea como etiquetas de color en las que se puede hacer clic y que abren el diálogo de detalle del registro. Nota: el redactor de mensajes en vivo es un cuadro de texto sencillo — escribir @ no abre un selector de menciones/registros hoy, así que estos enlaces llegan en mensajes desde otras partes del sistema."
+          "explanation": "Los enlaces a registros — un trabajo, pieza, orden de compra, orden de venta, cotización y más — aparecen como etiquetas de color en las que se puede tocar y que abren los detalles de ese registro. Nota: el cuadro de mensaje es un cuadro de texto sencillo hoy, así que escribir @ no abre un selector; estos enlaces llegan en mensajes que vienen desde otras partes de la aplicación."
         },
         {
           "id": "chat8",
-          "text": "¿Quién puede publicar mensajes en un canal de Difusión (anuncios) de solo lectura?",
+          "text": "¿Quién puede publicar en un canal de difusión (anuncios) de solo lectura?",
           "options": [
             {
               "id": "a",
-              "text": "Cualquiera que sea miembro del canal"
+              "text": "Cualquiera que esté en el canal"
             },
             {
               "id": "b",
@@ -618,10 +618,10 @@
             },
             {
               "id": "d",
-              "text": "Nadie — los canales de difusión son archivos"
+              "text": "Nadie — los canales de difusión son solo archivos"
             }
           ],
-          "explanation": "Los canales de difusión son de solo lectura: solo los administradores y gerentes pueden publicar en ellos. Los demás leen los anuncios pero no pueden responder en el canal."
+          "explanation": "Los canales de difusión son de solo lectura: solo los administradores y gerentes pueden publicar. Los demás leen los anuncios pero no pueden responder en el canal."
         },
         {
           "id": "chat9",
@@ -629,27 +629,27 @@
           "options": [
             {
               "id": "a",
-              "text": "Desde el redactor del chat — escribe el anuncio directamente en el cuadro de mensaje de un canal"
+              "text": "Desde el cuadro de chat — escribe el anuncio directamente en un mensaje de canal"
             },
             {
               "id": "b",
-              "text": "Desde Administración > Anuncios — controlando el alcance (toda la empresa, departamento o equipos específicos), la severidad, si se requiere confirmación de lectura y una caducidad",
+              "text": "Desde el área de Administración — eligiendo a quién llega (toda la empresa, un departamento o equipos específicos), su importancia, si la gente debe confirmar que lo leyó y una fecha de caducidad",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "En cualquier parte — cualquier usuario puede publicar un anuncio desde cualquier MD"
+              "text": "En cualquier parte — cualquier usuario puede publicar un anuncio desde cualquier mensaje directo"
             },
             {
               "id": "d",
-              "text": "Desde la pestaña de redacción del panel de notificaciones del encabezado"
+              "text": "Desde una pestaña de redacción en el panel de notificaciones de la barra superior"
             }
           ],
-          "explanation": "Los anuncios se redactan desde Administración > Anuncios (el panel de Anuncios del administrador), no desde el panel de chat. El chat es donde los anuncios se reciben y leen. Desde el panel de administración, un administrador/gerente establece el alcance (toda la empresa, departamento o equipos específicos), una severidad (Info/Advertencia/Crítica), confirmación de lectura opcional requerida, una caducidad opcional y puede reutilizar plantillas."
+          "explanation": "Los anuncios se redactan desde el área de Administración, no desde el chat. El chat es donde los recibe y lee. Desde Administración, un administrador o gerente elige a quién llega (toda la empresa, un departamento o equipos específicos), su importancia (Info, Advertencia o Crítica), si la gente debe confirmar que lo leyó, una fecha de caducidad opcional, y puede reutilizar plantillas."
         },
         {
           "id": "chat10",
-          "text": "Un canal está muy activo y las notificaciones distraen, pero aún necesita ser miembro. ¿Qué hace?",
+          "text": "Un canal está muy activo y las alertas distraen, pero aún necesita permanecer en él. ¿Qué hace?",
           "options": [
             {
               "id": "a",
@@ -657,7 +657,7 @@
             },
             {
               "id": "b",
-              "text": "Silenciar el canal desde su fila para acallar las notificaciones sin dejar de ser miembro",
+              "text": "Silenciar el canal desde su fila para apagar las alertas sin dejar de ser miembro",
               "isCorrect": true
             },
             {
@@ -669,39 +669,39 @@
               "text": "Bloquear a los demás miembros"
             }
           ],
-          "explanation": "Silenciar acalla las notificaciones de un canal sin quitarlo. El canal silenciado muestra un ícono notifications_off; usted sigue siendo miembro y aún puede leerlo."
+          "explanation": "Silenciar apaga las alertas de un canal sin sacarlo de él. Un canal silenciado muestra una campana tachada; sigue siendo miembro y aún puede leerlo."
         },
         {
           "id": "chat11",
-          "text": "¿Cómo se marcan los mensajes como leídos y qué muestra la insignia del encabezado?",
+          "text": "¿Cómo se marcan los mensajes como leídos y qué muestra el número de la barra superior?",
           "options": [
             {
               "id": "a",
-              "text": "Debe hacer clic en 'Marcar como leído' en cada mensaje; la insignia muestra su estado en línea"
+              "text": "Hace clic en 'Marcar como leído' en cada mensaje; el número muestra si está en línea"
             },
             {
               "id": "b",
-              "text": "Al abrir una conversación se marcan sus mensajes como leídos; la insignia del encabezado muestra su recuento total de no leídos en todos los MD y canales",
+              "text": "Al abrir una conversación se marcan sus mensajes como leídos; el número de la barra superior muestra su total de no leídos en todos los chats y canales",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Los mensajes se leen tras 10 segundos; la insignia muestra el número de canales"
+              "text": "Los mensajes se leen solos tras 10 segundos; el número muestra cuántos canales tiene"
             },
             {
               "id": "d",
-              "text": "Debe desplazarse hasta el final; la insignia muestra cuántas personas están en línea"
+              "text": "Se desplaza hasta el final; el número muestra cuántas personas están en línea"
             }
           ],
-          "explanation": "Al abrir un MD o canal se marcan sus mensajes como leídos (mediante los extremos de lectura). La insignia del ícono de chat del encabezado muestra su recuento total de no leídos en todas las conversaciones y se actualiza en tiempo real."
+          "explanation": "Al abrir un chat o canal se marcan sus mensajes como leídos. El ícono de chat de la barra superior muestra su total de no leídos en todas las conversaciones y se actualiza en el momento en que llegan nuevos mensajes."
         },
         {
           "id": "chat12",
-          "text": "¿Qué determina el rol de un miembro de un canal (Miembro, Administrador o Propietario)?",
+          "text": "¿Qué decide el rol de un miembro de un canal (Miembro, Administrador o Propietario)?",
           "options": [
             {
               "id": "a",
-              "text": "Nada — los roles son etiquetas decorativas"
+              "text": "Nada — los roles son solo etiquetas"
             },
             {
               "id": "b",
@@ -710,14 +710,14 @@
             },
             {
               "id": "c",
-              "text": "El color del avatar del miembro"
+              "text": "El color de las iniciales del miembro"
             },
             {
               "id": "d",
               "text": "Cuántos mensajes puede enviar el miembro por día"
             }
           ],
-          "explanation": "Los roles de canal rigen los permisos: un Miembro puede leer y publicar, un Administrador puede editar y gestionar el canal (nombre, descripción, ícono, miembros) y un Propietario tiene control total, incluida la eliminación del canal."
+          "explanation": "Los roles deciden lo que cada persona puede hacer: un Miembro lee y publica, un Administrador puede renombrar, editar y gestionar el canal, y un Propietario tiene control total, incluida la eliminación del canal."
         },
         {
           "id": "chat13",
@@ -725,23 +725,23 @@
           "options": [
             {
               "id": "a",
-              "text": "Abrir el panel deslizable de chat y hacer clic en Abrir en ventana (open_in_new) para abrir el chat en su propia ventana",
+              "text": "Abrir el chat deslizable y hacer clic en Abrir en ventana para mover el chat a su propia ventana",
               "isCorrect": true
             },
             {
               "id": "b",
-              "text": "Redimensionar el navegador para que el chat ocupe toda la pantalla"
+              "text": "Agrandar la ventana del navegador para que el chat ocupe toda la pantalla"
             },
             {
               "id": "c",
-              "text": "No puede — el chat debe permanecer dentro de la aplicación"
+              "text": "No puede — el chat tiene que permanecer dentro de la aplicación"
             },
             {
               "id": "d",
-              "text": "Marcar /chat como favorito y actualizarlo cada pocos minutos"
+              "text": "Marcar la página de chat como favorita y actualizarla cada pocos minutos"
             }
           ],
-          "explanation": "Desde el panel deslizable de chat, el botón Abrir en ventana (open_in_new) abre el chat en su propia ventana (/chat/popout) que puede mover a un segundo monitor. Mientras está abierta, el panel muestra un banner 'El chat está abierto en una ventana aparte' y un botón Enfocar ventana, y las conversaciones en las que hace clic en el panel se abren en la ventana emergente. Al cerrar la ventana emergente, vuelve al panel deslizable normal."
+          "explanation": "Desde el chat deslizable, Abrir en ventana mueve el chat a su propia ventana que puede poner en un segundo monitor. Mientras está abierta, el panel muestra una nota de que el chat está en una ventana aparte más un botón Enfocar ventana, y las conversaciones en las que hace clic en el panel se abren en esa ventana. Cierre la ventana para volver al panel deslizable."
         }
       ]
     }
@@ -749,9 +749,9 @@
   {
     "slug": "chat-reference",
     "title": "Chat — Referencia avanzada",
-    "summary": "Notas de referencia para usuarios avanzados y administradores sobre el chat: taxonomía de tipos de canal, matriz de permisos de configuración del canal, lista blanca de adjuntos y límite de 10 MB, redacción de anuncios (administrador) y restricción mediante CAP-EXT-CHAT.",
+    "summary": "Una referencia para administradores y usuarios avanzados sobre el chat: los tipos de canal, quién puede hacer qué en un canal, qué puede adjuntar y el límite de 10 MB, redactar anuncios y activar o desactivar el chat.",
     "contentJson": {
-      "body": "## Taxonomía de tipos de canal\n\nEl enum `ChannelType` (forge.core/Enums/ChannelType.cs) tiene siete valores, pero solo *crea* dos de ellos manualmente:\n\n- **DirectMessage** — una conversación privada uno a uno. Se crea de forma implícita al iniciar un MD; nunca aparece en el diálogo de creación de canal.\n- **Group** — el valor predeterminado de un canal creado por el usuario (CreateChatRoom establece `ChannelType.Group`). Un canal compartido basado en un tema.\n- **Custom** — el otro tipo que puede crear el usuario. **Solo los canales Custom se pueden descubrir y unir**: DiscoverChannels filtra por `ChannelType.Custom`, y JoinChannel rechaza cualquier cosa que no sea Custom. Use Custom cuando quiera un canal abierto que la gente pueda encontrar y al que pueda unirse por sí misma.\n- **TeamAuto** — se crea automáticamente para un Equipo (uno por equipo); se agrupa bajo el encabezado del equipo en la barra lateral. No lo crea el usuario.\n- **Department** — un canal con alcance de departamento; lo aprovisiona el sistema, no el diálogo de creación.\n- **System** — se crea automáticamente para fines integrados; no puede abandonarlo.\n- **Broadcast** — un canal de anuncios de solo lectura (`IsReadOnly`); solo los administradores y gerentes pueden publicar.\n\nEl validador de creación de canal (CreateChannel.cs) solo acepta `Group` o `Custom` — todos los demás tipos los aprovisiona el sistema.\n\n## Matriz de permisos de configuración del canal\n\nCada fila de membresía lleva un `ChannelMemberRole` (Member, Admin, Owner). Las acciones de configuración del canal dependen de ese rol, **no** de su rol Admin/Manager de toda la aplicación:\n\n- **Member (Miembro)** — leer y publicar; silenciar sus propias notificaciones; abandonar. No puede editar el canal: UpdateChannel lanza `UnauthorizedAccessException` (\"Only channel admins and owners can update channel settings\") cuando `member.Role == ChannelMemberRole.Member`.\n- **Admin (Administrador)** — todo lo que puede hacer un Miembro, más editar el canal (Name, Description, IconName mediante UpdateChannelCommand) y gestionar la membresía.\n- **Owner (Propietario)** — control total, incluida la eliminación del canal.\n\nLas reglas para abandonar son independientes del rol: LeaveChannel rechaza los canales `DirectMessage`, `System` y `Broadcast` — no puede abandonar esos sin importar su rol. Unirse está restringido a los canales `Custom` (vea la taxonomía anterior).\n\n## Lista blanca de archivos adjuntos + límite de 10 MB\n\nLa lista blanca del `<input accept>` (chat-message-area.component.html y chat.component.html) es fija e idéntica en ambos redactores:\n\n`.pdf, .jpg, .jpeg, .png, .gif, .doc, .docx, .xls, .xlsx, .csv, .txt, .step, .stl, .dxf`\n\nEso cubre PDF, imágenes comunes, documentos de Office, texto plano/CSV y los tres formatos de planos de ingeniería (STEP/STL/DXF). El control de tamaño es una verificación estricta del lado del cliente — `if (file.size > 10 * 1024 * 1024) return;` — así que un archivo de más de **10 MB** se rechaza silenciosamente antes de cargarse (hoy sin aviso de error). Las cargas pasan por `POST /api/v1/chat/channels/{channelId}/upload` (UploadChatFile); el id del adjunto devuelto viaja con su próximo mensaje.\n\n## Análisis detallado de la redacción de anuncios (administrador)\n\nLos anuncios son una función separada del chat — el chat solo los *recibe y muestra*. La redacción reside en **Administración > Anuncios** y está protegida por su propia capacidad `CAP-EXT-ANNOUNCEMENTS` (distinta de `CAP-EXT-CHAT` del chat). Gestión de roles en AnnouncementsController:\n\n- **Listar activos / crear / actualizar / eliminar / enviar** — `[Authorize(Roles = \"Admin,Manager\")]`.\n- **Gestionar plantillas** — listar/crear es Admin/Manager para lectura, pero la **creación y eliminación de plantillas es `[Authorize(Roles = \"Admin\")]`** (solo administrador).\n- **Confirmar lectura** (`POST /announcements/{id}/acknowledge`) — cualquier lector autenticado.\n\nLos campos de redacción se corresponden con la entidad `Announcement`:\n\n- **Severity** (`AnnouncementSeverity`): Info, Warning, Critical.\n- **Scope** (`AnnouncementScope`): CompanyWide, Department, SelectedTeams, IndividualTeam, TeamLeadsOnly. El alcance Department usa `DepartmentId`; los alcances de equipo usan la colección `TargetTeams` (`targetTeamIds`).\n- **RequiresAcknowledgment** (bool) — obliga a los lectores a confirmar la lectura.\n- **ExpiresAt** (`DateTimeOffset?`) — caducidad automática opcional.\n- **Plantillas** (`AnnouncementTemplate`) llevan `DefaultSeverity`, `DefaultScope`, `DefaultRequiresAcknowledgment` para precompletar un anuncio nuevo.\n\nLa entrega es en tiempo real: un anuncio creado dispara `announcementReceived` en el ChatHub y aparece en el chat y en los canales Broadcast de solo lectura.\n\n## Restricción mediante CAP-EXT-CHAT\n\nTodo el ChatController lleva `[RequiresCapability(\"CAP-EXT-CHAT\")]`, así que cuando esa capacidad está deshabilitada para una instalación, cada extremo del chat (conversaciones, mensajes, canales, hilos, carga, leído/silenciar) se cortocircuita con un envoltorio 403 de capacidad — el panel de chat y el ícono del encabezado quedan efectivamente inactivos para esa instalación. Los anuncios se protegen **por separado** mediante `CAP-EXT-ANNOUNCEMENTS`: una instalación puede ejecutar anuncios sin chat, o chat sin anuncios. La entrega en tiempo real viaja por el ChatHub en `/hubs/chat` de todos modos, pero la superficie REST es lo que controla la restricción de capacidad.",
+      "body": "## Los tipos de canal\n\nHay varios tipos de canal, pero usted solo *crea* dos de ellos por su cuenta:\n\n- **Mensaje directo** — un chat privado uno a uno. Se crea por usted cuando inicia un chat con alguien; nunca aparece en la ventana de nuevo canal.\n- **Grupo** — el tipo normal que usted crea: un canal compartido para un tema.\n- **Abierto** — el otro tipo que puede crear. **Solo los canales abiertos pueden ser encontrados y unidos por otros.** Use un canal abierto cuando quiera que la gente lo descubra y se una por su cuenta.\n- **Equipo** — se configura automáticamente para un equipo (uno por equipo) y se agrupa bajo el encabezado de ese equipo. No los crea usted.\n- **Departamento** — un canal para un departamento, configurado por la aplicación en lugar de la ventana de nuevo canal.\n- **Sistema** — se configura automáticamente para fines integrados; no puede abandonar estos.\n- **Difusión** — un canal de anuncios de solo lectura; solo los administradores y gerentes pueden publicar.\n\nAl crear un canal nuevo, solo puede elegir **Grupo** o **Abierto** — todos los demás tipos los configura la aplicación.\n\n## Quién puede hacer qué en un canal\n\nCada persona en un canal es un Miembro, un Administrador o el Propietario. Lo que puede hacer en la configuración de un canal depende de ese rol, **no** de su rol de administrador o gerente de toda la empresa:\n\n- **Miembro** — leer y publicar, silenciar sus propias alertas y abandonar. Un Miembro no puede editar el canal; solo los administradores y propietarios del canal pueden cambiar su configuración.\n- **Administrador** — todo lo que puede hacer un Miembro, más renombrar y editar el canal y gestionar quiénes están en él.\n- **Propietario** — control total, incluida la eliminación del canal.\n\nAbandonar funciona igual para todos: no puede abandonar un mensaje directo, un canal del sistema ni un canal de difusión, sin importar su rol. Y solo puede unirse a canales abiertos.\n\n## Qué puede adjuntar (y el límite de 10 MB)\n\nLos tipos de archivo que puede adjuntar son los mismos en todo el chat:\n\nPDF, imágenes comunes (JPG, PNG, GIF), documentos de oficina (Word, Excel), archivos de texto y de hoja de cálculo sencillos (TXT, CSV) y los tres formatos comunes de planos de ingeniería (STEP, STL, DXF).\n\nHay un límite de tamaño estricto: un archivo de más de **10 MB** se rechaza antes de cargarse. Hoy eso ocurre en silencio, sin mensaje de error. Una vez que un archivo se carga, sale con su próximo mensaje.\n\n## Redactar anuncios (para administradores)\n\nLos anuncios son algo aparte del chat — el chat solo los *recibe y muestra*. Usted los redacta en el área de **Administración**, y esa área se puede activar o desactivar por separado del chat. Quién puede hacer qué:\n\n- **Listar, crear, editar, eliminar y enviar anuncios** — administradores y gerentes.\n- **Gestionar plantillas** — los administradores y gerentes pueden verlas, pero solo los administradores pueden crear o eliminar una plantilla.\n- **Confirmar que ha leído uno** — cualquiera que haya iniciado sesión.\n\nAl redactar un anuncio, usted establece:\n\n- **Importancia** — Info, Advertencia o Crítica.\n- **A quién llega** — a toda la empresa, a un departamento o a equipos específicos (y también hay opciones para líderes de equipo).\n- **Debe confirmar** — si los lectores tienen que confirmar que lo han leído.\n- **Caducidad** — una fecha opcional en la que desaparece por sí solo.\n- **Plantillas** — puntos de partida reutilizables que pueden precompletar la importancia, a quién llega y si se requiere confirmación.\n\nLos anuncios llegan en el momento en que se envían, apareciendo en el chat y en los canales de difusión de solo lectura.\n\n## Activar o desactivar el chat\n\nUn administrador puede activar o desactivar toda la función de chat para su empresa. Cuando está desactivada, el chat se apaga — el panel y el ícono de la barra superior dejan de funcionar. Los anuncios se controlan por separado, así que su empresa puede tener anuncios sin chat, o chat sin anuncios.",
       "sections": []
     }
   }

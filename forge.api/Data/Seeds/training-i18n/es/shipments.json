@@ -4,7 +4,7 @@
     "title": "Visión general de Envíos",
     "summary": "Qué son los envíos, el ciclo de vida del envío, las líneas de artículo y cómo los envíos se conectan con las órdenes de venta y las facturas.",
     "contentJson": {
-      "body": "## Visión general de Envíos\n\nEl módulo de Envíos rastrea cada envío saliente de su taller. Cada envío está vinculado a una Orden de Venta y contiene una o más líneas de artículo que describen qué se envía y en qué cantidad. Los envíos avanzan a través de un ciclo de vida definido, desde la creación hasta la entrega, y se conectan directamente con la facturación para que siempre sepa qué se ha enviado y facturado.\n\n### ¿Qué es un envío?\n\nUn envío representa un paquete físico o conjunto de paquetes que salen de su instalación para cumplir (o cumplir parcialmente) una Orden de Venta. Cada envío tiene:\n- Un **Número de envío** único (autogenerado)\n- Un enlace a exactamente una **Orden de Venta**\n- Una o más **Líneas de artículo** que especifican piezas y cantidades\n- **Transportista** y **Número de seguimiento** opcionales para la logística\n- **Peso** y **Costo de envío** opcionales para el registro\n- Un **Estado** que indica en qué punto del ciclo de vida se encuentra el envío\n\n### Ciclo de vida del envío\n\nLos envíos siguen una progresión de estados lineal:\n\n1. **Pendiente** — El envío se ha creado pero aún no se ha empacado nada. Este es el estado inicial de todos los envíos nuevos.\n2. **Empacado** — Los artículos se han empacado físicamente y están listos para enviarse. El envío espera la recogida o la entrega al transportista.\n3. **Enviado** — El envío ha salido de su instalación. La fecha de envío se registra automáticamente cuando lo marca como enviado.\n4. **En tránsito** — El transportista tiene el envío y está en camino al cliente. Las actualizaciones de información de seguimiento están disponibles si se proporciona un número de seguimiento.\n5. **Entregado** — El cliente ha recibido el envío. La fecha de entrega se registra automáticamente.\n6. **Cancelado** — El envío se canceló antes de la entrega. Los envíos cancelados se conservan con fines de auditoría.\n\nPuede hacer avanzar un envío a través de los estados usando los botones de acción en la vista de detalle. Los envíos pueden marcarse como enviados desde el estado Pendiente o Empacado, y marcarse como entregados desde el estado Enviado o En tránsito.\n\n### Líneas de artículo\n\nCada línea de envío se crea **a partir de una línea de la Orden de Venta vinculada** —no elige piezas de un catálogo libre. Al crear un envío, primero selecciona una Orden de Venta, y el diálogo solo ofrece entonces las líneas abiertas de esa orden. Elige una Línea de Orden de Venta y una cantidad; la cantidad está **limitada a lo que queda por enviar** en esa línea (la orden nunca puede sobreenviarse). Una sola Orden de Venta puede tener múltiples envíos (entregas parciales), y cada envío rastrea exactamente qué líneas de orden y cantidades se incluyeron.\n\n### Cómo se conectan los envíos con otras funciones\n\n**Órdenes de Venta:** Cada envío pertenece a una Orden de Venta. La Orden de Venta rastrea el cumplimiento general a través de todos sus envíos. Puede ver la Orden de Venta vinculada directamente desde la vista de detalle del envío.\n\n**Facturas:** Después de que un envío se ha enviado, puede vincularse a una Factura. La vista de detalle del envío muestra la factura vinculada cuando existe una, proporcionando un rastro de auditoría claro desde la orden hasta el envío y la facturación.\n\n**Clientes:** El nombre del cliente y la dirección de envío provienen de la Orden de Venta. La vista de detalle del envío muestra el nombre del cliente y permite navegar a la Orden de Venta para obtener el contexto completo de la orden.\n\n**Integración con transportistas:** El sistema admite la comparación de tarifas de transportistas y la generación de etiquetas. Desde el detalle del envío, puede solicitar tarifas de envío de los transportistas configurados, comparar opciones y crear una etiqueta de envío —todo sin salir de QB Engineer.\n\n**Seguimiento:** Cuando se introduce un número de seguimiento (manualmente o mediante la creación de etiquetas), puede ver la línea de tiempo de seguimiento directamente en el detalle del envío. La línea de tiempo muestra cada evento de seguimiento con ubicación, estado y marca de tiempo.\n\n**Documento de envío:** Una vez que un envío tiene un número de seguimiento, la vista de detalle muestra un botón **Descargar documento de envío** (un PDF versionado que incluye el número de envío, la información del cliente, la dirección de envío y una tabla de todas las líneas de artículo con cantidades), además de un botón **Regenerar documento de envío** para producir una copia nueva. Ambos botones aparecen solo después de que exista un número de seguimiento. Este es el documento que imprime e incluye en el paquete físico.\n\n### Cuándo usar los envíos\n\n- Al cumplir una Orden de Venta —cree un envío para registrar lo que se envía\n- Al enviar órdenes parciales —cree múltiples envíos contra la misma Orden de Venta\n- Cuando necesite comparar tarifas de transportistas antes de elegir un método de envío\n- Cuando necesite visibilidad de seguimiento para los paquetes salientes\n- Al descargar el documento de envío para incluir con los envíos\n- Cuando necesite un rastro de auditoría que conecte órdenes, envíos y facturas",
+      "body": "## Visión general de Envíos\n\nEl módulo de Envíos rastrea cada envío saliente de su taller. Cada envío está vinculado a una Orden de Venta y contiene una o más líneas de artículo que describen qué se envía y en qué cantidad. Los envíos avanzan a través de un ciclo de vida definido, desde la creación hasta la entrega, y se conectan directamente con la facturación para que siempre sepa qué se ha enviado y facturado.\n\n### ¿Qué es un envío?\n\nUn envío representa un paquete físico o conjunto de paquetes que salen de su instalación para cumplir (o cumplir parcialmente) una Orden de Venta. Cada envío tiene:\n- Un **Número de envío** único (autogenerado)\n- Un enlace a exactamente una **Orden de Venta**\n- Una o más **Líneas de artículo** que especifican piezas y cantidades\n- **Transportista** y **Número de seguimiento** opcionales para la logística\n- **Peso** y **Costo de envío** opcionales para el registro\n- Un **Estado** que indica en qué punto del ciclo de vida se encuentra el envío\n\n### Ciclo de vida del envío\n\nLos envíos siguen una progresión de estados lineal:\n\n1. **Pendiente** — El envío se ha creado pero aún no se ha empacado nada. Este es el estado inicial de todos los envíos nuevos.\n2. **Empacado** — Los artículos se han empacado físicamente y están listos para enviarse. El envío espera la recogida o la entrega al transportista.\n3. **Enviado** — El envío ha salido de su instalación. La fecha de envío se registra automáticamente cuando lo marca como enviado.\n4. **En tránsito** — El transportista tiene el envío y está en camino al cliente. Las actualizaciones de información de seguimiento están disponibles si se proporciona un número de seguimiento.\n5. **Entregado** — El cliente ha recibido el envío. La fecha de entrega se registra automáticamente.\n6. **Cancelado** — El envío se canceló antes de la entrega. Los envíos cancelados se conservan con fines de auditoría.\n\nPuede hacer avanzar un envío a través de los estados usando los botones de acción en la vista de detalle. Los envíos pueden marcarse como enviados desde el estado Pendiente o Empacado, y marcarse como entregados desde el estado Enviado o En tránsito.\n\n### Líneas de artículo\n\nCada línea de envío se crea **a partir de una línea de la Orden de Venta vinculada** —no elige piezas de un catálogo libre. Al crear un envío, primero selecciona una Orden de Venta, y la ventana solo ofrece entonces las líneas abiertas de esa orden. Elige una Línea de Orden de Venta y una cantidad; la cantidad está **limitada a lo que queda por enviar** en esa línea (la orden nunca puede sobreenviarse). Una sola Orden de Venta puede tener múltiples envíos (entregas parciales), y cada envío rastrea exactamente qué líneas de orden y cantidades se incluyeron.\n\n### Cómo se conectan los envíos con otras funciones\n\n**Órdenes de Venta:** Cada envío pertenece a una Orden de Venta. La Orden de Venta rastrea el cumplimiento general a través de todos sus envíos. Puede ver la Orden de Venta vinculada directamente desde la vista de detalle del envío.\n\n**Facturas:** Después de que un envío se ha enviado, puede vincularse a una Factura. La vista de detalle del envío muestra la factura vinculada cuando existe una, proporcionando un rastro de auditoría claro desde la orden hasta el envío y la facturación.\n\n**Clientes:** El nombre del cliente y la dirección de envío provienen de la Orden de Venta. La vista de detalle del envío muestra el nombre del cliente y permite navegar a la Orden de Venta para obtener el contexto completo de la orden.\n\n**Integración con transportistas:** El sistema admite la comparación de tarifas de transportistas y la generación de etiquetas. Desde el detalle del envío, puede solicitar tarifas de envío de los transportistas configurados, comparar opciones y crear una etiqueta de envío —todo sin salir de QB Engineer.\n\n**Seguimiento:** Cuando se introduce un número de seguimiento (manualmente o mediante la creación de etiquetas), puede ver la línea de tiempo de seguimiento directamente en el detalle del envío. La línea de tiempo muestra cada evento de seguimiento con ubicación, estado y marca de tiempo.\n\n**Documento de envío:** Una vez que un envío tiene un número de seguimiento, la vista de detalle muestra un botón **Descargar documento de envío** (un PDF versionado que incluye el número de envío, la información del cliente, la dirección de envío y una tabla de todas las líneas de artículo con cantidades), además de un botón **Regenerar documento de envío** para producir una copia nueva. Ambos botones aparecen solo después de que exista un número de seguimiento. Este es el documento que imprime e incluye en el paquete físico.\n\n### Cuándo usar los envíos\n\n- Al cumplir una Orden de Venta —cree un envío para registrar lo que se envía\n- Al enviar órdenes parciales —cree múltiples envíos contra la misma Orden de Venta\n- Cuando necesite comparar tarifas de transportistas antes de elegir un método de envío\n- Cuando necesite visibilidad de seguimiento para los paquetes salientes\n- Al descargar el documento de envío para incluir con los envíos\n- Cuando necesite un rastro de auditoría que conecte órdenes, envíos y facturas",
       "sections": []
     }
   },
@@ -19,8 +19,8 @@
         {
           "element": "[data-testid='new-shipment-btn']",
           "popover": {
-            "title": "Botón Nuevo envío",
-            "description": "Haga clic aquí para crear un nuevo envío. Primero seleccionará una Orden de Venta, luego agregará líneas de artículo eligiendo entre las líneas abiertas de esa orden (la cantidad está limitada a lo que queda por enviar) y, opcionalmente, introducirá información de transportista y seguimiento. El diálogo usa un diseño dividido: líneas de artículo a la izquierda, detalles del envío y notas a la derecha.",
+            "title": "Nuevo envío",
+            "description": "Haga clic aquí para empezar un envío. Elija primero la orden de venta y luego agregue líneas de esa orden —solo puede enviar hasta lo que aún se adeuda. El transportista y el seguimiento son opcionales.",
             "side": "bottom"
           }
         },
@@ -28,15 +28,15 @@
           "element": ".filters-bar app-input",
           "popover": {
             "title": "Buscar envíos",
-            "description": "Busque por número de envío, número de Orden de Venta, nombre del cliente, transportista o número de seguimiento. Presione Enter para aplicar la búsqueda. Los resultados se actualizan en la tabla de abajo.",
+            "description": "Escriba para encontrar un envío por su número, orden de venta, cliente, transportista o número de seguimiento. Presione Enter para buscar. Las coincidencias aparecen en la tabla de abajo.",
             "side": "bottom"
           }
         },
         {
           "element": ".filters-bar app-select",
           "popover": {
-            "title": "Filtro de estado",
-            "description": "Filtre los envíos por su estado actual: Pendiente, Empacado, Enviado, En tránsito, Entregado o Cancelado. Cada estado tiene una etiqueta (chip) con código de color distintivo en la tabla para una identificación rápida.",
+            "title": "Filtrar por estado",
+            "description": "Reduzca la lista a un solo estado: Pendiente, Empacado, Enviado, En tránsito, Entregado o Cancelado. Cada estado aparece como una etiqueta de color en la tabla.",
             "side": "bottom"
           }
         },
@@ -44,23 +44,23 @@
           "element": "app-data-table",
           "popover": {
             "title": "Tabla de envíos",
-            "description": "Haga clic en cualquier fila para abrir el diálogo de detalle del envío. Las columnas incluyen Número de envío, Número de OV, Cliente, Estado (chip de color), Transportista, Número de seguimiento, Fecha de envío y fecha de Creación. Haga clic en los encabezados de columna para ordenar. Use el icono de engranaje para administrar la visibilidad y el orden de las columnas.",
+            "description": "Cada envío es una fila, con su número, orden de venta, cliente, estado, transportista, seguimiento y fechas. Haga clic en un encabezado de columna para ordenar. Haga clic en cualquier fila para abrir el envío.",
             "side": "top"
           }
         },
         {
           "element": "[data-testid='new-shipment-btn']",
           "popover": {
-            "title": "Crear un envío — Recorrido",
-            "description": "Al hacer clic en Nuevo envío, se abre un diálogo con un diseño dividido. En la barra lateral derecha, seleccione primero la Orden de Venta (obligatorio) —esto impulsa todo lo demás. A la izquierda, agregue luego las líneas de artículo eligiendo una de las líneas abiertas de esa orden del menú desplegable; la cantidad se rellena con lo que queda por enviar y está limitada a ese valor (no puede superar la cantidad restante). Haga clic en Agregar y cada línea aparece en una tabla donde puede eliminarla. Opcionalmente, introduzca Transportista, Número de seguimiento, Peso, Costo de envío y Notas. Guardar está deshabilitado hasta que tenga al menos una línea de artículo y una Orden de Venta seleccionada.",
+            "title": "Crear un envío",
+            "description": "En la ventana de nuevo envío, elija primero la orden de venta —todo lo demás se deriva de ella. Luego agregue líneas de esa orden; la cantidad se rellena con lo que queda por enviar y no sube más. El transportista, el seguimiento, el peso, el costo y las notas son todos opcionales. Puede guardar una vez que haya una orden de venta y al menos una línea.",
             "side": "left"
           }
         },
         {
           "element": "app-data-table",
           "popover": {
-            "title": "Vista de detalle del envío",
-            "description": "Hacer clic en una fila abre el diálogo de detalle. Muestra el número de envío, la etiqueta de estado, la Orden de Venta vinculada (con enlace), el nombre del cliente, la información del transportista, el número de seguimiento, las fechas de envío/entrega, el peso, el costo de envío, las notas y todas las líneas de artículo. Los botones de acción aparecen según el estado: Marcar enviado (desde Pendiente/Empacado), Obtener tarifas (comparación de tarifas de transportistas), Rastrear (carga la línea de tiempo de seguimiento) y Marcar entregado (desde Enviado/En tránsito). Una línea de tiempo de actividad muestra el historial completo de cambios de estado y actualizaciones.",
+            "title": "Abrir un envío",
+            "description": "Haga clic en una fila para abrir ese envío. Dentro verá su estado, orden de venta, cliente, transportista, seguimiento, fechas y líneas. Los botones cambian según el estado —márquelo como enviado, compare tarifas de transportistas, rastréelo o márquelo como entregado— y una línea de tiempo registra todo lo que ocurrió.",
             "side": "top"
           }
         }
@@ -79,27 +79,27 @@
           "items": [
             {
               "label": "Orden de Venta (obligatorio)",
-              "value": "Menú desplegable de autocompletado. Seleccione la Orden de Venta que cumple este envío. Se muestra como 'NúmeroOrden — NombreCliente (OCCliente)'. Es el único campo obligatorio de la barra lateral. data-testid: shipment-so"
+              "value": "Elija la orden que cumple este envío. Empiece a escribir para encontrarla; cada opción muestra el número de orden, el cliente y la OC del cliente. Es el único campo que debe llenar en la barra lateral."
             },
             {
               "label": "Transportista",
-              "value": "Campo de texto, opcional. El nombre del transportista (p. ej., 'UPS', 'FedEx', 'USPS', 'DHL', 'Carga'). Se muestra en la tabla y la vista de detalle. data-testid: shipment-carrier"
+              "value": "Opcional. El nombre del transportista, como UPS, FedEx, USPS, DHL o Carga. Aparece en la lista y en el envío."
             },
             {
               "label": "Número de seguimiento",
-              "value": "Campo de texto, opcional. El número de seguimiento proporcionado por el transportista. Cuando está presente, habilita el botón Rastrear en la vista de detalle para cargar la línea de tiempo de seguimiento. data-testid: shipment-tracking"
+              "value": "Opcional. El número de seguimiento que le da el transportista. Una vez definido, puede rastrear el envío desde su vista de detalle."
             },
             {
               "label": "Peso",
-              "value": "Campo numérico, opcional. Peso total del envío en libras. Se muestra en la vista de detalle con el sufijo 'lbs'. data-testid: shipment-weight"
+              "value": "Opcional. El peso total del envío en libras."
             },
             {
               "label": "Costo de envío",
-              "value": "Campo numérico, opcional. Costo total de envío en dólares. Se muestra en la vista de detalle con formato de moneda. data-testid: shipment-cost"
+              "value": "Opcional. Lo que cuesta enviar el envío, mostrado como un monto en dólares."
             },
             {
               "label": "Notas",
-              "value": "Área de texto, opcional. Notas de formato libre sobre el envío (instrucciones de manejo especial, notas de entrega, etc.). 3 filas. data-testid: shipment-notes"
+              "value": "Opcional. Cualquier cosa que valga la pena anotar, como instrucciones de manejo o de entrega."
             }
           ]
         },
@@ -108,19 +108,19 @@
           "items": [
             {
               "label": "Línea de orden (obligatorio)",
-              "value": "Menú desplegable de autocompletado. Elija una de las líneas abiertas de la Orden de Venta seleccionada —no hay selector de piezas libre. Solo se muestran las líneas con cantidad pendiente de enviar; cada una muestra la pieza/descripción y la cantidad restante. Debe seleccionar primero una Orden de Venta; de lo contrario el mensaje es 'Seleccione una orden primero', y si todo ya se envió dice 'Todas las líneas enviadas'. data-testid: shipment-line-so-line"
+              "value": "Elija una de las líneas abiertas de la orden de venta —no elige piezas sueltas. Solo aparecen las líneas con algo pendiente de enviar, cada una mostrando la pieza y cuánto queda. Elija primero la orden; hasta entonces dice 'Seleccione una orden primero', y si todo se envió dice 'Todas las líneas enviadas'."
             },
             {
               "label": "Cantidad (obligatorio)",
-              "value": "Campo numérico. Se rellena con la cantidad restante por enviar de la línea y está limitada a ella —intentar superar la cantidad restante se rechaza. Debe ser mayor que 0. data-testid: shipment-line-qty"
+              "value": "Se rellena con lo que queda por enviar en esa línea y no sube más —si intenta introducir más, vuelve al límite. Debe ser mayor que 0."
             },
             {
               "label": "Botón Agregar",
-              "value": "Agrega la línea de orden y la cantidad seleccionadas como una nueva línea de artículo. Deshabilitado cuando el formulario de línea no es válido (no hay línea de orden seleccionada o la cantidad está por debajo del mínimo)."
+              "value": "Agrega al envío la línea y la cantidad que eligió. Permanece apagado hasta que haya elegido una línea y una cantidad válida."
             },
             {
               "label": "Botón Eliminar (X)",
-              "value": "Elimina una línea de artículo del envío. Cada línea de la tabla tiene un botón X rojo para eliminarla."
+              "value": "Quita una línea del envío. Cada línea de la lista tiene una X roja para eliminarla."
             }
           ]
         },
@@ -128,28 +128,28 @@
           "heading": "Estados de envío",
           "items": [
             {
-              "label": "Pendiente (chip gris)",
-              "value": "Estado inicial. El envío se ha creado pero los artículos aún no se han empacado. Puede marcarse como enviado directamente o pasar primero a Empacado."
+              "label": "Pendiente",
+              "value": "Donde empieza cada envío. Se ha creado pero aún no se ha empacado nada. Puede marcarlo como enviado o pasarlo primero a Empacado."
             },
             {
-              "label": "Empacado (chip azul/info)",
-              "value": "Los artículos se han empacado y el envío está listo para salir de la instalación. Puede marcarse como enviado desde este estado."
+              "label": "Empacado",
+              "value": "Los artículos están empacados y el envío está listo para salir. Puede marcarlo como enviado desde aquí."
             },
             {
-              "label": "Enviado (chip primario)",
-              "value": "El envío ha salido de la instalación. La fecha de envío se registra automáticamente. Puede marcarse como entregado desde este estado."
+              "label": "Enviado",
+              "value": "El envío ha salido. La fecha de envío se llena por usted. Puede marcarlo como entregado desde aquí."
             },
             {
-              "label": "En tránsito (chip amarillo/advertencia)",
-              "value": "El transportista tiene el envío y está en camino. Puede marcarse como entregado desde este estado. La línea de tiempo de seguimiento muestra las actualizaciones del transportista."
+              "label": "En tránsito",
+              "value": "El transportista lo tiene y va en camino. Puede marcarlo como entregado desde aquí, y el seguimiento muestra las actualizaciones del transportista."
             },
             {
-              "label": "Entregado (chip verde/éxito)",
-              "value": "El cliente ha recibido el envío. La fecha de entrega se registra automáticamente. Estado terminal —no hay más acciones disponibles."
+              "label": "Entregado",
+              "value": "El cliente lo recibió. La fecha de entrega se llena por usted. Este es el final del recorrido —no queda nada más por hacer."
             },
             {
-              "label": "Cancelado (chip rojo/error)",
-              "value": "El envío se canceló antes de la entrega. El registro se conserva para auditoría. Estado terminal —no hay más acciones disponibles."
+              "label": "Cancelado",
+              "value": "El envío se canceló antes de la entrega. El registro se conserva en su historial. Este es el final del recorrido —no queda nada más por hacer."
             }
           ]
         },
@@ -158,55 +158,55 @@
           "items": [
             {
               "label": "Número de envío",
-              "value": "Identificador único autogenerado. Se muestra de forma prominente en la parte superior de la vista de detalle con un icono de envío."
+              "value": "El número propio del envío, creado por usted. Aparece en la parte superior de la vista de detalle."
             },
             {
               "label": "Nombre del cliente",
-              "value": "Extraído de la Orden de Venta vinculada. Se muestra como subtítulo debajo del número de envío."
+              "value": "Proviene de la orden de venta. Aparece justo debajo del número de envío."
             },
             {
               "label": "Orden de Venta",
-              "value": "Enlace de entidad en el que se puede hacer clic que abre el diálogo de detalle de la Orden de Venta. Muestra el número de OV."
+              "value": "Un enlace en el que puede hacer clic para abrir la orden de venta. Muestra el número de orden."
             },
             {
               "label": "Transportista",
-              "value": "Se muestra solo si se introdujo un transportista. Visualización de texto."
+              "value": "Se muestra solo si introdujo un transportista."
             },
             {
               "label": "Número de seguimiento",
-              "value": "Se muestra solo si se introdujo. Se muestra en fuente monoespaciada para facilitar la lectura. Habilita el botón Rastrear."
+              "value": "Se muestra solo si introdujo uno. Puede usarlo para rastrear el envío."
             },
             {
               "label": "Fecha de envío",
-              "value": "Se muestra solo después de marcar como enviado. Con formato MM/dd/yyyy."
+              "value": "Se muestra una vez que el envío se marca como enviado."
             },
             {
               "label": "Fecha de entrega",
-              "value": "Se muestra solo después de marcar como entregado. Con formato MM/dd/yyyy."
+              "value": "Se muestra una vez que el envío se marca como entregado."
             },
             {
               "label": "Peso",
-              "value": "Se muestra solo si se introdujo. Se muestra con el sufijo 'lbs'."
+              "value": "Se muestra solo si introdujo un peso, en libras."
             },
             {
               "label": "Costo de envío",
-              "value": "Se muestra solo si se introdujo. Con formato de moneda (p. ej., $25.00)."
+              "value": "Se muestra solo si introdujo un costo, como un monto en dólares."
             },
             {
               "label": "Factura vinculada",
-              "value": "Se muestra solo si se ha generado una factura para este envío. Enlace de entidad en el que se puede hacer clic hacia el detalle de la factura."
+              "value": "Se muestra solo una vez que existe una factura para este envío. Haga clic para abrir la factura."
             },
             {
               "label": "Notas",
-              "value": "Se muestra solo si se introdujeron notas. Bloque de texto de formato libre."
+              "value": "Se muestra solo si agregó notas."
             },
             {
               "label": "Líneas de artículo",
-              "value": "Tabla que muestra la descripción y la cantidad de cada línea. El encabezado muestra el recuento (p. ej., 'Líneas de artículo (3)')."
+              "value": "Una lista de lo que va en el envío, con una descripción y cantidad para cada una. El encabezado muestra cuántas líneas hay."
             },
             {
-              "label": "Creado el / Actualizado el",
-              "value": "Marcas de tiempo en la parte inferior de la vista de detalle. Con formato MM/dd/yyyy."
+              "label": "Fechas de creación / actualización",
+              "value": "Cuándo se creó el envío y cuándo se cambió por última vez, en la parte inferior de la vista de detalle."
             }
           ]
         },
@@ -214,40 +214,40 @@
           "heading": "Botones y acciones",
           "items": [
             {
-              "label": "Nuevo envío (botón primario, encabezado de página)",
-              "value": "Abre el diálogo de creación de envío. data-testid: new-shipment-btn"
+              "label": "Nuevo envío (encabezado de página)",
+              "value": "Abre la ventana para empezar un envío."
             },
             {
-              "label": "Guardar / Crear envío (pie del diálogo)",
-              "value": "Crea el envío. Deshabilitado cuando el formulario no es válido, no existen líneas o el guardado está en curso. Una ventana emergente de validación muestra las infracciones al pasar el ratón. data-testid: shipment-save-btn"
+              "label": "Guardar / Crear envío",
+              "value": "Crea el envío. Permanece apagado hasta que el formulario esté completo y se agregue al menos una línea. Pase el ratón por encima para ver qué falta todavía."
             },
             {
-              "label": "Cancelar (pie del diálogo)",
-              "value": "Cierra el diálogo de creación sin guardar."
+              "label": "Cancelar",
+              "value": "Cierra la ventana de nuevo envío sin guardar."
             },
             {
-              "label": "Marcar enviado (vista de detalle)",
-              "value": "Cambia el estado a Enviado y registra la fecha de envío. Disponible cuando el estado es Pendiente o Empacado. Muestra un diálogo de confirmación antes de continuar."
+              "label": "Marcar enviado",
+              "value": "Pone el envío en Enviado y llena la fecha de envío. Disponible cuando está Pendiente o Empacado. Le pide confirmar primero."
             },
             {
-              "label": "Marcar entregado (vista de detalle)",
-              "value": "Cambia el estado a Entregado y registra la fecha de entrega. Disponible cuando el estado es Enviado o En tránsito. Muestra un diálogo de confirmación antes de continuar."
+              "label": "Marcar entregado",
+              "value": "Pone el envío en Entregado y llena la fecha de entrega. Disponible cuando está Enviado o En tránsito. Le pide confirmar primero."
             },
             {
-              "label": "Obtener tarifas (vista de detalle)",
-              "value": "Abre el diálogo de tarifas de envío para comparar las tarifas de los transportistas. Disponible cuando el estado es Pendiente o Empacado. Muestra las tarifas de los transportistas configurados con nivel de servicio, precio y entrega estimada."
+              "label": "Obtener tarifas",
+              "value": "Abre una ventana para comparar las tarifas de los transportistas. Disponible cuando el envío está Pendiente o Empacado. Muestra el servicio, el precio y la entrega estimada de cada transportista."
             },
             {
-              "label": "Rastrear (vista de detalle)",
-              "value": "Carga la línea de tiempo de seguimiento del envío. Disponible cuando existe un número de seguimiento y la línea de tiempo aún no se muestra. Muestra los eventos de seguimiento con ubicación, estado y marca de tiempo."
+              "label": "Rastrear",
+              "value": "Muestra la línea de tiempo de seguimiento del envío. Disponible una vez que existe un número de seguimiento y la línea de tiempo no está ya abierta. Enumera cada evento con su lugar, estado y hora."
             },
             {
-              "label": "Cerrar seguimiento (vista de detalle)",
-              "value": "Contrae el panel de la línea de tiempo de seguimiento."
+              "label": "Cerrar seguimiento",
+              "value": "Oculta de nuevo la línea de tiempo de seguimiento."
             },
             {
-              "label": "Clic en fila (tabla)",
-              "value": "Abre el diálogo de detalle del envío para la fila en la que se hizo clic. Muestra toda la información del envío, las líneas de artículo, el seguimiento y las acciones disponibles."
+              "label": "Clic en fila",
+              "value": "Abre el envío en el que hace clic. Muestra todos sus detalles, líneas, seguimiento y acciones disponibles."
             }
           ]
         },
@@ -256,27 +256,27 @@
           "items": [
             {
               "label": "Orden de Venta",
-              "value": "Obligatorio. Debe seleccionar una Orden de Venta válida del menú desplegable de autocompletado."
+              "value": "Obligatorio. Debe elegir una orden de venta válida."
             },
             {
               "label": "Líneas de artículo",
-              "value": "Se requiere al menos una línea de artículo. El botón Guardar está deshabilitado y aparece un mensaje de validación si no hay líneas presentes."
+              "value": "Necesita al menos una línea. Hasta entonces, Guardar permanece apagado y un mensaje le indica que hace falta una línea."
             },
             {
               "label": "Línea de orden (por línea)",
-              "value": "Obligatorio. Debe seleccionar una de las líneas abiertas de la Orden de Venta vinculada del autocompletado —no una pieza libre."
+              "value": "Obligatorio. Cada línea debe provenir de las líneas abiertas de la orden de venta —no una pieza suelta."
             },
             {
               "label": "Cantidad (por línea)",
-              "value": "Obligatorio. Debe ser mayor que 0 y no puede superar la cantidad restante por enviar de la línea."
+              "value": "Obligatorio. Debe ser mayor que 0 y no puede superar lo que queda por enviar en esa línea."
             },
             {
               "label": "Transportista, Número de seguimiento, Peso, Costo de envío, Notas",
-              "value": "Todos opcionales. Sin restricciones de formato."
+              "value": "Todos opcionales, sin un formato fijo."
             },
             {
-              "label": "Ventana emergente del botón de envío",
-              "value": "Cuando el formulario no es válido o no existen líneas, al pasar el ratón sobre el botón Guardar se muestra una ventana emergente de validación que enumera todas las infracciones."
+              "label": "Por qué Guardar está apagado",
+              "value": "Cuando el formulario no está completo o no tiene líneas, pase el ratón sobre Guardar para ver todo lo que aún falta."
             }
           ]
         },
@@ -285,35 +285,35 @@
           "items": [
             {
               "label": "Env. #",
-              "value": "Ordenable. Ancho: 120px. Número de envío autogenerado en fuente monoespaciada."
+              "value": "El número del envío. Haga clic en el encabezado para ordenar."
             },
             {
               "label": "OV #",
-              "value": "Ordenable. Ancho: 120px. Número de Orden de Venta vinculada en fuente monoespaciada."
+              "value": "La orden de venta que cumple el envío. Haga clic en el encabezado para ordenar."
             },
             {
               "label": "Cliente",
-              "value": "Ordenable. Nombre del cliente de la Orden de Venta vinculada."
+              "value": "El cliente de la orden de venta. Haga clic en el encabezado para ordenar."
             },
             {
               "label": "Estado",
-              "value": "Ordenable, filtrable (enum). Ancho: 120px. Chip con código de color: Pendiente (gris), Empacado (azul), Enviado (primario), En tránsito (amarillo), Entregado (verde), Cancelado (rojo)."
+              "value": "El estado del envío como una etiqueta de color —Pendiente, Empacado, Enviado, En tránsito, Entregado o Cancelado. Puede ordenar o filtrar por él."
             },
             {
               "label": "Transportista",
-              "value": "Ordenable. Ancho: 100px. Nombre del transportista o '---' si no está definido."
+              "value": "El transportista, o '---' si no hay ninguno definido. Haga clic en el encabezado para ordenar."
             },
             {
               "label": "Seguimiento #",
-              "value": "Ordenable. Ancho: 140px. Número de seguimiento en fuente monoespaciada o '---' si no está definido."
+              "value": "El número de seguimiento, o '---' si no hay ninguno definido. Haga clic en el encabezado para ordenar."
             },
             {
               "label": "Fecha de envío",
-              "value": "Ordenable. Ancho: 110px. Tipo fecha. Con formato MM/dd/yyyy o '---' si aún no se ha enviado."
+              "value": "La fecha en que se envió, o '---' si aún no. Haga clic en el encabezado para ordenar."
             },
             {
               "label": "Creado",
-              "value": "Ordenable. Ancho: 110px. Tipo fecha. Fecha de creación del registro con formato MM/dd/yyyy."
+              "value": "La fecha en que se creó el envío. Haga clic en el encabezado para ordenar."
             }
           ]
         }

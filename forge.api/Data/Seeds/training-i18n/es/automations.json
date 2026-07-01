@@ -4,7 +4,7 @@
     "title": "Reglas de asignación de prospectos",
     "summary": "Cómo crear reglas ordenadas por prioridad que enrutan automáticamente los prospectos entrantes al representante correcto: tipos Rotación, Territorio, Industria y Basado en cuenta.",
     "contentJson": {
-      "body": "## Reglas de asignación de prospectos\n\nLas reglas de asignación deciden a qué representante de ventas se enruta un nuevo prospecto, de forma automática, en el momento en que se crea el prospecto. En lugar de que alguien elija a mano un responsable para cada prospecto, usted define un pequeño conjunto de reglas una sola vez y el sistema las aplica por usted. Esta página —Administración → Reglas de asignación— es donde viven esas reglas.\n\n### Cómo se evalúan las reglas\n\nLas reglas se evalúan **en orden de prioridad**, primero el número más bajo. La primera regla **activa** que coincide con el prospecto entrante gana, y esa regla decide el responsable. Una regla desactivada se omite por completo. Como gana la primera coincidencia, el orden importa: coloque sus reglas más específicas (un territorio concreto, una cuenta clave) en un número de prioridad más bajo para que se comprueben antes que las reglas generales de respaldo.\n\nPiénselo como una cascada: el prospecto cae a través de las reglas activas desde el número de prioridad más bajo hacia abajo, y aterriza en la primera cuyas condiciones satisface.\n\n### Tipos de regla\n\nCada regla tiene un **Tipo** que determina tanto cómo coincide con un prospecto como cómo elige un representante:\n\n- **Rotación (Round Robin)** — distribuye los prospectos equitativamente entre un grupo de representantes. Usted lista los IDs de representante que participan, y el sistema entrega cada nuevo prospecto al siguiente representante de la rotación. Use esto para una cola de admisión general donde cualquier representante calificado puede tomar el prospecto.\n- **Territorio** — coincide con los prospectos por geografía. Usted especifica los códigos de estado de EE. UU. y/o los prefijos de código postal que cubre la regla; un prospecto cuya dirección cae dentro de ese territorio se enruta al responsable de la regla. Use esto cuando los representantes son dueños de regiones.\n- **Industria** — coincide con los prospectos por la industria a la que pertenecen. Usted lista los valores de industria que cubre la regla. Use esto cuando los representantes se especializan por vertical (aeroespacial, médico, automotriz, etc.).\n- **Basado en cuenta** — enruta un prospecto a quien ya es dueño de la cuenta (agrupación B2B) a la que pertenece el prospecto, de modo que cada contacto de una empresa aterriza con el mismo representante. Este tipo no necesita campos de coincidencia adicionales —la vinculación con la cuenta lo gobierna.\n\n### Crear una regla\n\nHaga clic en **Nueva regla** para abrir el diálogo de regla. Cada regla necesita tres cosas:\n\n1. **Nombre** —una etiqueta legible para que pueda reconocer la regla en la lista (p. ej., \"Territorio Costa Oeste\", \"Especialistas en aeroespacial\").\n2. **Tipo** —elija uno de los cuatro tipos anteriores. Elegir un tipo revela los campos que ese tipo necesita.\n3. **Prioridad** —el número de orden de evaluación (más bajo = se comprueba primero). Dos reglas pueden compartir un número, pero darle a cada una una prioridad distinta mantiene la cascada predecible.\n\nLuego complete los **campos específicos del tipo** que muestra el diálogo:\n\n- Rotación → **IDs de representante** (una lista separada por comas de IDs de usuario para rotar).\n- Territorio → **Estados** y/o **Prefijos de código postal** (separados por comas). Los códigos de estado se almacenan en mayúsculas automáticamente.\n- Industria → **Industrias** (valores de industria separados por comas).\n- Basado en cuenta → sin campos adicionales; una sugerencia le recuerda que la vinculación con la cuenta hace el trabajo.\n\nHaga clic en **Guardar** para crear la regla. Las reglas nuevas están activas de forma predeterminada.\n\n### Editar, activar y eliminar\n\n- **Editar** (el ícono de lápiz, o hacer clic en la fila) reabre el diálogo. Al editar, aparece un interruptor **Activo** para que pueda pausar una regla sin eliminarla —una regla pausada se omite durante la evaluación pero se conserva para más tarde.\n- **Eliminar** (el ícono de papelera) quita una regla tras una confirmación. Eliminar es permanente para la definición de la regla; las asignaciones de prospectos existentes no cambian.\n\n### La salida de escape del spec en crudo\n\nDebajo de los campos específicos del tipo hay una sección plegable **Avanzado / Spec en crudo** que contiene un área de texto JSON. Los campos estructurados de arriba son la forma normal de configurar una regla —el sistema los serializa a JSON por usted. El spec en crudo es un respaldo para usuarios avanzados: si un tipo alguna vez necesita una forma que el formulario aún no expone, puede pegar el JSON directamente. Cuando los campos estructurados están completos, ellos ganan; el cuadro en crudo solo se usa cuando los campos estructurados están vacíos. La mayoría de los administradores nunca necesitan tocarlo.\n\n### Capacidad y permisos\n\nLas reglas de asignación están gobernadas por la capacidad de prospectos (CAP-O2C-LEAD) y son una superficie de Administrador/Gerente. Crear y editar reglas requiere el rol de Administrador o Gerente; eliminar una regla requiere Administrador.",
+      "body": "## Reglas de asignación de prospectos\n\nLas reglas de asignación deciden a qué representante de ventas va un nuevo prospecto, de forma automática, en el momento en que se crea. En lugar de que alguien elija a mano un responsable para cada prospecto, usted arma una pequeña lista de reglas una sola vez y el sistema lo hace por usted. Esta página —Administración → Reglas de asignación— es donde viven esas reglas.\n\n### Cómo se aplican las reglas\n\nLas reglas se aplican **en orden de prioridad**, primero el número más bajo. La primera regla **activa** que le queda al nuevo prospecto gana, y esa regla decide el responsable. Una regla apagada se omite. Como gana la primera coincidencia, el orden importa: ponga sus reglas más específicas (una región concreta, una cuenta clave) en un número de prioridad más bajo para que se comprueben antes que las reglas generales de respaldo.\n\nPiénselo como una cascada: el prospecto cae a través de las reglas activas, empezando por el número de prioridad más bajo, y aterriza en la primera que le queda.\n\n### Tipos de regla\n\nCada regla tiene un **tipo** que decide tanto qué prospectos le quedan como qué representante elige:\n\n- **Rotación (Round Robin)** — reparte los prospectos equitativamente entre un grupo de representantes. Usted elige los representantes que participan, y cada nuevo prospecto va al siguiente representante por turno. Use esto para una cola de admisión general donde cualquier representante calificado puede tomar el prospecto.\n- **Territorio** — coincide con los prospectos por ubicación. Usted lista los estados y/o códigos postales que cubre la regla, y un prospecto con una dirección en esa zona va al responsable de la regla. Use esto cuando los representantes son dueños de regiones.\n- **Industria** — coincide con los prospectos por su industria. Usted lista las industrias que cubre la regla. Use esto cuando los representantes se especializan por rubro, como aeroespacial, médico o automotriz.\n- **Basado en cuenta** — envía un prospecto a quien ya es dueño de la empresa a la que pertenece, de modo que cada contacto de esa empresa aterriza con el mismo representante. Este tipo no necesita campos adicionales —el vínculo con la empresa hace el trabajo.\n\n### Crear una regla\n\nHaga clic en **Nueva regla** para abrir la ventana de regla. Cada regla necesita tres cosas:\n\n1. **Nombre** —una etiqueta para que pueda reconocer la regla en la lista, como \"Territorio Costa Oeste\" o \"Especialistas en aeroespacial\".\n2. **Tipo** —elija uno de los cuatro tipos anteriores. Elegir un tipo muestra los campos que ese tipo necesita.\n3. **Prioridad** —el número de orden que decide cuándo se comprueba la regla (más bajo = se comprueba primero). Dos reglas pueden compartir un número, pero darle a cada una el suyo mantiene el orden predecible.\n\nLuego complete los **campos de ese tipo**:\n\n- Rotación → los **representantes** para rotar.\n- Territorio → los **estados** y/o **códigos postales** que cubre la región.\n- Industria → las **industrias** que cubre la regla.\n- Basado en cuenta → sin campos adicionales; una nota le recuerda que el vínculo con la empresa hace el trabajo.\n\nHaga clic en **Guardar** para crear la regla. Las reglas nuevas están activas de inmediato.\n\n### Editar, pausar y eliminar\n\n- **Editar** (el lápiz, o hacer clic en la fila) reabre la ventana de regla. Al editar, un interruptor **Activo** le permite pausar una regla sin eliminarla —una regla pausada se omite pero se conserva para más tarde.\n- **Eliminar** (el ícono de papelera) quita una regla tras una confirmación. Eliminar la regla es permanente; los prospectos ya asignados no cambian.\n\n### La opción avanzada\n\nDebajo de los campos del tipo hay una sección plegable **Avanzado**. La mayoría de los administradores nunca la abren. Es un respaldo para casos poco frecuentes que el formulario estándar aún no cubre, y cuando los campos normales están completos, siempre tienen prioridad sobre lo que haya aquí.\n\n### Quién puede usarlo\n\nLas reglas de asignación están disponibles para Administradores y Gerentes. Crear y editar una regla requiere el rol de Administrador o Gerente; eliminar una regla requiere Administrador.",
       "sections": []
     }
   },
@@ -18,69 +18,69 @@
         {
           "heading": "Columnas de la lista",
           "items": [
-            { "label": "Prioridad", "value": "Ordenable, alineada a la derecha. El número de orden de evaluación —los números más bajos se comprueban primero. La primera regla activa que coincide con un prospecto gana." },
-            { "label": "Nombre", "value": "Ordenable. La etiqueta legible de la regla." },
-            { "label": "Tipo", "value": "Ordenable. Se muestra como un chip informativo: Rotación, Territorio, Industria o Basado en cuenta." },
-            { "label": "Activo", "value": "Ordenable, centrado. Un chip Activo verde o un chip Inactivo apagado. Las reglas inactivas se omiten durante la evaluación." },
-            { "label": "Creado", "value": "Ordenable, fecha. Cuándo se creó la regla (MM/dd/aaaa)." },
-            { "label": "Acciones", "value": "Botones de Editar (lápiz) y Eliminar (papelera) a nivel de fila. Hacer clic en el cuerpo de la fila también abre Editar." }
+            { "label": "Prioridad", "value": "El número de orden que decide cuándo se comprueba la regla. Los números más bajos se comprueban primero, y la primera regla activa que le queda a un prospecto gana. Haga clic para ordenar." },
+            { "label": "Nombre", "value": "La etiqueta de la regla. Haga clic para ordenar." },
+            { "label": "Tipo", "value": "Rotación, Territorio, Industria o Basado en cuenta. Haga clic para ordenar." },
+            { "label": "Activo", "value": "Muestra si la regla está encendida o pausada. Las reglas pausadas se omiten. Haga clic para ordenar." },
+            { "label": "Creado", "value": "Cuándo se creó la regla. Haga clic para ordenar." },
+            { "label": "Acciones", "value": "Botones de Editar (lápiz) y Eliminar (papelera) en cada fila. Hacer clic en la fila también abre Editar." }
           ]
         },
         {
-          "heading": "Diálogo de regla — Campos comunes",
+          "heading": "Ventana de regla — Campos comunes",
           "items": [
-            { "label": "Nombre (obligatorio)", "value": "Entrada de texto, hasta 100 caracteres. Identifica la regla en la lista." },
-            { "label": "Tipo (obligatorio)", "value": "Selección: Rotación, Territorio, Industria, Basado en cuenta. Cambiarlo intercambia los campos específicos del tipo que se muestran abajo." },
-            { "label": "Prioridad (obligatoria)", "value": "Entrada numérica. Orden de evaluación; el más bajo se comprueba primero. Predeterminado a 100 para una regla nueva." },
-            { "label": "Activo (solo edición)", "value": "Interruptor, mostrado solo al editar una regla existente. Apagado pausa la regla sin eliminarla. Las reglas nuevas están activas de forma predeterminada." }
+            { "label": "Nombre (obligatorio)", "value": "Una etiqueta para la regla, hasta 100 caracteres. Se muestra en la lista." },
+            { "label": "Tipo (obligatorio)", "value": "Rotación, Territorio, Industria o Basado en cuenta. Cambiarlo intercambia los campos que se muestran abajo." },
+            { "label": "Prioridad (obligatoria)", "value": "El número de orden que decide cuándo se comprueba la regla; el más bajo se comprueba primero. Empieza en 100 para una regla nueva." },
+            { "label": "Activo (solo edición)", "value": "Un interruptor de encendido/apagado, mostrado solo al editar una regla existente. Apagado pausa la regla sin eliminarla. Las reglas nuevas empiezan activas." }
           ]
         },
         {
-          "heading": "Rotación — Campos del spec",
+          "heading": "Rotación — Campos",
           "items": [
-            { "label": "IDs de representante", "value": "Lista separada por comas de IDs de usuario para rotar. Cada nuevo prospecto coincidente se entrega al siguiente representante de la rotación. Serializado a {\"repIds\":[...]}" }
+            { "label": "Representantes", "value": "Los representantes para rotar. Cada nuevo prospecto coincidente va al siguiente representante por turno." }
           ]
         },
         {
-          "heading": "Territorio — Campos del spec",
+          "heading": "Territorio — Campos",
           "items": [
-            { "label": "Estados", "value": "Códigos de estado de EE. UU. separados por comas que cubre el territorio. Se almacenan en mayúsculas automáticamente (ca → CA)." },
-            { "label": "Prefijos de código postal", "value": "Prefijos de código postal separados por comas que cubre el territorio. Estados o Prefijos de código postal (o ambos) definen el territorio. Serializado a {\"states\":[...],\"zipPrefixes\":[...]}" }
+            { "label": "Estados", "value": "Los estados que cubre la región. Los códigos de dos letras se almacenan en mayúsculas por usted (ca se convierte en CA)." },
+            { "label": "Códigos postales", "value": "Los códigos postales que cubre la región. Puede establecer estados, códigos postales o ambos para definir la región." }
           ]
         },
         {
-          "heading": "Industria — Campos del spec",
+          "heading": "Industria — Campos",
           "items": [
-            { "label": "Industrias", "value": "Valores de industria separados por comas que cubre la regla. Un prospecto en una de estas industrias se enruta por esta regla. Serializado a {\"industries\":[...]}" }
+            { "label": "Industrias", "value": "Las industrias que cubre la regla. Un prospecto en una de estas industrias lo maneja esta regla." }
           ]
         },
         {
-          "heading": "Basado en cuenta — Campos del spec",
+          "heading": "Basado en cuenta — Campos",
           "items": [
-            { "label": "(ninguno)", "value": "Las reglas Basadas en cuenta no necesitan campos de coincidencia adicionales —una sugerencia en el diálogo explica que la regla enruta el prospecto al dueño de la cuenta a la que pertenece. El spec se almacena vacío." }
+            { "label": "(ninguno)", "value": "Las reglas Basadas en cuenta no necesitan campos adicionales —una nota en la ventana explica que el prospecto va a quien ya es dueño de la empresa a la que pertenece." }
           ]
         },
         {
-          "heading": "Avanzado — Spec en crudo",
+          "heading": "Avanzado",
           "items": [
-            { "label": "Spec en crudo (plegable)", "value": "Un área de texto JSON (hasta 4000 caracteres) bajo una sección Avanzado plegable. Un respaldo para tipos cuyos campos de formulario aún no se exponen. Se usa solo cuando los campos estructurados están vacíos —de lo contrario los campos estructurados ganan y lo sobrescriben." }
+            { "label": "Avanzado (plegable)", "value": "Una opción de respaldo bajo una sección Avanzado plegable, para casos poco frecuentes que el formulario estándar aún no cubre. Se usa solo cuando los campos normales se dejan vacíos —de lo contrario, esos campos tienen prioridad." }
           ]
         },
         {
-          "heading": "Validación y comportamiento",
+          "heading": "Cómo se comporta",
           "items": [
-            { "label": "Gana la primera coincidencia activa", "value": "Las reglas se evalúan en orden de prioridad ascendente; la primera regla activa coincidente decide el responsable. Las reglas inactivas se omiten." },
-            { "label": "Nombre obligatorio", "value": "Guardar se bloquea hasta que se ingresa un nombre (máx. 100 caracteres)." },
-            { "label": "Tipo obligatorio", "value": "Guardar se bloquea hasta que se elige un tipo." },
-            { "label": "Prioridad obligatoria", "value": "Guardar se bloquea hasta que se ingresa un número de prioridad." },
-            { "label": "Mayúsculas de estado", "value": "Los códigos de estado del territorio se normalizan a mayúsculas al guardar." },
-            { "label": "Activa de forma predeterminada", "value": "Una regla recién creada está activa de inmediato. Use el interruptor Activo (modo edición) para pausarla más tarde." }
+            { "label": "Gana la primera coincidencia activa", "value": "Las reglas se comprueban desde el número de prioridad más bajo hacia arriba; la primera regla activa que le queda decide el responsable. Las reglas pausadas se omiten." },
+            { "label": "Nombre obligatorio", "value": "No puede guardar hasta que ingrese un nombre (hasta 100 caracteres)." },
+            { "label": "Tipo obligatorio", "value": "No puede guardar hasta que elija un tipo." },
+            { "label": "Prioridad obligatoria", "value": "No puede guardar hasta que ingrese un número de prioridad." },
+            { "label": "Los estados van a mayúsculas", "value": "Los códigos de estado de dos letras se almacenan en mayúsculas al guardar." },
+            { "label": "Activa de forma predeterminada", "value": "Una regla nueva está activa de inmediato. Use el interruptor Activo al editar para pausarla más tarde." }
           ]
         },
         {
-          "heading": "Permisos",
+          "heading": "Quién puede usarlo",
           "items": [
-            { "label": "Ver / Crear / Editar", "value": "Rol de Administrador o Gerente. Gobernado por CAP-O2C-LEAD." },
+            { "label": "Ver / Crear / Editar", "value": "Rol de Administrador o Gerente." },
             { "label": "Eliminar", "value": "Solo rol de Administrador." }
           ]
         }
@@ -99,15 +99,15 @@
           "element": ".toolbar__hint",
           "popover": {
             "title": "Reglas de asignación de prospectos",
-            "description": "Esta página contiene las reglas que enrutan los nuevos prospectos a los representantes automáticamente. Las reglas se evalúan en orden de prioridad, y la primera regla activa que coincide con un prospecto decide su responsable.",
+            "description": "Esta página contiene las reglas que envían los nuevos prospectos a los representantes automáticamente. Las reglas se aplican en orden de prioridad, y la primera regla activa que le queda a un prospecto elige su responsable.",
             "side": "bottom"
           }
         },
         {
           "element": "app-data-table",
           "popover": {
-            "title": "La tabla de reglas",
-            "description": "Cada fila es una regla: su Prioridad (el orden de evaluación —los números más bajos se comprueban primero), Nombre, Tipo (Rotación, Territorio, Industria o Basado en cuenta), si está Activa y cuándo se creó. Haga clic en el encabezado de Prioridad para ordenar y ver el orden de cascada por el que realmente caen sus prospectos.",
+            "title": "La lista de reglas",
+            "description": "Cada fila es una regla, y muestra su prioridad (los números más bajos se comprueban primero), nombre, tipo, si está activa y cuándo se creó. Haga clic en el título de Prioridad para ordenar y ver el orden por el que caen sus prospectos.",
             "side": "top"
           }
         },
@@ -115,7 +115,7 @@
           "element": "[data-testid='assignment-rule-new-btn']",
           "popover": {
             "title": "Nueva regla",
-            "description": "Haga clic aquí para añadir una regla. El diálogo pide un Nombre, un Tipo y una Prioridad, y luego revela los campos que ese tipo necesita —IDs de representante para Rotación, estados/prefijos de código postal para Territorio, industrias para Industria. Basado en cuenta no necesita campos adicionales. Las reglas nuevas están activas de inmediato.",
+            "description": "Haga clic aquí para añadir una regla. La ventana pide un nombre, un tipo y una prioridad, y luego muestra los campos que ese tipo necesita —los representantes para rotar, los estados o códigos postales a cubrir, o las industrias a coincidir. Las reglas nuevas están activas de inmediato.",
             "side": "bottom"
           }
         },
@@ -123,7 +123,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Editar, pausar o eliminar",
-            "description": "Use el lápiz en una fila (o haga clic en la fila) para reabrir el diálogo —en modo edición un interruptor Activo le permite pausar una regla sin eliminarla. El ícono de papelera elimina una regla tras una confirmación. Baje el número de prioridad de una regla para que gane sobre las reglas más generales de abajo.",
+            "description": "Haga clic en el lápiz de una fila (o en la fila misma) para reabrirla —al editar, un interruptor Activo le permite pausar una regla sin eliminarla. El ícono de papelera elimina una regla tras una confirmación. Dele a una regla un número de prioridad más bajo para que gane sobre las reglas más generales de abajo.",
             "side": "top"
           }
         }
@@ -144,67 +144,67 @@
           "id": "ar1",
           "text": "Tiene varias reglas de asignación activas. ¿Cuál decide a dónde va un nuevo prospecto?",
           "options": [
-            { "id": "a", "text": "La primera regla activa, en orden de prioridad ascendente, cuyas condiciones coincide el prospecto", "isCorrect": true },
+            { "id": "a", "text": "La primera regla activa que le queda al prospecto, comprobada desde el número de prioridad más bajo hacia arriba", "isCorrect": true },
             { "id": "b", "text": "La regla con el número de prioridad más alto" },
             { "id": "c", "text": "Todas las reglas coincidentes se aplican, y el prospecto se reparte entre sus representantes" },
             { "id": "d", "text": "La regla creada más recientemente" }
           ],
-          "explanation": "Las reglas se evalúan en orden de prioridad ascendente (primero el número más bajo). La primera regla activa que coincide con el prospecto gana y decide el responsable. Las reglas inactivas se omiten, y una vez que una regla coincide, la evaluación se detiene."
+          "explanation": "Las reglas se comprueban desde el número de prioridad más bajo hacia arriba. La primera regla activa que le queda al prospecto gana y elige el responsable. Las reglas pausadas se omiten, y una vez que una regla le queda, la comprobación se detiene."
         },
         {
           "id": "ar2",
-          "text": "¿Qué Tipo de regla distribuye los prospectos entrantes equitativamente entre un grupo de representantes?",
+          "text": "¿Qué tipo de regla reparte los prospectos entrantes equitativamente entre un grupo de representantes?",
           "options": [
             { "id": "a", "text": "Rotación (Round Robin)", "isCorrect": true },
             { "id": "b", "text": "Territorio" },
             { "id": "c", "text": "Industria" },
             { "id": "d", "text": "Basado en cuenta" }
           ],
-          "explanation": "Rotación lista un conjunto de IDs de representante y entrega cada nuevo prospecto coincidente al siguiente representante de la rotación, repartiendo los prospectos equitativamente. Territorio coincide por geografía, Industria por vertical y Basado en cuenta por la cuenta a la que pertenece el prospecto."
+          "explanation": "Rotación lista un grupo de representantes y da cada nuevo prospecto coincidente al siguiente representante por turno, repartiendo los prospectos equitativamente. Territorio coincide por ubicación, Industria por rubro y Basado en cuenta por la empresa a la que pertenece el prospecto."
         },
         {
           "id": "ar3",
-          "text": "Quiere que los representantes sean dueños de regiones de EE. UU. para que un prospecto en California siempre vaya al representante de la costa oeste. ¿Qué Tipo y campos usa?",
+          "text": "Quiere que los representantes sean dueños de regiones para que un prospecto en California siempre vaya al representante de la costa oeste. ¿Qué tipo y campos usa?",
           "options": [
-            { "id": "a", "text": "Territorio, especificando códigos de estado y/o prefijos de código postal", "isCorrect": true },
-            { "id": "b", "text": "Rotación, listando el ID de cada representante" },
+            { "id": "a", "text": "Territorio, listando los estados y/o códigos postales que cubre", "isCorrect": true },
+            { "id": "b", "text": "Rotación, listando a cada representante" },
             { "id": "c", "text": "Industria, listando California como una industria" },
             { "id": "d", "text": "Basado en cuenta, sin campos adicionales" }
           ],
-          "explanation": "Las reglas de Territorio coinciden con los prospectos por geografía. Usted ingresa los códigos de estado (p. ej., CA) y/o los prefijos de código postal que cubre el territorio, y los prospectos cuya dirección cae dentro de ese territorio se enrutan al responsable de la regla. Los códigos de estado se almacenan en mayúsculas automáticamente."
+          "explanation": "Las reglas de Territorio coinciden con los prospectos por ubicación. Usted lista los estados (como CA) y/o los códigos postales que cubre la región, y un prospecto con una dirección en esa zona va al responsable de la regla. Los códigos de estado se almacenan en mayúsculas por usted."
         },
         {
           "id": "ar4",
-          "text": "Quiere dejar de usar una regla por ahora pero conservar su configuración para más tarde. ¿Cuál es la mejor acción?",
+          "text": "Quiere dejar de usar una regla por ahora pero conservarla para más tarde. ¿Cuál es la mejor acción?",
           "options": [
             { "id": "a", "text": "Editar la regla y apagar su interruptor Activo", "isCorrect": true },
             { "id": "b", "text": "Eliminar la regla y volver a crearla más tarde" },
             { "id": "c", "text": "Establecer su prioridad en 0" },
-            { "id": "d", "text": "Borrar todos sus campos de spec" }
+            { "id": "d", "text": "Borrar todos sus campos" }
           ],
-          "explanation": "Editar una regla revela un interruptor Activo. Apagarlo pausa la regla —se omite durante la evaluación pero su definición se conserva, de modo que puede volver a habilitarla más tarde. Eliminar quita la regla permanentemente."
+          "explanation": "Editar una regla muestra un interruptor Activo. Apagarlo pausa la regla —se omite pero se conserva, de modo que puede volver a encenderla más tarde. Eliminar quita la regla para siempre."
         },
         {
           "id": "ar5",
-          "text": "Crea una nueva regla Basada en cuenta. ¿Por qué el diálogo no pide estados, IDs de representante ni industrias?",
+          "text": "Crea una nueva regla Basada en cuenta. ¿Por qué la ventana no pide estados, representantes ni industrias?",
           "options": [
-            { "id": "a", "text": "Basado en cuenta enruta un prospecto a quien ya es dueño de la cuenta a la que pertenece el prospecto, por lo que no se necesitan campos de coincidencia adicionales", "isCorrect": true },
-            { "id": "b", "text": "Las reglas Basadas en cuenta no son configurables y solo se ejecutan de noche" },
-            { "id": "c", "text": "Debe ingresar esos campos en el JSON del spec en crudo en su lugar" },
+            { "id": "a", "text": "Basado en cuenta envía un prospecto a quien ya es dueño de la empresa a la que pertenece, por lo que no se necesitan campos adicionales", "isCorrect": true },
+            { "id": "b", "text": "Las reglas Basadas en cuenta no se pueden configurar y solo se ejecutan de noche" },
+            { "id": "c", "text": "Debe ingresar esos campos en la sección Avanzado en su lugar" },
             { "id": "d", "text": "Basado en cuenta es un tipo de marcador de posición que no hace nada" }
           ],
-          "explanation": "Las reglas Basadas en cuenta usan la vinculación de la cuenta (agrupación B2B) para enrutar un prospecto al representante que ya es dueño de esa cuenta, manteniendo todos los contactos de una empresa con un solo representante. Como la relación con la cuenta gobierna la asignación, el diálogo muestra una sugerencia en lugar de campos de coincidencia adicionales."
+          "explanation": "Las reglas Basadas en cuenta usan el vínculo con la empresa para enviar un prospecto al representante que ya es dueño de esa empresa, manteniendo todos los contactos de una empresa con un solo representante. Como el vínculo con la empresa gobierna la asignación, la ventana muestra una nota en lugar de campos adicionales."
         },
         {
           "id": "ar6",
-          "text": "Dos reglas podrían coincidir con el mismo prospecto: una general de respaldo y una específica de cuenta clave. ¿Cómo hace que gane la regla específica?",
+          "text": "Dos reglas podrían quedarle al mismo prospecto: una general de respaldo y una específica de cuenta clave. ¿Cómo hace que gane la regla específica?",
           "options": [
-            { "id": "a", "text": "Darle a la regla específica un número de prioridad más bajo que el de respaldo para que se evalúe primero", "isCorrect": true },
+            { "id": "a", "text": "Darle a la regla específica un número de prioridad más bajo que el de respaldo para que se compruebe primero", "isCorrect": true },
             { "id": "b", "text": "Darle a la regla específica un número de prioridad más alto que el de respaldo" },
-            { "id": "c", "text": "Marcar la regla de respaldo como inactiva permanentemente" },
+            { "id": "c", "text": "Marcar la regla de respaldo como pausada permanentemente" },
             { "id": "d", "text": "Eliminar la regla de respaldo" }
           ],
-          "explanation": "Como gana la primera coincidencia activa y las reglas se evalúan desde el número de prioridad más bajo hacia arriba, poner la regla específica en un número más bajo significa que se comprueba antes que la general de respaldo. La regla específica coincide primero, por lo que decide el responsable y la de respaldo nunca se alcanza para ese prospecto."
+          "explanation": "Como gana la primera coincidencia activa y las reglas se comprueban desde el número de prioridad más bajo hacia arriba, darle a la regla específica un número más bajo significa que se comprueba antes que la general de respaldo. La regla específica le queda primero, por lo que decide el responsable y la de respaldo nunca se alcanza para ese prospecto."
         }
       ]
     }
@@ -214,7 +214,7 @@
     "title": "Configuración de Auto-OC (Administrador)",
     "summary": "El panel de configuración de Administración → Auto-OC: habilitar la compra automática, elegir el modo Sugerir/Borrador/Automático, los días de margen, las notificaciones de chat y el trabajo nocturno de análisis de demanda.",
     "contentJson": {
-      "body": "## Configuración de Auto-OC (Administrador)\n\nAuto-OC es la función que vigila la demanda de piezas compradas y propone (o genera) órdenes de compra para cubrirla, de modo que un comprador no tenga que notar cada faltante a mano. Este panel de administración —Administración → Auto-OC— es donde activa esa automatización y decide qué tan agresiva es. Las propuestas que produce se revisan en la pestaña **Sugerencias** de la página de Órdenes de compra; esta página es puramente la configuración.\n\n### Cómo funciona Auto-OC de un vistazo\n\nUn **trabajo de análisis de demanda se ejecuta cada noche** en segundo plano. Examina la demanda de piezas compradas (impulsada por órdenes de venta y otros consumidores), la compara con las existencias disponibles y las OC entrantes, y donde hay un faltante proyectado genera una sugerencia de Auto-OC para el proveedor preferido de la pieza. Lo que ocurre con esa sugerencia a continuación depende del **modo** que elija abajo. Los administradores que no quieren esperar a la ejecución nocturna pueden disparar un análisis bajo demanda desde la superficie de Sugerencias (Ejecutar análisis).\n\n### La configuración\n\n**Habilitar Auto-OC** —el interruptor maestro. Cuando está apagado, no se generan sugerencias y el trabajo nocturno no hace nada. Actívelo para iniciar la automatización.\n\n**Modo** —controla hasta dónde llega la automatización por su cuenta:\n- **Sugerir** —el trabajo solo crea sugerencias. Un comprador las revisa en la pestaña Sugerencias y decide cuáles convertir en órdenes de compra. Es la configuración más conservadora y el punto de partida habitual.\n- **Borrador** —el trabajo va un paso más allá y crea órdenes de compra en **borrador** a partir de las sugerencias, listas para que un comprador las revise y envíe. No se envía nada a un proveedor automáticamente; un humano todavía presiona Enviar.\n- **Automático** —el trabajo crea y avanza las órdenes de compra sin revisión manual. Use esto solo cuando confíe en la señal de demanda y en los datos del proveedor, porque actúa sin una persona en el circuito.\n\n**Días de margen** —un colchón de tiempo de entrega de seguridad. Auto-OC trata la fecha de necesidad como anterior por esta cantidad de días para que las órdenes se coloquen con holgura antes de que la pieza realmente se requiera. Un margen mayor ordena antes (más seguridad, más inventario disponible); un margen menor ordena más tarde (más ajustado, menos margen ante demoras).\n\n**Notificar al chat** —cuando está habilitado, Auto-OC publica en el chat cuando genera sugerencias u órdenes, de modo que el equipo de compras se entera sin vigilar la pestaña Sugerencias. Apáguelo para mantener la automatización silenciosa.\n\nHaga clic en **Guardar** para conservar la configuración. Surte efecto en la siguiente ejecución de análisis (o en la siguiente ejecución bajo demanda).\n\n### Elegir un modo en la práctica\n\nLa mayoría de las instalaciones comienzan en **Sugerir** para generar confianza —puede ver lo que Auto-OC *ordenaría* antes de dejarlo actuar. A medida que los datos de piezas y proveedores demuestran ser confiables, los equipos pasan a **Borrador** para que el trabajo tedioso de abrir OC se haga por ellos mientras un comprador sigue aprobando cada una. **Automático** se reserva para el reabastecimiento estable y bien comprendido donde ordenar sin intervención es genuinamente seguro.\n\n### A dónde van las sugerencias\n\nEsta página nunca lista sugerencias —solo configura el motor. Para revisar, convertir, descartar o convertir en bloque las propuestas que produce Auto-OC, vaya a **Órdenes de compra → Sugerencias**. Consulte la capacitación relacionada de sugerencias de Auto-OC para ese flujo de trabajo.\n\n### Capacidad y permisos\n\nAuto-OC está gobernado por la capacidad de Auto-OC (CAP-P2P-AUTOPO). Esta configuración es una superficie de Administrador; revisar y convertir sugerencias está abierto a Administrador, Gerente y Gerente de oficina.",
+      "body": "## Configuración de Auto-OC (Administrador)\n\nAuto-OC vigila la demanda de las piezas que compra y propone (o crea) órdenes de compra para cubrirla, de modo que un comprador no tenga que detectar cada faltante a mano. Esta página de administración —Administración → Auto-OC— es donde la activa y decide hasta dónde llega por su cuenta. Las sugerencias que hace se revisan en la pestaña **Sugerencias** de la página de Órdenes de compra; esta página es solo la configuración.\n\n### Cómo funciona Auto-OC de un vistazo\n\nCada noche, Auto-OC revisa la demanda de las piezas que compra (de órdenes de venta y otras necesidades), la compara con las existencias disponibles y las órdenes que ya vienen en camino, y donde ve venir un faltante hace una sugerencia para el proveedor preferido de esa pieza. Lo que ocurre con la sugerencia a continuación depende del **modo** que elija abajo. Si no quiere esperar a la ejecución nocturna, puede iniciar una revisión usted mismo desde la pestaña Sugerencias con el botón Ejecutar análisis.\n\n### La configuración\n\n**Habilitar Auto-OC** —el interruptor principal. Cuando está apagado, no se hacen sugerencias y la revisión nocturna no hace nada. Actívelo para empezar.\n\n**Modo** —controla hasta dónde llega Auto-OC por su cuenta:\n- **Sugerir** —Auto-OC solo hace sugerencias. Un comprador las revisa en la pestaña Sugerencias y decide cuáles convertir en órdenes de compra. Es la configuración más prudente y el punto de partida habitual.\n- **Borrador** —Auto-OC va un paso más allá y crea órdenes de compra en **borrador** a partir de las sugerencias, listas para que un comprador las revise y envíe. Nada va a un proveedor por su cuenta; una persona todavía hace clic en Enviar.\n- **Automático** —Auto-OC crea y envía las órdenes de compra sin que nadie las revise. Use esto solo cuando confíe en sus números de demanda y en los datos del proveedor, ya que ninguna persona revisa la orden primero.\n\n**Días de margen** —un colchón de seguridad. Auto-OC actúa como si cada pieza se necesitara esta cantidad de días antes, de modo que las órdenes salen con algo de holgura. Un margen mayor ordena antes (más seguro, más existencias disponibles); un margen menor ordena más tarde (más ajustado, menos margen ante demoras).\n\n**Notificar al chat** —cuando está encendido, Auto-OC publica en el chat cada vez que hace sugerencias u órdenes, de modo que el equipo de compras se entera sin vigilar la pestaña Sugerencias. Apáguelo para mantenerlo silencioso.\n\nHaga clic en **Guardar** para conservar su configuración. Se aplica en la siguiente revisión, ya sea la ejecución nocturna o una que usted inicie.\n\n### Elegir un modo en la práctica\n\nLa mayoría de los equipos comienzan en **Sugerir** para generar confianza —puede ver lo que Auto-OC *ordenaría* antes de dejarlo actuar. A medida que los datos de piezas y proveedores demuestran ser confiables, los equipos pasan a **Borrador** para que el trabajo tedioso de abrir órdenes se haga por ellos mientras un comprador sigue aprobando cada una. **Automático** es para el reabastecimiento estable y bien comprendido donde ordenar sin revisión es genuinamente seguro.\n\n### A dónde van las sugerencias\n\nEsta página nunca lista sugerencias —solo contiene la configuración. Para revisar, aceptar, descartar o aceptar varias sugerencias a la vez, vaya a **Órdenes de compra → Sugerencias**. Consulte la capacitación relacionada de sugerencias de Auto-OC para eso.\n\n### Quién puede usarlo\n\nEsta configuración es para Administradores. Revisar y aceptar sugerencias está abierto a Administradores, Gerentes y Gerentes de oficina.",
       "sections": []
     }
   },
@@ -223,7 +223,7 @@
     "title": "Automations / Assignment Rules / Auto-PO — Referencia avanzada",
     "summary": "Referencia de casos límite para las superficies de administración de Automatizaciones: serialización del spec y el respaldo del JSON en crudo, validación de reglas de asignación y mayúsculas de Territorio, control de roles por acción, y las claves de configuración del sistema de Auto-OC y los conjuntos de estados SO/PO.",
     "contentJson": {
-      "body": "## Respaldo del spec en crudo y serialización\n\nCada `AssignmentRule` almacena sus parámetros de coincidencia específicos del tipo en una sola columna `Spec` anulable (texto JSON, máx. 4000 caracteres). El diálogo de administración muestra campos estructurados específicos del Tipo y los serializa en el cliente — los administradores normalmente nunca ven JSON en crudo.\n\nFormas serializadas por Tipo:\n\n- **Rotación (RoundRobin)** -> `{\"repIds\":[...]}` (lista de IDs de usuario; las entradas no numéricas o en blanco se descartan).\n- **Territorio** -> `{\"states\":[...],\"zipPrefixes\":[...]}` — cualquiera de las claves se omite cuando su lista está vacía.\n- **Industria** -> `{\"industries\":[...]}`.\n- **Basado en cuenta** -> `Spec` `null` (la vinculación con la cuenta gobierna el enrutamiento; sin carga de coincidencia).\n\nLa **salida de escape del spec en crudo** es el área de texto `specRaw` bajo la sección Avanzado plegable. `buildSpec()` solo recurre al valor en crudo cuando todos los campos estructurados del tipo están vacíos; siempre que los campos estructurados estén completos, ellos ganan y sobrescriben lo que haya en el cuadro en crudo. El servidor (`CreateAssignmentRuleHandler` / `UpdateAssignmentRuleHandler`) almacena la cadena `Spec` tal cual tras un recorte — no analiza ni valida la forma del JSON, por lo que un spec en crudo malformado se acepta al escribir y solo falla cuando el motor de coincidencia lo lee.\n\n## Validación de reglas de asignación y mayúsculas de Territorio\n\nLa validación del lado del servidor en los handlers de crear/actualizar es intencionalmente mínima:\n\n- **Nombre** — obligatorio; rechazado con `InvalidOperationException(\"Rule name is required.\")` cuando está en blanco al crear. Se almacena recortado.\n- **Prioridad** — `int` simple; los números más bajos se evalúan primero (los empates se rompen alfabéticamente por Nombre en el orden del GET). Sin verificación de rango.\n- **Spec** — se almacena recortado; no se valida el esquema en el servidor.\n- **IsActive** — predeterminado `true` al crear; el interruptor Activo es solo de edición.\n\nLas **mayúsculas de Territorio** ocurren en el cliente durante la serialización: `parseStringList(specStates).map(s => s.toUpperCase())` normaliza los códigos de estado (p. ej., `ca` -> `CA`) antes de que entren al Spec. Los prefijos de código postal NO se ponen en mayúsculas. Como la normalización vive en `buildSpec()`, un código de estado inyectado a través del área de texto del spec en crudo la omite y se almacena tal como se escribió.\n\n`UpdateAssignmentRuleHandler` sigue la regla de resumen — una fila de actividad por guardado que resume los campos cambiados (`Updated N field(s): ...`), bajo los verbos kebab `assignment-rule-created` / `assignment-rule-updated` / `assignment-rule-deleted`. Eliminar es un borrado lógico (se marca `DeletedAt`).\n\n## Capacidad y control de roles por acción\n\nAmbas superficies están gobernadas por capacidad y además dividen los roles por acción.\n\n**Reglas de asignación** (`AssignmentRulesController`, gobernado por `CAP-O2C-LEAD`):\n\n- A nivel de controlador `[Authorize(Roles = \"Admin,Manager\")]` — Get / Create / Update.\n- `DELETE /{id}` añade `[Authorize(Roles = \"Admin\")]` — solo Administrador puede eliminar una regla.\n\n**Auto-OC** (`AutoPoController`, gobernado por `CAP-P2P-AUTOPO`):\n\n- A nivel de controlador `[Authorize(Roles = \"Admin,Manager,OfficeManager\")]` — cubre revisar sugerencias (`GET /suggestions`), `convert`, `dismiss` y `bulk-convert`.\n- `GET /settings`, `PATCH /settings` y `POST /run` (disparo manual) añaden cada uno `[Authorize(Roles = \"Admin\")]` — la configuración y el análisis bajo demanda son solo de Administrador; los Gerentes/Gerentes de oficina pueden actuar sobre las sugerencias pero no cambiar la configuración.\n\nCuando una capacidad está deshabilitada, la solicitud se corta con 403 antes de la verificación de rol mediante `CapabilityGateMiddleware`.\n\n## Claves de configuración del sistema de Auto-OC y conjuntos de estados SO/PO\n\nAuto-OC no tiene una tabla de configuración dedicada — la configuración vive en cuatro filas `SystemSetting`, todas bajo el prefijo `inventory:`:\n\n- `inventory:auto_po_enabled` — interruptor maestro (bool; predeterminado `false`).\n- `inventory:auto_po_mode` — `Suggest` / `Draft` / `Automatic` (predeterminado `Draft`).\n- `inventory:auto_po_buffer_days` — colchón de tiempo de entrega de seguridad int (predeterminado `3`).\n- `inventory:auto_po_notify_chat` — bool (predeterminado `true`).\n\n`UpdateAutoPoSettingsValidator` exige Modo in {Suggest, Draft, Automatic} y BufferDays in [0, 30]. La respuesta de configuración también lleva una cadena `Schedule` fija (\"Daily at 6:00 AM UTC\") — la cadencia del trabajo nocturno `AutoPurchaseOrderJob` no es en sí misma una configuración almacenada.\n\n**Conjuntos de estados de los que depende el trabajo nocturno** (`AutoPurchaseOrderJob`):\n\n- **Estados de SO activos** (fuentes de demanda): `Confirmed`, `InProduction`, `PartiallyShipped` — solo cuentan las líneas donde `Quantity > ShippedQuantity`.\n- **Estados de PO abiertos** (suministro en tránsito, neteado contra la demanda): `Draft`, `Submitted`, `Acknowledged`, `PartiallyReceived`.\n\nLa demanda explota las líneas de BOM de origen Buy (omitiendo las piezas marcadas con `ExcludeFromAutoPo`), netea el faltante contra existencias disponibles + en tránsito + stock de seguridad, y luego por proveedor: el modo **Suggest** escribe una `AutoPoSuggestion` por pieza (Estado `Pending`, con protección de deduplicación frente a sugerencias Pending existentes); **Draft**/**Automatic** agrupan los elementos cuyas fechas de necesidad caen dentro de 7 días en POs — `Automatic` las abre como `Submitted`, `Draft` como `Draft`. El propio `AutoPoMode` de un proveedor anula el modo global. Los IDs de las SO de origen se serializan en JSON en las notas de la sugerencia/PO. Se notifica a Administradores/Gerentes/Gerentes de oficina; la revisión ocurre en Órdenes de compra -> Sugerencias, no en esta página de administración.",
+      "body": "## La opción avanzada en una regla\n\nCuando arma una regla de asignación, completa los campos de su tipo —los representantes para Rotación, los estados o códigos postales para Territorio, las industrias para Industria. Basado en cuenta no necesita campos adicionales, ya que el vínculo con la empresa hace el trabajo.\n\nCada ventana de regla también tiene una sección plegable **Avanzado**. La mayoría de los administradores nunca la abren. Es un respaldo para casos poco frecuentes que el formulario estándar aún no cubre. Vale la pena conocer la regla: siempre que los campos normales están completos, siempre tienen prioridad, y la sección Avanzado solo se usa cuando esos campos se dejan vacíos.\n\n## Detalles de la regla y mayúsculas de estado\n\nUnas cuantas cosas a tener en cuenta al guardar una regla:\n\n- **Nombre** — obligatorio. No puede guardar una regla sin uno.\n- **Prioridad** — un número entero. Los números más bajos se comprueban primero, y si dos reglas comparten un número, se comprueban en orden de nombre.\n- **Campos del tipo** — se guardan tal como los ingresa.\n- **Activo** — una regla nueva empieza activa; el interruptor Activo aparece solo al editar.\n\n**Mayúsculas de estado** — cuando escribe códigos de estado para una regla de Territorio, se almacenan en mayúsculas por usted (ca se convierte en CA). Los códigos postales se dejan tal como los escribe.\n\nCada guardado queda registrado en el historial de actividad de la regla —una entrada por guardado, indicando qué cambió y si la regla se creó, actualizó o eliminó. Eliminar una regla la mantiene fuera de vista en lugar de borrarla.\n\n## Quién puede hacer qué\n\n**Reglas de asignación:**\n\n- Ver, crear y actualizar reglas es para Administradores y Gerentes.\n- Eliminar una regla es solo para Administradores.\n\n**Auto-OC:**\n\n- Revisar sugerencias —aceptar, descartar o aceptar varias a la vez— está abierto a Administradores, Gerentes y Gerentes de oficina.\n- Cambiar la configuración e iniciar una revisión usted mismo son solo para Administradores. Los Gerentes y Gerentes de oficina pueden actuar sobre las sugerencias pero no cambiar la configuración.\n\n## Configuración de Auto-OC y qué revisa la ejecución nocturna\n\nAuto-OC tiene cuatro ajustes:\n\n- **Habilitar Auto-OC** — el interruptor principal de encendido/apagado (apagado de forma predeterminada).\n- **Modo** — Sugerir, Borrador o Automático.\n- **Días de margen** — un colchón de seguridad, de 0 a 30 días.\n- **Notificar al chat** — si Auto-OC publica en el chat cuando actúa.\n\nLa revisión nocturna se ejecuta una vez al día, temprano en la mañana. No es algo que usted programe —simplemente viene incorporado.\n\n**Qué cuenta la revisión nocturna como demanda y suministro:**\n\n- La **demanda** viene de las órdenes de venta que están confirmadas, en producción o parcialmente enviadas —contando solo lo que aún no se ha enviado.\n- El **suministro que ya viene en camino** viene de las órdenes de compra que están en borrador, enviadas, confirmadas o parcialmente recibidas.\n\nAuto-OC calcula lo que le va a faltar comparando la demanda con las existencias disponibles, las órdenes en camino y el stock de seguridad. Las piezas que ha marcado para dejar fuera se omiten. Luego, por cada proveedor: en modo **Sugerir** hace una sugerencia por pieza (y no duplicará una sugerencia que ya está esperando); en modo **Borrador** o **Automático** agrupa las piezas que se necesitan dentro de la próxima semana en órdenes —Automático las envía, Borrador las deja como borradores. Un proveedor puede tener su propio modo que anula la configuración general. Las órdenes anotan qué órdenes de venta impulsaron la necesidad. Se notifica a Administradores, Gerentes y Gerentes de oficina, y la revisión ocurre en Órdenes de compra → Sugerencias, no en esta página de configuración.",
       "sections": []
     }
   }

@@ -4,7 +4,7 @@
     "title": "Visión general de Facturas",
     "summary": "Qué hace el módulo de Facturas, el modo independiente frente al integrado, los estados, las líneas, y cómo las facturas se conectan con las órdenes de venta, los envíos y los pagos.",
     "contentJson": {
-      "body": "## Visión general de Facturas\n\nEl módulo de Facturas se encarga de facturar a sus clientes por el trabajo completado. Cada factura es una solicitud formal de pago que enumera los bienes o servicios proporcionados, sus cantidades, precios, impuestos y el monto total adeudado.\n\n### Límite contable — Modo independiente frente a integrado\n\nLas facturas son una **función acotada por la contabilidad**. Esto significa que el módulo opera de manera diferente según si hay un proveedor de contabilidad (p. ej., QuickBooks Online) conectado:\n\n- **Modo independiente** (sin proveedor conectado): CRUD completo —crear, editar, enviar, anular y eliminar facturas directamente en QB Engineer. Esto es lo predeterminado para los talleres que no usan software de contabilidad externo.\n- **Modo integrado** (proveedor conectado): Las facturas se vuelven **de solo lectura**. Se sincronizan desde el sistema de contabilidad y se muestran para referencia, pero toda la gestión de facturas ocurre en el proveedor conectado. Un banner en la parte superior de la página indica qué proveedor está gestionando las facturas.\n\nEl resto de este artículo describe el modo independiente, donde usted tiene control total.\n\n### Estados de la factura\n\nCada factura avanza a través de un ciclo de vida que rastrea su estado:\n\n- **Borrador** (chip gris) — La factura se ha creado pero aún no se ha enviado al cliente. Puede enviarla, anularla o eliminarla. No existe edición en el lugar de una factura — para cambiar un borrador, elimínelo y cree uno nuevo.\n- **Enviada** (chip azul) — La factura se ha enviado al cliente. Todavía puede anularse, pero no eliminarse.\n- **Pagada parcialmente** (chip amarillo) — El cliente ha realizado un pago parcial. El saldo adeudado refleja el monto restante.\n- **Pagada** (chip verde) — La factura está totalmente pagada. El saldo adeudado es cero.\n- **Vencida** (chip rojo) — La fecha de vencimiento ha pasado y la factura no se ha pagado por completo. La columna de saldo adeudado se resalta en rojo.\n- **Anulada** (chip gris) — La factura se ha cancelado. Las facturas anuladas permanecen en el sistema con fines de auditoría pero no tienen impacto financiero.\n\n### Líneas\n\nCada factura contiene una o más líneas. Una línea representa una entrada facturable con:\n- Un **ID de pieza** y **Número de pieza** opcionales que vinculan la línea a una pieza en el Catálogo de piezas\n- Una **Descripción** de los bienes o servicios\n- Una **Cantidad** y un **Precio unitario**\n- Un **Total de línea** calculado (Cantidad x Precio unitario)\n\nEl **Subtotal** de la factura es la suma de todos los totales de línea. El **Impuesto** se calcula como Subtotal x Tasa de impuesto. El **Total** es Subtotal + Impuesto. El **Saldo adeudado** es el Total menos los pagos aplicados.\n\n### Cómo se conectan las facturas con otras funciones\n\n**Órdenes de venta:** Una factura puede vincularse a una orden de venta. Esto conecta la facturación con la orden original del cliente y le permite rastrear todo el ciclo de cotización a cobro: Cotización → Orden de venta → Producción → Envío → Factura → Pago.\n\n**Envíos:** Una factura también puede hacer referencia a un envío específico. Esto es útil para la facturación por envío cuando una orden de venta se cumple en varias entregas.\n\n**Pagos:** Los pagos se aplican a las facturas a través de Aplicaciones de pago. A medida que se registran los pagos, el Monto pagado de la factura aumenta y el Saldo adeudado disminuye. Cuando se paga por completo, el estado cambia a Pagada.\n\n**Trabajos:** Los trabajos completados que no se han facturado aparecen en el panel de Trabajos sin facturar. Puede crear una factura directamente desde un trabajo, lo que precarga el cliente y genera líneas a partir de los detalles del trabajo.\n\n**Clientes:** Cada factura pertenece a un cliente. El enlace del cliente en el detalle de la factura es interactivo y navega al perfil completo del cliente.\n\n### Generación de PDF\n\nLas facturas pueden exportarse como documentos PDF para enviar por correo electrónico o imprimir. El servidor genera el PDF con QuestPDF, incluyendo la marca de su empresa, las líneas, los totales y las condiciones de pago.\n\n### Cuándo usar las facturas\n\n- Después de completar un trabajo y enviar bienes al cliente\n- Al facturar por servicios prestados\n- Cuando necesite una solicitud formal de pago con líneas e impuestos\n- Para dar seguimiento al estado de pago y a los saldos pendientes\n- Para mantener un registro de auditoría de toda la actividad de facturación",
+      "body": "## Visión general de Facturas\n\nEl módulo de Facturas es la forma de facturar a sus clientes por el trabajo terminado. Cada factura es una solicitud formal de pago. Enumera lo que usted proporcionó, las cantidades y los precios, el impuesto y el monto total adeudado.\n\n### Modo independiente frente a integrado\n\nLas facturas funcionan de una de dos maneras, según si ha conectado software de contabilidad externo (como QuickBooks Online):\n\n- **Modo independiente** (nada conectado): Usted gestiona las facturas aquí mismo —crearlas, enviarlas, anularlas y eliminarlas. Así funciona para los talleres que no usan software de contabilidad aparte.\n- **Modo integrado** (software de contabilidad conectado): Las facturas se vuelven **de solo lectura** aquí. Se traen desde su software de contabilidad para referencia, y usted las gestiona allá en su lugar. Un banner en la parte superior de la página le indica qué software está a cargo.\n\nEl resto de este artículo cubre el modo independiente, donde usted tiene el control total.\n\n### Estados de la factura\n\nCada factura pasa por unas cuantas etapas, indicadas por su estado:\n\n- **Borrador** — Creada pero aún no enviada. Puede enviarla, anularla o eliminarla. No hay edición de un borrador en el lugar — para cambiar uno, elimínelo y cree uno nuevo.\n- **Enviada** — La factura ya se ha ido al cliente. Todavía puede anularla, pero ya no puede eliminarla.\n- **Pagada parcialmente** — El cliente ha pagado una parte. El saldo adeudado muestra lo que falta.\n- **Pagada** — Pagada por completo. El saldo adeudado es cero.\n- **Vencida** — La fecha de vencimiento ha pasado y no está pagada por completo. El saldo adeudado se muestra en rojo.\n- **Anulada** — Cancelada. Las facturas anuladas permanecen en el archivo para su historial pero no afectan ningún total.\n\n### Líneas\n\nCada factura tiene una o más líneas. Una línea es una cosa que está facturando, con:\n- Un **Número de pieza** opcional que vincula la línea a una pieza en su Catálogo de piezas\n- Una **Descripción** de lo que proporcionó\n- Una **Cantidad** y un **Precio unitario**\n- Un **Total de línea** calculado por usted (cantidad por precio unitario)\n\nEl **Subtotal** es todos los totales de línea sumados. El **Impuesto** es el subtotal por su tasa de impuesto. El **Total** es subtotal más impuesto. El **Saldo adeudado** es el total menos lo que se ha pagado.\n\n### Cómo se conectan las facturas con otras funciones\n\n**Órdenes de venta:** Una factura puede vincularse a una orden de venta. Eso enlaza la facturación con la orden original del cliente y le permite rastrear todo el camino: Cotización → Orden de venta → Producción → Envío → Factura → Pago.\n\n**Envíos:** Una factura también puede apuntar a un envío específico. Esto es útil cuando una sola orden se envía en varias entregas y usted factura una a la vez.\n\n**Pagos:** A medida que registra pagos contra una factura, su monto pagado sube y su saldo adeudado baja. Una vez que está pagada por completo, el estado cambia a Pagada.\n\n**Trabajos:** Los trabajos terminados que no se han facturado aparecen en el panel de Trabajos sin facturar. Puede armar una factura directamente desde un trabajo, y le completa el cliente y las líneas por usted.\n\n**Clientes:** Cada factura pertenece a un cliente. El enlace del cliente en la factura lo lleva al perfil completo de ese cliente.\n\n### Imprimir y enviar por correo\n\nLas facturas se pueden guardar como PDF para enviar por correo electrónico o imprimir, con la marca de su empresa, las líneas, los totales y las condiciones de pago.\n\n### Cuándo usar las facturas\n\n- Después de terminar un trabajo y enviar bienes al cliente\n- Al facturar por servicios que usted proporcionó\n- Cuando necesite una solicitud formal de pago con líneas e impuestos\n- Para llevar el control de lo que se ha pagado y lo que todavía se debe\n- Para mantener un registro de toda su actividad de facturación",
       "sections": []
     }
   },
@@ -19,8 +19,8 @@
         {
           "element": "[data-testid='new-invoice-btn']",
           "popover": {
-            "title": "Botón Crear factura",
-            "description": "Haga clic aquí para crear una nueva factura. Se abre un diálogo de diseño dividido con las líneas a la izquierda y los detalles de la factura (cliente, fechas, tasa de impuesto, condiciones de crédito, notas) a la derecha. Debe agregar al menos una línea antes de guardar.",
+            "title": "Crear una factura",
+            "description": "Haga clic aquí para empezar una factura nueva. Se abre una ventana donde agrega las líneas de un lado y completa los datos como el cliente, las fechas y la tasa de impuesto del otro. Agregue al menos una línea antes de guardar.",
             "side": "bottom"
           }
         },
@@ -28,7 +28,7 @@
           "element": ".page-header .action-btn:first-of-type",
           "popover": {
             "title": "Trabajos sin facturar",
-            "description": "Abre el panel de Trabajos sin facturar que muestra los trabajos completados que aún no se han facturado. Cada trabajo tiene un botón 'Facturar' de un clic para generar una factura directamente. La insignia muestra cuántos trabajos sin facturar existen.",
+            "description": "Abre un panel con los trabajos terminados que todavía no se han facturado. Cada uno tiene un botón 'Facturar' que arma la factura por usted. El número en el botón le dice cuántos están esperando.",
             "side": "bottom"
           }
         },
@@ -36,23 +36,23 @@
           "element": ".filters-bar app-input",
           "popover": {
             "title": "Buscar facturas",
-            "description": "Busque por número de factura, nombre del cliente u otros campos de texto. Los resultados se filtran en vivo a medida que escribe (presionar Enter también aplica el filtro). Los resultados se actualizan en la tabla de abajo.",
+            "description": "Escriba un número de factura o el nombre de un cliente para encontrar una factura. La lista se reduce a medida que escribe. Presione Enter para aplicarlo también.",
             "side": "bottom"
           }
         },
         {
           "element": ".filters-bar app-select",
           "popover": {
-            "title": "Filtro de estado",
-            "description": "Filtre las facturas por estado: Borrador, Enviada, Pagada parcialmente, Pagada, Vencida o Anulada. Seleccione 'Todos los estados' para borrar el filtro y mostrar todo.",
+            "title": "Filtrar por estado",
+            "description": "Muestre solo las facturas de un estado, como Borrador, Enviada, Pagada parcialmente, Pagada, Vencida o Anulada. Elija 'Todos los estados' para volver a ver todo.",
             "side": "bottom"
           }
         },
         {
           "element": "app-data-table",
           "popover": {
-            "title": "Tabla de facturas",
-            "description": "Muestra todas las facturas con columnas para N.º de factura, Cliente, Estado (chip con código de color), Fecha de factura, Fecha de vencimiento, Total, Pagado y Saldo adeudado. Haga clic en cualquier fila para abrir el diálogo de detalle de la factura. Haga clic en los encabezados de columna para ordenar. Los saldos vencidos se resaltan en rojo.",
+            "title": "La lista de facturas",
+            "description": "Cada factura aparece aquí con su número, cliente, estado, fechas, total, monto pagado y saldo adeudado. Haga clic en una fila para abrirla. Haga clic en un encabezado de columna para ordenar. Los saldos vencidos aparecen en rojo.",
             "side": "top"
           }
         }
@@ -67,112 +67,112 @@
       "title": "Referencia de campos de Facturas",
       "groups": [
         {
-          "heading": "Campos del formulario de factura (Diálogo de creación — Barra lateral)",
+          "heading": "Detalles de la factura (Ventana de creación)",
           "items": [
-            {"label": "Cliente (obligatorio)", "value": "Lista desplegable de clientes activos. Determina a quién se factura. Debe seleccionar un cliente antes de guardar. data-testid: invoice-customer"},
-            {"label": "ID de orden de venta", "value": "Campo numérico, opcional. Vincula la factura a una orden de venta existente para la trazabilidad a través del ciclo de orden a cobro. Se muestra como un enlace de entidad interactivo en la vista de detalle."},
-            {"label": "Fecha de factura (obligatorio)", "value": "Selector de fecha. La fecha en que se emite la factura. Se muestra en formato MM/dd/yyyy. data-testid: invoice-date"},
-            {"label": "Fecha de vencimiento (obligatorio)", "value": "Selector de fecha. La fecha en que se espera el pago. Se usa para determinar el estado Vencida. Se muestra en formato MM/dd/yyyy. data-testid: invoice-due-date"},
-            {"label": "Condiciones de crédito", "value": "Lista desplegable de condiciones de crédito estándar (Net 15, Net 30, Net 45, Net 60, Net 90, Due on Receipt, etc.). Opcional. Establece las expectativas de pago para el cliente. data-testid: invoice-credit-terms"},
-            {"label": "Tasa de impuesto (obligatorio)", "value": "Campo numérico con sufijo %. El porcentaje de impuesto aplicado al subtotal. Predeterminado en 0. Debe ser >= 0. El monto de impuesto calculado y el gran total se actualizan en vivo a medida que cambia este valor. data-testid: invoice-tax-rate"},
-            {"label": "ID de envío", "value": "Campo numérico, opcional. Vincula la factura a un envío específico para la facturación por envío."},
-            {"label": "Notas", "value": "Área de texto, opcional. Notas libres que aparecen en la factura. 3 filas visibles. data-testid: invoice-notes"}
+            {"label": "Cliente (obligatorio)", "value": "Elija a quién se factura entre sus clientes activos. Debe elegir uno antes de poder guardar."},
+            {"label": "ID de orden de venta", "value": "Opcional. Vincula la factura a una orden de venta existente para poder rastrear la orden hasta el pago. Aparece como un enlace en el que se puede hacer clic en la factura."},
+            {"label": "Fecha de factura (obligatorio)", "value": "La fecha en que emite la factura. Se muestra como MM/dd/yyyy."},
+            {"label": "Fecha de vencimiento (obligatorio)", "value": "La fecha en que se espera el pago. Si esta fecha pasa sin pagarse, la factura queda Vencida. Se muestra como MM/dd/yyyy."},
+            {"label": "Condiciones de crédito", "value": "Opcional. Elija una condición de pago estándar, como Net 30 o Due on Receipt, para indicarle al cliente cuándo vence el pago."},
+            {"label": "Tasa de impuesto (obligatorio)", "value": "El porcentaje de impuesto que se aplica al subtotal. Empieza en 0 y no puede ser negativo. El impuesto y el total se actualizan a medida que lo cambia."},
+            {"label": "ID de envío", "value": "Opcional. Vincula la factura a un envío específico, útil cuando factura una entrega a la vez."},
+            {"label": "Notas", "value": "Opcional. Cualquier nota que quiera que aparezca en la factura."}
           ]
         },
         {
-          "heading": "Campos de línea (Diálogo de creación — Área principal)",
+          "heading": "Líneas (Ventana de creación)",
           "items": [
-            {"label": "ID de pieza", "value": "Campo numérico, opcional. Vincula la línea a un registro de pieza en el sistema para la trazabilidad."},
-            {"label": "Número de pieza", "value": "Campo de texto, opcional. El número de pieza que se muestra en la factura. Se muestra en fuente monoespaciada tanto en la tabla del diálogo como en la vista de detalle. data-testid: invoice-line-desc (en la descripción)"},
-            {"label": "Descripción (obligatorio)", "value": "Campo de texto. Describe los bienes o servicios que se facturan. No puede estar vacío."},
-            {"label": "Cant. (obligatorio)", "value": "Campo numérico. Cantidad de artículos. Predeterminado en 1; debe ser mayor que 0 (se permiten cantidades fraccionarias, p. ej. 0.5). data-testid: invoice-line-qty"},
-            {"label": "Precio unitario (obligatorio)", "value": "Campo numérico. Precio por unidad. Debe ser >= 0. Se muestra como moneda. data-testid: invoice-line-price"},
-            {"label": "Total (calculado)", "value": "Calculado automáticamente como Cant. x Precio unitario. Se muestra como moneda. No editable."},
-            {"label": "Botón Agregar", "value": "Agrega la línea a la factura. Deshabilitado cuando el formulario de línea no es válido (falta la descripción o la cant./precio no es válida). data-testid: invoice-add-line-btn"},
-            {"label": "Botón Eliminar (icono de X)", "value": "Botón de icono rojo en cada fila de línea. Elimina la línea de la factura."}
+            {"label": "ID de pieza", "value": "Opcional. Vincula la línea a un registro de pieza para poder rastrearla."},
+            {"label": "Número de pieza", "value": "Opcional. El número de pieza que se imprime en la factura."},
+            {"label": "Descripción (obligatorio)", "value": "Lo que está facturando. No puede quedar en blanco."},
+            {"label": "Cant. (obligatorio)", "value": "Cuántos. Empieza en 1 y debe ser mayor que 0. Se permiten cantidades parciales como 0.5."},
+            {"label": "Precio unitario (obligatorio)", "value": "Precio de uno. No puede ser negativo. Se muestra como dinero."},
+            {"label": "Total (automático)", "value": "Cant. por Precio unitario, calculado por usted. Se muestra como dinero. No lo puede editar."},
+            {"label": "Botón Agregar", "value": "Agrega la línea a la factura. Permanece apagado hasta que la descripción, la cantidad y el precio sean válidos."},
+            {"label": "Botón Eliminar (X)", "value": "La X roja de cada línea quita esa línea de la factura."}
           ]
         },
         {
-          "heading": "Resumen de la factura (Diálogo de creación — Barra lateral)",
+          "heading": "Resumen de la factura (Ventana de creación)",
           "items": [
-            {"label": "Subtotal", "value": "Suma de todos los totales de línea. Se actualiza en vivo a medida que se agregan o eliminan líneas."},
-            {"label": "Impuesto", "value": "Calculado como Subtotal x Tasa de impuesto %. Muestra el porcentaje de la tasa de impuesto entre paréntesis."},
-            {"label": "Total", "value": "Subtotal + Impuesto. Fila en negrita, resaltada. Este es el monto total que adeuda el cliente."}
+            {"label": "Subtotal", "value": "Todos los totales de línea sumados. Se actualiza a medida que agrega o elimina líneas."},
+            {"label": "Impuesto", "value": "El subtotal por su tasa de impuesto. La tasa se muestra entre paréntesis."},
+            {"label": "Total", "value": "Subtotal más impuesto. Este es el monto completo que adeuda el cliente."}
           ]
         },
         {
           "heading": "Estados de la factura",
           "items": [
-            {"label": "Borrador (chip gris, chip--muted)", "value": "Factura creada pero no enviada. Se puede enviar, anular o eliminar — no existe edición en el lugar. Estado predeterminado para las facturas nuevas."},
-            {"label": "Enviada (chip azul, chip--info)", "value": "La factura se ha enviado al cliente. Se puede anular pero no eliminar. En espera de pago."},
-            {"label": "Pagada parcialmente (chip amarillo, chip--warning)", "value": "El cliente ha realizado un pago parcial. El Saldo adeudado muestra el monto restante. No se puede anular ni eliminar."},
-            {"label": "Pagada (chip verde, chip--success)", "value": "Factura totalmente pagada. El Saldo adeudado es $0.00. No hay más acciones disponibles."},
-            {"label": "Vencida (chip rojo, chip--error)", "value": "La fecha de vencimiento ha pasado con saldo pendiente. La columna Saldo adeudado se resalta en rojo en la tabla."},
-            {"label": "Anulada (chip gris, chip--muted)", "value": "Factura cancelada. Permanece en el sistema para el registro de auditoría. Sin impacto financiero. No se puede desanular."}
+            {"label": "Borrador (gris)", "value": "Creada pero aún no enviada. Puede enviarla, anularla o eliminarla. Para cambiar un borrador, elimínelo y cree uno nuevo."},
+            {"label": "Enviada (azul)", "value": "Enviada al cliente y a la espera del pago. Puede anularla pero ya no eliminarla."},
+            {"label": "Pagada parcialmente (amarillo)", "value": "El cliente ha pagado una parte. El saldo adeudado muestra lo que falta. No se puede anular ni eliminar."},
+            {"label": "Pagada (verde)", "value": "Pagada por completo. El saldo adeudado es $0.00 y no queda nada por hacer."},
+            {"label": "Vencida (rojo)", "value": "La fecha de vencimiento ha pasado y todavía se debe dinero. El saldo adeudado se muestra en rojo en la lista."},
+            {"label": "Anulada (gris)", "value": "Cancelada. Permanece en el archivo para su historial pero no afecta ningún total. Una anulación no se puede deshacer."}
           ]
         },
         {
-          "heading": "Campos de la vista de detalle",
+          "heading": "En una factura abierta",
           "items": [
-            {"label": "Número de factura", "value": "Identificador generado automáticamente que se muestra en el encabezado con un icono receipt_long."},
-            {"label": "Cliente", "value": "Enlace de entidad interactivo que navega a la página de detalle del cliente."},
-            {"label": "Orden de venta", "value": "Enlace de entidad interactivo a la orden de venta vinculada. Solo se muestra si hay una orden de venta vinculada."},
-            {"label": "Envío", "value": "Enlace de entidad interactivo al envío vinculado. Solo se muestra si hay un envío vinculado."},
-            {"label": "Fecha de factura", "value": "Fecha en que se emitió la factura. Se muestra como MM/dd/yyyy."},
-            {"label": "Fecha de vencimiento", "value": "Fecha de vencimiento del pago. Se muestra como MM/dd/yyyy."},
-            {"label": "Condiciones de crédito", "value": "Las condiciones de pago (p. ej., Net 30). Solo se muestra si está establecido."},
-            {"label": "Notas", "value": "Notas libres. Solo se muestra si están presentes."},
-            {"label": "Tabla de líneas", "value": "Columnas: N.º de pieza, Descripción, Cant., Precio unitario, Total. Números de pieza en monoespaciado. Se muestra un guion para las líneas sin número de pieza."},
-            {"label": "Subtotal", "value": "Suma de todos los totales de línea."},
-            {"label": "Impuesto (tasa%)", "value": "Monto de impuesto con la tasa mostrada entre paréntesis."},
-            {"label": "Total", "value": "Gran total (subtotal + impuesto). Estilo en negrita."},
-            {"label": "Monto pagado", "value": "Suma de todas las aplicaciones de pago contra esta factura."},
-            {"label": "Saldo adeudado", "value": "Total menos el Monto pagado. Estilo en negrita. Se resalta cuando es distinto de cero."},
-            {"label": "Creada / Actualizada", "value": "Marcas de tiempo en formato MM/dd/yyyy."},
-            {"label": "Registro de actividad", "value": "Línea de tiempo cronológica de todos los cambios en la factura (cambios de estado, ediciones, etc.)."}
+            {"label": "Número de factura", "value": "El identificador de la factura, que se muestra en la parte superior."},
+            {"label": "Cliente", "value": "Un enlace en el que se puede hacer clic que abre la página del cliente."},
+            {"label": "Orden de venta", "value": "Un enlace en el que se puede hacer clic a la orden de venta vinculada. Solo aparece cuando hay una vinculada."},
+            {"label": "Envío", "value": "Un enlace en el que se puede hacer clic al envío vinculado. Solo aparece cuando hay uno vinculado."},
+            {"label": "Fecha de factura", "value": "La fecha en que se emitió la factura, mostrada como MM/dd/yyyy."},
+            {"label": "Fecha de vencimiento", "value": "La fecha en que vence el pago, mostrada como MM/dd/yyyy."},
+            {"label": "Condiciones de crédito", "value": "La condición de pago, como Net 30. Solo aparece cuando hay una establecida."},
+            {"label": "Notas", "value": "Cualquier nota en la factura. Solo aparece cuando hay alguna."},
+            {"label": "Líneas", "value": "Cada línea facturada con su número de pieza, descripción, cantidad, precio unitario y total. Un guion indica dónde no hay número de pieza."},
+            {"label": "Subtotal", "value": "Todos los totales de línea sumados."},
+            {"label": "Impuesto (tasa%)", "value": "El monto de impuesto, con la tasa mostrada entre paréntesis."},
+            {"label": "Total", "value": "El monto completo adeudado: subtotal más impuesto."},
+            {"label": "Monto pagado", "value": "Cuánto se ha pagado de esta factura hasta ahora."},
+            {"label": "Saldo adeudado", "value": "Lo que todavía se debe: el total menos lo pagado. Resalta cuando hay un saldo."},
+            {"label": "Creada / Actualizada", "value": "Cuándo se creó la factura y cuándo se cambió por última vez, mostrado como MM/dd/yyyy."},
+            {"label": "Registro de actividad", "value": "Un historial continuo de todo lo que le pasó a la factura, con todos los cambios."}
           ]
         },
         {
           "heading": "Botones y acciones",
           "items": [
-            {"label": "Nueva factura (botón principal)", "value": "Abre el diálogo de creación de factura con diseño dividido. data-testid: new-invoice-btn"},
-            {"label": "Trabajos sin facturar (botón del encabezado)", "value": "Abre el panel de Trabajos sin facturar que muestra los trabajos completados sin facturas. La insignia muestra el conteo."},
-            {"label": "Crear factura (guardar del diálogo)", "value": "Guarda la nueva factura. Deshabilitado cuando el formulario no es válido, no existen líneas o el guardado está en curso. Muestra un popover de validación al pasar el cursor cuando está deshabilitado. data-testid: invoice-save-btn"},
-            {"label": "Cancelar (diálogo)", "value": "Cierra el diálogo de creación sin guardar. Solicita confirmación si el formulario está modificado (cambios sin guardar)."},
-            {"label": "Enviar (detalle, principal)", "value": "Marca la factura como Enviada. Solo disponible cuando el estado es Borrador. Icono: send."},
-            {"label": "Anular (detalle)", "value": "Anula la factura tras un diálogo de confirmación. Disponible cuando el estado es Borrador o Enviada. Icono: block. La confirmación usa severidad de advertencia (warn)."},
-            {"label": "Eliminar (detalle, peligro)", "value": "Elimina la factura de forma lógica tras un diálogo de confirmación. Solo disponible cuando el estado es Borrador. Icono: delete. La confirmación usa severidad de peligro (danger)."},
-            {"label": "Cerrar (detalle, icono)", "value": "Cierra el diálogo de detalle. Icono: close. Información sobre herramientas: 'Cerrar'."},
-            {"label": "Factura desde trabajo (panel sin facturar)", "value": "Crea una factura directamente desde un trabajo completado. Deshabilitado si el trabajo no tiene un cliente asignado. Precarga el cliente y las líneas."},
-            {"label": "Clic en la fila (tabla)", "value": "Abre el diálogo de detalle de la factura mediante DetailDialogService. La URL se actualiza a ?detail=invoice:{id} para poder marcarla como favorita."}
+            {"label": "Nueva factura", "value": "Abre la ventana para armar una factura nueva."},
+            {"label": "Trabajos sin facturar", "value": "Abre un panel con los trabajos terminados que todavía necesitan facturarse. El número muestra cuántos están esperando."},
+            {"label": "Crear factura (guardar)", "value": "Guarda la nueva factura. Permanece apagado hasta que la factura esté completa, tenga al menos una línea y no se esté guardando ya. Pase el cursor por encima para ver qué falta."},
+            {"label": "Cancelar", "value": "Cierra la ventana sin guardar. Pregunta primero si tiene cambios sin guardar."},
+            {"label": "Enviar", "value": "Marca la factura como Enviada. Solo aparece mientras sigue siendo un Borrador."},
+            {"label": "Anular", "value": "Cancela la factura después de que confirme. Disponible mientras es un Borrador o está Enviada."},
+            {"label": "Eliminar", "value": "Quita la factura después de que confirme. Solo aparece mientras sigue siendo un Borrador."},
+            {"label": "Cerrar", "value": "Cierra la factura abierta."},
+            {"label": "Factura desde trabajo", "value": "Arma una factura directamente desde un trabajo terminado, completando el cliente y las líneas. Apagado si el trabajo no tiene un cliente asignado."},
+            {"label": "Hacer clic en una fila", "value": "Abre esa factura. La dirección web se actualiza para que pueda marcarla como favorita o compartir el enlace."}
           ]
         },
         {
-          "heading": "Reglas de validación",
+          "heading": "Qué se necesita para guardar",
           "items": [
-            {"label": "Cliente", "value": "Obligatorio. Debe seleccionar un cliente de la lista desplegable."},
-            {"label": "Fecha de factura", "value": "Obligatorio. Debe seleccionar una fecha."},
-            {"label": "Fecha de vencimiento", "value": "Obligatorio. Debe seleccionar una fecha."},
-            {"label": "Tasa de impuesto", "value": "Obligatorio. Debe ser un número >= 0."},
-            {"label": "Al menos una línea", "value": "El botón guardar está deshabilitado hasta que se haya agregado al menos una línea."},
-            {"label": "Descripción de la línea", "value": "Obligatorio para cada línea. No puede estar vacía."},
-            {"label": "Cantidad de la línea", "value": "Obligatorio. Debe ser mayor que 0 (se permiten cantidades fraccionarias)."},
-            {"label": "Precio unitario de la línea", "value": "Obligatorio. Debe ser >= 0."},
-            {"label": "Popover de validación", "value": "Al pasar el cursor sobre el botón Guardar deshabilitado se muestra una lista con viñetas de qué campos necesitan atención."}
+            {"label": "Cliente", "value": "Obligatorio. Elija un cliente."},
+            {"label": "Fecha de factura", "value": "Obligatorio. Elija una fecha."},
+            {"label": "Fecha de vencimiento", "value": "Obligatorio. Elija una fecha."},
+            {"label": "Tasa de impuesto", "value": "Obligatorio. Un número que no sea negativo."},
+            {"label": "Al menos una línea", "value": "No puede guardar hasta que haya agregado al menos una línea."},
+            {"label": "Descripción de la línea", "value": "Obligatorio en cada línea. No puede quedar en blanco."},
+            {"label": "Cantidad de la línea", "value": "Obligatorio. Mayor que 0. Se permiten cantidades parciales."},
+            {"label": "Precio unitario de la línea", "value": "Obligatorio. No puede ser negativo."},
+            {"label": "Aviso de qué falta", "value": "Pase el cursor por el botón Guardar apagado para ver una lista de lo que todavía falta completar."}
           ]
         },
         {
-          "heading": "Columnas de la tabla (Página de lista)",
+          "heading": "Columnas de la lista",
           "items": [
-            {"label": "N.º de factura (120px)", "value": "Ordenable. El número de factura generado automáticamente. Con estilo de formato similar a monoespaciado."},
+            {"label": "N.º de factura", "value": "Ordenable. El número de factura."},
             {"label": "Cliente", "value": "Ordenable. El nombre del cliente."},
-            {"label": "Estado (130px)", "value": "Ordenable, filtrable (enum). Chip con código de color: Borrador (gris), Enviada (azul), Pagada parcialmente (amarillo), Pagada (verde), Vencida (rojo), Anulada (gris)."},
-            {"label": "Fecha de factura (110px)", "value": "Ordenable, tipo fecha. La fecha de emisión en formato MM/dd/yyyy."},
-            {"label": "Fecha de vencimiento (110px)", "value": "Ordenable, tipo fecha. La fecha de vencimiento del pago en formato MM/dd/yyyy."},
-            {"label": "Total (100px, alineado a la derecha)", "value": "Ordenable. El total de la factura mostrado como moneda."},
-            {"label": "Pagado (100px, alineado a la derecha)", "value": "Ordenable. El monto pagado hasta la fecha mostrado como moneda."},
-            {"label": "Saldo (100px, alineado a la derecha)", "value": "Ordenable. El saldo adeudado restante. Color de advertencia cuando el saldo > 0 y no está vencido. Color de error cuando está vencido."},
-            {"label": "Creada (110px)", "value": "Ordenable, tipo fecha. La fecha de creación en formato MM/dd/yyyy."}
+            {"label": "Estado", "value": "Ordenable y filtrable. Una etiqueta de color: Borrador (gris), Enviada (azul), Pagada parcialmente (amarillo), Pagada (verde), Vencida (rojo), Anulada (gris)."},
+            {"label": "Fecha de factura", "value": "Ordenable. La fecha de emisión, mostrada como MM/dd/yyyy."},
+            {"label": "Fecha de vencimiento", "value": "Ordenable. La fecha en que vence el pago, mostrada como MM/dd/yyyy."},
+            {"label": "Total", "value": "Ordenable. El total de la factura, mostrado como dinero."},
+            {"label": "Pagado", "value": "Ordenable. Cuánto se ha pagado hasta ahora, mostrado como dinero."},
+            {"label": "Saldo", "value": "Ordenable. Lo que todavía se debe. Amarillo cuando hay un saldo, rojo cuando está vencido."},
+            {"label": "Creada", "value": "Ordenable. La fecha en que se creó la factura, mostrada como MM/dd/yyyy."}
           ]
         }
       ]
@@ -285,7 +285,7 @@
             {"id": "c", "text": "La factura se mueve a una página de archivo de Facturas anuladas aparte"},
             {"id": "d", "text": "Todos los pagos aplicados a la factura se reembolsan automáticamente"}
           ],
-          "explanation": "Anular una factura establece su estado en Anulada y conserva el registro con fines de auditoría. QB Engineer usa eliminaciones lógicas —nada se elimina permanentemente. Aparece un diálogo de confirmación con severidad de advertencia (warn) antes de anular."
+          "explanation": "Anular una factura establece su estado en Anulada y conserva el registro en el archivo para su historial. Nada se elimina permanentemente. Usted confirma antes de que se anule."
         },
         {
           "id": "inv10",
@@ -307,7 +307,7 @@
             {"id": "c", "text": "Envían una notificación por correo electrónico al propietario de la entidad relacionada"},
             {"id": "d", "text": "Exportan un informe en PDF para la entidad vinculada"}
           ],
-          "explanation": "Estos son componentes EntityLink que proporcionan referencias cruzadas interactivas. Los enlaces de Cliente navegan a la página de detalle del cliente. Los enlaces de Orden de venta y Envío abren sus respectivos diálogos de detalle a través del patrón de URL ?detail=type:id."
+          "explanation": "Son referencias cruzadas en las que se puede hacer clic. El enlace de Cliente abre la página del cliente, y los enlaces de Orden de venta y Envío abren esos registros —así puede seguir el rastro desde la orden hasta el pago."
         },
         {
           "id": "inv12",

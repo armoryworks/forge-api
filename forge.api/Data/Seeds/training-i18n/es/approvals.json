@@ -4,7 +4,7 @@
     "title": "Resumen de Aprobaciones",
     "summary": "Qué es la bandeja de Aprobaciones, cómo los flujos de aprobación de varios pasos enrutan las solicitudes, y cómo aprobar, rechazar o delegar.",
     "contentJson": {
-      "body": "## Resumen de Aprobaciones\n\nEl módulo de Aprobaciones es tu bandeja personal de autorización más el motor que enruta las solicitudes a través de cadenas de aprobación de varios pasos. Cuando algo requiere visto bueno — una orden de compra, un gasto, una cotización, un registro de tiempo o una orden de venta — una solicitud de aprobación llega a la bandeja de quien sea responsable del paso actual. Los aprobadores revisan la solicitud y deciden: aprobarla (lo que la hace avanzar al siguiente paso), rechazarla (lo que la finaliza) o delegarla a otra persona.\n\n### ¿Qué es una Solicitud de Aprobación?\n\nUna solicitud de aprobación es un registro que envuelve una entidad subyacente (una orden de compra, un gasto, etc.) mientras se mueve por un flujo de aprobación. Cada solicitud tiene:\n- Un **Tipo de Entidad** y un **Resumen** — qué se está aprobando (p. ej., un número de orden de compra)\n- Un enlace al **Flujo** que define la cadena de aprobación que sigue\n- Un **Paso Actual** — dónde se encuentra la solicitud en la cadena de varios pasos\n- Un **Monto** opcional — el valor financiero (nulo para entidades no financieras como los registros de tiempo)\n- El nombre de **Solicitado Por** y la fecha de **Enviado**\n- Un **Estado** — Pendiente, Aprobado, Rechazado, Escalado, Cancelado o AutoAprobado\n- Un **historial de decisiones** — cada acción de aprobar / rechazar / delegar / escalar realizada sobre la solicitud\n\n### Las Dos Pestañas\n\nLa página de Aprobaciones tiene dos pestañas:\n\n1. **Bandeja de entrada** — La cola personal de cada persona con las solicitudes pendientes que esperan su decisión. Esta es la pestaña predeterminada y está disponible para todos los usuarios.\n2. **Flujos** — El editor de definiciones de flujo, visible solo para los Admin y los Manager. Aquí es donde configuras qué tipos de entidad activan aprobaciones y cómo se construye la cadena de aprobación.\n\n### Cómo Funcionan las Aprobaciones de Varios Pasos\n\n1. **Definición** — Un Admin o Manager define un flujo con uno o más pasos secuenciales. Cada paso designa un aprobador (un usuario específico, un rol o el manager del solicitante) y condiciones opcionales.\n2. **Activación** — Cuando se envía una entidad, el sistema la asocia con un flujo activo para ese tipo de entidad, respetando opcionalmente un umbral de monto (p. ej., solo las órdenes de compra de más de $500 requieren aprobación).\n3. **Progresión de pasos** — La solicitud comienza en el Paso 1. El aprobador asignado la revisa y decide.\n4. **Enrutamiento según la decisión:**\n   - **Aprobar** → avanza al siguiente paso, o completa la solicitud si era el paso final\n   - **Rechazar** → la solicitud es terminal (Rechazado); los rechazos requieren un motivo/comentario\n   - **Delegar** → entrega la decisión a otro usuario, manteniéndose en el mismo paso\n   - **Escalar** → normalmente automático cuando un paso permanece pendiente más allá de su ventana de escalamiento\n5. **Finalización** — Una vez que se aprueba el paso final, la solicitud pasa a Aprobado y se registra una marca de tiempo de finalización.\n\n### Umbrales y Automatización\n\n- **Umbral de activación** — Un flujo puede requerir aprobación solo por encima de un monto en dólares; las solicitudes menores omiten el flujo por completo.\n- **Auto-aprobar por debajo de** — Un paso puede auto-aprobarse cuando el monto de la solicitud está por debajo de un valor configurado, de modo que los montos triviales no ocupen a un aprobador. Estas solicitudes aparecen como AutoAprobado.\n- **Escalar después de (horas)** — Un paso puede auto-escalarse si permanece pendiente más tiempo que el número de horas configurado, para que las solicitudes no se estanquen.\n\n### Asignación de Aprobadores\n\nCada paso asigna un aprobador por tipo:\n- **Usuario Específico** — la solicitud va a una persona designada por su nombre\n- **Rol** — la solicitud va a cualquiera que tenga ese rol (Admin, Manager, Office Manager o PM)\n- **Manager** — la solicitud va al manager directo del solicitante\n\n### Cuándo Usar las Aprobaciones\n\n- Cuando eres un aprobador — revisa la pestaña Bandeja de entrada para actuar sobre las solicitudes que te esperan\n- Cuando una orden de compra, un gasto, una cotización, un registro de tiempo o una orden de venta requiere visto bueno antes de continuar\n- Cuando tú (Admin/Manager) necesitas definir o ajustar la cadena de aprobación para un tipo de entidad\n- Cuando necesitas un registro de auditoría de quién aprobó, rechazó o delegó una solicitud y cuándo",
+      "body": "## Resumen de Aprobaciones\n\nEl módulo de Aprobaciones es tu bandeja personal de autorización más el motor que enruta las solicitudes a través de cadenas de aprobación de varios pasos. Cuando algo requiere visto bueno — una orden de compra, un gasto, una cotización, un registro de tiempo o una orden de venta — una solicitud de aprobación llega a la bandeja de quien sea responsable del paso actual. Los aprobadores revisan la solicitud y deciden: aprobarla (lo que la hace avanzar al siguiente paso), rechazarla (lo que la finaliza) o delegarla a otra persona.\n\n### ¿Qué es una Solicitud de Aprobación?\n\nUna solicitud de aprobación hace seguimiento de una cosa — una orden de compra, un gasto, etc. — mientras avanza por los pasos de aprobación. Cada solicitud muestra:\n- **Qué se está aprobando** y un breve resumen (como un número de orden de compra)\n- La **aprobación** que sigue\n- El **paso** en el que está ahora mismo\n- Un **monto** opcional (cosas como los registros de tiempo no tienen monto)\n- **Quién la pidió** y **cuándo** se envió\n- Su **estado** — Pendiente, Aprobado, Rechazado, Escalado, Cancelado o AutoAprobado\n- Un **historial** de cada aprobar, rechazar, delegar o escalar a lo largo del camino\n\n### Las Dos Pestañas\n\nLa página de Aprobaciones tiene dos pestañas:\n\n1. **Bandeja de entrada** — La propia lista de cada persona con las solicitudes que esperan su decisión. Es la pestaña con la que empiezas, y todos la tienen.\n2. **Flujos** — Donde se configuran los pasos de aprobación, vista solo por los Manager y los Admin. Aquí es donde eliges qué necesita aprobación y cómo se enruta.\n\n### Cómo Funcionan las Aprobaciones de Varios Pasos\n\n1. **Definición** — Un Admin o Manager define un flujo con uno o más pasos secuenciales. Cada paso designa un aprobador (un usuario específico, un rol o el manager del solicitante) y condiciones opcionales.\n2. **Activación** — Cuando se envía una entidad, el sistema la asocia con un flujo activo para ese tipo de entidad, respetando opcionalmente un umbral de monto (p. ej., solo las órdenes de compra de más de $500 requieren aprobación).\n3. **Progresión de pasos** — La solicitud comienza en el Paso 1. El aprobador asignado la revisa y decide.\n4. **Enrutamiento según la decisión:**\n   - **Aprobar** → avanza al siguiente paso, o completa la solicitud si era el paso final\n   - **Rechazar** → la solicitud es terminal (Rechazado); los rechazos requieren un motivo/comentario\n   - **Delegar** → entrega la decisión a otro usuario, manteniéndose en el mismo paso\n   - **Escalar** → normalmente automático cuando un paso permanece pendiente más allá de su ventana de escalamiento\n5. **Finalización** — Una vez que se aprueba el paso final, la solicitud pasa a Aprobado y se registra una marca de tiempo de finalización.\n\n### Umbrales y Automatización\n\n- **Umbral de activación** — Un flujo puede requerir aprobación solo por encima de un monto en dólares; las solicitudes menores omiten el flujo por completo.\n- **Auto-aprobar por debajo de** — Un paso puede auto-aprobarse cuando el monto de la solicitud está por debajo de un valor configurado, de modo que los montos triviales no ocupen a un aprobador. Estas solicitudes aparecen como AutoAprobado.\n- **Escalar después de (horas)** — Un paso puede auto-escalarse si permanece pendiente más tiempo que el número de horas configurado, para que las solicitudes no se estanquen.\n\n### Asignación de Aprobadores\n\nCada paso asigna un aprobador por tipo:\n- **Usuario Específico** — la solicitud va a una persona designada por su nombre\n- **Rol** — la solicitud va a cualquiera que tenga ese rol (Admin, Manager, Office Manager o PM)\n- **Manager** — la solicitud va al manager directo del solicitante\n\n### Cuándo Usar las Aprobaciones\n\n- Cuando eres un aprobador — revisa la pestaña Bandeja de entrada para actuar sobre las solicitudes que te esperan\n- Cuando una orden de compra, un gasto, una cotización, un registro de tiempo o una orden de venta requiere visto bueno antes de continuar\n- Cuando tú (Admin/Manager) necesitas definir o ajustar la cadena de aprobación para un tipo de entidad\n- Cuando necesitas un registro de auditoría de quién aprobó, rechazó o delegó una solicitud y cuándo",
       "sections": []
     }
   },
@@ -20,15 +20,15 @@
           "element": ".tab-bar",
           "popover": {
             "title": "Pestañas Bandeja de entrada y Flujos",
-            "description": "La página de Aprobaciones tiene dos pestañas. Bandeja de entrada es tu cola personal de solicitudes pendientes que esperan tu decisión y está disponible para todos. Flujos es el editor de la cadena de aprobación, visible solo para los Admin y los Manager. Haz clic en una pestaña para cambiar; la pestaña activa se refleja en la URL.",
+            "description": "La página de Aprobaciones tiene dos pestañas. Bandeja de entrada es tu propia lista de solicitudes que esperan tu decisión, y todos la tienen. Flujos es donde se configuran los pasos de aprobación, y solo la ven los Manager y los Admin. Haz clic en una pestaña para cambiar.",
             "side": "bottom"
           }
         },
         {
           "element": "app-data-table[tableId='approval-inbox']",
           "popover": {
-            "title": "Cola de la Bandeja de Aprobaciones",
-            "description": "Cada solicitud que espera tu decisión aparece aquí. Las columnas muestran el Tipo de Entidad y el Resumen (qué se está aprobando), el nombre del Flujo, el Paso de Aprobación actual, el Monto, quién la Solicitó y cuándo se Envió. El Monto muestra un guion para entidades no financieras como los registros de tiempo.",
+            "title": "Tu Lista de Aprobaciones",
+            "description": "Cada solicitud que espera tu decisión aparece aquí. Cada fila te dice qué se está aprobando, qué aprobación sigue, en qué paso está, el monto en dólares, quién la pidió y cuándo. Las solicitudes sin valor en dólares, como los registros de tiempo, muestran un guion.",
             "side": "top"
           }
         },
@@ -36,7 +36,7 @@
           "element": "app-data-table[tableId='approval-inbox']",
           "popover": {
             "title": "Aprobar una Solicitud",
-            "description": "Cada fila de la bandeja lleva un botón verde Aprobar en su columna de Acciones. Haz clic en Aprobar para aceptar esa solicitud en el paso actual. Si este era el paso final, la solicitud se completa y se marca como Aprobado; de lo contrario, avanza al siguiente aprobador de la cadena. No se requiere motivo para aprobar.",
+            "description": "Haz clic en el botón verde Aprobar de una fila para aceptarla. Si era el último paso, la solicitud queda lista y se marca como Aprobado. Si no, pasa a la siguiente persona. No necesitas dar un motivo para aprobar.",
             "side": "top"
           }
         },
@@ -44,31 +44,31 @@
           "element": "app-data-table[tableId='approval-inbox']",
           "popover": {
             "title": "Rechazar una Solicitud",
-            "description": "Junto al botón Aprobar de cada fila hay un icono rojo de Rechazar. Haz clic en él para abrir el cuadro de diálogo de rechazo. Rechazar requiere un motivo — escribe tu explicación en el campo de comentarios (hasta 1000 caracteres) y confirma. Una solicitud rechazada es terminal y no avanzará.",
+            "description": "Haz clic en el botón rojo Rechazar de una fila para rechazarla. Se abre una ventana que pregunta por qué — escribe tu motivo y confirma. Una solicitud rechazada se detiene ahí y no seguirá adelante.",
             "side": "top"
           }
         },
         {
           "element": ".tab-bar",
           "popover": {
-            "title": "Cambiar a Flujos (Admin / Manager)",
-            "description": "Si eres un Admin o Manager, haz clic en la pestaña Flujos para definir cómo se enrutan las solicitudes. Aquí es donde decides qué tipos de entidad requieren aprobación y cuántos pasos tiene cada cadena de aprobación.",
+            "title": "Cambiar a Flujos (Manager / Admin)",
+            "description": "Los Manager y los Admin pueden hacer clic en la pestaña Flujos para configurar cómo se enrutan las solicitudes. Aquí es donde eliges qué cosas necesitan aprobación y cuántas personas dan el visto bueno.",
             "side": "bottom"
           }
         },
         {
-          "element": ".tab-bar",
+          "element": "app-data-table[tableId='approval-workflows']",
           "popover": {
-            "title": "Lista de Flujos",
-            "description": "Cambia a la pestaña Flujos (solo Admin / Manager) para ver la lista de flujos. Cada fila ahí es un flujo de aprobación con su nombre, tipo de entidad, estado activo y fecha de creación — haz clic en una fila o en el icono de editar para abrir el editor de flujos, o usa Nuevo Flujo para crear uno desde cero.",
+            "title": "La Lista de Flujos",
+            "description": "En la pestaña Flujos (solo Manager y Admin), esta lista muestra cada aprobación que has configurado — su nombre, qué aprueba, si está activa, cuántos pasos tiene y cuándo se creó. Haz clic en una fila para abrirla, o usa Nuevo Flujo para empezar uno nuevo.",
             "side": "bottom"
           }
         },
         {
-          "element": ".tab-bar",
+          "element": ".tab-panel",
           "popover": {
             "title": "Construir los Pasos de Aprobación",
-            "description": "Abre un flujo desde la pestaña Flujos para llegar al editor, donde la sección de pasos define la cadena. Agrega un paso por cada nivel de visto bueno. Por cada paso configuras el nombre del paso, el tipo de aprobador (Usuario Específico, Rol o Manager), un monto opcional de auto-aprobar por debajo de, y una ventana opcional de escalar después de (horas). Los pasos se ejecutan en el orden mostrado y necesitas al menos uno para guardar.",
+            "description": "Abre un flujo de la lista para configurar sus pasos. Agrega un paso por cada persona que deba dar el visto bueno. Por cada paso, ponle un nombre, elige quién aprueba y define montos opcionales para auto-aprobar o para recordatorios. Los pasos ocurren en orden, y necesitas al menos uno para poder guardar.",
             "side": "bottom"
           }
         }
@@ -87,35 +87,35 @@
           "items": [
             {
               "label": "Tipo de Entidad",
-              "value": "El tipo de entidad que se está aprobando: PurchaseOrder, Expense, Quote, TimeEntry o SalesOrder. Ordenable."
+              "value": "Qué tipo de cosa se está aprobando: una orden de compra, un gasto, una cotización, un registro de tiempo o una orden de venta. Haz clic en el encabezado para ordenar."
             },
             {
               "label": "Resumen",
-              "value": "Una descripción legible de la entidad (p. ej., un número de orden de compra o la descripción de un gasto). Recurre al tipo de entidad cuando no se ha establecido un resumen."
+              "value": "Una breve descripción de lo que se aprueba, como un número de orden de compra o una nota de gasto. Recurre al tipo de entidad cuando no se dio un resumen."
             },
             {
               "label": "Flujo",
-              "value": "El nombre del flujo de aprobación que sigue esta solicitud (p. ej., 'Aprobación de OC > $500'). Ordenable."
+              "value": "El nombre de la aprobación que sigue esta solicitud, como 'Aprobación de OC sobre $500'. Haz clic en el encabezado para ordenar."
             },
             {
               "label": "Paso de Aprobación",
-              "value": "El paso actual en la cadena de varios pasos (p. ej., 'Aprobación del Manager', 'Aprobación del Director'). Ordenable."
+              "value": "En qué paso está la solicitud ahora mismo, como 'Aprobación del Manager'. Haz clic en el encabezado para ordenar."
             },
             {
               "label": "Monto",
-              "value": "El valor financiero vinculado a la solicitud, formateado como moneda y alineado a la derecha. Muestra un guion para entidades que no tienen monto, como los registros de tiempo. Ordenable."
+              "value": "El monto en dólares vinculado a la solicitud. Muestra un guion para las cosas sin monto, como los registros de tiempo. Haz clic en el encabezado para ordenar."
             },
             {
               "label": "Solicitado Por",
-              "value": "El nombre completo del usuario que envió la solicitud. Ordenable."
+              "value": "El nombre de la persona que envió la solicitud. Haz clic en el encabezado para ordenar."
             },
             {
               "label": "Enviado",
-              "value": "La fecha en que se envió la solicitud, en formato MM/dd/yyyy. Ordenable (tipo fecha)."
+              "value": "La fecha en que se envió la solicitud (MM/dd/yyyy). Haz clic en el encabezado para ordenar."
             },
             {
               "label": "Acciones",
-              "value": "Botones de Aprobar y Rechazar por fila. No ordenable."
+              "value": "Los botones Aprobar y Rechazar de cada fila."
             }
           ]
         },
@@ -124,15 +124,15 @@
           "items": [
             {
               "label": "Aprobar (botón verde)",
-              "value": "Acepta la solicitud en el paso actual. Avanza al siguiente paso o completa la solicitud si es el final. No se requiere comentario. data-testid: approval-approve-btn"
+              "value": "Acepta la solicitud en su paso actual. La pasa a la siguiente persona, o la termina si este era el último paso. No se necesita comentario."
             },
             {
-              "label": "Rechazar (botón con icono rojo)",
-              "value": "Abre el cuadro de diálogo de rechazo. Requiere un motivo/comentario antes de poder enviarse. La solicitud pasa a ser terminal (Rechazado). data-testid: approval-reject-btn"
+              "label": "Rechazar (botón rojo)",
+              "value": "Rechaza la solicitud. Abre una ventana que pide un motivo. Una vez rechazada, la solicitud se detiene ahí."
             },
             {
-              "label": "Cuadro de diálogo de rechazo — Motivo",
-              "value": "Área de texto, obligatoria, hasta 1000 caracteres. Explica por qué se rechazó la solicitud. El botón de confirmar Rechazar permanece deshabilitado hasta que se ingresa un motivo."
+              "label": "Motivo de rechazo",
+              "value": "Una nota obligatoria que explica por qué rechazaste la solicitud (hasta 1000 caracteres). El botón de confirmar queda gris hasta que escribes un motivo."
             }
           ]
         },
@@ -141,27 +141,27 @@
           "items": [
             {
               "label": "Pendiente",
-              "value": "A la espera de una decisión en el paso actual. Esto es lo que aparece en la bandeja."
+              "value": "A la espera de una decisión en su paso actual. Estas son las que aparecen en tu bandeja."
             },
             {
               "label": "Aprobado",
-              "value": "Todos los pasos aprobados; la solicitud se ha completado. Se registra una marca de tiempo de finalización."
+              "value": "Todos los pasos dieron el visto bueno, así que la solicitud está lista. Se registra la hora de finalización."
             },
             {
               "label": "Rechazado",
-              "value": "Un aprobador rechazó la solicitud. Terminal — no avanza. Requiere un motivo."
+              "value": "Alguien rechazó la solicitud. Se detiene ahí y no seguirá adelante. Se requiere un motivo."
             },
             {
               "label": "Escalado",
-              "value": "La solicitud fue escalada, normalmente de forma automática después de que transcurrió la ventana de escalamiento de un paso."
+              "value": "La solicitud se elevó, normalmente por sí sola después de que un paso esperó demasiado."
             },
             {
               "label": "Cancelado",
-              "value": "La solicitud fue cancelada. Terminal."
+              "value": "La solicitud fue cancelada. Se detiene ahí."
             },
             {
               "label": "AutoAprobado",
-              "value": "El monto quedó por debajo del umbral de auto-aprobación de un paso y el paso se aprobó automáticamente."
+              "value": "El monto era lo bastante pequeño para aprobarse por sí solo, así que nadie tuvo que actuar en ese paso."
             }
           ]
         },
@@ -170,144 +170,144 @@
           "items": [
             {
               "label": "Aprobar",
-              "value": "El aprobador acepta; la solicitud pasa al siguiente paso o se completa."
+              "value": "El aprobador acepta, y la solicitud pasa al siguiente paso o se termina."
             },
             {
               "label": "Rechazar",
-              "value": "El aprobador rechaza; se requieren comentarios y la solicitud es terminal."
+              "value": "El aprobador rechaza. Se requiere un motivo y la solicitud se detiene ahí."
             },
             {
               "label": "Delegar",
-              "value": "El aprobador entrega la decisión a otro usuario; la solicitud permanece en el mismo paso bajo el delegado."
+              "value": "El aprobador entrega la decisión a otra persona. La solicitud permanece en el mismo paso bajo la nueva persona."
             },
             {
               "label": "Escalar",
-              "value": "La solicitud se escala — normalmente automático cuando un paso supera sus horas de escalamiento."
+              "value": "La solicitud se eleva, normalmente por sí sola cuando un paso pasa su ventana de recordatorio."
             }
           ]
         },
         {
-          "heading": "Pestaña Flujos (solo Admin / Manager)",
+          "heading": "Pestaña Flujos (solo Manager / Admin)",
           "items": [
             {
               "label": "Botón Nuevo Flujo",
-              "value": "Abre el cuadro de diálogo de creación de flujo. Botón verde de 'crear' en la barra de herramientas de flujos."
+              "value": "Inicia una nueva aprobación. El botón verde en la parte superior de la pestaña Flujos."
             },
             {
-              "label": "Tabla de flujos",
-              "value": "Enumera todos los flujos definidos. Columnas: nombre del flujo, tipo de entidad, chip de estado Activo/Inactivo, número de pasos y fecha de creación. Las filas son clicables para editar. tableId: approval-workflows"
+              "label": "Lista de flujos",
+              "value": "Muestra cada aprobación que has configurado, con su nombre, qué aprueba, si está activa o no, cuántos pasos tiene y cuándo se creó. Haz clic en una fila para abrirla."
             },
             {
-              "label": "Chip Activo / Inactivo",
-              "value": "Chip verde 'Activo' cuando el flujo está habilitado, chip gris 'Inactivo' cuando está deshabilitado."
+              "label": "Etiqueta Activo / Inactivo",
+              "value": "Una etiqueta verde 'Activo' cuando la aprobación está encendida, o una etiqueta gris 'Inactivo' cuando está apagada."
             },
             {
-              "label": "Editar (icono de lápiz)",
-              "value": "Abre el cuadro de diálogo del editor de flujos precargado con la configuración y los pasos del flujo."
+              "label": "Editar (botón de lápiz)",
+              "value": "Abre la aprobación para que puedas cambiar su configuración y sus pasos."
             }
           ]
         },
         {
-          "heading": "Editor de Flujos — Campos del Encabezado",
+          "heading": "Configuración del Flujo — Campos Superiores",
           "items": [
             {
               "label": "Nombre del Flujo (obligatorio)",
-              "value": "Entrada de texto. El nombre para mostrar, p. ej., 'Aprobación de OC > $500'. Obligatorio para guardar."
+              "value": "El nombre que verá la gente, como 'Aprobación de OC sobre $500'. Necesario antes de poder guardar."
             },
             {
               "label": "Tipo de Entidad (obligatorio)",
-              "value": "Selección. Qué entidad aprueba este flujo: Orden de Compra, Gasto, Cotización, Registro de Tiempo u Orden de Venta. Obligatorio para guardar."
+              "value": "Qué cubre esta aprobación: una orden de compra, un gasto, una cotización, un registro de tiempo o una orden de venta. Necesario antes de poder guardar."
             },
             {
               "label": "Descripción",
-              "value": "Área de texto, opcional. Explica el propósito del flujo."
+              "value": "Una nota opcional que explica para qué es esta aprobación."
             },
             {
               "label": "Umbral de Monto",
-              "value": "Entrada numérica, opcional. El flujo solo se activa cuando el monto de la solicitud está por encima de este valor."
+              "value": "Opcional. La aprobación solo se activa cuando el monto está por encima de este número."
             }
           ]
         },
         {
-          "heading": "Editor de Flujos — Campos de Paso (Repetibles)",
+          "heading": "Configuración del Flujo — Campos de Paso (Repetibles)",
           "items": [
             {
               "label": "Número de Paso",
-              "value": "Solo para mostrar. Numerado automáticamente 1, 2, 3 en el orden en que aparecen los pasos. Los pasos se ejecutan secuencialmente."
+              "value": "Numerado 1, 2, 3 en el orden en que aparecen los pasos. Los pasos ocurren uno tras otro."
             },
             {
               "label": "Nombre del Paso (obligatorio)",
-              "value": "Entrada de texto. La etiqueta del paso, p. ej., 'Aprobación del Manager'."
+              "value": "Una etiqueta para el paso, como 'Aprobación del Manager'."
             },
             {
               "label": "Tipo de Aprobador",
-              "value": "Selección. Quién aprueba este paso: Usuario Específico, Rol o Manager (el manager directo del solicitante)."
+              "value": "Quién da el visto bueno en este paso: una persona específica, un rol o el propio manager del solicitante."
             },
             {
-              "label": "Rol (condicional)",
-              "value": "Selección, mostrada solo cuando el Tipo de Aprobador es Rol. Opciones: Admin, Manager, Office Manager, PM."
+              "label": "Rol",
+              "value": "Se muestra solo cuando el aprobador es un rol. Elige Manager, Admin, Office Manager o Project Manager."
             },
             {
               "label": "Auto-Aprobar Por Debajo De",
-              "value": "Entrada numérica, opcional. Si el monto de la solicitud está por debajo de este valor, el paso se auto-aprueba (estado AutoAprobado)."
+              "value": "Opcional. Si el monto está por debajo de este número, el paso se aprueba por sí solo."
             },
             {
               "label": "Escalar Después De (Horas)",
-              "value": "Entrada numérica, opcional. Si el paso permanece pendiente más de esta cantidad de horas, se auto-escala."
+              "value": "Opcional. Si el paso espera más de esta cantidad de horas, se eleva por sí solo."
             },
             {
               "label": "Agregar Paso / Quitar Paso",
-              "value": "Agregar Paso añade un nuevo paso a la cadena. El icono de papelera quita un paso (solo se muestra cuando existe más de un paso)."
+              "value": "Agregar Paso añade otro visto bueno. El botón de papelera quita un paso (se muestra solo cuando hay más de uno)."
             }
           ]
         },
         {
-          "heading": "Reglas de Validación",
+          "heading": "Reglas",
           "items": [
             {
               "label": "Nombre del Flujo",
-              "value": "Obligatorio para guardar el flujo."
+              "value": "Necesario antes de poder guardar la aprobación."
             },
             {
               "label": "Tipo de Entidad",
-              "value": "Obligatorio para guardar el flujo."
+              "value": "Necesario antes de poder guardar la aprobación."
             },
             {
               "label": "Nombre del Paso",
-              "value": "Obligatorio en cada paso."
+              "value": "Necesario en cada paso."
             },
             {
               "label": "Al menos un paso",
-              "value": "El botón Guardar/Crear permanece deshabilitado hasta que el flujo tenga al menos un paso (y el formulario sea válido)."
+              "value": "El botón Guardar queda gris hasta que la aprobación tenga al menos un paso y todo esté completo."
             },
             {
               "label": "Motivo de rechazo",
-              "value": "Obligatorio antes de poder confirmar un rechazo en el cuadro de diálogo de rechazo de la bandeja."
+              "value": "Necesario antes de poder confirmar el rechazo de una solicitud."
             }
           ]
         },
         {
-          "heading": "Tipos de Entidad Aprobables",
+          "heading": "Qué se Puede Aprobar",
           "items": [
             {
               "label": "Orden de Compra",
-              "value": "Autorización de orden de compra — el caso de uso de aprobación más común."
+              "value": "Visto bueno de una orden de compra — el uso más común."
             },
             {
               "label": "Gasto",
-              "value": "Autorización de informe de gastos / reembolso."
+              "value": "Visto bueno de un gasto o reembolso."
             },
             {
               "label": "Cotización",
-              "value": "Visto bueno de cotización de venta antes de que se envíe al cliente."
+              "value": "Visto bueno de una cotización de venta antes de que se envíe al cliente."
             },
             {
               "label": "Registro de Tiempo",
-              "value": "Aprobación de registro de seguimiento de tiempo (p. ej., horas extra). No tiene monto, por lo que la columna Monto muestra un guion."
+              "value": "Visto bueno de un registro de tiempo, como horas extra. No tiene monto en dólares, así que la columna Monto muestra un guion."
             },
             {
               "label": "Orden de Venta",
-              "value": "Aprobación de orden de venta — p. ej., pedidos grandes o condiciones especiales."
+              "value": "Visto bueno de una orden de venta, como un pedido grande o condiciones especiales."
             }
           ]
         }

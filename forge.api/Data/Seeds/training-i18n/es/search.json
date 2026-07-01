@@ -2,16 +2,16 @@
   {
     "slug": "search-overview",
     "title": "Visión general de la Búsqueda",
-    "summary": "Qué hace la búsqueda global, los tipos de entidad que busca, la búsqueda híbrida de texto completo y RAG, y los atajos de teclado.",
+    "summary": "Qué hace la búsqueda, las seis clases de cosas en las que busca, los resultados de texto sencillo y de IA, y los atajos de teclado.",
     "contentJson": {
-      "body": "## Visión general de la Búsqueda global\n\nLa búsqueda global siempre está disponible desde la barra de encabezado en la parte superior de cada página. Ofrece una búsqueda instantánea y multientidad sobre seis tipos de entidad principales, combinando la búsqueda tradicional de texto completo con resultados RAG (Generación Aumentada por Recuperación) impulsados por IA cuando el módulo de IA está habilitado.\n\n### Cómo funciona\n\nEl campo de búsqueda se ubica en el encabezado de la aplicación, entre la navegación de migas de pan y los botones de acción. A medida que escribe, los resultados aparecen en una superposición desplegable agrupados por tipo de entidad. El sistema busca en seis tipos de entidad de forma simultánea:\n\n- **Trabajos** — coincide por número de trabajo y título\n- **Clientes** — coincide por nombre del cliente y nombre de la empresa\n- **Piezas** — coincide por número de pieza y descripción\n- **Prospectos** — coincide por nombre de la empresa y nombre del contacto\n- **Activos** — coincide por nombre del activo y número de serie\n- **Gastos** — coincide por descripción y categoría\n\nLa búsqueda requiere al menos 2 caracteres antes de que aparezcan resultados. Los resultados están sujetos a antirrebote (debounce), de modo que el sistema espera a que deje de escribir antes de consultar —esto mantiene la interfaz ágil incluso con grandes volúmenes de datos.\n\n### Una superficie solo para escritorio\n\nLa barra de búsqueda del encabezado es una función de escritorio. Se oculta en anchos de tableta y menores (móvil) para mantener el encabezado compacto utilizable —en esas pantallas debe navegar a la página de lista de la propia entidad (Piezas, Clientes, Trabajos, etc.) y usar el filtro de esa página en su lugar. En un navegador de escritorio, la barra de búsqueda siempre está presente en el encabezado (excepto durante el flujo de incorporación de nuevos empleados, que no tiene los elementos del encabezado).\n\n### Búsqueda de texto completo\n\nLa columna izquierda de la superposición de búsqueda muestra los resultados tradicionales de texto completo. Cada resultado muestra un icono que representa el tipo de entidad, el título principal (número de trabajo, número de pieza, nombre del cliente, etc.), un subtítulo con contexto adicional y una etiqueta de tipo.\n\n**Qué ocurre al hacer clic en un resultado.** Al hacer clic en un resultado, se le lleva a la ruta principal de la entidad y se abre el **diálogo de detalle** de ese registro encima de ella —no le deja simplemente en una página de lista. Internamente, la barra de búsqueda navega a la ruta de lista de la entidad con un parámetro de consulta `?detail=type:id` (por ejemplo, al hacer clic en un resultado de pieza va a `/parts?detail=part:42`, lo que abre el diálogo de detalle de la Pieza sobre la lista de Piezas; un trabajo va a `/kanban?detail=job:1055`). Como el detalle se codifica en la URL, la vista se puede compartir y sobrevive a una recarga. Cinco de los seis tipos buscables —Trabajo, Pieza, Cliente, Prospecto y Activo— abren su diálogo de detalle de esta forma. **Los Gastos son la excepción:** un resultado de gasto simplemente le lleva a la página de lista de Gastos (no existe un diálogo de detalle de gasto), por lo que termina de abrirlo desde allí.\n\n### Resultados RAG impulsados por IA\n\nCuando el módulo de IA Ollama está en ejecución, la superposición de búsqueda se expande a dos columnas. La columna derecha muestra resultados de IA impulsados por RAG —Generación Aumentada por Recuperación. Esto usa incrustaciones (embeddings) de documentos almacenadas en PostgreSQL mediante pgvector para encontrar contenido relacionado semánticamente, no solo coincidencias exactas de texto.\n\nLa columna de IA muestra:\n- Una **respuesta generada** — un resumen en lenguaje natural que responde a su consulta\n- **Fragmentos de documentos relevantes** — porciones de contenido indexado que coinciden con su consulta, cada una con un porcentaje de puntuación de relevancia\n\nLos resultados RAG son especialmente útiles para preguntas como '¿qué trabajos implican mecanizado de aluminio?' o '¿qué cliente pidió la carcasa del engranaje?' —consultas donde las palabras exactas podrían no aparecer en el registro pero el significado se captura en los documentos indexados.\n\n### Atajos de teclado\n\n- **Ctrl+K** — Enfoca el campo de búsqueda desde cualquier lugar de la aplicación. Es la forma más rápida de empezar a buscar sin usar el ratón. (Ctrl+K es el único atajo de teclado configurado para la búsqueda —no hay un controlador para Escape.)\n- **Hacer clic fuera (blur)** — Haga clic fuera del cuadro de búsqueda y la superposición de resultados se cierra por sí sola. El texto que escribió permanece en el cuadro.\n- **Hacer clic en un resultado** — Abre el diálogo de detalle de esa entidad (o, para un gasto, su página de lista), borra el campo de búsqueda y cierra la superposición\n\n### Cuándo usar la búsqueda global\n\n- Cuando necesita encontrar rápidamente un trabajo por número o título\n- Cuando busca un cliente o prospecto por nombre\n- Cuando conoce un número de pieza pero no quiere navegar primero a la página de Piezas\n- Cuando tiene una consulta imprecisa y quiere que la IA le ayude a encontrar registros relevantes\n- Cuando salta entre diferentes tipos de entidad con frecuencia a lo largo del día",
+      "body": "## Visión general de la Búsqueda\n\nLa búsqueda siempre está en la barra de encabezado, en la parte superior de cada página. Busca en seis clases de cosas a la vez y, cuando el asistente de IA está activado, añade un segundo conjunto de resultados más inteligentes, basados en el significado, junto a las coincidencias sencillas.\n\n### Cómo funciona\n\nEl cuadro de búsqueda está en el encabezado, entre el rastro de migas de pan y los botones de acción. A medida que escribe, las coincidencias aparecen debajo, agrupadas por clase. Busca en seis clases de cosas al mismo tiempo:\n\n- **Trabajos** — coincide con el número de trabajo y el título\n- **Clientes** — coincide con el nombre del cliente y el nombre de la empresa\n- **Piezas** — coincide con el número de pieza y la descripción\n- **Prospectos** — coincide con el nombre de la empresa y el nombre del contacto\n- **Activos** — coincide con el nombre del activo y el número de serie\n- **Gastos** — coincide con la descripción y la categoría\n\nEscriba al menos 2 letras antes de que aparezcan resultados. Los resultados aparecen un momento después de dejar de escribir, no con cada tecla —esto mantiene todo ágil incluso con muchos datos.\n\n### Solo para escritorio\n\nEl cuadro de búsqueda es una función de escritorio. Se oculta en pantallas de tableta y de teléfono para mantener el encabezado despejado —en esas pantallas, abra la página de lista que quiera (Piezas, Clientes, Trabajos, etc.) y use el filtro propio de esa página. En un navegador de escritorio, el cuadro de búsqueda siempre está en el encabezado, salvo en las pantallas de configuración de nuevos empleados, que no muestran el encabezado habitual.\n\n### Coincidencias de texto sencillo\n\nEl lado izquierdo de los resultados muestra las coincidencias de texto sencillo. Cada una muestra un pequeño icono de su clase, un título principal (número de trabajo, número de pieza, nombre del cliente, etc.), un poco de contexto debajo y una etiqueta de clase.\n\n**Qué ocurre al hacer clic en un resultado.** Al hacer clic en un resultado, se abren los detalles de ese registro justo sobre su lista —no le deja simplemente en una página de lista sencilla. Por ejemplo, al hacer clic en una pieza se abren sus detalles sobre la lista de Piezas; un trabajo se abre sobre el tablero. Los detalles quedan en la dirección web, así que puede guardar el enlace o enviárselo a alguien y llegará al mismo lugar. Cinco de las seis clases —trabajos, piezas, clientes, prospectos y activos— abren sus detalles de esta forma. **Los Gastos son la excepción:** al hacer clic en un gasto solo va a la lista de Gastos, y lo abre desde allí.\n\n### Resultados de IA\n\nCuando el asistente de IA está activado, los resultados se dividen en dos columnas. La columna derecha muestra resultados de IA que coinciden por significado, no solo por palabras exactas.\n\nLa columna de IA muestra:\n- Una **respuesta escrita** — una breve respuesta a su pregunta en lenguaje sencillo\n- **Fragmentos coincidentes** — trozos de contenido relacionado, cada uno con una puntuación de coincidencia en porcentaje\n\nSon útiles para preguntas como '¿qué trabajos implican mecanizado de aluminio?' o '¿qué cliente pidió la carcasa del engranaje?' —donde las palabras exactas podrían no estar escritas en ningún sitio pero el significado sí está en sus registros.\n\n### Atajos de teclado\n\n- **Ctrl+K** — Salta al cuadro de búsqueda desde cualquier lugar de la aplicación. Es la forma más rápida de empezar sin usar el ratón, y es el único atajo de teclado para la búsqueda.\n- **Hacer clic fuera** — Haga clic fuera del cuadro y los resultados se cierran por sí solos. El texto que escribió permanece.\n- **Hacer clic en un resultado** — Abre los detalles de ese registro (o, para un gasto, su lista), borra el cuadro y cierra los resultados\n\n### Cuándo usar la búsqueda\n\n- Cuando necesita encontrar un trabajo rápido por su número o título\n- Cuando busca un cliente o prospecto por nombre\n- Cuando conoce un número de pieza pero no quiere abrir primero la página de Piezas\n- Cuando su pregunta es imprecisa y quiere que el asistente de IA encuentre registros relacionados\n- Cuando salta entre distintas clases de cosas durante todo el día",
       "sections": []
     }
   },
   {
     "slug": "search-walkthrough",
     "title": "Búsqueda — Recorrido guiado",
-    "summary": "Un recorrido guiado por la superposición de búsqueda global: el campo de búsqueda, las columnas de resultados, los atajos de teclado y los resultados impulsados por IA.",
+    "summary": "Un recorrido guiado por la búsqueda: el cuadro de búsqueda, las columnas de resultados, los atajos de teclado y los resultados de IA.",
     "contentJson": {
       "appRoute": "/dashboard",
       "startButtonLabel": "Recorrer la Búsqueda",
@@ -19,16 +19,16 @@
         {
           "element": ".app-header__search",
           "popover": {
-            "title": "Barra de búsqueda global",
-            "description": "Este es el campo de búsqueda global, siempre disponible en el encabezado. Escriba al menos 2 caracteres para empezar a buscar en Trabajos, Clientes, Piezas, Prospectos, Activos y Gastos de forma simultánea. Los resultados aparecen en una superposición desplegable debajo.",
+            "title": "Busque en todo",
+            "description": "Este cuadro de búsqueda vive en el encabezado, listo en cada página. Escriba al menos 2 letras para buscar en trabajos, clientes, piezas, prospectos, activos y gastos a la vez. Las coincidencias aparecen justo debajo del cuadro.",
             "side": "bottom"
           }
         },
         {
           "element": ".app-header__search input",
           "popover": {
-            "title": "Campo de búsqueda",
-            "description": "Escriba su consulta aquí. La búsqueda tiene antirrebote —los resultados aparecen después de que deja de escribir. El sistema busca en números de trabajo, nombres de clientes, números de pieza, contactos de prospectos, nombres/números de serie de activos y descripciones de gastos. Presione Ctrl+K desde cualquier lugar para saltar directamente a este campo.",
+            "title": "Escriba aquí para buscar",
+            "description": "Escriba lo que busca. Los resultados aparecen un momento después de que deja de escribir. Coincide con cosas como números de trabajo, nombres de clientes, números de pieza, contactos de prospectos, nombres y números de serie de activos, y descripciones de gastos. Presione Ctrl+K desde cualquier lugar para saltar directo aquí.",
             "side": "bottom"
           },
           "advanceOn": {
@@ -41,8 +41,8 @@
         {
           "element": ".app-header__search kbd",
           "popover": {
-            "title": "Sugerencia de atajo de teclado",
-            "description": "La insignia Ctrl+K le recuerda el atajo de teclado. Presione Ctrl+K desde cualquier página para enfocar de inmediato el campo de búsqueda sin usar el ratón. Ctrl+K es el único atajo de teclado para la búsqueda; para descartar la superposición de resultados simplemente haga clic fuera del cuadro.",
+            "title": "Atajo Ctrl+K",
+            "description": "Esta pequeña insignia Ctrl+K es un recordatorio. Presione Ctrl+K desde cualquier página para saltar al cuadro de búsqueda sin tocar el ratón. Es el único atajo de teclado. Para cerrar los resultados, solo haga clic fuera del cuadro.",
             "side": "bottom"
           },
           "advanceOn": {
@@ -58,90 +58,90 @@
   {
     "slug": "search-field-reference",
     "title": "Referencia de campos de la Búsqueda",
-    "summary": "Referencia completa del campo de búsqueda, los grupos de tipos de entidad, los campos de resultado, los atajos de teclado y la integración con RAG.",
+    "summary": "Una referencia práctica del cuadro de búsqueda, en qué puede buscar, qué muestra cada resultado, los atajos de teclado y los resultados de IA.",
     "contentJson": {
       "title": "Referencia de campos de la Búsqueda",
       "groups": [
         {
-          "heading": "Campo de búsqueda",
+          "heading": "El cuadro de búsqueda",
           "items": [
             {
-              "label": "Ubicación",
-              "value": "Barra de encabezado, entre la navegación de migas de pan y los botones de acción. Visible en todas las páginas excepto en la incorporación (onboarding)."
+              "label": "Dónde está",
+              "value": "En la barra de encabezado, entre el rastro de migas de pan y los botones de acción. Aparece en cada página, salvo en las pantallas de configuración de nuevos empleados."
             },
             {
-              "label": "Disponibilidad",
-              "value": "Solo para escritorio. La barra de búsqueda lleva la clase hide-tablet —se oculta en ancho de tableta y menores. En tableta/móvil, use la página de lista de la entidad de destino y su filtro en su lugar."
+              "label": "Cuándo aparece",
+              "value": "Solo en escritorio. Se oculta en pantallas de tableta y teléfono para mantener el encabezado despejado. En esas, abra la página de lista que quiera (Piezas, Clientes, Trabajos) y use el filtro propio de esa página."
             },
             {
-              "label": "Mínimo de caracteres",
-              "value": "Se requieren 2 caracteres antes de que se ejecute la búsqueda. Las consultas de menos de 2 caracteres no devuelven resultados."
+              "label": "Cuánto escribir",
+              "value": "Escriba al menos 2 letras antes de que aparezcan resultados. Una sola letra no basta —no vuelve nada."
             },
             {
-              "label": "Antirrebote (debounce)",
-              "value": "El campo tiene antirrebote —el sistema espera a que deje de escribir antes de enviar la consulta. Esto evita llamadas excesivas a la API al escribir rápido."
+              "label": "Espere a escribir",
+              "value": "Los resultados aparecen un momento después de dejar de escribir, no con cada tecla. Esto mantiene todo ágil incluso con muchos datos."
             },
             {
-              "label": "Límite de resultados",
-              "value": "20 resultados por defecto, máximo 50. Los resultados se distribuyen equitativamente entre los tipos de entidad (al menos 3 por tipo)."
+              "label": "Cuántos resultados",
+              "value": "Verá hasta 20 a la vez (50 como máximo). La mezcla se reparte entre las distintas clases para que ninguna clase acapare el resto."
             },
             {
-              "label": "Comportamiento al borrar",
-              "value": "Navegar a un resultado borra el campo de búsqueda y cierra la superposición de resultados. Hacer clic fuera (blur) cierra la superposición pero deja el texto escrito en su lugar."
+              "label": "Qué lo borra",
+              "value": "Abrir un resultado vacía el cuadro y cierra los resultados. Hacer clic fuera del cuadro solo cierra los resultados —el texto que escribió permanece."
             }
           ]
         },
         {
-          "heading": "Tipos de entidad buscados",
+          "heading": "En qué puede buscar",
           "items": [
             {
-              "label": "Trabajo",
-              "value": "Campos buscados: job_number, title. Icono: work. Al hacer clic abre /kanban?detail=job:{id} —el diálogo de detalle del trabajo sobre el tablero."
+              "label": "Trabajos",
+              "value": "Coincide con el número de trabajo y el título. Haga clic en un trabajo para abrir sus detalles justo sobre el tablero."
             },
             {
-              "label": "Cliente",
-              "value": "Campos buscados: name, company_name. Icono: people. Al hacer clic abre /customers?detail=customer:{id} —el diálogo de detalle del cliente."
+              "label": "Clientes",
+              "value": "Coincide con el nombre del cliente y el nombre de la empresa. Haga clic en un cliente para abrir sus detalles."
             },
             {
-              "label": "Pieza",
-              "value": "Campos buscados: part_number, description. Icono: inventory_2. Al hacer clic abre /parts?detail=part:{id} —el diálogo de detalle de la pieza sobre la lista de Piezas."
+              "label": "Piezas",
+              "value": "Coincide con el número de pieza y la descripción. Haga clic en una pieza para abrir sus detalles sobre la lista de Piezas."
             },
             {
-              "label": "Prospecto",
-              "value": "Campos buscados: company_name, contact_name. Icono: trending_up. Al hacer clic abre /leads?detail=lead:{id} —el diálogo de detalle del prospecto."
+              "label": "Prospectos",
+              "value": "Coincide con el nombre de la empresa y el nombre del contacto. Haga clic en un prospecto para abrir sus detalles."
             },
             {
-              "label": "Activo",
-              "value": "Campos buscados: name, serial_number. Icono: precision_manufacturing. Al hacer clic abre /assets?detail=asset:{id} —el diálogo de detalle del activo."
+              "label": "Activos",
+              "value": "Coincide con el nombre del activo y el número de serie. Haga clic en un activo para abrir sus detalles."
             },
             {
-              "label": "Gasto",
-              "value": "Campos buscados: description, category. Icono: receipt_long. Al hacer clic navega a /expenses (la página de lista). Gasto es el único tipo buscable sin diálogo de detalle, por lo que no se agrega el parámetro ?detail."
+              "label": "Gastos",
+              "value": "Coincide con la descripción y la categoría. Al hacer clic en un gasto va a la lista de Gastos —es la única clase que no abre su propio panel de detalles."
             }
           ]
         },
         {
-          "heading": "Campos de resultado",
+          "heading": "Qué muestra cada resultado",
           "items": [
             {
               "label": "Icono",
-              "value": "Icono de Material que representa el tipo de entidad (work, people, inventory_2, trending_up, precision_manufacturing, receipt_long)."
+              "value": "Una pequeña imagen que le dice la clase de un vistazo —un trabajo, un cliente, una pieza, un prospecto, un activo o un gasto."
             },
             {
               "label": "Título",
-              "value": "Identificador principal: número de trabajo, nombre del cliente, número de pieza, nombre de la empresa, nombre del activo o descripción del gasto."
+              "value": "La etiqueta principal: un número de trabajo, nombre del cliente, número de pieza, nombre de la empresa, nombre del activo o descripción del gasto."
             },
             {
               "label": "Subtítulo",
-              "value": "Contexto secundario: título del trabajo, nombre de la empresa, descripción de la pieza, nombre del contacto, número de serie o categoría del gasto. Puede ser nulo."
+              "value": "Un poco más de contexto debajo, como el título del trabajo, nombre de la empresa, descripción de la pieza, nombre del contacto, número de serie o categoría del gasto. A veces está en blanco."
             },
             {
-              "label": "Etiqueta de tipo de entidad",
-              "value": "Insignia de texto que muestra el tipo (Trabajo, Cliente, Pieza, Prospecto, Activo, Gasto) para una identificación rápida."
+              "label": "Etiqueta de clase",
+              "value": "Una pequeña marca que le dice si es un Trabajo, Cliente, Pieza, Prospecto, Activo o Gasto, para que ubique el correcto rápido."
             },
             {
-              "label": "URL",
-              "value": "La ruta principal de la entidad devuelta por el servidor (/kanban, /customers, /parts, /leads, /assets, /expenses). Al hacer clic, la barra de búsqueda agrega ?detail={type}:{id} a esta ruta para que el diálogo de detalle de la entidad se abra sobre su lista —excepto Gasto, que navega a la ruta /expenses sin más (no existe un diálogo de detalle)."
+              "label": "Adónde le lleva",
+              "value": "Al hacer clic en un resultado se abren los detalles de ese registro justo sobre su lista, y los detalles quedan en la dirección web para que pueda guardar o compartir el enlace. Los gastos son la excepción —solo abren la lista de Gastos."
             }
           ]
         },
@@ -150,73 +150,73 @@
           "items": [
             {
               "label": "Ctrl+K",
-              "value": "Enfoca el campo de búsqueda desde cualquier lugar de la aplicación. Funciona en todas las páginas. Es el único atajo de teclado configurado para la búsqueda —no hay un controlador para Escape."
+              "value": "Salta al cuadro de búsqueda desde cualquier lugar de la aplicación, en cualquier página. Es el único atajo de teclado para la búsqueda."
             },
             {
-              "label": "Hacer clic fuera (blur)",
-              "value": "Hacer clic fuera del cuadro de búsqueda cierra la superposición de resultados (tras un breve retraso para que un clic en un resultado aún se registre). NO borra el texto que escribió —la consulta permanece en el cuadro."
+              "label": "Hacer clic fuera",
+              "value": "Hacer clic fuera del cuadro cierra los resultados (con una pausa mínima para que un clic en un resultado aún cuente). Deja el texto que escribió en su lugar."
             },
             {
               "label": "Hacer clic en un resultado",
-              "value": "Navega a la entidad seleccionada y abre su diálogo de detalle mediante ?detail=type:id (los gastos van a la página de lista /expenses en su lugar), luego cierra la superposición. El campo de búsqueda se borra automáticamente."
+              "value": "Le lleva a ese registro y abre sus detalles (los gastos abren su lista en su lugar), luego cierra los resultados. El cuadro se borra solo."
             }
           ]
         },
         {
-          "heading": "Resultados RAG / IA (cuando el módulo de IA está activo)",
+          "heading": "Resultados de IA (cuando el asistente de IA está activado)",
           "items": [
             {
-              "label": "Diseño de dos columnas",
-              "value": "Cuando la IA está disponible, la superposición de búsqueda se expande para mostrar dos columnas: resultados de texto completo a la izquierda, resultados de IA a la derecha."
+              "label": "Dos columnas",
+              "value": "Cuando el asistente de IA está activado, los resultados se dividen en dos columnas: las coincidencias de texto sencillo a la izquierda y los resultados de IA a la derecha."
             },
             {
-              "label": "Respuesta generada",
-              "value": "Un resumen en lenguaje natural que responde a su consulta, mostrado con un icono de bombilla. Generado por el modelo de IA Ollama usando contexto RAG."
+              "label": "Respuesta escrita",
+              "value": "Una respuesta breve a su pregunta en lenguaje sencillo, marcada con una bombilla. El asistente de IA la escribe por usted."
             },
             {
-              "label": "Fragmentos de documento",
-              "value": "Fragmentos de texto relevantes de documentos indexados. Cada uno muestra el texto del fragmento, el campo de origen del que se extrajo, el tipo de entidad y una puntuación de relevancia como porcentaje."
+              "label": "Fragmentos coincidentes",
+              "value": "Trozos de contenido relacionado tomados de sus registros. Cada fragmento muestra el texto, de dónde proviene, su clase y qué tan buena coincidencia es, en porcentaje."
             },
             {
-              "label": "Puntuación de relevancia",
-              "value": "Porcentaje que indica qué tan estrechamente coincide el fragmento de documento con su consulta a nivel semántico. Puntuaciones más altas significan mayor relevancia."
+              "label": "Puntuación de coincidencia",
+              "value": "Un porcentaje que muestra qué tan cerca encaja un fragmento con el significado de su pregunta. Más alto significa mejor coincidencia."
             },
             {
               "label": "Indicador de procesamiento",
-              "value": "Un icono giratorio con el texto 'Pensando...' aparece mientras el modelo de IA procesa su consulta. Los resultados de IA pueden tardar un poco más que los de texto completo."
+              "value": "Un pequeño indicador con 'Pensando...' aparece mientras el asistente de IA trabaja en su pregunta. Los resultados de IA pueden tardar un poco más que los de texto sencillo."
             },
             {
-              "label": "Respaldo (fallback)",
-              "value": "Si el módulo de IA no está en ejecución o no está disponible, la superposición de búsqueda muestra solo la única columna de resultados de texto completo. No se muestra ningún error —la IA simplemente se degrada con elegancia."
+              "label": "Si la IA está apagada",
+              "value": "Si el asistente de IA no está en ejecución, simplemente obtiene la única columna de coincidencias de texto. Nada se rompe y no aparece ningún error —la búsqueda sigue funcionando sin él."
             }
           ]
         },
         {
-          "heading": "API de búsqueda",
+          "heading": "Bueno saberlo",
           "items": [
             {
-              "label": "Endpoint",
-              "value": "GET /api/v1/search?q={term}&limit={limit}. Requiere autenticación. Devuelve una lista plana de objetos SearchResult."
+              "label": "Debe haber iniciado sesión",
+              "value": "La búsqueda solo funciona cuando ha iniciado sesión, igual que el resto de la aplicación."
             },
             {
-              "label": "Parámetro de consulta: q",
-              "value": "El término de búsqueda. Debe tener al menos 2 caracteres. Busca usando coincidencia de patrón ILIKE (contiene, sin distinguir mayúsculas)."
+              "label": "Al menos 2 letras",
+              "value": "No se busca nada hasta que haya escrito 2 letras. Los espacios de más alrededor de sus palabras se ignoran."
             },
             {
-              "label": "Parámetro de consulta: limit",
-              "value": "Número máximo de resultados a devolver. Por defecto: 20, máximo: 50. Limitado en el servidor."
+              "label": "Mayúsculas o minúsculas da igual",
+              "value": "No importan las mayúsculas, y coincide en cualquier parte del texto —buscar 'engranaje' encuentra 'Carcasa de engranaje'."
             },
             {
-              "label": "Forma de la respuesta",
-              "value": "Arreglo de SearchResult: { entityType, entityId, title, subtitle, icon, url }. Los resultados de los 6 tipos de entidad se combinan en una sola lista."
+              "label": "Una mezcla equilibrada de resultados",
+              "value": "Obtiene un reparto equilibrado entre las clases en lugar de que una clase llene toda la lista, y se muestran primero los registros modificados más recientemente."
             },
             {
-              "label": "Consulta UNION ALL",
-              "value": "El servidor ejecuta una sola consulta SQL con UNION ALL sobre 6 tablas de entidad. Cada subconsulta de entidad tiene su propio LIMIT (límite total / 4, mínimo 3 por tipo de entidad)."
+              "label": "Lo más nuevo primero dentro de una clase",
+              "value": "Dentro de cada clase, los registros que tocó más recientemente aparecen primero, así el trabajo reciente es fácil de encontrar."
             },
             {
-              "label": "Filtro de borrado lógico",
-              "value": "Todas las búsquedas excluyen los registros con borrado lógico (deleted_at IS NULL). Las búsquedas de trabajos también excluyen los trabajos archivados (is_archived = false)."
+              "label": "Los elementos archivados se ocultan",
+              "value": "Los registros eliminados nunca aparecen, y los trabajos archivados también quedan fuera de la búsqueda."
             }
           ]
         }
@@ -226,7 +226,7 @@
   {
     "slug": "search-quiz",
     "title": "Evaluación de conocimientos de la Búsqueda",
-    "summary": "Ponga a prueba su conocimiento de la búsqueda global: atajos de teclado, tipos de entidad, diseño de resultados e integración con RAG.",
+    "summary": "Ponga a prueba su conocimiento de la búsqueda: atajos de teclado, en qué busca, cómo se ven los resultados y los resultados de IA.",
     "contentJson": {
       "passingScore": 80,
       "questionsPerQuiz": 8,
@@ -235,15 +235,15 @@
       "questions": [
         {
           "id": "sr1",
-          "text": "Necesita encontrar rápidamente un trabajo pero actualmente está en la página de Gastos. ¿Cuál es la forma más rápida de empezar a buscar?",
+          "text": "Necesita encontrar un trabajo rápido, pero ahora está en la página de Gastos. ¿Cuál es la forma más rápida de empezar a buscar?",
           "options": [
             {
               "id": "a",
-              "text": "Navegar primero al tablero Kanban y luego usar el filtro de búsqueda del tablero"
+              "text": "Ir primero al tablero y luego usar el filtro propio del tablero"
             },
             {
               "id": "b",
-              "text": "Presionar Ctrl+K para enfocar el campo de búsqueda global en el encabezado y luego escribir el número de trabajo",
+              "text": "Presionar Ctrl+K para saltar al cuadro de búsqueda del encabezado y luego escribir el número de trabajo",
               "isCorrect": true
             },
             {
@@ -252,46 +252,46 @@
             },
             {
               "id": "d",
-              "text": "Abrir la barra lateral y hacer clic en el elemento de menú Búsqueda"
+              "text": "Abrir la barra lateral y hacer clic en un elemento de menú Búsqueda"
             }
           ],
-          "explanation": "Ctrl+K enfoca el campo de búsqueda global desde cualquier página. No necesita navegar a ningún sitio primero —solo presione Ctrl+K y empiece a escribir. La barra de búsqueda siempre está disponible en el encabezado."
+          "explanation": "Ctrl+K salta al cuadro de búsqueda desde cualquier página. No tiene que ir a ningún sitio primero —solo presione Ctrl+K y empiece a escribir. El cuadro de búsqueda siempre está en el encabezado."
         },
         {
           "id": "sr2",
-          "text": "¿Cuántos tipos de entidad consulta la búsqueda global de forma simultánea?",
+          "text": "¿En cuántas clases de cosas busca la búsqueda a la vez?",
           "options": [
             {
               "id": "a",
-              "text": "3 — Trabajos, Piezas y Clientes"
+              "text": "3 — trabajos, piezas y clientes"
             },
             {
               "id": "b",
-              "text": "4 — Trabajos, Clientes, Piezas y Prospectos"
+              "text": "4 — trabajos, clientes, piezas y prospectos"
             },
             {
               "id": "c",
-              "text": "6 — Trabajos, Clientes, Piezas, Prospectos, Activos y Gastos",
+              "text": "6 — trabajos, clientes, piezas, prospectos, activos y gastos",
               "isCorrect": true
             },
             {
               "id": "d",
-              "text": "Todos los tipos de entidad de la base de datos"
+              "text": "Todo lo que hay guardado en la aplicación"
             }
           ],
-          "explanation": "La búsqueda global consulta 6 tipos de entidad en una sola consulta UNION ALL: Trabajos, Clientes, Piezas, Prospectos, Activos y Gastos. Cada tipo tiene sus propios campos buscables e icono."
+          "explanation": "La búsqueda busca en 6 clases de cosas a la vez: trabajos, clientes, piezas, prospectos, activos y gastos. Cada una tiene su propio icono para que las distinga."
         },
         {
           "id": "sr3",
-          "text": "Escribe una sola letra 'A' en la barra de búsqueda. ¿Qué ocurre?",
+          "text": "Escribe una sola letra 'A' en el cuadro de búsqueda. ¿Qué ocurre?",
           "options": [
             {
               "id": "a",
-              "text": "Aparecen resultados que muestran todas las entidades que empiezan por A"
+              "text": "Aparecen resultados que muestran todo lo que empieza por A"
             },
             {
               "id": "b",
-              "text": "Nada —la búsqueda requiere al menos 2 caracteres antes de ejecutarse",
+              "text": "Nada —necesita al menos 2 letras antes de que la búsqueda funcione",
               "isCorrect": true
             },
             {
@@ -300,22 +300,22 @@
             },
             {
               "id": "d",
-              "text": "El módulo de IA genera sugerencias basadas en la letra"
+              "text": "El asistente de IA sugiere cosas basándose en la letra"
             }
           ],
-          "explanation": "La búsqueda global requiere un mínimo de 2 caracteres antes de consultar al servidor. Las consultas de menos de 2 caracteres no devuelven resultados. Esto evita búsquedas demasiado amplias que devolverían demasiados resultados."
+          "explanation": "La búsqueda necesita al menos 2 letras antes de buscar nada. Con una sola letra no vuelve nada. Esto evita que las búsquedas sean tan amplias que devuelvan todo."
         },
         {
           "id": "sr4",
-          "text": "¿Qué información muestra cada resultado de búsqueda?",
+          "text": "¿Qué muestra cada resultado de búsqueda?",
           "options": [
             {
               "id": "a",
-              "text": "Solo el nombre de la entidad y un enlace"
+              "text": "Solo el nombre y un enlace"
             },
             {
               "id": "b",
-              "text": "Un icono del tipo de entidad, el título principal, un subtítulo con contexto y una etiqueta de tipo",
+              "text": "Un icono de la clase, un título principal, un poco de contexto debajo y una etiqueta de clase",
               "isCorrect": true
             },
             {
@@ -324,14 +324,14 @@
             },
             {
               "id": "d",
-              "text": "El ID de la entidad, el nombre de la tabla de la base de datos y la marca de tiempo de última modificación"
+              "text": "Un ID de registro, un nombre de tabla de base de datos y la hora del último cambio"
             }
           ],
-          "explanation": "Cada resultado de búsqueda muestra cuatro elementos: un icono que identifica el tipo de entidad (work, people, inventory_2, etc.), el título principal (número de trabajo, nombre del cliente, etc.), un subtítulo con contexto adicional y una etiqueta de tipo (Trabajo, Cliente, Pieza, etc.)."
+          "explanation": "Cada resultado muestra cuatro cosas: un icono que le dice la clase, el título principal (número de trabajo, nombre del cliente, etc.), un poco de contexto debajo y una etiqueta de clase (Trabajo, Cliente, Pieza, etc.)."
         },
         {
           "id": "sr5",
-          "text": "La superposición de búsqueda muestra dos columnas en lugar de una. ¿Qué significa esto?",
+          "text": "Los resultados muestran dos columnas en lugar de una. ¿Qué significa eso?",
           "options": [
             {
               "id": "a",
@@ -339,80 +339,80 @@
             },
             {
               "id": "b",
-              "text": "El módulo de IA está activo, mostrando resultados de texto completo a la izquierda y resultados de IA impulsados por RAG a la derecha",
+              "text": "El asistente de IA está activado —coincidencias de texto sencillo a la izquierda, resultados de IA a la derecha",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Está buscando en dos bases de datos diferentes"
+              "text": "Está buscando en dos lugares distintos a la vez"
             },
             {
               "id": "d",
-              "text": "La pantalla es lo suficientemente ancha para un diseño de dos columnas"
+              "text": "La pantalla es justo lo bastante ancha para dos columnas"
             }
           ],
-          "explanation": "Cuando el módulo de IA Ollama está en ejecución, la superposición de búsqueda se expande a dos columnas. La columna izquierda muestra los resultados tradicionales de texto completo, mientras que la derecha muestra resultados de IA impulsados por RAG, incluyendo una respuesta generada y fragmentos de documentos relevantes semánticamente."
+          "explanation": "Cuando el asistente de IA está activado, los resultados se dividen en dos columnas. La izquierda muestra las coincidencias de texto sencillo; la derecha muestra resultados de IA, incluyendo una respuesta escrita y fragmentos que coinciden con el significado de su pregunta."
         },
         {
           "id": "sr6",
-          "text": "Un resultado de búsqueda RAG muestra una puntuación de relevancia del 87%. ¿Qué representa esta puntuación?",
+          "text": "Un resultado de IA muestra una puntuación de coincidencia del 87%. ¿Qué significa ese número?",
           "options": [
             {
               "id": "a",
-              "text": "El porcentaje de palabras clave de su consulta que se encuentran en el documento"
+              "text": "Cuántas palabras de su búsqueda aparecen en el documento"
             },
             {
               "id": "b",
-              "text": "Qué tan similar semánticamente es el fragmento de documento a su consulta de búsqueda, según las incrustaciones vectoriales",
+              "text": "Qué tan cerca encaja el fragmento con el significado de su búsqueda",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "La confianza de que el documento no es un duplicado"
+              "text": "Qué tan seguro está de que el documento no es un duplicado"
             },
             {
               "id": "d",
-              "text": "El porcentaje del documento que ha sido indexado"
+              "text": "Qué parte del documento ha sido indexada"
             }
           ],
-          "explanation": "La puntuación de relevancia es un porcentaje de similitud semántica basado en incrustaciones vectoriales (pgvector). Mide qué tan estrechamente coincide el significado del fragmento de documento con su consulta, no solo la coincidencia de palabras clave. Puntuaciones más altas indican una mayor relevancia semántica."
+          "explanation": "La puntuación de coincidencia muestra qué tan cerca encaja un fragmento con el significado de su búsqueda, no solo si aparecen las mismas palabras. Una puntuación más alta significa una coincidencia más cercana."
         },
         {
           "id": "sr7",
-          "text": "Busca 'carcasa de aluminio' pero no existen coincidencias exactas en los títulos de trabajo ni en los números de pieza. ¿Cómo puede ayudarle aún así la búsqueda global?",
+          "text": "Busca 'carcasa de aluminio' pero ningún título de trabajo ni número de pieza tiene esas palabras exactas. ¿Cómo puede ayudarle aún así la búsqueda?",
           "options": [
             {
               "id": "a",
-              "text": "No puede —la búsqueda global solo coincide con texto exacto en campos específicos"
+              "text": "No puede —la búsqueda solo encuentra las palabras exactas en ciertos campos"
             },
             {
               "id": "b",
-              "text": "La columna de IA/RAG puede encontrar registros relacionados semánticamente incluso sin coincidencias exactas de palabras clave, devolviendo fragmentos de documentos relevantes y una respuesta generada",
+              "text": "La columna de IA puede encontrar registros relacionados incluso sin las palabras exactas, mostrando fragmentos coincidentes y una respuesta escrita",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Cambia automáticamente a un modo de búsqueda difusa (fuzzy)"
+              "text": "Cambia automáticamente a un modo de ortografía flexible"
             },
             {
               "id": "d",
-              "text": "Busca en el texto completo de todos los documentos PDF cargados"
+              "text": "Lee todos los PDF que ha cargado"
             }
           ],
-          "explanation": "RAG (Generación Aumentada por Recuperación) usa incrustaciones vectoriales para encontrar contenido relacionado semánticamente. Incluso si 'carcasa de aluminio' no aparece textualmente en ningún registro, la columna de IA puede encontrar documentos que tratan sobre mecanizado de aluminio o componentes de carcasa y presentar fragmentos relevantes con una respuesta generada."
+          "explanation": "El asistente de IA encuentra registros por significado, no solo por palabras exactas. Incluso si 'carcasa de aluminio' no está escrito en ningún sitio, puede mostrar registros sobre mecanizado de aluminio o piezas de carcasa y presentar fragmentos relacionados con una respuesta escrita."
         },
         {
           "id": "sr8",
-          "text": "Hace clic en un resultado de Pieza en la superposición de búsqueda. ¿Qué ocurre a continuación?",
+          "text": "Hace clic en una Pieza en los resultados de búsqueda. ¿Qué ocurre a continuación?",
           "options": [
             {
               "id": "a",
-              "text": "La aplicación navega a /parts?detail=part:{id}, abriendo el diálogo de detalle de la Pieza sobre la lista de Piezas; el campo se borra y la superposición se cierra",
+              "text": "Los detalles de la pieza se abren justo sobre la lista de Piezas, el cuadro se borra y los resultados se cierran",
               "isCorrect": true
             },
             {
               "id": "b",
-              "text": "La aplicación navega a la página de lista /parts sin nada seleccionado"
+              "text": "Aterriza en la lista de Piezas sin nada seleccionado"
             },
             {
               "id": "c",
@@ -423,7 +423,7 @@
               "text": "Se abre una nueva pestaña del navegador con los detalles de la pieza"
             }
           ],
-          "explanation": "Hacer clic en un resultado no le deja simplemente en una página de lista —agrega ?detail=type:id a la ruta de la entidad (aquí /parts?detail=part:{id}), lo que abre el diálogo de detalle de ese registro justo sobre su lista. Como el detalle está en la URL, se puede compartir y sobrevive a una recarga. Trabajo/Cliente/Prospecto/Activo se comportan igual; un resultado de Gasto es la única excepción (sin diálogo de detalle —cae en la lista /expenses)."
+          "explanation": "Hacer clic en un resultado no le deja simplemente en una lista —abre los detalles de ese registro justo sobre su lista, y los detalles quedan en la dirección web para que pueda guardar o compartir el enlace. Los trabajos, clientes, prospectos y activos funcionan igual; los gastos son la única excepción (solo abren la lista de Gastos)."
         }
       ]
     }
@@ -431,9 +431,9 @@
   {
     "slug": "search-reference",
     "title": "Búsqueda global — Referencia avanzada",
-    "summary": "Referencia de casos límite de la búsqueda global: distribución/límites de resultados, coincidencia ILIKE, doble antirrebote, enrutamiento/puntuación RAG, filtrado de Documentation y visibilidad solo en escritorio.",
+    "summary": "Una mirada más a fondo a la búsqueda: cómo se eligen y limitan los resultados, cómo funciona la coincidencia, por qué los resultados de texto y de IA aparecen a velocidades distintas, cómo se puntúan los resultados de IA y por qué es solo para escritorio.",
     "contentJson": {
-      "body": "## Distribución de resultados, límites y coincidencia ILIKE\n\nEl lado de texto completo es una única consulta SQL en crudo `UNION ALL` sobre seis tablas (`jobs`, `customers`, `parts`, `leads`, `assets`, `expenses`), ejecutada por `SearchRepository.SearchAsync`.\n\n- **Equidad por entidad.** Cada subconsulta recibe su propio límite: `perEntity = Math.Max(limit / 4, 3)`. Con el `limit` predeterminado de 20 eso son 5 filas por entidad; el mínimo de 3 garantiza que un tipo de entidad escaso nunca quede totalmente desplazado por uno ruidoso. Cada subconsulta es `ORDER BY updated_at DESC LIMIT @per`, por lo que dentro de un tipo ganan los registros modificados más recientemente.\n- **Tope general.** Tras la unión, el manejador devuelve `results.Take(limit)` —la unión puede aflorar hasta `6 × perEntity` filas, pero solo las primeras `limit` llegan al cliente. La distribución se sesga, por tanto, hacia el orden de entidades en el SQL (Trabajo, Cliente, Pieza, Prospecto, Activo, Gasto) cuando el tope recorta la cola.\n- **Limitación de `limit`.** `GET /api/v1/search?q={term}&limit={limit}` usa por defecto `limit` 20 y lo limita en el servidor con `Math.Min(limit, 50)` —50 es el tope máximo. `GlobalSearchQuery` también usa 20 por defecto si se omite.\n- **Longitud mínima de la consulta.** El controlador devuelve una lista vacía cuando `q` es nulo/espacios o `q.Length < 2`. La consulta se procesa con `q.Trim()` antes de la coincidencia.\n- **Coincidencia ILIKE.** La coincidencia es `column ILIKE @pattern` con `@pattern = %{term}%` —una coincidencia de subcadena (contiene) sin distinguir mayúsculas, no una clasificación de búsqueda de texto completo ni solo por prefijo. Cada entidad coincide en dos columnas (p. ej. Trabajo = `job_number` O `title`; Pieza = `part_number` O `description`).\n- **Filtros de borrado lógico y archivado.** Cada subconsulta filtra `deleted_at IS NULL`; la subconsulta de Trabajo exige además `is_archived = false`, por lo que los trabajos archivados nunca aparecen en la búsqueda global.\n\n## Doble antirrebote (texto completo frente a RAG)\n\nEl campo de búsqueda del encabezado alimenta dos canalizaciones `valueChanges` independientes con ventanas de antirrebote distintas, de modo que la columna rápida de texto completo y la columna de IA más lenta se actualizan a su propio ritmo:\n\n- **Canalización de texto completo:** `debounceTime(300)` → `distinctUntilChanged()` → `filter(length >= 2)` → `searchService.search(term)`. Unos 300 ms después de que deja de escribir, la columna izquierda se actualiza.\n- **Canalización RAG:** `debounceTime(600)` → `distinctUntilChanged()` → `filter(length >= 2)` → `filter(aiService.available())` → `aiService.ragSearch(term, undefined, true)`. La ventana más larga de 600 ms junto con la verificación de disponibilidad implica que la solicitud de IA solo se dispara cuando el módulo de IA está activo y solo tras una pausa más larga —evitando una costosa ida y vuelta de incrustación en cada pulsación.\n- **Canalización de limpieza:** una tercera suscripción con `filter(length < 2)` restablece `aiSuggestions`, `ragResults`, `ragAnswer` y `aiLoading`, de modo que borrar el cuadro elimina el estado de IA obsoleto.\n- **Atajos:** `Ctrl+K` / `⌘K` enfoca `.search-input` (mediante `document:keydown` global); al perder el foco, los resultados se ocultan tras un retraso de 200 ms para que un clic en un resultado se registre primero.\n\n## Enrutamiento RAG, puntuación y filtrado de Documentation\n\nLa columna de IA se respalda con `RagSearchCommand` (`Query`, `EntityTypeFilter`, `IncludeAnswer`) manejado por `RagSearchHandler`.\n\n- **Enrutamiento.** La cadena de consulta se incrusta mediante `aiService.GetEmbeddingAsync`; si el servicio de incrustaciones lanza una excepción (contenedor caído), el manejador registra una advertencia y devuelve `EmptyResponse` —degradación elegante, sin error visible. El vector de incrustación se pasa a `embeddingRepo.SearchSimilarAsync(queryVector, 10, EntityTypeFilter, ct)`, que ordena el índice `DocumentEmbedding` con pgvector por distancia coseno ascendente y devuelve los 10 primeros.\n- **La puntuación es posicional, no coseno en crudo.** El manejador NO expone la distancia real. Aproxima una puntuación de relevancia de 0–1 a partir del orden de clasificación: `score = 1.0 - (index * 0.05)`, limitada con `Math.Max(0, score)`. Así, el resultado #1 ≈ 1.00 (100%), el #2 ≈ 0.95, y la posición 20+ llega al piso de 0. Trate el porcentaje como una pista de orden relativo, no como una similitud calibrada.\n- **Respuesta generada.** Solo cuando `IncludeAnswer` es verdadero Y hay al menos un fragmento, el manejador construye un prompt a partir de los 5 fragmentos principales y llama a `aiService.GenerateTextAsync`. Un fallo de generación registra una advertencia y deja la respuesta nula sin dejar de devolver la lista de fragmentos. El encabezado siempre llama a `ragSearch(term, undefined, true)`, por lo que se solicita una respuesta siempre que la IA esté disponible.\n- **`EntityTypeFilter`.** El encabezado pasa `undefined` (sin filtro de tipo en el servidor) —todos los tipos de entidad indexados son elegibles. El parámetro existe para quienes quieran limitar RAG a un tipo; la validación lo limita a 50 caracteres y `Query` a 2000.\n- **El filtrado de Documentation es del lado del cliente.** El contenido indexado incluye un tipo de entidad interno `Documentation` que no es útil para los usuarios finales. El encabezado lo descarta tras la respuesta: `response.results.filter(r => r.entityType !== 'Documentation')`. El servidor sigue devolviendo fragmentos de Documentation; solo la interfaz los oculta.\n- **Cada resultado RAG** lleva `entityType`, `entityId`, `chunkText`, `sourceField` (el campo indexado del que proviene el fragmento) y la puntuación posicional `score`.\n\n## Visibilidad solo en escritorio\n\nLa barra de búsqueda del encabezado lleva la clase CSS `hide-tablet` (`.app-header__search hide-tablet`), la misma clase de utilidad que usan las migas de pan y el separador del encabezado. Se oculta en ancho de tableta y menores, por lo que la búsqueda global es una función solo para escritorio.\n\n- En tableta/móvil no hay un campo de búsqueda alternativo en el encabezado —navegue a la página de lista de la propia entidad de destino (Piezas, Clientes, Trabajos, etc.) y use el filtro de esa página en su lugar.\n- La barra tampoco aparece durante el flujo de incorporación de nuevos empleados, que se muestra sin los elementos del encabezado.\n- Como la visibilidad es puramente un punto de quiebre CSS, el atajo `Ctrl+K` y el endpoint `/api/v1/search` siguen existiendo en viewports estrechos —solo se suprime el campo visible.",
+      "body": "## Cómo se eligen y limitan los resultados\n\nLa búsqueda busca en las seis clases de cosas —trabajos, clientes, piezas, prospectos, activos y gastos— y combina las coincidencias en una sola lista.\n\n- **Una mezcla equilibrada.** Cada clase recibe su propia porción para que ninguna acapare la lista. Con los ajustes habituales son unas pocas de cada una, con un mínimo garantizado, así que una clase con pocas coincidencias también aparece. Dentro de cada clase, primero salen los registros que tocó más recientemente.\n- **Cuántos ve.** Verá hasta 20 resultados a la vez. Cuando hay más de los que caben, se favorecen las clases anteriores de la lista (primero trabajos, luego clientes, luego piezas, y así).\n- **El tope máximo.** 20 es la cantidad normal y 50 es lo máximo que llegará a mostrar a la vez.\n- **Al menos 2 letras.** Con menos de 2 letras no vuelve nada. Los espacios de más alrededor de sus palabras se recortan primero.\n- **Cómo coincide.** Encuentra su texto en cualquier parte del campo, y las mayúsculas no importan —buscar 'engranaje' encuentra 'Caja de engranajes'. Cada clase revisa dos cosas (un trabajo revisa su número y su título; una pieza revisa su número y su descripción).\n- **Elementos ocultos.** Los registros eliminados nunca aparecen, y los trabajos archivados también quedan fuera de la búsqueda.\n\n## Por qué los resultados de texto y de IA aparecen a distintas velocidades\n\nEl cuadro de búsqueda alimenta dos conjuntos de resultados que se actualizan a su propio ritmo, así que las coincidencias de texto rápidas y los resultados de IA más lentos no se esperan entre sí:\n\n- **Las coincidencias de texto** se actualizan un momento después de que deja de escribir (una vez que ha escrito al menos 2 letras), de modo que la columna izquierda se mantiene ágil.\n- **Los resultados de IA** esperan un poco más antes de preguntar, y solo preguntan cuando el asistente de IA está realmente activado. Esa pausa extra evita hacer trabajo pesado de IA en cada tecla.\n- **Al vaciar.** Si baja de 2 letras, las sugerencias de IA, los fragmentos, la respuesta escrita y el indicador de carga se restablecen, así que vaciar el cuadro elimina cualquier resultado de IA sobrante.\n- **Atajos.** Ctrl+K (o Cmd+K en un Mac) salta al cuadro; hacer clic fuera cierra los resultados tras una pausa mínima para que un clic en un resultado aún cuente.\n\n## Cómo se construyen y puntúan los resultados de IA\n\nLa columna de IA coincide por significado en lugar de por palabras exactas.\n\n- **Encontrar coincidencias.** Su pregunta se convierte en una forma que la IA puede comparar por significado; si el asistente de IA está caído, nada se rompe —simplemente no obtiene resultados de IA y no hay error. Luego trae los diez fragmentos más cercanos de lo que se ha indexado.\n- **La puntuación de coincidencia.** El porcentaje que ve es una pista de orden, no una medida precisa. El fragmento principal ronda el 100%, el siguiente un poco menos, y así hacia abajo. Tómelo como 'este encaja mejor que aquel', no como una cifra exacta.\n- **La respuesta escrita.** Se escribe una respuesta en lenguaje sencillo solo cuando hay al menos un fragmento coincidente con el que trabajar, construida a partir de los primeros fragmentos. Si falla la redacción de la respuesta, aún obtiene los fragmentos —solo sin el resumen. El cuadro de búsqueda siempre pide una respuesta cuando el asistente de IA está disponible.\n- **Qué se busca.** La IA mira todo lo que se ha indexado, sin limitarse a una clase.\n- **Las notas internas se ocultan.** Parte del contenido indexado es documentación interna que no le es útil, así que esos fragmentos se descartan de lo que ve.\n- **Cada fragmento** muestra su texto, de dónde proviene dentro del registro, su clase y su puntuación de coincidencia.\n\n## Por qué es solo para escritorio\n\nEl cuadro de búsqueda solo aparece en pantallas de ancho de escritorio. Se oculta en anchos de tableta y teléfono para mantener el encabezado despejado.\n\n- En tableta o teléfono no hay cuadro de búsqueda en el encabezado —abra la página de lista que quiera (Piezas, Clientes, Trabajos, etc.) y use el filtro propio de esa página.\n- También se oculta en las pantallas de configuración de nuevos empleados, que no muestran el encabezado habitual.\n- Ocultar el cuadro es solo cuestión del tamaño de pantalla —Ctrl+K y la búsqueda en sí siguen funcionando en pantallas estrechas; solo se guarda el cuadro visible.",
       "sections": []
     }
   }

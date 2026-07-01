@@ -2,16 +2,16 @@
   {
     "slug": "dashboard-overview",
     "title": "Visión general del Panel",
-    "summary": "Qué muestra el Panel, cómo funcionan los widgets y cómo personalizar su diseño para la productividad diaria.",
+    "summary": "Qué muestra el Panel, cómo funcionan las tarjetas y cómo personalizar su diseño para la productividad diaria.",
     "contentJson": {
-      "body": "## Visión general del Panel\n\nEl Panel es su pantalla de inicio: lo primero que ve después de iniciar sesión. Le brinda un resumen de un vistazo de su día: tareas vencidas, trabajos por etapa, órdenes en curso y estado del ciclo de planificación. Todo está organizado en widgets arrastrables que puede reorganizar para que coincidan con su flujo de trabajo.\n\n### Diseño basado en widgets\n\nEl Panel usa un diseño de cuadrícula impulsado por gridstack. Cada pieza de información reside en su propia tarjeta de widget. Puede arrastrar los widgets para reorganizarlos, y su diseño se guarda en sus preferencias de usuario para que persista entre sesiones y dispositivos. En el modo de edición puede agregar o quitar widgets del catálogo.\n\n### Widgets principales\n\n**Tareas de hoy:** Muestra sus trabajos asignados ordenados por prioridad (los vencidos primero). Los trabajos vencidos se resaltan para que pueda ver qué necesita atención inmediata. Haga clic en cualquier trabajo para abrir su diálogo de detalle.\n\n**Trabajos por etapa:** Un gráfico de barras horizontal que muestra cuántos trabajos hay en cada etapa del tablero, para que pueda ver dónde se concentra el trabajo.\n\n**Órdenes abiertas:** Un resumen de las órdenes de venta abiertas con el conteo total más un desglose por Confirmadas, En producción y Parcialmente enviadas. Le da una idea rápida de la cartera sin salir del panel.\n\n**Progreso del ciclo:** Muestra el porcentaje de finalización de su ciclo de planificación actual. La etiqueta de progreso muestra las entradas completadas frente al total, y un chip de estado señala cuando el ciclo está vencido, lo que le ayuda a priorizar.\n\n**Fin del día:** Una indicación para registrar sus 3 prioridades principales para mañana. Escriba sus prioridades y guárdelas; una vez guardadas, el widget muestra su respuesta con un botón Editar.\n\n**Resumen de margen:** Porcentaje de margen promedio más los totales de ingresos, costo y margen de los trabajos recientes (solo en modo de contabilidad independiente).\n\n### Banner de Primeros pasos\n\nLos usuarios nuevos ven un banner de Primeros pasos que rastrea el progreso de la incorporación: crear su primer trabajo, agregar un cliente, configurar tipos de pista y explorar informes. El banner desaparece una vez que se completan suficientes pasos de incorporación; también puede descartarlo manualmente.\n\n### Otros widgets\n\nEl catálogo de widgets también incluye Carga del equipo (barras de carga de trabajo por persona), Fechas límite (próximas fechas de vencimiento), Actividad (feed de actividad reciente), Elementos de acción (tareas de seguimiento que puede completar o descartar) e Instantánea de inventario (conteos de piezas y alertas de bajo stock). Los widgets disponibles dependen de las capacidades que su instalación tenga habilitadas.\n\n### Carga y rendimiento\n\nEl Panel se carga con una superposición de carga global (LoadingService) porque obtiene datos de varios endpoints simultáneamente. Una vez que todos los widgets tienen sus datos, la superposición se borra y ve el panel completo de una vez, sin carga parcial ni parpadeo.",
+      "body": "## Visión general del Panel\n\nEl Panel es su pantalla de inicio: lo primero que ve después de iniciar sesión. Le brinda un resumen de un vistazo de su día: tareas vencidas, trabajos por etapa, órdenes en curso y estado del ciclo de planificación. Todo está organizado en tarjetas que puede arrastrar para que coincidan con su forma de trabajar.\n\n### Diseño basado en tarjetas\n\nEl Panel es una cuadrícula de tarjetas. Cada una muestra una pieza de información diferente. Arrastre una tarjeta para moverla, y su diseño se guarda automáticamente: se verá igual la próxima vez que inicie sesión, incluso en otro dispositivo. En el modo de edición puede agregar o quitar tarjetas.\n\n### Tarjetas principales\n\n**Tareas de hoy:** Muestra sus trabajos asignados, con los vencidos arriba y resaltados para que sepa qué necesita atención primero. Haga clic en cualquier trabajo para abrir sus detalles.\n\n**Trabajos por etapa:** Un gráfico de barras de cuántos trabajos hay en cada etapa del tablero, para que pueda ver dónde se acumula el trabajo.\n\n**Órdenes abiertas:** Un resumen de las órdenes de venta abiertas: el conteo total más cuántas están Confirmadas, En producción y Parcialmente enviadas. Una lectura rápida de su cartera sin salir del panel.\n\n**Progreso del ciclo:** Muestra qué tan avanzado está su ciclo de planificación actual. Ve cuántas entradas están hechas de un total, y una etiqueta de color le avisa cuando el ciclo está vencido.\n\n**Fin del día:** Un lugar para anotar sus 3 prioridades principales para mañana. Escríbalas y guárdelas; una vez guardadas, la tarjeta muestra lo que escribió con un botón Editar.\n\n**Resumen de margen:** Porcentaje de margen promedio más los totales de ingresos, costo y margen de los trabajos recientes (solo cuando Forge gestiona su contabilidad).\n\n### Banner de Primeros pasos\n\nLos usuarios nuevos ven un banner de Primeros pasos que rastrea el progreso de la configuración: crear su primer trabajo, agregar un cliente, configurar tipos de pista y explorar informes. Desaparece una vez que ha completado suficientes de estos pasos, y también puede cerrarlo usted mismo.\n\n### Otras tarjetas\n\nHay más tarjetas para elegir: Carga del equipo (qué tan ocupada está cada persona), Fechas límite (próximas fechas de vencimiento), Actividad (un feed de actividad reciente), Elementos de acción (seguimientos que puede completar o descartar) e Instantánea de inventario (conteos de piezas y alertas de bajo stock). Qué tarjetas puede usar depende de lo que su instalación tenga activado.\n\n### Cómo se carga\n\nEl Panel muestra una breve pantalla de carga mientras reúne todo de una vez. Cuando está listo, el panel completo aparece junto: sin tarjetas a medio cargar ni parpadeo.",
       "sections": []
     }
   },
   {
     "slug": "dashboard-walkthrough",
     "title": "Panel — Recorrido guiado",
-    "summary": "Un recorrido guiado por el Panel: widgets, lista de tareas, trabajos por etapa, órdenes abiertas, progreso del ciclo y personalización del diseño.",
+    "summary": "Un recorrido guiado por el Panel: tarjetas, lista de tareas, trabajos por etapa, órdenes abiertas, progreso del ciclo y personalización del diseño.",
     "contentJson": {
       "appRoute": "/dashboard",
       "startButtonLabel": "Recorrer Panel",
@@ -19,32 +19,32 @@
         {
           "element": ".dashboard-content",
           "popover": {
-            "title": "Área de contenido del Panel",
-            "description": "Su panel está construido a partir de widgets arrastrables. Tome cualquier widget por su encabezado y arrástrelo a una nueva posición. Su diseño se guarda automáticamente en sus preferencias de usuario; se verá igual la próxima vez que inicie sesión, incluso desde un dispositivo diferente.",
+            "title": "Su Panel",
+            "description": "Su panel es una cuadrícula de tarjetas que puede organizar usted mismo. Tome cualquier tarjeta por su encabezado y arrástrela a un nuevo lugar. Su diseño se guarda automáticamente: se ve igual la próxima vez que inicie sesión, incluso en un dispositivo diferente.",
             "side": "top"
           }
         },
         {
           "element": ".dashboard-kpis",
           "popover": {
-            "title": "Resumen de KPI",
-            "description": "Indicadores clave de rendimiento mostrados como chips compactos en la parte superior del panel. Muestra su conteo de trabajos activos, conteo de vencidos y total de horas para una verificación rápida del estado. Estos chips aparecen cuando el módulo de trabajos está habilitado.",
+            "title": "Números rápidos",
+            "description": "Una fila de pequeñas etiquetas en la parte superior le da una verificación rápida del estado: cuántos trabajos están activos, cuántos están vencidos y su total de horas. Esta fila aparece cuando los trabajos están activados para su instalación.",
             "side": "bottom"
           }
         },
         {
           "element": "app-page-header",
           "popover": {
-            "title": "Encabezado y controles de la página",
-            "description": "El encabezado del panel con controles de edición y modo ambiente. Use estos para personalizar el diseño de sus widgets o alternar la visualización del panel en modo ambiente.",
+            "title": "Controles del encabezado",
+            "description": "Los botones de aquí le permiten cambiar su diseño y pasar a la pantalla completa. Úselos para organizar sus tarjetas o convertir el panel en una vista de monitor de pared.",
             "side": "bottom"
           }
         },
         {
           "element": "app-dashboard-widget",
           "popover": {
-            "title": "Widget del Panel",
-            "description": "Cada widget de la cuadrícula muestra una pieza de información diferente: tareas, trabajos por etapa, órdenes abiertas, progreso del ciclo o su indicación de fin del día. El orden de los widgets se puede personalizar arrastrándolos. Los widgets se actualizan en tiempo real a medida que el trabajo avanza por el tablero.",
+            "title": "Una tarjeta del Panel",
+            "description": "Cada tarjeta muestra un tipo de información: sus tareas, trabajos por etapa, órdenes abiertas, progreso del ciclo o su nota de fin del día. Arrastre las tarjetas para reordenarlas. Se mantienen actualizadas a medida que el trabajo avanza por el tablero.",
             "side": "right"
           }
         }
@@ -54,54 +54,54 @@
   {
     "slug": "dashboard-field-reference",
     "title": "Referencia de campos del Panel",
-    "summary": "Referencia completa de cada widget, indicador, acción y comportamiento del Panel.",
+    "summary": "Referencia completa de cada tarjeta, indicador, acción y comportamiento del Panel.",
     "contentJson": {
       "title": "Referencia de campos del Panel",
       "groups": [
         {
-          "heading": "Widget de Tareas de hoy",
+          "heading": "Tarjeta de Tareas de hoy",
           "items": [
             {
               "label": "Lista de trabajos",
-              "value": "Muestra sus trabajos asignados ordenados por estado: vencidos primero, luego activos, próximos y completados. Cada fila muestra el título del trabajo, el número de trabajo, el avatar del asignado y una insignia de estado."
+              "value": "Enumera sus trabajos asignados, los vencidos primero, luego activos, próximos y completados. Cada fila muestra el título y el número del trabajo, a quién está asignado y su estado."
             },
             {
               "label": "Resaltado de vencidos",
-              "value": "Los trabajos que han superado su fecha de vencimiento se resaltan con un color rojo/de error para que destaquen de las tareas próximas."
+              "value": "Los trabajos que han superado su fecha de vencimiento se ponen en rojo para que destaquen del resto."
             },
             {
-              "label": "Acción de clic",
-              "value": "Haga clic en cualquier fila de trabajo para abrir el diálogo de detalle del trabajo. Desde ahí puede ver las subtareas, los archivos, la actividad y tomar acciones."
+              "label": "Clic para abrir",
+              "value": "Haga clic en cualquier fila de trabajo para abrir sus detalles, donde puede ver subtareas, archivos y actividad, y tomar acciones."
             },
             {
-              "label": "Estado vacío",
-              "value": "Cuando no tiene tareas asignadas, el widget muestra un mensaje de estado vacío con un icono."
+              "label": "Nada asignado",
+              "value": "Cuando no tiene tareas asignadas, la tarjeta muestra un mensaje amistoso en lugar de un espacio en blanco."
             }
           ]
         },
         {
-          "heading": "Widget de Fin del día",
+          "heading": "Tarjeta de Fin del día",
           "items": [
             {
               "label": "Indicación de los 3 principales",
-              "value": "Un área de texto que le pide registrar sus 3 prioridades principales para mañana. Escriba sus prioridades y guárdelas al final de su día."
+              "value": "Un cuadro donde anota sus 3 prioridades principales para mañana al final de su día."
             },
             {
               "label": "Botón Guardar",
-              "value": "Guarda su respuesta de fin del día. Una vez guardada, el widget cambia a una vista de confirmación que muestra lo que ingresó."
+              "value": "Guarda su nota. La tarjeta cambia entonces para mostrar lo que escribió."
             },
             {
-              "label": "Estado guardado",
-              "value": "Después de guardar, el widget muestra su respuesta registrada con un icono de verificación y un botón Editar para revisarla."
+              "label": "Vista guardada",
+              "value": "Después de guardar, la tarjeta muestra su nota con una marca de verificación y un botón Editar para cambiarla."
             },
             {
-              "label": "Acción de editar",
-              "value": "Haga clic en Editar en la vista guardada para volver al área de texto y actualizar sus 3 principales para mañana."
+              "label": "Editar",
+              "value": "Haga clic en Editar en la vista guardada para reabrir el cuadro y actualizar sus 3 principales para mañana."
             }
           ]
         },
         {
-          "heading": "Widget de Órdenes abiertas",
+          "heading": "Tarjeta de Órdenes abiertas",
           "items": [
             {
               "label": "Conteo total",
@@ -109,49 +109,49 @@
             },
             {
               "label": "Desglose por etapa",
-              "value": "Desglosa las órdenes abiertas por conteos de Confirmadas, En producción y Parcialmente enviadas, lo que brinda una visión general de la cartera."
+              "value": "Divide ese total en Confirmadas, En producción y Parcialmente enviadas para que pueda leer su cartera de un vistazo."
             },
             {
-              "label": "Enlace Ver todo",
-              "value": "Un enlace 'Ver todas las órdenes' navega a la página de Órdenes de venta para ver la lista completa."
+              "label": "Ver todas las órdenes",
+              "value": "Un enlace lo lleva a la lista completa de Órdenes de venta."
             }
           ]
         },
         {
-          "heading": "Widget de Progreso del ciclo",
+          "heading": "Tarjeta de Progreso del ciclo",
           "items": [
             {
               "label": "Barra de progreso",
-              "value": "Barra horizontal que muestra el porcentaje de entradas completadas del ciclo de planificación actual."
+              "value": "Una barra que muestra cuánto de su ciclo de planificación actual está hecho."
             },
             {
-              "label": "Estado de vencimiento",
-              "value": "Un chip de estado muestra los días restantes del ciclo, cambiando a una etiqueta 'Vencido' cuando el ciclo ha superado su fecha de finalización."
+              "label": "Etiqueta de vencido",
+              "value": "Una etiqueta de color cuenta los días que quedan en el ciclo, y cambia a 'Vencido' una vez que el ciclo pasa su fecha de finalización."
             },
             {
-              "label": "Etiqueta de progreso",
-              "value": "Muestra las entradas completadas frente al total con el porcentaje exacto de finalización, p. ej. '3/8 (38%)'."
+              "label": "Texto de progreso",
+              "value": "Muestra cuántas entradas están hechas de un total, con el porcentaje, como '3/8 (38%)'."
             },
             {
               "label": "Lista de entradas y enlace",
-              "value": "Enumera las primeras entradas del ciclo con marcas de finalización; el nombre del ciclo y un enlace 'más' navegan a la página de Planificación para ver el detalle completo."
+              "value": "Enumera las primeras entradas del ciclo con marcas de verificación; el nombre del ciclo y un enlace 'más' lo llevan a Planificación para ver el panorama completo."
             }
           ]
         },
         {
-          "heading": "Widget de Trabajos por etapa",
+          "heading": "Tarjeta de Trabajos por etapa",
           "items": [
             {
               "label": "Barras por etapa",
-              "value": "Una barra horizontal por cada etapa del tablero, con la longitud de la barra escalada al conteo de trabajos de cada etapa en relación con la etapa más ocupada."
+              "value": "Una barra por cada etapa del tablero. La etapa más ocupada tiene la barra más larga; las demás se dimensionan en relación con ella."
             },
             {
               "label": "Conteos por etapa",
-              "value": "Cada fila muestra la etiqueta de la etapa y el número de trabajos que se encuentran actualmente en esa etapa."
+              "value": "Cada fila nombra la etapa y muestra cuántos trabajos hay en ella en este momento."
             },
             {
-              "label": "Cartera de un vistazo",
-              "value": "Le permite ver dónde se concentra el trabajo en el tablero sin abrir la vista Kanban."
+              "label": "Véalo de un vistazo",
+              "value": "Muestra dónde se acumula el trabajo en el tablero sin abrir el tablero en sí."
             }
           ]
         },
@@ -159,42 +159,42 @@
           "heading": "Banner de Primeros pasos",
           "items": [
             {
-              "label": "Lista de verificación de incorporación",
-              "value": "Rastrea el progreso de la configuración con pasos como crear su primer trabajo, agregar un cliente, configurar tipos de pista, recibir el primer stock y explorar informes. Los pasos se filtran según las capacidades que su instalación tenga habilitadas."
+              "label": "Lista de verificación de configuración",
+              "value": "Rastrea pasos de configuración como crear su primer trabajo, agregar un cliente, configurar tipos de pista, recibir el primer stock y explorar informes. Solo ve los pasos que aplican a su instalación."
             },
             {
-              "label": "Comportamiento de descarte",
-              "value": "El banner se oculta automáticamente una vez que se completan suficientes pasos, y también puede descartarse manualmente con el botón de cerrar (el descarte se guarda en sus preferencias)."
+              "label": "Cómo desaparece",
+              "value": "El banner desaparece por sí solo una vez que ha completado suficientes pasos, y también puede cerrarlo usted mismo con la X (su elección se recuerda)."
             }
           ]
         },
         {
-          "heading": "Widget de Carga del equipo",
+          "heading": "Tarjeta de Carga del equipo",
           "items": [
             {
-              "label": "Filas por miembro",
-              "value": "Una fila por cada miembro del equipo con su avatar y nombre, que muestra cómo se distribuye el trabajo entre el equipo."
+              "label": "Filas por persona",
+              "value": "Una fila por cada compañero con su nombre, que muestra cómo se distribuye el trabajo entre el equipo."
             },
             {
               "label": "Barra de carga de trabajo",
-              "value": "Una barra horizontal por miembro llenada en proporción a su conteo de tareas frente a su capacidad."
+              "value": "Una barra para cada persona que se llena según cuántas tareas tiene frente a cuánto puede asumir."
             },
             {
               "label": "Conteo de tareas",
-              "value": "Un conteo numérico de las tareas actuales del miembro mostrado junto a la barra."
+              "value": "El número de tareas que cada persona tiene actualmente, mostrado junto a su barra."
             }
           ]
         },
         {
-          "heading": "Chips de KPI",
+          "heading": "Números rápidos",
           "items": [
             {
-              "label": "Métricas mostradas",
-              "value": "Una franja fija de chips en la parte superior del panel que muestra su conteo de trabajos activos, conteo de vencidos y total de horas, cada uno con un indicador de cambio de tendencia."
+              "label": "Qué muestra",
+              "value": "Una fila de pequeñas etiquetas en la parte superior del panel: cuántos trabajos están activos, cuántos están vencidos y su total de horas, cada uno con una tendencia hacia arriba o hacia abajo."
             },
             {
-              "label": "Estilo visual",
-              "value": "Pequeños chips que usan el KpiChipComponent. Cada uno muestra un valor, una etiqueta y una dirección de cambio; el chip de vencidos usa el color de advertencia. La franja aparece solo cuando el módulo de trabajos está habilitado."
+              "label": "Cómo se ve",
+              "value": "Pequeñas etiquetas, cada una con un número, su nombre y hacia dónde va la tendencia; la de vencidos tiene un color que llama la atención. La fila aparece solo cuando los trabajos están activados."
             }
           ]
         },
@@ -203,28 +203,28 @@
           "items": [
             {
               "label": "Arrastrar para reorganizar",
-              "value": "Tome cualquier widget por su encabezado y arrástrelo para reposicionarlo. La cuadrícula encaja los widgets en su lugar."
+              "value": "Tome cualquier tarjeta por su encabezado y arrástrela a donde quiera. Las tarjetas encajan ordenadamente en su lugar."
             },
             {
-              "label": "Persistencia del diseño",
-              "value": "Su disposición de widgets se guarda en las preferencias de usuario (localStorage + API). Se restaura al iniciar sesión desde cualquier dispositivo."
+              "label": "Su diseño se mantiene",
+              "value": "Su disposición se guarda y vuelve cuando inicia sesión desde cualquier dispositivo."
             },
             {
-              "label": "Sistema de cuadrícula",
-              "value": "Impulsado por gridstack. Los widgets tienen tamaños predeterminados pero pueden reorganizarse libremente dentro de la cuadrícula."
+              "label": "La cuadrícula",
+              "value": "Las tarjetas empiezan en un tamaño predeterminado y pueden moverse libremente por la cuadrícula."
             }
           ]
         },
         {
-          "heading": "Comportamiento de carga",
+          "heading": "Cómo se carga",
           "items": [
             {
-              "label": "Carga inicial",
-              "value": "El Panel usa la superposición global de LoadingService mientras obtiene datos de varios endpoints. La superposición se borra una vez que los datos de todos los widgets están listos."
+              "label": "Primera carga",
+              "value": "Aparece una breve pantalla de carga mientras el panel reúne todo, y luego desaparece una vez que está todo listo."
             },
             {
-              "label": "Sin carga parcial",
-              "value": "Todos los widgets se cargan juntos detrás de la superposición; ve el panel completo de una vez, sin parpadeo ni representación progresiva."
+              "label": "Todo de una vez",
+              "value": "Todas las tarjetas aparecen juntas: nunca ve un panel a medio cargar ni parpadeo."
             }
           ]
         }
@@ -234,7 +234,7 @@
   {
     "slug": "dashboard-quiz",
     "title": "Evaluación de conocimientos del Panel",
-    "summary": "Ponga a prueba sus conocimientos sobre el Panel: widgets, personalización del diseño, indicación de fin del día, tareas y progreso del ciclo.",
+    "summary": "Ponga a prueba sus conocimientos sobre el Panel: tarjetas, personalización del diseño, nota de fin del día, tareas y progreso del ciclo.",
     "contentJson": {
       "passingScore": 80,
       "questionsPerQuiz": 8,
@@ -243,7 +243,7 @@
       "questions": [
         {
           "id": "db1",
-          "text": "Inicia sesión en QB Engineer y ve una superposición de carga antes de que aparezca el Panel. ¿Por qué se carga el Panel de esta manera?",
+          "text": "Inicia sesión y ve una breve pantalla de carga antes de que aparezca el Panel. ¿Por qué se carga el Panel de esta manera?",
           "options": [
             {
               "id": "a",
@@ -251,23 +251,23 @@
             },
             {
               "id": "b",
-              "text": "Usa una superposición de carga global porque obtiene datos de varios endpoints simultáneamente: todos los widgets se cargan juntos detrás de la superposición",
+              "text": "Reúne toda su información de una vez y muestra el panel completo junto cuando está listo",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Cada widget se carga de forma independiente con su propio indicador de carga"
+              "text": "Cada tarjeta se carga por su cuenta con su propio indicador de carga"
             },
             {
               "id": "d",
-              "text": "La superposición de carga es un error: el Panel debería cargarse al instante desde la caché"
+              "text": "La pantalla de carga es un error: el Panel debería aparecer al instante"
             }
           ],
-          "explanation": "El Panel usa LoadingService (superposición global) porque obtiene datos de varios endpoints de la API a la vez. La superposición se borra cuando todos los datos están listos, por lo que ve el panel completo sin carga parcial ni parpadeo."
+          "explanation": "El Panel reúne toda su información de una vez y muestra una breve pantalla de carga. Cuando todo está listo, el panel completo aparece junto: sin tarjetas a medio cargar ni parpadeo."
         },
         {
           "id": "db2",
-          "text": "Ve un trabajo resaltado en rojo en el widget Tareas de hoy. ¿Qué significa esto?",
+          "text": "Ve un trabajo resaltado en rojo en la tarjeta Tareas de hoy. ¿Qué significa esto?",
           "options": [
             {
               "id": "a",
@@ -287,11 +287,11 @@
               "text": "El trabajo se le asignó recientemente y aún no se ha visto"
             }
           ],
-          "explanation": "Los trabajos vencidos (que han superado su fecha de vencimiento) se resaltan con coloración roja/de error en el widget Tareas de hoy para que destaquen de las tareas próximas y reciban atención inmediata."
+          "explanation": "Los trabajos que han superado su fecha de vencimiento se muestran en rojo en la tarjeta Tareas de hoy para que destaquen y reciban su atención primero."
         },
         {
           "id": "db3",
-          "text": "Reorganiza los widgets de su Panel arrastrándolos a nuevas posiciones. ¿Qué sucede con su diseño?",
+          "text": "Reorganiza las tarjetas de su Panel arrastrándolas a nuevas posiciones. ¿Qué sucede con su diseño?",
           "options": [
             {
               "id": "a",
@@ -299,7 +299,7 @@
             },
             {
               "id": "b",
-              "text": "Se guarda en sus preferencias de usuario y persiste entre sesiones y dispositivos",
+              "text": "Se guarda automáticamente y se mantiene así entre sesiones y dispositivos",
               "isCorrect": true
             },
             {
@@ -311,11 +311,11 @@
               "text": "Necesita hacer clic en un botón Guardar diseño para conservar los cambios"
             }
           ],
-          "explanation": "Las posiciones de los widgets se guardan automáticamente en las preferencias de usuario (localStorage + API). Su diseño se restaura cuando inicia sesión desde cualquier dispositivo, sin necesidad de guardar manualmente."
+          "explanation": "Las posiciones de las tarjetas se guardan automáticamente. Su diseño vuelve cuando inicia sesión desde cualquier dispositivo, sin necesidad de un botón Guardar."
         },
         {
           "id": "db4",
-          "text": "El chip de estado del widget Progreso del ciclo se ha vuelto rojo y dice 'Vencido'. ¿Qué indica esto?",
+          "text": "La etiqueta de la tarjeta Progreso del ciclo se ha vuelto roja y dice 'Vencido'. ¿Qué le indica esto?",
           "options": [
             {
               "id": "a",
@@ -332,22 +332,22 @@
             },
             {
               "id": "d",
-              "text": "El widget no se pudo cargar y muestra un estado de error"
+              "text": "La tarjeta no se pudo cargar y muestra un error"
             }
           ],
-          "explanation": "El chip de estado del widget Progreso del ciclo normalmente cuenta los días restantes del ciclo. Una vez que el ciclo supera su fecha de finalización, cambia a una etiqueta roja 'Vencido': una señal de que el ciclo va atrasado. (El relleno de progreso en sí es de color verde azulado y solo se vuelve verde al 100%; nunca se vuelve rojo ni amarillo.)"
+          "explanation": "La etiqueta de Progreso del ciclo normalmente cuenta los días que quedan en el ciclo. Una vez que el ciclo supera su fecha de finalización, se vuelve roja y dice 'Vencido': una señal de que va atrasado con trabajo aún pendiente."
         },
         {
           "id": "db5",
-          "text": "Quiere registrar sus 3 prioridades principales para mañana desde el Panel. ¿Cómo?",
+          "text": "Quiere anotar sus 3 prioridades principales para mañana desde el Panel. ¿Cómo?",
           "options": [
             {
               "id": "a",
-              "text": "Navegar a la página de Planificación y agregarlas al siguiente ciclo"
+              "text": "Ir a la página de Planificación y agregarlas al siguiente ciclo"
             },
             {
               "id": "b",
-              "text": "Escribirlas en el área de texto del widget Fin del día y hacer clic en Guardar",
+              "text": "Escribirlas en la tarjeta Fin del día y hacer clic en Guardar",
               "isCorrect": true
             },
             {
@@ -356,34 +356,34 @@
             },
             {
               "id": "d",
-              "text": "Solo puede ingresarlas desde el panel de detalle del trabajo"
+              "text": "Solo puede ingresarlas desde los detalles de un trabajo"
             }
           ],
-          "explanation": "El widget Fin del día le pide registrar sus 3 principales para mañana. Escríbalas en el área de texto y haga clic en Guardar; el widget muestra entonces su respuesta guardada con un botón Editar para revisarla más tarde."
+          "explanation": "La tarjeta Fin del día es donde anota sus 3 principales para mañana. Escríbalas y haga clic en Guardar; la tarjeta muestra entonces su nota con un botón Editar para cambiarla más tarde."
         },
         {
           "id": "db6",
-          "text": "Hace clic en un trabajo en el widget Tareas de hoy. ¿Qué sucede?",
+          "text": "Hace clic en un trabajo en la tarjeta Tareas de hoy. ¿Qué sucede?",
           "options": [
             {
               "id": "a",
-              "text": "La tarjeta Kanban del trabajo se resalta en el tablero"
+              "text": "La tarjeta del trabajo se resalta en el tablero"
             },
             {
               "id": "b",
-              "text": "Se abre el diálogo de detalle del trabajo, mostrando subtareas, archivos, registro de actividad y acciones disponibles",
+              "text": "Se abren los detalles del trabajo, mostrando subtareas, archivos, actividad y acciones disponibles",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Aparece una información sobre herramientas con el título del trabajo y la fecha de vencimiento"
+              "text": "Aparece una pequeña información sobre herramientas con el título del trabajo y la fecha de vencimiento"
             },
             {
               "id": "d",
-              "text": "Se le navega a la página de Pendientes con ese trabajo seleccionado"
+              "text": "Se le lleva a la página de Pendientes con ese trabajo seleccionado"
             }
           ],
-          "explanation": "Al hacer clic en un trabajo en Tareas de hoy se abre el diálogo de detalle completo del trabajo. Desde ahí puede ver y gestionar subtareas, archivos, historial de actividad y tomar acciones como actualizar el estado."
+          "explanation": "Al hacer clic en un trabajo en Tareas de hoy se abren sus detalles completos, donde puede ver y gestionar subtareas, archivos e historial de actividad, y tomar acciones como actualizar el estado."
         },
         {
           "id": "db7",
@@ -391,27 +391,27 @@
           "options": [
             {
               "id": "a",
-              "text": "Después de 7 días, sin importar el progreso"
+              "text": "Después de 7 días, pase lo que pase"
             },
             {
               "id": "b",
-              "text": "Solo después de que cada paso de incorporación muestre una marca de verificación"
+              "text": "Solo después de que cada paso de configuración muestre una marca de verificación"
             },
             {
               "id": "c",
-              "text": "Cuando se completan suficientes pasos de incorporación (como crear un trabajo, agregar un cliente y configurar tipos de pista), o cuando el empleado lo descarta con el botón de cerrar",
+              "text": "Una vez que se completan suficientes pasos de configuración (como crear un trabajo, agregar un cliente y configurar tipos de pista), o cuando el empleado lo cierra con la X",
               "isCorrect": true
             },
             {
               "id": "d",
-              "text": "Nunca desaparece: se transforma en un widget normal"
+              "text": "Nunca desaparece: se convierte en una tarjeta normal"
             }
           ],
-          "explanation": "El banner de Primeros pasos rastrea los pasos de configuración (crear su primer trabajo, agregar un cliente, configurar tipos de pista, recibir el primer stock, explorar informes, filtrados según los módulos que su instalación tenga habilitados). Se oculta automáticamente una vez que se completan suficientes pasos, y también puede descartarlo manualmente con el botón de cerrar."
+          "explanation": "El banner de Primeros pasos rastrea pasos de configuración (crear su primer trabajo, agregar un cliente, configurar tipos de pista, recibir el primer stock, explorar informes, solo los que aplican a su instalación). Desaparece una vez que se completan suficientes, y también puede cerrarlo usted mismo con la X."
         },
         {
           "id": "db8",
-          "text": "Echa un vistazo al widget Trabajos por etapa. ¿Qué representa la longitud de cada barra?",
+          "text": "Echa un vistazo a la tarjeta Trabajos por etapa. ¿Qué representa la longitud de cada barra?",
           "options": [
             {
               "id": "a",
@@ -419,7 +419,7 @@
             },
             {
               "id": "b",
-              "text": "El número de trabajos en esa etapa, escalado frente a la etapa más ocupada",
+              "text": "Cuántos trabajos hay en esa etapa, dimensionado frente a la etapa más ocupada",
               "isCorrect": true
             },
             {
@@ -431,11 +431,11 @@
               "text": "Cuán vencidos están los trabajos en esa etapa"
             }
           ],
-          "explanation": "El widget Trabajos por etapa dibuja una barra por cada etapa del tablero, con la longitud de cada barra proporcional al conteo de trabajos de esa etapa en relación con la etapa más ocupada. El conteo también se muestra numéricamente junto a cada barra."
+          "explanation": "Trabajos por etapa dibuja una barra por cada etapa del tablero. La etapa más ocupada tiene la barra más larga y las demás se dimensionan frente a ella. El conteo exacto se muestra junto a cada barra."
         },
         {
           "id": "db9",
-          "text": "El widget Instantánea de inventario muestra un conteo de bajo stock distinto de cero resaltado en color de alerta. ¿Qué le está indicando?",
+          "text": "La tarjeta Instantánea de inventario muestra un conteo de bajo stock resaltado en un color de alerta. ¿Qué le está indicando?",
           "options": [
             {
               "id": "a",
@@ -443,7 +443,7 @@
             },
             {
               "id": "b",
-              "text": "Que algunas piezas han caído a su umbral mínimo de stock o por debajo de él",
+              "text": "Que algunas piezas han caído a su nivel mínimo de stock o por debajo de él",
               "isCorrect": true
             },
             {
@@ -455,11 +455,11 @@
               "text": "Que se acaba de recibir nuevo stock"
             }
           ],
-          "explanation": "El widget Instantánea de inventario muestra el conteo de piezas, el total en existencia y un conteo de bajo stock. Cuando las piezas caen a su umbral mínimo o por debajo de él, la cifra de bajo stock se resalta y las piezas afectadas se enumeran con sus cantidades actuales frente a las mínimas."
+          "explanation": "La tarjeta Instantánea de inventario muestra el conteo de piezas, el total en existencia y un conteo de bajo stock. Cuando las piezas caen a su nivel mínimo o por debajo de él, ese número se resalta y las piezas afectadas se enumeran con sus cantidades actuales frente a las mínimas."
         },
         {
           "id": "db10",
-          "text": "¿Cómo se ordenan los trabajos en el widget Tareas de hoy?",
+          "text": "¿Cómo se ordenan los trabajos en la tarjeta Tareas de hoy?",
           "options": [
             {
               "id": "a",
@@ -467,7 +467,7 @@
             },
             {
               "id": "b",
-              "text": "Por prioridad de estado: vencidos primero, luego activos, próximos y completados",
+              "text": "Los vencidos primero, luego activos, próximos y completados",
               "isCorrect": true
             },
             {
@@ -479,7 +479,7 @@
               "text": "Aleatoriamente cada vez que se carga la página"
             }
           ],
-          "explanation": "Tareas de hoy ordena los trabajos por su estado: los vencidos van primero para que reciban atención inmediata, seguidos de los activos, próximos y completados. El widget muestra los primeros varios y presenta un banner de alerta de vencidos cuando alguno ha pasado su fecha."
+          "explanation": "Tareas de hoy enumera los trabajos por estado: los vencidos primero para que reciban atención de inmediato, luego los activos, próximos y completados. Muestra los primeros y agrega una alerta en la parte superior cuando alguno ha pasado su fecha."
         },
         {
           "id": "db11",
@@ -487,47 +487,47 @@
           "options": [
             {
               "id": "a",
-              "text": "Los chips de KPI en la parte superior de la página"
+              "text": "Los números rápidos en la parte superior de la página"
             },
             {
               "id": "b",
-              "text": "El widget Órdenes abiertas: desglosa el total de órdenes abiertas por Confirmadas, En producción y Parcialmente enviadas",
+              "text": "La tarjeta Órdenes abiertas: divide el total en Confirmadas, En producción y Parcialmente enviadas",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "El widget Tareas de hoy: contar los elementos manualmente"
+              "text": "La tarjeta Tareas de hoy: contar los elementos usted mismo"
             },
             {
               "id": "d",
-              "text": "El widget Progreso del ciclo: lo desglosa por etapa"
+              "text": "La tarjeta Progreso del ciclo: divide las cosas por etapa"
             }
           ],
-          "explanation": "El widget Órdenes abiertas muestra el total de órdenes de venta abiertas más un desglose por Confirmadas, En producción y Parcialmente enviadas. Mire el conteo de En producción para su respuesta."
+          "explanation": "La tarjeta Órdenes abiertas muestra el total de órdenes de venta abiertas más una división en Confirmadas, En producción y Parcialmente enviadas. Mire el número de En producción para su respuesta."
         },
         {
           "id": "db12",
-          "text": "El widget Elementos de acción enumera una tarea de seguimiento. ¿Qué dos acciones rápidas puede realizar directamente desde el widget?",
+          "text": "La tarjeta Elementos de acción enumera un seguimiento. ¿Qué dos acciones rápidas puede realizar directamente desde la tarjeta?",
           "options": [
             {
               "id": "a",
-              "text": "Reasignarla o cambiar su prioridad"
+              "text": "Reasignarlo o cambiar su prioridad"
             },
             {
               "id": "b",
-              "text": "Completarla (marca) o descartarla (cerrar)",
+              "text": "Completarlo (marca de verificación) o descartarlo (X)",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Imprimirla o exportarla a PDF"
+              "text": "Imprimirlo o exportarlo a PDF"
             },
             {
               "id": "d",
-              "text": "Posponerla o escalarla a un gerente"
+              "text": "Posponerlo o escalarlo a un gerente"
             }
           ],
-          "explanation": "Cada fila de Elementos de acción tiene un botón de marca para completar la tarea y un botón de cerrar para descartarla, de modo que puede despejar los seguimientos sin salir del panel. Cuando la lista está vacía, el widget muestra un estado vacío."
+          "explanation": "Cada fila de Elementos de acción tiene una marca de verificación para completar el seguimiento y una X para descartarlo, de modo que puede despejarlo sin salir del panel. Cuando no queda ninguno, la tarjeta muestra un mensaje amistoso de estado vacío."
         }
       ]
     }
@@ -535,7 +535,7 @@
   {
     "slug": "dashboard-customize-walkthrough",
     "title": "Personalización de su Panel",
-    "summary": "Entre en el modo de edición para agregar, quitar, reorganizar y redimensionar widgets, y restablecer todo el diseño a los valores predeterminados.",
+    "summary": "Entre en el modo de edición para agregar, quitar, reorganizar y redimensionar tarjetas, y restablecer todo el diseño a los valores predeterminados.",
     "contentJson": {
       "appRoute": "/dashboard",
       "startButtonLabel": "Personalizar Panel",
@@ -543,8 +543,8 @@
         {
           "element": ".page-header__actions",
           "popover": {
-            "title": "Controles del Panel",
-            "description": "Todos los controles del panel residen en el encabezado de la página: Modo enfoque, Ambiente, Exportar y Personalizar. La personalización de su diseño siempre comienza aquí; el panel es de solo lectura hasta que active el modo de edición.",
+            "title": "Botones del Panel",
+            "description": "Los botones de aquí manejan todo en el panel: Modo enfoque, Ambiente, Exportar y Personalizar. Cambiar su diseño siempre comienza aquí; el panel permanece bloqueado hasta que active el modo de edición.",
             "side": "bottom"
           }
         },
@@ -552,23 +552,23 @@
           "element": ".page-header__actions .btn:last-child",
           "popover": {
             "title": "Haga clic en Personalizar para editar",
-            "description": "Este es el botón Personalizar. Haga clic en él para entrar en el modo de edición: el icono cambia a una marca de verificación y el botón se resalta. El modo de edición es OBLIGATORIO antes de poder arrastrar, redimensionar, agregar o quitar widgets; fuera del modo de edición la cuadrícula está bloqueada para que nunca altere su diseño por accidente. Haga clic de nuevo (ahora etiquetado como 'Listo') para salir del modo de edición y guardar.",
+            "description": "Este es el botón Personalizar. Haga clic en él para activar el modo de edición: el botón se resalta y muestra una marca de verificación. Tiene que estar en el modo de edición para arrastrar, redimensionar, agregar o quitar tarjetas; el resto del tiempo el diseño está bloqueado para que no mueva cosas por accidente. Haga clic de nuevo (ahora 'Listo') para terminar y guardar.",
             "side": "bottom"
           }
         },
         {
           "element": ".dashboard-content",
           "popover": {
-            "title": "Arrastrar y redimensionar en modo de edición",
-            "description": "Una vez activado el modo de edición, aparece una barra de edición sobre la cuadrícula y cada widget obtiene un controlador de arrastre y agarres de redimensionamiento. Tome un widget por su encabezado para moverlo, o arrastre su esquina inferior derecha para redimensionarlo. La cuadrícula encaja los widgets en su lugar, y cada cambio se guarda automáticamente en sus preferencias de usuario; su diseño se restaura en el siguiente inicio de sesión desde cualquier dispositivo.",
+            "title": "Mover y redimensionar tarjetas",
+            "description": "En el modo de edición, aparece una barra de herramientas sobre sus tarjetas y cada tarjeta obtiene un controlador para moverla y una esquina para redimensionarla. Tome una tarjeta por su encabezado para moverla, o arrastre su esquina inferior derecha para hacerla más grande o más pequeña. Todo se guarda automáticamente, y su diseño vuelve la próxima vez que inicie sesión desde cualquier dispositivo.",
             "side": "top"
           }
         },
         {
           "element": ".page-header__actions",
           "popover": {
-            "title": "Agregar widget, quitar y restablecer",
-            "description": "En el modo de edición, la barra de edición le ofrece 'Agregar widget' (un menú de todos los widgets que aún no están en su panel, filtrados según los módulos que su instalación tenga habilitados) y 'Restablecer', que restaura el conjunto de widgets y la disposición predeterminados. Cada widget también muestra una pequeña X en su esquina para quitarlo. Quitar un widget solo lo oculta; puede volver a agregarlo en cualquier momento desde el menú Agregar widget.",
+            "title": "Agregar, quitar y restablecer",
+            "description": "En el modo de edición, la barra de herramientas le ofrece 'Agregar widget', un menú de todas las tarjetas que puede usar y que aún no están en su panel, y 'Restablecer', que vuelve a poner las tarjetas y la disposición estándar. Cada tarjeta también tiene una pequeña X en su esquina para quitarla. Quitar una tarjeta solo la oculta; vuelva a agregarla en cualquier momento desde el menú Agregar widget.",
             "side": "bottom"
           }
         }
@@ -580,116 +580,116 @@
     "title": "Modos de visualización del Panel — Enfoque y Ambiente",
     "summary": "El Modo enfoque reduce el panel a solo sus tareas y órdenes; el Modo ambiente lo convierte en una pantalla de estado a pantalla completa. Cómo entrar, salir y qué persiste.",
     "contentJson": {
-      "body": "## Modos de visualización del Panel\n\nMás allá de la cuadrícula de widgets estándar, el Panel ofrece dos modos de visualización alternativos: **Modo enfoque** y **Modo ambiente**. Ambos se alternan desde botones en el encabezado del panel, y cada uno responde a una necesidad diferente.\n\n### Modo enfoque\n\nEl Modo enfoque reduce el panel a las tres cosas sobre las que usted actúa personalmente: **Mis tareas**, **Órdenes abiertas** y la indicación de **Fin del día**. Todo lo demás (chips de KPI, gráficos, carga del equipo) se oculta para que pueda concentrarse en su propio trabajo sin distracciones.\n\n**Entrar y salir:** Haga clic en el botón **Modo enfoque** en el encabezado (el icono de mira / `center_focus_strong`). El botón se resalta mientras el Modo enfoque está activo. Haga clic de nuevo, o use el botón de cerrar (X) dentro del panel de enfoque, para volver al panel completo.\n\n**Vive en la URL.** Activar el Modo enfoque agrega `?focus=true` a la URL de la página. Eso significa que el modo se puede marcar como favorito y compartir: puede guardar un enlace directo que siempre se abra directamente en el Modo enfoque, y al actualizar el navegador permanece ahí. Su elección también se guarda en sus preferencias de usuario, por lo que el panel recuerda su última configuración.\n\n**Mutuamente excluyente con Ambiente.** El Modo enfoque y el Modo ambiente no pueden estar activos al mismo tiempo: entrar en el Modo enfoque sale automáticamente del Modo ambiente.\n\n### Modo ambiente\n\nEl Modo ambiente convierte el panel en una pantalla de estado a pantalla completa y de un vistazo: un reloj y una fecha grandes, KPI destacados (trabajos activos, vencidos, horas de hoy) y una breve lista de próximas fechas límite. Está diseñado para un monitor montado en la pared o una pantalla por la que pasa: legible desde el otro lado de la sala, sin controles que manipular.\n\n**Entrar manualmente:** Haga clic en el botón **Ambiente** en el encabezado (el icono `nightlight`).\n\n**Entrar automáticamente (inactividad):** El panel también pasa al Modo ambiente por sí solo tras un período de inactividad. El tiempo de espera de inactividad es configurable; el modo ambiente automático se suprime mientras está editando el diseño o ya está en el Modo enfoque, de modo que nunca interrumpe el trabajo deliberado.\n\n**Salir:** El Modo ambiente está pensado para descartarse al instante: presione **Escape**, o simplemente haga clic en cualquier parte de la pantalla, y volverá al panel normal. Una indicación en la parte inferior de la pantalla ambiente se lo recuerda.\n\n**Datos en vivo.** Mientras está en modo ambiente, la pantalla se mantiene actualizada: el reloj avanza cada segundo y los KPI/fechas límite se actualizan en segundo plano, por lo que una pantalla de pared nunca queda obsoleta.\n\n### Cuál usar y cuándo\n\n- **¿Concentrado en su propio trabajo?** Modo enfoque: menos widgets, solo sus tareas, órdenes y nota de fin del día.\n- **¿Maneja un monitor compartido/de pared, o se está alejando?** Modo ambiente: reloj grande, cifras destacadas, fechas límite, descarte con un toque o Escape.\n- **¿Operación diaria?** La cuadrícula de widgets estándar, que puede adaptar con los controles de Personalizar.",
+      "body": "## Modos de visualización del Panel\n\nAdemás de la cuadrícula normal de tarjetas, el Panel tiene dos vistas más: **Modo enfoque** y **Modo ambiente**. Cambia a cada una desde botones en el encabezado del panel, y cada una es buena para una situación diferente.\n\n### Modo enfoque\n\nEl Modo enfoque recorta el panel a las tres cosas sobre las que usted actúa personalmente: **Mis tareas**, **Órdenes abiertas** y la nota de **Fin del día**. Todo lo demás (los números rápidos, gráficos, carga del equipo) se oculta para que pueda concentrarse sin distracciones.\n\n**Activarlo y desactivarlo:** Haga clic en el botón **Modo enfoque** en el encabezado. El botón se resalta mientras el Modo enfoque está activo. Haga clic de nuevo, o use la X en la esquina de la vista de enfoque, para volver al panel completo.\n\n**Puede marcarlo como favorito.** Cuando el Modo enfoque está activo, puede marcar como favorito o compartir la página y se abrirá directamente en el Modo enfoque, y actualizar lo mantiene ahí. El panel también recuerda su última elección.\n\n**Uno a la vez.** El Modo enfoque y el Modo ambiente no pueden estar ambos activos: activar el Modo enfoque desactiva el Modo ambiente.\n\n### Modo ambiente\n\nEl Modo ambiente convierte el panel en una pantalla de estado a pantalla completa que puede leer desde el otro lado de la sala: un reloj y una fecha grandes, cifras destacadas (trabajos activos, vencidos, horas de hoy) y una breve lista de próximas fechas límite. Está hecho para un monitor montado en la pared o una pantalla por la que pasa: sin controles que manipular.\n\n**Activarlo:** Haga clic en el botón **Ambiente** en el encabezado.\n\n**Que se active solo:** El panel también puede pasar al Modo ambiente por sí solo tras estar inactivo un rato. Usted elige cuánto es esa espera, y esto nunca se activa mientras está editando su diseño o ya está en el Modo enfoque, de modo que no interrumpirá su trabajo.\n\n**Salir:** El Modo ambiente está hecho para dejarlo en un instante: presione **Escape**, o simplemente haga clic en cualquier parte, y volverá al panel normal. Una indicación en la parte inferior de la pantalla se lo recuerda.\n\n**Siempre actualizado.** Mientras está en Modo ambiente, la pantalla se mantiene al día: el reloj avanza cada segundo y las cifras y fechas límite se actualizan solas, por lo que una pantalla de pared nunca queda obsoleta.\n\n### Cuál usar y cuándo\n\n- **¿Concentrado en su propio trabajo?** Modo enfoque: menos tarjetas, solo sus tareas, órdenes y nota de fin del día.\n- **¿Maneja un monitor compartido o de pared, o se está alejando?** Modo ambiente: reloj grande, cifras destacadas, fechas límite; salga con un toque o Escape.\n- **¿Trabajo diario?** La cuadrícula normal de tarjetas, que puede adaptar con el botón Personalizar.",
       "sections": []
     }
   },
   {
     "slug": "dashboard-widgets-catalog",
-    "title": "Catálogo de widgets del Panel",
-    "summary": "Cada widget que puede colocar en el Panel: qué muestra, a dónde enlaza y qué módulo lo habilita.",
+    "title": "Catálogo de tarjetas del Panel",
+    "summary": "Cada tarjeta que puede colocar en el Panel: qué muestra, a dónde enlaza y cuándo está disponible.",
     "contentJson": {
-      "title": "Catálogo de widgets del Panel",
+      "title": "Catálogo de tarjetas del Panel",
       "groups": [
         {
-          "heading": "Widgets operativos (módulo de Trabajos)",
+          "heading": "Tarjetas de trabajos",
           "items": [
             {
               "label": "Tareas de hoy",
-              "value": "Sus trabajos asignados ordenados por estado: vencidos primero, luego activos, próximos y completados. Las filas vencidas están en rojo. Haga clic en una fila para abrir el diálogo de detalle del trabajo. 'Ver tablero' enlaza al Kanban. Requiere el módulo de Trabajos/Kanban."
+              "value": "Sus trabajos asignados, los vencidos primero, luego activos, próximos y completados. Las filas vencidas están en rojo. Haga clic en una fila para abrir los detalles del trabajo. Un enlace lo lleva al tablero. Disponible cuando los trabajos están activados."
             },
             {
               "label": "Trabajos por etapa",
-              "value": "Una barra horizontal por cada etapa del tablero, con la longitud de cada barra escalada al conteo de trabajos de esa etapa en relación con la etapa más ocupada, y el conteo mostrado numéricamente. Vea dónde se concentra el trabajo sin abrir el tablero. Requiere el módulo de Trabajos/Kanban."
+              "value": "Una barra por cada etapa del tablero: la etapa más ocupada tiene la barra más larga y las demás se dimensionan frente a ella, con el conteo mostrado junto a cada una. Vea dónde se acumula el trabajo sin abrir el tablero. Disponible cuando los trabajos están activados."
             },
             {
               "label": "Carga del equipo",
-              "value": "Una fila por cada miembro del equipo con avatar, nombre, una barra de carga de trabajo proporcional a su conteo de tareas frente a su capacidad, y un conteo numérico de tareas. Muestra cómo se distribuye el trabajo. Enlace 'Seguimiento de tiempo'. Requiere el módulo de Trabajos/Kanban."
+              "value": "Una fila por cada compañero con su nombre, una barra que muestra qué tan ocupado está frente a cuánto puede asumir, y su conteo actual de tareas. Muestra cómo se distribuye el trabajo, con un enlace al seguimiento de tiempo. Disponible cuando los trabajos están activados."
             },
             {
               "label": "Fechas límite",
-              "value": "Próximas fechas de vencimiento con número de trabajo, descripción y fecha; los elementos vencidos están marcados. Enlace 'Ver calendario'. Requiere el módulo de Trabajos/Kanban."
+              "value": "Próximas fechas de vencimiento con el número de trabajo, la descripción y la fecha; las vencidas están marcadas. Incluye un enlace al calendario. Disponible cuando los trabajos están activados."
             }
           ]
         },
         {
-          "heading": "Widgets de cartera y planificación",
+          "heading": "Tarjetas de cartera y planificación",
           "items": [
             {
               "label": "Órdenes abiertas",
-              "value": "Total de órdenes de venta abiertas como una cifra destacada, desglosado por Confirmadas, En producción y Parcialmente enviadas. 'Todas las órdenes' enlaza a Órdenes de venta. Requiere el módulo de Órdenes de venta."
+              "value": "Total de órdenes de venta abiertas como una cifra destacada, dividido en Confirmadas, En producción y Parcialmente enviadas. Un enlace lo lleva a todas las órdenes. Disponible cuando las órdenes de venta están activadas."
             },
             {
               "label": "Progreso del ciclo",
-              "value": "Finalización del ciclo de planificación actual: una barra de progreso, entradas completadas frente al total con porcentaje, un chip de estado de días restantes / Vencido, y las primeras entradas del ciclo con marcas. Enlace 'Ciclos de planificación'. Requiere el módulo de Planificación/MRP."
+              "value": "Qué tan avanzado está su ciclo de planificación actual: una barra de progreso, cuántas entradas están hechas de un total con un porcentaje, una etiqueta de días restantes o Vencido, y las primeras entradas con marcas de verificación. Incluye un enlace a los ciclos de planificación. Disponible cuando la planificación está activada."
             },
             {
               "label": "Resumen de margen",
-              "value": "Porcentaje de margen promedio más los totales de ingresos, costo y margen de los trabajos recientes. Solo contabilidad independiente: aparece cuando el módulo de contabilidad integrada está habilitado."
+              "value": "Porcentaje de margen promedio más los totales de ingresos, costo y margen de los trabajos recientes. Aparece solo cuando Forge gestiona su contabilidad."
             }
           ]
         },
         {
-          "heading": "Widgets personales y de seguimiento",
+          "heading": "Tarjetas personales y de seguimiento",
           "items": [
             {
               "label": "Fin del día",
-              "value": "Una indicación para registrar sus 3 prioridades principales para mañana. Escríbalas en el área de texto y guarde; el widget muestra entonces su nota guardada con un botón Editar. Se guarda por día en sus preferencias. Requiere el módulo de Seguimiento de tiempo."
+              "value": "Un lugar para anotar sus 3 prioridades principales para mañana. Escríbalas y guarde; la tarjeta muestra entonces su nota con un botón Editar. Se guarda para el día. Disponible cuando el seguimiento de tiempo está activado."
             },
             {
               "label": "Elementos de acción",
-              "value": "Tareas de seguimiento que el sistema genera (cotización por vencer, lead estancado, factura vencida, entrega en riesgo, mantenimiento debido, falla de control de calidad, devolución recibida y más). Cada fila enlaza a su registro de origen, muestra una fecha de vencimiento (los vencidos marcados) y tiene un botón de marca para completar y un botón de cerrar para descartar. Estado vacío cuando no hay nada que hacer."
+              "value": "Seguimientos que el sistema le plantea (una cotización a punto de vencer, un lead estancado, una factura vencida, una entrega en riesgo, mantenimiento debido, un control de calidad fallido, una devolución recibida y más). Cada fila enlaza al registro del que trata, muestra una fecha de vencimiento (los vencidos marcados) y tiene una marca de verificación para completarlo y una X para descartarlo. Muestra un mensaje amistoso cuando no hay nada que hacer."
             },
             {
               "label": "Actividad",
-              "value": "Un feed de actividad reciente en todo el sistema. Siempre disponible (sin restricción de módulo)."
+              "value": "Un feed de actividad reciente en todo el sistema. Siempre disponible."
             }
           ]
         },
         {
-          "heading": "Widget de inventario",
+          "heading": "Tarjeta de inventario",
           "items": [
             {
               "label": "Instantánea de inventario",
-              "value": "Conteo de piezas, total en existencia y un conteo de bajo stock que se resalta en color de alerta cuando las piezas caen a su umbral mínimo o por debajo de él; las piezas afectadas se enumeran con sus cantidades actuales frente a las mínimas. Enlace 'Ver inventario'. Este es el widget principal en una instalación solo de inventario. Requiere el módulo de Inventario."
+              "value": "Conteo de piezas, total en existencia y un conteo de bajo stock que se vuelve de un color de alerta cuando las piezas caen a su nivel mínimo o por debajo de él; las piezas afectadas se enumeran con sus cantidades actuales frente a las mínimas. Incluye un enlace al inventario. Esta es la tarjeta principal en una instalación solo de inventario. Disponible cuando el inventario está activado."
             }
           ]
         },
         {
-          "heading": "Cómo funciona la disponibilidad de widgets",
+          "heading": "Qué tarjetas puede usar",
           "items": [
             {
-              "label": "Restricción por capacidad",
-              "value": "Cada widget está vinculado a un módulo (capacidad). Un widget solo aparece en su panel, y en el menú Agregar widget, si ese módulo está habilitado para su instalación. Una instalación solo de inventario ve la Instantánea de inventario en lugar de los chips de KPI de trabajos."
+              "label": "Depende de su instalación",
+              "value": "Cada tarjeta está vinculada a una parte de Forge. Una tarjeta solo aparece en su panel, y en el menú Agregar widget, si esa parte está activada para su instalación. Una instalación solo de inventario muestra la Instantánea de inventario en lugar de los números de trabajos."
             },
             {
-              "label": "Agregar un widget oculto",
-              "value": "Active Personalizar (modo de edición), abra el menú Agregar widget y elija cualquier widget habilitado que aún no esté en su panel."
+              "label": "Agregar una tarjeta oculta",
+              "value": "Active Personalizar, abra el menú Agregar widget y elija cualquier tarjeta disponible que aún no esté en su panel."
             },
             {
-              "label": "Diseño predeterminado",
-              "value": "Los paneles nuevos comienzan con el conjunto completo de widgets habilitados en una disposición predeterminada. El botón Restablecer (modo de edición) lo restaura en cualquier momento."
+              "label": "Diseño estándar",
+              "value": "Los paneles nuevos comienzan con el conjunto completo de tarjetas disponibles en una disposición estándar. El botón Restablecer (en el modo de edición) lo vuelve a poner en cualquier momento."
             }
           ]
         },
         {
-          "heading": "Controles del marco del widget",
+          "heading": "Controles de la tarjeta",
           "items": [
             {
               "label": "Título e icono",
-              "value": "Cada widget se representa dentro de un marco compartido con su título e icono en la parte superior."
+              "value": "Cada tarjeta tiene su título e icono en la parte superior."
             },
             {
               "label": "Enlace Ver todo",
-              "value": "Los widgets que resumen una superficie más amplia muestran un enlace en su encabezado (p. ej. 'Ver tablero', 'Todas las órdenes', 'Ciclos de planificación', 'Ver inventario') que salta a la función completa."
+              "value": "Las tarjetas que resumen un área más amplia muestran un enlace en su encabezado (como 'Ver tablero', 'Todas las órdenes', 'Ciclos de planificación' o 'Ver inventario') que salta a la función completa."
             },
             {
               "label": "Quitar (X)",
-              "value": "Visible solo en el modo de edición: quita el widget de su panel. Vuelva a agregarlo más tarde desde el menú Agregar widget."
+              "value": "Se muestra solo en el modo de edición: quita la tarjeta de su panel. Vuelva a agregarla más tarde desde el menú Agregar widget."
             },
             {
-              "label": "Estados vacíos",
-              "value": "Los widgets sin datos muestran un estado vacío amigable (icono + mensaje) en lugar de una tarjeta en blanco, p. ej. Tareas de hoy sin asignaciones, o Elementos de acción sin pendientes."
+              "label": "Cuando no hay datos",
+              "value": "Una tarjeta sin nada que mostrar presenta un mensaje amistoso en lugar de un espacio en blanco, por ejemplo, Tareas de hoy sin asignaciones, o Elementos de acción sin pendientes."
             }
           ]
         }
@@ -699,9 +699,9 @@
   {
     "slug": "dashboard-reference",
     "title": "Panel — Referencia avanzada",
-    "summary": "Referencia de casos límite del Panel: puntos de quiebre de la cuadrícula responsiva, persistencia del diseño y cadencia de actualización, configuración del tiempo de espera de inactividad del modo ambiente y catálogo de tipos de disparador de Elementos de acción.",
+    "summary": "Referencia de casos límite del Panel: cómo se adapta la cuadrícula a la pantalla, persistencia del diseño y cadencia de actualización, tiempo de espera de inactividad del modo ambiente y qué puede señalar Elementos de acción.",
     "contentJson": {
-      "body": "## Puntos de quiebre de la cuadrícula responsiva\n\nLa cuadrícula de widgets (gridstack) recalcula sus columnas según el ancho del contenedor, no según un diseño fijo. `getResponsiveColumns(width)` elige el número de columnas: ancho `< 768px` -> **1 columna**, `< 1024px` -> **6 columnas**, de lo contrario -> **12 columnas**. Un `ResizeObserver` sobre el contenedor de la cuadrícula observa los cambios de ancho y llama a `grid.column(newCols)` cada vez que cambia el rango, de modo que redimensionar la ventana o colapsar la barra lateral reorganiza los widgets en vivo sin recargar. Parámetros fijos de la cuadrícula: `cellHeight: 60`, `margin: 4`, `float: false`, `animate: true`. Arrastrar/redimensionar están deshabilitados al iniciar (`disableDrag`/`disableResize: true`) y solo se habilitan mientras el modo de edición (Personalizar) está activo.\n\n## Persistencia del diseño y cadencia de actualización\n\n**Modelo de persistencia.** Su disposición de widgets se almacena bajo la clave de preferencia de usuario `dashboard:layout:v5` (el sufijo `v5` versiona el esquema: un cambio en el modelo de diseño incrementa la clave para que los diseños obsoletos se ignoren en lugar de aplicarse mal). El valor guardado es un `DashboardSavedLayout` = una lista de `{ id, x, y, w, h }` por widget. `saveLayout()` lo escribe mediante `UserPreferencesService` (caché en localStorage + PATCH a la API con rebote) en cada evento `change` de la cuadrícula mientras se edita, y al agregar/quitar/restablecer; `loadSavedLayout()` restaura las posiciones una vez que el DOM se estabiliza. Como reside en las preferencias de usuario, el diseño le acompaña entre sesiones y dispositivos. **Restablecer** borra `dashboard:layout:v5` y reconstruye a partir de los valores predeterminados de `WIDGET_REGISTRY`. La marca del Modo enfoque es una preferencia separada, `dashboard:focusMode`, y también se refleja en la URL como `?focus=true`.\n\n**Cadencia de actualización.** La primera carga usa la superposición global de `LoadingService` (`loadData(true)`). Después de eso, un `interval` en segundo plano vuelve a obtener el panel cada **5 minutos** (`POLL_INTERVAL_MS = 5 * 60 * 1000`) mediante `loadData(false)`: silencioso, sin superposición, para que la página nunca parpadee mientras trabaja. La suscripción está delimitada con `takeUntilDestroyed` para que se detenga cuando abandona la página. El modo ambiente ejecuta su propio bucle más rápido (ver más abajo), independiente de este sondeo de 5 minutos.\n\n## Configuración del tiempo de espera de inactividad del modo ambiente\n\nEl modo ambiente puede activarse automáticamente tras un período de inactividad, y ese tiempo de espera es configurable por el usuario. La configuración se almacena bajo la clave de preferencia `ambient:idleTimeoutMs` y **por defecto es `0` (Desactivado)**: el modo ambiente automático es opcional. Valores seleccionables (`AMBIENT_IDLE_OPTIONS`): Desactivado (`0`), 1 minuto, 5 minutos, 15 minutos, 30 minutos, 1 hora. Al iniciar, el panel lee la preferencia (recurriendo a `DEFAULT_AMBIENT_IDLE_MS = 0`) y llama a `idleService.configure(timeoutMs)`. `IdleService` rastrea `mousemove`, `mousedown`, `keydown`, `touchstart`, `scroll` y `wheel`; cuando `timeoutMs <= 0` nunca reporta inactividad. Cuando se dispara la inactividad, el panel entra en modo ambiente **solo si** no está ya en modo ambiente, no está en Modo enfoque y no está editando el diseño, de modo que el modo ambiente automático nunca interrumpe el trabajo deliberado. Salir del modo ambiente (Escape o cualquier clic) llama a `idleService.reset()`. Mientras está en modo ambiente, la pantalla actualiza sus datos cada **60 segundos** y avanza el reloj cada **1 segundo**, independientemente del sondeo estándar de 5 minutos.\n\n## Catálogo de tipos de disparador de Elementos de acción\n\nEl widget Elementos de acción representa filas `FollowUpTask` generadas por el sistema. Cada tarea lleva un `triggerType` que selecciona su icono de Material mediante `TRIGGER_ICON_MAP` (los tipos no mapeados recurren a `task_alt`). Los tipos de disparador incluidos y sus iconos:\n\n- **QuoteExpiring** — `event_busy`\n- **LeadStale** — `person_off`\n- **InvoicePastDue** — `payments`\n- **DeliveryAtRisk** — `local_shipping`\n- **CostOverrun** — `attach_money`\n- **CertExpiring** — `badge`\n- **MaintenanceDue** — `build`\n- **QcFailure** — `error`\n- **ReturnReceived** — `assignment_return`\n- **SalesOrderConfirmed** — `shopping_cart`\n- **ShipReady** — `local_shipping`\n- **MaterialsReady** — `shopping_cart`\n- **ShipmentDelivered** — `local_shipping`\n\nLas tareas se ordenan por fecha de vencimiento ascendente (las fechas de vencimiento nulas van al final) y el widget muestra como máximo **8** (`MAX_VISIBLE`); aparece una indicación de 'más' cuando el conteo de abiertas supera 8. Cada fila enlaza directamente a su registro de origen mediante `sourceEntityType`/id de origen (recurriendo a `job` cuando el tipo es nulo), marca las fechas de vencimiento vencidas y expone un botón de marca (`completeTask`) y un botón de cerrar (`dismissTask`). Ambas acciones llaman al `FollowUpTaskService` y eliminan la fila de forma optimista. El widget carga solo las tareas `Open`; se muestra un estado vacío cuando no hay ninguna pendiente.",
+      "body": "## La cuadrícula se adapta a su pantalla\n\nLa cuadrícula del panel se reforma para caber en el espacio que tiene, en lugar de ceñirse a un diseño fijo. En una pantalla estrecha (menos de unos 768 píxeles de ancho) las tarjetas se apilan en una sola columna; en una pantalla mediana se reparten en seis columnas; en una pantalla ancha usan las doce completas. Observa el ancho disponible y reorganiza las tarjetas en vivo, de modo que redimensionar la ventana o colapsar la barra lateral las reacomoda al instante, sin recargar. Solo puede arrastrar y redimensionar tarjetas mientras el modo de edición (Personalizar) está activo; el resto del tiempo el diseño está bloqueado.\n\n## Cómo funcionan su diseño y la actualización\n\n**Su diseño se mantiene.** Su disposición de tarjetas se guarda en su cuenta, por lo que le acompaña entre sesiones y dispositivos. Se guarda automáticamente cada vez que mueve, redimensiona, agrega o quita una tarjeta en el modo de edición. **Restablecer** (en el modo de edición) borra su diseño personalizado y reconstruye el estándar. El Modo enfoque se recuerda por separado, y puede marcar como favorito o compartir la página mientras está activo para que se reabra directamente en el Modo enfoque.\n\n**Mantenerse actualizado.** La primera vez que se abre el panel muestra una breve pantalla de carga. Después de eso se actualiza en silencio cada **5 minutos** en segundo plano, sin pantalla de carga, de modo que la página nunca parpadea mientras trabaja. Esto se detiene cuando abandona la página. El Modo ambiente se actualiza según su propia cadencia más rápida (ver más abajo).\n\n## Tiempo de espera de inactividad del modo ambiente\n\nEl panel puede pasar al Modo ambiente por sí solo tras estar inactivo un rato, y usted elige cuánto es esa espera. Está **desactivado de forma predeterminada**: el modo ambiente automático es algo que usted activa. Las opciones son: Desactivado, 1 minuto, 5 minutos, 15 minutos, 30 minutos o 1 hora. El panel trata cualquier movimiento del ratón, clic, pulsación de tecla, toque o desplazamiento como actividad, de modo que el temporizador solo cuenta el tiempo de verdadera inactividad; con la opción Desactivada nunca se activa por sí solo. Cuando se alcanza el tiempo de inactividad, pasa al Modo ambiente **solo si** no está ya en Modo ambiente, no está en Modo enfoque y no está editando su diseño, de modo que nunca interrumpe lo que está haciendo. Presionar Escape o hacer clic en cualquier parte sale del Modo ambiente y reinicia el temporizador de inactividad. Mientras está en Modo ambiente, la pantalla actualiza sus cifras cada **60 segundos** y actualiza el reloj cada segundo.\n\n## Qué puede señalar Elementos de acción\n\nLa tarjeta Elementos de acción enumera seguimientos que el sistema le plantea. Cada uno tiene un icono que coincide con su tema. Los tipos de seguimiento que puede ver:\n\n- **Cotización a punto de vencer**\n- **Lead estancado** (sin contacto reciente)\n- **Factura vencida**\n- **Entrega en riesgo**\n- **Sobrecosto**\n- **Certificación a punto de vencer**\n- **Mantenimiento debido**\n- **Control de calidad fallido**\n- **Devolución recibida**\n- **Orden de venta confirmada**\n- **Listo para enviar**\n- **Materiales listos**\n- **Envío entregado**\n\nLos seguimientos se ordenan por fecha de vencimiento, primero el más próximo (los que no tienen fecha van al final), y la tarjeta muestra hasta **8** a la vez, con un enlace de 'más' cuando hay adicionales. Cada fila enlaza al registro del que trata, marca una fecha de vencimiento vencida y le da una marca de verificación para completarlo y una X para descartarlo, que despejan la fila de inmediato. La tarjeta enumera solo los seguimientos abiertos y muestra un mensaje amistoso cuando no hay ninguno.",
       "sections": []
     }
   }

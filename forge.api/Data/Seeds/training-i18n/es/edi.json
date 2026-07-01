@@ -19,40 +19,40 @@
         {
           "element": ".edi-panel .tab-bar",
           "popover": {
-            "title": "Subpestañas de EDI",
-            "description": "La página de EDI tiene dos subpestañas: Socios comerciales (gestione las configuraciones de sus socios EDI) y Transacciones (supervise todos los intercambios de documentos EDI entrantes y salientes). Haga clic en una pestaña para cambiar de vista.",
+            "title": "Las dos pestañas",
+            "description": "Esta página tiene dos pestañas. Socios comerciales es donde configura las empresas con las que intercambia documentos. Transacciones muestra cada documento que ha entrado o salido. Haga clic en una pestaña para cambiar entre ellas.",
             "side": "bottom"
           }
         },
         {
           "element": ".edi-panel__toolbar .action-btn--create",
           "popover": {
-            "title": "Nuevo socio comercial",
-            "description": "Haga clic aquí para agregar un nuevo socio comercial. Ingresará el nombre del socio, los ID de calificador EDI, el formato predeterminado (X12 o EDIFACT), el método de transporte y las reglas de procesamiento. El socio puede vincularse opcionalmente a un registro de Cliente o Proveedor existente. Si elige el transporte SFTP, el diálogo se expande para recoger el host SFTP, el puerto, el usuario, la contraseña y los directorios de entrada/salida.",
+            "title": "Agregar un socio comercial",
+            "description": "Haga clic aquí para agregar una empresa con la que intercambiará documentos. Le pondrá un nombre, elegirá el formato de los documentos y cómo viajan entre ustedes, y definirá si se procesan automáticamente. También puede vincular el socio a un cliente o proveedor.",
             "side": "bottom"
           }
         },
         {
           "element": "app-data-table[tableId='edi-partners']",
           "popover": {
-            "title": "Tabla de socios comerciales",
-            "description": "Enumera todos los socios comerciales configurados. Las columnas muestran el nombre del socio, el cliente/proveedor vinculado, el formato predeterminado, el método de transporte, el recuento de transacciones, el recuento de errores y el estado de actividad. Haga clic en los encabezados de columna para ordenar.",
+            "title": "Sus socios",
+            "description": "Esta tabla enumera todos los socios que ha configurado. Cada fila muestra el nombre del socio, el cliente o proveedor vinculado, el formato de los documentos, cómo viajan, cuántos documentos ha intercambiado, cuántos tuvieron errores y si está activo. Haga clic en un encabezado para ordenar.",
             "side": "top"
           }
         },
         {
           "element": ".edi-panel__actions",
           "popover": {
-            "title": "Acciones por fila del socio",
-            "description": "Cada fila de socio tiene cuatro botones de ícono: Probar conexión (wifi), Mapa de números de pieza (⇄ intercambio) para abrir la tabla de traducción de números de pieza de este socio, Editar (lápiz) para reabrir el diálogo del socio con los valores actuales y Eliminar (papelera). Al Editar, el campo de contraseña SFTP queda en blanco — déjelo en blanco para conservar la contraseña almacenada, o escriba una nueva para reemplazarla.",
+            "title": "Botones en cada fila",
+            "description": "Cada fila de socio tiene cuatro botones: probar la conexión, abrir la lista de números de pieza que empareja sus piezas con las suyas, editar el socio y quitarlo. Al editar, el campo de contraseña queda vacío — déjelo vacío para conservar la guardada, o escriba una nueva para cambiarla.",
             "side": "left"
           }
         },
         {
           "element": ".gap-note",
           "popover": {
-            "title": "Traducción de números de pieza",
-            "description": "Esta nota apunta al Mapa de números de pieza (la acción ⇄ en cada socio). Ese mapa traduce los números de pieza de un socio a los suyos para que las líneas de orden de compra 850 entrantes coincidan con su catálogo automáticamente. Ábralo para agregar filas a mano o importar un CSV.",
+            "title": "Emparejar sus piezas con las suyas",
+            "description": "Esta nota apunta a la lista de números de pieza de cada socio. Empareja los números de pieza que usa un socio con los suyos, para que los pedidos entrantes coincidan con su catálogo automáticamente. Ábrala para agregar coincidencias a mano o importar una hoja de cálculo.",
             "side": "bottom"
           }
         },
@@ -60,7 +60,7 @@
           "element": ".tab:nth-child(2)",
           "popover": {
             "title": "Pestaña Transacciones",
-            "description": "Cambie a la pestaña Transacciones para ver todos los intercambios de documentos EDI. Cada fila muestra el socio comercial, la dirección (Entrante/Saliente), el código del conjunto de transacciones, el número de control, el estado de procesamiento, la entidad relacionada, la marca de tiempo de recepción y el recuento de reintentos.",
+            "description": "Cambie aquí para ver cada documento intercambiado. Cada fila muestra el socio, si entró o salió, el tipo de documento, su estado, lo que creó, cuándo llegó y cuántas veces se reintentó.",
             "side": "bottom"
           }
         }
@@ -79,35 +79,35 @@
           "items": [
             {
               "label": "Nombre (obligatorio)",
-              "value": "Campo de texto, máximo 200 caracteres. El nombre para mostrar de este socio comercial (p. ej., 'Acme Corp EDI', 'SPS Commerce - Grainger')."
+              "value": "El nombre con el que reconocerá a este socio, como 'Acme Corp EDI'. Hasta 200 caracteres."
             },
             {
               "label": "ID de calificador (obligatorio)",
-              "value": "Campo de texto, máximo 10 caracteres. El código de calificador EDI que identifica cómo está formateado el ID del socio. Predeterminado: 'ZZ' (Mutuamente Definido). Valores comunes: '01' (DUNS), '08' (UCC/EAN), '12' (Teléfono), '14' (DUNS+4), 'ZZ' (Mutuamente Definido)."
+              "value": "Un código corto que indica cómo está formateado el ID del socio. Los más comunes son '01' para un número DUNS, '08' para un código UCC/EAN, '12' para un número de teléfono y 'ZZ' cuando usted y el socio simplemente acuerdan un código. Predeterminado: 'ZZ'."
             },
             {
               "label": "Valor de calificador (obligatorio)",
-              "value": "Campo de texto, máximo 100 caracteres. El valor identificador real del socio que corresponde al ID de calificador (p. ej., un número DUNS, un número de teléfono o un código mutuamente acordado)."
+              "value": "El ID real del socio — el número DUNS, el número de teléfono o el código acordado que acompaña al ID de calificador de arriba. Hasta 100 caracteres."
             },
             {
               "label": "Formato predeterminado (obligatorio)",
-              "value": "Lista desplegable: X12, EDIFACT. El estándar EDI predeterminado para este socio. X12 es el estándar norteamericano; EDIFACT es el estándar internacional. Predeterminado: X12."
+              "value": "El formato de documento que usa este socio. X12 es el estándar norteamericano; EDIFACT es el internacional. Predeterminado: X12."
             },
             {
               "label": "Método de transporte (obligatorio)",
-              "value": "Lista desplegable: AS2, SFTP, VAN, Email, API, Manual. Cómo se envían y reciben los documentos EDI con este socio. Predeterminado: Manual."
+              "value": "Cómo viajan los documentos entre usted y el socio: AS2, SFTP, un servicio VAN, correo electrónico, una conexión directa o carga manual. Predeterminado: Manual."
             },
             {
-              "label": "Procesamiento automático (interruptor)",
-              "value": "Cuando está ACTIVADO (predeterminado), los documentos entrantes se analizan, validan y aplican automáticamente. Cuando está DESACTIVADO, los documentos se detienen en el estado Recibido para revisión manual."
+              "label": "Procesamiento automático (activado/desactivado)",
+              "value": "Cuando está activado (predeterminado), los documentos entrantes se leen y aplican automáticamente. Cuando está desactivado, esperan en Recibido para que pueda revisarlos primero."
             },
             {
-              "label": "Requerir acuse de recibo (interruptor)",
-              "value": "Cuando está ACTIVADO (predeterminado), el sistema envía acuses de recibo funcionales (997 para X12, CONTRL para EDIFACT) por los documentos recibidos. La transacción de acuse se vincula a la original."
+              "label": "Requerir acuse de recibo (activado/desactivado)",
+              "value": "Cuando está activado (predeterminado), el sistema envía automáticamente un acuse de vuelta al socio confirmando que cada documento llegó. Predeterminado: activado."
             },
             {
               "label": "Notas",
-              "value": "Área de texto, opcional. Notas de formato libre sobre el socio comercial — detalles de conexión, información de contacto, requisitos especiales o notas de integración."
+              "value": "Notas opcionales de formato libre sobre el socio — información de contacto, requisitos especiales o cualquier cosa que valga la pena recordar."
             }
           ]
         },
@@ -116,39 +116,39 @@
           "items": [
             {
               "label": "Nombre",
-              "value": "Ordenable. Nombre para mostrar del socio."
+              "value": "El nombre del socio. Haga clic para ordenar."
             },
             {
               "label": "Cliente",
-              "value": "Ordenable. Nombre del cliente vinculado, o '—' si no está vinculado."
+              "value": "El cliente vinculado, o un guion si no hay ninguno vinculado."
             },
             {
               "label": "Proveedor",
-              "value": "Ordenable. Nombre del proveedor vinculado, o '—' si no está vinculado."
+              "value": "El proveedor vinculado, o un guion si no hay ninguno vinculado."
             },
             {
               "label": "Formato",
-              "value": "Ordenable. Formato EDI predeterminado: X12 o EDIFACT."
+              "value": "El formato de documento: X12 o EDIFACT."
             },
             {
               "label": "Transporte",
-              "value": "Ordenable. Método de transporte: AS2, SFTP, VAN, Email, API o Manual."
+              "value": "Cómo viajan los documentos: AS2, SFTP, una VAN, correo electrónico, una conexión directa o manual."
             },
             {
               "label": "Trans.",
-              "value": "Ordenable, alineado a la derecha. Número total de transacciones de este socio."
+              "value": "Cuántos documentos ha intercambiado con este socio en total."
             },
             {
               "label": "Errores",
-              "value": "Ordenable, alineado a la derecha. Número de transacciones en estado Error. Se muestra como una etiqueta roja cuando es > 0."
+              "value": "Cuántos documentos tuvieron un problema. Se muestra como una etiqueta roja cuando hay alguno."
             },
             {
               "label": "Activo",
-              "value": "Centrado. Ícono verde check_circle cuando está activo, ícono gris cancel cuando está inactivo."
+              "value": "Una marca verde cuando el socio está activo, una marca gris cuando no lo está."
             },
             {
               "label": "Acciones",
-              "value": "Cuatro botones de ícono: Probar conexión (wifi_tethering), Mapa de números de pieza (swap_horiz / ⇄ — abre la tabla de traducción de números de pieza de este socio), Editar (edit), Eliminar (delete, estilo de peligro)."
+              "value": "Cuatro botones: probar la conexión, abrir la lista de números de pieza, editar el socio y quitarlo."
             }
           ]
         },
@@ -157,39 +157,39 @@
           "items": [
             {
               "label": "Socio",
-              "value": "Ordenable. Nombre del socio comercial."
+              "value": "El socio comercial del que vino o al que fue este documento."
             },
             {
               "label": "Dir.",
-              "value": "Ordenable, filtrable (enum). Dirección: Entrante (etiqueta azul) o Saliente (etiqueta primaria)."
+              "value": "Si el documento entró o salió. Puede filtrar por esto."
             },
             {
               "label": "Conjunto",
-              "value": "Ordenable, centrado. Código del conjunto de transacciones (p. ej., 850, 810, 856 para X12)."
+              "value": "El tipo de documento, mostrado como número — por ejemplo un 850 (la orden de compra del cliente), un 810 (una factura) o un 856 (un aviso de envío)."
             },
             {
               "label": "N.º de control",
-              "value": "Ordenable. Número de control de intercambio para la identificación del documento."
+              "value": "El número de seguimiento que identifica este documento."
             },
             {
               "label": "Estado",
-              "value": "Ordenable, filtrable (enum). Etiqueta con código de color que muestra el estado de procesamiento."
+              "value": "Una etiqueta de color que muestra en qué punto del procesamiento está el documento. Puede filtrar por esto."
             },
             {
               "label": "Entidad",
-              "value": "Ordenable. Tipo de entidad relacionada (p. ej., SalesOrder, PurchaseOrder) o '—' si aún no se ha aplicado."
+              "value": "Lo que el documento creó en el sistema, como una orden de venta o una orden de compra, o un guion si aún no se ha aplicado."
             },
             {
               "label": "Recibido",
-              "value": "Ordenable, tipo fecha. Marca de tiempo en que se recibió el documento, con formato MM/dd/yyyy HH:mm."
+              "value": "La fecha y hora en que llegó el documento."
             },
             {
               "label": "Reintentos",
-              "value": "Ordenable, alineado a la derecha. Número de intentos de reintento para transacciones fallidas."
+              "value": "Cuántas veces se ha reintentado un documento fallido."
             },
             {
               "label": "Acciones",
-              "value": "El botón Reintentar (ícono refresh) aparece solo para transacciones en estado Error."
+              "value": "El botón Reintentar aparece solo en documentos que tuvieron un error."
             }
           ]
         },
@@ -198,31 +198,31 @@
           "items": [
             {
               "label": "Socio",
-              "value": "Solo lectura. El nombre del socio comercial asociado a esta transacción."
+              "value": "El socio comercial con el que es este documento."
             },
             {
               "label": "Dirección",
-              "value": "Solo lectura. Entrante (etiqueta azul) o Saliente (etiqueta primaria)."
+              "value": "Si el documento entró o salió."
             },
             {
               "label": "Conjunto de transacciones",
-              "value": "Solo lectura. El código de tipo de documento (p. ej., 850, 810, 856)."
+              "value": "El tipo de documento, como un 850 (una orden de compra), un 810 (una factura) o un 856 (un aviso de envío)."
             },
             {
               "label": "Estado",
-              "value": "Solo lectura. Etiqueta con código de color que muestra el estado de procesamiento actual."
+              "value": "Una etiqueta de color que muestra en qué punto del procesamiento está el documento."
             },
             {
               "label": "Mensaje de error",
-              "value": "Solo lectura. Se muestra en un cuadro rojo de error cuando la transacción tiene un error. Describe qué salió mal durante el análisis, la validación o el procesamiento."
+              "value": "Cuando un documento falla, este cuadro rojo explica qué salió mal."
             },
             {
-              "label": "Carga útil sin procesar",
-              "value": "Solo lectura. El contenido completo del documento EDI sin procesar en un bloque de código monoespaciado. Muestra los segmentos X12 o mensajes EDIFACT reales tal como se recibieron/enviaron."
+              "label": "Documento original",
+              "value": "El documento exactamente como se recibió o envió, en su formato original."
             },
             {
-              "label": "Datos analizados",
-              "value": "Solo lectura. La representación JSON analizada del documento EDI, mostrada cuando el análisis fue exitoso. Muestra los datos estructurados extraídos de la carga útil sin procesar."
+              "label": "Datos leídos",
+              "value": "El documento después de que el sistema lo lee, presentado como campos ordenados — se muestra una vez leído correctamente."
             }
           ]
         },
@@ -230,44 +230,44 @@
           "heading": "Estados de transacción",
           "items": [
             {
-              "label": "Recibido (etiqueta azul/info)",
-              "value": "Documento recibido pero aún no procesado. Es el estado inicial de todos los documentos entrantes y el estado de retención cuando Procesamiento automático está desactivado."
+              "label": "Recibido (azul)",
+              "value": "El documento llegó pero aún no se ha procesado. Aquí empieza cada documento entrante, y aquí espera si Procesamiento automático está desactivado."
             },
             {
-              "label": "Analizando (etiqueta amarilla/advertencia)",
-              "value": "El documento se está analizando del formato EDI sin procesar a datos estructurados."
+              "label": "Analizando (amarillo)",
+              "value": "El sistema está leyendo el documento y extrayendo sus campos."
             },
             {
-              "label": "Analizado (etiqueta predeterminada)",
-              "value": "El análisis se completó correctamente. El EDI sin procesar se ha convertido en JSON estructurado."
+              "label": "Analizado",
+              "value": "El sistema terminó de leer el documento correctamente."
             },
             {
-              "label": "Validando (etiqueta amarilla/advertencia)",
-              "value": "Los datos analizados se están validando según las reglas de mapeo y la lógica de negocio."
+              "label": "Validando (amarillo)",
+              "value": "El sistema está revisando el documento según sus reglas."
             },
             {
-              "label": "Validado (etiqueta predeterminada)",
-              "value": "La validación se aprobó. Los datos están listos para el procesamiento."
+              "label": "Validado",
+              "value": "Las revisiones pasaron. El documento está listo para aplicarse."
             },
             {
-              "label": "Procesando (etiqueta amarilla/advertencia)",
-              "value": "Los datos se están aplicando a las entidades de QB Engineer (creando/actualizando Órdenes de Venta, Órdenes de Compra, etc.)."
+              "label": "Procesando (amarillo)",
+              "value": "El sistema está aplicando el documento — creando o actualizando cosas como órdenes de venta y órdenes de compra."
             },
             {
-              "label": "Aplicado (etiqueta verde/éxito)",
-              "value": "La transacción se procesó correctamente. La entidad relacionada se ha creado o actualizado. La columna Entidad relacionada muestra lo que se creó."
+              "label": "Aplicado (verde)",
+              "value": "Listo. El documento se procesó y el registro relacionado se creó o actualizó. La columna Entidad muestra lo que creó."
             },
             {
-              "label": "Error (etiqueta roja/error)",
-              "value": "El procesamiento falló en alguna etapa. El mensaje de error describe el problema. Aparece un botón Reintentar en la columna de acciones."
+              "label": "Error (rojo)",
+              "value": "El procesamiento falló en algún punto. El mensaje de error explica por qué, y aparece un botón Reintentar."
             },
             {
-              "label": "Con acuse (etiqueta gris/atenuada)",
-              "value": "Se ha enviado un acuse de recibo funcional (997/CONTRL) por esta transacción entrante."
+              "label": "Con acuse (gris)",
+              "value": "Se ha enviado de vuelta al socio un acuse confirmando que este documento llegó."
             },
             {
-              "label": "Rechazado (etiqueta roja/error)",
-              "value": "El documento fue rechazado durante la validación — los datos no cumplieron las reglas requeridas o no se pudo aplicar el mapeo del socio comercial."
+              "label": "Rechazado (rojo)",
+              "value": "El documento fue rechazado durante la revisión — los datos no cumplieron las reglas, o no se pudieron emparejar los números de pieza del socio."
             }
           ]
         },
@@ -276,11 +276,11 @@
           "items": [
             {
               "label": "X12",
-              "value": "Estándar ANSI ASC X12. Dominante en Norteamérica. Conjuntos de transacciones identificados por números de 3 dígitos (850=OC, 810=Factura, 856=ASN, 855=Acuse de OC, 997=Acuse Funcional). Segmentos delimitados por ~ (tilde), elementos por * (asterisco)."
+              "value": "El estándar dominante en Norteamérica. Los tipos de documento van numerados — por ejemplo 850 (orden de compra), 810 (factura), 856 (aviso de envío) y 855 (acuse de pedido)."
             },
             {
               "label": "EDIFACT",
-              "value": "Estándar internacional UN/EDIFACT. Usado globalmente, especialmente en Europa y Asia. Los tipos de mensaje usan códigos alfabéticos (ORDERS, INVOIC, DESADV, CONTRL). Segmentos delimitados por ' (apóstrofo), elementos por + (signo más)."
+              "value": "El estándar internacional, muy usado en Europa y Asia. Los tipos de documento tienen nombres con letras como ORDERS (orden de compra), INVOIC (factura) y DESADV (aviso de envío)."
             }
           ]
         },
@@ -289,27 +289,27 @@
           "items": [
             {
               "label": "AS2",
-              "value": "Applicability Statement 2. El protocolo EDI B2B más común. Usa HTTP/HTTPS con cifrado (S/MIME), firmas digitales y Notificaciones de Disposición de Mensaje (MDN) para la confirmación de entrega."
+              "value": "El método de empresa a empresa más común. Los documentos se cifran y firman, y el socio devuelve un acuse firmado confirmando la entrega."
             },
             {
               "label": "SFTP",
-              "value": "Protocolo de Transferencia de Archivos SSH. Los documentos se colocan en directorios específicos de cada socio en un servidor seguro. Sencillo, fiable y ampliamente compatible."
+              "value": "Transferencia segura de archivos. Los documentos se depositan en carpetas de un servidor seguro que ambas partes comparten. Sencillo y fiable."
             },
             {
               "label": "VAN",
-              "value": "Red de Valor Agregado. Un servicio de terceros (p. ej., SPS Commerce, TrueCommerce, Cleo) que enruta documentos entre socios comerciales. Gestiona la traducción de formatos, la verificación de cumplimiento y la entrega."
+              "value": "Un servicio intermediario (como SPS Commerce o TrueCommerce) que enruta documentos entre usted y sus socios y gestiona por usted las diferencias de formato."
             },
             {
               "label": "Email",
-              "value": "Documentos EDI enviados como archivos adjuntos de correo. Baja automatización, normalmente usado para socios de bajo volumen o como alternativa de respaldo."
+              "value": "Documentos enviados como archivos adjuntos de correo. Poco automatizado — normalmente para socios de bajo volumen o como respaldo."
             },
             {
               "label": "API",
-              "value": "Integración directa por API REST o SOAP con el sistema del socio. Alternativa moderna al transporte EDI tradicional."
+              "value": "Una conexión directa con el sistema del socio. Una alternativa moderna a los métodos tradicionales."
             },
             {
               "label": "Manual",
-              "value": "Documentos cargados y descargados manualmente a través de la interfaz de QB Engineer. Ideal para pruebas, socios de bajo volumen o la configuración inicial antes de automatizar el transporte."
+              "value": "Usted mismo carga y descarga los documentos en la aplicación. Ideal para pruebas, socios de bajo volumen o para empezar antes de automatizar."
             }
           ]
         },
@@ -318,68 +318,68 @@
           "items": [
             {
               "label": "Host",
-              "value": "El nombre de host o la IP del servidor SFTP donde este socio intercambia archivos."
+              "value": "La dirección del servidor seguro donde este socio intercambia archivos."
             },
             {
               "label": "Puerto",
-              "value": "Puerto SFTP. Predeterminado: 22."
+              "value": "El puerto por el que conectarse. Predeterminado: 22."
             },
             {
               "label": "Usuario",
-              "value": "El nombre de usuario de inicio de sesión de la cuenta SFTP."
+              "value": "El nombre de inicio de sesión de la cuenta del servidor."
             },
             {
               "label": "Contraseña",
-              "value": "Escriba la contraseña SFTP. Se cifra en reposo y nunca se vuelve a mostrar. Al Editar, este campo está en blanco — déjelo en blanco para conservar la contraseña almacenada, o escriba un nuevo valor para reemplazarla."
+              "value": "Escriba la contraseña. Se guarda de forma segura y nunca se vuelve a mostrar. Cuando vuelva a editar, este campo está vacío — déjelo vacío para conservar la contraseña guardada, o escriba una nueva para cambiarla."
             },
             {
               "label": "Directorio de salida (nosotros enviamos)",
-              "value": "El directorio del servidor en el que QB Engineer escribe los documentos salientes. Predeterminado: /inbound."
+              "value": "La carpeta del servidor donde se colocan los documentos salientes."
             },
             {
-              "label": "Directorio de entrada (nosotros sondeamos)",
-              "value": "El directorio del servidor que QB Engineer sondea en busca de documentos entrantes. Predeterminado: /outbound."
+              "label": "Directorio de entrada (nosotros consultamos)",
+              "value": "La carpeta del servidor que se revisa en busca de documentos entrantes."
             },
             {
               "label": "Aviso de conservar-contraseña-al-editar",
-              "value": "Una nota de escudo en la sección SFTP: cuando ya hay una contraseña almacenada dice 'Hay una contraseña almacenada. Déjelo en blanco para conservarla; escriba una nueva para reemplazarla'; de lo contrario dice 'La contraseña se cifra en reposo y nunca se vuelve a mostrar.'"
+              "value": "Una nota en la sección SFTP: cuando ya hay una contraseña guardada dice 'Hay una contraseña almacenada. Déjelo en blanco para conservarla; escriba una nueva para reemplazarla'; de lo contrario dice 'La contraseña se guarda de forma segura y nunca se vuelve a mostrar.'"
             }
           ]
         },
         {
-          "heading": "Mapa de números de pieza (la acción ⇄ en cada socio)",
+          "heading": "Lista de números de pieza",
           "items": [
             {
               "label": "Qué es",
-              "value": "Una tabla de dos columnas por socio que traduce los números de pieza del socio a los suyos. Se abre desde la acción swap_horiz (⇄) de la fila del socio. Es una cuadrícula con tipos — no un editor de JSON ni de código."
+              "value": "Una lista de dos columnas, una por socio, que empareja los números de pieza del socio con los suyos. Se abre desde la fila del socio. La rellena escribiendo — no es un editor de código."
             },
             {
               "label": "N.º de pieza del socio",
-              "value": "El número de pieza que el socio comercial usa en sus documentos."
+              "value": "El número de pieza que el socio usa en sus documentos."
             },
             {
               "label": "Nuestro n.º de pieza",
-              "value": "El número de pieza de su catálogo al que se asigna el número del socio."
+              "value": "Su propio número de pieza con el que se empareja."
             },
             {
               "label": "Se resuelve en",
-              "value": "Solo lectura. Cuando Nuestro n.º de pieza coincide con una pieza real del catálogo, su descripción se muestra aquí. Si no coincide con nada, se muestra una etiqueta de advertencia 'Sin pieza coincidente' — la fila igual se guarda, pero una línea 850 que la use llegará sin resolver hasta que esa pieza exista."
+              "value": "Cuando su número de pieza coincide con una pieza real de su catálogo, su descripción se muestra aquí. Si no coincide nada, verá una advertencia 'Sin pieza coincidente' — la fila igual se guarda, pero una línea de pedido que la use llega sin emparejar hasta que esa pieza exista."
             },
             {
               "label": "Agregar fila",
-              "value": "Agrega una fila en blanco para escribir un nuevo par (N.º de pieza del socio, Nuestro n.º de pieza)."
+              "value": "Agrega una fila en blanco para que escriba un nuevo par."
             },
             {
               "label": "Importar CSV",
-              "value": "Importa de forma masiva un CSV de dos columnas. Actualiza por número de socio — reimportar un archivo actualizado refresca las filas existentes. Consulte la referencia de Importación de CSV."
+              "value": "Importa una hoja de cálculo de dos columnas de una sola vez. Reimportar un archivo actualizado refresca las filas existentes en lugar de duplicarlas. Consulte la referencia de Importación de CSV."
             },
             {
               "label": "Guardar",
-              "value": "Persiste todo el mapa (reemplaza todas las filas). Al guardar, la cuadrícula se recarga con una resolución de catálogo actualizada."
+              "value": "Guarda toda la lista y la recarga con emparejamientos de catálogo actualizados."
             },
             {
               "label": "Eliminar fila",
-              "value": "El ícono de papelera de cada fila elimina ese par del mapa (surte efecto al Guardar)."
+              "value": "Quita ese par de la lista. Surte efecto al guardar."
             }
           ]
         },
@@ -388,43 +388,43 @@
           "items": [
             {
               "label": "Nuevo socio comercial",
-              "value": "Botón principal en la barra de herramientas (pestaña Socios). Abre el diálogo de creación de socio."
+              "value": "El botón principal en la pestaña Socios. Abre el formulario para agregar un socio."
             },
             {
               "label": "Probar conexión",
-              "value": "Botón de ícono wifi_tethering en las acciones de la fila del socio. Envía una prueba de conectividad al extremo de transporte configurado del socio. Muestra una notificación de éxito o fallo."
+              "value": "En cada fila de socio. Comprueba que la conexión con el socio funciona y le indica si tuvo éxito."
             },
             {
-              "label": "Mapa de números de pieza",
-              "value": "Botón de ícono swap_horiz (⇄) en las acciones de la fila del socio. Abre la tabla de traducción de números de pieza de este socio (cuadrícula con tipos + importación de CSV)."
+              "label": "Lista de números de pieza",
+              "value": "En cada fila de socio. Abre la lista que empareja los números de pieza del socio con los suyos, donde puede escribir entradas o importar una hoja de cálculo."
             },
             {
               "label": "Editar socio",
-              "value": "Botón de ícono edit en las acciones de la fila del socio. Abre el diálogo del socio rellenado con los valores actuales. El campo de contraseña SFTP se abre en blanco — déjelo en blanco para conservar la contraseña almacenada, o escriba una nueva para reemplazarla."
+              "value": "En cada fila de socio. Abre el formulario del socio rellenado con los valores actuales. El campo de contraseña se abre vacío — déjelo vacío para conservar la contraseña guardada, o escriba una nueva para cambiarla."
             },
             {
               "label": "Eliminar socio",
-              "value": "Botón de ícono delete (estilo de peligro) en las acciones de la fila del socio. Realiza una eliminación lógica del socio comercial."
+              "value": "En cada fila de socio. Quita el socio."
             },
             {
               "label": "Reintentar transacción",
-              "value": "Botón de ícono refresh en las acciones de la fila de la transacción. Visible solo para transacciones en estado Error. Vuelve a poner en cola la transacción para su procesamiento. Muestra la notificación 'Reintento en cola'."
+              "value": "En documentos que tuvieron un error. Vuelve a pasar el documento por el procesamiento y confirma que está en cola."
             },
             {
               "label": "Ver transacción",
-              "value": "Haga clic en cualquier fila de transacción para abrir el diálogo de detalle que muestra el socio, la dirección, el conjunto, el estado, la carga útil sin procesar, los datos analizados y los errores."
+              "value": "Haga clic en cualquier fila de documento para abrir su vista de detalle — socio, dirección, tipo, estado, el documento original, los campos leídos y cualquier error."
             },
             {
               "label": "Cerrar (detalle de transacción)",
-              "value": "Botón principal en el pie del diálogo de detalle de transacción. Cierra la vista de detalle."
+              "value": "Cierra la vista de detalle del documento."
             },
             {
-              "label": "Guardar / Crear (diálogo de socio)",
-              "value": "Botón principal en el pie del diálogo de socio. Crea o actualiza el socio comercial. Se desactiva cuando el formulario es inválido o el guardado está en curso. Cuando está desactivado, aparece a su izquierda un ícono de triángulo de advertencia rojo — haga clic en él para mostrar un mensaje emergente que enumera los campos que requieren atención."
+              "label": "Guardar / Crear (formulario de socio)",
+              "value": "Guarda el socio. Está desactivado mientras el formulario esté incompleto o guardándose. Cuando está desactivado, aparece a su izquierda un triángulo de advertencia rojo — haga clic en él para ver qué campos aún requieren atención."
             },
             {
-              "label": "Cancelar (diálogo de socio)",
-              "value": "Botón secundario en el pie del diálogo de socio. Cierra el diálogo sin guardar."
+              "label": "Cancelar (formulario de socio)",
+              "value": "Cierra el formulario sin guardar."
             }
           ]
         },
@@ -433,15 +433,15 @@
           "items": [
             {
               "label": "Nombre",
-              "value": "Obligatorio. No debe estar vacío. Máximo 200 caracteres."
+              "value": "Obligatorio. Hasta 200 caracteres."
             },
             {
               "label": "ID de calificador",
-              "value": "Obligatorio. No debe estar vacío. Máximo 10 caracteres. Predeterminado: 'ZZ'."
+              "value": "Obligatorio. Hasta 10 caracteres. Predeterminado: 'ZZ'."
             },
             {
               "label": "Valor de calificador",
-              "value": "Obligatorio. No debe estar vacío. Máximo 100 caracteres."
+              "value": "Obligatorio. Hasta 100 caracteres."
             },
             {
               "label": "Formato predeterminado",
@@ -449,11 +449,11 @@
             },
             {
               "label": "Método de transporte",
-              "value": "Obligatorio. Debe ser uno de: AS2, SFTP, VAN, Email, API, Manual."
+              "value": "Obligatorio. Debe ser uno de AS2, SFTP, VAN, correo electrónico, una conexión directa o manual."
             },
             {
               "label": "Botón de envío",
-              "value": "Se desactiva cuando el formulario es inválido o se está guardando. Cuando está desactivado, aparece a la izquierda del botón un ícono de triángulo de advertencia rojo — haga clic en él para mostrar un mensaje emergente que indica qué campos requieren atención."
+              "value": "Está desactivado mientras el formulario esté incompleto o guardándose. Cuando está desactivado, aparece a su izquierda un triángulo de advertencia rojo — haga clic en él para ver qué campos requieren atención."
             }
           ]
         },
@@ -462,15 +462,15 @@
           "items": [
             {
               "label": "Filtro de dirección",
-              "value": "Lista desplegable: Todas (predeterminado), Entrante, Saliente. Filtra la lista de transacciones por dirección del documento."
+              "value": "Elija Todas (predeterminado), entrantes o salientes para acotar la lista según hacia dónde fue el documento."
             },
             {
               "label": "Filtro de estado",
-              "value": "Lista desplegable: Todos (predeterminado), Recibido, Analizando, Analizado, Procesando, Aplicado, Error, Con acuse, Rechazado. Filtra por estado de procesamiento."
+              "value": "Elija Todos (predeterminado) o un solo estado — Recibido, Analizando, Analizado, Procesando, Aplicado, Error, Con acuse o Rechazado."
             },
             {
               "label": "Comportamiento del filtro",
-              "value": "Al seleccionar cualquier valor de filtro, la lista de transacciones se actualiza inmediatamente desde la API con los filtros aplicados."
+              "value": "Al elegir cualquier filtro, la lista se actualiza de inmediato."
             }
           ]
         }
@@ -792,22 +792,22 @@
     "title": "Importación de CSV del Mapa de números de pieza",
     "summary": "El formato CSV exacto, los nombres de encabezado aceptados y los recuentos de resultados para importar de forma masiva el mapa de traducción de números de pieza de un socio comercial.",
     "contentJson": {
-      "title": "Importación de CSV del Mapa de números de pieza",
+      "title": "Importación de la lista de números de pieza",
       "groups": [
         {
           "heading": "Dónde importar",
           "items": [
             {
-              "label": "Abrir el mapa",
-              "value": "Administración > EDI > pestaña Socios comerciales > la acción Mapa de números de pieza ⇄ (swap_horiz) de la fila del socio."
+              "label": "Abrir la lista",
+              "value": "Administración > EDI > pestaña Socios comerciales > el botón de números de pieza en la fila del socio."
             },
             {
               "label": "Botón Importar CSV",
-              "value": "En la barra de herramientas del diálogo, junto a Agregar fila. Abre un selector de archivos (.csv o .txt)."
+              "value": "En la barra de herramientas de la lista, junto a Agregar fila. Abre un selector de archivos para un archivo .csv o .txt."
             },
             {
               "label": "Por socio",
-              "value": "La importación se dirige al único socio cuyo mapa está abierto. Cada socio tiene su propio mapa."
+              "value": "La importación solo afecta al socio cuya lista está abierta. Cada socio tiene su propia lista."
             }
           ]
         },
@@ -816,15 +816,15 @@
           "items": [
             {
               "label": "Dos columnas",
-              "value": "Columna 1 = el número de pieza del socio. Columna 2 = su (nuestro) número de pieza."
+              "value": "La columna 1 es el número de pieza del socio. La columna 2 es su número de pieza."
             },
             {
               "label": "Fila de encabezado obligatoria",
-              "value": "La primera fila debe ser un encabezado. Un archivo con solo filas de datos (sin encabezado) no importa nada."
+              "value": "La primera fila debe ser un encabezado. Un archivo con solo filas de datos y sin encabezado no importa nada."
             },
             {
               "label": "Codificación",
-              "value": "CSV simple. Se admiten campos entre comillas y comillas dobles escapadas (\"\") dentro de comillas."
+              "value": "Un archivo de hoja de cálculo simple. El texto entre comillas está bien."
             },
             {
               "label": "Líneas en blanco",
@@ -837,36 +837,36 @@
           "items": [
             {
               "label": "Columna del socio",
-              "value": "Un encabezado que contenga cualquiera de: 'partner', 'their' o 'customer' (sin distinción de mayúsculas). P. ej. 'Partner Part #', 'Their Number', 'Customer Item'."
+              "value": "Un encabezado que contenga 'partner', 'their' o 'customer'. Por ejemplo 'Partner Part #', 'Their Number' o 'Customer Item'."
             },
             {
               "label": "Columna nuestra",
-              "value": "Un encabezado que contenga cualquiera de: 'our', 'forge' o 'internal'. P. ej. 'Our Part #', 'Internal Number'."
+              "value": "Un encabezado que contenga 'our', 'forge' o 'internal'. Por ejemplo 'Our Part #' o 'Internal Number'."
             },
             {
-              "label": "Respaldo posicional",
-              "value": "Si los encabezados no se reconocen, la importación recurre a la posición: columna 1 = socio, columna 2 = nuestra. (Aún se requiere una fila de encabezado.)"
+              "label": "Si no se reconocen los encabezados",
+              "value": "La importación recurre al orden: la primera columna es la del socio, la segunda es la suya. Aún necesita una fila de encabezado."
             }
           ]
         },
         {
-          "heading": "Cómo se fusionan las filas (upsert)",
+          "heading": "Cómo se fusionan las filas",
           "items": [
             {
-              "label": "Actualizar por número de socio",
-              "value": "Un número de socio que ya está en el mapa se ACTUALIZA con el nuevo número 'nuestro'; un número de socio aún no presente se AGREGA. Reimportar un archivo corregido no crea duplicados."
+              "label": "Fusión por número de socio",
+              "value": "Si un número de socio ya está en la lista, su número coincidente se actualiza; si es nuevo, el par se agrega. Reimportar un archivo corregido no crea duplicados."
             },
             {
               "label": "Recorte de espacios",
-              "value": "Se recortan los espacios iniciales/finales de ambos números."
+              "value": "Se quitan los espacios adicionales antes y después de cada número."
             },
             {
-              "label": "Claves sin distinción de mayúsculas",
-              "value": "Los números de socio coinciden sin distinguir mayúsculas de minúsculas, por lo que 'ABC' y 'abc' se tratan como la misma clave (gana el último)."
+              "label": "Mayúsculas y minúsculas",
+              "value": "Los números de socio coinciden sin importar mayúsculas o minúsculas, por lo que 'ABC' y 'abc' cuentan como el mismo (gana el último)."
             },
             {
               "label": "Celdas vacías omitidas",
-              "value": "Una fila que carezca de cualquiera de los números se omite (se cuenta en Omitidas)."
+              "value": "Una fila que carezca de cualquiera de los números se omite y se cuenta en Omitidas."
             }
           ]
         },
@@ -875,23 +875,23 @@
           "items": [
             {
               "label": "Importadas",
-              "value": "Filas agregadas como nuevas entradas de número de socio."
+              "value": "Pares nuevos agregados a la lista."
             },
             {
               "label": "Actualizadas",
-              "value": "Entradas de número de socio existentes cuyo número 'nuestro' se cambió."
+              "value": "Pares existentes cuyo número coincidente se cambió."
             },
             {
               "label": "Omitidas",
-              "value": "Filas omitidas porque una celda de número estaba en blanco."
+              "value": "Filas omitidas porque un número estaba en blanco."
             },
             {
               "label": "Sin resolver",
-              "value": "Tras la fusión, cuántas filas del mapa apuntan a un número de pieza que no coincide con ninguna pieza del catálogo — una señal de calidad de datos para corregir antes de que fluyan pedidos."
+              "value": "Cuántas filas apuntan a un número de pieza que aún no está en su catálogo — conviene corregirlo antes de que lleguen pedidos."
             },
             {
               "label": "Total de filas",
-              "value": "Total de filas en el mapa una vez completada la importación."
+              "value": "Cuántos pares hay en la lista una vez que termina la importación."
             }
           ]
         },
@@ -912,7 +912,7 @@
             },
             {
               "label": "Resultado",
-              "value": "Se agregan dos pares nuevos; si WIDGET-002 aún no está en su catálogo, Sin resolver = 1 y esa fila muestra una etiqueta 'Sin pieza coincidente' en la cuadrícula."
+              "value": "Se agregan dos pares nuevos. Si WIDGET-002 aún no está en su catálogo, Sin resolver muestra 1 y esa fila queda marcada como 'Sin pieza coincidente'."
             }
           ]
         }
@@ -924,7 +924,7 @@
     "title": "EDI — Referencia avanzada",
     "summary": "Referencia de casos límite y para usuarios avanzados del EDI: códigos de ID de calificador, vinculación del socio→Cliente/Proveedor, números de control, detalle de transporte y por qué no está construida la traducción de UOM/cantidad por paquete.",
     "contentJson": {
-      "body": "## EDI — Referencia avanzada\n\nNotas para usuarios avanzados y casos límite del módulo EDI (Administración > EDI). Este es material de referencia, no un tutorial — consulte los módulos EDI principales para el flujo de trabajo diario. Todo lo aquí descrito es fiel al modelo de datos publicado.\n\n## Referencia de códigos de ID de calificador\n\nEl campo **ID de calificador** de un socio comercial es el calificador de ID de intercambio EDI — un código corto (máx. 10 caracteres) que indica al receptor cómo interpretar el **Valor de calificador** del socio. No es la identidad del socio; es el *tipo* de la identidad. El par (ID de calificador + Valor de calificador) identifica de forma única al socio en el sobre de intercambio (los elementos X12 ISA05/ISA06 e ISA07/ISA08).\n\nValores comunes:\n\n- **01** — DUNS (Dun & Bradstreet, 9 dígitos).\n- **08** — Número de localización global UCC/EAN (GS1).\n- **12** — Número de teléfono usado como identificador.\n- **14** — DUNS+4 (DUNS más un sufijo de 4 dígitos para una sububicación).\n- **ZZ** — Mutuamente Definido. Ambas partes acuerdan el significado del valor fuera de banda. Es el predeterminado de QB Engineer porque la mayoría de las relaciones comerciales pequeñas/medianas negocian un código en lugar de usar un ID de registro.\n\nCódigos menos comunes pero válidos que puede ver en la especificación de un socio: **02** (SCAC), **04** (IATA), **09** (X.121), **20** (HIN), **30** (ID fiscal federal de EE. UU. / EIN). Tenga en cuenta que **AS2** es un transporte, no un calificador — no confunda ambos. Almacene el código que dicte la guía de implementación EDI del socio; QB Engineer no valida el valor contra un registro — transmite el código tal cual.\n\n## Vinculación del socio → Cliente / Proveedor\n\nUn socio comercial es un registro de direccionamiento EDI; un Cliente o Proveedor es una entidad comercial. Vincular ambos permite que QB Engineer resuelva automáticamente un documento entrante a la cuenta correcta.\n\n- El socio tiene dos vínculos independientes y anulables: **CustomerId** y **VendorId**. Un socio puede vincularse a un Cliente (el caso típico para órdenes de compra 850 entrantes), a un Proveedor (para documentos que recibe como comprador) o a ninguno.\n- El vínculo impulsa la **coincidencia de entidades** durante el procesamiento: cuando se aplica un 850 entrante, la Orden de Venta resultante se crea contra el Cliente vinculado. Sin un vínculo, el documento igual se analiza pero no tiene cuenta a la cual adjuntarse, por lo que se detiene para resolución manual.\n- El vínculo **no** es lo mismo que los ID del sobre EDI. Un socio almacena por separado **InterchangeSenderId / InterchangeReceiverId** y **ApplicationSenderId / ApplicationReceiverId** — los identificadores de enrutamiento en los segmentos ISA y GS. Esos direccionan el *buzón*; el vínculo Cliente/Proveedor direcciona la *cuenta*.\n- Una sola empresa puede tener un vínculo de Cliente y un vínculo de Proveedor en el mismo registro de socio si usted le vende y le compra bajo una misma relación EDI — pero las dos claves foráneas se almacenan de forma independiente, no como una única referencia polimórfica.\n\n## Números de control\n\nCada transacción EDI registra tres números de control anidados que reflejan la jerarquía del sobre X12. Se almacenan en la transacción (no en el socio) y se muestran en el diálogo de detalle de transacción.\n\n- **ControlNumber** (número de control de intercambio) — el valor ISA13. Identifica de forma única todo el sobre de intercambio entre dos socios. Es el valor que se muestra como 'N.º de control' en la lista de transacciones.\n- **GroupControlNumber** — el valor GS06. Identifica un grupo funcional dentro del intercambio (un lote de documentos similares).\n- **TransactionControlNumber** — el valor ST02. Identifica el conjunto de transacciones individual dentro del grupo.\n\nLos tres son cadenas anulables — una transacción de un socio que omite un nivel, o un documento cargado manualmente, puede no rellenar cada uno. Los acuses de recibo funcionales (997/CONTRL) hacen referencia a estos números para indicar al socio exactamente qué intercambio/grupo/transacción se acusa o se rechaza; la transacción de acuse se vincula de vuelta mediante **AcknowledgmentTransactionId**.\n\n## Referencia detallada de transporte (AS2 / VAN / API)\n\nLos seis métodos de transporte (As2, Sftp, Van, Email, Api, Manual) son un enum en el socio. Más allá de los resúmenes de una línea de la referencia principal, las distinciones operativamente relevantes:\n\n- **AS2** — Punto a punto sobre HTTP(S) con cifrado y firma S/MIME. Su característica distintiva es el **MDN** (Notificación de Disposición de Mensaje) — un recibo firmado que devuelve el receptor, otorgando no repudio de la entrega. Sin intermediario; usted intercambia certificados e ID/URL de AS2 directamente con el socio. Ideal para relaciones directas de alto volumen.\n- **VAN** (Red de Valor Agregado) — Un servicio de buzón de terceros (SPS Commerce, TrueCommerce, Cleo, etc.) que se sitúa entre usted y el socio. La VAN gestiona la entrega, a menudo la traducción de formatos y la verificación de cumplimiento, y una interconexión con *otras* VAN. Se conecta una vez a la VAN y alcanza a muchos socios. Cambia el costo por documento por una configuración punto a punto nula.\n- **API** — Integración directa REST/SOAP con el sistema del socio, evitando por completo el transporte EDI tradicional. Los grandes minoristas y mercados lo exponen cada vez más. El *contenido* EDI puede seguir siendo X12/EDIFACT, o puede ser el propio contrato JSON del socio que QB Engineer mapea de la misma manera.\n- **SFTP** — Depósito de archivos en directorios específicos del socio en un servidor seguro. QB Engineer escribe los salientes en un directorio y sondea otro en busca de entrantes. Tiene su propio conjunto de campos de credenciales (host, puerto predeterminado 22, usuario, contraseña, directorios de entrada/salida); la contraseña almacenada se conserva al editar salvo que se vuelva a escribir.\n- **Email** y **Manual** — alternativas de baja automatización; Manual es el punto de partida recomendado mientras se valida una integración antes de pasar a un transporte automatizado.\n\nCambiar el transporte de un socio es simplemente cambiar el valor del enum (y proporcionar las credenciales del nuevo transporte) — no altera la identidad del socio, sus vínculos ni su historial de transacciones.\n\n## Traducción de UOM / cantidad por paquete (no construida)\n\nEl **Mapa de números de pieza** por socio traduce el número de pieza de un socio al suyo — un puro *intercambio de números*. Deliberadamente **no** traduce unidades de medida ni cantidades por paquete.\n\n- Si un socio pide en cajas y usted almacena en unidades, o la línea 850 del socio lleva un código de UOM (EA, CA, BX, PL) distinto de la unidad de almacenamiento de su pieza, QB Engineer **no** convierte la cantidad. El número fluye tal cual contra su pieza.\n- Hoy no existe una tabla de referencia cruzada de UOM ni un multiplicador de cantidad por paquete en el módulo EDI. Trate a cualquier socio que requiera esto como una conversación de configuración/proceso, no como un paso de configuración de autoservicio.\n- Salvaguarda práctica: para socios cuya UOM de pedido difiera de su UOM de almacenamiento, revise los 850 aplicados antes de la preparación del pedido, o acuerde con el socio transaccionar en su unidad de almacenamiento. Esta es la fuente más común de sorpresas de cantidad en pedidos entrantes, y se documenta aquí precisamente porque la interfaz no ofrece ningún control para ello.\n",
+      "body": "## EDI — Referencia avanzada\n\nNotas más detalladas y de casos límite de la página EDI (Administración > EDI). Este es material de referencia, no un tutorial — consulte los módulos EDI principales para el flujo de trabajo diario.\n\n## Códigos de ID de calificador\n\nEl **ID de calificador** de un socio comercial es un código corto (hasta 10 caracteres) que indica a la otra parte cómo leer el **Valor de calificador** del socio. No es la identidad del socio; es el *tipo* de identidad. Juntos, el ID de calificador y el Valor de calificador identifican de forma única al socio en cada documento.\n\nValores comunes:\n\n- **01** — DUNS (un número de Dun & Bradstreet de 9 dígitos).\n- **08** — Número de localización UCC/EAN (GS1).\n- **12** — Un número de teléfono usado como identificador.\n- **14** — DUNS+4 (un número DUNS más un sufijo de 4 dígitos para una sububicación).\n- **ZZ** — Mutuamente Definido. Usted y el socio simplemente acuerdan qué significa el valor. Es el predeterminado porque la mayoría de las relaciones pequeñas y medianas negocian un código en lugar de usar uno registrado.\n\nCódigos menos comunes pero válidos que puede ver en la especificación de un socio: **02** (SCAC), **04** (IATA), **09** (X.121), **20** (HIN), **30** (ID fiscal federal de EE. UU. / EIN). Tenga en cuenta que **AS2** es una forma de enviar documentos, no un calificador — no confunda ambos. Ingrese el código que indique la guía de configuración del socio; el sistema lo almacena tal como lo escribe y no lo verifica contra ningún registro.\n\n## Vincular un socio a un cliente o proveedor\n\nUn socio comercial es una dirección EDI; un cliente o proveedor es un registro comercial. Vincular ambos permite que el sistema enrute un documento entrante a la cuenta correcta automáticamente.\n\n- Un socio puede vincularse a un cliente (el caso habitual para las órdenes de compra entrantes), a un proveedor (para documentos que recibe como comprador), a ambos o a ninguno.\n- El vínculo impulsa la coincidencia de cuentas durante el procesamiento: cuando se aplica un 850 entrante (la orden de compra de un cliente), la orden de venta resultante se crea contra el cliente vinculado. Sin vínculo, el documento igual se lee bien pero no tiene cuenta a la cual adjuntarse, así que espera a que alguien lo resuelva a mano.\n- El vínculo es independiente de los ID de enrutamiento que el socio usa para direccionar documentos. Esos ID de enrutamiento apuntan al buzón del socio; el vínculo de cliente o proveedor apunta a la cuenta.\n- Una empresa puede tener a la vez un vínculo de cliente y un vínculo de proveedor en el mismo socio si usted le vende y le compra bajo una misma relación EDI.\n\n## Números de control\n\nCada documento registra tres números de seguimiento anidados, del más amplio al más específico, y los muestra en la vista de detalle del documento.\n\n- **N.º de control** (el número de intercambio) — identifica todo el lote intercambiado entre dos socios. Es el valor que se muestra como 'N.º de control' en la lista de transacciones.\n- **Número de grupo** — identifica un grupo de documentos similares dentro de ese lote.\n- **Número de transacción** — identifica el documento individual dentro del grupo.\n\nCualquiera de los tres puede estar vacío — un socio que omite un nivel, o un documento que cargó a mano, puede no rellenar cada uno. Los acuses que envía de vuelta hacen referencia a estos números para que el socio sepa exactamente qué lote, grupo o documento está confirmando o rechazando.\n\n## Más sobre el transporte (AS2, VAN, API)\n\nLas seis formas de mover documentos son AS2, SFTP, un servicio VAN, correo electrónico, una conexión directa y carga manual. Más allá de los resúmenes de una línea de la referencia principal, esto es lo que realmente las diferencia:\n\n- **AS2** — Una conexión directa y cifrada entre usted y el socio. Su característica distintiva es el acuse firmado que el socio devuelve, que prueba que el documento se entregó. Sin intermediario; usted configura las credenciales directamente con el socio. Ideal para relaciones directas de alto volumen.\n- **VAN** (Red de Valor Agregado) — Un servicio de buzón intermediario (SPS Commerce, TrueCommerce, Cleo, etc.) que se sitúa entre usted y el socio. La VAN gestiona la entrega, a menudo suaviza las diferencias de formato y se conecta con otras VAN. Se conecta una vez y alcanza a muchos socios. Cambia un costo por documento por no tener configuración directa.\n- **API** — Una conexión directa con el sistema del socio, saltándose por completo los métodos EDI tradicionales. Los grandes minoristas y mercados lo ofrecen cada vez más. El contenido puede seguir siendo X12 o EDIFACT, o el formato propio del socio que el sistema lee de la misma manera.\n- **SFTP** — Depositar archivos en carpetas compartidas de un servidor seguro. Los documentos salientes van en una carpeta; los entrantes se recogen de otra. Tiene sus propios ajustes (dirección del servidor, puerto, inicio de sesión, contraseña y las dos carpetas).\n- **Email** y **Manual** — alternativas de baja automatización. Manual es el punto de partida recomendado mientras prueba un socio nuevo antes de pasar a un método automatizado.\n\nCambiar el transporte de un socio es simplemente elegir otra opción y proporcionar las nuevas credenciales — no altera la identidad del socio, sus vínculos ni su historial de documentos.\n\n## Traducción de unidades / cantidad por paquete (no construida)\n\nLa lista de números de pieza empareja el número de pieza de un socio con el suyo — un puro intercambio de números. Deliberadamente **no** convierte unidades de medida ni cantidades por paquete.\n\n- Si un socio pide en cajas y usted almacena en unidades sueltas, o la línea de pedido del socio usa una unidad (unidad, caja, caja grande, palé) distinta de cómo almacena la pieza, el sistema **no** convierte la cantidad. El número fluye tal cual contra su pieza.\n- Hoy no existe una referencia cruzada de unidades ni un multiplicador de cantidad por paquete en EDI. Trate a cualquier socio que necesite esto como una conversación de configuración, no como un paso de autoservicio.\n- Salvaguarda práctica: para socios cuya unidad de pedido difiera de su unidad de almacenamiento, revise los pedidos aplicados antes de prepararlos, o acuerde con el socio pedir en su unidad de almacenamiento. Esta es la fuente más común de sorpresas de cantidad en pedidos entrantes, y se señala aquí precisamente porque la pantalla no le ofrece ningún control para ello.\n",
       "sections": []
     }
   }

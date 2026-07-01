@@ -4,7 +4,7 @@
     "title": "Visión general del Backlog",
     "summary": "Qué es el backlog, cómo se relaciona con el tablero kanban, cómo filtrar trabajos, los modos de vista y la creación de nuevos trabajos.",
     "contentJson": {
-      "body": "## Visión general del Backlog\n\nEl Backlog es su lista maestra de todos los trabajos en cada tipo de pista. Mientras que el Tablero Kanban le ofrece una vista visual, etapa por etapa, de una sola pista, el Backlog le permite ver todos los trabajos del sistema a la vez: buscar, filtrar, ordenar y clasificar el trabajo antes de que llegue al tablero.\n\n### Backlog vs. Tablero Kanban\n\nEl Tablero Kanban muestra los trabajos organizados en columnas por etapa dentro de un único tipo de pista (p. ej., Producción, I+D/Herramental, Mantenimiento). Usted interactúa con los trabajos de forma visual: arrastrando tarjetas entre etapas, viendo los límites de trabajo en curso (WIP) y siguiendo el flujo.\n\nEl Backlog es una lista plana de todos los trabajos, sin importar el tipo de pista. Es el lugar para:\n- **Encontrar cualquier trabajo** por número, título, cliente o responsable\n- **Clasificar el trabajo entrante** — revisar trabajos sin asignar o de baja prioridad\n- **Revisión masiva** — examinar todas las pistas para detectar elementos atrasados, cargas de trabajo desequilibradas o trabajos estancados\n- **Crear nuevos trabajos** que aterrizan en el tablero en la primera etapa de su pista\n\nCada trabajo del Backlog también aparece en su Tablero Kanban correspondiente. Los cambios realizados en cualquiera de los dos lugares se reflejan en ambos.\n\n### Dos modos de vista\n\nEl Backlog ofrece dos formas de ver sus trabajos:\n\n**Vista de tabla (predeterminada)** — Una tabla de datos con columnas ordenables y filtrables: Número de trabajo, Título, Etapa, Prioridad, Responsable, Cliente y Fecha de vencimiento. Haga clic en cualquier encabezado de columna para ordenar. Use los iconos de filtro de columna para filtrar por columna (búsqueda de texto, selección de enumeración o rango de fechas). Haga clic en cualquier fila para abrir el diálogo de detalle completo del trabajo.\n\n**Vista de tarjetas** — Una cuadrícula de tarjetas de trabajo que muestran el número de trabajo, el título, la ficha de etapa (codificada por color), el punto de prioridad, el avatar del responsable, el nombre del cliente y la fecha de vencimiento. Las tarjetas con retenciones activas muestran una insignia 'En espera'. Las tarjetas atrasadas se resaltan visualmente. Haga clic en cualquier tarjeta para abrir el diálogo de detalle del trabajo.\n\nAlterne entre las vistas usando los iconos de vista del encabezado de la página (view_list para la tabla, view_module para las tarjetas). Su preferencia se guarda y se restaura en su próxima visita.\n\n### Filtrado\n\nCuatro filtros en el encabezado de la página acotan la lista:\n\n- **Búsqueda** — búsqueda de texto libre en el número y el título del trabajo. Los resultados se actualizan a medida que escribe.\n- **Tipo de pista** — filtra a una pista específica (Producción, I+D/Herramental, etc.). Muestra solo los trabajos cuya etapa actual pertenece a esa pista.\n- **Prioridad** — filtra por Baja, Normal, Alta o Urgente.\n- **Responsable** — filtra a los trabajos asignados a un miembro específico del equipo.\n\nTodos los filtros funcionan en conjunto (lógica AND). El conteo filtrado se refleja tanto en la vista de tabla como en la de tarjetas.\n\n### Creación de trabajos\n\nHaga clic en el botón 'Crear trabajo' (con el icono +) del encabezado de la página para abrir el diálogo de creación de trabajos. Introducirá:\n\n- **Título** (obligatorio, máx. 200 caracteres)\n- **Descripción** (opcional, multilínea)\n- **Tipo de pista** (obligatorio) — determina a qué tablero y a qué etapa inicial ingresa el trabajo\n- **Cliente** (opcional) — vincula el trabajo a un registro de cliente\n- **Responsable** (opcional) — asigna a un miembro del equipo. Si el usuario seleccionado tiene un perfil incompleto, se muestra una advertencia.\n- **Prioridad** (predeterminada: Normal) — Baja, Normal, Alta o Urgente\n- **Fecha de vencimiento** (opcional) — se muestra en rojo cuando está atrasada\n\nEl nuevo trabajo se coloca en la primera etapa del tipo de pista seleccionado y aparece de inmediato tanto en el Backlog como en el Tablero Kanban.\n\n### Detalle del trabajo\n\nAl hacer clic en cualquier fila (vista de tabla) o tarjeta (vista de tarjetas) se abre el diálogo de detalle completo del trabajo a través del DetailDialogService. La URL se actualiza para incluir `?detail=job:{id}`, lo que hace que el enlace se pueda compartir y guardar como marcador. Desde el diálogo de detalle puede editar el trabajo, ver subtareas, archivos, registro de actividad y más.\n\n### Edición de un trabajo existente\n\nNo hay un botón de Editar directamente en la fila ni en la tarjeta del backlog. Para editar un trabajo, ábralo primero: haga clic en la fila o la tarjeta para abrir el diálogo de detalle del trabajo y luego use su acción **Editar**. El diálogo de detalle se cierra y el trabajo se vuelve a abrir en el mismo diálogo que usa para crear trabajos, pero ahora en **modo de edición** (el título dice 'Editar trabajo'). Al guardar, la lista se vuelve a cargar y sus cambios aparecen.\n\nDos cosas se comportan de forma diferente en el modo de edición frente al modo de creación:\n- **El Tipo de pista es inmutable.** El campo Tipo de pista se oculta por completo al editar. El tipo de pista de un trabajo se fija en el momento de la creación porque determina en qué tablero Kanban vive el trabajo; mover un trabajo a un tablero diferente dejaría huérfano su historial de etapas, por lo que el sistema no lo permite. Si un trabajo está en la pista equivocada, archívelo y cree uno de reemplazo en la pista correcta.\n- **La asociación de línea de pedido de venta es solo para creación.** El campo que vincula un trabajo nuevo a una línea de pedido de venta aparece solo en modo de creación y se oculta al editar.\n\nTodo lo demás —Título, Descripción, Cliente, Responsable, Prioridad y Fecha de vencimiento— es editable. El botón de guardar dice 'Guardar cambios' en lugar de 'Crear trabajo'.\n\n### Administrador: Trabajos archivados\n\nLos trabajos nunca se eliminan de forma permanente; cuando un trabajo se retira de un tablero se **archiva** (eliminación lógica), por lo que desaparece del backlog y del tablero activos pero es totalmente recuperable. Los administradores obtienen una vía de recuperación directamente en el backlog.\n\n**Alternar Mostrar archivados / Mostrar activos.** Los administradores ven un botón de icono adicional en el encabezado de la página (un icono de caja de inventario). Haga clic en él para cambiar la lista de trabajos activos a trabajos archivados; la información sobre herramientas y el icono alternan entre 'Mostrar trabajos archivados' y 'Mostrar trabajos activos'. La lista se vuelve a obtener del servidor con el indicador de archivado establecido, por lo que está viendo un conjunto de trabajos genuinamente separado, no un filtro del lado del cliente. Los no administradores nunca ven esta alternancia y no pueden acceder a la vista de archivados.\n\n**Desarchivar a nivel de fila.** En la vista de archivados, la tabla incorpora una columna **Acciones** con un botón Desarchivar en cada fila. Al hacer clic en él se le pide confirmar ('¿Restaurar este trabajo?') y luego se restaura ese único trabajo a la lista activa. Como el trabajo vuelve a estar activo, desaparece de la vista de archivados en la próxima recarga y reaparece en su tablero Kanban.\n\n**Desarchivar en masa.** La tabla de archivados también se vuelve seleccionable: aparece una casilla de verificación en cada fila. Seleccione uno o más trabajos archivados y una barra de acción masiva se despliega desde la parte inferior mostrando el conteo seleccionado y un botón **Desarchivar seleccionados**. Confirme el aviso ('¿Restaurar los trabajos seleccionados?') y todos los trabajos seleccionados se restauran en una sola operación. Un mensaje de éxito informa cuántos se restauraron. Use la X de la barra masiva para borrar la selección sin actuar.\n\nTanto la alternancia como las acciones de desarchivar son exclusivas del administrador en la interfaz, y el servidor impone de forma independiente el rol de Administrador; restaurar trabajo que alguien archivó deliberadamente es de alto impacto, por lo que está restringido a propósito.\n\n### Estilo de filas (vista de tabla)\n\n- **Filas atrasadas** reciben la clase `row--overdue`: un sutil tinte rojo que indica que la fecha de vencimiento ya pasó.\n- **Fila seleccionada** recibe la clase `row--selected`: resaltada para mostrar de qué trabajo está abierto el detalle actualmente.\n- **Tinte de color de etapa** — cada fila tiene un tenue tinte de fondo que coincide con el color de su etapa mediante la propiedad CSS personalizada `--row-tint`.\n\n### Colores de prioridad\n\nLa prioridad se muestra como un punto de color junto al nombre de la prioridad:\n- **Baja** — gris pizarra (#94a3b8)\n- **Normal** — verde azulado (#0d9488)\n- **Alta** — ámbar (#f59e0b)\n- **Urgente** — rojo (#dc2626)",
+      "body": "## Visión general del Backlog\n\nEl Backlog es su lista maestra de todos los trabajos en cada tipo de pista. Mientras que el Tablero Kanban le ofrece una vista visual, etapa por etapa, de una sola pista, el Backlog le permite ver todos los trabajos del sistema a la vez: buscar, filtrar, ordenar y clasificar el trabajo antes de que llegue al tablero.\n\n### Backlog vs. Tablero Kanban\n\nEl Tablero Kanban muestra los trabajos organizados en columnas por etapa dentro de un único tipo de pista (p. ej., Producción, I+D/Herramental, Mantenimiento). Usted interactúa con los trabajos de forma visual: arrastrando tarjetas entre etapas, viendo los límites de trabajo en curso (WIP) y siguiendo el flujo.\n\nEl Backlog es una lista plana de todos los trabajos, sin importar el tipo de pista. Es el lugar para:\n- **Encontrar cualquier trabajo** por número, título, cliente o responsable\n- **Clasificar el trabajo entrante** — revisar trabajos sin asignar o de baja prioridad\n- **Revisión masiva** — examinar todas las pistas para detectar elementos atrasados, cargas de trabajo desequilibradas o trabajos estancados\n- **Crear nuevos trabajos** que aterrizan en el tablero en la primera etapa de su pista\n\nCada trabajo del Backlog también aparece en su Tablero Kanban correspondiente. Los cambios realizados en cualquiera de los dos lugares se reflejan en ambos.\n\n### Dos modos de vista\n\nEl Backlog ofrece dos formas de ver sus trabajos:\n\n**Vista de tabla (predeterminada)** — Una lista ordenable y filtrable con columnas para el número, el título, la etapa, la prioridad, a quién está asignado, el cliente y la fecha de vencimiento de un trabajo. Haga clic en un encabezado de columna para ordenar por él. Use el icono de filtro de una columna para acotar por esa columna. Haga clic en cualquier fila para abrir el trabajo completo.\n\n**Vista de tarjetas** — Una cuadrícula de tarjetas de trabajo que muestran el número, el título, la etapa (como una etiqueta de color), la prioridad, a quién está asignado, el cliente y la fecha de vencimiento de cada trabajo. Las tarjetas con una retención activa muestran una insignia 'En espera', y las tarjetas atrasadas se resaltan. Haga clic en cualquier tarjeta para abrir el trabajo completo.\n\nCambie entre las dos vistas usando los botones de vista del encabezado de la página. Su elección se recuerda y se restaura en su próxima visita.\n\n### Filtrado\n\nCuatro filtros en el encabezado de la página acotan la lista:\n\n- **Búsqueda** — búsqueda de texto libre en el número y el título del trabajo. Los resultados se actualizan a medida que escribe.\n- **Tipo de pista** — filtra a una pista específica (Producción, I+D/Herramental, etc.). Muestra solo los trabajos cuya etapa actual pertenece a esa pista.\n- **Prioridad** — filtra por Baja, Normal, Alta o Urgente.\n- **Responsable** — filtra a los trabajos asignados a un miembro específico del equipo.\n\nTodos los filtros funcionan en conjunto (lógica AND). El conteo filtrado se refleja tanto en la vista de tabla como en la de tarjetas.\n\n### Creación de trabajos\n\nHaga clic en el botón 'Crear trabajo' (con el icono +) del encabezado de la página para abrir el diálogo de creación de trabajos. Introducirá:\n\n- **Título** (obligatorio, máx. 200 caracteres)\n- **Descripción** (opcional, multilínea)\n- **Tipo de pista** (obligatorio) — determina a qué tablero y a qué etapa inicial ingresa el trabajo\n- **Cliente** (opcional) — vincula el trabajo a un registro de cliente\n- **Responsable** (opcional) — asigna a un miembro del equipo. Si el usuario seleccionado tiene un perfil incompleto, se muestra una advertencia.\n- **Prioridad** (predeterminada: Normal) — Baja, Normal, Alta o Urgente\n- **Fecha de vencimiento** (opcional) — se muestra en rojo cuando está atrasada\n\nEl nuevo trabajo se coloca en la primera etapa del tipo de pista seleccionado y aparece de inmediato tanto en el Backlog como en el Tablero Kanban.\n\n### Detalle del trabajo\n\nAl hacer clic en cualquier fila o tarjeta se abre el trabajo completo. El enlace de la página se actualiza para apuntar a ese trabajo, para que pueda compartirlo o guardarlo como marcador. Desde el detalle del trabajo puede editarlo, ver subtareas, archivos, el registro de actividad y más.\n\n### Edición de un trabajo existente\n\nNo hay un botón de Editar directamente en la fila ni en la tarjeta del backlog. Para editar un trabajo, ábralo primero: haga clic en la fila o la tarjeta para abrir el trabajo y luego use su acción **Editar**. El trabajo se vuelve a abrir en el mismo panel que usa para crear trabajos, pero ahora en **modo de edición** (el título dice 'Editar trabajo'). Al guardar, la lista se vuelve a cargar y sus cambios aparecen.\n\nDos cosas se comportan de forma diferente en el modo de edición frente al modo de creación:\n- **El Tipo de pista es inmutable.** El campo Tipo de pista se oculta por completo al editar. El tipo de pista de un trabajo se fija en el momento de la creación porque determina en qué tablero Kanban vive el trabajo; mover un trabajo a un tablero diferente dejaría huérfano su historial de etapas, por lo que el sistema no lo permite. Si un trabajo está en la pista equivocada, archívelo y cree uno de reemplazo en la pista correcta.\n- **La asociación de línea de pedido de venta es solo para creación.** El campo que vincula un trabajo nuevo a una línea de pedido de venta aparece solo en modo de creación y se oculta al editar.\n\nTodo lo demás —Título, Descripción, Cliente, Responsable, Prioridad y Fecha de vencimiento— es editable. El botón de guardar dice 'Guardar cambios' en lugar de 'Crear trabajo'.\n\n### Administrador: Trabajos archivados\n\nLos trabajos nunca se eliminan de forma permanente; cuando un trabajo se retira de un tablero se **archiva** (eliminación lógica), por lo que desaparece del backlog y del tablero activos pero es totalmente recuperable. Los administradores obtienen una vía de recuperación directamente en el backlog.\n\n**Alternar Mostrar archivados / Mostrar activos.** Los administradores ven un botón de icono adicional en el encabezado de la página (un icono de caja de inventario). Haga clic en él para cambiar la lista de trabajos activos a trabajos archivados; la información sobre herramientas y el icono alternan entre 'Mostrar trabajos archivados' y 'Mostrar trabajos activos'. La lista se vuelve a obtener del servidor con el indicador de archivado establecido, por lo que está viendo un conjunto de trabajos genuinamente separado, no un filtro del lado del cliente. Los no administradores nunca ven esta alternancia y no pueden acceder a la vista de archivados.\n\n**Desarchivar a nivel de fila.** En la vista de archivados, la tabla incorpora una columna **Acciones** con un botón Desarchivar en cada fila. Al hacer clic en él se le pide confirmar ('¿Restaurar este trabajo?') y luego se restaura ese único trabajo a la lista activa. Como el trabajo vuelve a estar activo, desaparece de la vista de archivados en la próxima recarga y reaparece en su tablero Kanban.\n\n**Desarchivar en masa.** La tabla de archivados también se vuelve seleccionable: aparece una casilla de verificación en cada fila. Seleccione uno o más trabajos archivados y una barra de acción masiva se despliega desde la parte inferior mostrando el conteo seleccionado y un botón **Desarchivar seleccionados**. Confirme el aviso ('¿Restaurar los trabajos seleccionados?') y todos los trabajos seleccionados se restauran en una sola operación. Un mensaje de éxito informa cuántos se restauraron. Use la X de la barra masiva para borrar la selección sin actuar.\n\nTanto la alternancia como las acciones de desarchivar son exclusivas del administrador en la interfaz, y el servidor impone de forma independiente el rol de Administrador; restaurar trabajo que alguien archivó deliberadamente es de alto impacto, por lo que está restringido a propósito.\n\n### Estilo de filas (vista de tabla)\n\n- **Filas atrasadas** reciben un tenue tinte rojo, que indica que la fecha de vencimiento ya pasó.\n- **Fila seleccionada** se resalta para mostrar qué trabajo tiene abierto actualmente.\n- **Tinte de color de etapa** — cada fila lleva un tenue tinte de fondo con el color de su etapa, para que reconozca la etapa de un trabajo de un vistazo.\n\n### Colores de prioridad\n\nLa prioridad se muestra como un punto de color junto al nombre de la prioridad:\n- **Baja** — gris pizarra\n- **Normal** — verde azulado\n- **Alta** — ámbar\n- **Urgente** — rojo",
       "sections": []
     }
   },
@@ -20,7 +20,7 @@
           "element": ".page-header app-input",
           "popover": {
             "title": "Buscar trabajos",
-            "description": "Escriba aquí para buscar por número o título de trabajo. Los resultados se filtran en tiempo real a medida que escribe. Funciona tanto en la vista de tabla como en la de tarjetas.",
+            "description": "Escriba aquí para buscar por número o título de trabajo. La lista se acota a medida que escribe. La búsqueda funciona tanto si ve la tabla como las tarjetas.",
             "side": "bottom"
           }
         },
@@ -28,7 +28,7 @@
           "element": ".page-header app-select:nth-of-type(1)",
           "popover": {
             "title": "Filtro de Tipo de pista",
-            "description": "Filtra los trabajos por tipo de pista (p. ej., Producción, I+D/Herramental, Mantenimiento). Cuando se selecciona, solo se muestran los trabajos cuya etapa actual pertenece a esa pista. Establézcalo en 'Todas las pistas' para ver todo.",
+            "description": "Acote la lista a una sola pista, como Producción, I+D/Herramental o Mantenimiento. Elija 'Todas las pistas' para volver a ver todos los trabajos.",
             "side": "bottom"
           }
         },
@@ -36,7 +36,7 @@
           "element": ".page-header app-select:nth-of-type(2)",
           "popover": {
             "title": "Filtro de Prioridad",
-            "description": "Filtra por nivel de prioridad: Baja, Normal, Alta o Urgente. Establézcalo en 'Todas las prioridades' para mostrar todos los trabajos sin importar la prioridad.",
+            "description": "Muestre solo los trabajos de una prioridad: Baja, Normal, Alta o Urgente. Elija 'Todas las prioridades' para verlos todos.",
             "side": "bottom"
           }
         },
@@ -44,15 +44,15 @@
           "element": ".page-header app-select:nth-of-type(3)",
           "popover": {
             "title": "Filtro de Responsable",
-            "description": "Filtra a los trabajos asignados a un miembro específico del equipo. La lista desplegable enumera a todos los usuarios. Establézcalo en 'Todos los responsables' para quitar el filtro.",
+            "description": "Muestre solo los trabajos asignados a una persona. Elija 'Todos los responsables' para quitar el filtro.",
             "side": "bottom"
           }
         },
         {
           "element": ".view-toggle",
           "popover": {
-            "title": "Alternar modo de vista",
-            "description": "Cambie entre la vista de tabla (icono view_list) y la vista de tarjetas (icono view_module). La vista de tabla muestra una tabla de datos ordenable y filtrable. La vista de tarjetas muestra una cuadrícula de tarjetas de trabajo con colores de etapa, puntos de prioridad y avatares de responsable. Su preferencia se guarda automáticamente.",
+            "title": "Cambiar de vista",
+            "description": "Cambie entre la tabla y la cuadrícula de tarjetas. La tabla es una lista que puede ordenar y filtrar. Las tarjetas muestran cada trabajo con su color de etapa, su prioridad y a quién está asignado. Su elección se recuerda para la próxima vez.",
             "side": "bottom"
           }
         },
@@ -60,7 +60,7 @@
           "element": ".new-job-btn",
           "popover": {
             "title": "Crear trabajo",
-            "description": "Haga clic para abrir el diálogo de creación de trabajos. Completará un título (obligatorio), una descripción opcional, el tipo de pista (obligatorio: determina a qué tablero ingresa el trabajo), el cliente, el responsable, la prioridad y la fecha de vencimiento. El trabajo se crea en la primera etapa de la pista seleccionada.",
+            "description": "Abra el panel para agregar un trabajo. Le da un título (obligatorio) y elige una pista (obligatoria, que decide su tablero). También puede agregar una descripción, cliente, responsable, prioridad y fecha de vencimiento. El nuevo trabajo empieza en la primera etapa de esa pista.",
             "side": "bottom"
           }
         },
@@ -68,7 +68,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Tabla de trabajos",
-            "description": "La tabla de datos principal que muestra todos los trabajos filtrados. Columnas: Número de trabajo (80px), Título, Etapa (ficha codificada por color), Prioridad (punto de color + etiqueta), Responsable (avatar), Cliente y Fecha de vencimiento. Haga clic en cualquier encabezado de columna para ordenar. Haga clic en el icono de filtro de las columnas filtrables (Etapa, Prioridad, Responsable, Cliente, Fecha de vencimiento) para filtrar por columna. Haga clic en cualquier fila para abrir el diálogo de detalle completo del trabajo.",
+            "description": "Esta es la lista de todos los trabajos que coinciden, que muestra el número, el título, la etapa, la prioridad, a quién está asignado, el cliente y la fecha de vencimiento de cada uno. Haga clic en un encabezado de columna para ordenar por él. Use el icono de filtro de una columna para acotar por esa columna. Haga clic en cualquier fila para abrir el trabajo completo.",
             "side": "top"
           }
         }
@@ -87,127 +87,127 @@
           "items": [
             {
               "label": "Búsqueda",
-              "value": "Entrada de texto libre. Filtra los trabajos por título o número de trabajo. No distingue mayúsculas de minúsculas, coincide en cualquier parte de la cadena. Los resultados se actualizan en tiempo real a medida que escribe."
+              "value": "Un cuadro de texto. Acota la lista a los trabajos cuyo título o número contiene lo que escribe. No distingue mayúsculas de minúsculas y coincide en cualquier parte del texto. La lista se actualiza a medida que escribe."
             },
             {
               "label": "Tipo de pista",
-              "value": "Lista desplegable de selección. Opciones: 'Todas las pistas' (predeterminada, muestra todos los trabajos) más una opción por cada tipo de pista configurado (p. ej., Producción, I+D/Herramental, Mantenimiento). Filtra haciendo coincidir la etapa actual del trabajo con la lista de etapas de la pista seleccionada."
+              "value": "Un menú del que elige. Elija 'Todas las pistas' (la predeterminada) para ver todos los trabajos, o elija una pista como Producción, I+D/Herramental o Mantenimiento para ver solo los trabajos que están en una etapa de esa pista."
             },
             {
               "label": "Prioridad",
-              "value": "Lista desplegable de selección. Opciones: 'Todas las prioridades' (predeterminada), Baja, Normal, Alta, Urgente. Filtra a los trabajos que coinciden con el nivel de prioridad seleccionado."
+              "value": "Un menú del que elige. Elija 'Todas las prioridades' (la predeterminada), Baja, Normal, Alta o Urgente para ver solo los trabajos de esa prioridad."
             },
             {
               "label": "Responsable",
-              "value": "Lista desplegable de selección. Opciones: 'Todos los responsables' (predeterminada) más una opción por cada usuario (mostrado por nombre). Filtra a los trabajos asignados al usuario seleccionado (coincidencia por iniciales)."
+              "value": "Un menú del que elige. Elija 'Todos los responsables' (la predeterminada) o el nombre de una persona para ver solo los trabajos asignados a ella."
             }
           ]
         },
         {
-          "heading": "Alternar modo de vista",
+          "heading": "Cambiar de vista",
           "items": [
             {
-              "label": "Botón de Vista de tabla (icono view_list)",
-              "value": "Cambia a la vista de tabla de datos. El estado activo se muestra mediante la clase icon-btn--active. Este es el modo de vista predeterminado."
+              "label": "Botón de vista de tabla",
+              "value": "Muestra los trabajos como una lista que puede ordenar y filtrar. Esta es la vista con la que empieza."
             },
             {
-              "label": "Botón de Vista de tarjetas (icono view_module)",
-              "value": "Cambia a la vista de cuadrícula de tarjetas. El estado activo se muestra mediante la clase icon-btn--active."
+              "label": "Botón de vista de tarjetas",
+              "value": "Muestra los trabajos como una cuadrícula de tarjetas."
             },
             {
-              "label": "Persistencia de la preferencia de vista",
-              "value": "El modo de vista se guarda en las preferencias del usuario (clave: backlog:viewMode) y se sincroniza con la URL mediante el parámetro de consulta ?view=card. La tabla es la predeterminada: solo el modo de tarjetas agrega un parámetro de consulta. La preferencia se restaura en la próxima visita, a menos que la URL especifique explícitamente una vista."
+              "label": "Su vista se recuerda",
+              "value": "La última vista que usó se restaura la próxima vez que entra. Un enlace que especifica una vista se abre en esa vista."
             }
           ]
         },
         {
-          "heading": "Campos del diálogo de creación/edición de trabajos",
+          "heading": "Campos del panel de creación/edición de trabajos",
           "items": [
             {
               "label": "Título (obligatorio)",
-              "value": "Entrada de texto, máx. 200 caracteres. Validadores: required, maxLength(200). data-testid: job-title. Se muestra en las tarjetas kanban, la tabla del backlog y las vistas de detalle."
+              "value": "Un cuadro de texto, hasta 200 caracteres. Este nombre aparece en las tarjetas del tablero, la lista del backlog y el detalle del trabajo."
             },
             {
               "label": "Descripción",
-              "value": "Área de texto, 3 filas. Opcional, sin longitud máxima impuesta en la interfaz. data-testid: job-description. Proporciona contexto adicional sobre el alcance del trabajo."
+              "value": "Un cuadro de varias líneas para notas adicionales sobre el trabajo. Opcional."
             },
             {
-              "label": "Tipo de pista (solo en modo de creación)",
-              "value": "Lista desplegable de selección, obligatoria. Opciones cargadas desde la API (tipos de pista configurados). Validadores: required. data-testid: job-track-type. Determina a qué tablero kanban y a qué etapa inicial ingresa el trabajo. Oculto en modo de edición: el tipo de pista no se puede cambiar después de la creación. Para poner un trabajo en una pista diferente, archívelo y cree uno de reemplazo en la pista correcta."
+              "label": "Tipo de pista (solo al crear)",
+              "value": "Un menú obligatorio del que elige, con las pistas configuradas para su empresa. Decide a qué tablero y a qué etapa inicial ingresa el trabajo. Se oculta al editar, porque la pista de un trabajo no puede cambiar una vez creado. Para mover un trabajo a otra pista, archívelo y cree uno de reemplazo en la pista correcta."
             },
             {
               "label": "Cliente",
-              "value": "Lista desplegable de selección, opcional. Opciones cargadas desde la API (lista de clientes) más una opción nula/'-- Ninguno --'. data-testid: job-customer. Vincula el trabajo a un registro de cliente."
+              "value": "Un menú opcional del que elige, con sus clientes más una opción 'Ninguno'. Vincula el trabajo a un cliente."
             },
             {
               "label": "Responsable",
-              "value": "Lista desplegable de selección, opcional. Opciones cargadas desde la API (lista de usuarios) más una opción nula/'-- Ninguno --'. data-testid: job-assignee. Si el usuario seleccionado tiene un perfil incompleto (faltan campos obligatorios de incorporación), se muestra un mensaje de advertencia debajo del campo."
+              "value": "Un menú opcional del que elige, con su equipo más una opción 'Ninguno'. Si la persona que elige no ha terminado de configurar su perfil, aparece una advertencia debajo del campo."
             },
             {
               "label": "Prioridad",
-              "value": "Lista desplegable de selección. Opciones: Baja, Normal, Alta, Urgente. Predeterminada: Normal. data-testid: job-priority. Controla el color del punto de prioridad en las vistas de tabla y de tarjetas."
+              "value": "Un menú del que elige: Baja, Normal, Alta o Urgente. Predeterminada: Normal. Establece el color de prioridad que se muestra en la lista y en las tarjetas."
             },
             {
               "label": "Fecha de vencimiento",
-              "value": "Selector de fecha, opcional. data-testid: job-due-date. Cuando se establece y la fecha ya pasó, el trabajo se marca como atrasado (texto rojo en la tabla, tarjeta resaltada en la cuadrícula)."
+              "value": "Un selector de fecha opcional. Si la fecha ya pasó, el trabajo se marca como atrasado (rojo en la lista, tarjeta resaltada en la cuadrícula)."
             },
             {
               "label": "Botón Guardar",
-              "value": "data-testid: job-save-btn. Deshabilitado cuando el formulario no es válido o cuando hay un guardado en curso. Cuando el formulario no es válido, aparece un icono de triángulo de advertencia rojo con un conteo de problemas a la izquierda del botón Guardar; al hacer clic en él se abre un popover con la lista de infracciones (p. ej., 'El título es obligatorio', 'El tipo de pista es obligatorio')."
+              "value": "Permanece deshabilitado mientras el formulario está incompleto o hay un guardado en curso. Cuando falta algo, aparece un triángulo de advertencia rojo con un conteo a su izquierda; haga clic en él para ver qué falta por corregir (como 'El título es obligatorio')."
             },
             {
               "label": "Botón Cancelar",
-              "value": "Cierra el diálogo sin guardar. Sin confirmación, a menos que el formulario tenga cambios sin guardar (protección de formulario modificado)."
+              "value": "Cierra el panel sin guardar. Si hizo cambios, le pide confirmar primero."
             }
           ]
         },
         {
-          "heading": "Columnas de la tabla",
+          "heading": "Columnas de la lista",
           "items": [
             {
               "label": "Número de trabajo",
-              "value": "Ancho: 80px. Ordenable, filtrable (texto). Se representa en un span con estilo monoespaciado con la clase 'job-number'. Muestra el número de trabajo generado automáticamente (p. ej., J-1001)."
+              "value": "El número automático del trabajo, como J-1001. Puede ordenar por él y buscarlo."
             },
             {
               "label": "Título",
-              "value": "Ordenable, filtrable (texto). Se representa con la clase 'job-title'. El nombre principal del trabajo."
+              "value": "El nombre del trabajo. Puede ordenar por él y buscarlo."
             },
             {
               "label": "Etapa",
-              "value": "Ancho: 100px. Ordenable, filtrable (enumeración: opciones derivadas de los datos de trabajo actuales). Se representa como una ficha de color con --chip-color establecido en el color configurado de la etapa."
+              "value": "La etapa actual del trabajo, mostrada como una etiqueta con el color de la etapa. Puede ordenar y filtrar por ella."
             },
             {
               "label": "Prioridad",
-              "value": "Ancho: 90px. Ordenable, filtrable (enumeración: Baja/Normal/Alta/Urgente). Se representa como un punto de color (color de fondo de PRIORITY_COLORS) seguido del texto del nombre de la prioridad."
+              "value": "La prioridad del trabajo, mostrada como un punto de color junto a su nombre. Puede ordenar y filtrar por ella."
             },
             {
               "label": "Responsable",
-              "value": "Ancho: 60px, alineado al centro. Filtrable (enumeración: opciones de la lista de usuarios por iniciales/nombre). Se representa como un componente app-avatar (tamaño sm) con las iniciales y el color del usuario. Sin asignar muestra una raya (—)."
+              "value": "A quién está asignado el trabajo, mostrado con sus iniciales. Una raya significa que no está asignado. Puede filtrar por persona."
             },
             {
               "label": "Nombre del cliente",
-              "value": "Ancho: 120px. Ordenable, filtrable (enumeración: opciones derivadas de los datos de trabajo actuales, duplicados eliminados). Texto plano, raya (—) cuando no hay cliente asignado."
+              "value": "El cliente vinculado, o una raya cuando no hay ninguno. Puede ordenar y filtrar por él."
             },
             {
               "label": "Fecha de vencimiento",
-              "value": "Ancho: 100px. Ordenable, filtrable (fecha). Formateada como MM/dd/yyyy mediante el DatePipe de Angular. Las fechas atrasadas se representan con la clase 'overdue-text' (color rojo)."
+              "value": "La fecha de vencimiento, mostrada como MM/dd/yyyy. Puede ordenar y filtrar por ella. Las fechas atrasadas aparecen en rojo."
             }
           ]
         },
         {
-          "heading": "Estilo de filas (vista de tabla)",
+          "heading": "Estilo de filas (vista de lista)",
           "items": [
             {
-              "label": "row--overdue",
-              "value": "Se aplica cuando job.isOverdue es true (la fecha de vencimiento ya pasó). Agrega un sutil tinte rojo de fondo a toda la fila."
+              "label": "Filas atrasadas",
+              "value": "Una fila recibe un tenue tinte rojo cuando su fecha de vencimiento ya pasó."
             },
             {
-              "label": "row--selected",
-              "value": "Se aplica cuando el ID del trabajo coincide con el trabajo seleccionado actualmente (el diálogo de detalle está abierto para este trabajo). Resalta la fila para indicar la selección."
+              "label": "Fila seleccionada",
+              "value": "La fila se resalta mientras tiene ese trabajo abierto."
             },
             {
-              "label": "Variable CSS --row-tint",
-              "value": "Establecida en el color de etapa del trabajo. Proporciona un tenue tinte de fondo que coincide con el color de la etapa, dando una pista visual sobre en qué etapa está cada trabajo."
+              "label": "Tinte de color de etapa",
+              "value": "Cada fila lleva un tenue tinte de fondo con el color de su etapa, para que reconozca la etapa de un trabajo de un vistazo."
             }
           ]
         },
@@ -216,43 +216,43 @@
           "items": [
             {
               "label": "Número de trabajo",
-              "value": "Se muestra en el encabezado de la tarjeta con la clase 'backlog-card__number'."
+              "value": "Se muestra en la parte superior de la tarjeta."
             },
             {
               "label": "Insignia En espera",
-              "value": "Ficha de advertencia que se muestra en el encabezado de la tarjeta cuando job.activeHolds.length > 0. Texto: 'En espera'."
+              "value": "Una etiqueta de color de advertencia en la parte superior de la tarjeta, que aparece cuando el trabajo tiene una o más retenciones activas."
             },
             {
               "label": "Título",
-              "value": "Texto del cuerpo de la tarjeta con la clase 'backlog-card__title'."
+              "value": "El nombre del trabajo, en el cuerpo de la tarjeta."
             },
             {
-              "label": "Ficha de etapa",
-              "value": "Ficha codificada por color con --chip-color establecido en job.stageColor. Muestra el nombre de la etapa actual."
+              "label": "Etiqueta de etapa",
+              "value": "Una etiqueta con el color de la etapa que muestra la etapa actual del trabajo."
             },
             {
-              "label": "Punto de prioridad + nombre",
-              "value": "Punto de color (backlog-card__priority-dot) seguido del texto del nombre de la prioridad. El color del punto proviene del mapa priorityDotColor propio de la cuadrícula de tarjetas (NO de la constante PRIORITY_COLORS de la tabla); sus claves no coinciden con los nombres reales de prioridad, por lo que solo Baja y Alta resuelven un color y Normal/Urgente caen a gris. Vea la Referencia avanzada para esta discrepancia de paleta conocida."
+              "label": "Punto y nombre de prioridad",
+              "value": "Un punto de color junto al nombre de la prioridad. Nota: los colores de las tarjetas no siempre coinciden con la lista. Aquí solo Baja y Alta muestran un color distinto, e incluso Alta es un tono algo diferente; Normal y Urgente caen a gris. Considere los colores de la lista como los confiables; vea la Referencia avanzada."
             },
             {
-              "label": "Avatar del responsable",
-              "value": "app-avatar (tamaño sm) que se muestra cuando el trabajo tiene un responsable. Se omite cuando no está asignado."
+              "label": "Responsable",
+              "value": "Muestra a quién está asignado el trabajo con sus iniciales. Se oculta cuando no está asignado."
             },
             {
               "label": "Cliente",
-              "value": "Se muestra debajo del área de metadatos con un icono de empresa. Solo se representa cuando job.customerName está presente."
+              "value": "Se muestra debajo de los detalles de la tarjeta con un icono de empresa, solo cuando hay un cliente vinculado."
             },
             {
               "label": "Fecha de vencimiento",
-              "value": "Se muestra en el pie de la tarjeta con un icono de evento. Formateada como fecha corta. La clase 'backlog-card__date--overdue' se aplica cuando está atrasada (rojo). Se muestra el texto 'Sin fecha' cuando no hay fecha de vencimiento establecida."
+              "value": "Se muestra en la parte inferior de la tarjeta con un icono de calendario. Se pone roja cuando está atrasada y dice 'Sin fecha' cuando no hay ninguna."
             },
             {
-              "label": "backlog-card--overdue",
-              "value": "Se aplica a toda la tarjeta cuando job.isOverdue es true. Resalta visualmente la tarjeta."
+              "label": "Tarjeta atrasada",
+              "value": "Toda la tarjeta se resalta cuando el trabajo está atrasado."
             },
             {
-              "label": "backlog-card--selected",
-              "value": "Se aplica cuando el ID de trabajo de esta tarjeta coincide con el trabajo seleccionado. Resalta el borde/fondo de la tarjeta."
+              "label": "Tarjeta seleccionada",
+              "value": "La tarjeta se resalta mientras tiene ese trabajo abierto."
             }
           ]
         },
@@ -261,23 +261,23 @@
           "items": [
             {
               "label": "Crear trabajo (encabezado de la página)",
-              "value": "Botón con icono + y texto. Clase: new-job-btn. Abre el diálogo de creación de trabajos en modo 'create'. Este botón no tiene data-testid (está en el encabezado de la página, no en un diálogo)."
+              "value": "Un botón con un icono de más que abre el panel para agregar un trabajo nuevo."
             },
             {
-              "label": "Clic en fila (tabla)",
-              "value": "Al hacer clic en cualquier fila de la tabla se abre el diálogo de detalle del trabajo mediante DetailDialogService. La URL se actualiza a ?detail=job:{id}. La fila seleccionada recibe el estilo row--selected."
+              "label": "Clic en una fila",
+              "value": "Abre el detalle completo de ese trabajo y resalta la fila mientras está abierto. El enlace se actualiza para que pueda compartirlo o guardarlo como marcador."
             },
             {
-              "label": "Clic en tarjeta (vista de tarjetas)",
-              "value": "Al hacer clic en cualquier tarjeta se abre el diálogo de detalle del trabajo mediante DetailDialogService. La URL se actualiza a ?detail=job:{id}. La tarjeta seleccionada recibe el estilo backlog-card--selected."
+              "label": "Clic en una tarjeta",
+              "value": "Abre el detalle completo de ese trabajo y resalta la tarjeta mientras está abierto. El enlace se actualiza para que pueda compartirlo o guardarlo como marcador."
             },
             {
-              "label": "Apertura automática del diálogo de detalle por URL",
-              "value": "Al cargar la página, si la URL contiene ?detail=job:{id}, el diálogo de detalle del trabajo se abre automáticamente. Esto admite enlaces directos, marcadores y la navegación atrás/adelante del navegador."
+              "label": "Abrir un enlace compartido de un trabajo",
+              "value": "Si abre un enlace que apunta a un trabajo específico, el detalle de ese trabajo se abre solo al cargar la página. Esto es lo que hace que funcionen los enlaces compartidos, los marcadores y los botones atrás y adelante del navegador."
             },
             {
-              "label": "Editar un trabajo (punto de entrada)",
-              "value": "No hay un botón de Editar en la fila ni en la tarjeta. Abra el trabajo (haga clic en la fila/tarjeta) para mostrar el diálogo de detalle y luego haga clic en su acción Editar. El diálogo de detalle se cierra devolviendo {action:'edit'} y el backlog vuelve a abrir el mismo diálogo en modo de edición (título 'Editar trabajo', botón de guardar 'Guardar cambios'). En modo de edición, el selector de Tipo de pista y la asociación de línea de pedido de venta se ocultan ambos; Título, Descripción, Cliente, Responsable, Prioridad y Fecha de vencimiento siguen siendo editables."
+              "label": "Editar un trabajo",
+              "value": "No hay un botón de Editar en la fila ni en la tarjeta. Abra el trabajo primero y luego use su acción Editar. Se vuelve a abrir en el mismo panel que usa para crear trabajos, ahora en modo de edición (titulado 'Editar trabajo' con un botón 'Guardar cambios'). En modo de edición se ocultan el campo Tipo de pista y el vínculo de línea de pedido de venta; el título, la descripción, el cliente, el responsable, la prioridad y la fecha de vencimiento aún se pueden cambiar."
             }
           ]
         },
@@ -286,23 +286,23 @@
           "items": [
             {
               "label": "Alternar Mostrar archivados / Mostrar activos",
-              "value": "Botón de icono adicional en el encabezado de la página, representado solo cuando el usuario tiene el rol de Administrador. Icono: 'inventory' (vista activa) cambia a 'inventory_2' (vista de archivados); la información sobre herramientas y el aria-label alternan entre 'Mostrar trabajos archivados' y 'Mostrar trabajos activos'; aria-pressed refleja el estado. Al hacer clic se invierte showArchived() y se vuelve a obtener la lista mediante getJobs({ isArchived: true/false }): es una obtención del lado del servidor de un conjunto de trabajos separado, no un filtro del cliente. Al cambiar también se borra cualquier selección actual."
+              "value": "Un botón adicional en el encabezado de la página, visible solo para administradores. Haga clic en él para cambiar la lista entre trabajos activos y archivados; el icono y la información sobre herramientas cambian para coincidir. Cada vista se carga de nuevo desde el servidor, no se filtra en pantalla. Al cambiar también se borra cualquier selección actual."
             },
             {
-              "label": "Columna Acciones (Desarchivar)",
-              "value": "Se agrega una columna Acciones final (90px, alineada al centro) a la tabla solo cuando showArchived() && isAdmin(). Cada fila archivada recibe un botón de icono Desarchivar (icono 'unarchive', información sobre herramientas 'Desarchivar'). Al hacer clic (event.stopPropagation para que NO se abra el diálogo de detalle de la fila) se muestra un diálogo de confirmación ('¿Restaurar este trabajo?', el mensaje nombra el número de trabajo); al confirmar, hace POST a /jobs/{id}/unarchive, muestra un snackbar de éxito y recarga para que el trabajo ahora activo salga de la vista de archivados."
+              "label": "Desarchivar (una sola fila)",
+              "value": "En la vista de archivados, cada fila incorpora un botón Desarchivar. Haga clic en él y confirme '¿Restaurar este trabajo?' para recuperar ese único trabajo. Sale de la vista de archivados y vuelve a su tablero. Hacer clic en él no abre el detalle del trabajo."
             },
             {
-              "label": "Selección de filas (vista de archivados)",
-              "value": "La tabla de datos es [selectable] solo cuando showArchived() && isAdmin(), agregando una columna de casilla de verificación. selectionChange alimenta selectedJobs(); selectionCount() impulsa la barra masiva. La selección se borra al cambiar de vista o tras una acción masiva exitosa."
+              "label": "Seleccionar filas (vista de archivados)",
+              "value": "En la vista de archivados, aparece una casilla de verificación en cada fila para que pueda seleccionar varios trabajos a la vez. La selección se borra al cambiar de vista o al terminar una acción masiva."
             },
             {
               "label": "Barra de acción masiva",
-              "value": "Aparece (clase bulk-bar, fija en la parte inferior) solo cuando showArchived() && isAdmin() && selectionCount() > 0. Muestra '{n} seleccionados', un botón 'Desarchivar seleccionados' y una X para borrar la selección. El botón Desarchivar seleccionados confirma ('¿Restaurar los trabajos seleccionados?', el conteo en el mensaje), luego hace PATCH a /jobs/bulk/unarchive con los ids seleccionados; un snackbar de éxito informa cuántos se restauraron."
+              "value": "Aparece en la parte inferior una vez que selecciona trabajos archivados. Muestra cuántos están seleccionados, un botón 'Desarchivar seleccionados' y una X para borrar la selección. Después de confirmar '¿Restaurar los trabajos seleccionados?', todos se restauran y un mensaje informa cuántos."
             },
             {
-              "label": "Restricción de administrador",
-              "value": "La alternancia, la columna Acciones, la selección de filas y la barra masiva están todas restringidas en el cliente detrás de isAdmin(). El servidor impone de forma independiente [Authorize(Roles = \"Admin\")] en los endpoints de desarchivar, por lo que la vía de recuperación está protegida incluso si se eluden las comprobaciones del cliente."
+              "label": "Solo administrador",
+              "value": "La alternancia, las acciones de Desarchivar, la selección de filas y la barra masiva están todas limitadas a los administradores, tanto en pantalla como en el servidor, de modo que restaurar trabajo que alguien archivó deliberadamente sigue protegido."
             }
           ]
         },
@@ -310,16 +310,16 @@
           "heading": "Carga de datos",
           "items": [
             {
-              "label": "Carga inicial",
-              "value": "Usa LoadingService.track() con forkJoin para cargar trabajos, tipos de pista y usuarios simultáneamente. Se muestra una superposición de carga global con el mensaje 'Cargando backlog...'."
+              "label": "Cuando se abre la página",
+              "value": "Los trabajos, las pistas y las personas se cargan juntos, con una superposición de página completa 'Cargando backlog...' mientras lo hacen."
             },
             {
-              "label": "Actualización tras guardar",
-              "value": "Después de crear o editar un trabajo mediante el diálogo, la lista de trabajos se vuelve a cargar desde la API. El diálogo se cierra y aparecen los datos actualizados."
+              "label": "Después de guardar",
+              "value": "Cuando crea o edita un trabajo, el panel se cierra y la lista se vuelve a cargar para que aparezcan sus cambios."
             },
             {
-              "label": "Estado de error",
-              "value": "Si la carga inicial falla, la página muestra un icono de error (error_outline) con un mensaje de fallo en lugar del contenido de la tabla/tarjetas."
+              "label": "Si la carga falla",
+              "value": "Si la página no puede cargar, muestra un icono de error y un mensaje en lugar de la lista o las tarjetas."
             }
           ]
         },
@@ -328,19 +328,19 @@
           "items": [
             {
               "label": "Baja",
-              "value": "#94a3b8 (gris pizarra)"
+              "value": "Gris pizarra"
             },
             {
               "label": "Normal",
-              "value": "#0d9488 (verde azulado)"
+              "value": "Verde azulado"
             },
             {
               "label": "Alta",
-              "value": "#f59e0b (ámbar)"
+              "value": "Ámbar"
             },
             {
               "label": "Urgente",
-              "value": "#dc2626 (rojo)"
+              "value": "Rojo"
             }
           ]
         }
@@ -411,27 +411,27 @@
           "options": [
             {
               "id": "a",
-              "text": "La URL se actualiza para incluir ?view=card y la preferencia se guarda para su próxima visita",
+              "text": "El enlace se actualiza para indicar la vista de tarjetas, y su elección se recuerda para la próxima vez",
               "isCorrect": true
             },
             {
               "id": "b",
-              "text": "Solo cambia la presentación: no se actualiza la URL ni la preferencia"
+              "text": "Solo cambia la presentación: no se recuerda nada"
             },
             {
               "id": "c",
-              "text": "Es redirigido a una ruta completamente diferente (/backlog/cards)"
+              "text": "Es llevado a una página completamente diferente"
             },
             {
               "id": "d",
               "text": "La vista de tarjetas se abre en una nueva pestaña del navegador"
             }
           ],
-          "explanation": "El modo de vista se sincroniza con la URL mediante el parámetro de consulta ?view=card y se guarda en las preferencias del usuario (clave: backlog:viewMode). La vista de tabla es la predeterminada y no agrega un parámetro de consulta. Su elección persiste entre sesiones."
+          "explanation": "Cuando cambia a tarjetas, el enlace de la página se actualiza para indicarlo, y su elección se recuerda para que el backlog se abra de la misma forma la próxima vez. La tabla es la predeterminada y no cambia el enlace. Su elección se mantiene entre sesiones."
         },
         {
           "id": "bl4",
-          "text": "En el diálogo de creación de trabajos, ¿qué campos son obligatorios?",
+          "text": "En el panel para crear un trabajo, ¿qué campos son obligatorios?",
           "options": [
             {
               "id": "a",
@@ -448,10 +448,10 @@
             },
             {
               "id": "d",
-              "text": "Solo el Título es obligatorio; el Tipo de pista se selecciona automáticamente"
+              "text": "Solo el Título es obligatorio; el Tipo de pista se elige por usted"
             }
           ],
-          "explanation": "El diálogo de creación de trabajos requiere Título (máx. 200 caracteres) y Tipo de pista. Todos los demás campos —Descripción, Cliente, Responsable, Prioridad y Fecha de vencimiento— son opcionales. La Prioridad se establece de forma predeterminada en Normal si no se cambia."
+          "explanation": "Crear un trabajo requiere un Título (hasta 200 caracteres) y un Tipo de pista. Todo lo demás —Descripción, Cliente, Responsable, Prioridad y Fecha de vencimiento— es opcional. La Prioridad empieza en Normal a menos que la cambie."
         },
         {
           "id": "bl5",
@@ -479,7 +479,7 @@
         },
         {
           "id": "bl6",
-          "text": "Una fila de trabajo en la tabla tiene un tinte de fondo rojo. ¿Qué indica esto?",
+          "text": "Una fila de trabajo en la lista tiene un tinte de fondo rojo. ¿Qué indica esto?",
           "options": [
             {
               "id": "a",
@@ -499,67 +499,67 @@
               "text": "El trabajo está actualmente en espera"
             }
           ],
-          "explanation": "La clase row--overdue se aplica cuando job.isOverdue es true (la fecha de vencimiento ya pasó). Esto agrega un sutil tinte rojo de fondo a toda la fila. Nota: el tenue tinte de color de etapa (--row-tint) es independiente y siempre está presente."
+          "explanation": "Una fila se pone tenuemente roja cuando la fecha de vencimiento del trabajo ya pasó. Esto es independiente del tenue tinte de color de etapa que lleva cada fila, que siempre está presente."
         },
         {
           "id": "bl7",
-          "text": "¿Qué controla la propiedad CSS personalizada --row-tint en la tabla del backlog?",
+          "text": "Cada fila de la lista lleva un tenue tinte de fondo. ¿Qué le indica ese tinte?",
           "options": [
             {
               "id": "a",
-              "text": "Establece el color del texto del título del trabajo para que coincida con la prioridad"
+              "text": "Coincide con el color de prioridad del trabajo"
             },
             {
               "id": "b",
-              "text": "Proporciona un tenue tinte de fondo que coincide con el color de la etapa actual del trabajo",
+              "text": "Coincide con el color de la etapa actual del trabajo",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Controla el color del borde del lado izquierdo de cada fila"
+              "text": "Marca el borde izquierdo de cada fila"
             },
             {
               "id": "d",
-              "text": "Resalta la fila cuando el usuario pasa el cursor sobre ella"
+              "text": "Resalta la fila cuando pasa el cursor sobre ella"
             }
           ],
-          "explanation": "La propiedad CSS personalizada --row-tint se establece en el color de etapa del trabajo (job.stageColor) mediante la función backlogRowStyle. Esto le da a cada fila un sutil tinte de fondo que indica visualmente en qué etapa está el trabajo, incluso sin leer la columna Etapa."
+          "explanation": "Cada fila lleva un tenue tinte de fondo con el color de su etapa actual. Esto le permite reconocer la etapa de un trabajo de un vistazo, incluso sin leer la columna Etapa."
         },
         {
           "id": "bl8",
-          "text": "¿Cuándo aparece el campo Tipo de pista en el diálogo de trabajo?",
+          "text": "¿Cuándo aparece el campo Tipo de pista en el panel de trabajo?",
           "options": [
             {
               "id": "a",
-              "text": "Siempre aparece tanto en modo de creación como de edición"
+              "text": "Siempre aparece, tanto al crear como al editar"
             },
             {
               "id": "b",
-              "text": "Solo aparece en modo de creación: el tipo de pista no se puede cambiar después de la creación",
+              "text": "Solo al crear: la pista no se puede cambiar después de crear el trabajo",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Solo aparece en modo de edición: el modo de creación asigna automáticamente una pista predeterminada"
+              "text": "Solo al editar: crear un trabajo elige una pista predeterminada por usted"
             },
             {
               "id": "d",
-              "text": "Aparece como un campo de visualización de solo lectura en modo de edición"
+              "text": "Aparece como un campo de solo lectura al editar"
             }
           ],
-          "explanation": "El selector de Tipo de pista (data-testid: job-track-type) solo se muestra en modo de creación. Una vez creado un trabajo, su tipo de pista es permanente y determina a qué tablero kanban pertenece. En modo de edición, el campo se oculta por completo."
+          "explanation": "El campo Tipo de pista solo aparece cuando crea un trabajo. Una vez que el trabajo existe, su pista es fija y decide a qué tablero pertenece, así que el campo se oculta por completo cuando edita."
         },
         {
           "id": "bl9",
-          "text": "¿Cómo maneja el Backlog los enlaces directos al detalle de un trabajo específico?",
+          "text": "¿Cómo puede compartir un enlace directo al detalle de un solo trabajo?",
           "options": [
             {
               "id": "a",
-              "text": "Los ID de trabajo se almacenan en localStorage y se restauran al cargar la página"
+              "text": "No puede: los enlaces siempre abren la lista del backlog"
             },
             {
               "id": "b",
-              "text": "La URL incluye ?detail=job:{id}, lo que activa la apertura automática del diálogo de detalle al cargar la página",
+              "text": "Al abrir un trabajo, el enlace de la página se actualiza para apuntar a él, y el enlace vuelve a abrir su detalle por sí solo",
               "isCorrect": true
             },
             {
@@ -568,10 +568,10 @@
             },
             {
               "id": "d",
-              "text": "El ID del trabajo se almacena en un segmento de ruta como /backlog/jobs/123"
+              "text": "Copia el número de trabajo y lo pega en un cuadro de búsqueda"
             }
           ],
-          "explanation": "Cuando hace clic en una fila o tarjeta, la URL se actualiza para incluir ?detail=job:{id} mediante el DetailDialogService. Al cargar la página, si este parámetro de consulta está presente, el diálogo de detalle se abre automáticamente. Esto hace que los enlaces se puedan compartir y guardar como marcadores, y admite la navegación atrás/adelante del navegador."
+          "explanation": "Cuando abre un trabajo, el enlace de la página se actualiza para apuntar a él. Compartir o guardar ese enlace vuelve a abrir el detalle del trabajo por sí solo al cargar la página, y hace que funcionen los botones atrás y adelante del navegador."
         },
         {
           "id": "bl10",
@@ -611,7 +611,7 @@
             },
             {
               "id": "c",
-              "text": "El trabajo tiene una o más retenciones activas (job.activeHolds.length > 0)",
+              "text": "El trabajo tiene una o más retenciones activas",
               "isCorrect": true
             },
             {
@@ -619,39 +619,39 @@
               "text": "El responsable del trabajo no ha iniciado sesión recientemente"
             }
           ],
-          "explanation": "La insignia 'En espera' (una ficha de color de advertencia) aparece en el encabezado de la tarjeta cuando job.activeHolds.length > 0. Las retenciones se gestionan a través de las funciones del ciclo de vida del estado del diálogo de detalle del trabajo e indican que el trabajo está bloqueado o pausado."
+          "explanation": "La insignia 'En espera', una etiqueta de color de advertencia en la parte superior de la tarjeta, aparece cuando el trabajo tiene una o más retenciones activas. Las retenciones se colocan desde el detalle del trabajo e indican que el trabajo está bloqueado o pausado."
         },
         {
           "id": "bl12",
-          "text": "¿Qué color representa el punto de un trabajo de prioridad 'Alta' en el backlog?",
+          "text": "¿Qué color representa el punto de un trabajo de prioridad 'Alta' en la lista del backlog?",
           "options": [
             {
               "id": "a",
-              "text": "Rojo (#dc2626)"
+              "text": "Rojo"
             },
             {
               "id": "b",
-              "text": "Verde azulado (#0d9488)"
+              "text": "Verde azulado"
             },
             {
               "id": "c",
-              "text": "Ámbar (#f59e0b)",
+              "text": "Ámbar",
               "isCorrect": true
             },
             {
               "id": "d",
-              "text": "Gris pizarra (#94a3b8)"
+              "text": "Gris pizarra"
             }
           ],
-          "explanation": "Los colores de prioridad son: Baja = #94a3b8 (gris pizarra), Normal = #0d9488 (verde azulado), Alta = #f59e0b (ámbar), Urgente = #dc2626 (rojo). Estos colores canónicos se definen en la constante PRIORITY_COLORS que usa el punto de la tabla. (La vista de tarjetas resuelve los colores del punto mediante un mapa separado y no coincidente; vea la Referencia avanzada para esa discrepancia de paleta.)"
+          "explanation": "En la lista, los colores de prioridad son: Baja es gris pizarra, Normal es verde azulado, Alta es ámbar y Urgente es rojo. Estos son los colores confiables. La vista de tarjetas puede mostrar colores diferentes; vea la Referencia avanzada para esa discrepancia."
         },
         {
           "id": "bl13",
-          "text": "¿Cómo se muestran los errores de validación cuando el botón Guardar está deshabilitado en el diálogo de creación de trabajos?",
+          "text": "¿Cómo averigua qué falta cuando el botón Guardar está deshabilitado en el panel de trabajo?",
           "options": [
             {
               "id": "a",
-              "text": "Nada: el botón está atenuado sin retroalimentación adicional"
+              "text": "Nada: el botón está atenuado sin ninguna otra indicación"
             },
             {
               "id": "b",
@@ -659,39 +659,39 @@
             },
             {
               "id": "c",
-              "text": "Un icono de triángulo de advertencia rojo con un conteo de problemas se ubica a la izquierda del botón Guardar; al hacer clic en él se abre un popover con la lista de errores (p. ej., 'El título es obligatorio')",
+              "text": "Un triángulo de advertencia rojo con un conteo se ubica a la izquierda de Guardar; haga clic en él para ver la lista de lo que falta por corregir (como 'El título es obligatorio')",
               "isCorrect": true
             },
             {
               "id": "d",
-              "text": "Los campos no válidos parpadean en rojo para llamar la atención"
+              "text": "Los campos vacíos parpadean en rojo para llamar la atención"
             }
           ],
-          "explanation": "El botón Guardar está envuelto en el estereotipo <app-validation-button> (ValidationButtonComponent). Cuando el formulario no es válido, aparece un icono de triángulo de advertencia rojo con un conteo de problemas a la izquierda del botón Guardar, que sigue deshabilitado. Al hacer clic en ese icono se abre un popover con la lista de infracciones, como 'El título es obligatorio' o 'El tipo de pista es obligatorio'. Este es el patrón estándar de validación de formularios de Forge: sin mensajes mat-error en línea, y se revela al hacer clic en lugar de con un tooltip al pasar el cursor."
+          "explanation": "Cuando el formulario no está listo, un triángulo de advertencia rojo con un conteo se ubica a la izquierda del botón Guardar, que sigue deshabilitado. Haga clic en él para ver exactamente qué falta por corregir, como 'El título es obligatorio' o 'El tipo de pista es obligatorio'. Este es el patrón estándar de Forge: hace clic para revelar la lista en lugar de pasar el cursor para un tooltip."
         },
         {
           "id": "bl14",
-          "text": "¿Cómo funciona el filtro de Tipo de pista en el Backlog?",
+          "text": "¿Cómo decide el filtro de Tipo de pista qué trabajos mostrar?",
           "options": [
             {
               "id": "a",
-              "text": "Oculta todos los trabajos excepto aquellos cuyo job.trackTypeId coincide con la pista seleccionada"
+              "text": "Por una etiqueta de pista guardada directamente en cada trabajo"
             },
             {
               "id": "b",
-              "text": "Filtra los trabajos haciendo coincidir el nombre de la etapa actual del trabajo con la lista de etapas del tipo de pista seleccionado",
+              "text": "Por si la etapa actual del trabajo pertenece a la pista seleccionada",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Agrupa las filas de la tabla por tipo de pista, contrayendo las pistas no seleccionadas"
+              "text": "Agrupa las filas por pista y contrae las que no eligió"
             },
             {
               "id": "d",
-              "text": "Lo lleva al Tablero Kanban de la pista seleccionada"
+              "text": "Lo lleva al Tablero Kanban de esa pista"
             }
           ],
-          "explanation": "El filtro de Tipo de pista busca las etapas de la pista seleccionada, crea un Set de nombres de etapa y filtra los trabajos solo a aquellos cuyo stageName actual está en ese conjunto. Esto significa que si un trabajo está en una etapa que pertenece a la pista seleccionada, aparece: el filtro funciona mediante la pertenencia a la etapa, no mediante un trackTypeId directo en el trabajo."
+          "explanation": "El filtro muestra un trabajo cuando su etapa actual pertenece a la pista seleccionada. Así, un trabajo aparece según la etapa en la que está, no según una etiqueta de pista adjunta al propio trabajo."
         },
         {
           "id": "bl15",
@@ -727,7 +727,7 @@
             },
             {
               "id": "b",
-              "text": "Hacer clic en el botón de alternancia de caja de inventario del encabezado de la página para cambiar de trabajos activos a archivados",
+              "text": "Hacer clic en el botón de trabajos archivados del encabezado de la página para cambiar de trabajos activos a archivados",
               "isCorrect": true
             },
             {
@@ -739,7 +739,7 @@
               "text": "Los trabajos archivados no se pueden ver: se eliminan de forma permanente"
             }
           ],
-          "explanation": "Los administradores obtienen un botón de icono adicional (un icono de caja de inventario) en el encabezado de la página. Al hacer clic se invierte la alternancia Mostrar archivados / Mostrar activos y se vuelve a obtener la lista del servidor con el indicador de archivado establecido: un conjunto de trabajos separado, no un filtro del lado del cliente. Los no administradores nunca ven esta alternancia. Los trabajos se archivan (eliminación lógica), nunca se eliminan de forma permanente, por lo que siguen siendo totalmente recuperables."
+          "explanation": "Los administradores obtienen un botón adicional en el encabezado de la página que cambia la lista entre trabajos activos y archivados. Cada vista se carga de nuevo desde el servidor, no se filtra en pantalla. Los no administradores nunca ven este botón. Los trabajos archivados nunca se eliminan de verdad, por lo que siempre se pueden restaurar."
         },
         {
           "id": "bl17",
@@ -747,7 +747,7 @@
           "options": [
             {
               "id": "a",
-              "text": "Seleccionar las filas archivadas con sus casillas de verificación, luego hacer clic en 'Desarchivar seleccionados' en la barra de acción masiva y confirmar",
+              "text": "Marcar las casillas de las filas archivadas, luego hacer clic en 'Desarchivar seleccionados' en la barra de acción masiva y confirmar",
               "isCorrect": true
             },
             {
@@ -760,34 +760,34 @@
             },
             {
               "id": "d",
-              "text": "Cambiar el estado de cada trabajo a 'Activo' en el diálogo de creación"
+              "text": "Cambiar el estado de cada trabajo a 'Activo' en el panel de creación"
             }
           ],
-          "explanation": "En la vista de archivados, la tabla se vuelve seleccionable (una casilla de verificación por fila). Al seleccionar uno o más trabajos se levanta una barra de acción masiva en la parte inferior que muestra el conteo y un botón 'Desarchivar seleccionados'. Después de confirmar '¿Restaurar los trabajos seleccionados?', todos los trabajos seleccionados se restauran en una sola operación (PATCH /jobs/bulk/unarchive) y un mensaje de éxito informa cuántos se restauraron. Un botón Desarchivar de una sola fila en la columna Acciones maneja el caso de uno en uno."
+          "explanation": "En la vista de archivados aparece una casilla de verificación en cada fila. Marque uno o más trabajos y una barra de acción masiva sube en la parte inferior con el conteo y un botón 'Desarchivar seleccionados'. Después de confirmar '¿Restaurar los trabajos seleccionados?', todos se restauran a la vez y un mensaje informa cuántos. También hay un botón Desarchivar por fila para el caso de uno en uno."
         },
         {
           "id": "bl18",
-          "text": "Abre un trabajo y necesita cambiar su tipo de pista de Producción a Mantenimiento. ¿Qué le permite hacer la interfaz?",
+          "text": "Abre un trabajo y necesita cambiar su pista de Producción a Mantenimiento. ¿Qué le permite hacer la aplicación?",
           "options": [
             {
               "id": "a",
-              "text": "Abrir el diálogo de detalle del trabajo, hacer clic en Editar y elegir un nuevo Tipo de pista de la lista desplegable"
+              "text": "Abrir el trabajo, hacer clic en Editar y elegir una nueva pista del menú"
             },
             {
               "id": "b",
-              "text": "Nada: el tipo de pista es inmutable; el campo Tipo de pista se oculta en modo de edición, por lo que archiva el trabajo y crea uno de reemplazo en la pista correcta",
+              "text": "Nada: la pista no se puede cambiar; el campo Pista se oculta al editar, por lo que archiva el trabajo y crea uno de reemplazo en la pista correcta",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Arrastrar el trabajo al tablero de Mantenimiento, lo que reasigna su tipo de pista"
+              "text": "Arrastrar el trabajo al tablero de Mantenimiento, lo que reasigna su pista"
             },
             {
               "id": "d",
-              "text": "El tipo de pista cambia automáticamente según el equipo del responsable"
+              "text": "La pista cambia sola según el equipo del responsable"
             }
           ],
-          "explanation": "Para editar un trabajo lo abre (haga clic en la fila/tarjeta), luego usa la acción Editar del diálogo de detalle, que vuelve a abrir el trabajo en el diálogo de creación/edición en modo de edición. En modo de edición, el campo Tipo de pista se oculta por completo: el tipo de pista de un trabajo se fija en el momento de la creación porque determina en qué tablero Kanban vive el trabajo. Para mover un trabajo a una pista diferente, archívelo y cree uno de reemplazo en la pista correcta."
+          "explanation": "Para editar un trabajo lo abre, luego usa su acción Editar, que lo vuelve a abrir en modo de edición. En modo de edición, el campo Pista se oculta por completo: la pista de un trabajo se fija cuando se crea porque decide en qué tablero vive el trabajo. Para mover un trabajo a una pista diferente, archívelo y cree uno de reemplazo en la pista correcta."
         }
       ]
     }

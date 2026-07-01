@@ -4,7 +4,7 @@
     "title": "Descripción general del Asistente de IA",
     "summary": "Qué hace la función de Asistente de IA, cómo funcionan las conversaciones y cómo aprovechar al máximo los asistentes especializados por dominio.",
     "contentJson": {
-      "body": "## Descripción general del Asistente de IA\n\nLa función de Asistente de IA le brinda acceso a asistentes de IA especializados por dominio que pueden responder preguntas, redactar contenido y ayudar con las tareas del día a día. Cada asistente está capacitado para un área específica — Recursos Humanos, Compras, Ventas o ingeniería general — de modo que las respuestas que reciba sean relevantes para su trabajo.\n\n### Cómo funciona\n\nLa página de IA utiliza un diseño de dos paneles:\n- **Barra lateral (izquierda):** Una lista de tarjetas de asistentes que muestra el icono, el nombre y la descripción de cada asistente, además de un indicador de actividad para aquel con el que está conversando en ese momento.\n- **Área de chat (derecha):** Donde ocurre la conversación. Cuando selecciona un asistente por primera vez, verá una pantalla de bienvenida con el icono, el nombre y la descripción del asistente, así como una cuadrícula de preguntas iniciales para ayudarle a comenzar.\n\n### Iniciar una conversación\n\nHaga clic en cualquier tarjeta de asistente en la barra lateral para seleccionarla. Si todavía no ha conversado con ese asistente, verá la pantalla de bienvenida con preguntas iniciales. Haga clic en una pregunta inicial o escriba la suya propia en el campo de mensaje en la parte inferior.\n\n### Campo de mensaje\n\n- Escriba su pregunta en el campo de texto (el marcador de posición muestra 'Preguntar a {assistantName}')\n- Presione **Enter** para enviar, **Shift+Enter** para agregar una nueva línea\n- El botón **Send** (icono send) está deshabilitado cuando el campo está vacío o cuando se está generando una respuesta\n- El botón **Clear Chat** (icono delete_sweep) borra la conversación actual y regresa a la pantalla de bienvenida — aparece en el encabezado del chat solo cuando la conversación tiene al menos un mensaje (está oculto cuando no hay mensajes)\n\n### Cómo funciona el contexto\n\nEl asistente ve los últimos 10 mensajes de su conversación como contexto, de modo que pueda dar seguimiento a preguntas anteriores. Las conversaciones se mantienen por asistente en memoria — cambiar a un asistente diferente y volver conservará su historial de chat durante la sesión actual. Sin embargo, las conversaciones no se conservan entre sesiones (cerrar el navegador las borra).\n\n### Respuestas del asistente\n\nLos mensajes del asistente aparecen con un avatar y un icono. Mientras el asistente está pensando, verá un indicador de escritura (tres puntos animados). Las respuestas pueden incluir texto con formato, listas y fragmentos de código según la pregunta.\n\n### Cuándo usar el Asistente de IA\n\n- Cuando necesite una respuesta rápida sobre un proceso o una política\n- Cuando redacte descripciones de puestos, correos electrónicos o documentación\n- Cuando quiera buscar entre documentos cargados (con tecnología RAG)\n- Cuando explore escenarios hipotéticos para compras o ventas\n- Cuando necesite ayuda para interpretar datos de control de calidad o métricas de producción",
+      "body": "## Descripción general del Asistente de IA\n\nEl Asistente de IA le ofrece un conjunto de ayudantes de IA que pueden responder preguntas, redactar contenido y ayudar con las tareas del día a día. Cada uno se enfoca en un área específica — Recursos Humanos, Compras, Ventas o trabajo general — de modo que las respuestas encajen con lo que está haciendo.\n\n### Cómo funciona\n\nLa página de IA tiene dos lados:\n- **Barra lateral (izquierda):** Una lista de asistentes. Cada tarjeta muestra su nombre y una breve descripción, y el que está usando aparece resaltado.\n- **Área de chat (derecha):** Donde ocurre la conversación. Cuando elige un asistente por primera vez, verá una pantalla de bienvenida con su nombre, su descripción y algunas preguntas iniciales para empezar.\n\n### Iniciar una conversación\n\nHaga clic en un asistente en la barra lateral para seleccionarlo. Si todavía no ha conversado con él, verá la pantalla de bienvenida con preguntas iniciales. Haga clic en una pregunta inicial o escriba la suya en el campo de la parte inferior.\n\n### El campo de mensaje\n\n- Escriba su pregunta en el campo. El texto de ayuda le indica con qué asistente está hablando.\n- Presione **Enter** para enviar, o **Shift+Enter** para agregar una nueva línea.\n- **Enviar** está atenuado cuando el campo está vacío o cuando todavía está llegando una respuesta.\n- **Borrar chat** borra la conversación y regresa a la pantalla de bienvenida. Solo aparece cuando ha enviado al menos un mensaje.\n\n### Cómo funciona el contexto\n\nEl asistente lee sus mensajes recientes para poder dar seguimiento a lo que preguntó antes. Cada asistente conserva su propia conversación mientras permanece en la página — cambie a otro y vuelva, y su chat seguirá ahí durante esta sesión. Las conversaciones no se guardan entre sesiones, así que cerrar el navegador las borra.\n\n### Respuestas del asistente\n\nLas respuestas aparecen a la izquierda. Mientras el asistente está pensando, verá tres puntos en movimiento. Las respuestas pueden incluir encabezados, listas y código, según la pregunta.\n\n### Cuándo usar el Asistente de IA\n\n- Cuando necesite una respuesta rápida sobre un proceso o una política\n- Cuando redacte descripciones de puestos, correos electrónicos o documentación\n- Cuando quiera encontrar respuestas entre sus documentos cargados\n- Cuando explore ideas hipotéticas para compras o ventas\n- Cuando necesite ayuda para entender datos de calidad o de producción",
       "sections": []
     }
   },
@@ -20,7 +20,7 @@
           "element": ".ai-sidebar",
           "popover": {
             "title": "Barra lateral de asistentes",
-            "description": "Esta barra lateral enumera todos los asistentes de IA disponibles. Cada tarjeta muestra el icono, el nombre y una breve descripción del asistente. El asistente activo en ese momento se resalta con un indicador de actividad. Haga clic en cualquier tarjeta para cambiar de asistente.",
+            "description": "Esta barra lateral enumera todos los asistentes de IA que puede usar. Cada tarjeta muestra el nombre del asistente y una breve descripción. El que está usando aparece resaltado. Haga clic en cualquier tarjeta para cambiar.",
             "side": "right"
           }
         },
@@ -28,31 +28,31 @@
           "element": ".ai-chat",
           "popover": {
             "title": "Pantalla de bienvenida",
-            "description": "Cuando selecciona un asistente, esta área de bienvenida muestra el icono, el nombre y la descripción del asistente. Debajo hay una cuadrícula de preguntas iniciales — haga clic en cualquiera de ellas para comenzar una conversación sobre ese tema.",
+            "description": "Elija un asistente y esta área de bienvenida mostrará su nombre y descripción. Debajo hay algunas preguntas iniciales. Haga clic en una para comenzar una conversación sobre ese tema.",
             "side": "left"
           }
         },
         {
-          "element": ".ai-chat",
+          "element": ".ai-chat__starters",
           "popover": {
             "title": "Preguntas iniciales",
-            "description": "Estas preguntas preconfiguradas le ayudan a comenzar rápidamente. Cada asistente tiene su propio conjunto de preguntas iniciales relevantes. Haga clic en una para enviarla como su primer mensaje.",
+            "description": "Estas preguntas ya listas le ayudan a empezar rápido. Cada asistente tiene las suyas. Haga clic en una para enviarla como su primer mensaje.",
             "side": "top"
           }
         },
         {
-          "element": ".ai-chat",
+          "element": ".ai-chat__input",
           "popover": {
             "title": "Campo de mensaje",
-            "description": "Escriba su pregunta aquí. Presione Enter para enviar o Shift+Enter para una nueva línea. El marcador de posición muestra 'Preguntar a {assistantName}' para recordarle con qué asistente está hablando.",
+            "description": "Escriba su pregunta aquí. Presione Enter para enviar o Shift+Enter para agregar una nueva línea. El texto de ayuda le indica con qué asistente está hablando.",
             "side": "top"
           }
         },
         {
-          "element": ".ai-chat",
+          "element": ".ai-chat__send",
           "popover": {
             "title": "Enviar mensaje",
-            "description": "Haga clic para enviar su mensaje (o simplemente presione Enter). El botón está deshabilitado cuando el campo está vacío o mientras el asistente está generando una respuesta. Busque el indicador de escritura (tres puntos animados) mientras espera.",
+            "description": "Haga clic para enviar su mensaje, o simplemente presione Enter. Está atenuado cuando el campo está vacío o el asistente todavía está respondiendo. Tres puntos en movimiento indican que está preparando su respuesta.",
             "side": "bottom"
           }
         }
@@ -71,23 +71,23 @@
           "items": [
             {
               "label": "Tarjeta de asistente",
-              "value": "Muestra el icono, el nombre y la descripción de cada asistente. Haga clic para seleccionar. El asistente activo se resalta con un indicador visual."
+              "value": "Muestra el icono, el nombre y la descripción de cada asistente. Haga clic para seleccionar. El que está usando aparece resaltado."
             },
             {
               "label": "Icono",
-              "value": "Icono de Material que representa el dominio del asistente (p. ej., school para Recursos Humanos, shopping_cart para Compras). Configurado por el administrador."
+              "value": "Una pequeña imagen que sugiere el área del asistente — por ejemplo, un birrete para Recursos Humanos o un carrito para Compras. Lo establece su administrador."
             },
             {
               "label": "Nombre",
-              "value": "El nombre visible del asistente (p. ej., 'Asistente de RR. HH.', 'Asesor de Ventas'). Lo establece el administrador en la configuración de Asistentes de IA."
+              "value": "El nombre del asistente, como 'Asistente de RR. HH.' o 'Asesor de Ventas'. Lo establece su administrador."
             },
             {
               "label": "Descripción",
-              "value": "Resumen breve de la especialidad del asistente. Se muestra en la tarjeta y en la pantalla de bienvenida."
+              "value": "Un resumen breve de en qué es bueno el asistente. Se muestra en la tarjeta y en la pantalla de bienvenida."
             },
             {
               "label": "Indicador de actividad",
-              "value": "Resaltado visual en la tarjeta del asistente seleccionado en ese momento. Solo un asistente está activo a la vez."
+              "value": "Un resaltado en el asistente que está usando en ese momento. Solo uno está activo a la vez."
             }
           ]
         },
@@ -96,19 +96,19 @@
           "items": [
             {
               "label": "Icono del asistente (grande)",
-              "value": "Visualización destacada del icono del asistente seleccionado, mostrado centrado encima del nombre."
+              "value": "El icono del asistente seleccionado, mostrado en grande y centrado encima de su nombre."
             },
             {
               "label": "Nombre del asistente",
-              "value": "Encabezado grande que muestra con qué asistente está conversando."
+              "value": "Un encabezado grande que muestra con qué asistente está conversando."
             },
             {
               "label": "Descripción del asistente",
-              "value": "Descripción completa de las capacidades y el área de enfoque del asistente."
+              "value": "Una descripción más completa de en qué puede ayudarle el asistente."
             },
             {
-              "label": "Cuadrícula de preguntas iniciales",
-              "value": "Cuadrícula de tarjetas de preguntas en las que se puede hacer clic. Cada asistente tiene su propio conjunto de preguntas iniciales configuradas por el administrador. Al hacer clic en una, se envía como el primer mensaje."
+              "label": "Preguntas iniciales",
+              "value": "Un conjunto de preguntas en las que se puede hacer clic. Cada asistente tiene las suyas, definidas por su administrador. Haga clic en una para enviarla como su primer mensaje."
             }
           ]
         },
@@ -116,20 +116,20 @@
           "heading": "Área de chat — Hilo de mensajes",
           "items": [
             {
-              "label": "Mensajes del usuario",
-              "value": "Burbujas alineadas a la derecha que muestran los mensajes que envió. Se muestran con sus iniciales/avatar."
+              "label": "Sus mensajes",
+              "value": "Burbujas a la derecha que muestran lo que envió, marcadas con sus iniciales."
             },
             {
               "label": "Mensajes del asistente",
-              "value": "Burbujas alineadas a la izquierda con el avatar y el icono del asistente. Pueden contener texto con formato, listas y bloques de código."
+              "value": "Burbujas a la izquierda que muestran las respuestas del asistente. Pueden incluir encabezados, listas y código."
             },
             {
               "label": "Indicador de escritura",
-              "value": "Tres puntos animados que se muestran mientras el asistente está generando una respuesta. Aparece en el área de mensajes del asistente."
+              "value": "Tres puntos en movimiento que aparecen mientras el asistente está escribiendo su respuesta."
             },
             {
               "label": "Historial de mensajes",
-              "value": "Hilo desplazable de todos los mensajes de la conversación actual. Los últimos 10 mensajes se envían como contexto a la API con cada nueva pregunta."
+              "value": "La lista desplazable de mensajes de esta conversación. El asistente repasa sus últimos mensajes para poder seguir el hilo."
             }
           ]
         },
@@ -137,20 +137,20 @@
           "heading": "Botones y acciones",
           "items": [
             {
-              "label": "Send (icono send)",
-              "value": "Envía el mensaje actual al asistente. Deshabilitado cuando el campo está vacío o mientras se está generando una respuesta. Atajo de teclado: Enter."
+              "label": "Enviar",
+              "value": "Envía su mensaje al asistente. Atenuado cuando el campo está vacío o mientras llega una respuesta. También puede simplemente presionar Enter."
             },
             {
-              "label": "Clear Chat (icono delete_sweep)",
-              "value": "Borra todos los mensajes del asistente actual y regresa a la pantalla de bienvenida. Aparece en el encabezado del chat solo cuando la conversación tiene al menos un mensaje — cuando no hay mensajes está oculto, no se muestra deshabilitado. No afecta las conversaciones de otros asistentes."
+              "label": "Borrar chat",
+              "value": "Borra la conversación del asistente actual y regresa a la pantalla de bienvenida. Solo aparece en el encabezado del chat cuando ha enviado al menos un mensaje; antes de eso está oculto. No afecta los chats de sus otros asistentes."
             },
             {
-              "label": "Pregunta inicial (clic en tarjeta)",
-              "value": "Envía la pregunta inicial seleccionada como su primer mensaje, dando inicio a la conversación."
+              "label": "Pregunta inicial",
+              "value": "Haga clic en una para enviarla como su primer mensaje e iniciar la conversación."
             },
             {
-              "label": "Tarjeta de asistente (clic en la barra lateral)",
-              "value": "Cambia al asistente seleccionado. Su conversación previa con cada asistente se conserva en memoria durante la sesión."
+              "label": "Tarjeta de asistente",
+              "value": "Haga clic para cambiar de asistente. Cada asistente conserva su propia conversación durante el resto de su sesión."
             }
           ]
         },
@@ -158,45 +158,45 @@
           "heading": "Comportamiento del campo de entrada",
           "items": [
             {
-              "label": "Campo de texto",
-              "value": "Campo de texto de varias líneas. Marcador de posición: 'Preguntar a {assistantName}' donde {assistantName} es el nombre del asistente actual."
+              "label": "Campo de mensaje",
+              "value": "Un campo de texto que admite varias líneas. El texto de ayuda le indica con qué asistente está hablando."
             },
             {
               "label": "Enter",
-              "value": "Envía el mensaje (equivalente a hacer clic en Send)."
+              "value": "Envía el mensaje — lo mismo que hacer clic en Enviar."
             },
             {
               "label": "Shift+Enter",
-              "value": "Inserta una nueva línea sin enviar. Úselo para preguntas de varias líneas."
+              "value": "Agrega una nueva línea sin enviar. Úselo para preguntas más largas de varias líneas."
             },
             {
               "label": "Campo vacío",
-              "value": "El botón Send está deshabilitado. No puede enviar un mensaje vacío."
+              "value": "Enviar está atenuado. No puede enviar un mensaje vacío."
             },
             {
               "label": "Durante el envío",
-              "value": "El botón Send está deshabilitado y muestra un estado de carga hasta que el asistente responde."
+              "value": "Enviar está atenuado y muestra un estado de ocupado hasta que el asistente responde."
             }
           ]
         },
         {
-          "heading": "Datos y API",
+          "heading": "Bueno saber",
           "items": [
             {
-              "label": "Lista de asistentes",
-              "value": "Se carga desde GET /api/v1/ai-assistants. Devuelve objetos AiAssistantListItem con id, name, description, icon, color, category, starterQuestions y el indicador isActive."
+              "label": "Qué asistentes ve",
+              "value": "La barra lateral enumera los asistentes que su administrador ha configurado y activado. Los asistentes nuevos o modificados aparecen de inmediato."
             },
             {
-              "label": "Solicitud de chat",
-              "value": "POST /api/v1/ai/assistants/{id}/chat con el cuerpo {question, history[]}. El historial incluye los últimos 10 mensajes como contexto."
+              "label": "Cómo funcionan las respuestas",
+              "value": "Cuando envía una pregunta, el asistente lee sus mensajes recientes para tener contexto y escribe una respuesta. La recibe en el chat."
             },
             {
-              "label": "Almacenamiento de la conversación",
-              "value": "Solo en memoria (no se conserva). Cada asistente tiene su propia conversación. Cerrar el navegador o actualizar la página borra todas las conversaciones."
+              "label": "Las conversaciones no se guardan",
+              "value": "Cada asistente conserva su propio chat solo durante su sesión actual. Cerrar o actualizar el navegador las borra todas."
             },
             {
-              "label": "Ruta",
-              "value": "/ai/{assistantId} — el ID del asistente seleccionado está en la URL, lo que la hace compartible/marcable como favorito."
+              "label": "Compartir un enlace",
+              "value": "El asistente en el que está forma parte de la dirección de la página, así que puede copiar el enlace y compartirlo. Un compañero que lo abra llega a la pantalla de bienvenida de ese asistente."
             }
           ]
         }
@@ -283,7 +283,7 @@
               "text": "Los últimos 50 mensajes o 4000 tokens, lo que sea menor"
             }
           ],
-          "explanation": "La API envía los últimos 10 mensajes como el arreglo history en la solicitud de chat. Esto le da al asistente suficiente contexto para dar seguimiento a temas recientes sin enviar datos en exceso."
+          "explanation": "El asistente repasa sus últimos 10 mensajes. Es suficiente para dar seguimiento a temas recientes sin arrastrar toda la conversación."
         },
         {
           "id": "ai4",
@@ -311,7 +311,7 @@
         },
         {
           "id": "ai5",
-          "text": "Acaba de seleccionar un asistente y el botón Clear Chat (icono delete_sweep) no aparece por ninguna parte en el encabezado del chat. ¿Por qué no se muestra?",
+          "text": "Acaba de seleccionar un asistente y el botón Borrar chat no aparece por ninguna parte en el encabezado del chat. ¿Por qué no se muestra?",
           "options": [
             {
               "id": "a",
@@ -328,10 +328,10 @@
             },
             {
               "id": "d",
-              "text": "Clear Chat solo está disponible para los roles de Admin y Gerente"
+              "text": "Borrar chat solo está disponible para los roles de Admin y Gerente"
             }
           ],
-          "explanation": "El botón Clear Chat está oculto cuando no hay mensajes — todavía no hay nada que borrar. Una vez que envía al menos un mensaje, el botón aparece en el encabezado del chat."
+          "explanation": "El botón Borrar chat está oculto cuando no hay mensajes — todavía no hay nada que borrar. Una vez que envía al menos un mensaje, el botón aparece en el encabezado del chat."
         },
         {
           "id": "ai6",
@@ -355,7 +355,7 @@
               "text": "El sistema está cargando la configuración del asistente"
             }
           ],
-          "explanation": "El indicador de escritura (tres puntos animados) aparece mientras el asistente está procesando su pregunta y generando una respuesta. El botón Send también está deshabilitado durante este tiempo."
+          "explanation": "El indicador de escritura (tres puntos en movimiento) aparece mientras el asistente está procesando su pregunta y preparando una respuesta. El botón Enviar también está atenuado durante ese tiempo."
         },
         {
           "id": "ai7",
@@ -367,19 +367,19 @@
             },
             {
               "id": "b",
-              "text": "Se restaura desde localStorage"
+              "text": "Se restaura desde el historial guardado de su navegador"
             },
             {
               "id": "c",
-              "text": "Se borra — las conversaciones están solo en memoria y no se conservan",
+              "text": "Se borra — las conversaciones solo duran durante la sesión actual",
               "isCorrect": true
             },
             {
               "id": "d",
-              "text": "Solo se conserva el último mensaje a través de la cadena de consulta de la URL"
+              "text": "Solo se conserva el último mensaje, a través de la dirección de la página"
             }
           ],
-          "explanation": "Las conversaciones se almacenan solo en memoria. Actualizar la página, cerrar la pestaña o salir borra todas las conversaciones. Esto es intencional — la función de IA es para interacciones rápidas, no para el mantenimiento de registros a largo plazo."
+          "explanation": "Las conversaciones solo duran durante su sesión actual. Actualizar la página, cerrar la pestaña o salir las borra. Es a propósito — esta función es para preguntas rápidas, no para registros a largo plazo."
         },
         {
           "id": "ai8",
@@ -387,23 +387,23 @@
           "options": [
             {
               "id": "a",
-              "text": "Están codificadas de forma fija en el frontend según la categoría del asistente"
+              "text": "Están integradas en la aplicación y no se pueden cambiar"
             },
             {
               "id": "b",
-              "text": "Las configura un administrador en el panel de administración de Asistentes de IA y se cargan desde la API",
+              "text": "Un administrador las configura en el panel de administración de Asistentes de IA",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "La IA las genera dinámicamente según su rol y su actividad reciente"
+              "text": "La IA las inventa según su rol y su actividad reciente"
             },
             {
               "id": "d",
               "text": "Se extraen de las preguntas del cuestionario del módulo de Capacitación"
             }
           ],
-          "explanation": "Las preguntas iniciales forman parte de la configuración de cada asistente (el campo starterQuestions en AiAssistantListItem). Los administradores las configuran en Admin → Asistentes de IA. Se cargan desde GET /api/v1/ai-assistants."
+          "explanation": "Las preguntas iniciales forman parte de la configuración de cada asistente. Los administradores las agregan en Admin → Asistentes de IA, y aparecen en la pantalla de bienvenida del asistente."
         },
         {
           "id": "ai9",
@@ -415,7 +415,7 @@
             },
             {
               "id": "b",
-              "text": "Sí — el ID del asistente está en la URL (/ai/{assistantId}), por lo que puede copiar y compartir el enlace",
+              "text": "Sí — el asistente forma parte de la dirección de la página, así que puede copiar y compartir el enlace",
               "isCorrect": true
             },
             {
@@ -427,11 +427,11 @@
               "text": "No — necesitan navegar a la página de IA y seleccionar el asistente manualmente"
             }
           ],
-          "explanation": "La ruta es /ai/{assistantId}, por lo que el asistente seleccionado se refleja en la URL. Su compañero de trabajo puede usar el enlace para ir directamente a la página de ese asistente. Sin embargo, no verá su conversación — solo la pantalla de bienvenida."
+          "explanation": "El asistente en el que está forma parte de la dirección de la página, así que el enlace lleva a un compañero directamente a ese asistente. No verá su conversación, solo la pantalla de bienvenida."
         },
         {
           "id": "ai10",
-          "text": "El botón Send está deshabilitado aunque ha escrito un mensaje. ¿Cuál es la razón más probable?",
+          "text": "El botón Enviar está atenuado aunque ha escrito un mensaje. ¿Cuál es la razón más probable?",
           "options": [
             {
               "id": "a",
@@ -451,7 +451,7 @@
               "text": "Necesita seleccionar un asistente primero antes de enviar"
             }
           ],
-          "explanation": "El botón Send está deshabilitado en dos casos: cuando el campo está vacío, o cuando el asistente está generando una respuesta en ese momento (estado de envío). Dado que ha escrito un mensaje, la razón más probable es que aún se esté generando una respuesta."
+          "explanation": "Enviar está atenuado en dos casos: cuando el campo está vacío, o mientras el asistente está escribiendo una respuesta. Dado que ya escribió algo, lo más probable es que aún esté llegando una respuesta."
         },
         {
           "id": "ai11",
@@ -463,7 +463,7 @@
             },
             {
               "id": "b",
-              "text": "Icono, nombre, descripción y un indicador de actividad para el asistente seleccionado",
+              "text": "Icono, nombre, descripción y un resaltado en el asistente seleccionado",
               "isCorrect": true
             },
             {
@@ -475,7 +475,7 @@
               "text": "Nombre, categoría, número de conversaciones y una calificación con estrellas"
             }
           ],
-          "explanation": "Cada tarjeta de la barra lateral muestra el icono del asistente (icono de Material), el nombre, la descripción y un indicador de actividad que resalta qué asistente está seleccionado en ese momento."
+          "explanation": "Cada tarjeta de la barra lateral muestra el icono, el nombre y la descripción del asistente, además de un resaltado en el que está usando."
         },
         {
           "id": "ai12",
@@ -487,19 +487,19 @@
             },
             {
               "id": "b",
-              "text": "En Admin → Asistentes de IA — crear un nuevo asistente con nombre, descripción, icono, color, categoría y preguntas iniciales",
+              "text": "En Admin → Asistentes de IA — crear un nuevo asistente con un nombre, descripción, icono, color, categoría y preguntas iniciales",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Editando el archivo JSON de configuración del asistente y reiniciando el servidor"
+              "text": "Editando un archivo de configuración y reiniciando el servidor"
             },
             {
               "id": "d",
               "text": "En Admin → Configuración del sistema, en la sección de IA"
             }
           ],
-          "explanation": "Los asistentes de IA se administran en el panel de Admin → Asistentes de IA. Allí los administradores pueden crear, editar y desactivar asistentes. La lista de asistentes se carga desde la API (GET /api/v1/ai-assistants), por lo que los cambios se reflejan de inmediato."
+          "explanation": "Los asistentes de IA se administran en Admin → Asistentes de IA. Allí los administradores crean, editan y activan o desactivan asistentes, y los cambios aparecen para los usuarios de inmediato."
         }
       ]
     }
@@ -507,9 +507,9 @@
   {
     "slug": "ai-help-and-search",
     "title": "Ayuda de IA y Búsqueda inteligente",
-    "summary": "Las dos superficies de IA que se encuentran en el encabezado global en todas las páginas: el panel de Ayuda de IA (un chat persistente y en streaming que sugiere capacitación relacionada) y la columna de IA en la búsqueda global (respuestas RAG y fragmentos de resultados que saltan a los registros).",
+    "summary": "Las dos funciones de IA del encabezado superior en todas las páginas: el panel de Ayuda de IA (un chat que recuerda su conversación y sugiere capacitación relacionada) y la columna de IA en la búsqueda (respuestas en lenguaje sencillo y coincidencias a las que puede saltar).",
     "contentJson": {
-      "body": "## Ayuda de IA y Búsqueda inteligente\n\nMás allá de la página dedicada de IA (/ai), hay dos superficies de IA integradas en el encabezado global que le acompañan en todas las páginas. Son diferentes de los asistentes de /ai y se comportan de manera distinta — este módulo cubre ambas.\n\n### 1. El panel de Ayuda de IA\n\nHaga clic en el **icono de robot** (smart_toy) en la fila de acciones del encabezado para abrir el panel de Ayuda de IA — un chat desplegable en el lado derecho de la pantalla. Este es su asistente de ayuda dentro de la aplicación: pregúntele cómo hacer algo en Forge y le responde en lenguaje sencillo. El panel solo aparece cuando la IA está disponible para su instalación (el icono se oculta cuando la capacidad de IA está desactivada o el servicio de IA está caído).\n\n**Pantalla de bienvenida y preguntas iniciales.** Cuando el panel está vacío muestra un mensaje de bienvenida y cuatro botones de preguntas iniciales — '¿Cómo creo un nuevo trabajo?', '¿Cómo funciona el flujo de cotización a pedido?', '¿Cómo realizo el seguimiento del inventario?' y '¿Qué atajos de teclado están disponibles?'. Haga clic en cualquiera para enviarla, o escriba su propia pregunta en el campo de la parte inferior y presione Enter.\n\n**Respuestas en streaming.** Las respuestas llegan token por token, de modo que ve la respuesta construirse en tiempo real (un cursor parpadeante marca la posición del streaming). Las respuestas del asistente se renderizan como Markdown con formato — encabezados, listas, negrita y código se muestran correctamente.\n\n**Enlaces de capacitación relacionada.** Después de que termina una respuesta, el panel puede mostrar una sección 'Capacitación relacionada:' con hasta tres enlaces a módulos elegidos según la página en la que se encuentra actualmente. Haga clic en uno para abrir ese módulo de capacitación — el panel pasa su ruta actual para que las sugerencias sean relevantes a donde está trabajando.\n\n**Las conversaciones se conservan.** A diferencia de la página /ai (que mantiene los chats solo en memoria), el panel de Ayuda de IA guarda su conversación en el almacenamiento local del navegador bajo una clave por usuario. Su chat sobrevive a una actualización de página, al cierre de la pestaña y a reabrirla más tarde — y se sincroniza entre las pestañas del navegador, de modo que la misma conversación aparece en todas partes donde tenga Forge abierto. El historial está limitado a los 50 mensajes más recientes.\n\n**Borrar.** Haga clic en el icono **restart_alt** en el encabezado del panel para iniciar una conversación nueva. Esto borra el historial almacenado. Haga clic en el icono **close** (X), en el fondo o en el icono de robot de nuevo para ocultar el panel sin borrar nada.\n\n### 2. La columna de IA en la Búsqueda global\n\nEl cuadro de búsqueda del encabezado (presione **Ctrl+K** para enfocarlo) es una búsqueda de entidades normal — escriba y encuentra trabajos, piezas, clientes y otros registros por palabra clave. Cuando la IA está disponible, el menú desplegable de resultados se divide en **dos columnas**:\n\n- **Columna izquierda — Resultados:** las coincidencias estándar por palabra clave. Haga clic en una para navegar a ese registro.\n- **Columna derecha — Resultados de IA:** una vista con tecnología de IA (RAG) de la misma consulta. Mientras la IA trabaja verá un indicador de carga 'auto_awesome' y una etiqueta 'Pensando…'.\n\n**La respuesta de IA.** En la parte superior de la columna de IA, el asistente puede mostrar una breve **respuesta** generada (con un icono de bombilla) — una respuesta directa y en lenguaje sencillo sintetizada a partir de sus datos indexados.\n\n**Fragmentos de resultados de IA.** Debajo de la respuesta hay una lista de fragmentos coincidentes semánticamente. Cada fragmento muestra el texto coincidente, el tipo de entidad, el campo de origen del que provino y una **puntuación** de relevancia en porcentaje. Haga clic en cualquier resultado de IA para **navegar directamente a ese registro** — la columna de IA no es solo informativa, es una forma de encontrar y abrir registros que una búsqueda por palabra clave podría pasar por alto.\n\n### Cuándo usar cuál\n\n- **Use el panel de Ayuda de IA** cuando tenga una pregunta de '¿cómo hago…?' o '¿qué hace esto?' sobre el propio Forge — proceso, flujo de trabajo, dónde hacer clic, atajos de teclado.\n- **Use la búsqueda de IA** cuando busque un registro específico pero solo recuerde una descripción o un detalle, no el número exacto — la columna RAG muestra coincidencias por significado, no solo por texto exacto, y le permite saltar directamente al registro.\n\n### Disponibilidad\n\nAmbas superficies dependen de que el servicio de IA sea accesible y de que la capacidad de IA esté habilitada para su instalación. Si la IA está desactivada o el contenedor de IA está caído, el icono de robot desaparece del encabezado y el menú desplegable de búsqueda muestra solo la columna estándar de Resultados — el resto de Forge funciona exactamente igual que antes.",
+      "body": "## Ayuda de IA y Búsqueda inteligente\n\nAdemás de la página de IA, hay dos funciones de IA más en el encabezado superior que le acompañan en todas las páginas. Son distintas de los asistentes de la página de IA y funcionan un poco diferente — este módulo cubre ambas.\n\n### 1. El panel de Ayuda de IA\n\nHaga clic en el **icono de robot** del encabezado para abrir el panel de Ayuda de IA — un chat que se despliega a la derecha. Es su ayuda dentro de la aplicación: pregúntele cómo hacer algo en Forge y le responde en lenguaje sencillo. El icono solo aparece cuando la IA está disponible para su instalación.\n\n**Pantalla de bienvenida y preguntas iniciales.** Cuando el panel está vacío muestra un mensaje de bienvenida y cuatro botones de preguntas iniciales — '¿Cómo creo un nuevo trabajo?', '¿Cómo funciona el flujo de cotización a pedido?', '¿Cómo realizo el seguimiento del inventario?' y '¿Qué atajos de teclado están disponibles?'. Haga clic en una para enviarla, o escriba su propia pregunta en la parte inferior y presione Enter.\n\n**Las respuestas aparecen sobre la marcha.** Las respuestas llegan poco a poco, así que ve la respuesta construirse en tiempo real. Pueden incluir encabezados, listas, texto en negrita y código.\n\n**Enlaces de capacitación relacionada.** Después de una respuesta, el panel puede mostrar una sección 'Capacitación relacionada:' con hasta tres enlaces, elegidos según la página en la que se encuentra. Haga clic en uno para abrir ese módulo de capacitación.\n\n**Su chat permanece.** A diferencia de la página de IA (que olvida su chat cuando sale), el panel de Ayuda de IA recuerda su conversación en su navegador. Sobrevive a una actualización, al cierre de la pestaña y a reabrirla más tarde — y se mantiene sincronizada entre sus pestañas de Forge abiertas. Conserva sus 50 mensajes más recientes.\n\n**Borrar.** Haga clic en el icono de **reiniciar** en el encabezado del panel para empezar de nuevo, lo que borra el chat guardado. Haga clic en la **X**, fuera del panel o en el icono de robot de nuevo para solo ocultarlo sin borrar nada.\n\n### 2. La columna de IA en la Búsqueda global\n\nEl cuadro de búsqueda del encabezado (presione **Ctrl+K** para ir a él) es una búsqueda normal — escriba y encuentra trabajos, piezas, clientes y otros registros por palabra clave. Cuando la IA está disponible, los resultados se dividen en **dos columnas**:\n\n- **Columna izquierda — Resultados:** las coincidencias habituales por palabra clave. Haga clic en una para abrir ese registro.\n- **Columna derecha — Resultados de IA:** una vista de IA de la misma búsqueda. Mientras trabaja verá un indicador de carga y una etiqueta 'Pensando…'.\n\n**La respuesta de IA.** En la parte superior de la columna de IA puede aparecer una breve **respuesta** escrita — una respuesta directa y en lenguaje sencillo extraída de sus propios datos.\n\n**Coincidencias de IA.** Debajo de la respuesta hay una lista de coincidencias encontradas por significado, no solo por palabras exactas. Cada una muestra el texto que coincide, qué tipo de registro es y qué tan fuerte es la coincidencia. Haga clic en cualquiera para **saltar directamente a ese registro** — así la columna de IA también le ayuda a encontrar registros que una búsqueda por palabra clave podría pasar por alto.\n\n### Cuándo usar cuál\n\n- **Use el panel de Ayuda de IA** para preguntas de '¿cómo hago…?' o '¿qué hace esto?' sobre el propio Forge — pasos, flujo de trabajo, dónde hacer clic, atajos de teclado.\n- **Use la búsqueda de IA** cuando busque un registro específico pero solo recuerde una descripción o un detalle, no el número exacto — coincide por significado y le permite saltar directamente al registro.\n\n### Disponibilidad\n\nAmbas dependen de que la IA esté activada y disponible para su instalación. Si la IA está desactivada o no está disponible, el icono de robot desaparece del encabezado y la búsqueda muestra solo la columna habitual de Resultados — todo lo demás en Forge funciona exactamente igual que antes.",
       "sections": []
     }
   },
@@ -524,16 +524,16 @@
           "heading": "Qué hacen",
           "items": [
             {
-              "label": "Redacción (generar)",
-              "value": "Produce texto nuevo a partir de una indicación que usted proporciona — por ejemplo, redactar una descripción de puesto, un correo a un cliente, una descripción de pieza o documentación. Usted da una instrucción; devuelve contenido escrito que puede editar y usar."
+              "label": "Redacción",
+              "value": "Escribe texto nuevo a partir de una instrucción que usted le da — por ejemplo, una descripción de puesto, un correo a un cliente, una descripción de pieza o documentación. Usted le dice qué quiere; le devuelve texto que puede editar y usar."
             },
             {
-              "label": "Resumen (resumir)",
-              "value": "Condensa un bloque de texto existente en un resumen breve — por ejemplo, reducir una nota, descripción o hilo largo a sus puntos clave."
+              "label": "Resumen",
+              "value": "Reduce un bloque de texto existente a un resumen breve — por ejemplo, convertir una nota, descripción o hilo largo en sus puntos clave."
             },
             {
-              "label": "Relación con el chat",
-              "value": "La redacción y el resumen son operaciones de texto de un solo paso, no una conversación de ida y vuelta. A diferencia del panel de Ayuda de IA o de un asistente de /ai, no hay historial de mensajes — cada llamada es independiente."
+              "label": "En qué se diferencia del chat",
+              "value": "La redacción y el resumen son de una sola vez — pregunta una vez y obtiene un resultado. No hay ida y vuelta ni memoria de solicitudes anteriores, a diferencia del panel de Ayuda de IA o de un asistente de la página de IA."
             }
           ]
         },
@@ -541,16 +541,16 @@
           "heading": "Cómo se comportan",
           "items": [
             {
-              "label": "Una solicitud, una respuesta",
-              "value": "Cada redacción o resumen es una solicitud y un bloque de texto devuelto. No hay cursor de streaming ni turnos de seguimiento — obtiene el resultado completo de una vez."
+              "label": "Una solicitud, un resultado",
+              "value": "Cada redacción o resumen es una sola solicitud que devuelve un bloque de texto de una vez. No hay turnos de seguimiento."
             },
             {
-              "label": "La salida es editable",
-              "value": "La salida de la IA es un punto de partida, nunca un resultado final. Revise y edite el texto generado antes de guardarlo en un registro. La IA no escribe en sus datos por sí sola."
+              "label": "Puede editar el resultado",
+              "value": "El resultado es un punto de partida, nunca definitivo. Revíselo y edítelo antes de guardarlo en un registro. La IA nunca cambia sus datos por sí sola."
             },
             {
-              "label": "Fundamentación",
-              "value": "La redacción funciona a partir de la indicación que le da. El resumen funciona a partir del texto que le entrega. Ninguno extrae de sus registros indexados como lo hace la búsqueda RAG — lo que usted proporciona es con lo que trabaja."
+              "label": "Con qué trabaja",
+              "value": "La redacción trabaja a partir de la instrucción que le da. El resumen trabaja a partir del texto que le entrega. Ninguno se pone a buscar en sus registros — solo usa lo que usted proporciona."
             }
           ]
         },
@@ -558,16 +558,16 @@
           "heading": "Disponibilidad y límites",
           "items": [
             {
-              "label": "Restringido por capacidad",
-              "value": "Ambos requieren que la capacidad de IA esté habilitada para su instalación (CAP-EXT-AI-ASSISTANT) y que el servicio de IA sea accesible. Cuando la IA está desactivada o el contenedor está caído, las funciones de redacción y resumen se ocultan o se deshabilitan — la pantalla subyacente sigue funcionando sin ellas."
+              "label": "Solo cuando la IA está activada",
+              "value": "Ambos necesitan que la IA esté activada y disponible para su instalación. Cuando la IA está desactivada o no está disponible, la redacción y el resumen se ocultan o se atenúan — la pantalla sigue funcionando bien sin ellas."
             },
             {
-              "label": "Degradación elegante",
-              "value": "Si una solicitud de redacción o resumen falla, la función se degrada en silencio: conserva lo que tenía y no se escribe ningún texto parcial o defectuoso en un registro."
+              "label": "Falla sin romper nada",
+              "value": "Si una redacción o un resumen no llega, no se rompe nada: conserva lo que tenía y no se escribe ningún texto a medias en un registro."
             },
             {
-              "label": "Respaldado por el mismo motor",
-              "value": "La redacción y el resumen usan el mismo motor de IA autoalojado que el resto de las funciones de IA (los endpoints generate y summarize del servicio de IA). Ningún dato sale de su instalación hacia un proveedor de IA externo."
+              "label": "Se queda en casa",
+              "value": "La redacción y el resumen funcionan con la misma IA que el resto de las funciones de IA de Forge. Sus datos permanecen dentro de su instalación — nada se envía a un proveedor de IA externo."
             }
           ]
         },
@@ -576,7 +576,7 @@
           "items": [
             {
               "label": "Escritura de primer borrador",
-              "value": "Descripciones de puestos, correos de cara al cliente, descripciones de piezas o procesos, documentación interna — cualquier lugar donde la página en blanco sea lo difícil."
+              "value": "Descripciones de puestos, correos a clientes, descripciones de piezas o procesos, documentación interna — cualquier lugar donde la página en blanco sea lo difícil."
             },
             {
               "label": "Condensar",
@@ -584,7 +584,7 @@
             },
             {
               "label": "No es un sistema de registro",
-              "value": "No trate la salida de la IA como datos autorizados. Es una ayuda para escribir — una persona revisa y es responsable del texto final."
+              "value": "No trate el resultado de la IA como datos oficiales. Es una ayuda para escribir — una persona lo revisa y es responsable del texto final."
             }
           ]
         }
@@ -594,7 +594,7 @@
   {
     "slug": "ai-configuring-assistants",
     "title": "Configuración de Asistentes de IA (Admin)",
-    "summary": "Recorrido de administrador por el panel de Asistentes de IA: crear, editar y eliminar asistentes; escribir una indicación del sistema; limitar un asistente a tipos de entidad permitidos para la fundamentación RAG; administrar preguntas iniciales, estado activo y orden de clasificación.",
+    "summary": "Recorrido de administrador por el panel de Asistentes de IA: crear, editar y eliminar asistentes; definir las instrucciones de un asistente; limitar qué registros puede usar; administrar preguntas iniciales, estado activo y orden.",
     "contentJson": {
       "appRoute": "/admin/ai-assistants",
       "startButtonLabel": "Recorrer la configuración de Asistentes de IA",
@@ -603,7 +603,7 @@
           "element": ".panel-header",
           "popover": {
             "title": "Panel de Asistentes de IA",
-            "description": "Este es el hogar de administración para los asistentes de IA, en Admin → Asistentes de IA. El encabezado muestra cuántos asistentes existen. Cada asistente configurado aquí aparece en la página /ai para los usuarios (cuando está activo). Solo administradores — esta pestaña no es visible para los usuarios regulares.",
+            "description": "Aquí los administradores configuran los asistentes de IA, en Admin → Asistentes de IA. El encabezado muestra cuántos existen. Cada asistente activo aquí aparece en la página de IA para los usuarios. Solo los administradores ven esta pestaña.",
             "side": "bottom"
           }
         },
@@ -611,7 +611,7 @@
           "element": ".action-btn--create",
           "popover": {
             "title": "Nuevo asistente",
-            "description": "Haga clic en 'Nuevo asistente' para abrir el diálogo del editor de asistentes. El mismo diálogo se abre cuando hace clic en una fila existente para editarla. A continuación recorreremos cada campo del diálogo.",
+            "description": "Haga clic en 'Nuevo asistente' para abrir el editor. El mismo editor se abre cuando hace clic en una fila existente para cambiarla. A continuación recorreremos los campos.",
             "side": "left"
           }
         },
@@ -619,31 +619,31 @@
           "element": "app-data-table",
           "popover": {
             "title": "La lista de asistentes",
-            "description": "Cada fila muestra el icono de color del asistente, el nombre (los asistentes integrados llevan una etiqueta 'Integrado'), la categoría, cuántos filtros de tipo de entidad están configurados ('Todos' cuando no hay ninguno) y el estado activo. Haga clic en cualquier fila para editarla. Los asistentes integrados se pueden editar pero no eliminar; los asistentes personalizados que cree muestran una acción de eliminar.",
+            "description": "Cada fila muestra el icono del asistente, el nombre, la categoría, cuántos filtros de datos están configurados ('Todos' cuando no hay ninguno) y si está activo. Haga clic en una fila para editarla. Los asistentes integrados se pueden editar pero no eliminar; los que usted crea sí se pueden eliminar.",
             "side": "top"
           }
         },
         {
           "element": "app-data-table",
           "popover": {
-            "title": "Identidad: Nombre, Categoría, Descripción, Icono, Color",
-            "description": "En el diálogo del editor, los campos superiores definen cómo aparece el asistente a los usuarios. Nombre y Categoría son obligatorios. La categoría es una de General, RR. HH., Compras, Ventas o Personalizado — la página /ai resuelve la ruta 'general' al asistente cuya categoría es General. La descripción se muestra en la tarjeta del asistente y en la pantalla de bienvenida. El icono (un nombre de icono de Material) y el color establecen la identidad visual; una vista previa en vivo renderiza el icono en el color elegido.",
+            "title": "Nombre, Categoría, Descripción y apariencia",
+            "description": "Abra el editor del asistente para configurar cómo aparece a los usuarios. Nombre y Categoría son obligatorios. La categoría puede ser General, RR. HH., Compras, Ventas o Personalizado. La descripción se muestra en la tarjeta del asistente y en la pantalla de bienvenida. Elija un icono y un color para darle una apariencia clara; una vista previa en vivo muestra el resultado.",
             "side": "top"
           }
         },
         {
           "element": "app-data-table",
           "popover": {
-            "title": "Indicación del sistema — el comportamiento del asistente",
-            "description": "La Indicación del sistema (obligatoria, hasta 50.000 caracteres) es la instrucción que da forma a cómo responde el asistente — su personalidad, tono, enfoque de dominio y cualquier regla. Aquí es donde le dice a un asistente de RR. HH. que responda como especialista de RR. HH., o a un asistente de Compras que se centre en el abastecimiento y las órdenes de compra. Los usuarios nunca ven la indicación del sistema; se ejecuta detrás de cada respuesta.",
+            "title": "Instrucciones — cómo se comporta el asistente",
+            "description": "Abra el editor del asistente para configurar sus instrucciones. Esto da forma a cómo responde — su estilo, tono y enfoque. Es donde le dice a un asistente de RR. HH. que responda como un especialista de RR. HH., o a un asistente de Compras que se centre en el abastecimiento. Los usuarios nunca ven estas instrucciones; trabajan en silencio detrás de cada respuesta.",
             "side": "top"
           }
         },
         {
           "element": "app-data-table",
           "popover": {
-            "title": "Tipos de entidad permitidos — alcance de la fundamentación RAG",
-            "description": "El selector múltiple de Filtros de tipo de entidad limita cuáles de sus registros indexados puede usar el asistente al responder (fundamentación RAG). Déjelo vacío para permitir TODOS los tipos de entidad (la lista muestra 'Todos'); o elija tipos específicos — Trabajo, Pieza, Cliente, Proveedor, Prospecto, Cotización, Pedido de venta, Orden de compra, Factura y más — para mantener, por ejemplo, un asistente de RR. HH. fundamentado solo en datos de empleados. Así es como mantiene a cada asistente enfocado y evita que responda a partir de datos fuera de su área.",
+            "title": "Qué registros puede usar",
+            "description": "Abra el editor del asistente para configurar de cuáles de sus registros puede tomar datos al responder. Déjelo vacío para permitir todos los registros; o elija tipos específicos — trabajos, piezas, clientes, proveedores y más — para mantener, por ejemplo, un asistente de RR. HH. limitado a datos de empleados. Así mantiene a cada asistente enfocado y fuera de áreas que no debería tocar.",
             "side": "top"
           }
         },
@@ -651,15 +651,15 @@
           "element": "app-data-table",
           "popover": {
             "title": "Preguntas iniciales",
-            "description": "Agregue las preguntas sugeridas que aparecen en la pantalla de bienvenida del asistente. Escriba una pregunta, haga clic en Agregar y se une a la lista; elimine cualquiera con la X. Estas son las indicaciones en las que se puede hacer clic que los usuarios ven antes de escribir nada — dele a cada asistente algunas buenas preguntas de punto de entrada para su dominio.",
+            "description": "Abra el editor del asistente para configurar las preguntas sugeridas de su pantalla de bienvenida. Escriba una pregunta, haga clic en Agregar y se une a la lista; elimine cualquiera con la X. Son las indicaciones en las que se puede hacer clic que los usuarios ven antes de escribir nada — dele a cada asistente algunas buenas para su área.",
             "side": "top"
           }
         },
         {
           "element": "app-data-table",
           "popover": {
-            "title": "Activo, Orden de clasificación y Avanzado",
-            "description": "El interruptor Activo controla si los usuarios ven este asistente en la página /ai — desactívelo para retirar un asistente sin eliminarlo. El Orden de clasificación establece su posición en la lista de la barra lateral. En 'Configuración avanzada' puede ajustar la Temperatura (0–1, creatividad de las respuestas) y los Máximos fragmentos de contexto (1–20, cuántos datos recuperados considera el asistente) — deje los valores predeterminados a menos que tenga una razón para cambiarlos. Guardar confirma el asistente; aparece para los usuarios de inmediato.",
+            "title": "Activo, Orden y Avanzado",
+            "description": "Abra el editor del asistente para configurar si está activo — desactívelo para retirar un asistente sin eliminarlo. El Orden establece su lugar en la lista de la barra lateral. En Configuración avanzada puede ajustar qué tan creativas son sus respuestas y cuántos datos considera — deje los valores predeterminados a menos que tenga una razón para cambiarlos. Guarde y aparecerá para los usuarios de inmediato.",
             "side": "top"
           }
         }
@@ -669,9 +669,9 @@
   {
     "slug": "ai-reference",
     "title": "Asistente de IA — Referencia avanzada",
-    "summary": "Casos límite para usuarios avanzados y administradores del Asistente de IA: ajuste de temperature/maxContextChunks, asistentes integrados frente a personalizados y reglas de eliminación, restricción por capacidad y degradación cuando el contenedor está caído, indexación de documentos para RAG, y la sincronización entre pestañas y el límite de 50 mensajes del panel de Ayuda.",
+    "summary": "Detalles para usuarios avanzados y administradores del Asistente de IA: afinar las respuestas de un asistente, asistentes integrados frente a personalizados y cómo eliminarlos, qué ocurre cuando la IA está desactivada o no disponible, cómo la búsqueda de IA encuentra sus registros, y cómo el panel de Ayuda se sincroniza y limita su historial.",
     "contentJson": {
-      "body": "## Ajuste de Temperatura y Máximos fragmentos de contexto\n\nCada asistente lleva dos campos avanzados de ajuste del modelo, expuestos en **Configuración avanzada** en el editor de asistentes (Admin → Asistentes de IA).\n\n- **Temperatura** (`Temperature`, predeterminado **0.7**, rango 0–1) — controla la creatividad/aleatoriedad de las respuestas. Más bajo (hacia 0) hace las respuestas más deterministas y conservadoras; más alto (hacia 1) las hace más variadas. Deje el valor predeterminado a menos que un asistente necesite una salida más ajustada y repetible.\n- **Máximos fragmentos de contexto** (`MaxContextChunks`, predeterminado **5**, rango 1–20) — cuántos fragmentos RAG recuperados incorpora el asistente a su contexto al responder. Más fragmentos = más datos de fundamentación pero una indicación más larga y lenta; menos = más rápido pero más estrecho. El valor predeterminado de 5 es un punto de partida equilibrado.\n\nAmbos son por asistente, no globales — un asistente de RR. HH. enfocado y un asistente general amplio se pueden ajustar de forma independiente. No cambian el modelo en sí, solo cómo se le indica.\n\n## Asistentes integrados frente a personalizados y reglas de eliminación\n\nLos asistentes son **integrados** (sembrados por el sistema, `IsBuiltIn = true`, mostrados con una etiqueta 'Integrado' en la lista de administración) o **personalizados** (creados por un administrador).\n\n- **Los asistentes integrados se pueden editar pero NO eliminar.** Una eliminación sobre un integrado devuelve un 409 con el mensaje 'Built-in assistants cannot be deleted. Disable them instead.' Para retirar uno, desactive su interruptor **Activo** — desaparece de la página `/ai` para los usuarios mientras permanece configurado.\n- **Los asistentes personalizados se pueden eliminar.** La eliminación es una eliminación lógica (se marca `DeletedAt`), coherente con el resto de Forge — la fila se oculta, no se elimina físicamente.\n- La categoría **General** es especial: la página `/ai` resuelve su ruta 'general' a cualquier asistente que tenga `Category = General`. Mantenga un asistente General activo para que esa ruta siempre llegue a algún sitio.\n\n## Restricción por capacidad y degradación con el contenedor caído\n\nTodas las superficies de IA dependen de una única capacidad: **CAP-EXT-AI-ASSISTANT**. Tanto `AiController` como `AiAssistantsController` llevan `[RequiresCapability(\"CAP-EXT-AI-ASSISTANT\")]`, de modo que cuando la capacidad está desactivada para una instalación, cada endpoint de IA se interrumpe con un envoltorio de capacidad 403.\n\n- **Capacidad desactivada:** el icono de robot (smart_toy) del encabezado se oculta, la columna de IA de la búsqueda global no se renderiza, y la página `/ai` / las funciones de redacción / resumen no están disponibles. El resto de Forge no se ve afectado.\n- **Contenedor caído (capacidad activada, servicio inaccesible):** la IA es autoalojada (Ollama + pgvector). Si el contenedor de IA está caído, las funciones de IA **se degradan de forma elegante** en lugar de provocar un error en la página — la búsqueda recurre a la columna estándar de Resultados solo por palabra clave, y las solicitudes de chat/redacción/resumen fallan en silencio sin escribir datos parciales. Nunca se llama a un proveedor de IA externo; nada sale de la instalación.\n\n## Indexación de documentos para RAG\n\nLa fundamentación de los asistentes y la columna de IA de la búsqueda global se alimentan de un índice RAG, no de escaneos en vivo de la base de datos.\n\n- El contenido indexado reside en la entidad **DocumentEmbedding** — una columna pgvector `vector(384)`. Los registros se fragmentan e incrustan para poder coincidir semánticamente.\n- Endpoints en `AiController`: `POST /api/v1/ai/index` (indexar una entidad — cuerpo `{entityType, entityId}`, devuelve `chunksIndexed`), `POST /api/v1/ai/bulk-index` (indexar muchas, devuelve `totalChunksIndexed`) y `POST /api/v1/ai/search` (RagSearch).\n- Un trabajo de Hangfire, **DocumentIndexJob**, vuelve a indexar de forma programada (cada 30 minutos aproximadamente), de modo que los registros recién creados/editados se vuelven buscables sin una llamada de indexación manual.\n- Los **Tipos de entidad permitidos** de un asistente (`AllowedEntityTypes`, predeterminado `[]` = todos) limitan qué tipos de entidad indexados puede usar — así es como se mantiene la fundamentación RAG dentro del área del asistente (p. ej., un asistente de RR. HH. limitado a datos de empleados). Vacío significa que todos los tipos están permitidos.\n\n## Panel de Ayuda: sincronización entre pestañas y límite de 50 mensajes\n\nEl panel de Ayuda de IA del encabezado global se conserva de forma distinta a la página `/ai` (que es solo en memoria).\n\n- **Almacenamiento local por usuario.** El historial se guarda en `localStorage` bajo la clave `ai-help:{userId}` (o `ai-help:anon` cuando no hay usuario). Sobrevive a una actualización, al cierre de la pestaña y a reabrirla.\n- **Sincronización entre pestañas.** El panel escucha el evento `storage` del navegador en esa clave, de modo que enviar un mensaje en una pestaña actualiza la conversación en todas las demás pestañas de Forge abiertas para el mismo usuario — una única conversación compartida entre pestañas.\n- **Límite de 50 mensajes.** El historial almacenado se limita a los **50** mensajes más recientes (`MAX_STORED_MESSAGES = 50`); cada guardado recorta a los últimos 50. Los mensajes más antiguos se descartan.\n- **Borrar** elimina la clave almacenada (icono `restart_alt`). Si `localStorage` está lleno, un guardado se omite en silencio en lugar de lanzar un error — la conversación sigue funcionando en la sesión, solo puede que no se conserve ese turno.",
+      "body": "## Afinar las respuestas de un asistente\n\nCada asistente tiene dos ajustes avanzados, en **Configuración avanzada** dentro del editor de asistentes (Admin → Asistentes de IA).\n\n- **Creatividad de las respuestas** (predeterminado **0.7**, rango 0–1) — qué tan variadas son las respuestas. Más bajo (hacia 0) las hace más predecibles y conservadoras; más alto (hacia 1) las hace más variadas. Deje el valor predeterminado a menos que un asistente necesite respuestas más ajustadas y repetibles.\n- **Cuántos datos considera** (predeterminado **5**, rango 1–20) — cuántas piezas de sus datos incorpora el asistente al responder. Más le da más con qué trabajar pero hace las respuestas más lentas; menos es más rápido pero más estrecho. Cinco es un punto de partida equilibrado.\n\nAmbos se configuran por asistente, no para todos a la vez — un asistente de RR. HH. enfocado y un asistente general amplio se pueden afinar por separado.\n\n## Asistentes integrados frente a personalizados, y eliminarlos\n\nLos asistentes son **integrados** (vienen con Forge y muestran una etiqueta 'Integrado') o **personalizados** (creados por un administrador).\n\n- **Los asistentes integrados se pueden editar pero no eliminar.** Para retirar uno, desactive su interruptor **Activo** — desaparece de la página de IA para los usuarios pero permanece configurado.\n- **Los asistentes personalizados se pueden eliminar.** Como en todo Forge, eliminar solo oculta el asistente en lugar de borrarlo por completo.\n- La categoría **General** es especial: la opción general de la página de IA apunta a cualquier asistente que esté configurado como General. Mantenga un asistente General activo para que esa opción siempre llegue a algún sitio.\n\n## Cuando la IA está desactivada o no disponible\n\nTodas las funciones de IA comparten un único ajuste de encendido/apagado para su instalación.\n\n- **IA desactivada:** el icono de robot del encabezado se oculta, la columna de IA de la búsqueda no aparece, y la página de IA, la redacción y el resumen no están disponibles. El resto de Forge no se ve afectado.\n- **IA activada pero no disponible:** la IA funciona en casa, dentro de su propia instalación. Si está caída temporalmente, las funciones de IA se hacen a un lado en lugar de romper la página — la búsqueda recurre a resultados por palabra clave sencillos, y el chat, la redacción y el resumen no hacen nada en silencio en lugar de guardar texto a medias. Nunca se envía nada a un proveedor de IA externo.\n\n## Cómo encuentra sus registros la búsqueda de IA\n\nLa fundamentación de los asistentes y la columna de búsqueda de IA trabajan con un índice preparado de sus datos, no con un escaneo en vivo.\n\n- Sus registros se dividen en piezas y se preparan para que la IA pueda coincidir con ellos por significado, no solo por palabras exactas.\n- Forge actualiza este índice automáticamente de forma programada (cada media hora aproximadamente), de modo que los registros recién creados o editados se vuelven localizables sin ningún paso manual.\n- El ajuste de **registros permitidos** de cada asistente limita de qué tipos de registros puede tomar datos — así mantiene, por ejemplo, un asistente de RR. HH. fundamentado solo en datos de empleados. Déjelo vacío y podrá usar todos los tipos de registros.\n\n## El panel de Ayuda de IA: sincronización y su límite de mensajes\n\nEl panel de Ayuda de IA del encabezado recuerda su chat de forma distinta a la página de IA (que lo olvida cuando sale).\n\n- **Guardado en su navegador, por usuario.** Su chat se guarda localmente, así que sobrevive a una actualización, al cierre de la pestaña y a reabrirla más tarde.\n- **Sincronizado entre pestañas.** Envíe un mensaje en una pestaña y la conversación se actualiza en sus otras pestañas de Forge abiertas — es una única conversación compartida.\n- **Conserva los últimos 50 mensajes.** Solo se conservan sus 50 mensajes más recientes; los más antiguos se descartan.\n- **Borrar** elimina el chat guardado (el icono de reiniciar). Si el almacenamiento de su navegador está lleno, puede que ese turno no se guarde — la conversación sigue funcionando mientras está en ella.",
       "sections": []
     }
   }

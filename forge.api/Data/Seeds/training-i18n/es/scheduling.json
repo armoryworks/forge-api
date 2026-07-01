@@ -20,7 +20,7 @@
           "element": ".scheduling__kpis",
           "popover": {
             "title": "KPI de Programación",
-            "description": "De un vistazo, estos chips muestran el recuento de Operaciones programadas, cuántas están En progreso (ámbar) y el número de Centros de trabajo. Le dan una lectura rápida del tamaño y el estado de su plan actual antes de profundizar en cualquier pestaña.",
+            "description": "Estos recuadros le dan una lectura rápida de su plan. Muestran cuántas operaciones están programadas, cuántas se están ejecutando ahora y cuántos centros de trabajo tiene.",
             "side": "bottom"
           }
         },
@@ -28,7 +28,7 @@
           "element": ".tab-bar",
           "popover": {
             "title": "Las cinco pestañas",
-            "description": "La Programación se divide en cinco pestañas: Programa (la lista maestra de operaciones, mostrada como una tabla de datos —no un diagrama de Gantt gráfico), Despacho (la cola de siguiente en turno por centro de trabajo), Centros de trabajo (los datos maestros de sus máquinas/estaciones), Turnos (horas de operación) e Historial de ejecuciones (el registro de auditoría de las ejecuciones del programador). La pestaña activa se almacena en la URL para que pueda guardar como marcador o compartir cualquier vista.",
+            "description": "La Programación tiene cinco pestañas. Programa lista cada operación planificada. Despacho muestra qué ejecutar a continuación en un centro de trabajo. Centros de trabajo contiene sus máquinas y estaciones. Turnos contiene sus horas de operación. Historial de ejecuciones registra cada vez que ejecutó el programador.",
             "side": "bottom"
           }
         },
@@ -36,7 +36,7 @@
           "element": "[data-testid='scheduling-run-btn']",
           "popover": {
             "title": "Ejecutar programador",
-            "description": "En la pestaña Programa, haga clic en Ejecutar programador para ejecutar el programador automático. Es un solo botón —sin selector de dirección— que ejecuta una pasada hacia adelante, impulsada por capacidad, asignando las operaciones de sus trabajos a centros de trabajo y franjas horarias lo antes que la capacidad lo permita. Cada ejecución se registra en el Historial de ejecuciones con su dirección, cuántas operaciones se programaron y cuántos conflictos se detectaron.",
+            "description": "En la pestaña Programa, haga clic en Ejecutar programador para armar el plan automáticamente. Coloca las operaciones de sus trabajos en los centros de trabajo lo antes que haya espacio. Cada ejecución se guarda en el Historial de ejecuciones con cuántas operaciones programó y cuántos problemas encontró.",
             "side": "bottom"
           }
         },
@@ -44,7 +44,7 @@
           "element": ".tab-bar .tab:first-child",
           "popover": {
             "title": "La pestaña Programa",
-            "description": "La pestaña Programa es la vista predeterminada y contiene la lista maestra de operaciones. A pesar del nombre, es una tabla de datos sencilla, ordenable y filtrable (una fila por operación) —no un diagrama de Gantt gráfico con barras dibujadas. Cada operación programada aparece como una fila: número de trabajo, operación, centro de trabajo, inicio y fin programados, horas, estado (Programada, En progreso, Completa) y un interruptor de bloqueo. Haga clic en un encabezado de columna para ordenar y use el icono de engranaje para administrar qué columnas son visibles.",
+            "description": "Esta es la vista principal. Lista cada operación programada, una por fila, con el trabajo, el centro de trabajo, las horas de inicio y fin, las horas, el estado y un candado. Haga clic en un encabezado de columna para ordenar y use el engranaje para elegir qué columnas se muestran.",
             "side": "bottom"
           }
         },
@@ -52,23 +52,23 @@
           "element": ".tab-panel app-toolbar",
           "popover": {
             "title": "Bloquear una operación",
-            "description": "En la pestaña Programa, cada fila de operación lleva un icono de candado. Haga clic en él para bloquear esa operación —una operación bloqueada queda fija en su lugar, por lo que el programador planifica todo lo demás a su alrededor y nunca la mueve. Haga clic de nuevo para desbloquear. Use esto cuando una operación ya está configurada o prometida y no debe reprogramarse.",
+            "description": "Cada fila tiene un candado. Haga clic para fijar esa operación en su lugar, para que el programador acomode todo lo demás a su alrededor y nunca la mueva. Haga clic de nuevo para desbloquear. Use esto cuando una operación ya está configurada o prometida.",
             "side": "bottom"
           }
         },
         {
-          "element": ".tab-bar .tab:nth-child(3)",
+          "element": "[data-testid='work-center-create-btn']",
           "popover": {
             "title": "Nuevo centro de trabajo",
-            "description": "Cambie a la pestaña Centros de trabajo y luego haga clic en Nuevo centro de trabajo para definir una máquina o estación de trabajo. Establecerá su Código, Nombre, Capacidad diaria (horas), % de eficiencia, Número de máquinas y las tasas opcionales de mano de obra y carga. Estos valores son exactamente lo que usa el programador para calcular la capacidad disponible.",
+            "description": "En la pestaña Centros de trabajo, haga clic en Nuevo centro de trabajo para agregar una máquina o estación. Ingrese su código, nombre, horas diarias, eficiencia y número de máquinas. El programador usa estos datos para calcular cuánto trabajo puede tomar el centro.",
             "side": "bottom"
           }
         },
         {
-          "element": ".tab-bar",
+          "element": ".tab-panel app-data-table",
           "popover": {
             "title": "Tabla de Centros de trabajo",
-            "description": "Abra la pestaña Centros de trabajo para ver la tabla: cada fila muestra el código, el nombre, la capacidad diaria, la eficiencia, el recuento de máquinas, el estado activo, el activo vinculado y la ubicación de un centro de trabajo, con botones Editar y Eliminar en la columna Acciones. Mantener precisos estos datos maestros es lo que hace que el programa refleje la capacidad real de su taller.",
+            "description": "Abra la pestaña Centros de trabajo para ver cada centro en una tabla. Cada fila muestra su código, nombre, capacidad diaria, eficiencia y si está activo. Mantener esto al día hace que el programa refleje la capacidad real de su taller.",
             "side": "bottom"
           }
         },
@@ -76,7 +76,7 @@
           "element": ".row-actions",
           "popover": {
             "title": "Editar un centro de trabajo",
-            "description": "Haga clic en el icono de lápiz (Editar) en la fila de cualquier centro de trabajo para volver a abrir el mismo diálogo en modo de edición, precargado con sus valores actuales. En modo de edición también obtiene un interruptor Activo —apague un centro para excluirlo de la programación sin eliminarlo. Haga clic en Guardar cambios para confirmar, o en Cancelar para descartar. Use Editar siempre que cambien la capacidad real, la eficiencia o las tasas de una máquina.",
+            "description": "Haga clic en el lápiz de cualquier fila para volver a abrir el mismo formulario, con los valores actuales ya cargados. Editar también le da un interruptor de encendido/apagado para sacar un centro de la programación sin eliminarlo. Haga clic en Guardar cambios para conservarlos. Edite siempre que cambien la capacidad, la eficiencia o las tasas de una máquina.",
             "side": "left"
           }
         },
@@ -84,7 +84,7 @@
           "element": ".row-actions",
           "popover": {
             "title": "Eliminar un centro de trabajo",
-            "description": "Haga clic en el icono rojo de papelera (Eliminar) para quitar un centro de trabajo. Esto no elimina de inmediato —primero se abre un diálogo de confirmación que nombra el centro de trabajo y le pide confirmar la eliminación. Haga clic en Eliminar en el diálogo para continuar o en Cancelar para conservarlo. El paso de confirmación lo protege de quitar accidentalmente un recurso contra el cual hay operaciones programadas.",
+            "description": "Haga clic en el icono rojo de papelera para quitar un centro de trabajo. No elimina de inmediato. Primero se abre una ventana, nombra el centro y le pide confirmar. Este paso lo protege de quitar un centro contra el cual todavía hay operaciones programadas.",
             "side": "left"
           }
         }
@@ -103,127 +103,127 @@
           "items": [
             {
               "label": "Programa",
-              "value": "La lista maestra de todas las operaciones programadas, mostrada como una tabla de datos ordenable y filtrable (una fila por operación) —no un diagrama de Gantt gráfico. Aloja el botón Ejecutar programador y el interruptor de bloqueo por operación. Pestaña predeterminada al abrir Programación."
+              "value": "Lista cada operación programada, una por fila, y le permite ordenar y filtrar. Aquí ejecuta el programador y bloquea operaciones. Se abre de forma predeterminada."
             },
             {
               "label": "Despacho",
-              "value": "Una cola específica por centro de trabajo, ordenada por prioridad, de qué ejecutar a continuación. Seleccione un centro de trabajo, haga clic en Cargar para poblar la lista."
+              "value": "Muestra qué ejecutar a continuación en un centro de trabajo, por orden de prioridad. Elija un centro de trabajo y haga clic en Cargar para llenar la lista."
             },
             {
               "label": "Centros de trabajo",
-              "value": "Datos maestros de los recursos de producción (máquinas, estaciones). Creación / edición / eliminación completa."
+              "value": "Sus máquinas y estaciones. Agréguelas, edítelas o quítelas aquí."
             },
             {
               "label": "Turnos",
-              "value": "Lista de solo lectura de definiciones de horas de operación (inicio, fin, descansos, horas netas). Los turnos son globales, compartidos entre todos los centros de trabajo."
+              "value": "Una lista de solo lectura de sus horas de operación (inicio, fin, descansos, horas netas). Los turnos se comparten entre todos los centros de trabajo."
             },
             {
               "label": "Historial de ejecuciones",
-              "value": "Registro de auditoría de cada ejecución del programador con fecha de ejecución, dirección, estado, operaciones programadas y conflictos detectados."
+              "value": "Un registro de cada ejecución del programador, con la fecha, cuántas operaciones programó y cuántos problemas encontró."
             }
           ]
         },
         {
-          "heading": "Chips de KPI (parte superior de la página)",
+          "heading": "Recuadros de KPI (parte superior de la página)",
           "items": [
             {
               "label": "Ops programadas",
-              "value": "Recuento total de operaciones actualmente en el programa."
+              "value": "Cuántas operaciones están en el programa."
             },
             {
               "label": "En progreso",
-              "value": "Recuento de operaciones actualmente en ejecución (valor en ámbar)."
+              "value": "Cuántas operaciones se están ejecutando ahora."
             },
             {
               "label": "Centros de trabajo",
-              "value": "Recuento de centros de trabajo (valor en color primario)."
+              "value": "Cuántos centros de trabajo tiene."
             }
           ]
         },
         {
-          "heading": "Campos del diálogo de Centro de trabajo",
+          "heading": "Campos del Centro de trabajo",
           "items": [
             {
               "label": "Código (obligatorio)",
-              "value": "Identificador corto del centro de trabajo (p. ej., 'CNC-01'). Campo de texto, máximo 50 caracteres."
+              "value": "Un identificador corto del centro, como 'CNC-01'."
             },
             {
               "label": "Nombre (obligatorio)",
-              "value": "Nombre descriptivo completo (p. ej., 'Centro de mecanizado'). Campo de texto, máximo 200 caracteres."
+              "value": "El nombre completo, como 'Centro de mecanizado'."
             },
             {
               "label": "Descripción",
-              "value": "Descripción opcional de formato libre. Área de texto, 2 filas."
+              "value": "Una nota opcional sobre el centro."
             },
             {
               "label": "Capacidad diaria (horas) (obligatorio)",
-              "value": "Cuántas horas de trabajo puede absorber el centro por día. Campo numérico. Es una entrada principal para el cálculo de capacidad del programador."
+              "value": "Cuántas horas de trabajo puede tomar el centro por día. El programador usa esto para planificar la capacidad."
             },
             {
               "label": "% de eficiencia (obligatorio)",
-              "value": "Factor de realismo aplicado a la capacidad. 100% = capacidad nominal; valores más bajos tienen en cuenta el tiempo de inactividad/reproceso. Campo numérico con sufijo '%'."
+              "value": "Qué tan realistas son las horas diarias. 100% significa que el centro alcanza todas sus horas; valores más bajos dejan margen para el tiempo de inactividad y el reproceso."
             },
             {
               "label": "Número de máquinas (obligatorio)",
-              "value": "Recuento de unidades idénticas en el centro que pueden funcionar en paralelo. Campo numérico."
+              "value": "Cuántas máquinas idénticas tiene el centro que pueden funcionar al mismo tiempo."
             },
             {
               "label": "Orden de clasificación",
-              "value": "Valor de orden de visualización opcional. Campo numérico."
+              "value": "Un número opcional que fija dónde aparece el centro en la lista."
             },
             {
               "label": "Costo de mano de obra / hora",
-              "value": "Tasa de mano de obra opcional para el costeo. Campo de moneda ($)."
+              "value": "Una tasa de mano de obra opcional, usada para el costeo."
             },
             {
               "label": "Tasa de carga (burden) / hora",
-              "value": "Tasa de gastos generales opcional para el costeo. Campo de moneda ($)."
+              "value": "Una tasa de gastos generales opcional, usada para el costeo."
             },
             {
               "label": "Activo",
-              "value": "Interruptor, mostrado solo en modo de edición. Los centros de trabajo inactivos se excluyen de la programación."
+              "value": "Un interruptor de encendido/apagado, mostrado solo al editar. Apague un centro para dejarlo fuera de la programación."
             }
           ]
         },
         {
-          "heading": "Estados de operación programada (pestaña Programa)",
+          "heading": "Estados de operación (pestaña Programa)",
           "items": [
             {
-              "label": "Programada (chip info)",
-              "value": "La operación está colocada en el programa pero no ha comenzado."
+              "label": "Programada",
+              "value": "La operación está en el programa pero no ha comenzado."
             },
             {
-              "label": "En progreso (chip advertencia)",
-              "value": "La operación se está ejecutando actualmente."
+              "label": "En progreso",
+              "value": "La operación se está ejecutando ahora."
             },
             {
-              "label": "Completa (chip éxito)",
-              "value": "La operación finalizó con éxito."
+              "label": "Completa",
+              "value": "La operación finalizó."
             },
             {
-              "label": "Cancelada (chip atenuado)",
+              "label": "Cancelada",
               "value": "La operación fue cancelada."
             }
           ]
         },
         {
-          "heading": "Estados de ejecución de programación (pestaña Historial de ejecuciones)",
+          "heading": "Estados de ejecución (pestaña Historial de ejecuciones)",
           "items": [
             {
-              "label": "Completada (chip éxito)",
-              "value": "La ejecución del programador finalizó con éxito."
+              "label": "Completada",
+              "value": "La ejecución del programador finalizó."
             },
             {
-              "label": "En ejecución (chip advertencia)",
-              "value": "El programador se está ejecutando actualmente."
+              "label": "En ejecución",
+              "value": "El programador se está ejecutando ahora."
             },
             {
-              "label": "Fallida (chip error)",
-              "value": "La ejecución del programador falló con un error."
+              "label": "Fallida",
+              "value": "La ejecución del programador tuvo un error."
             },
             {
               "label": "En cola",
-              "value": "La ejecución está en cola y aún no ha comenzado."
+              "value": "La ejecución está esperando para comenzar."
             }
           ]
         },
@@ -232,11 +232,11 @@
           "items": [
             {
               "label": "Hacia adelante",
-              "value": "Programa desde hoy hacia adelante, colocando el trabajo lo antes que la capacidad lo permita (impulsado por capacidad)."
+              "value": "Planifica desde hoy en adelante, colocando el trabajo lo antes que haya espacio."
             },
             {
               "label": "Hacia atrás",
-              "value": "Programa desde la fecha de vencimiento hacia atrás (impulsado por fecha límite), para cumplir justo con las fechas de entrega."
+              "value": "Planifica hacia atrás desde la fecha de vencimiento, para que el trabajo termine justo a tiempo."
             }
           ]
         },
@@ -245,31 +245,31 @@
           "items": [
             {
               "label": "Trabajo #",
-              "value": "Ordenable. El trabajo al que pertenece la operación. Ancho 100px."
+              "value": "El trabajo al que pertenece la operación. Haga clic para ordenar."
             },
             {
               "label": "Operación",
-              "value": "Ordenable. El título de la operación."
+              "value": "El nombre de la operación. Haga clic para ordenar."
             },
             {
               "label": "Centro de trabajo",
-              "value": "Ordenable, filtrable. El centro al que se asigna la operación."
+              "value": "El centro en el que se ejecuta la operación. Ordene y filtre."
             },
             {
               "label": "Inicio / Fin",
-              "value": "Ordenable. Inicio y fin programados, tipo fecha. Ancho 140px cada uno."
+              "value": "El inicio y fin programados. Haga clic para ordenar."
             },
             {
               "label": "Horas",
-              "value": "Ordenable. Total de horas programadas para la operación. Número, ancho 80px."
+              "value": "Total de horas programadas para la operación. Haga clic para ordenar."
             },
             {
               "label": "Estado",
-              "value": "Ordenable, filtrable (enum). Chip con código de color. Ancho 100px."
+              "value": "Una etiqueta de color que muestra en qué punto está la operación. Ordene y filtre."
             },
             {
               "label": "Bloqueado",
-              "value": "Icono de interruptor bloquear / desbloquear. Las operaciones bloqueadas no son movidas por el programador. Ancho 70px."
+              "value": "Un candado que puede activar o desactivar. Las operaciones bloqueadas se quedan en su lugar cuando se ejecuta el programador."
             }
           ]
         },
@@ -278,31 +278,31 @@
           "items": [
             {
               "label": "Trabajo #",
-              "value": "Ordenable. El trabajo de la operación. Ancho 100px."
+              "value": "El trabajo de la operación. Haga clic para ordenar."
             },
             {
               "label": "Operación",
-              "value": "Ordenable. El título de la operación."
+              "value": "El nombre de la operación. Haga clic para ordenar."
             },
             {
               "label": "Sec.",
-              "value": "Ordenable. Número de secuencia dentro de la cola. Ancho 60px."
+              "value": "Dónde cae la operación en la cola. Haga clic para ordenar."
             },
             {
               "label": "Inicio",
-              "value": "Ordenable. Inicio programado, tipo fecha. Ancho 140px."
+              "value": "El inicio programado. Haga clic para ordenar."
             },
             {
               "label": "Hrs configuración / Hrs ejecución",
-              "value": "Ordenable. Horas de configuración y de ejecución de la operación. Número, ancho 100px cada uno."
+              "value": "Horas de configuración y de ejecución de la operación. Haga clic para ordenar."
             },
             {
               "label": "Prioridad",
-              "value": "Ordenable. La prioridad del trabajo, mostrada como chip info. Ancho 90px."
+              "value": "La prioridad del trabajo. Haga clic para ordenar."
             },
             {
               "label": "Fecha de vencimiento",
-              "value": "Ordenable. La fecha de vencimiento del trabajo, tipo fecha. Ancho 120px."
+              "value": "La fecha de vencimiento del trabajo. Haga clic para ordenar."
             }
           ]
         },
@@ -311,31 +311,31 @@
           "items": [
             {
               "label": "Código / Nombre",
-              "value": "Ordenable. Identificador del centro de trabajo y nombre completo."
+              "value": "El código corto y el nombre completo del centro. Haga clic para ordenar."
             },
             {
               "label": "Cap. diaria",
-              "value": "Ordenable. Horas de capacidad diaria. Número, ancho 120px."
+              "value": "Capacidad diaria en horas. Haga clic para ordenar."
             },
             {
               "label": "Eficiencia",
-              "value": "Ordenable. Porcentaje de eficiencia. Número, ancho 110px."
+              "value": "El porcentaje de eficiencia del centro. Haga clic para ordenar."
             },
             {
               "label": "Máquinas",
-              "value": "Ordenable. Número de máquinas. Número, ancho 90px."
+              "value": "Cuántas máquinas tiene el centro. Haga clic para ordenar."
             },
             {
               "label": "Activo",
-              "value": "Ordenable. Chip activo/inactivo (éxito cuando está activo, atenuado cuando está inactivo). Ancho 70px."
+              "value": "Si el centro está activo. Haga clic para ordenar."
             },
             {
               "label": "Activo / Ubicación",
-              "value": "Ordenable. Nombre del activo vinculado y nombre de la ubicación."
+              "value": "El equipo y la ubicación vinculados. Haga clic para ordenar."
             },
             {
               "label": "Acciones",
-              "value": "Botones de icono Editar y Eliminar. Ancho 90px."
+              "value": "Botones para editar o eliminar el centro."
             }
           ]
         },
@@ -344,23 +344,23 @@
           "items": [
             {
               "label": "Nombre",
-              "value": "Ordenable. El nombre del turno."
+              "value": "El nombre del turno. Haga clic para ordenar."
             },
             {
               "label": "Hora de inicio / Hora de fin",
-              "value": "Ordenable. Horas de inicio y fin del turno. Ancho 100px cada uno."
+              "value": "Cuándo empieza y termina el turno. Haga clic para ordenar."
             },
             {
               "label": "Min. descanso",
-              "value": "Ordenable. Minutos de descanso. Número, ancho 100px."
+              "value": "Minutos de descanso en el turno. Haga clic para ordenar."
             },
             {
               "label": "Horas netas",
-              "value": "Ordenable. Calculadas como fin − inicio − descansos. Número, ancho 100px."
+              "value": "Horas de trabajo después de los descansos (fin − inicio − descansos). Haga clic para ordenar."
             },
             {
               "label": "Activo",
-              "value": "Ordenable. Chip activo/inactivo. Ancho 70px."
+              "value": "Si el turno está activo. Haga clic para ordenar."
             }
           ]
         },
@@ -369,27 +369,27 @@
           "items": [
             {
               "label": "Fecha de ejecución",
-              "value": "Ordenable. Cuándo se ejecutó la ejecución. Fecha, ancho 140px."
+              "value": "Cuándo comenzó la ejecución. Haga clic para ordenar."
             },
             {
               "label": "Dirección",
-              "value": "Ordenable. Hacia adelante o Hacia atrás. Ancho 100px."
+              "value": "Hacia adelante o hacia atrás. Haga clic para ordenar."
             },
             {
               "label": "Estado",
-              "value": "Ordenable, filtrable (enum). Chip Completada / En ejecución / Fallida. Ancho 100px."
+              "value": "Si la ejecución se completó, se está ejecutando o falló. Ordene y filtre."
             },
             {
               "label": "Ops programadas",
-              "value": "Ordenable. Cuántas operaciones programó la ejecución. Número, ancho 120px."
+              "value": "Cuántas operaciones programó la ejecución. Haga clic para ordenar."
             },
             {
               "label": "Conflictos",
-              "value": "Ordenable. Cuántos conflictos detectó la ejecución. Número, ancho 100px."
+              "value": "Cuántos problemas encontró la ejecución. Haga clic para ordenar."
             },
             {
               "label": "Completada",
-              "value": "Ordenable. Cuándo finalizó la ejecución. Fecha, ancho 140px."
+              "value": "Cuándo finalizó la ejecución. Haga clic para ordenar."
             }
           ]
         },
@@ -398,31 +398,31 @@
           "items": [
             {
               "label": "Ejecutar programador (pestaña Programa)",
-              "value": "Ejecuta el programador automático. data-testid: scheduling-run-btn"
+              "value": "Arma el plan automáticamente."
             },
             {
               "label": "Bloquear / Desbloquear (fila de la pestaña Programa)",
-              "value": "Alterna si el programador puede mover la operación. Icono de candado (bloqueado) / icono lock_open (desbloqueado)."
+              "value": "Activa o desactiva si el programador puede mover la operación."
             },
             {
               "label": "Selector de centro de trabajo + Cargar (pestaña Despacho)",
-              "value": "Elija un centro de trabajo y luego haga clic en Cargar para poblar su cola de despacho. Cargar está deshabilitado hasta que se seleccione un centro de trabajo."
+              "value": "Elija un centro de trabajo y luego haga clic en Cargar para llenar su cola. Cargar queda atenuado hasta que elija uno."
             },
             {
               "label": "Nuevo centro de trabajo (pestaña Centros de trabajo)",
-              "value": "Abre el diálogo de creación de centro de trabajo. data-testid: work-center-create-btn"
+              "value": "Abre el formulario para agregar un centro de trabajo."
             },
             {
               "label": "Editar (fila de Centros de trabajo)",
-              "value": "Icono de lápiz. Abre el diálogo de centro de trabajo en modo de edición para esa fila, precargado con sus valores actuales. El modo de edición agrega un interruptor Activo que el formulario de creación no muestra. Guardar cambios confirma; Cancelar descarta."
+              "value": "El lápiz vuelve a abrir el formulario de ese centro, con sus valores actuales ya cargados. Al editar aparece un interruptor de encendido/apagado que el formulario de creación no muestra. Guardar cambios para conservarlos."
             },
             {
               "label": "Eliminar (fila de Centros de trabajo)",
-              "value": "Icono rojo de papelera (botón de peligro). No elimina de inmediato —abre un diálogo de confirmación que nombra el centro de trabajo; confirme con Eliminar o retroceda con Cancelar."
+              "value": "El icono rojo de papelera quita el centro. Primero le pide confirmar, nombrando el centro, para que no lo quite por accidente."
             },
             {
-              "label": "Cancelar / Guardar (pie del diálogo)",
-              "value": "Cancelar cierra sin guardar; Guardar (o Crear) confirma. Guardar está deshabilitado mientras el formulario no es válido o se está guardando; un botón de validación muestra las infracciones."
+              "label": "Cancelar / Guardar (formulario)",
+              "value": "Cancelar cierra sin guardar; Guardar conserva sus cambios. Guardar queda atenuado hasta que el formulario esté correctamente completado, y le indica qué falta."
             }
           ]
         },
@@ -431,23 +431,23 @@
           "items": [
             {
               "label": "Capacidad",
-              "value": "La cantidad finita de trabajo que un centro de trabajo puede absorber, derivada de las horas de capacidad diaria, la eficiencia, el recuento de máquinas y las horas de turno disponibles."
+              "value": "Cuánto trabajo puede tomar un centro, según sus horas diarias, su eficiencia, su número de máquinas y sus horas de turno."
             },
             {
               "label": "Conflicto",
-              "value": "Un problema de programación que la ejecución detecta —lo más común, un centro de trabajo programado más allá de su capacidad."
+              "value": "Un problema que el programador encuentra, lo más común un centro con más trabajo del que puede manejar."
             },
             {
               "label": "Bloqueo",
-              "value": "Una marca de 'no reprogramar' en una operación; el programador planifica a su alrededor."
+              "value": "Una marca de 'no mover' en una operación. El programador planifica a su alrededor."
             },
             {
               "label": "Horas netas",
-              "value": "Las horas productivas de un turno = fin − inicio − minutos de descanso."
+              "value": "Las horas de trabajo de un turno: fin − inicio − minutos de descanso."
             },
             {
               "label": "Lista de despacho",
-              "value": "La cola ordenada por prioridad y específica por centro de trabajo de las operaciones a ejecutar a continuación —la vista del operario de planta."
+              "value": "La lista ordenada por prioridad de qué ejecutar a continuación en un centro de trabajo, para la persona en la planta."
             }
           ]
         }

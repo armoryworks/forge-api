@@ -26,7 +26,7 @@ public class ExpensesTraining : TrainingContentBase
             Tags = """["expenses","approval"]""",
             ContentJson = """
 {
-  "body": "## Expenses Overview\n\nThe Expenses module lets you submit, track, and manage company expenses in a single searchable table. Managers can approve or reject pending expenses directly from the table.\n\n### Submission Flow\n\nTo submit an expense:\n1. Navigate to /expenses.\n2. Click the **Add Expense** button in the page header.\n3. Fill in Amount (required, min $0.01), Date (required), and Category (required — loaded from reference data configured in Admin).\n4. Optionally add a Description.\n5. Click **Submit**. The expense enters **Pending** status.\n\nOnce submitted, the expense appears in the main table for everyone to see.\n\n### Approval Workflow\n\nManagers and Admins can approve or reject pending expenses directly in the table. Each pending expense row shows two inline action buttons:\n- **Approve** (checkmark icon) — immediately marks the expense as Approved (green chip).\n- **Reject** (X icon) — immediately marks the expense as Rejected (red chip).\n\nThese action buttons only appear for expenses with Pending status.\n\n### Filtering and Search\n\nThe page header includes:\n- A **Search** input that filters by description or category.\n- A **Status** filter dropdown with options: All, Pending, Approved, Rejected, SelfApproved, NeedsRevision.\n- A **Total Amount** display showing the sum of currently visible expenses.\n\n### Expense Statuses\n\n- **Pending** (warning/yellow chip) — Awaiting manager approval.\n- **Approved** (success/green chip) — Reviewed and approved.\n- **Rejected** (error/red chip) — Reviewed and rejected.\n- **SelfApproved** (success/green chip) — Submitted by a manager with auto-approve privileges.\n\n### Draft Auto-Save\n\nThe expense dialog supports draft auto-save. If you accidentally close the dialog before saving, your form data is preserved in IndexedDB and restored when you reopen the dialog.",
+  "body": "## Expenses Overview\n\nThe Expenses module lets you submit, track, and manage company expenses in one searchable table. Managers can approve or reject pending expenses right from the table.\n\n### Submitting an Expense\n\nTo submit an expense:\n1. Go to the Expenses page.\n2. Click **Add Expense** in the page header.\n3. Enter the Amount (required, at least $0.01), Date (required), and Category (required — categories are set up by your admin).\n4. Add a Description if you like.\n5. Click **Submit**. The expense becomes **Pending**.\n\nOnce submitted, the expense shows up in the main table for everyone to see.\n\n### Approving Expenses\n\nManagers and admins can approve or reject pending expenses right in the table. Each pending row shows two quick buttons:\n- **Approve** (checkmark) — marks the expense Approved (green label).\n- **Reject** (X) — marks the expense Rejected (red label).\n\nThese buttons only appear on expenses that are still Pending.\n\n### Filtering and Search\n\nThe page header gives you:\n- A **Search** box that filters by description or category.\n- A **Status** menu to show All, Pending, Approved, Rejected, Self-approved, or Needs revision.\n- A **Total Amount** that adds up the expenses you can currently see.\n\n### Expense Statuses\n\n- **Pending** (yellow label) — Waiting for a manager to review it.\n- **Approved** (green label) — Reviewed and approved.\n- **Rejected** (red label) — Reviewed and turned down.\n- **Self-approved** (green label) — Submitted by a manager who can approve their own expenses.\n\n### Your Work Is Saved\n\nIf you close the expense window by accident before saving, your entries are kept and filled back in the next time you open it.",
   "sections": []
 }
 """
@@ -53,7 +53,7 @@ public class ExpensesTraining : TrainingContentBase
       "element": ".filters-bar app-input",
       "popover": {
         "title": "Search Expenses",
-        "description": "Search across all expenses by description or category. Type a term and press Enter to apply the filter.",
+        "description": "Search your expenses by description or category. Type a word and press Enter to filter the list.",
         "side": "bottom"
       }
     },
@@ -61,7 +61,7 @@ public class ExpensesTraining : TrainingContentBase
       "element": "[data-testid='status-filter']",
       "popover": {
         "title": "Status Filter",
-        "description": "Filter expenses by status: All, Pending (awaiting approval), Approved, Rejected, SelfApproved, or NeedsRevision. Each status has a color-coded chip in the table.",
+        "description": "Show only expenses in a certain state, such as Pending, Approved, Rejected, or Needs revision. Each state has its own colored label in the table.",
         "side": "bottom"
       }
     },
@@ -69,7 +69,7 @@ public class ExpensesTraining : TrainingContentBase
       "element": "app-data-table",
       "popover": {
         "title": "Expenses Table",
-        "description": "All submitted expenses appear here. Columns include Date (MM/dd/yyyy), Category (colored chip), Description, Job (if linked), Submitted By, Amount ($X.XX), and Status (color chip). Click column headers to sort. Pending rows show inline approve/reject actions.",
+        "description": "Every submitted expense shows up here, with details such as its date, category, description, linked job, who submitted it, amount, and status. Click a column header to sort. Pending rows show quick approve and reject buttons.",
         "side": "top"
       }
     },
@@ -77,7 +77,7 @@ public class ExpensesTraining : TrainingContentBase
       "element": "[data-testid='expense-save-btn'], [data-testid='new-expense-btn'], .action-btn--primary",
       "popover": {
         "title": "Add Expense",
-        "description": "Click here to submit a new expense. You'll fill in Amount (required), Date (required), Category (required from reference data), and an optional Description. The expense starts in Pending status.",
+        "description": "Click here to submit a new expense. You'll enter the amount, date, and category (all required), plus an optional description. The new expense starts out Pending.",
         "side": "bottom"
       }
     }
@@ -105,60 +105,60 @@ public class ExpensesTraining : TrainingContentBase
     {
       "heading": "Create Expense Dialog Fields",
       "items": [
-        {"label": "Amount (required)", "value": "Currency input, min $0.01, prefix '$'. The expense dollar amount. data-testid: expense-amount"},
-        {"label": "Date (required)", "value": "Datepicker. The date the expense was incurred. Displayed as MM/dd/yyyy. data-testid: expense-date"},
-        {"label": "Category (required)", "value": "Select dropdown. Options loaded from reference data (expense categories configured in Admin). data-testid: expense-category"},
-        {"label": "Description (optional)", "value": "Textarea. Free-form description of the expense. data-testid: expense-description"},
-        {"label": "Submit button", "value": "Disabled when form is invalid or save is in progress. Click the warning-triangle icon to the left of the (disabled) Submit button to see a popover listing violations. data-testid: expense-save-btn"}
+        {"label": "Amount (required)", "value": "The dollar amount of the expense. Must be at least $0.01."},
+        {"label": "Date (required)", "value": "The date the expense happened. Shown as MM/dd/yyyy."},
+        {"label": "Category (required)", "value": "Pick a category from the menu. Categories are set up by your admin."},
+        {"label": "Description (optional)", "value": "A short note about what the expense was for."},
+        {"label": "Submit button", "value": "Stays grayed out until the form is complete. If it won't turn on, click the warning triangle next to it to see what's still missing."}
       ]
     },
     {
       "heading": "Expense Statuses",
       "items": [
-        {"label": "Pending (warning/yellow chip)", "value": "Expense has been submitted and is awaiting manager approval. Default status for new expenses."},
-        {"label": "Approved (success/green chip)", "value": "Expense has been reviewed and approved by a manager."},
-        {"label": "Rejected (error/red chip)", "value": "Expense has been reviewed and rejected by a manager."},
-        {"label": "SelfApproved (success/green chip)", "value": "Expense was submitted by a manager who auto-approved it. Same green chip as Approved."}
+        {"label": "Pending (yellow label)", "value": "Submitted and waiting for a manager to review it. This is where new expenses start."},
+        {"label": "Approved (green label)", "value": "Reviewed and approved by a manager."},
+        {"label": "Rejected (red label)", "value": "Reviewed and turned down by a manager."},
+        {"label": "Self-approved (green label)", "value": "Submitted by a manager who can approve their own expenses. Shows the same green label as Approved."}
       ]
     },
     {
       "heading": "Table Columns",
       "items": [
-        {"label": "Date", "value": "Sortable. Expense date formatted as MM/dd/yyyy."},
-        {"label": "Category", "value": "Sortable. Displayed as a colored chip."},
-        {"label": "Description", "value": "Sortable. Free-form text description."},
-        {"label": "Job", "value": "Sortable. Linked job number or '—' if not linked to a job."},
-        {"label": "Submitted By", "value": "Sortable. Name of the user who submitted the expense."},
-        {"label": "Amount", "value": "Sortable. Formatted as $X.XX, right-aligned."},
-        {"label": "Status", "value": "Sortable, filterable (enum). Color-coded chip: Pending (yellow), Approved (green), Rejected (red), SelfApproved (green)."},
-        {"label": "Actions", "value": "Inline approve (checkmark) and reject (X) buttons. Only visible for Pending expenses."}
+        {"label": "Date", "value": "The date of the expense, shown as MM/dd/yyyy. Click to sort."},
+        {"label": "Category", "value": "The expense category, shown as a colored label. Click to sort."},
+        {"label": "Description", "value": "The note describing the expense. Click to sort."},
+        {"label": "Job", "value": "The linked job number, or a dash if it isn't tied to a job. Click to sort."},
+        {"label": "Submitted By", "value": "Who submitted the expense. Click to sort."},
+        {"label": "Amount", "value": "The dollar amount. Click to sort."},
+        {"label": "Status", "value": "A colored label showing the state: Pending (yellow), Approved (green), Rejected (red), Self-approved (green). Sort or filter by it."},
+        {"label": "Actions", "value": "Quick approve (checkmark) and reject (X) buttons. Only shown on Pending expenses."}
       ]
     },
     {
       "heading": "Page Header Controls",
       "items": [
-        {"label": "Search", "value": "Text input. Filters expenses by description or category. Press Enter to apply."},
-        {"label": "Status Filter", "value": "Select dropdown: All, Pending, Approved, Rejected, SelfApproved, NeedsRevision. data-testid: status-filter"},
-        {"label": "Total Amount", "value": "Read-only display showing the sum of all currently visible (filtered) expenses."},
-        {"label": "Add Expense button", "value": "Opens the Create Expense dialog. data-testid: new-expense-btn"}
+        {"label": "Search", "value": "Filters expenses by description or category. Press Enter to apply."},
+        {"label": "Status Filter", "value": "A menu to show only one state: All, Pending, Approved, Rejected, Self-approved, or Needs revision."},
+        {"label": "Total Amount", "value": "Adds up the expenses you can currently see (after any search or filter)."},
+        {"label": "Add Expense button", "value": "Opens the window for creating a new expense."}
       ]
     },
     {
       "heading": "Inline Approval Actions",
       "items": [
-        {"label": "Approve (checkmark icon)", "value": "Green icon button (icon-btn--success). Immediately approves the expense. Only visible for Pending expenses. Stops click propagation from opening detail."},
-        {"label": "Reject (X icon)", "value": "Red icon button (icon-btn--danger). Immediately rejects the expense. Only visible for Pending expenses."}
+        {"label": "Approve (checkmark)", "value": "A green button that approves the expense right away. Only shown on Pending expenses."},
+        {"label": "Reject (X)", "value": "A red button that turns down the expense right away. Only shown on Pending expenses."}
       ]
     },
     {
       "heading": "Validation Rules",
       "items": [
-        {"label": "Amount", "value": "Required. Must be a number >= $0.01."},
+        {"label": "Amount", "value": "Required. Must be at least $0.01."},
         {"label": "Date", "value": "Required. Must be a valid date."},
-        {"label": "Category", "value": "Required. Must select from reference data options (configured in Admin → Reference Data)."},
-        {"label": "Description", "value": "Optional. No length restriction."},
-        {"label": "Submit button popover", "value": "When form is invalid, click the warning-triangle icon to the left of the (disabled) Save button to see a validation popover listing which fields need attention."},
-        {"label": "Draft Auto-Save", "value": "Form data saved to IndexedDB every 2.5 seconds while editing. Recovered on next dialog open if unsaved."}
+        {"label": "Category", "value": "Required. Pick one of the categories your admin set up."},
+        {"label": "Description", "value": "Optional. Any length is fine."},
+        {"label": "Why Submit is grayed out", "value": "When something's missing, click the warning triangle next to the Submit button to see which fields still need attention."},
+        {"label": "Your work is saved", "value": "As you type, your entries are saved automatically and filled back in if you reopen the window before submitting."}
       ]
     }
   ]
@@ -194,7 +194,7 @@ public class ExpensesTraining : TrainingContentBase
         {"id": "c", "text": "Only Amount is required — all other fields are optional"},
         {"id": "d", "text": "Amount, Date, Category, Description, and Job are all required"}
       ],
-      "explanation": "The Create Expense dialog requires three fields: Amount (min $0.01), Date (datepicker), and Category (from reference data). Description is optional."
+      "explanation": "The Create Expense window requires three fields: Amount (at least $0.01), Date, and Category (from the categories your admin set up). Description is optional."
     },
     {
       "id": "ex2",
@@ -203,9 +203,9 @@ public class ExpensesTraining : TrainingContentBase
         {"id": "a", "text": "Draft — it needs to be finalized before submission"},
         {"id": "b", "text": "Approved — expenses are auto-approved by default"},
         {"id": "c", "text": "Pending — it awaits manager approval", "isCorrect": true},
-        {"id": "d", "text": "SelfApproved — the submitter's own expenses are auto-approved"}
+        {"id": "d", "text": "Self-approved — the submitter's own expenses are auto-approved"}
       ],
-      "explanation": "All newly submitted expenses start in Pending status (yellow chip) and await manager review."
+      "explanation": "All newly submitted expenses start out Pending (yellow label) and wait for a manager to review them."
     },
     {
       "id": "ex3",
@@ -213,10 +213,10 @@ public class ExpensesTraining : TrainingContentBase
       "options": [
         {"id": "a", "text": "Click the checkmark icon on the expense row to approve it immediately", "isCorrect": true},
         {"id": "b", "text": "Select the expense and click a bulk Approve All button"},
-        {"id": "c", "text": "Open the expense detail and change the status dropdown to Approved"},
+        {"id": "c", "text": "Open the expense detail and change the status menu to Approved"},
         {"id": "d", "text": "Right-click the row and select Approve from the context menu"}
       ],
-      "explanation": "Each pending expense row has two inline action icons: a checkmark (approve) and an X (reject). Clicking the checkmark immediately approves that expense."
+      "explanation": "Each pending expense row has two quick buttons: a checkmark (approve) and an X (reject). Clicking the checkmark approves that expense right away."
     },
     {
       "id": "ex4",
@@ -224,54 +224,54 @@ public class ExpensesTraining : TrainingContentBase
       "options": [
         {"id": "a", "text": "They are hardcoded in the application and cannot be changed"},
         {"id": "b", "text": "Each user defines their own categories in their profile settings"},
-        {"id": "c", "text": "They are loaded from reference data configured by an Admin", "isCorrect": true},
+        {"id": "c", "text": "They are set up by an admin in the Admin section", "isCorrect": true},
         {"id": "d", "text": "They are imported from QuickBooks and cannot be modified locally"}
       ],
-      "explanation": "Expense categories are managed via reference data in the Admin section. An administrator can add, edit, or remove categories that appear in the Category dropdown."
+      "explanation": "Expense categories are set up in the Admin section. An administrator can add, edit, or remove the categories that appear in the Category menu."
     },
     {
       "id": "ex5",
-      "text": "What does the Total Amount display in the page header show?",
+      "text": "What does the Total Amount in the page header show?",
       "options": [
         {"id": "a", "text": "The total of all expenses ever submitted in the system"},
         {"id": "b", "text": "The sum of currently visible (filtered) expenses", "isCorrect": true},
         {"id": "c", "text": "The total of only Approved expenses"},
         {"id": "d", "text": "The monthly budget remaining for the current user"}
       ],
-      "explanation": "The Total Amount display in the page header dynamically shows the sum of all expenses currently visible after applying search and status filters."
+      "explanation": "The Total Amount in the page header adds up all the expenses you can currently see, after any search or status filter is applied."
     },
     {
       "id": "ex6",
-      "text": "You accidentally close the expense dialog before saving. What happens to your form data?",
+      "text": "You accidentally close the expense window before saving. What happens to what you entered?",
       "options": [
         {"id": "a", "text": "It is lost — you must re-enter everything from scratch"},
-        {"id": "b", "text": "A confirmation dialog asks if you want to save a draft before closing"},
-        {"id": "c", "text": "Draft auto-save preserves the data in IndexedDB and restores it when you reopen the dialog", "isCorrect": true},
-        {"id": "d", "text": "The data is saved to the server as a Draft-status expense"}
+        {"id": "b", "text": "A pop-up asks if you want to save a draft before closing"},
+        {"id": "c", "text": "Your entries are saved automatically and filled back in when you reopen the window", "isCorrect": true},
+        {"id": "d", "text": "The data is saved to the server as a Draft expense"}
       ],
-      "explanation": "The expense dialog uses draft auto-save (debounced every 2.5 seconds). Form data is stored in IndexedDB and automatically recovered when you reopen the dialog."
+      "explanation": "The expense window saves your work as you type, so if you close it by accident, your entries are filled back in the next time you open it."
     },
     {
       "id": "ex7",
       "text": "How can you filter the expenses table to see only rejected expenses?",
       "options": [
-        {"id": "a", "text": "Type 'rejected' in the search input"},
-        {"id": "b", "text": "Use the Status filter dropdown and select 'Rejected'", "isCorrect": true},
+        {"id": "a", "text": "Type 'rejected' in the search box"},
+        {"id": "b", "text": "Use the Status filter menu and pick 'Rejected'", "isCorrect": true},
         {"id": "c", "text": "Click the Rejected column header to sort by rejections"},
-        {"id": "d", "text": "Navigate to a separate Rejected Expenses page"}
+        {"id": "d", "text": "Go to a separate Rejected Expenses page"}
       ],
-      "explanation": "The Status filter dropdown in the page header lets you select a specific status: All, Pending, Approved, Rejected, SelfApproved, or NeedsRevision. Selecting 'Rejected' shows only rejected expenses."
+      "explanation": "The Status filter in the page header lets you pick one state: All, Pending, Approved, Rejected, Self-approved, or Needs revision. Picking 'Rejected' shows only rejected expenses."
     },
     {
       "id": "ex8",
-      "text": "In the Expense Approval Queue, a manager opens an expense and wants to reject it (or send it back for changes). What does the review dialog require?",
+      "text": "In the Expense Approval Queue, a manager opens an expense and wants to reject it (or send it back for changes). What does the review window require?",
       "options": [
         {"id": "a", "text": "Nothing extra — Reject is a single click with no note"},
         {"id": "b", "text": "A review note of at least 10 characters before Reject or Request Revision is allowed", "isCorrect": true},
         {"id": "c", "text": "A receipt must be attached before the expense can be rejected"},
         {"id": "d", "text": "The expense must be deleted and the submitter re-creates it from scratch"}
       ],
-      "explanation": "Opening an expense in the Approval Queue shows a review dialog with three outcomes: Approve, Request Revision, and Reject. Both Reject and Request Revision require a review note of at least 10 characters; only Approve can proceed without one. Rejected shows a red chip, while Request Revision sets the expense to Needs Revision so the submitter can revise and resubmit it."
+      "explanation": "Opening an expense in the Approval Queue shows a review window with three choices: Approve, Request Revision, and Reject. Both Reject and Request Revision need a review note of at least 10 characters; only Approve can go through without one. Rejected shows a red label, while Request Revision sets the expense to Needs Revision so the submitter can fix and resubmit it."
     },
     {
       "id": "ex9",
@@ -282,18 +282,18 @@ public class ExpensesTraining : TrainingContentBase
         {"id": "c", "text": "Description and Category", "isCorrect": true},
         {"id": "d", "text": "All visible table columns including Date and Status"}
       ],
-      "explanation": "The search input filters across description and category only. It does not search by submitter name, date, amount, or status — use the Status dropdown for status filtering."
+      "explanation": "The search box filters by description and category only. It doesn't search by submitter name, date, amount, or status — use the Status menu to filter by status."
     },
     {
       "id": "ex10",
-      "text": "What does the 'SelfApproved' status mean on an expense?",
+      "text": "What does the 'Self-approved' status mean on an expense?",
       "options": [
         {"id": "a", "text": "The expense was approved by the system automatically based on rules"},
-        {"id": "b", "text": "The expense was submitted by a manager who has auto-approve privileges", "isCorrect": true},
+        {"id": "b", "text": "The expense was submitted by a manager who can approve their own expenses", "isCorrect": true},
         {"id": "c", "text": "The submitter clicked an Approve button on their own expense"},
         {"id": "d", "text": "The expense was under a threshold amount and was auto-approved"}
       ],
-      "explanation": "SelfApproved indicates the expense was submitted by a manager with auto-approve capability. It displays with a green chip, same as Approved."
+      "explanation": "Self-approved means the expense was submitted by a manager who's allowed to approve their own expenses. It shows a green label, the same as Approved."
     },
     {
       "id": "ex11",
@@ -304,51 +304,51 @@ public class ExpensesTraining : TrainingContentBase
         {"id": "c", "text": "$1.00 — expenses under a dollar are not supported"},
         {"id": "d", "text": "There is no minimum — any positive number works"}
       ],
-      "explanation": "The Amount field has a minimum validator of 0.01. You cannot submit an expense for $0.00 or a negative amount."
+      "explanation": "The Amount must be at least $0.01. You can't submit an expense for $0.00 or a negative amount."
     },
     {
       "id": "ex12",
-      "text": "Which of the following is NOT a column in the Expenses data table?",
+      "text": "Which of the following is NOT a column in the Expenses table?",
       "options": [
         {"id": "a", "text": "Category"},
         {"id": "b", "text": "Submitted By"},
         {"id": "c", "text": "Vendor", "isCorrect": true},
         {"id": "d", "text": "Job"}
       ],
-      "explanation": "The Expenses table columns are: Date, Category, Description, Job, Submitted By, Amount, Status, and Actions. There is no Vendor column."
+      "explanation": "The Expenses table columns are: Date, Category, Description, Job, Submitted By, Amount, Status, and Actions. There is no Vendor column. (Vendor is a field inside the expense window, not a table column.)"
     },
     {
       "id": "ex13",
-      "text": "When are the inline approve/reject action buttons visible on an expense row?",
+      "text": "When are the quick approve/reject buttons shown on an expense row?",
       "options": [
         {"id": "a", "text": "Always — on every expense regardless of status"},
         {"id": "b", "text": "Only for expenses with Pending status", "isCorrect": true},
         {"id": "c", "text": "Only for expenses submitted by other users"},
         {"id": "d", "text": "Only for expenses over $100"}
       ],
-      "explanation": "The approve (checkmark) and reject (X) inline action buttons only appear for expenses that are in Pending status. Once approved or rejected, the buttons are hidden."
+      "explanation": "The quick approve (checkmark) and reject (X) buttons only appear on expenses that are still Pending. Once approved or rejected, the buttons are hidden."
     },
     {
       "id": "ex14",
-      "text": "What color chip does each expense status display?",
+      "text": "What color label does each expense status show?",
       "options": [
-        {"id": "a", "text": "Pending: blue, Approved: green, Rejected: red, SelfApproved: gray"},
-        {"id": "b", "text": "Pending: yellow, Approved: green, Rejected: red, SelfApproved: green", "isCorrect": true},
-        {"id": "c", "text": "Pending: gray, Approved: blue, Rejected: yellow, SelfApproved: green"},
-        {"id": "d", "text": "All statuses use the same neutral gray chip"}
+        {"id": "a", "text": "Pending: blue, Approved: green, Rejected: red, Self-approved: gray"},
+        {"id": "b", "text": "Pending: yellow, Approved: green, Rejected: red, Self-approved: green", "isCorrect": true},
+        {"id": "c", "text": "Pending: gray, Approved: blue, Rejected: yellow, Self-approved: green"},
+        {"id": "d", "text": "All statuses use the same gray label"}
       ],
-      "explanation": "Pending uses a warning/yellow chip, Approved and SelfApproved both use success/green chips, and Rejected uses an error/red chip."
+      "explanation": "Pending shows a yellow label, Approved and Self-approved both show green labels, and Rejected shows a red label."
     },
     {
       "id": "ex15",
-      "text": "The Submit button in the Create Expense dialog is disabled. How do you find out which fields still need attention?",
+      "text": "The Submit button in the Create Expense window is grayed out. How do you find out which fields still need attention?",
       "options": [
         {"id": "a", "text": "Nothing happens — the button is just grayed out"},
         {"id": "b", "text": "A tooltip says 'Please fill in all fields'"},
-        {"id": "c", "text": "Click the warning-triangle icon to the left of the Submit button to open a popover listing which specific fields need attention", "isCorrect": true},
-        {"id": "d", "text": "The invalid fields flash red to draw your attention"}
+        {"id": "c", "text": "Click the warning triangle next to the Submit button to see which specific fields still need attention", "isCorrect": true},
+        {"id": "d", "text": "The empty fields flash red to draw your attention"}
       ],
-      "explanation": "When the form is invalid, click the warning-triangle icon to the left of the (disabled) Save/Submit button to open a validation popover that lists each field violation — for example, 'Amount is required' or 'Category is required'."
+      "explanation": "When something's missing, click the warning triangle next to the grayed-out Submit button to see each field that still needs attention — for example, 'Amount is required' or 'Category is required'."
     }
   ]
 }
@@ -369,7 +369,7 @@ public class ExpensesTraining : TrainingContentBase
             Tags = """["expenses","receipts","vendor","payables"]""",
             ContentJson = """
 {
-  "body": "## Receipts and Vendor-Settled Expenses\n\nThe expense dialog has two fields that change *how* an expense is handled downstream: the **receipt attachment** and the **Vendor** selector. This module explains both.\n\n### Attaching a Receipt\n\nIn the Create/Resubmit Expense dialog, the **Receipt** row lets you attach proof of purchase:\n\n1. Click **Upload Receipt**.\n2. Pick an image (`image/*`) or a PDF. The file uploads immediately and the row switches to show the file name with a paperclip icon.\n3. To swap it, click the red **X** next to the file name to remove it, then upload a different file.\n\nA receipt is stored as a file attachment on the expense; reviewers can open it from the approval queue when deciding.\n\n### When a Receipt Is Required\n\nYour company can turn on a **require-receipt policy** in expense settings. When it's on:\n\n- The Receipt label shows a red asterisk (**\\***), the same required marker used on other mandatory fields.\n- The **Submit** button stays disabled until a receipt is attached — even if every other field is valid.\n- Hovering the disabled Submit button shows a hint explaining that a receipt is required.\n\nSo if Submit won't enable and all your fields look filled in, check whether a receipt is still missing. The block is policy-driven: when the policy is off, the receipt is optional and Submit doesn't wait on it.\n\n### Out-of-Pocket vs Vendor-Settled\n\nEvery expense is one of two kinds, decided by the **Vendor** field:\n\n- **Out-of-pocket (cash)** — leave Vendor set to *No vendor*. This is the default. The expense represents money an employee spent personally and expects to be reimbursed for. It stays entirely inside the Expenses module.\n- **Vendor-settled** — pick a vendor from the **Vendor** dropdown. This tells the system the money is owed to that vendor (the company hasn't paid yet). A hint appears under the field explaining the consequence.\n\n### What a Vendor-Settled Expense Does on Approval\n\nNaming a vendor routes the expense to **Accounts Payable**. When the expense is **approved**, it is *promoted into a vendor bill* that is paid through Payables — the normal AP pipeline (vendor bills → vendor payments) takes over from there.\n\nOnce promotion happens, the expense row in the Expenses table shows a small **info chip with the vendor-bill number** next to its status. That chip is a live link: clicking it opens the linked vendor bill. This is how you trace an approved vendor-settled expense to the bill it became.\n\nKey points:\n- The **Vendor** field is part of the create/resubmit dialog — it is *not* a column in the main expenses table, so don't look for a Vendor column there. The linkage surfaces as the bill-number chip beside the status instead.\n- Promotion happens at **approval**, not at submission. A pending vendor-settled expense has no bill yet.\n- Out-of-pocket expenses never create a vendor bill — they're reimbursements, not payables.\n\n### Quick Decision Guide\n\n| You spent money… | Vendor field | What happens on approval |\n|---|---|---|\n| Personally, expect reimbursement | *No vendor* | Stays an expense (reimbursement) |\n| On the company's behalf, vendor not yet paid | Select the vendor | Becomes a vendor bill in Payables |",
+  "body": "## Receipts and Vendor-Settled Expenses\n\nThe expense window has two fields that change *how* an expense is handled later on: the **receipt** and the **Vendor** field. This module explains both.\n\n### Attaching a Receipt\n\nWhen you create or resubmit an expense, the **Receipt** row lets you attach proof of purchase:\n\n1. Click **Upload Receipt**.\n2. Pick an image or a PDF. The file uploads right away, and the row shows the file name with a paperclip.\n3. To swap it, click the red **X** next to the file name to remove it, then upload a different file.\n\nThe receipt stays attached to the expense, so reviewers can open it while deciding.\n\n### When a Receipt Is Required\n\nYour company can require a receipt on every expense. When that's turned on:\n\n- The Receipt label shows a red asterisk (**\\***), the same mark used on other required fields.\n- The **Submit** button stays grayed out until you attach a receipt — even if everything else is filled in.\n- Hovering over the grayed-out Submit button shows a note explaining that a receipt is required.\n\nSo if Submit won't turn on and every field looks complete, check whether a receipt is still missing. When your company doesn't require one, the receipt is optional and Submit won't wait on it.\n\n### Out-of-Pocket vs Vendor-Settled\n\nEvery expense is one of two kinds, set by the **Vendor** field:\n\n- **Out-of-pocket (cash)** — leave Vendor set to *No vendor*. This is the default. It means an employee paid out of their own pocket and expects to be paid back. It stays entirely inside Expenses.\n- **Vendor-settled** — pick a vendor from the **Vendor** menu. This means the money is owed to that vendor and the company hasn't paid yet. A note appears under the field explaining what will happen.\n\n### What a Vendor-Settled Expense Does on Approval\n\nNaming a vendor sends the expense to **Accounts Payable**. When the expense is **approved**, it turns into a *vendor bill* that gets paid through Payables — from there it follows the normal path of vendor bills and vendor payments.\n\nAfter that happens, the expense row shows a small **label with the vendor-bill number** next to its status. Clicking that label opens the linked bill. That's how you trace an approved vendor-settled expense to the bill it became.\n\nGood to know:\n- The **Vendor** field lives in the create/resubmit window — it is *not* a column in the main expenses table, so don't look for a Vendor column there. Instead, the link shows up as the bill-number label beside the status.\n- The bill is created at **approval**, not when you submit. A pending vendor-settled expense doesn't have a bill yet.\n- Out-of-pocket expenses never create a vendor bill — they're reimbursements, not bills to pay.\n\n### Quick Decision Guide\n\n| You spent money… | Vendor field | What happens on approval |\n|---|---|---|\n| Personally, expect to be paid back | *No vendor* | Stays an expense (reimbursement) |\n| On the company's behalf, vendor not yet paid | Select the vendor | Becomes a vendor bill in Payables |",
   "sections": []
 }
 """
@@ -396,7 +396,7 @@ public class ExpensesTraining : TrainingContentBase
       "element": "app-page-layout",
       "popover": {
         "title": "Expense Approval Queue",
-        "description": "This dedicated queue at /expenses/approval lists every expense that is still Pending — across all submitters — so managers can review them in one place instead of hunting through the main table. It is separate from the inline approve/reject buttons on the main /expenses list.",
+        "description": "This queue lists every expense that's still Pending, from everyone, so managers can review them in one place instead of hunting through the main table. It's separate from the quick approve and reject buttons on the main Expenses list.",
         "side": "bottom"
       }
     },
@@ -404,7 +404,7 @@ public class ExpensesTraining : TrainingContentBase
       "element": "app-input",
       "popover": {
         "title": "Search Pending Expenses",
-        "description": "Narrow the queue by typing a category or description and pressing Enter. Only Pending expenses are ever shown here.",
+        "description": "Narrow the queue by typing a category or description and pressing Enter. Only Pending expenses ever show up here.",
         "side": "bottom"
       }
     },
@@ -412,7 +412,7 @@ public class ExpensesTraining : TrainingContentBase
       "element": ".approval-queue__summary",
       "popover": {
         "title": "Pending Count & Total",
-        "description": "The summary shows how many expenses are awaiting your decision and their combined dollar total — a quick read on your outstanding approval workload.",
+        "description": "This summary shows how many expenses are waiting on your decision and their combined dollar total — a quick read on how much you still have to review.",
         "side": "left"
       }
     },
@@ -420,7 +420,7 @@ public class ExpensesTraining : TrainingContentBase
       "element": "app-data-table",
       "popover": {
         "title": "Open an Expense to Review",
-        "description": "Click any row (or its check/X buttons) to open the review dialog. The dialog shows the submitter, date, category, amount, description, and linked job, plus a Review Note field and three decision buttons: Approve, Request Revision, and Reject.",
+        "description": "Click any row (or its checkmark/X buttons) to open the review window. It shows the submitter, date, category, amount, description, and linked job, plus a Review Note field and three buttons: Approve, Request Revision, and Reject.",
         "side": "top"
       }
     }
@@ -443,7 +443,7 @@ public class ExpensesTraining : TrainingContentBase
             Tags = """["expenses","approval","manager","revision"]""",
             ContentJson = """
 {
-  "body": "## Reviewing an Expense\n\nClicking a row in the Expense Approval Queue (`/expenses/approval`) opens the **review dialog**. It shows the read-only details of the submission — submitter, date, category, amount, description, and linked job (when present) — above a **Review Note** field and three decision buttons.\n\n### The Three Outcomes\n\n- **Approve** — accepts the expense. It moves to Approved (green chip). If the expense named a vendor, approval also promotes it into a vendor bill (see *Expense Receipts & Vendor-Settled Expenses*). Approve does **not** require a note; you can add one for context, but it's optional.\n- **Request Revision** — sends the expense back to the submitter without rejecting it outright. The status becomes **Needs Revision**, and your note becomes the reviewer feedback the submitter sees. Use this when the expense is fixable — wrong category, missing receipt, amount needs explaining — and you'd rather the submitter correct and resubmit than start over.\n- **Reject** — declines the expense outright (red chip). Use this when the expense should not be reimbursed at all.\n\n### The Review-Note Rule\n\nThe **Review Note** field governs the two negative outcomes:\n\n- **Reject and Request Revision both require a note of at least 10 characters.** Until the note reaches 10 characters, both buttons stay disabled, and a hint under the field counts your progress toward the minimum.\n- **Approve has no note requirement.** It's enabled regardless of the note field.\n\nThis is intentional: telling a submitter *why* their expense was bounced is mandatory, so they can fix it (Request Revision) or understand the decision (Reject). A silent rejection isn't possible.\n\n### After You Decide\n\nThe dialog closes, the queue reloads (the expense you just handled drops off the Pending list), and a confirmation snackbar reports the outcome. A Needs-Revision expense reappears for the submitter to edit and resubmit; an Approved or Rejected one is final from the queue's perspective.\n\n### Who Sees This Queue\n\nThe Approval Queue is a manager-facing surface. Regular submitters use the main `/expenses` list to create and track their own expenses; the queue is where reviewers clear the pending backlog."
+  "body": "## Reviewing an Expense\n\nClicking a row in the Expense Approval Queue opens the **review window**. It shows the submission's details — submitter, date, category, amount, description, and linked job (when there is one) — above a **Review Note** field and three buttons.\n\n### The Three Choices\n\n- **Approve** — accepts the expense. It moves to Approved (green label). If the expense named a vendor, approving it also turns it into a vendor bill (see *Expense Receipts & Vendor-Settled Expenses*). Approve does **not** need a note; you can add one for context, but it's optional.\n- **Request Revision** — sends the expense back to the submitter without turning it down outright. The status becomes **Needs Revision**, and your note becomes the feedback the submitter sees. Use this when the expense is fixable — wrong category, missing receipt, amount needs explaining — and you'd rather the submitter fix it and resubmit than start over.\n- **Reject** — turns the expense down for good (red label). Use this when the expense shouldn't be paid at all.\n\n### The Review-Note Rule\n\nThe **Review Note** field controls the two negative choices:\n\n- **Reject and Request Revision both need a note of at least 10 characters.** Until the note is long enough, both buttons stay grayed out, and a hint under the field counts your progress.\n- **Approve needs no note.** It's available no matter what's in the note field.\n\nThis is on purpose: telling a submitter *why* their expense was sent back is required, so they can fix it (Request Revision) or understand the decision (Reject). You can't turn one down silently.\n\n### After You Decide\n\nThe window closes, the queue refreshes (the expense you just handled drops off the Pending list), and a short message confirms what happened. A Needs-Revision expense comes back for the submitter to edit and resubmit; an Approved or Rejected one is final as far as the queue is concerned.\n\n### Who Sees This Queue\n\nThe Approval Queue is for managers. Regular submitters use the main Expenses list to create and track their own expenses; the queue is where reviewers clear out the pending backlog."
 }
 """
         });
@@ -469,7 +469,7 @@ public class ExpensesTraining : TrainingContentBase
       "element": "[data-testid='status-filter']",
       "popover": {
         "title": "Find Returned Expenses",
-        "description": "When a reviewer sends an expense back, it gets the Needs Revision status (a yellow chip). Use this Status filter and pick 'Needs Revision' to see just the ones waiting on you to fix.",
+        "description": "When a reviewer sends an expense back, it gets the Needs Revision status (a yellow label). Open this Status filter and pick 'Needs Revision' to see just the ones waiting on you to fix.",
         "side": "bottom"
       }
     },
@@ -477,7 +477,7 @@ public class ExpensesTraining : TrainingContentBase
       "element": "app-data-table",
       "popover": {
         "title": "The Resubmit Action",
-        "description": "A Needs-Revision row shows a pencil (edit) action at the right end of the row. Clicking it reopens the expense in a dialog titled 'Resubmit Expense' — pre-filled with everything you originally entered.",
+        "description": "A Needs-Revision row shows a pencil (edit) button at the right end. Click it to reopen the expense in a 'Resubmit Expense' window, already filled in with everything you entered before.",
         "side": "top"
       }
     },
@@ -485,7 +485,7 @@ public class ExpensesTraining : TrainingContentBase
       "element": "[data-testid='new-expense-btn']",
       "popover": {
         "title": "Or Create a Fresh Expense",
-        "description": "This same dialog is used to create new expenses. The difference when resubmitting is that the dialog shows the reviewer's feedback note at the top so you know exactly what to change.",
+        "description": "This same window is used to create new expenses. When resubmitting, it also shows the reviewer's feedback note at the top so you know exactly what to change.",
         "side": "bottom"
       }
     }
@@ -508,7 +508,7 @@ public class ExpensesTraining : TrainingContentBase
             Tags = """["expenses","recurring","forecast","upcoming"]""",
             ContentJson = """
 {
-  "body": "## Recurring & Upcoming Expenses\n\nThe expense ledger at `/expenses/upcoming` handles predictable, repeating costs — subscriptions, leases, insurance, utilities — so you don't have to remember to file them by hand each cycle. It has two tabs: **Upcoming** and **Recurring**.\n\n### Recurring Tab — the Templates\n\nA **recurring expense** is a template that generates real expenses automatically on a schedule. Click **New Recurring** to create one:\n\n- **Amount** (required) and **Frequency** (required) — Weekly, Bi-weekly, Monthly, Quarterly, or Annually.\n- **Category** (required) and **Classification** (required). Classification is the recurring-cost taxonomy (Subscription, Lease, Insurance, Utility, Maintenance Contract, License, Membership, Other) and drives the colored chip.\n- **Description** (required) and **Vendor** (optional).\n- **Start Date** (required) and an optional **End Date** — leave End Date blank for an open-ended commitment.\n- **Auto-approve** toggle — when on, the expenses this template generates skip the pending queue.\n\nThe Recurring tab lists every template with its **Next Due** date and an **Active** chip. Two row actions let you manage a template:\n\n- The **pause / play** button toggles the template Active or Paused. Pausing stops it from generating new expenses without deleting its history.\n- The **delete** (trash) button removes the template after a confirmation. Note recurring templates are **delete-only / pause-only** — there is no in-place edit; to change terms, delete and recreate, or pause the old one.\n\n### How Generation Works\n\nActive templates auto-generate their expense on each occurrence — you don't click anything. A template with Auto-approve on produces already-approved expenses; without it, each generated expense lands in the normal Pending queue for review like any hand-entered one.\n\n### Upcoming Tab — the 90-Day Forecast\n\nThe **Upcoming** tab is a forward-looking view: it projects every occurrence your active recurring templates will generate over the next **90 days**. It does not create anything — it's a forecast so you can see what's coming.\n\n- The **90-Day Total** sums every projected occurrence in the window.\n- A **monthly breakdown** strip shows per-month totals and item counts, so you can see how the load distributes.\n- The **Highlight Classification** selector lets you spotlight one classification (e.g., all Subscriptions) — matching rows are highlighted in the table rather than filtered away, so you keep the full picture while emphasizing one cost type.\n- Each row shows the projected Due Date, Classification, Category, Description, Vendor, Amount, and Frequency.\n\nUse Upcoming to anticipate cash needs; use Recurring to control the templates that drive it. Pausing a template on the Recurring tab immediately removes its future occurrences from the Upcoming forecast."
+  "body": "## Recurring & Upcoming Expenses\n\nThe Recurring & Upcoming page handles predictable, repeating costs — subscriptions, leases, insurance, utilities — so you don't have to remember to file them by hand each cycle. It has two tabs: **Upcoming** and **Recurring**.\n\n### Recurring Tab — the Templates\n\nA **recurring expense** is a template that creates real expenses automatically on a schedule. Click **New Recurring** to set one up:\n\n- **Amount** (required) and **Frequency** (required) — Weekly, Bi-weekly, Monthly, Quarterly, or Annually.\n- **Category** (required) and **Classification** (required). Classification is the kind of repeating cost (Subscription, Lease, Insurance, Utility, Maintenance Contract, License, Membership, or Other) and sets the colored label.\n- **Description** (required) and **Vendor** (optional).\n- **Start Date** (required) and an optional **End Date** — leave End Date blank if it runs indefinitely.\n- **Auto-approve** switch — when on, the expenses this template creates skip the pending queue.\n\nThe Recurring tab lists every template with its **Next Due** date and an **Active** label. Two buttons on each row let you manage a template:\n\n- The **pause / play** button switches the template between Active and Paused. Pausing stops it from creating new expenses without deleting its history.\n- The **delete** (trash) button removes the template after a confirmation. Note that templates can only be paused or deleted — there's no editing in place. To change the terms, pause the old one, or delete it and set up a new one.\n\n### How New Expenses Get Created\n\nActive templates create their expense on each occurrence — you don't have to do anything. A template with Auto-approve on produces already-approved expenses; without it, each new expense lands in the normal Pending queue for review, just like one you'd enter by hand.\n\n### Upcoming Tab — the 90-Day Forecast\n\nThe **Upcoming** tab looks ahead: it shows every expense your active templates will create over the next **90 days**. It doesn't create anything — it's just a forecast so you can see what's coming.\n\n- The **90-Day Total** adds up everything expected in that window.\n- A **monthly breakdown** shows the total and count for each month, so you can see how the load spreads out.\n- The **Highlight Classification** picker lets you spotlight one kind of cost (say, all Subscriptions) — matching rows are highlighted rather than hidden, so you keep the full picture while emphasizing one type.\n- Each row shows the expected due date, classification, category, description, vendor, amount, and frequency.\n\nUse Upcoming to plan for cash needs; use Recurring to manage the templates behind it. Pausing a template on the Recurring tab immediately drops its future occurrences from the Upcoming forecast."
 }
 """
         });
@@ -532,34 +532,34 @@ public class ExpensesTraining : TrainingContentBase
     {
       "heading": "New Recurring Expense Fields",
       "items": [
-        {"label": "Amount (required)", "value": "Currency, min $0.01. The amount each generated occurrence will be for. data-testid: recurring-amount"},
-        {"label": "Frequency (required)", "value": "Weekly, Bi-weekly, Monthly, Quarterly, or Annually. Drives how often the template generates. data-testid: recurring-frequency"},
-        {"label": "Category (required)", "value": "Expense category for the generated expenses. data-testid: recurring-category"},
-        {"label": "Classification (required)", "value": "Recurring-cost type: Subscription, Lease, Insurance, Utility, Maintenance Contract, License, Membership, Other. data-testid: recurring-classification"},
-        {"label": "Description (required)", "value": "What the recurring cost is for. data-testid: recurring-description"},
-        {"label": "Vendor (optional)", "value": "Free-text vendor name. data-testid: recurring-vendor"},
-        {"label": "Start Date (required)", "value": "First occurrence date. data-testid: recurring-start"},
-        {"label": "End Date (optional)", "value": "Leave blank for open-ended. data-testid: recurring-end"},
-        {"label": "Auto-approve", "value": "Toggle. When on, generated expenses skip the Pending queue. data-testid: recurring-auto-approve"}
+        {"label": "Amount (required)", "value": "The amount each created expense will be for. Must be at least $0.01."},
+        {"label": "Frequency (required)", "value": "How often the template creates an expense: Weekly, Bi-weekly, Monthly, Quarterly, or Annually."},
+        {"label": "Category (required)", "value": "The expense category to use for the created expenses."},
+        {"label": "Classification (required)", "value": "The kind of repeating cost: Subscription, Lease, Insurance, Utility, Maintenance Contract, License, Membership, or Other."},
+        {"label": "Description (required)", "value": "What the repeating cost is for."},
+        {"label": "Vendor (optional)", "value": "The vendor name, typed in."},
+        {"label": "Start Date (required)", "value": "The date of the first expense."},
+        {"label": "End Date (optional)", "value": "Leave blank if it runs indefinitely."},
+        {"label": "Auto-approve", "value": "An on/off switch. When on, the created expenses skip the Pending queue."}
       ]
     },
     {
       "heading": "Recurring Tab Columns & Actions",
       "items": [
-        {"label": "Next Due", "value": "The next date this template will generate an expense."},
-        {"label": "Active chip", "value": "Green 'Active' or muted 'Paused' — whether the template is currently generating."},
-        {"label": "Pause / Play action", "value": "Toggles the template between Active and Paused. Pausing keeps history but stops new generation."},
-        {"label": "Delete action", "value": "Removes the template after a confirmation dialog. Templates are delete-only — no in-place edit."}
+        {"label": "Next Due", "value": "The next date this template will create an expense."},
+        {"label": "Active label", "value": "Green 'Active' or gray 'Paused' — whether the template is currently creating expenses."},
+        {"label": "Pause / Play button", "value": "Switches the template between Active and Paused. Pausing keeps its history but stops new expenses."},
+        {"label": "Delete button", "value": "Removes the template after a confirmation. Templates can't be edited in place — only paused or deleted."}
       ]
     },
     {
       "heading": "Upcoming (Forecast) Tab",
       "items": [
-        {"label": "Window", "value": "Projects the next 90 days of occurrences from active templates. Read-only forecast — generates nothing."},
-        {"label": "90-Day Total", "value": "Sum of every projected occurrence in the window."},
-        {"label": "Monthly breakdown", "value": "Per-month total + item count chips."},
-        {"label": "Highlight Classification", "value": "Spotlights one classification by highlighting matching rows (does not hide the rest)."},
-        {"label": "Pausing effect", "value": "Pausing a template on the Recurring tab immediately drops its future occurrences from this forecast."}
+        {"label": "Window", "value": "Shows the next 90 days of expenses from active templates. It's a forecast only — it creates nothing."},
+        {"label": "90-Day Total", "value": "Adds up everything expected in the 90-day window."},
+        {"label": "Monthly breakdown", "value": "The total and item count for each month."},
+        {"label": "Highlight Classification", "value": "Spotlights one kind of cost by highlighting matching rows (it doesn't hide the rest)."},
+        {"label": "Pausing effect", "value": "Pausing a template on the Recurring tab immediately drops its future expenses from this forecast."}
       ]
     }
   ]

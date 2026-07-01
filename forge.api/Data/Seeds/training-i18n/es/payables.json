@@ -4,7 +4,7 @@
     "title": "Visión general de Cuentas por pagar",
     "summary": "Qué abarca Cuentas por pagar: facturas de proveedores, pagos a proveedores, el ciclo de vida de la factura, la aplicación de pagos y cómo Cuentas por pagar se conecta con las Órdenes de compra y los Proveedores.",
     "contentJson": {
-      "body": "## Visión general de Cuentas por pagar\n\nEl módulo de Cuentas por pagar es su espacio de trabajo de Cuentas por pagar (AP). Hace seguimiento del dinero que su taller debe a los proveedores: las **facturas de proveedores** que recibe, los **pagos a proveedores** que realiza para liquidarlas y la forma en que esos pagos se aplican contra los saldos abiertos. Cuentas por pagar se conecta directamente con las Órdenes de compra (para la facturación cotejada) y con los Proveedores (cada factura y cada pago pertenece a un proveedor).\n\nLa página está organizada en pestañas —**Facturas**, **Pagos**, **Lotes** y **Cuentas**— con un filtro de proveedor y un filtro de estado en la parte superior para acotar lo que ve.\n\n### ¿Qué es una factura de proveedor?\n\nUna factura de proveedor representa el dinero que usted le debe a un proveedor. Cada factura tiene:\n- Un **Número de factura** único (autogenerado)\n- Un vínculo a exactamente un **Proveedor**\n- Un **N.º de factura del proveedor** opcional (la referencia propia del proveedor)\n- Una **Fecha de la factura** y una **Fecha de vencimiento**\n- Una o más **Líneas de pedido** (descripción, cantidad, precio unitario)\n- Un **Monto de impuesto** opcional\n- Un **Estado** que determina en qué punto de su ciclo de vida está la factura\n- Totales calculados: **Total**, **Pagado** (monto pagado) y **Saldo adeudado**\n\nLas facturas pueden ingresarse de dos maneras. Una factura **independiente** se escribe a mano: usted agrega líneas de pedido de texto libre. Una factura **Desde orden de compra** se cotejada con una OC: usted elige la OC y factura contra sus líneas recibidas, y solo puede facturar hasta la cantidad que se ha recibido pero aún no se ha facturado (cotejo de tres vías).\n\n### Ciclo de vida de la factura\n\nLas facturas de proveedor avanzan por estos estados:\n\n1. **Borrador** — La factura se ha ingresado pero aún no se ha aprobado. Todavía no tiene impacto en el libro mayor. Este es el estado inicial de cada factura nueva.\n2. **Aprobada** — La factura se ha aprobado para pago. El asiento de AP se contabiliza en esta transición. Apruebe una factura desde el panel de detalle con el botón **Aprobar factura** (disponible solo desde Borrador).\n3. **Pagada parcialmente** — La factura está aprobada y uno o más pagos a proveedores han liquidado parte del saldo. El Saldo adeudado sigue siendo mayor que cero.\n4. **Pagada** — La factura está totalmente liquidada. El Saldo adeudado es cero.\n5. **Anulada** — La factura se canceló antes de pagarse. Una factura solo puede anularse desde el estado Borrador o Aprobada, solo cuando no se ha pagado nada contra ella, y solo cuando no se originó a partir de un gasto.\n\n### ¿Qué es un pago a proveedor?\n\nUn pago a proveedor registra el dinero enviado a un proveedor y cómo se aplica a las facturas abiertas de ese proveedor. Cada pago tiene:\n- Un **N.º de pago** único (autogenerado)\n- Un **Proveedor**\n- Un **Método** (Efectivo, Cheque, Tarjeta de crédito, Transferencia bancaria, Transferencia electrónica u Otro)\n- Un **Monto**\n- Una **Fecha de pago**\n- Un **N.º de referencia** opcional (número de cheque, referencia de transferencia, etc.)\n- Una o más **Aplicaciones a facturas** que distribuyen el pago entre las facturas abiertas\n\nCuando crea un pago, elige un proveedor y el sistema carga las facturas por pagar de ese proveedor (las que están en estado Aprobada o Pagada parcialmente). Usted ingresa cuánto del pago aplicar a cada factura. La suma de las aplicaciones no puede exceder el monto del pago; cualquier remanente se muestra como **No aplicado**. Aplicar un pago mueve cada factura afectada hacia Pagada parcialmente o Pagada automáticamente.\n\n### Transmisión de pagos (pagos electrónicos)\n\nLos pagos electrónicos —Transferencia bancaria y Transferencia electrónica— llevan un **Estado de transmisión** que hace seguimiento de la entrega al banco: En cola, Reintentando, Exitoso, Fallido o Cancelado. Una transmisión fallida muestra un banner en la parte superior de la página y en el detalle de la factura y del pago. Puede **Reintentar transmisión** en un pago fallido. Los pagos por transferencia electrónica añaden un paso de control dual: mientras una transferencia electrónica está En cola, debe **Atestiguar transferencia** (un segundo usuario la confirma) antes de que se transmita.\n\n### Cómo se conecta Cuentas por pagar con otras funciones\n\n**Órdenes de compra:** Una factura creada Desde orden de compra se coteja línea por línea con las cantidades recibidas de la OC. Solo puede facturar la cantidad recibida pero no facturada, y las diferencias de precio fluyen como variación del precio de compra cuando la factura se contabiliza.\n\n**Proveedores:** Cada factura y cada pago pertenece a un proveedor. El nombre del proveedor enlaza con el registro del proveedor, y el filtro de proveedor en la parte superior de la página acota tanto la pestaña Facturas como la pestaña Pagos.\n\n**Gastos:** Un gasto liquidado por un proveedor puede promoverse automáticamente a una factura de proveedor. Dicha factura muestra un chip 'Desde gasto' y no puede anularse.\n\n**Frontera contable:** Cuentas por pagar es una función contable. Cuando se conecta un proveedor de contabilidad externo, AP se gestiona allí en su lugar; el módulo de AP integrado funciona en modo independiente.\n\n### Cuentas bancarias y lotes de pago NACHA (opcional)\n\nCuando su taller está configurado para originar sus propios pagos ACH, aparecen dos pestañas adicionales en la página de Cuentas por pagar: **Cuentas** y **Lotes**. Están controladas por la capacidad **CAP-BANK-NACHA** y permanecen ocultas hasta que un administrador la habilita (después de que el acuerdo de origen ACH del banco esté vigente). Solo los roles Administrador, Gerente y Gerente de oficina pueden usarlas.\n\n- La pestaña **Cuentas** contiene la cuenta bancaria de cada proveedor (números de ruta y de cuenta). Los números se cifran en reposo y se muestran enmascarados; agregarlos o cambiarlos requiere que un segundo usuario los apruebe (control dual) y un prenota de cero dólares para verificar la cuenta antes de que pueda pagarse. Consulte el módulo dedicado 'Cuentas bancarias de proveedores y control dual'.\n- La pestaña **Lotes** ensambla los pagos por Transferencia bancaria aprobados en un archivo NACHA que usted descarga y carga en el portal de su banco, y luego un segundo usuario libera el lote (segregación de funciones). También importa el archivo de devolución / NOC de ACH del banco. Consulte el módulo dedicado 'Lotes de pago NACHA'.\n\nSi no ve estas pestañas, su instalación paga a los proveedores con cheque, transferencia electrónica u otro método y no origina archivos ACH desde Forge — eso es normal.\n\n### Cuándo usar Cuentas por pagar\n\n- Cuando llega una factura de proveedor: ingrésela como factura y luego apruébela para pago\n- Cuando quiera cotejo de tres vías: cree la factura Desde orden de compra para que la facturación esté limitada por la cantidad recibida\n- Cuando paga a un proveedor: registre un pago y aplíquelo entre las facturas abiertas de ese proveedor\n- Cuando un pago electrónico falla: reintente la transmisión desde el detalle del pago\n- Cuando necesita aprobar una transferencia electrónica: atestigüe la transferencia en cola antes de que se envíe",
+      "body": "## Visión general de Cuentas por pagar\n\nEl módulo de Cuentas por pagar es su espacio de trabajo de Cuentas por pagar (AP). Hace seguimiento del dinero que su taller debe a los proveedores: las **facturas de proveedores** que recibe, los **pagos a proveedores** que realiza para liquidarlas y la forma en que esos pagos se aplican contra los saldos abiertos. Cuentas por pagar se conecta directamente con las Órdenes de compra (para la facturación cotejada) y con los Proveedores (cada factura y cada pago pertenece a un proveedor).\n\nLa página está organizada en pestañas —**Facturas**, **Pagos**, **Lotes** y **Cuentas**— con un filtro de proveedor y un filtro de estado en la parte superior para acotar lo que ve.\n\n### ¿Qué es una factura de proveedor?\n\nUna factura de proveedor representa el dinero que usted le debe a un proveedor. Cada factura tiene:\n- Un **Número de factura** único (autogenerado)\n- Un vínculo a exactamente un **Proveedor**\n- Un **N.º de factura del proveedor** opcional (la referencia propia del proveedor)\n- Una **Fecha de la factura** y una **Fecha de vencimiento**\n- Una o más **Líneas de pedido** (descripción, cantidad, precio unitario)\n- Un **Monto de impuesto** opcional\n- Un **Estado** que determina en qué punto de su ciclo de vida está la factura\n- Totales calculados: **Total**, **Pagado** (monto pagado) y **Saldo adeudado**\n\nLas facturas pueden ingresarse de dos maneras. Una factura **independiente** se escribe a mano: usted agrega líneas de pedido de texto libre. Una factura **Desde orden de compra** se cotejada con una OC: usted elige la OC y factura contra sus líneas recibidas, y solo puede facturar hasta la cantidad que se ha recibido pero aún no se ha facturado (cotejo de tres vías).\n\n### Ciclo de vida de la factura\n\nLas facturas de proveedor avanzan por estos estados:\n\n1. **Borrador** — La factura se ha ingresado pero aún no se ha aprobado. Todavía no tiene impacto en el libro mayor. Este es el estado inicial de cada factura nueva.\n2. **Aprobada** — La factura se ha aprobado para pago. El asiento de AP se contabiliza en esta transición. Apruebe una factura desde el panel de detalle con el botón **Aprobar factura** (disponible solo desde Borrador).\n3. **Pagada parcialmente** — La factura está aprobada y uno o más pagos a proveedores han liquidado parte del saldo. El Saldo adeudado sigue siendo mayor que cero.\n4. **Pagada** — La factura está totalmente liquidada. El Saldo adeudado es cero.\n5. **Anulada** — La factura se canceló antes de pagarse. Una factura solo puede anularse desde el estado Borrador o Aprobada, solo cuando no se ha pagado nada contra ella, y solo cuando no se originó a partir de un gasto.\n\n### ¿Qué es un pago a proveedor?\n\nUn pago a proveedor registra el dinero enviado a un proveedor y cómo se aplica a las facturas abiertas de ese proveedor. Cada pago tiene:\n- Un **N.º de pago** único (autogenerado)\n- Un **Proveedor**\n- Un **Método** (Efectivo, Cheque, Tarjeta de crédito, Transferencia bancaria, Transferencia electrónica u Otro)\n- Un **Monto**\n- Una **Fecha de pago**\n- Un **N.º de referencia** opcional (número de cheque, referencia de transferencia, etc.)\n- Una o más **Aplicaciones a facturas** que distribuyen el pago entre las facturas abiertas\n\nCuando crea un pago, elige un proveedor y el sistema carga las facturas por pagar de ese proveedor (las que están en estado Aprobada o Pagada parcialmente). Usted ingresa cuánto del pago aplicar a cada factura. La suma de las aplicaciones no puede exceder el monto del pago; cualquier remanente se muestra como **No aplicado**. Aplicar un pago mueve cada factura afectada hacia Pagada parcialmente o Pagada automáticamente.\n\n### Transmisión de pagos (pagos electrónicos)\n\nLos pagos electrónicos —Transferencia bancaria y Transferencia electrónica— llevan un **Estado de transmisión** que hace seguimiento de la entrega al banco: En cola, Reintentando, Exitoso, Fallido o Cancelado. Una transmisión fallida muestra un banner en la parte superior de la página y en el detalle de la factura y del pago. Puede **Reintentar transmisión** en un pago fallido. Los pagos por transferencia electrónica añaden un paso de control dual: mientras una transferencia electrónica está En cola, debe **Atestiguar transferencia** (un segundo usuario la confirma) antes de que se transmita.\n\n### Cómo se conecta Cuentas por pagar con otras funciones\n\n**Órdenes de compra:** Una factura creada Desde orden de compra se coteja línea por línea con las cantidades recibidas de la OC. Solo puede facturar la cantidad recibida pero no facturada, y las diferencias de precio fluyen como variación del precio de compra cuando la factura se contabiliza.\n\n**Proveedores:** Cada factura y cada pago pertenece a un proveedor. El nombre del proveedor enlaza con el registro del proveedor, y el filtro de proveedor en la parte superior de la página acota tanto la pestaña Facturas como la pestaña Pagos.\n\n**Gastos:** Un gasto liquidado por un proveedor puede convertirse automáticamente en una factura de proveedor. Dicha factura muestra una etiqueta 'Desde gasto' y no puede anularse.\n\n**Frontera contable:** Cuentas por pagar es una función contable. Cuando se conecta un proveedor de contabilidad externo, AP se gestiona allí en su lugar; el módulo de AP integrado funciona en modo independiente.\n\n### Cuentas bancarias y lotes de pago NACHA (opcional)\n\nCuando su taller está configurado para enviar sus propios pagos ACH, aparecen dos pestañas adicionales en la página de Cuentas por pagar: **Cuentas** y **Lotes**. Permanecen ocultas hasta que un administrador las activa (después de que el acuerdo ACH del banco esté vigente), y solo los roles Administrador, Gerente y Gerente de oficina pueden usarlas.\n\n- La pestaña **Cuentas** contiene la cuenta bancaria de cada proveedor (números de ruta y de cuenta). Los números se cifran en reposo y se muestran enmascarados; agregarlos o cambiarlos requiere que un segundo usuario los apruebe (control dual) y un prenota de cero dólares para verificar la cuenta antes de que pueda pagarse. Consulte el módulo dedicado 'Cuentas bancarias de proveedores y control dual'.\n- La pestaña **Lotes** ensambla los pagos por Transferencia bancaria aprobados en un archivo NACHA que usted descarga y carga en el portal de su banco, y luego un segundo usuario libera el lote (segregación de funciones). También importa el archivo de devolución / NOC de ACH del banco. Consulte el módulo dedicado 'Lotes de pago NACHA'.\n\nSi no ve estas pestañas, su instalación paga a los proveedores con cheque, transferencia electrónica u otro método y no origina archivos ACH desde Forge — eso es normal.\n\n### Cuándo usar Cuentas por pagar\n\n- Cuando llega una factura de proveedor: ingrésela como factura y luego apruébela para pago\n- Cuando quiera cotejo de tres vías: cree la factura Desde orden de compra para que la facturación esté limitada por la cantidad recibida\n- Cuando paga a un proveedor: registre un pago y aplíquelo entre las facturas abiertas de ese proveedor\n- Cuando un pago electrónico falla: reintente la transmisión desde el detalle del pago\n- Cuando necesita aprobar una transferencia electrónica: atestigüe la transferencia en cola antes de que se envíe",
       "sections": []
     }
   },
@@ -20,7 +20,7 @@
           "element": ".tab-bar",
           "popover": {
             "title": "Pestañas de Cuentas por pagar",
-            "description": "La página de Cuentas por pagar se divide en pestañas: Facturas (facturas de proveedores que debe), Pagos (dinero enviado a proveedores), Lotes (lotes de pago) y Cuentas (cuentas bancarias de proveedores). Las pestañas Facturas y Pagos son el espacio de trabajo de AP del día a día.",
+            "description": "La página se divide en pestañas. Facturas son las facturas de proveedores que debe. Pagos es el dinero que envía a los proveedores. Lotes y Cuentas gestionan los pagos bancarios. Pasará la mayor parte del tiempo en Facturas y Pagos.",
             "side": "bottom"
           }
         },
@@ -28,7 +28,7 @@
           "element": "[data-testid='new-vendor-bill-btn']",
           "popover": {
             "title": "Botón Nueva factura",
-            "description": "En la pestaña Facturas, haga clic aquí para ingresar una factura de proveedor. Elige un proveedor, establece las fechas de factura y vencimiento, y agrega líneas de pedido, ya sea como líneas independientes de texto libre o cotejadas Desde orden de compra. Las facturas nuevas comienzan en estado Borrador sin impacto en el libro mayor.",
+            "description": "Haga clic aquí en la pestaña Facturas para ingresar una factura de proveedor. Elija el proveedor, establezca las fechas de factura y vencimiento, y agregue líneas. Puede escribir las líneas usted mismo o traerlas de una orden de compra. Las facturas nuevas comienzan como Borrador.",
             "side": "bottom"
           }
         },
@@ -36,7 +36,7 @@
           "element": ".filters-bar app-select",
           "popover": {
             "title": "Filtros de proveedor y estado",
-            "description": "Filtre la tabla por proveedor (Todos los proveedores de forma predeterminada) y por estado. El filtro de estado de Facturas ofrece Borrador, Aprobada, Pagada parcialmente, Pagada y Anulada. La pestaña Pagos filtra por método de pago y estado de transmisión en su lugar.",
+            "description": "Acote la lista por proveedor y por estado. En la pestaña Facturas, filtre por Borrador, Aprobada, Pagada parcialmente, Pagada o Anulada. En la pestaña Pagos, filtre por método de pago y estado de transmisión en su lugar.",
             "side": "bottom"
           }
         },
@@ -44,15 +44,15 @@
           "element": "app-data-table",
           "popover": {
             "title": "Tabla de Facturas",
-            "description": "Cada fila es una factura de proveedor: Número de factura, Proveedor, N.º de factura del proveedor, un chip de Estado codificado por color, Fecha de la factura, Fecha de vencimiento, Total, Pagado y Saldo adeudado. El Saldo adeudado se resalta cuando es mayor que cero. Haga clic en cualquier fila para abrir el panel de detalle de la factura.",
+            "description": "Cada fila es una factura de proveedor. Ve su número, el proveedor, el estado, las fechas y los montos, con el saldo adeudado resaltado cuando aún se debe dinero. Haga clic en cualquier fila para abrir la factura y ver su detalle.",
             "side": "top"
           }
         },
         {
-          "element": ".tab-bar",
+          "element": "[data-testid='new-vendor-payment-btn']",
           "popover": {
             "title": "Botón Nuevo pago",
-            "description": "Cambie a la pestaña Pagos y use su botón Nuevo pago para registrar un pago a proveedor. Tras elegir el proveedor, el diálogo carga las facturas por pagar de ese proveedor (Aprobada o Pagada parcialmente) para que pueda aplicar el pago entre ellas. El diálogo usa data-testids como vendor-payment-method, vendor-payment-amount y vendor-payment-app-amount.",
+            "description": "Cambie a la pestaña Pagos y haga clic aquí para registrar un pago. Elija el proveedor y el panel carga las facturas abiertas de ese proveedor. Ingrese cuánto del pago aplicar a cada una.",
             "side": "bottom"
           }
         },
@@ -60,7 +60,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Panel de detalle de la factura",
-            "description": "Al hacer clic en una fila de factura se abre su panel de detalle: chip de estado, enlace al proveedor, Orden de compra vinculada, líneas de pedido y el bloque de totales (Subtotal, Impuesto, Total, Pagado, Saldo adeudado). Los botones de acción aparecen según el estado: Aprobar factura (data-testid approve-bill-btn) desde Borrador, y Anular factura (data-testid void-bill-btn) desde Borrador o Aprobada cuando no se ha pagado nada.",
+            "description": "Abra una factura para ver su detalle: su estado, el proveedor, la orden de compra vinculada, las líneas de pedido y los totales. Los botones que ve dependen del estado. Apruebe una factura en Borrador, o anule una factura en Borrador o Aprobada cuando aún no se ha pagado nada.",
             "side": "top"
           }
         },
@@ -68,7 +68,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Panel de detalle del pago",
-            "description": "En la pestaña Pagos, al hacer clic en una fila de pago se abre su detalle: proveedor, método, monto, montos aplicado y no aplicado, y la tabla de aplicaciones a facturas. Para los pagos electrónicos, una sección de Transmisión bancaria muestra el estado y los intentos, con Reintentar transmisión para los fallos, Atestiguar transferencia para las transferencias electrónicas en cola y Anular pago para revertir un pago.",
+            "description": "Abra un pago para ver su detalle: el proveedor, el método, el monto y a qué facturas se aplicó. Para los pagos electrónicos también ve el estado en el banco, con botones para reintentar un envío fallido, confirmar una transferencia en cola o revertir el pago.",
             "side": "top"
           }
         }
@@ -83,47 +83,47 @@
       "title": "Referencia de campos de Cuentas por pagar",
       "groups": [
         {
-          "heading": "Campos del formulario de factura de proveedor (diálogo de creación)",
+          "heading": "Campos del formulario de factura de proveedor (Nueva factura)",
           "items": [
             {
               "label": "Proveedor (requerido)",
-              "value": "Menú desplegable, solo proveedores activos. El proveedor al que se debe esta factura. data-testid: bill-vendor"
+              "value": "Elija el proveedor al que se debe esta factura. Solo se listan los proveedores activos."
             },
             {
               "label": "N.º de factura del proveedor (opcional)",
-              "value": "Entrada de texto. La referencia de factura propia del proveedor. Marcador de posición 'Opcional'. Se muestra en la tabla; '—' cuando está en blanco. data-testid: bill-vendor-invoice-number"
+              "value": "El propio número de factura del proveedor. Se muestra en la lista, o un guion cuando se deja en blanco."
             },
             {
               "label": "Fecha de la factura (requerido)",
-              "value": "Selector de fecha. La fecha de la factura del proveedor. El máximo es hoy. data-testid: bill-date"
+              "value": "La fecha de la factura del proveedor. No puede ser futura."
             },
             {
               "label": "Fecha de vencimiento (requerido)",
-              "value": "Selector de fecha. La fecha en que vence el pago. data-testid: bill-due-date"
+              "value": "La fecha en que vence el pago."
             },
             {
               "label": "Monto de impuesto (opcional)",
-              "value": "Entrada de moneda. Impuesto sobre la factura, añadido sobre el subtotal de líneas. Mínimo 0, predeterminado 0. data-testid: bill-tax-amount"
+              "value": "Impuesto sobre la factura, añadido sobre el subtotal de líneas. Comienza en cero."
             },
             {
               "label": "Moneda (instalaciones multimoneda)",
-              "value": "Selector. La moneda de la factura. Se muestra solo cuando existe más de una moneda activa; predeterminado a la moneda base. data-testid: bill-currency"
+              "value": "La moneda de la factura. Solo aparece cuando hay más de una moneda configurada; de lo contrario se usa su moneda predeterminada."
             },
             {
               "label": "Tipo de cambio (moneda no base)",
-              "value": "Entrada numérica. Tipo de cambio a la moneda base. Se muestra solo cuando se selecciona una moneda no base. data-testid: bill-fx-rate"
+              "value": "El tipo de cambio de vuelta a su moneda predeterminada. Solo aparece cuando elige una moneda distinta."
             },
             {
               "label": "Desde orden de compra (interruptor)",
-              "value": "Cambia el diálogo entre la entrada independiente y la facturación cotejada con OC. data-testid: bill-from-po-toggle"
+              "value": "Actívelo para facturar contra una orden de compra en lugar de escribir las líneas a mano."
             },
             {
               "label": "Orden de compra (modo OC)",
-              "value": "Selector. La OC contra la que facturar; requerido cuando Desde orden de compra está activado. data-testid: bill-po-select"
+              "value": "La orden de compra contra la que facturar. Requerida una vez que Desde orden de compra está activado."
             },
             {
               "label": "Notas (opcional)",
-              "value": "Área de texto, 2 filas. Notas de texto libre sobre la factura. data-testid: bill-notes"
+              "value": "Notas de texto libre sobre la factura."
             }
           ]
         },
@@ -131,32 +131,32 @@
           "heading": "Campos de línea de pedido de la factura",
           "items": [
             {
-              "label": "Pieza (independiente, opcional)",
-              "value": "Selector de entidades que muestra el número y el nombre de la pieza. Vínculo opcional de una línea a una pieza."
+              "label": "Pieza (líneas escritas, opcional)",
+              "value": "Vincule opcionalmente la línea a una pieza. Puede buscar por número o nombre de pieza."
             },
             {
-              "label": "Descripción (independiente, requerido)",
-              "value": "Entrada de texto. Requerida en cada línea independiente. data-testid: bill-line-desc"
+              "label": "Descripción (líneas escritas, requerido)",
+              "value": "Para qué es la línea. Requerida en cada línea que escribe a mano."
             },
             {
-              "label": "Cantidad (independiente, requerido)",
-              "value": "Entrada numérica, mínimo 0.0001. data-testid: bill-line-qty"
+              "label": "Cantidad (líneas escritas, requerido)",
+              "value": "Cuántas. Debe ser mayor que cero."
             },
             {
-              "label": "Precio unitario (independiente, requerido)",
-              "value": "Entrada numérica, mínimo 0. data-testid: bill-line-price"
+              "label": "Precio unitario (líneas escritas, requerido)",
+              "value": "Precio por unidad. No puede ser negativo."
             },
             {
-              "label": "Agregar línea (independiente)",
-              "value": "Agrega una línea de pedido independiente. data-testid: bill-add-line-btn"
+              "label": "Agregar línea (líneas escritas)",
+              "value": "Agrega otra línea que escribe a mano."
             },
             {
               "label": "Cantidad a facturar (modo OC, requerido)",
-              "value": "Entrada numérica. No puede exceder la cantidad recibida pero no facturada de la línea de la OC (cotejo de tres vías). data-testid: bill-po-line-qty"
+              "value": "Cuánto de la línea de la OC facturar. No puede exceder lo recibido pero aún no facturado."
             },
             {
               "label": "Precio unitario (modo OC, requerido)",
-              "value": "Entrada numérica, precargada desde el precio de la línea de la OC. Las diferencias se contabilizan como variación del precio de compra. data-testid: bill-po-line-price"
+              "value": "Precio por unidad, precargado desde la orden de compra. Puede cambiarlo si la factura difiere."
             }
           ]
         },
@@ -164,69 +164,69 @@
           "heading": "Estados de la factura de proveedor",
           "items": [
             {
-              "label": "Borrador (chip azul)",
-              "value": "Ingresada pero no aprobada. Sin impacto en el libro mayor. Estado inicial. Puede aprobarse o anularse."
+              "label": "Borrador (azul)",
+              "value": "Ingresada pero aún no aprobada. Aquí es donde comienza cada factura nueva. Puede aprobarla o anularla."
             },
             {
-              "label": "Aprobada (chip verde azulado/primario)",
-              "value": "Aprobada para pago; el asiento de AP se contabiliza en esta transición. Elegible para la aplicación de pagos. Aún puede anularse si no se ha pagado nada."
+              "label": "Aprobada (verde azulado)",
+              "value": "Aprobada para pago. Ahora puede aplicarle pagos, y aún puede anularse si no se ha pagado nada."
             },
             {
-              "label": "Pagada parcialmente (chip ámbar/advertencia)",
-              "value": "Aprobada y parcialmente liquidada por uno o más pagos. El Saldo adeudado es mayor que cero."
+              "label": "Pagada parcialmente (ámbar)",
+              "value": "Aprobada y parcialmente pagada. Aún se debe algún saldo."
             },
             {
-              "label": "Pagada (chip verde/éxito)",
-              "value": "Totalmente liquidada. El Saldo adeudado es cero. Estado terminal."
+              "label": "Pagada (verde)",
+              "value": "Totalmente pagada. No se debe nada. Este es el final del camino."
             },
             {
-              "label": "Anulada (chip gris/atenuado)",
-              "value": "Cancelada antes del pago. Estado terminal. Las facturas contabilizadas se revierten en lugar de anularse."
+              "label": "Anulada (gris)",
+              "value": "Cancelada antes del pago. Este es el final del camino."
             },
             {
-              "label": "Desde gasto (chip info)",
-              "value": "Se muestra cuando la factura se promovió automáticamente desde un gasto liquidado por un proveedor (sourceExpenseId). Dichas facturas no pueden anularse."
+              "label": "Desde gasto (azul)",
+              "value": "Esta factura se creó automáticamente a partir de un gasto aprobado. Las facturas así no pueden anularse aquí."
             },
             {
-              "label": "Pago fallido (chip de error)",
-              "value": "Se muestra en una fila de factura cuando un pago electrónico relacionado tuvo una transmisión fallida."
+              "label": "Pago fallido (rojo)",
+              "value": "Se muestra en una factura cuando un pago electrónico para ella no se pudo enviar."
             }
           ]
         },
         {
-          "heading": "Campos del formulario de pago a proveedor (diálogo de creación)",
+          "heading": "Campos del formulario de pago a proveedor (Nuevo pago)",
           "items": [
             {
               "label": "Proveedor (requerido)",
-              "value": "Menú desplegable, solo proveedores activos. Elegir un proveedor carga las facturas por pagar de ese proveedor. data-testid: vendor-payment-vendor"
+              "value": "Elija el proveedor al que paga. Solo se listan los proveedores activos. Elegir uno carga las facturas abiertas de ese proveedor."
             },
             {
               "label": "Método (requerido)",
-              "value": "Selector: Efectivo, Cheque, Tarjeta de crédito, Transferencia bancaria, Transferencia electrónica u Otro. data-testid: vendor-payment-method"
+              "value": "Cómo paga: Efectivo, Cheque, Tarjeta de crédito, Transferencia bancaria, Transferencia electrónica u Otro."
             },
             {
               "label": "Monto (requerido)",
-              "value": "Entrada de moneda, mínimo 0.01. El monto total del pago. data-testid: vendor-payment-amount"
+              "value": "El monto total que paga. Debe ser al menos un centavo."
             },
             {
               "label": "Fecha de pago (requerido)",
-              "value": "Selector de fecha, máximo hoy. data-testid: vendor-payment-date"
+              "value": "La fecha del pago. No puede ser futura."
             },
             {
               "label": "N.º de referencia (opcional)",
-              "value": "Entrada de texto. Número de cheque, referencia de transferencia, etc. data-testid: vendor-payment-ref"
+              "value": "Una referencia como un número de cheque o una referencia de transferencia."
             },
             {
               "label": "Monto a aplicar (por factura)",
-              "value": "Entrada numérica por fila de aplicación. Limitada por el Saldo adeudado de esa factura. data-testid: vendor-payment-app-amount"
+              "value": "Cuánto del pago va a cada factura. No puede exceder lo que esa factura aún debe."
             },
             {
               "label": "Tipo de cambio de liquidación (por factura, multimoneda)",
-              "value": "Entrada numérica por fila de aplicación cuando la multimoneda está activa. data-testid: vendor-payment-app-fx"
+              "value": "El tipo de cambio de cada factura, mostrado solo cuando hay más de una moneda en uso."
             },
             {
               "label": "Notas (opcional)",
-              "value": "Área de texto, 2 filas. data-testid: vendor-payment-notes"
+              "value": "Notas de texto libre sobre el pago."
             }
           ]
         },
@@ -235,27 +235,27 @@
           "items": [
             {
               "label": "Efectivo",
-              "value": "Pago en efectivo."
+              "value": "Un pago en efectivo."
             },
             {
               "label": "Cheque",
-              "value": "Cheque de papel; el número de cheque normalmente va en N.º de referencia."
+              "value": "Un cheque de papel. El número de cheque normalmente va en el campo Referencia."
             },
             {
               "label": "Tarjeta de crédito",
-              "value": "Pago con tarjeta de crédito."
+              "value": "Un pago con tarjeta de crédito."
             },
             {
               "label": "Transferencia bancaria",
-              "value": "Transferencia electrónica estilo ACH; lleva un estado de transmisión."
+              "value": "Una transferencia electrónica ACH. Se hace seguimiento de su entrega al banco."
             },
             {
               "label": "Transferencia electrónica",
-              "value": "Transferencia electrónica (wire); lleva un estado de transmisión y requiere atestación de control dual mientras está en cola."
+              "value": "Una transferencia electrónica. Se hace seguimiento de su progreso, y mientras está en cola una segunda persona debe confirmarla."
             },
             {
               "label": "Otro",
-              "value": "Cualquier método no cubierto anteriormente."
+              "value": "Cualquier método no listado arriba."
             }
           ]
         },
@@ -263,24 +263,24 @@
           "heading": "Estados de transmisión de pago (pagos electrónicos)",
           "items": [
             {
-              "label": "En cola (chip info)",
-              "value": "La transmisión está esperando ser enviada. Los pagos por transferencia electrónica deben atestiguarse mientras están en este estado."
+              "label": "En cola (azul)",
+              "value": "Esperando ser enviado. Una transferencia electrónica debe ser confirmada por una segunda persona mientras está aquí."
             },
             {
-              "label": "Reintentando (chip advertencia)",
-              "value": "Un intento de envío falló y se programó un reintento; muestra el conteo de intentos y la hora del próximo intento."
+              "label": "Reintentando (ámbar)",
+              "value": "Un envío falló y hay otro intento programado. Muestra cuántos intentos y cuándo es el próximo."
             },
             {
-              "label": "Exitoso (chip éxito)",
-              "value": "La transmisión se completó; se registra una referencia de envío."
+              "label": "Exitoso (verde)",
+              "value": "Enviado con éxito. Se registra una referencia de confirmación."
             },
             {
-              "label": "Fallido (chip de error)",
-              "value": "Todos los intentos fallaron. Muestra un banner y habilita Reintentar transmisión."
+              "label": "Fallido (rojo)",
+              "value": "Todos los intentos fallaron. Aparece un banner y puede reintentar el envío."
             },
             {
-              "label": "Cancelado (chip atenuado)",
-              "value": "La transmisión fue cancelada."
+              "label": "Cancelado (gris)",
+              "value": "El envío fue cancelado."
             }
           ]
         },
@@ -289,15 +289,15 @@
           "items": [
             {
               "label": "Aprobar factura",
-              "value": "Transiciona una factura Borrador a Aprobada y contabiliza el asiento de AP. Disponible solo desde Borrador. Confirma antes de proceder. data-testid: approve-bill-btn"
+              "value": "Aprueba una factura en Borrador para que pueda pagarse. Solo aparece en un Borrador. Pide confirmación primero."
             },
             {
               "label": "Anular factura",
-              "value": "Cancela una factura sin impacto en el libro mayor. Disponible solo desde Borrador o Aprobada, solo cuando el monto pagado es 0 y la factura no provino de un gasto. Confirma antes de proceder. data-testid: void-bill-btn"
+              "value": "Cancela una factura. Solo aparece en una factura en Borrador o Aprobada, solo cuando no se ha pagado nada y la factura no provino de un gasto. Pide confirmación primero."
             },
             {
               "label": "Guardar / Crear factura",
-              "value": "Crea la factura. Deshabilitado cuando el formulario es inválido, no hay líneas de pedido o un guardado está en progreso. data-testid: bill-save-btn"
+              "value": "Crea la factura. Permanece deshabilitado hasta que el formulario esté completo correctamente con al menos una línea."
             }
           ]
         },
@@ -306,19 +306,19 @@
           "items": [
             {
               "label": "Reintentar transmisión",
-              "value": "Reintenta una transmisión de pago electrónico fallida. Disponible cuando el estado de transmisión es Fallido. data-testid: retry-transmission-btn"
+              "value": "Intenta de nuevo un pago electrónico fallido. Solo aparece cuando el envío falló."
             },
             {
               "label": "Atestiguar transferencia",
-              "value": "Confirmación de un segundo usuario que libera una transferencia electrónica para su transmisión. Disponible cuando el método es Transferencia electrónica y el estado de transmisión es En cola. data-testid: attest-wire-btn"
+              "value": "Una segunda persona confirma y libera una transferencia electrónica para que pueda enviarse. Solo aparece en una transferencia en cola."
             },
             {
               "label": "Anular pago",
-              "value": "Revierte un pago; abre un diálogo que requiere un motivo de anulación. data-testid: void-payment-btn (motivo: void-reason, confirmar: void-confirm-btn)"
+              "value": "Revierte un pago. Le pide un motivo y una confirmación."
             },
             {
               "label": "Guardar / Crear pago",
-              "value": "Crea el pago y sus aplicaciones a facturas. Deshabilitado cuando el formulario es inválido, el pago está sobreaplicado o un guardado está en progreso. data-testid: vendor-payment-save-btn"
+              "value": "Crea el pago y lo aplica a las facturas. Permanece deshabilitado hasta que el formulario esté correcto y no sobreaplicado."
             }
           ]
         },
@@ -327,7 +327,7 @@
           "items": [
             {
               "label": "Factura — Proveedor",
-              "value": "Requerido. Debe seleccionar un proveedor activo."
+              "value": "Requerido. Elija un proveedor activo."
             },
             {
               "label": "Factura — Fecha de la factura",
@@ -339,27 +339,27 @@
             },
             {
               "label": "Factura — Líneas de pedido",
-              "value": "Se requiere al menos una línea activa. Las líneas independientes requieren una descripción, cantidad >= 0.0001 y precio unitario >= 0."
+              "value": "Se requiere al menos una línea. Las líneas escritas necesitan cada una una descripción, una cantidad mayor que cero y un precio que no sea negativo."
             },
             {
               "label": "Factura — Desde orden de compra",
-              "value": "Cuando está activado, se requiere una Orden de compra y la Cantidad a facturar de cada línea no puede exceder la cantidad recibida pero no facturada."
+              "value": "Cuando está activado, se requiere una orden de compra y la cantidad de cada línea no puede exceder lo recibido pero aún no facturado."
             },
             {
               "label": "Factura — Guardar deshabilitado cuando",
-              "value": "El formulario es inválido, no existen líneas activas o un guardado está en progreso."
+              "value": "El formulario está incompleto, no hay líneas o ya hay un guardado en progreso."
             },
             {
               "label": "Pago — Proveedor, Método, Monto, Fecha",
-              "value": "Todos requeridos. El Monto debe ser al menos 0.01. La Fecha de pago debe ser hoy o anterior."
+              "value": "Todos requeridos. El monto debe ser al menos un centavo, y la fecha debe ser hoy o anterior."
             },
             {
               "label": "Pago — Aplicaciones",
-              "value": "Cada aplicación está limitada por el Saldo adeudado de la factura. El total aplicado no puede exceder el monto del pago (de lo contrario el pago está sobreaplicado)."
+              "value": "Lo que aplica a cada factura no puede exceder lo que esta debe, y el total aplicado no puede exceder el monto del pago."
             },
             {
               "label": "Pago — Guardar deshabilitado cuando",
-              "value": "El formulario es inválido, el pago está sobreaplicado o un guardado está en progreso."
+              "value": "El formulario está incompleto, el pago está sobreaplicado o ya hay un guardado en progreso."
             }
           ]
         },
@@ -368,39 +368,39 @@
           "items": [
             {
               "label": "Número de factura",
-              "value": "Ordenable. Número de factura autogenerado en fuente monoespaciada."
+              "value": "El número de la factura, generado para usted. Puede ordenar por él."
             },
             {
               "label": "Proveedor",
-              "value": "Ordenable. Nombre del proveedor."
+              "value": "El nombre del proveedor. Puede ordenar por él."
             },
             {
               "label": "N.º de factura del proveedor",
-              "value": "Ordenable. La referencia del proveedor, monoespaciada; '—' cuando está en blanco."
+              "value": "La propia referencia del proveedor, o un guion cuando está en blanco. Puede ordenar por ella."
             },
             {
               "label": "Estado",
-              "value": "Ordenable, filtrable. Chip codificado por color: Borrador (azul), Aprobada (verde azulado), Pagada parcialmente (ámbar), Pagada (verde), Anulada (gris)."
+              "value": "Una etiqueta de color que muestra en qué punto está la factura. Puede ordenar y filtrar por ella: Borrador, Aprobada, Pagada parcialmente, Pagada o Anulada."
             },
             {
               "label": "Fecha de la factura",
-              "value": "Ordenable. Fecha, formateada MM/dd/yyyy."
+              "value": "La fecha de la factura. Puede ordenar por ella."
             },
             {
               "label": "Fecha de vencimiento",
-              "value": "Ordenable. Fecha, formateada MM/dd/yyyy."
+              "value": "Cuándo vence el pago. Puede ordenar por ella."
             },
             {
               "label": "Total",
-              "value": "Ordenable. Moneda, alineada a la derecha."
+              "value": "El total de la factura. Puede ordenar por él."
             },
             {
               "label": "Pagado",
-              "value": "Ordenable. Monto pagado, moneda, alineada a la derecha."
+              "value": "Cuánto se ha pagado hasta ahora. Puede ordenar por ello."
             },
             {
               "label": "Saldo adeudado",
-              "value": "Ordenable. Moneda, alineada a la derecha; resaltada cuando es mayor que cero."
+              "value": "Lo que aún se debe, resaltado cuando es mayor que cero. Puede ordenar por ello."
             }
           ]
         },
@@ -409,39 +409,39 @@
           "items": [
             {
               "label": "N.º de pago",
-              "value": "Ordenable. Número de pago autogenerado en fuente monoespaciada."
+              "value": "El número del pago, generado para usted. Puede ordenar por él."
             },
             {
               "label": "Proveedor",
-              "value": "Ordenable. Nombre del proveedor."
+              "value": "El nombre del proveedor. Puede ordenar por él."
             },
             {
               "label": "Método",
-              "value": "Ordenable, filtrable. Método de pago (Efectivo, Cheque, Tarjeta de crédito, Transferencia bancaria, Transferencia electrónica, Otro)."
+              "value": "Cómo se hizo el pago. Puede ordenar y filtrar por él."
             },
             {
               "label": "Monto",
-              "value": "Ordenable. Moneda, alineada a la derecha."
+              "value": "El monto del pago. Puede ordenar por él."
             },
             {
               "label": "Aplicado",
-              "value": "Ordenable. Monto aplicado a facturas, moneda, alineada a la derecha."
+              "value": "Cuánto se ha aplicado a facturas. Puede ordenar por ello."
             },
             {
               "label": "No aplicado",
-              "value": "Ordenable. Monto aún no aplicado, moneda; resaltado cuando es mayor que cero."
+              "value": "Cuánto no se ha aplicado aún, resaltado cuando es mayor que cero. Puede ordenar por ello."
             },
             {
               "label": "Fecha de pago",
-              "value": "Ordenable. Fecha, formateada MM/dd/yyyy."
+              "value": "La fecha del pago. Puede ordenar por ella."
             },
             {
               "label": "N.º de referencia",
-              "value": "Ordenable. Referencia de cheque o transferencia."
+              "value": "La referencia de cheque o transferencia. Puede ordenar por ella."
             },
             {
               "label": "Estado de transmisión",
-              "value": "Ordenable, filtrable. Chip codificado por color para pagos electrónicos: En cola (azul), Reintentando (ámbar), Exitoso (verde), Fallido (rojo), Cancelado (gris); '—' cuando no aplica."
+              "value": "Una etiqueta de color que muestra el progreso de un pago electrónico hacia el banco, o un guion cuando no aplica. Puede ordenar y filtrar por ella."
             }
           ]
         }
@@ -552,7 +552,7 @@
               "text": "El límite de crédito del proveedor"
             }
           ],
-          "explanation": "Con el interruptor Desde orden de compra activado, la Cantidad a facturar de cada línea no puede exceder la cantidad recibida pero aún no facturada. Esto es el cotejo de tres vías; las diferencias de precio respecto a la OC se contabilizan como variación del precio de compra."
+          "explanation": "Con el interruptor Desde orden de compra activado, la Cantidad a facturar de cada línea no puede exceder la cantidad recibida pero aún no facturada. Esto es el cotejo de tres vías."
         },
         {
           "id": "pa5",
@@ -564,7 +564,7 @@
             },
             {
               "id": "b",
-              "text": "Tras seleccionar el proveedor, el diálogo carga las facturas por pagar (Aprobada o Pagada parcialmente) y usted ingresa cuánto aplicar a cada una",
+              "text": "Tras seleccionar el proveedor, el panel carga las facturas abiertas de ese proveedor (Aprobada o Pagada parcialmente) y usted ingresa cuánto aplicar a cada una",
               "isCorrect": true
             },
             {
@@ -576,7 +576,7 @@
               "text": "Debe aprobar cada aplicación desde el detalle de la factura más tarde"
             }
           ],
-          "explanation": "Cuando elige un proveedor en un nuevo pago, el diálogo carga las facturas por pagar de ese proveedor (Aprobada o Pagada parcialmente). Usted ingresa un monto a aplicar por factura, cada uno limitado por el Saldo adeudado de esa factura. Aplicar el pago mueve las facturas a Pagada parcialmente o Pagada."
+          "explanation": "Cuando elige un proveedor en un nuevo pago, el panel carga las facturas abiertas de ese proveedor (Aprobada o Pagada parcialmente). Usted ingresa un monto a aplicar por factura, y cada uno no puede exceder lo que esa factura aún debe. Aplicar el pago mueve las facturas a Pagada parcialmente o Pagada."
         },
         {
           "id": "pa6",
@@ -700,7 +700,7 @@
         },
         {
           "id": "pa11",
-          "text": "Una fila de factura muestra un chip 'Desde gasto'. ¿Qué le indica esto?",
+          "text": "Una fila de factura muestra una etiqueta 'Desde gasto'. ¿Qué le indica esto?",
           "options": [
             {
               "id": "a",
@@ -708,7 +708,7 @@
             },
             {
               "id": "b",
-              "text": "La factura se promovió automáticamente desde un gasto liquidado por un proveedor y no puede anularse",
+              "text": "La factura se creó automáticamente desde un gasto liquidado por un proveedor y no puede anularse",
               "isCorrect": true
             },
             {
@@ -720,7 +720,7 @@
               "text": "La factura se importó desde un sistema contable externo"
             }
           ],
-          "explanation": "Un chip 'Desde gasto' significa que la factura se creó al promover un gasto liquidado por un proveedor (lleva un sourceExpenseId). Una consecuencia es que dichas facturas no pueden anularse."
+          "explanation": "Una etiqueta 'Desde gasto' significa que la factura se creó automáticamente desde un gasto liquidado por un proveedor. Una consecuencia es que dichas facturas no pueden anularse."
         },
         {
           "id": "pa12",
@@ -752,16 +752,16 @@
   {
     "slug": "payables-bank-accounts",
     "title": "Cuentas bancarias de proveedores y control dual",
-    "summary": "Cómo funcionan las cuentas bancarias de proveedores en la pestaña Cuentas: almacenar de forma segura los números de ruta/cuenta ACH, la aprobación de control dual, el paso de verificación con prenota y el ciclo de vida de la cuenta. Requiere la capacidad CAP-BANK-NACHA.",
+    "summary": "Cómo funcionan las cuentas bancarias de proveedores en la pestaña Cuentas: almacenar de forma segura los números de ruta/cuenta ACH, la aprobación de control dual, el paso de verificación con prenota y el ciclo de vida de la cuenta. Disponible cuando un administrador ha activado los pagos bancarios.",
     "contentJson": {
-      "body": "## Cuentas bancarias de proveedores y control dual\n\nAntes de que su taller pueda pagar a un proveedor por ACH, ese proveedor necesita una cuenta bancaria verificada registrada. La pestaña **Cuentas** en la página de Cuentas por pagar es donde almacena, aprueba y verifica esas cuentas. Esta pestaña aparece solo cuando la capacidad **CAP-BANK-NACHA** está habilitada (un administrador la activa una vez que el acuerdo de origen ACH del banco está vigente), y solo los roles Administrador, Gerente y Gerente de oficina pueden usarla.\n\n### Por qué esto es distinto de un formulario normal\n\nLos números de cuenta bancaria son secretos que mueven dinero. El sistema los trata de forma muy distinta a los campos ordinarios:\n\n- **Cifrados en reposo, enmascarados en pantalla.** Los números de ruta y de cuenta que escribe se cifran en la base de datos y nunca se envían de vuelta al navegador. La tabla y el detalle solo muestran un valor **enmascarado** (por ejemplo, los últimos dígitos). Nadie —ni siquiera un administrador— puede leer el número completo desde la pantalla.\n- **Solo escritura al editar.** Como los números nunca se devuelven, cambiar una cuenta significa volver a ingresar **ambos** números desde cero. No hay opción de 'mostrar el número actual'.\n- **Control dual.** Agregar o cambiar una cuenta no la hace pagable. Una **segunda persona** debe aprobarla. La persona que ingresó o cambió los números nunca puede ser quien los aprueba — el sistema bloquea la autoaprobación.\n- **Verificación con prenota.** Incluso después de la aprobación, la cuenta se verifica con una entrada ACH real pero de **cero dólares** (una 'prenota') enviada a través del banco. Solo después de que la ventana de devolución del banco pasa sin rechazo, usted marca la cuenta como verificada. Hasta entonces no puede pagarse en un lote en vivo.\n\n### Agregar una cuenta bancaria de proveedor\n\n1. Vaya a **Cuentas por pagar → Cuentas** y haga clic en **Nueva cuenta bancaria**.\n2. Elija el **Proveedor** al que pertenece la cuenta.\n3. Ingrese un **Apodo** (una etiqueta como 'Operativa - Wells Fargo' para distinguir múltiples cuentas).\n4. Elija el **Tipo** — Corriente o Ahorros.\n5. Ingrese el **N.º de ruta** de 9 dígitos y el **N.º de cuenta** (de 4 a 17 dígitos).\n6. Guarde. La cuenta se crea en estado **Pendiente de aprobación**. Una confirmación le recuerda que está a la espera de la aprobación de control dual.\n\nCuando **cambia** una cuenta existente, el proveedor queda bloqueado (una cuenta permanece con su proveedor) y debe volver a ingresar ambos números. Guardar el cambio restablece la cuenta a **Pendiente de aprobación** — la aprobación y la prenota previas ya no cuentan.\n\n### El ciclo de vida de la cuenta\n\nUna cuenta bancaria de proveedor avanza por estos estados, mostrados como un chip codificado por color:\n\n1. **Pendiente de aprobación** — Recién creada o recién cambiada. No pagable. Esperando que un segundo usuario la apruebe.\n2. **Aprobada** — Un usuario distinto hizo clic en **Aprobar (control dual)**. La aprobación se registra con quién la aprobó y cuándo. El siguiente paso es la prenota.\n3. **Prenota enviada** — Una entrada de verificación de cero dólares ha ido al banco (ensamblada mediante un lote de prenota en la pestaña Lotes). La cuenta está esperando que pase la ventana de devolución del banco.\n4. **Verificada** — La ventana de devolución pasó sin rechazo, y un usuario hizo clic en **Marcar verificada**. La cuenta ahora es utilizable en lotes de pago en vivo.\n5. **Deshabilitada** — La cuenta se ha desactivado. Queda excluida de todos los lotes. Reactivarla requiere una nueva aprobación de control dual (y una nueva prenota).\n\n### Acciones de fila en la pestaña Cuentas\n\nCada fila de cuenta muestra las acciones que aplican a su estado actual:\n\n- **Aprobar (control dual)** (ícono de marca) — aparece en una cuenta Pendiente de aprobación. Debe hacer clic alguien distinto de la persona que ingresó los números.\n- **Marcar verificada** (ícono de verificado) — aparece en una cuenta con Prenota enviada una vez que ha pasado la ventana de devolución del banco.\n- **Cambiar números** (ícono de edición) — vuelva a ingresar ambos números; esto restablece la cuenta a Pendiente de aprobación.\n- **Deshabilitar** (ícono de bloqueo) — confirma, luego excluye la cuenta de todos los lotes.\n\nUna cuenta Deshabilitada no muestra acciones de edición ni de deshabilitar.\n\n### Cómo se conecta esto con el pago a proveedores\n\nLa cuenta verificada es el **destino** de los pagos ACH. Cuando construye un lote de pago en la pestaña Lotes, cada pago elegible por Transferencia bancaria se coteja con la cuenta bancaria de su proveedor. Un pago cuyo proveedor no tiene una cuenta verificada muestra una advertencia de 'Necesita cuenta bancaria verificada' y no puede incluirse hasta que agregue y verifique una.\n\n### Puntos clave\n\n- Los números bancarios se cifran y se enmascaran — editarlos requiere volver a ingresarlos.\n- Cada alta o cambio necesita que un usuario **distinto** lo apruebe (control dual).\n- Una **prenota** (entrada de cero dólares) verifica la cuenta antes de que pueda pagarse.\n- Ciclo de vida: Pendiente de aprobación → Aprobada → Prenota enviada → Verificada (→ Deshabilitada).\n- Un proveedor necesita una cuenta Verificada antes de que sus pagos ACH puedan entrar en un lote.",
+      "body": "## Cuentas bancarias de proveedores y control dual\n\nAntes de que su taller pueda pagar a un proveedor por ACH, ese proveedor necesita una cuenta bancaria verificada registrada. La pestaña **Cuentas** en la página de Cuentas por pagar es donde almacena, aprueba y verifica esas cuentas. Esta pestaña aparece solo cuando un administrador ha activado los pagos bancarios (una vez que el acuerdo ACH del banco está vigente), y solo los roles Administrador, Gerente y Gerente de oficina pueden usarla.\n\n### Por qué esto es distinto de un formulario normal\n\nLos números de cuenta bancaria son secretos que mueven dinero. El sistema los trata de forma muy distinta a los campos ordinarios:\n\n- **Cifrados en reposo, enmascarados en pantalla.** Los números de ruta y de cuenta que escribe se cifran en la base de datos y nunca se envían de vuelta al navegador. La tabla y el detalle solo muestran un valor **enmascarado** (por ejemplo, los últimos dígitos). Nadie —ni siquiera un administrador— puede leer el número completo desde la pantalla.\n- **Solo escritura al editar.** Como los números nunca se devuelven, cambiar una cuenta significa volver a ingresar **ambos** números desde cero. No hay opción de 'mostrar el número actual'.\n- **Control dual.** Agregar o cambiar una cuenta no la hace pagable. Una **segunda persona** debe aprobarla. La persona que ingresó o cambió los números nunca puede ser quien los aprueba — el sistema bloquea la autoaprobación.\n- **Verificación con prenota.** Incluso después de la aprobación, la cuenta se verifica con una entrada ACH real pero de **cero dólares** (una 'prenota') enviada a través del banco. Solo después de que la ventana de devolución del banco pasa sin rechazo, usted marca la cuenta como verificada. Hasta entonces no puede pagarse en un lote en vivo.\n\n### Agregar una cuenta bancaria de proveedor\n\n1. Vaya a **Cuentas por pagar → Cuentas** y haga clic en **Nueva cuenta bancaria**.\n2. Elija el **Proveedor** al que pertenece la cuenta.\n3. Ingrese un **Apodo** (una etiqueta como 'Operativa - Wells Fargo' para distinguir múltiples cuentas).\n4. Elija el **Tipo** — Corriente o Ahorros.\n5. Ingrese el **N.º de ruta** de 9 dígitos y el **N.º de cuenta** (de 4 a 17 dígitos).\n6. Guarde. La cuenta se crea en estado **Pendiente de aprobación**. Una confirmación le recuerda que está a la espera de la aprobación de control dual.\n\nCuando **cambia** una cuenta existente, el proveedor queda bloqueado (una cuenta permanece con su proveedor) y debe volver a ingresar ambos números. Guardar el cambio restablece la cuenta a **Pendiente de aprobación** — la aprobación y la prenota previas ya no cuentan.\n\n### El ciclo de vida de la cuenta\n\nUna cuenta bancaria de proveedor avanza por estos estados, mostrados como una etiqueta de color:\n\n1. **Pendiente de aprobación** — Recién creada o recién cambiada. No pagable. Esperando que un segundo usuario la apruebe.\n2. **Aprobada** — Un usuario distinto hizo clic en **Aprobar (control dual)**. La aprobación se registra con quién la aprobó y cuándo. El siguiente paso es la prenota.\n3. **Prenota enviada** — Una entrada de verificación de cero dólares ha ido al banco (ensamblada mediante un lote de prenota en la pestaña Lotes). La cuenta está esperando que pase la ventana de devolución del banco.\n4. **Verificada** — La ventana de devolución pasó sin rechazo, y un usuario hizo clic en **Marcar verificada**. La cuenta ahora es utilizable en lotes de pago en vivo.\n5. **Deshabilitada** — La cuenta se ha desactivado. Queda excluida de todos los lotes. Reactivarla requiere una nueva aprobación de control dual (y una nueva prenota).\n\n### Acciones de fila en la pestaña Cuentas\n\nCada fila de cuenta muestra las acciones que aplican a su estado actual:\n\n- **Aprobar (control dual)** (ícono de marca) — aparece en una cuenta Pendiente de aprobación. Debe hacer clic alguien distinto de la persona que ingresó los números.\n- **Marcar verificada** (ícono de verificado) — aparece en una cuenta con Prenota enviada una vez que ha pasado la ventana de devolución del banco.\n- **Cambiar números** (ícono de edición) — vuelva a ingresar ambos números; esto restablece la cuenta a Pendiente de aprobación.\n- **Deshabilitar** (ícono de bloqueo) — confirma, luego excluye la cuenta de todos los lotes.\n\nUna cuenta Deshabilitada no muestra acciones de edición ni de deshabilitar.\n\n### Cómo se conecta esto con el pago a proveedores\n\nLa cuenta verificada es el **destino** de los pagos ACH. Cuando construye un lote de pago en la pestaña Lotes, cada pago elegible por Transferencia bancaria se coteja con la cuenta bancaria de su proveedor. Un pago cuyo proveedor no tiene una cuenta verificada muestra una advertencia de 'Necesita cuenta bancaria verificada' y no puede incluirse hasta que agregue y verifique una.\n\n### Puntos clave\n\n- Los números bancarios se cifran y se enmascaran — editarlos requiere volver a ingresarlos.\n- Cada alta o cambio necesita que un usuario **distinto** lo apruebe (control dual).\n- Una **prenota** (entrada de cero dólares) verifica la cuenta antes de que pueda pagarse.\n- Ciclo de vida: Pendiente de aprobación → Aprobada → Prenota enviada → Verificada (→ Deshabilitada).\n- Un proveedor necesita una cuenta Verificada antes de que sus pagos ACH puedan entrar en un lote.",
       "sections": []
     }
   },
   {
     "slug": "payables-bank-accounts-walkthrough",
     "title": "Agregar y aprobar una cuenta bancaria de proveedor",
-    "summary": "Un recorrido guiado por la pestaña Cuentas: el botón Nueva cuenta bancaria, el diálogo de cuenta bancaria con su indicación de control dual, la tabla de cuentas con números enmascarados y estado, y las acciones de fila aprobar / verificar / cambiar / deshabilitar.",
+    "summary": "Un recorrido guiado por la pestaña Cuentas: el botón Nueva cuenta bancaria, el panel de cuenta bancaria con su indicación de control dual, la tabla de cuentas con números enmascarados y estado, y las acciones de fila aprobar / verificar / cambiar / deshabilitar.",
     "contentJson": {
       "appRoute": "/payables/accounts",
       "startButtonLabel": "Recorrer Cuentas bancarias",
@@ -770,7 +770,7 @@
           "element": ".tab-bar",
           "popover": {
             "title": "La pestaña Cuentas",
-            "description": "Las pestañas Cuentas y Lotes aparecen solo cuando la capacidad CAP-BANK-NACHA está habilitada y usted es Administrador, Gerente o Gerente de oficina. La pestaña Cuentas contiene la cuenta bancaria ACH de cada proveedor. Si no ve estas pestañas, su instalación no origina archivos ACH desde Forge.",
+            "description": "Las pestañas Cuentas y Lotes aparecen solo cuando un administrador ha activado los pagos bancarios y usted es Administrador, Gerente o Gerente de oficina. La pestaña Cuentas contiene la cuenta bancaria de cada proveedor. Si no ve estas pestañas, su taller no envía archivos ACH desde Forge.",
             "side": "bottom"
           }
         },
@@ -786,7 +786,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "La tabla de Cuentas",
-            "description": "Cada fila es una cuenta bancaria de proveedor: proveedor, apodo, tipo, los números de ruta y de cuenta enmascarados, y un chip de estado codificado por color (Pendiente de aprobación, Aprobada, Prenota enviada, Verificada o Deshabilitada). Como los números completos nunca se envían al navegador, aquí solo ve la forma enmascarada.",
+            "description": "Cada fila es una cuenta bancaria de proveedor. Ve el proveedor, el apodo, el tipo, los números de ruta y de cuenta enmascarados, y una etiqueta de estado de color (Pendiente de aprobación, Aprobada, Prenota enviada, Verificada o Deshabilitada). Los números completos nunca se muestran aquí.",
             "side": "top"
           }
         },
@@ -820,16 +820,16 @@
   {
     "slug": "payables-payment-batches",
     "title": "Lotes de pago NACHA",
-    "summary": "Cómo pagar a proveedores por ACH desde la pestaña Lotes: ensamblar pagos por Transferencia bancaria elegibles en un archivo NACHA, generarlo y descargarlo, liberar el lote (segregación de funciones), lotes de prenota e importar el archivo de devolución / NOC de ACH del banco. Requiere la capacidad CAP-BANK-NACHA.",
+    "summary": "Cómo pagar a proveedores por ACH desde la pestaña Lotes: ensamblar pagos por Transferencia bancaria elegibles en un archivo NACHA, generarlo y descargarlo, liberar el lote (segregación de funciones), lotes de prenota e importar el archivo de devolución / NOC de ACH del banco. Disponible cuando un administrador ha activado los pagos bancarios.",
     "contentJson": {
-      "body": "## Lotes de pago NACHA\n\nCuando su taller origina sus propios pagos ACH, la pestaña **Lotes** en la página de Cuentas por pagar es donde convierte los pagos electrónicos aprobados en un **archivo NACHA** — el archivo en formato bancario estándar que usted carga en el portal de su banco. Al igual que la pestaña Cuentas, Lotes aparece solo cuando la capacidad **CAP-BANK-NACHA** está habilitada, y solo los roles Administrador, Gerente y Gerente de oficina pueden usarla.\n\n### El panorama general: Ensamblar → Generar → Cargar → Liberar\n\nForge no se conecta directamente con su banco. Produce el archivo; usted lo carga; una segunda persona confirma que se envió. El flujo está deliberadamente dividido para que ninguna sola persona pueda mover dinero por sí sola:\n\n1. **Ensamblar** — Reunir los pagos elegibles en un lote en Borrador.\n2. **Generar** — Construir el archivo NACHA a partir del lote en Borrador.\n3. **Descargar y cargar** — Descargar el archivo y cargarlo usted mismo en el portal de su banco.\n4. **Liberar** — Un usuario **distinto** confirma la carga, lo que marca los pagos como transmitidos. Este es el control de segregación de funciones (SoD).\n\n### Qué hace que un pago sea elegible\n\nUn pago es elegible para un lote cuando es un pago por **Transferencia bancaria** (ACH) que aún no se ha agrupado en lote. Cuando abre el diálogo de Nuevo lote, el sistema lista cada pago elegible con su número de pago, proveedor, monto, fecha y cuenta de destino. Los pagos cuyo proveedor tiene una cuenta bancaria **verificada** pueden seleccionarse; un pago cuyo proveedor no tiene una cuenta verificada muestra una advertencia de 'Necesita cuenta bancaria verificada' y no puede seleccionarse hasta que agregue y verifique una en la pestaña Cuentas.\n\n### Ensamblar un lote\n\n1. Vaya a **Cuentas por pagar → Lotes** y haga clic en **Nuevo lote**.\n2. Establezca la **Fecha efectiva** — la fecha en que los fondos deben liquidarse en el banco.\n3. En la lista de pagos elegibles, marque cada pago a incluir. El **Total seleccionado** se actualiza a medida que avanza.\n4. Haga clic en **Ensamblar lote**. El lote se crea en estado **Borrador**.\n\n### Generar, descargar y liberar\n\nEn la pestaña Lotes, las acciones de cada fila dependen de su estado:\n\n- **Generar archivo NACHA** (ícono de construir) — aparece en un lote en **Borrador**. Construye el archivo NACHA y mueve el lote a **Generado**.\n- **Descargar archivo** (ícono de descarga) — aparece en un lote **Generado** o **Liberado**. Descarga el archivo .ach para que usted lo cargue en el portal del banco.\n- **Liberar** (ícono de verificado) — aparece en un lote **Generado**. Después de confirmar en un diálogo que el archivo se cargó en el banco, liberar marca los pagos del lote como transmitidos. **La liberación debe realizarla un usuario distinto del que creó el lote** — el sistema impone esta segregación de funciones.\n- **Cancelar lote** (ícono de bloqueo) — aparece en un lote en **Borrador** o **Generado**. Lo cancela; sus pagos regresan al grupo de elegibles para que pueda volver a agruparlos.\n\n### Estados del lote\n\n- **Borrador** — Ensamblado pero sin archivo generado aún. Puede generarse o cancelarse.\n- **Generado** — El archivo NACHA existe. Puede descargarse, liberarse o cancelarse.\n- **Liberado** — Un segundo usuario confirmó la carga; los pagos están marcados como transmitidos. Terminal.\n- **Cancelado** — El lote se abandonó; sus pagos regresaron al grupo de elegibles. Terminal.\n\n### Lotes de prenota\n\nUn **Lote de prenota** es un lote especial que verifica cuentas bancarias en lugar de pagar a alguien. Haga clic en **Lote de prenota**, establezca una fecha efectiva y ensámblelo: cada cuenta bancaria de proveedor aprobada (aún sin prenota) recibe una entrada de verificación de **cero dólares**. Genera, descarga y carga el archivo de prenota de la misma forma que un lote de pago. Después de que la ventana de devolución del banco pasa sin devolución, vaya a la pestaña Cuentas y marque esas cuentas como **Verificadas**. Los lotes de prenota son la forma en que una cuenta Aprobada se convierte en una cuenta Verificada y pagable.\n\n### Importar el archivo de devoluciones / NOC del banco\n\nLos bancos devuelven un archivo de **devolución** ACH (pagos que el banco receptor rechazó) y entradas de **Notificación de cambio (NOC)** (el banco receptor le indica la ruta/cuenta correcta a usar la próxima vez). En la pestaña Lotes, haga clic en **Importar archivo de devoluciones** y elija el archivo que le dio su banco (.ach, .txt o .dat). La importación es idempotente — aplicar el mismo archivo dos veces es seguro — e informa cuántos pagos se devolvieron, cuántas prenotas se rechazaron y cuántos avisos de corrección se encontraron. Los pagos devueltos aparecen como transmisiones fallidas para que pueda darles seguimiento.\n\n### Puntos clave\n\n- Forge produce el archivo NACHA; usted lo carga en el banco; un segundo usuario lo libera.\n- Solo los pagos por **Transferencia bancaria** no agrupados son elegibles, y solo cuando el proveedor tiene una cuenta **verificada**.\n- Ciclo de vida del lote: Borrador → Generado → Liberado (o Cancelado).\n- Un **lote de prenota** envía entradas de cero dólares para verificar cuentas.\n- La liberación está controlada por **segregación de funciones** — un usuario distinto del creador.\n- Importe el archivo de **devoluciones / NOC** del banco para registrar rechazos y correcciones de cuenta.",
+      "body": "## Lotes de pago NACHA\n\nCuando su taller origina sus propios pagos ACH, la pestaña **Lotes** en la página de Cuentas por pagar es donde convierte los pagos electrónicos aprobados en un **archivo NACHA** — el archivo en formato bancario estándar que usted carga en el portal de su banco. Al igual que la pestaña Cuentas, Lotes aparece solo cuando un administrador ha activado los pagos bancarios, y solo los roles Administrador, Gerente y Gerente de oficina pueden usarla.\n\n### El panorama general: Ensamblar → Generar → Cargar → Liberar\n\nForge no se conecta directamente con su banco. Produce el archivo; usted lo carga; una segunda persona confirma que se envió. El flujo está deliberadamente dividido para que ninguna sola persona pueda mover dinero por sí sola:\n\n1. **Ensamblar** — Reunir los pagos elegibles en un lote en Borrador.\n2. **Generar** — Construir el archivo NACHA a partir del lote en Borrador.\n3. **Descargar y cargar** — Descargar el archivo y cargarlo usted mismo en el portal de su banco.\n4. **Liberar** — Un usuario **distinto** confirma la carga, lo que marca los pagos como transmitidos. Este es el control de segregación de funciones (SoD).\n\n### Qué hace que un pago sea elegible\n\nUn pago es elegible para un lote cuando es un pago por **Transferencia bancaria** (ACH) que aún no se ha agrupado en lote. Cuando abre el panel de Nuevo lote, el sistema lista cada pago elegible con su número de pago, proveedor, monto, fecha y cuenta de destino. Los pagos cuyo proveedor tiene una cuenta bancaria **verificada** pueden seleccionarse; un pago cuyo proveedor no tiene una cuenta verificada muestra una advertencia de 'Necesita cuenta bancaria verificada' y no puede seleccionarse hasta que agregue y verifique una en la pestaña Cuentas.\n\n### Ensamblar un lote\n\n1. Vaya a **Cuentas por pagar → Lotes** y haga clic en **Nuevo lote**.\n2. Establezca la **Fecha efectiva** — la fecha en que los fondos deben liquidarse en el banco.\n3. En la lista de pagos elegibles, marque cada pago a incluir. El **Total seleccionado** se actualiza a medida que avanza.\n4. Haga clic en **Ensamblar lote**. El lote se crea en estado **Borrador**.\n\n### Generar, descargar y liberar\n\nEn la pestaña Lotes, las acciones de cada fila dependen de su estado:\n\n- **Generar archivo NACHA** (ícono de construir) — aparece en un lote en **Borrador**. Construye el archivo NACHA y mueve el lote a **Generado**.\n- **Descargar archivo** (ícono de descarga) — aparece en un lote **Generado** o **Liberado**. Descarga el archivo .ach para que usted lo cargue en el portal del banco.\n- **Liberar** (ícono de verificado) — aparece en un lote **Generado**. Después de confirmar que el archivo se cargó en el banco, liberar marca los pagos del lote como transmitidos. **La liberación debe realizarla un usuario distinto del que creó el lote** — el sistema impone esta segregación de funciones.\n- **Cancelar lote** (ícono de bloqueo) — aparece en un lote en **Borrador** o **Generado**. Lo cancela; sus pagos regresan al grupo de elegibles para que pueda volver a agruparlos.\n\n### Estados del lote\n\n- **Borrador** — Ensamblado pero sin archivo generado aún. Puede generarse o cancelarse.\n- **Generado** — El archivo NACHA existe. Puede descargarse, liberarse o cancelarse.\n- **Liberado** — Un segundo usuario confirmó la carga; los pagos están marcados como transmitidos. Terminal.\n- **Cancelado** — El lote se abandonó; sus pagos regresaron al grupo de elegibles. Terminal.\n\n### Lotes de prenota\n\nUn **Lote de prenota** es un lote especial que verifica cuentas bancarias en lugar de pagar a alguien. Haga clic en **Lote de prenota**, establezca una fecha efectiva y ensámblelo: cada cuenta bancaria de proveedor aprobada (aún sin prenota) recibe una entrada de verificación de **cero dólares**. Genera, descarga y carga el archivo de prenota de la misma forma que un lote de pago. Después de que la ventana de devolución del banco pasa sin devolución, vaya a la pestaña Cuentas y marque esas cuentas como **Verificadas**. Los lotes de prenota son la forma en que una cuenta Aprobada se convierte en una cuenta Verificada y pagable.\n\n### Importar el archivo de devoluciones / NOC del banco\n\nLos bancos devuelven un archivo de **devolución** ACH (pagos que el banco receptor rechazó) y entradas de **Notificación de cambio (NOC)** (el banco receptor le indica la ruta/cuenta correcta a usar la próxima vez). En la pestaña Lotes, haga clic en **Importar archivo de devoluciones** y elija el archivo que le dio su banco (.ach, .txt o .dat). La importación es idempotente — aplicar el mismo archivo dos veces es seguro — e informa cuántos pagos se devolvieron, cuántas prenotas se rechazaron y cuántos avisos de corrección se encontraron. Los pagos devueltos aparecen como transmisiones fallidas para que pueda darles seguimiento.\n\n### Puntos clave\n\n- Forge produce el archivo NACHA; usted lo carga en el banco; un segundo usuario lo libera.\n- Solo los pagos por **Transferencia bancaria** no agrupados son elegibles, y solo cuando el proveedor tiene una cuenta **verificada**.\n- Ciclo de vida del lote: Borrador → Generado → Liberado (o Cancelado).\n- Un **lote de prenota** envía entradas de cero dólares para verificar cuentas.\n- La liberación está controlada por **segregación de funciones** — un usuario distinto del creador.\n- Importe el archivo de **devoluciones / NOC** del banco para registrar rechazos y correcciones de cuenta.",
       "sections": []
     }
   },
   {
     "slug": "payables-payment-batches-walkthrough",
     "title": "Ensamblar y liberar un lote de pago",
-    "summary": "Un recorrido guiado por la pestaña Lotes: los botones Nuevo lote y Lote de prenota, la acción Importar archivo de devoluciones, la selección de pagos elegibles en el diálogo de lote, la tabla de lotes y las acciones de fila generar / descargar / liberar / cancelar.",
+    "summary": "Un recorrido guiado por la pestaña Lotes: los botones Nuevo lote y Lote de prenota, la acción Importar archivo de devoluciones, la selección de pagos elegibles en el panel de lote, la tabla de lotes y las acciones de fila generar / descargar / liberar / cancelar.",
     "contentJson": {
       "appRoute": "/payables/batches",
       "startButtonLabel": "Recorrer Lotes de pago",
@@ -838,7 +838,7 @@
           "element": ".tab-bar",
           "popover": {
             "title": "La pestaña Lotes",
-            "description": "La pestaña Lotes aparece solo cuando la capacidad CAP-BANK-NACHA está habilitada y usted es Administrador, Gerente o Gerente de oficina. Convierte los pagos por Transferencia bancaria (ACH) aprobados en un archivo NACHA que usted carga en el portal de su banco.",
+            "description": "La pestaña Lotes aparece solo cuando un administrador ha activado los pagos bancarios y usted es Administrador, Gerente o Gerente de oficina. Convierte los pagos por transferencia bancaria aprobados en un archivo NACHA que usted carga en el portal de su banco.",
             "side": "bottom"
           }
         },
@@ -846,7 +846,7 @@
           "element": "[data-testid='new-payment-batch-btn']",
           "popover": {
             "title": "Nuevo lote",
-            "description": "Haga clic aquí para ensamblar un lote. El diálogo pide una Fecha efectiva (cuándo deben liquidarse los fondos) y lista cada pago ACH elegible. Marque los pagos a incluir; el Total seleccionado se actualiza a medida que avanza. Haga clic en Ensamblar lote para crearlo en estado Borrador.",
+            "description": "Haga clic aquí para ensamblar un lote. El panel pide una fecha efectiva (cuándo deben liquidarse los fondos) y lista cada pago ACH elegible. Marque los que quiera incluir; el total seleccionado se actualiza a medida que avanza. Haga clic en Ensamblar lote para crearlo como Borrador.",
             "side": "bottom"
           }
         },
@@ -870,7 +870,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "La tabla de Lotes",
-            "description": "Cada fila es un lote: número de lote, chip de estado (Borrador, Generado, Liberado o Cancelado), un chip PRENOTE para lotes de prenota, conteo de entradas, total, fecha efectiva y quién lo creó y liberó. Los botones de acción de cada fila cambian con el estado del lote.",
+            "description": "Cada fila es un lote. Ve su número, una etiqueta de estado (Borrador, Generado, Liberado o Cancelado), una etiqueta Prenota en los lotes de prenota, el conteo de entradas, el total, la fecha efectiva y quién lo creó y liberó. Los botones de cada fila cambian con el estado.",
             "side": "top"
           }
         },
@@ -890,7 +890,7 @@
     "title": "Cuentas por pagar — Referencia avanzada",
     "summary": "Notas de casos límite y de usuario avanzado para AP: facturas multimoneda y FX de liquidación, campos de diagnóstico de transmisión, promoción de gasto a factura y su restricción de anulación, y la frontera del proveedor de contabilidad.",
     "contentJson": {
-      "body": "## Cuentas por pagar — Referencia avanzada\n\nNotas de casos límite y de usuario avanzado para Cuentas por pagar. Para el flujo del día a día (ingresar facturas, registrar pagos, el ciclo de vida de la factura) comience con la Visión general de Cuentas por pagar, la Referencia de campos y el Recorrido guiado. Esta página reúne las mecánicas auxiliares que esos módulos dejan fuera deliberadamente.\n\n## Facturas multimoneda y FX de liquidación\n\nEn una instalación de una sola moneda nada de esto es visible — los campos **Moneda** y **Tipo de cambio** están ocultos, y todos los montos están en la moneda base. La superficie multimoneda aparece solo cuando existe más de una moneda activa.\n\n- Una factura lleva un **CurrencyId** (la moneda de transacción de la factura) y un **FxRate** — el *tipo de cambio de registro* que convierte el total de la factura a la **moneda funcional** del libro en la fecha de la factura. Una moneda nula toma de forma predeterminada la moneda funcional del libro activo; el FxRate predeterminado es `1`. El FxRate debe ser mayor que 0 (un tipo de cambio cero o negativo anularía o invertiría el monto funcional).\n- Cada **aplicación de pago** lleva su propio **settlementFxRate** (transacción → funcional, predeterminado `1`). Este es el tipo de cambio *del día en que paga*, que generalmente difiere del tipo de cambio de registro de la factura. La diferencia entre el tipo de cambio de registro y el de liquidación es la **ganancia o pérdida cambiaria realizada** en esa liquidación — se reconoce por aplicación, no por pago.\n- Como el FX se realiza por aplicación, un pago que liquida varias facturas en moneda extranjera puede realizar una ganancia/pérdida distinta contra cada una. El campo `bill-fx-rate` (en el diálogo de la factura) y el campo `vendor-payment-app-fx` (por fila de aplicación) son las dos entradas; la diferencia realizada se calcula por usted.\n- Las facturas promovidas desde gastos (más abajo) son siempre **documentos en moneda funcional**: el CurrencyId se resuelve a la moneda funcional y el FxRate se fija en `1`. Los gastos no trasladan una moneda de transacción extranjera a AP.\n\n## Campos de diagnóstico de transmisión\n\nLos pagos electrónicos (Transferencia bancaria, Transferencia electrónica) llevan un registro de transmisión bancaria. El detalle del pago expone toda su superficie de diagnóstico; los pagos no electrónicos dejan todos estos campos en nulo/0.\n\n- **transmissionStatus** — En cola, Reintentando, Exitoso, Fallido o Cancelado (el estado del ciclo de vida).\n- **transmissionAttempts** — cuántos intentos de envío se han realizado; se muestra junto al chip Reintentando.\n- **transmissionNextAttemptAt** — cuándo está programado el próximo reintento automático (solo Reintentando).\n- **transmissionLastError** — el motivo de falla más reciente, mostrado en un pago Fallido para su triaje.\n- **transmissionSubmissionRef** — la referencia de envío del banco/proveedor registrada una vez que un envío resulta Exitoso.\n- **transmissionId** — el id del registro de transmisión subyacente (vincula el pago con su entrega al banco).\n\nEl **banner de triaje de transmisión fallida** a nivel de página (`failed-transmission-banner`) cuenta los pagos cuya última transmisión Falló y aparece tanto en la pestaña Facturas como en la pestaña Pagos; en una factura se muestra como el chip **Pago fallido** (`hasFailedTransmission`). Una superficie administrativa separada de **Transmisiones de pago** (`GET /api/v1/payment-transmissions`, filtrable por status/sourceType, con `POST /{id}/retry`) es la cola dedicada de pagos fallidos, controlada por **CAP-P2P-PAY** y limitada a Administrador/Gerente/Gerente de oficina. **Reintentar transmisión** vuelve a poner en cola una transmisión Fallida (o Cancelada); se rechaza con 409 una vez que la última transmisión resultó **Exitosa** — el dinero ya se movió.\n\n## Promoción de gasto a factura y restricción de anulación\n\nUn gasto **liquidado por proveedor** (uno cuyo objetivo de liquidación es Cuentas por pagar, o que simplemente tiene un proveedor) se **promueve a una factura de proveedor en la aprobación** para que el pasivo fluya por la única maquinaria de AP — envejece, se liquida mediante pagos a proveedores ordinarios y contabiliza Dr Gasto / Cr AP bajo la clave de idempotencia de la factura. Los gastos liquidados en efectivo, sin proveedor o de monto no positivo *no* se promueven (conservan la ruta heredada Dr Gasto / Cr Efectivo).\n\n- La promoción requiere la capacidad de Cuentas por pagar **CAP-P2P-BILL**. Cuando está desactivada, la promoción declina y la contabilización de AP del gasto heredada lo gestiona en su lugar.\n- Una factura promovida **nace Aprobada** — la aprobación del gasto *es* la aprobación del pasivo, por lo que no se enruta a través de una segunda puerta Borrador → Aprobada. Registra el `ExpenseId` (el origen) y muestra un chip **Desde gasto** en la lista.\n- **Invariante de una factura viva:** puede existir como máximo una factura no anulada por gasto (respaldo en BD `ux_vendor_bills_expense_live`); volver a aprobar devuelve la factura existente en lugar de crear un duplicado.\n- **Restricción de anulación:** una factura Desde gasto **no puede anularse desde Cuentas por pagar** — su vida está impulsada por el ciclo de vida del gasto. Anularla directamente dejaría el gasto como aprobado con su pasivo (y débito de libro mayor) desaparecidos en silencio. Para deshacerla, **rechace el gasto o solicite una revisión**; eso **degrada** la factura (la anula y revierte su contabilización) en sincronía.\n- La degradación (como una anulación normal) está **bloqueada cuando hay pagos a proveedores aplicados** — el débito de AP del pago apuntaría a un pasivo revertido. Anule primero el pago o los pagos. Esta es la misma protección que `VoidVendorBill` impone para las facturas ordinarias.\n\n## Frontera del proveedor de contabilidad\n\nCuentas por pagar es una función **⚡ acotada por contabilidad**: solo es dueña de AP en **modo independiente** (sin proveedor de contabilidad externo conectado). La frontera es el mutex declarado **CAP-ACCT-EXTERNAL ⊥ CAP-ACCT-BUILTIN** — cuando se conecta un proveedor externo (QuickBooks, Xero, etc.), AP se gestiona allí y el módulo integrado se hace a un lado en lugar de duplicar la captura de facturas y pagos.\n\n- La contabilización en el libro mayor de facturas y pagos se autocontrola con **CAP-ACCT-FULLGL**, un marcador de posición aspiracional que nunca está habilitado hoy. Mientras FULLGL está apagado, aprobar una factura igualmente la hace avanzar operativamente (es pagable, envejece, puede pagarse) pero no escribe **ningún asiento de diario** — la conversión de saldos iniciales §7A es dueña de la historia del periodo apagado. Los efectos *operativos* (transiciones de estado, seguimiento de cantidad facturada de cotejo de tres vías, restauración de la cantidad facturada de la OC al anular) se ejecutan independientemente de FULLGL.\n- Las pestañas **Cuentas** y **Lotes** (cuentas bancarias de proveedores y lotes de pago NACHA) son una capacidad separada, **CAP-BANK-NACHA**, y permanecen ocultas a menos que un administrador la habilite. Consulte los módulos dedicados de Cuentas bancarias y Lotes de pago.",
+      "body": "## Cuentas por pagar — Referencia avanzada\n\nNotas de casos límite y de usuario avanzado para Cuentas por pagar. Para el flujo del día a día (ingresar facturas, registrar pagos, el ciclo de vida de la factura) comience con la Visión general de Cuentas por pagar, la Referencia de campos y el Recorrido guiado. Esta página reúne los detalles adicionales que esos módulos dejan fuera.\n\n## Facturas multimoneda y tipos de cambio de liquidación\n\nEn una instalación de una sola moneda nada de esto es visible — los campos **Moneda** y **Tipo de cambio** están ocultos, y todos los montos están en su moneda predeterminada. Esta superficie aparece solo cuando hay más de una moneda configurada.\n\n- Una factura tiene una moneda y un **tipo de cambio** que convierte el total de la factura a la moneda de sus libros, usando el tipo de cambio de la fecha de la factura. Si deja la moneda en blanco, la factura usa la moneda de sus libros con un tipo de cambio de 1. El tipo de cambio debe ser mayor que cero.\n- Cada **pago que aplica** lleva su propio **tipo de cambio de liquidación** — el tipo de cambio del día en que paga, que suele diferir del de la factura. La diferencia entre ambos es la **ganancia o pérdida cambiaria** de ese pago. Se calcula por factura que paga, no por pago.\n- Como la ganancia o pérdida se calcula por factura, un pago que liquida varias facturas en moneda extranjera puede generar una ganancia o pérdida distinta en cada una. Usted ingresa el tipo de cambio en la factura y otra vez en cada factura que paga; la diferencia se calcula por usted.\n- Las facturas creadas a partir de un gasto siempre están en la moneda de sus libros con un tipo de cambio de 1. Los gastos no trasladan una moneda extranjera a Cuentas por pagar.\n\n## Detalles de transmisión\n\nLos pagos electrónicos (Transferencia bancaria, Transferencia electrónica) hacen seguimiento de su entrega al banco. El detalle del pago muestra el panorama completo; los pagos no electrónicos dejan estos campos en blanco.\n\n- **Estado** — En cola, Reintentando, Exitoso, Fallido o Cancelado.\n- **Intentos** — cuántas veces se ha intentado un envío; se muestra junto a la etiqueta Reintentando.\n- **Próximo intento** — cuándo está programado el próximo reintento automático, mientras está reintentando.\n- **Último error** — el motivo más reciente por el que un envío falló, mostrado en un pago fallido para que pueda darle seguimiento.\n- **Referencia de confirmación** — la referencia del banco, registrada una vez que un envío resulta exitoso.\n\nCuando un envío falla, aparece un banner en la parte superior de las pestañas Facturas y Pagos, y la factura muestra una etiqueta **Pago fallido**. También hay una pantalla administrativa separada que lista todos los pagos fallidos en un solo lugar, disponible para Administrador, Gerente y Gerente de oficina cuando el envío de pagos está activado. **Reintentar transmisión** intenta de nuevo un envío fallido o cancelado; se rechaza una vez que un envío ya resultó exitoso, porque el dinero ya se movió.\n\n## Gastos que se convierten en facturas, y la restricción de anulación\n\nUn gasto que se liquida a través de un proveedor (uno que paga Cuentas por pagar, o que simplemente tiene un proveedor) se **convierte en una factura de proveedor cuando se aprueba**, para que fluya por la misma maquinaria de Cuentas por pagar — envejece, se paga con pagos a proveedores ordinarios y registra el asiento contable correcto. Los gastos pagados en efectivo, sin proveedor, o por cero o menos no se convierten en facturas; conservan la ruta de gasto anterior.\n\n- Esto requiere que la función de facturación de Cuentas por pagar esté activada. Cuando está desactivada, la ruta de gasto anterior lo gestiona en su lugar.\n- Una factura creada así **nace Aprobada** — aprobar el gasto es lo que aprueba la factura, por lo que no pasa por un paso separado de Borrador a Aprobada. Recuerda el gasto del que proviene y muestra una etiqueta **Desde gasto** en la lista.\n- **Una factura viva por gasto:** puede existir como máximo una factura activa por gasto. Volver a aprobar devuelve la factura existente en lugar de crear un duplicado.\n- **Restricción de anulación:** una factura Desde gasto **no puede anularse aquí** — su vida sigue al gasto. Anularla directamente dejaría el gasto aprobado con su factura desaparecida en silencio. Para deshacerla, **rechace el gasto o solicite una revisión**; eso anula la factura y revierte su asiento contable a la vez.\n- Deshacerla de esta forma está **bloqueado cuando se han aplicado pagos**, porque el pago apuntaría a una factura que ya no existe. Anule primero el pago o los pagos. Esta es la misma regla que aplica al anular facturas ordinarias.\n\n## Frontera del proveedor de contabilidad\n\nCuentas por pagar es una función **acotada por contabilidad**: solo es dueña de Cuentas por pagar en **modo independiente**, cuando no hay un proveedor de contabilidad externo conectado. Cuando se conecta un proveedor externo como QuickBooks o Xero, Cuentas por pagar se gestiona allí en su lugar, y el módulo integrado se hace a un lado en vez de mantener facturas y pagos duplicados.\n\n- La contabilización completa en el libro mayor de facturas y pagos es una función aspiracional que hoy no está activada. Mientras está apagada, aprobar una factura igualmente la hace avanzar para el trabajo diario — es pagable, envejece y puede pagarse — pero aún no escribe un asiento de diario. Todos los efectos diarios (cambios de estado, seguimiento del cotejo de tres vías, restauración de las cantidades de la orden de compra cuando se anula una factura) funcionan de cualquier forma.\n- Las pestañas **Cuentas** y **Lotes** (cuentas bancarias de proveedores y lotes de pago NACHA) son una función separada que permanece oculta a menos que un administrador la active. Consulte los módulos dedicados de Cuentas bancarias y Lotes de pago.",
       "sections": []
     }
   }

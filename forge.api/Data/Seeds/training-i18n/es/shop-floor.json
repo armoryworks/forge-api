@@ -4,7 +4,7 @@
     "title": "Visión general de la Pantalla de Taller",
     "summary": "Qué es la pantalla de taller, cómo funciona el modo quiosco, la autenticación basada en escaneo, las tarjetas de trabajador y las acciones de trabajo.",
     "contentJson": {
-      "body": "## Visión general de la Pantalla de Taller\n\nLa Pantalla de Taller es una interfaz de quiosco a pantalla completa diseñada para entornos de producción. Se ejecuta en `/display/shop-floor` y ofrece un panel táctil y siempre activo donde los trabajadores pueden fichar entrada/salida, ver sus trabajos asignados, iniciar y detener temporizadores, marcar trabajos como completos, recibir mercancía y enviar órdenes —todo sin navegar por la aplicación principal.\n\n### Modo quiosco\n\nLa pantalla de taller funciona en modo quiosco —no forma parte del diseño estándar de la aplicación. No hay barra lateral, ni barra de herramientas, ni navegación de encabezado. Toda la pantalla está dedicada a la interfaz de taller. Está pensada para ejecutarse en un monitor dedicado o tableta montada en la planta de producción.\n\nLa pantalla se actualiza automáticamente cada 15 segundos para mantener al día el estado de los trabajadores y los datos de los trabajos. Se muestra un reloj en vivo en el encabezado. El tema (claro/oscuro) y el tamaño de fuente se conservan en localStorage para que el quiosco retenga su configuración entre reinicios del navegador.\n\n### Dos variantes de pantalla\n\nHay dos rutas de taller:\n- **`/display/shop-floor`** — la pantalla de taller principal con una cuadrícula de tarjetas de trabajador, una sección de trabajos sin asignar, eventos próximos y superposiciones de acción completas (reloj, temporizador, recepción, envío)\n- **`/display/shop-floor/clock`** — un quiosco dedicado de fichaje de entrada/salida con configuración de terminal, filtrado por equipo y un flujo más simple centrado en el escaneo usando el `BarcodeScanInputComponent` (campo de entrada enfocado)\n\nLa pantalla principal usa el `ScannerService` global (detección pasiva de teclado por interceptación —keyboard-wedge— en el documento), mientras que el quiosco de reloj usa un componente de entrada de escaneo de código de barras enfocado.\n\n### Flujo de autenticación\n\nLa pantalla de taller usa autenticación efímera —sin sesión de inicio de sesión persistente. Los trabajadores se autentican para una sola acción, y luego la sesión se borra automáticamente. Hay dos formas de autenticarse:\n\n1. **Escaneo + PIN:** El trabajador escanea su credencial RFID o código de barras. El sistema identifica el escaneo a través de la API (`/display/shop-floor/identify-scan`). Si coincide con un empleado, aparece una superposición de PIN. El trabajador introduce su PIN numérico (mínimo 4 dígitos) y lo envía. Tras la autenticación exitosa, aparece la superposición de acciones.\n\n2. **Toque de tarjeta + Contraseña:** El trabajador toca su tarjeta con su nombre en la cuadrícula principal. Aparece una superposición de contraseña (no PIN —contraseña completa). Tras la autenticación exitosa, aparece la superposición de acciones.\n\nAmbos flujos usan una máquina de estados basada en fases: `main → pin → actions → (job-select | receiving | shipping) → main`. Los tiempos de espera de descarte automático evitan superposiciones obsoletas:\n- Fase PIN: 20 segundos antes de la cancelación automática\n- Fase de selección de trabajo: 15 segundos antes de la cancelación automática\n- Fase de acciones: 30 segundos de inactividad antes del cierre de sesión automático\n\n### Cuadrícula de tarjetas de trabajador\n\nEl panel principal muestra a todos los trabajadores en una cuadrícula adaptable. Cada tarjeta de trabajador es un diseño horizontal con:\n- Una **franja de estado** a la izquierda cuyo color indica el estado de fichaje del trabajador (verde para trabajando, amarillo para descanso/almuerzo, gris para fichado de salida)\n- Un **avatar** con las iniciales y el color del trabajador\n- El **nombre** del trabajador y su **estado actual** (etiqueta corta de ClockEventTypeService)\n- El **tiempo transcurrido** desde que el trabajador entró en su estado actual (se actualiza en vivo cada segundo)\n- Una lista de **trabajos asignados** (hasta 4 visibles, con un indicador de desbordamiento '+N más'), cada uno mostrando el número de trabajo, el título, un punto de color de etapa y un icono de temporizador si el trabajo tiene un temporizador activo\n\nLas tarjetas de trabajador son interactivas —al tocar una se entra en la fase de PIN/contraseña. Las tarjetas también sirven como destinos de soltar para la asignación de trabajos mediante arrastrar y soltar desde la sección de trabajos sin asignar.\n\n### Acciones de trabajo\n\nDespués de autenticarse, el trabajador ve sus trabajos asignados con botones de acción:\n- **Iniciar temporizador** (`play_circle`) — comienza a registrar el tiempo del trabajo seleccionado\n- **Detener temporizador** (`stop_circle`) — detiene el temporizador en ejecución\n- **Marcar completo** (`check_circle`) — mueve el trabajo a la siguiente etapa y registra la finalización\n\nDebajo de los trabajos, se muestran **botones de acción de reloj** de forma dinámica según el estado actual del trabajador (de `ClockEventTypeService`). Estos incluyen Fichar entrada, Fichar salida, Descanso, Almuerzo y cualquier tipo de evento de reloj personalizado configurado en la administración.\n\n### Recepción y envío\n\nLas acciones de muelle restringidas por rol aparecen después de la autenticación:\n- **Recibir mercancía** — disponible para los roles Admin, Manager, OfficeManager, Engineer y ProductionWorker. Muestra órdenes de compra abiertas con líneas recibibles, ajuste de cantidad (botones +/-), selección opcional de ubicación de contenedor y un botón de confirmación Recibir todo.\n- **Enviar mercancía** — disponible para los roles Admin, Manager y OfficeManager. Muestra envíos pendientes/empacados, el detalle del envío con información de transportista y seguimiento, un botón Imprimir albarán y un botón de confirmación Marcar enviado.\n\n### Filtro de etapa IsShopFloor\n\nNo todas las etapas Kanban aparecen en el taller. La marca booleana `IsShopFloor` en las entidades `TrackType` y `JobStage` controla qué etapas son visibles. Solo las etapas marcadas con `IsShopFloor = true` muestran sus trabajos en la pantalla de taller. Esto filtra las etapas no físicas como cotización, facturación y pago.\n\n### Trabajos sin asignar y arrastrar y soltar\n\nLos trabajos sin asignar (trabajos sin `assigneeId`) aparecen en una sección separada debajo de la cuadrícula de trabajadores. Cada tarjeta de trabajo sin asignar muestra el número de trabajo, el título, el nombre de la etapa, el punto de color de etapa y la prioridad. Las tarjetas son arrastrables —arrastre un trabajo sin asignar sobre una tarjeta de trabajador para asignarlo. Después de fichar entrada, si el trabajador no tiene asignaciones, aparece automáticamente una superposición de selección de trabajos (tiempo de espera de 15 segundos).\n\n### Eventos próximos\n\nLa pantalla de taller muestra los eventos próximos (reuniones, sesiones de capacitación, eventos de seguridad) cargados desde la API de Eventos. Cada tarjeta de evento muestra el icono de tipo, el título, la hora de inicio, la ubicación y una insignia 'Obligatorio' si corresponde.\n\n### Configuración del quiosco\n\nEl encabezado incluye controles para:\n- **Tamaño de fuente** — botones de aumentar/disminuir con 5 pasos (12px, 14px, 16px, 18px, 20px), aplicados mediante CSS zoom. Conservado en localStorage como `sf-font-index`.\n- **Interruptor de tema** — cambia entre los temas claro y oscuro. Conservado en localStorage como `sf-theme`.\n- **Reloj en vivo** — muestra la hora actual en formato `HH:MM:SS`, actualizándose cada segundo.\n- **Barra de búsqueda del quiosco** — un campo de búsqueda con antirrebote (300ms, mín. 2 caracteres) que consulta `/display/shop-floor/search` en busca de trabajos, piezas y otras entidades.\n\n### Acciones de inventario impulsadas por escaneo\n\nEl escaneo no es solo para fichar entrada. Cuando se escanea un **código de barras de pieza**, la misma superposición de acciones de escaneo usada en la página dedicada de Escaneo de Inventario (`/display/shop-floor/scan`) también aparece aquí en la pantalla principal, ofreciendo hasta 8 acciones de inventario —Mover, Contar, Recibir, Emitir, Enviar, Inspeccionar, Trabajo y Devolver— acotadas a esa pieza. Escanear un **código de barras de ubicación de almacenamiento** abre una superposición de Vista de Ubicación que enumera todo lo que hay en ese contenedor (artículo, lote, cantidad) para que pueda profundizar en las acciones de cualquier artículo. Consulte el artículo de la Estación de Escaneo de Inventario para el conjunto completo de acciones y el modo multiescaneo.\n\n### Revertir / Deshacer un escaneo reciente\n\nLos errores ocurren —una pieza movida al contenedor equivocado, un conteo introducido mal. La pantalla de taller tiene un panel de **Acciones de Escaneo Recientes** (deshacer) que enumera las acciones de escaneo de las últimas **6 horas**. Cada entrada muestra la hora, quién la realizó, la acción, la cantidad, la pieza y las ubicaciones de origen→destino. Pulsar **Revertir** en una entrada abre un **aviso de PIN**; un PIN válido autoriza la reversión, que deshace el movimiento subyacente y marca la entrada como 'Revertida'. Esto es una corrección supervisada (restringida por PIN), no un deshacer silencioso. Las entradas ya revertidas no pueden revertirse de nuevo.\n\n### Registro Diario de Escaneos\n\nPara una auditoría más completa, el **Registro Diario de Escaneos** (`/display/shop-floor/scan-log`, también abrible como panel) es una tabla de solo lectura de toda la actividad de escaneo de un día elegido. Filtre por **fecha** y por **tipo de acción** (Mover, Contar, Recibir, Enviar, Emitir), y una línea de resumen contabiliza la actividad del día (p. ej., '12 escaneos hoy —4 movimientos, 2 recepciones'). Las entradas revertidas se marcan con un chip rojo 'Revertida'. Mientras que el panel de deshacer es la breve ventana de corrección de 6 horas, el Registro Diario de Escaneos es el registro duradero.",
+      "body": "## Visión general de la Pantalla de Taller\n\nLa Pantalla de Taller es un quiosco a pantalla completa hecho para la planta de producción. Es una pantalla táctil y siempre activa donde los trabajadores pueden fichar entrada y salida, ver sus trabajos, iniciar y detener temporizadores, marcar trabajos como completos, recibir mercancía y enviar órdenes —todo sin abrir la aplicación principal.\n\n### Modo quiosco\n\nLa pantalla funciona por sí sola —sin barra lateral, sin barra de herramientas, sin menús. Toda la pantalla es el taller. Está pensada para ejecutarse en un monitor dedicado o tableta montada en la planta. Para salir del quiosco, use Salir del quiosco en la esquina superior, que vuelve a la pantalla de inicio de sesión.\n\nLa pantalla se actualiza sola cada pocos segundos para que el estado de los trabajadores y los trabajos estén al día. Un reloj en vivo está en el encabezado. Sus opciones de claro/oscuro y de tamaño de texto se recuerdan, incluso tras reiniciar el navegador.\n\n### Dos versiones\n\nHay dos pantallas de taller:\n- **La pantalla principal** — una cuadrícula de tarjetas de trabajador, una sección de trabajos sin asignar, eventos próximos y el conjunto completo de acciones (reloj, temporizadores, recepción, envío).\n- **El quiosco de reloj** — una estación más simple de fichaje de entrada/salida con configuración de terminal, un filtro de equipo y un flujo centrado en el escaneo.\n\nLa pantalla principal escucha escaneos discretamente en cualquier parte de la pantalla; el quiosco de reloj usa un solo cuadro de escaneo enfocado.\n\n### Iniciar sesión\n\nLa pantalla usa un inicio de sesión para una acción a la vez —no hay un inicio de sesión duradero. Inicia sesión, hace su acción y se cierra su sesión automáticamente. Hay dos formas:\n\n1. **Escaneo + PIN:** Escanee su credencial o código de barras. Si coincide con un trabajador, aparece un cuadro de PIN. Escriba su PIN numérico (al menos 4 dígitos) y envíe. Se abren sus acciones.\n\n2. **Toque de tarjeta + contraseña:** Toque su tarjeta con su nombre en la cuadrícula. Aparece un cuadro de contraseña (su contraseña completa, no un PIN). Una vez que se verifica, se abren sus acciones.\n\nLos tiempos de espera cierran solos los cuadros olvidados: el cuadro de PIN tras unos 20 segundos, el selector de trabajos tras unos 15 y la pantalla de acciones tras unos 30 segundos sin toques.\n\n### Cuadrícula de tarjetas de trabajador\n\nLa pantalla principal muestra a todos como una tarjeta. Cada tarjeta tiene:\n- Un borde de color que muestra el estado de fichaje: verde para trabajando, amarillo para descanso o almuerzo, gris para fichado de salida.\n- Las iniciales del trabajador en una insignia de color.\n- Su nombre y estado actual.\n- Cuánto lleva en ese estado, contando hacia arriba cada segundo.\n- Sus trabajos (hasta 4, con una nota '+N más'), cada uno con el número, el título, un punto de color de etapa y una marca de temporizador cuando su reloj corre.\n\nToque una tarjeta para iniciar sesión. También puede arrastrar un trabajo sin asignar sobre una tarjeta para asignarlo.\n\n### Acciones de trabajo\n\nUna vez que ha iniciado sesión, ve sus trabajos con botones:\n- **Iniciar temporizador** — comienza a registrar su tiempo en el trabajo.\n- **Detener temporizador** — detiene el temporizador en marcha.\n- **Marcar completo** — mueve el trabajo a la siguiente etapa y registra que está hecho.\n\nDebajo de los trabajos hay **botones de reloj** que cambian según lo que esté haciendo ahora —Fichar entrada, Fichar salida, Descanso, Almuerzo y cualquiera personalizado que su sitio configure.\n\n### Recepción y envío\n\nLas acciones de muelle aparecen después de iniciar sesión, según su rol:\n- **Recibir mercancía** — para Administradores, Gerentes, Gerentes de oficina, Ingenieros y Trabajadores de producción. Muestra las órdenes de compra abiertas aún pendientes, botones más/menos de cantidad, un contenedor opcional donde poner las cosas y un botón Recibir todo.\n- **Enviar mercancía** — para Administradores, Gerentes y Gerentes de oficina. Muestra envíos pendientes y empacados, el transportista y el seguimiento del envío, un botón Imprimir albarán y un botón Marcar enviado.\n\n### Qué etapas aparecen aquí\n\nNo todas las etapas aparecen en el taller. Cada etapa puede marcarse para aparecer aquí, y solo las etapas marcadas ponen sus trabajos en la planta. Esto mantiene fuera del camino las etapas solo de oficina, como cotización, facturación y pago.\n\n### Trabajos sin asignar y arrastrar y soltar\n\nLos trabajos sin nadie asignado aparecen en su propia sección debajo de la cuadrícula de trabajadores. Cada uno muestra su número, título, etapa, un punto de color de etapa y la prioridad. Arrastre uno sobre una tarjeta de trabajador para asignarlo. Y si ficha entrada sin trabajos, un selector de trabajos se abre solo para que elija uno.\n\n### Eventos próximos\n\nLa pantalla también muestra los eventos próximos —reuniones, capacitaciones y sesiones de seguridad. Cada uno muestra un icono para su tipo, el título, la hora de inicio, la ubicación y una etiqueta 'Obligatorio' cuando corresponde.\n\n### Configuración del quiosco\n\nEl encabezado tiene:\n- **Tamaño de texto** — botones más grande y más pequeño con cinco pasos. Su elección se recuerda.\n- **Interruptor claro/oscuro** — cambia entre claro y oscuro. Su elección se recuerda.\n- **Reloj en vivo** — muestra la hora actual, avanzando cada segundo.\n- **Cuadro de búsqueda** — escriba un par de letras para buscar trabajos, piezas y más.\n\n### Escanear para mover inventario\n\nEl escaneo no es solo para fichar entrada. Escanee un **código de barras de pieza** y la misma pantalla de acciones de la página de Escaneo de Inventario se abre aquí mismo, ofreciendo las acciones que encajan con esa pieza —como Mover, Contar, Recibir y Enviar. Escanee un **código de barras de contenedor** y obtiene una lista de todo lo que hay en él —artículo, lote y cantidad— para que pueda trabajar con cualquier artículo. Consulte el artículo de la Estación de Escaneo de Inventario para el conjunto completo de acciones y el multiescaneo.\n\n### Deshacer un escaneo reciente\n\nLos errores ocurren —una pieza movida al contenedor equivocado, un conteo escrito mal. La pantalla tiene un panel de **Acciones de Escaneo Recientes** que enumera los escaneos de las últimas **6 horas**. Cada entrada muestra la hora, quién lo hizo, la acción, la cantidad, la pieza y de dónde a dónde se movió. Pulse **Revertir** y aparece un **cuadro de PIN**; un PIN válido deshace el movimiento y marca la entrada como 'Revertida'. Es una corrección verificada, no un deshacer silencioso, y una entrada ya deshecha no puede deshacerse de nuevo.\n\n### Registro Diario de Escaneos\n\nPara el historial completo, el **Registro Diario de Escaneos** (su propia página, o un panel) es una lista de solo lectura de cada escaneo de un día elegido. Filtre por **fecha** y por **acción** (Mover, Contar, Recibir, Enviar, Emitir), y una línea de resumen contabiliza el día, como '12 escaneos hoy —4 movimientos, 2 recepciones'. Los escaneos deshechos muestran una etiqueta roja 'Revertida'. Donde el panel de deshacer es la ventana rápida de 6 horas, el Registro Diario de Escaneos es el registro duradero.",
       "sections": []
     }
   },
@@ -20,23 +20,23 @@
           "element": ".sf-header",
           "popover": {
             "title": "Encabezado del taller",
-            "description": "El encabezado muestra el título de la página, una barra de búsqueda del quiosco, controles de tamaño de fuente, un interruptor de tema claro/oscuro y un reloj en tiempo real. Toda la configuración del quiosco se guarda en localStorage y persiste entre reinicios del navegador.",
+            "description": "El encabezado tiene un cuadro de búsqueda, botones para agrandar o achicar el texto, un interruptor claro/oscuro y un reloj en vivo. Sus opciones de tamaño de texto y tema se recuerdan, incluso tras reiniciar el navegador. Para salir del quiosco, use Salir del quiosco en la esquina superior.",
             "side": "bottom"
           }
         },
         {
           "element": ".sf-header__stats",
           "popover": {
-            "title": "Barra de resumen de estado",
-            "description": "Recuentos en tiempo real de trabajadores actualmente Trabajando (verde), En descanso (amarillo), Trabajos sin asignar, trabajos Hechos hoy y Alertas de mantenimiento (rojo, mostrado solo cuando es > 0). Estos se actualizan automáticamente cada 15 segundos.",
+            "title": "Resumen de estado",
+            "description": "Vea de un vistazo cuántos trabajadores están trabajando (verde) y en descanso (amarillo), además de los trabajos sin asignar, los trabajos hechos hoy y las alertas (rojo, mostradas solo cuando hay alguna). Se actualizan solas cada pocos segundos.",
             "side": "bottom"
           }
         },
         {
           "element": ".sf-grid",
           "popover": {
-            "title": "Cuadrícula de tarjetas de trabajador",
-            "description": "Todos los trabajadores se muestran en una cuadrícula adaptable. Cada tarjeta tiene una franja izquierda de color (verde = trabajando, amarillo = descanso, gris = fichado de salida), un avatar, el nombre y el estado del trabajador, el tiempo transcurrido y hasta 4 trabajos asignados. Toque una tarjeta para autenticarse y acceder a las acciones de reloj. También puede arrastrar trabajos sin asignar sobre las tarjetas de trabajador para asignarlos.",
+            "title": "Tarjetas de trabajador",
+            "description": "Cada persona aparece como una tarjeta. Un borde de color indica su estado de un vistazo: verde para trabajando, amarillo para descanso, gris para fichado de salida. Cada tarjeta muestra su nombre, estado, tiempo hasta ahora y hasta 4 trabajos. Toque una tarjeta para iniciar sesión y usar el reloj. También puede arrastrar un trabajo sin asignar sobre una tarjeta para asignarlo.",
             "side": "top"
           }
         },
@@ -44,15 +44,15 @@
           "element": ".sf-card",
           "popover": {
             "title": "Tarjeta de trabajador",
-            "description": "Una sola tarjeta de trabajador. El color de la franja izquierda coincide con el estado de fichaje del trabajador. La sección de identidad muestra el avatar, el nombre, la etiqueta corta de estado y el tiempo transcurrido en vivo. Debajo, los trabajos asignados se enumeran con puntos de color de etapa, números de trabajo, títulos e indicadores de temporizador.",
+            "description": "La tarjeta de una persona. El borde de color coincide con su estado de fichaje. Arriba ve sus iniciales, su nombre, su estado actual y cuánto lleva en él. Debajo están sus trabajos, cada uno con un punto de color para su etapa y una marca de temporizador cuando el reloj corre.",
             "side": "right"
           }
         },
         {
           "element": ".sf-action-bar",
           "popover": {
-            "title": "Barra de acciones",
-            "description": "La barra inferior muestra un aviso de escaneo pasivo y muestra mensajes de retroalimentación de escaneo (p. ej., 'Trabajo 1055 — Ensamblaje de eje de precisión' o 'Escaneo no reconocido'). La retroalimentación se descarta automáticamente después de 4 segundos.",
+            "title": "Barra de escaneo",
+            "description": "La barra inferior está lista para un escaneo y muestra lo que se leyó —por ejemplo 'Trabajo 1055 — Ensamblaje de eje de precisión' o 'Escaneo no reconocido'. El mensaje se borra solo tras unos segundos.",
             "side": "top"
           }
         }
@@ -67,363 +67,363 @@
       "title": "Referencia de campos de la Pantalla de Taller",
       "groups": [
         {
-          "heading": "Flujo de autenticación",
+          "heading": "Iniciar sesión",
           "items": [
             {
               "label": "Escaneo + PIN",
-              "value": "El trabajador escanea su credencial RFID o código de barras → el sistema identifica a través de la API → aparece la superposición de PIN → el trabajador introduce el PIN numérico (mín. 4 dígitos) → lo envía → se abre la superposición de acciones. Usa el método de autenticación scanLogin()."
+              "value": "Escanee su credencial o código de barras. Cuando lo reconozca, aparece un cuadro de PIN —escriba su PIN numérico (al menos 4 dígitos) y envíe. Se abre la pantalla de acciones."
             },
             {
-              "label": "Toque de tarjeta + Contraseña",
-              "value": "El trabajador toca su tarjeta con su nombre en la cuadrícula → aparece la superposición de contraseña (contraseña completa, no PIN) → la envía → se abre la superposición de acciones. Usa el método de autenticación estándar login()."
+              "label": "Toque de tarjeta + contraseña",
+              "value": "Toque su tarjeta con su nombre en la cuadrícula. Aparece un cuadro de contraseña —escriba su contraseña completa (no su PIN) y envíe. Se abre la pantalla de acciones."
             },
             {
-              "label": "Campo PIN (autenticación por escaneo)",
-              "value": "Campo numérico, type=password, mín. 4 dígitos, máx. 8 caracteres. Marcador de posición: 'Introduzca su PIN'. Enfocado automáticamente cuando se abre la fase PIN."
+              "label": "Cuadro de PIN (tras un escaneo)",
+              "value": "Un cuadro numérico, oculto mientras escribe, que admite de 4 a 8 dígitos. Dice 'Introduzca su PIN' y está listo para escribir de inmediato."
             },
             {
-              "label": "Campo Contraseña (autenticación por toque)",
-              "value": "Campo de texto, type=password, máx. 128 caracteres. Marcador de posición: 'Introduzca su contraseña'."
+              "label": "Cuadro de contraseña (tras un toque)",
+              "value": "Un cuadro de texto, oculto mientras escribe. Dice 'Introduzca su contraseña'."
             },
             {
               "label": "Botón Enviar",
-              "value": "Deshabilitado durante la autenticación o cuando el campo está vacío. Muestra el indicador 'Verificando...' (icono sync) durante la autenticación. Etiqueta: 'Enviar' con icono login."
+              "value": "Se activa cuando ha escrito algo. Muestra 'Verificando...' mientras lo comprueba y luego abre sus acciones."
             },
             {
               "label": "Botón Cancelar",
-              "value": "Vuelve al panel principal. Etiqueta: 'Cancelar' con icono arrow_back."
+              "value": "Lo lleva de vuelta a la pantalla principal sin iniciar sesión."
             },
             {
               "label": "Mensajes de error",
-              "value": "'Credencial o PIN no válidos' para la autenticación por escaneo fallida. 'Contraseña no válida' para la autenticación por toque fallida. 'El PIN debe tener al menos 4 dígitos' para PIN demasiado cortos."
+              "value": "'Credencial o PIN no válidos' si falla un inicio por escaneo, 'Contraseña no válida' si falla un inicio por toque, y un recordatorio si su PIN es demasiado corto."
             }
           ]
         },
         {
-          "heading": "Tiempos de espera de descarte automático",
+          "heading": "Tiempos de espera automáticos",
           "items": [
             {
-              "label": "Tiempo de espera de la fase PIN",
-              "value": "20 segundos. Si el trabajador no envía dentro de los 20 segundos, la superposición se cancela automáticamente y vuelve al panel principal."
+              "label": "Cuadro de PIN",
+              "value": "Si no escribe su PIN en unos 20 segundos, el cuadro se cierra solo y vuelve a la pantalla principal."
             },
             {
-              "label": "Tiempo de espera de selección de trabajo",
-              "value": "15 segundos. Si el trabajador no elige un trabajo ni omite dentro de los 15 segundos, la superposición se cancela automáticamente y cierra la sesión."
+              "label": "Selector de trabajos",
+              "value": "Si no elige un trabajo ni omite en unos 15 segundos, el selector se cierra y cierra su sesión."
             },
             {
-              "label": "Cierre de sesión automático de la fase de acciones",
-              "value": "30 segundos de inactividad. Cualquier pulsación de botón reinicia el temporizador. Después de 30 segundos, la sesión se borra y la pantalla vuelve al panel principal."
+              "label": "Pantalla de acciones",
+              "value": "Tras unos 30 segundos sin tocar nada, se cierra su sesión automáticamente. Cualquier pulsación de botón reinicia el temporizador."
             },
             {
-              "label": "Intervalo de actualización de datos",
-              "value": "15 segundos. El estado de los trabajadores, los datos de los trabajos y los eventos próximos se actualizan automáticamente en el panel principal."
+              "label": "Actualización de pantalla",
+              "value": "El estado de los trabajadores, los trabajos y los eventos próximos se actualizan solos cada pocos segundos."
             },
             {
-              "label": "Intervalo de actualización del reloj",
-              "value": "1 segundo. El reloj del encabezado y los tiempos transcurridos de los trabajadores se actualizan cada segundo."
+              "label": "Reloj",
+              "value": "El reloj del encabezado y el tiempo hasta ahora de cada trabajador avanzan cada segundo."
             },
             {
-              "label": "Descarte automático de retroalimentación de escaneo",
-              "value": "4 segundos. Los mensajes de retroalimentación en la barra inferior desaparecen después de 4 segundos."
+              "label": "Mensaje de escaneo",
+              "value": "El mensaje en la barra inferior se borra tras unos segundos."
             },
             {
-              "label": "Retroalimentación de éxito de acción",
-              "value": "1,5 segundos. Después de una acción de reloj exitosa, la retroalimentación se muestra brevemente antes del cierre de sesión automático. 0,8 segundos antes de pasar al selector de trabajos (si corresponde)."
+              "label": "Mensaje de éxito",
+              "value": "Después de que una acción de reloj se realiza, se muestra una confirmación breve antes de cerrar su sesión."
             }
           ]
         },
         {
-          "heading": "Campos de la tarjeta de trabajador",
+          "heading": "Qué hay en una tarjeta de trabajador",
           "items": [
             {
-              "label": "Franja de estado (borde izquierdo)",
-              "value": "Franja vertical de color en el borde izquierdo. Verde (sf-card--in) para estado trabajando, amarillo (sf-card--break) para descanso/almuerzo, gris (sf-card--out) para fichado de salida. El color se determina por la asignación de estado de ClockEventTypeService."
+              "label": "Borde de color",
+              "value": "La franja del lado izquierdo indica el estado de la persona de un vistazo: verde para trabajando, amarillo para descanso o almuerzo, gris para fichado de salida."
             },
             {
-              "label": "Avatar",
-              "value": "AvatarComponent con tamaño 'lg'. Muestra las iniciales del trabajador y el color del avatar."
+              "label": "Iniciales",
+              "value": "Una insignia de color con las iniciales de la persona."
             },
             {
-              "label": "Nombre del trabajador",
-              "value": "Nombre completo mostrado en sf-card__name."
+              "label": "Nombre",
+              "value": "El nombre completo del trabajador."
             },
             {
-              "label": "Etiqueta de estado",
-              "value": "Etiqueta corta de ClockEventTypeService.getShortLabel(). Mostrada junto al nombre."
+              "label": "Estado",
+              "value": "Una palabra corta que dice qué está haciendo ahora mismo, junto a su nombre."
             },
             {
-              "label": "Tiempo transcurrido",
-              "value": "Duración que se actualiza en vivo desde que el trabajador entró en su estado actual. Formato: Xs, Xm XXs o Xh XXm XXs. Recalculado cada segundo mediante la señal tick."
+              "label": "Tiempo hasta ahora",
+              "value": "Cuánto lleva en su estado actual, contando hacia arriba cada segundo."
             },
             {
-              "label": "Trabajos asignados (máx. 4 visibles)",
-              "value": "Cada fila de trabajo muestra: punto de color de etapa, número de trabajo, título del trabajo e icono de temporizador (si está activo). Los trabajos con temporizador activo se resaltan. Los trabajos atrasados reciben estilo de atrasado."
+              "label": "Sus trabajos (hasta 4)",
+              "value": "Cada trabajo muestra un punto de color para su etapa, el número y el título del trabajo, y una marca de temporizador cuando su reloj corre. Los trabajos atrasados resaltan."
             },
             {
-              "label": "Indicador de desbordamiento",
-              "value": "Texto '+N más' cuando el trabajador tiene más de 4 asignaciones."
+              "label": "Más trabajos",
+              "value": "Aparece una nota '+N más' cuando alguien tiene más de 4 trabajos."
             },
             {
-              "label": "Resaltado de destino de soltar",
-              "value": "Resaltado visual (sf-card--drop-target) al arrastrar un trabajo sin asignar sobre la tarjeta."
+              "label": "Resaltado al soltar",
+              "value": "La tarjeta se ilumina cuando arrastra un trabajo sin asignar sobre ella."
             },
             {
-              "label": "Estados de retroalimentación",
-              "value": "Pulso verde (sf-card--feedback-success) tras una acción exitosa. Pulso rojo (sf-card--feedback-fail) tras una acción fallida."
+              "label": "Aviso de acción",
+              "value": "Un destello verde significa que una acción funcionó; uno rojo significa que no."
             }
           ]
         },
         {
-          "heading": "Estadísticas del encabezado",
+          "heading": "Resumen de estado",
           "items": [
             {
-              "label": "Trabajando (verde)",
-              "value": "Recuento de trabajadores con un estado de reloj 'trabajando' activo. Color: var(--success)."
+              "label": "Trabajando",
+              "value": "Cuántas personas están trabajando ahora mismo (en verde)."
             },
             {
-              "label": "En descanso (amarillo)",
-              "value": "Recuento de trabajadores con estado de reloj de descanso o almuerzo. Color: var(--warning)."
+              "label": "En descanso",
+              "value": "Cuántas personas están en descanso o almuerzo (en amarillo)."
             },
             {
               "label": "Sin asignar",
-              "value": "Recuento de trabajos activos sin assigneeId."
+              "value": "Cuántos trabajos activos aún no tienen a nadie asignado."
             },
             {
-              "label": "Hechos hoy (acento)",
-              "value": "Recuento de trabajos completados hoy. Color: var(--accent)."
+              "label": "Hechos hoy",
+              "value": "Cuántos trabajos se han terminado hoy."
             },
             {
-              "label": "Alertas (rojo)",
-              "value": "Recuento de alertas de mantenimiento. Solo se muestra cuando es > 0. Color: var(--error)."
+              "label": "Alertas",
+              "value": "Cuántas alertas de mantenimiento están abiertas. Solo aparece cuando hay alguna (en rojo)."
             }
           ]
         },
         {
-          "heading": "Botones de acción de trabajo (superposición de acciones)",
+          "heading": "Botones de trabajo (pantalla de acciones)",
           "items": [
             {
-              "label": "Iniciar temporizador (play_circle)",
-              "value": "Comienza a registrar el tiempo del trabajo seleccionado. Llama a POST /time-tracking/timer/start con jobId. Deshabilitado mientras se procesa cualquier acción. Muestra un indicador durante la solicitud."
+              "label": "Iniciar temporizador",
+              "value": "Comienza a registrar su tiempo en el trabajo elegido. Está apagado mientras otra acción está en curso."
             },
             {
-              "label": "Detener temporizador (stop_circle)",
-              "value": "Detiene el temporizador en ejecución actual. Llama a POST /time-tracking/timer/stop. Solo se muestra en trabajos con un temporizador activo."
+              "label": "Detener temporizador",
+              "value": "Detiene el temporizador en marcha. Solo aparece en un trabajo cuyo reloj corre."
             },
             {
-              "label": "Marcar completo (check_circle)",
-              "value": "Marca el trabajo como completo y lo mueve a la siguiente etapa. Llama a POST /display/shop-floor/complete-job. Tras el éxito, cierra la sesión automáticamente después de 1,2 segundos."
+              "label": "Marcar completo",
+              "value": "Marca el trabajo como hecho y lo mueve a la siguiente etapa. Su sesión se cierra un momento después."
             }
           ]
         },
         {
-          "heading": "Botones de acción de reloj (superposición de acciones)",
+          "heading": "Botones de reloj (pantalla de acciones)",
           "items": [
             {
-              "label": "Acciones dinámicas",
-              "value": "Los botones se generan a partir de ClockEventTypeService.getAvailableActions(worker.status). Cada botón muestra un icono y una etiqueta de la definición del tipo de evento de reloj, con un color personalizado mediante la variable CSS --btn-color."
+              "label": "Qué botones aparecen",
+              "value": "Los botones cambian según lo que esté haciendo ahora, cada uno con su propio icono y color. Su sitio puede añadir botones personalizados."
             },
             {
               "label": "Fichar entrada",
-              "value": "Disponible cuando el trabajador está fichado de salida. Cambia al estado 'trabajando'. Si el trabajador no tiene asignaciones después de fichar entrada, aparece la superposición del selector de trabajos."
+              "value": "Aparece cuando está fichado de salida. Lo pone en estado trabajando. Si aún no tiene trabajos, se abre el selector de trabajos."
             },
             {
               "label": "Fichar salida",
-              "value": "Disponible cuando el trabajador está fichado de entrada. Cambia al estado 'fichado de salida'."
+              "value": "Aparece cuando está fichado de entrada. Lo pone en estado fichado de salida."
             },
             {
               "label": "Descanso / Almuerzo",
-              "value": "Disponible cuando el trabajador está fichado de entrada. Cambia al estado de descanso/almuerzo."
+              "value": "Aparece cuando está fichado de entrada. Lo pone en estado de descanso o almuerzo."
             },
             {
-              "label": "Estado de procesamiento",
-              "value": "Todos los botones se deshabilitan mientras una acción está en curso. El botón activo muestra el icono sync giratorio."
+              "label": "Mientras trabaja",
+              "value": "Todos los botones se pausan mientras una acción corre. El que tocó gira hasta que termina."
             }
           ]
         },
         {
-          "heading": "Acciones de muelle (restringidas por rol)",
+          "heading": "Acciones de muelle (por rol)",
           "items": [
             {
-              "label": "Recibir mercancía (move_to_inbox)",
-              "value": "Abre la superposición de recepción. Disponible para los roles Admin, Manager, OfficeManager, Engineer y ProductionWorker. Solo se muestra cuando el trabajador está activamente fichado de entrada."
+              "label": "Recibir mercancía",
+              "value": "Abre la pantalla de recepción. Disponible para Administradores, Gerentes, Gerentes de oficina, Ingenieros y Trabajadores de producción. Solo aparece mientras está fichado de entrada."
             },
             {
-              "label": "Enviar mercancía (local_shipping)",
-              "value": "Abre la superposición de envío. Disponible para los roles Admin, Manager y OfficeManager. Solo se muestra cuando el trabajador está activamente fichado de entrada."
+              "label": "Enviar mercancía",
+              "value": "Abre la pantalla de envío. Disponible para Administradores, Gerentes y Gerentes de oficina. Solo aparece mientras está fichado de entrada."
             },
             {
-              "label": "Superposición de recepción — selección de OC",
-              "value": "Enumera las órdenes de compra abiertas (estado: Submitted, Acknowledged, PartiallyReceived) con líneas recibibles. Muestra el número de OC, el nombre del proveedor y el recuento de líneas."
+              "label": "Recepción — elija una OC",
+              "value": "Enumera las órdenes de compra abiertas que aún tienen mercancía por recibir. Cada una muestra su número, el proveedor y cuántas líneas tiene."
             },
             {
-              "label": "Superposición de recepción — confirmación de línea",
-              "value": "Ajuste de cantidad por línea con botones +/-. Muestra el número de pieza, la descripción y la cantidad restante. Menú desplegable opcional de selección de ubicación de contenedor."
+              "label": "Recepción — confirme las líneas",
+              "value": "Ajuste cuánto recibir en cada línea con los botones más/menos. Cada línea muestra la pieza, su descripción y cuánto falta. Puede elegir un contenedor donde ponerlo."
             },
             {
-              "label": "Superposición de recepción — botón Recibir todo",
-              "value": "Envía todas las líneas con cantidad > 0. Muestra un indicador durante el envío. Cierra la sesión automáticamente después de 1,5 segundos tras el éxito."
+              "label": "Recepción — Recibir todo",
+              "value": "Envía todas las líneas que puso por encima de cero. Su sesión se cierra un momento después de que se realiza."
             },
             {
-              "label": "Superposición de envío — selección de envío",
-              "value": "Enumera los envíos pendientes y empacados. Muestra el número de envío, el nombre del cliente, el número de orden de venta y un chip de estado."
+              "label": "Envío — elija un envío",
+              "value": "Enumera los envíos pendientes o empacados. Cada uno muestra su número, el cliente, la orden de venta y su estado."
             },
             {
-              "label": "Superposición de envío — detalle del envío",
-              "value": "Muestra el número de envío, el cliente, el número de OV, el transportista, el número de seguimiento y las líneas de artículo con descripciones y cantidades."
+              "label": "Envío — detalles del envío",
+              "value": "Muestra el número de envío, el cliente, la orden de venta, el transportista, el número de seguimiento y los artículos con sus descripciones y cantidades."
             },
             {
-              "label": "Botón Imprimir albarán",
-              "value": "Abre el PDF del albarán en una nueva pestaña mediante GET /shipments/{id}/packing-slip."
+              "label": "Imprimir albarán",
+              "value": "Abre el albarán en una nueva pestaña, listo para imprimir."
             },
             {
-              "label": "Botón Marcar enviado",
-              "value": "Confirma el envío. Muestra un indicador durante el envío. Cierra la sesión automáticamente después de 1,5 segundos tras el éxito."
+              "label": "Marcar enviado",
+              "value": "Confirma el envío. Su sesión se cierra un momento después de que se realiza."
             }
           ]
         },
         {
-          "heading": "Configuración del quiosco (controles del encabezado)",
+          "heading": "Configuración del quiosco (encabezado)",
           "items": [
             {
-              "label": "Disminuir tamaño de fuente (text_decrease)",
-              "value": "Reduce el tamaño de fuente en un paso. Deshabilitado en el mínimo (12px, índice 0). Pasos: 12, 14, 16, 18, 20px. Aplicado mediante CSS zoom. Conservado en la clave de localStorage 'sf-font-index'."
+              "label": "Texto más pequeño",
+              "value": "Reduce el texto un paso. Hay cinco tamaños; se apaga en el más pequeño. Su elección se recuerda."
             },
             {
-              "label": "Visualización del tamaño de fuente",
-              "value": "Muestra el tamaño de fuente actual en píxeles (p. ej., '14px')."
+              "label": "Tamaño actual",
+              "value": "Muestra el tamaño de texto en el que está ahora."
             },
             {
-              "label": "Aumentar tamaño de fuente (text_increase)",
-              "value": "Aumenta el tamaño de fuente en un paso. Deshabilitado en el máximo (20px, índice 4)."
+              "label": "Texto más grande",
+              "value": "Aumenta el texto un paso. Se apaga en el tamaño más grande."
             },
             {
-              "label": "Interruptor de tema (dark_mode / light_mode)",
-              "value": "Cambia entre los temas claro y oscuro. El icono cambia según el tema actual. Conservado en la clave de localStorage 'sf-theme'. Aplicado mediante el atributo data-theme en el elemento anfitrión."
+              "label": "Interruptor claro/oscuro",
+              "value": "Cambia entre claro y oscuro. El icono muestra cuál obtendrá. Su elección se recuerda."
             },
             {
-              "label": "Reloj en vivo",
-              "value": "Muestra la hora actual en formato HH:MM:SS AM/PM. Se actualiza cada segundo."
+              "label": "Reloj",
+              "value": "Muestra la hora actual, avanzando cada segundo."
             }
           ]
         },
         {
-          "heading": "Filtrado de etapas (IsShopFloor)",
+          "heading": "Qué etapas aparecen aquí",
           "items": [
             {
-              "label": "Marca IsShopFloor",
-              "value": "Booleana en las entidades TrackType y JobStage. Controla qué etapas aparecen en la pantalla de taller. Solo las etapas con IsShopFloor = true muestran sus trabajos."
+              "label": "Etapas del taller",
+              "value": "Cada etapa puede marcarse para aparecer en el taller. Solo las etapas marcadas ponen sus trabajos aquí."
             },
             {
-              "label": "Propósito",
-              "value": "Filtra las etapas no físicas (cotización, facturación, pago) que son irrelevantes para los trabajadores de la planta de producción."
+              "label": "Por qué",
+              "value": "Mantiene fuera de la planta las etapas solo de oficina, como cotización, facturación y pago, para que los trabajadores vean solo trabajo práctico."
             },
             {
-              "label": "Configuración",
-              "value": "Se establece mediante Administración → Tipos de vía. Cada etapa dentro de un tipo de vía puede activarse individualmente para la visibilidad en el taller."
+              "label": "Cómo configurarlo",
+              "value": "Se establece por etapa en Administración, Tipos de vía. Puede activar o desactivar cada etapa para el taller por separado."
             }
           ]
         },
         {
-          "heading": "Superposición de selección de trabajo",
+          "heading": "Selector de trabajos",
           "items": [
             {
-              "label": "Activación",
-              "value": "Aparece automáticamente después de fichar entrada si el trabajador no tiene trabajos asignados. Se muestra tras un retraso de retroalimentación de 0,8 segundos."
+              "label": "Cuándo se abre",
+              "value": "Aparece solo justo después de fichar entrada si aún no tiene ningún trabajo."
             },
             {
-              "label": "Lista de trabajos",
-              "value": "Muestra todos los trabajos sin asignar con punto de color de etapa, número de trabajo, título, nombre de la etapa y prioridad. Cada trabajo es un botón en el que se puede hacer clic."
+              "label": "La lista",
+              "value": "Muestra cada trabajo sin asignar con un punto de color de etapa, su número, título, etapa y prioridad. Toque uno para elegirlo."
             },
             {
-              "label": "Acción de asignar",
-              "value": "Hacer clic en un trabajo lo asigna al trabajador mediante POST /display/shop-floor/assign-job. Cierra la sesión automáticamente después de 0,8 segundos tras el éxito."
+              "label": "Elegir un trabajo",
+              "value": "Tocar un trabajo se lo asigna. Su sesión se cierra un momento después."
             },
             {
-              "label": "Botón Omitir",
-              "value": "Omite la selección de trabajo y cierra la sesión. Icono: skip_next."
+              "label": "Omitir",
+              "value": "Omite elegir un trabajo y cierra su sesión."
             },
             {
-              "label": "Estado vacío",
-              "value": "Muestra 'No hay trabajos sin asignar disponibles' con el icono work_off cuando no hay trabajos disponibles."
+              "label": "Nada que elegir",
+              "value": "Muestra 'No hay trabajos sin asignar disponibles' cuando no hay ninguno."
             }
           ]
         },
         {
-          "heading": "Asignación de trabajos por arrastrar y soltar",
+          "heading": "Arrastrar un trabajo sobre un trabajador",
           "items": [
             {
-              "label": "Origen de arrastre",
-              "value": "Tarjetas de trabajo sin asignar en la sección de trabajos sin asignar. Cada tarjeta tiene un icono de asa drag_indicator y draggable='true'."
+              "label": "Qué arrastra",
+              "value": "Una tarjeta de trabajo sin asignar de la sección de sin asignar. Cada una tiene un asa para agarrar."
             },
             {
-              "label": "Destino de soltar",
-              "value": "Tarjetas de trabajador en la cuadrícula principal. Aparece un resaltado visual al arrastrar sobre una tarjeta."
+              "label": "Dónde la suelta",
+              "value": "Sobre cualquier tarjeta de trabajador en la cuadrícula. La tarjeta se ilumina al arrastrar sobre ella."
             },
             {
-              "label": "Asignación",
-              "value": "Soltar un trabajo en una tarjeta de trabajador llama a POST /display/shop-floor/assign-job con jobId y userId. Los datos se actualizan después de la asignación."
+              "label": "El resultado",
+              "value": "Soltar el trabajo se lo asigna a ese trabajador, y la pantalla se actualiza."
             },
             {
-              "label": "Datos de arrastre",
-              "value": "ID del trabajo transferido mediante dataTransfer con el tipo 'application/x-job-id'."
+              "label": "Bueno saberlo",
+              "value": "Puede hacer esto directamente desde la pantalla principal sin iniciar sesión."
             }
           ]
         },
         {
-          "heading": "Identificación de escaneo",
+          "heading": "Qué hace un escaneo",
           "items": [
             {
-              "label": "Endpoint de la API",
-              "value": "POST /display/shop-floor/identify-scan con { scanValue }. Devuelve ScanIdentification con scanType, entityId, entityNumber, entityTitle."
+              "label": "Escaneo de credencial",
+              "value": "Lo reconoce y abre el cuadro de PIN para iniciar sesión."
             },
             {
-              "label": "Tipos de escaneo",
-              "value": "employee (→ fase PIN), job (→ mensaje de retroalimentación), storage-location (→ abre la superposición de contenido de ubicación), sales-order (→ aviso 'toque su credencial para enviar'), unknown (→ 'Escaneo no reconocido')."
+              "label": "Otros escaneos",
+              "value": "Un código de barras de trabajo muestra una nota en la barra inferior; uno de contenedor abre una lista de lo que hay en él; lo que no puede leer muestra 'Escaneo no reconocido'."
             },
             {
-              "label": "Escaneo de ubicación de almacenamiento",
-              "value": "Escanear un código de barras de ubicación de almacenamiento en la pantalla principal abre la superposición de Vista de Ubicación (app-scan-location-view) que enumera todo lo que hay en ese contenedor —cada fila muestra el nombre del artículo, el número de lote (si lo hay) y la cantidad, con un botón Escanear para profundizar en las acciones de esa pieza."
+              "label": "Escaneo de contenedor",
+              "value": "Escanear un código de barras de contenedor abre una vista de Ubicación que enumera todo lo que hay en él —cada fila muestra el artículo, su número de lote si lo tiene y la cantidad, con un botón Escanear para trabajar con ese artículo."
             },
             {
-              "label": "Respaldo (fallback)",
-              "value": "Si la API de identificación falla, el valor de escaneo se trata como una credencial de empleado y se abre la superposición de PIN."
+              "label": "Si no puede saberlo",
+              "value": "Si el sistema no puede identificar un escaneo, lo trata como una credencial y abre el cuadro de PIN."
             },
             {
-              "label": "Contexto del escáner",
-              "value": "El contexto de ScannerService se establece en 'shop-floor'. Solo procesa escaneos durante la fase principal —ignora los escaneos durante las superposiciones."
+              "label": "Cuándo escucha",
+              "value": "El taller lee escaneos solo en la pantalla principal —los ignora mientras hay una pantalla o un cuadro abierto."
             }
           ]
         },
         {
-          "heading": "Revertir / Deshacer una acción de escaneo",
+          "heading": "Deshacer un escaneo reciente",
           "items": [
             {
               "label": "Dónde",
-              "value": "El panel de Acciones de Escaneo Recientes (deshacer), abierto desde la pantalla de taller principal. Enumera las acciones de escaneo de las últimas 6 horas."
+              "value": "El panel de Acciones de Escaneo Recientes, abierto desde la pantalla de taller principal. Enumera los escaneos de las últimas 6 horas."
             },
             {
-              "label": "Ventana de retroceso",
-              "value": "6 horas. Solo las acciones de las últimas 6 horas son elegibles para revertir; las entradas más antiguas salen de la lista de deshacer (pero permanecen en el Registro Diario de Escaneos completo)."
+              "label": "Hasta cuándo",
+              "value": "6 horas. Solo los escaneos de las últimas 6 horas pueden deshacerse; los más antiguos salen de esta lista pero permanecen en el Registro Diario de Escaneos."
             },
             {
-              "label": "Fila por entrada",
-              "value": "Muestra la hora (HH:mm), quién la realizó, el tipo de acción, la cantidad ×, el número de pieza, las ubicaciones origen→destino y cualquier entidad relacionada (trabajo/OC/envío)."
+              "label": "Cada fila",
+              "value": "Muestra la hora, quién lo hizo, la acción, la cantidad, la pieza, de dónde a dónde se movió y cualquier trabajo, OC o envío relacionado."
             },
             {
               "label": "Botón Revertir",
-              "value": "Cada entrada aún no revertida tiene un botón Revertir. Las entradas ya revertidas muestran en su lugar una etiqueta 'Revertida' y no pueden revertirse de nuevo."
+              "value": "Cada escaneo que no se ha deshecho tiene un botón Revertir. Los ya deshechos muestran una etiqueta 'Revertida' y no pueden deshacerse de nuevo."
             },
             {
-              "label": "Restricción por PIN",
-              "value": "Hacer clic en Revertir abre un aviso de PIN. Se requiere un PIN válido para autorizar la reversión —esto es una corrección supervisada, no un deshacer libre. Un PIN incorrecto muestra 'No se pudo revertir la acción. Compruebe su PIN.'"
+              "label": "Se requiere PIN",
+              "value": "Revertir pide un PIN primero —esta es una corrección verificada, no un deshacer libre. Un PIN incorrecto muestra 'No se pudo revertir la acción. Compruebe su PIN.'"
             },
             {
-              "label": "Efecto",
-              "value": "Una reversión exitosa envía a POST /scanner/reverse con el id del registro de acción de escaneo + PIN, deshace el movimiento (p. ej., un Mover se devuelve a su ubicación de origen), muestra un snackbar de confirmación y recarga la lista."
+              "label": "Qué hace",
+              "value": "Un PIN válido deshace el movimiento (un traslado vuelve al lugar de donde vino), muestra una confirmación y actualiza la lista."
             },
             {
               "label": "Recuento de hoy",
-              "value": "El encabezado del panel muestra un recuento de las acciones de escaneo realizadas hoy."
+              "value": "El encabezado del panel muestra cuántos escaneos ocurrieron hoy."
             }
           ]
         },
@@ -431,32 +431,32 @@
           "heading": "Registro Diario de Escaneos",
           "items": [
             {
-              "label": "Ruta",
-              "value": "/display/shop-floor/scan-log (también abrible como panel desde la pantalla principal)."
+              "label": "Dónde",
+              "value": "Ábralo desde su propia página o como panel en la pantalla principal."
             },
             {
-              "label": "Propósito",
-              "value": "Un registro de solo lectura y filtrable de toda la actividad de escaneo de un día elegido —la vista de auditoría que complementa el panel de deshacer de 6 horas."
+              "label": "Para qué sirve",
+              "value": "Un registro de solo lectura y filtrable de cada escaneo de un día elegido —el historial completo detrás del panel de deshacer de 6 horas."
             },
             {
-              "label": "Filtro de fecha",
-              "value": "Selector de fecha, predeterminado a hoy. Elija cualquier fecha para ver la actividad de ese día."
+              "label": "Elija una fecha",
+              "value": "Un selector de fecha, puesto en hoy. Elija cualquier fecha para verla."
             },
             {
-              "label": "Filtro de Tipo de acción",
-              "value": "Todos, Mover, Contar (CycleCount), Recibir, Enviar, Emitir. Acota la tabla a un tipo de acción."
+              "label": "Filtrar por acción",
+              "value": "Muestre todo, o solo traslados, conteos, recepciones, envíos o emisiones."
             },
             {
-              "label": "Línea de resumen",
-              "value": "Muestra 'N escaneos hoy' más un desglose (p. ej., '4 movimientos, 2 recepciones, 1 emisión') calculado a partir de las filas filtradas."
+              "label": "Resumen",
+              "value": "Muestra el total del día más un desglose, como '4 movimientos, 2 recepciones, 1 emisión'."
             },
             {
               "label": "Columnas",
-              "value": "Hora (HH:mm:ss), Acción (chip), Pieza, Cant., Desde, Hasta, Relacionado, Estado. Las entradas revertidas muestran un chip rojo 'Revertida' en la columna Estado."
+              "value": "Hora, acción, pieza, cantidad, desde, hasta, artículo relacionado y estado. Los escaneos deshechos muestran una etiqueta roja 'Revertida'."
             },
             {
-              "label": "Estado vacío",
-              "value": "'No hay actividad de escaneo para esta fecha' con un icono de historial cuando los filtros no devuelven nada."
+              "label": "Nada que mostrar",
+              "value": "Muestra 'No hay actividad de escaneo para esta fecha' cuando los filtros no encuentran nada."
             }
           ]
         }
@@ -495,7 +495,7 @@
               "text": "Usan una contraseña de quiosco compartida publicada en la pared"
             }
           ],
-          "explanation": "La pantalla de taller usa autenticación efímera basada en escaneo. Los trabajadores escanean su credencial RFID o código de barras y luego introducen su PIN numérico (mínimo 4 dígitos). La sesión se borra automáticamente después de completar la acción. Alternativamente, los trabajadores pueden tocar su tarjeta con su nombre e introducir su contraseña completa."
+          "explanation": "El taller lo inicia de a una acción por vez. Escanee su credencial o código de barras y luego escriba su PIN numérico (al menos 4 dígitos). Su sesión se cierra automáticamente una vez hecha la acción. También puede tocar su tarjeta con su nombre y escribir su contraseña completa."
         },
         {
           "id": "sf2",
@@ -519,7 +519,7 @@
               "text": "El trabajador ficha salida automáticamente"
             }
           ],
-          "explanation": "La fase PIN tiene un tiempo de espera de descarte automático de 20 segundos. Si el trabajador no envía dentro de ese tiempo, la superposición se cancela automáticamente y la pantalla vuelve al panel principal. Esto evita que las superposiciones obsoletas bloqueen el quiosco para otros trabajadores."
+          "explanation": "El cuadro de PIN se cierra solo tras unos 20 segundos. Si el trabajador no envía a tiempo, se cancela y la pantalla vuelve a la principal. Así un cuadro olvidado no bloquea el quiosco para la siguiente persona."
         },
         {
           "id": "sf3",
@@ -543,7 +543,7 @@
               "text": "El trabajador tiene una asignación de trabajo atrasada"
             }
           ],
-          "explanation": "El color de la franja izquierda indica el estado de fichaje del trabajador: verde significa trabajando, amarillo significa en descanso o almuerzo, y gris significa fichado de salida. Los colores se determinan por la asignación de estado de ClockEventTypeService."
+          "explanation": "El borde de color indica el estado de fichaje del trabajador: verde significa trabajando, amarillo significa en descanso o almuerzo, y gris significa fichado de salida."
         },
         {
           "id": "sf4",
@@ -567,7 +567,7 @@
               "text": "Se envía una alerta al gerente para que asigne un trabajo"
             }
           ],
-          "explanation": "Después de fichar entrada, si el trabajador no tiene trabajos asignados, aparece automáticamente una superposición de selección de trabajos (tras un breve retraso de retroalimentación de 0,8 segundos). El trabajador puede elegir un trabajo sin asignar u omitir. La superposición tiene un tiempo de espera de descarte automático de 15 segundos."
+          "explanation": "Después de fichar entrada, si el trabajador no tiene trabajos, un selector de trabajos se abre solo un momento después. El trabajador puede elegir un trabajo sin asignar u omitir. El selector se cierra por sí solo tras unos 15 segundos."
         },
         {
           "id": "sf5",
@@ -591,11 +591,11 @@
               "text": "No puede asignar trabajos desde el panel principal —primero debe autenticarse"
             }
           ],
-          "explanation": "Las tarjetas de trabajo sin asignar son arrastrables. Arrastre un trabajo desde la sección de trabajos sin asignar y suéltelo sobre cualquier tarjeta de trabajador en la cuadrícula. La asignación se realiza de inmediato a través de la API, y la pantalla se actualiza. No se requiere autenticación para la asignación por arrastrar y soltar."
+          "explanation": "Puede arrastrar las tarjetas de trabajo sin asignar. Arrastre un trabajo desde la sección de sin asignar y suéltelo sobre cualquier tarjeta de trabajador en la cuadrícula. El trabajo se asigna de inmediato y la pantalla se actualiza. No necesita iniciar sesión para arrastrar y soltar."
         },
         {
           "id": "sf6",
-          "text": "Un Trabajador de producción (ProductionWorker) se autentica en el quiosco de taller. ¿Qué acciones de muelle verá?",
+          "text": "Un Trabajador de producción inicia sesión en el quiosco de taller. ¿Qué acciones de muelle verá?",
           "options": [
             {
               "id": "a",
@@ -615,7 +615,7 @@
               "text": "Ninguna —las acciones de muelle son solo para usuarios Admin"
             }
           ],
-          "explanation": "Recibir mercancía está disponible para los roles Admin, Manager, OfficeManager, Engineer y ProductionWorker. Enviar mercancía está restringido solo a los roles Admin, Manager y OfficeManager. Ambas requieren que el trabajador esté activamente fichado de entrada."
+          "explanation": "Recibir mercancía está disponible para Administradores, Gerentes, Gerentes de oficina, Ingenieros y Trabajadores de producción. Enviar mercancía está limitado a Administradores, Gerentes y Gerentes de oficina. Ambas aparecen solo mientras el trabajador está fichado de entrada."
         },
         {
           "id": "sf7",
@@ -627,7 +627,7 @@
             },
             {
               "id": "b",
-              "text": "Se conservan —el tamaño de fuente y el tema se guardan en localStorage",
+              "text": "Se conservan —el quiosco recuerda su tamaño de texto y su tema",
               "isCorrect": true
             },
             {
@@ -639,11 +639,11 @@
               "text": "Se guardan en las preferencias de la cuenta del usuario en el servidor"
             }
           ],
-          "explanation": "Tanto el tamaño de fuente (almacenado como 'sf-font-index' en localStorage) como el tema (almacenado como 'sf-theme' en localStorage) persisten entre reinicios del navegador. Esto garantiza que el quiosco retenga su configuración de visualización sin reconfiguración."
+          "explanation": "Tanto el tamaño de texto como el tema se recuerdan en el dispositivo, así que se mantienen incluso tras reiniciar el navegador. El quiosco conserva su aspecto sin que nadie lo configure de nuevo."
         },
         {
           "id": "sf8",
-          "text": "¿Qué controla la marca IsShopFloor en una etapa de trabajo?",
+          "text": "Cuando marca una etapa de trabajo para que aparezca en el taller, ¿qué controla eso?",
           "options": [
             {
               "id": "a",
@@ -660,10 +660,10 @@
             },
             {
               "id": "d",
-              "text": "Si la columna de la etapa es visible en el tablero Kanban"
+              "text": "Si la columna de la etapa es visible en el tablero"
             }
           ],
-          "explanation": "La marca booleana IsShopFloor en las entidades TrackType y JobStage controla la visibilidad en la pantalla de taller. Solo las etapas con IsShopFloor = true muestran sus trabajos. Esto filtra las etapas no físicas como cotización, facturación y pago que son irrelevantes para los trabajadores de la planta de producción."
+          "explanation": "Marcar una etapa para el taller controla si aparece allí. Solo las etapas marcadas muestran sus trabajos. Esto mantiene fuera de la planta las etapas solo de oficina, como cotización, facturación y pago, que no importan a los trabajadores prácticos."
         },
         {
           "id": "sf9",
@@ -699,7 +699,7 @@
             },
             {
               "id": "b",
-              "text": "En la tarjeta del trabajador en la cuadrícula principal, como un icono de temporizador junto al trabajo, y la fila del trabajo se resalta en la superposición de acciones",
+              "text": "En la tarjeta del trabajador en la cuadrícula principal, como una marca de temporizador junto al trabajo, y el trabajo resalta en la pantalla de acciones",
               "isCorrect": true
             },
             {
@@ -711,7 +711,7 @@
               "text": "En un panel de temporizador separado que se desliza desde la derecha"
             }
           ],
-          "explanation": "Los temporizadores activos son visibles en varios lugares del taller: la tarjeta del trabajador muestra un icono de temporizador (timer) junto al trabajo con un temporizador activo, y la fila del trabajo en la superposición de acciones recibe un resaltado activo (sf-actions-card__job--active). El temporizador se inicia mediante POST /time-tracking/timer/start y puede detenerse desde la misma superposición."
+          "explanation": "Un temporizador en marcha aparece en un par de lugares: la tarjeta del trabajador recibe una marca de temporizador junto a ese trabajo, y el trabajo resalta en la pantalla de acciones. Lo inicia y lo detiene desde esa misma pantalla de acciones."
         }
       ]
     }
@@ -721,7 +721,7 @@
     "title": "Estación de Escaneo de Inventario",
     "summary": "El concentrador de Escaneo de Inventario impulsado por código de barras: escanee una pieza para abrir la superposición de 8 acciones (Mover, Contar, Recibir, Emitir, Enviar, Inspeccionar, Trabajo, Devolver), el modo multiescaneo y cómo la misma superposición aparece en la pantalla principal.",
     "contentJson": {
-      "body": "## Estación de Escaneo de Inventario\n\nLa Estación de Escaneo de Inventario es una página de quiosco dedicada y centrada en el código de barras en `/display/shop-floor/scan`. Está diseñada para el personal de almacén y de la sala de existencias que trabaja principalmente con un escáner de mano: escanee una pieza, elija qué hacer, confirme, repita. No hay menú que navegar —la pieza que escanea determina qué acciones se ofrecen.\n\n### Escanear para comenzar\n\nLa página muestra un único aviso grande —'Escanee un código de barras de pieza para comenzar'— y un campo de escaneo enfocado. Escanee el código de barras de una pieza (o escriba el número de pieza y presione Enter) y el sistema busca esa pieza. El encabezado mantiene un contador de 'Escaneadas' para la sesión, y una lista de **Escaneos Recientes** se acumula debajo del campo mostrando cada pieza que ha consultado, su descripción y su existencia actual —para que pueda ver de un vistazo en qué ha estado trabajando.\n\nCuando se encuentra una pieza, se abre la **superposición de acciones de escaneo**. Si el código de barras no se reconoce, recibe un mensaje 'Pieza no encontrada' y la superposición se cierra tras un momento para que pueda escanear el siguiente artículo.\n\n### La superposición de acciones — Contexto de la pieza\n\nLa parte superior de la superposición confirma lo que escaneó: el número de pieza, la descripción, una insignia de existencia que muestra la cantidad disponible actual y la ubicación actual (cuando la pieza vive en un único contenedor conocido). Esta es su comprobación de cordura antes de actuar —asegúrese de que la pieza y la existencia coinciden con lo que tiene en la mano.\n\n### Las 8 acciones\n\nDebajo del contexto de la pieza hay una cuadrícula de botones de acción grandes y táctiles. El sistema solo ofrece las acciones que tienen sentido para esa pieza en ese momento; las acciones que no aplican se muestran deshabilitadas con una breve razón (por ejemplo, **Enviar** está deshabilitado cuando la pieza no tiene líneas de envío abiertas). Las ocho acciones son:\n\n- **Mover** (swap_horiz) — reubicar existencia de un contenedor a otro. Elige la ubicación de origen, la de destino y la cantidad.\n- **Contar** (inventory) — realizar un conteo cíclico de un contenedor: introduzca la cantidad real que contó físicamente, y el sistema registra la variación respecto a lo que esperaba.\n- **Recibir** (move_to_inbox) — recibir existencia entrante contra una línea de orden de compra abierta, en un contenedor elegido.\n- **Emitir** (output) — emitir material a un trabajo: elija el trabajo, la ubicación de origen y la cantidad consumida.\n- **Enviar** (local_shipping) — cumplir una línea de envío abierta para esta pieza (solo habilitado cuando la pieza tiene líneas de envío abiertas).\n- **Inspeccionar** (fact_check) — ejecutar una inspección de calidad contra la plantilla de CC de la pieza.\n- **Trabajo** (engineering) — cuando escanea un código de barras de trabajo en lugar de una pieza, la superposición muestra el contexto del trabajo (número, título, etapa, asignado, estado del temporizador) y las acciones del trabajo.\n- **Devolver** (assignment_return) — registrar una devolución contra un envío reciente de esta pieza (solo habilitado cuando existen envíos recientes).\n\nToque una acción y un breve flujo guiado toma el control dentro de la superposición, recopilando solo los campos que esa acción necesita (cantidades, ubicaciones, el trabajo/OC/envío de destino). Cada flujo tiene su propio Confirmar y Cancelar —Cancelar lo devuelve a la cuadrícula de acciones sin cambiar nada.\n\n### Modo multiescaneo\n\nPara el trabajo repetitivo —recibir un palé, mover toda una estantería— active **Multiescaneo** (el interruptor de repetición en el pie de la superposición). Con el multiescaneo activado, completar una acción no cierra la superposición; en su lugar vuelve a la cuadrícula de acciones y muestra 'Listo para el siguiente escaneo', para que pueda escanear de inmediato la siguiente pieza y continuar. Con el multiescaneo desactivado (el valor predeterminado), la superposición se cierra después de cada acción completada y lo devuelve al aviso de escaneo. Toque **Hecho** en cualquier momento para cerrar la superposición.\n\n### La misma superposición en la pantalla principal\n\nNo tiene que estar en la página de escaneo dedicada para usar estas acciones. La pantalla de taller principal (`/display/shop-floor`) incorpora la misma superposición de acciones de escaneo. Cuando se escanea un código de barras de pieza en la pantalla principal, la superposición también aparece allí, con la cuadrícula idéntica de 8 acciones y los flujos. La página dedicada `/scan` simplemente da al personal de la sala de existencias un hogar limpio y a pantalla completa para este flujo de trabajo sin la cuadrícula de tarjetas de trabajador alrededor.\n\n### Qué se registra\n\nCada acción de escaneo completada escribe un movimiento y una entrada de registro de escaneo: la pieza, la cantidad, las ubicaciones origen/destino, el trabajo/OC/envío relacionado, quién lo hizo y cuándo. Ese registro alimenta tanto el **Registro Diario de Escaneos** (un registro filtrable de la actividad del día) como el panel de **Revertir/Deshacer** (que permite a un supervisor deshacer un error reciente). Consulte la Referencia de campos para esas dos superficies.",
+      "body": "## Estación de Escaneo de Inventario\n\nLa Estación de Escaneo de Inventario es una página de quiosco centrada en el código de barras, hecha para el personal de almacén y de la sala de existencias que trabaja principalmente con un escáner de mano: escanee una pieza, elija qué hacer, confirme, repita. No hay menú que recorrer —la pieza que escanea decide qué acciones se le ofrecen.\n\n### Escanear para comenzar\n\nLa página muestra un único aviso grande —'Escanee un código de barras de pieza para comenzar'— y un cuadro de escaneo listo para usar. Escanee el código de barras de una pieza (o escriba el número de pieza y presione Enter) y busca esa pieza. El encabezado mantiene un contador de 'Escaneadas' en marcha para la sesión, y una lista de **Escaneos Recientes** se acumula debajo del cuadro con cada pieza que ha consultado, su descripción y su existencia actual —para que vea de un vistazo en qué ha estado trabajando.\n\nCuando se encuentra la pieza, se abre la **pantalla de acciones**. Si el código de barras no se reconoce, recibe un mensaje 'Pieza no encontrada' y la pantalla se cierra tras un momento para que escanee el siguiente artículo.\n\n### La pantalla de acciones — Lo que escaneó\n\nLa parte superior de la pantalla confirma lo que escaneó: el número de pieza, la descripción, cuánto hay disponible y dónde vive (cuando está en un único contenedor conocido). Es su comprobación rápida antes de actuar —asegúrese de que la pieza y la existencia coinciden con lo que tiene en la mano.\n\n### Las 8 acciones\n\nDebajo hay una cuadrícula de botones grandes y táctiles. Solo se ofrecen las acciones que tienen sentido para esa pieza en ese momento; el resto se ven en gris con una breve razón (por ejemplo, **Enviar** está apagado cuando la pieza no tiene envíos abiertos). Las ocho acciones son:\n\n- **Mover** — mover existencia de un contenedor a otro. Elige de dónde viene, adónde va y cuánto.\n- **Contar** — contar lo que realmente hay en un contenedor: escriba la cantidad que contó físicamente, y registra la diferencia con lo que se esperaba.\n- **Recibir** — recibir existencia entrante contra una orden de compra abierta, en un contenedor que elija.\n- **Emitir** — dar material a un trabajo: elija el trabajo, de dónde viene y cuánto usó.\n- **Enviar** — cumplir un envío abierto para esta pieza (solo activo cuando la pieza tiene envíos abiertos).\n- **Inspeccionar** — ejecutar una comprobación de calidad contra la lista de inspección de la pieza.\n- **Trabajo** — cuando escanea un código de barras de trabajo en lugar de una pieza, la pantalla muestra los detalles de ese trabajo y sus acciones.\n- **Devolver** — registrar una devolución contra un envío reciente de esta pieza (solo activo cuando hay envíos recientes).\n\nToque una acción y un breve paso a paso toma el control, pidiendo solo lo que esa acción necesita —cantidades, contenedores, el trabajo, la orden de compra o el envío. Cada uno tiene su propio Confirmar y Cancelar; Cancelar lo devuelve a los botones sin cambiar nada.\n\n### Modo multiescaneo\n\nPara el trabajo repetitivo —recibir un palé, mover toda una estantería— active **Multiescaneo** (el interruptor de repetición en la parte inferior de la pantalla). Con él activado, terminar una acción no cierra la pantalla; vuelve a los botones y muestra 'Listo para el siguiente escaneo', para que escanee la siguiente pieza de inmediato. Con él desactivado (el valor predeterminado), la pantalla se cierra después de cada acción y lo lleva de vuelta al aviso de escaneo. Toque **Hecho** en cualquier momento para cerrarla.\n\n### La misma pantalla en la pantalla principal\n\nNo tiene que estar en la página de escaneo para usar estas acciones. La pantalla de taller principal tiene la misma pantalla de acciones incorporada. Escanee allí un código de barras de pieza y también aparece, con los 8 botones y pasos idénticos. La página de escaneo solo da al personal de la sala de existencias un hogar limpio y a pantalla completa para este trabajo sin las tarjetas de trabajador alrededor.\n\n### Qué se registra\n\nCada acción terminada registra un movimiento y una entrada de registro: la pieza, la cantidad, de dónde a dónde se movió, el trabajo, la orden de compra o el envío relacionado, quién lo hizo y cuándo. Ese registro alimenta tanto el **Registro Diario de Escaneos** (un registro filtrable del día) como el panel de **Deshacer** (que permite a un supervisor deshacer un error reciente). Consulte la Referencia de campos para esos dos.",
       "sections": []
     }
   },
@@ -737,7 +737,7 @@
           "element": ".inv-scan__header",
           "popover": {
             "title": "Encabezado de la Estación de Escaneo",
-            "description": "Esta es la página dedicada de Escaneo de Inventario. El encabezado muestra el título de la página y un contador de 'Escaneadas' en ejecución que rastrea cuántas piezas ha consultado en esta sesión.",
+            "description": "Esta es la página de Escaneo de Inventario. El encabezado muestra el título y un contador de 'Escaneadas' en marcha de cuántas piezas ha consultado en esta sesión.",
             "side": "bottom"
           },
           "side": "bottom"
@@ -746,7 +746,7 @@
           "element": ".inv-scan__cta",
           "popover": {
             "title": "Escanear para comenzar",
-            "description": "El gran aviso le indica que la página está esperando entrada. Simplemente escanee un código de barras de pieza (o un código de barras de ubicación de almacenamiento o de trabajo) para comenzar —la pieza que escanea decide qué acciones se ofrecen.",
+            "description": "El gran aviso significa que la página lo está esperando. Simplemente escanee un código de barras de pieza —o de un contenedor o de un trabajo— para comenzar. Lo que escanea decide qué acciones se le ofrecen.",
             "side": "bottom"
           },
           "side": "bottom"
@@ -754,8 +754,8 @@
         {
           "element": ".inv-scan__input-area",
           "popover": {
-            "title": "Campo de escaneo enfocado",
-            "description": "Este campo permanece enfocado para que las pulsaciones de un escáner de mano lleguen aquí automáticamente. También puede escribir un número de pieza y presionar Enter. Cuando se encuentra una pieza, la superposición de acciones se abre con hasta 8 acciones (Mover, Contar, Recibir, Emitir, Enviar, Inspeccionar, Trabajo, Devolver).",
+            "title": "Cuadro de escaneo",
+            "description": "Este cuadro permanece listo, así que un escáner de mano llega aquí por sí solo. También puede escribir un número de pieza y presionar Enter. Cuando se encuentra la pieza, se abre una pantalla con las acciones que puede realizar, como Mover, Contar, Recibir y Enviar.",
             "side": "top"
           },
           "side": "top"
@@ -764,7 +764,7 @@
           "element": ".inv-scan__input-area",
           "popover": {
             "title": "Multiescaneo para trabajo repetitivo",
-            "description": "Dentro de la superposición, active Multiescaneo para mantenerla abierta después de cada acción y así escanear la siguiente pieza de inmediato —ideal para recibir un palé o mover toda una estantería. Con él desactivado, la superposición se cierra después de cada acción completada y lo devuelve aquí.",
+            "description": "Active Multiescaneo para mantener la pantalla abierta después de cada acción y así escanear la siguiente pieza de inmediato —útil para recibir un palé o mover toda una estantería. Con él desactivado, la pantalla se cierra después de cada acción y lo devuelve aquí.",
             "side": "top"
           },
           "side": "top"
@@ -773,7 +773,7 @@
           "element": ".inv-scan__body",
           "popover": {
             "title": "Escaneos Recientes",
-            "description": "A medida que escanea, una lista de Escaneos Recientes se acumula aquí mostrando cada número de pieza, descripción y su existencia actual —un registro rápido de lo que ha trabajado en esta sesión.",
+            "description": "A medida que avanza, una lista de Escaneos Recientes se acumula aquí con el número, la descripción y la existencia actual de cada pieza —un registro rápido de lo que ha trabajado en esta sesión.",
             "side": "top"
           },
           "side": "top"
@@ -786,7 +786,7 @@
     "title": "Configurar un Quiosco de Taller",
     "summary": "Emparejamiento de terminal por primera vez: un administrador inicia sesión, nombra la terminal, elige o crea un equipo, y el dispositivo obtiene un token persistente —restringiendo tanto la pantalla principal como el quiosco de reloj.",
     "contentJson": {
-      "body": "## Configurar un Quiosco de Taller\n\nAntes de que una pantalla de taller o un quiosco de reloj puedan usarse, el dispositivo debe **emparejarse** con su instalación y asignarse a un equipo. Esta es una configuración única que un administrador realiza cuando el quiosco se abre por primera vez en un dispositivo nuevo. Después del emparejamiento, los trabajadores ordinarios usan el quiosco sin volver a iniciar sesión como administrador.\n\n### Cuándo aparece la configuración\n\nCuando el quiosco de reloj (`/display/shop-floor/clock`) se abre, comprueba el navegador en busca de un **token de dispositivo** guardado en localStorage. Si no se encuentra ningún token —un dispositivo nuevo, un navegador limpiado o una terminal que fue desactivada en el servidor— el quiosco entra en **Configuración** en lugar del panel del trabajador. La configuración tiene dos fases.\n\n### Fase 1 — Inicio de sesión del administrador\n\nLa primera pantalla pide a un administrador que inicie sesión con su correo electrónico y contraseña. Esta es una restricción deliberada: solo un administrador (o un usuario con el derecho a gestionar terminales) puede emparejar un dispositivo, de modo que un trabajador no pueda reasignar accidentalmente un quiosco al equipo equivocado. Las credenciales incorrectas muestran un error en línea 'Credenciales de administrador no válidas'. Un inicio de sesión exitoso carga la lista de equipos y avanza a la configuración.\n\n### Fase 2 — Nombrar la terminal y elegir un equipo\n\nAhora le da al quiosco una identidad:\n\n- **Nombre de la terminal** — una etiqueta legible para esta estación física, p. ej., 'Quiosco Celda de Soldadura' o 'Tableta Muelle de Envíos'. Así es como aparece la terminal en la lista de terminales del administrador. Es obligatorio.\n- **Equipo** — elija un equipo existente del menú desplegable (cada opción muestra el nombre del equipo y su recuento de miembros), o haga clic en **Crear Nuevo Equipo**, escriba un nuevo nombre de equipo y se crea al instante. El equipo que elige acota lo que muestra el quiosco: el panel de reloj y la lista de trabajadores se filtran a ese equipo.\n\nHaga clic en **Activar Terminal** para finalizar. Entre bastidores el quiosco genera un token de dispositivo (un UUID aleatorio), lo guarda en localStorage, registra la terminal + equipo contra el servidor y luego **borra la sesión del administrador** —el administrador se cierra intencionadamente para que el quiosco quede en un estado no autenticado, listo para el trabajador.\n\n### Qué hace el token\n\nEl token de dispositivo es la identidad persistente del quiosco. En cada apertura posterior, el quiosco lee el token de localStorage y lo valida contra el servidor:\n\n- **Válido** → el quiosco omite la configuración por completo y va directo al panel del equipo.\n- **Faltante o rechazado** (terminal eliminada o desactivada por un administrador) → el token y la terminal guardados se borran y el quiosco vuelve a Configuración, listo para reemparejarse.\n\nComo el token vive en el localStorage del navegador, el emparejamiento es por dispositivo/por navegador. Reimaginar la máquina, cambiar de navegador o borrar los datos del sitio requerirá volver a emparejar. Un administrador también puede desactivar una terminal desde la lista de terminales del administrador, lo que fuerza a ese dispositivo a volver a Configuración la próxima vez que se cargue.\n\n### Gestionar las terminales más tarde\n\nLas terminales se enumeran y gestionan en el lado del servidor (en la administración de terminales de taller / quiosco). Desde allí un administrador puede revisar qué estaciones físicas están emparejadas, ver sus equipos asignados y desactivar una terminal que ha sido retirada o reubicada. Desactivar no toca el dispositivo —simplemente invalida el token para que la próxima carga vuelva a ejecutar la Configuración.\n\n### La configuración restringe ambos quioscos\n\nEl mismo emparejamiento protege ambas superficies de quiosco. El **quiosco de reloj** dedicado ejecuta la configuración directamente. La **pantalla de taller principal** también depende de un contexto de terminal/equipo configurado para mostrar los trabajadores y trabajos correctos. Empareje el dispositivo una vez y ambas superficies estarán listas para la planta.",
+      "body": "## Configurar un Quiosco de Taller\n\nAntes de que una pantalla de taller o un quiosco de reloj puedan usarse, el dispositivo debe **emparejarse** con su empresa y asignarse a un equipo. Esta es una configuración única que un administrador realiza la primera vez que el quiosco se abre en un dispositivo nuevo. Después, los trabajadores ordinarios lo usan sin volver a iniciar sesión como administrador.\n\n### Cuándo aparece la configuración\n\nCuando el quiosco de reloj se abre, comprueba si este dispositivo se ha emparejado antes. Si no —un dispositivo nuevo, un navegador limpiado o una terminal que un administrador apagó— el quiosco entra en **Configuración** en lugar del panel del trabajador. La configuración tiene dos pasos.\n\n### Paso 1 — Inicio de sesión del administrador\n\nLa primera pantalla pide a un administrador que inicie sesión con su correo electrónico y contraseña. Es a propósito: solo un administrador (o alguien con permiso para gestionar terminales) puede emparejar un dispositivo, de modo que un trabajador no apunte accidentalmente un quiosco al equipo equivocado. Una contraseña incorrecta muestra 'Credenciales de administrador no válidas'. Un buen inicio de sesión carga la lista de equipos y avanza.\n\n### Paso 2 — Nombrar la terminal y elegir un equipo\n\nAhora le da al quiosco una identidad:\n\n- **Nombre de la terminal** — una etiqueta sencilla para esta estación, como 'Quiosco Celda de Soldadura' o 'Tableta Muelle de Envíos'. Así es como aparece la terminal en la lista de terminales del administrador. Es obligatorio.\n- **Equipo** — elija un equipo del menú (cada uno muestra el nombre del equipo y cuántos miembros tiene), o haga clic en **Crear Nuevo Equipo**, escriba un nombre y se crea al instante. El equipo que elige fija lo que muestra el quiosco: su panel y su lista de trabajadores se ciñen a ese equipo.\n\nHaga clic en **Activar Terminal** para finalizar. El quiosco guarda su emparejamiento en el dispositivo, registra la terminal y el equipo con el servidor y luego **cierra la sesión del administrador** —a propósito, para que el quiosco quede listo para los trabajadores, sin nadie con la sesión iniciada.\n\n### Qué hace el emparejamiento\n\nEl emparejamiento es la identidad duradera del quiosco. Cada vez que se abre, comprueba ese emparejamiento con el servidor:\n\n- **Sigue válido** → el quiosco omite la configuración y va directo al panel del equipo.\n- **Desaparecido o apagado** (un administrador eliminó o desactivó la terminal) → el emparejamiento guardado se borra y el quiosco vuelve a Configuración, listo para emparejarse de nuevo.\n\nComo el emparejamiento vive en el dispositivo, es por dispositivo y por navegador. Reimaginar la máquina, cambiar de navegador o borrar los datos del navegador implicará emparejar de nuevo. Un administrador también puede apagar una terminal desde la lista de terminales, lo que envía a ese dispositivo de vuelta a Configuración la próxima vez que se abra.\n\n### Gestionar las terminales más tarde\n\nLas terminales las enumera y gestiona un administrador en la configuración de terminales del quiosco. Desde allí un administrador puede ver qué estaciones están emparejadas y a qué equipos, y apagar una terminal que se ha retirado o movido. Apagarla no toca el dispositivo —solo termina el emparejamiento para que la próxima apertura vuelva a ejecutar la Configuración.\n\n### La configuración cubre ambos quioscos\n\nEl mismo emparejamiento cubre ambas pantallas de quiosco. El **quiosco de reloj** ejecuta la configuración directamente. La **pantalla de taller principal** también necesita una terminal y un equipo emparejados para mostrar los trabajadores y trabajos correctos. Empareje el dispositivo una vez y ambas estarán listas para la planta.",
       "sections": []
     }
   },
@@ -795,7 +795,7 @@
     "title": "Usar el Quiosco de Reloj",
     "summary": "El quiosco dedicado de fichaje de entrada/salida: el panel del equipo, el flujo de doble escaneo (credencial o código de barras de trabajo en cualquier orden), la entrada de PIN, el respaldo de inicio de sesión manual y el cierre de sesión automático efímero.",
     "contentJson": {
-      "body": "## Usar el Quiosco de Reloj\n\nEl Quiosco de Reloj en `/display/shop-floor/clock` es una estación enfocada y a pantalla completa para fichar entrada y salida. Es más simple que la pantalla de taller principal —sin cuadrícula de tarjetas de trabajador, sin arrastrar y soltar— y está construido en torno a un único campo de escaneo enfocado para que un lector de credenciales (o relé RFID) impulse todo el flujo. Una vez que un dispositivo está emparejado (consulte 'Configurar un Quiosco de Taller'), el quiosco se abre directamente en el panel de su equipo.\n\n### El panel del equipo\n\nEl encabezado muestra el equipo del quiosco (un punto de color + nombre del equipo), un reloj y una fecha en vivo, y una barra de búsqueda del quiosco. Una franja de KPI en la parte superior da una imagen del equipo de un vistazo: cuántos trabajadores están Trabajando, En descanso y Fuera, además de Trabajos Activos, Hechos Hoy y un recuento de Atrasados (mostrado solo cuando hay al menos un trabajo atrasado). Debajo, el panel enumera a los trabajadores del equipo agrupados por estado —trabajando, en descanso y fichados de salida— y una lista de los trabajos activos del equipo. El panel se actualiza solo cada 15 segundos.\n\n### El flujo de doble escaneo\n\nLa característica distintiva del quiosco de reloj es que acepta **dos tipos de escaneo, en cualquier orden**. En la parte inferior del panel hay un campo de escaneo siempre enfocado. Cuando se escanea algo, el quiosco lo identifica:\n\n- **Credencial de empleado** → va directo a la pantalla de PIN.\n- **Código de barras de trabajo** → el quiosco muestra el trabajo escaneado (número, título, etapa) y solicita 'Escanee su credencial para continuar'. Esto permite a un trabajador escanear primero el trabajo en el que está a punto de trabajar, y luego su credencial —el evento de reloj se vincula a ese trabajo. El orden de escaneo no importa: credencial-luego-trabajo o trabajo-luego-credencial, ambos funcionan.\n- **No reconocido** → un mensaje 'escaneo no reconocido' en el panel.\n\nSi la llamada de identificación falla por cualquier motivo, el quiosco recurre a tratar el escaneo como una credencial de empleado y muestra la pantalla de PIN de todos modos, de modo que un trabajador nunca se ve bloqueado para fichar entrada.\n\n### Entrada de PIN\n\nDespués de reconocer una credencial, el trabajador introduce su PIN numérico (mínimo 4 dígitos, hasta 8). Cualquier trabajo que haya escaneado primero se muestra en la tarjeta de PIN como recordatorio. Enviar realiza un inicio de sesión por escaneo: credencial + PIN. Una credencial/PIN incorrectos muestran 'Credencial o PIN no válidos' y le permiten reintentar; **Atrás** vuelve al panel.\n\n### Respaldo de inicio de sesión manual\n\nAlgunas situaciones no tienen una credencial que funcione —un nuevo empleado cuya tarjeta no se ha impreso, una credencial dañada, un visitante cubriendo un turno. El botón **Fichar Entrada Manualmente** abre un inicio de sesión con correo electrónico + contraseña. Este es el inicio de sesión de credenciales estándar (no el PIN del quiosco), y lleva al trabajador a la misma pantalla de acción de reloj que un escaneo exitoso. Las credenciales incorrectas muestran 'Credenciales no válidas'.\n\n### La pantalla de acción de reloj\n\nUna vez autenticado (por escaneo+PIN o inicio de sesión manual), el trabajador ve las acciones de reloj disponibles. Los botones se generan a partir de la configuración del tipo de evento de reloj según el estado actual de cada trabajador —Fichar Entrada cuando están fuera, Fichar Salida / Descanso / Almuerzo cuando están dentro, además de cualquier tipo de evento personalizado que defina su instalación. Cada botón lleva su propio icono y color. Si se escaneó un trabajo en el flujo de doble escaneo, se muestra como una franja para que el trabajador pueda confirmar que está fichando contra el trabajo correcto. Tocar una acción registra el evento de reloj.\n\n### Autenticación efímera y cierre de sesión automático\n\nComo la pantalla principal, el quiosco de reloj usa autenticación **efímera** —no hay una sesión de inicio de sesión persistente. En el momento en que se completa una acción de reloj, el quiosco borra la sesión, actualiza los datos y vuelve al panel del equipo, listo para la siguiente persona. Un temporizador de inactividad de 30 segundos también cierra automáticamente la sesión de un trabajador que se aleja a mitad del flujo (cualquier pulsación de botón lo reinicia), de modo que el quiosco nunca queda desbloqueado en la cuenta de alguien. Cancelar desde las pantallas de PIN, de trabajo escaneado o de inicio de sesión manual también borra el estado y vuelve al panel.",
+      "body": "## Usar el Quiosco de Reloj\n\nEl Quiosco de Reloj es una estación enfocada y a pantalla completa para fichar entrada y salida. Es más simple que la pantalla de taller principal —sin tarjetas de trabajador, sin arrastrar y soltar— y está construido en torno a un solo cuadro de escaneo, de modo que un lector de credenciales impulsa todo. Una vez que el dispositivo está emparejado (consulte 'Configurar un Quiosco de Taller'), el quiosco se abre directamente en el panel de su equipo.\n\n### El panel del equipo\n\nEl encabezado muestra el equipo del quiosco (un punto de color y el nombre del equipo), un reloj y una fecha en vivo, y un cuadro de búsqueda. Una franja en la parte superior da una imagen del equipo de un vistazo: cuántos trabajadores están trabajando, en descanso y fuera, además de los trabajos activos, los hechos hoy y un recuento de atrasados (mostrado solo cuando hay algo atrasado). Debajo, el panel enumera a los trabajadores del equipo agrupados por estado —trabajando, en descanso y fichados de salida— y los trabajos activos del equipo. Se actualiza solo cada pocos segundos.\n\n### Escanee una credencial o un trabajo\n\nLo que distingue al quiosco de reloj es que acepta **dos tipos de escaneo, en cualquier orden**. En la parte inferior del panel hay un cuadro de escaneo siempre listo. Cuando escanea algo, el quiosco lo resuelve:\n\n- **Una credencial de trabajador** → va directo a la pantalla de PIN.\n- **Un código de barras de trabajo** → el quiosco muestra el trabajo (número, título, etapa) y dice 'Escanee su credencial para continuar'. Así un trabajador puede escanear primero el trabajo en el que está a punto de trabajar, y luego su credencial —el fichaje se vincula a ese trabajo. El orden no importa: credencial-luego-trabajo o trabajo-luego-credencial, ambos funcionan.\n- **Algo que no puede leer** → un mensaje 'escaneo no reconocido' en el panel.\n\nSi el quiosco no puede saber qué es un escaneo, lo trata como una credencial y muestra la pantalla de PIN de todos modos, de modo que un trabajador nunca queda atascado.\n\n### Entrada de PIN\n\nDespués de reconocer una credencial, el trabajador escribe su PIN numérico (al menos 4 dígitos, hasta 8). Cualquier trabajo que haya escaneado primero se muestra en la tarjeta de PIN como recordatorio. Enviar lo inicia con credencial y PIN. Una credencial o PIN incorrectos muestran 'Credencial o PIN no válidos' y le permiten reintentar; **Atrás** vuelve al panel.\n\n### Inicio de sesión manual\n\nA veces no hay una credencial que funcione —un nuevo empleado cuya tarjeta no se ha impreso, una credencial dañada, un visitante cubriendo un turno. El botón **Fichar Entrada Manualmente** abre un inicio de sesión con correo electrónico y contraseña. Este usa la contraseña habitual (no el PIN del quiosco) y lleva al trabajador a la misma pantalla de reloj que un buen escaneo. Una contraseña incorrecta muestra 'Credenciales no válidas'.\n\n### La pantalla de reloj\n\nUna vez que ha iniciado sesión (por escaneo y PIN o por inicio de sesión manual), el trabajador ve los botones de reloj que encajan con su estado —Fichar Entrada cuando está fuera, Fichar Salida, Descanso o Almuerzo cuando está dentro, además de cualquiera personalizado que su sitio configure. Cada botón tiene su propio icono y color. Si se escaneó un trabajo, se muestra como una franja para que el trabajador confirme que está fichando contra el correcto. Tocar un botón registra el fichaje.\n\n### Una acción, y luego sesión cerrada\n\nComo la pantalla principal, el quiosco de reloj lo inicia de a una acción por vez —no hay un inicio de sesión duradero. En el momento en que una acción de reloj se realiza, el quiosco cierra la sesión del trabajador, actualiza y vuelve al panel del equipo para la siguiente persona. Y si alguien se aleja a mitad, un temporizador de 30 segundos cierra su sesión por sí solo (cualquier pulsación de botón lo reinicia), de modo que el quiosco nunca queda abierto en la cuenta de alguien. Salir de las pantallas de PIN, de trabajo escaneado o de inicio de sesión manual hace lo mismo y vuelve al panel.",
       "sections": []
     }
   },

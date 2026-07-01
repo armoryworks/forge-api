@@ -4,7 +4,7 @@
     "title": "Visión general de Gastos",
     "summary": "Qué hace el módulo de Gastos: flujo de envío, flujo de aprobación, seguimiento de estados y revisión del gerente.",
     "contentJson": {
-      "body": "## Visión general de Gastos\n\nEl módulo de Gastos le permite enviar, dar seguimiento y gestionar los gastos de la empresa en una única tabla con búsqueda. Los gerentes pueden aprobar o rechazar los gastos pendientes directamente desde la tabla.\n\n### Flujo de envío\n\nPara enviar un gasto:\n1. Vaya a /expenses.\n2. Haga clic en el botón **Agregar gasto** en el encabezado de la página.\n3. Complete Monto (obligatorio, mínimo $0.01), Fecha (obligatorio) y Categoría (obligatorio —cargada desde los datos de referencia configurados en Admin).\n4. Opcionalmente, agregue una Descripción.\n5. Haga clic en **Enviar**. El gasto entra en estado **Pendiente**.\n\nUna vez enviado, el gasto aparece en la tabla principal para que todos lo vean.\n\n### Flujo de aprobación\n\nLos gerentes y administradores pueden aprobar o rechazar los gastos pendientes directamente en la tabla. Cada fila de gasto pendiente muestra dos botones de acción en línea:\n- **Aprobar** (icono de marca de verificación) — marca el gasto de inmediato como Aprobado (chip verde).\n- **Rechazar** (icono de X) — marca el gasto de inmediato como Rechazado (chip rojo).\n\nEstos botones de acción solo aparecen para los gastos con estado Pendiente.\n\n### Filtrado y búsqueda\n\nEl encabezado de la página incluye:\n- Un campo de **Búsqueda** que filtra por descripción o categoría.\n- Una lista desplegable de filtro de **Estado** con opciones: Todos, Pendiente, Aprobado, Rechazado, SelfApproved, NeedsRevision.\n- Una pantalla de **Monto total** que muestra la suma de los gastos actualmente visibles.\n\n### Estados del gasto\n\n- **Pendiente** (chip de advertencia/amarillo) — En espera de aprobación del gerente.\n- **Aprobado** (chip de éxito/verde) — Revisado y aprobado.\n- **Rechazado** (chip de error/rojo) — Revisado y rechazado.\n- **SelfApproved** (chip de éxito/verde) — Enviado por un gerente con privilegios de aprobación automática.\n\n### Autoguardado de borrador\n\nEl diálogo de gastos admite el autoguardado de borrador. Si cierra el diálogo accidentalmente antes de guardar, los datos de su formulario se conservan en IndexedDB y se restauran cuando vuelve a abrir el diálogo.",
+      "body": "## Visión general de Gastos\n\nEl módulo de Gastos le permite enviar, dar seguimiento y gestionar los gastos de la empresa en una sola tabla con búsqueda. Los gerentes pueden aprobar o rechazar los gastos pendientes directamente desde la tabla.\n\n### Enviar un gasto\n\nPara enviar un gasto:\n1. Vaya a la página de Gastos.\n2. Haga clic en **Agregar gasto** en el encabezado de la página.\n3. Ingrese el Monto (obligatorio, al menos $0.01), la Fecha (obligatorio) y la Categoría (obligatorio —las categorías las configura su administrador).\n4. Agregue una Descripción si lo desea.\n5. Haga clic en **Enviar**. El gasto pasa a **Pendiente**.\n\nUna vez enviado, el gasto aparece en la tabla principal para que todos lo vean.\n\n### Aprobar gastos\n\nLos gerentes y administradores pueden aprobar o rechazar los gastos pendientes directamente en la tabla. Cada fila pendiente muestra dos botones rápidos:\n- **Aprobar** (marca de verificación) — marca el gasto como Aprobado (etiqueta verde).\n- **Rechazar** (X) — marca el gasto como Rechazado (etiqueta roja).\n\nEstos botones solo aparecen en los gastos que aún están Pendientes.\n\n### Filtrado y búsqueda\n\nEl encabezado de la página le ofrece:\n- Una caja de **Búsqueda** que filtra por descripción o categoría.\n- Un menú de **Estado** para mostrar Todos, Pendiente, Aprobado, Rechazado, Autoaprobado o Necesita revisión.\n- Un **Monto total** que suma los gastos que puede ver en ese momento.\n\n### Estados del gasto\n\n- **Pendiente** (etiqueta amarilla) — Esperando que un gerente lo revise.\n- **Aprobado** (etiqueta verde) — Revisado y aprobado.\n- **Rechazado** (etiqueta roja) — Revisado y rechazado.\n- **Autoaprobado** (etiqueta verde) — Enviado por un gerente que puede aprobar sus propios gastos.\n\n### Su trabajo se guarda\n\nSi cierra la ventana de gastos por accidente antes de guardar, lo que ingresó se conserva y se vuelve a completar la próxima vez que la abra.",
       "sections": []
     }
   },
@@ -20,7 +20,7 @@
           "element": ".filters-bar app-input",
           "popover": {
             "title": "Buscar gastos",
-            "description": "Busque en todos los gastos por descripción o categoría. Escriba un término y presione Enter para aplicar el filtro.",
+            "description": "Busque sus gastos por descripción o categoría. Escriba una palabra y presione Enter para filtrar la lista.",
             "side": "bottom"
           }
         },
@@ -28,7 +28,7 @@
           "element": "[data-testid='status-filter']",
           "popover": {
             "title": "Filtro de estado",
-            "description": "Filtre los gastos por estado: Todos, Pendiente (en espera de aprobación), Aprobado, Rechazado, SelfApproved o NeedsRevision. Cada estado tiene un chip con código de color en la tabla.",
+            "description": "Muestre solo los gastos en cierto estado, como Pendiente, Aprobado, Rechazado o Necesita revisión. Cada estado tiene su propia etiqueta de color en la tabla.",
             "side": "bottom"
           }
         },
@@ -36,7 +36,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Tabla de gastos",
-            "description": "Todos los gastos enviados aparecen aquí. Las columnas incluyen Fecha (MM/dd/yyyy), Categoría (chip de color), Descripción, Trabajo (si está vinculado), Enviado por, Monto ($X.XX) y Estado (chip de color). Haga clic en los encabezados de columna para ordenar. Las filas Pendientes muestran acciones en línea de aprobar/rechazar.",
+            "description": "Cada gasto enviado aparece aquí, con detalles como su fecha, categoría, descripción, trabajo vinculado, quién lo envió, monto y estado. Haga clic en un encabezado de columna para ordenar. Las filas Pendientes muestran botones rápidos de aprobar y rechazar.",
             "side": "top"
           }
         },
@@ -44,7 +44,7 @@
           "element": "[data-testid='expense-save-btn'], [data-testid='new-expense-btn'], .action-btn--primary",
           "popover": {
             "title": "Agregar gasto",
-            "description": "Haga clic aquí para enviar un nuevo gasto. Completará Monto (obligatorio), Fecha (obligatorio), Categoría (obligatorio, desde los datos de referencia) y una Descripción opcional. El gasto comienza en estado Pendiente.",
+            "description": "Haga clic aquí para enviar un nuevo gasto. Ingresará el monto, la fecha y la categoría (todos obligatorios), más una descripción opcional. El nuevo gasto comienza como Pendiente.",
             "side": "bottom"
           }
         }
@@ -61,60 +61,60 @@
         {
           "heading": "Campos del diálogo Crear gasto",
           "items": [
-            {"label": "Monto (obligatorio)", "value": "Campo de moneda, mínimo $0.01, prefijo '$'. El monto del gasto en dólares. data-testid: expense-amount"},
-            {"label": "Fecha (obligatorio)", "value": "Selector de fecha. La fecha en que se incurrió en el gasto. Se muestra como MM/dd/yyyy. data-testid: expense-date"},
-            {"label": "Categoría (obligatorio)", "value": "Lista desplegable. Las opciones se cargan desde los datos de referencia (categorías de gastos configuradas en Admin). data-testid: expense-category"},
-            {"label": "Descripción (opcional)", "value": "Área de texto. Descripción libre del gasto. data-testid: expense-description"},
-            {"label": "Botón Enviar", "value": "Deshabilitado cuando el formulario no es válido o el guardado está en curso. Haga clic en el icono de triángulo de advertencia a la izquierda del botón Enviar (deshabilitado) para ver un popover que lista las infracciones. data-testid: expense-save-btn"}
+            {"label": "Monto (obligatorio)", "value": "El monto del gasto en dólares. Debe ser al menos $0.01."},
+            {"label": "Fecha (obligatorio)", "value": "La fecha en que ocurrió el gasto. Se muestra como MM/dd/yyyy."},
+            {"label": "Categoría (obligatorio)", "value": "Elija una categoría del menú. Las categorías las configura su administrador."},
+            {"label": "Descripción (opcional)", "value": "Una nota breve sobre para qué fue el gasto."},
+            {"label": "Botón Enviar", "value": "Permanece atenuado hasta que el formulario esté completo. Si no se activa, haga clic en el triángulo de advertencia junto a él para ver qué falta."}
           ]
         },
         {
           "heading": "Estados del gasto",
           "items": [
-            {"label": "Pendiente (chip de advertencia/amarillo)", "value": "El gasto se ha enviado y está en espera de aprobación del gerente. Estado predeterminado para los gastos nuevos."},
-            {"label": "Aprobado (chip de éxito/verde)", "value": "El gasto ha sido revisado y aprobado por un gerente."},
-            {"label": "Rechazado (chip de error/rojo)", "value": "El gasto ha sido revisado y rechazado por un gerente."},
-            {"label": "SelfApproved (chip de éxito/verde)", "value": "El gasto fue enviado por un gerente que lo aprobó automáticamente. Mismo chip verde que Aprobado."}
+            {"label": "Pendiente (etiqueta amarilla)", "value": "Enviado y esperando que un gerente lo revise. Aquí es donde comienzan los gastos nuevos."},
+            {"label": "Aprobado (etiqueta verde)", "value": "Revisado y aprobado por un gerente."},
+            {"label": "Rechazado (etiqueta roja)", "value": "Revisado y rechazado por un gerente."},
+            {"label": "Autoaprobado (etiqueta verde)", "value": "Enviado por un gerente que puede aprobar sus propios gastos. Muestra la misma etiqueta verde que Aprobado."}
           ]
         },
         {
           "heading": "Columnas de la tabla",
           "items": [
-            {"label": "Fecha", "value": "Ordenable. Fecha del gasto con formato MM/dd/yyyy."},
-            {"label": "Categoría", "value": "Ordenable. Se muestra como un chip de color."},
-            {"label": "Descripción", "value": "Ordenable. Descripción de texto libre."},
-            {"label": "Trabajo", "value": "Ordenable. Número del trabajo vinculado o '—' si no está vinculado a un trabajo."},
-            {"label": "Enviado por", "value": "Ordenable. Nombre del usuario que envió el gasto."},
-            {"label": "Monto", "value": "Ordenable. Con formato $X.XX, alineado a la derecha."},
-            {"label": "Estado", "value": "Ordenable, filtrable (enum). Chip con código de color: Pendiente (amarillo), Aprobado (verde), Rechazado (rojo), SelfApproved (verde)."},
-            {"label": "Acciones", "value": "Botones en línea para aprobar (marca de verificación) y rechazar (X). Solo visibles para los gastos Pendientes."}
+            {"label": "Fecha", "value": "La fecha del gasto, en formato MM/dd/yyyy. Haga clic para ordenar."},
+            {"label": "Categoría", "value": "La categoría del gasto, como etiqueta de color. Haga clic para ordenar."},
+            {"label": "Descripción", "value": "La nota que describe el gasto. Haga clic para ordenar."},
+            {"label": "Trabajo", "value": "El número del trabajo vinculado, o un guion si no está ligado a un trabajo. Haga clic para ordenar."},
+            {"label": "Enviado por", "value": "Quién envió el gasto. Haga clic para ordenar."},
+            {"label": "Monto", "value": "El monto en dólares. Haga clic para ordenar."},
+            {"label": "Estado", "value": "Una etiqueta de color que muestra el estado: Pendiente (amarillo), Aprobado (verde), Rechazado (rojo), Autoaprobado (verde). Ordene o filtre por él."},
+            {"label": "Acciones", "value": "Botones rápidos para aprobar (marca de verificación) y rechazar (X). Solo se muestran en los gastos Pendientes."}
           ]
         },
         {
           "heading": "Controles del encabezado de la página",
           "items": [
-            {"label": "Búsqueda", "value": "Campo de texto. Filtra los gastos por descripción o categoría. Presione Enter para aplicar."},
-            {"label": "Filtro de estado", "value": "Lista desplegable: Todos, Pendiente, Aprobado, Rechazado, SelfApproved, NeedsRevision. data-testid: status-filter"},
-            {"label": "Monto total", "value": "Pantalla de solo lectura que muestra la suma de todos los gastos actualmente visibles (filtrados)."},
-            {"label": "Botón Agregar gasto", "value": "Abre el diálogo Crear gasto. data-testid: new-expense-btn"}
+            {"label": "Búsqueda", "value": "Filtra los gastos por descripción o categoría. Presione Enter para aplicar."},
+            {"label": "Filtro de estado", "value": "Un menú para mostrar solo un estado: Todos, Pendiente, Aprobado, Rechazado, Autoaprobado o Necesita revisión."},
+            {"label": "Monto total", "value": "Suma los gastos que puede ver en ese momento (después de cualquier búsqueda o filtro)."},
+            {"label": "Botón Agregar gasto", "value": "Abre la ventana para crear un nuevo gasto."}
           ]
         },
         {
           "heading": "Acciones de aprobación en línea",
           "items": [
-            {"label": "Aprobar (icono de marca de verificación)", "value": "Botón de icono verde (icon-btn--success). Aprueba el gasto de inmediato. Solo visible para los gastos Pendientes. Detiene la propagación del clic para que no se abra el detalle."},
-            {"label": "Rechazar (icono de X)", "value": "Botón de icono rojo (icon-btn--danger). Rechaza el gasto de inmediato. Solo visible para los gastos Pendientes."}
+            {"label": "Aprobar (marca de verificación)", "value": "Un botón verde que aprueba el gasto de inmediato. Solo se muestra en los gastos Pendientes."},
+            {"label": "Rechazar (X)", "value": "Un botón rojo que rechaza el gasto de inmediato. Solo se muestra en los gastos Pendientes."}
           ]
         },
         {
           "heading": "Reglas de validación",
           "items": [
-            {"label": "Monto", "value": "Obligatorio. Debe ser un número >= $0.01."},
+            {"label": "Monto", "value": "Obligatorio. Debe ser al menos $0.01."},
             {"label": "Fecha", "value": "Obligatorio. Debe ser una fecha válida."},
-            {"label": "Categoría", "value": "Obligatorio. Debe seleccionar de las opciones de datos de referencia (configuradas en Admin → Datos de referencia)."},
-            {"label": "Descripción", "value": "Opcional. Sin restricción de longitud."},
-            {"label": "Popover del botón de envío", "value": "Cuando el formulario no es válido, haga clic en el icono de triángulo de advertencia a la izquierda del botón Guardar (deshabilitado) para ver un popover de validación que lista qué campos necesitan atención."},
-            {"label": "Autoguardado de borrador", "value": "Los datos del formulario se guardan en IndexedDB cada 2.5 segundos mientras se edita. Se recuperan en la siguiente apertura del diálogo si no se guardaron."}
+            {"label": "Categoría", "value": "Obligatorio. Elija una de las categorías que configuró su administrador."},
+            {"label": "Descripción", "value": "Opcional. Cualquier longitud está bien."},
+            {"label": "Por qué Enviar está atenuado", "value": "Cuando falta algo, haga clic en el triángulo de advertencia junto al botón Enviar para ver qué campos aún necesitan atención."},
+            {"label": "Su trabajo se guarda", "value": "A medida que escribe, lo que ingresa se guarda automáticamente y se vuelve a completar si reabre la ventana antes de enviar."}
           ]
         }
       ]
@@ -139,7 +139,7 @@
             {"id": "c", "text": "Solo Monto es obligatorio —todos los demás campos son opcionales"},
             {"id": "d", "text": "Monto, Fecha, Categoría, Descripción y Trabajo son todos obligatorios"}
           ],
-          "explanation": "El diálogo Crear gasto requiere tres campos: Monto (mínimo $0.01), Fecha (selector de fecha) y Categoría (desde los datos de referencia). La Descripción es opcional."
+          "explanation": "La ventana Crear gasto requiere tres campos: Monto (al menos $0.01), Fecha y Categoría (de las categorías que configuró su administrador). La Descripción es opcional."
         },
         {
           "id": "ex2",
@@ -148,9 +148,9 @@
             {"id": "a", "text": "Borrador —debe finalizarse antes del envío"},
             {"id": "b", "text": "Aprobado —los gastos se aprueban automáticamente de forma predeterminada"},
             {"id": "c", "text": "Pendiente —en espera de la aprobación del gerente", "isCorrect": true},
-            {"id": "d", "text": "SelfApproved —los gastos propios del remitente se aprueban automáticamente"}
+            {"id": "d", "text": "Autoaprobado —los gastos propios del remitente se aprueban automáticamente"}
           ],
-          "explanation": "Todos los gastos recién enviados comienzan en estado Pendiente (chip amarillo) y esperan la revisión del gerente."
+          "explanation": "Todos los gastos recién enviados comienzan como Pendiente (etiqueta amarilla) y esperan que un gerente los revise."
         },
         {
           "id": "ex3",
@@ -158,10 +158,10 @@
           "options": [
             {"id": "a", "text": "Hacer clic en el icono de marca de verificación en la fila del gasto para aprobarlo de inmediato", "isCorrect": true},
             {"id": "b", "text": "Seleccionar el gasto y hacer clic en un botón masivo Aprobar todos"},
-            {"id": "c", "text": "Abrir el detalle del gasto y cambiar la lista desplegable de estado a Aprobado"},
+            {"id": "c", "text": "Abrir el detalle del gasto y cambiar el menú de estado a Aprobado"},
             {"id": "d", "text": "Hacer clic derecho en la fila y seleccionar Aprobar del menú contextual"}
           ],
-          "explanation": "Cada fila de gasto pendiente tiene dos iconos de acción en línea: una marca de verificación (aprobar) y una X (rechazar). Al hacer clic en la marca de verificación, ese gasto se aprueba de inmediato."
+          "explanation": "Cada fila de gasto pendiente tiene dos botones rápidos: una marca de verificación (aprobar) y una X (rechazar). Al hacer clic en la marca de verificación, ese gasto se aprueba de inmediato."
         },
         {
           "id": "ex4",
@@ -169,54 +169,54 @@
           "options": [
             {"id": "a", "text": "Están codificadas de forma fija en la aplicación y no se pueden cambiar"},
             {"id": "b", "text": "Cada usuario define sus propias categorías en la configuración de su perfil"},
-            {"id": "c", "text": "Se cargan desde los datos de referencia configurados por un administrador", "isCorrect": true},
+            {"id": "c", "text": "Las configura un administrador en la sección Admin", "isCorrect": true},
             {"id": "d", "text": "Se importan de QuickBooks y no se pueden modificar localmente"}
           ],
-          "explanation": "Las categorías de gastos se gestionan a través de los datos de referencia en la sección Admin. Un administrador puede agregar, editar o eliminar las categorías que aparecen en la lista desplegable de Categoría."
+          "explanation": "Las categorías de gastos se configuran en la sección Admin. Un administrador puede agregar, editar o eliminar las categorías que aparecen en el menú de Categoría."
         },
         {
           "id": "ex5",
-          "text": "¿Qué muestra la pantalla de Monto total en el encabezado de la página?",
+          "text": "¿Qué muestra el Monto total en el encabezado de la página?",
           "options": [
             {"id": "a", "text": "El total de todos los gastos enviados alguna vez en el sistema"},
             {"id": "b", "text": "La suma de los gastos actualmente visibles (filtrados)", "isCorrect": true},
             {"id": "c", "text": "El total de solo los gastos Aprobados"},
             {"id": "d", "text": "El presupuesto mensual restante del usuario actual"}
           ],
-          "explanation": "La pantalla de Monto total en el encabezado de la página muestra dinámicamente la suma de todos los gastos actualmente visibles después de aplicar los filtros de búsqueda y estado."
+          "explanation": "El Monto total en el encabezado de la página suma todos los gastos que puede ver en ese momento, después de aplicar cualquier búsqueda o filtro de estado."
         },
         {
           "id": "ex6",
-          "text": "Cierra el diálogo de gastos accidentalmente antes de guardar. ¿Qué le sucede a los datos de su formulario?",
+          "text": "Cierra la ventana de gastos accidentalmente antes de guardar. ¿Qué le sucede a lo que ingresó?",
           "options": [
-            {"id": "a", "text": "Se pierden —debe volver a ingresar todo desde cero"},
-            {"id": "b", "text": "Un diálogo de confirmación pregunta si quiere guardar un borrador antes de cerrar"},
-            {"id": "c", "text": "El autoguardado de borrador conserva los datos en IndexedDB y los restaura cuando vuelve a abrir el diálogo", "isCorrect": true},
+            {"id": "a", "text": "Se pierde —debe volver a ingresar todo desde cero"},
+            {"id": "b", "text": "Una ventana emergente pregunta si quiere guardar un borrador antes de cerrar"},
+            {"id": "c", "text": "Lo que ingresó se guarda automáticamente y se vuelve a completar cuando reabre la ventana", "isCorrect": true},
             {"id": "d", "text": "Los datos se guardan en el servidor como un gasto en estado Borrador"}
           ],
-          "explanation": "El diálogo de gastos usa el autoguardado de borrador (con rebote cada 2.5 segundos). Los datos del formulario se almacenan en IndexedDB y se recuperan automáticamente cuando vuelve a abrir el diálogo."
+          "explanation": "La ventana de gastos guarda su trabajo a medida que escribe, así que si la cierra por accidente, lo que ingresó se vuelve a completar la próxima vez que la abra."
         },
         {
           "id": "ex7",
           "text": "¿Cómo puede filtrar la tabla de gastos para ver solo los gastos rechazados?",
           "options": [
-            {"id": "a", "text": "Escribir 'rechazado' en el campo de búsqueda"},
-            {"id": "b", "text": "Usar la lista desplegable del filtro de Estado y seleccionar 'Rechazado'", "isCorrect": true},
+            {"id": "a", "text": "Escribir 'rechazado' en la caja de búsqueda"},
+            {"id": "b", "text": "Usar el menú del filtro de Estado y elegir 'Rechazado'", "isCorrect": true},
             {"id": "c", "text": "Hacer clic en el encabezado de la columna Rechazado para ordenar por rechazos"},
-            {"id": "d", "text": "Navegar a una página separada de Gastos rechazados"}
+            {"id": "d", "text": "Ir a una página separada de Gastos rechazados"}
           ],
-          "explanation": "La lista desplegable del filtro de Estado en el encabezado de la página le permite seleccionar un estado específico: Todos, Pendiente, Aprobado, Rechazado, SelfApproved o NeedsRevision. Al seleccionar 'Rechazado' se muestran solo los gastos rechazados."
+          "explanation": "El menú del filtro de Estado en el encabezado de la página le permite elegir un solo estado: Todos, Pendiente, Aprobado, Rechazado, Autoaprobado o Necesita revisión. Al elegir 'Rechazado' se muestran solo los gastos rechazados."
         },
         {
           "id": "ex8",
-          "text": "En la Cola de aprobación de gastos, un gerente abre un gasto y quiere rechazarlo (o devolverlo para cambios). ¿Qué exige el diálogo de revisión?",
+          "text": "En la Cola de aprobación de gastos, un gerente abre un gasto y quiere rechazarlo (o devolverlo para cambios). ¿Qué exige la ventana de revisión?",
           "options": [
             {"id": "a", "text": "Nada adicional —Rechazar es un solo clic sin nota"},
             {"id": "b", "text": "Una nota de revisión de al menos 10 caracteres antes de poder Rechazar o Solicitar revisión", "isCorrect": true},
             {"id": "c", "text": "Se debe adjuntar un recibo antes de poder rechazar el gasto"},
             {"id": "d", "text": "El gasto se debe eliminar y el remitente lo vuelve a crear desde cero"}
           ],
-          "explanation": "Al abrir un gasto en la Cola de aprobación se muestra un diálogo de revisión con tres resultados: Aprobar, Solicitar revisión y Rechazar. Tanto Rechazar como Solicitar revisión exigen una nota de revisión de al menos 10 caracteres; solo Aprobar puede continuar sin ella. Rechazado muestra un chip rojo, mientras que Solicitar revisión deja el gasto en Necesita revisión para que el remitente lo revise y lo reenvíe."
+          "explanation": "Al abrir un gasto en la Cola de aprobación se muestra una ventana de revisión con tres opciones: Aprobar, Solicitar revisión y Rechazar. Tanto Rechazar como Solicitar revisión exigen una nota de revisión de al menos 10 caracteres; solo Aprobar puede continuar sin ella. Rechazado muestra una etiqueta roja, mientras que Solicitar revisión deja el gasto en Necesita revisión para que el remitente lo corrija y lo reenvíe."
         },
         {
           "id": "ex9",
@@ -227,18 +227,18 @@
             {"id": "c", "text": "Descripción y Categoría", "isCorrect": true},
             {"id": "d", "text": "Todas las columnas visibles de la tabla, incluidas Fecha y Estado"}
           ],
-          "explanation": "El campo de búsqueda filtra solo por descripción y categoría. No busca por nombre del remitente, fecha, monto ni estado —use la lista desplegable de Estado para filtrar por estado."
+          "explanation": "La caja de búsqueda filtra solo por descripción y categoría. No busca por nombre del remitente, fecha, monto ni estado —use el menú de Estado para filtrar por estado."
         },
         {
           "id": "ex10",
-          "text": "¿Qué significa el estado 'SelfApproved' en un gasto?",
+          "text": "¿Qué significa el estado 'Autoaprobado' en un gasto?",
           "options": [
             {"id": "a", "text": "El gasto fue aprobado por el sistema automáticamente según reglas"},
-            {"id": "b", "text": "El gasto fue enviado por un gerente que tiene privilegios de aprobación automática", "isCorrect": true},
+            {"id": "b", "text": "El gasto fue enviado por un gerente que puede aprobar sus propios gastos", "isCorrect": true},
             {"id": "c", "text": "El remitente hizo clic en un botón Aprobar en su propio gasto"},
             {"id": "d", "text": "El gasto estaba por debajo de un monto umbral y se aprobó automáticamente"}
           ],
-          "explanation": "SelfApproved indica que el gasto fue enviado por un gerente con capacidad de aprobación automática. Se muestra con un chip verde, igual que Aprobado."
+          "explanation": "Autoaprobado significa que el gasto fue enviado por un gerente que puede aprobar sus propios gastos. Se muestra con una etiqueta verde, igual que Aprobado."
         },
         {
           "id": "ex11",
@@ -249,51 +249,51 @@
             {"id": "c", "text": "$1.00 —no se admiten gastos por debajo de un dólar"},
             {"id": "d", "text": "No hay mínimo —cualquier número positivo funciona"}
           ],
-          "explanation": "El campo Monto tiene un validador de mínimo de 0.01. No puede enviar un gasto por $0.00 ni por un monto negativo."
+          "explanation": "El Monto debe ser al menos $0.01. No puede enviar un gasto por $0.00 ni por un monto negativo."
         },
         {
           "id": "ex12",
-          "text": "¿Cuál de las siguientes NO es una columna en la tabla de datos de Gastos?",
+          "text": "¿Cuál de las siguientes NO es una columna en la tabla de Gastos?",
           "options": [
             {"id": "a", "text": "Categoría"},
             {"id": "b", "text": "Enviado por"},
             {"id": "c", "text": "Proveedor", "isCorrect": true},
             {"id": "d", "text": "Trabajo"}
           ],
-          "explanation": "Las columnas de la tabla de Gastos son: Fecha, Categoría, Descripción, Trabajo, Enviado por, Monto, Estado y Acciones. No hay columna de Proveedor."
+          "explanation": "Las columnas de la tabla de Gastos son: Fecha, Categoría, Descripción, Trabajo, Enviado por, Monto, Estado y Acciones. No hay columna de Proveedor. (Proveedor es un campo dentro de la ventana del gasto, no una columna de la tabla.)"
         },
         {
           "id": "ex13",
-          "text": "¿Cuándo son visibles los botones de acción de aprobar/rechazar en línea en una fila de gasto?",
+          "text": "¿Cuándo se muestran los botones rápidos de aprobar/rechazar en una fila de gasto?",
           "options": [
             {"id": "a", "text": "Siempre —en cada gasto sin importar su estado"},
             {"id": "b", "text": "Solo para los gastos con estado Pendiente", "isCorrect": true},
             {"id": "c", "text": "Solo para los gastos enviados por otros usuarios"},
             {"id": "d", "text": "Solo para los gastos de más de $100"}
           ],
-          "explanation": "Los botones de acción en línea de aprobar (marca de verificación) y rechazar (X) solo aparecen para los gastos que están en estado Pendiente. Una vez aprobados o rechazados, los botones se ocultan."
+          "explanation": "Los botones rápidos de aprobar (marca de verificación) y rechazar (X) solo aparecen en los gastos que aún están Pendientes. Una vez aprobados o rechazados, los botones se ocultan."
         },
         {
           "id": "ex14",
-          "text": "¿De qué color es el chip que muestra cada estado de gasto?",
+          "text": "¿De qué color es la etiqueta que muestra cada estado de gasto?",
           "options": [
-            {"id": "a", "text": "Pendiente: azul, Aprobado: verde, Rechazado: rojo, SelfApproved: gris"},
-            {"id": "b", "text": "Pendiente: amarillo, Aprobado: verde, Rechazado: rojo, SelfApproved: verde", "isCorrect": true},
-            {"id": "c", "text": "Pendiente: gris, Aprobado: azul, Rechazado: amarillo, SelfApproved: verde"},
-            {"id": "d", "text": "Todos los estados usan el mismo chip gris neutro"}
+            {"id": "a", "text": "Pendiente: azul, Aprobado: verde, Rechazado: rojo, Autoaprobado: gris"},
+            {"id": "b", "text": "Pendiente: amarillo, Aprobado: verde, Rechazado: rojo, Autoaprobado: verde", "isCorrect": true},
+            {"id": "c", "text": "Pendiente: gris, Aprobado: azul, Rechazado: amarillo, Autoaprobado: verde"},
+            {"id": "d", "text": "Todos los estados usan la misma etiqueta gris"}
           ],
-          "explanation": "Pendiente usa un chip de advertencia/amarillo, Aprobado y SelfApproved usan ambos chips de éxito/verde, y Rechazado usa un chip de error/rojo."
+          "explanation": "Pendiente muestra una etiqueta amarilla, Aprobado y Autoaprobado muestran ambos etiquetas verdes, y Rechazado muestra una etiqueta roja."
         },
         {
           "id": "ex15",
-          "text": "El botón Enviar en el diálogo Crear gasto está deshabilitado. ¿Cómo averigua qué campos todavía necesitan atención?",
+          "text": "El botón Enviar en la ventana Crear gasto está atenuado. ¿Cómo averigua qué campos todavía necesitan atención?",
           "options": [
             {"id": "a", "text": "No sucede nada —el botón solo está atenuado"},
             {"id": "b", "text": "Una información sobre herramientas dice 'Complete todos los campos'"},
-            {"id": "c", "text": "Haga clic en el icono de triángulo de advertencia a la izquierda del botón Enviar para abrir un popover que lista qué campos específicos necesitan atención", "isCorrect": true},
-            {"id": "d", "text": "Los campos no válidos parpadean en rojo para llamar su atención"}
+            {"id": "c", "text": "Haga clic en el triángulo de advertencia junto al botón Enviar para ver qué campos específicos todavía necesitan atención", "isCorrect": true},
+            {"id": "d", "text": "Los campos vacíos parpadean en rojo para llamar su atención"}
           ],
-          "explanation": "Cuando el formulario no es válido, haga clic en el icono de triángulo de advertencia a la izquierda del botón Guardar/Enviar (deshabilitado) para abrir un popover de validación que lista cada infracción de campo —por ejemplo, 'El monto es obligatorio' o 'La categoría es obligatoria'."
+          "explanation": "Cuando falta algo, haga clic en el triángulo de advertencia junto al botón Enviar atenuado para ver cada campo que todavía necesita atención —por ejemplo, 'El monto es obligatorio' o 'La categoría es obligatoria'."
         }
       ]
     }
@@ -303,7 +303,7 @@
     "title": "Recibos de gastos y gastos liquidados por proveedor",
     "summary": "Adjunte un recibo (y cuándo es obligatorio), además de cómo nombrar a un proveedor enruta el gasto a Cuentas por pagar y se convierte en una factura de proveedor al aprobarse.",
     "contentJson": {
-      "body": "## Recibos y gastos liquidados por proveedor\n\nEl diálogo de gastos tiene dos campos que cambian *cómo* se maneja un gasto más adelante: el **adjunto de recibo** y el selector de **Proveedor**. Este módulo explica ambos.\n\n### Adjuntar un recibo\n\nEn el diálogo Crear/Reenviar gasto, la fila **Recibo** le permite adjuntar comprobante de compra:\n\n1. Haga clic en **Subir recibo**.\n2. Elija una imagen (`image/*`) o un PDF. El archivo se sube de inmediato y la fila cambia para mostrar el nombre del archivo con un icono de clip.\n3. Para reemplazarlo, haga clic en la **X** roja junto al nombre del archivo para quitarlo y luego suba un archivo diferente.\n\nUn recibo se almacena como un adjunto de archivo en el gasto; los revisores pueden abrirlo desde la cola de aprobación al decidir.\n\n### Cuándo se exige un recibo\n\nSu empresa puede activar una **política de recibo obligatorio** en la configuración de gastos. Cuando está activada:\n\n- La etiqueta Recibo muestra un asterisco rojo (**\\***), el mismo marcador de obligatorio que se usa en otros campos requeridos.\n- El botón **Enviar** permanece deshabilitado hasta que se adjunte un recibo —incluso si todos los demás campos son válidos.\n- Al pasar el cursor sobre el botón Enviar deshabilitado se muestra una sugerencia que explica que se requiere un recibo.\n\nAsí que si Enviar no se habilita y todos sus campos parecen completos, verifique si todavía falta un recibo. El bloqueo lo impone la política: cuando la política está desactivada, el recibo es opcional y Enviar no espera por él.\n\n### De bolsillo vs. liquidado por proveedor\n\nCada gasto es de uno de dos tipos, decidido por el campo **Proveedor**:\n\n- **De bolsillo (efectivo)** — deje Proveedor en *Sin proveedor*. Es el valor predeterminado. El gasto representa dinero que un empleado gastó personalmente y espera que se le reembolse. Permanece por completo dentro del módulo de Gastos.\n- **Liquidado por proveedor** — elija un proveedor del menú desplegable **Proveedor**. Esto le indica al sistema que el dinero se le debe a ese proveedor (la empresa aún no ha pagado). Aparece una sugerencia debajo del campo que explica la consecuencia.\n\n### Qué hace un gasto liquidado por proveedor al aprobarse\n\nNombrar a un proveedor enruta el gasto a **Cuentas por pagar**. Cuando el gasto se **aprueba**, se *promueve a una factura de proveedor* que se paga a través de Cuentas por pagar —el flujo normal de CxP (facturas de proveedor → pagos a proveedor) toma el control desde ahí.\n\nUna vez que ocurre la promoción, la fila del gasto en la tabla de Gastos muestra un pequeño **chip informativo con el número de factura de proveedor** junto a su estado. Ese chip es un enlace activo: al hacer clic se abre la factura de proveedor vinculada. Así es como se rastrea un gasto aprobado liquidado por proveedor hasta la factura en que se convirtió.\n\nPuntos clave:\n- El campo **Proveedor** es parte del diálogo crear/reenviar —*no* es una columna en la tabla principal de gastos, así que no busque una columna de Proveedor ahí. En su lugar, el vínculo aparece como el chip del número de factura junto al estado.\n- La promoción ocurre al **aprobar**, no al enviar. Un gasto pendiente liquidado por proveedor todavía no tiene factura.\n- Los gastos de bolsillo nunca crean una factura de proveedor —son reembolsos, no cuentas por pagar.\n\n### Guía rápida de decisión\n\n| Gastó dinero… | Campo Proveedor | Qué pasa al aprobarse |\n|---|---|---|\n| Personalmente, espera reembolso | *Sin proveedor* | Sigue siendo un gasto (reembolso) |\n| A cuenta de la empresa, proveedor aún sin pagar | Seleccione el proveedor | Se convierte en factura de proveedor en CxP |",
+      "body": "## Recibos y gastos liquidados por proveedor\n\nLa ventana de gastos tiene dos campos que cambian *cómo* se maneja un gasto más adelante: el **recibo** y el campo **Proveedor**. Este módulo explica ambos.\n\n### Adjuntar un recibo\n\nCuando crea o reenvía un gasto, la fila **Recibo** le permite adjuntar comprobante de compra:\n\n1. Haga clic en **Subir recibo**.\n2. Elija una imagen o un PDF. El archivo se sube de inmediato y la fila muestra el nombre del archivo con un clip.\n3. Para reemplazarlo, haga clic en la **X** roja junto al nombre del archivo para quitarlo y luego suba un archivo diferente.\n\nEl recibo queda adjunto al gasto, para que los revisores puedan abrirlo mientras deciden.\n\n### Cuándo se exige un recibo\n\nSu empresa puede exigir un recibo en cada gasto. Cuando eso está activado:\n\n- La etiqueta Recibo muestra un asterisco rojo (**\\***), la misma marca que se usa en otros campos obligatorios.\n- El botón **Enviar** permanece atenuado hasta que adjunte un recibo —incluso si todo lo demás está completo.\n- Al pasar el cursor sobre el botón Enviar atenuado se muestra una nota que explica que se requiere un recibo.\n\nAsí que si Enviar no se activa y todos los campos parecen completos, verifique si todavía falta un recibo. Cuando su empresa no lo exige, el recibo es opcional y Enviar no espera por él.\n\n### De bolsillo vs. liquidado por proveedor\n\nCada gasto es de uno de dos tipos, según el campo **Proveedor**:\n\n- **De bolsillo (efectivo)** — deje Proveedor en *Sin proveedor*. Es el valor predeterminado. Significa que un empleado pagó de su propio bolsillo y espera que se le reembolse. Permanece por completo dentro de Gastos.\n- **Liquidado por proveedor** — elija un proveedor del menú **Proveedor**. Significa que el dinero se le debe a ese proveedor y la empresa aún no ha pagado. Aparece una nota debajo del campo que explica lo que sucederá.\n\n### Qué hace un gasto liquidado por proveedor al aprobarse\n\nNombrar a un proveedor envía el gasto a **Cuentas por pagar**. Cuando el gasto se **aprueba**, se convierte en una *factura de proveedor* que se paga a través de Cuentas por pagar —desde ahí sigue el camino normal de facturas de proveedor y pagos a proveedor.\n\nDespués de eso, la fila del gasto muestra una pequeña **etiqueta con el número de factura de proveedor** junto a su estado. Al hacer clic en esa etiqueta se abre la factura vinculada. Así es como se rastrea un gasto aprobado liquidado por proveedor hasta la factura en que se convirtió.\n\nBueno saberlo:\n- El campo **Proveedor** está en la ventana crear/reenviar —*no* es una columna en la tabla principal de gastos, así que no busque una columna de Proveedor ahí. En su lugar, el vínculo aparece como la etiqueta del número de factura junto al estado.\n- La factura se crea al **aprobar**, no al enviar. Un gasto pendiente liquidado por proveedor todavía no tiene factura.\n- Los gastos de bolsillo nunca crean una factura de proveedor —son reembolsos, no facturas por pagar.\n\n### Guía rápida de decisión\n\n| Gastó dinero… | Campo Proveedor | Qué pasa al aprobarse |\n|---|---|---|\n| Personalmente, espera que le reembolsen | *Sin proveedor* | Sigue siendo un gasto (reembolso) |\n| A cuenta de la empresa, proveedor aún sin pagar | Seleccione el proveedor | Se convierte en factura de proveedor en CxP |",
       "sections": []
     }
   },
@@ -319,7 +319,7 @@
           "element": "app-page-layout",
           "popover": {
             "title": "Cola de aprobación de gastos",
-            "description": "Esta cola dedicada en /expenses/approval lista todos los gastos que aún están Pendientes —de todos los remitentes— para que los gerentes puedan revisarlos en un solo lugar en vez de buscar en la tabla principal. Es independiente de los botones de aprobar/rechazar en línea de la lista principal /expenses.",
+            "description": "Esta cola lista todos los gastos que aún están Pendientes, de todos, para que los gerentes puedan revisarlos en un solo lugar en vez de buscar en la tabla principal. Es independiente de los botones rápidos de aprobar y rechazar de la lista principal de Gastos.",
             "side": "bottom"
           }
         },
@@ -327,7 +327,7 @@
           "element": "app-input",
           "popover": {
             "title": "Buscar gastos pendientes",
-            "description": "Acote la cola escribiendo una categoría o descripción y presionando Enter. Aquí solo se muestran gastos Pendientes.",
+            "description": "Acote la cola escribiendo una categoría o descripción y presionando Enter. Aquí solo aparecen gastos Pendientes.",
             "side": "bottom"
           }
         },
@@ -335,7 +335,7 @@
           "element": ".approval-queue__summary",
           "popover": {
             "title": "Conteo y total de pendientes",
-            "description": "El resumen muestra cuántos gastos esperan su decisión y su total combinado en dólares —una lectura rápida de su carga de aprobaciones pendientes.",
+            "description": "Este resumen muestra cuántos gastos esperan su decisión y su total combinado en dólares —una lectura rápida de cuánto le queda por revisar.",
             "side": "left"
           }
         },
@@ -343,7 +343,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Abrir un gasto para revisar",
-            "description": "Haga clic en cualquier fila (o en sus botones de marca/X) para abrir el diálogo de revisión. El diálogo muestra el remitente, fecha, categoría, monto, descripción y el trabajo vinculado, más un campo de Nota de revisión y tres botones de decisión: Aprobar, Solicitar revisión y Rechazar.",
+            "description": "Haga clic en cualquier fila (o en sus botones de marca de verificación/X) para abrir la ventana de revisión. Muestra el remitente, fecha, categoría, monto, descripción y el trabajo vinculado, más un campo de Nota de revisión y tres botones: Aprobar, Solicitar revisión y Rechazar.",
             "side": "top"
           }
         }
@@ -355,7 +355,7 @@
     "title": "Revisión de gastos: Aprobar, Solicitar revisión o Rechazar",
     "summary": "Los tres resultados del diálogo de revisión de gastos y la regla de la nota de 10 caracteres que rige Rechazar y Solicitar revisión.",
     "contentJson": {
-      "body": "## Revisar un gasto\n\nHacer clic en una fila de la Cola de aprobación de gastos (`/expenses/approval`) abre el **diálogo de revisión**. Muestra los detalles de solo lectura del envío —remitente, fecha, categoría, monto, descripción y el trabajo vinculado (cuando lo hay)— encima de un campo **Nota de revisión** y tres botones de decisión.\n\n### Los tres resultados\n\n- **Aprobar** — acepta el gasto. Pasa a Aprobado (chip verde). Si el gasto nombró a un proveedor, la aprobación también lo promueve a una factura de proveedor (vea *Recibos de gastos y gastos liquidados por proveedor*). Aprobar **no** requiere una nota; puede agregar una para dar contexto, pero es opcional.\n- **Solicitar revisión** — devuelve el gasto al remitente sin rechazarlo del todo. El estado pasa a **Necesita revisión** y su nota se convierte en la retroalimentación del revisor que ve el remitente. Use esto cuando el gasto es corregible —categoría equivocada, recibo faltante, un monto que necesita explicación— y prefiere que el remitente lo corrija y lo reenvíe en lugar de empezar de cero.\n- **Rechazar** — declina el gasto del todo (chip rojo). Use esto cuando el gasto no debe reembolsarse en absoluto.\n\n### La regla de la nota de revisión\n\nEl campo **Nota de revisión** rige los dos resultados negativos:\n\n- **Tanto Rechazar como Solicitar revisión requieren una nota de al menos 10 caracteres.** Hasta que la nota alcance los 10 caracteres, ambos botones permanecen deshabilitados y una sugerencia debajo del campo cuenta su progreso hacia el mínimo.\n- **Aprobar no tiene requisito de nota.** Está habilitado sin importar el campo de nota.\n\nEsto es intencional: decirle a un remitente *por qué* se devolvió su gasto es obligatorio, para que pueda corregirlo (Solicitar revisión) o entender la decisión (Rechazar). No es posible un rechazo silencioso.\n\n### Después de decidir\n\nEl diálogo se cierra, la cola se recarga (el gasto que acaba de manejar desaparece de la lista de Pendientes) y un snackbar de confirmación informa el resultado. Un gasto en Necesita revisión reaparece para que el remitente lo edite y lo reenvíe; uno Aprobado o Rechazado es definitivo desde la perspectiva de la cola.\n\n### Quién ve esta cola\n\nLa Cola de aprobación es una superficie para gerentes. Los remitentes regulares usan la lista principal `/expenses` para crear y dar seguimiento a sus propios gastos; la cola es donde los revisores despejan el atraso de pendientes."
+      "body": "## Revisar un gasto\n\nHacer clic en una fila de la Cola de aprobación de gastos abre la **ventana de revisión**. Muestra los detalles del envío —remitente, fecha, categoría, monto, descripción y el trabajo vinculado (cuando lo hay)— encima de un campo **Nota de revisión** y tres botones.\n\n### Las tres opciones\n\n- **Aprobar** — acepta el gasto. Pasa a Aprobado (etiqueta verde). Si el gasto nombró a un proveedor, al aprobarlo también se convierte en una factura de proveedor (vea *Recibos de gastos y gastos liquidados por proveedor*). Aprobar **no** necesita una nota; puede agregar una para dar contexto, pero es opcional.\n- **Solicitar revisión** — devuelve el gasto al remitente sin rechazarlo del todo. El estado pasa a **Necesita revisión** y su nota se convierte en la retroalimentación que ve el remitente. Use esto cuando el gasto es corregible —categoría equivocada, recibo faltante, un monto que necesita explicación— y prefiere que el remitente lo corrija y lo reenvíe en lugar de empezar de cero.\n- **Rechazar** — rechaza el gasto de forma definitiva (etiqueta roja). Use esto cuando el gasto no debe pagarse en absoluto.\n\n### La regla de la nota de revisión\n\nEl campo **Nota de revisión** controla las dos opciones negativas:\n\n- **Tanto Rechazar como Solicitar revisión necesitan una nota de al menos 10 caracteres.** Hasta que la nota sea lo bastante larga, ambos botones permanecen atenuados y una sugerencia debajo del campo cuenta su progreso.\n- **Aprobar no necesita nota.** Está disponible sin importar lo que haya en el campo de nota.\n\nEsto es a propósito: decirle a un remitente *por qué* se devolvió su gasto es obligatorio, para que pueda corregirlo (Solicitar revisión) o entender la decisión (Rechazar). No se puede rechazar uno en silencio.\n\n### Después de decidir\n\nLa ventana se cierra, la cola se actualiza (el gasto que acaba de manejar desaparece de la lista de Pendientes) y un mensaje breve confirma lo que pasó. Un gasto en Necesita revisión vuelve para que el remitente lo edite y lo reenvíe; uno Aprobado o Rechazado es definitivo en lo que respecta a la cola.\n\n### Quién ve esta cola\n\nLa Cola de aprobación es para gerentes. Los remitentes regulares usan la lista principal de Gastos para crear y dar seguimiento a sus propios gastos; la cola es donde los revisores despejan el atraso de pendientes."
     }
   },
   {
@@ -370,7 +370,7 @@
           "element": "[data-testid='status-filter']",
           "popover": {
             "title": "Encontrar gastos devueltos",
-            "description": "Cuando un revisor devuelve un gasto, recibe el estado Necesita revisión (chip amarillo). Use este filtro de Estado y elija 'Necesita revisión' para ver solo los que esperan que usted corrija.",
+            "description": "Cuando un revisor devuelve un gasto, recibe el estado Necesita revisión (etiqueta amarilla). Abra este filtro de Estado y elija 'Necesita revisión' para ver solo los que esperan que usted corrija.",
             "side": "bottom"
           }
         },
@@ -378,7 +378,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "La acción de reenviar",
-            "description": "Una fila en Necesita revisión muestra una acción de lápiz (editar) en el extremo derecho de la fila. Al hacer clic se reabre el gasto en un diálogo titulado 'Reenviar gasto' —precargado con todo lo que ingresó originalmente.",
+            "description": "Una fila en Necesita revisión muestra un botón de lápiz (editar) en el extremo derecho. Haga clic para reabrir el gasto en una ventana 'Reenviar gasto', ya completada con todo lo que ingresó antes.",
             "side": "top"
           }
         },
@@ -386,7 +386,7 @@
           "element": "[data-testid='new-expense-btn']",
           "popover": {
             "title": "O crear un gasto nuevo",
-            "description": "Este mismo diálogo se usa para crear gastos nuevos. La diferencia al reenviar es que el diálogo muestra la nota de retroalimentación del revisor en la parte superior para que sepa exactamente qué cambiar.",
+            "description": "Esta misma ventana se usa para crear gastos nuevos. Al reenviar, también muestra la nota de retroalimentación del revisor en la parte superior para que sepa exactamente qué cambiar.",
             "side": "bottom"
           }
         }
@@ -398,7 +398,7 @@
     "title": "Gastos recurrentes y próximos",
     "summary": "Configure plantillas de gastos recurrentes que se generan automáticamente según un calendario, y lea la previsión de 90 días de Próximos.",
     "contentJson": {
-      "body": "## Gastos recurrentes y próximos\n\nEl libro de gastos en `/expenses/upcoming` maneja costos predecibles y repetitivos —suscripciones, arrendamientos, seguros, servicios— para que no tenga que acordarse de registrarlos a mano en cada ciclo. Tiene dos pestañas: **Próximos** y **Recurrentes**.\n\n### Pestaña Recurrentes — las plantillas\n\nUn **gasto recurrente** es una plantilla que genera gastos reales automáticamente según un calendario. Haga clic en **Nuevo recurrente** para crear uno:\n\n- **Monto** (obligatorio) y **Frecuencia** (obligatorio) — Semanal, Quincenal, Mensual, Trimestral o Anual.\n- **Categoría** (obligatorio) y **Clasificación** (obligatorio). La clasificación es la taxonomía de costos recurrentes (Suscripción, Arrendamiento, Seguro, Servicio, Contrato de mantenimiento, Licencia, Membresía, Otro) y determina el chip de color.\n- **Descripción** (obligatorio) y **Proveedor** (opcional).\n- **Fecha de inicio** (obligatorio) y una **Fecha de fin** opcional —deje la Fecha de fin en blanco para un compromiso indefinido.\n- Interruptor de **Aprobación automática** — cuando está activado, los gastos que genera esta plantilla omiten la cola de pendientes.\n\nLa pestaña Recurrentes lista cada plantilla con su fecha de **Próximo vencimiento** y un chip **Activo**. Dos acciones de fila le permiten administrar una plantilla:\n\n- El botón **pausar / reproducir** alterna la plantilla entre Activa y Pausada. Pausar detiene la generación de nuevos gastos sin eliminar su historial.\n- El botón **eliminar** (papelera) quita la plantilla tras una confirmación. Tenga en cuenta que las plantillas recurrentes son **solo eliminar / solo pausar** —no hay edición en el lugar; para cambiar los términos, elimine y vuelva a crear, o pause la anterior.\n\n### Cómo funciona la generación\n\nLas plantillas activas generan su gasto automáticamente en cada ocurrencia —usted no hace clic en nada. Una plantilla con Aprobación automática activada produce gastos ya aprobados; sin ella, cada gasto generado cae en la cola normal de Pendientes para revisión como cualquier otro ingresado a mano.\n\n### Pestaña Próximos — la previsión de 90 días\n\nLa pestaña **Próximos** es una vista prospectiva: proyecta cada ocurrencia que sus plantillas recurrentes activas generarán durante los próximos **90 días**. No crea nada —es una previsión para que vea lo que viene.\n\n- El **Total de 90 días** suma cada ocurrencia proyectada en la ventana.\n- Una tira de **desglose mensual** muestra los totales por mes y los conteos de elementos, para que vea cómo se distribuye la carga.\n- El selector **Resaltar clasificación** le permite destacar una clasificación (p. ej., todas las Suscripciones) —las filas coincidentes se resaltan en la tabla en vez de filtrarse, así conserva la imagen completa mientras enfatiza un tipo de costo.\n- Cada fila muestra la Fecha de vencimiento proyectada, Clasificación, Categoría, Descripción, Proveedor, Monto y Frecuencia.\n\nUse Próximos para anticipar necesidades de efectivo; use Recurrentes para controlar las plantillas que la impulsan. Pausar una plantilla en la pestaña Recurrentes elimina de inmediato sus ocurrencias futuras de la previsión de Próximos."
+      "body": "## Gastos recurrentes y próximos\n\nLa página de Recurrentes y Próximos maneja costos predecibles y repetitivos —suscripciones, arrendamientos, seguros, servicios— para que no tenga que acordarse de registrarlos a mano en cada ciclo. Tiene dos pestañas: **Próximos** y **Recurrentes**.\n\n### Pestaña Recurrentes — las plantillas\n\nUn **gasto recurrente** es una plantilla que crea gastos reales automáticamente según un calendario. Haga clic en **Nuevo recurrente** para configurar uno:\n\n- **Monto** (obligatorio) y **Frecuencia** (obligatorio) — Semanal, Quincenal, Mensual, Trimestral o Anual.\n- **Categoría** (obligatorio) y **Clasificación** (obligatorio). La clasificación es el tipo de costo repetitivo (Suscripción, Arrendamiento, Seguro, Servicio, Contrato de mantenimiento, Licencia, Membresía u Otro) y define la etiqueta de color.\n- **Descripción** (obligatorio) y **Proveedor** (opcional).\n- **Fecha de inicio** (obligatorio) y una **Fecha de fin** opcional —deje la Fecha de fin en blanco si se ejecuta indefinidamente.\n- Interruptor de **Aprobación automática** — cuando está activado, los gastos que crea esta plantilla omiten la cola de pendientes.\n\nLa pestaña Recurrentes lista cada plantilla con su fecha de **Próximo vencimiento** y una etiqueta **Activo**. Dos botones en cada fila le permiten administrar una plantilla:\n\n- El botón **pausar / reproducir** cambia la plantilla entre Activa y Pausada. Pausar detiene la creación de nuevos gastos sin eliminar su historial.\n- El botón **eliminar** (papelera) quita la plantilla tras una confirmación. Tenga en cuenta que las plantillas solo se pueden pausar o eliminar —no hay edición en el lugar. Para cambiar los términos, pause la anterior, o elimínela y configure una nueva.\n\n### Cómo se crean los nuevos gastos\n\nLas plantillas activas crean su gasto en cada ocurrencia —usted no tiene que hacer nada. Una plantilla con Aprobación automática activada produce gastos ya aprobados; sin ella, cada gasto nuevo cae en la cola normal de Pendientes para revisión, igual que uno que ingresaría a mano.\n\n### Pestaña Próximos — la previsión de 90 días\n\nLa pestaña **Próximos** mira hacia adelante: muestra cada gasto que sus plantillas activas crearán durante los próximos **90 días**. No crea nada —es solo una previsión para que vea lo que viene.\n\n- El **Total de 90 días** suma todo lo esperado en esa ventana.\n- Un **desglose mensual** muestra el total y el conteo de cada mes, para que vea cómo se distribuye la carga.\n- El selector **Resaltar clasificación** le permite destacar un tipo de costo (digamos, todas las Suscripciones) —las filas coincidentes se resaltan en vez de ocultarse, así conserva la imagen completa mientras enfatiza un tipo.\n- Cada fila muestra la fecha de vencimiento esperada, la clasificación, la categoría, la descripción, el proveedor, el monto y la frecuencia.\n\nUse Próximos para planificar necesidades de efectivo; use Recurrentes para administrar las plantillas detrás de ella. Pausar una plantilla en la pestaña Recurrentes elimina de inmediato sus ocurrencias futuras de la previsión de Próximos."
     }
   },
   {
@@ -411,34 +411,34 @@
         {
           "heading": "Campos del nuevo gasto recurrente",
           "items": [
-            {"label": "Monto (obligatorio)", "value": "Moneda, mínimo $0.01. El monto de cada ocurrencia generada. data-testid: recurring-amount"},
-            {"label": "Frecuencia (obligatorio)", "value": "Semanal, Quincenal, Mensual, Trimestral o Anual. Determina con qué frecuencia genera la plantilla. data-testid: recurring-frequency"},
-            {"label": "Categoría (obligatorio)", "value": "Categoría de gasto para los gastos generados. data-testid: recurring-category"},
-            {"label": "Clasificación (obligatorio)", "value": "Tipo de costo recurrente: Suscripción, Arrendamiento, Seguro, Servicio, Contrato de mantenimiento, Licencia, Membresía, Otro. data-testid: recurring-classification"},
-            {"label": "Descripción (obligatorio)", "value": "Para qué es el costo recurrente. data-testid: recurring-description"},
-            {"label": "Proveedor (opcional)", "value": "Nombre de proveedor en texto libre. data-testid: recurring-vendor"},
-            {"label": "Fecha de inicio (obligatorio)", "value": "Fecha de la primera ocurrencia. data-testid: recurring-start"},
-            {"label": "Fecha de fin (opcional)", "value": "Deje en blanco para indefinido. data-testid: recurring-end"},
-            {"label": "Aprobación automática", "value": "Interruptor. Cuando está activado, los gastos generados omiten la cola de Pendientes. data-testid: recurring-auto-approve"}
+            {"label": "Monto (obligatorio)", "value": "El monto de cada gasto que se cree. Debe ser al menos $0.01."},
+            {"label": "Frecuencia (obligatorio)", "value": "Con qué frecuencia la plantilla crea un gasto: Semanal, Quincenal, Mensual, Trimestral o Anual."},
+            {"label": "Categoría (obligatorio)", "value": "La categoría de gasto a usar para los gastos creados."},
+            {"label": "Clasificación (obligatorio)", "value": "El tipo de costo repetitivo: Suscripción, Arrendamiento, Seguro, Servicio, Contrato de mantenimiento, Licencia, Membresía u Otro."},
+            {"label": "Descripción (obligatorio)", "value": "Para qué es el costo repetitivo."},
+            {"label": "Proveedor (opcional)", "value": "El nombre del proveedor, escrito."},
+            {"label": "Fecha de inicio (obligatorio)", "value": "La fecha del primer gasto."},
+            {"label": "Fecha de fin (opcional)", "value": "Deje en blanco si se ejecuta indefinidamente."},
+            {"label": "Aprobación automática", "value": "Un interruptor de encendido/apagado. Cuando está activado, los gastos creados omiten la cola de Pendientes."}
           ]
         },
         {
           "heading": "Columnas y acciones de la pestaña Recurrentes",
           "items": [
-            {"label": "Próximo vencimiento", "value": "La próxima fecha en que esta plantilla generará un gasto."},
-            {"label": "Chip Activo", "value": "'Activo' verde o 'Pausado' atenuado —si la plantilla está generando actualmente."},
-            {"label": "Acción Pausar / Reproducir", "value": "Alterna la plantilla entre Activa y Pausada. Pausar conserva el historial pero detiene la nueva generación."},
-            {"label": "Acción Eliminar", "value": "Quita la plantilla tras un diálogo de confirmación. Las plantillas son solo eliminar —sin edición en el lugar."}
+            {"label": "Próximo vencimiento", "value": "La próxima fecha en que esta plantilla creará un gasto."},
+            {"label": "Etiqueta Activo", "value": "'Activo' verde o 'Pausado' gris —si la plantilla está creando gastos actualmente."},
+            {"label": "Botón Pausar / Reproducir", "value": "Cambia la plantilla entre Activa y Pausada. Pausar conserva su historial pero detiene los nuevos gastos."},
+            {"label": "Botón Eliminar", "value": "Quita la plantilla tras una confirmación. Las plantillas no se pueden editar en el lugar —solo pausar o eliminar."}
           ]
         },
         {
           "heading": "Pestaña Próximos (previsión)",
           "items": [
-            {"label": "Ventana", "value": "Proyecta los próximos 90 días de ocurrencias de plantillas activas. Previsión de solo lectura —no genera nada."},
-            {"label": "Total de 90 días", "value": "Suma de cada ocurrencia proyectada en la ventana."},
-            {"label": "Desglose mensual", "value": "Chips de total por mes + conteo de elementos."},
-            {"label": "Resaltar clasificación", "value": "Destaca una clasificación resaltando las filas coincidentes (no oculta el resto)."},
-            {"label": "Efecto de pausar", "value": "Pausar una plantilla en la pestaña Recurrentes elimina de inmediato sus ocurrencias futuras de esta previsión."}
+            {"label": "Ventana", "value": "Muestra los próximos 90 días de gastos de plantillas activas. Es solo una previsión —no crea nada."},
+            {"label": "Total de 90 días", "value": "Suma todo lo esperado en la ventana de 90 días."},
+            {"label": "Desglose mensual", "value": "El total y el conteo de elementos de cada mes."},
+            {"label": "Resaltar clasificación", "value": "Destaca un tipo de costo resaltando las filas coincidentes (no oculta el resto)."},
+            {"label": "Efecto de pausar", "value": "Pausar una plantilla en la pestaña Recurrentes elimina de inmediato sus gastos futuros de esta previsión."}
           ]
         }
       ]

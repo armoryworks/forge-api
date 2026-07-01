@@ -2,9 +2,9 @@
   {
     "slug": "notifications-overview",
     "title": "Visión general de las Notificaciones",
-    "summary": "Qué son las notificaciones, cómo funciona el envío en tiempo real, los tipos de notificación, los niveles de severidad y la entrega por correo electrónico.",
+    "summary": "Qué son las notificaciones, cómo llegan en tiempo real, los tipos que verá, sus niveles de prioridad y la entrega por correo electrónico.",
     "contentJson": {
-      "body": "## Visión general de las Notificaciones\n\nEl sistema de Notificaciones lo mantiene informado de los eventos importantes en todo QB Engineer en tiempo real. Las notificaciones se entregan al instante mediante el envío por SignalR y, opcionalmente, por correo electrónico, lo que garantiza que nunca se pierda una actualización crítica, ya sea que esté en su escritorio o fuera de la aplicación.\n\n### Cómo funciona el envío en tiempo real\n\nCuando ocurre un evento (se le asigna un trabajo, un gasto está vencido, un compañero lo menciona), el servidor crea una notificación y la envía a su navegador al instante mediante WebSocket de SignalR. Verá actualizarse la insignia del icono de campana en el encabezado sin necesidad de actualizar. Si su conexión se interrumpe temporalmente, el sistema se pone al día cuando el panel se vuelve a abrir, recargando desde la API.\n\n### Tipos de notificación\n\nLas notificaciones se categorizan según lo que las activó:\n- **Asignación** — se le asignó un trabajo, una tarea o una responsabilidad\n- **Vencido** — un trabajo, tarea o fecha límite ha superado su fecha de vencimiento\n- **Gasto** — un gasto requiere su aprobación o fue aprobado/rechazado\n- **Mantenimiento** — el estado de un activo cambió o el mantenimiento está pendiente\n- **Sistema** — eventos a nivel de la aplicación (sincronización completada, respaldo finalizado, tarea programada ejecutada)\n- **Mensaje** — se le envió un mensaje directo o un mensaje de sala de chat\n- **Mención** — alguien lo @mencionó en un comentario o registro de actividad\n\n### Niveles de severidad\n\nCada notificación lleva una severidad que controla su presentación visual y su comportamiento por correo electrónico:\n- **Info** (azul) — actualizaciones informativas que no requieren acción inmediata. Ejemplos: trabajo movido a la siguiente etapa, gasto aprobado, sincronización completada.\n- **Advertencia** (amarillo) — algo necesita atención pronto. Ejemplos: trabajo acercándose a la fecha de vencimiento, activo cerca del fin de su vida útil de herramienta, gasto pendiente de aprobación durante 3 o más días.\n- **Crítico** (rojo) — requiere atención inmediata. Ejemplos: trabajo vencido, error del sistema, activo fuera de servicio, sincronización fallida.\n\n### Entrega por correo electrónico\n\nLas notificaciones pueden entregarse por correo electrónico además del envío dentro de la aplicación. La entrega por correo electrónico se controla por categoría en sus preferencias de notificación:\n- **Notificaciones críticas** — correo electrónico habilitado de forma predeterminada (se recomienda dejarlo activado)\n- **Notificaciones de asignación** — correo electrónico habilitado de forma predeterminada\n- **Notificaciones de mención** — correo electrónico habilitado de forma predeterminada\n\nLos correos electrónicos se envían mediante SMTP e incluyen un enlace directo a la entidad correspondiente en QB Engineer. Puede habilitar o deshabilitar cada categoría de correo electrónico de forma independiente en la página de Notificaciones, dentro de la pestaña Preferencias.\n\n### El icono de campana\n\nLa campana de notificaciones en el encabezado de la aplicación muestra una insignia con su conteo de no leídos. Al hacer clic en ella se abre el panel de notificaciones: una superposición deslizable con pestañas para Todas, Mensajes y Alertas. Las notificaciones descartadas se ocultan del panel, pero se conservan en el sistema con fines de auditoría.\n\n### Haga clic para ir al origen\n\nLa mayoría de las notificaciones no son solo mensajes: son atajos. Cuando una notificación se relaciona con un registro (un trabajo, gasto, orden de venta, pieza, activo, etc.), al hacer clic en la notificación se marca como leída Y se le lleva directamente a ese registro. Por ejemplo, al hacer clic en 'Trabajo n.º 1042 asignado a usted' se cierra el panel y se abre ese trabajo en el tablero; al hacer clic en una notificación de gasto se abre el gasto; una notificación de envío abre el envío. Esta es la forma más rápida de actuar sobre una notificación: nunca tiene que buscar el registro manualmente. Las notificaciones que no están vinculadas a un registro específico (mensajes generales del sistema) simplemente se marcan como leídas al hacer clic.\n\n### Notificaciones sonoras\n\nUna alerta de audio sutil puede reproducirse cuando llega una nueva notificación. Esto está habilitado de forma predeterminada y puede desactivarse en Preferencias. El sonido es especialmente útil en las pantallas del taller, donde es posible que no esté mirando la pantalla constantemente.",
+      "body": "## Visión general de las Notificaciones\n\nLas notificaciones lo mantienen informado de los eventos importantes en todo QB Engineer en tiempo real. Aparecen en el momento en que algo ocurre y también pueden llegarle por correo electrónico, para que nunca se pierda una actualización crítica, ya sea que esté en su escritorio o fuera.\n\n### Cómo llegan las notificaciones\n\nCuando algo ocurre —se le asigna un trabajo, un gasto está vencido, un compañero lo menciona— aparece una notificación de inmediato. El número del icono de campana en el encabezado se actualiza solo; no necesita actualizar la página. Si su conexión se interrumpe por un momento, la lista se pone al día en cuanto la vuelve a abrir.\n\n### Tipos de notificación\n\nCada notificación le dice qué ocurrió:\n- **Asignación** — se le asignó un trabajo, una tarea o una responsabilidad\n- **Vencido** — un trabajo, tarea o fecha límite ha superado su fecha de vencimiento\n- **Gasto** — un gasto necesita su aprobación, o fue aprobado o rechazado\n- **Mantenimiento** — un activo cambió de estado o le toca mantenimiento\n- **Sistema** — eventos en segundo plano, como una sincronización que termina o un respaldo que finaliza\n- **Mensaje** — alguien le envió un mensaje directo o un mensaje de chat\n- **Mención** — alguien lo mencionó en un comentario o registro de actividad\n\n### Niveles de prioridad\n\nCada notificación tiene una prioridad que define su color y si le envía un correo electrónico:\n- **Info** (azul) — actualizaciones para su conocimiento, sin acción necesaria. Por ejemplo: un trabajo pasó a la siguiente etapa, un gasto fue aprobado, una sincronización terminó.\n- **Advertencia** (amarillo) — algo necesita atención pronto. Por ejemplo: un trabajo cerca de su fecha de vencimiento, una herramienta cerca del fin de su vida útil, un gasto en espera de aprobación durante 3 días o más.\n- **Crítico** (rojo) — necesita atención de inmediato. Por ejemplo: un trabajo vencido, un error del sistema, un activo fuera de servicio, una sincronización fallida.\n\n### Entrega por correo electrónico\n\nAdemás de aparecer en la aplicación, las notificaciones también pueden llegarle por correo electrónico. Usted elige qué tipos le envían correo en la página de Notificaciones, dentro de Preferencias:\n- **Notificaciones críticas** — el correo está activado de forma predeterminada (recomendamos dejarlo activado)\n- **Notificaciones de asignación** — el correo está activado de forma predeterminada\n- **Notificaciones de mención** — el correo está activado de forma predeterminada\n\nCada correo incluye un enlace que lo lleva directamente al registro relacionado en QB Engineer. Active o desactive cada tipo de correo por separado en la página de Notificaciones, dentro de Preferencias.\n\n### El icono de campana\n\nLa campana del encabezado muestra cuántas notificaciones aún no ha leído. Haga clic en ella para abrir un pequeño panel que se despliega, con pestañas para Todas, Mensajes y Alertas. Las notificaciones que descarta desaparecen del panel, pero se conservan en el registro.\n\n### Haga clic para ir al origen\n\nLa mayoría de las notificaciones son más que mensajes: son atajos. Cuando una notificación trata sobre un registro (un trabajo, gasto, orden de venta, pieza, activo, etc.), al hacer clic en ella se marca como leída y se le lleva directamente a ese registro. Por ejemplo, al hacer clic en 'Trabajo n.º 1042 asignado a usted' se cierra el panel y se abre ese trabajo en el tablero; al hacer clic en una notificación de gasto se abre el gasto; una notificación de envío abre el envío. Es la forma más rápida de actuar: nunca tiene que buscar el registro. Las notificaciones que no están vinculadas a un registro (mensajes generales del sistema) simplemente se marcan como leídas al hacer clic.\n\n### Sonido\n\nUn suave tono puede reproducirse cuando llega una nueva notificación. Está activado de forma predeterminada y puede desactivarlo en Preferencias. El sonido es útil en las pantallas del taller, donde es posible que no esté mirando la pantalla.",
       "sections": []
     }
   },
@@ -20,15 +20,15 @@
           "element": ".page-header",
           "popover": {
             "title": "La página de Notificaciones",
-            "description": "El icono de campana del encabezado abre un panel deslizable rápido, pero la página completa de Notificaciones (ábrala navegando a Notificaciones) le ofrece el historial completo con búsqueda, filtrado, ordenamiento y sus preferencias. Esta página tiene dos pestañas: Todas las notificaciones y Preferencias.",
+            "description": "La campana del encabezado abre un panel emergente rápido. La página completa de Notificaciones le ofrece su historial completo, con búsqueda, filtrado, ordenamiento y sus ajustes. Tiene dos pestañas: Todas las notificaciones y Preferencias.",
             "side": "bottom"
           }
         },
         {
           "element": ".tab-bar",
           "popover": {
-            "title": "Todas las notificaciones frente a Preferencias",
-            "description": "Cambie entre las dos pestañas aquí. 'Todas las notificaciones' muestra la tabla completa, buscable y ordenable, de todo lo que ha recibido. 'Preferencias' es donde controla la entrega por correo electrónico y el sonido, NO el menú de usuario del encabezado. Las preferencias de correo electrónico se encuentran aquí, en la página de Notificaciones.",
+            "title": "Todas las notificaciones y Preferencias",
+            "description": "Cambie entre las dos pestañas aquí. Todas las notificaciones enumera todo lo que ha recibido, listo para buscar y ordenar. Preferencias es donde configura el correo electrónico y el sonido. Sus ajustes de correo están aquí, en esta página, no en el menú del encabezado.",
             "side": "bottom"
           }
         },
@@ -36,23 +36,23 @@
           "element": ".toolbar",
           "popover": {
             "title": "Buscar, filtrar y acciones en bloque",
-            "description": "En la pestaña Todas las notificaciones, use Buscar para filtrar por el texto del título y del mensaje, el menú desplegable Severidad para limitar a Info, Advertencia o Crítico, y el menú desplegable Origen para filtrar por System, Board o Timer. A la derecha, 'Marcar todas como leídas' borra su insignia de no leídos y 'Descartar todas' vacía la lista. Haga clic en cualquier encabezado de columna para ordenar.",
+            "description": "En la pestaña Todas las notificaciones, escriba en Buscar para encontrar texto en una notificación. Reduzca la lista por prioridad (Info, Advertencia o Crítico) o por su origen. A la derecha, Marcar todas como leídas borra su conteo de no leídos y Descartar todas vacía la lista. Haga clic en un encabezado de columna para ordenar.",
             "side": "bottom"
           }
         },
         {
           "element": "app-data-table",
           "popover": {
-            "title": "La tabla de notificaciones",
-            "description": "Cada notificación no descartada aparece aquí con su Título, Mensaje, Severidad, Origen y Fecha. Haga clic en un encabezado de columna para ordenar; haga clic de nuevo para invertir. Esta es la vista de historial completo apta para auditoría: a diferencia del panel de la campana, aquí nada se recorta a una porción reciente.",
+            "title": "La lista de notificaciones",
+            "description": "Aquí aparece cada notificación que no ha descartado, con su título, mensaje, prioridad, origen y fecha. Haga clic en un encabezado de columna para ordenar; haga clic de nuevo para invertir. Este es su historial completo: nada se recorta a unas pocas recientes, a diferencia del panel rápido de la campana.",
             "side": "top"
           }
         },
         {
           "element": ".tab-bar",
           "popover": {
-            "title": "Configurar sus preferencias",
-            "description": "Haga clic en la pestaña Preferencias para gestionar la entrega. En Notificaciones por correo electrónico puede activar o desactivar Alertas críticas, Asignaciones de trabajo y Menciones (todas activadas de forma predeterminada). En Notificaciones en la aplicación puede activar o desactivar el Sonido: desactívelo en oficinas silenciosas, déjelo activado para las pantallas del taller. Cada fila es un interruptor de un clic.",
+            "title": "Configure sus preferencias",
+            "description": "Haga clic en la pestaña Preferencias para elegir cómo se le notifica. En el correo electrónico, active o desactive Alertas críticas, Asignaciones de trabajo y Menciones (todas activadas de forma predeterminada). En la aplicación, active o desactive el Sonido: desactivado para oficinas silenciosas, activado para las pantallas del taller. Cada fila es un simple interruptor de encendido/apagado.",
             "side": "bottom"
           }
         }
@@ -62,101 +62,101 @@
   {
     "slug": "notifications-field-reference",
     "title": "Referencia de campos de Notificaciones",
-    "summary": "Referencia completa de los campos de notificación, los niveles de severidad, los tipos, los controles del panel, las preferencias, las acciones y el filtrado.",
+    "summary": "Referencia completa de los campos de notificación, los niveles de prioridad, los tipos, las pestañas del panel, las preferencias, las acciones y el filtrado.",
     "contentJson": {
       "title": "Referencia de campos de Notificaciones",
       "groups": [
         {
           "heading": "Campos de la notificación",
           "items": [
-            { "label": "Título", "value": "Resumen breve del evento de la notificación. Se muestra en negrita cuando no se ha leído. Ejemplos: 'Trabajo n.º 1042 asignado a usted', 'Gasto aprobado'." },
-            { "label": "Mensaje", "value": "Descripción detallada del evento de la notificación. Aporta contexto más allá del título. Ejemplos: 'Hartman, Daniel J le asignó el Trabajo n.º 1042 — Ensamblaje de soporte CNC', 'Su gasto de viaje de $245.00 fue aprobado por Smith, Jane A'." },
-            { "label": "Tipo", "value": "Categoriza lo que activó la notificación. Valores: assignment, overdue, expense, maintenance, system, message, mention. Se usa para filtrar y enrutar." },
-            { "label": "Severidad", "value": "Nivel de prioridad visual. Valores: info (azul — informativo), warning (amarillo — necesita atención), critical (rojo — requiere acción inmediata). Controla el color del borde izquierdo y los valores predeterminados de entrega por correo electrónico." },
-            { "label": "Origen", "value": "De dónde se originó la notificación. Valores: user (de otra persona — mensajes, menciones, asignaciones) o system (automatizado — alertas de vencimiento, eventos de sincronización, advertencias de mantenimiento)." },
-            { "label": "Leída", "value": "Indicador booleano. Las notificaciones no leídas muestran el título en negrita y contribuyen al conteo de la insignia de la campana. Marcar como leída elimina el formato en negrita y reduce el conteo de la insignia." },
-            { "label": "Fijada", "value": "Indicador booleano. Las notificaciones fijadas siempre se ordenan en la parte superior de la lista independientemente de la fecha. Útil para mantener visibles los elementos importantes. Active o desactive el fijado por notificación." },
-            { "label": "Descartada", "value": "Indicador booleano. Las notificaciones descartadas se ocultan del panel, pero se conservan en la base de datos. No aparecen en ninguna pestaña ni vista de filtro. No se puede deshacer desde el panel." },
-            { "label": "Tipo de entidad", "value": "Opcional. El tipo de entidad con la que se relaciona esta notificación (p. ej., trabajo, gasto, activo, pieza). Permite navegar con un clic desde la notificación a la entidad de origen." },
-            { "label": "ID de entidad", "value": "Opcional. El ID de la entidad relacionada. Combinado con el Tipo de entidad, crea un enlace navegable en el panel de notificaciones." },
-            { "label": "Iniciales del remitente", "value": "Opcional. Iniciales de dos letras del usuario que activó la notificación (para notificaciones originadas por un usuario). Se muestran en el círculo del avatar." },
-            { "label": "Color del remitente", "value": "Opcional. Color de fondo del círculo del avatar del remitente. Coincide con el color asignado al usuario en el sistema." },
-            { "label": "Fecha de creación", "value": "Marca de tiempo del momento en que se creó la notificación. Se muestra como tiempo relativo en el panel (p. ej., 'hace 5 min', 'hace 2 horas') y como MM/dd/yyyy hh:mm en la tabla completa de notificaciones." }
+            { "label": "Título", "value": "Un breve resumen de lo que ocurrió. Se muestra en negrita hasta que lo lee. Por ejemplo: 'Trabajo n.º 1042 asignado a usted' o 'Gasto aprobado'." },
+            { "label": "Mensaje", "value": "La descripción más amplia, con más detalle que el título. Por ejemplo: 'Hartman, Daniel J le asignó el Trabajo n.º 1042 — Ensamblaje de soporte CNC' o 'Su gasto de viaje de $245.00 fue aprobado por Smith, Jane A'." },
+            { "label": "Tipo", "value": "Sobre qué trata la notificación: una asignación, un elemento vencido, un gasto, mantenimiento, un evento del sistema, un mensaje o una mención. Le ayuda a filtrar la lista." },
+            { "label": "Prioridad", "value": "Qué tan urgente es: Info (azul) para su conocimiento, Advertencia (amarillo) cuando algo necesita atención pronto, Crítico (rojo) cuando necesita acción de inmediato. La prioridad define la franja de color y si le envía un correo." },
+            { "label": "Origen", "value": "De dónde vino: de una persona (un mensaje, una mención o una asignación) o del sistema (una alerta de vencimiento, un evento de sincronización o una advertencia de mantenimiento)." },
+            { "label": "Leída", "value": "Si ya la leyó. Las notificaciones no leídas muestran el título en negrita y suman al número de la campana. Al leer una, se quita la negrita y baja el número." },
+            { "label": "Fijada", "value": "Si está fijada. Las notificaciones fijadas se quedan en la parte superior de la lista sin importar su fecha, útil para tener a la vista los elementos importantes. Puede fijar o desfijar cualquier notificación." },
+            { "label": "Descartada", "value": "Si se ha descartado. Las notificaciones descartadas desaparecen de la lista, pero se conservan en el registro. No aparecen en ninguna pestaña ni filtro, y no se pueden recuperar desde el panel." },
+            { "label": "Registro relacionado", "value": "El tipo de registro sobre el que trata una notificación, como un trabajo, gasto, activo o pieza. Cuando está definido, al hacer clic en la notificación se abre ese registro." },
+            { "label": "Qué registro", "value": "A qué registro concreto apunta. Junto con el tipo de registro, es lo que hace que al hacer clic en la notificación salte directamente allí." },
+            { "label": "Iniciales del remitente", "value": "Para las notificaciones de una persona, sus iniciales, mostradas en un pequeño círculo de color para que sepa de un vistazo de quién es." },
+            { "label": "Color del remitente", "value": "El color del círculo de ese remitente. Coincide con el color asignado a esa persona en el sistema." },
+            { "label": "Creada", "value": "Cuándo llegó la notificación. El panel la muestra como tiempo relativo ('hace 5 min', 'hace 2 horas'); la lista completa muestra la fecha y la hora." }
           ]
         },
         {
-          "heading": "Niveles de severidad",
+          "heading": "Niveles de prioridad",
           "items": [
-            { "label": "Info (borde azul)", "value": "Actualizaciones informativas. No se necesita acción inmediata. Ejemplos: trabajo movido a la siguiente etapa, gasto aprobado, archivo cargado, sincronización completada. Correo electrónico predeterminado: DESACTIVADO." },
-            { "label": "Advertencia (borde amarillo)", "value": "Necesita atención pronto. Ejemplos: trabajo acercándose a la fecha de vencimiento, activo cerca del fin de su vida útil, aprobación de gasto pendiente durante 3 o más días. Correo electrónico predeterminado: DESACTIVADO." },
-            { "label": "Crítico (borde rojo)", "value": "Requiere atención inmediata. Ejemplos: trabajo vencido, error del sistema, activo fuera de servicio, sincronización de integración fallida, alerta de seguridad. Correo electrónico predeterminado: ACTIVADO." }
+            { "label": "Info (franja azul)", "value": "Para su conocimiento, sin acción necesaria. Por ejemplo: un trabajo pasó a la siguiente etapa, un gasto aprobado, un archivo cargado, una sincronización terminada. El correo está desactivado de forma predeterminada." },
+            { "label": "Advertencia (franja amarilla)", "value": "Necesita atención pronto. Por ejemplo: un trabajo cerca de su fecha de vencimiento, una herramienta cerca del fin de su vida útil, un gasto en espera de aprobación 3 días o más. El correo está desactivado de forma predeterminada." },
+            { "label": "Crítico (franja roja)", "value": "Necesita acción de inmediato. Por ejemplo: un trabajo vencido, un error del sistema, un activo fuera de servicio, una sincronización fallida, una alerta de seguridad. El correo está activado de forma predeterminada." }
           ]
         },
         {
           "heading": "Tipos de notificación",
           "items": [
-            { "label": "Asignación", "value": "Se activa cuando se asigna un trabajo, una tarea o una responsabilidad al usuario. Origen: user. Correo electrónico predeterminado: ACTIVADO." },
-            { "label": "Vencido", "value": "Se activa cuando un trabajo, tarea o fecha límite supera su fecha de vencimiento. Origen: system. La severidad suele ser warning o critical." },
-            { "label": "Gasto", "value": "Se activa para solicitudes de aprobación de gastos, aprobaciones y rechazos. Origen: system o user según la acción." },
-            { "label": "Mantenimiento", "value": "Se activa cuando el estado de un activo cambia a Mantenimiento o Fuera de servicio, o cuando vence el mantenimiento programado. Origen: system." },
-            { "label": "Sistema", "value": "Eventos a nivel de la aplicación: finalización de respaldo, estado de sincronización, resultados de tareas programadas, cambios de configuración. Origen: system." },
-            { "label": "Mensaje", "value": "Se activa cuando se recibe un mensaje directo o un mensaje de sala de chat. Origen: user. Muestra el avatar del remitente." },
-            { "label": "Mención", "value": "Se activa cuando otro usuario lo @menciona en un comentario, registro de actividad o mensaje de chat. Origen: user. Correo electrónico predeterminado: ACTIVADO." }
+            { "label": "Asignación", "value": "Llega cuando se le asigna un trabajo, una tarea o una responsabilidad. Viene de una persona. El correo está activado de forma predeterminada." },
+            { "label": "Vencido", "value": "Llega cuando un trabajo, tarea o fecha límite supera su fecha de vencimiento. Viene del sistema, normalmente como advertencia o crítico." },
+            { "label": "Gasto", "value": "Llega para solicitudes de aprobación de gastos, aprobaciones y rechazos. Viene de una persona o del sistema, según la acción." },
+            { "label": "Mantenimiento", "value": "Llega cuando un activo entra en mantenimiento o queda fuera de servicio, o cuando le toca el mantenimiento programado. Viene del sistema." },
+            { "label": "Sistema", "value": "Eventos en segundo plano, como un respaldo que finaliza, un estado de sincronización, el resultado de una tarea programada o un cambio de ajustes. Viene del sistema." },
+            { "label": "Mensaje", "value": "Llega cuando alguien le envía un mensaje directo o un mensaje de chat. Viene de una persona y muestra sus iniciales." },
+            { "label": "Mención", "value": "Llega cuando alguien lo menciona en un comentario, registro de actividad o mensaje de chat. Viene de una persona. El correo está activado de forma predeterminada." }
           ]
         },
         {
           "heading": "Pestañas del panel",
           "items": [
-            { "label": "Todas", "value": "Muestra todas las notificaciones no descartadas independientemente del origen. Pestaña predeterminada al abrir el panel." },
-            { "label": "Mensajes", "value": "Filtra solo las notificaciones originadas por usuarios. Muestra MD, mensajes de chat, menciones y notificaciones de asignación de otros usuarios." },
-            { "label": "Alertas", "value": "Filtra solo las notificaciones originadas por el sistema. Muestra advertencias de vencimiento, alertas de mantenimiento, eventos de sincronización y notificaciones automatizadas del sistema." }
+            { "label": "Todas", "value": "Muestra todas las notificaciones que no ha descartado, de cualquier origen. Es la pestaña que ve al abrir el panel." },
+            { "label": "Mensajes", "value": "Muestra solo las notificaciones de personas: mensajes directos, mensajes de chat, menciones y asignaciones de compañeros." },
+            { "label": "Alertas", "value": "Muestra solo las notificaciones del sistema: advertencias de vencimiento, alertas de mantenimiento, eventos de sincronización y otros avisos automáticos." }
           ]
         },
         {
-          "heading": "Acciones del panel",
+          "heading": "Lo que puede hacer",
           "items": [
-            { "label": "Hacer clic para navegar (por elemento)", "value": "Al hacer clic en el cuerpo de una notificación se marca como leída Y, si está vinculada a un registro, se le lleva a la página de ese registro. El enrutamiento es por tipo de entidad: trabajo → tablero, gasto → gastos, orden de venta → órdenes de venta, orden de compra → órdenes de compra, factura → facturas, pieza → piezas, envío → envíos, cliente → detalle del cliente, activo → activos, proveedor → proveedores, prospecto → prospectos, pago → pagos, devolución → devoluciones de clientes. Las notificaciones sin registro vinculado simplemente se marcan como leídas." },
-            { "label": "Marcar como leída (por elemento)", "value": "Haga clic en una notificación para marcarla como leída. El título en negrita pasa a peso normal. La insignia de no leídos se reduce en uno. Interfaz optimista: se actualiza localmente y se sincroniza con el servidor." },
-            { "label": "Fijar / Desfijar (por elemento)", "value": "Active el fijado de una notificación para mantenerla en la parte superior de la lista. Los elementos fijados se ordenan antes que los no fijados independientemente de la fecha. Útil para hacer seguimiento de problemas en curso." },
-            { "label": "Descartar (por elemento)", "value": "Oculta una sola notificación del panel. La notificación se marca como descartada y se excluye de todas las vistas. Se conserva en la base de datos para auditoría." },
-            { "label": "Marcar todas como leídas (en bloque)", "value": "Marca todas las notificaciones como leídas en una sola acción. El conteo de la insignia baja a cero. Afecta a todas las notificaciones, no solo al filtro de la pestaña actual." },
-            { "label": "Descartar todas (en bloque)", "value": "Descarta todas las notificaciones visibles. Vacía el panel. Los elementos descartados se ocultan, pero se conservan." }
+            { "label": "Hacer clic para abrir el registro", "value": "Al hacer clic en una notificación se marca como leída y, si trata sobre un registro, se le lleva directamente allí. Un trabajo se abre en el tablero; un gasto abre el gasto; y lo mismo con órdenes de venta, órdenes de compra, facturas, piezas, envíos, clientes, activos, proveedores, prospectos, pagos y devoluciones. Las notificaciones que no están vinculadas a un registro solo se marcan como leídas." },
+            { "label": "Marcar como leída", "value": "Haga clic en una notificación para marcarla como leída. Su título deja de estar en negrita y el número de no leídos baja en uno. El cambio aparece al instante y se guarda por usted." },
+            { "label": "Fijar o desfijar", "value": "Fije una notificación para mantenerla en la parte superior de la lista sin importar su fecha. Útil para seguir un problema en curso. Desfíjela cuando termine." },
+            { "label": "Descartar", "value": "Oculte una sola notificación del panel. Se marca como descartada y sale de todas las vistas, pero se conserva en el registro." },
+            { "label": "Marcar todas como leídas", "value": "Marque todas las notificaciones como leídas con un clic. El número de no leídos baja a cero. Cubre todas las notificaciones, no solo la pestaña actual." },
+            { "label": "Descartar todas", "value": "Descarte todas las notificaciones que se muestran y vacíe el panel. Los elementos descartados se ocultan, pero se conservan en el registro." }
           ]
         },
         {
           "heading": "Preferencias de notificación",
           "items": [
-            { "label": "Correo en Críticas", "value": "Interruptor. Cuando está ACTIVADO, las notificaciones de severidad crítica también se envían por correo electrónico mediante SMTP. Predeterminado: ACTIVADO. Se encuentra en la página de Notificaciones → pestaña Preferencias." },
-            { "label": "Correo en Asignación", "value": "Interruptor. Cuando está ACTIVADO, las notificaciones de asignación se envían por correo electrónico. Predeterminado: ACTIVADO. Útil para mantenerse informado cuando está fuera de la aplicación." },
-            { "label": "Correo en Mención", "value": "Interruptor. Cuando está ACTIVADO, las notificaciones de @mención se envían por correo electrónico. Predeterminado: ACTIVADO. Garantiza que vea las menciones aunque no esté usando QB Engineer activamente." },
-            { "label": "Sonido habilitado", "value": "Interruptor. Cuando está ACTIVADO, reproduce una alerta de audio cuando llega una nueva notificación mediante SignalR. Predeterminado: ACTIVADO. Puede desactivarse en entornos silenciosos." }
+            { "label": "Correo en Críticas", "value": "Cuando está activado, las notificaciones críticas también le llegan por correo electrónico. Activado de forma predeterminada. Se encuentra en la página de Notificaciones, dentro de Preferencias." },
+            { "label": "Correo en Asignación", "value": "Cuando está activado, las notificaciones de asignación le llegan por correo electrónico. Activado de forma predeterminada, útil para estar al tanto cuando está fuera." },
+            { "label": "Correo en Mención", "value": "Cuando está activado, las menciones le llegan por correo electrónico. Activado de forma predeterminada, para que las vea aunque no esté en la aplicación." },
+            { "label": "Sonido", "value": "Cuando está activado, suena un tono cada vez que llega una nueva notificación. Activado de forma predeterminada. Desactívelo para espacios silenciosos." }
           ]
         },
         {
-          "heading": "Filtrado (página de Notificaciones)",
+          "heading": "Filtrar la lista",
           "items": [
-            { "label": "Buscar", "value": "Filtro de texto sobre los campos de título y mensaje de la notificación. Filtra en tiempo real a medida que escribe." },
-            { "label": "Filtro de severidad", "value": "Menú desplegable: Todas, Info, Advertencia, Crítico. Filtra la tabla para mostrar solo las notificaciones de la severidad seleccionada." },
-            { "label": "Filtro de origen", "value": "Menú desplegable: Todos, System, Board, Timer. Filtra por el origen de la notificación." }
+            { "label": "Buscar", "value": "Escriba para encontrar texto en el título o el mensaje de una notificación. La lista se reduce a medida que escribe." },
+            { "label": "Prioridad", "value": "Elija Todas, Info, Advertencia o Crítico para mostrar solo las notificaciones de esa prioridad." },
+            { "label": "Origen", "value": "Filtre por de dónde vino una notificación: una persona o el sistema." }
           ]
         },
         {
-          "heading": "Columnas de la tabla (página de Notificaciones)",
+          "heading": "Columnas de la lista",
           "items": [
-            { "label": "Título", "value": "Ordenable. El texto de resumen breve de la notificación." },
-            { "label": "Mensaje", "value": "Ordenable. El mensaje detallado de la notificación." },
-            { "label": "Severidad", "value": "Ordenable, filtrable (enum). Codificado por color: info, warning, critical." },
-            { "label": "Origen", "value": "Ordenable. Si la notificación provino de un usuario o del sistema." },
-            { "label": "Fecha", "value": "Ordenable, tipo fecha. Cuándo se creó la notificación. Ancho: 150px." }
+            { "label": "Título", "value": "El breve resumen. Haga clic en el encabezado para ordenar por él." },
+            { "label": "Mensaje", "value": "La descripción más amplia. Haga clic en el encabezado para ordenar por él." },
+            { "label": "Prioridad", "value": "Info, Advertencia o Crítico, indicado por color. Ordene o filtre por él." },
+            { "label": "Origen", "value": "Si la notificación vino de una persona o del sistema. Haga clic en el encabezado para ordenar por él." },
+            { "label": "Fecha", "value": "Cuándo llegó la notificación. Haga clic en el encabezado para ordenar por ella." }
           ]
         },
         {
-          "heading": "Tiempo real con SignalR",
+          "heading": "Mantenerse al día",
           "items": [
-            { "label": "Endpoint del hub", "value": "/hubs/notifications — conexión WebSocket autenticada mediante un parámetro de cadena de consulta JWT." },
-            { "label": "Evento: notificationReceived", "value": "Enviado desde el servidor cuando se crea una nueva notificación. El NotificationHubService del cliente lo recibe y llama a NotificationService.push() para añadirla a la lista en memoria." },
-            { "label": "Recuperación de la conexión", "value": "Cuando el panel se abre, recarga las notificaciones desde la API para recuperar las que se perdieron durante la desconexión. El banner de conexión se muestra amarillo al reconectarse y rojo al desconectarse." },
-            { "label": "Conexión automática", "value": "NotificationHub se conecta automáticamente al iniciar la aplicación (tras la autenticación) en AppComponent.ngOnInit(). No se necesita configuración manual por página." }
+            { "label": "Actualizaciones en vivo", "value": "Las nuevas notificaciones aparecen solas, y el número de la campana se actualiza sin necesidad de actualizar la página." },
+            { "label": "Llega una nueva", "value": "En el momento en que algo ocurre, la notificación aparece en el panel y, si el sonido está activado, suena un tono." },
+            { "label": "Tras una conexión interrumpida", "value": "Si su conexión se interrumpe un momento, la lista se pone al día cuando vuelve a abrir el panel, así no se pierde nada. Un banner se muestra amarillo mientras reconecta y rojo mientras está desconectado." },
+            { "label": "Siempre activas", "value": "Las actualizaciones en vivo comienzan solas una vez que inicia sesión: no hay nada que activar, en ninguna página." }
           ]
         }
       ]
@@ -165,7 +165,7 @@
   {
     "slug": "notifications-quiz",
     "title": "Evaluación de conocimientos de Notificaciones",
-    "summary": "Ponga a prueba sus conocimientos del sistema de notificaciones: tipos, severidad, acciones del panel, preferencias y entrega en tiempo real.",
+    "summary": "Ponga a prueba sus conocimientos del sistema de notificaciones: tipos, prioridad, acciones del panel, preferencias y entrega en tiempo real.",
     "contentJson": {
       "passingScore": 80,
       "questionsPerQuiz": 8,
@@ -174,113 +174,113 @@
       "questions": [
         {
           "id": "notif1",
-          "text": "Ve una insignia roja con el número 3 en el icono de campana del encabezado. ¿Qué significa esto?",
+          "text": "Ve un círculo rojo con el número 3 en la campana del encabezado. ¿Qué significa esto?",
           "options": [
-            { "id": "a", "text": "Hay 3 notificaciones de severidad crítica en espera" },
-            { "id": "b", "text": "Hay 3 notificaciones no leídas y no descartadas de todos los tipos y severidades", "isCorrect": true },
-            { "id": "c", "text": "Hay 3 notificaciones nuevas que llegaron en la última hora" },
+            { "id": "a", "text": "Hay 3 notificaciones críticas en espera" },
+            { "id": "b", "text": "Tiene 3 notificaciones no leídas, de cualquier tipo o prioridad", "isCorrect": true },
+            { "id": "c", "text": "Hay 3 notificaciones nuevas de la última hora" },
             { "id": "d", "text": "Hay 3 notificaciones fijadas en su panel" }
           ],
-          "explanation": "La insignia de la campana muestra el conteo de todas las notificaciones no leídas y no descartadas independientemente del tipo o la severidad. Se actualiza en tiempo real mediante SignalR a medida que llegan nuevas notificaciones o se marcan como leídas las existentes."
+          "explanation": "El número de la campana cuenta todas sus notificaciones no leídas, sea cual sea su tipo o prioridad. Se actualiza solo a medida que llegan nuevas o a medida que lee las que tiene."
         },
         {
           "id": "notif2",
-          "text": "Quiere ver solo las alertas generadas por el sistema (advertencias de vencimiento, eventos de sincronización) y ocultar los mensajes de otros usuarios. ¿Qué pestaña del panel selecciona?",
+          "text": "Quiere ver solo las alertas propias del sistema (advertencias de vencimiento, eventos de sincronización) y ocultar los mensajes de otras personas. ¿Qué pestaña elige?",
           "options": [
-            { "id": "a", "text": "Todas — y luego buscar manualmente las notificaciones del sistema" },
-            { "id": "b", "text": "Mensajes — las alertas del sistema se clasifican como mensajes" },
-            { "id": "c", "text": "Alertas — esta pestaña filtra solo las notificaciones originadas por el sistema", "isCorrect": true },
+            { "id": "a", "text": "Todas — y luego revisar usted mismo las del sistema" },
+            { "id": "b", "text": "Mensajes — las alertas del sistema aparecen como mensajes" },
+            { "id": "c", "text": "Alertas — esta pestaña muestra solo las notificaciones del sistema", "isCorrect": true },
             { "id": "d", "text": "No hay forma de filtrar por origen en el panel" }
           ],
-          "explanation": "La pestaña Alertas filtra solo las notificaciones originadas por el sistema. La pestaña Mensajes muestra las notificaciones originadas por usuarios (MD, menciones, asignaciones de personas). La pestaña Todas lo muestra todo."
+          "explanation": "La pestaña Alertas muestra solo las notificaciones del sistema. La pestaña Mensajes muestra las notificaciones de personas (mensajes directos, menciones, asignaciones). La pestaña Todas lo muestra todo."
         },
         {
           "id": "notif3",
-          "text": "Una notificación tiene un borde izquierdo amarillo en el panel. ¿Qué nivel de severidad indica esto?",
+          "text": "Una notificación tiene una franja amarilla en su costado en el panel. ¿Qué prioridad indica esto?",
           "options": [
-            { "id": "a", "text": "Info — actualización informativa general" },
+            { "id": "a", "text": "Info — una actualización general para su conocimiento" },
             { "id": "b", "text": "Advertencia — algo necesita atención pronto", "isCorrect": true },
-            { "id": "c", "text": "Crítico — requiere acción inmediata" },
+            { "id": "c", "text": "Crítico — necesita acción de inmediato" },
             { "id": "d", "text": "Fijada — la notificación se ha fijado en la parte superior" }
           ],
-          "explanation": "El borde amarillo indica severidad de Advertencia: algo necesita su atención pronto, pero aún no es crítico. El azul es Info (informativo), el rojo es Crítico (acción inmediata). El color del borde no está relacionado con el estado de fijado."
+          "explanation": "Una franja amarilla significa Advertencia: algo necesita atención pronto, pero aún no es urgente. El azul es Info (para su conocimiento), el rojo es Crítico (actúe de inmediato). El color de la franja no tiene nada que ver con el fijado."
         },
         {
           "id": "notif4",
           "text": "Descarta todas las notificaciones con el botón Descartar todas. ¿Pueden recuperarse estas notificaciones?",
           "options": [
-            { "id": "a", "text": "No — las notificaciones descartadas se eliminan permanentemente del sistema" },
-            { "id": "b", "text": "Sí — las notificaciones descartadas se ocultan del panel, pero se conservan en la base de datos con fines de auditoría", "isCorrect": true },
-            { "id": "c", "text": "Solo si deshace la acción en un plazo de 10 segundos usando la acción del snackbar" },
-            { "id": "d", "text": "Solo los administradores pueden recuperar las notificaciones descartadas de la papelera" }
+            { "id": "a", "text": "No — las notificaciones descartadas se eliminan para siempre" },
+            { "id": "b", "text": "Sí — las notificaciones descartadas se ocultan del panel, pero se conservan en el registro", "isCorrect": true },
+            { "id": "c", "text": "Solo si deshace la acción en un plazo de 10 segundos usando el aviso emergente" },
+            { "id": "d", "text": "Solo los administradores pueden recuperar las notificaciones descartadas de una papelera" }
           ],
-          "explanation": "Las notificaciones descartadas se marcan como descartadas y se ocultan del panel, pero nunca se eliminan. Los datos se conservan en la base de datos con fines de auditoría y cumplimiento. Sin embargo, no hay una interfaz para deshacer el descarte desde el panel."
+          "explanation": "Las notificaciones descartadas se ocultan del panel, pero nunca se eliminan: se conservan en el registro. Simplemente no hay un botón en el panel para recuperarlas usted mismo."
         },
         {
           "id": "notif5",
-          "text": "Quiere que una notificación importante permanezca en la parte superior de su panel independientemente de cuándo se creó. ¿Cómo lo logra?",
+          "text": "Quiere que una notificación importante permanezca en la parte superior de su panel, sin importar cuándo llegó. ¿Cómo lo hace?",
           "options": [
-            { "id": "a", "text": "Marcarla como severidad crítica para forzarla a la parte superior" },
-            { "id": "b", "text": "Fijar la notificación — los elementos fijados siempre se ordenan por encima de los no fijados", "isCorrect": true },
-            { "id": "c", "text": "Marcar la notificación con una estrella usando el icono de estrella" },
-            { "id": "d", "text": "Moverla a la pestaña Mensajes, donde se priorizará" }
+            { "id": "a", "text": "Marcarla como crítica para forzarla a la parte superior" },
+            { "id": "b", "text": "Fijarla — las notificaciones fijadas siempre se ordenan por encima del resto", "isCorrect": true },
+            { "id": "c", "text": "Marcarla con una estrella usando el icono de estrella" },
+            { "id": "d", "text": "Moverla a la pestaña Mensajes para que tenga prioridad" }
           ],
-          "explanation": "Fijar una notificación la mantiene en la parte superior de la lista. Las notificaciones fijadas se ordenan antes que todas las no fijadas independientemente de su fecha de creación. Puede activar y desactivar el fijado de cualquier notificación."
+          "explanation": "Fijar una notificación la mantiene en la parte superior de la lista, por encima de todo lo demás, sin importar su fecha. Puede fijar y desfijar cualquier notificación."
         },
         {
           "id": "notif6",
-          "text": "¿Qué preferencia de notificación está habilitada de forma predeterminada para garantizar que reciba correos electrónicos de los eventos más urgentes?",
+          "text": "¿Qué ajuste de notificación está activado de forma predeterminada para que reciba correos electrónicos de los eventos más urgentes?",
           "options": [
-            { "id": "a", "text": "Correo en todas las notificaciones independientemente de la severidad" },
+            { "id": "a", "text": "Correo en cada notificación, sea cual sea su prioridad" },
             { "id": "b", "text": "Correo en notificaciones Críticas", "isCorrect": true },
             { "id": "c", "text": "Correo en notificaciones de Advertencia y Críticas" },
-            { "id": "d", "text": "Ninguna preferencia de correo electrónico está habilitada de forma predeterminada" }
+            { "id": "d", "text": "Ningún ajuste de correo está activado de forma predeterminada" }
           ],
-          "explanation": "Correo en Críticas está habilitado de forma predeterminada porque las notificaciones críticas indican eventos que requieren atención inmediata (trabajos vencidos, errores del sistema, fallos de activos). Correo en Asignación y Correo en Mención también están ACTIVADOS de forma predeterminada. Las notificaciones generales de info y advertencia no activan correos electrónicos de forma predeterminada."
+          "explanation": "Correo en Críticas está activado de forma predeterminada porque las notificaciones críticas necesitan acción de inmediato (trabajos vencidos, errores del sistema, fallos de activos). Correo en Asignación y Correo en Mención también están activados de forma predeterminada. Las notificaciones de info y advertencia no le envían correo de forma predeterminada."
         },
         {
           "id": "notif7",
           "text": "Está trabajando en el taller y no está mirando la pantalla. ¿Cómo le avisa QB Engineer cuando llega una nueva notificación?",
           "options": [
             { "id": "a", "text": "La pantalla parpadea en rojo para las notificaciones críticas" },
-            { "id": "b", "text": "Se reproduce una alerta de audio cuando llega una notificación mediante SignalR, si la preferencia Sonido habilitado está activada", "isCorrect": true },
-            { "id": "c", "text": "La aplicación envía un SMS a su número de teléfono registrado" },
-            { "id": "d", "text": "No hay forma de recibir alertas sin mirar la pantalla" }
+            { "id": "b", "text": "Suena un tono cuando llega una notificación, si el Sonido está activado", "isCorrect": true },
+            { "id": "c", "text": "Envía un mensaje de texto a su teléfono" },
+            { "id": "d", "text": "No hay forma de recibir un aviso sin mirar la pantalla" }
           ],
-          "explanation": "Cuando Sonido habilitado está ACTIVADO en las preferencias de notificación (el valor predeterminado), se reproduce una alerta de audio cada vez que se envía una nueva notificación mediante SignalR. Esto es especialmente útil en las pantallas de quiosco del taller. Puede desactivarlo en la pestaña Preferencias si prefiere un entorno silencioso."
+          "explanation": "Cuando el Sonido está activado (el valor predeterminado), suena un tono cada vez que llega una nueva notificación. Esto es útil en las pantallas del taller. Puede desactivarlo en Preferencias si prefiere silencio."
         },
         {
           "id": "notif8",
-          "text": "Su navegador perdió su conexión WebSocket con el servidor durante 2 minutos. Cuando la conexión se recupera, ¿cómo garantiza QB Engineer que no se haya perdido ninguna notificación?",
+          "text": "Su conexión se interrumpió durante 2 minutos. Cuando vuelve, ¿cómo se asegura QB Engineer de que no se perdió ninguna notificación?",
           "options": [
-            { "id": "a", "text": "El cliente de SignalR reproduce automáticamente todos los eventos perdidos desde un búfer del lado del servidor" },
-            { "id": "b", "text": "Cuando el panel de notificaciones se abre, recarga la lista completa de notificaciones desde la API para recuperar las que se perdieron durante la desconexión", "isCorrect": true },
-            { "id": "c", "text": "Las notificaciones perdidas se pierden permanentemente y deben consultarse por correo electrónico" },
-            { "id": "d", "text": "El sistema envía un correo electrónico por lotes con todas las notificaciones perdidas tras la reconexión" }
+            { "id": "a", "text": "Reproduce automáticamente cada una perdida desde un respaldo almacenado" },
+            { "id": "b", "text": "Al abrir el panel de notificaciones, actualiza la lista completa, así lo que se perdió durante la interrupción aparece", "isCorrect": true },
+            { "id": "c", "text": "Las notificaciones perdidas se pierden para siempre y deben consultarse por correo electrónico" },
+            { "id": "d", "text": "Envía un solo correo con todas las notificaciones perdidas tras reconectar" }
           ],
-          "explanation": "Cada vez que el panel de notificaciones se abre, realiza una nueva llamada a la API para recargar las notificaciones. Esto recupera cualquier notificación que se haya creado mientras el WebSocket estaba desconectado. El banner de conexión también muestra un indicador visual (amarillo al reconectarse, rojo al desconectarse) para que sepa que el flujo en tiempo real está interrumpido."
+          "explanation": "Al abrir el panel de notificaciones se actualiza la lista completa, así aparece cualquier notificación creada mientras estaba desconectado. Un banner también se muestra amarillo mientras reconecta y rojo mientras está desconectado, para que sepa que las actualizaciones en vivo están en pausa."
         },
         {
           "id": "notif9",
-          "text": "Un colega lo @menciona en un comentario del registro de actividad de un trabajo. ¿Qué tipo y origen tendrá la notificación resultante?",
+          "text": "Un colega lo menciona en un comentario del registro de actividad de un trabajo. ¿Qué tipo y origen tendrá la notificación?",
           "options": [
-            { "id": "a", "text": "Tipo: mention, Origen: user", "isCorrect": true },
-            { "id": "b", "text": "Tipo: message, Origen: system" },
-            { "id": "c", "text": "Tipo: assignment, Origen: user" },
-            { "id": "d", "text": "Tipo: system, Origen: user" }
+            { "id": "a", "text": "Tipo: Mención, Origen: una persona", "isCorrect": true },
+            { "id": "b", "text": "Tipo: Mensaje, Origen: el sistema" },
+            { "id": "c", "text": "Tipo: Asignación, Origen: una persona" },
+            { "id": "d", "text": "Tipo: Sistema, Origen: una persona" }
           ],
-          "explanation": "Una @mención de otro usuario crea una notificación con tipo 'mention' y origen 'user'. Esto significa que aparece en la pestaña Mensajes (originada por usuario) y, si su preferencia Correo en Mención está habilitada, también recibirá un correo electrónico."
+          "explanation": "Una mención de un colega crea una notificación de Mención de una persona. Aparece en la pestaña Mensajes y, si Correo en Mención está activado, también recibirá un correo."
         },
         {
           "id": "notif10",
-          "text": "Hace clic en Marcar todas como leídas en el panel de notificaciones. ¿Cuál de las siguientes afirmaciones es verdadera?",
+          "text": "Hace clic en Marcar todas como leídas en el panel de notificaciones. ¿Cuál de estas afirmaciones es verdadera?",
           "options": [
-            { "id": "a", "text": "Solo las notificaciones de la pestaña seleccionada actualmente se marcan como leídas" },
-            { "id": "b", "text": "Todas las notificaciones se marcan como leídas, el conteo de la insignia baja a cero y el cambio se sincroniza con el servidor en segundo plano", "isCorrect": true },
-            { "id": "c", "text": "Todas las notificaciones se descartan y se eliminan del panel" },
+            { "id": "a", "text": "Solo las notificaciones de la pestaña en la que está se marcan como leídas" },
+            { "id": "b", "text": "Todas las notificaciones se marcan como leídas, el número de no leídos baja a cero y el cambio se guarda por usted", "isCorrect": true },
+            { "id": "c", "text": "Todas las notificaciones se descartan y se quitan del panel" },
             { "id": "d", "text": "Solo las notificaciones no leídas de las últimas 24 horas se marcan como leídas" }
           ],
-          "explanation": "Marcar todas como leídas es una acción en bloque que marca todas las notificaciones como leídas (no solo las de la pestaña actual). El conteo de la insignia de la campana baja a cero de inmediato mediante una interfaz optimista, y el cambio se persiste en el servidor mediante una llamada a la API en segundo plano. Las notificaciones permanecen visibles en el panel: no se descartan."
+          "explanation": "Marcar todas como leídas marca todas las notificaciones como leídas, no solo las de la pestaña actual. El número de no leídos baja a cero de inmediato y el cambio se guarda por usted. Las notificaciones permanecen en el panel: no se descartan."
         }
       ]
     }
@@ -288,9 +288,9 @@
   {
     "slug": "notifications-reference",
     "title": "Notificaciones — Referencia avanzada",
-    "summary": "Referencia de casos límite: el mapa completo de tipo de entidad→ruta, la página de notificaciones móvil, la restricción CAP-CROSS-NOTIFICATIONS y la retención de notificaciones descartadas.",
+    "summary": "Los detalles más finos: a dónde lo lleva cada tipo de notificación, las notificaciones en su teléfono, cuándo están activadas y qué pasa con las descartadas.",
     "contentJson": {
-      "body": "## Mapa de tipo de entidad → ruta\n\nAl hacer clic en una notificación que lleva tanto un `entityType` como un `entityId`, se marca como leída y se navega al registro de origen. El mapeo se encuentra en `resolveEntityRoute()` del panel de notificaciones (en `notification-panel.component.ts`) y coincide con el tipo de entidad en minúsculas:\n\n| entityType | Destino |\n|---|---|\n| `job` | `/board` con `?job={id}` |\n| `quote` | `/quotes` con `?id={id}` |\n| `salesorder` | `/sales-orders` con `?id={id}` |\n| `purchaseorder` | `/purchase-orders` con `?detail=purchase-order:{id}` |\n| `invoice` | `/invoices` con `?id={id}` |\n| `expense` | `/expenses` con `?id={id}` |\n| `lead` | `/leads` con `?id={id}` |\n| `part` | `/parts` con `?id={id}` |\n| `shipment` | `/shipments` con `?id={id}` |\n| `customer` | `/customers/{id}/overview` (segmentos de ruta, sin consulta) |\n| `asset` | `/assets` con `?id={id}` |\n| `vendor` | `/vendors` con `?id={id}` |\n| `timeentry` | `/time-tracking` con `?id={id}` |\n| `customerreturn` | `/customer-returns` con `?id={id}` |\n| `payment` | `/payments` con `?id={id}` |\n| `training` | `/training` (sin id) |\n| `users` | `/admin/users` (sin id) |\n| `compliance_submissions` | `/account/tax-forms` (sin id) |\n| `reorder_suggestions` | `/inventory/replenishment` (sin id) |\n\nLa coincidencia no distingue entre mayúsculas y minúsculas (`entityType.toLowerCase()`). Un `entityType` no reconocido, o una notificación que carece de `entityType`/`entityId`, se resuelve como `null`: el clic igualmente marca el elemento como leído, pero no realiza navegación. Observe las formas de destino inconsistentes: la mayoría de los registros se abren mediante un parámetro de consulta `?id=`, `customer` usa segmentos de ruta y `purchaseorder` usa la convención de diálogo de detalle `?detail=purchase-order:{id}`.\n\n## Página de notificaciones móvil\n\nLos clientes móviles tienen una superficie de notificaciones dedicada y simplificada, separada del panel de campana de escritorio y de la página independiente `/notifications`. Es `MobileNotificationsComponent`, montada en `/m/notifications` bajo el contenedor móvil (`MobileLayoutComponent`). Lee de la misma lista de `NotificationService` y admite el descarte por elemento (`dismiss(id)`); es una vista más ligera y orientada al tacto, y no expone la tabla completa de búsqueda/filtrado/ordenamiento ni la pestaña Preferencias; para eso, los usuarios móviles utilizan la página completa `/notifications`.\n\n## Restricción CAP-CROSS-NOTIFICATIONS\n\nToda la API de Notificaciones está restringida por la capacidad `CAP-CROSS-NOTIFICATIONS`. `NotificationsController` (ruta `api/v1/notifications`) lleva `[RequiresCapability(\"CAP-CROSS-NOTIFICATIONS\")]` a nivel de clase, por lo que se cubre cada endpoint: `GET /` (lista), `PATCH /{id}` (interruptor de leída/fijada/descartada), `POST /mark-all-read` y `POST /dismiss-all`. Cuando la capacidad está deshabilitada para una instalación, el `CapabilityGateMiddleware` interrumpe estas llamadas con un 403 + sobre de capacidad, y el panel de campana y la página `/notifications` se muestran vacíos. El flujo de SignalR (`/hubs/notifications`) es la ruta de entrega en tiempo real; la capacidad rige la superficie REST que respalda el panel.\n\n## Retención y auditoría de notificaciones descartadas\n\nDescartar es un cambio de indicador, no una eliminación. `PATCH /api/v1/notifications/{id}` con `IsDismissed = true` (mediante `UpdateNotificationCommand`) establece `AppNotification.IsDismissed = true`; `POST /dismiss-all` hace lo mismo en bloque para el usuario actual (`DismissAllAsync(userId)`). Las filas descartadas se excluyen de todas las pestañas del panel y de la tabla `/notifications`, pero los registros nunca se eliminan de forma definitiva (no se establece ningún `DeletedAt`, coherente con la regla de solo eliminación lógica) y permanecen en la base de datos para auditoría. No hay ninguna opción de interfaz para deshacer el descarte; la recuperación es una operación únicamente a nivel de datos. El mismo endpoint `PATCH` también impulsa los interruptores `IsRead` e `IsPinned`, por lo que los cambios de estado de lectura y de fijado se persisten igualmente por fila en lugar de inferirse.",
+      "body": "## A dónde lo lleva una notificación\n\nCuando una notificación trata sobre un registro, al hacer clic en ella se marca como leída y se abre ese registro. Esto es a dónde lo lleva cada tipo de notificación:\n\n| Notificación sobre un | Abre |\n|---|---|\n| Trabajo | el trabajo en el tablero |\n| Presupuesto | el presupuesto |\n| Orden de venta | la orden de venta |\n| Orden de compra | la orden de compra |\n| Factura | la factura |\n| Gasto | el gasto |\n| Prospecto | el prospecto |\n| Pieza | la pieza |\n| Envío | el envío |\n| Cliente | la vista general del cliente |\n| Activo | el activo |\n| Proveedor | el proveedor |\n| Registro de tiempo | seguimiento de tiempo |\n| Devolución de cliente | la devolución de cliente |\n| Pago | el pago |\n| Formación | la página de formación |\n| Usuario | la página de administración de usuarios |\n| Formulario fiscal | sus formularios fiscales |\n| Sugerencia de reabastecimiento | reabastecimiento de inventario |\n\nUna notificación que no está vinculada a un registro igual se marca como leída al hacer clic en ella: simplemente no abre nada.\n\n## Notificaciones en su teléfono\n\nEn un teléfono, las notificaciones tienen su propia pantalla sencilla, separada del panel de la campana y de la página completa de Notificaciones. Muestra las mismas notificaciones y le permite descartarlas de una en una. Es una vista más ligera y pensada para el tacto: para la búsqueda completa, el ordenamiento y sus preferencias, abra la página completa de Notificaciones.\n\n## Cuándo están activadas las notificaciones\n\nUn administrador puede activar o desactivar las notificaciones para todo su espacio de trabajo. Cuando están activadas, la campana y la página de Notificaciones funcionan como se describe. Cuando están desactivadas, el panel de la campana y la página de Notificaciones no muestran nada. Si espera notificaciones y no ve ninguna, consulte con su administrador.\n\n## Qué pasa con las notificaciones descartadas\n\nDescartar una notificación la oculta: no la elimina. Ya sea que descarte una de una en una o use Descartar todas, las notificaciones salen de todas las pestañas y de la lista completa, pero se conservan en el registro y nunca se eliminan de verdad. No hay un botón para recuperar usted mismo una notificación descartada. Marcar notificaciones como leídas o fijarlas funciona igual: cada cambio se guarda por usted, notificación por notificación.",
       "sections": []
     }
   }

@@ -4,7 +4,7 @@
     "title": "Visión general del Registro de tiempo",
     "summary": "Qué hace el registro de tiempo, cómo funcionan los temporizadores y las entradas manuales, los eventos de reloj, la vinculación a trabajos, y cómo los datos de tiempo se conectan con la nómina y el costeo.",
     "contentJson": {
-      "body": "## Visión general del Registro de tiempo\n\nEl módulo de Registro de tiempo registra cómo los empleados emplean sus horas de trabajo. Admite dos métodos para capturar el tiempo —temporizadores en vivo y entradas manuales— y se integra con los eventos de reloj, los trabajos, la nómina y la contabilidad de costos.\n\n### Dos formas de registrar el tiempo\n\n**Temporizadores en vivo:** Haga clic en Iniciar temporizador para comenzar a registrar el tiempo en tiempo real. El temporizador corre hasta que hace clic en Detener temporizador. La duración transcurrida se calcula automáticamente a partir de las marcas de tiempo de inicio y fin. Los temporizadores se sincronizan entre pestañas del navegador y dispositivos mediante SignalR —si inicia un temporizador en su teléfono, su computadora de escritorio lo muestra corriendo de inmediato.\n\n**Entradas manuales:** Haga clic en Entrada manual para registrar el tiempo después del hecho. Introduce la fecha, las horas, los minutos, una categoría opcional y notas opcionales. Las entradas manuales se marcan con un icono edit_note en la tabla para distinguirlas de las entradas basadas en temporizador.\n\n### Categorías\n\nCada entrada de tiempo (temporizador o manual) puede etiquetarse con una categoría:\n- **Producción** — trabajo de producción directa en un trabajo\n- **Preparación** — preparación de máquina, cambios de herramental, preparación de dispositivos\n- **Inspección** — controles de calidad, mediciones, inspección de primera pieza\n- **Mantenimiento** — mantenimiento de equipos, limpieza, calibración\n- **Capacitación** — aprendizaje, incorporación, desarrollo de habilidades\n- **Reunión** — reuniones de equipo, sesiones de planificación, reuniones diarias\n- **Administración** — papeleo, correos electrónicos, tareas administrativas\n- **Limpieza** — limpieza de fin de turno, organización\n- **Otro** — cualquier cosa que no encaje en lo anterior\n\nLas categorías son opcionales pero recomendadas —alimentan los informes y ayudan a los gerentes a comprender cómo se distribuye el tiempo entre las actividades.\n\n### Eventos de reloj\n\nLos eventos de reloj son distintos de las entradas de tiempo. Registran cuándo un empleado entra o sale de las instalaciones usando una credencial RFID, un escaneo de código de barras o una entrada manual en el quiosco del taller. Los eventos de reloj registran:\n- **Tipo de evento** — entrada, salida, inicio de descanso, fin de descanso (impulsado por datos de referencia)\n- **Marca de tiempo** — cuándo ocurrió el evento\n- **Método de escaneo** — cómo se identificó el empleado (RFID, código de barras, manual)\n- **Origen** — qué dispositivo o quiosco registró el evento\n- **Motivo** — nota opcional (p. ej., 'salida anticipada — cita')\n\nLos eventos de reloj establecen la presencia del empleado en el sitio. Las entradas de tiempo registran en qué trabajaron durante esa presencia.\n\n### Vinculación a trabajos\n\nLas entradas de tiempo pueden vincularse a un trabajo específico. Cuando se inicia un temporizador desde el panel de detalle de un trabajo en el tablero kanban, la asociación al trabajo se establece automáticamente. Esto conecta el tiempo directamente con el costeo de trabajos —el costo de mano de obra de cada entrada se calcula a partir de la tarifa del empleado y se aplica al consolidado de costos del trabajo.\n\n### Filtrado por rango de fechas\n\nLa página de registro de tiempo tiene selectores de fecha Desde y Hasta que filtran la tabla de entradas. Una línea de resumen muestra el total de horas y el número de entradas para el filtro actual. Cuando no se establecen fechas, se muestran las entradas recientes.\n\n### Bloqueo y editabilidad\n\nLas entradas de tiempo pueden bloquearse por un gerente o por el cierre del período de pago. Las entradas bloqueadas muestran un icono de candado y no pueden editarse ni eliminarse. Las entradas no bloqueadas de hoy o de fechas futuras pueden eliminarse; las entradas pasadas requieren una corrección de tiempo de administrador (que crea un rastro de auditoría).\n\n### Correcciones de tiempo de administrador\n\nLos gerentes y administradores pueden corregir entradas de tiempo mediante la página Administración > Correcciones de tiempo. Las correcciones requieren un motivo y crean una entrada en TimeCorrectionLog que conserva los valores originales con fines de auditoría. Los campos que pueden corregirse incluyen fecha, duración, horas de inicio/fin, categoría, notas y asignación de trabajo.\n\n### Períodos de pago y horas extra\n\nLas entradas de tiempo se consolidan en períodos de pago (semanal, quincenal, bimensual o mensual —configurable en la configuración de administración). Cuando un período de pago se bloquea, todas las entradas dentro de ese período pasan a ser de solo lectura. Pueden configurarse reglas de horas extra (p. ej., >40 horas/semana = 1.5x) y el sistema calcula los desgloses de horas extra por empleado por semana.\n\n### Sincronización en tiempo real con SignalR\n\nLos eventos de inicio y detención del temporizador se transmiten mediante el TimerHub de SignalR. Si hay dos pestañas del navegador abiertas, iniciar un temporizador en una pestaña actualiza la visualización de la otra pestaña de inmediato. El encabezado de la página alterna dinámicamente entre los botones Iniciar temporizador y Detener temporizador según si hay un temporizador activo en ese momento.\n\n### Conexión con la nómina\n\nLas entradas de tiempo alimentan los cálculos de nómina. El costo de mano de obra de cada entrada se calcula a partir de la tarifa por hora del empleado multiplicada por la duración. El costo de carga fabril (asignación de gastos generales) se rastrea por separado. Cuando la integración con QuickBooks está activa, las entradas de tiempo pueden sincronizarse como Time Activities en el sistema contable mediante el campo AccountingTimeActivityId.",
+      "body": "## Visión general del Registro de tiempo\n\nEl módulo de Registro de tiempo registra cómo los empleados emplean sus horas de trabajo. Admite dos métodos para capturar el tiempo —temporizadores en vivo y entradas manuales— y se integra con los eventos de reloj, los trabajos, la nómina y la contabilidad de costos.\n\n### Dos formas de registrar el tiempo\n\n**Temporizadores en vivo:** Haga clic en Iniciar temporizador para comenzar a registrar el tiempo en tiempo real. El temporizador corre hasta que hace clic en Detener temporizador. La duración transcurrida se calcula automáticamente a partir de las marcas de tiempo de inicio y fin. Los temporizadores se sincronizan entre pestañas del navegador y dispositivos en tiempo real —si inicia un temporizador en su teléfono, su computadora de escritorio lo muestra corriendo de inmediato.\n\n**Entradas manuales:** Haga clic en Entrada manual para registrar el tiempo después del hecho. Introduce la fecha, las horas, los minutos, una categoría opcional y notas opcionales. Las entradas manuales se marcan con un icono de lápiz en la tabla para distinguirlas de las entradas basadas en temporizador.\n\n### Categorías\n\nCada entrada de tiempo (temporizador o manual) puede etiquetarse con una categoría:\n- **Producción** — trabajo de producción directa en un trabajo\n- **Preparación** — preparación de máquina, cambios de herramental, preparación de dispositivos\n- **Inspección** — controles de calidad, mediciones, inspección de primera pieza\n- **Mantenimiento** — mantenimiento de equipos, limpieza, calibración\n- **Capacitación** — aprendizaje, incorporación, desarrollo de habilidades\n- **Reunión** — reuniones de equipo, sesiones de planificación, reuniones diarias\n- **Administración** — papeleo, correos electrónicos, tareas administrativas\n- **Limpieza** — limpieza de fin de turno, organización\n- **Otro** — cualquier cosa que no encaje en lo anterior\n\nLas categorías son opcionales pero recomendadas —alimentan los informes y ayudan a los gerentes a comprender cómo se distribuye el tiempo entre las actividades.\n\n### Eventos de reloj\n\nLos eventos de reloj son distintos de las entradas de tiempo. Registran cuándo un empleado entra o sale de las instalaciones usando una credencial RFID, un escaneo de código de barras o una entrada manual en el quiosco del taller. Los eventos de reloj registran:\n- **Tipo de evento** — entrada, salida, inicio de descanso, fin de descanso (impulsado por datos de referencia)\n- **Marca de tiempo** — cuándo ocurrió el evento\n- **Método de escaneo** — cómo se identificó el empleado (RFID, código de barras, manual)\n- **Origen** — qué dispositivo o quiosco registró el evento\n- **Motivo** — nota opcional (p. ej., 'salida anticipada — cita')\n\nLos eventos de reloj establecen la presencia del empleado en el sitio. Las entradas de tiempo registran en qué trabajaron durante esa presencia.\n\n### Vinculación a trabajos\n\nLas entradas de tiempo pueden vincularse a un trabajo específico. Cuando se inicia un temporizador desde el panel de detalle de un trabajo en el tablero kanban, la asociación al trabajo se establece automáticamente. Esto conecta el tiempo directamente con el costeo de trabajos —el costo de mano de obra de cada entrada se calcula a partir de la tarifa del empleado y se aplica al consolidado de costos del trabajo.\n\n### Filtrado por rango de fechas\n\nLa página de registro de tiempo tiene selectores de fecha Desde y Hasta que filtran la tabla de entradas. Una línea de resumen muestra el total de horas y el número de entradas para el filtro actual. Cuando no se establecen fechas, se muestran las entradas recientes.\n\n### Bloqueo y editabilidad\n\nLas entradas de tiempo pueden bloquearse por un gerente o por el cierre del período de pago. Las entradas bloqueadas muestran un icono de candado y no pueden editarse ni eliminarse. Las entradas no bloqueadas de hoy o de fechas futuras pueden eliminarse; las entradas pasadas requieren una corrección de tiempo de administrador (que crea un rastro de auditoría).\n\n### Correcciones de tiempo de administrador\n\nLos gerentes y administradores pueden corregir entradas de tiempo mediante la página Administración > Correcciones de tiempo. Las correcciones requieren un motivo y se guardan en un rastro de auditoría que conserva los valores originales. Los campos que pueden corregirse incluyen fecha, duración, horas de inicio/fin, categoría, notas y asignación de trabajo.\n\n### Períodos de pago y horas extra\n\nLas entradas de tiempo se consolidan en períodos de pago (semanal, quincenal, bimensual o mensual —configurable en la configuración de administración). Cuando un período de pago se bloquea, todas las entradas dentro de ese período pasan a ser de solo lectura. Pueden configurarse reglas de horas extra (p. ej., >40 horas/semana = 1.5x) y el sistema calcula los desgloses de horas extra por empleado por semana.\n\n### Sincronización en tiempo real\n\nLos eventos de inicio y detención del temporizador se sincronizan al instante. Si hay dos pestañas del navegador abiertas, iniciar un temporizador en una pestaña actualiza la visualización de la otra pestaña de inmediato. El botón en la parte superior de la página alterna entre Iniciar temporizador y Detener temporizador según si hay un temporizador activo en ese momento.\n\n### Conexión con la nómina\n\nLas entradas de tiempo alimentan los cálculos de nómina. El costo de mano de obra de cada entrada se calcula a partir de la tarifa por hora del empleado multiplicada por la duración. El costo de gastos generales se rastrea por separado. Cuando la integración con QuickBooks está activa, las entradas de tiempo pueden sincronizarse con el sistema contable como actividades de tiempo.",
       "sections": []
     }
   },
@@ -17,10 +17,10 @@
       "startButtonLabel": "Recorrer Registro de tiempo",
       "steps": [
         {
-          "element": "app-page-header",
+          "element": "[data-testid='start-timer-btn']",
           "popover": {
             "title": "Iniciar temporizador",
-            "description": "Haga clic aquí para iniciar un temporizador en vivo. Se abre un cuadro de diálogo donde puede seleccionar opcionalmente una categoría y agregar notas. Una vez iniciado, el botón cambia a Detener temporizador con el tiempo transcurrido mostrado. El temporizador corre del lado del servidor, por lo que persiste a través de actualizaciones de página y pestañas del navegador.",
+            "description": "Haga clic para iniciar un temporizador en vivo. Se abre un panel donde puede elegir una categoría y agregar notas. Una vez en marcha, este botón se convierte en Detener temporizador y muestra el tiempo transcurrido. El temporizador sigue corriendo aunque actualice la página o cambie de pestaña.",
             "side": "bottom"
           }
         },
@@ -28,23 +28,23 @@
           "element": "[data-testid='manual-entry-btn']",
           "popover": {
             "title": "Entrada manual",
-            "description": "Haga clic aquí para registrar el tiempo después del hecho. Introducirá una fecha, horas, minutos, una categoría opcional y notas opcionales. Las entradas manuales se marcan con un icono de edición en la tabla para distinguirlas de las entradas basadas en temporizador.",
+            "description": "Haga clic para registrar tiempo que ya trabajó. Introduzca la fecha, las horas y los minutos, más una categoría y notas opcionales. Las entradas manuales muestran un icono de lápiz en la tabla para distinguirlas de las cronometradas.",
             "side": "bottom"
           }
         },
         {
           "element": ".filters-bar app-datepicker:first-of-type",
           "popover": {
-            "title": "Filtro de fecha Desde",
-            "description": "Establezca la fecha de inicio para filtrar las entradas de tiempo. Solo aparecerán en la tabla de abajo las entradas en o después de esta fecha. Déjelo en blanco para mostrar todas las entradas recientes.",
+            "title": "Fecha Desde",
+            "description": "Elija una fecha de inicio para filtrar la lista. Solo se muestran las entradas en o después de esta fecha. Déjelo en blanco para ver todas las entradas recientes.",
             "side": "bottom"
           }
         },
         {
           "element": ".filters-bar app-datepicker:last-of-type",
           "popover": {
-            "title": "Filtro de fecha Hasta",
-            "description": "Establezca la fecha de fin para filtrar las entradas de tiempo. Solo aparecerán las entradas en o antes de esta fecha. Use Desde y Hasta juntos para ver un rango de fechas específico —un solo día, una semana o un período de pago.",
+            "title": "Fecha Hasta",
+            "description": "Elija una fecha de fin para filtrar la lista. Solo se muestran las entradas en o antes de esta fecha. Use Desde y Hasta juntos para ver un día, una semana o un período de pago.",
             "side": "bottom"
           }
         },
@@ -52,23 +52,23 @@
           "element": ".filter-summary",
           "popover": {
             "title": "Línea de resumen",
-            "description": "Muestra el total de horas y el número de entradas para el filtro actual. Por ejemplo: '12.5 horas en 8 entradas'. Se actualiza automáticamente cuando cambia los filtros de fecha o cuando se agregan nuevas entradas.",
+            "description": "Muestra el total de horas y cuántas entradas coinciden con su filtro, como '12.5 horas en 8 entradas'. Se actualiza sola cuando cambia las fechas o agrega una entrada.",
             "side": "bottom"
           }
         },
         {
           "element": "app-data-table",
           "popover": {
-            "title": "Tabla de entradas de tiempo",
-            "description": "Todas las entradas de tiempo para el filtro actual se listan aquí. Las columnas incluyen un icono (temporizador o manual), fecha, nombre de usuario, número de trabajo vinculado, categoría, duración (o 'En curso' para temporizadores activos), notas, distintivo de tipo (Temporizador/Manual) y una columna de acciones. Haga clic en los encabezados de columna para ordenar. Las filas de temporizadores activos están resaltadas.",
+            "title": "Entradas de tiempo",
+            "description": "Cada entrada que coincide con su filtro aparece aquí —su fecha, quién la trabajó, el trabajo vinculado, la categoría, cuánto tomó y las notas. Haga clic en un encabezado de columna para ordenar. Los temporizadores en curso están resaltados.",
             "side": "top"
           }
         },
         {
           "element": ".entry-type",
           "popover": {
-            "title": "Distintivo de tipo de entrada",
-            "description": "Cada entrada muestra 'Temporizador' (verde azulado) o 'Manual' (gris) para indicar cómo se registró el tiempo. Las entradas de temporizador tienen marcas de tiempo de inicio/fin precisas; las entradas manuales tienen una duración introducida por el usuario.",
+            "title": "Temporizador o manual",
+            "description": "Una etiqueta 'Temporizador' verde azulado significa que el tiempo se registró en vivo; una etiqueta 'Manual' gris significa que se escribió después. Las entradas cronometradas tienen horas exactas de inicio y fin.",
             "side": "left"
           }
         }
@@ -83,222 +83,222 @@
       "title": "Referencia de campos del Registro de tiempo",
       "groups": [
         {
-          "heading": "Campos del cuadro de diálogo Iniciar temporizador",
+          "heading": "Campos de Iniciar temporizador",
           "items": [
             {
               "label": "Categoría (opcional)",
-              "value": "Lista desplegable: Ninguna, Producción, Preparación, Inspección, Mantenimiento, Capacitación, Reunión, Administración, Limpieza, Otro. Etiqueta la sesión del temporizador con una categoría de trabajo. Predeterminado: Ninguna."
+              "value": "Elija una categoría de trabajo —Ninguna, Producción, Preparación, Inspección, Mantenimiento, Capacitación, Reunión, Administración, Limpieza u Otro. Empieza en Ninguna."
             },
             {
               "label": "Notas (opcional)",
-              "value": "Área de texto (2 filas). Notas de forma libre sobre lo que está trabajando. Pueden actualizarse al detener el temporizador."
+              "value": "Una nota breve sobre lo que está trabajando. Puede actualizarla al detener el temporizador."
             }
           ]
         },
         {
-          "heading": "Campos del cuadro de diálogo Detener temporizador",
+          "heading": "Campos de Detener temporizador",
           "items": [
             {
-              "label": "Temporizador en curso desde hace (visualización)",
-              "value": "Muestra el tiempo transcurrido (p. ej., '1h 23m') y la categoría si se estableció una al iniciar. Texto informativo de solo lectura."
+              "label": "Temporizador en curso desde hace",
+              "value": "Muestra cuánto ha corrido el temporizador, como '1h 23m', más la categoría si estableció una. Solo de referencia —no se puede editar."
             },
             {
               "label": "Notas (opcional)",
-              "value": "Área de texto (2 filas). Notas adicionales para agregar o actualizar al detener el temporizador. Etiquetado 'Notas (opcional)'."
+              "value": "Agregue o actualice una nota al detener el temporizador."
             }
           ]
         },
         {
-          "heading": "Campos del cuadro de diálogo Entrada manual",
+          "heading": "Campos de Entrada manual",
           "items": [
             {
               "label": "Fecha (requerido)",
-              "value": "Selector de fecha. La fecha en que se trabajó este tiempo. Predeterminado: hoy. data-testid: time-entry-date"
+              "value": "El día en que se trabajó este tiempo. Empieza en hoy."
             },
             {
               "label": "Categoría (opcional)",
-              "value": "Lista desplegable: las mismas opciones que la categoría del temporizador. Predeterminado: Ninguna. data-testid: time-entry-category"
+              "value": "Las mismas opciones de categoría que el temporizador. Empieza en Ninguna."
             },
             {
               "label": "Horas (requerido)",
-              "value": "Campo numérico. Horas completas trabajadas (0–24). Se combina con Minutos para calcular la duración total. data-testid: time-entry-hours"
+              "value": "Horas completas trabajadas, de 0 a 24. Se combina con Minutos para el total."
             },
             {
               "label": "Minutos (requerido)",
-              "value": "Campo numérico. Minutos adicionales trabajados (0–59). Se combina con Horas. La duración total debe ser > 0. data-testid: time-entry-minutes"
+              "value": "Minutos adicionales trabajados, de 0 a 59. Se combina con Horas. El total debe ser mayor que cero."
             },
             {
               "label": "Notas (opcional)",
-              "value": "Área de texto (3 filas). Descripción de forma libre del trabajo realizado. data-testid: time-entry-notes"
+              "value": "Una descripción breve del trabajo que hizo."
             }
           ]
         },
         {
-          "heading": "Controles de filtro de fecha",
+          "heading": "Filtro de fecha",
           "items": [
             {
               "label": "Desde",
-              "value": "Selector de fecha en la barra de filtros. Filtra las entradas a las que están en o después de esta fecha. Déjelo en blanco para no tener límite inferior."
+              "value": "Muestra solo las entradas en o después de esta fecha. Déjelo en blanco para no tener límite de inicio."
             },
             {
               "label": "Hasta",
-              "value": "Selector de fecha en la barra de filtros. Filtra las entradas a las que están en o antes de esta fecha. Déjelo en blanco para no tener límite superior."
+              "value": "Muestra solo las entradas en o antes de esta fecha. Déjelo en blanco para no tener límite de fin."
             },
             {
               "label": "Línea de resumen",
-              "value": "Muestra el total de horas (con 1 decimal) y el conteo de entradas para el filtro actual. Ejemplo: '12.5 horas en 8 entradas'."
+              "value": "Total de horas y cuántas entradas coinciden con su filtro, como '12.5 horas en 8 entradas'."
             }
           ]
         },
         {
-          "heading": "Columnas de la tabla de datos",
+          "heading": "Columnas de la tabla",
           "items": [
             {
-              "label": "Icono (primera columna)",
-              "value": "Muestra el icono del tipo de entrada: icono de temporizador resaltado en verde para temporizadores activos, icono de temporizador atenuado para temporizadores completados, icono edit_note para entradas manuales. Ancho: 32px."
+              "label": "Icono",
+              "value": "Un pequeño icono marca cada entrada: un temporizador encendido para uno en curso, uno normal para uno terminado, o un lápiz para una entrada manual."
             },
             {
               "label": "Fecha",
-              "value": "Ordenable. La fecha en que se trabajó el tiempo, con formato MM/dd/yyyy. Tipo: fecha."
+              "value": "El día en que se trabajó el tiempo, mostrado como MM/dd/yyyy. Haga clic para ordenar."
             },
             {
               "label": "Usuario",
-              "value": "Ordenable. El nombre mostrado del empleado (formato Apellido, Nombre I)."
+              "value": "Quién trabajó el tiempo, mostrado como Apellido, Nombre I. Haga clic para ordenar."
             },
             {
               "label": "Trabajo",
-              "value": "El número de trabajo vinculado, mostrado como un distintivo. Guión (—) si no hay trabajo vinculado."
+              "value": "El número de trabajo vinculado. Un guión significa que no hay trabajo vinculado."
             },
             {
               "label": "Categoría",
-              "value": "Ordenable. La etiqueta de categoría de trabajo (Producción, Preparación, etc.) o guión si no hay ninguna."
+              "value": "La categoría de trabajo, como Producción o Preparación, o un guión si no hay ninguna. Haga clic para ordenar."
             },
             {
               "label": "Duración",
-              "value": "Ordenable. Con formato 'Xh Ym' (p. ej., '2h 15m' o '45m'). Los temporizadores activos muestran un distintivo verde 'En curso' en su lugar."
+              "value": "Cuánto tomó, como '2h 15m' o '45m'. Una etiqueta verde 'En curso' aparece para los temporizadores activos. Haga clic para ordenar."
             },
             {
               "label": "Notas",
-              "value": "Texto de notas truncado. Color atenuado para legibilidad."
+              "value": "La nota de la entrada, recortada para que quepa."
             },
             {
               "label": "Tipo",
-              "value": "Distintivo que muestra 'Temporizador' (verde azulado) o 'Manual' (gris). Ancho: 80px."
+              "value": "Una etiqueta 'Temporizador' verde azulado o 'Manual' gris que indica cómo se registró el tiempo."
             },
             {
               "label": "Acciones",
-              "value": "Botón de eliminar (icono de papelera) para entradas editables. Icono de candado para entradas bloqueadas o pasadas. Ancho: 64px, alineado a la derecha."
+              "value": "Un botón de eliminar para las entradas que todavía puede cambiar, o un icono de candado para las que están bloqueadas o en el pasado."
             }
           ]
         },
         {
-          "heading": "Campos de eventos de reloj",
+          "heading": "Eventos de reloj",
           "items": [
             {
-              "label": "Código de tipo de evento",
-              "value": "Código impulsado por datos de referencia del grupo 'clock_event_type'. Valores comunes: clock-in, clock-out, break-start, break-end."
+              "label": "Tipo de evento",
+              "value": "Qué ocurrió —entrada, salida, inicio de descanso o fin de descanso."
             },
             {
-              "label": "Marca de tiempo",
-              "value": "DateTimeOffset — cuándo ocurrió el evento. Almacenado en UTC."
+              "label": "Hora",
+              "value": "Cuándo ocurrió el evento."
             },
             {
               "label": "Método de escaneo",
-              "value": "Cómo se identificó el empleado: RFID, código de barras, manual, NFC. Opcional."
+              "value": "Cómo se identificó el empleado —RFID, código de barras, manual o NFC. Opcional."
             },
             {
               "label": "Origen",
-              "value": "Qué dispositivo/quiosco registró el evento (p. ej., 'shop-floor-kiosk-1'). Opcional."
+              "value": "Qué dispositivo o quiosco del taller registró el evento. Opcional."
             },
             {
               "label": "Motivo",
-              "value": "Nota opcional que explica el evento (p. ej., 'salida anticipada — cita médica')."
+              "value": "Una nota opcional que explica el evento, como 'salida anticipada — cita médica'."
             }
           ]
         },
         {
-          "heading": "Campos de la entidad de entrada de tiempo (backend)",
+          "heading": "Qué registra cada entrada",
           "items": [
             {
-              "label": "JobId",
-              "value": "FK opcional a la entidad Job. Vincula la entrada de tiempo a un trabajo específico para el costeo."
+              "label": "Trabajo",
+              "value": "El trabajo al que se vincula este tiempo, para que su costo caiga en el trabajo correcto. Opcional."
             },
             {
-              "label": "UserId",
-              "value": "FK al usuario propietario de esta entrada de tiempo. Se establece automáticamente a partir del usuario autenticado."
+              "label": "Empleado",
+              "value": "A quién pertenece la entrada. Se establece automáticamente en quien la creó."
             },
             {
-              "label": "Date",
-              "value": "DateOnly — la fecha de trabajo. Se usa para el filtrado y la agrupación por período de pago."
+              "label": "Fecha",
+              "value": "El día trabajado. Se usa para filtrar y agrupar en períodos de pago."
             },
             {
-              "label": "DurationMinutes",
-              "value": "Entero — total de minutos trabajados. Para entradas de temporizador, se calcula a partir de TimerStop - TimerStart."
+              "label": "Duración",
+              "value": "Total de minutos trabajados. Para las entradas cronometradas, proviene de las horas de inicio y fin."
             },
             {
-              "label": "TimerStart / TimerStop",
-              "value": "DateTimeOffset — marcas de tiempo precisas de inicio y fin para entradas de temporizador. Nulo para entradas manuales."
+              "label": "Horas de inicio y fin",
+              "value": "Las horas exactas en que un temporizador comenzó y terminó. En blanco para las entradas manuales."
             },
             {
-              "label": "IsManual",
-              "value": "Booleano — verdadero para entradas manuales, falso para entradas de temporizador. Impulsa la visualización del distintivo de Tipo."
+              "label": "Manual o cronometrado",
+              "value": "Indica si el tiempo se escribió o se registró en vivo. Determina la etiqueta Temporizador/Manual."
             },
             {
-              "label": "IsLocked",
-              "value": "Booleano — verdadero cuando está bloqueado por un gerente o por el cierre del período de pago. Impide ediciones y eliminaciones."
+              "label": "Bloqueado",
+              "value": "Marca una entrada como bloqueada por un gerente o un período de pago cerrado, lo que impide ediciones y eliminaciones."
             },
             {
-              "label": "OperationId",
-              "value": "FK opcional a Operation — para el registro de tiempo a nivel de operación dentro de un trabajo."
+              "label": "Operación",
+              "value": "Vincula el tiempo a una operación específica dentro de un trabajo, cuando registra el tiempo con ese detalle. Opcional."
             },
             {
-              "label": "EntryType",
-              "value": "Enum: Setup, Run (predeterminado), Teardown, Inspection, Rework, Wait, Other. Distingue el tipo de tiempo de operación que se registra."
+              "label": "Tipo de trabajo",
+              "value": "Para el tiempo de operación, en qué etapa fue —Preparación, Ejecución (lo habitual), Desmontaje, Inspección, Retrabajo, Espera u Otro."
             },
             {
-              "label": "LaborCost",
-              "value": "Decimal — costo de mano de obra calculado (tarifa del empleado x duración). Se usa en el costeo de trabajos."
+              "label": "Costo de mano de obra",
+              "value": "Lo que costó el tiempo —la tarifa del empleado por las horas. Se suma al costeo de trabajos."
             },
             {
-              "label": "BurdenCost",
-              "value": "Decimal — asignación de gastos generales/carga fabril para esta entrada."
+              "label": "Costo de gastos generales",
+              "value": "La parte de gastos generales que se agrega a la mano de obra de esta entrada."
             },
             {
-              "label": "AccountingTimeActivityId",
-              "value": "ID externo de QuickBooks cuando se sincroniza como un Time Activity. Nulo si no está sincronizado."
+              "label": "Vínculo contable",
+              "value": "El registro correspondiente en QuickBooks una vez que la entrada se sincroniza. En blanco hasta entonces."
             }
           ]
         },
         {
-          "heading": "Campos de corrección de tiempo de administrador",
+          "heading": "Corrección de tiempo de administrador",
           "items": [
             {
-              "label": "Date",
-              "value": "Fecha corregida opcional (anula la original)."
+              "label": "Fecha",
+              "value": "Una fecha corregida, si la está cambiando."
             },
             {
-              "label": "DurationMinutes",
-              "value": "Duración corregida opcional en minutos."
+              "label": "Duración",
+              "value": "Una duración corregida, en minutos, si la está cambiando."
             },
             {
-              "label": "Start Time / End Time",
-              "value": "Marcas de tiempo de inicio/fin corregidas opcionales."
+              "label": "Horas de inicio y fin",
+              "value": "Horas de inicio y fin corregidas, si las está cambiando."
             },
             {
-              "label": "Category",
-              "value": "Categoría corregida opcional."
+              "label": "Categoría",
+              "value": "Una categoría corregida, si la está cambiando."
             },
             {
-              "label": "Notes",
-              "value": "Notas corregidas opcionales."
+              "label": "Notas",
+              "value": "Notas corregidas, si las está cambiando."
             },
             {
-              "label": "Job",
-              "value": "Asignación de trabajo corregida opcional (JobId)."
+              "label": "Trabajo",
+              "value": "Un vínculo de trabajo corregido, si lo está cambiando."
             },
             {
               "label": "Motivo (requerido)",
-              "value": "Por qué se hizo esta corrección. Se almacena en TimeCorrectionLog para el rastro de auditoría. Campo requerido."
+              "value": "Por qué está haciendo este cambio. Se guarda en el rastro de auditoría para que quede constancia."
             }
           ]
         },
@@ -306,94 +306,94 @@
           "heading": "Botones y acciones",
           "items": [
             {
-              "label": "Iniciar temporizador (botón principal)",
-              "value": "Abre el cuadro de diálogo de iniciar temporizador. Solo visible cuando no hay un temporizador activo. data-testid: start-timer-btn"
+              "label": "Iniciar temporizador",
+              "value": "Abre el panel de iniciar temporizador. Aparece solo cuando no hay un temporizador en curso."
             },
             {
-              "label": "Detener temporizador (botón de advertencia)",
-              "value": "Abre el cuadro de diálogo de detener temporizador que muestra el tiempo transcurrido. Solo visible cuando hay un temporizador en curso. Reemplaza a Iniciar temporizador. data-testid: stop-timer-btn"
+              "label": "Detener temporizador",
+              "value": "Abre el panel de detener temporizador con el tiempo transcurrido. Aparece solo mientras hay un temporizador en curso, en lugar de Iniciar temporizador."
             },
             {
-              "label": "Entrada manual (botón secundario)",
-              "value": "Abre el cuadro de diálogo de entrada manual de tiempo con soporte de autoguardado de borrador. data-testid: manual-entry-btn"
+              "label": "Entrada manual",
+              "value": "Abre el panel de entrada manual. Lo que escribe se guarda automáticamente como borrador."
             },
             {
-              "label": "Registrar entrada (guardar del diálogo)",
-              "value": "Guarda la entrada manual. Deshabilitado cuando el formulario no es válido o el guardado está en progreso. Un icono de validación de revelar-al-hacer-clic junto a él enumera los problemas cuando no es válido. data-testid: time-entry-save-btn"
+              "label": "Registrar entrada",
+              "value": "Guarda la entrada manual. Deshabilitado hasta que el formulario esté completo; un icono de advertencia junto a él enumera lo que falta."
             },
             {
-              "label": "Iniciar (diálogo del temporizador)",
-              "value": "Inicia el temporizador con categoría y notas opcionales. data-testid: timer-start-btn"
+              "label": "Iniciar",
+              "value": "Inicia el temporizador con la categoría y las notas que eligió."
             },
             {
-              "label": "Detener temporizador (diálogo de detención)",
-              "value": "Detiene el temporizador activo. Calcula la duración a partir del tiempo transcurrido. data-testid: timer-stop-btn"
+              "label": "Detener temporizador",
+              "value": "Detiene el temporizador en curso y calcula cuánto corrió."
             },
             {
-              "label": "Eliminar (acción de fila)",
-              "value": "Elimina una entrada de tiempo editable y no bloqueada tras un cuadro de diálogo de confirmación. Solo disponible para las entradas de hoy o futuras."
+              "label": "Eliminar",
+              "value": "Quita una entrada que todavía puede cambiar, tras confirmar. Solo para las entradas de hoy o futuras."
             },
             {
-              "label": "Cancelar (todos los diálogos)",
-              "value": "Cierra el cuadro de diálogo sin guardar."
+              "label": "Cancelar",
+              "value": "Cierra el panel sin guardar."
             }
           ]
         },
         {
-          "heading": "Reglas de validación",
+          "heading": "Reglas que conviene saber",
           "items": [
             {
-              "label": "Entrada manual — Fecha",
-              "value": "Requerido. Debe seleccionar una fecha."
+              "label": "Fecha",
+              "value": "Debe elegir una fecha para una entrada manual."
             },
             {
-              "label": "Entrada manual — Horas",
-              "value": "Requerido. Debe estar entre 0 y 24."
+              "label": "Horas",
+              "value": "Debe estar entre 0 y 24."
             },
             {
-              "label": "Entrada manual — Minutos",
-              "value": "Requerido. Debe estar entre 0 y 59."
+              "label": "Minutos",
+              "value": "Debe estar entre 0 y 59."
             },
             {
-              "label": "Entrada manual — Duración total",
-              "value": "Horas + Minutos debe ser mayor que 0. El botón de guardar verifica esto antes de enviar."
+              "label": "Tiempo total",
+              "value": "Las horas más los minutos deben sumar más de cero, o no podrá guardar."
             },
             {
-              "label": "Temporizador — Inicio",
-              "value": "No se puede iniciar un nuevo temporizador mientras ya hay uno en curso. El botón Iniciar temporizador se oculta cuando hay un temporizador activo."
+              "label": "Iniciar un temporizador",
+              "value": "No puede iniciar un nuevo temporizador mientras ya hay uno en curso —el botón Iniciar temporizador se oculta hasta que lo detenga."
             },
             {
-              "label": "Eliminar — Editabilidad",
-              "value": "Solo pueden eliminarse las entradas no bloqueadas de hoy o de fechas futuras. Las entradas pasadas muestran un icono de candado."
+              "label": "Eliminar",
+              "value": "Solo puede eliminar entradas no bloqueadas de hoy o posteriores. Las entradas pasadas muestran un icono de candado en su lugar."
             },
             {
-              "label": "Corrección de administrador — Motivo",
-              "value": "Requerido. Debe explicar por qué se hizo la corrección."
+              "label": "Motivo de la corrección",
+              "value": "Un administrador debe indicar por qué hizo una corrección."
             }
           ]
         },
         {
-          "heading": "Sincronización en tiempo real (SignalR)",
+          "heading": "Actualizaciones en vivo",
           "items": [
             {
-              "label": "TimerHub",
-              "value": "Hub de SignalR en /hubs/timer. Transmite eventos de inicio y detención del temporizador."
+              "label": "Sincronización instantánea",
+              "value": "Iniciar o detener un temporizador actualiza la página de inmediato, sin recargar."
             },
             {
-              "label": "onTimerStartedEvent",
-              "value": "Se dispara cuando cualquier usuario inicia un temporizador. Activa una recarga completa de la tabla de entradas."
+              "label": "Cuando inicia un temporizador",
+              "value": "En cuanto inicia cualquiera de sus temporizadores, la lista se actualiza para estar al día."
             },
             {
-              "label": "onTimerStoppedEvent",
-              "value": "Se dispara cuando cualquier usuario detiene un temporizador. Activa una recarga completa de la tabla de entradas."
+              "label": "Cuando se detiene un temporizador",
+              "value": "En cuanto se detiene cualquiera de sus temporizadores, la lista se actualiza para estar al día."
             },
             {
-              "label": "Indicador de temporizador activo",
-              "value": "El encabezado de la página alterna dinámicamente entre Iniciar temporizador (verde) y Detener temporizador (naranja) según si el usuario actual tiene un temporizador activo."
+              "label": "Cambio de botón",
+              "value": "El botón de arriba alterna entre Iniciar temporizador y Detener temporizador según si tiene un temporizador en curso."
             },
             {
-              "label": "Sincronización entre pestañas",
-              "value": "Iniciar o detener un temporizador en una pestaña del navegador se refleja en todas las demás pestañas abiertas en segundos mediante SignalR."
+              "label": "Entre dispositivos",
+              "value": "Inicie o detenga un temporizador en un dispositivo y aparece en sus otras pestañas y dispositivos abiertos en segundos."
             }
           ]
         }
@@ -540,7 +540,7 @@
             },
             {
               "id": "b",
-              "text": "El temporizador sigue corriendo porque rastrea la hora de inicio del lado del servidor; el tiempo transcurrido se recalcula a partir de la marca de tiempo TimerStart almacenada",
+              "text": "El temporizador sigue corriendo porque la hora de inicio se guarda en el servidor; el tiempo transcurrido se calcula a partir de esa hora de inicio guardada",
               "isCorrect": true
             },
             {
@@ -552,7 +552,7 @@
               "text": "El temporizador se detiene automáticamente y se crea una entrada manual para el tiempo transcurrido"
             }
           ],
-          "explanation": "Los temporizadores son del lado del servidor. La marca de tiempo TimerStart se almacena cuando hace clic en Iniciar, y la duración se calcula a partir de esa marca de tiempo cuando se detiene. Cerrar el navegador no afecta el temporizador en curso —continúa rastreando según la marca de tiempo del servidor."
+          "explanation": "Los temporizadores viven en el servidor. La hora de inicio se guarda cuando hace clic en Iniciar, y la duración se calcula a partir de esa hora cuando se detiene. Cerrar el navegador no afecta el temporizador en curso —continúa rastreando desde la hora de inicio guardada."
         },
         {
           "id": "tt7",
@@ -564,7 +564,7 @@
             },
             {
               "id": "b",
-              "text": "Sí —SignalR transmite los eventos del temporizador mediante el TimerHub, así que todos los clientes conectados se actualizan en tiempo real",
+              "text": "Sí —los cambios del temporizador se sincronizan en tiempo real con todos los dispositivos donde tiene la sesión iniciada",
               "isCorrect": true
             },
             {
@@ -576,7 +576,7 @@
               "text": "Solo si ambos dispositivos están en la misma red"
             }
           ],
-          "explanation": "El TimerHub transmite onTimerStartedEvent y onTimerStoppedEvent a todos los clientes conectados. Cuando inicia un temporizador en cualquier dispositivo, el encabezado de la página en todas sus pestañas y dispositivos abiertos cambia de Iniciar temporizador a Detener temporizador automáticamente."
+          "explanation": "Iniciar o detener un temporizador se sincroniza con todas sus pestañas y dispositivos abiertos en tiempo real. Cuando inicia un temporizador en cualquier dispositivo, el botón de arriba cambia de Iniciar temporizador a Detener temporizador en todas partes automáticamente."
         },
         {
           "id": "tt8",
@@ -600,7 +600,7 @@
               "text": "Pedirle al empleado que envíe una nueva entrada manual con las horas correctas"
             }
           ],
-          "explanation": "Las correcciones de tiempo de administrador conservan un rastro de auditoría. El gerente introduce los valores corregidos y un motivo requerido. Los valores originales se almacenan en una entrada de TimeCorrectionLog para que haya un registro completo de qué cambió y por qué."
+          "explanation": "Las correcciones de tiempo de administrador conservan un rastro de auditoría. El gerente introduce los valores corregidos y un motivo requerido. Los valores originales se conservan en el rastro de auditoría para que haya un registro completo de qué cambió y por qué."
         },
         {
           "id": "tt9",
@@ -636,7 +636,7 @@
             },
             {
               "id": "b",
-              "text": "Las entradas de tiempo pueden tener una clave foránea JobId —cuando se inicia un temporizador desde el panel de detalle de un trabajo en el tablero kanban, el vínculo al trabajo se establece automáticamente",
+              "text": "Una entrada de tiempo puede vincularse a un trabajo —cuando inicia un temporizador desde el panel de detalle de un trabajo en el tablero kanban, el vínculo se establece por usted",
               "isCorrect": true
             },
             {
@@ -648,7 +648,7 @@
               "text": "Todas las entradas de tiempo se vinculan automáticamente al trabajo que esté seleccionado en ese momento en el tablero kanban"
             }
           ],
-          "explanation": "La entidad TimeEntry tiene un campo JobId opcional. Cuando inicia un temporizador desde el panel de detalle de un trabajo específico, el JobId se establece automáticamente. El número de trabajo vinculado aparece en la columna Trabajo de la tabla de registro de tiempo. El costo de mano de obra se asigna entonces a ese trabajo."
+          "explanation": "Una entrada de tiempo puede vincularse opcionalmente a un trabajo. Cuando inicia un temporizador desde el panel de detalle de un trabajo específico, el vínculo se establece por usted. El número de trabajo vinculado aparece en la columna Trabajo, y el costo de mano de obra cae en ese trabajo."
         },
         {
           "id": "tt11",

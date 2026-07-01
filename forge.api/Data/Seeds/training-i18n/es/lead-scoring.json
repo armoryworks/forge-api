@@ -13,7 +13,7 @@
     "title": "Rúbricas ICP y dimensiones ponderadas",
     "summary": "Construya una rúbrica de Perfil de cliente ideal a partir de dimensiones ponderadas, entienda la invariante de único predeterminado y siga la ruta de extremo a extremo: rúbrica → Lead.IcpScore nocturno → ordenamiento de la cola de trabajo.",
     "contentJson": {
-      "body": "## Rúbricas ICP y dimensiones ponderadas\n\nUna **rúbrica ICP** (Perfil de cliente ideal) es una hoja de calificación que evalúa qué tan bien encaja un prospecto con el tipo de cliente que realmente desea. Administración → Rúbricas ICP es donde construye y ajusta esas rúbricas. El resultado es una **puntuación de ajuste** de 0 a 100 estampada en cada prospecto activo, que la cola de trabajo de los representantes usa para mostrar primero los prospectos con mejor ajuste.\n\n### El panorama completo (lea esto primero)\n\nVale la pena entender toda la cadena antes de tocar el editor:\n\n1. Usted define una **rúbrica** compuesta de **dimensiones** ponderadas (industria, tamaño de empresa, ubicación, etc.).\n2. Una rúbrica se marca como **Predeterminada** (y **Activa**).\n3. Un **trabajo nocturno** evalúa las dimensiones de la rúbrica predeterminada contra cada prospecto activo, suma los pesos de las dimensiones que coinciden, normaliza el total a 0–100 y lo escribe en **`Lead.IcpScore`**.\n4. La **cola de trabajo de prospectos** ordena los prospectos por esa puntuación, de modo que los representantes dedican su tiempo a los prospectos con mejor ajuste.\n\nNada se puntúa en tiempo real — la puntuación que ve en un prospecto es el resultado en caché de la última ejecución nocturna. Edite una rúbrica hoy, y los nuevos pesos surten efecto en la siguiente ejecución.\n\n### Campos del encabezado de la rúbrica\n\nHaga clic en **Nueva rúbrica** (o en una fila para editarla). Una rúbrica tiene:\n\n- **Nombre** (obligatorio) — p. ej., 'ICP de mecanizado aeroespacial'.\n- **Descripción** — recordatorio de texto libre de a quién se dirige esta rúbrica.\n- **Activa** — si la rúbrica está en juego en absoluto.\n- **Predeterminada** — si esta es *la* rúbrica que usa el trabajo de puntuación nocturno.\n\n### La invariante de único predeterminado\n\nEl trabajo de puntuación usa exactamente una rúbrica: la que es **Activa** y **Predeterminada** a la vez. El servidor exige que **a lo sumo una rúbrica sea la predeterminada** — cuando marca una rúbrica como Predeterminada, la rúbrica predeterminada anterior se desmarca automáticamente en el mismo guardado. Nunca tiene que buscar la predeterminada antigua para apagarla; cambiar el indicador en una nueva rúbrica es suficiente.\n\nUna consecuencia que vale la pena interiorizar: si **ninguna** rúbrica es Activa+Predeterminada, o la rúbrica predeterminada **no tiene dimensiones**, o todas sus dimensiones tienen peso **cero/negativo**, el trabajo nocturno registra que se omitió y **no se escriben puntuaciones**. Una rúbrica con dimensiones pero sin peso positivo no puede producir una puntuación significativa de 0–100.\n\n### Dimensiones — las filas de puntuación ponderada\n\nDentro del editor de la rúbrica hay una sección **Dimensiones**. Cada dimensión es un criterio por el que se evalúa al prospecto. Añada tantas como necesite con **Añadir dimensión**; cada fila tiene cuatro campos:\n\n- **Clave de campo** (obligatorio) — el atributo de prospecto/cuenta que examina esta dimensión. Claves comunes: `industry`, `employeeCount`, `state`, `companyName`, `source`. (Este es un campo de documentación/intención que se empareja con la Especificación de coincidencia — consulte el recorrido de la Especificación de coincidencia para ver exactamente cómo se hace coincidir un prospecto.)\n- **Etiqueta** — una descripción legible para que recuerde a qué apunta la fila ('Apuntar a aeroespacial y defensa').\n- **Especificación de coincidencia** — un pequeño fragmento JSON que describe qué cuenta como un *acierto*. Se cubre en profundidad en *Autoría de especificaciones de coincidencia ICP*.\n- **Peso** (obligatorio) — los puntos que aporta esta dimensión cuando coincide. Los pesos **positivos** recompensan un ajuste; los pesos **negativos** penalizan un desajuste (p. ej., −10 para una industria que no atiende).\n\n### Cómo se calcula la puntuación\n\nPara cada prospecto, el trabajo recorre todas las dimensiones, y para aquellas cuya Especificación de coincidencia coincide con el prospecto, añade el peso de esa dimensión. El total acumulado se divide por la **suma de todos los pesos positivos** (el máximo alcanzable), se multiplica por 100 y se acota a 0–100. Entonces:\n\n- Un prospecto que acierta sus dimensiones de mayor peso aterriza cerca de 100.\n- Un prospecto que no acierta nada (o activa penalizaciones de peso negativo) aterriza cerca de 0.\n- Lo que importa son los pesos *relativos* — duplicar cada peso no cambia nada, porque el denominador escala con ellos.\n\n### Guardar\n\nEl editor guarda el encabezado y las dimensiones juntos en una sola acción. Eliminar una fila de dimensión y guardar la quita. Como normalmente se ajustan varias dimensiones a la vez, el guardado es un único viaje de ida y vuelta y produce una entrada de actividad consolidada en lugar de una por fila.\n\n### A dónde ir después\n\nLa columna Especificación de coincidencia es la única parte de una dimensión que tiene sintaxis real. *Autoría de especificaciones de coincidencia ICP* recorre las formas JSON exactas que el trabajo de puntuación entiende.",
+      "body": "## Rúbricas ICP y dimensiones ponderadas\n\nUna **rúbrica ICP** (Perfil de cliente ideal) es una hoja de calificación que evalúa qué tan bien encaja un prospecto con el tipo de cliente que realmente desea. Administración → Rúbricas ICP es donde construye y ajusta esas rúbricas. El resultado es una **puntuación de ajuste** de 0 a 100 estampada en cada prospecto activo, que la cola de trabajo de los representantes usa para mostrar primero los prospectos con mejor ajuste.\n\n### El panorama completo (lea esto primero)\n\nVale la pena entender toda la cadena antes de tocar el editor:\n\n1. Usted define una **rúbrica** compuesta de **dimensiones** ponderadas (industria, tamaño de empresa, ubicación, etc.).\n2. Una rúbrica se marca como **Predeterminada** (y **Activa**).\n3. Un **trabajo nocturno** revisa las dimensiones de la rúbrica predeterminada contra cada prospecto activo, suma los pesos de las que coinciden, escala el total a 0–100 y lo guarda como la puntuación de ajuste del prospecto.\n4. La **cola de trabajo de prospectos** ordena los prospectos por esa puntuación, de modo que los representantes dedican su tiempo a los prospectos con mejor ajuste.\n\nNada se puntúa en tiempo real — la puntuación que ve en un prospecto es el resultado en caché de la última ejecución nocturna. Edite una rúbrica hoy, y los nuevos pesos surten efecto en la siguiente ejecución.\n\n### Campos del encabezado de la rúbrica\n\nHaga clic en **Nueva rúbrica** (o en una fila para editarla). Una rúbrica tiene:\n\n- **Nombre** (obligatorio) — p. ej., 'ICP de mecanizado aeroespacial'.\n- **Descripción** — recordatorio de texto libre de a quién se dirige esta rúbrica.\n- **Activa** — si la rúbrica está en juego en absoluto.\n- **Predeterminada** — si esta es *la* rúbrica que usa el trabajo de puntuación nocturno.\n\n### La invariante de único predeterminado\n\nEl trabajo de puntuación usa exactamente una rúbrica: la que es **Activa** y **Predeterminada** a la vez. El servidor exige que **a lo sumo una rúbrica sea la predeterminada** — cuando marca una rúbrica como Predeterminada, la rúbrica predeterminada anterior se desmarca automáticamente en el mismo guardado. Nunca tiene que buscar la predeterminada antigua para apagarla; cambiar el indicador en una nueva rúbrica es suficiente.\n\nUna consecuencia que vale la pena interiorizar: si **ninguna** rúbrica es Activa+Predeterminada, o la rúbrica predeterminada **no tiene dimensiones**, o todas sus dimensiones tienen peso **cero/negativo**, el trabajo nocturno registra que se omitió y **no se escriben puntuaciones**. Una rúbrica con dimensiones pero sin peso positivo no puede producir una puntuación significativa de 0–100.\n\n### Dimensiones — las filas de puntuación ponderada\n\nDentro del editor de la rúbrica hay una sección **Dimensiones**. Cada dimensión es un criterio por el que se evalúa al prospecto. Añada tantas como necesite con **Añadir dimensión**; cada fila tiene cuatro campos:\n\n- **Clave de campo** (obligatorio) — el atributo de prospecto/cuenta que examina esta dimensión. Claves comunes: `industry`, `employeeCount`, `state`, `companyName`, `source`. (Este es un campo de documentación/intención que se empareja con la Especificación de coincidencia — consulte el recorrido de la Especificación de coincidencia para ver exactamente cómo se hace coincidir un prospecto.)\n- **Etiqueta** — una descripción legible para que recuerde a qué apunta la fila ('Apuntar a aeroespacial y defensa').\n- **Especificación de coincidencia** — un pequeño fragmento JSON que describe qué cuenta como un *acierto*. Se cubre en profundidad en *Autoría de especificaciones de coincidencia ICP*.\n- **Peso** (obligatorio) — los puntos que aporta esta dimensión cuando coincide. Los pesos **positivos** recompensan un ajuste; los pesos **negativos** penalizan un desajuste (p. ej., −10 para una industria que no atiende).\n\n### Cómo se calcula la puntuación\n\nPara cada prospecto, el trabajo recorre todas las dimensiones, y para aquellas cuya Especificación de coincidencia coincide con el prospecto, añade el peso de esa dimensión. El total acumulado se divide por la **suma de todos los pesos positivos** (el máximo alcanzable), se multiplica por 100 y se acota a 0–100. Entonces:\n\n- Un prospecto que acierta sus dimensiones de mayor peso aterriza cerca de 100.\n- Un prospecto que no acierta nada (o activa penalizaciones de peso negativo) aterriza cerca de 0.\n- Lo que importa son los pesos *relativos* — duplicar cada peso no cambia nada, porque el denominador escala con ellos.\n\n### Guardar\n\nEl editor guarda el encabezado y las dimensiones juntos en una sola acción. Eliminar una fila de dimensión y guardar la quita. Como normalmente se ajustan varias dimensiones a la vez, el guardado es un único viaje de ida y vuelta y produce una entrada de actividad consolidada en lugar de una por fila.\n\n### A dónde ir después\n\nLa columna Especificación de coincidencia es la única parte de una dimensión que tiene sintaxis real. *Autoría de especificaciones de coincidencia ICP* recorre las formas JSON exactas que el trabajo de puntuación entiende.",
       "sections": []
     }
   },
@@ -29,7 +29,7 @@
           "element": ".toolbar__hint",
           "popover": {
             "title": "Rúbricas ICP",
-            "description": "Esta página lista cada rúbrica de Perfil de cliente ideal. El trabajo de puntuación nocturno usa la única rúbrica que es Activa y Predeterminada a la vez para calificar cada prospecto activo de 0 a 100. La puntuación que produce determina el orden de la cola de trabajo de los representantes.",
+            "description": "Esta página lista cada rúbrica de perfil de cliente ideal. Cada noche, la puntuación toma la única rúbrica que es Activa y Predeterminada a la vez y califica cada prospecto activo de 0 a 100. Esa puntuación es lo que pone los prospectos con mejor ajuste al principio de la lista de trabajo de un representante.",
             "side": "bottom"
           }
         },
@@ -37,7 +37,7 @@
           "element": "[data-testid='icp-rubric-new-btn']",
           "popover": {
             "title": "Nueva rúbrica",
-            "description": "Haga clic aquí para crear una rúbrica, o haga clic en una fila existente para editarla. El diálogo del editor gestiona el encabezado de la rúbrica (Nombre, Descripción, Activa, Predeterminada) Y sus dimensiones ponderadas juntos — se guardan en una sola acción.",
+            "description": "Haga clic aquí para crear una rúbrica, o haga clic en una fila para editar una. El editor guarda a la vez los datos básicos de la rúbrica (Nombre, Descripción, Activa, Predeterminada) y sus filas de puntuación.",
             "side": "left"
           }
         },
@@ -45,7 +45,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "La lista de rúbricas",
-            "description": "Cada fila muestra el nombre de la rúbrica, su recuento de dimensiones y fichas para Predeterminada y Activa. Solo una rúbrica puede ser la Predeterminada — marcar una nueva como predeterminada desmarca automáticamente la anterior. El recuento de Dimensiones le dice de un vistazo si una rúbrica está realmente configurada para puntuar algo.",
+            "description": "Cada fila muestra el nombre de la rúbrica, cuántas filas de puntuación tiene y etiquetas para Predeterminada y Activa. Solo una rúbrica puede ser la Predeterminada — elija una nueva y la anterior se desmarca por usted. El recuento de filas le dice de un vistazo si una rúbrica puede puntuar algo.",
             "side": "top"
           }
         },
@@ -53,7 +53,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Dimensiones y la Especificación de coincidencia",
-            "description": "Abra una rúbrica para revelar su sección de Dimensiones. Cada dimensión tiene una Clave de campo, una Etiqueta, un Peso y una Especificación de coincidencia. La Especificación de coincidencia es el único campo con sintaxis real: es un pequeño fragmento JSON que le indica al trabajo nocturno qué cuenta como un ACIERTO para esa dimensión. Los siguientes pasos explican las tres formas que el trabajo entiende.",
+            "description": "Abra una rúbrica para ver sus filas de puntuación. Cada fila tiene una clave de campo, una etiqueta, un peso y una Especificación de coincidencia. La Especificación de coincidencia es el único campo con sintaxis real: un pequeño fragmento de JSON que le indica al trabajo nocturno qué cuenta como coincidencia para esa fila. Los siguientes pasos recorren las tres formas que entiende.",
             "side": "top"
           }
         },
@@ -61,7 +61,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Forma 1 de la Especificación — una lista de cadenas",
-            "description": "Un arreglo JSON de cadenas, p. ej. [\"aerospace\",\"defense\",\"machining\"], es una coincidencia de SUBCADENA sin distinción de mayúsculas. El trabajo prueba cada cadena contra el nombre de empresa, la fuente, el correo del prospecto y (si el prospecto está en una Cuenta) la industria, el estado, el rango de tamaño y el nombre de la cuenta. Si CUALQUIER cadena se encuentra dentro de CUALQUIERA de esos campos, la dimensión acierta y se añade su peso.",
+            "description": "Abra una rúbrica para probar esto. Una lista de palabras, como [\"aerospace\",\"defense\",\"machining\"], es una coincidencia de texto parcial sin distinción de mayúsculas. El trabajo busca cada palabra en el nombre de empresa, la fuente y el correo del prospecto y —si el prospecto está ligado a una cuenta— la industria, el estado, el tamaño y el nombre de la cuenta. Si encuentra cualquier palabra en cualquier lugar, la fila coincide y se añade su peso.",
             "side": "top"
           }
         },
@@ -69,7 +69,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Forma 2 de la Especificación — objetos con clave",
-            "description": "Un objeto apunta exactamente a un campo específico de la cuenta. { \"industries\": [\"Aerospace\",\"Defense\"] } coincide con la Industria de la cuenta de forma exacta (sin distinción de mayúsculas). { \"states\": [\"CA\",\"WA\",\"TX\"] } coincide con el Estado de la cuenta. Use estas cuando desee una coincidencia precisa de campo en lugar de una búsqueda laxa de subcadena.",
+            "description": "Abra una rúbrica para probar esto. Un objeto apunta a un solo campo de la cuenta de forma exacta. { \"industries\": [\"Aerospace\",\"Defense\"] } coincide con la industria de la cuenta de forma exacta (sin distinción de mayúsculas). { \"states\": [\"CA\",\"WA\",\"TX\"] } coincide con el estado de la cuenta. Use estas cuando desee una coincidencia precisa de campo en lugar de una búsqueda laxa de texto.",
             "side": "top"
           }
         },
@@ -77,15 +77,15 @@
           "element": "app-data-table",
           "popover": {
             "title": "Forma 3 de la Especificación — un rango numérico",
-            "description": "{ \"min\": 50, \"max\": 500 } coincide cuando el rango de tamaño numérico de la cuenta cae en [min, max] inclusive — p. ej. empresas con 50–500 empleados. Cualquier cosa que el trabajo no pueda analizar (JSON mal formado, una forma desconocida o una especificación en blanco) simplemente se trata como NINGUNA coincidencia; el administrador ve la especificación cruda en el editor y puede corregirla.",
+            "description": "Abra una rúbrica para probar esto. { \"min\": 50, \"max\": 500 } coincide cuando el tamaño de la cuenta cae entre min y max — por ejemplo, empresas con 50 a 500 empleados. Cualquier cosa que el trabajo no pueda leer (JSON mal formado, una forma desconocida o una casilla en blanco) simplemente cuenta como ninguna coincidencia, y puede verla y corregirla en el editor.",
             "side": "top"
           }
         },
         {
-          "element": "[data-testid='icp-rubric-new-btn']",
+          "element": "[data-testid='icp-rubric-save-btn']",
           "popover": {
             "title": "Ajuste, guarde, espere la ejecución",
-            "description": "Establezca pesos positivos en las dimensiones que desea recompensar y pesos negativos para penalizar un desajuste. Guarde la rúbrica. El cambio surte efecto en la siguiente ejecución nocturna, que recalcula Lead.IcpScore para cada prospecto activo y reordena la cola de trabajo en consecuencia.",
+            "description": "Dé pesos positivos a las filas que quiera recompensar y pesos negativos a las que quiera penalizar. Guarde la rúbrica. El cambio surte efecto en la siguiente ejecución nocturna, que vuelve a puntuar cada prospecto activo y reordena la lista de trabajo.",
             "side": "left"
           }
         }
@@ -113,7 +113,7 @@
           "element": "app-toolbar",
           "popover": {
             "title": "Administración de Completitud de entidades",
-            "description": "Esta página es donde redacta reglas de completitud para registros de Proveedor, Pieza y Cliente. El catálogo se entrega vacío — usted añade las filas que sus capacidades habilitadas realmente necesitan. La ficha de completitud en cada registro lee estas filas y enumera qué falta todavía.",
+            "description": "Esta página es donde escribe las reglas de completitud para registros de proveedor, pieza y cliente. La lista empieza vacía — usted añade las filas que necesitan las funciones que tiene activadas. La etiqueta de completitud en cada registro lee estas filas y muestra qué falta todavía.",
             "side": "bottom"
           }
         },
@@ -121,7 +121,7 @@
           "element": "app-select",
           "popover": {
             "title": "Filtrar por tipo de entidad",
-            "description": "Use este menú desplegable para acotar la lista a filas de Proveedor, Pieza o Cliente (o Todos). A medida que crece su conjunto de reglas, así es como encuentra las filas del tipo de registro que está ajustando.",
+            "description": "Elija en este menú para acotar la lista a filas de proveedor, pieza o cliente (o todas). A medida que crece su conjunto de reglas, así es como encuentra las filas del tipo de registro con el que está trabajando.",
             "side": "bottom"
           }
         },
@@ -129,7 +129,7 @@
           "element": "app-input",
           "popover": {
             "title": "Filtrar por capacidad",
-            "description": "Escriba un código de capacidad (CAP-...) para ver solo los requisitos vinculados a esa capacidad. Cada requisito tiene el alcance de una sola capacidad — solo se aplica cuando esa capacidad está habilitada en la instalación.",
+            "description": "Escriba un código de capacidad para ver solo los requisitos vinculados a esa función. Cada requisito pertenece a una sola función — solo se aplica cuando esa función está activada.",
             "side": "bottom"
           }
         },
@@ -137,7 +137,7 @@
           "element": "[data-testid='ecr-new-btn']",
           "popover": {
             "title": "Nuevo requisito",
-            "description": "Abra el diálogo de autoría. Establecerá el Tipo de entidad, el Código de capacidad, un Id de requisito estable, el JSON del predicado, dos claves i18n y un orden de visualización.",
+            "description": "Abra el formulario para añadir un requisito. Elegirá el tipo de entidad, la función a la que pertenece, un id corto y estable, la regla en sí, dos etiquetas de traducción y un orden de visualización.",
             "side": "left"
           }
         },
@@ -145,7 +145,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Las filas de requisitos",
-            "description": "Cada fila es una comprobación discreta. Tipo de entidad + Código de capacidad + Id de requisito son únicos en conjunto, así que añade varias filas — una por requisito — y cada una aparece como su propia línea en la lista de campos faltantes de la ficha. Las columnas Clave de nombre visible y Clave de mensaje de faltante son claves i18n, no texto literal.",
+            "description": "Cada fila es una comprobación. El tipo de entidad, la función y el id de requisito son únicos como conjunto, así que añade varias filas — una por comprobación — y cada una aparece en su propia línea en la lista de faltantes. Las dos columnas de etiqueta son claves de traducción, no las palabras que ve un usuario.",
             "side": "top"
           }
         },
@@ -153,7 +153,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "El predicado",
-            "description": "El campo Predicado contiene JSON evaluado por el motor de predicados compartido: fieldPresent, fieldEquals, fieldCompare, relationExists y composición all/any/not. Los nombres de campo son camelCase. Un predicado mal formado o desconocido evalúa de forma segura como falso (el registro simplemente se ve incompleto) — nunca rompe la ficha.",
+            "description": "La regla se escribe como JSON que entiende el motor de reglas compartido: comprobar que un campo está lleno (fieldPresent), igual a un valor (fieldEquals) o comparado como número (fieldCompare); comprobar que una lista relacionada tiene elementos (relationExists); y combinar comprobaciones con all/any/not. Los nombres de campo son camelCase. Una regla mal formada o desconocida cuenta de forma segura como no cumplida (el registro simplemente se ve incompleto) — nunca rompe la etiqueta.",
             "side": "top"
           }
         },
@@ -161,7 +161,7 @@
           "element": "[data-testid='ecr-new-btn']",
           "popover": {
             "title": "No olvide las traducciones",
-            "description": "La Clave de nombre visible y la Clave de mensaje de faltante deben tener entradas correspondientes en los archivos de idioma (en.json más es.json para paridad). Si una clave no tiene traducción, la ficha muestra el token crudo de la clave — esa es su señal de que la conexión i18n está incompleta. Use los prefijos entityCompleteness.fields.* y entityCompleteness.messages.* para mantener la consistencia.",
+            "description": "Los dos campos de etiqueta apuntan a entradas en los archivos de idioma (inglés más español, mantenidos en sincronía). Si una etiqueta no tiene traducción, verá la clave cruda en pantalla — esa es su señal de que falta la traducción. Mantenga la nomenclatura consistente con las etiquetas y mensajes existentes para que todo quede organizado.",
             "side": "left"
           }
         }
@@ -178,111 +178,111 @@
         {
           "heading": "Fuentes de prospectos — Campos",
           "items": [
-            { "label": "Nombre", "value": "Obligatorio. Etiqueta legible para humanos. Editable en cualquier momento." },
-            { "label": "Código", "value": "Obligatorio, establecido al crear, INMUTABLE después (deshabilitado en el diálogo de edición). La clave natural a la que se vinculan importaciones / formularios / URL de referencia. Solo letras, dígitos, guiones y guiones bajos." },
-            { "label": "Descripción", "value": "Texto libre opcional que describe la fuente (máx. 500 caracteres)." },
-            { "label": "Puntuación de calidad", "value": "0–100, SOLO LECTURA. Calculada automáticamente cada noche a partir de los resultados de los prospectos — nunca la escribe. Codificada por color: verde 70+, ámbar 40–69, rojo <40." },
-            { "label": "Activo", "value": "Conmutador (solo edición). Apagado = oculto de la nueva captación pero conservado adjunto a los prospectos históricos." },
-            { "label": "Prospectos", "value": "Recuento de prospectos atribuidos a esta fuente. Determina la protección de eliminación." },
-            { "label": "Creado", "value": "Fecha de creación, MM/dd/yyyy." }
+            { "label": "Nombre", "value": "Obligatorio. La etiqueta que lee la gente. Editable en cualquier momento." },
+            { "label": "Código", "value": "Obligatorio, se establece al crear la fuente y no puede cambiarse después (queda bloqueado al editar). Es el id estable al que apuntan las importaciones, los formularios y los enlaces de referencia. Solo letras, dígitos, guiones y guiones bajos." },
+            { "label": "Descripción", "value": "Nota opcional que describe la fuente (hasta 500 caracteres)." },
+            { "label": "Puntuación de calidad", "value": "0–100, de solo lectura. Se calcula automáticamente cada noche según cómo resultan los prospectos de la fuente — nunca la escribe. Color verde a partir de 70, ámbar 40–69, rojo por debajo de 40." },
+            { "label": "Activo", "value": "Conmutador de encendido/apagado (solo edición). Apagado = oculto de la nueva captación pero aún ligado a sus prospectos pasados." },
+            { "label": "Prospectos", "value": "Cuántos prospectos están ligados a esta fuente. Es lo que revisa la protección de eliminación." },
+            { "label": "Creado", "value": "La fecha en que se creó, mostrada como MM/dd/yyyy." }
           ]
         },
         {
           "heading": "Fuentes de prospectos — Cálculo de la Puntuación de calidad",
           "items": [
-            { "label": "Valor inicial", "value": "50 (neutral) para cada fuente." },
-            { "label": "+5 cada uno", "value": "Prospecto que se Convirtió en cliente (positivo más fuerte)." },
-            { "label": "+2 cada uno", "value": "Prospecto que se Comprometió (conversación bidireccional real)." },
-            { "label": "−5 cada uno", "value": "Prospecto marcado como Datos incorrectos o Suprimido (no contactar)." },
-            { "label": "−2 cada uno", "value": "Prospecto marcado como Perdido." },
-            { "label": "Ventana", "value": "Solo cuentan los prospectos creados en los últimos ~180 días — esto es lo que hace que la puntuación sea 'móvil'." },
-            { "label": "Acotación", "value": "Puntuación final acotada a 0–100. LastScoredAt estampa cada ejecución nocturna." }
+            { "label": "Valor inicial", "value": "Cada fuente empieza en 50 (neutral)." },
+            { "label": "+5 cada uno", "value": "Un prospecto que se convirtió en cliente (el mayor plus)." },
+            { "label": "+2 cada uno", "value": "Un prospecto que tuvo una conversación real de ida y vuelta." },
+            { "label": "−5 cada uno", "value": "Un prospecto marcado como datos incorrectos o no contactar." },
+            { "label": "−2 cada uno", "value": "Un prospecto marcado como perdido." },
+            { "label": "Ventana", "value": "Solo cuentan los prospectos de aproximadamente los últimos 180 días — eso es lo que mantiene la puntuación al día." },
+            { "label": "Acotación", "value": "La puntuación final se mantiene dentro de 0–100, y se registra la hora de cada ejecución nocturna." }
           ]
         },
         {
           "heading": "Fuentes de prospectos — Desactivar vs Eliminar",
           "items": [
-            { "label": "Desactivar", "value": "Apague Activo. Use siempre que la fuente tenga CUALQUIER prospecto. Conserva la atribución histórica + la puntuación." },
-            { "label": "Eliminar", "value": "Ícono de papelera. BLOQUEADO por el servidor (error) si hay prospectos vinculados. Solo para errores nunca usados." }
+            { "label": "Desactivar", "value": "Apague Activo. Use esto siempre que la fuente tenga prospectos. Conserva su historial y su puntuación." },
+            { "label": "Eliminar", "value": "Ícono de papelera. Se bloquea con un error si hay prospectos ligados. Solo para fuentes creadas por error y nunca usadas." }
           ]
         },
         {
           "heading": "Rúbrica ICP — Campos del encabezado",
           "items": [
-            { "label": "Nombre", "value": "Obligatorio. Identifica la rúbrica (máx. 100 caracteres)." },
-            { "label": "Descripción", "value": "Recordatorio opcional de a quién se dirige la rúbrica (máx. 500)." },
+            { "label": "Nombre", "value": "Obligatorio. Nombra la rúbrica (hasta 100 caracteres)." },
+            { "label": "Descripción", "value": "Recordatorio opcional de a quién se dirige la rúbrica (hasta 500)." },
             { "label": "Activa", "value": "Si la rúbrica está en juego." },
-            { "label": "Predeterminada", "value": "Si ESTA es la rúbrica que el trabajo nocturno usa para puntuar. A lo sumo una predeterminada — marcar una nueva desmarca la anterior automáticamente." },
+            { "label": "Predeterminada", "value": "Si esta es la rúbrica que usa la puntuación nocturna. Solo una puede ser la predeterminada — elija una nueva y la anterior se desmarca por usted." },
             { "label": "Recuento de dimensiones", "value": "Se muestra en la lista; le dice si la rúbrica realmente puede puntuar algo." }
           ]
         },
         {
           "heading": "Dimensión ICP — Campos de la fila",
           "items": [
-            { "label": "Clave de campo", "value": "Obligatorio. El atributo de prospecto/cuenta al que apunta la dimensión (industry, employeeCount, state, companyName, source). Campo de intención/documentación emparejado con la Especificación de coincidencia." },
-            { "label": "Etiqueta", "value": "Descripción humana opcional de a qué apunta la fila." },
-            { "label": "Especificación de coincidencia", "value": "JSON que describe qué cuenta como un acierto (formas más abajo). En blanco/mal formado = sin coincidencia." },
-            { "label": "Peso", "value": "Entero obligatorio. Positivo recompensa un ajuste; negativo penaliza un desajuste. Solo los pesos positivos cuentan para el denominador (puntuación máxima)." }
+            { "label": "Clave de campo", "value": "Obligatorio. El dato del prospecto o la cuenta que mira esta fila (industry, employeeCount, state, companyName, source). Una nota para usted que se empareja con la Especificación de coincidencia." },
+            { "label": "Etiqueta", "value": "Descripción sencilla opcional de qué busca la fila." },
+            { "label": "Especificación de coincidencia", "value": "JSON que dice qué cuenta como coincidencia (formas más abajo). En blanco o mal formado = sin coincidencia." },
+            { "label": "Peso", "value": "Número entero obligatorio. Positivo recompensa un buen ajuste; negativo penaliza uno malo. Solo los pesos positivos cuentan para la puntuación máxima." }
           ]
         },
         {
           "heading": "Especificación de coincidencia ICP — Formas",
           "items": [
-            { "label": "Arreglo de cadenas", "value": "[\"aerospace\",\"defense\"] — coincidencia de SUBCADENA sin distinción de mayúsculas contra el nombre de empresa, la fuente, el correo del prospecto y la industria / estado / tamaño / nombre de la cuenta. Cualquier cadena en cualquier campo = acierto." },
-            { "label": "{ industries: [...] }", "value": "Coincidencia exacta (sin distinción de mayúsculas) contra la Industria de la cuenta vinculada." },
-            { "label": "{ states: [...] }", "value": "Coincidencia exacta contra el Estado de la cuenta vinculada." },
-            { "label": "{ min: N, max: M }", "value": "Rango numérico [min,max] inclusive contra el rango de tamaño numérico de la cuenta." },
-            { "label": "Cualquier otra cosa", "value": "Forma no reconocida, JSON mal formado o en blanco = tratado como NINGUNA coincidencia (nunca un error)." }
+            { "label": "Arreglo de cadenas", "value": "[\"aerospace\",\"defense\"] — coincidencia de texto parcial sin distinción de mayúsculas contra el nombre de empresa, la fuente y el correo del prospecto, y la industria, el estado, el tamaño y el nombre de la cuenta. Cualquier palabra encontrada en cualquier campo es una coincidencia." },
+            { "label": "{ industries: [...] }", "value": "Una coincidencia exacta (sin distinción de mayúsculas) contra la industria de la cuenta vinculada." },
+            { "label": "{ states: [...] }", "value": "Una coincidencia exacta contra el estado de la cuenta vinculada." },
+            { "label": "{ min: N, max: M }", "value": "Un rango de números de min a max contra el tamaño de la cuenta." },
+            { "label": "Cualquier otra cosa", "value": "Una forma desconocida, JSON mal formado o una casilla en blanco cuenta como ninguna coincidencia (nunca un error)." }
           ]
         },
         {
           "heading": "ICP — Cálculo de la puntuación",
           "items": [
-            { "label": "Por prospecto", "value": "Sume el Peso de cada dimensión cuya Especificación de coincidencia acierte." },
-            { "label": "Normalizar", "value": "hitWeight ÷ (suma de pesos positivos) × 100, redondeado, acotado a 0–100." },
-            { "label": "Escrito en", "value": "Lead.IcpScore (columna en caché), por el trabajo nocturno, solo para prospectos no Convertidos / no Perdidos." },
-            { "label": "Consumido por", "value": "La cola de trabajo de representantes, que ordena los prospectos con mejor ajuste primero." },
-            { "label": "Condiciones de omisión", "value": "Sin rúbrica Activa+Predeterminada, la rúbrica predeterminada sin dimensiones, o peso positivo cero → el trabajo se omite, no se escriben puntuaciones." }
+            { "label": "Por prospecto", "value": "Sume el peso de cada fila cuya Especificación de coincidencia coincida." },
+            { "label": "Normalizar", "value": "Divida ese total entre la suma de los pesos positivos, multiplique por 100, redondee y manténgalo dentro de 0–100." },
+            { "label": "Escrito en", "value": "Se guarda en el prospecto como su puntuación de ajuste, por la ejecución nocturna, para los prospectos que aún no están ganados ni perdidos." },
+            { "label": "Consumido por", "value": "La lista de trabajo de representantes, que pone primero los prospectos con mejor ajuste." },
+            { "label": "Condiciones de omisión", "value": "Sin rúbrica predeterminada activa, la predeterminada sin filas, o sin peso positivo → la ejecución se omite y no se escriben puntuaciones." }
           ]
         },
         {
           "heading": "Completitud de entidades — Campos de la fila",
           "items": [
-            { "label": "Tipo de entidad", "value": "Obligatorio. Proveedor, Pieza o Cliente." },
-            { "label": "Código de capacidad", "value": "Obligatorio. La capacidad a la que se limita el requisito (CAP-MD-VENDORS, CAP-P2P-PO, ...)." },
-            { "label": "Id de requisito", "value": "Obligatorio. Id estable para ESTA comprobación dentro de (Tipo de entidad, Capacidad). Único en conjunto. p. ej. tax-id, payment-terms." },
-            { "label": "Predicado", "value": "Regla JSON obligatoria que debe evaluarse como verdadera (DSL más abajo)." },
-            { "label": "Clave de nombre visible", "value": "Clave i18n obligatoria para la etiqueta corta de la ficha. Convención: entityCompleteness.fields.*" },
-            { "label": "Clave de mensaje de faltante", "value": "Clave i18n obligatoria para el texto más completo de 'por qué falta'. Convención: entityCompleteness.messages.*" },
-            { "label": "Orden de visualización", "value": "Orden de presentación dentro de la agrupación (Tipo de entidad, Capacidad)." }
+            { "label": "Tipo de entidad", "value": "Obligatorio. Proveedor, pieza o cliente." },
+            { "label": "Código de capacidad", "value": "Obligatorio. La función a la que pertenece este requisito (por ejemplo, las funciones de proveedores o de órdenes de compra)." },
+            { "label": "Id de requisito", "value": "Obligatorio. Un id corto y estable para esta única comprobación dentro de un par tipo-de-entidad-y-función. Único como conjunto. Por ejemplo, tax-id o payment-terms." },
+            { "label": "Predicado", "value": "Obligatorio. La regla, escrita como JSON, que debe ser verdadera (ver más abajo)." },
+            { "label": "Clave de nombre visible", "value": "Obligatorio. Apunta a la etiqueta corta que se muestra en el registro. Nombrada como entityCompleteness.fields.*" },
+            { "label": "Clave de mensaje de faltante", "value": "Obligatorio. Apunta al texto más completo de 'por qué falta'. Nombrada como entityCompleteness.messages.*" },
+            { "label": "Orden de visualización", "value": "El orden en que se muestra, dentro de su grupo tipo-de-entidad-y-función." }
           ]
         },
         {
           "heading": "DSL de predicados — Operadores",
           "items": [
-            { "label": "fieldPresent", "value": "{ type:'fieldPresent', field:'taxId' } — valor no nulo (y no vacío para cadenas)." },
-            { "label": "fieldEquals", "value": "{ type:'fieldEquals', field:'creditTerms', value:'Net30' } — igualdad estricta." },
-            { "label": "fieldCompare", "value": "{ type:'fieldCompare', field:'leadTimeDays', op:'gt', value:0 } — op es gt/lt/gte/lte/ne." },
-            { "label": "relationExists", "value": "{ type:'relationExists', relation:'addresses', minCount:1 } — la colección hija tiene ≥ minCount elementos." },
-            { "label": "relationCountCompare", "value": "Tamaño de la colección comparado por op + value." },
-            { "label": "all / any / not", "value": "Composición booleana. all/any toman un arreglo 'of'; not toma un predicado anidado bajo 'of'." },
-            { "label": "Mayúsculas de campo", "value": "camelCase en JSON; el motor capitaliza la inicial para reflejar contra la entidad C#." },
-            { "label": "Seguridad", "value": "Campo desconocido, operador desconocido o JSON mal formado → false (no cumplido) + una advertencia registrada. Nunca falla." }
+            { "label": "fieldPresent", "value": "{ type:'fieldPresent', field:'taxId' } — el campo está lleno (y, para texto, no en blanco)." },
+            { "label": "fieldEquals", "value": "{ type:'fieldEquals', field:'creditTerms', value:'Net30' } — el campo es igual a un valor exacto." },
+            { "label": "fieldCompare", "value": "{ type:'fieldCompare', field:'leadTimeDays', op:'gt', value:0 } — una comparación de números; op es gt/lt/gte/lte/ne." },
+            { "label": "relationExists", "value": "{ type:'relationExists', relation:'addresses', minCount:1 } — una lista relacionada tiene al menos minCount elementos." },
+            { "label": "relationCountCompare", "value": "Compara el tamaño de una lista relacionada usando op + value." },
+            { "label": "all / any / not", "value": "Combine comprobaciones. all y any toman una lista 'of' de comprobaciones; not toma una comprobación bajo 'of'." },
+            { "label": "Mayúsculas de campo", "value": "Escriba los nombres de campo en camelCase; el motor los relaciona con los campos del registro." },
+            { "label": "Seguridad", "value": "Un campo desconocido, una comprobación desconocida o JSON mal formado cuenta como no cumplido y registra una advertencia. Nunca falla." }
           ]
         },
         {
           "heading": "Conexión i18n",
           "items": [
-            { "label": "Claves, no texto", "value": "La Clave de nombre visible y la Clave de mensaje de faltante son claves de traducción. Deben existir entradas correspondientes en en.json (y es.json para paridad del 100%)." },
-            { "label": "Traducción faltante", "value": "Recurre al token crudo de la clave en la ficha — su señal de que la conexión está incompleta." }
+            { "label": "Claves, no texto", "value": "Los dos campos de etiqueta apuntan a traducciones, no a las palabras en sí. Deben existir entradas correspondientes tanto en inglés como en español, mantenidas en sincronía." },
+            { "label": "Traducción faltante", "value": "Sin traducción, verá la clave cruda en el registro — su señal de que aún no está conectada." }
           ]
         },
         {
           "heading": "Rutas y control de acceso",
           "items": [
-            { "label": "/admin/lead-sources", "value": "Catálogo de Fuentes de prospectos. CAP-O2C-LEAD. Crear/Actualizar: Admin, Manager. Eliminar: Admin." },
-            { "label": "/admin/icp-rubrics", "value": "Rúbricas ICP + dimensiones. CAP-O2C-LEAD. Admin, Manager (Eliminar: Admin)." },
-            { "label": "/admin/entity-completeness", "value": "Filas de requisitos de completitud. Solo Admin." }
+            { "label": "/admin/lead-sources", "value": "La lista de Fuentes de prospectos. Crear y actualizar: administradores y gerentes. Eliminar: administradores." },
+            { "label": "/admin/icp-rubrics", "value": "Rúbricas ICP y sus filas de puntuación. Administradores y gerentes (Eliminar: administradores)." },
+            { "label": "/admin/entity-completeness", "value": "Las filas de requisitos de completitud. Solo administradores." }
           ]
         }
       ]

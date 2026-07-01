@@ -4,7 +4,7 @@
     "title": "Visión general de Estimaciones",
     "summary": "Qué son las estimaciones, en qué se diferencian de las cotizaciones, su naturaleza no vinculante y cómo convertirlas en cotizaciones formales.",
     "contentJson": {
-      "body": "## Visión general de Estimaciones\n\nLas estimaciones son documentos de precios más ligeros que usted ofrece a los clientes más temprano en la conversación que una cotización formal. Le dan al cliente una idea del costo sin toda la ceremonia de una cotización vinculante. Las estimaciones viven dentro de la página de detalle del cliente, en la pestaña Estimaciones —siempre están ligadas a un cliente específico.\n\n### Estimaciones frente a cotizaciones\n\nLas estimaciones y las cotizaciones cumplen propósitos distintos dentro del flujo de ventas:\n\n- **Estimación** — Parte de un único monto aproximado con un título y una descripción opcional, y luego puede desglosarse con líneas. Sin cálculo de impuestos, sin dirección de envío y sin conversión propia a orden de venta. Se almacena en la tabla de cotizaciones con tipo = Estimate.\n- **Cotización** — Un compromiso vinculante de precio fijo con líneas individuales (pieza, cantidad, precio unitario), una tasa de impuesto y un ciclo de vida formal. Puede convertirse en una orden de venta. Se almacena en la tabla de cotizaciones con tipo = Quote.\n\nLa vía rápida sigue siendo simple: cuando un cliente llama y pregunta '¿cuánto costaría fabricar 500 de estos?', cree una estimación con solo un título y un monto en segundos. Cuando quiera desglosar ese número, reabra la estimación y agregue líneas.\n\n### Líneas en una estimación\n\nLas estimaciones admiten líneas, pero se gestionan en una estimación **guardada** —no en el cuadro de diálogo de creación inicial. El flujo es de encabezado primero:\n\n1. Cree la estimación con un título y un monto estimado (y opcionalmente una descripción, fecha de válido hasta y notas).\n2. Reábrala (haga clic en su fila) —el cuadro de diálogo de edición ahora muestra una sección de **Líneas** debajo del formulario.\n3. Use **Agregar línea** para desglosar. Cada línea puede ser una **pieza del catálogo** (elíjala del autocompletado de piezas —la descripción se rellena) o una línea de **monto global / desconocido** (deje la pieza vacía y escriba una descripción de texto libre). Establezca una cantidad y un monto (precio unitario) para cada una.\n\nA medida que agrega, edita o elimina líneas, el **Monto estimado de la estimación se sincroniza con la suma de los totales de línea** —el monto del encabezado y las líneas desglosadas se mantienen en concordancia. Una línea sin pieza muestra 'Suma global' en la columna Pieza.\n\nLa edición de líneas está disponible solo mientras la estimación está en **Borrador** y no se ha convertido. Una vez que está Enviada, Aceptada o convertida en cotización, las líneas se vuelven de solo lectura.\n\n### El ciclo de vida de la estimación\n\nCada estimación comienza en estado **Borrador** y avanza a través de un ciclo de vida sencillo:\n\n1. **Borrador** — Recién creada, todavía en proceso de ajuste. Puede editar libremente el título, el monto, la descripción, las notas y las líneas.\n2. **Enviada** — Ha compartido la estimación con el cliente (por correo electrónico, PDF o de forma verbal). Los campos del encabezado siguen siendo editables; las líneas se vuelven de solo lectura.\n3. **Aceptada** — El cliente acordó seguir adelante con base en la estimación.\n4. **Rechazada** — El cliente decidió no continuar.\n5. **Vencida** — La estimación superó su fecha de Válido hasta sin una decisión.\n6. **Convertida en cotización** — La estimación se convirtió en una cotización formal. El registro de la estimación se conserva con un enlace a la cotización generada.\n\n### Convertir en una cotización\n\nCuando un cliente acepta una estimación y quiere seguir adelante, usted la convierte en una cotización formal. Haga clic en el icono de flecha hacia adelante en la fila de la estimación y confirme. Esto:\n\n- Crea una nueva cotización (tipo = Quote) en estado Borrador con un número de cotización generado automáticamente\n- Transfiere el cliente y las líneas de la estimación\n- Establece el estado de la estimación en Convertida en cotización\n- Registra la marca de tiempo de la conversión\n- Vincula la nueva cotización con la estimación de origen a través del campo source_estimate_id\n\nDesde ahí refina los precios, agrega la tasa de impuesto y ejecuta el ciclo de vida normal de la cotización en la página de Cotizaciones.\n\n### Cuándo usar las estimaciones\n\n- Cuando un cliente pide un costo aproximado antes de que usted haya hecho la ingeniería detallada\n- Cuando quiere calificar un prospecto antes de invertir tiempo en una cotización completa\n- Cuando necesita una respuesta rápida sobre precios (una estimación de solo encabezado se crea en segundos)\n- Cuando quiere mostrarle a un cliente un desglose simple por líneas sin comprometerse con una cotización vinculante\n\n### Dónde encontrar las estimaciones\n\nLas estimaciones se acceden a través de la página de detalle del cliente. Vaya a Clientes, seleccione un cliente y luego haga clic en la pestaña Estimaciones. Todas las estimaciones de ese cliente se listan en una tabla de datos ordenable y filtrable. Puede crear, editar (incluidas las líneas), convertir y eliminar estimaciones directamente desde esta pestaña.",
+      "body": "## Visión general de Estimaciones\n\nLas estimaciones son documentos de precios ligeros que usted da a los clientes al principio de una conversación, antes de una cotización formal. Ofrecen una idea del costo sin la ceremonia de una cotización vinculante. Las estimaciones viven en la pestaña Estimaciones del cliente —cada una pertenece a un cliente específico.\n\n### Estimaciones frente a cotizaciones\n\nLas estimaciones y las cotizaciones cumplen propósitos distintos dentro del proceso de ventas:\n\n- **Estimación** — Parte de un único monto aproximado con un título y una descripción opcional, y luego puede desglosarla en líneas. No tiene impuestos, ni dirección de envío, y no se convierte en una orden por sí sola.\n- **Cotización** — Un compromiso vinculante de precio fijo con líneas individuales (pieza, cantidad, precio unitario), una tasa de impuesto y un ciclo de vida formal. Una cotización puede convertirse en una orden de venta.\n\nLa vía rápida sigue siendo simple: cuando un cliente llama y pregunta '¿cuánto costaría fabricar 500 de estos?', cree una estimación con solo un título y un monto en segundos. Cuando quiera desglosar ese número, reabra la estimación y agregue líneas.\n\n### Líneas en una estimación\n\nLas estimaciones admiten líneas, pero usted las agrega a una estimación **guardada** —no mientras la crea por primera vez. Guarde primero el encabezado:\n\n1. Cree la estimación con un título y un monto estimado (y opcionalmente una descripción, fecha de válido hasta y notas).\n2. Reábrala haciendo clic en su fila —aparece una sección de **Líneas** debajo del formulario.\n3. Haga clic en **Agregar línea** para desglosar. Cada línea puede ser una **pieza del catálogo** (elíjala y la descripción se rellena por usted) o una línea de **monto global** (deje la pieza vacía y escriba una descripción). Establezca una cantidad y un precio para cada una.\n\nA medida que agrega, edita o elimina líneas, el **total de la estimación sigue la suma de las líneas** —el monto del encabezado y las líneas se mantienen en concordancia. Una línea sin pieza muestra 'Suma global' en la columna Pieza.\n\nSolo puede editar líneas mientras la estimación es un **borrador**. Una vez que está Enviada, Aceptada o convertida en cotización, las líneas quedan de solo lectura.\n\n### El ciclo de vida de la estimación\n\nCada estimación comienza como **Borrador** y avanza a través de un ciclo de vida sencillo:\n\n1. **Borrador** — Recién creada, todavía en proceso de ajuste. Puede editar libremente el título, el monto, la descripción, las notas y las líneas.\n2. **Enviada** — Ha compartido la estimación con el cliente, por correo, PDF o de forma verbal. Los campos del encabezado siguen siendo editables; las líneas quedan de solo lectura.\n3. **Aceptada** — El cliente acordó seguir adelante con base en la estimación.\n4. **Rechazada** — El cliente decidió no continuar.\n5. **Vencida** — La estimación superó su fecha de Válido hasta sin una decisión.\n6. **Convertida en cotización** — La estimación se convirtió en una cotización formal. La estimación se conserva, con un enlace a esa cotización.\n\n### Convertir en una cotización\n\nCuando un cliente acepta una estimación y quiere seguir adelante, usted la convierte en una cotización formal. Haga clic en la flecha hacia adelante en la fila de la estimación y confirme. Esto:\n\n- Crea una nueva cotización en borrador con su propio número de cotización\n- Trae el cliente y las líneas de la estimación\n- Marca la estimación como Convertida en cotización\n- Registra cuándo ocurrió la conversión\n- Vincula la nueva cotización con la estimación de la que proviene\n\nDesde ahí establece los precios, agrega la tasa de impuesto y ejecuta el ciclo de vida normal de la cotización en la página de Cotizaciones.\n\n### Cuándo usar las estimaciones\n\n- Cuando un cliente pide un costo aproximado antes de que usted haya hecho la ingeniería detallada\n- Cuando quiere calificar un prospecto antes de invertir tiempo en una cotización completa\n- Cuando necesita precios rápido (una estimación de solo encabezado se crea en segundos)\n- Cuando quiere mostrarle a un cliente un desglose simple por líneas sin comprometerse con una cotización vinculante\n\n### Dónde encontrar las estimaciones\n\nLas estimaciones viven en la página de detalle del cliente. Vaya a Clientes, elija un cliente y luego abra la pestaña Estimaciones. Todas las estimaciones de ese cliente se listan allí, y puede ordenarlas y filtrarlas. Puede crear, editar (incluidas las líneas), convertir y eliminar estimaciones directamente desde esta pestaña.",
       "sections": []
     }
   },
@@ -20,7 +20,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Lista de clientes",
-            "description": "Comience seleccionando un cliente. Haga clic en cualquier fila para abrir la página de detalle del cliente, donde puede gestionar sus estimaciones, cotizaciones, órdenes y más.",
+            "description": "Comience eligiendo un cliente. Haga clic en cualquier fila para abrir ese cliente, donde gestiona sus estimaciones, cotizaciones y órdenes.",
             "side": "top"
           }
         },
@@ -28,7 +28,7 @@
           "element": "[data-testid='new-customer-btn']",
           "popover": {
             "title": "Crear cliente",
-            "description": "Antes de crear estimaciones, necesita un cliente. Haga clic aquí para agregar uno.",
+            "description": "Las estimaciones siempre pertenecen a un cliente. Haga clic aquí para agregar uno primero.",
             "side": "bottom"
           }
         },
@@ -36,7 +36,7 @@
           "element": ".filters-bar app-input",
           "popover": {
             "title": "Buscar clientes",
-            "description": "Explore los clientes para acceder a sus estimaciones. Busque por nombre, empresa, correo electrónico o teléfono, luego haga clic en la fila de un cliente para abrir su página de detalle y navegar a la pestaña Estimaciones.",
+            "description": "Encuentre un cliente rápido. Busque por nombre, empresa, correo o teléfono, luego haga clic en su fila para abrirlo e ir a la pestaña Estimaciones.",
             "side": "bottom"
           }
         },
@@ -44,7 +44,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Crear y desglosar una estimación",
-            "description": "En la pestaña Estimaciones de un cliente, haga clic en 'Nueva estimación' e ingrese solo un Título y un Monto estimado para guardar el encabezado. Para desglosar el número, haga clic en la fila de la estimación guardada para reabrirla —aparece una sección de Líneas debajo del formulario. Use 'Agregar línea' para agregar una pieza del catálogo (elíjala del autocompletado; la descripción se rellena) o una línea de monto global (deje la pieza vacía y escriba una descripción), luego establezca una cantidad y un monto. El Monto estimado se sincroniza con la suma de las líneas. La edición de líneas está disponible solo mientras la estimación está en Borrador y no se ha convertido.",
+            "description": "Abra la pestaña Estimaciones de un cliente para trabajar con estimaciones. Haga clic en 'Nueva estimación', escriba un título y un monto aproximado, y guarde. Para desglosar ese número, reabra la estimación —aparece una sección de Líneas. Haga clic en 'Agregar línea' para agregar una pieza del catálogo o una línea de texto libre, luego establezca una cantidad y un precio. El total se mantiene al día con las líneas. Puede editar las líneas mientras la estimación siga siendo un borrador.",
             "side": "top"
           }
         },
@@ -52,7 +52,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Convertir en una cotización",
-            "description": "Cuando el cliente quiera proceder, haga clic en el icono de flecha hacia adelante en la fila de la estimación y confirme. Esto crea una cotización en Borrador que transfiere el cliente y las líneas de la estimación, y marca la estimación como Convertida en cotización. Luego refina los precios y agrega la tasa de impuesto en la página de Cotizaciones.",
+            "description": "Abra la estimación para convertirla en una cotización. Cuando el cliente esté listo, haga clic en la flecha hacia adelante en la fila de la estimación y confirme. Esto inicia una cotización en borrador que trae el cliente y las líneas. Luego establece los precios y la tasa de impuesto en la página de Cotizaciones.",
             "side": "top"
           }
         }
@@ -69,79 +69,79 @@
         {
           "heading": "Campos del formulario de estimación",
           "items": [
-            {"label": "Título (obligatorio)", "value": "Campo de texto, máximo 300 caracteres. Identifica la estimación. Ejemplos: 'Prototipo de soporte CNC — 500 pzas', 'Herramental para carcasa de Widget'. No puede estar vacío."},
-            {"label": "Descripción", "value": "Área de texto, opcional, máximo 2000 caracteres. Explicación más extensa de lo que cubre la estimación —supuestos, alcance, exclusiones."},
-            {"label": "Monto estimado (obligatorio)", "value": "Campo de moneda con prefijo $. La cifra aproximada en dólares. Debe ser cero o mayor. Una vez que agrega líneas a una estimación guardada, este monto se sincroniza con la suma de los totales de línea."},
-            {"label": "Válido hasta", "value": "Selector de fecha, opcional. Fecha de vencimiento de la estimación. Después de esta fecha, la estimación se considera vencida si el cliente no ha respondido."},
-            {"label": "Estado (solo edición)", "value": "Lista desplegable, mostrada solo al editar una estimación existente. Opciones: Borrador, Enviada, Aceptada, Rechazada, Vencida. No se muestra al crear (predeterminado en Borrador). El estado Convertida en cotización lo establece automáticamente la acción de conversión."},
-            {"label": "Notas", "value": "Área de texto, opcional, máximo 2000 caracteres. Notas internas —supuestos, consideraciones de material, recordatorios de seguimiento."}
+            {"label": "Título (obligatorio)", "value": "Un nombre corto para la estimación, hasta 300 caracteres. Por ejemplo 'Prototipo de soporte CNC — 500 pzas'. No puede dejarse en blanco."},
+            {"label": "Descripción", "value": "Opcional, hasta 2000 caracteres. Una explicación más amplia de lo que cubre la estimación —supuestos, alcance y exclusiones."},
+            {"label": "Monto estimado (obligatorio)", "value": "La cifra aproximada en dólares. Debe ser cero o más. Una vez que agrega líneas, este monto sigue la suma de las líneas."},
+            {"label": "Válido hasta", "value": "Fecha de vencimiento opcional. Después de esta fecha, la estimación se trata como vencida si el cliente no ha respondido."},
+            {"label": "Estado (solo edición)", "value": "Se muestra solo al editar una estimación existente. Elija Borrador, Enviada, Aceptada, Rechazada o Vencida. Las estimaciones nuevas comienzan como Borrador. Convertida en cotización se establece por usted cuando convierte."},
+            {"label": "Notas", "value": "Opcional, hasta 2000 caracteres. Notas internas —supuestos, consideraciones de material y recordatorios de seguimiento."}
           ]
         },
         {
           "heading": "Estados de la estimación",
           "items": [
-            {"label": "Borrador (chip gris)", "value": "Estado inicial. La estimación se está preparando. Totalmente editable."},
-            {"label": "Enviada (chip azul)", "value": "La estimación se ha compartido con el cliente. Todavía editable."},
-            {"label": "Aceptada (chip verde)", "value": "El cliente acordó proceder con base en esta cifra aproximada."},
-            {"label": "Rechazada (chip rojo)", "value": "El cliente decidió no proceder."},
-            {"label": "Vencida (chip ámbar)", "value": "La estimación superó su fecha de Válido hasta sin una decisión del cliente."},
-            {"label": "Convertida en cotización (chip verde azulado)", "value": "La estimación se convirtió en una cotización formal. Lo establece automáticamente la acción Convertir. El ID de la cotización generada queda vinculado."}
+            {"label": "Borrador (etiqueta gris)", "value": "El estado inicial. La estimación todavía se está preparando y puede editarse por completo."},
+            {"label": "Enviada (etiqueta azul)", "value": "Ha compartido la estimación con el cliente. Todavía editable."},
+            {"label": "Aceptada (etiqueta verde)", "value": "El cliente acordó proceder con base en esta cifra aproximada."},
+            {"label": "Rechazada (etiqueta roja)", "value": "El cliente decidió no proceder."},
+            {"label": "Vencida (etiqueta ámbar)", "value": "La estimación superó su fecha de Válido hasta sin una decisión del cliente."},
+            {"label": "Convertida en cotización (etiqueta verde azulado)", "value": "La estimación se convirtió en una cotización formal. Se establece por usted cuando convierte, con un enlace a esa cotización."}
           ]
         },
         {
-          "heading": "Líneas (estimación en Borrador guardada)",
+          "heading": "Líneas (estimación en borrador guardada)",
           "items": [
-            {"label": "Dónde", "value": "La sección de Líneas aparece en el cuadro de diálogo de edición de una estimación GUARDADA (reabra una estimación haciendo clic en su fila). No está presente en el cuadro de diálogo de creación —una estimación se crea con el encabezado primero y luego se desglosa al reabrirla."},
-            {"label": "Cuándo es editable", "value": "Agregar línea y las acciones de Editar/Eliminar por línea se muestran solo mientras la estimación está en estado Borrador y no se ha convertido. En estimaciones Enviadas/Aceptadas/convertidas las líneas son de solo lectura y una nota lo explica."},
-            {"label": "Botón Agregar línea", "value": "Abre un formulario de agregar en línea debajo de la tabla de líneas. Deshabilitado mientras otra línea ya se está editando."},
-            {"label": "Pieza del catálogo (opcional)", "value": "Selector de entidad sobre el catálogo de piezas (mostrado solo al AGREGAR una línea). Seleccionar una pieza rellena la Descripción cuando está vacía. Déjelo vacío para crear una línea de monto global / desconocido —la columna Pieza muestra entonces 'Suma global'."},
-            {"label": "Descripción (requerido)", "value": "Entrada de texto. Requerido para cada línea. Descripción de texto libre de la línea."},
-            {"label": "Cant. (requerido)", "value": "Entrada numérica. Requerido, mínimo 0.0001 (paso 0.0001) —se permiten cantidades fraccionarias."},
-            {"label": "Monto (requerido)", "value": "Entrada de moneda. Requerido, mínimo 0. El monto por unidad de la línea. Total de línea = Cant. × Monto."},
-            {"label": "Editar (lápiz) / Eliminar (papelera)", "value": "Acciones por fila. Editar reabre la descripción/cant./monto de esa fila (la pieza no cambia). Eliminar quita la línea tras un cuadro de diálogo de confirmación."},
-            {"label": "Sincronización del Monto estimado", "value": "Después de cualquier agregar/editar/eliminar, el Monto estimado del encabezado de la estimación se actualiza a la suma de los totales de línea y la fila de la lista se actualiza."}
+            {"label": "Dónde", "value": "La sección de Líneas aparece cuando reabre una estimación guardada haciendo clic en su fila. No está cuando la crea por primera vez —usted guarda el encabezado primero y luego agrega líneas."},
+            {"label": "Cuándo es editable", "value": "Puede agregar, editar y eliminar líneas solo mientras la estimación es un borrador. Una vez que está Enviada, Aceptada o convertida, las líneas son de solo lectura y una nota lo explica."},
+            {"label": "Botón Agregar línea", "value": "Abre un pequeño formulario debajo de la tabla de líneas. No disponible mientras ya está editando otra línea."},
+            {"label": "Pieza del catálogo (opcional)", "value": "Elija una pieza de su catálogo y su descripción se rellena por usted. Déjela vacía para una línea de monto global —la columna Pieza muestra entonces 'Suma global'."},
+            {"label": "Descripción (requerido)", "value": "Una descripción de texto libre de la línea. Requerida en cada línea."},
+            {"label": "Cant. (requerido)", "value": "Cuántos. Debe ser al menos 0.0001, por lo que se permiten cantidades fraccionarias."},
+            {"label": "Monto (requerido)", "value": "El precio por unidad, cero o más. El total de la línea es la cantidad por el precio."},
+            {"label": "Editar (lápiz) / Eliminar (papelera)", "value": "Editar reabre la descripción, la cantidad y el precio de una línea (la pieza no cambia). Eliminar quita la línea después de que confirme."},
+            {"label": "Sincronización del Monto estimado", "value": "Después de agregar, editar o eliminar una línea, el total de la estimación se actualiza a la suma de las líneas y la lista se refresca."}
           ]
         },
         {
           "heading": "Acciones",
           "items": [
-            {"label": "Nueva estimación (botón principal)", "value": "Abre el diálogo de creación. Campos: Título, Descripción, Monto estimado, Válido hasta, Notas. Se guarda en estado Borrador."},
-            {"label": "Clic en la fila", "value": "Abre el diálogo de edición precargado con los valores actuales de la estimación. La lista desplegable de Estado aparece en modo de edición."},
-            {"label": "Convertir en cotización (icono de flecha hacia adelante)", "value": "Crea una nueva cotización formal (tipo=Quote) en estado Borrador a partir de esta estimación. Establece el estado de la estimación en Convertida en cotización. Transfiere el cliente y las líneas de la estimación. Refine los precios y agregue la tasa de impuesto en la página de Cotizaciones. Solo disponible si la estimación aún no se ha convertido (el icono se oculta una vez que existe un generatedQuoteId)."},
-            {"label": "Eliminar (icono de papelera)", "value": "Elimina la estimación de forma lógica tras la confirmación. Muestra un diálogo de confirmación de peligro con el título de la estimación."},
-            {"label": "Guardar (botón del diálogo)", "value": "Crea o actualiza la estimación. Deshabilitado cuando el formulario no es válido o el guardado está en curso. Un icono de advertencia junto a él abre un popover de clic que lista las infracciones."},
-            {"label": "Cancelar (botón del diálogo)", "value": "Cierra el diálogo sin guardar."}
+            {"label": "Nueva estimación (botón principal)", "value": "Abre el formulario para crear una estimación —título, descripción, monto, fecha de válido hasta y notas. Se guarda como borrador."},
+            {"label": "Clic en la fila", "value": "Abre la estimación para editarla, con sus valores actuales ya cargados. El campo Estado aparece aquí."},
+            {"label": "Convertir en cotización (flecha hacia adelante)", "value": "Convierte la estimación en una cotización formal en borrador, trayendo el cliente y las líneas, y marca la estimación como Convertida en cotización. Establezca los precios y la tasa de impuesto en la página de Cotizaciones. Se oculta una vez que una estimación ya se ha convertido."},
+            {"label": "Eliminar (icono de papelera)", "value": "Quita la estimación después de que confirme. Muestra primero una advertencia con el título de la estimación."},
+            {"label": "Guardar (botón del diálogo)", "value": "Crea o actualiza la estimación. No disponible mientras el formulario tiene un problema o un guardado está en curso. Un icono de advertencia junto a él enumera lo que hay que corregir."},
+            {"label": "Cancelar (botón del diálogo)", "value": "Cierra el formulario sin guardar."}
           ]
         },
         {
           "heading": "Columnas de la tabla",
           "items": [
-            {"label": "Título", "value": "Ordenable. El texto del título de la estimación."},
-            {"label": "Monto", "value": "Ordenable (tipo numérico). Alineado a la derecha. Se muestra como moneda con formato (p. ej., $12,500.00)."},
-            {"label": "Estado", "value": "Ordenable, filtrable (enum). Chip con código de color: Borrador (gris), Enviada (azul), Aceptada (verde), Rechazada (rojo), Vencida (ámbar), Convertida en cotización (verde azulado)."},
-            {"label": "Válido hasta", "value": "Ordenable (tipo fecha). Se muestra como MM/dd/yyyy. En blanco si no se establece vencimiento."},
-            {"label": "Creada", "value": "Ordenable (tipo fecha). Se muestra como MM/dd/yyyy. Cuándo se creó la estimación por primera vez."},
-            {"label": "Acciones", "value": "No ordenable. Contiene los botones Convertir en cotización (flecha hacia adelante, oculta si ya se convirtió) y Eliminar (icono de papelera)."}
+            {"label": "Título", "value": "El título de la estimación. Ordenable."},
+            {"label": "Monto", "value": "El total de la estimación, mostrado como moneda, por ejemplo $12,500.00, y alineado a la derecha. Ordenable."},
+            {"label": "Estado", "value": "Una etiqueta de color —Borrador (gris), Enviada (azul), Aceptada (verde), Rechazada (rojo), Vencida (ámbar) o Convertida en cotización (verde azulado). Ordenable y filtrable."},
+            {"label": "Válido hasta", "value": "La fecha de vencimiento, mostrada como MM/dd/yyyy, o en blanco si no se establece ninguna. Ordenable."},
+            {"label": "Creada", "value": "Cuándo se creó la estimación por primera vez, mostrada como MM/dd/yyyy. Ordenable."},
+            {"label": "Acciones", "value": "Contiene la flecha Convertir en cotización (oculta una vez convertida) y el botón Eliminar."}
           ]
         },
         {
           "heading": "Reglas de validación",
           "items": [
-            {"label": "Título", "value": "Obligatorio. Máximo 300 caracteres. No puede estar vacío."},
-            {"label": "Monto estimado", "value": "Obligatorio. Debe ser un número >= 0. Se aplica máscara de moneda."},
-            {"label": "Descripción", "value": "Opcional. Máximo 2000 caracteres cuando se proporciona."},
-            {"label": "Notas", "value": "Opcional. Máximo 2000 caracteres cuando se proporciona."},
-            {"label": "Válido hasta", "value": "Opcional. Sin restricción de fechas pasadas —puede retrodatar si es necesario."},
-            {"label": "Convertir en cotización", "value": "Solo disponible si la estimación aún no se ha convertido (sin generatedQuoteId). Se requiere diálogo de confirmación."},
-            {"label": "Eliminar", "value": "Se requiere diálogo de confirmación (severidad de peligro). Eliminación lógica —el registro se conserva en la base de datos."}
+            {"label": "Título", "value": "Obligatorio, hasta 300 caracteres. No puede estar en blanco."},
+            {"label": "Monto estimado", "value": "Obligatorio. Debe ser un número de cero o más."},
+            {"label": "Descripción", "value": "Opcional, hasta 2000 caracteres."},
+            {"label": "Notas", "value": "Opcional, hasta 2000 caracteres."},
+            {"label": "Válido hasta", "value": "Opcional. Puede establecer una fecha pasada si necesita retrodatar."},
+            {"label": "Convertir en cotización", "value": "Disponible solo si la estimación aún no se ha convertido. Le pide confirmar."},
+            {"label": "Eliminar", "value": "Le pide confirmar. La estimación se oculta, no se borra —se conserva para sus registros."}
           ]
         },
         {
           "heading": "Navegación y acceso",
           "items": [
-            {"label": "Ubicación", "value": "Página de Clientes → seleccionar cliente → pestaña Estimaciones. Las estimaciones siempre están acotadas a un solo cliente."},
-            {"label": "Funciones relacionadas", "value": "Cotizaciones (compromisos formales desglosados por líneas), Órdenes de venta (creadas a partir de cotizaciones aceptadas), Detalle del cliente (página principal)."},
-            {"label": "Almacenamiento de datos", "value": "Las estimaciones se almacenan en la tabla de cotizaciones con tipo=Estimate. Comparten la tabla con las cotizaciones formales pero tienen distintos campos poblados."}
+            {"label": "Ubicación", "value": "Página de Clientes, luego elija un cliente y abra la pestaña Estimaciones. Cada estimación pertenece a un solo cliente."},
+            {"label": "Funciones relacionadas", "value": "Cotizaciones (compromisos formales desglosados por líneas), Órdenes de venta (creadas a partir de cotizaciones aceptadas) y la página de detalle del cliente."},
+            {"label": "Bueno saberlo", "value": "Las estimaciones y las cotizaciones formales están muy relacionadas, pero una estimación se mantiene ligera —sin tasa de impuesto y sin conversión propia directa a orden."}
           ]
         }
       ]
@@ -173,11 +173,11 @@
           "text": "¿Cuál es la diferencia clave entre una estimación y una cotización en QB Engineer?",
           "options": [
             {"id": "a", "text": "Las estimaciones requieren aprobación del gerente; las cotizaciones no"},
-            {"id": "b", "text": "Una cotización es un compromiso vinculante que lleva una tasa de impuesto y puede convertirse en una orden de venta; una estimación es más ligera, no tiene cálculo de impuestos y no puede convertirse en una orden por sí sola —aunque ambas pueden desglosarse por líneas", "isCorrect": true},
+            {"id": "b", "text": "Una cotización es un compromiso vinculante que lleva una tasa de impuesto y puede convertirse en una orden de venta; una estimación es más ligera, no tiene impuestos y no puede convertirse en una orden por sí sola —aunque ambas pueden desglosarse por líneas", "isCorrect": true},
             {"id": "c", "text": "Las estimaciones no tienen líneas en absoluto; solo las cotizaciones pueden desglosarse"},
             {"id": "d", "text": "Las estimaciones se envían por correo automáticamente; las cotizaciones deben imprimirse"}
           ],
-          "explanation": "Ambos documentos pueden desglosarse con líneas. La verdadera diferencia es el compromiso y el alcance: una cotización es vinculante, lleva una tasa de impuesto y se convierte en una orden de venta; una estimación es más ligera, no tiene cálculo de impuestos y se convierte en una cotización (no directamente en una orden). La idea de que 'las estimaciones no tienen líneas' está desactualizada —las estimaciones admiten líneas de pieza del catálogo y de monto global."
+          "explanation": "Ambos documentos pueden desglosarse en líneas. La verdadera diferencia es el compromiso y el alcance: una cotización es vinculante, lleva una tasa de impuesto y se convierte en una orden de venta; una estimación es más ligera, no tiene impuestos y se convierte en una cotización (no directamente en una orden). La idea de que 'las estimaciones no tienen líneas' está desactualizada —las estimaciones admiten líneas de pieza del catálogo y de monto global."
         },
         {
           "id": "est3",
@@ -199,18 +199,18 @@
             {"id": "c", "text": "Hacer clic en el icono Convertir en cotización en la fila de la estimación —crea una nueva cotización formal vinculada a la estimación", "isCorrect": true},
             {"id": "d", "text": "No hay conversión —usted vuelve a teclear la estimación como una cotización nueva a mano"}
           ],
-          "explanation": "Haga clic en el icono de flecha hacia adelante en la fila de la estimación para convertirla. Esto crea una nueva cotización (tipo=Quote) en estado Borrador, transfiere el cliente y las líneas, establece la estimación en Convertida en cotización y las vincula entre sí. Luego refina los precios en la nueva cotización —no la vuelve a teclear a mano."
+          "explanation": "Haga clic en la flecha hacia adelante en la fila de la estimación para convertirla. Esto crea una nueva cotización en borrador, trae el cliente y las líneas, marca la estimación como Convertida en cotización y las vincula entre sí. Luego establece los precios en la nueva cotización —no la vuelve a teclear a mano."
         },
         {
           "id": "est5",
           "text": "¿Qué le pasa a una estimación después de convertirse en cotización?",
           "options": [
             {"id": "a", "text": "La estimación se elimina y se reemplaza por la cotización"},
-            {"id": "b", "text": "El estado de la estimación cambia a Convertida en cotización y se vincula a la nueva cotización. El registro de la estimación se conserva.", "isCorrect": true},
+            {"id": "b", "text": "El estado de la estimación cambia a Convertida en cotización y se vincula a la nueva cotización. La estimación se conserva.", "isCorrect": true},
             {"id": "c", "text": "La estimación vuelve a ser editable para que pueda actualizar el monto"},
             {"id": "d", "text": "La estimación se archiva y se oculta de la pestaña Estimaciones"}
           ],
-          "explanation": "La estimación se conserva con su estado establecido en Convertida en cotización y una marca de tiempo de conversión. Mantiene un enlace a la cotización generada a través del campo generatedQuoteId. Todavía puede verla en la pestaña Estimaciones."
+          "explanation": "La estimación se conserva, con su estado establecido en Convertida en cotización y la hora registrada. Se mantiene vinculada a la cotización que creó, y todavía puede verla en la pestaña Estimaciones."
         },
         {
           "id": "est6",
@@ -221,51 +221,51 @@
             {"id": "c", "text": "Título, Monto estimado y al menos una línea"},
             {"id": "d", "text": "Solo el Monto estimado —todo lo demás es opcional"}
           ],
-          "explanation": "El cuadro de diálogo de creación requiere solo dos campos: Título (máximo 300 caracteres) y Monto estimado (debe ser >= 0). Descripción, Válido hasta y Notas son opcionales. Las líneas no forman parte del paso de creación —una estimación se crea con el encabezado primero y luego se desglosa en el cuadro de diálogo de edición después de guardarse (donde el Monto estimado se sincroniza con los totales de línea)."
+          "explanation": "Crear una estimación solo necesita dos cosas: un Título (hasta 300 caracteres) y un Monto estimado (cero o más). Descripción, Válido hasta y Notas son opcionales. Las líneas no forman parte de crearla —usted guarda el encabezado primero y luego agrega líneas al reabrir la estimación, y el total sigue entonces las líneas."
         },
         {
           "id": "est7",
-          "text": "Una estimación muestra un chip de estado ámbar 'Vencida'. ¿Qué significa esto?",
+          "text": "Una estimación muestra una etiqueta de estado ámbar 'Vencida'. ¿Qué significa esto?",
           "options": [
             {"id": "a", "text": "La estimación fue rechazada por el cliente"},
             {"id": "b", "text": "La estimación superó su fecha de Válido hasta sin una decisión del cliente", "isCorrect": true},
             {"id": "c", "text": "La estimación se ha convertido en una cotización"},
             {"id": "d", "text": "La estimación se creó hace más de 30 días"}
           ],
-          "explanation": "Vencida (chip ámbar) significa que la estimación superó su fecha de Válido hasta sin que el cliente la aceptara o la rechazara. Todavía puede editar la estimación y extender la fecha si es necesario."
+          "explanation": "Una etiqueta ámbar de Vencida significa que la estimación superó su fecha de Válido hasta sin que el cliente la aceptara o la rechazara. Todavía puede editarla y extender la fecha si es necesario."
         },
         {
           "id": "est8",
           "text": "Se creó una nueva cotización a partir de la conversión de una estimación. ¿En qué estado comienza la nueva cotización?",
           "options": [
-            {"id": "a", "text": "Estado Borrador, transfiriendo el cliente y las líneas de la estimación —luego refina los precios y agrega la tasa de impuesto", "isCorrect": true},
+            {"id": "a", "text": "Estado Borrador, transfiriendo el cliente y las líneas de la estimación —luego establece los precios y agrega la tasa de impuesto", "isCorrect": true},
             {"id": "b", "text": "Estado Enviada, ya compartida con el cliente"},
             {"id": "c", "text": "Estado Aceptada ya que el cliente ya estuvo de acuerdo con la estimación"},
             {"id": "d", "text": "Estado Borrador sin líneas —todo debe volver a ingresarse desde cero"}
           ],
-          "explanation": "La cotización convertida comienza en estado Borrador y transfiere el cliente de la estimación y sus líneas. Desde ahí refina los precios, agrega la tasa de impuesto y ejecuta el ciclo de vida normal de la cotización. No vuelve a ingresar las líneas desde cero —ese es justamente el propósito de convertir en lugar de empezar una cotización nueva."
+          "explanation": "La cotización convertida comienza como borrador y transfiere el cliente de la estimación y sus líneas. Desde ahí establece los precios, agrega la tasa de impuesto y ejecuta el ciclo de vida normal de la cotización. No vuelve a ingresar las líneas desde cero —ese es justamente el propósito de convertir en lugar de empezar una cotización nueva."
         },
         {
           "id": "est9",
           "text": "Quiere eliminar una estimación que se ingresó por error. ¿Qué sucede?",
           "options": [
-            {"id": "a", "text": "La estimación se elimina permanentemente de la base de datos"},
-            {"id": "b", "text": "La estimación se elimina de forma lógica —el registro se conserva en la base de datos pero se oculta de la interfaz. Primero aparece un diálogo de confirmación.", "isCorrect": true},
+            {"id": "a", "text": "La estimación se borra permanentemente"},
+            {"id": "b", "text": "La estimación se oculta, no se borra —se conserva para sus registros pero ya no se muestra. Primero aparece una confirmación.", "isCorrect": true},
             {"id": "c", "text": "La estimación se mueve a una carpeta de Papelera donde puede restaurarse dentro de 30 días"},
             {"id": "d", "text": "No puede eliminar estimaciones —solo puede cambiar su estado a Rechazada"}
           ],
-          "explanation": "Eliminar una estimación activa un diálogo de confirmación de peligro. Al confirmar, el registro se elimina de forma lógica (se establece la marca de tiempo DeletedAt) —se conserva en la base de datos con fines de auditoría pero ya no es visible en la pestaña Estimaciones."
+          "explanation": "Eliminar una estimación primero le pide confirmar. Una vez que confirma, la estimación se oculta en lugar de borrarse —se conserva para sus registros pero ya no aparece en la pestaña Estimaciones."
         },
         {
           "id": "est10",
           "text": "¿Puede convertir la misma estimación en cotización más de una vez?",
           "options": [
             {"id": "a", "text": "Sí —cada conversión crea una cotización adicional vinculada a la misma estimación"},
-            {"id": "b", "text": "No —una vez que una estimación se ha convertido, el botón Convertir en cotización se oculta y la API impide la conversión duplicada", "isCorrect": true},
-            {"id": "c", "text": "Sí, pero solo si la primera cotización generada fue eliminada"},
+            {"id": "b", "text": "No —una vez que una estimación se ha convertido, el botón Convertir en cotización se oculta y se bloquea una segunda conversión", "isCorrect": true},
+            {"id": "c", "text": "Sí, pero solo si la primera cotización que creó fue eliminada"},
             {"id": "d", "text": "No —debe crear una nueva estimación para generar otra cotización"}
           ],
-          "explanation": "Una estimación solo puede convertirse una vez. El icono Convertir en cotización se oculta para las estimaciones que ya tienen un generatedQuoteId. La API también lo valida —si la estimación ya tiene una cotización generada, lanza un error: 'Estimate has already been converted to a quote.'"
+          "explanation": "Una estimación solo puede convertirse una vez. La flecha Convertir en cotización se oculta para las estimaciones que ya tienen una cotización, y una segunda conversión se bloquea —vería un mensaje de que ya se ha convertido."
         }
       ]
     }

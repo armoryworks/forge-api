@@ -2,16 +2,16 @@
   {
     "slug": "calendar-overview",
     "title": "Resumen del calendario",
-    "summary": "Qué muestra el módulo Calendario, cómo funcionan las tres vistas, cómo se integran las entregas de órdenes de compra y cómo se conecta con los trabajos.",
+    "summary": "Qué muestra el calendario, cómo funcionan las tres vistas, cómo se integran las entregas de órdenes de compra y cómo se conecta con los trabajos.",
     "contentJson": {
-      "body": "## Resumen del calendario\n\nEl módulo Calendario te ofrece una línea de tiempo visual de todos los trabajos según sus fechas de vencimiento, además de las fechas de entrega opcionales de las órdenes de compra. Es la vista de referencia cuando necesitas ver lo que viene, lo que está vencido y cómo se distribuye el trabajo entre días, semanas o meses.\n\n### Tres vistas\n\nEl calendario ofrece tres vistas — **Mes**, **Semana** y **Día** — que se alternan con botones en el encabezado. Cada vista muestra los mismos datos subyacentes con un nivel de zoom diferente.\n\n- La **vista Mes** muestra una cuadrícula tradicional. Cada celda muestra el número del día, hasta tres fichas de trabajo y un recuento de desbordamiento si hay más. Las fichas de trabajo están codificadas por color según su etapa kanban e incluyen iconos de prioridad para el trabajo de prioridad Crítica y Alta.\n- La **vista Semana** muestra siete columnas con fichas de trabajo ampliadas que incluyen el nombre del cliente y detalles adicionales. Es útil para planificar la semana actual o la próxima.\n- La **vista Día** es una lista vertical para una sola fecha. Cada trabajo muestra todos sus metadatos: número de trabajo, título, prioridad, cliente, etapa y responsable. Un día vacío muestra un icono event_available y un mensaje.\n\n### Conmutador de entregas de OC\n\nEl encabezado incluye un botón conmutador de entregas de OC (icono local_shipping). Cuando está activo, las fechas de entrega previstas de las órdenes de compra aparecen en el calendario junto a los trabajos. Cada evento de OC muestra el número de OC, el nombre del proveedor y el recuento de líneas. Esto te ayuda a anticipar los materiales entrantes y a coordinar la producción en torno a las entregas.\n\n### Cómo aparecen los trabajos\n\nCada ficha de trabajo muestra:\n- El **número de trabajo** y el **título**\n- Un **borde izquierdo** coloreado según el color de la etapa kanban del trabajo\n- **Iconos de prioridad**: un icono priority_high para los trabajos Críticos y un icono arrow_upward para los trabajos de prioridad Alta\n- Un icono de **advertencia de vencimiento** cuando la fecha de vencimiento ya pasó\n\n### Filtrado por tipo de pista\n\nUn menú desplegable de tipo de pista en el encabezado te permite filtrar qué trabajos de qué pista kanban se muestran. Esto es útil cuando tienes varias pistas (Producción, I+D, Mantenimiento) y quieres centrarte en una.\n\n### Abrir un trabajo desde el calendario\n\nEl calendario es una línea de tiempo de solo lectura — no puedes editar un trabajo aquí. Para trabajar en un trabajo, **haz clic en su ficha** (en cualquier vista — Mes, Semana o Día). El calendario te lleva al tablero Kanban con ese trabajo preseleccionado (se abre en el tablero mediante `/kanban?jobId=...`), donde puedes cambiar su etapa, editar detalles, registrar tiempo, etc. Esto hace que el calendario sea una forma rápida de detectar una fecha de vencimiento y saltar directamente al trabajo. Ten en cuenta que las fichas de entrega de OC son solo de visualización y no navegan a ningún sitio — solo las fichas de trabajo abren el tablero.\n\n### Navegación\n\nLos botones Anterior y Siguiente (chevron_left / chevron_right) avanzan y retroceden un mes, una semana o un día según la vista activa. El botón Hoy regresa a la fecha actual. Al hacer clic en una *celda de fecha* (en lugar de en una ficha de trabajo) en la vista Mes o Semana se cambia a la vista Día para esa fecha.\n\n### Cuándo usar el calendario\n\n- Para ver la semana que viene e identificar conflictos de programación\n- Para comprobar de un vistazo qué trabajos están vencidos\n- Para correlacionar las fechas de entrega de las OC con los calendarios de producción\n- Para saltar rápidamente a un día específico y revisar todo el trabajo pendiente\n- Para filtrar por tipo de pista y centrarte en un área del negocio",
+      "body": "## Resumen del calendario\n\nEl calendario te ofrece una línea de tiempo visual de tus trabajos según sus fechas de vencimiento, además de las fechas de entrega opcionales de las órdenes de compra. Úsalo para ver lo que viene, lo que está vencido y cómo se reparte el trabajo entre los días, semanas y meses que tienes por delante.\n\n### Tres vistas\n\nEl calendario tiene tres vistas — **Mes**, **Semana** y **Día** — que cambias con los botones de la parte superior. Cada vista muestra el mismo trabajo con un nivel de detalle diferente.\n\n- **Mes** muestra una cuadrícula tradicional. Cada día muestra su fecha, hasta tres etiquetas de trabajo y un recuento de los que no caben. Las etiquetas de trabajo se colorean por etapa y marcan el trabajo de prioridad Crítica y Alta.\n- **Semana** muestra siete días uno al lado del otro con etiquetas de trabajo más grandes que además incluyen el nombre del cliente. Es práctica para planificar la semana actual o la que viene.\n- **Día** es una lista para una sola fecha. Cada trabajo muestra todo su detalle: número, título, prioridad, cliente, etapa y a quién está asignado. Un día sin nada programado muestra un mensaje amable de vacío.\n\n### Mostrar u ocultar entregas de OC\n\nEn la parte superior hay un botón para activar o desactivar las entregas de órdenes de compra. Cuando está activado, las fechas de entrega previstas aparecen en el calendario junto a tus trabajos. Cada entrega muestra su número de OC, el proveedor y cuántas líneas tiene. Esto te ayuda a planificar la producción en torno a los materiales entrantes.\n\n### Cómo aparecen los trabajos\n\nCada etiqueta de trabajo muestra:\n- Su **número** y **título**\n- Un **borde izquierdo coloreado** que coincide con su etapa actual\n- Una **marca de prioridad** para el trabajo de prioridad Crítica o Alta\n- Una **advertencia de vencimiento** cuando la fecha de vencimiento ya pasó\n\n### Filtrar por pista\n\nUn menú en la parte superior te permite mostrar solo los trabajos de una pista. Esto es práctico cuando tienes varias pistas (Producción, I+D, Mantenimiento) y quieres centrarte en una.\n\n### Abrir un trabajo\n\nEl calendario es una línea de tiempo de solo lectura — aquí no puedes editar un trabajo. Para trabajar en un trabajo, **haz clic en él** en cualquier vista. El calendario te lleva al tablero Kanban con ese trabajo ya abierto, donde puedes cambiar su etapa, editar detalles, registrar tiempo y más. Es una forma rápida de detectar una fecha de vencimiento y saltar directamente al trabajo. Las etiquetas de entrega son solo de referencia y no abren nada.\n\n### Moverte por el calendario\n\nUsa las flechas de atrás y adelante para avanzar un mes, una semana o un día, según tu vista. El botón **Hoy** te lleva de vuelta a la fecha actual. Al hacer clic en un día vacío (no en un trabajo) en la vista Mes o Semana se abre la vista Día para esa fecha.\n\n### Cuándo usar el calendario\n\n- Para ver la semana que viene y detectar conflictos de programación\n- Para comprobar de un vistazo qué trabajos están vencidos\n- Para alinear las fechas de entrega con tu plan de producción\n- Para saltar a un día específico y revisar todo lo que vence\n- Para filtrar por pista y centrarte en una parte del negocio",
       "sections": []
     }
   },
   {
     "slug": "calendar-walkthrough",
     "title": "Calendario — Recorrido guiado",
-    "summary": "Un recorrido guiado por la página del calendario: conmutadores de vista, navegación, filtro de tipo de pista, conmutador de entregas de OC y clic en fechas.",
+    "summary": "Un recorrido guiado por la página del calendario: cambiar de vista, moverte, el filtro de pista, mostrar entregas de OC y hacer clic en fechas.",
     "contentJson": {
       "appRoute": "/calendar",
       "startButtonLabel": "Recorrer el calendario",
@@ -19,40 +19,40 @@
         {
           "element": ".calendar-nav app-select",
           "popover": {
-            "title": "Filtro de tipo de pista",
-            "description": "Filtra qué trabajos aparecen en el calendario según su tipo de pista kanban. Selecciona una pista específica (Producción, I+D, Mantenimiento) para centrarte, o muestra todas las pistas a la vez.",
+            "title": "Filtrar por pista",
+            "description": "Muestra solo los trabajos de una pista. Elige una pista como Producción, I+D o Mantenimiento para centrarte, o déjalo así para mostrar todas las pistas a la vez.",
             "side": "bottom"
           }
         },
         {
           "element": ".view-toggle",
           "popover": {
-            "title": "Botones de conmutación de vista",
-            "description": "Cambia entre las vistas Mes, Semana y Día. Mes te da la visión general, Semana es ideal para planificar el sprint actual y Día muestra el detalle completo de una sola fecha.",
+            "title": "Cambiar de vista",
+            "description": "Cambia entre Mes, Semana y Día. Mes te da la visión general, Semana es ideal para planificar la semana que viene y Día muestra el detalle completo de una sola fecha.",
             "side": "bottom"
           }
         },
         {
-          "element": ".month-label",
+          "element": ".calendar-nav .icon-btn",
           "popover": {
-            "title": "Controles de navegación",
-            "description": "Usa los chevrones izquierdo y derecho para avanzar y retroceder un período (mes, semana o día según tu vista actual). El botón Hoy regresa al instante a la fecha actual.",
+            "title": "Moverte por el calendario",
+            "description": "Usa las flechas de atrás y adelante para avanzar un mes, una semana o un día, según tu vista. El botón Hoy te lleva de vuelta a la fecha actual.",
             "side": "bottom"
           }
         },
         {
           "element": ".calendar-nav .action-btn--sm:last-of-type",
           "popover": {
-            "title": "Conmutador de entregas de OC",
-            "description": "Haz clic para mostrar u ocultar las fechas de entrega previstas de las órdenes de compra en el calendario. Cuando está activo (resaltado en el color primario), los eventos de OC aparecen junto a las fichas de trabajo mostrando el número de OC, el nombre del proveedor y el recuento de líneas. Ideal para coordinar la producción en torno a los materiales entrantes.",
+            "title": "Mostrar entregas de OC",
+            "description": "Activa o desactiva las entregas de órdenes de compra. Cuando están activadas, las fechas de entrega previstas aparecen junto a tus trabajos, cada una con su número de OC, proveedor y recuento de líneas. Práctico para planificar la producción en torno a los materiales entrantes.",
             "side": "bottom"
           }
         },
         {
           "element": ".calendar-grid,.week-grid,.day-view",
           "popover": {
-            "title": "Área de contenido del calendario",
-            "description": "Aquí es donde se muestran los trabajos y las entregas de OC. En la vista Mes, haz clic en cualquier fecha para cambiar a la vista Día de esa fecha. En la vista Semana, haz clic en el encabezado de una fecha para saltar a ese día. Las fichas de trabajo están codificadas por color según la etapa y muestran iconos de prioridad para el trabajo de prioridad Crítica y Alta.",
+            "title": "El calendario en sí",
+            "description": "Aquí aparecen tus trabajos y entregas. En la vista Mes, haz clic en cualquier día para abrir la vista Día de esa fecha. En la vista Semana, haz clic en el encabezado de un día para saltar allí. Las etiquetas de trabajo se colorean por etapa y marcan el trabajo de prioridad Crítica y Alta.",
             "side": "top"
           }
         }
@@ -62,7 +62,7 @@
   {
     "slug": "calendar-field-reference",
     "title": "Referencia de campos del calendario",
-    "summary": "Referencia completa de cada control, modo de vista, elemento de ficha de trabajo, elemento de evento de OC, icono de prioridad y comportamiento de navegación del módulo Calendario.",
+    "summary": "Referencia completa de cada control, vista, etiqueta de trabajo, entrega, marca de prioridad y comportamiento de navegación del calendario.",
     "contentJson": {
       "title": "Referencia de campos del calendario",
       "groups": [
@@ -70,40 +70,40 @@
           "heading": "Controles del encabezado",
           "items": [
             {
-              "label": "Filtro de tipo de pista",
-              "value": "Menú desplegable de selección. Filtra los trabajos por tipo de pista kanban (Producción, I+D/Herramental, Mantenimiento, Otro o pistas personalizadas). Muestra todas las pistas cuando no hay ningún filtro seleccionado."
+              "label": "Filtro de pista",
+              "value": "Un menú del que eliges. Muestra solo los trabajos de una pista (Producción, I+D/Herramental, Mantenimiento, Otro o tus propias pistas). Déjalo sin seleccionar para mostrar todas las pistas."
             },
             {
-              "label": "Conmutador de vista — Mes",
-              "value": "Botón. Muestra una cuadrícula mensual tradicional con celdas de día. Cada celda muestra el número del día, hasta 3 fichas de trabajo y un recuento de desbordamiento +N si existen más."
+              "label": "Vista — Mes",
+              "value": "Muestra una cuadrícula mensual tradicional. Cada día muestra su fecha, hasta 3 etiquetas de trabajo y un recuento de las que no caben."
             },
             {
-              "label": "Conmutador de vista — Semana",
-              "value": "Botón. Muestra una disposición de 7 columnas para la semana actual. Las fichas de trabajo muestran detalles ampliados, incluido el nombre del cliente."
+              "label": "Vista — Semana",
+              "value": "Muestra siete días uno al lado del otro para la semana actual. Las etiquetas de trabajo son más grandes y añaden el nombre del cliente."
             },
             {
-              "label": "Conmutador de vista — Día",
-              "value": "Botón. Muestra una vista de lista de una sola fecha. Los trabajos muestran todos los metadatos: número de trabajo, título, prioridad, cliente, etapa, responsable y ficha de prioridad."
+              "label": "Vista — Día",
+              "value": "Muestra una lista para una sola fecha. Cada trabajo muestra todo su detalle: número, título, prioridad, cliente, etapa y a quién está asignado."
             },
             {
-              "label": "Anterior (chevron_left)",
-              "value": "Retrocede un período: un mes en la vista Mes, una semana en la vista Semana, un día en la vista Día."
+              "label": "Flecha de atrás",
+              "value": "Retrocede un paso: un mes en la vista Mes, una semana en la vista Semana, un día en la vista Día."
             },
             {
-              "label": "Siguiente (chevron_right)",
-              "value": "Avanza un período: un mes en la vista Mes, una semana en la vista Semana, un día en la vista Día."
+              "label": "Flecha de adelante",
+              "value": "Avanza un paso: un mes en la vista Mes, una semana en la vista Semana, un día en la vista Día."
             },
             {
-              "label": "Etiqueta de período",
-              "value": "Muestra el período actual. Vista Mes: nombre del mes y año (p. ej., 'abril de 2026'). Vista Semana: rango de fechas (p. ej., '13 abr – 19 abr de 2026'). Vista Día: fecha completa (p. ej., 'jueves, 16 de abril de 2026')."
+              "label": "Etiqueta de fecha",
+              "value": "Muestra dónde estás. La vista Mes muestra el mes y el año (por ejemplo, 'abril de 2026'). La vista Semana muestra el rango de fechas. La vista Día muestra la fecha completa."
             },
             {
               "label": "Botón Hoy",
-              "value": "Restablece el calendario a la fecha actual. Disponible en las tres vistas."
+              "value": "Te lleva de vuelta a la fecha actual. Funciona en las tres vistas."
             },
             {
-              "label": "Conmutador de entregas de OC",
-              "value": "Botón con icono local_shipping. Cuando está activo, el botón se resalta en el color primario y las fechas de entrega previstas de las OC aparecen en el calendario. Cuando está inactivo, solo se muestran los trabajos."
+              "label": "Mostrar entregas de OC",
+              "value": "Un botón de encendido/apagado. Cuando está encendido, las fechas de entrega previstas de las órdenes de compra aparecen junto a tus trabajos. Cuando está apagado, solo ves los trabajos."
             }
           ]
         },
@@ -111,32 +111,32 @@
           "heading": "Vista Mes",
           "items": [
             {
-              "label": "Encabezado de nombres de día",
-              "value": "Fila que muestra los nombres de día abreviados: dom, lun, mar, mié, jue, vie, sáb."
+              "label": "Fila de nombres de día",
+              "value": "Una fila de nombres de día abreviados en la parte superior: dom, lun, mar, mié, jue, vie, sáb."
             },
             {
-              "label": "Celda de día — Número de fecha",
-              "value": "Esquina superior izquierda de cada celda. La fecha de hoy se resalta con un fondo de color."
+              "label": "Número de fecha",
+              "value": "Está en la esquina superior de cada día. La fecha de hoy se resalta."
             },
             {
-              "label": "Celda de día — Fechas de otro mes",
-              "value": "Las fechas fuera del mes actual aparecen atenuadas (opacidad reducida)."
+              "label": "Días de otros meses",
+              "value": "Las fechas que quedan fuera del mes actual aparecen atenuadas."
             },
             {
-              "label": "Celda de día — Fichas de trabajo",
-              "value": "Hasta 3 fichas de trabajo por celda. Cada ficha muestra el número de trabajo, el título truncado y los iconos opcionales de prioridad/vencimiento. Borde izquierdo coloreado según el color de la etapa."
+              "label": "Etiquetas de trabajo",
+              "value": "Hasta 3 por día. Cada una muestra el número y el título del trabajo, con un borde izquierdo coloreado según su etapa y las marcas de prioridad o vencimiento que correspondan."
             },
             {
-              "label": "Celda de día — Recuento de desbordamiento",
-              "value": "Cuando existen más de 3 trabajos en una fecha, aparece una etiqueta '+N más' debajo de las fichas."
+              "label": "Recuento de desbordamiento",
+              "value": "Cuando más de 3 trabajos caen el mismo día, aparece una nota '+N más' debajo de las etiquetas. Abre el día para verlos todos."
             },
             {
-              "label": "Celda de día — Eventos de OC",
-              "value": "Cuando el conmutador de OC está activo, los eventos de entrega de OC se muestran con un icono local_shipping, el número de OC y el nombre del proveedor."
+              "label": "Etiquetas de entrega",
+              "value": "Cuando las entregas de OC están activadas, cada entrega muestra un pequeño distintivo de camión, el número de OC y el proveedor."
             },
             {
-              "label": "Clic en celda de día",
-              "value": "Al hacer clic en cualquier celda de día se cambia a la vista Día para esa fecha."
+              "label": "Hacer clic en un día",
+              "value": "Haz clic en cualquier día para abrir la vista Día de esa fecha."
             }
           ]
         },
@@ -144,20 +144,20 @@
           "heading": "Vista Semana",
           "items": [
             {
-              "label": "Encabezados de columna",
-              "value": "Siete columnas que muestran el nombre del día y el número de fecha. El encabezado de la columna de hoy se resalta."
+              "label": "Encabezados de día",
+              "value": "Siete columnas, cada una con un nombre de día y su fecha. La columna de hoy se resalta."
             },
             {
-              "label": "Fichas de trabajo (ampliadas)",
-              "value": "Fichas más anchas que en la vista Mes. Muestran: icono de prioridad (si corresponde), número de trabajo, icono de advertencia de vencimiento (si corresponde), título y nombre del cliente."
+              "label": "Etiquetas de trabajo",
+              "value": "Más grandes que en la vista Mes. Cada una muestra una marca de prioridad cuando corresponde, el número de trabajo, una marca de vencimiento cuando corresponde, el título y el cliente."
             },
             {
-              "label": "Eventos de OC",
-              "value": "Igual que en la vista Mes — icono local_shipping + número de OC + nombre del proveedor — cuando el conmutador de OC está activo."
+              "label": "Etiquetas de entrega",
+              "value": "Igual que en la vista Mes — un distintivo de camión, el número de OC y el proveedor — cuando las entregas de OC están activadas."
             },
             {
-              "label": "Clic en encabezado de fecha",
-              "value": "Al hacer clic en el encabezado de fecha de una columna se cambia a la vista Día para esa fecha."
+              "label": "Hacer clic en un encabezado de día",
+              "value": "Haz clic en el encabezado de un día para abrir la vista Día de esa fecha."
             }
           ]
         },
@@ -166,122 +166,122 @@
           "items": [
             {
               "label": "Encabezado del día",
-              "value": "Muestra la fecha completa, el recuento de trabajos (p. ej., '4 trabajos') y el recuento de OC (p. ej., '2 entregas') cuando el conmutador de OC está activo."
+              "value": "Muestra la fecha completa, cuántos trabajos vencen y cuántas entregas se esperan cuando las entregas de OC están activadas."
             },
             {
               "label": "Tarjetas de trabajo",
-              "value": "Visualización ampliada: número de trabajo, título, icono de prioridad, icono de advertencia de vencimiento. Debajo: fila de metadatos con el nombre del cliente, el nombre de la etapa, el nombre del responsable y la ficha de prioridad."
+              "value": "Una vista más completa: número de trabajo, título, marca de prioridad y marca de vencimiento, con una línea de detalle debajo que muestra el cliente, la etapa, a quién está asignado y su prioridad."
             },
             {
-              "label": "Sección de entregas de OC",
-              "value": "Sección separada debajo de los trabajos. Cada evento de OC muestra el número de OC, el nombre del proveedor, la fecha de entrega prevista, el estado y el recuento de líneas."
+              "label": "Sección de entregas",
+              "value": "Una sección separada debajo de los trabajos. Cada entrega muestra su número de OC, proveedor, fecha prevista, estado y recuento de líneas."
             },
             {
-              "label": "Estado vacío",
-              "value": "Cuando no existen trabajos ni eventos de OC para la fecha, se muestra un icono event_available y un mensaje de estado vacío."
+              "label": "Nada programado",
+              "value": "Cuando una fecha no tiene trabajos ni entregas, verás un mensaje amable de que no hay nada programado."
             }
           ]
         },
         {
-          "heading": "Elementos de la ficha de trabajo",
+          "heading": "Detalles de la etiqueta de trabajo",
           "items": [
             {
-              "label": "Clic en ficha de trabajo",
-              "value": "Al hacer clic en una ficha de trabajo en cualquier vista (Mes, Semana o Día) se navega al tablero Kanban con ese trabajo preseleccionado (/kanban?jobId=...). Así es como abres y trabajas en un trabajo desde el calendario — el calendario en sí es de solo lectura. El clic es independiente del clic en la celda de día: hacer clic en la ficha abre el tablero, hacer clic en el espacio vacío de la celda cambia a la vista Día."
+              "label": "Hacer clic en un trabajo",
+              "value": "Haz clic en un trabajo en cualquier vista para abrirlo en el tablero Kanban, ya seleccionado — así es como trabajas en un trabajo desde el calendario, ya que el calendario es de solo lectura. Al hacer clic en un trabajo se abre el tablero; al hacer clic en el espacio vacío de un día se abre la vista Día en su lugar."
             },
             {
               "label": "Número de trabajo",
-              "value": "Mostrado de forma destacada (p. ej., 'J-1055'). Identifica el trabajo en todo el sistema."
+              "value": "Se muestra al frente (por ejemplo, 'J-1055'). Identifica el trabajo en todo el sistema."
             },
             {
               "label": "Título",
-              "value": "Texto del título del trabajo, truncado con puntos suspensivos cuando el espacio es limitado."
+              "value": "El título del trabajo, acortado con puntos suspensivos cuando el espacio es limitado."
             },
             {
-              "label": "Color de etapa (borde izquierdo)",
-              "value": "Un borde izquierdo coloreado en cada ficha que coincide con el color de la etapa kanban actual del trabajo (stageColor del modelo CalendarJob)."
+              "label": "Borde izquierdo coloreado",
+              "value": "Un borde coloreado en cada etiqueta que coincide con la etapa actual del trabajo, para que distingas las etapas de un vistazo."
             },
             {
-              "label": "Prioridad — Crítica",
-              "value": "Icono: priority_high. Se muestra para los trabajos de prioridad Crítica. Color rojo/de peligro."
+              "label": "Prioridad Crítica",
+              "value": "Una marca de prioridad que se muestra para los trabajos Críticos, en rojo."
             },
             {
-              "label": "Prioridad — Alta",
-              "value": "Icono: arrow_upward. Se muestra para los trabajos de prioridad Alta. Color naranja/de advertencia."
+              "label": "Prioridad Alta",
+              "value": "Una marca de prioridad que se muestra para los trabajos de prioridad Alta, en naranja."
             },
             {
               "label": "Advertencia de vencimiento",
-              "value": "Icono: warning. Se muestra cuando la fecha de vencimiento del trabajo ya pasó y aún no está completo."
+              "value": "Una marca de advertencia que se muestra cuando la fecha de vencimiento del trabajo ya pasó y aún no está completo."
             },
             {
-              "label": "Nombre del cliente",
-              "value": "Se muestra en las vistas Semana y Día. El cliente asociado al trabajo."
+              "label": "Cliente",
+              "value": "Se muestra en las vistas Semana y Día. El cliente para el que es el trabajo."
             },
             {
-              "label": "Nombre de la etapa",
-              "value": "Se muestra en la fila de metadatos de la vista Día. La etapa kanban actual del trabajo (p. ej., 'En producción', 'CC/Revisión')."
+              "label": "Etapa",
+              "value": "Se muestra en la línea de detalle de la vista Día. La etapa actual del trabajo (por ejemplo, 'En producción' o 'CC/Revisión')."
             },
             {
-              "label": "Responsable",
-              "value": "Se muestra en la fila de metadatos de la vista Día. La persona asignada al trabajo (iniciales y color en algunas vistas)."
+              "label": "Asignado a",
+              "value": "Se muestra en la línea de detalle de la vista Día. La persona a la que está asignado el trabajo, mostrada por sus iniciales en algunas vistas."
             }
           ]
         },
         {
-          "heading": "Elementos del evento de OC",
+          "heading": "Detalles de la entrega",
           "items": [
             {
               "label": "Número de OC",
-              "value": "El número de la orden de compra (p. ej., 'PO-2048')."
+              "value": "El número de la orden de compra (por ejemplo, 'PO-2048')."
             },
             {
-              "label": "Nombre del proveedor",
+              "label": "Proveedor",
               "value": "El proveedor que suministra los materiales."
             },
             {
-              "label": "Fecha de entrega prevista",
-              "value": "La fecha en que se espera que llegue la OC."
+              "label": "Fecha prevista",
+              "value": "La fecha en que se espera que llegue el pedido."
             },
             {
               "label": "Estado",
-              "value": "El estado actual de la OC (p. ej., 'Pedida', 'Enviada', 'Recibida parcialmente')."
+              "value": "En qué punto está el pedido (por ejemplo, 'Pedido', 'Enviado' o 'Recibido parcialmente')."
             },
             {
               "label": "Recuento de líneas",
-              "value": "Número de líneas de la OC. Se muestra en la vista Día."
+              "value": "Cuántas líneas tiene el pedido. Se muestra en la vista Día."
             },
             {
-              "label": "Icono",
-              "value": "El icono local_shipping identifica los eventos de OC y los distingue de las fichas de trabajo."
+              "label": "Distintivo de camión",
+              "value": "Un pequeño distintivo de camión que distingue las entregas de los trabajos."
             }
           ]
         },
         {
-          "heading": "Comportamiento de navegación",
+          "heading": "Moverte por el calendario",
           "items": [
             {
-              "label": "Mes → Anterior/Siguiente",
+              "label": "Mes — Atrás/Adelante",
               "value": "Retrocede o avanza un mes calendario."
             },
             {
-              "label": "Semana → Anterior/Siguiente",
-              "value": "Retrocede o avanza 7 días."
+              "label": "Semana — Atrás/Adelante",
+              "value": "Retrocede o avanza siete días."
             },
             {
-              "label": "Día → Anterior/Siguiente",
-              "value": "Retrocede o avanza 1 día."
+              "label": "Día — Atrás/Adelante",
+              "value": "Retrocede o avanza un día."
             },
             {
               "label": "Hoy (cualquier vista)",
-              "value": "Restablece a la fecha de hoy en el modo de vista actual."
+              "value": "Te lleva de vuelta a hoy, manteniendo tu vista actual."
             },
             {
-              "label": "Clic en fecha (Mes/Semana)",
-              "value": "Hacer clic en el área vacía de una celda de día (Mes) o en un encabezado de fecha (Semana) cambia a la vista Día para esa fecha. No cambia permanentemente el estado del conmutador de vista — puedes volver a la vista Mes o Semana."
+              "label": "Hacer clic en un día vacío",
+              "value": "Al hacer clic en un día vacío (vista Mes) o en un encabezado de día (vista Semana) se abre la vista Día de esa fecha. Después puedes volver directamente a Mes o Semana."
             },
             {
-              "label": "Clic en ficha de trabajo frente a clic en fecha",
-              "value": "Al hacer clic en una ficha de trabajo se abre ese trabajo en el tablero Kanban (/kanban?jobId=...); al hacer clic en cualquier otro lugar de la celda se cambia a la vista Día. Las fichas de entrega de OC son solo de visualización y no navegan."
+              "label": "Trabajo frente a espacio vacío",
+              "value": "Al hacer clic en un trabajo se abre en el tablero Kanban; al hacer clic en el espacio vacío del día se abre la vista Día. Las etiquetas de entrega son solo de referencia y no abren nada."
             }
           ]
         }
@@ -291,7 +291,7 @@
   {
     "slug": "calendar-quiz",
     "title": "Comprobación de conocimientos del calendario",
-    "summary": "Pon a prueba tus conocimientos del módulo Calendario: vistas, navegación, entregas de OC, fichas de trabajo y filtrado.",
+    "summary": "Pon a prueba tus conocimientos del calendario: vistas, navegación, entregas de OC, etiquetas de trabajo y filtrado.",
     "contentJson": {
       "passingScore": 80,
       "questionsPerQuiz": 8,
@@ -300,7 +300,7 @@
       "questions": [
         {
           "id": "cal1",
-          "text": "¿Cuáles son los tres modos de vista disponibles en el módulo Calendario?",
+          "text": "¿Cuáles son las tres vistas del calendario?",
           "options": [
             {
               "id": "a",
@@ -320,35 +320,35 @@
               "text": "Tablero, Tabla y Calendario"
             }
           ],
-          "explanation": "El calendario ofrece tres vistas — Mes, Semana y Día — que se alternan con botones en el encabezado. Cada una muestra los mismos datos con un nivel de zoom diferente."
+          "explanation": "El calendario tiene tres vistas — Mes, Semana y Día — que cambias con los botones de la parte superior. Cada una muestra el mismo trabajo con un nivel de detalle diferente."
         },
         {
           "id": "cal2",
-          "text": "Quieres ver las fechas de entrega previstas de las órdenes de compra junto a tus trabajos en el calendario. ¿Cómo lo habilitas?",
+          "text": "Quieres ver las fechas de entrega de las órdenes de compra junto a tus trabajos en el calendario. ¿Cómo lo activas?",
           "options": [
             {
               "id": "a",
-              "text": "Ve a Administración → Configuración del calendario y marca 'Mostrar entregas de OC'"
+              "text": "Ve a Administración, luego a Configuración del calendario, y marca 'Mostrar entregas de OC'"
             },
             {
               "id": "b",
-              "text": "Haz clic en el botón conmutador de entregas de OC (icono local_shipping) en el encabezado del calendario",
+              "text": "Haz clic en el botón Mostrar entregas de OC en la parte superior del calendario",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Cambia a la página de Órdenes de compra y habilita la vista de calendario"
+              "text": "Cambia a la página de Órdenes de compra y activa la vista de calendario"
             },
             {
               "id": "d",
-              "text": "Las entregas de OC siempre se muestran — no se pueden desactivar"
+              "text": "Las entregas siempre se muestran — no se pueden desactivar"
             }
           ],
-          "explanation": "El conmutador de entregas de OC en el encabezado controla si las fechas de entrega de las órdenes de compra aparecen en el calendario. Cuando está activo, el botón se resalta en el color primario."
+          "explanation": "El botón Mostrar entregas de OC de la parte superior controla si las fechas de entrega aparecen en el calendario. Cuando está activado, el botón se resalta."
         },
         {
           "id": "cal3",
-          "text": "En la vista Mes, una celda de día muestra '3 fichas de trabajo y +4 más'. ¿Qué significa la etiqueta '+4 más'?",
+          "text": "En la vista Mes, un día muestra tres trabajos y una nota '+4 más'. ¿Qué significa '+4 más'?",
           "options": [
             {
               "id": "a",
@@ -356,23 +356,23 @@
             },
             {
               "id": "b",
-              "text": "Hay 4 trabajos adicionales pendientes en esa fecha, pero están ocultos para ahorrar espacio",
+              "text": "Hay 4 trabajos más que vencen ese día pero están ocultos para ahorrar espacio",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Se esperan 4 entregas de OC en esa fecha"
+              "text": "Se esperan 4 entregas ese día"
             },
             {
               "id": "d",
               "text": "Los trabajos llevan 4 o más días vencidos"
             }
           ],
-          "explanation": "La vista Mes muestra hasta 3 fichas de trabajo por celda de día. Cuando existen más trabajos, aparece un recuento de desbordamiento '+N más'. Haz clic en el día para cambiar a la vista Día y ver todos los trabajos."
+          "explanation": "La vista Mes muestra hasta 3 trabajos por día. Cuando hay más, aparece una nota '+N más'. Haz clic en el día para abrir la vista Día y verlos todos."
         },
         {
           "id": "cal4",
-          "text": "¿Qué indica un icono priority_high en una ficha de trabajo?",
+          "text": "Una etiqueta de trabajo muestra una marca de prioridad roja. ¿Qué significa?",
           "options": [
             {
               "id": "a",
@@ -392,11 +392,11 @@
               "text": "El trabajo se ha marcado para revisión"
             }
           ],
-          "explanation": "El icono priority_high indica prioridad Crítica. Los trabajos de prioridad Alta usan en su lugar el icono arrow_upward. Ambos te ayudan a detectar rápidamente el trabajo importante en el calendario."
+          "explanation": "Una marca de prioridad roja significa prioridad Crítica. Los trabajos de prioridad Alta muestran una marca naranja en su lugar. Ambas te ayudan a detectar el trabajo importante de un vistazo."
         },
         {
           "id": "cal5",
-          "text": "Estás en la vista Semana y quieres ver todos los detalles de los trabajos del miércoles. ¿Cómo navegas hasta ahí?",
+          "text": "Estás en la vista Semana y quieres ver todos los detalles de los trabajos del miércoles. ¿Cómo llegas ahí?",
           "options": [
             {
               "id": "a",
@@ -404,47 +404,47 @@
             },
             {
               "id": "b",
-              "text": "Haz clic en el encabezado de fecha del miércoles para cambiar a la vista Día de esa fecha",
+              "text": "Haz clic en el encabezado del miércoles para abrir la vista Día de esa fecha",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Pasa el cursor sobre la columna del miércoles para ver una información sobre herramientas con los detalles de los trabajos"
+              "text": "Pasa el cursor sobre la columna del miércoles para ver los detalles en una información sobre herramientas"
             },
             {
               "id": "d",
-              "text": "Haz clic derecho y selecciona 'Ver detalles del día'"
+              "text": "Haz clic derecho y elige 'Ver detalles del día'"
             }
           ],
-          "explanation": "Al hacer clic en un encabezado de fecha en la vista Semana (o en una celda de día en la vista Mes) se cambia a la vista Día para esa fecha, mostrando todos los detalles del trabajo, incluidos cliente, etapa, responsable y prioridad."
+          "explanation": "Al hacer clic en un encabezado de día en la vista Semana (o en un día en la vista Mes) se abre la vista Día de esa fecha, con todo el detalle, incluidos el cliente, la etapa, a quién está asignado y la prioridad."
         },
         {
           "id": "cal6",
-          "text": "¿Qué representa el borde izquierdo coloreado de una ficha de trabajo?",
+          "text": "¿Qué significa el borde izquierdo coloreado de una etiqueta de trabajo?",
           "options": [
             {
               "id": "a",
-              "text": "El nivel de prioridad del trabajo (rojo = Crítica, naranja = Alta, etc.)"
+              "text": "La prioridad del trabajo (rojo para Crítica, naranja para Alta, etc.)"
             },
             {
               "id": "b",
-              "text": "El color de la etapa kanban del trabajo",
+              "text": "La etapa actual del trabajo",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "El color del tipo de pista del tablero del trabajo"
+              "text": "El color de la pista del tablero del trabajo"
             },
             {
               "id": "d",
               "text": "El color asignado al cliente"
             }
           ],
-          "explanation": "Cada ficha de trabajo tiene un borde izquierdo coloreado según el color de su etapa kanban (stageColor). Esto te permite identificar visualmente en qué etapa se encuentra un trabajo sin leer el texto."
+          "explanation": "Cada etiqueta de trabajo tiene un borde izquierdo coloreado que coincide con su etapa actual. Esto te permite distinguir las etapas de un vistazo sin leer el texto."
         },
         {
           "id": "cal7",
-          "text": "Ves un icono warning en una ficha de trabajo. ¿Qué significa esto?",
+          "text": "Ves una marca de advertencia en una etiqueta de trabajo. ¿Qué significa?",
           "options": [
             {
               "id": "a",
@@ -461,23 +461,23 @@
             },
             {
               "id": "d",
-              "text": "El trabajo no tiene responsable"
+              "text": "El trabajo no tiene a nadie asignado"
             }
           ],
-          "explanation": "El icono warning aparece en los trabajos que están vencidos — su fecha de vencimiento ya pasó pero no se han completado. Esto te ayuda a detectar rápidamente el trabajo atrasado en el calendario."
+          "explanation": "Una marca de advertencia aparece en los trabajos vencidos — su fecha de vencimiento ya pasó pero no están completos. Esto te ayuda a detectar el trabajo atrasado de un vistazo."
         },
         {
           "id": "cal8",
-          "text": "¿Cómo funciona el filtro de tipo de pista en el encabezado del calendario?",
+          "text": "¿Cómo funciona el filtro de pista de la parte superior del calendario?",
           "options": [
             {
               "id": "a",
-              "text": "Filtra qué trabajos de qué pista kanban se muestran en el calendario",
+              "text": "Muestra solo los trabajos de una pista",
               "isCorrect": true
             },
             {
               "id": "b",
-              "text": "Cambia el tema de color del calendario para que coincida con el tipo de pista"
+              "text": "Cambia los colores del calendario para que coincidan con la pista"
             },
             {
               "id": "c",
@@ -485,14 +485,14 @@
             },
             {
               "id": "d",
-              "text": "Filtra las entregas de OC según la asignación de pista del proveedor"
+              "text": "Filtra las entregas según la pista del proveedor"
             }
           ],
-          "explanation": "El menú desplegable de tipo de pista filtra los trabajos según su tipo de pista kanban (Producción, I+D, Mantenimiento, etc.). Esto te permite centrarte en un área del negocio al planificar."
+          "explanation": "El filtro de pista muestra solo los trabajos de una pista (Producción, I+D, Mantenimiento, etc.). Esto te permite centrarte en una parte del negocio al planificar."
         },
         {
           "id": "cal9",
-          "text": "En la vista Día, ¿qué información se muestra en la fila de metadatos de un trabajo?",
+          "text": "En la vista Día, ¿qué hay en la línea de detalle de un trabajo?",
           "options": [
             {
               "id": "a",
@@ -500,19 +500,19 @@
             },
             {
               "id": "b",
-              "text": "Nombre del cliente, nombre de la etapa, nombre del responsable y ficha de prioridad",
+              "text": "Cliente, etapa, a quién está asignado y prioridad",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Estimación de costo del trabajo, horas registradas y porcentaje de finalización"
+              "text": "Estimación de costo, horas registradas y porcentaje completado"
             },
             {
               "id": "d",
               "text": "Número de pieza, cantidad pedida y tipo de material"
             }
           ],
-          "explanation": "La vista Día muestra el mayor detalle. Cada trabajo muestra su número, título e icono de prioridad en la línea principal, con una fila de metadatos debajo que muestra el nombre del cliente, la etapa actual, la persona asignada y una ficha de prioridad."
+          "explanation": "La vista Día muestra el mayor detalle. Cada trabajo muestra su número, título y prioridad en la línea principal, con una línea de detalle debajo que muestra el cliente, la etapa actual, a quién está asignado y su prioridad."
         },
         {
           "id": "cal10",
@@ -524,7 +524,7 @@
             },
             {
               "id": "b",
-              "text": "Restablece el calendario a la fecha actual en la vista que esté activa",
+              "text": "Te lleva de vuelta a la fecha actual, manteniendo la vista en la que estés",
               "isCorrect": true
             },
             {
@@ -533,22 +533,22 @@
             },
             {
               "id": "d",
-              "text": "Resalta todos los trabajos vencidos en todo el calendario"
+              "text": "Resalta todos los trabajos vencidos del calendario"
             }
           ],
-          "explanation": "El botón Hoy restablece el calendario a la fecha actual manteniendo tu modo de vista actual (Mes, Semana o Día). No cambia la vista activa — solo el enfoque de la fecha."
+          "explanation": "El botón Hoy te lleva de vuelta a la fecha actual manteniendo tu vista actual (Mes, Semana o Día). Cambia la fecha que estás mirando, no la vista."
         },
         {
           "id": "cal11",
-          "text": "En la vista Día, cuando no existen trabajos ni eventos de OC para la fecha seleccionada, ¿qué se muestra?",
+          "text": "En la vista Día, ¿qué se muestra cuando una fecha no tiene trabajos ni entregas?",
           "options": [
             {
               "id": "a",
-              "text": "Un espacio en blanco sin indicadores"
+              "text": "Un espacio en blanco sin nada"
             },
             {
               "id": "b",
-              "text": "Un icono event_available y un mensaje de estado vacío",
+              "text": "Un mensaje amable de que no hay nada programado",
               "isCorrect": true
             },
             {
@@ -560,43 +560,43 @@
               "text": "Una lista de trabajos completados recientemente de fechas cercanas"
             }
           ],
-          "explanation": "Los días vacíos en la vista Día muestran un estado vacío con el icono event_available y un mensaje que indica que no hay trabajo programado. Esto sigue el patrón de toda la aplicación de mostrar estados vacíos significativos en lugar de espacio en blanco."
+          "explanation": "Cuando una fecha no tiene nada programado, la vista Día muestra un mensaje amable en lugar de espacio en blanco."
         },
         {
           "id": "cal12",
-          "text": "Un evento de OC en el calendario muestra 'PO-2048 · Acme Metals · 5 líneas'. ¿Qué representa '5 líneas'?",
+          "text": "Una entrega en el calendario muestra 'PO-2048 · Acme Metals · 5 líneas'. ¿Qué significa '5 líneas'?",
           "options": [
             {
               "id": "a",
-              "text": "La OC tiene 5 fechas de entrega separadas"
+              "text": "El pedido tiene 5 fechas de entrega separadas"
             },
             {
               "id": "b",
-              "text": "La OC contiene 5 líneas",
+              "text": "El pedido tiene 5 líneas",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "La OC se ha revisado 5 veces"
+              "text": "El pedido se ha revisado 5 veces"
             },
             {
               "id": "d",
               "text": "Se esperan 5 unidades en esta entrega"
             }
           ],
-          "explanation": "El recuento de líneas en un evento de OC del calendario muestra cuántas líneas hay en la orden de compra. Esto te da una idea rápida del alcance de la entrega sin abrir el detalle completo de la OC."
+          "explanation": "El recuento de líneas muestra cuántas líneas hay en la orden de compra. Te da una idea rápida del tamaño de la entrega sin abrir el pedido completo."
         },
         {
           "id": "cal13",
-          "text": "Detectas un trabajo con vencimiento mañana en el calendario y quieres pasarlo a la siguiente etapa. ¿Qué ocurre cuando haces clic en la ficha del trabajo?",
+          "text": "Detectas un trabajo con vencimiento mañana y quieres pasarlo a la siguiente etapa. ¿Qué ocurre cuando haces clic en el trabajo?",
           "options": [
             {
               "id": "a",
-              "text": "Se abre un formulario de edición en línea en el calendario para que cambies la etapa ahí mismo"
+              "text": "Se abre un formulario de edición en el calendario para que cambies la etapa ahí mismo"
             },
             {
               "id": "b",
-              "text": "Abre el trabajo en el tablero Kanban (/kanban?jobId=...), donde puedes cambiar su etapa y editarlo",
+              "text": "Se abre el trabajo en el tablero Kanban, donde puedes cambiar su etapa y editarlo",
               "isCorrect": true
             },
             {
@@ -605,10 +605,10 @@
             },
             {
               "id": "d",
-              "text": "Abre un diálogo de detalle de solo lectura — el calendario no tiene enlace al tablero"
+              "text": "Se abre un panel de solo lectura — el calendario no enlaza con el tablero"
             }
           ],
-          "explanation": "El calendario es una línea de tiempo de solo lectura. Al hacer clic en una ficha de trabajo en cualquier vista se navega al tablero Kanban con ese trabajo preseleccionado, donde ocurre toda la edición (cambios de etapa, detalles, registro de tiempo). En cambio, al hacer clic en el área vacía de una celda de día se cambia a la vista Día. Las fichas de entrega de OC no navegan."
+          "explanation": "El calendario es de solo lectura. Al hacer clic en un trabajo en cualquier vista se abre en el tablero Kanban, ya seleccionado, donde ocurre toda la edición — cambios de etapa, detalles y registro de tiempo. Al hacer clic en el espacio vacío de un día se abre la vista Día en su lugar. Las etiquetas de entrega no abren nada."
         }
       ]
     }
@@ -616,9 +616,9 @@
   {
     "slug": "calendar-reference",
     "title": "Calendario y eventos — Referencia avanzada",
-    "summary": "Referencia de casos límite y configuración de administración: persistencia del conmutador de OC, rango de obtención mensual, reglas de fuentes de datos, desbordamiento de 3 fichas, validación y recordatorios de eventos, y Calendarios laborales.",
+    "summary": "Referencia de casos límite y configuración de administración: ajuste recordado de OC, carga por rango de fechas, fuentes de datos, el límite de 3 trabajos, reglas y recordatorios de eventos, y Calendarios laborales.",
     "contentJson": {
-      "body": "## Conmutador de entregas de OC: persistencia y rango de obtención\n\nEl conmutador de entregas de OC es **persistente por usuario**. Su estado de activación/desactivación se almacena bajo la clave de preferencia de usuario `calendar:showPo` (mediante `UserPreferencesService`) y se restaura en la siguiente visita; su valor predeterminado es `false`. Al activarlo se llama de inmediato a `loadPoEvents()`; al desactivarlo se borra el conjunto `poEvents` en memoria sin ninguna llamada al servidor.\n\nLos eventos de OC se obtienen para **toda la cuadrícula del mes visible**, no solo para el mes calendario. `loadPoEvents()` calcula `gridStart` (la primera celda de la primera semana, incluidos los días finales del mes anterior) hasta `gridEnd` (la última celda de la última semana) y solicita `GET /api/v1/purchase-orders/calendar?from={gridStart}&to={gridEnd}`. Un `effect()` vuelve a ejecutar la obtención cada vez que cambia `currentDate` (navegación de mes), leyendo `showPoDeliveries()` a través de `untracked()` para que el conmutador no provoque una doble carga. Las fechas se intercambian como `YYYY-MM-DD` (serialización DateOnly).\n\n## Fuentes de datos y desbordamiento de 3 fichas\n\nEl calendario se nutre de **dos endpoints independientes**:\n\n- **Trabajos:** `GET /api/v1/jobs?isArchived=false&pageSize=200`. El servidor devuelve un envoltorio paginado; `CalendarService.getJobs()` solicita el tope del servidor de **200** y desempaqueta `items`. No hay más paginación — un inquilino con más de 200 trabajos activos no verá el excedente en el calendario.\n- **Entregas de OC:** `GET /api/v1/purchase-orders/calendar` (solo cuando el conmutador de OC está activo).\n\nLos trabajos se agrupan en el cliente en un `Map<YYYY-MM-DD, CalendarJob[]>` indexado por `dueDate`; los trabajos sin `dueDate` se descartan. Los eventos de OC se agrupan de la misma forma por `expectedDeliveryDate`.\n\nEn la **vista Mes**, cada celda de día muestra como máximo `MAX_VISIBLE_JOBS = 3` fichas de trabajo. `visibleJobs()` recorta las primeras 3; `overflowCount()` devuelve `max(0, jobs.length - 3)`, que se muestra como una etiqueta `+N más`. Las vistas Semana y Día no tienen tope. El filtrado por tipo de pista ocurre en el cliente sobre el conjunto ya obtenido (el cálculo `jobs` filtra `allJobs` por `trackTypeId`); cambiar el filtro no vuelve a obtener datos.\n\n## Eventos: entrada de hora, validación y recordatorios\n\nLos eventos son una **función independiente** de la cuadrícula del calendario, expuesta mediante `EventsController` en `/api/v1/events` y restringida por **CAP-MD-EMPLOYEES**. Los endpoints de lectura (`GET /events`, `/events/{id}`, `/events/upcoming`) están abiertos a cualquier usuario autenticado; **crear / actualizar / eliminar requiere el rol `Admin` o `Manager`**. Responder a una invitación (`POST /events/{id}/respond`) está abierto al asistente.\n\nLos campos de hora son `DateTimeOffset` (`StartTime`, `EndTime`). `CreateEventValidator` / `UpdateEventValidator` exigen: `Title` obligatorio, máximo 200; `Description` máximo 2000; `Location` máximo 200; `EventType` debe analizarse al enum `EventType` (Meeting, Training, Safety, Other); y **`EndTime` debe ser mayor que `StartTime`** (\"End time must be after start time\").\n\nLos recordatorios los envía el trabajo recurrente de Hangfire **`event-reminders`** (`EventReminderJob.SendRemindersAsync`), programado como `*/15 * * * *` (cada 15 minutos). Selecciona los eventos cuyo `StartTime` está dentro de los próximos 30 minutos, que no están cancelados y tienen `ReminderSentAt == null`, luego escribe una notificación `event_reminder` a cada asistente **excepto los que tienen `AttendeeStatus.Declined`**, marca `ReminderSentAt` para evitar el reenvío y establece la severidad `warning` para los eventos obligatorios o `info` en caso contrario. Crear un evento también dispara una notificación inmediata `event_invite` a cada asistente.\n\n## Dónde aparecen los eventos (solo lectura)\n\nLa propia página `/calendar` muestra **únicamente trabajos y entregas de OC** — los eventos no se representan en ella. Los eventos se crean de forma centralizada en el **panel de Eventos de administración** y aparecen de solo lectura en otros lugares: la pantalla de planta, la pestaña Eventos del detalle del empleado, el feed `events/upcoming` y como notificaciones/recordatorios. Fuera del panel de administración, estos son solo de visualización y respuesta — no hay edición de eventos en línea en esas superficies.\n\n## Calendarios laborales: una función de administración distinta\n\nNo confundas la página Calendario con los **Calendarios laborales**, una función de administración independiente en `/admin/working-calendars` (`WorkingCalendarsController`, restringida por **CAP-MD-CALENDARS**, **solo `Admin`**). Los calendarios laborales definen las reglas de días hábiles — zona horaria, una `WorkingDaysMask`, días festivos (con fecha observada y recurrencia) y turnos (con capacidad semanal calculada) — e impulsan todos los ayudantes de días hábiles del sistema: plazo de entrega del proveedor, MRP, programación de mantenimiento y temporizadores de SLA. La resolución es **predeterminada por inquilino con anulación por `CompanyLocation`**, gestionada en tiempo de ejecución por `IWorkingCalendarService`. Los días festivos y los turnos son recursos anidados (`/{id}/holidays`, `/{id}/shifts`) propiedad de su calendario (eliminación en cascada); exactamente un calendario es el predeterminado, establecido mediante `POST /{id}/set-default`.",
+      "body": "## Mostrar entregas de OC: ajuste recordado y rango de fechas\n\nEl ajuste Mostrar entregas de OC se **recuerda por persona**. Tu elección de activado/desactivado se guarda en tus preferencias y se restaura la próxima vez que visitas; empieza desactivado. Al activarlo se cargan las entregas de inmediato; al desactivarlo simplemente se ocultan, sin ninguna carga adicional.\n\nLas entregas se cargan para **toda la cuadrícula visible**, no solo para el mes calendario. Como la vista Mes incluye algunos días de los meses vecinos para completar la cuadrícula, el calendario carga las entregas desde el primer día mostrado hasta el último. A medida que avanzas de mes en mes, se recargan para el nuevo rango. Activar o desactivar el ajuste por sí solo no provoca una recarga.\n\n## De dónde vienen los datos y el límite de 3 trabajos\n\nEl calendario se nutre de **dos fuentes separadas**:\n\n- **Trabajos:** todos los trabajos activos (no archivados), hasta un tope de **200**. No hay más paginación — si una empresa tiene más de 200 trabajos activos, los adicionales no aparecerán en el calendario.\n- **Entregas de OC:** se cargan solo cuando Mostrar entregas de OC está activado.\n\nLos trabajos se agrupan por su fecha de vencimiento; los trabajos sin fecha de vencimiento no aparecen. Las entregas se agrupan de la misma forma por su fecha de entrega prevista.\n\nEn la **vista Mes**, cada día muestra como máximo **3** trabajos; los que superen ese número se cuentan en una nota '+N más'. Las vistas Semana y Día los muestran todos. El filtrado por pista ocurre al instante sobre los trabajos ya cargados — cambiar el filtro no recarga nada.\n\n## Eventos: horas, reglas y recordatorios\n\nLos eventos son una **función independiente** de la cuadrícula del calendario, disponible cuando la función de empleados está habilitada. Cualquier persona que haya iniciado sesión puede ver los eventos y los próximos eventos; solo los administradores y gerentes pueden crearlos, editarlos o eliminarlos. Cualquier persona invitada puede responder a su propia invitación.\n\nCada evento tiene una hora de inicio y una de fin. Al crear o editar uno, el título es obligatorio (hasta 200 caracteres), la descripción puede tener hasta 2000 caracteres, la ubicación hasta 200, el tipo debe ser Reunión, Capacitación, Seguridad u Otro, y la **hora de fin debe ser posterior a la de inicio**.\n\nLos recordatorios se envían automáticamente. Cada 15 minutos, el sistema busca los eventos que empiezan dentro de los próximos 30 minutos que no están cancelados y a los que aún no se ha enviado un recordatorio, luego envía un recordatorio a cada asistente — **excepto a quien haya rechazado** — y marca el evento para que el recordatorio no se envíe dos veces. Los eventos obligatorios reciben un tono de advertencia más fuerte; los demás, uno meramente informativo. Crear un evento también envía de inmediato una invitación a cada asistente.\n\n## Dónde aparecen los eventos (solo lectura)\n\nLa propia página del calendario muestra **únicamente trabajos y entregas de OC** — los eventos no aparecen en ella. Los eventos se crean en un solo lugar, el **panel de Eventos de administración**, y aparecen de solo lectura en otros sitios: la pantalla de planta, la pestaña Eventos del perfil de un empleado, el feed de próximos eventos y como notificaciones y recordatorios. Fuera del panel de administración solo puedes verlos y responder — no hay edición.\n\n## Calendarios laborales: una función de administración distinta\n\nNo confundas la página Calendario con los **Calendarios laborales**, una función de administración independiente (solo administradores). Los calendarios laborales definen tus reglas de días hábiles — zona horaria, qué días de la semana trabajas, días festivos (con sus fechas observadas y recurrencia) y turnos (con una capacidad semanal calculada). Estas reglas impulsan los cálculos de días hábiles de todo el sistema: plazos de entrega de proveedores, planificación de materiales, programación de mantenimiento y temporizadores de plazos. Las reglas se aplican en toda la empresa de forma predeterminada, y cada ubicación puede anularlas. Los días festivos y los turnos pertenecen a su calendario y se eliminan con él, y exactamente un calendario está marcado como el predeterminado.",
       "sections": []
     }
   }

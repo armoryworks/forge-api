@@ -2,16 +2,16 @@
   {
     "slug": "accounting-overview",
     "title": "Resumen de Informes Financieros",
-    "summary": "Qué son los Informes Financieros integrados, las nueve páginas de informes, el límite de contabilidad autónoma y cómo se muestra el estado de conciliación.",
+    "summary": "Qué son los Informes Financieros integrados, las nueve páginas de informes, cuándo aplican estos informes y cómo se muestra el estado de conciliación.",
     "contentJson": {
-      "body": "## Resumen de Informes Financieros\n\nEl área de Contabilidad es el conjunto de informes financieros integrado de Forge. Lee del propio libro mayor (GL) del sistema y convierte la actividad contabilizada en los nueve informes estándar que una oficina necesita para evaluar la salud del negocio: un Balance de Comprobación, un Estado de Resultados, un Balance General, un estado de Flujo de Efectivo, Antigüedad de Cuentas por Cobrar y por Pagar, un informe GRNI (Mercancía Recibida No Facturada), un gestor de Cierre de Período y una hoja de trabajo de Conciliación Bancaria. Cada informe es de solo lectura sobre el libro mayor: estás viendo lo que ya se ha contabilizado, no editando transacciones aquí.\n\n### ⚡ El Límite de Contabilidad Autónoma\n\nEstos informes son **funciones del modo autónomo**. Forge puede llevar sus propios libros o delegar la contabilidad a un proveedor contable externo (QuickBooks, Xero, etc.). Ambos son mutuamente excluyentes: el catálogo de capacidades declara `CAP-ACCT-EXTERNAL ⊥ CAP-ACCT-BUILTIN` como su único par mutex. Cuando hay un proveedor externo conectado, el GL y estos informes quedan inactivos, porque el proveedor es la fuente de verdad para los libros. Cuando **no** hay ningún proveedor externo conectado, Forge funciona en modo autónomo y el libro mayor integrado se activa. Toda el área de Contabilidad está detrás del guardia de ruta `CAP-ACCT-FULLGL`, por lo que permanece oculta hasta que se active el conjunto integrado. En resumen: estos informes solo hacen un trabajo significativo en modo autónomo, con el GL integrado activado y sin ningún sistema contable externo en el circuito.\n\n### Cómo Navegar\n\nLa página principal de Contabilidad es una cuadrícula de mosaicos —uno por informe— que enrutan a las nueve páginas de informes más un par de herramientas de apoyo (importación de Extractos Bancarios, Exportaciones). Haz clic en un mosaico para abrir ese informe. Cada página de informe se abre con un encabezado de página estándar (título + subtítulo) y carga sus datos automáticamente al llegar. La mayoría de los informes también se actualizan solos cada vez que cambia el GL subyacente, por lo que rara vez necesitas recargar manualmente.\n\n### Los Nueve Informes\n\n**Balance de Comprobación** (`/accounting/trial-balance`) — Una tabla de cada cuenta del GL con su total de débitos, total de créditos y saldo neto. Un chip en el encabezado muestra **Cuadrado** (verde) cuando el total de débitos es igual al total de créditos, o **Descuadrado** (rojo) cuando no lo es. Una franja de totales en la parte inferior suma las columnas de débito y crédito. Este es el informe base: si el balance de comprobación está descuadrado, no se puede confiar en los demás estados.\n\n**Estado de Resultados** (`/accounting/profit-loss`) — Un estado de resultados dispuesto como líneas de Ingresos, luego líneas de Gastos, cada línea mostrando su número de cuenta, nombre de cuenta e importe. El informe subtotaliza el Total de Ingresos y el Total de Gastos, y luego muestra la **Utilidad Neta** en el pie. Si el costo de los bienes vendidos aún no se ha contabilizado, aparece una nota de advertencia sobre el margen en la parte superior para que leas el margen con las expectativas correctas.\n\n**Balance General** (`/accounting/balance-sheet`) — Secciones de Activos, Pasivos y Patrimonio, cada línea mostrando número de cuenta, nombre e importe, con subtotales por sección. El Patrimonio incluye una línea de Utilidades del Ejercicio Actual. Un chip en el encabezado muestra **Cuadrado** / **Descuadrado**, y el pie cuadra el Total de Pasivos y Patrimonio contra el Total de Activos.\n\n**Flujo de Efectivo** (`/accounting/cash-flow`) — Un estado de flujos de efectivo por el método indirecto: parte de la Utilidad Neta, aplica ajustes operativos, luego agrupa las actividades de Inversión y Financiamiento, subtotalizando el efectivo neto de cada una. El pie muestra el Cambio Neto en Efectivo y lo concilia contra el Movimiento Real de Efectivo; un chip en el encabezado muestra **Conciliado** o **Descuadrado**.\n\n**Antigüedad de Cuentas por Cobrar** (`/accounting/ar-aging`) — Cuentas por cobrar agrupadas en tramos (la escala estándar es 0-30 / 31-60 / 61-90 / 91+ días). Cada cliente es una fila con un importe en cada tramo más un saldo Abierto; una franja de totales suma cada tramo y el gran total abierto. Un chip en el encabezado muestra **Cuadra con la cuenta de control** (el informe cuadra con la cuenta de control de cuentas por cobrar) o **Descuadrado**.\n\n**Antigüedad de Cuentas por Pagar** (`/accounting/ap-aging`) — La imagen espejo para las cuentas por pagar: cada proveedor agrupado en la misma escala de tramos con un saldo Abierto, una franja de totales por tramo, y un chip **Cuadra con la cuenta de control** / **Descuadrado** contra la cuenta de control de cuentas por pagar.\n\n**GRNI** (`/accounting/grni`) — Mercancía Recibida No Facturada. Compara el saldo del GL de la cuenta de compensación GRNI contra el importe abierto operacional (mercancía físicamente recibida pero aún no facturada por el proveedor) y muestra la **Variación**. Luego desglosa el importe abierto por orden de compra a través de tramos de antigüedad y, cuando corresponde, lista las recepciones sin cobertura que no cuadran con una línea de orden de compra abierta. Un chip en el encabezado muestra **Conciliado** o **Variación**.\n\n**Cierre de Período** (`/accounting/period-close`) — El gestor de períodos fiscales. Los años fiscales listan sus períodos contables; cada período está **Abierto**, **Cierre Suave** o **Cierre Definitivo**. Puedes hacer un cierre suave de un período (reversible —se reabre después—), un cierre definitivo (bloqueado), o cerrar un año entero. El cierre suave bloquea la contabilización rutinaria pero puede reabrirse; el cierre definitivo bloquea el período permanentemente.\n\n**Conciliación Bancaria** (`/accounting/bank-rec`) — Una hoja de trabajo que cuadra tu saldo de efectivo en libros con un extracto bancario. Inicias una conciliación eligiendo una cuenta de efectivo, una fecha de extracto y un saldo final; luego marcas qué líneas del libro mayor han sido liquidadas por el banco. La hoja de trabajo muestra el Saldo en Libros, el Saldo Final del Extracto, el total Liquidado y el total Pendiente, y te indica la **Diferencia**. Cuando la diferencia es cero, la hoja de trabajo queda **Conciliado** y puede **Finalizarse**.\n\n### Cómo Leer el Estado de Conciliación\n\nCasi todos los informes llevan un chip de estado en su encabezado que responde a una pregunta: *¿cuadra este informe?* Los chips verdes (Cuadrado, Conciliado, Cuadra con la cuenta de control) significan que el informe coincide con su total de control. Los chips rojos o ámbar (Descuadrado, Variación, Diferencia) significan que algo no concilia y necesita investigarse antes de confiar en las cifras. El chip es la forma más rápida de verificar de un vistazo si un informe es coherente.\n\n### Cuándo Usar los Informes Financieros\n\n- Cuando necesitas una lectura puntual del negocio: el Estado de Resultados para el período, el Balance General para la fecha\n- Cuando confirmas que los libros cuadran: el Balance de Comprobación cuadrado, la antigüedad de cuentas por cobrar/pagar cuadrando con sus cuentas de control\n- Cuando persigues dinero: la Antigüedad de Cuentas por Cobrar para saber quién te debe, la Antigüedad de Cuentas por Pagar para saber qué debes\n- Cuando cierras un período: cierre suave durante la revisión, cierre definitivo para bloquearlo\n- Cuando concilias efectivo: cuadrando el libro mayor con el extracto bancario en la hoja de trabajo de Conciliación Bancaria\n- Cuando investigas la exposición de recibido-no-facturado: la variación de GRNI y el desglose por orden de compra",
+      "body": "## Resumen de Informes Financieros\n\nEl área de Contabilidad es el conjunto de informes financieros integrado de Forge. Lee tu actividad contable ya contabilizada y la convierte en los nueve informes estándar que una oficina necesita para evaluar la salud del negocio: un Balance de Comprobación, un Estado de Resultados, un Balance General, un estado de Flujo de Efectivo, Antigüedad de Cuentas por Cobrar y por Pagar, un informe GRNI (Mercancía Recibida No Facturada), un gestor de Cierre de Período y una hoja de trabajo de Conciliación Bancaria. Cada informe es de solo lectura. Estás viendo lo que ya se ha contabilizado, no editando transacciones aquí.\n\n### ⚡ Cuándo Aplican Estos Informes\n\nEstos informes funcionan solo cuando Forge lleva tus propios libros. Forge puede llevar sus propios libros o delegar la contabilidad a un proveedor contable externo, como QuickBooks o Xero. Usas uno o el otro, nunca ambos. Cuando hay un proveedor externo conectado, ese proveedor es dueño de los libros, así que estos informes se apagan. Cuando no hay ningún proveedor externo conectado, Forge lleva los libros por sí mismo y estos informes cobran vida. En resumen, solo hacen un trabajo significativo cuando Forge lleva los libros y ningún sistema contable externo está en el circuito.\n\n### Cómo Navegar\n\nLa página de inicio de Contabilidad es una cuadrícula de mosaicos, uno por informe, más un par de herramientas de apoyo (importación de Extractos Bancarios y Exportaciones). Haz clic en un mosaico para abrir ese informe. Cada informe se abre con un título y un subtítulo arriba y carga sus datos en cuanto llegas. La mayoría de los informes se actualizan solos cuando cambia tu actividad contable, por lo que rara vez necesitas recargar manualmente.\n\n### Los Nueve Informes\n\n**Balance de Comprobación** — Lista cada cuenta con su total de débitos, total de créditos y saldo neto. Una etiqueta en el encabezado muestra **Cuadrado** (verde) cuando el total de débitos es igual al total de créditos, o **Descuadrado** (rojo) cuando no lo es. Una fila de totales en la parte inferior suma las columnas de débito y crédito. Este es el informe base. Si el balance de comprobación está descuadrado, no puedes confiar en los demás estados.\n\n**Estado de Resultados** — Un estado de resultados que muestra líneas de ingresos y luego líneas de gastos. Cada línea muestra su número de cuenta, nombre de cuenta e importe. El informe subtotaliza el Total de Ingresos y el Total de Gastos, y luego muestra la **Utilidad Neta** al final. Si el costo de los bienes vendidos aún no se ha contabilizado, aparece una nota en la parte superior para que leas el margen con las expectativas correctas.\n\n**Balance General** — Secciones de Activos, Pasivos y Patrimonio, cada línea mostrando número de cuenta, nombre e importe, con subtotales por sección. El Patrimonio incluye una línea de Utilidades del Ejercicio Actual. Una etiqueta en el encabezado muestra **Cuadrado** o **Descuadrado**, y el pie cuadra el Total de Pasivos y Patrimonio contra el Total de Activos.\n\n**Flujo de Efectivo** — Un estado de flujos de efectivo. Parte de la Utilidad Neta, aplica ajustes operativos, luego agrupa la actividad de Inversión y Financiamiento, subtotalizando el efectivo neto de cada una. El pie muestra el Cambio Neto en Efectivo y lo compara contra el movimiento real de efectivo. Una etiqueta en el encabezado muestra **Conciliado** o **Descuadrado**.\n\n**Antigüedad de Cuentas por Cobrar** — El dinero que te deben los clientes, ordenado según cuánto está vencido (los tramos estándar son 0-30, 31-60, 61-90 y 91+ días). Cada cliente es una fila con un importe en cada tramo más un saldo Abierto. Una fila de totales suma cada tramo y el gran total abierto. Una etiqueta en el encabezado muestra **Cuadra con la cuenta de control** o **Descuadrado**.\n\n**Antigüedad de Cuentas por Pagar** — La imagen espejo de lo que debes a los proveedores: cada proveedor ordenado en los mismos tramos de edad con un saldo Abierto, una fila de totales por tramo, y una etiqueta **Cuadra con la cuenta de control** o **Descuadrado**.\n\n**GRNI** — Mercancía Recibida No Facturada. Compara lo que tus libros guardan en la cuenta de compensación de recepción contra la mercancía que has recibido físicamente pero que el proveedor aún no ha facturado, y muestra la **Variación**. Luego desglosa el importe abierto por orden de compra a través de los tramos de edad y, cuando corresponde, lista los artículos recibidos que no cuadran con una orden de compra abierta. Una etiqueta en el encabezado muestra **Conciliado** o **Variación**.\n\n**Cierre de Período** — Gestiona tus períodos contables. Cada año fiscal lista sus períodos, y cada período está **Abierto**, **Cierre Suave** o **Cierre Definitivo**. Puedes hacer un cierre suave de un período, un cierre definitivo, o cerrar un año entero. Un cierre suave bloquea la contabilización rutinaria pero puedes reabrirlo después. Un cierre definitivo bloquea el período para siempre.\n\n**Conciliación Bancaria** — Una hoja de trabajo que cuadra tu saldo de efectivo con un extracto bancario. Empieza eligiendo una cuenta de efectivo, una fecha de extracto y un saldo final. Luego marca qué asientos han sido liquidados por el banco. La hoja de trabajo muestra tu Saldo en Libros, el Saldo Final del Extracto, el total Liquidado y el total Pendiente, y te indica la **Diferencia**. Cuando la diferencia es cero, la hoja de trabajo queda **Conciliado** y puedes finalizarla.\n\n### Cómo Leer el Estado de Conciliación\n\nCasi todos los informes llevan una etiqueta de estado en su encabezado que responde a una pregunta: ¿cuadra este informe? Las etiquetas verdes (Cuadrado, Conciliado, Cuadra con la cuenta de control) significan que el informe coincide con su total de control. Las etiquetas rojas o ámbar (Descuadrado, Variación, Diferencia) significan que algo no concilia y necesita una revisión antes de confiar en las cifras. La etiqueta es la forma más rápida de verificar de un vistazo si un informe es coherente.\n\n### Cuándo Usar los Informes Financieros\n\n- Cuando necesitas una instantánea del negocio: el Estado de Resultados para el período, el Balance General para la fecha\n- Cuando confirmas que los libros cuadran: el Balance de Comprobación cuadrado, la antigüedad de cuentas por cobrar y por pagar cuadrando con sus cuentas de control\n- Cuando persigues dinero: la Antigüedad de Cuentas por Cobrar para saber quién te debe, la Antigüedad de Cuentas por Pagar para saber qué debes\n- Cuando cierras un período: cierre suave durante la revisión, cierre definitivo para bloquearlo\n- Cuando concilias efectivo: cuadrando tus asientos con el extracto bancario en la hoja de trabajo de Conciliación Bancaria\n- Cuando revisas la exposición de recibido-no-facturado: la variación de GRNI y el desglose por orden de compra",
       "sections": []
     }
   },
   {
     "slug": "accounting-walkthrough",
     "title": "Informes Financieros — Recorrido Guiado",
-    "summary": "Un recorrido guiado por el informe de Estado de Resultados y los patrones compartidos de los informes: encabezado de página, diseño del estado, chips de estado, totales y cómo se relacionan los nueve informes.",
+    "summary": "Un recorrido guiado por el informe de Estado de Resultados y los patrones compartidos de los informes: encabezado de página, diseño del estado, etiquetas de estado, totales y cómo se relacionan los nueve informes.",
     "contentJson": {
       "appRoute": "/accounting",
       "startButtonLabel": "Recorrer Informes Financieros",
@@ -20,7 +20,7 @@
           "element": "app-page-header",
           "popover": {
             "title": "El Centro de Contabilidad",
-            "description": "Esta es la página principal de los Informes Financieros integrados. Cada informe se abre con un encabezado estándar como este que muestra un título y un subtítulo, carga sus datos automáticamente al llegar, y la mayoría se actualizan solos cada vez que cambia el libro mayor subyacente: rara vez necesitas recargar manualmente.",
+            "description": "Esta es la página de inicio de los Informes Financieros integrados. Cada informe se abre con un título y un subtítulo arriba y carga sus datos en cuanto llegas. La mayoría se actualizan solos cuando cambia tu actividad contable, por lo que rara vez necesitas recargar manualmente.",
             "side": "bottom"
           }
         },
@@ -28,7 +28,7 @@
           "element": ".tile-grid",
           "popover": {
             "title": "Los Mosaicos de Informes",
-            "description": "La página principal es una cuadrícula de mosaicos —uno por informe— más un par de herramientas de apoyo (importación de Extractos Bancarios, Exportaciones). Haz clic en cualquier mosaico para abrir ese informe. Esta cuadrícula es la forma de moverte entre los nueve informes y las herramientas sin perder tu lugar.",
+            "description": "Esta es una cuadrícula de mosaicos, uno por informe, más un par de herramientas de apoyo (importación de Extractos Bancarios y Exportaciones). Haz clic en cualquier mosaico para abrir ese informe. Usa la cuadrícula para moverte entre los nueve informes y las herramientas.",
             "side": "top"
           }
         },
@@ -36,7 +36,7 @@
           "element": ".tile",
           "popover": {
             "title": "Abrir un Informe",
-            "description": "Cada mosaico enruta a una página de informe: Balance de Comprobación, Estado de Resultados, Balance General, Flujo de Efectivo, Antigüedad de Cuentas por Cobrar, Antigüedad de Cuentas por Pagar, GRNI, Cierre de Período y Conciliación Bancaria. Cada informe es de solo lectura sobre el libro mayor contabilizado: estás viendo lo que ya se ha contabilizado, no editando transacciones aquí.",
+            "description": "Cada mosaico abre un informe: Balance de Comprobación, Estado de Resultados, Balance General, Flujo de Efectivo, Antigüedad de Cuentas por Cobrar, Antigüedad de Cuentas por Pagar, GRNI, Cierre de Período o Conciliación Bancaria. Cada informe es de solo lectura. Ves lo que ya se ha contabilizado, no editas transacciones aquí.",
             "side": "right"
           }
         },
@@ -44,15 +44,15 @@
           "element": ".tile-grid",
           "popover": {
             "title": "Informes de Estado vs. de Tabla",
-            "description": "El Estado de Resultados, el Balance General y el Flujo de Efectivo se muestran como un 'estado' agrupado en secciones (Ingresos/Gastos, Activos/Pasivos/Patrimonio, Operativas/Inversión/Financiamiento) con subtotales y una cifra destacada en el pie como la Utilidad Neta. Los informes de antigüedad, el Balance de Comprobación, el Cierre de Período y la Conciliación Bancaria se muestran como una tabla de datos ordenable y filtrable con una franja de totales y la escala de tramos de antigüedad (0-30 / 31-60 / 61-90 / 91+).",
+            "description": "Algunos informes se leen como un estado financiero, agrupados en secciones con subtotales y una cifra destacada como la Utilidad Neta. Esos son el Estado de Resultados, el Balance General y el Flujo de Efectivo. El resto se leen como una tabla que puedes ordenar y filtrar, con una fila de totales. Esos son los informes de antigüedad, el Balance de Comprobación, el Cierre de Período y la Conciliación Bancaria.",
             "side": "bottom"
           }
         },
         {
-          "element": "app-page-header",
+          "element": ".tile-grid",
           "popover": {
-            "title": "Chips de Estado",
-            "description": "La mayoría de los informes agregan un chip de estado a su encabezado que responde a una pregunta: ¿cuadra el informe? El Balance de Comprobación y el Balance General muestran Cuadrado / Descuadrado. El Flujo de Efectivo y el GRNI muestran Conciliado / Variación. La Antigüedad de Cuentas por Cobrar y por Pagar muestran 'Cuadra con la cuenta de control' cuando coinciden con su cuenta de control. Verde significa que concilia; rojo o ámbar significa investigar.",
+            "title": "Etiquetas de Estado",
+            "description": "Abre un informe para ver su etiqueta de estado en el encabezado. Responde a una pregunta: ¿cuadra el informe? El Balance de Comprobación y el Balance General muestran Cuadrado o Descuadrado. El Flujo de Efectivo y el GRNI muestran Conciliado o Variación. La Antigüedad de Cuentas por Cobrar y por Pagar muestran 'Cuadra con la cuenta de control'. Verde significa que concilia; rojo o ámbar significa que lo revises.",
             "side": "bottom"
           }
         },
@@ -60,7 +60,7 @@
           "element": ".page-content",
           "popover": {
             "title": "Por Dónde Empezar",
-            "description": "Empieza con el Balance de Comprobación para confirmar que los libros cuadran, luego lee el Estado de Resultados para el período y el Balance General para la fecha. Usa la Antigüedad de Cuentas por Cobrar y por Pagar para perseguir dinero, el GRNI para la exposición de recibido-no-facturado, el Cierre de Período para bloquear un período y la Conciliación Bancaria para cuadrar el libro mayor con un extracto bancario. Elige cualquier mosaico de arriba para profundizar.",
+            "description": "Empieza con el Balance de Comprobación para confirmar que los libros cuadran. Luego lee el Estado de Resultados para el período y el Balance General para la fecha. Usa la Antigüedad de Cuentas por Cobrar y por Pagar para perseguir dinero, el GRNI para la exposición de recibido-no-facturado, el Cierre de Período para bloquear un período y la Conciliación Bancaria para cuadrar tus asientos con un extracto bancario. Elige cualquier mosaico de arriba para profundizar.",
             "side": "top"
           }
         }
@@ -70,261 +70,261 @@
   {
     "slug": "accounting-field-reference",
     "title": "Referencia de Campos de Informes Financieros",
-    "summary": "Referencia de cada informe financiero: las columnas, líneas, chips de estado, totales y acciones de cada una de las nueve páginas de informes.",
+    "summary": "Referencia de cada informe financiero: las columnas, líneas, etiquetas de estado, totales y acciones de cada una de las nueve páginas de informes.",
     "contentJson": {
       "title": "Referencia de Campos de Informes Financieros",
       "groups": [
         {
-          "heading": "El Límite de Contabilidad Autónoma",
+          "heading": "Cuándo Aplican Estos Informes",
           "items": [
             {
-              "label": "Modo autónomo",
-              "value": "Los Informes Financieros integrados son funciones del modo autónomo. Funcionan sobre el propio libro mayor de Forge y solo son significativos cuando NO hay ningún proveedor contable externo (QuickBooks, Xero, etc.) conectado."
+              "label": "Forge lleva los libros",
+              "value": "Los Informes Financieros integrados funcionan solo cuando Forge lleva tus propios libros. Solo son significativos cuando no hay ningún proveedor contable externo (QuickBooks, Xero, etc.) conectado."
             },
             {
-              "label": "Par mutex",
-              "value": "El catálogo de capacidades declara CAP-ACCT-EXTERNAL ⊥ CAP-ACCT-BUILTIN: los libros integrados y un proveedor externo son mutuamente excluyentes. Conectar un proveedor deja inactivos el GL y estos informes."
+              "label": "Uno o el otro",
+              "value": "Llevas los libros en Forge o delegas la contabilidad a un proveedor externo, nunca ambos. Conectar un proveedor le entrega los libros, así que estos informes se apagan."
             },
             {
-              "label": "Guardia de ruta",
-              "value": "Toda el área de Contabilidad está detrás del guardia de ruta CAP-ACCT-FULLGL, por lo que permanece oculta hasta que se active el conjunto integrado."
+              "label": "Disponibilidad",
+              "value": "Toda el área de Contabilidad permanece oculta hasta que se activan los libros integrados para tu instalación."
             },
             {
               "label": "Solo lectura",
-              "value": "Cada informe lee del libro mayor contabilizado: ves lo que ya se ha contabilizado; no editas transacciones en estas páginas (el Cierre de Período y la Conciliación Bancaria son las únicas páginas con acciones)."
+              "value": "Cada informe lee tu actividad contabilizada. Ves lo que ya se ha contabilizado; no editas transacciones en estas páginas. El Cierre de Período y la Conciliación Bancaria son las únicas páginas con acciones."
             },
             {
-              "label": "Chip de estado",
-              "value": "La mayoría de los informes llevan un chip en el encabezado que responde '¿cuadra esto?' Verde (Cuadrado / Conciliado / Cuadra con la cuenta de control) = coincide con su total de control. Rojo o ámbar (Descuadrado / Variación / Diferencia) = investigar antes de confiar en las cifras."
+              "label": "Etiqueta de estado",
+              "value": "La mayoría de los informes llevan una etiqueta en el encabezado que responde '¿cuadra esto?' Verde (Cuadrado, Conciliado, Cuadra con la cuenta de control) significa que coincide con su total de control. Rojo o ámbar (Descuadrado, Variación, Diferencia) significa que lo revises antes de confiar en las cifras."
             }
           ]
         },
         {
-          "heading": "Antigüedad de Cuentas por Pagar (/accounting/ap-aging)",
+          "heading": "Antigüedad de Cuentas por Pagar",
           "items": [
             {
               "label": "Propósito",
-              "value": "Cuentas por pagar agrupadas según cuánto tiempo llevan pendientes las facturas: lo que debes a los proveedores, agrupado por antigüedad."
+              "value": "Lo que debes a los proveedores, ordenado según cuánto tiempo lleva pendiente cada factura."
             },
             {
               "label": "Filas",
-              "value": "Una fila por proveedor (nombre de la parte), con un importe en cada tramo de antigüedad más un saldo Abierto. La primera columna queda fija durante el desplazamiento horizontal."
+              "value": "Una fila por proveedor, con un importe en cada tramo de edad más un saldo Abierto. La primera columna se mantiene en su lugar mientras te desplazas de lado."
             },
             {
-              "label": "Tramos de antigüedad",
-              "value": "La escala estándar es 0-30 / 31-60 / 61-90 / 91+ días, mostrada como columnas b0..b5 (la tabla admite hasta seis tramos; las etiquetas de los tramos provienen del informe). Cada una es ordenable, alineada a la derecha, en formato de moneda."
+              "label": "Tramos de edad",
+              "value": "Los tramos estándar son 0-30, 31-60, 61-90 y 91+ días (pueden aparecer hasta seis). Cada columna ordena y muestra moneda, alineada a la derecha."
             },
             {
-              "label": "Franja de totales",
-              "value": "La franja inferior suma cada tramo y muestra el gran total Abierto."
+              "label": "Fila de totales",
+              "value": "La fila inferior suma cada tramo y muestra el gran total Abierto."
             },
             {
-              "label": "Chip de estado",
-              "value": "'Cuadra con la cuenta de control' (verde) cuando el informe cuadra con la cuenta de control de cuentas por pagar, o 'Descuadrado' (rojo)."
+              "label": "Etiqueta de estado",
+              "value": "'Cuadra con la cuenta de control' (verde) cuando el informe cuadra con tu cuenta de control de cuentas por pagar, o 'Descuadrado' (rojo)."
             }
           ]
         },
         {
-          "heading": "Antigüedad de Cuentas por Cobrar (/accounting/ar-aging)",
+          "heading": "Antigüedad de Cuentas por Cobrar",
           "items": [
             {
               "label": "Propósito",
-              "value": "Cuentas por cobrar agrupadas según cuánto tiempo llevan pendientes las facturas: quién te debe, agrupado por antigüedad."
+              "value": "Quién te debe dinero, ordenado según cuánto tiempo lleva pendiente cada factura."
             },
             {
               "label": "Filas",
-              "value": "Una fila por cliente (nombre de la parte), con un importe en cada tramo de antigüedad más un saldo Abierto. La primera columna queda fija durante el desplazamiento horizontal."
+              "value": "Una fila por cliente, con un importe en cada tramo de edad más un saldo Abierto. La primera columna se mantiene en su lugar mientras te desplazas de lado."
             },
             {
-              "label": "Tramos de antigüedad",
-              "value": "La misma escala 0-30 / 31-60 / 61-90 / 91+ que las cuentas por pagar, columnas b0..b5, ordenables y con formato de moneda; las etiquetas provienen del conjunto de tramos del informe."
+              "label": "Tramos de edad",
+              "value": "Los mismos tramos de 0-30, 31-60, 61-90 y 91+ días que la Antigüedad de Cuentas por Pagar. Cada columna ordena y muestra moneda."
             },
             {
-              "label": "Franja de totales",
-              "value": "La franja inferior suma cada tramo y muestra el gran total Abierto."
+              "label": "Fila de totales",
+              "value": "La fila inferior suma cada tramo y muestra el gran total Abierto."
             },
             {
-              "label": "Chip de estado",
-              "value": "'Cuadra con la cuenta de control' (verde) cuando el informe cuadra con la cuenta de control de cuentas por cobrar, o 'Descuadrado' (rojo)."
+              "label": "Etiqueta de estado",
+              "value": "'Cuadra con la cuenta de control' (verde) cuando el informe cuadra con tu cuenta de control de cuentas por cobrar, o 'Descuadrado' (rojo)."
             }
           ]
         },
         {
-          "heading": "Balance General (/accounting/balance-sheet)",
+          "heading": "Balance General",
           "items": [
             {
               "label": "Propósito",
-              "value": "Estado puntual de la situación financiera: Activos, Pasivos, Patrimonio."
+              "value": "Una instantánea de tu situación financiera en una fecha: Activos, Pasivos y Patrimonio."
             },
             {
               "label": "Secciones",
-              "value": "Activos, Pasivos y Patrimonio: cada línea muestra número de cuenta, nombre de cuenta e importe, con un subtotal por sección (Total de Activos, Total de Pasivos, Total de Patrimonio)."
+              "value": "Activos, Pasivos y Patrimonio. Cada línea muestra número de cuenta, nombre e importe, con un subtotal por sección."
             },
             {
               "label": "Utilidades del Ejercicio Actual",
-              "value": "Una línea de patrimonio explícita; el Total de Patrimonio se muestra con las utilidades del ejercicio actual incorporadas (Total de Patrimonio con Utilidades)."
+              "value": "Una línea de patrimonio dedicada. El Total de Patrimonio se muestra con las utilidades de este ejercicio incorporadas."
             },
             {
               "label": "Pie",
-              "value": "Total de Pasivos y Patrimonio: cuadra contra el Total de Activos cuando el balance está cuadrado."
+              "value": "Total de Pasivos y Patrimonio, que cuadra con el Total de Activos cuando el balance está cuadrado."
             },
             {
-              "label": "Chip de estado",
+              "label": "Etiqueta de estado",
               "value": "'Cuadrado' (verde) cuando los activos son iguales a los pasivos más el patrimonio, o 'Descuadrado' (rojo)."
             }
           ]
         },
         {
-          "heading": "Conciliación Bancaria (/accounting/bank-rec)",
+          "heading": "Conciliación Bancaria",
           "items": [
             {
               "label": "Propósito",
-              "value": "Cuadra el saldo de efectivo en libros con un extracto bancario marcando qué líneas del libro mayor han sido liquidadas por el banco."
+              "value": "Cuadra tu saldo de efectivo con un extracto bancario marcando qué asientos han sido liquidados por el banco."
             },
             {
               "label": "Formulario de inicio",
-              "value": "Cuenta de Efectivo (selección obligatoria), Fecha del Extracto (obligatoria) y Saldo Final (moneda); luego haz clic en Iniciar para abrir una hoja de trabajo."
-            },
-            {
-              "label": "Tabla de resumen",
-              "value": "Saldo en Libros, Saldo Final del Extracto, total Liquidado y total Pendiente."
-            },
-            {
-              "label": "Casilla de liquidado",
-              "value": "La casilla por línea marca una entrada como liquidada. Marcarla solo PREPARA el cambio: nada se persiste hasta que haces clic en 'Actualizar liquidados'. El recuento sin guardar se muestra junto al botón (sin guardado automático)."
-            },
-            {
-              "label": "Diferencia",
-              "value": "El chip del encabezado muestra 'Conciliado' (verde) cuando la diferencia es cero, de lo contrario el importe de la 'Diferencia' (ámbar)."
-            },
-            {
-              "label": "Estado / Finalizar",
-              "value": "El estado de la hoja de trabajo es Borrador o Finalizado. Finalizar se habilita solo cuando está conciliada y no hay cambios de liquidados sin guardar. Se muestra una lista de conciliaciones anteriores cuando no hay ninguna hoja de trabajo abierta; haz clic en una fila para reabrirla."
-            }
-          ]
-        },
-        {
-          "heading": "Flujo de Efectivo (/accounting/cash-flow)",
-          "items": [
-            {
-              "label": "Propósito",
-              "value": "Estado de flujos de efectivo, método indirecto: cómo se movió el efectivo a través de las actividades operativas, de inversión y de financiamiento."
-            },
-            {
-              "label": "Operativas",
-              "value": "Parte de la Utilidad Neta, aplica líneas de ajuste operativo, subtotaliza el Efectivo Neto de Operación."
-            },
-            {
-              "label": "Inversión",
-              "value": "Se muestra solo cuando existen líneas de inversión; subtotaliza el Efectivo Neto de Inversión."
-            },
-            {
-              "label": "Financiamiento",
-              "value": "Líneas de financiamiento, subtotalizando el Efectivo Neto de Financiamiento (muestra un marcador de 'ninguno' cuando está vacío)."
-            },
-            {
-              "label": "Pie",
-              "value": "Cambio Neto en Efectivo, luego una fila de conciliación que muestra el Movimiento Real de Efectivo."
-            },
-            {
-              "label": "Chip de estado",
-              "value": "'Conciliado' (verde) cuando el cambio neto calculado coincide con el movimiento real de efectivo, o 'Descuadrado' (rojo)."
-            }
-          ]
-        },
-        {
-          "heading": "GRNI — Mercancía Recibida No Facturada (/accounting/grni)",
-          "items": [
-            {
-              "label": "Propósito",
-              "value": "Concilia la cuenta de compensación GRNI: mercancía físicamente recibida pero aún no facturada por el proveedor."
+              "value": "Elige una Cuenta de Efectivo, introduce una Fecha del Extracto y un Saldo Final, luego haz clic en Iniciar para abrir una hoja de trabajo."
             },
             {
               "label": "Resumen",
-              "value": "Saldo del GL (cuenta de compensación), Abierto Operacional (recibido-no-facturado según operaciones) y la Variación entre ambos."
+              "value": "Muestra tu Saldo en Libros, el Saldo Final del Extracto, el total Liquidado y el total Pendiente."
+            },
+            {
+              "label": "Casilla de liquidado",
+              "value": "Cada fila tiene una casilla para marcar un asiento como liquidado. Marcarla solo prepara el cambio. Nada se guarda hasta que haces clic en 'Actualizar liquidados', y junto al botón se muestra un recuento de cambios sin guardar."
+            },
+            {
+              "label": "Diferencia",
+              "value": "El encabezado muestra 'Conciliado' (verde) cuando la diferencia es cero, de lo contrario muestra el importe de la Diferencia (ámbar)."
+            },
+            {
+              "label": "Estado y Finalizar",
+              "value": "Una hoja de trabajo es Borrador o Finalizado. Puedes finalizar solo cuando está conciliada y no hay cambios de liquidados sin guardar. Cuando no hay ninguna hoja de trabajo abierta, se muestra una lista de conciliaciones anteriores; haz clic en una fila para reabrirla."
+            }
+          ]
+        },
+        {
+          "heading": "Flujo de Efectivo",
+          "items": [
+            {
+              "label": "Propósito",
+              "value": "Muestra cómo se movió el efectivo a través de la actividad operativa, de inversión y de financiamiento."
+            },
+            {
+              "label": "Operativas",
+              "value": "Parte de la Utilidad Neta, aplica ajustes operativos y subtotaliza el Efectivo Neto de Operación."
+            },
+            {
+              "label": "Inversión",
+              "value": "Se muestra solo cuando hay actividad de inversión; subtotaliza el Efectivo Neto de Inversión."
+            },
+            {
+              "label": "Financiamiento",
+              "value": "Lista la actividad de financiamiento y subtotaliza el Efectivo Neto de Financiamiento. Muestra un marcador cuando no hay ninguna."
+            },
+            {
+              "label": "Pie",
+              "value": "Cambio Neto en Efectivo, luego una fila que lo compara contra el movimiento real de efectivo."
+            },
+            {
+              "label": "Etiqueta de estado",
+              "value": "'Conciliado' (verde) cuando el cambio neto coincide con el movimiento real de efectivo, o 'Descuadrado' (rojo)."
+            }
+          ]
+        },
+        {
+          "heading": "GRNI — Mercancía Recibida No Facturada",
+          "items": [
+            {
+              "label": "Propósito",
+              "value": "Revisa la cuenta de compensación de recepción: mercancía que has recibido físicamente pero que el proveedor aún no ha facturado."
+            },
+            {
+              "label": "Resumen",
+              "value": "Muestra lo que tus libros guardan en la cuenta de compensación, el importe abierto que reportan tus operaciones y la Variación entre ambos."
             },
             {
               "label": "Abierto por Orden de Compra",
-              "value": "Desglosa el importe abierto por orden de compra a través de tramos de antigüedad (b0..b5) con un Importe Abierto por fila; la primera columna queda fija. Una franja de totales suma cada tramo y el gran total Abierto."
+              "value": "Desglosa el importe abierto por orden de compra a través de los tramos de edad, con un Importe Abierto por fila. Una fila de totales suma cada tramo y el gran total Abierto."
             },
             {
               "label": "Recepciones sin cobertura",
-              "value": "Cuando corresponde, lista las recepciones que no cuadran con una línea de orden de compra abierta; el encabezado muestra un recuento (con un '+' cuando está truncado). El número de recepción se reemplaza por un guion largo cuando está en blanco."
+              "value": "Cuando corresponde, lista los artículos recibidos que no cuadran con una orden de compra abierta. El encabezado muestra un recuento."
             },
             {
-              "label": "Chip de estado",
-              "value": "'Conciliado' (verde) cuando el saldo del GL es igual al abierto operacional, de lo contrario 'Variación'."
+              "label": "Etiqueta de estado",
+              "value": "'Conciliado' (verde) cuando la cuenta de compensación es igual al importe abierto, de lo contrario 'Variación'."
             }
           ]
         },
         {
-          "heading": "Cierre de Período (/accounting/period-close)",
+          "heading": "Cierre de Período",
           "items": [
             {
               "label": "Propósito",
-              "value": "Gestiona los años fiscales y sus períodos contables: controla lo que todavía se puede contabilizar."
+              "value": "Gestiona tus años fiscales y sus períodos, controlando lo que todavía se puede contabilizar."
             },
             {
               "label": "Año fiscal",
-              "value": "Cada año muestra un nombre y un chip Abierto/Cerrado; un año abierto tiene una acción 'Cerrar Año'."
+              "value": "Cada año muestra un nombre y una etiqueta Abierto o Cerrado. Un año abierto tiene una acción 'Cerrar Año'."
             },
             {
               "label": "Períodos",
-              "value": "Cada año lista sus períodos con un rango de fechas (inicio – fin) y un chip de estado."
+              "value": "Cada año lista sus períodos con un rango de fechas y una etiqueta de estado."
             },
             {
               "label": "Estados de período",
-              "value": "Abierto (verde) = contabilización permitida. Cierre Suave (ámbar) = contabilización rutinaria bloqueada pero reversible. Cierre Definitivo (atenuado) = bloqueado permanentemente."
+              "value": "Abierto (verde) permite contabilizar. Cierre Suave (ámbar) bloquea la contabilización rutinaria pero puede reabrirse. Cierre Definitivo (atenuado) está bloqueado para siempre."
             },
             {
               "label": "Acciones de período",
-              "value": "Desde Abierto: Cierre Suave o Cierre Definitivo. Desde Cierre Suave: Reabrir o Cierre Definitivo. El Cierre Definitivo muestra 'Bloqueado' sin más acciones. Los botones se deshabilitan mientras un cierre/reapertura está en curso."
+              "value": "Desde Abierto: Cierre Suave o Cierre Definitivo. Desde Cierre Suave: Reabrir o Cierre Definitivo. El Cierre Definitivo muestra 'Bloqueado' sin más acciones. Los botones se deshabilitan mientras un cierre o reapertura está en curso."
             }
           ]
         },
         {
-          "heading": "Estado de Resultados (/accounting/profit-loss)",
+          "heading": "Estado de Resultados",
           "items": [
             {
               "label": "Propósito",
-              "value": "Estado de resultados del período: ingresos, gastos y la utilidad neta resultante."
+              "value": "El estado de resultados del período: ingresos, gastos y la utilidad neta resultante."
             },
             {
               "label": "Líneas de ingresos",
-              "value": "Cada línea de ingresos muestra número de cuenta, nombre de cuenta e importe; subtotalizado como Total de Ingresos (marcador 'Sin ingresos' cuando está vacío)."
+              "value": "Cada línea de ingresos muestra número de cuenta, nombre e importe, subtotalizado como Total de Ingresos (aparece un marcador cuando no hay ninguno)."
             },
             {
               "label": "Líneas de gastos",
-              "value": "Cada línea de gastos muestra número de cuenta, nombre de cuenta e importe; subtotalizado como Total de Gastos (marcador 'Sin gastos' cuando está vacío)."
+              "value": "Cada línea de gastos muestra número de cuenta, nombre e importe, subtotalizado como Total de Gastos (aparece un marcador cuando no hay ninguno)."
             },
             {
               "label": "Utilidad Neta",
-              "value": "Cifra del pie: Total de Ingresos menos Total de Gastos."
+              "value": "La cifra del pie: Total de Ingresos menos Total de Gastos."
             },
             {
-              "label": "Advertencia de margen",
-              "value": "Cuando el costo de los bienes vendidos no se ha contabilizado, aparece una nota de advertencia en la parte superior que indica que el margen está incompleto. Desaparece una vez que se contabiliza el costo de los bienes vendidos."
+              "label": "Nota de margen",
+              "value": "Cuando el costo de los bienes vendidos no se ha contabilizado, una nota en la parte superior advierte que el margen está incompleto. Desaparece una vez que se contabiliza el costo de los bienes vendidos."
             }
           ]
         },
         {
-          "heading": "Balance de Comprobación (/accounting/trial-balance)",
+          "heading": "Balance de Comprobación",
           "items": [
             {
               "label": "Propósito",
-              "value": "Lista cada cuenta del GL con su total de débitos, total de créditos y saldo neto: el informe base de todos los estados."
+              "value": "Lista cada cuenta con su total de débitos, total de créditos y saldo neto. Es el informe base de todos los estados."
             },
             {
               "label": "Columnas",
-              "value": "Número de Cuenta, Cuenta, Débito, Crédito, Neto. Débito/Crédito/Neto son ordenables, alineados a la derecha, en formato de moneda."
+              "value": "Número de Cuenta, Cuenta, Débito, Crédito y Neto. Débito, Crédito y Neto ordenan y muestran moneda, alineados a la derecha."
             },
             {
-              "label": "Franja de totales",
-              "value": "La franja inferior muestra el Total de Débitos y el Total de Créditos; son iguales cuando los libros cuadran."
+              "label": "Fila de totales",
+              "value": "La fila inferior muestra el Total de Débitos y el Total de Créditos, que son iguales cuando los libros cuadran."
             },
             {
-              "label": "Chip de estado",
-              "value": "'Cuadrado' (verde) cuando el total de débitos es igual al total de créditos, o 'Descuadrado' (rojo). Si el balance de comprobación está descuadrado, no se puede confiar en los demás estados."
+              "label": "Etiqueta de estado",
+              "value": "'Cuadrado' (verde) cuando el total de débitos es igual al total de créditos, o 'Descuadrado' (rojo). Si el balance de comprobación está descuadrado, no puedes confiar en los demás estados."
             }
           ]
         },
@@ -333,19 +333,19 @@
           "items": [
             {
               "label": "Actualización automática",
-              "value": "La mayoría de los informes se actualizan automáticamente cuando cambia el GL subyacente: no se necesita recarga manual."
+              "value": "La mayoría de los informes se actualizan solos cuando cambia tu actividad contable, así que no hace falta recargar manualmente."
             },
             {
               "label": "Estado vs. tabla",
-              "value": "El Estado de Resultados, el Balance General, el Flujo de Efectivo y el resumen de GRNI se muestran como tablas de 'estado'/'resumen'. El Balance de Comprobación, la Antigüedad de Cuentas por Cobrar/Pagar, el desglose por orden de compra del GRNI, el Cierre de Período y la Conciliación Bancaria se muestran en la tabla de datos compartida (columnas ordenables, filtros por columna)."
+              "value": "El Estado de Resultados, el Balance General, el Flujo de Efectivo y el resumen de GRNI se leen como estados financieros. El Balance de Comprobación, la Antigüedad de Cuentas por Cobrar y por Pagar, el desglose por orden de compra del GRNI, el Cierre de Período y los Extractos Bancarios se leen como tablas que puedes ordenar y filtrar."
             },
             {
-              "label": "Libro predeterminado",
-              "value": "Hoy los informes consultan un único libro contable predeterminado (libro id 1); un selector de libros llega con el soporte de múltiples libros."
+              "label": "Un solo conjunto de libros",
+              "value": "Hoy los informes funcionan contra un único conjunto de libros. El soporte para múltiples conjuntos de libros está planificado."
             },
             {
-              "label": "Mosaicos de la página principal",
-              "value": "La página principal de Contabilidad es una cuadrícula de mosaicos que enrutan a cada informe más herramientas de apoyo (importación de Extractos Bancarios, Exportaciones)."
+              "label": "Mosaicos de la página de inicio",
+              "value": "La página de inicio de Contabilidad es una cuadrícula de mosaicos que abren cada informe más las herramientas de apoyo (importación de Extractos Bancarios y Exportaciones)."
             }
           ]
         }
@@ -355,7 +355,7 @@
   {
     "slug": "accounting-quiz",
     "title": "Evaluación de Conocimientos de Informes Financieros",
-    "summary": "Pon a prueba tu conocimiento de los Informes Financieros integrados: el límite de contabilidad, los chips de estado, los tramos de antigüedad, el cierre de período y la conciliación bancaria.",
+    "summary": "Pon a prueba tu conocimiento de los Informes Financieros integrados: cuándo aplican, las etiquetas de estado, los tramos de antigüedad, el cierre de período y la conciliación bancaria.",
     "contentJson": {
       "passingScore": 80,
       "questionsPerQuiz": 8,
@@ -372,7 +372,7 @@
             },
             {
               "id": "b",
-              "text": "En modo autónomo: cuando NO hay ningún proveedor contable externo conectado y el libro mayor integrado está activado",
+              "text": "Cuando Forge lleva tus propios libros: no hay ningún proveedor contable externo conectado y los libros integrados están activados",
               "isCorrect": true
             },
             {
@@ -381,14 +381,14 @@
             },
             {
               "id": "d",
-              "text": "Solo cuando tanto un proveedor externo COMO el libro mayor integrado están habilitados al mismo tiempo"
+              "text": "Solo cuando tanto un proveedor externo COMO los libros de Forge están habilitados al mismo tiempo"
             }
           ],
-          "explanation": "Estas son funciones del modo autónomo. El catálogo de capacidades declara CAP-ACCT-EXTERNAL ⊥ CAP-ACCT-BUILTIN como un mutex: los libros integrados y un proveedor externo son mutuamente excluyentes. Cuando hay un proveedor conectado, el GL y estos informes quedan inactivos; funcionan sobre el propio libro mayor de Forge solo en modo autónomo, detrás del guardia CAP-ACCT-FULLGL."
+          "explanation": "Estos informes funcionan solo cuando Forge lleva tus propios libros. Usas los libros de Forge o un proveedor externo, nunca ambos. Cuando hay un proveedor conectado, él es dueño de los libros y estos informes se apagan. Cobran vida solo cuando Forge lleva los libros y ningún sistema externo está en el circuito."
         },
         {
           "id": "ac2",
-          "text": "El encabezado del Balance de Comprobación muestra un chip rojo 'Descuadrado'. ¿Qué te indica eso?",
+          "text": "El encabezado del Balance de Comprobación muestra una etiqueta roja 'Descuadrado'. ¿Qué te indica eso?",
           "options": [
             {
               "id": "a",
@@ -396,7 +396,7 @@
             },
             {
               "id": "b",
-              "text": "El total de débitos no es igual al total de créditos, por lo que no se puede confiar en los demás estados hasta que se corrija",
+              "text": "El total de débitos no es igual al total de créditos, por lo que no puedes confiar en los demás estados hasta que se corrija",
               "isCorrect": true
             },
             {
@@ -405,26 +405,26 @@
             },
             {
               "id": "d",
-              "text": "Hay recepciones sin cobertura que no cuadran con una orden de compra"
+              "text": "Hay artículos recibidos que no cuadran con una orden de compra"
             }
           ],
-          "explanation": "El chip del Balance de Comprobación muestra 'Cuadrado' (verde) cuando el total de débitos es igual al total de créditos y 'Descuadrado' (rojo) cuando no lo es. Es el informe base: si el balance de comprobación está descuadrado, no se puede confiar en el Estado de Resultados, el Balance General y el Flujo de Efectivo que se construyen sobre él."
+          "explanation": "La etiqueta del Balance de Comprobación muestra 'Cuadrado' (verde) cuando el total de débitos es igual al total de créditos y 'Descuadrado' (rojo) cuando no lo es. Es el informe base. Si el balance de comprobación está descuadrado, no se puede confiar en el Estado de Resultados, el Balance General y el Flujo de Efectivo que se construyen sobre él."
         },
         {
           "id": "ac3",
-          "text": "¿Cuál es la escala estándar de tramos de antigüedad que usan los informes de Antigüedad de Cuentas por Cobrar y por Pagar?",
+          "text": "¿Cuáles son los tramos de edad estándar que usan los informes de Antigüedad de Cuentas por Cobrar y por Pagar?",
           "options": [
             {
               "id": "a",
-              "text": "0-7 / 8-14 / 15-30 / 31+ días"
+              "text": "0-7, 8-14, 15-30 y 31+ días"
             },
             {
               "id": "b",
-              "text": "Corriente / Vencido / Castigado"
+              "text": "Corriente, Vencido y Castigado"
             },
             {
               "id": "c",
-              "text": "0-30 / 31-60 / 61-90 / 91+ días",
+              "text": "0-30, 31-60, 61-90 y 91+ días",
               "isCorrect": true
             },
             {
@@ -432,11 +432,11 @@
               "text": "Columnas mensuales de los doce meses anteriores"
             }
           ],
-          "explanation": "Ambos informes de antigüedad usan la escala estándar 0-30 / 31-60 / 61-90 / 91+ días, mostrada como columnas de tramos con un saldo Abierto por parte. La franja de totales suma cada tramo y el gran total abierto."
+          "explanation": "Ambos informes de antigüedad usan los tramos estándar de 0-30, 31-60, 61-90 y 91+ días, mostrados como columnas con un saldo Abierto para cada cliente o proveedor. La fila de totales suma cada tramo y el gran total abierto."
         },
         {
           "id": "ac4",
-          "text": "En el informe de Estado de Resultados, ¿qué significa la nota de advertencia sobre el margen en la parte superior?",
+          "text": "En el informe de Estado de Resultados, ¿qué significa la nota de margen en la parte superior?",
           "options": [
             {
               "id": "a",
@@ -449,14 +449,14 @@
             },
             {
               "id": "c",
-              "text": "Hay un proveedor contable externo conectado y el Estado de Resultados es de solo lectura"
+              "text": "Hay un proveedor contable externo conectado y el informe es de solo lectura"
             },
             {
               "id": "d",
               "text": "El período fiscal tiene un cierre definitivo y las cifras son finales"
             }
           ],
-          "explanation": "Cuando el costo de los bienes vendidos no se ha contabilizado, el Estado de Resultados muestra una nota de advertencia para que leas la Utilidad Neta con las expectativas correctas: el margen está incompleto hasta que se contabilice el costo de los bienes vendidos. Una vez contabilizado, la nota desaparece."
+          "explanation": "Cuando el costo de los bienes vendidos no se ha contabilizado, el Estado de Resultados muestra una nota para que leas la Utilidad Neta con las expectativas correctas. El margen está incompleto hasta que el costo de los bienes vendidos se registre. Una vez contabilizado, la nota desaparece."
         },
         {
           "id": "ac5",
@@ -464,11 +464,11 @@
           "options": [
             {
               "id": "a",
-              "text": "Son lo mismo: ambos bloquean el período permanentemente"
+              "text": "Son lo mismo: ambos bloquean el período para siempre"
             },
             {
               "id": "b",
-              "text": "El Cierre Suave bloquea la contabilización rutinaria pero puede reabrirse; el Cierre Definitivo bloquea el período permanentemente",
+              "text": "El Cierre Suave bloquea la contabilización rutinaria pero puede reabrirse; el Cierre Definitivo bloquea el período para siempre",
               "isCorrect": true
             },
             {
@@ -480,7 +480,7 @@
               "text": "El Cierre Suave se aplica a un período; el Cierre Definitivo se aplica a un año fiscal entero"
             }
           ],
-          "explanation": "Un período en Cierre Suave (chip ámbar) bloquea la contabilización rutinaria pero es reversible: puedes Reabrirlo. Un período en Cierre Definitivo (chip atenuado) está bloqueado permanentemente y muestra 'Bloqueado' sin más acciones. Desde un período Abierto puedes hacer un cierre suave o definitivo; desde el Cierre Suave puedes reabrir o hacer un cierre definitivo."
+          "explanation": "Un período en Cierre Suave (etiqueta ámbar) bloquea la contabilización rutinaria pero puedes reabrirlo. Un período en Cierre Definitivo (etiqueta atenuada) está bloqueado para siempre y muestra 'Bloqueado' sin más acciones. Desde un período Abierto puedes hacer un cierre suave o definitivo; desde el Cierre Suave puedes reabrir o hacer un cierre definitivo."
         },
         {
           "id": "ac6",
@@ -488,11 +488,11 @@
           "options": [
             {
               "id": "a",
-              "text": "Cada marca se guarda inmediatamente en el libro mayor"
+              "text": "Cada marca se guarda de inmediato"
             },
             {
               "id": "b",
-              "text": "Marcar solo prepara el cambio: nada se persiste hasta que haces clic en 'Actualizar liquidados'",
+              "text": "Marcar una línea solo prepara el cambio: nada se guarda hasta que haces clic en 'Actualizar liquidados'",
               "isCorrect": true
             },
             {
@@ -504,7 +504,7 @@
               "text": "Las líneas se eliminan de la conciliación"
             }
           ],
-          "explanation": "El estado liquidado es una selección transitoria del lado del cliente, coherente con el modelo de la aplicación basado en botones y sin guardado automático. Marcar prepara el cambio y muestra un recuento sin guardar; nada se persiste hasta que haces clic en 'Actualizar liquidados'. Finalizar solo se habilita cuando la hoja de trabajo está conciliada y no hay cambios de liquidados sin guardar."
+          "explanation": "Marcar una línea solo prepara el cambio y muestra un recuento de cambios sin guardar. Nada se guarda hasta que haces clic en 'Actualizar liquidados'. Puedes finalizar solo cuando la hoja de trabajo está conciliada y no hay cambios de liquidados sin guardar."
         },
         {
           "id": "ac7",
@@ -512,23 +512,23 @@
           "options": [
             {
               "id": "a",
-              "text": "El total de débitos contra el total de créditos en todo el libro mayor"
+              "text": "El total de débitos contra el total de créditos en todos los libros"
             },
             {
               "id": "b",
-              "text": "El saldo del GL de la cuenta de compensación GRNI contra el importe abierto operacional (mercancía recibida pero aún no facturada)",
+              "text": "Lo que tus libros guardan en la cuenta de compensación de recepción contra la mercancía recibida pero aún no facturada por el proveedor",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "El saldo de efectivo en libros contra el saldo final del extracto bancario"
+              "text": "Tu saldo de efectivo contra el saldo final del extracto bancario"
             },
             {
               "id": "d",
               "text": "El Total de Activos contra el Total de Pasivos y Patrimonio"
             }
           ],
-          "explanation": "El GRNI (Mercancía Recibida No Facturada) concilia la cuenta de compensación: compara el Saldo del GL contra el importe Abierto Operacional e informa la Variación. Un chip 'Conciliado' significa que coinciden; un chip 'Variación' significa que no. El informe también desglosa el importe abierto por orden de compra y marca las recepciones sin cobertura."
+          "explanation": "El GRNI (Mercancía Recibida No Facturada) revisa la cuenta de compensación. Compara lo que tus libros guardan ahí contra el importe abierto que reportan tus operaciones, y muestra la Variación. Una etiqueta 'Conciliado' significa que coinciden; una etiqueta 'Variación' significa que no. El informe también desglosa el importe abierto por orden de compra y marca los artículos recibidos sin orden de compra."
         },
         {
           "id": "ac8",
@@ -552,7 +552,7 @@
               "text": "Balance de Comprobación"
             }
           ],
-          "explanation": "La Antigüedad de Cuentas por Cobrar muestra quién te debe, con el saldo abierto de cada cliente repartido en los tramos de antigüedad 0-30 / 31-60 / 61-90 / 91+. La Antigüedad de Cuentas por Pagar es la imagen espejo de lo que debes a los proveedores. El Flujo de Efectivo y el Balance de Comprobación no desglosan los saldos por parte."
+          "explanation": "La Antigüedad de Cuentas por Cobrar muestra quién te debe, con el saldo abierto de cada cliente repartido en los tramos de 0-30, 31-60, 61-90 y 91+ días. La Antigüedad de Cuentas por Pagar es la imagen espejo de lo que debes a los proveedores. El Flujo de Efectivo y el Balance de Comprobación no desglosan los saldos por cliente o proveedor."
         }
       ]
     }
@@ -560,16 +560,16 @@
   {
     "slug": "accounting-exports-guide",
     "title": "Exportar para tu Contador / QuickBooks",
-    "summary": "Cómo la página de Exportaciones entrega tus libros a un contador público: las tres descargas CSV sobre un rango de fechas, y el envío opcional unidireccional de un resumen de asientos del período a QuickBooks Online.",
+    "summary": "Cómo la página de Exportaciones entrega tus libros a un contador: las tres descargas CSV sobre un rango de fechas, y el envío opcional unidireccional de un resumen de asientos del período a QuickBooks Online.",
     "contentJson": {
-      "body": "## Exportar para tu Contador / QuickBooks\n\nLa mayoría de los talleres que usan los libros integrados de Forge aún tienen un contador externo que prepara la declaración de impuestos y revisa el año. La página de **Exportaciones** (un mosaico en la página principal de Contabilidad, ruta `/accounting/exports`) es la forma de entregar a esa persona los datos que necesita, sin darle un acceso y sin hacer de QuickBooks la fuente de verdad. La página tiene dos mitades: las descargas CSV, que siempre están disponibles, y un envío unidireccional opcional a QuickBooks Online que solo aparece cuando tu instalación lo ha activado.\n\n### Las Dos Formas de Compartir\n\n**Descargas CSV (siempre activas).** Tres botones bajo el encabezado *Exportación CSV* descargan cada uno un archivo de valores separados por comas que tu contador puede abrir en Excel o importar a su propio software:\n\n- **CSV de Balance de Comprobación** — cada cuenta del GL con su débito, crédito y neto para el rango de fechas elegido. Este es el archivo más solicitado; es la instantánea que un contador concilia.\n- **CSV de Detalle del GL** — el detalle del libro mayor línea por línea detrás del balance de comprobación, para que el contador pueda rastrear cualquier saldo hasta las contabilizaciones individuales.\n- **CSV de Resumen de Asientos** — la actividad del período resumida a una cifra neta por cuenta (los mismos datos que envía el envío a QuickBooks). Úsalo cuando el contador solo quiera el movimiento del período, no cada línea.\n\nLos tres respetan el **rango de fechas** que estableces con el selector de rango en la parte superior de la página. Por defecto es del mes a la fecha y ofrece dos preajustes —*Este Mes* y *Últimos 30 Días*— o puedes elegir tu propio inicio y fin. Haz clic en un botón de descarga y el archivo se guarda con un nombre suministrado por el servidor; solo se ejecuta una descarga a la vez.\n\n**Enviar a QuickBooks Online (opcional, desactivado por defecto).** Cuando tu instalación activa la capacidad `CAP-ACCT-QBO-EXPORT` *y* hay una conexión OAuth de QuickBooks establecida, aparece una segunda sección debajo de los botones CSV. Hace una sola cosa: contabiliza el neto por cuenta del período como **un único asiento contable cuadrado** en QuickBooks Online. Este es un envío unidireccional, hacia abajo: QuickBooks nunca se lee de vuelta, y nada de lo que contenga sobrescribe tus libros de Forge. Si la capacidad está desactivada (lo predeterminado), simplemente no verás esta sección, y el CSV es tu método de entrega.\n\n### El Mapeo de Cuentas QBO\n\nQuickBooks tiene su propio catálogo de cuentas con sus propios identificadores internos, que no coincidirán con los números de cuenta de Forge. Por eso, antes de poder enviar, cada cuenta del GL de Forge que tenga actividad debe mapearse al identificador de cuenta de QuickBooks correspondiente. El editor de mapeo es una tabla: una fila por cuenta del GL, mostrando el número y nombre de cuenta de Forge, con un campo para escribir el identificador de cuenta de QuickBooks y un icono de guardar (disco) para almacenarlo. Una fila mapeada también muestra un icono de eliminar para borrar el mapeo. Configuras esto una vez; los mapeos persisten para envíos futuros.\n\n### Hacer un Envío\n\n1. Establece el **rango de fechas** al período que estás entregando (p. ej. el mes pasado, o el trimestre).\n2. Asegúrate de que cada cuenta con actividad en ese rango tenga un **identificador de QuickBooks** guardado en la tabla de mapeo.\n3. Haz clic en **Enviar a QuickBooks**. Un diálogo de confirmación reitera las fechas de inicio/fin: esto es una escritura en QuickBooks, así que pregunta antes de actuar.\n4. Al tener éxito recibes una confirmación con el identificador del documento de QuickBooks del asiento contable que se creó.\n\n### Cuando un Envío Es Rechazado (409)\n\nEl envío rechaza deliberadamente en lugar de enviar datos incompletos o duplicados, mostrando el motivo como una advertencia en pantalla:\n\n- **Una cuenta con un neto distinto de cero no está mapeada.** Mapéala (dale un identificador de QuickBooks) y vuelve a enviar: el resumen tiene que estar completo y cuadrado antes de poder contabilizarse.\n- **El rango se solapa con un período que ya enviaste.** Esta protección evita que dupliques la contabilización de la misma actividad en QuickBooks. Solo lo anularías deliberadamente.\n\n### Modelo Mental\n\nForge lleva los libros; el contador los revisa. El CSV es la forma universal y sin configuración de entregar el balance de comprobación y su detalle a cualquiera. El envío a QuickBooks es una comodidad para las instalaciones cuyo contador prefiere que las cifras lleguen directamente a QBO como un asiento contable ordenado por período, pero es estrictamente reporte unidireccional, nunca una sincronización. Sea cual sea el camino que uses, los datos viven primero en Forge; la exportación es una copia que sale, no una fuente que entra.",
+      "body": "## Exportar para tu Contador / QuickBooks\n\nLa mayoría de los talleres que llevan sus libros en Forge aún tienen un contador externo que prepara la declaración de impuestos y revisa el año. La página de **Exportaciones** (un mosaico en la página de inicio de Contabilidad) es la forma de entregar a esa persona los datos que necesita, sin darle un acceso y sin hacer de QuickBooks la fuente de registro. La página tiene dos mitades: las descargas CSV, siempre disponibles, y un envío unidireccional opcional a QuickBooks Online que solo aparece cuando tu instalación lo ha activado.\n\n### Las Dos Formas de Compartir\n\n**Descargas CSV (siempre activas).** Tres botones bajo el encabezado *Exportación CSV* descargan cada uno un archivo que tu contador puede abrir en Excel o importar a su propio software:\n\n- **CSV de Balance de Comprobación** — cada cuenta con su débito, crédito y neto para el rango de fechas que elegiste. Este es el archivo más solicitado, la instantánea que un contador concilia.\n- **CSV de Detalle del GL** — el detalle línea por línea detrás del balance de comprobación, para que el contador pueda rastrear cualquier saldo hasta los asientos individuales.\n- **CSV de Resumen de Asientos** — la actividad del período resumida a una cifra neta por cuenta (los mismos datos que usa el envío a QuickBooks). Úsalo cuando el contador solo quiera el movimiento del período, no cada línea.\n\nLos tres usan el **rango de fechas** que estableces en la parte superior de la página. Por defecto es del mes a la fecha y ofrece dos atajos, *Este Mes* y *Últimos 30 Días*, o puedes elegir tu propio inicio y fin. Haz clic en un botón de descarga y el archivo se guarda. Solo se ejecuta una descarga a la vez.\n\n**Enviar a QuickBooks Online (opcional, desactivado por defecto).** Cuando tu instalación activa el envío a QuickBooks *y* QuickBooks está conectado, aparece una segunda sección debajo de los botones CSV. Hace una sola cosa: contabiliza el neto por cuenta del período como **un único asiento contable cuadrado** en QuickBooks Online. Este es un envío unidireccional. QuickBooks nunca se lee de vuelta, y nada de lo que contenga sobrescribe tus libros de Forge. Si el envío está desactivado (lo predeterminado), simplemente no verás esta sección, y el CSV es tu forma de compartir.\n\n### Emparejar tus Cuentas con QuickBooks\n\nQuickBooks tiene su propia lista de cuentas que no coincidirá con los números de cuenta de Forge. Por eso, antes de poder enviar, cada cuenta de Forge con actividad debe emparejarse con la cuenta de QuickBooks correcta. El editor de emparejamiento es una tabla: una fila por cuenta, mostrando el número y nombre de cuenta de Forge, con un campo para introducir la cuenta de QuickBooks correspondiente y un icono de guardar para almacenarlo. Una fila emparejada también muestra un icono de eliminar para borrarlo. Configuras esto una vez, y los emparejamientos se mantienen para envíos futuros.\n\n### Enviar a QuickBooks\n\n1. Establece el **rango de fechas** al período que estás entregando (por ejemplo, el mes pasado o el trimestre).\n2. Asegúrate de que cada cuenta con actividad en ese rango esté emparejada con una **cuenta de QuickBooks**.\n3. Haz clic en **Enviar a QuickBooks**. Una confirmación reitera las fechas, ya que esto escribe en QuickBooks, así que pregunta antes de actuar.\n4. Al tener éxito recibes una confirmación con la referencia de QuickBooks del asiento contable que creó.\n\n### Cuando un Envío Es Rechazado\n\nEl envío rechaza en lugar de entregar datos incompletos o duplicados, y te dice por qué en pantalla:\n\n- **Una cuenta con saldo no está emparejada.** Emparéjala con una cuenta de QuickBooks y vuelve a enviar. El resumen tiene que estar completo y cuadrado antes de poder contabilizarse.\n- **El rango se solapa con un período que ya enviaste.** Esta protección evita que contabilices la misma actividad en QuickBooks dos veces. Solo lo anularías a propósito.\n\n### El Panorama General\n\nForge lleva los libros; el contador los revisa. El CSV es la forma universal y sin configuración de entregar el balance de comprobación y su detalle a cualquiera. El envío a QuickBooks es una comodidad para los talleres cuyo contador prefiere que las cifras lleguen directamente a QuickBooks como un asiento contable ordenado por período, pero es estrictamente reporte unidireccional, nunca una sincronización. Sea cual sea el camino que uses, los datos viven primero en Forge. La exportación es una copia que sale, no una fuente que entra.",
       "sections": []
     }
   },
   {
     "slug": "accounting-exports-walkthrough",
     "title": "Exportar para tu Contador — Recorrido Guiado",
-    "summary": "Un recorrido guiado por la página de Exportaciones: el rango de fechas del CSV, los tres botones de descarga y (cuando está activado) el mapeo y el envío a QuickBooks.",
+    "summary": "Un recorrido guiado por la página de Exportaciones: el rango de fechas del CSV, los tres botones de descarga y (cuando está activado) emparejar tus cuentas con QuickBooks y enviarle los datos.",
     "contentJson": {
       "appRoute": "/accounting/exports",
       "startButtonLabel": "Recorrer la Página de Exportaciones",
@@ -578,7 +578,7 @@
           "element": "app-page-header",
           "popover": {
             "title": "La Página de Exportaciones",
-            "description": "Esta página entrega tus libros a un contador externo sin darle un acceso. Tiene dos mitades: descargas CSV siempre disponibles y —solo cuando tu instalación activa el envío a QuickBooks— un envío unidireccional a QuickBooks Online. Llega a ella desde el mosaico Exportaciones en la página principal de Contabilidad.",
+            "description": "Esta página entrega tus libros a un contador externo sin darle un acceso. Tiene dos mitades: descargas CSV siempre disponibles y —solo cuando tu instalación lo activa— un envío unidireccional a QuickBooks Online. Llega a ella desde el mosaico Exportaciones en la página de inicio de Contabilidad.",
             "side": "bottom"
           }
         },
@@ -586,7 +586,7 @@
           "element": ".exports-toolbar",
           "popover": {
             "title": "Elige el Rango de Fechas Primero",
-            "description": "Cada exportación respeta este rango de fechas. Por defecto es del mes a la fecha y ofrece dos preajustes —Este Mes y Últimos 30 Días— o establece tu propio inicio y fin. Elige el período que estás entregando antes de descargar o enviar.",
+            "description": "Cada exportación usa este rango de fechas. Por defecto es del mes a la fecha y ofrece dos atajos, Este Mes y Últimos 30 Días, o establece tu propio inicio y fin. Elige el período que estás entregando antes de descargar o enviar.",
             "side": "bottom"
           }
         },
@@ -594,7 +594,7 @@
           "element": ".exports-buttons",
           "popover": {
             "title": "Las Tres Descargas CSV",
-            "description": "Cada botón descarga un archivo que tu contador puede abrir en Excel. El CSV de Balance de Comprobación es la instantánea a nivel de cuenta que un contador concilia; el CSV de Detalle del GL son las contabilizaciones línea por línea detrás de él; el CSV de Resumen de Asientos es el período resumido a un neto por cuenta. Solo se ejecuta una descarga a la vez.",
+            "description": "Cada botón descarga un archivo que tu contador puede abrir en Excel. El CSV de Balance de Comprobación es la instantánea a nivel de cuenta que concilia. El CSV de Detalle del GL son los asientos línea por línea detrás de él. El CSV de Resumen de Asientos es el período resumido a un neto por cuenta. Solo se ejecuta una descarga a la vez.",
             "side": "top"
           }
         },
@@ -602,7 +602,7 @@
           "element": ".exports-section",
           "popover": {
             "title": "El CSV Siempre Está Disponible",
-            "description": "La sección CSV no necesita configuración ni integración: es el método de entrega universal para cualquier contador. Debajo de ella, una sección de QuickBooks aparece solo cuando tu instalación ha activado la capacidad de envío a QBO y conectado QuickBooks. Si no ves esa sección, el CSV es tu camino.",
+            "description": "La sección CSV no necesita configuración ni conexión. Es la forma universal de compartir con cualquier contador. Debajo de ella, una sección de QuickBooks aparece solo cuando tu instalación ha activado el envío a QuickBooks y conectado QuickBooks. Si no ves esa sección, el CSV es tu camino.",
             "side": "top"
           }
         },
@@ -610,7 +610,7 @@
           "element": ".page-content",
           "popover": {
             "title": "Unidireccional, Nunca una Sincronización",
-            "description": "Cuando el envío a QuickBooks está activado, contabiliza el neto por cuenta del período como un único asiento contable cuadrado en QuickBooks Online: una copia hacia abajo, nunca leída de vuelta. Un envío es rechazado (409) si una cuenta con actividad no está mapeada, o si el rango se solapa con un período que ya enviaste. Forge siempre lleva los libros; la exportación es una copia que sale.",
+            "description": "Cuando el envío a QuickBooks está activado, contabiliza el neto por cuenta del período como un único asiento contable cuadrado en QuickBooks Online: una copia que sale, nunca leída de vuelta. Un envío es rechazado si una cuenta con actividad no está emparejada con una cuenta de QuickBooks, o si el rango se solapa con un período que ya enviaste. Forge siempre lleva los libros; la exportación es una copia que sale.",
             "side": "top"
           }
         }
@@ -622,7 +622,7 @@
     "title": "Importar y Conciliar Extractos Bancarios",
     "summary": "Cómo importar un extracto bancario OFX/QFX/CSV, leer las sugerencias de conciliación automática y confirmar las coincidencias para que las líneas liquidadas alimenten tu conciliación bancaria.",
     "contentJson": {
-      "body": "## Importar y Conciliar Extractos Bancarios\n\nConciliar el efectivo a mano significa cotejar un extracto en papel contra el libro mayor línea por línea. La página de **Extractos Bancarios** (un mosaico en la página principal de Contabilidad, ruta `/accounting/bank-statements`) automatiza la parte tediosa: subes el archivo que te da tu banco, Forge coteja cada línea bancaria con un asiento del libro mayor donde puede, y tú confirmas las coincidencias. Las líneas confirmadas luego alimentan directamente la hoja de trabajo de Conciliación Bancaria, así que las dos pantallas trabajan juntas: importa aquí, finaliza en Conciliación Bancaria.\n\n### Elige la Cuenta de Efectivo y Luego Importa\n\nCada extracto pertenece a una cuenta de efectivo (banco), por lo que el primer control de la página es un selector de **Cuenta de Efectivo**. Elige la cuenta a la que corresponde el extracto antes de importar: si haces clic en Importar sin elegir una, se te recordará. Luego haz clic en el botón **Importar** en el encabezado de la página y elige tu archivo. Forge acepta los formatos que los bancos realmente entregan: **OFX, QFX, CSV y TXT**. OFX/QFX son los formatos estructurados de descarga bancaria; CSV/TXT cubren las exportaciones simples.\n\n### Qué Sucede al Importar\n\nDos cosas se ejecutan automáticamente en el momento en que llega el archivo:\n\n- **Detección de duplicados.** Cada transacción en un archivo OFX/QFX lleva un identificador bancario único (FITID). Forge deduplica sobre él, así que reimportar el mismo extracto —o uno que se solape— no creará líneas dobles. El resultado de la importación te indica cuántas líneas se importaron y cuántas se omitieron como duplicados.\n- **Conciliación automática.** Forge intenta de inmediato cotejar cada línea bancaria importada con un asiento abierto del libro mayor en esa cuenta de efectivo (por importe y proximidad de fecha). El resultado te indica cuántas sugerencias encontró.\n\nDespués de importar, el nuevo extracto aparece en la **lista de importaciones**: una fila por archivo, mostrando el nombre del archivo, el formato, el conteo de líneas, el conteo de duplicados, un resumen del estado de coincidencia (conteos de Sugerido / Sin Coincidencia / Confirmado) y la fecha de importación. Haz clic en una fila para abrir sus líneas debajo.\n\n### Leer las Líneas y su Estado de Coincidencia\n\nCada línea importada muestra su fecha contabilizada, descripción, importe (las salidas se muestran en un color de advertencia), un **estado** y —cuando está coincidida— el asiento del libro mayor con el que coincidió (número de asiento, fecha, memo). El estado es el corazón de la pantalla:\n\n- **Sin Coincidencia** (ámbar) — Forge no pudo encontrar un asiento del libro mayor para esta línea bancaria. Necesita tu atención.\n- **Sugerido** (azul) — Forge propuso una coincidencia. Revísala, luego confírmala o ignórala.\n- **Confirmado** (verde) — aceptaste la coincidencia; la línea está liquidada y se compensará en la conciliación.\n- **Ignorado** (atenuado) — apartaste esta línea (p. ej. una comisión bancaria que manejarás por separado) para que deje de pedir una coincidencia.\n\n### Trabajar la Cola\n\nPara cada línea tienes un pequeño conjunto de acciones de fila; cuál se ofrece depende de su estado:\n\n- En una línea **Sugerido**: **Confirmar** (icono de check) acepta la coincidencia propuesta, o **Ignorar** (ojo tachado) la aparta.\n- En una línea **Sin Coincidencia**: **Ignorar** para aparcarla.\n- En una línea **Confirmado** o **Ignorado**: **Deshacer coincidencia** (deshacer) revierte tu decisión y devuelve la línea a la cola.\n\nSi has contabilizado nuevos asientos del libro mayor desde que importaste, haz clic en **Volver a ejecutar conciliación automática** (encima de las líneas) para que Forge dé otra pasada a las líneas aún sin coincidencia y proponga sugerencias nuevas.\n\n### Cómo Alimenta la Conciliación\n\nConfirmar una coincidencia es una declaración de que el banco liquidó ese asiento del libro mayor. Eso es exactamente lo que necesita la hoja de trabajo de **Conciliación Bancaria**: los asientos que confirmas aquí son los que aparecen como liquidados allí. Así que el flujo de trabajo es: importa el extracto y confirma las coincidencias en esta página, luego abre Conciliación Bancaria, donde el total liquidado refleja tus confirmaciones y la hoja de trabajo te indica si cuadras. La importación es el paso de captura de datos; la Conciliación Bancaria es donde finalizas.",
+      "body": "## Importar y Conciliar Extractos Bancarios\n\nConciliar el efectivo a mano significa cotejar un extracto en papel contra tus asientos línea por línea. La página de **Extractos Bancarios** (un mosaico en la página de inicio de Contabilidad) automatiza la parte tediosa. Subes el archivo que te da tu banco, Forge coteja cada línea bancaria con uno de tus asientos donde puede, y tú confirmas las coincidencias. Las líneas confirmadas luego alimentan directamente la hoja de trabajo de Conciliación Bancaria, así que las dos pantallas trabajan juntas: importa aquí, finaliza en Conciliación Bancaria.\n\n### Elige la Cuenta de Efectivo y Luego Importa\n\nCada extracto pertenece a una cuenta de efectivo (banco), por lo que el primer control de la página es un selector de **Cuenta de Efectivo**. Elige la cuenta a la que corresponde el extracto antes de importar. Si haces clic en Importar sin elegir una, Forge te lo recuerda. Luego haz clic en el botón **Importar** en la parte superior y elige tu archivo. Forge acepta los formatos que los bancos realmente entregan: **OFX, QFX, CSV y TXT**. OFX y QFX son los formatos de descarga de tu banco; CSV y TXT cubren las exportaciones simples.\n\n### Qué Sucede al Importar\n\nDos cosas se ejecutan automáticamente en el momento en que llega el archivo:\n\n- **Detección de duplicados.** Cada transacción lleva un identificador único de tu banco. Forge lo usa para omitir repeticiones, así que reimportar el mismo extracto —o uno que se solape— no creará líneas dobles. El resultado te indica cuántas líneas se importaron y cuántas se omitieron como duplicados.\n- **Conciliación automática.** Forge intenta de inmediato cotejar cada línea bancaria importada con uno de tus asientos abiertos en esa cuenta de efectivo, por importe y por cuán cercanas son las fechas. El resultado te indica cuántas coincidencias sugirió.\n\nDespués de importar, el nuevo extracto aparece en la **lista de importaciones**, una fila por archivo, mostrando el nombre del archivo, el formato, el conteo de líneas, el conteo de duplicados, un resumen de cuántas líneas están Sugeridas, Sin Coincidencia y Confirmadas, y la fecha de importación. Haz clic en una fila para abrir sus líneas debajo.\n\n### Leer las Líneas y su Estado de Coincidencia\n\nCada línea importada muestra su fecha contabilizada, descripción, importe (el dinero que sale se muestra en un color de advertencia), un **estado** y —cuando está coincidida— el asiento con el que coincidió. El estado es el corazón de la pantalla:\n\n- **Sin Coincidencia** (ámbar) — Forge no pudo encontrar uno de tus asientos para esta línea bancaria. Necesita tu atención.\n- **Sugerido** (azul) — Forge propuso una coincidencia. Revísala, luego confírmala o ignórala.\n- **Confirmado** (verde) — aceptaste la coincidencia. La línea está liquidada y se compensará en la conciliación.\n- **Ignorado** (atenuado) — apartaste esta línea (por ejemplo, una comisión bancaria que manejarás por separado) para que deje de pedir una coincidencia.\n\n### Trabajar la Cola\n\nCada línea ofrece unas pocas acciones, y cuáles se muestran dependen de su estado:\n\n- En una línea **Sugerido**: **Confirmar** acepta la coincidencia propuesta, o **Ignorar** la aparta.\n- En una línea **Sin Coincidencia**: **Ignorar** para aparcarla.\n- En una línea **Confirmado** o **Ignorado**: **Deshacer coincidencia** revierte tu decisión y devuelve la línea a la cola.\n\nSi has añadido nuevos asientos desde que importaste, haz clic en **Volver a ejecutar conciliación automática** (encima de las líneas) para que Forge dé otra pasada a las líneas aún sin coincidencia y sugiera coincidencias nuevas.\n\n### Cómo Alimenta la Conciliación\n\nConfirmar una coincidencia es tu forma de decir que el banco liquidó ese asiento. Eso es exactamente lo que necesita la hoja de trabajo de **Conciliación Bancaria**: los asientos que confirmas aquí son los que aparecen como liquidados allí. Así que el flujo es: importa el extracto y confirma las coincidencias en esta página, luego abre Conciliación Bancaria, donde el total liquidado refleja tus confirmaciones y la hoja de trabajo te indica si cuadras. La importación es el paso de captura de datos; la Conciliación Bancaria es donde finalizas.",
       "sections": []
     }
   },
@@ -638,7 +638,7 @@
           "element": "app-page-header",
           "popover": {
             "title": "La Página de Extractos Bancarios",
-            "description": "Sube el archivo que te da tu banco y Forge coteja cada línea bancaria con un asiento del libro mayor. Las coincidencias confirmadas alimentan directamente la hoja de trabajo de Conciliación Bancaria, así que importas aquí y finalizas en Conciliación Bancaria. Llega a esta página desde el mosaico Extractos Bancarios en la página principal de Contabilidad.",
+            "description": "Sube el archivo que te da tu banco y Forge coteja cada línea bancaria con uno de tus asientos. Las coincidencias confirmadas alimentan directamente la hoja de trabajo de Conciliación Bancaria, así que importas aquí y finalizas en Conciliación Bancaria. Llega a esta página desde el mosaico Extractos Bancarios en la página de inicio de Contabilidad.",
             "side": "bottom"
           }
         },
@@ -654,7 +654,7 @@
           "element": "[data-testid=\"import-statement-btn\"]",
           "popover": {
             "title": "Importar un Archivo",
-            "description": "Haz clic en Importar y elige tu archivo de extracto. Forge acepta los formatos que los bancos entregan: OFX, QFX, CSV y TXT. Al importar, deduplica sobre el identificador bancario de cada transacción (para que reimportar no cuente doble) y ejecuta de inmediato la conciliación automática, luego te indica cuántas líneas se importaron, cuántas eran duplicados y cuántas coincidencias sugirió.",
+            "description": "Haz clic en Importar y elige tu archivo de extracto. Forge acepta los formatos que los bancos entregan: OFX, QFX, CSV y TXT. Al importar, omite las repeticiones usando el identificador único de cada transacción (para que reimportar no cuente doble) y ejecuta de inmediato la conciliación automática, luego te indica cuántas líneas se importaron, cuántas eran duplicados y cuántas coincidencias sugirió.",
             "side": "bottom"
           }
         },
@@ -662,7 +662,7 @@
           "element": ".imports-section",
           "popover": {
             "title": "La Lista de Importaciones",
-            "description": "Cada extracto importado es una fila aquí: nombre del archivo, formato, conteo de líneas, conteo de duplicados, un resumen del estado de coincidencia (conteos de Sugerido / Sin Coincidencia / Confirmado) y la fecha de importación. Haz clic en una fila para abrir sus líneas debajo y empezar a trabajar las coincidencias.",
+            "description": "Cada extracto importado es una fila aquí, mostrando el nombre del archivo, el formato, el conteo de líneas, el conteo de duplicados, un resumen de cuántas líneas están Sugeridas, Sin Coincidencia y Confirmadas, y la fecha de importación. Haz clic en una fila para abrir sus líneas debajo y empezar a trabajar las coincidencias.",
             "side": "top"
           }
         },
@@ -670,7 +670,7 @@
           "element": ".statements-content",
           "popover": {
             "title": "Trabaja la Cola de Coincidencias",
-            "description": "Al abrir una importación se listan sus líneas con un estado: Sin Coincidencia (ámbar, necesita atención), Sugerido (azul, Forge propuso una coincidencia: Confírmala o Ignórala), Confirmado (verde, liquidado) o Ignorado (aparcado). Confirmar acepta una sugerencia; Ignorar aparca una línea; Deshacer coincidencia revierte una decisión. Usa Volver a ejecutar conciliación automática después de contabilizar nuevos asientos del libro mayor. Cada línea que confirmas se compensa en la hoja de trabajo de Conciliación Bancaria.",
+            "description": "Al abrir una importación se listan sus líneas con un estado: Sin Coincidencia (ámbar, necesita atención), Sugerido (azul, Forge propuso una coincidencia: Confírmala o Ignórala), Confirmado (verde, liquidado) o Ignorado (aparcado). Confirmar acepta una coincidencia; Ignorar aparca una línea; Deshacer coincidencia revierte una decisión. Usa Volver a ejecutar conciliación automática después de añadir nuevos asientos. Cada línea que confirmas se compensa en la hoja de trabajo de Conciliación Bancaria.",
             "side": "top"
           }
         }
@@ -689,7 +689,7 @@
       "questions": [
         {
           "id": "ax1",
-          "text": "¿Qué archivo de exportación está siempre disponible en la página de Exportaciones, sin requerir integración ni configuración?",
+          "text": "¿Qué exportación está siempre disponible en la página de Exportaciones, sin requerir conexión ni configuración?",
           "options": [
             {
               "id": "a",
@@ -709,7 +709,7 @@
               "text": "Nada: exportar requiere conectar primero un proveedor contable"
             }
           ],
-          "explanation": "Las descargas CSV (Balance de Comprobación, Detalle del GL, Resumen de Asientos) siempre están disponibles y no necesitan configuración: son la forma universal de entregar tus libros a cualquier contador. El envío a QuickBooks es opcional y solo aparece cuando la instalación activa CAP-ACCT-QBO-EXPORT y conecta QuickBooks."
+          "explanation": "Las descargas CSV (Balance de Comprobación, Detalle del GL, Resumen de Asientos) siempre están disponibles y no necesitan configuración. Son la forma universal de entregar tus libros a cualquier contador. El envío a QuickBooks es opcional y solo aparece cuando tu instalación lo activa y conecta QuickBooks."
         },
         {
           "id": "ax2",
@@ -730,14 +730,14 @@
             },
             {
               "id": "d",
-              "text": "Todo tu catálogo de cuentas, sobrescribiendo QuickBooks"
+              "text": "Toda tu lista de cuentas, sobrescribiendo QuickBooks"
             }
           ],
-          "explanation": "El envío contabiliza el neto por cuenta del período como UN asiento contable cuadrado en QuickBooks Online. Es estrictamente unidireccional hacia abajo: QuickBooks nunca es la fuente de verdad y nada se sincroniza de vuelta a Forge."
+          "explanation": "El envío contabiliza el neto por cuenta del período como un asiento contable cuadrado en QuickBooks Online. Es estrictamente unidireccional: QuickBooks nunca es la fuente de registro y nada se sincroniza de vuelta a Forge."
         },
         {
           "id": "ax3",
-          "text": "El botón 'Enviar a QuickBooks' devuelve un 409 y rechaza. ¿Cuál es una causa probable?",
+          "text": "El botón 'Enviar a QuickBooks' rechaza y no envía. ¿Cuál es una causa probable?",
           "options": [
             {
               "id": "a",
@@ -745,7 +745,7 @@
             },
             {
               "id": "b",
-              "text": "Una cuenta con un neto distinto de cero no está mapeada a un identificador de cuenta de QuickBooks, o el rango se solapa con un período que ya enviaste",
+              "text": "Una cuenta con saldo no está emparejada con una cuenta de QuickBooks, o el rango se solapa con un período que ya enviaste",
               "isCorrect": true
             },
             {
@@ -754,10 +754,10 @@
             },
             {
               "id": "d",
-              "text": "Elegiste el preajuste Últimos 30 Días en vez de Este Mes"
+              "text": "Elegiste el atajo Últimos 30 Días en vez de Este Mes"
             }
           ],
-          "explanation": "El envío rechaza en lugar de enviar datos incompletos o duplicados: un 409 significa que una cuenta con actividad aún no está mapeada (mapéala y vuelve a enviar) o que el rango de fechas se solapa con un período ya enviado (una protección contra la doble contabilización)."
+          "explanation": "El envío rechaza en lugar de entregar datos incompletos o duplicados: o bien una cuenta con actividad aún no está emparejada con una cuenta de QuickBooks (emparéjala y vuelve a enviar), o bien el rango de fechas se solapa con un período ya enviado (una protección contra contabilizar dos veces)."
         },
         {
           "id": "ax4",
@@ -781,7 +781,7 @@
               "text": "Un archivo de empresa .qbo de QuickBooks"
             }
           ],
-          "explanation": "El importador acepta los formatos que los bancos realmente entregan: OFX y QFX (los formatos estructurados de descarga bancaria) más CSV y TXT (exportaciones simples). Eliges primero la cuenta de efectivo, luego importas el archivo."
+          "explanation": "El importador acepta los formatos que los bancos realmente entregan: OFX y QFX (los formatos de descarga de tu banco) más CSV y TXT (exportaciones simples). Eliges primero la cuenta de efectivo, luego importas el archivo."
         },
         {
           "id": "ax5",
@@ -793,7 +793,7 @@
             },
             {
               "id": "b",
-              "text": "Forge deduplica sobre el identificador bancario de cada transacción, así que los duplicados se omiten (y se cuentan en el resultado de la importación)",
+              "text": "Forge usa el identificador único de cada transacción de tu banco para omitir los duplicados (y los cuenta en el resultado)",
               "isCorrect": true
             },
             {
@@ -805,7 +805,7 @@
               "text": "La importación anterior se elimina y se reemplaza en silencio"
             }
           ],
-          "explanation": "Cada transacción lleva un identificador bancario único (FITID); Forge deduplica sobre él, así que reimportar el mismo extracto o uno que se solape no creará líneas dobles. El resultado de la importación informa cuántas líneas se omitieron como duplicados."
+          "explanation": "Cada transacción lleva un identificador único de tu banco, y Forge lo usa para omitir repeticiones, así que reimportar el mismo extracto o uno que se solape no creará líneas dobles. El resultado informa cuántas líneas se omitieron como duplicados."
         },
         {
           "id": "ax6",
@@ -817,7 +817,7 @@
             },
             {
               "id": "b",
-              "text": "Forge propuso una coincidencia con un asiento del libro mayor; revísala y Confírmala (o Ignora la línea)",
+              "text": "Forge propuso una coincidencia con uno de tus asientos; revísala y Confírmala (o Ignora la línea)",
               "isCorrect": true
             },
             {
@@ -829,7 +829,7 @@
               "text": "La línea se eliminó permanentemente"
             }
           ],
-          "explanation": "Sugerido (azul) significa que la conciliación automática propuso un asiento del libro mayor para esa línea bancaria. Revisas la coincidencia propuesta y la Confirmas (aceptar) o Ignoras la línea (aparcarla). Las líneas confirmadas se vuelven verdes; Deshacer coincidencia revierte una decisión y devuelve la línea a la cola."
+          "explanation": "Sugerido (azul) significa que la conciliación automática propuso uno de tus asientos para esa línea bancaria. Revisas la coincidencia y la Confirmas (aceptar) o Ignoras la línea (aparcarla). Las líneas confirmadas se vuelven verdes; Deshacer coincidencia revierte una decisión y devuelve la línea a la cola."
         },
         {
           "id": "ax7",
@@ -853,7 +853,7 @@
               "text": "Confirmar una coincidencia finaliza automáticamente la conciliación"
             }
           ],
-          "explanation": "Confirmar una coincidencia declara que el banco liquidó ese asiento del libro mayor, exactamente lo que necesita la Conciliación Bancaria. Así que importas y confirmas las coincidencias en la página de Extractos Bancarios, luego abres la Conciliación Bancaria, donde el total liquidado refleja tus confirmaciones y finalizas una vez que cuadras."
+          "explanation": "Confirmar una coincidencia es tu forma de decir que el banco liquidó ese asiento, que es exactamente lo que necesita la Conciliación Bancaria. Así que importas y confirmas las coincidencias en la página de Extractos Bancarios, luego abres la Conciliación Bancaria, donde el total liquidado refleja tus confirmaciones y finalizas una vez que cuadras."
         }
       ]
     }
@@ -861,9 +861,9 @@
   {
     "slug": "accounting-reference",
     "title": "Conjunto de Contabilidad — Referencia Avanzada",
-    "summary": "Referencia de casos límite y de usuario avanzado para el conjunto de Contabilidad: detalles internos de la importación de extractos bancarios, preajustes de exportación + manejo del 409, antigüedad de seis tramos, funciones de la tabla de datos compartida y la hoja de ruta de múltiples libros.",
+    "summary": "Referencia de casos límite y de usuario avanzado para el conjunto de Contabilidad: detalles de la importación de extractos bancarios, atajos de fecha de exportación y envíos rechazados, tramos de antigüedad, funciones de la tabla compartida y el soporte para múltiples conjuntos de libros.",
     "contentJson": {
-      "body": "## Casos Límite de Importación de Extractos Bancarios\n\nLa página de Extractos Bancarios (`/accounting/bank-statements`) tiene varios comportamientos que conviene conocer para los casos no triviales.\n\n- **Formatos aceptados:** OFX, QFX, CSV y TXT. OFX/QFX son formatos estructurados de descarga bancaria; CSV/TXT son exportaciones simples.\n- **La cuenta de efectivo es obligatoria primero.** La página se abre con un selector de Cuenta de Efectivo (predeterminado a la primera cuenta de efectivo en `DEFAULT_BOOK_ID = 1`). Importar sin una seleccionada se bloquea con el aviso `accounting.bankStatements.pickAccountFirst`.\n- **Deduplicación por FITID.** Cada transacción OFX/QFX lleva un identificador bancario único (FITID); la importación deduplica sobre él, así que reimportar el mismo extracto —o uno que se solape— omite las repeticiones. El resultado de la importación informa los conteos `imported`, `duplicates` y `suggested`.\n- **Conciliación automática en línea.** La conciliación automática se ejecuta automáticamente al importar (por importe + proximidad de fecha contra asientos abiertos del libro mayor en esa cuenta de efectivo). **Volver a ejecutar conciliación automática** (encima de las líneas) reprocesa solo las líneas aún sin coincidencia: úsalo después de contabilizar nuevos asientos del libro mayor.\n- **Máquina de estados de línea:** Sin Coincidencia (ámbar) → necesita atención; Sugerido (azul) → Confirmar o Ignorar; Confirmado (verde) → liquidado, se compensará en Conciliación Bancaria; Ignorado (atenuado) → aparcado. **Deshacer coincidencia** (deshacer) revierte una línea Confirmada o Ignorada de vuelta a la cola.\n- **Declaración de liquidación, no contabilización.** Confirmar una coincidencia no contabiliza nada: declara que el banco liquidó ese asiento del libro mayor. Los asientos confirmados son exactamente las líneas que aparecen como liquidadas en la hoja de trabajo de Conciliación Bancaria; la finalización ocurre allí, no aquí.\n\n## Preajustes de Fecha de Exportación + Manejo del 409\n\nLa página de Exportaciones (`/accounting/exports`) entrega los libros a un contador público. Dos rutas de entrega, un rango de fechas.\n\n- **El rango de fechas** es por defecto del mes a la fecha. El selector de rango de fechas compartido expone los preajustes **Este Mes** y **Últimos 30 Días** (el selector también admite Hoy / Esta Semana, no expuestos aquí); el inicio/fin se envían como parámetros de consulta `yyyy-MM-dd`. El inicio y el fin se restringen mutuamente.\n- **Tres CSV siempre activos:** Balance de Comprobación, Detalle del GL y Resumen de Asientos. Sin configuración, sin integración. Solo se ejecuta una descarga a la vez; el archivo se guarda con un nombre suministrado por el servidor analizado de `content-disposition`.\n- **El envío a QBO está gated por capacidad.** La sección \"Enviar a QuickBooks\" se muestra solo detrás de `CAP-ACCT-QBO-EXPORT` con una conexión OAuth de QuickBooks presente. Contabiliza el neto por cuenta del período como **un único JournalEntry cuadrado** —estrictamente unidireccional; QuickBooks nunca se lee de vuelta.\n- **El mapeo GL→QBO** es obligatorio primero: una fila por cuenta del GL contabilizable, escribe el identificador de cuenta de QBO, guarda (icono de disco) o borra (icono de eliminar). Las filas sin mapear tienen un identificador de QBO nulo.\n- **Un 409 en el envío** (`POST .../push`) significa que el envío rechazó en lugar de enviar datos incompletos/duplicados: o bien una cuenta con neto distinto de cero sigue sin mapear, o bien el rango se solapa con un envío anterior y el indicador `force` no está activado (idempotente-por-advertencia). Los 409 se muestran mediante el toast del interceptor global de errores HTTP. Mapea la cuenta y reintenta, o activa `force` solo para volver a contabilizar deliberadamente un rango que se solapa.\n\n## Soporte de Seis Tramos en la Antigüedad\n\nAmbos informes de antigüedad (`/accounting/ar-aging`, `/accounting/ap-aging`) están impulsados por tramos, no codificados a cuatro columnas.\n\n- La escala estándar es **0-30 / 31-60 / 61-90 / 91+** días, pero la tabla admite **hasta seis tramos** (`b0..b5`). Las columnas se derivan dinámicamente del conjunto `totalsByBucket` del informe, y la `label` de cada tramo proviene del servidor (`AgingBucket` = `fromDays` / `toDays` / `label` / `amount`; `toDays` es nulo en el tramo superior abierto).\n- Los importes de los tramos se elevan a campos planos de nivel superior `b{i}` en cada fila para que la tabla de datos compartida pueda ordenarlos y filtrarlos.\n- Una fila por parte (nombre del cliente para cuentas por cobrar, nombre del proveedor para cuentas por pagar —el nulo se reemplaza por un guion largo—) más un saldo **Abierto**; una franja de totales suma cada tramo y el gran total abierto. La primera columna queda fija durante el desplazamiento horizontal.\n- El chip del encabezado muestra **Cuadra con la cuenta de control** (verde) cuando el informe coincide con su cuenta de control de cuentas por cobrar/pagar, o **Descuadrado** (rojo).\n\n## Funciones Avanzadas de la Tabla de Datos Compartida\n\nLos informes de antigüedad, el Balance de Comprobación, el desglose por orden de compra del GRNI, el Cierre de Período y los Extractos Bancarios se muestran todos en la `app-data-table` compartida, que hereda su conjunto completo de funciones de usuario avanzado.\n\n- **Ordena** haciendo clic en un encabezado de columna; **orden múltiple** con Shift+clic.\n- **Filtros por columna** (texto / número / fecha / enumeración) mediante el popover de filtro de columna.\n- **Gestor de columnas** (icono de engranaje): mostrar/ocultar, reordenar, redimensionar columnas, restablecer anchos; clic derecho en un encabezado para el mismo menú más las acciones borrar-orden / borrar-filtro.\n- **Persistencia de preferencias** identificada por `tableId`: el diseño de columnas y el orden sobreviven a las recargas mediante `UserPreferencesService` (caché en localStorage + PATCH a la API con debounce).\n- **Primera columna fija** mantiene visible el nombre de la parte / cuenta mientras las columnas de tramos se desplazan horizontalmente.\n- Los informes de estilo estado (Estado de Resultados, Balance General, Flujo de Efectivo, resumen de GRNI) intencionalmente **no** usan esta tabla: se muestran como estados agrupados con subtotales, por lo que no tienen filtrado por columna ni gestor de columnas.\n\n## Hoja de Ruta de Múltiples Libros\n\nEl GL está modelado para múltiples libros contables, pero el conjunto se entrega hoy con un solo libro.\n\n- Cada consulta de informe pasa un `bookId`, actualmente fijado a la constante `DEFAULT_BOOK_ID = 1` en todos los componentes de contabilidad. Todavía no hay un selector de libros en la interfaz.\n- Un **selector de libros llega con el soporte de múltiples libros**; hasta entonces todos los informes, exportaciones, importación bancaria y conciliación operan contra el libro id 1.\n- Esto es plomería de compatibilidad futura, no un interruptor de funciones: hoy no hay ninguna capacidad que exponga un segundo libro. El parámetro `bookId` ya está en los endpoints de exportación, envío, antigüedad y cuenta de efectivo, así que el selector puede añadirse sin un cambio de API.\n",
+      "body": "## Casos Límite de Importación de Extractos Bancarios\n\nLa página de Extractos Bancarios tiene varios comportamientos que conviene conocer para los casos más complicados.\n\n- **Formatos aceptados:** OFX, QFX, CSV y TXT. OFX y QFX son los formatos de descarga de tu banco; CSV y TXT son exportaciones simples.\n- **La cuenta de efectivo es obligatoria primero.** La página se abre con un selector de Cuenta de Efectivo, fijado a tu primera cuenta de efectivo. Si importas sin una elegida, Forge te recuerda que elijas una.\n- **Manejo de duplicados.** Cada transacción lleva un identificador único de tu banco, y la importación lo usa para omitir repeticiones, así que reimportar el mismo extracto o uno que se solape pasa por alto las ya cargadas. El resultado te indica cuántas líneas se importaron, cuántas eran duplicados y cuántas coincidencias se sugirieron.\n- **Conciliación automática al importar.** La conciliación automática se ejecuta en cuanto importas, comparando cada línea bancaria con tus asientos abiertos en esa cuenta de efectivo por importe y por cuán cercanas son las fechas. **Volver a ejecutar conciliación automática** (encima de las líneas) da otra pasada solo a las líneas aún sin coincidencia. Úsalo después de añadir nuevos asientos.\n- **Cómo se mueve el estado de una línea:** Sin Coincidencia (ámbar) necesita atención; Sugerido (azul) espera a que Confirmes o Ignores; Confirmado (verde) está liquidado y se compensará en Conciliación Bancaria; Ignorado (atenuado) está aparcado. **Deshacer coincidencia** devuelve una línea Confirmada o Ignorada a la cola.\n- **Confirmar liquida, no contabiliza.** Confirmar una coincidencia no registra ningún asiento contable. Es tu forma de decir que el banco liquidó ese asiento. Los asientos confirmados son exactamente las líneas que aparecen como liquidadas en la hoja de trabajo de Conciliación Bancaria; finalizas allí, no aquí.\n\n## Atajos de Fecha de Exportación y Envíos Rechazados\n\nLa página de Exportaciones entrega tus libros a un contador. Dos formas de compartir, un rango de fechas.\n\n- **El rango de fechas** es por defecto del mes a la fecha. Ofrece los atajos **Este Mes** y **Últimos 30 Días**, o establece el tuyo propio. El inicio y el fin se restringen mutuamente.\n- **Tres CSV siempre activos:** Balance de Comprobación, Detalle del GL y Resumen de Asientos. Sin configuración, sin conexión. Solo se ejecuta una descarga a la vez, y el archivo se guarda con el nombre que le da el servidor.\n- **El envío a QuickBooks es opcional.** La sección \"Enviar a QuickBooks\" se muestra solo cuando tu instalación lo activa y QuickBooks está conectado. Contabiliza el neto por cuenta del período como **un único asiento contable cuadrado** —estrictamente unidireccional; QuickBooks nunca se lee de vuelta.\n- **Empareja tus cuentas primero.** Para el envío, emparejas cada cuenta de Forge con actividad con una cuenta de QuickBooks: una fila por cuenta, introduce la cuenta de QuickBooks, luego guárdala o bórrala. Las filas que no has emparejado quedan vacías.\n- **Cuando un envío es rechazado,** rechazó en lugar de entregar datos incompletos o duplicados: o bien una cuenta con saldo sigue sin emparejar, o bien el rango se solapa con un período que ya enviaste. Forge muestra el motivo en pantalla. Empareja la cuenta y vuelve a intentar, o anula deliberadamente para reenviar un rango que se solapa.\n\n## Tramos de Antigüedad\n\nAmbos informes de antigüedad agrupan los saldos por edad, y los tramos no están fijos a cuatro columnas.\n\n- Los tramos estándar son **0-30, 31-60, 61-90 y 91+** días, pero el informe puede mostrar **hasta seis**. Los tramos y sus etiquetas provienen del informe, así que se adaptan a cómo está configurada tu instalación. El tramo superior es abierto (todo lo más antiguo).\n- Una fila por cliente (para cuentas por cobrar) o proveedor (para cuentas por pagar), más un saldo **Abierto**. Una fila de totales suma cada tramo y el gran total abierto. La primera columna se mantiene en su lugar mientras te desplazas de lado.\n- La etiqueta del encabezado muestra **Cuadra con la cuenta de control** (verde) cuando el informe coincide con su cuenta de control, o **Descuadrado** (rojo).\n\n## Funciones Avanzadas de la Tabla\n\nLos informes de antigüedad, el Balance de Comprobación, el desglose por orden de compra del GRNI, el Cierre de Período y los Extractos Bancarios usan todos la tabla compartida, que trae su conjunto completo de funciones de usuario avanzado.\n\n- **Ordena** haciendo clic en un encabezado de columna; ordena por **más de una columna** con Shift+clic.\n- **Filtra cada columna** (texto, número, fecha o una lista de opciones) desde el popover de filtro de la columna.\n- **Gestiona las columnas** desde el icono de engranaje: mostrar u ocultar, reordenar, redimensionar y restablecer anchos. Clic derecho en un encabezado para el mismo menú más borrar-orden y borrar-filtro.\n- **Tu diseño se mantiene.** El diseño de columnas y el orden sobreviven a una recarga, guardados en tus preferencias.\n- **La primera columna se mantiene en su lugar** para que el nombre del cliente, proveedor o cuenta siga visible mientras las demás columnas se desplazan de lado.\n- Los informes de estilo estado (Estado de Resultados, Balance General, Flujo de Efectivo y el resumen de GRNI) no usan esta tabla a propósito. Se leen como estados agrupados con subtotales, por lo que no tienen filtrado por columna ni gestor de columnas.\n\n## Múltiples Conjuntos de Libros (Planificado)\n\nForge está construido para llevar más de un conjunto de libros, pero el conjunto se entrega hoy con un solo conjunto de libros.\n\n- Hoy cada informe funciona contra un solo conjunto de libros. Todavía no hay un selector para cambiar de conjunto.\n- Un **selector llega con el soporte de múltiples conjuntos de libros**. Hasta entonces, todos los informes, exportaciones, importación bancaria y conciliación funcionan contra ese único conjunto.\n- Esto es preparación para más adelante, no un interruptor que puedas activar ahora. Nada expone un segundo conjunto de libros hoy, pero la infraestructura está lista para que el selector pueda añadirse después sin interrupciones.\n",
       "sections": []
     }
   }

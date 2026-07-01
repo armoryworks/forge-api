@@ -4,7 +4,7 @@
     "title": "Resumen del tablero Kanban",
     "summary": "Resumen completo del tablero Kanban: tipos de pista, etapas, fichas de trabajo, arrastrar y soltar, sincronización en tiempo real y cómo fluyen los trabajos por la producción.",
     "contentJson": {
-      "body": "## Resumen del tablero Kanban\n\nEl tablero Kanban es el corazón operativo de QB Engineer. Cada trabajo de tu taller — ya sea una orden de producción de un cliente, un prototipo de I+D, una tarea de mantenimiento o un proyecto interno — vive en el tablero y avanza por etapas de izquierda a derecha a medida que progresa el trabajo. El tablero te ofrece una vista en tiempo real y de un vistazo de todo lo que ocurre en tu taller.\n\n### Tipos de pista\n\nEl tablero se organiza por **tipos de pista**. Cada tipo de pista representa un flujo de trabajo distinto con su propio conjunto de etapas. QB Engineer incluye cuatro tipos de pista integrados:\n\n- **Producción** — El flujo de trabajo principal para los trabajos de clientes. Las etapas siguen el flujo de cotización a cobro: Cotización solicitada → Cotizado (Estimación) → Pedido confirmado (Orden de venta) → Materiales pedidos (OC) → Materiales recibidos → En producción → Control de calidad/Revisión → Enviado (Factura) → Facturado/Enviado → Pago recibido (Pago).\n- **I+D/Herramental** — Para proyectos de investigación, desarrollo y herramental. Incluye seguimiento de iteraciones (recuento de versiones y notas) para los ciclos de prototipos.\n- **Mantenimiento** — Para el mantenimiento de equipos, las reparaciones de instalaciones y las tareas de conservación.\n- **Otro** — Una categoría general para todo lo que no encaje en las anteriores.\n\nLos administradores pueden crear tipos de pista personalizados con etapas personalizadas desde la configuración de Admin. Cada tipo de pista puede tener sus propios colores de etapa, límites WIP e indicadores de etapa irreversible.\n\nCambias entre tipos de pista usando los **botones de tipo de pista** en el encabezado de la página. El tablero se recarga al instante al cambiar, y SignalR se une automáticamente al grupo de tablero correcto para recibir actualizaciones en tiempo real.\n\n### Etapas y columnas\n\nCada etapa de un tipo de pista se convierte en una **columna** del tablero. Las columnas se muestran de izquierda a derecha en orden de clasificación. Cada encabezado de columna muestra:\n\n- **Nombre de la etapa** — El nombre de la etapa.\n- **Recuento de trabajos** — Cuántos trabajos hay actualmente en esa columna.\n- **Límite WIP** — Si está configurado, el máximo recomendado de trabajos para la columna. Cuando se supera, el recuento se vuelve rojo como advertencia visual.\n- **Icono de candado** — Aparece en las etapas irreversibles. Los trabajos no se pueden mover hacia atrás fuera de una etapa irreversible (p. ej., una vez creada una factura en la etapa 'Enviado', no puedes devolver el trabajo a 'En producción').\n- **Franja de color** — Un borde superior coloreado que coincide con el color de la etapa para una identificación visual rápida.\n\nLas columnas vacías muestran un mensaje de estado vacío que te anima a arrastrar trabajos hacia ellas.\n\n### Fichas de trabajo\n\nCada trabajo del tablero se representa mediante una **ficha de trabajo**. Las fichas son compactas pero densas en información:\n\n- **Color del borde izquierdo** — Indica la prioridad: gris (Baja), turquesa (Normal), naranja (Alta), rojo (Urgente).\n- **Número de trabajo** — Enlace en el que se puede hacer clic que abre el diálogo de detalle completo del trabajo. Número secuencial autogenerado (p. ej., JOB-0001).\n- **Título** — El texto del título del trabajo.\n- **Foto de portada** — Imagen opcional que se muestra encima del contenido de la ficha. Se sube a través del panel de detalle.\n- **Indicador de retención** — Aparece un icono de pausa cuando el trabajo tiene retenciones activas, con una información sobre herramientas que enumera los motivos de la retención.\n- **Advertencia de vencimiento** — Aparece un icono de advertencia amarillo cuando ha pasado la fecha de vencimiento del trabajo.\n- **Indicadores de pie:**\n  - Avatar del responsable (iniciales + color)\n  - Nombre del cliente\n  - Icono de estado de facturación (facturado/no facturado)\n  - Referencia de documento contable (p. ej., número de factura de QuickBooks)\n  - Icono de disposición (si el trabajo ha sido dispuesto)\n  - Recuento de subtrabajos con icono de árbol\n  - Fecha de vencimiento (se vuelve roja cuando está vencida)\n\n### Arrastrar y soltar\n\nLas fichas se pueden **arrastrar entre columnas** para mover los trabajos por las etapas. El movimiento es optimista — la ficha se mueve de inmediato en la interfaz y, si el servidor rechaza el movimiento (p. ej., al intentar moverse hacia atrás desde una etapa irreversible), la ficha vuelve de un salto a su posición original.\n\nDentro de una columna, puedes **reordenar las fichas** arrastrándolas hacia arriba o hacia abajo. Los cambios de posición se guardan automáticamente.\n\nCuando un trabajo se mueve a la **etapa final** de su tipo de pista, el sistema establece automáticamente la fecha de finalización del trabajo. Moverlo hacia atrás borra la fecha de finalización.\n\nSi la etapa de destino tiene configurado un **tipo de documento contable** (p. ej., Factura en la etapa 'Enviado'), mover un trabajo allí pone automáticamente el documento en cola para su creación en tu proveedor contable conectado.\n\n### Selección múltiple y acciones masivas\n\nMantén pulsada la tecla **Ctrl** (o **Cmd** en Mac) y haz clic en las fichas para seleccionar varios trabajos. Aparecen un distintivo con el recuento de selección y una **barra de acciones masivas** en la parte inferior de la pantalla. Las acciones masivas incluyen:\n\n- **Mover** — Mueve todos los trabajos seleccionados a una etapa elegida.\n- **Asignar** — Asigna todos los trabajos seleccionados a un miembro del equipo (o los desasigna).\n- **Prioridad** — Establece la prioridad en todos los trabajos seleccionados.\n- **Archivar** — Archiva todos los trabajos seleccionados (con diálogo de confirmación).\n\nHaz clic en cualquier ficha sin Ctrl para deseleccionar todo. Haz clic en el botón X de la barra masiva para borrar la selección.\n\n### Vista de tablero vs. vista de equipo (carriles)\n\nEl tablero tiene dos modos de vista, que se alternan con iconos en el encabezado:\n\n- **Vista de tablero** (predeterminada) — Columnas kanban tradicionales. Ideal para ver el flujo del trabajo por las etapas.\n- **Vista de equipo** — Una cuadrícula de carriles donde cada fila es un miembro del equipo y cada columna es una etapa. Las fichas aparecen en la intersección de su responsable y su etapa actual. Incluye una fila 'Sin asignar'. Puedes arrastrar fichas entre celdas para cambiar simultáneamente la etapa y el responsable.\n\n### Filtrado\n\n- **Multiselección de miembros del equipo** — Filtra el tablero para mostrar solo los trabajos asignados a personas concretas.\n- **Conmutador Mi trabajo** — Filtro rápido para mostrar solo los trabajos asignados a ti. Persiste como preferencia de usuario.\n\n### Sincronización en tiempo real (SignalR)\n\nEl tablero usa conexiones **WebSocket de SignalR** para las actualizaciones en tiempo real. Cuando otro usuario crea un trabajo, mueve una ficha, actualiza un trabajo o reordena fichas, tu tablero se actualiza automáticamente. No hace falta actualizar manualmente.\n\nEl estado de la conexión se supervisa — si el WebSocket se desconecta, aparece un banner amarillo 'Reconectando...' en la parte superior de la página. Si no logra reconectarse, el banner se vuelve rojo.\n\n### Integración con lector de códigos de barras\n\nSi tienes conectado un lector de códigos de barras USB, escanear el código de barras de un número de trabajo mientras estás en la página kanban encontrará y abrirá automáticamente el diálogo de detalle de ese trabajo. El contexto del lector se establece en 'kanban' cuando se carga la página.\n\n### Diálogo de detalle del trabajo\n\nAl hacer clic en un número de trabajo se abre el **diálogo de detalle completo del trabajo** como un Material Dialog (no como un panel lateral). El diálogo se divide en dos columnas:\n\n**Columna izquierda (contenido principal):**\n- Título y descripción\n- Distintivo de iteración de I+D (para la pista I+D/Herramental)\n- Información de disposición (si está dispuesto)\n- Subtareas con casilla de finalización\n- Lista de subtrabajos con enlaces de entidad\n- Botón de explosión de BOM (si el trabajo tiene una pieza vinculada)\n- Fichas vinculadas (trabajos relacionados, trabajos bloqueantes, relaciones padre/hijo)\n- Lista de piezas con búsqueda y añadir\n- Resumen de análisis de costos\n- Análisis de tiempos de operación\n- Registro de actividad, comentarios, notas e historial\n\n**Columna derecha (barra lateral):**\n- Línea de tiempo de estado con retenciones\n- Botón de disposición\n- Información de código de barras/código QR\n- Metadatos de detalle (prioridad, responsable con menú de cambio rápido, cliente, fecha de vencimiento, fecha de inicio, tipo de pista, pieza vinculada, trabajo padre)\n- Archivos adjuntos con subida por arrastrar y soltar\n- Entradas de tiempo registradas contra el trabajo\n\n### Diálogo de crear/editar trabajo\n\nEl diálogo de creación recoge: Título (obligatorio, máx. 200 caracteres), Descripción, Tipo de pista (solo al crear), Cliente, Responsable, Prioridad y Fecha de vencimiento. El diálogo de edición es idéntico pero sin Tipo de pista (no puedes cambiar el tipo de pista de un trabajo tras crearlo).\n\nEl guardado automático de borradores está habilitado — si cierras el diálogo por accidente, los datos de tu formulario se recuperan en la próxima visita.\n\n### URL y compartir\n\nEl tablero admite enlaces directos mediante el parámetro de consulta `?detail=job:{id}`. Cuando abres un diálogo de detalle de trabajo, la URL se actualiza. Puedes copiar y pegar esta URL para compartir un enlace directo a un trabajo concreto. Los marcadores y los botones de avance/retroceso del navegador funcionan correctamente.",
+      "body": "## Resumen del tablero Kanban\n\nEl tablero Kanban es el corazón operativo de QB Engineer. Cada trabajo de tu taller — ya sea una orden de producción de un cliente, un prototipo de I+D, una tarea de mantenimiento o un proyecto interno — vive en el tablero y avanza por etapas de izquierda a derecha a medida que progresa el trabajo. El tablero te ofrece una vista en tiempo real y de un vistazo de todo lo que ocurre en tu taller.\n\n### Tipos de pista\n\nEl tablero se organiza por **tipos de pista**. Cada tipo de pista representa un flujo de trabajo distinto con su propio conjunto de etapas. QB Engineer incluye cuatro tipos de pista integrados:\n\n- **Producción** — El flujo de trabajo principal para los trabajos de clientes. Las etapas siguen el flujo de cotización a cobro: Cotización solicitada → Cotizado (Estimación) → Pedido confirmado (Orden de venta) → Materiales pedidos (OC) → Materiales recibidos → En producción → Control de calidad/Revisión → Enviado (Factura) → Facturado/Enviado → Pago recibido (Pago).\n- **I+D/Herramental** — Para proyectos de investigación, desarrollo y herramental. Incluye seguimiento de iteraciones (recuento de versiones y notas) para los ciclos de prototipos.\n- **Mantenimiento** — Para el mantenimiento de equipos, las reparaciones de instalaciones y las tareas de conservación.\n- **Otro** — Una categoría general para todo lo que no encaje en las anteriores.\n\nLos administradores pueden crear tipos de pista personalizados con etapas personalizadas desde la configuración de Admin. Cada tipo de pista puede tener sus propios colores de etapa, límites WIP e indicadores de etapa irreversible.\n\nCambias entre tipos de pista usando los **botones de tipo de pista** en el encabezado de la página. El tablero se recarga al instante al cambiar, y sigue actualizándose en tiempo real.\n\n### Etapas y columnas\n\nCada etapa de un tipo de pista se convierte en una **columna** del tablero. Las columnas se muestran de izquierda a derecha en orden de clasificación. Cada encabezado de columna muestra:\n\n- **Nombre de la etapa** — El nombre de la etapa.\n- **Recuento de trabajos** — Cuántos trabajos hay actualmente en esa columna.\n- **Límite WIP** — Si está configurado, el máximo recomendado de trabajos para la columna. Cuando se supera, el recuento se vuelve rojo como advertencia visual.\n- **Icono de candado** — Aparece en las etapas irreversibles. Los trabajos no se pueden mover hacia atrás fuera de una etapa irreversible (p. ej., una vez creada una factura en la etapa 'Enviado', no puedes devolver el trabajo a 'En producción').\n- **Franja de color** — Un borde superior coloreado que coincide con el color de la etapa para una identificación visual rápida.\n\nLas columnas vacías muestran un mensaje de estado vacío que te anima a arrastrar trabajos hacia ellas.\n\n### Fichas de trabajo\n\nCada trabajo del tablero se representa mediante una **ficha de trabajo**. Las fichas son compactas pero densas en información:\n\n- **Color del borde izquierdo** — Indica la prioridad: gris (Baja), turquesa (Normal), naranja (Alta), rojo (Urgente).\n- **Número de trabajo** — Enlace en el que se puede hacer clic que abre el diálogo de detalle completo del trabajo. Número secuencial autogenerado (p. ej., JOB-0001).\n- **Título** — El texto del título del trabajo.\n- **Foto de portada** — Imagen opcional que se muestra encima del contenido de la ficha. Se sube a través del panel de detalle.\n- **Indicador de retención** — Aparece un icono de pausa cuando el trabajo tiene retenciones activas, con una información sobre herramientas que enumera los motivos de la retención.\n- **Advertencia de vencimiento** — Aparece un icono de advertencia amarillo cuando ha pasado la fecha de vencimiento del trabajo.\n- **Indicadores de pie:**\n  - A quién está asignado (sus iniciales)\n  - Nombre del cliente\n  - Icono de estado de facturación (facturado/no facturado)\n  - Referencia de documento contable (p. ej., número de factura de QuickBooks)\n  - Icono de disposición (si el trabajo ha sido dispuesto)\n  - Recuento de subtrabajos con icono de árbol\n  - Fecha de vencimiento (se vuelve roja cuando está vencida)\n\n### Arrastrar y soltar\n\nLas fichas se pueden **arrastrar entre columnas** para mover los trabajos por las etapas. El movimiento es optimista — la ficha se mueve de inmediato en la interfaz y, si el servidor rechaza el movimiento (p. ej., al intentar moverse hacia atrás desde una etapa irreversible), la ficha vuelve de un salto a su posición original.\n\nDentro de una columna, puedes **reordenar las fichas** arrastrándolas hacia arriba o hacia abajo. Los cambios de posición se guardan automáticamente.\n\nCuando un trabajo se mueve a la **etapa final** de su tipo de pista, el sistema establece automáticamente la fecha de finalización del trabajo. Moverlo hacia atrás borra la fecha de finalización.\n\nSi la etapa de destino tiene configurado un **tipo de documento contable** (p. ej., Factura en la etapa 'Enviado'), mover un trabajo allí pone automáticamente el documento en cola para su creación en tu proveedor contable conectado.\n\n### Selección múltiple y acciones masivas\n\nMantén pulsada la tecla **Ctrl** (o **Cmd** en Mac) y haz clic en las fichas para seleccionar varios trabajos. Aparecen un distintivo con el recuento de selección y una **barra de acciones masivas** en la parte inferior de la pantalla. Las acciones masivas incluyen:\n\n- **Mover** — Mueve todos los trabajos seleccionados a una etapa elegida.\n- **Asignar** — Asigna todos los trabajos seleccionados a un miembro del equipo (o los desasigna).\n- **Prioridad** — Establece la prioridad en todos los trabajos seleccionados.\n- **Archivar** — Archiva todos los trabajos seleccionados (con diálogo de confirmación).\n\nHaz clic en cualquier ficha sin Ctrl para deseleccionar todo. Haz clic en el botón X de la barra masiva para borrar la selección.\n\n### Vista de tablero vs. vista de equipo (carriles)\n\nEl tablero tiene dos modos de vista, que se alternan con iconos en el encabezado:\n\n- **Vista de tablero** (predeterminada) — Columnas kanban tradicionales. Ideal para ver el flujo del trabajo por las etapas.\n- **Vista de equipo** — Una cuadrícula de carriles donde cada fila es un miembro del equipo y cada columna es una etapa. Las fichas aparecen en la intersección de su responsable y su etapa actual. Incluye una fila 'Sin asignar'. Puedes arrastrar fichas entre celdas para cambiar simultáneamente la etapa y el responsable.\n\n### Filtrado\n\n- **Multiselección de miembros del equipo** — Filtra el tablero para mostrar solo los trabajos asignados a personas concretas.\n- **Conmutador Mi trabajo** — Filtro rápido para mostrar solo los trabajos asignados a ti. Persiste como preferencia de usuario.\n\n### Sincronización en tiempo real\n\nEl tablero se actualiza en vivo. Cuando otro usuario crea un trabajo, mueve una ficha, actualiza un trabajo o reordena fichas, tu tablero se actualiza solo — no hace falta actualizar manualmente.\n\nSi la conexión se cae, aparece un banner amarillo 'Reconectando...' en la parte superior de la página. Si no logra reconectarse, el banner se vuelve rojo.\n\n### Integración con lector de códigos de barras\n\nSi tienes conectado un lector de códigos de barras USB, escanear el código de barras de un número de trabajo mientras estás en la página kanban encontrará y abrirá automáticamente el diálogo de detalle de ese trabajo. El contexto del lector se establece en 'kanban' cuando se carga la página.\n\n### Panel de detalle del trabajo\n\nAl hacer clic en un número de trabajo se abren los **detalles completos del trabajo** en una ventana dividida en dos columnas:\n\n**Columna izquierda (contenido principal):**\n- Título y descripción\n- Distintivo de iteración de I+D (para la pista I+D/Herramental)\n- Información de disposición (si está dispuesto)\n- Subtareas con casilla de finalización\n- Lista de subtrabajos con enlaces de entidad\n- Botón de explosión de BOM (si el trabajo tiene una pieza vinculada)\n- Fichas vinculadas (trabajos relacionados, trabajos bloqueantes, relaciones padre/hijo)\n- Lista de piezas con búsqueda y añadir\n- Resumen de análisis de costos\n- Análisis de tiempos de operación\n- Registro de actividad, comentarios, notas e historial\n\n**Columna derecha (barra lateral):**\n- Línea de tiempo de estado con retenciones\n- Botón de disposición\n- Información de código de barras/código QR\n- Metadatos de detalle (prioridad, responsable con menú de cambio rápido, cliente, fecha de vencimiento, fecha de inicio, tipo de pista, pieza vinculada, trabajo padre)\n- Archivos adjuntos con subida por arrastrar y soltar\n- Entradas de tiempo registradas contra el trabajo\n\n### Diálogo de crear/editar trabajo\n\nEl diálogo de creación recoge: Título (obligatorio, máx. 200 caracteres), Descripción, Tipo de pista (solo al crear), Cliente, Responsable, Prioridad y Fecha de vencimiento. El diálogo de edición es idéntico pero sin Tipo de pista (no puedes cambiar el tipo de pista de un trabajo tras crearlo).\n\nEl guardado automático de borradores está habilitado — si cierras el diálogo por accidente, los datos de tu formulario se recuperan en la próxima visita.\n\n### Compartir un enlace\n\nCuando abres los detalles de un trabajo, la dirección web se actualiza para apuntar a ese trabajo. Cópiala de la barra de direcciones para compartir un enlace directo a ese trabajo. Los marcadores y los botones de avance y retroceso del navegador funcionan como esperas.",
       "sections": []
     }
   },
@@ -20,15 +20,15 @@
           "element": "[data-tour='track-type-switcher']",
           "popover": {
             "title": "Selector de tipo de pista",
-            "description": "Cambia entre flujos de trabajo del tablero aquí. Cada tipo de pista (Producción, I+D/Herramental, Mantenimiento, Otro o personalizado) tiene su propio conjunto de etapas. Haz clic en un botón de tipo de pista para cargar su tablero. El tipo de pista activo aparece resaltado.",
+            "description": "Cambia aquí entre flujos de trabajo del tablero. Cada tipo de pista — Producción, I+D/Herramental, Mantenimiento, Otro o el tuyo propio — tiene sus propias etapas. Haz clic en un tipo de pista para cargar su tablero. El que estás viendo queda resaltado.",
             "side": "bottom"
           }
         },
         {
           "element": ".view-toggle",
           "popover": {
-            "title": "Vista de tablero vs. vista de equipo",
-            "description": "Alterna entre dos vistas. La vista de tablero (icono de columnas) muestra el diseño kanban tradicional — etapas como columnas, fichas apiladas verticalmente. La vista de equipo (icono de personas) muestra una cuadrícula de carriles — las filas son miembros del equipo, las columnas son etapas y cada ficha se sitúa en la intersección de su responsable y su etapa. Puedes arrastrar fichas en ambas vistas.",
+            "title": "Vista de tablero y vista de equipo",
+            "description": "Cambia entre dos diseños. La vista de tablero coloca las etapas como columnas con las fichas apiladas en cada una. La vista de equipo muestra una cuadrícula: una fila por miembro del equipo, una columna por etapa, y cada ficha se sitúa donde se cruzan su persona y su etapa. Puedes arrastrar fichas en ambas.",
             "side": "bottom"
           }
         },
@@ -36,15 +36,15 @@
           "element": "[data-tour='board-filters']",
           "popover": {
             "title": "Filtro de miembros del equipo",
-            "description": "Filtra el tablero por miembro del equipo. Selecciona una o más personas para ver solo sus trabajos asignados. Déjalo vacío para mostrar todos los trabajos. En la vista de equipo, esto controla qué filas de usuario aparecen en los carriles.",
+            "description": "Muestra solo los trabajos de ciertas personas. Elige uno o más miembros del equipo para acotar el tablero; déjalo vacío para ver los trabajos de todos. En la vista de equipo, esto también decide qué filas aparecen.",
             "side": "bottom"
           }
         },
         {
           "element": ".my-work-btn",
           "popover": {
-            "title": "Conmutador Mi trabajo",
-            "description": "Filtro rápido para ver solo los trabajos asignados a ti. Esta configuración persiste en tus preferencias de usuario — permanece activa aunque salgas y vuelvas. Haz clic de nuevo para mostrar todos los trabajos.",
+            "title": "Botón Mi trabajo",
+            "description": "Muestra solo los trabajos asignados a ti. El tablero lo recuerda — sigue activo aunque salgas y vuelvas. Haz clic de nuevo para mostrar los trabajos de todos.",
             "side": "bottom"
           }
         },
@@ -52,15 +52,15 @@
           "element": "[data-testid='new-job-btn']",
           "popover": {
             "title": "Crear nuevo trabajo",
-            "description": "Abre el diálogo de creación de trabajos. Rellenarás Título (obligatorio), Descripción, Tipo de pista, Cliente, Responsable, Prioridad y Fecha de vencimiento. El número de trabajo se autogenera. El nuevo trabajo aterriza en la primera etapa del tipo de pista seleccionado. El guardado automático de borradores protege los datos de tu formulario si cierras el diálogo por accidente.",
+            "description": "Abre el formulario de nuevo trabajo. Escribe un título (obligatorio) y, si quieres, una descripción, cliente, responsable, prioridad y fecha de vencimiento; luego elige un tipo de pista. El número de trabajo se rellena solo y el trabajo empieza en la primera etapa. Si cierras el formulario por accidente, tus datos se guardan para la próxima vez.",
             "side": "bottom"
           }
         },
         {
           "element": "[data-tour='board-columns']",
           "popover": {
-            "title": "Columnas del tablero y barra de sugerencias",
-            "description": "Esta barra de sugerencias te recuerda que las fichas se pueden arrastrar. Mantén pulsada la tecla Ctrl (o Cmd en Mac) y haz clic en las fichas para seleccionar varias y aplicar acciones masivas. La sugerencia desaparece cuando tienes fichas seleccionadas, reemplazada por la barra de acciones masivas.",
+            "title": "El tablero y su barra de sugerencias",
+            "description": "Esta barra te recuerda que las fichas se pueden arrastrar. Mantén pulsada Ctrl (o Cmd en Mac) y haz clic en las fichas para seleccionar varias a la vez. Cuando haya fichas seleccionadas, la barra de sugerencias se convierte en una barra de acciones para trabajar con todas ellas.",
             "side": "bottom"
           }
         },
@@ -68,7 +68,7 @@
           "element": "[data-tour='wip-limit']",
           "popover": {
             "title": "Encabezado de columna",
-            "description": "Cada columna muestra el nombre de la etapa, el recuento actual de trabajos y el límite WIP (trabajo en curso) si está configurado. Cuando el recuento supera el límite WIP, el recuento se vuelve rojo como advertencia visual. Un icono de candado (🔒) indica una etapa irreversible — los trabajos no se pueden mover hacia atrás desde ella. El borde superior coloreado coincide con el color de la etapa.",
+            "description": "Cada encabezado de columna muestra el nombre de la etapa, cuántos trabajos hay en ella y un límite sugerido si está configurado. Si superas ese límite, el recuento se vuelve rojo como aviso. Un icono de candado significa que la etapa es de un solo sentido — los trabajos no pueden salir de ella hacia atrás. La franja de color de arriba coincide con el color de la etapa.",
             "side": "bottom"
           }
         },
@@ -76,7 +76,7 @@
           "element": "[data-tour='job-card']",
           "popover": {
             "title": "Ficha de trabajo",
-            "description": "Cada ficha muestra el trabajo de un vistazo. El color del borde izquierdo indica la prioridad (gris=Baja, turquesa=Normal, naranja=Alta, rojo=Urgente). El encabezado muestra el número de trabajo en el que se puede hacer clic e indicadores de retenciones (icono de pausa) y estado de vencimiento (icono de advertencia). El pie muestra el avatar del responsable, el nombre del cliente, el estado de facturación, el recuento de subtrabajos y la fecha de vencimiento. Haz clic en el número de trabajo para abrir el diálogo de detalle completo. Ctrl+Clic para selección múltiple.",
+            "description": "Cada ficha resume un trabajo. El borde izquierdo se colorea según la prioridad: gris para Baja, turquesa para Normal, naranja para Alta, rojo para Urgente. Arriba está el número de trabajo, más un icono de pausa si el trabajo está en retención y un icono de advertencia si está vencido. Abajo verás a quién está asignado, el cliente, el estado de facturación, los subtrabajos y la fecha de vencimiento. Haz clic en el número de trabajo para abrir sus detalles completos. Ctrl+clic para seleccionar varias fichas.",
             "side": "right"
           }
         },
@@ -84,7 +84,7 @@
           "element": ".column",
           "popover": {
             "title": "Arrastrar y soltar",
-            "description": "Arrastra las fichas entre columnas para mover los trabajos por las etapas. El movimiento es optimista — la ficha se mueve al instante y, si el servidor lo rechaza (p. ej., hacia atrás desde una etapa irreversible), vuelve de un salto. Dentro de una columna, arrastra para reordenar. La posición se guarda automáticamente. En la vista de equipo, arrastrar entre celdas puede cambiar la etapa y el responsable a la vez.",
+            "description": "Arrastra una ficha a otra columna para mover el trabajo a esa etapa. Se mueve al instante; si el movimiento no está permitido — como salir hacia atrás de una etapa de un solo sentido — vuelve a su sitio. Arrastra una ficha hacia arriba o abajo para reordenarla, y su lugar se guarda por ti. En la vista de equipo, arrastrar una ficha puede cambiar su etapa y su responsable a la vez.",
             "side": "top"
           }
         }
@@ -101,199 +101,199 @@
         {
           "heading": "Campos de la ficha de trabajo",
           "items": [
-            { "label": "Color del borde izquierdo", "value": "Indica la prioridad del trabajo. Gris = Baja, Turquesa = Normal, Naranja = Alta, Rojo = Urgente. Siempre visible en cada ficha." },
-            { "label": "Número de trabajo", "value": "Identificador secuencial autogenerado (p. ej., JOB-0001). En el que se puede hacer clic — abre el diálogo de detalle completo del trabajo. Se muestra en el encabezado de la ficha con una fuente de estilo monoespaciado." },
-            { "label": "Título", "value": "El texto del título del trabajo. Se muestra debajo del encabezado. Se trunca con puntos suspensivos si es demasiado largo para el ancho de la ficha." },
-            { "label": "Foto de portada", "value": "Imagen opcional que se muestra encima del contenido de la ficha. Se sube a través del botón de foto de portada del panel de detalle. Aparece como un banner recortado en la parte superior de la ficha." },
-            { "label": "Indicador de retención", "value": "Icono de círculo de pausa (⏸) en el encabezado de la ficha. Aparece cuando el trabajo tiene una o más retenciones activas. Una información sobre herramientas enumera todos los motivos de retención activos al pasar el cursor." },
-            { "label": "Advertencia de vencimiento", "value": "Icono de triángulo de advertencia amarillo en el encabezado de la ficha. Aparece cuando ha pasado la fecha de vencimiento del trabajo y el trabajo aún no está finalizado." },
-            { "label": "Avatar del responsable", "value": "Avatar circular en el pie que muestra las iniciales y el color del responsable. Oculto cuando no hay responsable asignado." },
-            { "label": "Nombre del cliente", "value": "Texto en el pie que muestra el cliente asociado al trabajo. Oculto cuando no hay cliente asignado." },
-            { "label": "Icono de estado de facturación", "value": "Icono de dólar en el pie. Marca de verificación verde para 'Facturado', icono naranja de pendiente para 'No facturado'. Solo aparece cuando existe un estado de facturación." },
-            { "label": "Referencia contable", "value": "Icono de recibo + número de referencia en el pie. Muestra la referencia del documento contable externo (p. ej., número de factura de QuickBooks). Solo aparece cuando el trabajo tiene un enlace de integración contable." },
-            { "label": "Icono de disposición", "value": "Icono de marca de verificación en el pie. Aparece cuando el trabajo ha sido dispuesto (enviado, inventariado, desechado, etc.)." },
-            { "label": "Recuento de subtrabajos", "value": "Icono de árbol + número en el pie. Muestra cuántos trabajos hijo existen bajo este trabajo. Solo aparece cuando el recuento > 0." },
-            { "label": "Fecha de vencimiento", "value": "Texto de fecha en el pie, con formato MM/dd/yyyy. Se vuelve roja cuando el trabajo está vencido. Oculta cuando no hay fecha de vencimiento." },
-            { "label": "Estado seleccionado", "value": "Cuando una ficha está seleccionada (Ctrl+Clic), muestra una marca de verificación azul superpuesta y un borde resaltado." }
+            { "label": "Color del borde izquierdo", "value": "Muestra de un vistazo la prioridad del trabajo: gris para Baja, turquesa para Normal, naranja para Alta, rojo para Urgente. Está en cada ficha." },
+            { "label": "Número de trabajo", "value": "El identificador del trabajo (como JOB-0001), rellenado por ti. Haz clic para abrir los detalles completos del trabajo. Está en la parte superior de la ficha." },
+            { "label": "Título", "value": "El título del trabajo, debajo del número. Si es demasiado largo para la ficha, el final se recorta con '...'." },
+            { "label": "Foto de portada", "value": "Una imagen opcional que cruza la parte superior de la ficha. Se establece desde los detalles del trabajo con el botón de foto de portada." },
+            { "label": "Indicador de retención", "value": "Un icono de pausa en la parte superior de la ficha. Significa que el trabajo está en retención. Apunta a él para ver por qué." },
+            { "label": "Advertencia de vencimiento", "value": "Un icono de advertencia amarillo en la parte superior de la ficha. Significa que la fecha de vencimiento ya pasó y el trabajo aún no está terminado." },
+            { "label": "Responsable", "value": "Sus iniciales, en la parte inferior de la ficha. Oculto cuando no hay nadie asignado." },
+            { "label": "Nombre del cliente", "value": "El cliente de este trabajo, en la parte inferior de la ficha. Oculto cuando no hay cliente." },
+            { "label": "Icono de estado de facturación", "value": "Un icono de dólar en la parte inferior de la ficha. Una marca verde significa facturado; un icono naranja significa aún no facturado. Se muestra solo cuando hay un estado de facturación." },
+            { "label": "Referencia contable", "value": "Un icono de recibo y un número en la parte inferior de la ficha, que muestran el documento correspondiente en tu sistema contable (como el número de factura de QuickBooks). Se muestra solo cuando el trabajo está vinculado a la contabilidad." },
+            { "label": "Icono de disposición", "value": "Un icono de marca en la parte inferior de la ficha. Significa que el resultado del trabajo ya se ha gestionado — enviado, almacenado, desechado, etc." },
+            { "label": "Recuento de subtrabajos", "value": "Un icono de árbol y un número en la parte inferior de la ficha, que muestran cuántos trabajos más pequeños dependen de este. Se muestra solo cuando los hay." },
+            { "label": "Fecha de vencimiento", "value": "La fecha de vencimiento en la parte inferior de la ficha. Se vuelve roja cuando el trabajo está vencido, y se oculta cuando no hay fecha establecida." },
+            { "label": "Estado seleccionado", "value": "Cuando haces Ctrl+clic en una ficha para seleccionarla, obtiene una marca azul y un borde resaltado." }
           ]
         },
         {
-          "heading": "Campos del diálogo de creación de trabajo",
+          "heading": "Campos de crear trabajo",
           "items": [
-            { "label": "Título (obligatorio)", "value": "Entrada de texto, máx. 200 caracteres. El nombre del trabajo. No puede estar vacío. data-testid: job-title" },
-            { "label": "Descripción", "value": "Área de texto, opcional. Descripción libre del alcance, los requisitos o las notas del trabajo. 3 filas por defecto. data-testid: job-description" },
-            { "label": "Tipo de pista (obligatorio, solo al crear)", "value": "Menú desplegable. Selecciona a qué pista de flujo de trabajo pertenece el trabajo (Producción, I+D/Herramental, Mantenimiento, Otro o personalizado). No se muestra en modo edición — el tipo de pista no se puede cambiar tras la creación. El trabajo entra en la primera etapa de la pista seleccionada. data-testid: job-track-type" },
-            { "label": "Cliente", "value": "Menú desplegable poblado desde la base de datos de clientes. Opcional — selecciona '-- Ninguno --' para crear un trabajo sin cliente. data-testid: job-customer" },
-            { "label": "Responsable", "value": "Menú desplegable poblado desde la base de datos de usuarios. Opcional — selecciona '-- Sin asignar --' para no asignar responsable. Los usuarios que no han completado su perfil/incorporación se muestran con un icono de advertencia (⚠) y la etiqueta '(perfil incompleto)'. data-testid: job-assignee" },
-            { "label": "Prioridad", "value": "Menú desplegable: Baja, Normal (predeterminada), Alta, Urgente. Determina el color del borde izquierdo de la ficha en el tablero. data-testid: job-priority" },
-            { "label": "Fecha de vencimiento", "value": "Selector de fecha. Opcional. Cuando se establece, la ficha muestra la fecha en su pie y muestra una advertencia de vencimiento si la fecha ya pasó. Se envía a la API como una cadena ISO UTC. data-testid: job-due-date" },
-            { "label": "Botón Guardar", "value": "Deshabilitado cuando el formulario no es válido o hay un guardado en curso. Muestra un icono de spinner mientras guarda. Al pasar el cursor muestra un popover de validación que enumera las infracciones. data-testid: job-save-btn" },
-            { "label": "Guardado automático de borradores", "value": "El diálogo guarda automáticamente el estado del formulario en IndexedDB mientras escribes (2,5 s de retardo). Si cierras el diálogo por accidente, tus datos se recuperan en la próxima visita con un banner de recuperación." }
+            { "label": "Título (obligatorio)", "value": "El nombre del trabajo. Obligatorio, hasta 200 caracteres. No se puede dejar en blanco." },
+            { "label": "Descripción", "value": "Opcional. Cualquier nota sobre el alcance, los requisitos o los detalles del trabajo." },
+            { "label": "Tipo de pista (obligatorio, al crear)", "value": "Elige a qué flujo de trabajo pertenece el trabajo: Producción, I+D/Herramental, Mantenimiento, Otro o el tuyo propio. El trabajo empieza en la primera etapa de ese flujo. No se puede cambiar después, así que no se muestra al editar." },
+            { "label": "Cliente", "value": "Elige el cliente de este trabajo. Opcional — elige '-- Ninguno --' para dejarlo fuera." },
+            { "label": "Responsable", "value": "Elige a quién se asigna el trabajo. Opcional — elige '-- Sin asignar --' para dejarlo abierto. Quien no haya terminado de configurar su perfil muestra un icono de advertencia y '(perfil incompleto)'." },
+            { "label": "Prioridad", "value": "Elige Baja, Normal (la predeterminada), Alta o Urgente. Esto establece el color del borde izquierdo de la ficha en el tablero." },
+            { "label": "Fecha de vencimiento", "value": "Opcional. Cuando se establece, la fecha aparece en la parte inferior de la ficha, y la ficha se marca como vencida una vez que pasa la fecha." },
+            { "label": "Botón Guardar", "value": "Atenuado hasta que el formulario esté completo, y mientras guarda. Apunta a él para ver qué falta todavía." },
+            { "label": "Guardado automático de borradores", "value": "El formulario guarda lo que escribes a medida que avanzas. Si lo cierras por accidente, tus datos vuelven la próxima vez que lo abras." }
           ]
         },
         {
-          "heading": "Diálogo de detalle del trabajo — Encabezado",
+          "heading": "Detalles del trabajo — Encabezado",
           "items": [
-            { "label": "Número de trabajo", "value": "Se muestra en negrita arriba a la izquierda. No editable." },
-            { "label": "Chip de etapa", "value": "Chip coloreado junto al número de trabajo que muestra el nombre de la etapa actual. El color coincide con el color de la etapa configurado en admin." },
-            { "label": "Botón de temporizador (Iniciar)", "value": "Icono de círculo de reproducción. Inicia un temporizador de seguimiento de tiempo para este trabajo. Deshabilitado mientras se carga la acción del temporizador. Información sobre herramientas: 'Iniciar temporizador'." },
-            { "label": "Botón de temporizador (Detener)", "value": "Icono de círculo de detención con estilo activo. Aparece cuando hay un temporizador en marcha para este trabajo. Detiene el temporizador activo. Información sobre herramientas: 'Detener temporizador'." },
-            { "label": "Botón de foto de portada", "value": "Icono de cámara/añadir-foto. Abre el diálogo de subida de foto de portada para establecer o cambiar la imagen de portada de la ficha. Información sobre herramientas: 'Establecer foto de portada'." },
-            { "label": "Botón de editar", "value": "Icono de editar. Abre el diálogo de edición del trabajo precargado con los valores actuales. Información sobre herramientas: 'Editar trabajo'." },
-            { "label": "Botón de cerrar", "value": "Icono de cerrar (X). Cierra el diálogo de detalle y borra el parámetro de URL ?detail=. Información sobre herramientas: 'Cerrar'." }
+            { "label": "Número de trabajo", "value": "Se muestra en negrita en la esquina superior izquierda. No lo puedes editar." },
+            { "label": "Etiqueta de etapa", "value": "Una etiqueta coloreada junto al número de trabajo que muestra la etapa en la que está el trabajo. Su color coincide con el de la etapa." },
+            { "label": "Botón Iniciar temporizador", "value": "Un icono de reproducción. Empieza a seguir el tiempo de este trabajo." },
+            { "label": "Botón Detener temporizador", "value": "Un icono de detención, que se muestra mientras hay un temporizador en marcha. Lo detiene." },
+            { "label": "Botón de foto de portada", "value": "Un icono de cámara. Abre una ventana para establecer o cambiar la foto de portada de la ficha." },
+            { "label": "Botón de editar", "value": "Un icono de lápiz. Abre el formulario de edición, ya rellenado con los detalles actuales del trabajo." },
+            { "label": "Botón de cerrar", "value": "Un icono de X. Cierra los detalles y te devuelve al tablero." }
           ]
         },
         {
-          "heading": "Detalle del trabajo — Secciones de contenido principal",
+          "heading": "Detalles del trabajo — Secciones principales",
           "items": [
-            { "label": "Título y descripción", "value": "La sección principal muestra el título del trabajo como un encabezado h1 y la descripción debajo. Si no existe descripción, muestra 'Sin descripción' en texto atenuado." },
-            { "label": "Distintivo de iteración de I+D", "value": "Se muestra solo para los trabajos de la pista I+D/Herramental o cuando el recuento de iteraciones > 0. Muestra el encabezado 'Iteración de I+D' con el número de versión (p. ej., v3) y notas de iteración opcionales." },
-            { "label": "Información de disposición", "value": "Se muestra solo cuando el trabajo ha sido dispuesto. Muestra el tipo de disposición (Enviar al cliente, Añadir a inventario, Capitalizar como activo, Desechar, Retener para revisión), notas opcionales y la fecha de disposición." },
-            { "label": "Sección de subtareas", "value": "Lista de casillas de subtareas con contador de finalización (p. ej., 3/5). Marcar/desmarcar alterna la finalización. Añade nuevas subtareas mediante la entrada de texto + botón de añadir al final. Pulsa Intro para añadir rápidamente. El texto de la subtarea se muestra tachado cuando se completa." },
-            { "label": "Sección de subtrabajos", "value": "Lista de trabajos hijo (creados mediante explosión de BOM o vinculación manual). Cada uno muestra el número de trabajo (enlace de entidad en el que se puede hacer clic), el título y el chip de etapa actual. Solo se muestra cuando existen trabajos hijo." },
-            { "label": "Botón Explotar BOM", "value": "Se muestra cuando el trabajo tiene una pieza vinculada y no tiene trabajos hijo existentes. Crea trabajos hijo a partir de la lista de materiales de la pieza. Solo las líneas de BOM 'Make' (fabricar) se convierten en trabajos hijo (con el mismo tipo de pista); las líneas 'Buy' (comprar) se presentan como sugerencias de compra y las líneas 'Stock' (existencias) reservan automáticamente el inventario disponible." },
-            { "label": "Sección de fichas vinculadas", "value": "Muestra las relaciones con otros trabajos. Cada enlace muestra un icono, una etiqueta de tipo (Relacionado con, Bloquea, Padre de), el número del trabajo vinculado (enlace de entidad en el que se puede hacer clic), el título, el chip de etapa y un botón de eliminar. Añade nuevos enlaces mediante la entrada de búsqueda + selector de tipo + botón de añadir." },
-            { "label": "Sección de piezas", "value": "Piezas adjuntas a este trabajo. Cada una muestra un icono de engranaje, el número de pieza (enlace de entidad en el que se puede hacer clic), la descripción, la cantidad y un botón de quitar. Añade piezas mediante la entrada de búsqueda + botón de añadir." },
-            { "label": "Sección de análisis de costos", "value": "Pestaña de resumen de costos integrada que muestra los costos estimados de material, mano de obra, gastos generales y subcontratación. Muestra el precio cotizado y el porcentaje de margen calculado." },
-            { "label": "Sección de tiempo de operación", "value": "Pestaña de análisis de tiempo de operación integrada que muestra el desglose de tiempos por operación para el trabajo." },
-            { "label": "Actividad / Comentarios / Notas / Historial", "value": "Sección de actividad de entidad compartida que muestra un flujo cronológico de todos los cambios, comentarios, notas y eventos del sistema del trabajo. Admite comentarios en línea con @menciones." }
+            { "label": "Título y descripción", "value": "La parte superior del panel muestra el título del trabajo con su descripción debajo. Si no hay descripción, dice 'Sin descripción'." },
+            { "label": "Distintivo de iteración de I+D", "value": "Se muestra para los trabajos de I+D/Herramental. Muestra de qué versión se trata (como v3), más cualquier nota de iteración." },
+            { "label": "Información de disposición", "value": "Se muestra una vez que se ha gestionado el resultado del trabajo. Indica qué se hizo con él (Enviar al cliente, Añadir a inventario, Capitalizar como activo, Desechar o Retener para revisión), cualquier nota y la fecha." },
+            { "label": "Subtareas", "value": "Una lista de tareas para el trabajo, con un contador de completadas (como 3/5). Marca un elemento para darlo por hecho — su texto se tacha. Escribe en la casilla de abajo y pulsa Intro para añadir uno nuevo." },
+            { "label": "Subtrabajos", "value": "Trabajos más pequeños que dependen de este. Cada uno muestra su número, título y etapa actual. Se muestra solo cuando los hay." },
+            { "label": "Botón Explotar BOM", "value": "Se muestra cuando el trabajo está vinculado a una pieza y aún no tiene subtrabajos. Crea un subtrabajo por cada pieza que fabricas internamente a partir de la lista de piezas de esa pieza. Las piezas compradas aparecen como sugerencias de compra en su lugar, y las piezas en existencias se reservan del inventario." },
+            { "label": "Trabajos vinculados", "value": "Otros trabajos relacionados con este. Cada uno muestra cómo se conectan (Relacionado con, Bloquea o Padre de), el número del trabajo, su título y su etapa, más un botón para quitar el enlace. Busca para añadir un nuevo enlace y elige cómo se relacionan." },
+            { "label": "Piezas", "value": "Piezas adjuntas a este trabajo. Cada una muestra el número de pieza, la descripción, la cantidad y un botón para quitarla. Busca para añadir una pieza." },
+            { "label": "Análisis de costos", "value": "Un resumen de costos que muestra los costos estimados de material, mano de obra, gastos generales y subcontratación, junto con el precio cotizado y el margen resultante." },
+            { "label": "Tiempo de operación", "value": "Un desglose de cuánto tiempo lleva cada paso del trabajo." },
+            { "label": "Actividad / Comentarios / Notas / Historial", "value": "Una línea de tiempo continua de todo lo que le ha pasado al trabajo — cambios, comentarios, notas y eventos del sistema. Puedes comentar aquí mismo y etiquetar a personas con @." }
           ]
         },
         {
-          "heading": "Detalle del trabajo — Secciones de la barra lateral",
+          "heading": "Detalles del trabajo — Barra lateral",
           "items": [
-            { "label": "Línea de tiempo de estado", "value": "Muestra la progresión del flujo de trabajo del trabajo por las etapas, incluidas las retenciones activas. Usa el StatusTimelineComponent compartido. Muestra los nombres de las etapas, las marcas de tiempo y los motivos de retención." },
-            { "label": "Botón Disponer", "value": "Abre el diálogo Disponer trabajo. Solo se muestra cuando el trabajo aún no ha sido dispuesto. Opciones: Enviar al cliente, Añadir a inventario, Capitalizar como activo, Desechar, Retener para revisión." },
-            { "label": "Información de código de barras / QR", "value": "Sección compacta de código de barras que muestra el código de barras del trabajo para escanearlo. Usa el BarcodeInfoComponent compartido." },
-            { "label": "Prioridad (barra lateral)", "value": "Muestra la prioridad del trabajo con un punto coloreado. Baja = gris, Normal = turquesa, Alta = naranja, Urgente = rojo." },
-            { "label": "Responsable (barra lateral, en el que se puede hacer clic)", "value": "Muestra el avatar y el nombre del responsable actual. Haz clic para abrir un menú desplegable y reasignar. Las opciones incluyen 'Desasignar' y todos los miembros del equipo con avatares. Los cambios se guardan de inmediato sin abrir el diálogo de edición." },
-            { "label": "Cliente (barra lateral)", "value": "Muestra el nombre del cliente como un enlace de entidad en el que se puede hacer clic que navega a la página de detalle del cliente. Muestra '—' cuando no hay cliente." },
-            { "label": "Fecha de vencimiento (barra lateral)", "value": "Muestra la fecha de vencimiento con formato MM/dd/yyyy. No muestra nada cuando no está establecida." },
-            { "label": "Fecha de inicio (barra lateral)", "value": "Muestra la fecha de inicio con formato MM/dd/yyyy. Se establece automáticamente cuando el trabajo se mueve por primera vez desde su etapa inicial." },
-            { "label": "Tipo de pista (barra lateral)", "value": "Muestra el nombre del tipo de pista (Producción, I+D/Herramental, etc.). Solo lectura." },
-            { "label": "Pieza (barra lateral)", "value": "Se muestra cuando el trabajo tiene una pieza principal vinculada. Muestra el número de pieza como un enlace de entidad en el que se puede hacer clic." },
-            { "label": "Trabajo padre (barra lateral)", "value": "Se muestra cuando el trabajo es hijo de otro trabajo. Muestra el número del trabajo padre como un enlace de entidad en el que se puede hacer clic." },
-            { "label": "Sección de archivos", "value": "Zona de subida de archivos por arrastrar y soltar (acepta cualquier tipo de archivo) más una lista de los archivos adjuntos. Cada archivo muestra un icono de tipo, el nombre del archivo, el tamaño + la fecha de subida, un botón de descarga y un botón de eliminar." },
-            { "label": "Sección de tiempo", "value": "Enumera todas las entradas de tiempo registradas contra este trabajo. Cada entrada muestra el nombre del usuario, la fecha, la duración (con formato Xh Ym) y notas opcionales. El encabezado muestra el tiempo total de todas las entradas." }
+            { "label": "Línea de tiempo de estado", "value": "Muestra cómo ha avanzado el trabajo por sus etapas, con las fechas y cualquier retención por el camino." },
+            { "label": "Botón Disponer", "value": "Abre una ventana para registrar qué ocurre con el resultado del trabajo. Se muestra hasta que el trabajo ha sido dispuesto. Opciones: Enviar al cliente, Añadir a inventario, Capitalizar como activo, Desechar o Retener para revisión." },
+            { "label": "Información de código de barras / QR", "value": "Muestra el código de barras del trabajo para que puedas escanearlo." },
+            { "label": "Prioridad", "value": "Muestra la prioridad del trabajo en color: gris para Baja, turquesa para Normal, naranja para Alta, rojo para Urgente." },
+            { "label": "Responsable", "value": "Muestra a quién está asignado el trabajo. Haz clic para elegir a otra persona o dejarlo sin asignar. El cambio se guarda de inmediato — no hace falta abrir el formulario de edición." },
+            { "label": "Cliente", "value": "El cliente de este trabajo. Haz clic para abrir la página del cliente. Muestra '—' cuando no hay cliente." },
+            { "label": "Fecha de vencimiento", "value": "Cuándo vence el trabajo. No muestra nada cuando no hay fecha establecida." },
+            { "label": "Fecha de inicio", "value": "Cuándo empezó el trabajo. Se establece automáticamente la primera vez que lo sacas de su etapa inicial." },
+            { "label": "Tipo de pista", "value": "A qué flujo de trabajo pertenece el trabajo (Producción, I+D/Herramental, etc.). No se puede cambiar." },
+            { "label": "Pieza", "value": "Se muestra cuando el trabajo está vinculado a una pieza. Haz clic en el número de pieza para abrir la pieza." },
+            { "label": "Trabajo padre", "value": "Se muestra cuando este trabajo depende de uno mayor. Haz clic en el número del padre para abrirlo." },
+            { "label": "Archivos", "value": "Arrastra archivos aquí para adjuntarlos, o haz clic para examinar — sirve cualquier tipo de archivo. Cada archivo adjunto tiene botones para descargarlo o quitarlo." },
+            { "label": "Tiempo", "value": "Todo el tiempo registrado en este trabajo. Cada entrada muestra quién, cuándo, cuánto tiempo y cualquier nota, con el total arriba." }
           ]
         },
         {
-          "heading": "Campos del diálogo Disponer trabajo",
+          "heading": "Campos de disponer trabajo",
           "items": [
-            { "label": "Disposición (obligatorio)", "value": "Menú desplegable: Enviar al cliente, Añadir a inventario, Capitalizar como activo, Desechar, Retener para revisión. Determina qué ocurre con el resultado del trabajo." },
-            { "label": "Notas", "value": "Área de texto, opcional, máx. 2000 caracteres. Contexto adicional para la decisión de disposición." },
-            { "label": "Botón Disponer", "value": "Guarda la disposición y marca el trabajo como dispuesto. Deshabilitado cuando el formulario no es válido." }
+            { "label": "Disposición (obligatorio)", "value": "Elige qué ocurre con el resultado del trabajo: Enviar al cliente, Añadir a inventario, Capitalizar como activo, Desechar o Retener para revisión." },
+            { "label": "Notas", "value": "Opcional. Cualquier contexto adicional para la decisión, hasta 2000 caracteres." },
+            { "label": "Botón Disponer", "value": "Guarda la elección y marca el trabajo como dispuesto. Atenuado hasta que eliges una disposición." }
           ]
         },
         {
           "heading": "Estados del trabajo (flujo de etapas)",
           "items": [
-            { "label": "Cotización solicitada", "value": "Etapa inicial de la pista Producción. El trabajo ha sido solicitado pero aún no cotizado." },
-            { "label": "Cotizado (Estimación)", "value": "Se ha preparado una estimación. Puede activar la creación de un documento contable si está conectado." },
-            { "label": "Pedido confirmado (Orden de venta)", "value": "El cliente ha aceptado la cotización y se crea una orden de venta." },
-            { "label": "Materiales pedidos (OC)", "value": "Se han creado órdenes de compra para los materiales necesarios." },
+            { "label": "Cotización solicitada", "value": "La etapa de apertura de los trabajos de Producción. El trabajo se ha solicitado pero aún no se ha cotizado." },
+            { "label": "Cotizado (Estimación)", "value": "Se ha preparado una estimación. Puede crear un documento en tu sistema contable si hay uno conectado." },
+            { "label": "Pedido confirmado (Orden de venta)", "value": "El cliente aceptó la cotización, así que se crea una orden de venta." },
+            { "label": "Materiales pedidos (OC)", "value": "Se han enviado órdenes de compra para los materiales necesarios." },
             { "label": "Materiales recibidos", "value": "Todos los materiales pedidos han llegado y están listos para la producción." },
-            { "label": "En producción", "value": "El trabajo activo de fabricación/producción está en marcha." },
-            { "label": "Control de calidad/Revisión", "value": "Fase de inspección y revisión de control de calidad." },
-            { "label": "Enviado (Factura)", "value": "El resultado del trabajo ha sido enviado. Puede activar la creación de una factura. A menudo es una etapa irreversible." },
+            { "label": "En producción", "value": "El trabajo se está realizando." },
+            { "label": "Control de calidad/Revisión", "value": "El trabajo se está inspeccionando y revisando para verificar su calidad." },
+            { "label": "Enviado (Factura)", "value": "El resultado del trabajo se ha enviado. Puede crear una factura. A menudo es una etapa de un solo sentido de la que no puedes retroceder." },
             { "label": "Facturado/Enviado", "value": "La factura se ha enviado al cliente." },
-            { "label": "Pago recibido (Pago)", "value": "Etapa final. Se ha recibido el pago del cliente. El trabajo se marca como finalizado." }
+            { "label": "Pago recibido (Pago)", "value": "La etapa final. El cliente ha pagado y el trabajo se marca como completado." }
           ]
         },
         {
           "heading": "Niveles de prioridad",
           "items": [
-            { "label": "Baja (gris)", "value": "Trabajo no urgente. El borde izquierdo de la ficha es gris. Prioridad más baja en la clasificación." },
-            { "label": "Normal (turquesa)", "value": "Prioridad predeterminada para todos los trabajos nuevos. El borde izquierdo de la ficha es turquesa." },
-            { "label": "Alta (naranja)", "value": "Trabajo importante que debe atenderse pronto. El borde izquierdo de la ficha es naranja." },
-            { "label": "Urgente (rojo)", "value": "Trabajo crítico que requiere atención inmediata. El borde izquierdo de la ficha es rojo. Prioridad más alta en la clasificación." }
+            { "label": "Baja (gris)", "value": "Trabajo que no es urgente. El borde izquierdo de la ficha es gris. Se ordena al final." },
+            { "label": "Normal (turquesa)", "value": "La predeterminada para cada trabajo nuevo. El borde izquierdo de la ficha es turquesa." },
+            { "label": "Alta (naranja)", "value": "Trabajo importante que atender pronto. El borde izquierdo de la ficha es naranja." },
+            { "label": "Urgente (rojo)", "value": "Trabajo crítico que necesita atención ya. El borde izquierdo de la ficha es rojo. Se ordena al principio." }
           ]
         },
         {
           "heading": "Acciones masivas",
           "items": [
-            { "label": "Selección múltiple", "value": "Mantén pulsada la tecla Ctrl (Cmd en Mac) y haz clic en las fichas para seleccionar varios trabajos. Las fichas seleccionadas muestran una marca de verificación azul superpuesta. Haz clic en cualquier ficha sin Ctrl para deseleccionar todo." },
-            { "label": "Mover en masa", "value": "Mueve todos los trabajos seleccionados a una etapa de destino. Abre un menú que muestra todas las etapas del tipo de pista actual. Cada etapa muestra su punto de color. Un snackbar de éxito muestra el recuento de trabajos movidos." },
-            { "label": "Asignar en masa", "value": "Asigna todos los trabajos seleccionados a un miembro del equipo. El menú muestra la opción 'Desasignar' más todos los miembros del equipo. Un snackbar de éxito muestra el recuento y el nombre del responsable." },
-            { "label": "Establecer prioridad en masa", "value": "Establece la prioridad en todos los trabajos seleccionados. El menú muestra Baja, Normal, Alta, Urgente. Un snackbar de éxito muestra la prioridad y el recuento." },
-            { "label": "Archivar en masa", "value": "Archiva todos los trabajos seleccionados. Abre un diálogo de confirmación ('¿Estás seguro? Esto eliminará X trabajos del tablero. Puedes restaurarlos más tarde.'). Los trabajos archivados se eliminan de forma reversible, no permanentemente. Un snackbar de éxito muestra el recuento." },
-            { "label": "Borrar selección", "value": "Botón X en el lado derecho de la barra masiva. Borra todas las fichas seleccionadas." }
+            { "label": "Selección múltiple", "value": "Mantén pulsada Ctrl (Cmd en Mac) y haz clic en las fichas para seleccionar varios trabajos a la vez. Las fichas seleccionadas obtienen una marca azul. Haz clic en cualquier ficha sin Ctrl para borrar la selección." },
+            { "label": "Mover en masa", "value": "Mueve todos los trabajos seleccionados a una etapa. Un menú enumera las etapas de este flujo de trabajo. Un mensaje confirma cuántos se movieron." },
+            { "label": "Asignar en masa", "value": "Asigna todos los trabajos seleccionados a una persona. El menú enumera a tu equipo más una opción 'Desasignar'. Un mensaje confirma el recuento y a quién." },
+            { "label": "Establecer prioridad en masa", "value": "Establece la prioridad en todos los trabajos seleccionados — Baja, Normal, Alta o Urgente. Un mensaje confirma la prioridad y el recuento." },
+            { "label": "Archivar en masa", "value": "Archiva todos los trabajos seleccionados. Primero se te pedirá que confirmes. Los trabajos archivados salen del tablero pero no desaparecen para siempre — puedes restaurarlos más tarde." },
+            { "label": "Borrar selección", "value": "La X en el lado derecho de la barra de acciones. Deselecciona todas las fichas." }
           ]
         },
         {
           "heading": "Atajos de teclado e interacción",
           "items": [
-            { "label": "Ctrl+Clic en ficha", "value": "Alterna la selección múltiple de una ficha. Añade o quita la ficha de la selección actual." },
-            { "label": "Intro en ficha", "value": "Abre el diálogo de detalle del trabajo para la ficha enfocada (soporte de navegación por teclado)." },
-            { "label": "Escape (diálogo de detalle)", "value": "Cierra el diálogo de detalle del trabajo." },
-            { "label": "Intro en la entrada de subtarea", "value": "Añade el texto de subtarea escrito a la lista de subtareas sin hacer clic en el botón de añadir." },
-            { "label": "Escaneo de código de barras", "value": "Cuando estás en la página kanban con un lector de códigos de barras USB, escanear el código de barras de un número de trabajo encuentra y abre automáticamente el diálogo de detalle de ese trabajo." }
+            { "label": "Ctrl+Clic en ficha", "value": "Añade o quita una ficha de tu selección actual." },
+            { "label": "Intro en ficha", "value": "Abre los detalles del trabajo de la ficha en la que estás." },
+            { "label": "Escape (en los detalles)", "value": "Cierra los detalles del trabajo." },
+            { "label": "Intro en la casilla de subtarea", "value": "Añade lo que escribiste a la lista de tareas sin hacer clic en el botón de añadir." },
+            { "label": "Escaneo de código de barras", "value": "Con un lector de códigos de barras USB en el tablero, escanear un número de trabajo encuentra ese trabajo y abre sus detalles." }
           ]
         },
         {
           "heading": "Elementos del encabezado de columna",
           "items": [
-            { "label": "Nombre de la etapa", "value": "El nombre de la etapa. Se muestra en el encabezado de la columna." },
-            { "label": "Recuento de trabajos", "value": "Número de trabajos actualmente en esta columna. Se actualiza en tiempo real mediante SignalR." },
-            { "label": "Límite WIP", "value": "Máximo recomendado de trabajos para la columna, mostrado como '/ N' después del recuento. Configurado por etapa por los administradores. Cuando se supera, la visualización se vuelve roja." },
-            { "label": "Icono de candado", "value": "Icono de candado en las etapas irreversibles. Los trabajos no se pueden arrastrar hacia atrás fuera de estas etapas. La información sobre herramientas explica: 'Irreversible — los trabajos no se pueden mover hacia atrás desde esta etapa'." },
-            { "label": "Franja de color", "value": "Borde superior coloreado que coincide con el color configurado de la etapa. Proporciona una identificación visual para cada columna." }
+            { "label": "Nombre de la etapa", "value": "El nombre de la etapa, en el encabezado de la columna." },
+            { "label": "Recuento de trabajos", "value": "Cuántos trabajos hay en esta columna ahora mismo. Se actualiza solo a medida que los trabajos se mueven." },
+            { "label": "Límite WIP", "value": "Un tope sugerido para la columna, mostrado como '/ N' después del recuento. Lo establece un administrador por etapa. Si lo superas, el recuento se vuelve rojo." },
+            { "label": "Icono de candado", "value": "Un candado en las etapas de un solo sentido. Los trabajos no se pueden arrastrar hacia atrás fuera de ellas. Apunta a él y explica: 'Irreversible — los trabajos no se pueden mover hacia atrás desde esta etapa'." },
+            { "label": "Franja de color", "value": "La franja de color en la parte superior de la columna, que coincide con el color de la etapa, para que cada columna sea fácil de identificar." }
           ]
         },
         {
           "heading": "Límites WIP",
           "items": [
-            { "label": "Propósito", "value": "Los límites de trabajo en curso (WIP) evitan sobrecargar una etapa. Son orientativos — todavía puedes mover trabajos a una columna que supere su límite WIP, pero el recuento se vuelve rojo como advertencia." },
-            { "label": "Configuración", "value": "Se establecen por etapa por los administradores en Admin → Tipos de pista → Etapas. Introduce 0 o déjalo en blanco para no establecer límite." },
-            { "label": "Advertencia visual", "value": "Cuando el recuento de trabajos de una columna supera su límite WIP, el número de recuento y la visualización del límite '/ N' se vuelven rojos. El borde del cuerpo de la columna también puede cambiar para indicar la sobrecarga." },
-            { "label": "Aplicación", "value": "Los límites WIP son solo advertencias visuales — no bloquean el movimiento de trabajos. Esto permite flexibilidad para situaciones urgentes mientras sigue resaltando los cuellos de botella." }
+            { "label": "Propósito", "value": "Un límite WIP es un tope sugerido de cuántos trabajos debería tener una etapa, para que no se sobrecargue. Es solo una guía — todavía puedes añadir más, pero el recuento se vuelve rojo para avisarte." },
+            { "label": "Configuración", "value": "Un administrador lo establece por etapa en Admin → Tipos de pista → Etapas. Introduce 0 o déjalo en blanco para no poner límite." },
+            { "label": "Advertencia visual", "value": "Cuando una columna supera su límite, el recuento y el '/ N' junto a él se vuelven rojos. El borde de la columna también puede cambiar." },
+            { "label": "Qué tan estricto es", "value": "Los límites WIP solo avisan — nunca te impiden mover un trabajo. Así mantienes flexibilidad para el trabajo urgente mientras ves dónde se acumulan las cosas." }
           ]
         },
         {
           "heading": "Reglas de validación",
           "items": [
-            { "label": "Título (Crear/Editar)", "value": "Obligatorio. No puede estar vacío. Máximo 200 caracteres. Mensaje de infracción: 'El título es obligatorio.'" },
-            { "label": "Tipo de pista (Crear)", "value": "Obligatorio. Debes seleccionar un tipo de pista válido. Se preselecciona un tipo de pista predeterminado si existe. Mensaje de infracción: 'El tipo de pista es obligatorio.'" },
-            { "label": "Restricción de movimiento hacia atrás", "value": "No se puede mover un trabajo hacia atrás (a una etapa de menor orden de clasificación) desde una etapa irreversible. La API devuelve un error y la interfaz devuelve la ficha de un salto. Mensaje de error: 'No se puede mover hacia atrás desde una etapa irreversible.'" },
-            { "label": "Movimiento entre pistas", "value": "No se puede mover un trabajo a una etapa que pertenece a un tipo de pista diferente. La API rechaza tales movimientos con un error." },
-            { "label": "Cumplimiento del responsable", "value": "Al asignar un trabajo, el sistema comprueba si el responsable ha completado su perfil de cumplimiento. Los usuarios con perfiles incompletos muestran un icono de advertencia (⚠) en el menú desplegable de responsable pero todavía pueden ser asignados." },
-            { "label": "Disposición (obligatorio)", "value": "Al disponer un trabajo, debe seleccionarse el tipo de disposición. Las notas son opcionales (máx. 2000 caracteres)." },
-            { "label": "Texto de subtarea", "value": "El botón de añadir subtarea está deshabilitado cuando la entrada está vacía o solo contiene espacios en blanco." },
-            { "label": "Destino del enlace", "value": "El botón de añadir enlace está deshabilitado cuando no se ha seleccionado ningún trabajo de destino de los resultados de búsqueda." }
+            { "label": "Título (Crear/Editar)", "value": "Obligatorio, y no puede estar en blanco. Hasta 200 caracteres. Si falta, verás 'El título es obligatorio.'" },
+            { "label": "Tipo de pista (Crear)", "value": "Obligatorio. Elige un flujo de trabajo — se elige uno por ti si existe un predeterminado. Si falta, verás 'El tipo de pista es obligatorio.'" },
+            { "label": "Restricción de movimiento hacia atrás", "value": "No puedes mover un trabajo hacia atrás fuera de una etapa de un solo sentido. La ficha vuelve a su sitio y verás 'No se puede mover hacia atrás desde una etapa irreversible.'" },
+            { "label": "Movimiento entre pistas", "value": "No puedes mover un trabajo a una etapa que pertenece a otro flujo de trabajo — el movimiento se rechaza." },
+            { "label": "Configuración del responsable", "value": "Cuando asignas un trabajo, quien no haya terminado de configurar su perfil muestra un icono de advertencia. Aun así puedes asignarlo." },
+            { "label": "Disposición (obligatorio)", "value": "Para disponer un trabajo, debes elegir qué ocurre con su resultado. Las notas son opcionales (hasta 2000 caracteres)." },
+            { "label": "Texto de subtarea", "value": "El botón de añadir permanece atenuado hasta que escribes algo en la casilla de subtarea." },
+            { "label": "Destino del enlace", "value": "El botón de añadir permanece atenuado hasta que eliges un trabajo para vincular de los resultados de búsqueda." }
           ]
         },
         {
           "heading": "Acciones del tablero y la tabla",
           "items": [
-            { "label": "Cambio de tipo de pista", "value": "Haz clic en un botón de tipo de pista para cargar el tablero de esa pista. El tablero se recarga por completo y SignalR se une al nuevo grupo de tablero." },
-            { "label": "Conmutación de modo de vista", "value": "Vista de tablero (icono view_column) o vista de equipo (icono de personas). La vista de tablero es el diseño de columnas predeterminado. La vista de equipo muestra una cuadrícula de carriles por usuario." },
-            { "label": "Arrastrar ficha entre columnas", "value": "Mueve el trabajo a la etapa de destino. Interfaz optimista — la ficha se mueve de inmediato, el servidor confirma o revierte." },
-            { "label": "Arrastrar ficha dentro de la columna", "value": "Reordena la posición de la ficha dentro de la etapa. La posición se guarda automáticamente." },
-            { "label": "Arrastrar ficha en carriles", "value": "En la vista de equipo, arrastrar entre celdas puede cambiar la etapa (columna) y el responsable (fila) a la vez." },
-            { "label": "Hacer clic en el número de trabajo", "value": "Abre el diálogo de detalle completo del trabajo. Actualiza la URL a ?detail=job:{id} para compartir." },
-            { "label": "Hacer clic en la ficha (sin modificador)", "value": "Si hay fichas seleccionadas, borra la selección. De lo contrario, abre el diálogo de detalle del trabajo." },
-            { "label": "Editar trabajo (diálogo de detalle)", "value": "Abre el diálogo de edición precargado con los valores actuales. Guarda los cambios y actualiza el tablero." },
-            { "label": "Asignación rápida (barra lateral de detalle)", "value": "Haz clic en la fila del responsable en la barra lateral para abrir un menú desplegable. Selecciona un usuario para reasignar de inmediato sin abrir el diálogo de edición." },
-            { "label": "Añadir subtarea", "value": "Escribe en la entrada de subtarea y pulsa Intro o haz clic en el botón de añadir. La subtarea aparece de inmediato en la lista." },
-            { "label": "Alternar subtarea", "value": "Haz clic en la casilla de una subtarea para alternar su estado de finalización. El texto se tacha cuando se completa." },
-            { "label": "Añadir enlace", "value": "Busca un trabajo en la entrada de búsqueda de enlaces, selecciónalo de los resultados, elige un tipo de enlace (Relacionado con, Bloquea, Padre de) y haz clic en añadir." },
-            { "label": "Quitar enlace", "value": "Haz clic en el botón X de una ficha vinculada para quitar la relación." },
-            { "label": "Añadir pieza", "value": "Busca una pieza en la entrada de búsqueda de piezas, selecciónala de los resultados y haz clic en añadir. La pieza aparece en la lista de piezas con su cantidad." },
-            { "label": "Quitar pieza", "value": "Haz clic en el botón X de un elemento de pieza para desvincularlo del trabajo." },
-            { "label": "Explotar BOM", "value": "Haz clic en el botón 'Explotar BOM' en un trabajo con una pieza vinculada. Crea trabajos hijo a partir de la lista de materiales. Solo se muestra cuando el trabajo tiene una pieza vinculada y no tiene trabajos hijo existentes." },
-            { "label": "Iniciar/Detener temporizador", "value": "Haz clic en el botón de temporizador del encabezado de detalle para empezar a seguir el tiempo de este trabajo. Haz clic de nuevo para detenerlo. Las entradas de tiempo aparecen en la sección Tiempo de la barra lateral." },
-            { "label": "Subir archivo", "value": "Arrastra archivos a la zona de subida de la barra lateral, o haz clic para examinar. Los archivos se suben con barras de progreso y aparecen en la lista de archivos." },
-            { "label": "Descargar archivo", "value": "Haz clic en el icono de descarga de un elemento de archivo para descargarlo." },
-            { "label": "Eliminar archivo", "value": "Haz clic en el icono rojo de eliminar de un elemento de archivo para quitarlo (eliminación reversible — el archivo se conserva en el almacenamiento)." },
-            { "label": "Disponer trabajo", "value": "Haz clic en el botón Disponer de la barra lateral. Abre un diálogo para seleccionar el tipo de disposición y añadir notas. Opciones: Enviar al cliente, Añadir a inventario, Capitalizar como activo, Desechar, Retener para revisión." }
+            { "label": "Cambiar de tipo de pista", "value": "Haz clic en un tipo de pista para cargar el tablero de ese flujo de trabajo. El tablero se recarga para el nuevo." },
+            { "label": "Cambiar de vista", "value": "Alterna entre la vista de tablero (las columnas predeterminadas) y la vista de equipo (una cuadrícula de trabajos por persona)." },
+            { "label": "Arrastrar ficha entre columnas", "value": "Mueve el trabajo a esa etapa. Se mueve al instante, y vuelve a su sitio si el movimiento no está permitido." },
+            { "label": "Arrastrar ficha dentro de la columna", "value": "Reordena la ficha dentro de su etapa. Su lugar se guarda por ti." },
+            { "label": "Arrastrar ficha en la vista de equipo", "value": "Arrastrar una ficha puede cambiar a la vez su etapa y a quién está asignada." },
+            { "label": "Hacer clic en el número de trabajo", "value": "Abre los detalles completos del trabajo. La dirección web se actualiza para que puedas copiarla y compartir el trabajo." },
+            { "label": "Hacer clic en la ficha", "value": "Si hay fichas seleccionadas, borra la selección. De lo contrario, abre los detalles del trabajo." },
+            { "label": "Editar trabajo", "value": "Abre el formulario de edición, ya rellenado. Al guardar se actualiza el tablero." },
+            { "label": "Asignación rápida", "value": "Haz clic en el responsable en la barra lateral del trabajo y elige a otra persona. El cambio se guarda de inmediato — sin necesidad del formulario de edición." },
+            { "label": "Añadir subtarea", "value": "Escribe en la casilla de subtarea y pulsa Intro o haz clic en añadir. Aparece en la lista de tareas de inmediato." },
+            { "label": "Marcar subtarea", "value": "Haz clic en la casilla de una subtarea para darla por hecha o no — su texto se tacha cuando está hecha." },
+            { "label": "Añadir enlace", "value": "Busca un trabajo, elígelo de los resultados, elige cómo se relacionan (Relacionado con, Bloquea, Padre de) y haz clic en añadir." },
+            { "label": "Quitar enlace", "value": "Haz clic en la X de un trabajo vinculado para quitar el enlace." },
+            { "label": "Añadir pieza", "value": "Busca una pieza, elígela de los resultados y haz clic en añadir. Aparece en la lista de piezas con su cantidad." },
+            { "label": "Quitar pieza", "value": "Haz clic en la X de una pieza para quitarla del trabajo." },
+            { "label": "Explotar BOM", "value": "Haz clic en 'Explotar BOM' en un trabajo que está vinculado a una pieza. Crea subtrabajos a partir de la lista de piezas de la pieza. Se muestra solo cuando el trabajo tiene una pieza y aún no tiene subtrabajos." },
+            { "label": "Iniciar/Detener temporizador", "value": "Haz clic en el botón de temporizador en la parte superior de los detalles del trabajo para empezar a cronometrarlo. Haz clic de nuevo para detenerlo. Las entradas aparecen en la sección Tiempo de la barra lateral." },
+            { "label": "Subir archivo", "value": "Arrastra archivos al área de subida de la barra lateral, o haz clic para examinar. Los verás aparecer en la lista de archivos." },
+            { "label": "Descargar archivo", "value": "Haz clic en el icono de descarga de un archivo para guardarlo." },
+            { "label": "Eliminar archivo", "value": "Haz clic en el icono rojo de eliminar de un archivo para quitarlo del trabajo." },
+            { "label": "Disponer trabajo", "value": "Haz clic en Disponer en la barra lateral. Se abre una ventana para elegir qué ocurre con el resultado y añadir notas. Opciones: Enviar al cliente, Añadir a inventario, Capitalizar como activo, Desechar o Retener para revisión." }
           ]
         },
         {
           "heading": "Tipos de enlace",
           "items": [
-            { "label": "Relacionado con", "value": "Relación general entre dos trabajos. Bidireccional — ambos trabajos muestran el enlace. Icono: link." },
-            { "label": "Bloquea", "value": "Este trabajo bloquea el progreso del trabajo vinculado. Se usa para el seguimiento de dependencias. Icono: block." },
-            { "label": "Padre de", "value": "Este trabajo es el padre del trabajo vinculado. Se usa para estructuras de trabajo jerárquicas. Icono: account_tree." }
+            { "label": "Relacionado con", "value": "Una conexión general entre dos trabajos. Se muestra en ambos trabajos." },
+            { "label": "Bloquea", "value": "Este trabajo está frenando al otro. Úsalo para seguir qué depende de qué." },
+            { "label": "Padre de", "value": "Este trabajo es el padre del otro. Úsalo para agrupar trabajos bajo uno mayor." }
           ]
         }
       ]
@@ -373,18 +373,18 @@
             { "id": "c", "text": "Se genera automáticamente una factura y se envía al cliente" },
             { "id": "d", "text": "Nada especial — se trata igual que cualquier otro movimiento de etapa" }
           ],
-          "explanation": "Cuando un trabajo llega a la etapa final, el sistema establece su CompletedDate en la marca de tiempo UTC actual. El trabajo permanece en el tablero (no se archiva automáticamente). Si el trabajo se mueve más tarde hacia atrás desde la etapa final, la fecha de finalización se borra."
+          "explanation": "Cuando un trabajo llega a la etapa final, el sistema le pone la fecha de finalización de hoy. El trabajo permanece en el tablero — no se archiva automáticamente. Si más tarde se mueve hacia atrás desde la etapa final, esa fecha de finalización se borra."
         },
         {
           "id": "kb7",
           "text": "Estás viendo el tablero Kanban y otro miembro del equipo crea un nuevo trabajo. ¿Cómo se actualiza tu tablero?",
           "options": [
-            { "id": "a", "text": "El tablero se actualiza automáticamente en tiempo real mediante WebSocket de SignalR — la nueva ficha aparece sin que necesites actualizar", "isCorrect": true },
+            { "id": "a", "text": "El tablero se actualiza solo, en tiempo real — la nueva ficha aparece sin que necesites actualizar", "isCorrect": true },
             { "id": "b", "text": "Necesitas hacer clic manualmente en un botón de Actualizar para ver el nuevo trabajo" },
-            { "id": "c", "text": "El tablero sondea el servidor cada 30 segundos y se actualiza en el siguiente ciclo" },
+            { "id": "c", "text": "El tablero comprueba el servidor cada 30 segundos y se actualiza en el siguiente ciclo" },
             { "id": "d", "text": "Necesitas salir de la página kanban y volver a ella para ver la actualización" }
           ],
-          "explanation": "El tablero Kanban usa conexiones WebSocket de SignalR para la sincronización en tiempo real. Cuando cualquier usuario crea un trabajo, mueve una ficha, actualiza un trabajo o reordena fichas, se dispara un evento de boardHub y todos los clientes conectados recargan automáticamente los datos del tablero."
+          "explanation": "El tablero se actualiza en vivo. Cuando cualquiera crea un trabajo, mueve una ficha, actualiza un trabajo o reordena fichas, cada tablero abierto se actualiza solo — no hace falta actualizar manualmente."
         },
         {
           "id": "kb8",
@@ -401,12 +401,12 @@
           "id": "kb9",
           "text": "Abres un diálogo de detalle de trabajo y quieres reasignar rápidamente el trabajo sin abrir el diálogo de edición. ¿Cómo?",
           "options": [
-            { "id": "a", "text": "Haz clic en la fila del responsable en la sección Detalles de la barra lateral para abrir un menú desplegable y luego selecciona el nuevo responsable", "isCorrect": true },
-            { "id": "b", "text": "Debes hacer clic en el botón Editar y cambiar el responsable en el diálogo de edición" },
+            { "id": "a", "text": "Haz clic en el responsable en la sección Detalles de la barra lateral para abrir un menú y luego elige a la nueva persona", "isCorrect": true },
+            { "id": "b", "text": "Debes hacer clic en el botón Editar y cambiar el responsable en el formulario de edición" },
             { "id": "c", "text": "Arrastra la ficha de trabajo a una fila diferente en la vista de equipo" },
-            { "id": "d", "text": "Haz clic derecho en la ficha de trabajo y selecciona 'Reasignar' en el menú contextual" }
+            { "id": "d", "text": "Haz clic derecho en la ficha de trabajo y selecciona 'Reasignar' en el menú" }
           ],
-          "explanation": "La fila del responsable en la barra lateral de detalle permite hacer clic y abre un menú desplegable con todos los miembros del equipo y una opción 'Desasignar'. Seleccionar un usuario reasigna el trabajo de inmediato sin necesidad de abrir el diálogo de edición completo."
+          "explanation": "Haz clic en el responsable en la barra lateral de detalles y se abre un menú con todo tu equipo más una opción 'Desasignar'. Elige a alguien y el trabajo se reasigna de inmediato — sin necesidad de abrir el formulario de edición completo."
         },
         {
           "id": "kb10",
@@ -423,34 +423,34 @@
           "id": "kb11",
           "text": "Cerraste por accidente el diálogo Crear trabajo después de rellenar varios campos. ¿Qué ocurre con los datos de tu formulario?",
           "options": [
-            { "id": "a", "text": "El diálogo tiene guardado automático de borradores — los datos de tu formulario se guardan en IndexedDB y se recuperan con un banner la próxima vez que abras el diálogo", "isCorrect": true },
+            { "id": "a", "text": "El formulario guarda automáticamente tus datos como borrador — vuelven con un banner la próxima vez que lo abras", "isCorrect": true },
             { "id": "b", "text": "Todos los datos se pierden y necesitas volver a introducir todo" },
-            { "id": "c", "text": "Los datos se mantienen temporalmente en memoria y están disponibles si haces clic en 'Nuevo trabajo' de nuevo en 60 segundos" },
-            { "id": "d", "text": "Un diálogo de confirmación te impide cerrar si el formulario tiene datos sin guardar" }
+            { "id": "c", "text": "Los datos se mantienen en memoria durante 60 segundos si haces clic en 'Nuevo trabajo' de nuevo" },
+            { "id": "d", "text": "Un aviso te impide cerrar si el formulario tiene datos sin guardar" }
           ],
-          "explanation": "Los diálogos de crear/editar trabajo usan el sistema de guardado automático de borradores. El estado del formulario se guarda automáticamente en IndexedDB cada 2,5 segundos. Si cierras por accidente (o el navegador se bloquea), la próxima vez que abras el diálogo aparecerá un banner 'Cambios sin guardar recuperados' y los datos de tu formulario se restaurarán."
+          "explanation": "El formulario de crear/editar trabajo guarda lo que escribes como borrador a medida que avanzas. Si lo cierras por accidente (o el navegador se bloquea), la próxima vez que lo abras aparecerá un banner 'Cambios sin guardar recuperados' y tus datos se restaurarán."
         },
         {
           "id": "kb12",
           "text": "¿Cómo compartes un enlace directo a un trabajo concreto con un compañero?",
           "options": [
-            { "id": "a", "text": "Abre el diálogo de detalle del trabajo — la URL se actualiza para incluir ?detail=job:{id}. Copia la URL de la barra de direcciones del navegador y compártela.", "isCorrect": true },
-            { "id": "b", "text": "Haz clic en el botón Compartir del diálogo de detalle del trabajo para generar un enlace que se pueda compartir" },
+            { "id": "a", "text": "Abre los detalles del trabajo — la dirección web se actualiza para apuntar a ese trabajo. Cópiala de la barra de direcciones y compártela.", "isCorrect": true },
+            { "id": "b", "text": "Haz clic en un botón Compartir en los detalles del trabajo para generar un enlace que se pueda compartir" },
             { "id": "c", "text": "Haz clic derecho en la ficha de trabajo y selecciona 'Copiar enlace'" },
             { "id": "d", "text": "Solo puedes compartir números de trabajo — no hay enlaces directos a trabajos concretos" }
           ],
-          "explanation": "Cuando abres un diálogo de detalle de trabajo, la URL se actualiza automáticamente para incluir ?detail=job:{id} (p. ej., /kanban?detail=job:1055). Cualquiera que abra esta URL aterrizará en el tablero kanban con el diálogo de detalle de ese trabajo ya abierto. Esto también funciona con marcadores e historial del navegador."
+          "explanation": "Cuando abres los detalles de un trabajo, la dirección web se actualiza para apuntar a ese trabajo. Cualquiera que abra esa dirección aterrizará en el tablero con los detalles del trabajo ya abiertos. También funciona con marcadores e historial del navegador."
         },
         {
           "id": "kb13",
           "text": "Escaneas un código de barras con un lector USB mientras estás en el tablero Kanban. ¿Qué ocurre?",
           "options": [
-            { "id": "a", "text": "El sistema busca un trabajo que coincida con el número de trabajo escaneado y, si lo encuentra, abre automáticamente su diálogo de detalle con un snackbar de éxito", "isCorrect": true },
+            { "id": "a", "text": "El sistema busca un trabajo que coincida con el número escaneado y, si lo encuentra, abre sus detalles", "isCorrect": true },
             { "id": "b", "text": "El valor escaneado se introduce en el campo del filtro de miembros del equipo" },
             { "id": "c", "text": "Nada — el escaneo de códigos de barras solo funciona en las páginas de Inventario y Piezas" },
             { "id": "d", "text": "Se crea un nuevo trabajo con el valor escaneado como título" }
           ],
-          "explanation": "La página Kanban establece el contexto del lector en 'kanban'. Cuando se escanea un código de barras, el sistema busca en todos los trabajos del tablero actual un número de trabajo que coincida. Si lo encuentra, abre el diálogo de detalle y muestra un snackbar de éxito. Si no lo encuentra, muestra un snackbar de error."
+          "explanation": "En el tablero, un código de barras escaneado se compara con los números de trabajo del tablero actual. Si uno coincide, se abren sus detalles con un mensaje de confirmación. Si ninguno coincide, aparece un mensaje de error."
         },
         {
           "id": "kb14",
@@ -467,12 +467,12 @@
           "id": "kb15",
           "text": "Cuando mueves una ficha de trabajo a una etapa que tiene configurado un tipo de documento contable (p. ej., Factura), ¿qué ocurre automáticamente?",
           "options": [
-            { "id": "a", "text": "Si hay un proveedor contable conectado y el trabajo tiene un cliente con un ID externo, el sistema pone en cola el documento (p. ej., factura) para su creación en el sistema contable", "isCorrect": true },
+            { "id": "a", "text": "Si hay un sistema contable conectado y el cliente del trabajo está vinculado a él, el documento (como una factura) se pone en cola para crearse allí", "isCorrect": true },
             { "id": "b", "text": "Se crea una factura de inmediato y se envía al cliente por correo electrónico" },
             { "id": "c", "text": "La ficha de trabajo se vuelve verde para indicar que ha sido facturada" },
             { "id": "d", "text": "Nada automático — debes crear la factura manualmente desde la página de órdenes de venta" }
           ],
-          "explanation": "Cuando una etapa tiene configurado un AccountingDocumentType, mover un trabajo allí dispara una operación de puesta en cola. El sistema comprueba: (1) si hay un proveedor contable conectado, (2) si el trabajo tiene un cliente y (3) si el cliente tiene un ID externo (vinculado al sistema contable). Si se cumplen todas las condiciones, la creación del documento se pone en cola para su procesamiento."
+          "explanation": "Cuando una etapa está configurada para crear un documento contable, mover un trabajo allí lo pone en cola — pero solo si hay un sistema contable conectado, el trabajo tiene un cliente y ese cliente está vinculado al sistema contable. Cuando las tres cosas se cumplen, el documento se pone en cola para crearse."
         },
         {
           "id": "kb16",
@@ -494,7 +494,7 @@
             { "id": "c", "text": "Solo cambia el responsable a Roberto — la etapa sigue siendo En producción" },
             { "id": "d", "text": "Se produce un error — solo puedes cambiar un atributo a la vez" }
           ],
-          "explanation": "En la vista de equipo, cada celda representa la intersección de un usuario (fila) y una etapa (columna). Arrastrar entre celdas puede cambiar la etapa y el responsable en una sola operación de arrastre. El sistema envía dos llamadas a la API separadas — una para el movimiento de etapa y otra para el cambio de responsable."
+          "explanation": "En la vista de equipo, cada celda es donde se cruzan una persona (fila) y una etapa (columna). Arrastrar una ficha de una celda a otra puede cambiar a la vez la etapa y a quién está asignada en un solo movimiento."
         },
         {
           "id": "kb18",
@@ -505,7 +505,7 @@
             { "id": "c", "text": "Ve a Cuenta → Configuración → Filtro de tablero predeterminado y establécelo en 'Solo mis trabajos'" },
             { "id": "d", "text": "No hay forma de hacer que los filtros del tablero persistan — debes establecerlos cada vez" }
           ],
-          "explanation": "El botón conmutador 'Mi trabajo' filtra el tablero para mostrar solo los trabajos asignados a ti y guarda esta preferencia en tu almacén de preferencias de usuario. La configuración persiste entre sesiones y también se refleja en la URL como ?myWork=true. El filtro de miembros del equipo también funciona pero no persiste."
+          "explanation": "El botón 'Mi trabajo' filtra el tablero para mostrar solo tus trabajos y recuerda la elección, así que sigue activo la próxima vez que vuelvas. El filtro de miembros del equipo puede hacer lo mismo, pero no se mantiene entre visitas."
         },
         {
           "id": "kb19",
@@ -522,12 +522,12 @@
           "id": "kb20",
           "text": "El banner de conexión de SignalR en la parte superior de la página se vuelve amarillo y dice 'Reconectando...'. ¿Qué está pasando y qué deberías hacer?",
           "options": [
-            { "id": "a", "text": "La conexión WebSocket con el servidor se interrumpió y está intentando reconectarse automáticamente — espera unos segundos y el tablero reanudará las actualizaciones en tiempo real una vez reconectado", "isCorrect": true },
+            { "id": "a", "text": "La conexión con el servidor se cayó y se está reconectando sola — espera unos segundos y las actualizaciones en vivo se reanudan cuando vuelva", "isCorrect": true },
             { "id": "b", "text": "El servidor se está apagando por mantenimiento — guarda tu trabajo y cierra la aplicación" },
             { "id": "c", "text": "Tu sesión ha caducado — necesitas iniciar sesión de nuevo" },
             { "id": "d", "text": "Otro usuario ha tomado el control del tablero — ahora estás en modo de solo lectura" }
           ],
-          "explanation": "El ConnectionBannerComponent supervisa el estado de la conexión de SignalR. El amarillo 'Reconectando...' significa que el WebSocket se cayó (corte de red, reinicio del servidor, etc.) y el cliente está intentando reconectarse automáticamente con retroceso exponencial. Normalmente se reconecta en segundos. Si falla por completo, el banner se vuelve rojo ('Desconectado'). El tablero sigue funcionando pero no recibirá actualizaciones en tiempo real hasta que se reconecte."
+          "explanation": "El amarillo 'Reconectando...' significa que la conexión con el servidor se cayó (un corte de red, un reinicio del servidor, etc.) y está intentando reconectarse sola. Normalmente vuelve en segundos. Si no puede, el banner se vuelve rojo. El tablero sigue funcionando, pero no recibirá actualizaciones en vivo hasta que se reconecte."
         }
       ]
     }

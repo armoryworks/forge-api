@@ -4,7 +4,7 @@
     "title": "Visión general de las Devoluciones de Clientes",
     "summary": "Qué son las devoluciones de clientes (RMA), el ciclo de vida de la devolución desde Recibida hasta Cerrada, y cómo se conectan las devoluciones con las órdenes de venta, los trabajos y el inventario.",
     "contentJson": {
-      "body": "## Visión general de las Devoluciones de Clientes\n\nEl módulo de Devoluciones de Clientes realiza el seguimiento de la mercancía devuelta por los clientes a través de un ciclo de vida estructurado de RMA (Autorización de Devolución de Mercancía). Cada devolución se vincula al trabajo original que produjo la mercancía y, opcionalmente, a un trabajo de retrabajo creado para corregir el problema.\n\n### ¿Qué es una devolución de cliente?\n\nUna devolución de cliente representa la mercancía enviada de vuelta por un cliente debido a defectos, especificaciones incorrectas, daños durante el envío u otros problemas de calidad. A cada devolución se le asigna un número de RMA único (p. ej., RMA-00001) y se le hace seguimiento a través de una serie de estados hasta que el problema se resuelve por completo y se cierra.\n\n### El ciclo de vida de la devolución\n\nLas devoluciones de clientes pasan por cinco estados en un orden definido:\n\n1. **Recibida** — La devolución se ha registrado en el sistema. La mercancía del cliente ha llegado de vuelta a sus instalaciones. Este es el estado inicial cuando se crea una devolución.\n2. **En inspección** — La mercancía devuelta se está inspeccionando para determinar la causa raíz del problema. Se asigna un inspector y se registran las notas de inspección.\n3. **Retrabajo ordenado** — Se ha creado un trabajo de retrabajo para corregir el defecto. El trabajo de retrabajo aparece en el tablero Kanban y sigue el flujo de trabajo de producción normal. La devolución pasa automáticamente a este estado cuando se genera un trabajo de retrabajo durante la creación.\n4. **Resuelta** — El problema se ha abordado, ya sea mediante retrabajo, reemplazo, crédito u otra acción correctiva. La devolución puede resolverse mediante el endpoint de resolución una vez que la acción correctiva esté completa.\n5. **Cerrada** — Estado final. La devolución se ha procesado por completo y se ha cerrado. Solo las devoluciones resueltas pueden cerrarse. Las devoluciones cerradas no pueden reabrirse ni modificarse.\n\n### Cómo se conectan las devoluciones con otras funciones\n\n**Trabajos:** Cada devolución se vincula al trabajo original que produjo la mercancía devuelta mediante el campo OriginalJobId. Cuando se crea un trabajo de retrabajo, este se vincula de vuelta a la devolución y también crea un enlace de trabajo RelatedTo entre el trabajo original y el de retrabajo en el tablero Kanban.\n\n**Clientes:** Cada devolución se asocia con el cliente que devolvió la mercancía. Las devoluciones pueden filtrarse por cliente para ver todas las RMA de una cuenta específica.\n\n**Órdenes de venta:** Las devoluciones están estrechamente relacionadas con el flujo de trabajo de las órdenes de venta. La mercancía devuelta se envió originalmente contra una orden de venta, y cualquier reemplazo o crédito puede requerir una nueva orden de venta o un ajuste.\n\n**Trabajos de retrabajo:** Cuando una devolución requiere retrabajo, el sistema puede crear automáticamente un nuevo trabajo con el prefijo '[Rework]' antepuesto al título del trabajo original, asignado al mismo tipo de pista y operador que el original. El trabajo de retrabajo comienza en la primera etapa de la pista de producción y se establece con prioridad Alta.\n\n### Cuándo usar Devoluciones de Clientes\n\n- Cuando un cliente se comunica con usted por mercancía defectuosa o incorrecta\n- Cuando la mercancía devuelta llega a sus instalaciones y necesita registrarse\n- Cuando necesita hacer seguimiento de la inspección y resolución de problemas de calidad\n- Cuando se requiere retrabajo y necesita crear un trabajo de producción vinculado\n- Cuando necesita un registro de auditoría de todas las devoluciones de un cliente o trabajo específico\n\n### Acceso y permisos\n\nLas devoluciones de clientes se gestionan por usuarios con roles de Administrador, Gerente o Gerente de Oficina. El módulo tiene una página de interfaz de usuario dedicada en `/customer-returns`: una lista (tabla de datos) con búsqueda y un filtro de estado, un botón 'Nueva devolución' que abre un diálogo de creación, y un panel de detalle donde se Resuelven y Cierran las devoluciones. Las mismas operaciones también están disponibles mediante los endpoints `/api/v1/customer-returns` para integraciones y automatización.",
+      "body": "## Visión general de las Devoluciones de Clientes\n\nDevoluciones de Clientes hace seguimiento de la mercancía que un cliente envía de vuelta, desde que llega hasta el día en que se cierra el caso. Cada devolución se vincula al trabajo original que fabricó la mercancía y, si hace falta, a un trabajo de retrabajo creado para corregir el problema. A cada devolución se le llama RMA (Autorización de Devolución de Mercancía).\n\n### ¿Qué es una devolución de cliente?\n\nEs mercancía que un cliente envía de vuelta porque tiene defectos, se hizo con las especificaciones equivocadas, se dañó en el envío o no cumple con la calidad. Cada una recibe su propio número de RMA (por ejemplo, RMA-00001) y avanza por una serie de etapas hasta que el problema se resuelve por completo y se cierra.\n\n### El ciclo de vida de la devolución\n\nUna devolución avanza por cinco etapas en orden:\n\n1. **Recibida** — Ha registrado la devolución. La mercancía ha llegado de vuelta a sus instalaciones. Esta es la etapa inicial de una devolución nueva.\n2. **En inspección** — Alguien está inspeccionando la mercancía para hallar la causa raíz. Se registra quién la inspecciona y sus hallazgos.\n3. **Retrabajo ordenado** — Se ha creado un trabajo de retrabajo para corregir el defecto. Aparece en el tablero y sigue el flujo de producción normal. Una devolución llega aquí de forma automática cuando crea el trabajo de retrabajo al registrar la devolución.\n4. **Resuelta** — El problema se ha atendido, mediante retrabajo, un reemplazo, un crédito u otra solución. Marque la devolución como resuelta una vez terminado ese trabajo.\n5. **Cerrada** — La etapa final. La devolución se ha procesado por completo y se ha cerrado. Solo las devoluciones resueltas pueden cerrarse, y una devolución cerrada no puede reabrirse ni cambiarse.\n\n### Cómo se conectan las devoluciones con otras funciones\n\n**Trabajos:** Cada devolución apunta al trabajo original que produjo la mercancía devuelta, así siempre tiene trazabilidad completa. Cuando crea un trabajo de retrabajo, este se vincula a la devolución y también queda conectado al trabajo original en el tablero.\n\n**Clientes:** Cada devolución se asocia con el cliente que envió la mercancía de vuelta. Puede filtrar la lista por cliente para ver todas las devoluciones de esa cuenta.\n\n**Órdenes de venta:** Las devoluciones están estrechamente ligadas a la parte de ventas. La mercancía se envió primero en una orden de venta, y cualquier reemplazo o crédito puede requerir una orden nueva o un ajuste.\n\n**Trabajos de retrabajo:** Cuando una devolución necesita retrabajo, el sistema puede crear un nuevo trabajo por usted. Su título empieza con '[Rework]', usa la misma pista y operador que el original, comienza en la primera etapa de producción y entra con prioridad Alta.\n\n### Cuándo usar Devoluciones de Clientes\n\n- Un cliente se comunica con usted por mercancía defectuosa o incorrecta\n- La mercancía devuelta llega a sus instalaciones y hay que registrarla\n- Necesita hacer seguimiento de la inspección y resolución de un problema de calidad\n- Hace falta retrabajo y quiere un trabajo de producción vinculado para ello\n- Necesita un registro de todas las devoluciones de un cliente o un trabajo\n\n### Acceso y permisos\n\nDevoluciones de Clientes está disponible para Administradores, Gerentes y Gerentes de Oficina. La página le ofrece una lista con búsqueda y un filtro de etapa, un botón 'Nueva devolución' que abre un formulario, y un panel de detalle donde resuelve y cierra cada devolución.",
       "sections": []
     }
   },
@@ -13,7 +13,7 @@
     "title": "Devoluciones de Clientes — Recorrido del proceso",
     "summary": "Un recorrido conceptual del proceso de devolución de clientes: recepción de una devolución, inspección, decisiones de retrabajo, resolución y cierre.",
     "contentJson": {
-      "body": "## Devoluciones de Clientes — Recorrido del proceso\n\nEste recorrido cubre el proceso de principio a fin para gestionar una devolución de cliente, desde la recepción inicial hasta el cierre final. El módulo de Devoluciones de Clientes tiene una página de interfaz de usuario dedicada en `/customer-returns` (lista, diálogo de creación y panel de detalle con acciones Resolver/Cerrar); cada paso a continuación indica tanto cómo realizarlo en pantalla como la operación de API que lo respalda.\n\n### Paso 1: Recibir la devolución\n\nCuando un cliente se comunica con usted para devolver mercancía, el primer paso es crear un registro de devolución. Esto se hace mediante `POST /api/v1/customer-returns` con la siguiente información:\n\n- **Cliente** — Seleccione el cliente que devuelve la mercancía. El CustomerId vincula la devolución a su cuenta.\n- **Trabajo original** — Identifique el trabajo que produjo la mercancía que se devuelve. El OriginalJobId establece la trazabilidad.\n- **Motivo** — Documente por qué se devuelve la mercancía (obligatorio, hasta 1000 caracteres). Sea específico: 'Piezas fuera de tolerancia en el diámetro del barreno' es mejor que 'Piezas defectuosas'.\n- **Notas** — Cualquier contexto adicional (opcional, hasta 2000 caracteres). Incluya números de OC, cantidad devuelta, detalles de envío.\n- **Fecha de devolución** — Cuándo se devolvió o se devolverá la mercancía.\n- **Crear trabajo de retrabajo** — Si ya sabe que se necesita retrabajo, establezca esto en verdadero. El sistema creará automáticamente un trabajo de retrabajo vinculado al original.\n\nEl sistema genera un número de RMA único (p. ej., RMA-00001) y establece el estado inicial en Recibida. Si se solicitó un trabajo de retrabajo, el estado comienza en Retrabajo ordenado en su lugar, y el trabajo de retrabajo aparece en el tablero Kanban.\n\n### Paso 2: Inspeccionar la mercancía devuelta\n\nUna vez que la mercancía llega a sus instalaciones, debe inspeccionarse. Actualice la devolución mediante `PUT /api/v1/customer-returns/{id}` para agregar notas de inspección. La entidad rastrea:\n\n- **InspectedById** — El usuario que realizó la inspección\n- **InspectedAt** — Cuándo ocurrió la inspección\n- **InspectionNotes** — Hallazgos detallados de la inspección (hasta 2000 caracteres)\n\nDocumente lo que encuentre: mediciones, defectos visuales, comparación con las especificaciones. Este registro de inspección pasa a formar parte del registro de auditoría permanente.\n\n### Paso 3: Decidir la acción correctiva\n\nSegún la inspección, decida la acción correctiva:\n\n- **Retrabajo** — Si las piezas pueden corregirse, cree un trabajo de retrabajo (si no se creó ya durante el Paso 1). El trabajo de retrabajo es un nuevo trabajo de producción con '[Rework]' en el título, vinculado al mismo tipo de pista que el original, con prioridad Alta asignada y conectado mediante un enlace de trabajo RelatedTo.\n- **Reemplazo** — Cree una nueva orden de venta y un trabajo para producir piezas de reemplazo.\n- **Crédito** — Emita una nota de crédito o ajuste la factura de la orden afectada.\n- **Sin acción** — Si la devolución no está justificada (error del cliente, daño de envío cubierto por el seguro), documéntelo en las notas.\n\n### Paso 4: Resolver la devolución\n\nUna vez que la acción correctiva esté completa (retrabajo finalizado, reemplazo enviado, crédito emitido), resuelva la devolución mediante `POST /api/v1/customer-returns/{id}/resolve`. Esto mueve el estado de cualquiera que sea su estado actual a Resuelta.\n\n**Reglas importantes:**\n- Una devolución que ya está Cerrada no puede resolverse (el sistema rechazará la solicitud)\n- Resolver no requiere que la devolución esté en ningún estado previo específico: puede pasar de Recibida, En inspección o Retrabajo ordenado directamente a Resuelta\n\n### Paso 5: Cerrar la devolución\n\nDespués de que la devolución se resuelva y todo el seguimiento esté completo, ciérrela mediante `POST /api/v1/customer-returns/{id}/close`. Este es el estado final e irreversible.\n\n**Reglas importantes:**\n- Solo las devoluciones en estado Resuelta pueden cerrarse\n- Las devoluciones cerradas no pueden reabrirse, resolverse de nuevo ni modificarse\n- Esto garantiza un registro de auditoría limpio: una vez cerrado, el registro es final\n\n### Filtrar y revisar devoluciones\n\nUse `GET /api/v1/customer-returns` para listar todas las devoluciones. El endpoint admite dos filtros:\n\n- **customerId** — Vea todas las devoluciones de un cliente específico\n- **status** — Filtre por etapa del ciclo de vida (Recibida, En inspección, Retrabajo ordenado, Resuelta, Cerrada)\n\nLos resultados se ordenan por fecha de creación (más recientes primero). Cada elemento de la lista incluye el número de RMA, el nombre del cliente, el número del trabajo original, el número del trabajo de retrabajo (si lo hay), el estado, el motivo, la fecha de devolución y la marca de tiempo de creación.\n\n### Buenas prácticas\n\n1. **Cree devoluciones con prontitud** — Registre la RMA tan pronto como el cliente informe del problema, incluso antes de que llegue la mercancía\n2. **Sea específico en los motivos** — Los motivos vagos dificultan la identificación de patrones y la mejora de la calidad\n3. **Vincule los trabajos de retrabajo de inmediato** — Si es probable que haya retrabajo, cree el trabajo de retrabajo durante la creación de la devolución para tenerlo en el tablero más rápido\n4. **Complete las inspecciones a fondo** — Las notas de inspección son registros permanentes usados para el análisis de tendencias de calidad\n5. **No omita Resolver** — Siempre resuelva antes de cerrar para mantener el registro de auditoría\n6. **Revise las devoluciones por cliente** — La revisión periódica de las devoluciones por cliente ayuda a identificar problemas de calidad recurrentes",
+      "body": "## Devoluciones de Clientes — Recorrido del proceso\n\nEste recorrido sigue una devolución de principio a fin, desde que la mercancía vuelve hasta el día en que la cierra. Cada paso ocurre en la página de Devoluciones de Clientes: la lista, el formulario de Nueva devolución y el panel de detalle donde resuelve y cierra.\n\n### Paso 1: Recibir la devolución\n\nCuando un cliente se comunica con usted para devolver mercancía, empiece por registrar una devolución. Haga clic en Nueva devolución y complete:\n\n- **Cliente** — Elija el cliente que devuelve la mercancía.\n- **Trabajo original** — Elija el trabajo que fabricó la mercancía devuelta, para que la devolución quede trazada hasta él.\n- **Motivo** — Diga por qué vuelve la mercancía (obligatorio). Sea específico: 'Piezas fuera de tolerancia en el diámetro del barreno' es mejor que 'Piezas defectuosas'.\n- **Notas** — Cualquier contexto adicional (opcional): números de OC, cantidad devuelta, detalles de envío.\n- **Fecha de devolución** — Cuándo volvió la mercancía o se espera que vuelva.\n- **Crear trabajo de retrabajo** — Actívelo si ya sabe que se necesita retrabajo, y el sistema crea por usted un trabajo de retrabajo vinculado.\n\nAl guardar se genera el número de RMA (por ejemplo, RMA-00001) y la etapa queda en Recibida. Si pidió un trabajo de retrabajo, la devolución empieza en Retrabajo ordenado, y el trabajo de retrabajo aparece en el tablero.\n\n### Paso 2: Inspeccionar la mercancía devuelta\n\nUna vez que la mercancía llega, inspecciónela y registre lo que encuentre. La devolución guarda quién la inspeccionó, cuándo y sus hallazgos. Anote mediciones, defectos visibles y cómo se compara la mercancía con las especificaciones. Estos hallazgos quedan en el registro para siempre y forman parte del registro de auditoría.\n\n### Paso 3: Decidir la acción correctiva\n\nSegún la inspección, decida cómo resolverlo:\n\n- **Retrabajo** — Si las piezas pueden corregirse, cree un trabajo de retrabajo (si no lo hizo ya en el Paso 1). Es un nuevo trabajo de producción con el prefijo '[Rework]' en el título, en la misma pista que el original, con prioridad Alta y vinculado de vuelta al trabajo original.\n- **Reemplazo** — Cree una nueva orden de venta y un trabajo para fabricar piezas de reemplazo.\n- **Crédito** — Emita un crédito o ajuste la factura de la orden afectada.\n- **Sin acción** — Si la devolución no está justificada (error del cliente, daño de envío cubierto por el seguro), anótelo en la devolución.\n\n### Paso 4: Resolver la devolución\n\nUna vez terminada la solución — retrabajo finalizado, reemplazo enviado o crédito emitido — marque la devolución como resuelta. Esto la mueve a Resuelta desde donde esté ahora.\n\n**Bueno saberlo:**\n- Una devolución que ya está Cerrada no puede resolverse.\n- Puede resolver desde cualquier etapa activa. Una devolución puede pasar directo a Resuelta sin detenerse antes en En inspección o Retrabajo ordenado.\n\n### Paso 5: Cerrar la devolución\n\nDespués de que la devolución esté resuelta y hecho cualquier seguimiento, ciérrela. Esta es la etapa final y no puede deshacerse.\n\n**Bueno saberlo:**\n- Solo las devoluciones resueltas pueden cerrarse.\n- Una devolución cerrada no puede reabrirse, resolverse de nuevo ni cambiarse.\n- Resolver primero y luego cerrar mantiene limpio el registro de auditoría: una vez cerrada, el registro es final.\n\n### Filtrar y revisar devoluciones\n\nEn la lista, use la búsqueda y el filtro de etapa para encontrar lo que necesita. Filtre por cliente para ver todas las devoluciones de una cuenta, o por etapa (Recibida, En inspección, Retrabajo ordenado, Resuelta o Cerrada) para centrarse en las que aún requieren acción. Las devoluciones más recientes aparecen primero, y cada fila muestra su número de RMA, el cliente, el trabajo original, el trabajo de retrabajo (si lo hay), la etapa actual, el motivo y la fecha de devolución.\n\n### Buenas prácticas\n\n1. **Registre las devoluciones con prontitud** — Cree la RMA en cuanto el cliente informe del problema, incluso antes de que llegue la mercancía.\n2. **Sea específico con el motivo** — Los motivos vagos dificultan detectar patrones y mejorar la calidad.\n3. **Vincule los trabajos de retrabajo pronto** — Si es probable el retrabajo, cree el trabajo al registrar la devolución para que llegue antes al tablero.\n4. **Inspeccione a fondo** — Los hallazgos de inspección son permanentes y alimentan sus tendencias de calidad.\n5. **No omita resolver** — Siempre resuelva antes de cerrar, para mantener intacto el registro de auditoría.\n6. **Revise las devoluciones por cliente** — Revisar de vez en cuando las devoluciones de cada cliente le ayuda a detectar problemas de calidad recurrentes.",
       "sections": []
     }
   },
@@ -25,221 +25,221 @@
       "title": "Referencia de campos de las Devoluciones de Clientes",
       "groups": [
         {
-          "heading": "Campos de la entidad",
+          "heading": "Qué contiene una devolución",
           "items": [
             {
-              "label": "ReturnNumber (autogenerado)",
-              "value": "Formato: RMA-XXXXX (p. ej., RMA-00001). Asignado secuencialmente, rellenado con ceros a 5 dígitos. No puede establecerse ni cambiarse manualmente."
+              "label": "Número de RMA",
+              "value": "Cada devolución recibe su propio número, como RMA-00001, asignado automáticamente en orden. No puede establecerlo ni cambiarlo usted mismo."
             },
             {
-              "label": "CustomerId (obligatorio)",
-              "value": "Clave foránea a la entidad Customer. Identifica al cliente que devolvió la mercancía. Debe referenciar a un cliente existente y no eliminado."
+              "label": "Cliente (obligatorio)",
+              "value": "El cliente que envió la mercancía de vuelta. Cada devolución se vincula a la cuenta de un cliente."
             },
             {
-              "label": "OriginalJobId (obligatorio)",
-              "value": "Clave foránea a la entidad Job. El trabajo de producción que creó la mercancía devuelta. Establece la trazabilidad completa desde la devolución hasta la producción original."
+              "label": "Trabajo original (obligatorio)",
+              "value": "El trabajo de producción que fabricó la mercancía devuelta, para que la devolución se rastree directamente hasta su origen."
             },
             {
-              "label": "ReworkJobId (opcional)",
-              "value": "Clave foránea a la entidad Job. Se establece cuando se crea un trabajo de retrabajo (ya sea durante la creación de la devolución con CreateReworkJob=true, o vinculado posteriormente). El título del trabajo de retrabajo lleva el prefijo '[Rework]'."
+              "label": "Trabajo de retrabajo (opcional)",
+              "value": "El trabajo de retrabajo de esta devolución, si se creó uno. Su título empieza con '[Rework]'. Puede crearlo al registrar la devolución o vincularlo después."
             },
             {
-              "label": "Reason (obligatorio)",
-              "value": "Texto, máximo 1000 caracteres. Por qué se devuelve la mercancía. Debe ser específico y procesable. Se valida como no vacío en la creación."
+              "label": "Motivo (obligatorio)",
+              "value": "Por qué volvió la mercancía. Manténgalo específico y útil. Obligatorio, hasta 1000 caracteres."
             },
             {
-              "label": "Notes (opcional)",
-              "value": "Texto, máximo 2000 caracteres. Contexto adicional: números de OC, cantidades, detalles de envío, correspondencia con el cliente."
+              "label": "Notas (opcional)",
+              "value": "Contexto adicional como números de OC, cantidades, detalles de envío o mensajes del cliente. Opcional, hasta 2000 caracteres."
             },
             {
-              "label": "Status",
-              "value": "Enum: Received, UnderInspection, ReworkOrdered, Resolved, Closed. Consulte la sección Estados para conocer las reglas del ciclo de vida."
+              "label": "Etapa",
+              "value": "En qué punto de su vida está la devolución: Recibida, En inspección, Retrabajo ordenado, Resuelta o Cerrada. Vea la sección Etapas para las reglas."
             },
             {
-              "label": "ReturnDate (obligatorio)",
-              "value": "DateTimeOffset. Cuándo se devolvió o se devolverá la mercancía. Se establece durante la creación."
+              "label": "Fecha de devolución (obligatorio)",
+              "value": "Cuándo volvió la mercancía o se espera que vuelva. Se establece al registrar la devolución."
             },
             {
-              "label": "InspectedById (opcional)",
-              "value": "Clave foránea a ApplicationUser. El usuario que inspeccionó la mercancía devuelta."
+              "label": "Inspeccionado por (opcional)",
+              "value": "Quién inspeccionó la mercancía devuelta."
             },
             {
-              "label": "InspectedAt (opcional)",
-              "value": "DateTimeOffset. Cuándo se realizó la inspección."
+              "label": "Inspeccionado el (opcional)",
+              "value": "Cuándo ocurrió la inspección."
             },
             {
-              "label": "InspectionNotes (opcional)",
-              "value": "Texto, máximo 2000 caracteres. Hallazgos detallados de la inspección: mediciones, descripciones de defectos, análisis de causa raíz."
+              "label": "Notas de inspección (opcional)",
+              "value": "Lo que halló la inspección: mediciones, descripciones de defectos y notas de causa raíz. Hasta 2000 caracteres."
             },
             {
-              "label": "CreatedAt (automático)",
-              "value": "DateTimeOffset, establecido automáticamente por BaseEntity. Cuándo se creó el registro de devolución."
+              "label": "Creado (automático)",
+              "value": "Cuándo se registró la devolución por primera vez. Se completa por usted."
             },
             {
-              "label": "UpdatedAt (automático)",
-              "value": "DateTimeOffset, establecido automáticamente por BaseEntity. Cuándo se modificó la devolución por última vez."
+              "label": "Última actualización (automático)",
+              "value": "Cuándo se cambió la devolución por última vez. Se completa por usted."
             },
             {
-              "label": "CreatedBy (automático)",
-              "value": "Establecido automáticamente por BaseAuditableEntity. El usuario que creó el registro de devolución."
+              "label": "Creado por (automático)",
+              "value": "Quién registró la devolución. Se completa por usted."
             }
           ]
         },
         {
-          "heading": "Estados de la devolución",
+          "heading": "Etapas de la devolución",
           "items": [
             {
-              "label": "Received",
-              "value": "Estado inicial. La devolución se ha registrado. La mercancía puede haber llegado físicamente o no. Puede transicionar a cualquier estado excepto Closed directamente."
+              "label": "Recibida",
+              "value": "La etapa inicial. La devolución está registrada; la mercancía puede haber llegado o no. Puede pasar a cualquier etapa, salvo directamente a Cerrada."
             },
             {
-              "label": "UnderInspection",
-              "value": "La mercancía se está inspeccionando. Inspector asignado, hallazgos en proceso de documentación. Estado transitorio entre Received y una decisión de resolución."
+              "label": "En inspección",
+              "value": "La mercancía se está inspeccionando y se anotan los hallazgos. Una etapa intermedia entre Recibida y decidir cómo resolverla."
             },
             {
-              "label": "ReworkOrdered",
-              "value": "Se ha creado y vinculado un trabajo de retrabajo. Se establece automáticamente cuando CreateReworkJob=true durante la creación. El trabajo de retrabajo aparece en el tablero Kanban."
+              "label": "Retrabajo ordenado",
+              "value": "Se ha creado y vinculado un trabajo de retrabajo. Ocurre automáticamente cuando pide un trabajo de retrabajo al registrar la devolución. El trabajo de retrabajo aparece en el tablero."
             },
             {
-              "label": "Resolved",
-              "value": "La acción correctiva está completa. Se establece mediante POST /{id}/resolve. No puede establecerse en una devolución Closed. Requerido antes de cerrar."
+              "label": "Resuelta",
+              "value": "La solución está hecha. No puede resolver una devolución que ya está Cerrada, y una devolución debe resolverse antes de poder cerrarse."
             },
             {
-              "label": "Closed",
-              "value": "Estado final e irreversible. Se establece mediante POST /{id}/close. Solo las devoluciones Resolved pueden cerrarse. No se permiten más modificaciones."
+              "label": "Cerrada",
+              "value": "La etapa final, y no puede deshacerse. Solo las devoluciones resueltas pueden cerrarse. Una vez cerrada, no puede cambiar nada más."
             }
           ]
         },
         {
-          "heading": "Endpoints de la API",
+          "heading": "Qué puede hacer",
           "items": [
             {
-              "label": "GET /api/v1/customer-returns",
-              "value": "Lista todas las devoluciones. Parámetros de consulta: customerId (int, opcional), status (enum CustomerReturnStatus, opcional). Devuelve ordenado por CreatedAt descendente. Respuesta: List<CustomerReturnListItemModel>."
+              "label": "Ver todas las devoluciones",
+              "value": "Abra la lista para ver todas las devoluciones, las más recientes primero. Filtre por cliente o por etapa para acotarla."
             },
             {
-              "label": "GET /api/v1/customer-returns/{id}",
-              "value": "Obtiene el detalle completo de una sola devolución. Incluye el nombre del cliente, el número y título del trabajo original, el número del trabajo de retrabajo, el nombre del inspector, las marcas de tiempo de inspección y todas las notas. Respuesta: CustomerReturnDetailResponseModel."
+              "label": "Abrir una devolución",
+              "value": "Haga clic en una devolución para ver su detalle completo: el cliente, los trabajos, el motivo, quién la inspeccionó y cuándo, y todas las notas."
             },
             {
-              "label": "POST /api/v1/customer-returns",
-              "value": "Crea una nueva devolución. Cuerpo: CustomerId, OriginalJobId, Reason, Notes?, ReturnDate, CreateReworkJob (bool). Devuelve 201 con encabezado Location y CustomerReturnListItemModel."
+              "label": "Registrar una devolución nueva",
+              "value": "Use Nueva devolución para registrar una. Indique el cliente, el trabajo original, un motivo y una fecha de devolución; las notas son opcionales. Al guardar se crea el número de RMA."
             },
             {
-              "label": "PUT /api/v1/customer-returns/{id}",
-              "value": "Actualiza los campos mutables de una devolución. Cuerpo: Reason?, Notes?, InspectionNotes?. Solo se actualizan los campos no nulos (semántica de patch). Devuelve 204."
+              "label": "Actualizar una devolución",
+              "value": "Edite el motivo, las notas o las notas de inspección en cualquier momento. Solo se actualizan los campos que cambie."
             },
             {
-              "label": "POST /api/v1/customer-returns/{id}/resolve",
-              "value": "Mueve una devolución al estado Resolved. No requiere cuerpo. Falla si la devolución ya está Closed. Devuelve 204."
+              "label": "Resolver una devolución",
+              "value": "Marque una devolución como resuelta una vez hecha la solución. Se bloquea si la devolución ya está cerrada."
             },
             {
-              "label": "POST /api/v1/customer-returns/{id}/close",
-              "value": "Mueve una devolución al estado Closed. No requiere cuerpo. Falla si la devolución no está en estado Resolved. Devuelve 204."
+              "label": "Cerrar una devolución",
+              "value": "Cierre una devolución resuelta para darla por terminada. Se bloquea a menos que la devolución se haya resuelto primero."
             }
           ]
         },
         {
-          "heading": "Reglas de validación",
+          "heading": "Reglas que conviene saber",
           "items": [
             {
-              "label": "CustomerId",
-              "value": "Obligatorio. Debe ser mayor que 0. Debe referenciar a un cliente existente."
+              "label": "Cliente",
+              "value": "Obligatorio. Debe elegir un cliente real."
             },
             {
-              "label": "OriginalJobId",
-              "value": "Obligatorio. Debe ser mayor que 0. Debe referenciar a un trabajo existente."
+              "label": "Trabajo original",
+              "value": "Obligatorio. Debe elegir un trabajo real."
             },
             {
-              "label": "Reason",
-              "value": "Obligatorio. No puede estar vacío. Máximo 1000 caracteres."
+              "label": "Motivo",
+              "value": "Obligatorio. No puede estar en blanco. Hasta 1000 caracteres."
             },
             {
-              "label": "Notes",
-              "value": "Opcional. Máximo 2000 caracteres."
+              "label": "Notas",
+              "value": "Opcional. Hasta 2000 caracteres."
             },
             {
-              "label": "InspectionNotes",
-              "value": "Opcional. Máximo 2000 caracteres."
+              "label": "Notas de inspección",
+              "value": "Opcional. Hasta 2000 caracteres."
             },
             {
-              "label": "Acción Resolve",
-              "value": "No se puede resolver una devolución que ya está Closed. Devuelve InvalidOperationException (409)."
+              "label": "Resolver",
+              "value": "No puede resolver una devolución que ya está cerrada."
             },
             {
-              "label": "Acción Close",
-              "value": "Solo las devoluciones en estado Resolved pueden cerrarse. Devuelve InvalidOperationException (409)."
+              "label": "Cerrar",
+              "value": "Solo puede cerrar una devolución que se haya resuelto primero."
             }
           ]
         },
         {
-          "heading": "Creación automática de trabajos de retrabajo",
+          "heading": "Cuando se crea un trabajo de retrabajo",
           "items": [
             {
-              "label": "Disparador",
-              "value": "Establecer CreateReworkJob=true en el cuerpo de la solicitud POST /api/v1/customer-returns."
+              "label": "Cómo empieza",
+              "value": "Active 'Crear trabajo de retrabajo' al registrar la devolución y el sistema arma el trabajo por usted."
             },
             {
               "label": "Número de trabajo",
-              "value": "Autogenerado (JOB-XXXXX), siguiente número secuencial en el sistema."
+              "value": "Se asigna automáticamente un nuevo número de trabajo, el siguiente en la fila."
             },
             {
               "label": "Título",
-              "value": "'[Rework] ' + título del trabajo original (p. ej., '[Rework] Aluminum Housing Batch 5')."
+              "value": "El título del trabajo original con el prefijo '[Rework]', por ejemplo '[Rework] Aluminum Housing Batch 5'."
             },
             {
               "label": "Descripción",
-              "value": "'Rework for RMA {returnNumber}. Reason: {reason}' — incluye el número de RMA y el motivo de la devolución."
+              "value": "Una nota breve que registra el número de RMA y el motivo de la devolución, para que cualquiera en el tablero sepa por qué existe el trabajo."
             },
             {
-              "label": "Tipo de pista",
-              "value": "El mismo tipo de pista que el trabajo original."
+              "label": "Pista",
+              "value": "La misma pista que el trabajo original."
             },
             {
               "label": "Etapa inicial",
-              "value": "Primera etapa (SortOrder más bajo) del tipo de pista del trabajo original."
+              "value": "La primera etapa de esa pista."
             },
             {
               "label": "Prioridad",
-              "value": "Siempre establecida en Alta."
+              "value": "Siempre Alta."
             },
             {
-              "label": "Asignado",
-              "value": "El mismo asignado que el trabajo original (si lo hay)."
+              "label": "Asignado a",
+              "value": "La misma persona que el trabajo original, si tenía una."
             },
             {
-              "label": "Enlace de trabajo",
-              "value": "Se crea un enlace RelatedTo entre el trabajo original y el de retrabajo."
+              "label": "Vínculo",
+              "value": "El trabajo de retrabajo queda vinculado al trabajo original en el tablero."
             },
             {
-              "label": "Estado de la devolución",
-              "value": "Se establece automáticamente en ReworkOrdered cuando se crea un trabajo de retrabajo."
+              "label": "Etapa de la devolución",
+              "value": "La devolución pasa a Retrabajo ordenado en cuanto se crea el trabajo de retrabajo."
             }
           ]
         },
         {
-          "heading": "Autorización",
+          "heading": "Quién puede usarlo",
           "items": [
             {
-              "label": "Roles requeridos",
-              "value": "Administrador, Gerente o Gerente de Oficina. Todos los endpoints del controlador requieren uno de estos roles."
+              "label": "Quién tiene acceso",
+              "value": "Los Administradores, Gerentes y Gerentes de Oficina pueden trabajar con las devoluciones de clientes."
             },
             {
-              "label": "Ruta",
-              "value": "/api/v1/customer-returns — todos los endpoints bajo esta ruta base."
+              "label": "Dónde vive",
+              "value": "Todo ocurre en la página de Devoluciones de Clientes."
             }
           ]
         },
         {
-          "heading": "Modelos de respuesta",
+          "heading": "Qué ve en una devolución",
           "items": [
             {
-              "label": "CustomerReturnListItemModel",
-              "value": "Campos: Id, ReturnNumber, CustomerId, CustomerName, OriginalJobId, OriginalJobNumber, ReworkJobId?, ReworkJobNumber?, Status, Reason, ReturnDate, CreatedAt."
+              "label": "En la lista",
+              "value": "Cada fila muestra el número de RMA, el cliente, el trabajo original, el trabajo de retrabajo (si lo hay), la etapa actual, el motivo y la fecha de devolución."
             },
             {
-              "label": "CustomerReturnDetailResponseModel",
-              "value": "Campos: Id, ReturnNumber, CustomerId, CustomerName, OriginalJobId, OriginalJobNumber, OriginalJobTitle, ReworkJobId?, ReworkJobNumber?, Status, Reason, Notes?, ReturnDate, InspectedById?, InspectedByName?, InspectedAt?, InspectionNotes?, CreatedAt, UpdatedAt."
+              "label": "En el panel de detalle",
+              "value": "El registro completo agrega el título del trabajo original, cualquier nota y los detalles de inspección — quién la inspeccionó, cuándo y qué encontró — junto con cuándo se creó y se actualizó la devolución por última vez."
             }
           ]
         }
@@ -258,7 +258,7 @@
           "element": "app-page-header",
           "popover": {
             "title": "Devoluciones de Clientes",
-            "description": "Esta es la página de Devoluciones de Clientes. Lista cada RMA (Autorización de Devolución de Mercancía) del sistema: devoluciones enviadas de vuelta por los clientes debido a defectos, especificaciones incorrectas, daños de envío u otros problemas de calidad. Cada devolución lleva un número de RMA autogenerado y avanza por un ciclo de vida desde Recibida hasta Cerrada.",
+            "description": "Esta es la página de Devoluciones de Clientes. Lista todas las devoluciones que los clientes han enviado de vuelta: por defectos, especificaciones equivocadas, daños de envío u otros problemas de calidad. Cada devolución tiene su propio número de RMA y avanza por etapas desde Recibida hasta Cerrada.",
             "side": "bottom"
           }
         },
@@ -266,15 +266,15 @@
           "element": "app-input",
           "popover": {
             "title": "Buscar devoluciones",
-            "description": "Escriba aquí para acotar la lista, por ejemplo por número de RMA, nombre del cliente o número del trabajo original. La búsqueda le ayuda a encontrar rápidamente la devolución de un cliente específico cuando la lista es larga.",
+            "description": "Escriba aquí para acotar la lista, por número de RMA, nombre del cliente o número del trabajo original. Es la forma más rápida de encontrar la devolución de un cliente cuando la lista es larga.",
             "side": "bottom"
           }
         },
         {
           "element": "app-select",
           "popover": {
-            "title": "Filtrar por estado",
-            "description": "Use este desplegable para mostrar solo las devoluciones en una etapa concreta del ciclo de vida: Recibida, Retrabajo ordenado, En inspección, Resuelta o Cerrada. Déjelo en 'Todos los estados' para verlo todo. Filtrar por estado es la forma más rápida de encontrar devoluciones que aún requieren acción (p. ej., todo lo que aún no está Resuelto).",
+            "title": "Filtrar por etapa",
+            "description": "Elija una etapa en este menú para mostrar solo las devoluciones en ese punto: Recibida, En inspección, Retrabajo ordenado, Resuelta o Cerrada. Déjelo en 'Todos los estados' para verlo todo. Filtrar es la forma más rápida de encontrar devoluciones que aún requieren atención.",
             "side": "bottom"
           }
         },
@@ -282,7 +282,7 @@
           "element": ".action-btn:not(.action-btn--create)",
           "popover": {
             "title": "Aplicar filtros",
-            "description": "Haga clic en Filtrar para aplicar su texto de búsqueda y la selección de estado. La lista se recarga para mostrar solo las devoluciones coincidentes.",
+            "description": "Haga clic en Filtrar para aplicar su texto de búsqueda y la etapa elegida. La lista se recarga para mostrar solo las devoluciones que coinciden.",
             "side": "bottom"
           }
         },
@@ -290,7 +290,7 @@
           "element": "[data-testid='new-return-btn']",
           "popover": {
             "title": "Nueva devolución",
-            "description": "Haga clic en Nueva devolución para registrar una devolución de cliente. El diálogo de creación solicita el Cliente, el Trabajo original que produjo la mercancía, un Motivo de la devolución, una Fecha de devolución opcional y Notas opcionales. Al guardar se genera el número de RMA y se establece el estado en Recibida.",
+            "description": "Haga clic en Nueva devolución para registrar una devolución. El formulario pide el cliente, el trabajo original que fabricó la mercancía, un motivo, una fecha de devolución opcional y notas opcionales. Al guardar se crea el número de RMA y la etapa queda en Recibida.",
             "side": "bottom"
           }
         },
@@ -298,7 +298,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "La lista de devoluciones",
-            "description": "Cada fila muestra el número de RMA, el cliente, el trabajo original, un chip de estado con código de color, el motivo, la fecha de devolución y cuándo se creó. Haga clic en cualquier encabezado de columna para ordenar. El color del chip de estado indica la etapa de un vistazo: azul = Recibida, verde azulado = En inspección, ámbar = Retrabajo ordenado, verde = Resuelta, gris = Cerrada.",
+            "description": "Cada fila muestra el número de RMA, el cliente, el trabajo original, una etiqueta de etapa con color, el motivo, la fecha de devolución y cuándo se registró. Haga clic en un encabezado de columna para ordenar. El color de la etiqueta indica la etapa de un vistazo: azul para Recibida, verde azulado para En inspección, ámbar para Retrabajo ordenado, verde para Resuelta y gris para Cerrada.",
             "side": "top"
           }
         },
@@ -306,7 +306,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Abrir una devolución",
-            "description": "Haga clic en cualquier fila para abrir el panel de detalle de esa devolución. El panel muestra el registro completo — cliente, trabajos, motivo, hallazgos de inspección y una línea de tiempo de actividad — y es donde se Resuelve la devolución y luego se Cierra. El panel de detalle también enlaza directamente: la URL incorpora ?detail=customer-return:{id}, por lo que puede marcar o compartir un enlace directo a una devolución específica.",
+            "description": "Haga clic en cualquier fila para abrir el panel de detalle de esa devolución. Muestra el registro completo — cliente, trabajos, motivo, hallazgos de inspección y un historial de actividad — y es donde se resuelve la devolución y luego se cierra. También puede marcar o compartir el enlace para volver directamente a esa devolución.",
             "side": "top"
           }
         }
@@ -318,7 +318,7 @@
     "title": "Devoluciones de Clientes — Resolver y cerrar",
     "summary": "Cómo trabajar una devolución desde el panel de detalle: registrar hallazgos de inspección, resolver con notas, cerrar con confirmación y leer la línea de tiempo de actividad.",
     "contentJson": {
-      "body": "## Devoluciones de Clientes — Resolver y cerrar\n\nUna vez que existe una devolución, el resto del trabajo ocurre en su **panel de detalle**. Desde la lista de Devoluciones de Clientes, haga clic en cualquier fila para abrir el panel. La URL se actualiza a `?detail=customer-return:{id}`, de modo que la devolución abierta se puede marcar y compartir: pegue ese enlace a un compañero y se abrirá la misma devolución.\n\n### Lectura del panel de detalle\n\nEl encabezado del panel muestra el número de RMA (p. ej., RMA-00007). Debajo, una cuadrícula de campos presenta todo sobre la devolución:\n\n- **Estado** — un chip con código de color que muestra la etapa actual del ciclo de vida (Recibida, En inspección, Retrabajo ordenado, Resuelta o Cerrada).\n- **Cliente** — la cuenta que devolvió la mercancía.\n- **Trabajo original** — el número del trabajo que produjo la mercancía devuelta.\n- **Trabajo de retrabajo** — se muestra solo cuando se ha creado un trabajo de retrabajo para esta devolución.\n- **Fecha de devolución** — cuándo se devolvió o se devolverá la mercancía.\n- **Motivo** — por qué se devolvió la mercancía (siempre presente).\n- **Notas** — contexto adicional, mostrado solo si se ingresó.\n- **Notas de inspección / Inspeccionado por / Inspeccionado el** — se rellenan después de que la devolución se inspecciona y se resuelve.\n\nLos botones de acción disponibles en el panel dependen del estado actual de la devolución, de modo que solo ve la acción que tiene sentido a continuación.\n\n### Resolver una devolución\n\nCuando una devolución está en **Recibida**, **En inspección** o **Retrabajo ordenado**, aparece un botón verde azulado **Resolver** en el panel.\n\n1. Haga clic en **Resolver**. Se abre un pequeño diálogo con un único campo: **Notas de inspección (opcional)**.\n2. Registre lo que encontró durante la inspección — mediciones, el defecto, la causa raíz o la acción correctiva tomada. Estas notas pasan a formar parte del registro permanente y alimentan el análisis de tendencias de calidad. (El campo es opcional, por lo que puede resolver sin notas, pero se recomienda encarecidamente capturar los hallazgos).\n3. Haga clic en **Resolver** para confirmar. El estado cambia a **Resuelta**, las notas de inspección se guardan y el panel se actualiza para mostrar el nuevo estado. Aparece un mensaje de confirmación.\n\nResolver significa que el problema se ha abordado — mediante retrabajo, reemplazo, crédito o una decisión de que no se justifica ninguna acción. Una devolución puede resolverse directamente desde cualquier estado activo; no tiene que pasar primero por En inspección o Retrabajo ordenado.\n\n### Cerrar una devolución\n\nUna vez que una devolución está **Resuelta**, el botón Resolver se reemplaza por un botón **Cerrar**.\n\n1. Haga clic en **Cerrar**. Aparece un diálogo de confirmación que le pide confirmar el cierre de esta RMA específica — el cierre es definitivo.\n2. Confirme. El estado cambia a **Cerrada** y aparece un mensaje de confirmación.\n\n**El cierre es irreversible.** Una devolución cerrada no puede reabrirse, resolverse de nuevo ni editarse. Solo las devoluciones resueltas pueden cerrarse — esa secuencia de dos pasos Resolver-luego-Cerrar es lo que mantiene limpio el registro de auditoría: cada devolución que termina en Cerrada pasó primero por una resolución explícita. Como el cierre es definitivo, el sistema requiere el clic de confirmación antes de confirmarlo.\n\n### La línea de tiempo de actividad\n\nEn la parte inferior del panel de detalle está la **línea de tiempo de actividad** — un registro de auditoría cronológico e inmutable para esa devolución. Cada evento significativo se registra aquí: cuándo se creó la devolución, cuándo se actualizó, cuándo se resolvió y cuándo se cerró, junto con quién lo hizo y cuándo.\n\nUse la línea de tiempo para responder '¿qué le pasó a esta devolución y quién la gestionó?' sin salir del panel. Como las entradas son inmutables, la línea de tiempo es un registro de auditoría confiable — útil durante disputas con clientes, revisiones de calidad o al reconstruir cómo se gestionó un problema recurrente a lo largo de varias devoluciones.\n\n### Consejos\n\n- **Siempre resuelva antes de cerrar.** El botón Cerrar solo aparece en las devoluciones resueltas; no hay atajo desde un estado activo directamente a Cerrada.\n- **Capture las notas de inspección al momento de resolver.** Es el momento natural, y las notas quedan luego visibles para cualquiera que abra la devolución más tarde.\n- **Use la URL de enlace directo** para dirigir a un compañero a una devolución específica en lugar de describir cómo encontrarla.\n- **Revise la línea de tiempo antes de cerrar** para confirmar que la acción correctiva realmente se completó.",
+      "body": "## Devoluciones de Clientes — Resolver y cerrar\n\nUna vez que existe una devolución, el resto del trabajo ocurre en su **panel de detalle**. Desde la lista de Devoluciones de Clientes, haga clic en cualquier fila para abrirlo. Puede marcar o compartir el enlace para que un compañero abra exactamente la misma devolución.\n\n### Lectura del panel de detalle\n\nEl encabezado del panel muestra el número de RMA (por ejemplo, RMA-00007). Debajo se presenta todo sobre la devolución:\n\n- **Etapa** — una etiqueta con color de dónde está la devolución ahora (Recibida, En inspección, Retrabajo ordenado, Resuelta o Cerrada).\n- **Cliente** — la cuenta que devolvió la mercancía.\n- **Trabajo original** — el trabajo que fabricó la mercancía devuelta.\n- **Trabajo de retrabajo** — se muestra solo cuando se ha creado un trabajo de retrabajo para esta devolución.\n- **Fecha de devolución** — cuándo volvió la mercancía o se espera que vuelva.\n- **Motivo** — por qué volvió la mercancía (siempre se muestra).\n- **Notas** — contexto adicional, mostrado solo si ingresó alguno.\n- **Detalles de inspección** — quién inspeccionó la devolución, cuándo y qué encontró; se completan después de que la devolución se inspecciona y se resuelve.\n\nLos botones del panel cambian con la etapa de la devolución, de modo que solo ve la acción que tiene sentido a continuación.\n\n### Resolver una devolución\n\nCuando una devolución está en **Recibida**, **En inspección** o **Retrabajo ordenado**, aparece un botón **Resolver**.\n\n1. Haga clic en **Resolver**. Se abre una pequeña ventana con un único campo: **Notas de inspección (opcional)**.\n2. Registre lo que encontró — mediciones, el defecto, la causa raíz o la solución que aplicó. Estas notas quedan en el registro para siempre y alimentan sus tendencias de calidad. (El campo es opcional, por lo que puede resolver sin notas, pero se recomienda encarecidamente capturar los hallazgos).\n3. Haga clic en **Resolver** para confirmar. La etapa cambia a **Resuelta**, sus notas se guardan y el panel se actualiza. Aparece un breve mensaje de confirmación.\n\nResolver significa que el problema se ha atendido — mediante retrabajo, un reemplazo, un crédito o una decisión de que no hace falta ninguna acción. Puede resolver directamente desde cualquier etapa activa; la devolución no tiene que pasar primero por En inspección o Retrabajo ordenado.\n\n### Cerrar una devolución\n\nUna vez que una devolución está **Resuelta**, el botón Resolver se reemplaza por un botón **Cerrar**.\n\n1. Haga clic en **Cerrar**. Un aviso le pide confirmar el cierre de esta devolución — el cierre es definitivo.\n2. Confirme. La etapa cambia a **Cerrada** y aparece un breve mensaje de confirmación.\n\n**El cierre no puede deshacerse.** Una devolución cerrada no puede reabrirse, resolverse de nuevo ni editarse. Solo las devoluciones resueltas pueden cerrarse — resolver primero y luego cerrar es lo que mantiene limpio el registro de auditoría: cada devolución cerrada pasó antes por una resolución real. Como el cierre es definitivo, tiene que confirmar antes de que ocurra.\n\n### El historial de actividad\n\nEn la parte inferior del panel está el **historial de actividad** — un registro ordenado por tiempo de esa devolución que no puede editarse. Se capta cada evento significativo: cuándo se registró la devolución, se actualizó, se resolvió y se cerró, junto con quién lo hizo y cuándo.\n\nÚselo para responder '¿qué le pasó a esta devolución y quién la gestionó?' sin salir del panel. Como las entradas no pueden cambiarse, es un registro confiable — útil durante disputas con clientes, revisiones de calidad o al reconstruir cómo se gestionó un problema recurrente a lo largo de varias devoluciones.\n\n### Consejos\n\n- **Siempre resuelva antes de cerrar.** El botón Cerrar solo aparece en las devoluciones resueltas; no hay atajo directo a Cerrada.\n- **Capture las notas de inspección al resolver.** Es el momento natural, y las notas quedan luego visibles para cualquiera que abra la devolución más tarde.\n- **Comparta el enlace** para dirigir a un compañero a una devolución específica en lugar de describir cómo encontrarla.\n- **Revise el historial antes de cerrar** para confirmar que la solución realmente se hizo.",
       "sections": []
     }
   },
@@ -334,15 +334,15 @@
       "questions": [
         {
           "id": "cr1",
-          "text": "Un cliente llama para informar de piezas defectuosas de un pedido reciente. ¿Cuál es el primer paso para gestionar esto en QB Engineer?",
+          "text": "Un cliente llama para informar de piezas defectuosas de un pedido reciente. ¿Cuál es el primer paso para gestionar esto en Forge?",
           "options": [
             {
               "id": "a",
-              "text": "Crear un nuevo trabajo en el tablero Kanban titulado 'Rework' y asignarlo a producción"
+              "text": "Crear un trabajo en el tablero titulado 'Rework' y asignarlo a producción"
             },
             {
               "id": "b",
-              "text": "Crear una devolución de cliente mediante POST /api/v1/customer-returns con el ID del cliente, el ID del trabajo original y el motivo de la devolución",
+              "text": "Registrar una devolución de cliente, eligiendo el cliente, el trabajo original y el motivo de la devolución",
               "isCorrect": true
             },
             {
@@ -354,35 +354,35 @@
               "text": "Enviar al cliente una nota de crédito y cerrar el problema"
             }
           ],
-          "explanation": "El primer paso correcto es crear un registro de devolución de cliente. Esto registra la RMA, genera un número de devolución único, la vincula al trabajo original y al cliente, e inicia el ciclo de vida de la devolución en el estado Recibida."
+          "explanation": "El primer paso correcto es registrar una devolución de cliente. Eso registra la RMA, le da un número, la vincula al trabajo original y al cliente, e inicia la devolución en la etapa Recibida."
         },
         {
           "id": "cr2",
-          "text": "¿Cuáles son los cinco estados del ciclo de vida de la devolución de cliente, en orden?",
+          "text": "¿Cuáles son las cinco etapas de una devolución de cliente, en orden?",
           "options": [
             {
               "id": "a",
-              "text": "Open, Inspecting, Reworking, Complete, Archived"
+              "text": "Abierta, Inspeccionando, Retrabajando, Completa, Archivada"
             },
             {
               "id": "b",
-              "text": "Received, UnderInspection, ReworkOrdered, Resolved, Closed",
+              "text": "Recibida, En inspección, Retrabajo ordenado, Resuelta, Cerrada",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Created, Pending, InProgress, Done, Closed"
+              "text": "Creada, Pendiente, En progreso, Hecha, Cerrada"
             },
             {
               "id": "d",
-              "text": "Submitted, Reviewed, Approved, Fulfilled, Closed"
+              "text": "Enviada, Revisada, Aprobada, Cumplida, Cerrada"
             }
           ],
-          "explanation": "Las devoluciones de clientes siguen el ciclo de vida: Received → UnderInspection → ReworkOrdered → Resolved → Closed. No todas las devoluciones pasan por todos los estados; por ejemplo, una devolución puede pasar de Received directamente a Resolved si no se necesita inspección ni retrabajo."
+          "explanation": "Las devoluciones van Recibida, luego En inspección, Retrabajo ordenado, Resuelta y por último Cerrada. No todas pasan por cada etapa: una puede ir de Recibida directamente a Resuelta si no hace falta inspección ni retrabajo."
         },
         {
           "id": "cr3",
-          "text": "Cuando crea una devolución de cliente con CreateReworkJob establecido en verdadero, ¿qué sucede automáticamente?",
+          "text": "Cuando registra una devolución y pide un trabajo de retrabajo, ¿qué sucede automáticamente?",
           "options": [
             {
               "id": "a",
@@ -390,167 +390,167 @@
             },
             {
               "id": "b",
-              "text": "Se crea un nuevo trabajo con el prefijo '[Rework]', prioridad Alta, el mismo tipo de pista que el original, y se establece un enlace de trabajo RelatedTo",
+              "text": "Se crea un nuevo trabajo con el prefijo '[Rework]', a prioridad Alta, en la misma pista que el original y vinculado a él",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "El cliente recibe una notificación automática por correo electrónico sobre el retrabajo"
+              "text": "El cliente recibe un correo automático sobre el retrabajo"
             },
             {
               "id": "d",
-              "text": "La devolución se resuelve automáticamente ya que se ha ordenado el retrabajo"
+              "text": "La devolución se resuelve automáticamente porque se ordenó el retrabajo"
             }
           ],
-          "explanation": "Establecer CreateReworkJob en verdadero crea un nuevo trabajo con '[Rework]' antepuesto al título original, prioridad Alta, el mismo tipo de pista y asignado, comenzando en la primera etapa. Un enlace de trabajo RelatedTo conecta los trabajos original y de retrabajo. El estado de la devolución se establece en ReworkOrdered."
+          "explanation": "Pedir un trabajo de retrabajo crea un nuevo trabajo con el prefijo '[Rework]' en el título, a prioridad Alta, en la misma pista y con el mismo asignado, comenzando en la primera etapa. Queda vinculado al trabajo original, y la devolución pasa a Retrabajo ordenado."
         },
         {
           "id": "cr4",
-          "text": "Intenta cerrar una devolución de cliente que está en estado ReworkOrdered. ¿Qué sucede?",
+          "text": "Intenta cerrar una devolución que está en la etapa Retrabajo ordenado. ¿Qué sucede?",
           "options": [
             {
               "id": "a",
-              "text": "La devolución se cierra correctamente ya que todos los estados pueden transicionar a Closed"
+              "text": "Se cierra sin problema, ya que cualquier devolución puede cerrarse"
             },
             {
               "id": "b",
-              "text": "El sistema rechaza la solicitud porque solo las devoluciones Resolved pueden cerrarse",
+              "text": "El sistema lo bloquea, porque solo las devoluciones resueltas pueden cerrarse",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "La devolución se cierra pero el trabajo de retrabajo permanece abierto en el tablero Kanban"
+              "text": "Se cierra, pero el trabajo de retrabajo permanece abierto en el tablero"
             },
             {
               "id": "d",
-              "text": "El sistema resuelve automáticamente la devolución primero y luego la cierra"
+              "text": "El sistema resuelve la devolución primero y luego la cierra"
             }
           ],
-          "explanation": "Solo las devoluciones en estado Resolved pueden cerrarse. El sistema aplica esta regla: intentar cerrar una devolución no resuelta lanza una InvalidOperationException. Primero debe resolver la devolución mediante POST /{id}/resolve y luego cerrarla mediante POST /{id}/close."
+          "explanation": "Solo las devoluciones resueltas pueden cerrarse. Intentar cerrar una que no está resuelta se bloquea. Primero tiene que resolver la devolución y luego cerrarla."
         },
         {
           "id": "cr5",
-          "text": "¿Qué formato usa el sistema para los números de RMA generados automáticamente?",
+          "text": "¿Cómo son los números de RMA generados automáticamente?",
           "options": [
             {
               "id": "a",
-              "text": "RET-YYYY-NNNN (año + secuencia)"
+              "text": "RET-YYYY-NNNN (año más una secuencia)"
             },
             {
               "id": "b",
-              "text": "RMA-XXXXX (p. ej., RMA-00001), asignado secuencialmente y rellenado con ceros a 5 dígitos",
+              "text": "RMA-XXXXX (por ejemplo, RMA-00001), asignado en orden y rellenado a 5 dígitos",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "CR-NNN (contador simple de 3 dígitos)"
+              "text": "CR-NNN (un contador simple de 3 dígitos)"
             },
             {
               "id": "d",
-              "text": "El usuario introduce manualmente un número de RMA durante la creación"
+              "text": "Usted escribe el número de RMA al registrar la devolución"
             }
           ],
-          "explanation": "Los números de RMA siguen el formato RMA-XXXXX (p. ej., RMA-00001, RMA-00042). Se generan automáticamente buscando el número existente más alto e incrementándolo en uno, rellenado con ceros a 5 dígitos. Los usuarios no pueden establecer ni cambiar manualmente el número de RMA."
+          "explanation": "Los números de RMA son como RMA-XXXXX (por ejemplo, RMA-00001 o RMA-00042). El sistema toma el número existente más alto, le suma uno y lo rellena a 5 dígitos. Usted no puede establecer ni cambiar el número."
         },
         {
           "id": "cr6",
-          "text": "¿Qué roles tienen acceso a los endpoints de devoluciones de clientes?",
+          "text": "¿Quién puede trabajar con las devoluciones de clientes?",
           "options": [
             {
               "id": "a",
-              "text": "Todos los usuarios autenticados pueden ver y gestionar devoluciones"
+              "text": "Cualquier usuario que haya iniciado sesión puede ver y gestionar devoluciones"
             },
             {
               "id": "b",
-              "text": "Administrador, Gerente y Gerente de Oficina únicamente",
+              "text": "Solo Administradores, Gerentes y Gerentes de Oficina",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Solo Administrador: las devoluciones son una operación sensible"
+              "text": "Solo Administradores: las devoluciones son sensibles"
             },
             {
               "id": "d",
-              "text": "Administrador, Gerente, Gerente de Oficina, PM e Ingeniero"
+              "text": "Administradores, Gerentes, Gerentes de Oficina, PM e Ingenieros"
             }
           ],
-          "explanation": "El CustomerReturnsController está autorizado para los roles de Administrador, Gerente y Gerente de Oficina. Los ingenieros y los trabajadores de producción no tienen acceso directo a la gestión de devoluciones de clientes, aunque pueden trabajar en trabajos de retrabajo que aparecen en el tablero Kanban."
+          "explanation": "Solo los Administradores, Gerentes y Gerentes de Oficina pueden trabajar con las devoluciones de clientes. Los ingenieros y los trabajadores de producción no pueden gestionar devoluciones directamente, aunque sí pueden trabajar los trabajos de retrabajo que aparecen en el tablero."
         },
         {
           "id": "cr7",
-          "text": "Quiere ver todas las devoluciones abiertas de un cliente específico. ¿Cómo consulta la API?",
+          "text": "Quiere ver las devoluciones de un cliente específico. ¿Cómo lo hace?",
           "options": [
             {
               "id": "a",
-              "text": "GET /api/v1/customer-returns?customerId=42&status=Received para filtrar por cliente y estado inicial",
+              "text": "Filtrar la lista de devoluciones por ese cliente, y opcionalmente por etapa",
               "isCorrect": true
             },
             {
               "id": "b",
-              "text": "GET /api/v1/customers/42/returns — las devoluciones están anidadas bajo el endpoint del cliente"
+              "text": "Buscar en la propia página del cliente: las devoluciones viven solo ahí"
             },
             {
               "id": "c",
-              "text": "GET /api/v1/customer-returns?search=CustomerName para buscar por nombre"
+              "text": "No hay filtro; tiene que revisar toda la lista a simple vista"
             },
             {
               "id": "d",
-              "text": "GET /api/v1/customer-returns y filtrar manualmente la respuesta del lado del cliente"
+              "text": "Exportar la lista completa y filtrarla en una hoja de cálculo"
             }
           ],
-          "explanation": "El endpoint GET /api/v1/customer-returns admite dos parámetros de consulta: customerId (para filtrar por cliente) y status (para filtrar por etapa del ciclo de vida). Puede usar ambos juntos. Los resultados se devuelven ordenados por fecha de creación, más recientes primero."
+          "explanation": "La lista de devoluciones permite filtrar por cliente, y también puede agregar un filtro de etapa. Las devoluciones más recientes aparecen primero."
         },
         {
           "id": "cr8",
-          "text": "Una devolución ha sido inspeccionada y el inspector registró sus hallazgos. ¿Qué campos de la entidad capturan esta información?",
+          "text": "Una devolución ha sido inspeccionada y el inspector anotó sus hallazgos. ¿Qué guarda la devolución?",
           "options": [
             {
               "id": "a",
-              "text": "InspectorName, InspectionDate e InspectionResult"
+              "text": "Solo el nombre de la persona y un resultado de aprobado o rechazado"
             },
             {
               "id": "b",
-              "text": "InspectedById, InspectedAt e InspectionNotes",
+              "text": "Quién la inspeccionó, cuándo la inspeccionó y sus notas de inspección",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "ReviewerId, ReviewDate y ReviewComments"
+              "text": "Solo las iniciales de un revisor y una fecha de revisión"
             },
             {
               "id": "d",
-              "text": "Solo el campo Notes — no hay campos de inspección dedicados"
+              "text": "Solo el campo de notas general — no hay un lugar aparte para la inspección"
             }
           ],
-          "explanation": "La entidad CustomerReturn tiene tres campos de inspección dedicados: InspectedById (clave foránea al usuario que realizó la inspección), InspectedAt (cuándo ocurrió la inspección) e InspectionNotes (hallazgos detallados, hasta 2000 caracteres). Estos son independientes del campo Notes general."
+          "explanation": "Una devolución registra tres detalles de inspección: quién la inspeccionó, cuándo la inspeccionó y sus notas de inspección (hasta 2000 caracteres). Estos se mantienen separados del campo de notas general."
         },
         {
           "id": "cr9",
-          "text": "Intenta resolver una devolución de cliente que ya ha sido cerrada. ¿Cuál es el comportamiento esperado?",
+          "text": "Intenta resolver una devolución que ya ha sido cerrada. ¿Qué sucede?",
           "options": [
             {
               "id": "a",
-              "text": "La devolución se mueve de vuelta al estado Resolved ya que la resolución prevalece sobre el cierre"
+              "text": "Vuelve a Resuelta, ya que resolver prevalece sobre cerrar"
             },
             {
               "id": "b",
-              "text": "El sistema rechaza la solicitud porque las devoluciones cerradas no pueden resolverse",
+              "text": "El sistema lo bloquea, porque una devolución cerrada no puede resolverse",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "La devolución se duplica como una nueva RMA con estado Resolved"
+              "text": "Se crea una RMA totalmente nueva en la etapa Resuelta"
             },
             {
               "id": "d",
-              "text": "No pasa nada: el endpoint de resolución es idempotente en las devoluciones cerradas"
+              "text": "No pasa nada: resolver una devolución cerrada simplemente se ignora"
             }
           ],
-          "explanation": "El manejador de resolución verifica explícitamente: si el estado de la devolución es Closed, lanza una InvalidOperationException con 'Cannot resolve a closed return'. Closed es un estado final e irreversible; no se permiten más cambios de estado."
+          "explanation": "No puede resolver una devolución que ya está cerrada; el sistema lo bloquea. Cerrada es la etapa final y ya no puede cambiar nada una vez que llega a ella."
         },
         {
           "id": "cr10",
-          "text": "Cuando se crea automáticamente un trabajo de retrabajo a partir de una devolución de cliente, ¿qué descripción recibe el trabajo de retrabajo?",
+          "text": "Cuando se crea un trabajo de retrabajo a partir de una devolución, ¿qué dice su descripción?",
           "options": [
             {
               "id": "a",
@@ -558,19 +558,19 @@
             },
             {
               "id": "b",
-              "text": "'Rework for RMA {returnNumber}. Reason: {reason}' — incluyendo el número de RMA y el motivo de la devolución",
+              "text": "Una nota breve que registra el número de RMA y el motivo de la devolución",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "'Rework required' sin contexto adicional"
+              "text": "'Rework required', sin ningún otro contexto"
             },
             {
               "id": "d",
-              "text": "La descripción se deja en blanco para que el asignado la complete"
+              "text": "Nada — se deja en blanco para que el asignado la complete"
             }
           ],
-          "explanation": "El trabajo de retrabajo creado automáticamente recibe una descripción con el formato 'Rework for RMA {returnNumber}. Reason: {reason}'. Por ejemplo: 'Rework for RMA RMA-00003. Reason: Parts out of tolerance on bore diameter'. Esto garantiza que cualquiera que vea el trabajo de retrabajo en el tablero Kanban comprenda de inmediato su origen y propósito."
+          "explanation": "La descripción del trabajo de retrabajo registra el número de RMA y el motivo de la devolución, por ejemplo 'Rework for RMA-00003. Reason: Parts out of tolerance on bore diameter'. Así, cualquiera que vea el trabajo en el tablero sabe de inmediato de dónde vino y por qué."
         }
       ]
     }

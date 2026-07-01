@@ -19,16 +19,16 @@
         {
           "element": ".admin-content",
           "popover": {
-            "title": "Área de contenido de administración",
-            "description": "El panel de administración organiza la configuración en pestañas accesibles mediante la barra lateral. El área de contenido muestra la interfaz de gestión de la pestaña activa —usuarios, tipos de pista, configuración, integraciones, cumplimiento, capacitación o datos de referencia.",
+            "title": "Dónde vive la configuración de administración",
+            "description": "El Panel de administración agrupa su configuración en pestañas a lo largo de la barra lateral. Esta área muestra la pestaña que tenga abierta —usuarios, tipos de pista, configuración, integraciones, cumplimiento, capacitación o datos de referencia.",
             "side": "top"
           }
         },
         {
           "element": "app-page-header",
           "popover": {
-            "title": "Encabezado de administración",
-            "description": "El encabezado de la página muestra el título de la sección de administración actual y los botones de acción. Use el botón de acción principal para crear nuevos elementos (usuarios, tipos de pista, etc.) en la pestaña activa.",
+            "title": "Encabezado de la sección",
+            "description": "El encabezado nombra la sección en la que está y contiene sus botones de acción. Use el botón principal para agregar algo nuevo —un usuario, un tipo de pista, etc.— a la pestaña que esté viendo.",
             "side": "bottom"
           }
         },
@@ -36,23 +36,23 @@
           "element": "[data-testid='overview-card-people']",
           "popover": {
             "title": "Tarjeta de Personas",
-            "description": "La tarjeta de Personas resume sus cuentas de usuario —el conteo de usuarios activos y un desglose de roles. Es una de varias tarjetas de inicio en la visión general. Use su botón para saltar a la pantalla completa de gestión de Usuarios con su tabla ordenable y filtrable.",
+            "description": "Esta tarjeta resume sus cuentas de usuario: cuántas están activas y un desglose por rol. Es una de varias tarjetas de resumen en la visión general. Haga clic en su botón para abrir la pantalla completa de Usuarios, donde puede ordenar y filtrar a todos.",
             "side": "top"
           }
         },
         {
           "element": ".admin-overview-card__header",
           "popover": {
-            "title": "Encabezado de la tarjeta",
-            "description": "Cada tarjeta de visión general tiene un encabezado con un icono y un título de sección (Personas, Capacidades, Conexiones, Cumplimiento y más). El encabezado le indica de un vistazo qué área del panel de administración resume la tarjeta.",
+            "title": "Título de la tarjeta",
+            "description": "Cada tarjeta de resumen tiene un icono y un título —Personas, Capacidades, Conexiones, Cumplimiento y más. El título le indica de un vistazo qué parte del Panel de administración cubre esa tarjeta.",
             "side": "bottom"
           }
         },
         {
           "element": "[data-testid='overview-card-people-go']",
           "popover": {
-            "title": "Botón de acción de la tarjeta",
-            "description": "El botón de acción de cada tarjeta enlaza directamente con la sección de administración correspondiente —este abre la pantalla de Usuarios. Haga clic en el botón de cualquier tarjeta para salir del inicio y gestionar esa área directamente.",
+            "title": "Abrir una sección",
+            "description": "El botón de cada tarjeta salta directo a su sección de administración —este abre Usuarios. Haga clic en el botón de cualquier tarjeta para salir de la visión general y gestionar esa área directamente.",
             "side": "left"
           }
         }
@@ -71,39 +71,39 @@
           "items": [
             {
               "label": "Nombre (requerido)",
-              "value": "Campo de texto, máx. 100 caracteres. Validado como requerido."
+              "value": "Escriba el nombre de la persona. Hasta 100 caracteres; no puede guardar sin él."
             },
             {
               "label": "Apellido (requerido)",
-              "value": "Campo de texto, máx. 100 caracteres. Validado como requerido."
+              "value": "Escriba el apellido de la persona. Hasta 100 caracteres; no puede guardar sin él."
             },
             {
               "label": "Correo electrónico (requerido, solo creación)",
-              "value": "Campo de correo, máx. 256 caracteres. Validado como requerido + formato de correo. Oculto al editar (el correo no puede cambiar)."
+              "value": "Escriba una dirección de correo válida, hasta 256 caracteres. Se oculta al editar —un correo no se puede cambiar después."
             },
             {
               "label": "Iniciales (opcional)",
-              "value": "Campo de texto, máx. 3 caracteres. Se generan automáticamente del nombre si está en blanco. Se muestra en el avatar."
+              "value": "Hasta 3 caracteres que se muestran en el avatar de la persona. Si lo deja en blanco, se arman del nombre automáticamente."
             },
             {
               "label": "Rol (requerido)",
-              "value": "Lista desplegable. Opciones: Engineer, ProductionWorker, PM, Manager, OfficeManager, Admin. Determina el acceso a las funciones."
+              "value": "Elija el rol de la persona —Engineer, Production Worker, PM, Manager, Office Manager o Admin. El rol define lo que puede hacer."
             },
             {
               "label": "Ubicación de trabajo (opcional)",
-              "value": "Lista desplegable. Solo se muestra cuando existen varias ubicaciones de empresa. Impulsa los requisitos de formularios de retención estatal."
+              "value": "Elija en qué ubicación trabaja la persona. Aparece solo cuando tiene más de una ubicación, y define sus formularios de retención estatal."
             },
             {
               "label": "Color de avatar",
-              "value": "Cuadrícula de botones de 10 colores. Haga clic en una muestra de color para establecer el color de fondo del avatar."
+              "value": "Haga clic en una de las diez muestras de color para establecer el color de fondo del avatar de la persona."
             },
             {
               "label": "Está activo (solo edición)",
-              "value": "Interruptor de alternancia. Desactivar impide el inicio de sesión pero conserva todos los datos históricos."
+              "value": "Un interruptor de encendido/apagado. Apagarlo impide que la persona inicie sesión pero conserva todos sus registros anteriores."
             },
             {
               "label": "Identificadores de escaneo (solo edición)",
-              "value": "Lista de ID de RFID/NFC/Código de barras/Biométrico. Agregue mediante lista desplegable de tipo + campo de valor + botón Agregar. Elimine individualmente."
+              "value": "Los ID de credencial o tarjeta que se usan en los quioscos. Elija un tipo, escriba el valor y haga clic en Agregar; elimínelos uno por uno."
             }
           ]
         },
@@ -112,27 +112,27 @@
           "items": [
             {
               "label": "Botón Agregar usuario",
-              "value": "Abre el cuadro de diálogo de creación de usuario. El administrador nunca establece contraseñas —el sistema genera un token de configuración."
+              "value": "Abre el formulario de nuevo usuario. Usted nunca establece una contraseña —el sistema crea un enlace de configuración que la persona usa en su lugar."
             },
             {
               "label": "Obtener código de configuración",
-              "value": "Genera una URL de token segura para que el usuario complete la configuración de su cuenta. Se muestra para usuarios sin contraseñas."
+              "value": "Crea el enlace seguro de configuración que la persona sigue para terminar de configurar su cuenta. Aparece para quien aún no ha establecido una contraseña."
             },
             {
               "label": "Copiar código de configuración",
-              "value": "Copia la URL del token de configuración al portapapeles para compartir por correo electrónico o mensaje."
+              "value": "Copia el enlace de configuración para que pueda pegarlo en un correo o mensaje para la persona."
             },
             {
               "label": "Editar usuario (icono de lápiz)",
-              "value": "Abre el cuadro de diálogo de edición precargado con los valores actuales. Información sobre herramientas: 'Editar'."
+              "value": "Abre el formulario de edición ya completado con los datos actuales de la persona."
             },
             {
               "label": "Alternar activo (icono de persona)",
-              "value": "Desactiva o reactiva al usuario. Información sobre herramientas: 'Desactivar' o 'Activar'."
+              "value": "Apaga o vuelve a encender la cuenta de la persona."
             },
             {
               "label": "Estado del lector RFID",
-              "value": "Muestra un indicador de conectado/desconectado. Botón de descarga del script de configuración RFID disponible."
+              "value": "Muestra si hay un lector de credenciales conectado, con un botón para descargar el asistente de configuración del lector."
             }
           ]
         },
@@ -141,47 +141,47 @@
           "items": [
             {
               "label": "Nombre (requerido)",
-              "value": "Campo de texto. El nombre mostrado para este tipo de pista (p. ej., 'Producción', 'I+D/Herramental')."
+              "value": "El nombre que se muestra para este tipo de tablero, como Producción o I+D/Herramental."
             },
             {
               "label": "Código (requerido)",
-              "value": "Campo de texto. Patrón: solo letras mayúsculas, números y guiones bajos (^[A-Z0-9_]+$). Identificador inmutable."
+              "value": "Un identificador corto en mayúsculas, números y guiones bajos (como PRODUCTION). Queda fijo una vez guardado."
             },
             {
               "label": "Descripción (opcional)",
-              "value": "Campo de texto. Breve explicación de cuándo se usa este tipo de pista."
+              "value": "Una nota breve sobre cuándo se usa este tipo de tablero."
             },
             {
               "label": "Nombre de etapa",
-              "value": "Campo de texto por etapa. El nombre mostrado para cada etapa (p. ej., 'En producción', 'CC/Revisión')."
+              "value": "El nombre que se muestra para cada etapa, como En producción o CC/Revisión."
             },
             {
               "label": "Código de etapa",
-              "value": "Campo de texto por etapa. Identificador inmutable por etapa."
+              "value": "Un identificador corto para cada etapa. Queda fijo una vez guardado."
             },
             {
               "label": "Color de etapa",
-              "value": "Selector de color por etapa. Establece el color del encabezado de columna en el tablero kanban."
+              "value": "Elija el color del encabezado de columna de cada etapa en el tablero."
             },
             {
               "label": "Límite de WIP",
-              "value": "Campo numérico por etapa. Cuando se excede, el encabezado de columna se vuelve rojo. 0 o en blanco = sin límite."
+              "value": "La cantidad máxima de trabajos permitidos en una etapa a la vez. Al superarlo, el encabezado de columna se vuelve rojo. Déjelo en 0 o en blanco para no tener límite."
             },
             {
               "label": "Casilla Irreversible",
-              "value": "Por etapa. Cuando está marcada, los trabajos no pueden moverse hacia atrás más allá de esta etapa (usado para las etapas de Factura, Pago con documentos contables)."
+              "value": "Cuando está marcada, los trabajos no pueden retroceder más allá de esta etapa. Se usa para etapas que crean documentos contables, como Factura o Pago."
             },
             {
               "label": "Botones Subir/Bajar",
-              "value": "Reordenan las etapas. Deshabilitados si ya está primero/último."
+              "value": "Reordenan las etapas. Se atenúan cuando una etapa ya está arriba o abajo del todo."
             },
             {
               "label": "Botón Agregar etapa",
-              "value": "Agrega una nueva fila de etapa en blanco a la lista."
+              "value": "Agrega una nueva etapa en blanco a la lista."
             },
             {
               "label": "Botón Eliminar etapa",
-              "value": "Elimina una etapa. Se requiere al menos una etapa."
+              "value": "Elimina una etapa. Debe conservar al menos una."
             }
           ]
         },
@@ -190,23 +190,23 @@
           "items": [
             {
               "label": "Nombre de la empresa",
-              "value": "Campo de texto. Aparece en facturas, listas de empaque y documentos de cara al cliente."
+              "value": "Aparece en facturas, listas de empaque y otros documentos que ven los clientes."
             },
             {
               "label": "Teléfono",
-              "value": "Campo de texto con máscara de teléfono: formato (XXX) XXX-XXXX."
+              "value": "El teléfono de la empresa, con el formato (XXX) XXX-XXXX."
             },
             {
               "label": "Correo electrónico",
-              "value": "Campo de correo. Correo de contacto de toda la empresa."
+              "value": "La dirección de correo de contacto principal de la empresa."
             },
             {
               "label": "EIN",
-              "value": "Campo de texto. Marcador de posición: XX-XXXXXXX. Número de identificación del empleador."
+              "value": "Su Número de Identificación del Empleador, con la forma XX-XXXXXXX."
             },
             {
               "label": "Sitio web",
-              "value": "Campo de texto. Marcador de posición: https://. URL del sitio web de la empresa."
+              "value": "La dirección del sitio web de su empresa, comenzando con https://."
             }
           ]
         },
@@ -215,23 +215,23 @@
           "items": [
             {
               "label": "Nombre (requerido)",
-              "value": "Campo de texto, máx. 100 caracteres. Nombre mostrado de la ubicación (p. ej., 'Oficina principal', 'Almacén B')."
+              "value": "El nombre de la ubicación, como Oficina principal o Almacén B. Hasta 100 caracteres."
             },
             {
               "label": "Teléfono",
-              "value": "Campo de texto con máscara de teléfono."
+              "value": "El teléfono de la ubicación."
             },
             {
               "label": "Dirección",
-              "value": "AddressFormComponent (calle, ciudad, lista desplegable de estado, código postal). Campos de dirección completos."
+              "value": "La dirección completa —calle, ciudad, estado y código postal."
             },
             {
               "label": "Está activa (solo edición)",
-              "value": "Interruptor de alternancia. Las ubicaciones inactivas se ocultan de la asignación de nuevos usuarios."
+              "value": "Un interruptor de encendido/apagado. Las ubicaciones inactivas dejan de aparecer al asignar personas a una ubicación."
             },
             {
               "label": "Botón Establecer como predeterminada",
-              "value": "Marca esta ubicación como la predeterminada de la empresa. Solo se permite una predeterminada."
+              "value": "Convierte esta en la ubicación predeterminada de la empresa. Solo una puede ser la predeterminada."
             }
           ]
         },
@@ -240,47 +240,47 @@
           "items": [
             {
               "label": "Título (requerido)",
-              "value": "Campo de texto, máx. 200 caracteres. data-testid: event-title"
+              "value": "El nombre del evento, hasta 200 caracteres."
             },
             {
               "label": "Tipo de evento (requerido)",
-              "value": "Selección: Reunión, Capacitación, Seguridad, Otro. data-testid: event-type"
+              "value": "Elija el tipo de evento: Reunión, Capacitación, Seguridad u Otro."
             },
             {
               "label": "Ubicación",
-              "value": "Campo de texto, opcional. data-testid: event-location"
+              "value": "Dónde se realiza el evento. Opcional."
             },
             {
               "label": "Fecha de inicio (requerido)",
-              "value": "Selector de fecha. data-testid: event-start-date"
+              "value": "Elija el día en que comienza el evento."
             },
             {
               "label": "Hora de inicio (requerido)",
-              "value": "Campo de texto, marcador de posición: HH:MM. data-testid: event-start-time"
+              "value": "La hora de inicio, escrita como HH:MM."
             },
             {
               "label": "Fecha de fin (requerido)",
-              "value": "Selector de fecha. data-testid: event-end-date"
+              "value": "Elija el día en que termina el evento."
             },
             {
               "label": "Hora de fin (requerido)",
-              "value": "Campo de texto, marcador de posición: HH:MM. data-testid: event-end-time"
+              "value": "La hora de fin, escrita como HH:MM."
             },
             {
               "label": "Descripción",
-              "value": "Área de texto, opcional. data-testid: event-description"
+              "value": "Detalles adicionales sobre el evento. Opcional."
             },
             {
               "label": "Asistentes",
-              "value": "Lista desplegable de selección múltiple de usuarios."
+              "value": "Elija a las personas invitadas al evento."
             },
             {
               "label": "Requerido",
-              "value": "Interruptor. Cuando está activado, los asistentes reciben notificaciones obligatorias. data-testid: event-required"
+              "value": "Un interruptor de encendido/apagado. Cuando está activado, los asistentes reciben un aviso obligatorio de que deben asistir."
             },
             {
               "label": "Botón Guardar",
-              "value": "data-testid: event-save-btn. Deshabilitado cuando el formulario no es válido o se está guardando."
+              "value": "Guarda el evento. Se atenúa hasta que el formulario esté completo o mientras se guarda."
             }
           ]
         },
@@ -289,43 +289,43 @@
           "items": [
             {
               "label": "Nombre (requerido)",
-              "value": "Texto, máx. 100. Nombre mostrado en la tarjeta de la barra lateral."
+              "value": "El nombre del asistente, mostrado en su tarjeta de la barra lateral. Hasta 100 caracteres."
             },
             {
               "label": "Descripción",
-              "value": "Texto, máx. 500. Se muestra debajo del nombre en la tarjeta y en la pantalla de bienvenida."
+              "value": "Una línea breve debajo del nombre, mostrada en la tarjeta y en la pantalla de bienvenida. Hasta 500 caracteres."
             },
             {
               "label": "Categoría (requerido)",
-              "value": "Selección: General, RR. HH., Compras, Ventas, Personalizado."
+              "value": "Elija una categoría: General, RR. HH., Compras, Ventas o Personalizado."
             },
             {
               "label": "Icono (requerido)",
-              "value": "Texto, máx. 50. Nombre de icono de Material (p. ej., smart_toy). Predeterminado: smart_toy."
+              "value": "El icono que se muestra para el asistente. Elija entre los nombres de icono disponibles."
             },
             {
               "label": "Color (requerido)",
-              "value": "Selector de color. Predeterminado: #0d9488. Usado para el fondo del icono."
+              "value": "Elija el color de fondo detrás del icono del asistente."
             },
             {
               "label": "Indicación del sistema (requerido)",
-              "value": "Área de texto, máx. 50000. Las instrucciones de comportamiento de la IA."
+              "value": "Las instrucciones que le dicen al asistente cómo comportarse y responder."
             },
             {
               "label": "Tipos de entidad permitidos",
-              "value": "Selección múltiple. 20 tipos de entidad en los que el asistente puede buscar."
+              "value": "Elija qué tipos de registros puede buscar el asistente."
             },
             {
               "label": "Preguntas iniciales",
-              "value": "Lista dinámica con agregar/eliminar. Iniciadores de conversación precargados."
+              "value": "Preguntas sugeridas que se muestran para iniciar una conversación. Agréguelas o quítelas con libertad."
             },
             {
               "label": "Temperatura (avanzado)",
-              "value": "Número, 0-1, predeterminado 0.7. Controla la creatividad de las respuestas de la IA."
+              "value": "Un número de 0 a 1 (predeterminado 0.7). Más alto hace las respuestas más creativas; más bajo, más predecibles."
             },
             {
               "label": "Máx. de fragmentos de contexto (avanzado)",
-              "value": "Número, 1-20, predeterminado 5. Cuántos fragmentos de RAG incluir."
+              "value": "Un número de 1 a 20 (predeterminado 5). Cuántos fragmentos de material de referencia usa el asistente por respuesta."
             }
           ]
         },
@@ -334,35 +334,35 @@
           "items": [
             {
               "label": "Nombre (requerido)",
-              "value": "Texto, máx. 200. Nombre mostrado del socio comercial."
+              "value": "El nombre del socio comercial, hasta 200 caracteres."
             },
             {
               "label": "ID de calificador (requerido)",
-              "value": "Texto, máx. 10. Predeterminado: ZZ. Código de calificador EDI."
+              "value": "El código de calificador del socio, hasta 10 caracteres. Predeterminado ZZ."
             },
             {
               "label": "Valor de calificador (requerido)",
-              "value": "Texto, máx. 100. Valor del identificador del socio comercial."
+              "value": "El valor del identificador del socio, hasta 100 caracteres."
             },
             {
               "label": "Formato predeterminado",
-              "value": "Selección: X12, EDIFACT."
+              "value": "Elija el formato de mensaje: X12 o EDIFACT."
             },
             {
               "label": "Método de transporte",
-              "value": "Selección: AS2, SFTP, VAN, Email, API, Manual."
+              "value": "Elija cómo se intercambian los mensajes: AS2, SFTP, VAN, Email, API o Manual."
             },
             {
               "label": "Procesamiento automático",
-              "value": "Interruptor, predeterminado activado. Procesa automáticamente las transacciones entrantes."
+              "value": "Un interruptor de encendido/apagado, activado por defecto. Maneja los mensajes entrantes automáticamente."
             },
             {
               "label": "Requerir acuse de recibo",
-              "value": "Interruptor, predeterminado activado. Requiere acuses de recibo funcionales."
+              "value": "Un interruptor de encendido/apagado, activado por defecto. Exige una confirmación de recepción por cada mensaje."
             },
             {
               "label": "Notas",
-              "value": "Área de texto, opcional."
+              "value": "Cualquier nota adicional sobre este socio. Opcional."
             }
           ]
         },
@@ -371,23 +371,23 @@
           "items": [
             {
               "label": "Tipo de entidad",
-              "value": "Selección: Todos los tipos, Job, Part, Customer, Vendor, Invoice, Payment, etc."
+              "value": "Acota el registro a un solo tipo de registro —trabajos, piezas, clientes, proveedores, facturas, pagos, etc."
             },
             {
               "label": "Acción",
-              "value": "Campo de texto. Filtrar por nombre de acción (Create, Update, Delete)."
+              "value": "Filtra por lo que ocurrió, como Crear, Actualizar o Eliminar."
             },
             {
               "label": "Fecha desde",
-              "value": "Selector de fecha. Inicio del filtro de rango de fechas."
+              "value": "Elija el inicio del rango de fechas que se muestra."
             },
             {
               "label": "Fecha hasta",
-              "value": "Selector de fecha. Fin del filtro de rango de fechas."
+              "value": "Elija el fin del rango de fechas que se muestra."
             },
             {
               "label": "Paginación",
-              "value": "Opciones de tamaño de página: 25, 50, 100. Predeterminado: 25."
+              "value": "Elija cuántas filas por página —25, 50 o 100. Empieza en 25."
             }
           ]
         },
@@ -396,31 +396,31 @@
           "items": [
             {
               "label": "Nombre (requerido)",
-              "value": "Texto, máx. 100. Nombre mostrado para la tasa de impuesto."
+              "value": "El nombre de esta tasa de impuesto, hasta 100 caracteres."
             },
             {
               "label": "Código (requerido)",
-              "value": "Texto, máx. 20. Código de identificador único."
+              "value": "Un identificador único corto para la tasa, hasta 20 caracteres."
             },
             {
               "label": "Código de estado",
-              "value": "Lista desplegable de selección. Estado de EE. UU. para esta tasa."
+              "value": "Elija el estado de EE. UU. al que se aplica esta tasa."
             },
             {
               "label": "Porcentaje de tasa (requerido)",
-              "value": "Número, 0-100. El porcentaje de impuesto."
+              "value": "El porcentaje de impuesto, de 0 a 100."
             },
             {
               "label": "Vigente desde",
-              "value": "Selector de fecha. Cuándo entra en vigor esta tasa."
+              "value": "Elija la fecha en que esta tasa empieza a aplicarse."
             },
             {
               "label": "Descripción",
-              "value": "Área de texto, opcional."
+              "value": "Cualquier nota sobre esta tasa. Opcional."
             },
             {
               "label": "Es predeterminada",
-              "value": "Interruptor. Establece esta como la tasa de impuesto predeterminada."
+              "value": "Un interruptor de encendido/apagado. Convierte esta en la tasa de impuesto predeterminada."
             }
           ]
         }
@@ -675,7 +675,7 @@
               "text": "MFA es todo o nada —no puede aplicarla por rol"
             }
           ],
-          "explanation": "La pestaña Política de MFA le permite seleccionar qué roles requieren MFA. Seleccione Manager (y cualquier otro rol), haga clic en Guardar. Los usuarios en esos roles serán solicitados a configurar TOTP en su próximo inicio de sesión."
+          "explanation": "La pestaña Política de MFA le permite seleccionar qué roles requieren MFA. Seleccione Manager (y cualquier otro rol), haga clic en Guardar. A los usuarios de esos roles se les pedirá configurar una aplicación de autenticación en su próximo inicio de sesión."
         },
         {
           "id": "ad11",
@@ -747,7 +747,7 @@
               "text": "Solo códigos numéricos (p. ej., 001, 002)"
             }
           ],
-          "explanation": "Los códigos de tipo de pista deben coincidir con el patrón ^[A-Z0-9_]+$ —solo letras mayúsculas, números y guiones bajos. Esto garantiza la consistencia ya que los códigos se usan internamente como identificadores inmutables."
+          "explanation": "Los códigos de tipo de pista aceptan solo letras mayúsculas, números y guiones bajos. Esto los mantiene consistentes, ya que un código es un identificador fijo una vez guardado."
         },
         {
           "id": "ad14",
@@ -832,7 +832,7 @@
     "title": "Configuración de integraciones",
     "summary": "Cómo conectar QuickBooks Online, configurar el correo electrónico SMTP, configurar el almacenamiento MinIO y gestionar los ajustes de integración.",
     "contentJson": {
-      "body": "## Configuración de integraciones\n\nNavegue a **Administración → Integraciones** para configurar las conexiones de servicios externos.\n\n### QuickBooks Online\n\nQB Engineer se sincroniza con QuickBooks Online para la contabilidad. Para conectar:\n1. Haga clic en **Conectar QuickBooks** —será redirigido a la pantalla de consentimiento OAuth de Intuit.\n2. Inicie sesión en su cuenta de QBO y autorice QB Engineer.\n3. Regresa a la aplicación con la conexión activa.\n\nUna vez conectado, lo siguiente se sincroniza automáticamente:\n- Clientes (bidireccional)\n- Artículos/Productos (desde QB)\n- Facturas (QB Engineer → QB)\n- Pagos (QB Engineer → QB)\n- Facturas de proveedor desde las OC (QB Engineer → QB)\n- Time Activities (QB Engineer → QB para la nómina)\n\nNota: Cuando QuickBooks está conectado, algunas funciones (facturación, pagos, antigüedad de cuentas por cobrar) son de solo lectura en QB Engineer —gestiónelas directamente en QBO.\n\n### Correo electrónico SMTP\n\nPara los correos del sistema (tokens de configuración, notificaciones, entrega de facturas), configure su servidor SMTP bajo **Integraciones → Correo electrónico**. Introduzca el host SMTP, el puerto, el nombre de usuario y la contraseña. Use el botón **Probar conexión** para enviar un correo de prueba antes de guardar.\n\n### Almacenamiento (MinIO)\n\nLos archivos adjuntos se almacenan en MinIO (compatible con S3). En una implementación de Docker Compose, esto ya está configurado. Si está usando un proveedor de almacenamiento externo (AWS S3, Cloudflare R2), introduzca el endpoint, la clave de acceso y la clave secreta aquí.\n\n### Modo simulado\n\nDurante el desarrollo o las pruebas, habilite **Integraciones simuladas** para omitir todas las API externas. Todos los servicios devuelven respuestas simuladas. Esto se controla mediante la variable de entorno `MOCK_INTEGRATIONS` en docker-compose.yml.",
+      "body": "## Configuración de integraciones\n\nNavegue a **Administración → Integraciones** para configurar las conexiones de servicios externos.\n\n### QuickBooks Online\n\nQB Engineer se sincroniza con QuickBooks Online para la contabilidad. Para conectar:\n1. Haga clic en **Conectar QuickBooks** —será redirigido a la pantalla de consentimiento OAuth de Intuit.\n2. Inicie sesión en su cuenta de QBO y autorice QB Engineer.\n3. Regresa a la aplicación con la conexión activa.\n\nUna vez conectado, lo siguiente se sincroniza automáticamente:\n- Clientes (bidireccional)\n- Artículos/Productos (desde QB)\n- Facturas (QB Engineer → QB)\n- Pagos (QB Engineer → QB)\n- Facturas de proveedor desde las OC (QB Engineer → QB)\n- Time Activities (QB Engineer → QB para la nómina)\n\nNota: Cuando QuickBooks está conectado, algunas funciones (facturación, pagos, antigüedad de cuentas por cobrar) son de solo lectura en QB Engineer —gestiónelas directamente en QBO.\n\n### Correo electrónico SMTP\n\nPara los correos del sistema (tokens de configuración, notificaciones, entrega de facturas), configure su servidor SMTP bajo **Integraciones → Correo electrónico**. Introduzca el host SMTP, el puerto, el nombre de usuario y la contraseña. Use el botón **Probar conexión** para enviar un correo de prueba antes de guardar.\n\n### Almacenamiento (MinIO)\n\nLos archivos adjuntos se almacenan en MinIO (compatible con S3). En una implementación de Docker Compose, esto ya está configurado. Si está usando un proveedor de almacenamiento externo (AWS S3, Cloudflare R2), introduzca el endpoint, la clave de acceso y la clave secreta aquí.\n\n### Modo de prueba\n\nDurante la configuración o las pruebas, active **Integraciones simuladas** para omitir todos los servicios externos. Todos devuelven respuestas simuladas, de modo que puede probar sin credenciales reales. Es una opción a nivel de sistema que se configura al instalar la aplicación.",
       "sections": []
     }
   },
@@ -856,20 +856,20 @@
           "heading": "Qué registra el registro de auditoría",
           "items": [
             {
-              "label": "Cambios de entidad",
-              "value": "Cada creación, actualización y eliminación en todas las entidades con valores de campo anteriores/posteriores"
+              "label": "Cambios de registros",
+              "value": "Cada vez que se crea, actualiza o elimina un registro, con los valores anteriores y posteriores"
             },
             {
-              "label": "Eventos de autenticación",
-              "value": "Inicios de sesión, intentos fallidos, generación de tokens, cambios de contraseña"
+              "label": "Eventos de inicio de sesión",
+              "value": "Inicios de sesión, intentos fallidos, enlaces de configuración y cambios de contraseña"
             },
             {
               "label": "Acciones de administración",
-              "value": "Cambios de rol, creación/desactivación de usuarios, cambios de configuración"
+              "value": "Cambios de rol, alta o desactivación de usuarios y cambios de configuración"
             },
             {
               "label": "Eventos de integración",
-              "value": "Operaciones de sincronización con QB, cargas de archivos, envíos de correo"
+              "value": "Sincronizaciones de contabilidad, cargas de archivos y correos enviados"
             }
           ]
         },
@@ -877,20 +877,20 @@
           "heading": "Filtrar el registro",
           "items": [
             {
-              "label": "Por tipo de entidad",
-              "value": "Filtrar solo a Trabajos, Usuarios, Facturas, etc."
+              "label": "Por tipo de registro",
+              "value": "Mostrar solo trabajos, usuarios, facturas, etc."
             },
             {
               "label": "Por usuario",
-              "value": "Ver todo lo que un usuario específico cambió"
+              "value": "Ver todo lo que una persona cambió"
             },
             {
               "label": "Por rango de fechas",
-              "value": "Acotar al marco temporal de un incidente"
+              "value": "Acotar a cuándo ocurrió algo"
             },
             {
               "label": "Por acción",
-              "value": "Filtro Crear / Actualizar / Eliminar"
+              "value": "Mostrar solo creaciones, actualizaciones o eliminaciones"
             }
           ]
         },
@@ -899,19 +899,19 @@
           "items": [
             {
               "label": "¿Quién cambió un trabajo?",
-              "value": "Filtrar por entidad=Job, ID de entidad, acción=Update"
+              "value": "Filtrar a ese trabajo y a las actualizaciones"
             },
             {
               "label": "¿Quién inició sesión y cuándo?",
-              "value": "Filtrar por acción=Login, filtrar por usuario"
+              "value": "Filtrar a los eventos de inicio de sesión y a la persona"
             },
             {
               "label": "¿Qué cambió en una configuración?",
-              "value": "Filtrar por entidad=SystemSetting"
+              "value": "Filtrar a la configuración del sistema"
             },
             {
               "label": "¿Quién aprobó un formulario de cumplimiento?",
-              "value": "Filtrar por entidad=ComplianceFormSubmission, acción=Update"
+              "value": "Filtrar a los envíos de formularios de cumplimiento y a las actualizaciones"
             }
           ]
         },
@@ -919,16 +919,16 @@
           "heading": "Retención",
           "items": [
             {
-              "label": "Retención predeterminada",
-              "value": "90 días (configurable en la configuración del sistema)"
+              "label": "Cuánto tiempo se conserva",
+              "value": "90 días de forma predeterminada, ajustable en la configuración del sistema"
             },
             {
-              "label": "Exportación de cumplimiento",
-              "value": "Exportar a CSV para sistemas de auditoría externos"
+              "label": "Exportación",
+              "value": "Descargar el registro como una hoja de cálculo para una auditoría externa"
             },
             {
-              "label": "Inmutabilidad",
-              "value": "Los registros de auditoría no pueden ser editados ni eliminados por ningún usuario"
+              "label": "No se puede cambiar",
+              "value": "Nadie puede editar ni eliminar los registros de auditoría"
             }
           ]
         }
@@ -940,7 +940,7 @@
     "title": "Administración de módulos de capacitación",
     "summary": "Cómo crear módulos de capacitación, gestionar rutas de aprendizaje, generar recorridos con IA y supervisar el progreso de los empleados.",
     "contentJson": {
-      "body": "## Administración de módulos de capacitación\n\nNavegue a **Administración → Capacitación** para gestionar todo el sistema de gestión del aprendizaje.\n\n### Pestaña Contenido\n\nLa pestaña Contenido lista todos los módulos de capacitación. Cada módulo tiene un tipo (Artículo, Video, Recorrido, Referencia rápida, Cuestionario), un estado de publicación y un tiempo estimado. Use el cuadro de búsqueda para encontrar módulos.\n\n### Crear un módulo\n\nHaga clic en **Nuevo módulo** para abrir el editor. Complete el título, el resumen, el tipo de contenido y el tiempo estimado. Establezca el contenido:\n- **Artículo/Referencia rápida** — escriba el contenido en el editor de contenido JSON o use la interfaz de texto enriquecido\n- **Recorrido** — defina los pasos del recorrido de driver.js, o use **Generar con IA** para crear automáticamente pasos a partir de la página en vivo\n- **Cuestionario** — agregue preguntas con 4 opciones cada una, marque la respuesta correcta y opcionalmente agregue explicaciones\n\n### Publicación\n\nLos módulos están en Borrador hasta que alterna **Publicado**. Solo los módulos publicados son visibles para los empleados.\n\n### Generación de recorridos con IA\n\nPara los módulos de Recorrido, haga clic en el icono de destello para activar la generación con IA. El sistema abre la página de destino en un navegador sin interfaz, analiza el DOM y lo envía al modelo de IA local para generar pasos de recorrido relevantes. Revise los pasos sugeridos y edítelos según sea necesario antes de guardar.\n\n### Pestaña Rutas\n\nLas Rutas de aprendizaje agrupan módulos en secuencias ordenadas. Cree una ruta, agregue módulos en orden y márquelos como requeridos vs. opcionales. Establezca los roles permitidos y si la ruta se asigna automáticamente a los nuevos usuarios.\n\n### Pestaña Progreso\n\nLa pestaña Progreso muestra los porcentajes de finalización para todos los usuarios. Haga clic en el icono de detalle en cualquier fila de usuario para abrir su desglose por módulo en un panel lateral.",
+      "body": "## Administración de módulos de capacitación\n\nNavegue a **Administración → Capacitación** para gestionar todo el sistema de gestión del aprendizaje.\n\n### Pestaña Contenido\n\nLa pestaña Contenido lista todos los módulos de capacitación. Cada módulo tiene un tipo (Artículo, Video, Recorrido, Referencia rápida, Cuestionario), un estado de publicación y un tiempo estimado. Use el cuadro de búsqueda para encontrar módulos.\n\n### Crear un módulo\n\nHaga clic en **Nuevo módulo** para abrir el editor. Complete el título, el resumen, el tipo de contenido y el tiempo estimado. Establezca el contenido:\n- **Artículo/Referencia rápida** — escriba el contenido en el editor de contenido JSON o use la interfaz de texto enriquecido\n- **Recorrido** — defina usted mismo los pasos del recorrido, o use **Generar con IA** para crearlos automáticamente a partir de la página en vivo\n- **Cuestionario** — agregue preguntas con 4 opciones cada una, marque la respuesta correcta y opcionalmente agregue explicaciones\n\n### Publicación\n\nLos módulos están en Borrador hasta que alterna **Publicado**. Solo los módulos publicados son visibles para los empleados.\n\n### Generación de recorridos con IA\n\nPara los módulos de Recorrido, haga clic en el icono de destello para activar la generación con IA. El sistema abre la página de destino en segundo plano, lee lo que hay en ella y le pide a la IA integrada que sugiera pasos de recorrido relevantes. Revise los pasos sugeridos y edítelos según sea necesario antes de guardar.\n\n### Pestaña Rutas\n\nLas Rutas de aprendizaje agrupan módulos en secuencias ordenadas. Cree una ruta, agregue módulos en orden y márquelos como requeridos vs. opcionales. Establezca los roles permitidos y si la ruta se asigna automáticamente a los nuevos usuarios.\n\n### Pestaña Progreso\n\nLa pestaña Progreso muestra los porcentajes de finalización para todos los usuarios. Haga clic en el icono de detalle en cualquier fila de usuario para abrir su desglose por módulo en un panel lateral.",
       "sections": []
     }
   },
@@ -949,7 +949,7 @@
     "title": "Plantillas de roles (Acumulados)",
     "summary": "Cómo agrupar varios roles base en una sola plantilla acumulada, asignarla en el formulario de usuario y comprender el impacto de la eliminación.",
     "contentJson": {
-      "body": "## Plantillas de roles (Acumulados)\n\nForge incluye seis roles base (Engineer, Production Worker, PM, Manager, Office Manager, Admin). En un taller pequeño, una persona a menudo desempeña varias funciones —el encargado de envíos que también recibe piezas y aprueba tiempo. Las **plantillas de roles** (también llamadas *acumulados*) le permiten agrupar varios roles base bajo un nombre amigable para que asigne una sola cosa en lugar de recordar qué combinación otorgar.\n\nNavegue a **Administración → Plantillas de roles** para gestionarlas.\n\n### Qué es una plantilla\n\nUna plantilla tiene un **nombre**, una **descripción** opcional y una lista de **roles incluidos**. Cuando se asigna una plantilla a un usuario, cada rol de esa lista se otorga en sus reclamos de inicio de sesión (JWT). Los roles son *aditivos* —una plantilla que incluye Manager y Office Manager otorga la unión de ambos, nunca menos.\n\nLa lista muestra el nombre de cada plantilla, la descripción, los distintivos de roles incluidos, un **conteo de asignados** (cuántos usuarios la tienen actualmente) y un distintivo Sistema/Personalizado.\n\n### Predeterminados del sistema vs. Personalizados\n\nLas plantillas marcadas como **Sistema** se siembran en la instalación y son **de solo lectura** —muestran un icono de candado en lugar de botones de editar/eliminar. Brindan a cada instalación un conjunto inicial sensato. Para personalizar, cree su propia plantilla **Personalizada**; solo las plantillas Personalizadas pueden editarse o eliminarse.\n\n### Crear una plantilla\n\nHaga clic en **Nueva plantilla**. Introduzca un nombre (máx. 100 caracteres) y una descripción opcional, luego elija al menos un rol en **Roles incluidos** (una selección múltiple). Haga clic en **Crear plantilla**. El acumulado ya está disponible en el formulario de usuario.\n\n### Asignar una plantilla en el formulario de usuario\n\nLas plantillas de roles se asignan por usuario en **Administración → Usuarios**. Edite (o cree) un usuario y busque la lista desplegable **Plantilla de rol (Acumulado)** —aparece solo cuando existe al menos una plantilla. Es opcional: elija un acumulado si el usuario desempeña varias funciones, o déjelo en blanco para depender únicamente del campo **Rol** base. La fila del avatar del usuario muestra entonces un distintivo que nombra la plantilla y los roles a los que se expande.\n\n### Impacto de la eliminación\n\nEliminar una plantilla Personalizada **no** elimina ni desactiva a los usuarios que la tenían —simplemente quita el acumulado. Esos usuarios conservan su **Rol** base pero pierden los roles adicionales que la plantilla otorgaba en el inicio de sesión. Vuelva a otorgar acceso asignando una plantilla diferente o editando el rol base de cada usuario. Debido a este efecto dominó, verifique el **conteo de asignados** antes de eliminar: una plantilla con muchos asignados debe retirarse deliberadamente, no por capricho.\n\n### Cuándo usar una plantilla vs. el rol base\n\nUse el campo **Rol** base único cuando una persona encaja limpiamente en uno de los seis roles. Recurra a una plantilla solo cuando la misma combinación de varios roles se repite entre varias personas —entonces un acumulado con nombre es más fácil de asignar de forma consistente y auditar que elegir roles a mano cada vez.",
+      "body": "## Plantillas de roles (Acumulados)\n\nForge incluye seis roles base (Engineer, Production Worker, PM, Manager, Office Manager, Admin). En un taller pequeño, una persona a menudo desempeña varias funciones —el encargado de envíos que también recibe piezas y aprueba tiempo. Las **plantillas de roles** (también llamadas *acumulados*) le permiten agrupar varios roles base bajo un nombre amigable para que asigne una sola cosa en lugar de recordar qué combinación otorgar.\n\nNavegue a **Administración → Plantillas de roles** para gestionarlas.\n\n### Qué es una plantilla\n\nUna plantilla tiene un **nombre**, una **descripción** opcional y una lista de **roles incluidos**. Cuando se asigna una plantilla a un usuario, cada rol de esa lista se le otorga al iniciar sesión. Los roles son *aditivos* —una plantilla que incluye Manager y Office Manager otorga la unión de ambos, nunca menos.\n\nLa lista muestra el nombre de cada plantilla, la descripción, los distintivos de roles incluidos, un **conteo de asignados** (cuántos usuarios la tienen actualmente) y un distintivo Sistema/Personalizado.\n\n### Predeterminados del sistema vs. Personalizados\n\nLas plantillas marcadas como **Sistema** se siembran en la instalación y son **de solo lectura** —muestran un icono de candado en lugar de botones de editar/eliminar. Brindan a cada instalación un conjunto inicial sensato. Para personalizar, cree su propia plantilla **Personalizada**; solo las plantillas Personalizadas pueden editarse o eliminarse.\n\n### Crear una plantilla\n\nHaga clic en **Nueva plantilla**. Introduzca un nombre (máx. 100 caracteres) y una descripción opcional, luego elija al menos un rol en **Roles incluidos** (una selección múltiple). Haga clic en **Crear plantilla**. El acumulado ya está disponible en el formulario de usuario.\n\n### Asignar una plantilla en el formulario de usuario\n\nLas plantillas de roles se asignan por usuario en **Administración → Usuarios**. Edite (o cree) un usuario y busque la lista desplegable **Plantilla de rol (Acumulado)** —aparece solo cuando existe al menos una plantilla. Es opcional: elija un acumulado si el usuario desempeña varias funciones, o déjelo en blanco para depender únicamente del campo **Rol** base. La fila del avatar del usuario muestra entonces un distintivo que nombra la plantilla y los roles a los que se expande.\n\n### Impacto de la eliminación\n\nEliminar una plantilla Personalizada **no** elimina ni desactiva a los usuarios que la tenían —simplemente quita el acumulado. Esos usuarios conservan su **Rol** base pero pierden los roles adicionales que la plantilla otorgaba en el inicio de sesión. Vuelva a otorgar acceso asignando una plantilla diferente o editando el rol base de cada usuario. Debido a este efecto dominó, verifique el **conteo de asignados** antes de eliminar: una plantilla con muchos asignados debe retirarse deliberadamente, no por capricho.\n\n### Cuándo usar una plantilla vs. el rol base\n\nUse el campo **Rol** base único cuando una persona encaja limpiamente en uno de los seis roles. Recurra a una plantilla solo cuando la misma combinación de varios roles se repite entre varias personas —entonces un acumulado con nombre es más fácil de asignar de forma consistente y auditar que elegir roles a mano cada vez.",
       "sections": []
     }
   },
@@ -1074,7 +1074,7 @@
           "element": ".panel-header",
           "popover": {
             "title": "Panel de Equipos",
-            "description": "El panel de Equipos lista cada equipo con su punto de color, nombre, descripción y conteo de miembros. Los equipos impulsan vistas filtradas del tablero (carriles), informes de carga de trabajo y la vinculación de quioscos del taller. El encabezado muestra el conteo de equipos y los botones de acción.",
+            "description": "Este panel lista cada equipo con su color, nombre, descripción y conteo de miembros. Los equipos le permiten agrupar el trabajo en el tablero, informar sobre la carga de trabajo y vincular quioscos del taller. El encabezado muestra cuántos equipos tiene y los botones para agregar uno.",
             "side": "bottom"
           }
         },
@@ -1082,7 +1082,7 @@
           "element": ".action-btn--create",
           "popover": {
             "title": "Nuevo equipo",
-            "description": "Haga clic en Nuevo equipo para abrir el cuadro de diálogo de creación. Asigne al equipo un nombre y una descripción opcional, luego elija un color de la cuadrícula de muestras —el color es lo que tiñe el punto del equipo y el carril del tablero.",
+            "description": "Haga clic en Nuevo equipo para empezar uno. Asígnele un nombre y una descripción opcional, luego elija un color —ese color identifica al equipo dondequiera que aparezca en el tablero.",
             "side": "left"
           }
         },
@@ -1090,7 +1090,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "Lista de equipos",
-            "description": "Cada fila es un equipo. El botón de conteo de miembros (el icono de personas con un número) abre el cuadro de diálogo de asignación de miembros. Las acciones de la fila le permiten gestionar miembros, editar el equipo o eliminarlo.",
+            "description": "Cada fila es un equipo. El botón de conteo de miembros muestra cuántas personas lo integran y abre la lista de miembros. Los botones de la fila le permiten gestionar miembros, editar el equipo o eliminarlo.",
             "side": "top"
           }
         },
@@ -1098,15 +1098,15 @@
           "element": ".member-count-btn",
           "popover": {
             "title": "Gestionar miembros",
-            "description": "Haga clic en el conteo de miembros de un equipo —o en el icono de agregar grupo en su fila— para abrir el cuadro de diálogo Miembros. Lista a cada usuario activo con un avatar; haga clic en una fila para alternar a esa persona dentro o fuera del equipo, luego Guardar miembros. El botón muestra cuántos están seleccionados.",
+            "description": "Haga clic en el conteo de miembros de un equipo para abrir la lista de Miembros. Muestra a todos los activos; haga clic en una persona para agregarla o quitarla, luego Guardar miembros. El botón muestra cuántos hay en el equipo.",
             "side": "left"
           }
         },
         {
           "element": ".action-cell",
           "popover": {
-            "title": "Acciones de la fila",
-            "description": "De izquierda a derecha: Gestionar miembros, Editar (renombrar, cambiar color o alternar Activo) y Eliminar. Eliminar un equipo pide confirmación; quita el equipo pero nunca elimina a los usuarios que pertenecían a él.",
+            "title": "Botones de la fila",
+            "description": "De izquierda a derecha: gestionar miembros, editar el equipo (renombrar, cambiar color o encenderlo/apagarlo) y eliminarlo. Eliminar le pide confirmación y quita solo el equipo, nunca a las personas que lo integran.",
             "side": "left"
           }
         }
@@ -1118,7 +1118,7 @@
     "title": "Registro de conexiones",
     "summary": "Cómo leer el registro de Conexiones de solo lectura: cada credencial que la instalación ha emitido o aceptado, su estado y el enlace Gestionar.",
     "contentJson": {
-      "body": "## Registro de conexiones\n\nNavegue a **Administración → Conexiones** para obtener un resumen único y de solo lectura de cada credencial y conexión que su instalación ha emitido o aceptado. No crea ni cambia nada —es una vista de auditoría que responde \"¿qué está conectado, quién lo posee y está en buen estado?\" en un solo lugar. Cualquier operación real (emitir, revocar, reconectar) se realiza en la propia página de administración nativa de la conexión, a la que se llega mediante el botón **Gestionar** en su fila.\n\n### Qué aparece aquí\n\nEl registro federa varias fuentes de credenciales en una sola tabla:\n\n- **Clave de API de BI** — claves de informes/BI (consulte el módulo de Claves de API)\n- **Clave de API del sistema** — claves de integración sin interfaz vinculadas a un usuario\n- **Socio comercial EDI** — conexiones de socios X12/EDIFACT\n- **OAuth de QuickBooks** — el enlace OAuth del proveedor de contabilidad\n- **Sincronización de comunicaciones** — enlaces de sincronización de correo/comunicaciones\n- **Enlace de almacenamiento en la nube** — conexiones de almacenamiento externo\n\n### Leer una fila\n\nCada fila muestra:\n\n- **Tipo** — un icono + etiqueta para el tipo de conexión anterior\n- **Nombre** — la etiqueta legible para esa conexión específica\n- **Propietario** — el correo del usuario para credenciales con alcance de usuario, o **Nivel de instalación** cuando la conexión pertenece a toda la instalación en lugar de a una persona\n- **Estado** — la propia palabra de la fuente nativa para el estado de salud (vea abajo)\n- **Último uso** / **Creado** — marcas de tiempo; Último uso muestra **Nunca** cuando la credencial aún no se ha usado\n\n### Vocabulario de estado\n\nCada fuente usa sus propias palabras de estado, que el registro codifica por colores en una paleta de distintivos compartida:\n\n- **Verde (en buen estado):** Active, Connected, Linked\n- **Ámbar (atención):** Expired\n- **Neutral (inactivo):** Revoked, Disconnected, Inactive\n\nUn distintivo verde significa que la conexión está activa; ámbar significa que necesita renovación pronto; neutral significa que está apagada o fue revocada.\n\n### El botón Gestionar\n\nEl registro nunca muta. Para actuar sobre una conexión, haga clic en **Gestionar** en su fila —le enlaza directamente con la superficie de administración nativa de esa conexión (por ejemplo, una fila de Clave de API del sistema lo envía a **Administración → Claves de API del sistema**, una fila de QuickBooks a **Administración → Integraciones**, un socio EDI a **Administración → EDI**). Haga allí el trabajo de emitir/revocar/reconectar, luego regrese al registro para confirmar el nuevo estado.\n\n### Restricción por capacidad\n\nEl registro de Conexiones es **solo para administradores** y está restringido por la capacidad **CAP-IDEN-AUTH-API-KEYS**. Debido a que el listado expone la presencia, el propietario y las marcas de tiempo de último uso de cada credencial de la instalación, se trata como sensible aunque nunca se muestre ningún secreto en texto plano. Si la capacidad está deshabilitada para su instalación, un mensaje lo explica y la tabla permanece vacía.",
+      "body": "## Registro de conexiones\n\nNavegue a **Administración → Conexiones** para obtener un resumen único y de solo lectura de cada credencial y conexión que su instalación ha emitido o aceptado. No crea ni cambia nada —es una vista de auditoría que responde \"¿qué está conectado, quién lo posee y está en buen estado?\" en un solo lugar. Cualquier operación real (emitir, revocar, reconectar) se realiza en la propia página de administración nativa de la conexión, a la que se llega mediante el botón **Gestionar** en su fila.\n\n### Qué aparece aquí\n\nEl registro federa varias fuentes de credenciales en una sola tabla:\n\n- **Clave de API de BI** — claves de informes/BI (consulte el módulo de Claves de API)\n- **Clave de API del sistema** — claves de integración sin interfaz vinculadas a un usuario\n- **Socio comercial EDI** — conexiones de socios X12/EDIFACT\n- **OAuth de QuickBooks** — el enlace OAuth del proveedor de contabilidad\n- **Sincronización de comunicaciones** — enlaces de sincronización de correo/comunicaciones\n- **Enlace de almacenamiento en la nube** — conexiones de almacenamiento externo\n\n### Leer una fila\n\nCada fila muestra:\n\n- **Tipo** — un icono + etiqueta para el tipo de conexión anterior\n- **Nombre** — la etiqueta legible para esa conexión específica\n- **Propietario** — el correo del usuario para credenciales con alcance de usuario, o **Nivel de instalación** cuando la conexión pertenece a toda la instalación en lugar de a una persona\n- **Estado** — la propia palabra de la fuente nativa para el estado de salud (vea abajo)\n- **Último uso** / **Creado** — marcas de tiempo; Último uso muestra **Nunca** cuando la credencial aún no se ha usado\n\n### Vocabulario de estado\n\nCada fuente usa sus propias palabras de estado, que el registro codifica por colores en una paleta de distintivos compartida:\n\n- **Verde (en buen estado):** Active, Connected, Linked\n- **Ámbar (atención):** Expired\n- **Neutral (inactivo):** Revoked, Disconnected, Inactive\n\nUn distintivo verde significa que la conexión está activa; ámbar significa que necesita renovación pronto; neutral significa que está apagada o fue revocada.\n\n### El botón Gestionar\n\nEl registro nunca muta. Para actuar sobre una conexión, haga clic en **Gestionar** en su fila —le enlaza directamente con la superficie de administración nativa de esa conexión (por ejemplo, una fila de Clave de API del sistema lo envía a **Administración → Claves de API del sistema**, una fila de QuickBooks a **Administración → Integraciones**, un socio EDI a **Administración → EDI**). Haga allí el trabajo de emitir/revocar/reconectar, luego regrese al registro para confirmar el nuevo estado.\n\n### Quién puede verlo\n\nEl registro de Conexiones es **solo para administradores** y lo controla la misma opción que rige las claves de API. Debido a que la lista revela qué credenciales existen, quién las posee y cuándo se usó cada una por última vez, se trata como sensible aunque nunca se muestre ningún secreto por completo. Si esa opción está apagada para su instalación, un mensaje lo explica y la tabla permanece vacía.",
       "sections": []
     }
   },
@@ -1134,7 +1134,7 @@
           "element": ".integrations-tabs__lead",
           "popover": {
             "title": "Página de Integraciones",
-            "description": "Esta página lista los servicios externos a los que Forge se conecta —su proveedor de contabilidad, transportistas de envío y otras integraciones de servicios. Cada uno es una tarjeta que muestra su estado actual y las acciones disponibles para él.",
+            "description": "Esta página lista los servicios externos a los que Forge se conecta —su proveedor de contabilidad, transportistas de envío y más. Cada uno es una tarjeta que muestra su estado actual y los botones disponibles para él.",
             "side": "bottom"
           }
         },
@@ -1142,7 +1142,7 @@
           "element": ".section-header",
           "popover": {
             "title": "Sección de contabilidad",
-            "description": "La sección de Contabilidad es donde elige su proveedor. Un distintivo le indica el modo actual: 'Independiente' cuando no hay proveedor conectado (Forge posee facturas y pagos localmente), o el nombre del proveedor + 'Activa' cuando uno está conectado.",
+            "description": "Aquí elige su proveedor de contabilidad. Una etiqueta muestra la configuración actual: Independiente cuando no hay ninguno conectado (Forge conserva las facturas y los pagos por sí mismo), o el nombre del proveedor y Activa cuando uno está conectado.",
             "side": "bottom"
           }
         },
@@ -1150,23 +1150,23 @@
           "element": ".integration-card",
           "popover": {
             "title": "Tarjeta de proveedor",
-            "description": "Cada proveedor es una tarjeta. La tarjeta Independiente (Local) le permite operar sin un proveedor de contabilidad. La tarjeta de QuickBooks se conecta a través de la pantalla de consentimiento OAuth de Intuit. Otros proveedores muestran un paso Configurar para las credenciales antes de poder conectarse.",
+            "description": "Cada proveedor es una tarjeta. La tarjeta Independiente le permite operar sin un proveedor de contabilidad. La tarjeta de QuickBooks se conecta a través de la pantalla de inicio de sesión y aprobación de Intuit. Otros proveedores le piden introducir credenciales primero.",
             "side": "top"
           }
         },
         {
           "element": ".integration-card__status",
           "popover": {
-            "title": "Indicador de estado",
-            "description": "La línea de estado muestra si una tarjeta está Conectada/Activa o No configurada. Una vez que un proveedor no local está activo, la facturación y los pagos se vuelven de solo lectura en Forge y se gestionan en ese proveedor en su lugar.",
+            "title": "Estado",
+            "description": "Esta línea le indica si una tarjeta está Conectada y Activa o No configurada. Una vez que un proveedor externo está activo, la facturación y los pagos se vuelven de solo lectura en Forge —usted los gestiona en ese proveedor.",
             "side": "top"
           }
         },
         {
           "element": ".integration-card__actions",
           "popover": {
-            "title": "Acciones de la tarjeta",
-            "description": "Las acciones dependen del estado de la tarjeta. Un proveedor conectado ofrece Probar (verificar la conexión) y Desconectar. Un proveedor no conectado basado en credenciales ofrece Configurar (o Reconfigurar) y luego Activar. La tarjeta independiente ofrece Usar independiente.",
+            "title": "Botones de la tarjeta",
+            "description": "Los botones dependen de la tarjeta. Un proveedor conectado ofrece Probar (verificar la conexión) y Desconectar. Uno que necesita credenciales ofrece Configurar y luego Activar. La tarjeta Independiente ofrece Usar independiente.",
             "side": "left"
           }
         }
@@ -1193,8 +1193,8 @@
         {
           "element": ".time-corrections-panel__filters",
           "popover": {
-            "title": "Filtrar a la entrada",
-            "description": "Empiece aquí. Elija el Empleado cuyo tiempo necesita corregir, luego establezca la Fecha desde y la Fecha hasta para cubrir el turno en cuestión. La tabla Entradas de tiempo de abajo se actualiza para mostrar las entradas coincidentes.",
+            "title": "Encontrar la entrada",
+            "description": "Empiece aquí. Elija al empleado cuyo tiempo necesita corregir, luego establezca las fechas Desde y Hasta para cubrir el turno en cuestión. La lista de abajo se actualiza para mostrar las entradas coincidentes.",
             "side": "bottom"
           }
         },
@@ -1202,15 +1202,15 @@
           "element": ".time-corrections-panel__section-title",
           "popover": {
             "title": "Entradas de tiempo",
-            "description": "Esta tabla lista las entradas de tiempo del empleado para el rango seleccionado —fecha, inicio, fin y duración. Encuentre la entrada incorrecta y use su icono de edición para abrir el cuadro de diálogo de corrección.",
+            "description": "Esta tabla lista el tiempo del empleado para las fechas que eligió —día, inicio, fin y duración. Encuentre la entrada incorrecta y haga clic en su icono de edición para corregirla.",
             "side": "bottom"
           }
         },
         {
           "element": "app-data-table",
           "popover": {
-            "title": "Abrir una corrección",
-            "description": "Haga clic en el icono de lápiz en una fila para abrir el cuadro de diálogo Corregir entrada de tiempo. Los valores originales se muestran de solo lectura en la parte superior; usted ajusta la fecha, las horas de inicio/fin, la categoría y las notas —y debe introducir un Motivo de la corrección antes de que Guardar se habilite.",
+            "title": "Hacer una corrección",
+            "description": "Haga clic en el lápiz de una fila para abrir la ventana de corrección. Los valores originales quedan arriba para que pueda comparar; ajuste la fecha, las horas, la categoría y las notas. Debe introducir un motivo antes de que Guardar se active.",
             "side": "top"
           }
         }
@@ -1222,7 +1222,7 @@
     "title": "Claves de API para integraciones y BI",
     "summary": "Cómo emitir claves de API del sistema (integraciones sin interfaz) y claves de BI/informes: secretos de copia única, vinculación de usuario, herencia de plantilla de rol y revocación.",
     "contentJson": {
-      "body": "## Claves de API para integraciones y BI\n\nForge puede entregar claves de larga duración para que el software —no una persona en un navegador— pueda llamar a su API. Hay dos tipos, en dos pestañas de administración:\n\n- **Claves de API del sistema** (**Administración → Claves de API del sistema**) — para integraciones sin interfaz que actúan *como* un usuario real (un script de sincronización nocturna, un conector de middleware).\n- **Claves de API de BI** (**Administración → Claves de API de BI**) — para herramientas de informes e inteligencia empresarial orientadas a la lectura (Power BI, Metabase) que extraen datos.\n\nAmbas pestañas son **solo para administradores** y están restringidas por la capacidad **CAP-IDEN-AUTH-API-KEYS**. Si esa capacidad está apagada para su instalación, el botón Nueva clave está deshabilitado y un mensaje explica por qué.\n\n### Emitir una clave\n\nHaga clic en **Nueva clave**. Asígnele un **Nombre** claro (lo reconocerá más tarde en la lista —\"Extracción nocturna de Power BI\", no \"clave 3\"). Luego:\n\n- **Usuario** — cada clave está **vinculada a un usuario real**. La clave se autentica *como* esa persona y hereda sus permisos. Elija un usuario cuyo acceso coincida con lo que la integración legítimamente necesita; no vincule una herramienta de informes a un administrador completo.\n- **Plantilla de rol** (opcional) — restrinja los roles efectivos de la clave a una plantilla acumulada en lugar del conjunto completo de roles del usuario. Así es como le da a una clave *menos* de lo que tiene su usuario propietario.\n- **Vence el** (opcional) — establezca una fecha de vencimiento para las claves que deben retirarse automáticamente; déjelo en blanco para una clave sin vencimiento.\n\n### Cópiela una vez —se muestra solo una vez\n\nCuando hace clic en **Emitir clave**, Forge muestra la clave en texto plano **una vez** en un cuadro de diálogo de revelación con un botón de copiar. Forge almacena solo un hash —nunca puede volver a mostrarle el secreto. Cópiela de inmediato en la configuración de su integración o almacén de secretos. Si la pierde, no la recupera; revoca la clave y emite una nueva.\n\n### Las claves no pueden emitir claves\n\nUna barrera de protección deliberada: el usuario como el que se autentica una clave **no** obtiene acceso al endpoint de emisión de claves. Solo un administrador interactivo puede crear claves. Esto evita que una clave de integración filtrada cree más claves y escale privilegios.\n\n### La lista de claves\n\nCada fila muestra el nombre de la clave, el correo del usuario vinculado, su plantilla de rol (si la hay), un distintivo de estado Activa/Revocada, las fechas de último uso y vencimiento. **Último uso** muestra *Nunca* hasta que la clave hace su primera llamada —una forma rápida de detectar una clave que se emitió pero nunca se conectó.\n\n### Revocar una clave\n\nPara retirar una clave, haga clic en el icono de **bloqueo** en su fila. La revocación es inmediata y permanente —la clave deja de funcionar en su próxima llamada. Revoque una clave en el momento en que una integración se desmantele o sospeche que el secreto se filtró, luego emita una nueva si la integración todavía se necesita.\n\n### Reglas rápidas de higiene\n\n- Una clave por integración, nombrada para que sepa qué es.\n- Vincule al usuario con menos privilegios que aún funcione; use una plantilla de rol para restringir más.\n- Establezca un vencimiento en cualquier cosa temporal.\n- Revoque las claves no usadas o comprometidas con prontitud —el rastro de auditoría y la columna **Último uso** le ayudan a encontrarlas.\n- El registro de Conexiones (Administración → Conexiones) lista cada clave emitida junto con otras credenciales para una vista de auditoría única.",
+      "body": "## Claves de API para integraciones y BI\n\nForge puede entregar claves de larga duración para que el software —no una persona en un navegador— pueda llamar a su API. Hay dos tipos, en dos pestañas de administración:\n\n- **Claves de API del sistema** (**Administración → Claves de API del sistema**) — para integraciones sin interfaz que actúan *como* un usuario real (un script de sincronización nocturna, un conector de middleware).\n- **Claves de API de BI** (**Administración → Claves de API de BI**) — para herramientas de informes e inteligencia empresarial orientadas a la lectura (Power BI, Metabase) que extraen datos.\n\nAmbas pestañas son **solo para administradores**, controladas por una opción de claves de API para su instalación. Si esa opción está apagada, el botón Nueva clave está deshabilitado y un mensaje explica por qué.\n\n### Emitir una clave\n\nHaga clic en **Nueva clave**. Asígnele un **Nombre** claro (lo reconocerá más tarde en la lista —\"Extracción nocturna de Power BI\", no \"clave 3\"). Luego:\n\n- **Usuario** — cada clave está **vinculada a un usuario real**. La clave se autentica *como* esa persona y hereda sus permisos. Elija un usuario cuyo acceso coincida con lo que la integración legítimamente necesita; no vincule una herramienta de informes a un administrador completo.\n- **Plantilla de rol** (opcional) — restrinja los roles efectivos de la clave a una plantilla acumulada en lugar del conjunto completo de roles del usuario. Así es como le da a una clave *menos* de lo que tiene su usuario propietario.\n- **Vence el** (opcional) — establezca una fecha de vencimiento para las claves que deben retirarse automáticamente; déjelo en blanco para una clave sin vencimiento.\n\n### Cópiela una vez —se muestra solo una vez\n\nCuando hace clic en **Emitir clave**, Forge muestra la clave en texto plano **una vez** en un cuadro de diálogo de revelación con un botón de copiar. Forge almacena solo un hash —nunca puede volver a mostrarle el secreto. Cópiela de inmediato en la configuración de su integración o almacén de secretos. Si la pierde, no la recupera; revoca la clave y emite una nueva.\n\n### Las claves no pueden emitir claves\n\nUna barrera de protección deliberada: el usuario como el que se autentica una clave **no** obtiene acceso al endpoint de emisión de claves. Solo un administrador interactivo puede crear claves. Esto evita que una clave de integración filtrada cree más claves y escale privilegios.\n\n### La lista de claves\n\nCada fila muestra el nombre de la clave, el correo del usuario vinculado, su plantilla de rol (si la hay), un distintivo de estado Activa/Revocada, las fechas de último uso y vencimiento. **Último uso** muestra *Nunca* hasta que la clave hace su primera llamada —una forma rápida de detectar una clave que se emitió pero nunca se conectó.\n\n### Revocar una clave\n\nPara retirar una clave, haga clic en el icono de **bloqueo** en su fila. La revocación es inmediata y permanente —la clave deja de funcionar en su próxima llamada. Revoque una clave en el momento en que una integración se desmantele o sospeche que el secreto se filtró, luego emita una nueva si la integración todavía se necesita.\n\n### Reglas rápidas de higiene\n\n- Una clave por integración, nombrada para que sepa qué es.\n- Vincule al usuario con menos privilegios que aún funcione; use una plantilla de rol para restringir más.\n- Establezca un vencimiento en cualquier cosa temporal.\n- Revoque las claves no usadas o comprometidas con prontitud —el rastro de auditoría y la columna **Último uso** le ayudan a encontrarlas.\n- El registro de Conexiones (Administración → Conexiones) lista cada clave emitida junto con otras credenciales para una vista de auditoría única.",
       "sections": []
     }
   },
@@ -1340,7 +1340,7 @@
     "title": "Datos de referencia y terminología; Usuarios / Roles / Equipos; Integraciones / Conexiones; Configuración de la empresa / Auditoría / Claves de API — Referencia avanzada",
     "summary": "Notas de referencia avanzadas y para usuarios expertos del área de administración: internos de los datos de referencia, identidad de kiosco/RFID, comportamiento de reinicio/entorno de pruebas de las integraciones y mecanismos de auditoría/configuración/tipos de seguimiento.",
     "contentJson": {
-      "body": "Notas avanzadas y de casos límite para el área de configuración de administración. Este es material de referencia para consultar rápidamente, no un recorrido guiado: documenta los mecanismos auxiliares detrás de los datos de referencia, la identidad, las integraciones y la configuración de la empresa.\n\n## Datos de referencia y terminología\n\n- **Ventana de fechas de vigencia.** Cada fila de `reference_data` lleva campos opcionales `EffectiveFrom` / `EffectiveTo` (`timestamptz`). Un valor está vigente solo dentro de esa ventana; fuera de ella la entrada se oculta de los desplegables aunque la fila siga existiendo. Use la ventana de vigencia para casos como una categoría de año fiscal que solo debe aparecer durante un período. `IsActive=false` oculta un valor de forma incondicional, sin importar las fechas.\n- **Modelo de agrupación y metadatos.** Las búsquedas viven en una sola tabla `reference_data` particionada por `GroupCode` (p. ej. `part.item_kind`, categorías de gastos, fuentes de prospectos). Las filas pueden anidarse a sí mismas mediante `ParentId` para grupos recursivos, ordenarse dentro de un grupo por `SortOrder` y llevar extras estructurados arbitrarios en la columna JSONB `Metadata`. `Code` es el identificador estable inmutable; `Label` es el texto que se muestra.\n- **Dónde se crean los valores.** La pestaña Datos de referencia es de **solo lectura** — no hay opciones en la aplicación para agregar, editar, reordenar o eliminar. Las búsquedas nuevas o modificadas se aprovisionan a través de la base de datos (esquema declarativo de **forge-db** / datos semilla) y el indicador `IsSeedData` marca las filas aprovisionadas por semilla. Tras aplicar el esquema, el valor aparece aquí y en los desplegables correspondientes.\n- **Lecturas de kiosco / anónimas.** Las lecturas de datos de referencia se exponen en superficies no autenticadas (kiosco de planta, pantalla) para que los desplegables y las etiquetas se rendericen antes de que un usuario inicie sesión — estas lecturas devuelven solo filas activas y dentro de la ventana de vigencia.\n- **Prefijos de claves de terminología.** Las anulaciones de terminología se identifican con prefijos convencionales — `entity_*` (p. ej. `entity_job` → 'Jobs'), con la etiqueta predeterminada derivada del nombre de la clave cuando no se ha establecido ninguna anulación. Guardar una anulación se aplica en toda la aplicación de inmediato y se almacena en caché por navegador; eliminar el texto personalizado revierte al valor predeterminado derivado.\n\n## Usuarios / Roles / Equipos\n\n- **Emparejamiento RFID por WebHID.** La pestaña Usuarios puede vincular un lector RFID/NFC en el navegador mediante WebHID; la página muestra un indicador de conectado/desconectado y ofrece **Descargar el script de configuración de RFID** para el relé que envía los escaneos a los terminales de kiosco. Los escaneos se registran como filas `UserScanIdentifier` (RFID / NFC / Código de barras / Biométrico).\n- **Generación del código de barras del empleado.** El código de barras de la credencial de un usuario se genera a partir de su identificador de escaneo para poder imprimirlo y luego escanearlo en un kiosco para la autenticación de Nivel 2 (credencial + PIN).\n- **Terminales de kiosco y dependencia al eliminar equipos.** Los terminales de kiosco se emparejan con un equipo (pestaña Equipos y kioscos). Como los terminales y los carriles (swimlanes) dependen de un equipo, eliminar un equipo está controlado/confirmado y nunca elimina a los usuarios miembros — solo quita el equipo y sus asociaciones.\n- **Visibilidad de la ubicación de trabajo y retención estatal.** El campo **Ubicación de trabajo** del formulario de usuario aparece solo cuando existe más de una `CompanyLocation`. La ubicación elegida (o la predeterminada cuando es nula) determina qué formularios de cumplimiento de **retención estatal** debe completar el empleado.\n\n## Integraciones / Conexiones\n\n- **El cambio de modo requiere un reinicio.** Cambiar el modo del proveedor de contabilidad (Independiente ⇄ un proveedor conectado) es un cambio a nivel de instalación que surte efecto en el siguiente reinicio de la API; no es un interruptor en caliente. Planifique los cambios de proveedor como una acción de mantenimiento.\n- **Control por capacidad + banner deshabilitado.** El registro de Conexiones y las pestañas de claves de API están controlados por **CAP-IDEN-AUTH-API-KEYS**; la lectura del registro de auditoría está controlada por **CAP-IDEN-AUDIT-SYSTEM-LOG**. Cuando una capacidad de control está desactivada, los controles de Nueva clave/acción se deshabilitan y un banner explica por qué; la tabla permanece vacía.\n- **Vocabulario de estado y alcance del registro.** `/admin/connections` es una vista de auditoría federada de solo lectura. El **Propietario** de cada fila es el correo del usuario para credenciales de alcance de usuario, o **A nivel de instalación** para conexiones de toda la instalación. Las palabras de estado se asignan por color: verde = Activo/Conectado/Vinculado; ámbar = Caducado; neutro = Revocado/Desconectado/Inactivo. El registro nunca muta — el botón **Administrar** enlaza directamente a la superficie de administración nativa de cada conexión.\n- **Tarjetas de transportista vs /admin/carriers.** Las *credenciales* de los transportistas de envío viven únicamente en **/admin/carriers** (el botón Probar = `POST /carriers/{id}/test`). La página de Integraciones puede mostrar tarjetas de transportista para ver el estado, pero la entrada de credenciales y la prueba por transportista pertenecen a la administración de Transportistas, no a los descriptores de integraciones.\n- **MOCK_INTEGRATIONS y entorno de pruebas.** La variable de entorno `MOCK_INTEGRATIONS` (verdadera en Desarrollo) elude toda API externa con respuestas simuladas — útil para configurar/probar sin credenciales reales. La configuración del entorno de pruebas (sandbox) del proveedor y los enlaces al portal de desarrolladores se muestran como guía para obtener credenciales reales antes de la puesta en marcha.\n\n## Configuración de la empresa / Auditoría / Claves de API\n\n- **Retención e inmutabilidad de la auditoría.** Las entradas del registro de auditoría son de solo anexar — ningún usuario puede editarlas ni eliminarlas. La retención predeterminada es de ~90 días (configurable en la configuración del sistema). Se leen mediante `GET /api/v1/admin/audit-log` (controlado por CAP-IDEN-AUDIT-SYSTEM-LOG); la exportación a CSV admite la conciliación de auditorías externas.\n- **Valores predefinidos de eventos del sistema vs texto libre.** El filtro **Acción** del registro de auditoría acepta tanto los verbos predefinidos comunes (Crear / Actualizar / Eliminar, eventos de inicio de sesión) como texto libre, de modo que puede filtrar por un evento de sistema conocido o por una cadena de acción exacta.\n- **Herencia de plantilla de rol de la clave de API y no autoemisión.** Toda clave de API de Sistema/BI está vinculada a un usuario real y se autentica *como* ese usuario; una **Plantilla de rol** opcional acota los roles efectivos de la clave por debajo del conjunto completo del propietario (la herencia fluye usuario → plantilla → clave). A la identidad bajo la que se autentica una clave se le niega deliberadamente el endpoint de emisión de claves — **las claves no pueden emitir claves** — de modo que una clave filtrada no puede escalar acuñando más. Los secretos se muestran **una sola vez** al emitirlos (luego se almacena solo el hash).\n- **Enmascaramiento de secretos de configuración.** Los secretos y credenciales de integración almacenados se enmascaran en la interfaz de configuración y nunca se devuelven en texto plano al cliente — solo se expone la metadata de presencia/último uso.\n- **Contabilidad e irreversibilidad de los tipos de seguimiento.** Una `JobStage` puede llevar un `AccountingDocumentType?` (p. ej. Factura, Pago) y un indicador `IsIrreversible`. Cuando una etapa produce un documento contable, marcarla como irreversible impide que los trabajos retrocedan más allá de ella, protegiendo la consistencia financiera — el tipo de documento contable es lo que justifica la irreversibilidad, por lo que ambos se configuran juntos.",
+      "body": "Notas avanzadas y de casos límite para el área de configuración de administración. Este es material de referencia para consultar rápidamente, no un recorrido guiado: documenta los mecanismos auxiliares detrás de los datos de referencia, la identidad, las integraciones y la configuración de la empresa.\n\n## Datos de referencia y terminología\n\n- **Fechas de vigencia.** Cada valor de búsqueda puede llevar una fecha de inicio y de fin opcionales. El valor solo se ofrece dentro de esa ventana; fuera de ella desaparece de los menús aunque siga existiendo. Úselo para algo como una categoría de año fiscal que solo debe mostrarse por un tiempo. Marcar un valor como inactivo lo oculta sin importar las fechas.\n- **Agrupación y extras.** Todas las búsquedas viven en un solo lugar, ordenadas en grupos (tipos de artículo, categorías de gastos, fuentes de prospectos, etc.). Un grupo puede anidarse bajo otro para formar un árbol, los valores se ordenan en una secuencia fija dentro de un grupo, y cada uno puede llevar detalles estructurados adicionales. El código de un valor es un identificador fijo; su etiqueta es el texto que ve la gente.\n- **De dónde vienen los valores.** La pestaña Datos de referencia es de **solo lectura** — aquí no puede agregar, editar, reordenar ni eliminar. Las búsquedas nuevas o modificadas se aprovisionan en la base de datos, y los valores provistos por semilla se marcan como tales. Una vez aplicados, el valor aparece aquí y en los menús correspondientes.\n- **Lecturas de kiosco y sin sesión.** Las búsquedas están disponibles en pantallas sin sesión (el kiosco de planta y la pantalla) para que los menús y las etiquetas aparezcan antes de que alguien inicie sesión — estas solo devuelven valores activos y dentro de la ventana de vigencia.\n- **Claves de terminología.** Cada etiqueta que puede anular tiene una clave, como la de 'Trabajos'; sin una anulación, la etiqueta predeterminada proviene del nombre de la clave. Guardar una anulación se aplica en todas partes de inmediato y se almacena en caché en cada navegador; borrar el texto personalizado revierte al valor predeterminado.\n\n## Usuarios / Roles / Equipos\n\n- **Emparejamiento del lector RFID.** La pestaña Usuarios puede conectar un lector RFID o NFC directamente en el navegador; la página muestra si está conectado y ofrece **Descargar el script de configuración de RFID** para el asistente que envía los escaneos a los terminales de kiosco. Cada escaneo se guarda como un identificador de escaneo (RFID, NFC, código de barras o biométrico).\n- **Generación del código de barras del empleado.** El código de barras de la credencial de un usuario se genera a partir de su identificador de escaneo para poder imprimirlo y luego escanearlo en un kiosco para la autenticación de Nivel 2 (credencial + PIN).\n- **Terminales de kiosco y dependencia al eliminar equipos.** Los terminales de kiosco se emparejan con un equipo (pestaña Equipos y kioscos). Como los terminales y los carriles (swimlanes) dependen de un equipo, eliminar un equipo está controlado/confirmado y nunca elimina a los usuarios miembros — solo quita el equipo y sus asociaciones.\n- **Visibilidad de la ubicación de trabajo y retención estatal.** El campo **Ubicación de trabajo** del formulario de usuario aparece solo cuando tiene más de una ubicación. La ubicación elegida (o la predeterminada, si no se elige ninguna) determina qué formularios de cumplimiento de **retención estatal** debe completar el empleado.\n\n## Integraciones / Conexiones\n\n- **El cambio de modo requiere un reinicio.** Cambiar el modo del proveedor de contabilidad (Independiente ⇄ un proveedor conectado) es un cambio a nivel de instalación que surte efecto en el siguiente reinicio de la API; no es un interruptor en caliente. Planifique los cambios de proveedor como una acción de mantenimiento.\n- **Opciones de función + banner deshabilitado.** El registro de Conexiones y las pestañas de claves de API se activan con una opción de claves de API; el registro de auditoría se activa con una opción de registro de auditoría. Cuando la opción correspondiente está apagada, los controles de Nueva clave y de acción se deshabilitan y un banner explica por qué; la tabla permanece vacía.\n- **Vocabulario de estado y alcance del registro.** `/admin/connections` es una vista de auditoría federada de solo lectura. El **Propietario** de cada fila es el correo del usuario para credenciales de alcance de usuario, o **A nivel de instalación** para conexiones de toda la instalación. Las palabras de estado se asignan por color: verde = Activo/Conectado/Vinculado; ámbar = Caducado; neutro = Revocado/Desconectado/Inactivo. El registro nunca muta — el botón **Administrar** enlaza directamente a la superficie de administración nativa de cada conexión.\n- **Tarjetas de transportista vs la administración de Transportistas.** Las *credenciales* de los transportistas de envío viven únicamente en la página de administración de **Transportistas**, donde cada transportista también tiene un botón Probar para verificar la conexión. La página de Integraciones puede mostrar tarjetas de transportista para ver el estado, pero introducir credenciales y probar un transportista pertenecen a la administración de Transportistas, no a la página de Integraciones.\n- **Modo de prueba y entornos de pruebas.** Una opción de modo de prueba omite todos los servicios externos y devuelve respuestas simuladas — útil para configurar y probar sin credenciales reales. Para cada proveedor, se muestran notas de configuración del entorno de pruebas (sandbox) y enlaces de registro como guía para obtener credenciales reales antes de la puesta en marcha.\n\n## Configuración de la empresa / Auditoría / Claves de API\n\n- **Retención e inmutabilidad de la auditoría.** Las entradas del registro de auditoría son de solo agregar — ningún usuario puede editarlas ni eliminarlas. Las entradas se conservan unos 90 días de forma predeterminada (ajustable en la configuración del sistema). El registro se activa con una opción de registro de auditoría, y puede descargarlo como una hoja de cálculo para conciliarlo con una auditoría externa.\n- **Valores predefinidos de eventos del sistema vs texto libre.** El filtro **Acción** del registro de auditoría acepta tanto los verbos predefinidos comunes (Crear / Actualizar / Eliminar, eventos de inicio de sesión) como texto libre, de modo que puede filtrar por un evento de sistema conocido o por una cadena de acción exacta.\n- **Herencia de plantilla de rol de la clave de API y no autoemisión.** Toda clave de API de Sistema/BI está vinculada a un usuario real y se autentica *como* ese usuario; una **Plantilla de rol** opcional acota los roles efectivos de la clave por debajo del conjunto completo del propietario (la herencia fluye usuario → plantilla → clave). A la identidad bajo la que se autentica una clave se le niega deliberadamente el endpoint de emisión de claves — **las claves no pueden emitir claves** — de modo que una clave filtrada no puede escalar acuñando más. Los secretos se muestran **una sola vez** al emitirlos (luego se almacena solo el hash).\n- **Enmascaramiento de secretos de configuración.** Los secretos y credenciales de integración almacenados se enmascaran en la interfaz de configuración y nunca se devuelven en texto plano al cliente — solo se expone la metadata de presencia/último uso.\n- **Contabilidad e irreversibilidad de los tipos de seguimiento.** Una etapa puede vincularse a un documento contable (como Factura o Pago) y marcarse como irreversible. Cuando una etapa produce un documento contable, marcarla como irreversible impide que los trabajos retrocedan más allá de ella, lo que protege la consistencia financiera — el documento contable es lo que justifica el bloqueo, por lo que ambos se configuran juntos.",
       "sections": []
     }
   }

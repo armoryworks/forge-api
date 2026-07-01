@@ -2,16 +2,16 @@
   {
     "slug": "navigating-the-app-overview",
     "title": "Navegar por la aplicación",
-    "summary": "Un resumen completo de la barra lateral, el encabezado, las notificaciones, la búsqueda, el cambio de tema y la estructura de navegación.",
+    "summary": "Un resumen del menú lateral, la barra de encabezado, las notificaciones, la búsqueda, el cambio de tema y cómo moverte por la aplicación.",
     "contentJson": {
-      "body": "## Navegar por la aplicación\n\nForge tiene un diseño coherente en cada página: una barra lateral plegable a la izquierda, una barra de encabezado fija en la parte superior y un área de contenido desplazable en el centro.\n\n### Navegación de la barra lateral\n\nLa barra lateral es tu herramienta de navegación principal. En su estado plegado, muestra solo iconos (52px de ancho). Haz clic en el conmutador de chevron en la parte superior para ver las etiquetas completas (200px de ancho). El estado de tu barra lateral se guarda en localStorage, por lo que persiste entre sesiones en el mismo navegador.\n\nLa barra lateral está **agrupada y es jerárquica**, no es una lista plana de enlaces. El **Panel** está anclado en la parte más alta. Debajo de él hay grupos funcionales; al hacer clic en un grupo se despliegan sus elementos (un segundo nivel se desliza hacia dentro), y la barra lateral se despliega automáticamente en el grupo al que pertenece la página en la que estás. Lo que ves está filtrado según tu rol y las capacidades habilitadas de tu instalación, por lo que los grupos vacíos desaparecen y un grupo que queda con un solo elemento se promueve a un enlace de nivel superior.\n\n**Grupos de la barra lateral (en orden):**\n- **Panel** (anclado arriba) — tu página de inicio diaria con widgets\n- **Operaciones** — Tablero, Backlog, Planificación, Calendario, Aprobaciones\n- **Ventas** — Clientes, Clientes potenciales, Cotizaciones, Órdenes de venta, Órdenes recurrentes, Envíos, Devoluciones de clientes, Facturas, Pagos\n- **Producción** — Piezas, MRP, Programación, Lotes, OEE\n- **Inventario** — Existencias, Activos, Mantenimiento\n- **Compras** — Proveedores, Órdenes de compra, RFQ, Cuentas por pagar\n- **Personas** — Empleados, Tiempo, Gastos, Capacitación\n- **Análisis** — Informes, IA\n- **Contabilidad** — Balance de comprobación, Estado de resultados, Balance general, Flujo de caja, Antigüedad de cuentas por cobrar, Antigüedad de cuentas por pagar, GRNI, Cierre de periodo, Conciliación bancaria (la suite completa de contabilidad general es opcional y está oculta a menos que tu instalación la habilite)\n\nAncladas en la parte **inferior** de la barra lateral están la **Planta de producción** (la pantalla de quiosco) y **Admin** (configuración del sistema, que a su vez se despliega en Usuarios y acceso, Datos maestros, Integraciones, Flujo de trabajo, Capacidades y Sistema).\n\nAlgunas cosas **no** son elementos de la barra lateral, aunque la gente suele buscarlas allí:\n- **Chat** es un **icono del encabezado**, no una entrada de la barra lateral — ábrelo desde el icono de chat en la barra superior.\n- **Cuenta** (tu perfil, cumplimiento, seguridad) se encuentra en el **menú del avatar** en la parte superior derecha, no en la barra lateral.\n- **Calendario**, **IA** y **Capacitación** están anidados **dentro de grupos** (Operaciones, Análisis y Personas respectivamente) — no son enlaces planos de nivel superior.\n\n### Barra de encabezado\n\nLa barra de encabezado de 44px permanece fija en la parte superior de cada página. Contiene:\n- **Icono de búsqueda** — abre la búsqueda global (busca trabajos, piezas, clientes, proveedores y más)\n- **Campana de notificaciones** — muestra un distintivo con el recuento de no leídas; haz clic para abrir el panel de notificaciones\n- **Icono de chat** — abre el panel de chat; muestra el recuento de mensajes no leídos\n- **Conmutador de tema** — un icono de sol/luna que alterna entre los temas Claro y Oscuro\n- **Avatar de usuario** — abre el menú de usuario con configuración de cuenta, idioma y cierre de sesión\n\n### Cambio de tema\n\nHaz clic en el icono de conmutador de tema (sol/luna) en el encabezado para alternar entre los temas Claro y Oscuro. Tu elección se guarda en localStorage y se sincroniza al instante entre las pestañas de tu navegador. El tema Oscuro intercambia todas las propiedades personalizadas de CSS (--bg, --surface, --text, etc.).\n\n### Atajos de teclado\n\nPulsa **/** (barra inclinada) en cualquier lugar para ver los atajos de teclado disponibles. Los atajos comunes incluyen:\n- **Ctrl+K** — enfocar la búsqueda global\n- **/** — abrir la ayuda de atajos de teclado\n- **Escape** — cerrar el diálogo o panel actual\n\n### Navegación basada en URL\n\nCada estado de vista significativo se refleja en la URL. Esto significa:\n- Puedes marcar cualquier página, pestaña o vista filtrada\n- Los botones de avance/retroceso del navegador funcionan de forma natural\n- Compartir una URL coloca al destinatario en exactamente la misma vista\n- Actualizar la página conserva tu estado",
+      "body": "## Navegar por la aplicación\n\nCada página de Forge comparte el mismo diseño: un menú lateral a la izquierda, una barra de encabezado en la parte superior y tu contenido en el centro.\n\n### El menú lateral\n\nEl menú lateral es tu forma de moverte por la aplicación. Cuando está estrecho, solo ves iconos. Haz clic en la flecha de arriba para ensancharlo y mostrar las etiquetas completas. Forge recuerda tu elección en este navegador.\n\nEl menú está organizado en grupos, no en una sola lista larga. El **Panel** queda anclado arriba del todo. Haz clic en cualquier grupo para abrir sus elementos. El menú también abre el grupo de la página en la que estás. Solo ves los grupos y elementos que incluyen tu rol y la configuración de tu empresa, así que lo que no está activado simplemente no aparece.\n\n**Grupos del menú (en orden):**\n- **Panel** (anclado arriba) — tu página de inicio diaria con widgets\n- **Operaciones** — Tablero, Backlog, Planificación, Calendario, Aprobaciones\n- **Ventas** — Clientes, Clientes potenciales, Cotizaciones, Órdenes de venta, Órdenes recurrentes, Envíos, Devoluciones de clientes, Facturas, Pagos\n- **Producción** — Piezas, MRP, Programación, Lotes, OEE\n- **Inventario** — Existencias, Activos, Mantenimiento\n- **Compras** — Proveedores, Órdenes de compra, RFQ, Cuentas por pagar\n- **Personas** — Empleados, Tiempo, Gastos, Capacitación\n- **Análisis** — Informes, IA\n- **Contabilidad** — Balance de comprobación, Estado de resultados, Balance general, Flujo de caja, Antigüedad de cuentas por cobrar, Antigüedad de cuentas por pagar, GRNI, Cierre de periodo, Conciliación bancaria (la suite completa de contabilidad es opcional y solo aparece si tu empresa la activa)\n\nAnclados en la parte **inferior** están la **Planta de producción** (la pantalla de quiosco) y **Admin** (configuración del sistema, que se abre en Usuarios y acceso, Datos maestros, Integraciones, Flujo de trabajo, Capacidades y Sistema).\n\nAlgunas cosas viven fuera del menú lateral, aunque la gente suele buscarlas allí:\n- **Chat** se abre desde el icono de chat en la barra superior, no en el menú lateral.\n- **Cuenta** (tu perfil, cumplimiento y seguridad) está en tu menú de imagen en la parte superior derecha.\n- **Calendario**, **IA** y **Capacitación** están dentro de grupos (Operaciones, Análisis y Personas) en vez de ser sus propios enlaces principales.\n\n### La barra de encabezado\n\nLa barra de encabezado permanece fija en la parte superior de cada página. Tiene:\n- **Búsqueda** — busca en trabajos, piezas, clientes, proveedores y más\n- **Campana de notificaciones** — muestra cuántas notificaciones sin leer tienes; haz clic para abrirlas\n- **Chat** — abre el panel de chat y muestra los mensajes sin leer\n- **Cambio de tema** — un icono de sol/luna que alterna entre claro y oscuro\n- **Tu imagen** — abre tu menú con configuración de cuenta, idioma y cierre de sesión\n\n### Cambiar el tema\n\nHaz clic en el icono de sol/luna en el encabezado para alternar entre claro y oscuro. Tu elección se guarda y se aplica de inmediato en tus pestañas abiertas.\n\n### Atajos de teclado\n\nPulsa **/** (la tecla de barra inclinada) en cualquier lugar para ver los atajos de teclado. Algunos útiles:\n- **Ctrl+K** — ir a la búsqueda\n- **/** — abrir la lista de atajos\n- **Escape** — cerrar el panel o la ventana abierta\n\n### Marcar y compartir vistas\n\nTu vista actual queda capturada en la dirección web, así que:\n- Puedes marcar cualquier página, pestaña o vista filtrada\n- Los botones de avance y retroceso del navegador funcionan como esperas\n- Compartir la dirección abre la misma vista para la otra persona\n- Actualizar la página te mantiene donde estabas",
       "sections": []
     }
   },
   {
     "slug": "navigating-the-app",
     "title": "Navegar por la aplicación — Recorrido guiado",
-    "summary": "Un recorrido guiado por la barra lateral, el encabezado, las notificaciones y las principales áreas de navegación.",
+    "summary": "Un recorrido guiado por el menú lateral, la barra de encabezado, las notificaciones y las principales formas de moverte.",
     "contentJson": {
       "appRoute": "/dashboard",
       "startButtonLabel": "Hacer el recorrido",
@@ -19,16 +19,16 @@
         {
           "element": ".sidebar",
           "popover": {
-            "title": "Navegación de la barra lateral",
-            "description": "La barra lateral contiene todos tus enlaces de navegación, organizados en grupos (Operaciones, Ventas, Producción y más). Haz clic en un grupo para desplegar sus elementos; haz clic en el conmutador de chevron en la parte superior para mostrar u ocultar las etiquetas completas.",
+            "title": "El menú lateral",
+            "description": "Así te mueves por la aplicación. Los enlaces están ordenados en grupos como Operaciones, Ventas y Producción. Haz clic en un grupo para abrir sus elementos. Haz clic en la flecha de arriba para ensanchar el menú y mostrar las etiquetas completas.",
             "side": "right"
           }
         },
         {
           "element": ".app-header",
           "popover": {
-            "title": "Encabezado de la aplicación",
-            "description": "El encabezado permanece visible en cada página. Usa el icono de búsqueda para hacer una búsqueda global en trabajos, piezas, clientes y más.",
+            "title": "La barra de encabezado",
+            "description": "El encabezado te acompaña en cada página. Usa la búsqueda para buscar en trabajos, piezas, clientes y más.",
             "side": "bottom"
           }
         },
@@ -36,15 +36,15 @@
           "element": ".app-header__actions",
           "popover": {
             "title": "Notificaciones",
-            "description": "El icono de campana muestra el recuento de tus notificaciones no leídas. Haz clic en él para abrir el panel de notificaciones — aquí verás actualizaciones de trabajos, asignaciones y alertas del sistema.",
+            "description": "La campana muestra cuántas notificaciones sin leer tienes. Haz clic para abrirlas. Aquí encontrarás actualizaciones de trabajos, asignaciones y alertas del sistema.",
             "side": "bottom"
           }
         },
         {
           "element": ".user-trigger",
           "popover": {
-            "title": "Menú de usuario",
-            "description": "Tu avatar en la parte superior derecha abre el menú de usuario. Desde aquí puedes acceder a la configuración de tu cuenta, cambiar de idioma o cerrar sesión. (El conmutador de tema es un icono de sol/luna separado en el encabezado).",
+            "title": "Tu menú",
+            "description": "Tu imagen en la parte superior derecha abre tu menú. Desde aquí abre la configuración de tu cuenta, cambia de idioma o cierra sesión. El cambio de tema sol/luna es un icono aparte en el encabezado.",
             "side": "bottom"
           }
         },
@@ -52,7 +52,7 @@
           "element": ".dashboard-content",
           "popover": {
             "title": "Widgets del panel",
-            "description": "Tu panel muestra los trabajos abiertos, las tareas de hoy, los temporizadores activos y el progreso del ciclo. Se actualiza en tiempo real a medida que el trabajo avanza por el tablero.",
+            "description": "Tu panel muestra los trabajos abiertos, las tareas de hoy, los temporizadores en marcha y el progreso del ciclo. Se actualiza solo a medida que el trabajo avanza.",
             "side": "top"
           }
         }
@@ -62,54 +62,54 @@
   {
     "slug": "navigation-field-reference",
     "title": "Referencia de campos de navegación",
-    "summary": "Referencia completa de cada elemento de navegación, control de encabezado, sección de la barra lateral y atajo de teclado.",
+    "summary": "Una referencia rápida de los controles del encabezado, el menú lateral, los atajos de teclado y las opciones de tema.",
     "contentJson": {
       "title": "Referencia de campos de navegación",
       "groups": [
         {
           "heading": "Controles de la barra de encabezado",
           "items": [
-            { "label": "Icono de búsqueda (lupa)", "value": "Abre la superposición de búsqueda global. Escribe para buscar en trabajos, piezas, clientes, proveedores, OC y más. Los resultados se agrupan por tipo de entidad. Pulsa Ctrl+K para enfocar." },
-            { "label": "Campana de notificaciones", "value": "Muestra el recuento de notificaciones no leídas como un distintivo rojo. Haz clic para abrir el panel de notificaciones. El panel tiene pestañas: Todas, Mensajes, Alertas. Admite marcar como leída, fijar, descartar y descartar todas." },
-            { "label": "Icono de chat", "value": "Abre el panel deslizable de chat. Muestra un distintivo con el recuento de mensajes no leídos. El panel enumera las conversaciones con una vista previa del último mensaje y la marca de tiempo." },
-            { "label": "Avatar de usuario", "value": "Abre el menú desplegable de usuario. Contiene: Configuración de cuenta, Acerca de, selector de idioma, Cerrar sesión. El conmutador de tema claro/oscuro es un icono de sol/luna separado en el encabezado, no en este menú. El avatar muestra tus iniciales sobre el color de fondo elegido." }
+            { "label": "Búsqueda (lupa)", "value": "Abre la búsqueda. Escribe para buscar en trabajos, piezas, clientes, proveedores, órdenes de compra y más. Los resultados se agrupan por tipo. Pulsa Ctrl+K para ir directamente a ella." },
+            { "label": "Campana de notificaciones", "value": "Muestra un distintivo rojo con tu recuento de no leídas. Haz clic para abrir tus notificaciones. Fíltralas por Todas, Mensajes o Alertas, y márcalas como leídas, fíjalas o descártalas." },
+            { "label": "Chat", "value": "Abre el panel de chat con un distintivo para los mensajes sin leer. Cada conversación muestra una vista previa del último mensaje y cuándo llegó." },
+            { "label": "Tu imagen", "value": "Abre tu menú: Configuración de cuenta, Acerca de, idioma y Cerrar sesión. El cambio de tema sol/luna es un icono aparte en el encabezado, no en este menú. Tu imagen muestra tus iniciales." }
           ]
         },
         {
-          "heading": "Secciones de la barra lateral",
+          "heading": "Menú lateral",
           "items": [
-            { "label": "Ancho de la barra lateral", "value": "Plegada: 52px (solo iconos). Expandida: 200px (iconos + etiquetas). El estado se guarda en las preferencias de usuario." },
-            { "label": "Plegar/expandir", "value": "Haz clic en el conmutador de chevron en la parte superior de la barra lateral para expandirla o plegarla." },
-            { "label": "Indicador de activo", "value": "La página actual se resalta con un acento de borde izquierdo y un tinte de fondo en el icono de la barra lateral." },
-            { "label": "Agrupación por secciones", "value": "Los elementos relacionados se agrupan en grupos desplegables (Operaciones, Ventas, Producción, Inventario, Compras, Personas, Análisis). Los divisores separan el Panel, los grupos principales y los anclados Planta de producción + Admin." }
+            { "label": "Ancho del menú", "value": "Estrecho muestra solo iconos; ancho muestra iconos con etiquetas. Forge recuerda tu elección." },
+            { "label": "Ensanchar o estrechar", "value": "Haz clic en la flecha de arriba del menú para ensancharlo o reducirlo de nuevo a iconos." },
+            { "label": "Página actual", "value": "La página en la que estás se resalta en el menú para que veas dónde te encuentras." },
+            { "label": "Grupos", "value": "Los elementos relacionados están ordenados en grupos que puedes abrir: Operaciones, Ventas, Producción, Inventario, Compras, Personas y Análisis. El Panel está arriba; Planta de producción y Admin están anclados abajo." }
           ]
         },
         {
           "heading": "Atajos de teclado",
           "items": [
-            { "label": "/ (barra inclinada)", "value": "Abrir el diálogo de ayuda de atajos de teclado" },
-            { "label": "Ctrl+K", "value": "Enfocar la entrada de búsqueda global" },
-            { "label": "Escape", "value": "Cerrar el diálogo, panel o superposición actual" },
-            { "label": "Q y luego una letra", "value": "Combinaciones de navegación: Q y luego D (Panel), K (Tablero), B (Backlog), P (Piezas), I (Inventario), R (Informes), T (Tiempo)" }
+            { "label": "/ (barra inclinada)", "value": "Abrir la lista de atajos de teclado" },
+            { "label": "Ctrl+K", "value": "Ir a la búsqueda" },
+            { "label": "Escape", "value": "Cerrar el panel o la ventana abierta" },
+            { "label": "Q y luego una letra", "value": "Saltos rápidos: Q y luego D (Panel), K (Tablero), B (Backlog), P (Piezas), I (Inventario), R (Informes), T (Tiempo)" }
           ]
         },
         {
-          "heading": "Patrones de estado de URL",
+          "heading": "Marcar y compartir",
           "items": [
-            { "label": "Pestañas", "value": "Reflejadas como segmentos de ruta: /admin/integrations, /inventory/receiving" },
-            { "label": "Entidad seleccionada", "value": "Parámetro de consulta: ?detail=job:1055, ?detail=part:42" },
-            { "label": "Filtros", "value": "Parámetros de consulta: ?status=open&priority=high" },
-            { "label": "Paginación", "value": "Parámetros de consulta: ?page=2&pageSize=50" },
-            { "label": "Pasos del asistente", "value": "Parámetro de consulta: ?step=2" }
+            { "label": "Pestañas", "value": "La pestaña en la que estás forma parte de la dirección web, así que un marcador reabre la misma pestaña." },
+            { "label": "Un registro abierto", "value": "Abrir un registro forma parte de la dirección, así que un marcador reabre directamente ese registro." },
+            { "label": "Filtros", "value": "Tus filtros forman parte de la dirección, así que un marcador o un enlace compartido los conserva." },
+            { "label": "Número de página", "value": "La página que estás viendo forma parte de la dirección, así que se mantiene al actualizar o compartir." },
+            { "label": "Pasos de configuración", "value": "El paso en el que estás dentro de un flujo de configuración forma parte de la dirección, así que vuelves al mismo paso." }
           ]
         },
         {
-          "heading": "Sistema de temas",
+          "heading": "Tema",
           "items": [
-            { "label": "Tema claro", "value": "Fondos blancos, texto oscuro. Propiedades personalizadas de CSS: --bg: #ffffff, --surface: #f8f8f8" },
-            { "label": "Tema oscuro", "value": "Predeterminado. Fondos oscuros, texto claro. Se alterna mediante data-theme='dark' en <html>. Las propiedades personalizadas de CSS se intercambian automáticamente." },
-            { "label": "Persistencia", "value": "Se guarda en la clave de localStorage 'forge-theme'. Se sincroniza entre pestañas." },
-            { "label": "Movimiento reducido", "value": "Las animaciones se deshabilitan cuando prefers-reduced-motion está establecido en la configuración del sistema operativo." }
+            { "label": "Claro", "value": "Fondos claros con texto oscuro." },
+            { "label": "Oscuro", "value": "Fondos oscuros con texto claro. Es el predeterminado." },
+            { "label": "Guardado", "value": "Tu elección se guarda y se aplica en tus pestañas abiertas." },
+            { "label": "Movimiento reducido", "value": "Las animaciones se desactivan automáticamente si tu dispositivo está configurado para reducir el movimiento." }
           ]
         }
       ]
@@ -118,7 +118,7 @@
   {
     "slug": "navigation-quiz",
     "title": "Evaluación de conocimientos de navegación",
-    "summary": "Pon a prueba tus conocimientos sobre la navegación de la aplicación, los controles del encabezado, la barra lateral, los atajos de teclado y el estado de URL.",
+    "summary": "Pon a prueba tus conocimientos sobre cómo moverte por la aplicación: controles del encabezado, el menú lateral, los atajos de teclado y marcar vistas.",
     "contentJson": {
       "passingScore": 80,
       "questionsPerQuiz": 8,
@@ -127,91 +127,91 @@
       "questions": [
         {
           "id": "nav1",
-          "text": "Quieres buscar un número de trabajo específico en toda la aplicación. ¿Cuál es la forma más rápida?",
+          "text": "Quieres encontrar un número de trabajo específico en cualquier parte de la aplicación. ¿Cuál es la forma más rápida?",
           "options": [
-            { "id": "a", "text": "Navegar a Backlog y usar el filtro de búsqueda" },
-            { "id": "b", "text": "Usar el campo de búsqueda global del encabezado o pulsar Ctrl+K para enfocarlo", "isCorrect": true },
+            { "id": "a", "text": "Ir a Backlog y usar el filtro de búsqueda" },
+            { "id": "b", "text": "Usar la búsqueda del encabezado, o pulsar Ctrl+K para ir a ella", "isCorrect": true },
             { "id": "c", "text": "Ir a Informes y ejecutar un informe de resumen de trabajos" },
-            { "id": "d", "text": "Abrir el tablero Kanban y desplazarte por las columnas" }
+            { "id": "d", "text": "Abrir el Tablero y desplazarte por las columnas" }
           ],
-          "explanation": "La búsqueda global del encabezado busca en todos los tipos de entidad (trabajos, piezas, clientes, etc.) simultáneamente. Pulsa Ctrl+K para enfocarla al instante desde cualquier página."
+          "explanation": "La búsqueda del encabezado busca en trabajos, piezas, clientes y más a la vez. Pulsa Ctrl+K para ir a ella desde cualquier página."
         },
         {
           "id": "nav2",
-          "text": "Quieres compartir la vista filtrada exacta del Backlog con un compañero de equipo. ¿Qué haces?",
+          "text": "Quieres compartir tu vista filtrada exacta del Backlog con un compañero de equipo. ¿Qué haces?",
           "options": [
             { "id": "a", "text": "Hacer una captura de pantalla y enviarla por chat" },
-            { "id": "b", "text": "Copiar la URL de la barra de direcciones de tu navegador — los filtros están codificados en los parámetros de consulta", "isCorrect": true },
-            { "id": "c", "text": "Exportar el backlog a CSV y enviarlo por correo electrónico" },
+            { "id": "b", "text": "Copiar la dirección web y enviarla — tus filtros viajan con ella", "isCorrect": true },
+            { "id": "c", "text": "Exportar el backlog a un archivo y enviarlo por correo" },
             { "id": "d", "text": "Guardar un informe con los mismos filtros" }
           ],
-          "explanation": "Todo el estado de los filtros se refleja en la URL como parámetros de consulta. Copiar la URL le da a tu compañero exactamente la misma vista, incluidos los filtros, la ordenación y la paginación."
+          "explanation": "Tus filtros quedan capturados en la dirección web. Copiarla le da a tu compañero la misma vista, con filtros, ordenación y página incluidos."
         },
         {
           "id": "nav3",
           "text": "La campana de notificaciones muestra un distintivo rojo con '5'. ¿Qué significa esto?",
           "options": [
             { "id": "a", "text": "Ocurrieron 5 errores del sistema en la última hora" },
-            { "id": "b", "text": "Tienes 5 notificaciones no leídas", "isCorrect": true },
+            { "id": "b", "text": "Tienes 5 notificaciones sin leer", "isCorrect": true },
             { "id": "c", "text": "5 trabajos están vencidos" },
             { "id": "d", "text": "5 formularios de cumplimiento necesitan atención" }
           ],
-          "explanation": "El recuento del distintivo en la campana de notificaciones muestra las notificaciones no leídas. Estas pueden ser actualizaciones de trabajos, cambios de asignación, menciones o alertas del sistema."
+          "explanation": "El distintivo de la campana muestra tus notificaciones sin leer. Estas pueden ser actualizaciones de trabajos, cambios de asignación, menciones o alertas del sistema."
         },
         {
           "id": "nav4",
-          "text": "¿Cómo cambias entre el tema Claro y Oscuro?",
+          "text": "¿Cómo cambias entre claro y oscuro?",
           "options": [
             { "id": "a", "text": "Admin → Configuración → Tema" },
-            { "id": "b", "text": "Hacer clic en el icono de conmutador de tema (sol/luna) en el encabezado", "isCorrect": true },
+            { "id": "b", "text": "Hacer clic en el icono de sol/luna en el encabezado", "isCorrect": true },
             { "id": "c", "text": "Cuenta → Perfil → Apariencia" },
-            { "id": "d", "text": "Pulsar Ctrl+D para alternar" }
+            { "id": "d", "text": "Pulsar Ctrl+D para cambiar" }
           ],
-          "explanation": "El conmutador de tema es un icono de sol/luna dedicado en el encabezado (no está en el menú del avatar). Tu elección se guarda y se sincroniza entre las pestañas del navegador."
+          "explanation": "El icono de sol/luna en el encabezado cambia entre claro y oscuro (no está en tu menú de imagen). Tu elección se guarda y se aplica en tus pestañas abiertas."
         },
         {
           "id": "nav5",
-          "text": "Estás en la página de Gastos y quieres navegar rápidamente a Piezas. ¿Dónde haces clic?",
+          "text": "Estás en la página de Gastos y quieres llegar rápido a Piezas. ¿Dónde haces clic?",
           "options": [
-            { "id": "a", "text": "Botón de retroceso del navegador hasta llegar a Piezas" },
-            { "id": "b", "text": "Hacer clic en el icono de Piezas en la barra lateral izquierda", "isCorrect": true },
-            { "id": "c", "text": "Usar las migas de pan del encabezado para navegar hacia arriba" },
-            { "id": "d", "text": "Abrir la búsqueda global y escribir 'Piezas'" }
+            { "id": "a", "text": "El botón de retroceso del navegador hasta llegar a Piezas" },
+            { "id": "b", "text": "El icono de Piezas en el menú lateral", "isCorrect": true },
+            { "id": "c", "text": "El rastro de la parte superior de la página para volver arriba" },
+            { "id": "d", "text": "La búsqueda, y luego escribir 'Piezas'" }
           ],
-          "explanation": "La barra lateral es tu herramienta de navegación principal. Haz clic en el icono de Piezas (o en su etiqueta si la barra lateral está expandida) para navegar directamente."
+          "explanation": "El menú lateral es tu forma de moverte. Haz clic en el icono de Piezas (o en su etiqueta cuando el menú está ancho) para ir directamente allí."
         },
         {
           "id": "nav6",
-          "text": "¿Qué atajo de teclado abre el diálogo de ayuda de atajos de teclado?",
+          "text": "¿Qué atajo de teclado abre la lista de atajos de teclado?",
           "options": [
             { "id": "a", "text": "Ctrl+H" },
             { "id": "b", "text": "F1" },
             { "id": "c", "text": "/ (barra inclinada)", "isCorrect": true },
             { "id": "d", "text": "Ctrl+/" }
           ],
-          "explanation": "Pulsa / (barra inclinada) desde cualquier página para ver todos los atajos de teclado disponibles. Esto funciona independientemente de la página en la que estés."
+          "explanation": "Pulsa / (barra inclinada) desde cualquier página para ver todos los atajos de teclado. Funciona sin importar en qué página estés."
         },
         {
           "id": "nav7",
-          "text": "La barra lateral está plegada y solo muestra iconos. ¿Cómo ves las etiquetas completas?",
+          "text": "El menú lateral está estrecho y solo muestra iconos. ¿Cómo ves las etiquetas completas?",
           "options": [
-            { "id": "a", "text": "Hacer clic en el conmutador de chevron en la parte superior de la barra lateral", "isCorrect": true },
-            { "id": "b", "text": "Pulsar Ctrl+B para alternar la barra lateral" },
-            { "id": "c", "text": "Ir a Cuenta → Preferencias → Barra lateral" },
-            { "id": "d", "text": "No puedes expandirla — los iconos son la única navegación" }
+            { "id": "a", "text": "Hacer clic en la flecha de arriba del menú", "isCorrect": true },
+            { "id": "b", "text": "Pulsar Ctrl+B para ensanchar el menú" },
+            { "id": "c", "text": "Ir a Cuenta → Preferencias → Menú lateral" },
+            { "id": "d", "text": "No puedes — los iconos son la única opción" }
           ],
-          "explanation": "Haz clic en el conmutador de chevron en la parte superior de la barra lateral para expandirla con las etiquetas completas. Tu preferencia se guarda en localStorage."
+          "explanation": "Haz clic en la flecha de arriba del menú para ensancharlo y mostrar las etiquetas completas. Forge recuerda tu elección."
         },
         {
           "id": "nav8",
-          "text": "Marcaste una URL que termina en ?detail=job:1055. ¿Qué ocurre cuando la abres?",
+          "text": "Marcaste un enlace que tenía un trabajo específico abierto. ¿Qué ocurre cuando lo abres?",
           "options": [
-            { "id": "a", "text": "Muestra un error porque las URL de detalle de trabajo son temporales" },
-            { "id": "b", "text": "Abre la página y abre automáticamente el diálogo de detalle del trabajo 1055", "isCorrect": true },
-            { "id": "c", "text": "Redirige al tablero Kanban filtrado al trabajo 1055" },
-            { "id": "d", "text": "Abre el PDF de la orden de trabajo del trabajo" }
+            { "id": "a", "text": "Muestra un error porque esos enlaces son temporales" },
+            { "id": "b", "text": "Abre la página y reabre los detalles de ese trabajo para ti", "isCorrect": true },
+            { "id": "c", "text": "Te lleva al Tablero filtrado a ese trabajo" },
+            { "id": "d", "text": "Abre la orden de trabajo imprimible del trabajo" }
           ],
-          "explanation": "El parámetro de consulta ?detail=type:id activa la apertura automática del diálogo de detalle cuando se carga la página. Esto hace que los marcadores y los enlaces compartidos aterricen en la vista exacta."
+          "explanation": "Un registro abierto queda capturado en el enlace, así que el marcador reabre la página con los detalles de ese trabajo ya visibles. Los marcadores y los enlaces compartidos aterrizan en la vista exacta."
         }
       ]
     }
@@ -219,9 +219,9 @@
   {
     "slug": "navigation-reference",
     "title": "Navegación e incorporación — Referencia avanzada",
-    "summary": "Referencia de casos límite y para usuarios avanzados sobre el asistente de incorporación, los campos de almacenamiento seguro, las superficies de ayuda y las variantes de instalación del panel.",
+    "summary": "Una referencia más profunda de los pasos de incorporación, los campos de almacenamiento seguro, los paneles de ayuda y por qué los paneles difieren entre empresas.",
     "contentJson": {
-      "body": "## Retención del W-4 — Dependientes y exención\n\nEl paso 2 del asistente de incorporación (`?step=2`) recopila los datos federales del W-4. Los campos de crédito `w4QualifyingChildren` (Paso 3a, $2,000 cada uno) y `w4OtherDependents` ($500 cada uno) alimentan el cálculo estándar de dependientes del W-4; su total en dólares se suma automáticamente — los trabajadores introducen cantidades, no dólares. `w4MultipleJobs`, `w4OtherIncome`, `w4Deductions` y `w4ExtraWithholding` se corresponden directamente con las líneas del W-4 de 2020 en adelante. Marcar `w4ExemptFromWithholding` declara la exención: suprime/pone a cero los campos de crédito y de retención adicional, ya que a un declarante exento no se le retiene ningún impuesto federal sobre la renta.\n\n## I-9 — Documentos de la Lista A frente a Lista B + C\n\nEl paso 4 (`?step=4`, `i9DocumentChoice`) sigue la Sección 1 del Formulario I-9 de USCIS. El empleado proporciona O BIEN un documento de la Lista A (acredita tanto la identidad como la autorización de trabajo — p. ej., pasaporte de EE. UU., tarjeta de residente permanente, documento de autorización de empleo) O BIEN un documento de la Lista B (identidad — licencia de conducir, tarjeta de identificación estatal) MÁS un documento de la Lista C (autorización de trabajo). Seleccionar la Lista A expone `i9ListAType/Authority/Expiry` más una carga de archivo (`i9ListAFileAttachmentId`); seleccionar B+C expone los conjuntos de campos emparejados `i9ListB*` e `i9ListC*`, cada uno con su propia carga. El estado de ciudadanía (`i9CitizenshipStatus`) controla filas condicionales: número de registro de extranjero, número I-94, número/país del pasaporte extranjero y `i9WorkAuthExpiry`.\n\n## Estados sin impuesto sobre la renta\n\nEl paso 5 (`?step=5`) es la retención estatal. El asistente reconoce los estados sin impuesto sobre la renta — `AK, FL, NV, SD, TN, TX, WA, WY` — mediante el conjunto `NO_INCOME_TAX_STATES`. Cuando el estado de la ubicación de trabajo del empleado está en este conjunto, los campos de retención estatal (`stateFilingStatus`, `stateAllowances`, `stateAdditionalWithholding`, `stateExempt`) no son obligatorios, porque no hay impuesto estatal sobre la renta que retener. El estado aplicable se deriva del `WorkLocationId` del empleado (CompanyLocation), no de una entrada de texto libre.\n\n## Depósito directo — Ruta y cuenta\n\nEl paso 6 recopila los datos bancarios para el depósito de nómina por ACH: número de ruta bancaria (ABA de 9 dígitos), número de cuenta y tipo de cuenta (corriente/de ahorros). Estos se introducen una sola vez durante la incorporación y se almacenan como campos de manejo seguro (véase más abajo). Un trabajador al que se le paga con cheque en papel puede omitir este paso cuando la instalación lo permita.\n\n## Campos de almacenamiento seguro y reanudación del borrador\n\nLos identificadores sensibles (SSN, ruta/cuenta bancaria, números de documentos extranjeros) se marcan como seguros: el asistente rastrea únicamente un indicador booleano de presencia (p. ej., `hasAlienRegNumber`, `hasI94Number`, `hasForeignPassportNumber`, `hasListADocNumber`) en el estado del cliente en lugar de devolver el valor en bruto. El progreso es reanudable como borrador — el asistente conserva el estado de revisión bajo la clave `forge-onboarding-review-state` y la URL `?step=N` es la fuente de verdad, de modo que cerrar y reabrir `/onboarding` devuelve al trabajador al mismo paso con las entradas previas intactas.\n\n## Reconocimientos — Compensación laboral frente a manual del empleado\n\nEl paso de Reconocimientos presenta una casilla por cada política requerida. Estos son documentos distintos: el reconocimiento de compensación laboral (aviso obligatorio por el estado sobre la cobertura de compensación y el procedimiento de notificación de lesiones) es independiente del reconocimiento del manual del empleado (recepción y aceptación de la política de la empresa). Cada uno debe reconocerse individualmente; el conjunto de reconocimientos requeridos es configurable por instalación.\n\n## Recorridos de ayuda por página frente al panel de Capacitación\n\nDos superficies de ayuda distintas comparten el encabezado. El **panel de contexto de Capacitación** (icono de libro/capacitación, `TrainingContextPanelComponent`, alternado mediante `showTrainingPanel`) enumera los módulos de capacitación publicados cuyas `AppRoutes` coinciden con la página actual — este módulo de Referencia aparece allí en `/dashboard`. Por separado, los **recorridos guiados por página** son módulos de tipo Walkthrough de driver.js que se lanzan a demanda (el botón \"Hacer el recorrido\") y resaltan elementos vivos del DOM paso a paso. El panel es una lista de lectura acotada a la ruta; un recorrido es una superposición interactiva. El encabezado también expone el panel de Ayuda de IA y una columna de búsqueda global con IA (resultados de entidades + respuesta RAG) que son afines a la ayuda pero no son contenido de capacitación.\n\n## Variantes de instalación del panel\n\nLa página de inicio del panel (`/dashboard`, la `AppRoute` predeterminada de los módulos de navegación) muestra distintos conjuntos de widgets según la instalación, porque el control de capacidades oculta los widgets vinculados a funciones deshabilitadas (p. ej., los widgets de contabilidad, nómina o chat desaparecen cuando su `CAP-*` está desactivado). El diseño y los controles de personalizar/Enfoque/Ambiente/exportar persisten por usuario mediante `user_preferences` (`dashboard:layout`). Dado que la superficie visible depende tanto del conjunto de capacidades de la instalación como del diseño guardado del usuario, dos usuarios en instalaciones diferentes pueden ver paneles materialmente distintos desde la misma ruta.",
+      "body": "## Retención del W-4 — Dependientes y exención\n\nEl paso del W-4 en la incorporación recopila tu información de retención federal. Introduce el número de hijos que califican ($2,000 cada uno) y de otros dependientes ($500 cada uno) como cantidades, no como dólares — Forge suma el crédito por ti. También verás las líneas estándar del W-4 para varios empleos, otros ingresos, deducciones y cualquier retención adicional. Marcar la casilla de exención te declara exento: los campos de crédito y de retención adicional se vacían, ya que a un declarante exento no se le retiene ningún impuesto federal sobre la renta.\n\n## I-9 — Lista A, o Lista B más C\n\nEl paso del I-9 sigue la Sección 1 del Formulario I-9 federal. Proporciona o bien un documento de la Lista A (acredita tanto la identidad como la autorización de trabajo — por ejemplo, un pasaporte de EE. UU., una tarjeta de residente permanente o un documento de autorización de empleo), o bien un documento de la Lista B para la identidad (como una licencia de conducir o una tarjeta de identificación estatal) más un documento de la Lista C para la autorización de trabajo. Si eliges la Lista A, introduces los datos de ese documento y subes una copia. Si eliges B y C, introduces y subes ambos. Tu estado de ciudadanía decide si aparecen filas adicionales, como un número de registro de extranjero, un número I-94, el número y país de un pasaporte extranjero y una fecha de vencimiento de la autorización de trabajo.\n\n## Estados sin impuesto sobre la renta\n\nEl paso de retención estatal conoce los estados sin impuesto sobre la renta: Alaska, Florida, Nevada, Dakota del Sur, Tennessee, Texas, Washington y Wyoming. Si tu ubicación de trabajo está en uno de estos, los campos de retención estatal no son obligatorios, porque no hay impuesto estatal sobre la renta que retener. Forge usa tu ubicación de trabajo asignada para decidir esto — no escribes el estado tú mismo.\n\n## Depósito directo — Ruta y cuenta\n\nEl paso de depósito directo recopila tus datos bancarios para la nómina: tu número de ruta de 9 dígitos, el número de cuenta y el tipo de cuenta (corriente o de ahorros). Los introduces una sola vez durante la incorporación y se almacenan de forma segura (véase más abajo). Si te pagan con cheque en papel, puedes omitir este paso cuando tu empresa lo permita.\n\n## Campos de almacenamiento seguro y guardar tu progreso\n\nLos números sensibles — tu número de Seguro Social, los números de ruta y cuenta bancaria y los números de documentos extranjeros — se almacenan de forma segura. Forge solo recuerda que los has introducido, no los números en sí, así que no se te muestran de vuelta. Tu progreso se guarda a medida que avanzas: cierra la incorporación y vuelve más tarde, y regresarás al mismo paso con tus entradas anteriores intactas.\n\n## Reconocimientos — Compensación laboral frente a manual del empleado\n\nEl paso de Reconocimientos tiene una casilla por cada política requerida. Estos son documentos distintos: el reconocimiento de compensación laboral (un aviso obligatorio por el estado sobre la cobertura de compensación y cómo notificar una lesión) es diferente del reconocimiento del manual del empleado (que confirma que lo recibiste y aceptas la política de la empresa). Reconoces cada uno por separado, y tu empresa decide qué reconocimientos son obligatorios.\n\n## Recorridos guiados frente al panel de Capacitación\n\nHay dos tipos de ayuda en el encabezado. El panel de Capacitación (el icono de libro) enumera la capacitación de la página en la que estás — esta referencia aparece allí en el panel. Es una lista de lectura para la página. Un recorrido guiado es distinto: es el recorrido que inicias a demanda con el botón \"Hacer el recorrido\", y resalta partes de la página paso a paso. El encabezado también tiene un panel de ayuda de IA y una búsqueda de IA que dan respuestas y resultados, que son afines a la ayuda pero no son capacitación.\n\n## Por qué los paneles difieren entre empresas\n\nEl panel muestra distintos widgets de una empresa a otra, porque los widgets de las funciones que no están activadas — como contabilidad, nómina o chat — simplemente no aparecen. Además, tu diseño y los controles de personalizar, Enfoque, Ambiente y exportar se guardan por persona. Así que dos personas en empresas diferentes pueden abrir el mismo panel y ver cosas muy distintas.",
       "sections": []
     }
   }
