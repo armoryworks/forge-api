@@ -535,6 +535,10 @@ try
     builder.Services.AddSingleton<Forge.Core.Interfaces.IAiHardwareAdvisor,
                                   Forge.Api.Services.AiHardwareAdvisor>();
 
+    // ai-fleet-orchestration D — AI-provenance stamper.
+    builder.Services.AddScoped<Forge.Core.Interfaces.IAiProvenanceStamper,
+                               Forge.Api.Services.AiProvenanceStamper>();
+
     // regulatory-watchtower (cluster B) — poller + feed client (mock = offline no-op;
     // real per-feed-type clients swap in on an internet-connected node).
     builder.Services.AddScoped<Forge.Api.Services.IRegulatoryPoller,
