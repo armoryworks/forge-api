@@ -256,6 +256,12 @@ public class Part : BaseAuditableEntity, IActiveAware
     public ICollection<PartAlternate> Alternates { get; set; } = [];
     public ICollection<SerialNumber> SerialNumbers { get; set; } = [];
 
+    // ── regulated-parts-safety C-4: GS1 barcode license modelled as a non-inventory
+    //    "license" part; renewal flows through normal purchasing on an expiry cadence. ──
+    public bool IsLicense { get; set; }
+    public DateTimeOffset? LicenseExpiresAt { get; set; }
+    public int? LicenseRenewalLeadDays { get; set; }
+
     // Phase 3 H4 / WU-20 — BOM revision history. CurrentBomRevisionId points
     // at the active immutable snapshot of this part's BOM. Older revisions
     // hang off the part via the BomRevisions collection but stay frozen.

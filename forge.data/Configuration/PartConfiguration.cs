@@ -19,6 +19,7 @@ public class PartConfiguration : IEntityTypeConfiguration<Part>
         builder.Property(e => e.InventoryClass).HasDefaultValueSql("'Component'").ValueGeneratedNever();
         builder.Property(e => e.ProcurementSource).HasDefaultValueSql("'Buy'").ValueGeneratedNever();
         builder.Property(e => e.TraceabilityType).HasDefaultValueSql("'None'").ValueGeneratedNever();
+        builder.Property(e => e.IsLicense).HasDefaultValueSql("false").ValueGeneratedNever();
         builder.Ignore(e => e.IsDeleted);
         // Phase 3 H2 / WU-12: IActiveAware contract member — derived from Status.
         builder.Ignore(e => e.IsActiveForNewTransactions);
