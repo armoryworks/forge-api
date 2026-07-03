@@ -527,6 +527,10 @@ try
     builder.Services.AddScoped<Forge.Core.Interfaces.ICalendarVisibilityService,
                                Forge.Api.Services.CalendarVisibilityService>();
 
+    // ai-fleet-orchestration D-2 — per-client RAG doc override resolver.
+    builder.Services.AddSingleton<Forge.Core.Interfaces.IClientDocResolver,
+                                  Forge.Api.Services.ClientDocResolver>();
+
     // Phase 4 Phase-A — capability gating infrastructure.
     builder.Services.AddSingleton<Forge.Api.Capabilities.ICapabilitySnapshotProvider,
                                   Forge.Api.Capabilities.CapabilitySnapshotProvider>();
