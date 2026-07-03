@@ -531,6 +531,10 @@ try
     builder.Services.AddSingleton<Forge.Core.Interfaces.IClientDocResolver,
                                   Forge.Api.Services.ClientDocResolver>();
 
+    // ai-fleet-orchestration D-crux — infra-awareness hardware advisor.
+    builder.Services.AddSingleton<Forge.Core.Interfaces.IAiHardwareAdvisor,
+                                  Forge.Api.Services.AiHardwareAdvisor>();
+
     // regulatory-watchtower (cluster B) — poller + feed client (mock = offline no-op;
     // real per-feed-type clients swap in on an internet-connected node).
     builder.Services.AddScoped<Forge.Api.Services.IRegulatoryPoller,
