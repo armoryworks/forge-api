@@ -538,6 +538,10 @@ try
     builder.Services.AddScoped<Forge.Core.Interfaces.IRegulatoryFeedClient,
                                Forge.Integrations.MockRegulatoryFeedClient>();
 
+    // regulated-parts-safety C-1 — effective compliance requirements (active-profile union).
+    builder.Services.AddScoped<Forge.Core.Interfaces.IComplianceService,
+                               Forge.Api.Services.ComplianceService>();
+
     // Phase 4 Phase-A — capability gating infrastructure.
     builder.Services.AddSingleton<Forge.Api.Capabilities.ICapabilitySnapshotProvider,
                                   Forge.Api.Capabilities.CapabilitySnapshotProvider>();
