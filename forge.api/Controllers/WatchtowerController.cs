@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Features.Watchtower;
 using Forge.Api.Services;
 using Forge.Core.Models;
@@ -15,6 +16,7 @@ namespace Forge.Api.Controllers;
 [ApiController]
 [Route("api/v1/watchtower")]
 [Authorize(Roles = "Admin,Manager")]
+[RequiresCapability("CAP-EXT-WATCHTOWER")]
 public class WatchtowerController(IMediator mediator, IRegulatoryPoller poller) : ControllerBase
 {
     [HttpGet("sources")]
