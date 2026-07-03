@@ -23,6 +23,7 @@ public class GetUpcomingEventsForUserHandler(AppDbContext db)
 
         var events = await db.Events
             .Include(e => e.Attendees)
+            .Include(e => e.CalendarEventType)
             .Where(e => eventIds.Contains(e.Id)
                 && !e.IsCancelled
                 && e.StartTime >= now)
@@ -49,6 +50,7 @@ public class GetUpcomingEventsForUserHandler(AppDbContext db)
                 a.Id, a.UserId,
                 userNames.GetValueOrDefault(a.UserId, ""),
                 a.Status.ToString(), a.RespondedAt)).ToList(),
-            evt.CreatedAt)).ToList();
+            evt.CreatedAt, evt.EventTypeId, evt.CalendarEventType?.SuperGroupId,
+            evt.Status.ToString(), evt.OwnerUserId, evt.IsBlocking, evt.AcknowledgedAt)).ToList();
     }
 }

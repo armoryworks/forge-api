@@ -18,7 +18,8 @@ public record UpdateEventCommand(
     string? Location,
     string EventType,
     bool IsRequired,
-    List<int> AttendeeUserIds) : IRequest<EventResponseModel>;
+    List<int> AttendeeUserIds,
+    int? EventTypeId = null) : IRequest<EventResponseModel>;
 
 public class UpdateEventValidator : AbstractValidator<UpdateEventCommand>
 {
@@ -40,6 +41,7 @@ public class UpdateEventHandler(AppDbContext db)
     {
         var evt = await db.Events
             .Include(e => e.Attendees)
+            .Include(e => e.CalendarEventType)
             .FirstOrDefaultAsync(e => e.Id == request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Event {request.Id} not found");
 
@@ -49,6 +51,10 @@ public class UpdateEventHandler(AppDbContext db)
         evt.EndTime = request.EndTime;
         evt.Location = request.Location;
         evt.EventType = Enum.Parse<EventType>(request.EventType, true);
+        if (request.EventTypeId is int typeId
+            && !await db.CalendarEventTypes.AnyAsync(t => t.Id == typeId, cancellationToken))
+            throw new KeyNotFoundException($"Calendar event type {typeId} not found");
+        evt.EventTypeId = request.EventTypeId;
         evt.IsRequired = request.IsRequired;
 
         // Sync attendees
@@ -88,6 +94,7 @@ public class UpdateEventHandler(AppDbContext db)
                 a.Id, a.UserId,
                 userNames.GetValueOrDefault(a.UserId, ""),
                 a.Status.ToString(), a.RespondedAt)).ToList(),
-            evt.CreatedAt);
+            evt.CreatedAt, evt.EventTypeId, evt.CalendarEventType?.SuperGroupId,
+            evt.Status.ToString(), evt.OwnerUserId, evt.IsBlocking, evt.AcknowledgedAt);
     }
 }

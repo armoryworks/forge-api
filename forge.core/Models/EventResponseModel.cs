@@ -13,7 +13,15 @@ public record EventResponseModel(
     int CreatedByUserId,
     string CreatedByName,
     List<EventAttendeeResponseModel> Attendees,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    // compliance-calendar A-1/A-3: configurable taxonomy for overlay-layer filtering.
+    int? EventTypeId = null,
+    int? SuperGroupId = null,
+    // compliance-calendar A-4: tiered workflow surface (null/false for reminder-tier).
+    string? Status = null,
+    int? OwnerUserId = null,
+    bool IsBlocking = false,
+    DateTimeOffset? AcknowledgedAt = null);
 
 public record EventAttendeeResponseModel(
     int Id,

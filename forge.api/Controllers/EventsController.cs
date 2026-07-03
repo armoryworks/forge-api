@@ -39,7 +39,8 @@ public class EventsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new CreateEventCommand(
             request.Title, request.Description, request.StartTime, request.EndTime,
-            request.Location, request.EventType, request.IsRequired, request.AttendeeUserIds));
+            request.Location, request.EventType, request.IsRequired, request.AttendeeUserIds,
+            request.EventTypeId));
         return Created($"/api/v1/events/{result.Id}", result);
     }
 
@@ -49,7 +50,8 @@ public class EventsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new UpdateEventCommand(
             id, request.Title, request.Description, request.StartTime, request.EndTime,
-            request.Location, request.EventType, request.IsRequired, request.AttendeeUserIds));
+            request.Location, request.EventType, request.IsRequired, request.AttendeeUserIds,
+            request.EventTypeId));
         return Ok(result);
     }
 
@@ -66,6 +68,21 @@ public class EventsController(IMediator mediator) : ControllerBase
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await mediator.Send(new RespondToEventCommand(id, userId, request.Status));
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/status")]
+    public async Task<IActionResult> UpdateStatus(int id, [FromBody] EventStatusRequestModel request)
+    {
+        await mediator.Send(new UpdateEventStatusCommand(
+            id, request.Status, request.OwnerUserId, request.WaivedReason, request.EvidenceUrl, request.EvidenceDocumentSetId));
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/acknowledge")]
+    public async Task<IActionResult> Acknowledge(int id)
+    {
+        await mediator.Send(new AcknowledgeEventCommand(id));
         return NoContent();
     }
 

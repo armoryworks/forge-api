@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -9,7 +10,7 @@ namespace Forge.Api.Features.Events;
 public record GetEventsQuery(DateTimeOffset? From, DateTimeOffset? To, string? EventType)
     : IRequest<List<EventResponseModel>>;
 
-public class GetEventsHandler(AppDbContext db)
+public class GetEventsHandler(AppDbContext db, ICalendarVisibilityService visibility)
     : IRequestHandler<GetEventsQuery, List<EventResponseModel>>
 {
     public async Task<List<EventResponseModel>> Handle(
@@ -17,6 +18,7 @@ public class GetEventsHandler(AppDbContext db)
     {
         var query = db.Events
             .Include(e => e.Attendees)
+            .Include(e => e.CalendarEventType)
             .Where(e => !e.IsCancelled)
             .AsQueryable();
 
@@ -28,6 +30,13 @@ public class GetEventsHandler(AppDbContext db)
 
         if (!string.IsNullOrEmpty(request.EventType))
             query = query.Where(e => e.EventType.ToString() == request.EventType);
+
+        // compliance-calendar A-2: restrict to Super-Groups the current user may see.
+        // null = unrestricted (Admin/system). Events without a type (expand-phase) stay visible.
+        var visibleGroupIds = await visibility.GetVisibleSuperGroupIdsAsync(cancellationToken);
+        if (visibleGroupIds is not null)
+            query = query.Where(e => e.EventTypeId == null
+                || db.CalendarEventTypes.Any(t => t.Id == e.EventTypeId && visibleGroupIds.Contains(t.SuperGroupId)));
 
         var events = await query
             .OrderBy(e => e.StartTime)
@@ -52,6 +61,7 @@ public class GetEventsHandler(AppDbContext db)
                 a.Id, a.UserId,
                 userNames.GetValueOrDefault(a.UserId, ""),
                 a.Status.ToString(), a.RespondedAt)).ToList(),
-            evt.CreatedAt)).ToList();
+            evt.CreatedAt, evt.EventTypeId, evt.CalendarEventType?.SuperGroupId,
+            evt.Status.ToString(), evt.OwnerUserId, evt.IsBlocking, evt.AcknowledgedAt)).ToList();
     }
 }

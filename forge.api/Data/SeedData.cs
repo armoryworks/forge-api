@@ -48,6 +48,12 @@ public static partial class SeedData
         // ── 2. Track Types, Stages & Reference Data (essential) ──────────
         await SeedEssentialDataAsync(db);
 
+        // ── 2b. Calendar taxonomy (compliance-calendar A-1) + legacy backfill ──
+        await SeedCalendarTaxonomyAsync(db);
+
+        // ── 2c. Regulatory compliance buckets (compliance-calendar A-5) ──
+        await SeedComplianceBucketsAsync(db);
+
         // ── Stop here for clean installs — setup wizard handles user creation ──
         if (!seedDemoData)
         {
