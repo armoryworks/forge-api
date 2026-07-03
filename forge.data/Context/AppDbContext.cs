@@ -341,6 +341,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<ComplianceProfile> ComplianceProfiles => Set<ComplianceProfile>();
     public DbSet<ComplianceFieldRule> ComplianceFieldRules => Set<ComplianceFieldRule>();
 
+    // Lot genealogy edges (regulated-parts-safety C-2)
+    public DbSet<LotConsumption> LotConsumptions => Set<LotConsumption>();
+
     // EDI
     public DbSet<EdiTradingPartner> EdiTradingPartners => Set<EdiTradingPartner>();
     public DbSet<EdiTransaction> EdiTransactions => Set<EdiTransaction>();
