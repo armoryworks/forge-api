@@ -154,6 +154,24 @@ docker compose up -d --build forge-api
 
 Do not ask the user — just do it after verifying the build passes.
 
+**If the rebuilt container crash-loops on `relation "..." does not exist` at seed/boot,** the dev
+Postgres volume is behind the desired schema (`SchemaBootstrapper` only applies schema to a *fresh*
+DB — it does not reconcile an existing one). Bring the live DB up to desired state non-destructively
+with the forge-db reconciler, then restart:
+
+```bash
+# from the forge-db repo (bakes in pg-schema-diff):
+docker build -t forge-db:local .
+docker run --rm --network forge-deploy_default forge-db:local \
+  plan  --db "postgres://postgres:postgres@forge:5432/forge?sslmode=disable"   # review the delta first
+docker run --rm --network forge-deploy_default forge-db:local \
+  apply --db "postgres://postgres:postgres@forge:5432/forge?sslmode=disable" --env dev --yes [--allow-destructive]
+docker restart forge-api
+```
+
+`--allow-destructive` is only needed when `plan` shows a DELETES_DATA hazard (dropped column/table) —
+review that delta before allowing it; a dev volume is disposable, a shared one may not be.
+
 
 <!-- ===== .NET Patterns ===== -->
 ## .NET Patterns

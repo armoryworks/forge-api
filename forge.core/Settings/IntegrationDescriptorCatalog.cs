@@ -253,7 +253,7 @@ public static class IntegrationDescriptorCatalog
             [
                 "Ollama is already running locally via Docker — no external account is needed.",
                 "Pull the chat model: docker exec forge-ai ollama pull gemma3:4b",
-                "Pull the embedding model: docker exec forge-ai ollama pull nomic-embed-text",
+                "Pull the embedding model: docker exec forge-ai ollama pull all-minilm:l6-v2",
                 "Larger models (7B+) give better results but require more RAM. The defaults below work on 8GB+.",
             ],
             SignupUrl: "https://ollama.com/library"),
