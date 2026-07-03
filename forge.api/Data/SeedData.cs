@@ -54,6 +54,9 @@ public static partial class SeedData
         // ── 2c. Regulatory compliance buckets (compliance-calendar A-5) ──
         await SeedComplianceBucketsAsync(db);
 
+        // ── 2d. Per-industry compliance profiles (regulated-parts-safety C-1) ──
+        await SeedComplianceProfilesAsync(db);
+
         // ── Stop here for clean installs — setup wizard handles user creation ──
         if (!seedDemoData)
         {

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
 using Forge.Core.Entities.Calendar;
+using Forge.Core.Entities.Compliance;
 using Forge.Core.Interfaces;
 
 namespace Forge.Data.Context;
@@ -335,6 +336,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<CalendarEventType> CalendarEventTypes => Set<CalendarEventType>();
     public DbSet<CalendarSuperGroupRoleVisibility> CalendarSuperGroupRoleVisibilities => Set<CalendarSuperGroupRoleVisibility>();
     public DbSet<CalendarSavedView> CalendarSavedViews => Set<CalendarSavedView>();
+
+    // Compliance profiles (regulated-parts-safety C-1)
+    public DbSet<ComplianceProfile> ComplianceProfiles => Set<ComplianceProfile>();
+    public DbSet<ComplianceFieldRule> ComplianceFieldRules => Set<ComplianceFieldRule>();
 
     // EDI
     public DbSet<EdiTradingPartner> EdiTradingPartners => Set<EdiTradingPartner>();
