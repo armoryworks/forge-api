@@ -3303,6 +3303,7 @@ CREATE TABLE public.events (
     end_time timestamp with time zone NOT NULL,
     location character varying(200),
     event_type character varying(20) NOT NULL,
+    event_type_id integer,
     is_required boolean NOT NULL,
     created_by_user_id integer NOT NULL,
     is_cancelled boolean NOT NULL,
@@ -9097,6 +9098,9 @@ ALTER TABLE ONLY public.entity_notes
 ALTER TABLE ONLY public.event_attendees
     ADD CONSTRAINT fk_event_attendees_events_event_id FOREIGN KEY (event_id) REFERENCES public.events(id) ON DELETE CASCADE;
 
+ALTER TABLE ONLY public.events
+    ADD CONSTRAINT fk_events__calendar_event_types_event_type_id FOREIGN KEY (event_type_id) REFERENCES public.calendar_event_types(id) ON DELETE RESTRICT;
+
 ALTER TABLE ONLY public.exchange_rates
     ADD CONSTRAINT fk_exchange_rates_currencies_from_currency_id FOREIGN KEY (from_currency_id) REFERENCES public.currencies(id) ON DELETE RESTRICT;
 
@@ -10635,6 +10639,8 @@ CREATE UNIQUE INDEX ix_event_attendees_event_id_user_id ON public.event_attendee
 CREATE INDEX ix_event_attendees_user_id ON public.event_attendees USING btree (user_id);
 
 CREATE INDEX ix_events_created_by_user_id ON public.events USING btree (created_by_user_id);
+
+CREATE INDEX ix_events_event_type_id ON public.events USING btree (event_type_id);
 
 CREATE INDEX ix_events_start_time ON public.events USING btree (start_time);
 

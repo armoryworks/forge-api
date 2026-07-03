@@ -20,5 +20,13 @@ public class EventConfiguration : IEntityTypeConfiguration<Event>
 
         builder.HasIndex(e => e.CreatedByUserId);
         builder.HasIndex(e => e.StartTime);
+
+        // compliance-calendar A-1: configurable taxonomy FK (nullable during expand).
+        builder.HasOne(e => e.CalendarEventType)
+            .WithMany()
+            .HasForeignKey(e => e.EventTypeId)
+            .HasConstraintName("fk_events__calendar_event_types_event_type_id")
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(e => e.EventTypeId).HasDatabaseName("ix_events_event_type_id");
     }
 }
