@@ -352,6 +352,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<RegulatorySource> RegulatorySources => Set<RegulatorySource>();
     public DbSet<RegulatoryChangeProposal> RegulatoryChangeProposals => Set<RegulatoryChangeProposal>();
 
+    // AI provenance markers (ai-fleet-orchestration D)
+    public DbSet<AiProvenance> AiProvenances => Set<AiProvenance>();
+
     // EDI
     public DbSet<EdiTradingPartner> EdiTradingPartners => Set<EdiTradingPartner>();
     public DbSet<EdiTransaction> EdiTransactions => Set<EdiTransaction>();
