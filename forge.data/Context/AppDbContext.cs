@@ -344,6 +344,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     // Lot genealogy edges (regulated-parts-safety C-2)
     public DbSet<LotConsumption> LotConsumptions => Set<LotConsumption>();
 
+    // Part SDS documents (regulated-parts-safety C-3)
+    public DbSet<PartSafetyDataSheet> PartSafetyDataSheets => Set<PartSafetyDataSheet>();
+
     // EDI
     public DbSet<EdiTradingPartner> EdiTradingPartners => Set<EdiTradingPartner>();
     public DbSet<EdiTransaction> EdiTransactions => Set<EdiTransaction>();
