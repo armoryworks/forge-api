@@ -34,13 +34,21 @@ public static partial class SeedData
         string[] roles = [
             "Admin", "Manager", "Engineer", "PM", "ProductionWorker", "OfficeManager",
             "Controller", "IT Admin", "Procurement", "Production Manager", "Production Planner",
-            "LeadIntake",
+            "LeadIntake", "ComplianceOfficer",
         ];
         foreach (var role in roles)
         {
             if (!await roleManager.RoleExistsAsync(role))
                 await roleManager.CreateAsync(new IdentityRole<int>(role));
         }
+
+        // ── 1a. One-time migration off user-side role templates → direct roles ──
+        await MigrateUserRoleTemplatesToDirectRolesAsync(db);
+
+        // ComplianceOfficer (compliance-calendar A-2) is a first-class role for
+        // staff who own regulatory compliance. It is granted read visibility to the
+        // regulatory Super-Groups via CalendarSuperGroupRoleVisibility (see
+        // SeedComplianceOfficerVisibilityAsync) rather than being default-visible to all.
 
         // ── 1b. Out-of-box role templates (Phase 3 / WU-06 / C1) ─────────
         await SeedRoleTemplatesAsync(db);
@@ -53,6 +61,9 @@ public static partial class SeedData
 
         // ── 2c. Regulatory compliance buckets (compliance-calendar A-5) ──
         await SeedComplianceBucketsAsync(db);
+
+        // ── 2c-i. ComplianceOfficer read-visibility grants (compliance-calendar A-2) ──
+        await SeedComplianceOfficerVisibilityAsync(db);
 
         // ── 2d. Per-industry compliance profiles (regulated-parts-safety C-1) ──
         await SeedComplianceProfilesAsync(db);

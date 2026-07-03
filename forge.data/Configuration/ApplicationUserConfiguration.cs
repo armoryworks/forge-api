@@ -24,13 +24,5 @@ public class ApplicationUserConfiguration : IEntityTypeConfiguration<Application
             .WithMany()
             .HasForeignKey(e => e.WorkLocationId)
             .OnDelete(DeleteBehavior.SetNull);
-
-        // Phase 3 / WU-06 / C1 — optional rollup role template assignment.
-        builder.HasIndex(e => e.RoleTemplateId);
-
-        builder.HasOne(e => e.RoleTemplate)
-            .WithMany()
-            .HasForeignKey(e => e.RoleTemplateId)
-            .OnDelete(DeleteBehavior.SetNull);
     }
 }

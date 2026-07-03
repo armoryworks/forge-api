@@ -138,4 +138,47 @@ public static partial class SeedData
         }
         await db.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// compliance-calendar A-2. Grants the <c>ComplianceOfficer</c> role read visibility to
+    /// every regulatory Super-Group (the default-hidden buckets seeded in
+    /// <see cref="SeedComplianceBucketsAsync"/>). Without this, a ComplianceOfficer who is not
+    /// also Admin would see only the default-visible groups. Idempotent; safe every boot.
+    /// Runs after the compliance buckets are seeded.
+    /// </summary>
+    public static async Task SeedComplianceOfficerVisibilityAsync(AppDbContext db)
+    {
+        const string role = "ComplianceOfficer";
+
+        // The regulatory buckets ComplianceOfficer owns (keys mirror SeedComplianceBucketsAsync).
+        var complianceGroupKeys = new[]
+        {
+            "safety-osha", "environmental-epa", "hazmat-dot", "tax-corporate",
+            "hr-employment", "fire-facilities", "atf-firearms", "fda",
+        };
+
+        var groupIds = await db.CalendarSuperGroups
+            .Where(g => complianceGroupKeys.Contains(g.Key))
+            .Select(g => new { g.Id, g.Key })
+            .ToListAsync();
+
+        var existing = await db.CalendarSuperGroupRoleVisibilities
+            .Where(v => v.Role == role)
+            .Select(v => v.SuperGroupId)
+            .ToListAsync();
+        var existingSet = existing.ToHashSet();
+
+        foreach (var g in groupIds)
+        {
+            if (!existingSet.Contains(g.Id))
+                db.CalendarSuperGroupRoleVisibilities.Add(new CalendarSuperGroupRoleVisibility
+                {
+                    SuperGroupId = g.Id,
+                    Role = role,
+                });
+        }
+
+        if (db.ChangeTracker.HasChanges())
+            await db.SaveChangesAsync();
+    }
 }

@@ -15,8 +15,8 @@ namespace Forge.Tests.Accounting;
 /// <summary>
 /// §5.7 — segregation of duties enforced at the engine boundary against the
 /// caller's <b>effective</b> capability set. GL capabilities attach to
-/// <c>Controller</c> (or any rollup that composes it, which presents the
-/// Controller role claim via RoleClaimsExpander); bare Admin/Manager are off the
+/// <c>Controller</c> (or any multi-role user who also holds Controller, which
+/// presents the Controller role claim directly); bare Admin/Manager are off the
 /// books. The boundary authorizer is fail-safe default-deny.
 /// </summary>
 public class GlSegregationOfDutiesTests
@@ -71,8 +71,8 @@ public class GlSegregationOfDutiesTests
     [Fact]
     public void OwnerOperatorRollup_ReachesBooksViaComposedControllerClaim()
     {
-        // RoleClaimsExpander expands OwnerOperator ["Admin","Manager","Controller"]
-        // into individual role claims; the authorizer sees Controller.
+        // An owner-operator is assigned Admin + Manager + Controller directly
+        // (multi-role); the authorizer sees the Controller role claim.
         var caps = new CurrentUserCapabilities(AccessorWith(UserId, "Admin", "Manager", "Controller"));
 
         caps.Has(GlCapability.PostJournalEntry).Should().BeTrue();

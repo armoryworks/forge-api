@@ -20,7 +20,6 @@ public class GetAdminUsersHandler(AppDbContext db, UserManager<ApplicationUser> 
     {
         var users = await db.Users
             .Include(u => u.WorkLocation)
-            .Include(u => u.RoleTemplate)
             .OrderBy(u => u.FirstName)
             .ToListAsync(cancellationToken);
 
@@ -132,18 +131,6 @@ public class GetAdminUsersHandler(AppDbContext db, UserManager<ApplicationUser> 
             i9Submissions.TryGetValue(user.Id, out var i9Submission);
             var i9Status = I9StatusComputer.Compute(i9Submission);
 
-            // Phase 3 / WU-06 / C1 — surface rollup template assignment to UI.
-            string[]? templateRoles = null;
-            if (user.RoleTemplate is not null)
-            {
-                try
-                {
-                    templateRoles = JsonSerializer.Deserialize<string[]>(
-                        user.RoleTemplate.IncludedRoleNamesJson) ?? [];
-                }
-                catch (JsonException) { templateRoles = []; }
-            }
-
             result.Add(new AdminUserResponseModel(
                 user.Id,
                 user.Email!,
@@ -164,10 +151,7 @@ public class GetAdminUsersHandler(AppDbContext db, UserManager<ApplicationUser> 
                 missingItems,
                 user.WorkLocationId,
                 user.WorkLocation?.Name,
-                i9Status,
-                user.RoleTemplateId,
-                user.RoleTemplate?.Name,
-                templateRoles));
+                i9Status));
         }
 
         return result;

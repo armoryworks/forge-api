@@ -12,14 +12,16 @@ using Forge.Data.Context;
 namespace Forge.Api.Features.Admin;
 
 // ────────────────────────────────────────────────────────────────────────
-// Phase 3 / WU-06 / C1 — Role-template rollup CRUD + user assignment.
+// Role-bundle definition CRUD (originally Phase 3 / WU-06 / C1).
 //
-// A role template lets a tenant define a single named bundle of underlying
-// roles (e.g., "FrontOffice" → OfficeManager + Controller + IT Admin) so a
-// user wearing many hats in a small shop only has to be assigned the
-// rollup. The auth path (RoleClaimsExpander) expands the template into JWT
-// role claims at login time; downstream policy/[Authorize] checks see the
-// underlying roles unchanged.
+// A role template is a single named bundle of underlying roles (e.g.,
+// "FrontOffice" → OfficeManager + Controller + IT Admin). Direct user
+// role-assignment is now multi-role (retired the user-side template
+// coupling 2026-07-03), so templates are no longer assigned to users. They
+// remain the named bundle a SystemApiKey scopes its grants to — the
+// SystemApiKey auth path intersects a key's effective roles with the
+// bound template's IncludedRoleNames. "AssigneeCount" below is therefore
+// the number of API keys scoped to the bundle.
 //
 // System-default templates (IsSystemDefault=true) seed at install and are
 // protected from edit/delete via the API surface — tenants who want to
@@ -35,12 +37,6 @@ public record RoleTemplateResponseModel(
     int AssigneeCount,
     DateTimeOffset CreatedAt,
     DateTimeOffset? DeactivatedAt);
-
-public record RoleTemplateAssigneeResponseModel(
-    int UserId,
-    string Email,
-    string FirstName,
-    string LastName);
 
 // ── List ────────────────────────────────────────────────────────────────
 
@@ -62,11 +58,11 @@ public class GetRoleTemplatesHandler(AppDbContext db)
             .ThenBy(t => t.Name)
             .ToListAsync(cancellationToken);
 
-        // Compute assignee counts in one query
+        // Compute scoped-API-key counts in one query (the bundle's "assignees").
         var ids = rows.Select(r => r.Id).ToList();
-        var counts = await db.Users
-            .Where(u => u.RoleTemplateId.HasValue && ids.Contains(u.RoleTemplateId.Value))
-            .GroupBy(u => u.RoleTemplateId!.Value)
+        var counts = await db.Set<SystemApiKey>()
+            .Where(k => k.RoleTemplateId.HasValue && ids.Contains(k.RoleTemplateId.Value))
+            .GroupBy(k => k.RoleTemplateId!.Value)
             .Select(g => new { Id = g.Key, Count = g.Count() })
             .ToListAsync(cancellationToken);
         var countMap = counts.ToDictionary(c => c.Id, c => c.Count);
@@ -259,8 +255,8 @@ public class UpdateRoleTemplateHandler(
             }),
             ct: cancellationToken);
 
-        var assigneeCount = await db.Users
-            .CountAsync(u => u.RoleTemplateId == entity.Id, cancellationToken);
+        var assigneeCount = await db.Set<SystemApiKey>()
+            .CountAsync(k => k.RoleTemplateId == entity.Id, cancellationToken);
 
         return GetRoleTemplatesHandler.MapToResponse(entity, assigneeCount);
     }
@@ -289,14 +285,6 @@ public class DeleteRoleTemplateHandler(
         if (entity.DeactivatedAt is not null)
             return Unit.Value;  // already deactivated
 
-        // Unassign all users currently on this template — keeps the FK clean
-        // and ensures their next login gets fresh role claims.
-        var assigned = await db.Users
-            .Where(u => u.RoleTemplateId == entity.Id)
-            .ToListAsync(cancellationToken);
-        foreach (var u in assigned)
-            u.RoleTemplateId = null;
-
         entity.DeactivatedAt = DateTimeOffset.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
@@ -306,123 +294,6 @@ public class DeleteRoleTemplateHandler(
             details: JsonSerializer.Serialize(new
             {
                 name = entity.Name,
-                unassignedUserCount = assigned.Count,
-            }),
-            ct: cancellationToken);
-
-        return Unit.Value;
-    }
-}
-
-// ── Get assignees ───────────────────────────────────────────────────────
-
-public record GetRoleTemplateAssigneesQuery(int TemplateId)
-    : IRequest<List<RoleTemplateAssigneeResponseModel>>;
-
-public class GetRoleTemplateAssigneesHandler(AppDbContext db)
-    : IRequestHandler<GetRoleTemplateAssigneesQuery, List<RoleTemplateAssigneeResponseModel>>
-{
-    public async Task<List<RoleTemplateAssigneeResponseModel>> Handle(
-        GetRoleTemplateAssigneesQuery request, CancellationToken cancellationToken)
-    {
-        return await db.Users
-            .AsNoTracking()
-            .Where(u => u.RoleTemplateId == request.TemplateId)
-            .OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
-            .Select(u => new RoleTemplateAssigneeResponseModel(
-                u.Id, u.Email!, u.FirstName, u.LastName))
-            .ToListAsync(cancellationToken);
-    }
-}
-
-// ── Assign template to a user ───────────────────────────────────────────
-
-public record AssignRoleTemplateCommand(int UserId, int TemplateId) : IRequest<Unit>;
-
-public class AssignRoleTemplateValidator : AbstractValidator<AssignRoleTemplateCommand>
-{
-    public AssignRoleTemplateValidator()
-    {
-        RuleFor(x => x.UserId).GreaterThan(0);
-        RuleFor(x => x.TemplateId).GreaterThan(0);
-    }
-}
-
-public class AssignRoleTemplateHandler(
-    AppDbContext db,
-    UserManager<ApplicationUser> userManager,
-    ISystemAuditWriter auditWriter)
-    : IRequestHandler<AssignRoleTemplateCommand, Unit>
-{
-    public async Task<Unit> Handle(
-        AssignRoleTemplateCommand request, CancellationToken cancellationToken)
-    {
-        var template = await db.RoleTemplates
-            .FirstOrDefaultAsync(t => t.Id == request.TemplateId
-                && t.DeactivatedAt == null, cancellationToken)
-            ?? throw new KeyNotFoundException(
-                $"RoleTemplate {request.TemplateId} not found or deactivated.");
-
-        var user = await userManager.FindByIdAsync(request.UserId.ToString())
-            ?? throw new KeyNotFoundException($"User {request.UserId} not found.");
-
-        user.RoleTemplateId = template.Id;
-        user.UpdatedAt = DateTimeOffset.UtcNow;
-
-        var result = await userManager.UpdateAsync(user);
-        if (!result.Succeeded)
-        {
-            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
-            throw new InvalidOperationException($"Failed to assign template: {errors}");
-        }
-
-        await auditWriter.WriteAsync("RoleTemplateAssigned", db.CurrentUserId ?? 0,
-            entityType: "ApplicationUser", entityId: user.Id,
-            details: JsonSerializer.Serialize(new
-            {
-                templateId = template.Id,
-                templateName = template.Name,
-            }),
-            ct: cancellationToken);
-
-        return Unit.Value;
-    }
-}
-
-// ── Un-assign template from a user ──────────────────────────────────────
-
-public record UnassignRoleTemplateCommand(int UserId) : IRequest<Unit>;
-
-public class UnassignRoleTemplateHandler(
-    AppDbContext db,
-    UserManager<ApplicationUser> userManager,
-    ISystemAuditWriter auditWriter)
-    : IRequestHandler<UnassignRoleTemplateCommand, Unit>
-{
-    public async Task<Unit> Handle(
-        UnassignRoleTemplateCommand request, CancellationToken cancellationToken)
-    {
-        var user = await userManager.FindByIdAsync(request.UserId.ToString())
-            ?? throw new KeyNotFoundException($"User {request.UserId} not found.");
-
-        var previousTemplateId = user.RoleTemplateId;
-        if (previousTemplateId is null)
-            return Unit.Value;
-
-        user.RoleTemplateId = null;
-        user.UpdatedAt = DateTimeOffset.UtcNow;
-        var result = await userManager.UpdateAsync(user);
-        if (!result.Succeeded)
-        {
-            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
-            throw new InvalidOperationException($"Failed to unassign template: {errors}");
-        }
-
-        await auditWriter.WriteAsync("RoleTemplateUnassigned", db.CurrentUserId ?? 0,
-            entityType: "ApplicationUser", entityId: user.Id,
-            details: JsonSerializer.Serialize(new
-            {
-                previousTemplateId = previousTemplateId,
             }),
             ct: cancellationToken);
 

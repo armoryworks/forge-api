@@ -1161,7 +1161,6 @@ CREATE TABLE public.asp_net_users (
     mfa_enforced_by_policy boolean DEFAULT false NOT NULL,
     mfa_enabled_at timestamp with time zone,
     mfa_recovery_codes_remaining integer DEFAULT 0 NOT NULL,
-    role_template_id integer,
     user_name character varying(256),
     normalized_user_name character varying(256),
     email character varying(256),
@@ -9017,9 +9016,6 @@ ALTER TABLE ONLY public.asp_net_user_tokens
 ALTER TABLE ONLY public.asp_net_users
     ADD CONSTRAINT fk_asp_net_users_company_locations_work_location_id FOREIGN KEY (work_location_id) REFERENCES public.company_locations(id) ON DELETE SET NULL;
 
-ALTER TABLE ONLY public.asp_net_users
-    ADD CONSTRAINT fk_asp_net_users_role_templates_role_template_id FOREIGN KEY (role_template_id) REFERENCES public.role_templates(id) ON DELETE SET NULL;
-
 ALTER TABLE ONLY public.assets
     ADD CONSTRAINT fk_assets__jobs_source_job_id FOREIGN KEY (source_job_id) REFERENCES public.jobs(id) ON DELETE SET NULL;
 
@@ -10487,8 +10483,6 @@ CREATE INDEX ix_asp_net_user_claims_user_id ON public.asp_net_user_claims USING 
 CREATE INDEX ix_asp_net_user_logins_user_id ON public.asp_net_user_logins USING btree (user_id);
 
 CREATE INDEX ix_asp_net_user_roles_role_id ON public.asp_net_user_roles USING btree (role_id);
-
-CREATE INDEX ix_asp_net_users_role_template_id ON public.asp_net_users USING btree (role_template_id);
 
 CREATE INDEX ix_asp_net_users_work_location_id ON public.asp_net_users USING btree (work_location_id);
 

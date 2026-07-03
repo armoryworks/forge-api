@@ -46,12 +46,6 @@ public class ApplicationUser : IdentityUser<int>, IActiveAware
     public DateTimeOffset? MfaEnabledAt { get; set; }
     public int MfaRecoveryCodesRemaining { get; set; }
 
-    // Rollup role template (Phase 3 / WU-06 / C1) — when set, the auth path
-    // expands the template's IncludedRoleNames into JWT role claims in
-    // addition to whatever Identity-managed roles the user has.
-    public int? RoleTemplateId { get; set; }
-    public RoleTemplate? RoleTemplate { get; set; }
-
     // IActiveAware — Phase 3 H2 active-check. A deactivated user cannot be the
     // target of new shift-assignment / job-assignment records.
     public bool IsActiveForNewTransactions => IsActive;

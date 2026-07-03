@@ -53,10 +53,11 @@ public class AdminController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    // ── Role Templates (Phase 3 / WU-06 / C1) ──
-    // Tenant-configurable rollup roles for small shops where one person
-    // wears many hats. Out-of-the-box system defaults seed at install
-    // (FrontOffice / FloorLead / OwnerOperator).
+    // ── Role Bundles (role templates) ──
+    // Named bundles of underlying roles, seeded at install
+    // (FrontOffice / FloorLead / OwnerOperator). No longer assigned to users
+    // (user assignment is direct multi-role); a bundle is what a SystemApiKey
+    // scopes its emitted role claims to. CRUD only — no user-assignment surface.
 
     [HttpGet("role-templates")]
     [Authorize(Roles = "Admin,Manager")]
@@ -89,28 +90,6 @@ public class AdminController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
-    [HttpGet("role-templates/{id:int}/assignees")]
-    public async Task<ActionResult<List<RoleTemplateAssigneeResponseModel>>> GetRoleTemplateAssignees(int id)
-    {
-        var result = await mediator.Send(new GetRoleTemplateAssigneesQuery(id));
-        return Ok(result);
-    }
-
-    [HttpPost("users/{userId:int}/role-template")]
-    public async Task<IActionResult> AssignRoleTemplate(int userId, [FromBody] AssignRoleTemplateRequest request)
-    {
-        await mediator.Send(new AssignRoleTemplateCommand(userId, request.TemplateId));
-        return NoContent();
-    }
-
-    [HttpDelete("users/{userId:int}/role-template")]
-    public async Task<IActionResult> UnassignRoleTemplate(int userId)
-    {
-        await mediator.Send(new UnassignRoleTemplateCommand(userId));
-        return NoContent();
-    }
-
-    public record AssignRoleTemplateRequest(int TemplateId);
 
     // ── Track Types ──
 
