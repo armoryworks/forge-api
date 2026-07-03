@@ -13,7 +13,10 @@ public record EventResponseModel(
     int CreatedByUserId,
     string CreatedByName,
     List<EventAttendeeResponseModel> Attendees,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    // compliance-calendar A-1/A-3: configurable taxonomy for overlay-layer filtering.
+    int? EventTypeId = null,
+    int? SuperGroupId = null);
 
 public record EventAttendeeResponseModel(
     int Id,

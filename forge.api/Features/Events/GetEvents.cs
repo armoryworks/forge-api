@@ -18,6 +18,7 @@ public class GetEventsHandler(AppDbContext db, ICalendarVisibilityService visibi
     {
         var query = db.Events
             .Include(e => e.Attendees)
+            .Include(e => e.CalendarEventType)
             .Where(e => !e.IsCancelled)
             .AsQueryable();
 
@@ -60,6 +61,6 @@ public class GetEventsHandler(AppDbContext db, ICalendarVisibilityService visibi
                 a.Id, a.UserId,
                 userNames.GetValueOrDefault(a.UserId, ""),
                 a.Status.ToString(), a.RespondedAt)).ToList(),
-            evt.CreatedAt)).ToList();
+            evt.CreatedAt, evt.EventTypeId, evt.CalendarEventType?.SuperGroupId)).ToList();
     }
 }

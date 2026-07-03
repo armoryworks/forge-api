@@ -105,6 +105,7 @@ public class CreateEventHandler(AppDbContext db, IHttpContextAccessor httpContex
     {
         var evt = await db.Events
             .Include(e => e.Attendees)
+            .Include(e => e.CalendarEventType)
             .FirstAsync(e => e.Id == eventId, ct);
 
         var creatorName = await db.Users
@@ -124,6 +125,6 @@ public class CreateEventHandler(AppDbContext db, IHttpContextAccessor httpContex
                 a.Id, a.UserId,
                 userNames.GetValueOrDefault(a.UserId, ""),
                 a.Status.ToString(), a.RespondedAt)).ToList(),
-            evt.CreatedAt);
+            evt.CreatedAt, evt.EventTypeId, evt.CalendarEventType?.SuperGroupId);
     }
 }

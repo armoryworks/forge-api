@@ -17,6 +17,7 @@ public class GetEventByIdHandler(AppDbContext db, ICalendarVisibilityService vis
     {
         var evt = await db.Events
             .Include(e => e.Attendees)
+            .Include(e => e.CalendarEventType)
             .FirstOrDefaultAsync(e => e.Id == request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Event {request.Id} not found");
 
@@ -48,6 +49,6 @@ public class GetEventByIdHandler(AppDbContext db, ICalendarVisibilityService vis
                 a.Id, a.UserId,
                 userNames.GetValueOrDefault(a.UserId, ""),
                 a.Status.ToString(), a.RespondedAt)).ToList(),
-            evt.CreatedAt);
+            evt.CreatedAt, evt.EventTypeId, evt.CalendarEventType?.SuperGroupId);
     }
 }
