@@ -16,7 +16,9 @@ public class GetEventsHandlerTests
     public GetEventsHandlerTests()
     {
         _db = TestDbContextFactory.Create();
-        _handler = new GetEventsHandler(_db);
+        // No CurrentUserId set → visibility service returns null (unrestricted), preserving
+        // pre-A-2 behaviour for these legacy assertions.
+        _handler = new GetEventsHandler(_db, new Forge.Api.Services.CalendarVisibilityService(_db));
     }
 
     private async Task<ApplicationUser> SeedUser()

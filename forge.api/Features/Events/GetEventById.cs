@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -8,7 +9,7 @@ namespace Forge.Api.Features.Events;
 
 public record GetEventByIdQuery(int Id) : IRequest<EventResponseModel>;
 
-public class GetEventByIdHandler(AppDbContext db)
+public class GetEventByIdHandler(AppDbContext db, ICalendarVisibilityService visibility)
     : IRequestHandler<GetEventByIdQuery, EventResponseModel>
 {
     public async Task<EventResponseModel> Handle(
@@ -18,6 +19,18 @@ public class GetEventByIdHandler(AppDbContext db)
             .Include(e => e.Attendees)
             .FirstOrDefaultAsync(e => e.Id == request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Event {request.Id} not found");
+
+        // compliance-calendar A-2: a user who can't see the event's Super-Group is told
+        // it doesn't exist (don't reveal existence of gated compliance items).
+        var visibleGroupIds = await visibility.GetVisibleSuperGroupIdsAsync(cancellationToken);
+        if (visibleGroupIds is not null && evt.EventTypeId is int typeId)
+        {
+            var superGroupId = await db.CalendarEventTypes
+                .Where(t => t.Id == typeId).Select(t => (int?)t.SuperGroupId)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (superGroupId is int sgid && !visibleGroupIds.Contains(sgid))
+                throw new KeyNotFoundException($"Event {request.Id} not found");
+        }
 
         var userIds = evt.Attendees.Select(a => a.UserId)
             .Append(evt.CreatedByUserId).Distinct().ToList();

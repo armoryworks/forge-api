@@ -523,6 +523,10 @@ try
     builder.Services.AddScoped<Forge.Api.Bootstrap.IntegrationOptionsHydrator>();
     builder.Services.AddMemoryCache();
 
+    // compliance-calendar A-2 — per-Super-Group read visibility.
+    builder.Services.AddScoped<Forge.Core.Interfaces.ICalendarVisibilityService,
+                               Forge.Api.Services.CalendarVisibilityService>();
+
     // Phase 4 Phase-A — capability gating infrastructure.
     builder.Services.AddSingleton<Forge.Api.Capabilities.ICapabilitySnapshotProvider,
                                   Forge.Api.Capabilities.CapabilitySnapshotProvider>();
