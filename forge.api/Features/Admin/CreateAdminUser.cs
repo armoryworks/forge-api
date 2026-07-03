@@ -19,7 +19,7 @@ public record CreateAdminUserCommand(
     string LastName,
     string? Initials,
     string? AvatarColor,
-    string Role) : IRequest<CreateAdminUserResponseModel>;
+    List<string> Roles) : IRequest<CreateAdminUserResponseModel>;
 
 public record CreateAdminUserResponseModel(
     int Id,
@@ -43,7 +43,8 @@ public class CreateAdminUserValidator : AbstractValidator<CreateAdminUserCommand
         RuleFor(x => x.LastName).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Initials).MaximumLength(4).When(x => x.Initials is not null);
         RuleFor(x => x.AvatarColor).MaximumLength(20).When(x => x.AvatarColor is not null);
-        RuleFor(x => x.Role).NotEmpty().MaximumLength(50);
+        RuleFor(x => x.Roles).NotEmpty();
+        RuleForEach(x => x.Roles).NotEmpty().MaximumLength(50);
     }
 }
 
@@ -73,7 +74,11 @@ public class CreateAdminUserHandler(
             throw new InvalidOperationException($"Failed to create user: {errors}");
         }
 
-        await userManager.AddToRoleAsync(user, request.Role);
+        var assignedRoles = request.Roles
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        await userManager.AddToRolesAsync(user, assignedRoles);
 
         await barcodeService.CreateBarcodeAsync(
             BarcodeEntityType.User, user.Id, $"{user.Id:D6}", cancellationToken);
@@ -105,7 +110,7 @@ public class CreateAdminUserHandler(
                 ? null
                 : JsonSerializer.Deserialize<string[]>(path.AllowedRoles);
 
-            if (allowedRoles == null || allowedRoles.Contains(request.Role))
+            if (allowedRoles == null || allowedRoles.Intersect(assignedRoles, StringComparer.Ordinal).Any())
             {
                 db.TrainingPathEnrollments.Add(new TrainingPathEnrollment
                 {
@@ -127,7 +132,7 @@ public class CreateAdminUserHandler(
             user.Initials,
             user.AvatarColor,
             user.IsActive,
-            [request.Role],
+            assignedRoles,
             user.CreatedAt,
             token,
             user.SetupTokenExpiresAt.Value);

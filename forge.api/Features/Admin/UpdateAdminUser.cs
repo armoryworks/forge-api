@@ -15,7 +15,7 @@ public record UpdateAdminUserCommand(
     string? Initials,
     string? AvatarColor,
     bool? IsActive,
-    string? Role,
+    List<string>? Roles,
     string? Email = null) : IRequest<AdminUserResponseModel>;
 
 public class UpdateAdminUserValidator : AbstractValidator<UpdateAdminUserCommand>
@@ -27,7 +27,7 @@ public class UpdateAdminUserValidator : AbstractValidator<UpdateAdminUserCommand
         RuleFor(x => x.LastName).MaximumLength(100).When(x => x.LastName is not null);
         RuleFor(x => x.Initials).MaximumLength(4).When(x => x.Initials is not null);
         RuleFor(x => x.AvatarColor).MaximumLength(20).When(x => x.AvatarColor is not null);
-        RuleFor(x => x.Role).MaximumLength(50).When(x => x.Role is not null);
+        RuleForEach(x => x.Roles).NotEmpty().MaximumLength(50).When(x => x.Roles is not null);
         RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(256).When(x => x.Email is not null);
     }
 }
@@ -80,23 +80,35 @@ public class UpdateAdminUserHandler(
             throw new InvalidOperationException($"Failed to update user: {errors}");
         }
 
-        if (request.Role is not null)
+        if (request.Roles is not null)
         {
+            // Multi-role assignment: reconcile the user's Identity role set against the
+            // desired set (add the new, remove the dropped) rather than replace-all.
             var currentRoles = await userManager.GetRolesAsync(user);
-            await userManager.RemoveFromRolesAsync(user, currentRoles);
-            await userManager.AddToRoleAsync(user, request.Role);
+            var desiredRoles = request.Roles
+                .Where(r => !string.IsNullOrWhiteSpace(r))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            var toRemove = currentRoles.Except(desiredRoles, StringComparer.Ordinal).ToArray();
+            var toAdd = desiredRoles.Except(currentRoles, StringComparer.Ordinal).ToArray();
 
-            // Cross-entity audit row: role change is system-wide audit only.
-            await auditWriter.WriteAsync("RoleAssigned", db.CurrentUserId ?? 0,
-                entityType: "ApplicationUser",
-                entityId: user.Id,
-                details: System.Text.Json.JsonSerializer.Serialize(new
-                {
-                    targetUserId = user.Id,
-                    fromRoles = currentRoles.ToArray(),
-                    toRole = request.Role,
-                }),
-                ct: cancellationToken);
+            if (toRemove.Length > 0) await userManager.RemoveFromRolesAsync(user, toRemove);
+            if (toAdd.Length > 0) await userManager.AddToRolesAsync(user, toAdd);
+
+            if (toRemove.Length > 0 || toAdd.Length > 0)
+            {
+                // Cross-entity audit row: role change is system-wide audit only.
+                await auditWriter.WriteAsync("RoleAssigned", db.CurrentUserId ?? 0,
+                    entityType: "ApplicationUser",
+                    entityId: user.Id,
+                    details: System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        targetUserId = user.Id,
+                        fromRoles = currentRoles.ToArray(),
+                        toRoles = desiredRoles,
+                    }),
+                    ct: cancellationToken);
+            }
         }
 
         if (previousEmail is not null)
