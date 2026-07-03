@@ -26,9 +26,10 @@ public class WatchtowerController(IMediator mediator, IRegulatoryPoller poller) 
         => Ok(await mediator.Send(new GetRegulatoryProposalsQuery(status)));
 
     [HttpPost("proposals/{id:int}/apply")]
-    public async Task<IActionResult> Apply(int id)
+    public async Task<IActionResult> Apply(int id, [FromBody] ApplyRegulatoryProposalRequestModel? request)
     {
-        await mediator.Send(new ReviewRegulatoryProposalCommand(id, Apply: true));
+        await mediator.Send(new ReviewRegulatoryProposalCommand(
+            id, Apply: true, request?.DueDate, request?.TargetEventTypeId));
         return NoContent();
     }
 
