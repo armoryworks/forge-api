@@ -3369,6 +3369,7 @@ CREATE TABLE public.events (
     acknowledged_at timestamp with time zone,
     evidence_document_set_id integer,
     evidence_url character varying(1000),
+    recurrence_rule character varying(500),
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,

@@ -63,4 +63,79 @@ public static partial class SeedData
             "FROM calendar_event_types ct " +
             "WHERE events.event_type_id IS NULL AND lower(events.event_type) = ct.key");
     }
+
+    /// <summary>
+    /// compliance-calendar A-5, Stage 6. Seeds the regulatory compliance Super-Groups and a
+    /// starter set of Event-Types. All default-hidden (A-2) and tracking-tier (A-4);
+    /// ATF/FDA carry an <c>IndustryGate</c> so they only surface for the declared industry.
+    /// Idempotent; safe every boot.
+    /// </summary>
+    public static async Task SeedComplianceBucketsAsync(AppDbContext db)
+    {
+        // (key, name, colour, industry gate)
+        var groups = new (string Key, string Name, string Color, string? Industry)[]
+        {
+            ("safety-osha", "OSHA / Safety", "#dc2626", null),
+            ("environmental-epa", "EPA / Environmental", "#16a34a", null),
+            ("hazmat-dot", "DOT / Hazmat", "#ea580c", null),
+            ("tax-corporate", "Tax & Corporate", "#7c3aed", null),
+            ("hr-employment", "HR / Employment", "#0891b2", null),
+            ("fire-facilities", "Fire / Facilities", "#b91c1c", null),
+            ("atf-firearms", "ATF (Firearms)", "#374151", "firearms"),
+            ("fda", "FDA", "#0d9488", "food-medical"),
+        };
+        var order = 100;
+        foreach (var g in groups)
+        {
+            if (!await db.CalendarSuperGroups.AnyAsync(x => x.Key == g.Key))
+            {
+                db.CalendarSuperGroups.Add(new CalendarSuperGroup
+                {
+                    Key = g.Key,
+                    Name = g.Name,
+                    Color = g.Color,
+                    DefaultVisible = false,
+                    RequiresTracking = true,
+                    IndustryGate = g.Industry,
+                    SortOrder = order,
+                    IsSystem = true,
+                });
+            }
+            order += 10;
+        }
+        await db.SaveChangesAsync();
+
+        var groupIds = await db.CalendarSuperGroups.ToDictionaryAsync(g => g.Key, g => g.Id);
+
+        // (type key, name, parent group key) — starter regulatory event types.
+        var types = new (string Key, string Name, string GroupKey)[]
+        {
+            ("osha-300a", "OSHA 300A posting", "safety-osha"),
+            ("osha-inspection", "OSHA inspection", "safety-osha"),
+            ("epa-tier-ii", "EPA Tier II inventory", "environmental-epa"),
+            ("i-9", "Form I-9 verification", "hr-employment"),
+            ("eeo-1", "EEO-1 report", "hr-employment"),
+            ("fire-marshal", "Fire-marshal inspection", "fire-facilities"),
+            ("atf-afmer", "ATF AFMER", "atf-firearms"),
+            ("est-tax", "Quarterly estimated tax", "tax-corporate"),
+        };
+        var typeOrder = 100;
+        foreach (var t in types)
+        {
+            if (!await db.CalendarEventTypes.AnyAsync(x => x.Key == t.Key) && groupIds.TryGetValue(t.GroupKey, out var gid))
+            {
+                db.CalendarEventTypes.Add(new CalendarEventType
+                {
+                    SuperGroupId = gid,
+                    Key = t.Key,
+                    Name = t.Name,
+                    RequiresTracking = true,
+                    SortOrder = typeOrder,
+                    IsSystem = true,
+                });
+            }
+            typeOrder += 10;
+        }
+        await db.SaveChangesAsync();
+    }
 }

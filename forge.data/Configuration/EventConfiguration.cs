@@ -33,6 +33,7 @@ public class EventConfiguration : IEntityTypeConfiguration<Event>
         builder.Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(e => e.WaivedReason).HasMaxLength(1000);
         builder.Property(e => e.EvidenceUrl).HasMaxLength(1000);
+        builder.Property(e => e.RecurrenceRule).HasMaxLength(500);
         builder.Property(e => e.IsBlocking).HasDefaultValueSql("false").ValueGeneratedNever();
         builder.HasIndex(e => e.OwnerUserId).HasDatabaseName("ix_events_owner_user_id");
         builder.HasIndex(e => e.EvidenceDocumentSetId).HasDatabaseName("ix_events_evidence_document_set_id");

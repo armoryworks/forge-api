@@ -52,6 +52,9 @@ public class Event : BaseAuditableEntity
     public int? EvidenceDocumentSetId { get; set; }
     public string? EvidenceUrl { get; set; }
 
+    /// <summary>compliance-calendar A-5: RFC-5545 RRULE for recurring events (null = one-off).</summary>
+    public string? RecurrenceRule { get; set; }
+
     // Navigation
     public ICollection<EventAttendee> Attendees { get; set; } = new List<EventAttendee>();
 }
