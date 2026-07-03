@@ -113,6 +113,13 @@ public class AiController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new AssistantChatCommand(assistantId, body.Question, body.History), ct);
         return Ok(result);
     }
+
+    [HttpPost("hardware-advice")]
+    public async Task<IActionResult> HardwareAdvice([FromBody] GetAiHardwareAdviceQuery query, CancellationToken ct)
+    {
+        var result = await mediator.Send(query, ct);
+        return Ok(result);
+    }
 }
 
 public record AiHelpChatBody(string Question, List<AiHelpMessage>? History = null);

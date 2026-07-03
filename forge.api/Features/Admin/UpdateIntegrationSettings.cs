@@ -246,6 +246,7 @@ public class UpdateIntegrationSettingsHandler(
         // Hot-reload here so an admin can re-point the index at a new
         // mounted directory without restarting the API.
         if (applied.TryGetValue(AiSettings.KeyDocsPath, out var dp) && dp is not null) o.DocsPath = dp;
+        if (applied.TryGetValue(AiSettings.KeyClientDocsPath, out var cdp) && cdp is not null) o.ClientDocsPath = cdp;
     }
 
     // ── Shipping carriers ─────────────────────────────────────────────

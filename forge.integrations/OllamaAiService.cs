@@ -5,7 +5,6 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 
 using Forge.Core.Interfaces;
-using Forge.Core.Models;
 using Forge.Core.Settings;
 
 namespace Forge.Integrations;
@@ -66,22 +65,6 @@ public class OllamaAiService(
             """;
 
         return await GenerateTextAsync(prompt, ct);
-    }
-
-    public async Task<List<AiSearchResult>> SmartSearchAsync(string naturalLanguageQuery, CancellationToken ct)
-    {
-        logger.LogInformation("Ollama SmartSearch: {Query}", naturalLanguageQuery);
-
-        var prompt = $"""
-            You are a search assistant for a manufacturing operations platform. Given a natural language query, extract the most relevant search keywords.
-            Return ONLY a JSON array of keyword strings, nothing else. Example: ["keyword1", "keyword2"]
-
-            Query: {naturalLanguageQuery}
-            """;
-
-        var response = await GenerateTextAsync(prompt, ct);
-        logger.LogInformation("Ollama SmartSearch keywords: {Response}", response);
-        return [];
     }
 
     public async Task<float[]> GetEmbeddingAsync(string text, CancellationToken ct)

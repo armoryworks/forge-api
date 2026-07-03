@@ -12,6 +12,7 @@ public static class AiSettings
     public const string KeyTimeoutSeconds = "ai.timeout-seconds";
     public const string KeyVisionTimeoutSeconds = "ai.vision-timeout-seconds";
     public const string KeyDocsPath = "ai.docs-path";
+    public const string KeyClientDocsPath = "ai.client-docs-path";
 
     public static IReadOnlyList<SettingDescriptor> Descriptors =>
     [
@@ -46,5 +47,9 @@ public static class AiSettings
             DefaultValue: "/app/docs",
             Description: "Filesystem path the documentation-indexing job reads markdown from to build the RAG index. Default /app/docs matches the Docker image layout — set this when docs are mounted elsewhere.",
             SortOrder: 20),
+        new(KeyClientDocsPath, Group, "Client Docs Override Path", SettingDataType.String,
+            DefaultValue: "",
+            Description: "Optional per-client override directory. Markdown files here shadow same-named baseline docs (client wins) when the RAG index is built. Leave empty to index baseline docs only.",
+            SortOrder: 21),
     ];
 }

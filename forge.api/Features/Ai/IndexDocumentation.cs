@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Pgvector;
 
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 
@@ -15,6 +16,7 @@ public record IndexDocumentationCommand : IRequest<int>;
 public class IndexDocumentationHandler(
     IAiService aiService,
     IEmbeddingRepository embeddingRepo,
+    IClientDocResolver clientDocResolver,
     IOptions<AiOptions> ollamaOptions,
     ILogger<IndexDocumentationHandler> logger) : IRequestHandler<IndexDocumentationCommand, int>
 {
@@ -31,14 +33,22 @@ public class IndexDocumentationHandler(
             return 0;
         }
 
-        var markdownFiles = Directory.GetFiles(docsPath, "*.md", SearchOption.AllDirectories);
-        if (markdownFiles.Length == 0)
+        // ai-fleet-orchestration D-2: merge the shipped baseline docs with an optional per-client
+        // override dir (client files shadow same-named baseline docs). When no override dir is
+        // configured, this resolves to the baseline set — identical to the previous behaviour.
+        var clientDocsPath = ollamaOptions.Value.ClientDocsPath ?? string.Empty;
+        var resolved = clientDocResolver.Resolve(docsPath, clientDocsPath);
+        var markdownFiles = resolved.Select(d => d.FullPath).ToList();
+        if (markdownFiles.Count == 0)
         {
             logger.LogInformation("No markdown files found in '{DocsPath}'", docsPath);
             return 0;
         }
 
-        logger.LogInformation("Indexing {Count} documentation files from '{DocsPath}'", markdownFiles.Length, docsPath);
+        var clientOverrides = resolved.Count(d => d.Source == DocSource.Client);
+        logger.LogInformation(
+            "Indexing {Count} documentation files from '{DocsPath}' ({ClientOverrides} client override(s))",
+            markdownFiles.Count, docsPath, clientOverrides);
         var totalChunks = 0;
 
         foreach (var filePath in markdownFiles)

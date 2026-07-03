@@ -24,11 +24,16 @@ public class IndexDocumentHandler(
     AppDbContext db,
     IAiService aiService,
     IEmbeddingRepository embeddingRepo,
+    IStorageService storage,
     ILogger<IndexDocumentHandler> logger) : IRequestHandler<IndexDocumentCommand, int>
 {
     private const int ChunkSize = 500;
     private const int ChunkOverlap = 50;
     private const string EmbeddingModel = "all-minilm:l6-v2";
+
+    // Guard rails for pulling attachment bodies into the RAG index.
+    private const long MaxExtractBytes = 2 * 1024 * 1024; // 2 MB — don't stream huge files in for embedding
+    private const int MaxExtractChars = 50_000;           // cap the text fed to the chunker
 
     public async Task<int> Handle(IndexDocumentCommand request, CancellationToken ct)
     {
@@ -143,8 +148,49 @@ public class IndexDocumentHandler(
         var fields = new List<(string, string)>();
         if (!string.IsNullOrWhiteSpace(file.FileName))
             fields.Add(("FileName", file.FileName));
-        // Full file content extraction is future work
+
+        // Index the body of text-like attachments so their content is searchable, not just
+        // the filename. Binary types (images, office docs, generic PDFs) are skipped here —
+        // PDFs have their own dedicated form-extraction pipeline.
+        if (IsTextExtractable(file.ContentType, file.FileName)
+            && file.Size is > 0 and <= MaxExtractBytes
+            && !string.IsNullOrWhiteSpace(file.BucketName)
+            && !string.IsNullOrWhiteSpace(file.ObjectKey))
+        {
+            try
+            {
+                await using var stream = await storage.DownloadAsync(file.BucketName, file.ObjectKey, ct);
+                using var reader = new StreamReader(stream);
+                var content = await reader.ReadToEndAsync(ct);
+                if (!string.IsNullOrWhiteSpace(content))
+                {
+                    if (content.Length > MaxExtractChars)
+                        content = content[..MaxExtractChars];
+                    fields.Add(("Content", content));
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not extract text from attachment #{Id} ({FileName})", id, file.FileName);
+            }
+        }
+
         return fields;
+    }
+
+    private static bool IsTextExtractable(string? contentType, string fileName)
+    {
+        if (!string.IsNullOrWhiteSpace(contentType))
+        {
+            var ct = contentType.ToLowerInvariant();
+            if (ct.StartsWith("text/", StringComparison.Ordinal))
+                return true;
+            if (ct is "application/json" or "application/xml" or "application/csv" or "application/x-ndjson")
+                return true;
+        }
+
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        return ext is ".txt" or ".md" or ".csv" or ".json" or ".xml" or ".log" or ".yaml" or ".yml";
     }
 
     private async Task<List<(string, string)>> ExtractCustomerFieldsAsync(int id, CancellationToken ct)

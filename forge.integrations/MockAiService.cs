@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 
 using Forge.Core.Interfaces;
-using Forge.Core.Models;
 
 namespace Forge.Integrations;
 
@@ -29,12 +28,6 @@ public class MockAiService : IAiService
         var summary = text.Length > 200 ? text[..200] + "..." : text;
         _logger.LogInformation("[MockAI] Summarize ({Length} chars)", text.Length);
         return Task.FromResult(summary);
-    }
-
-    public Task<List<AiSearchResult>> SmartSearchAsync(string naturalLanguageQuery, CancellationToken ct)
-    {
-        _logger.LogInformation("[MockAI] SmartSearch: {Query}", naturalLanguageQuery);
-        return Task.FromResult(new List<AiSearchResult>());
     }
 
     public Task<float[]> GetEmbeddingAsync(string text, CancellationToken ct)

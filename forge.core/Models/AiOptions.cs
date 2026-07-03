@@ -11,4 +11,11 @@ public class AiOptions
     public int TimeoutSeconds { get; set; } = 120;
     public int VisionTimeoutSeconds { get; set; } = 600;
     public string DocsPath { get; set; } = "/app/docs";
+
+    /// <summary>
+    /// ai-fleet-orchestration D-2: optional per-client override directory. When set, its
+    /// <c>.md</c> files shadow same-named baseline docs (client wins) in the RAG index.
+    /// Empty = baseline docs only.
+    /// </summary>
+    public string ClientDocsPath { get; set; } = string.Empty;
 }
