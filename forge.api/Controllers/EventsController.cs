@@ -39,7 +39,8 @@ public class EventsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new CreateEventCommand(
             request.Title, request.Description, request.StartTime, request.EndTime,
-            request.Location, request.EventType, request.IsRequired, request.AttendeeUserIds));
+            request.Location, request.EventType, request.IsRequired, request.AttendeeUserIds,
+            request.EventTypeId));
         return Created($"/api/v1/events/{result.Id}", result);
     }
 
@@ -49,7 +50,8 @@ public class EventsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new UpdateEventCommand(
             id, request.Title, request.Description, request.StartTime, request.EndTime,
-            request.Location, request.EventType, request.IsRequired, request.AttendeeUserIds));
+            request.Location, request.EventType, request.IsRequired, request.AttendeeUserIds,
+            request.EventTypeId));
         return Ok(result);
     }
 

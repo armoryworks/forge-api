@@ -18,7 +18,8 @@ public record UpdateEventCommand(
     string? Location,
     string EventType,
     bool IsRequired,
-    List<int> AttendeeUserIds) : IRequest<EventResponseModel>;
+    List<int> AttendeeUserIds,
+    int? EventTypeId = null) : IRequest<EventResponseModel>;
 
 public class UpdateEventValidator : AbstractValidator<UpdateEventCommand>
 {
@@ -49,6 +50,10 @@ public class UpdateEventHandler(AppDbContext db)
         evt.EndTime = request.EndTime;
         evt.Location = request.Location;
         evt.EventType = Enum.Parse<EventType>(request.EventType, true);
+        if (request.EventTypeId is int typeId
+            && !await db.CalendarEventTypes.AnyAsync(t => t.Id == typeId, cancellationToken))
+            throw new KeyNotFoundException($"Calendar event type {typeId} not found");
+        evt.EventTypeId = request.EventTypeId;
         evt.IsRequired = request.IsRequired;
 
         // Sync attendees

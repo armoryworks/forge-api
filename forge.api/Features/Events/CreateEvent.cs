@@ -20,7 +20,8 @@ public record CreateEventCommand(
     string? Location,
     string EventType,
     bool IsRequired,
-    List<int> AttendeeUserIds) : IRequest<EventResponseModel>;
+    List<int> AttendeeUserIds,
+    int? EventTypeId = null) : IRequest<EventResponseModel>;
 
 public class CreateEventValidator : AbstractValidator<CreateEventCommand>
 {
@@ -43,6 +44,11 @@ public class CreateEventHandler(AppDbContext db, IHttpContextAccessor httpContex
     {
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+        // compliance-calendar A-1: validate the optional configurable type exists.
+        if (request.EventTypeId is int typeId
+            && !await db.CalendarEventTypes.AnyAsync(t => t.Id == typeId, cancellationToken))
+            throw new KeyNotFoundException($"Calendar event type {typeId} not found");
+
         var evt = new Event
         {
             Title = request.Title,
@@ -51,6 +57,7 @@ public class CreateEventHandler(AppDbContext db, IHttpContextAccessor httpContex
             EndTime = request.EndTime,
             Location = request.Location,
             EventType = Enum.Parse<EventType>(request.EventType, true),
+            EventTypeId = request.EventTypeId,
             IsRequired = request.IsRequired,
             CreatedByUserId = userId,
         };
