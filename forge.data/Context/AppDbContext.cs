@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
+using Forge.Core.Entities.Calendar;
 using Forge.Core.Interfaces;
 
 namespace Forge.Data.Context;
@@ -328,6 +329,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
 
     public DbSet<Event> Events => Set<Event>();
     public DbSet<EventAttendee> EventAttendees => Set<EventAttendee>();
+
+    // Calendar taxonomy (compliance-calendar A-1): Event → CalendarEventType → CalendarSuperGroup
+    public DbSet<CalendarSuperGroup> CalendarSuperGroups => Set<CalendarSuperGroup>();
+    public DbSet<CalendarEventType> CalendarEventTypes => Set<CalendarEventType>();
 
     // EDI
     public DbSet<EdiTradingPartner> EdiTradingPartners => Set<EdiTradingPartner>();
