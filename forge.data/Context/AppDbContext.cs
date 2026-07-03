@@ -333,6 +333,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     // Calendar taxonomy (compliance-calendar A-1): Event → CalendarEventType → CalendarSuperGroup
     public DbSet<CalendarSuperGroup> CalendarSuperGroups => Set<CalendarSuperGroup>();
     public DbSet<CalendarEventType> CalendarEventTypes => Set<CalendarEventType>();
+    public DbSet<CalendarSuperGroupRoleVisibility> CalendarSuperGroupRoleVisibilities => Set<CalendarSuperGroupRoleVisibility>();
+    public DbSet<CalendarSavedView> CalendarSavedViews => Set<CalendarSavedView>();
 
     // EDI
     public DbSet<EdiTradingPartner> EdiTradingPartners => Set<EdiTradingPartner>();
