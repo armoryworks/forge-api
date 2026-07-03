@@ -57,6 +57,9 @@ public static partial class SeedData
         // ── 2d. Per-industry compliance profiles (regulated-parts-safety C-1) ──
         await SeedComplianceProfilesAsync(db);
 
+        // ── 2e. Regulatory Watchtower sources (cluster B) ──
+        await SeedRegulatorySourcesAsync(db);
+
         // ── Stop here for clean installs — setup wizard handles user creation ──
         if (!seedDemoData)
         {

@@ -531,6 +531,13 @@ try
     builder.Services.AddSingleton<Forge.Core.Interfaces.IClientDocResolver,
                                   Forge.Api.Services.ClientDocResolver>();
 
+    // regulatory-watchtower (cluster B) — poller + feed client (mock = offline no-op;
+    // real per-feed-type clients swap in on an internet-connected node).
+    builder.Services.AddScoped<Forge.Api.Services.IRegulatoryPoller,
+                               Forge.Api.Services.RegulatoryPoller>();
+    builder.Services.AddScoped<Forge.Core.Interfaces.IRegulatoryFeedClient,
+                               Forge.Integrations.MockRegulatoryFeedClient>();
+
     // Phase 4 Phase-A — capability gating infrastructure.
     builder.Services.AddSingleton<Forge.Api.Capabilities.ICapabilitySnapshotProvider,
                                   Forge.Api.Capabilities.CapabilitySnapshotProvider>();

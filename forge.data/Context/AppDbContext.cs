@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Calendar;
 using Forge.Core.Entities.Compliance;
+using Forge.Core.Entities.Regulatory;
 using Forge.Core.Interfaces;
 
 namespace Forge.Data.Context;
@@ -346,6 +347,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
 
     // Part SDS documents (regulated-parts-safety C-3)
     public DbSet<PartSafetyDataSheet> PartSafetyDataSheets => Set<PartSafetyDataSheet>();
+
+    // Regulatory Watchtower (cluster B)
+    public DbSet<RegulatorySource> RegulatorySources => Set<RegulatorySource>();
+    public DbSet<RegulatoryChangeProposal> RegulatoryChangeProposals => Set<RegulatoryChangeProposal>();
 
     // EDI
     public DbSet<EdiTradingPartner> EdiTradingPartners => Set<EdiTradingPartner>();
