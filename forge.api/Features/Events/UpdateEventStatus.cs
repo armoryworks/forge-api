@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Events;
 
@@ -59,6 +60,11 @@ public class UpdateEventStatusHandler(AppDbContext db, IClock clock)
             evt.CompletedAt = null;
         }
         evt.WaivedReason = status == EventStatus.Waived ? request.WaivedReason : null;
+
+        var detail = status == EventStatus.Waived && !string.IsNullOrWhiteSpace(request.WaivedReason)
+            ? $"Status set to {status} — {request.WaivedReason}"
+            : $"Status set to {status}";
+        db.LogActivityAt("status-changed", detail, ("Event", evt.Id));
 
         await db.SaveChangesAsync(cancellationToken);
     }

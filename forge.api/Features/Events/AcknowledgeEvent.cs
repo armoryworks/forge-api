@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Events;
 
@@ -19,6 +20,7 @@ public class AcknowledgeEventHandler(AppDbContext db, IClock clock)
 
         evt.AcknowledgedByUserId = db.CurrentUserId;
         evt.AcknowledgedAt = clock.UtcNow;
+        db.LogActivityAt("acknowledged", "Event acknowledged", ("Event", evt.Id));
         await db.SaveChangesAsync(cancellationToken);
     }
 }

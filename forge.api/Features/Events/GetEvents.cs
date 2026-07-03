@@ -62,6 +62,8 @@ public class GetEventsHandler(AppDbContext db, ICalendarVisibilityService visibi
                 userNames.GetValueOrDefault(a.UserId, ""),
                 a.Status.ToString(), a.RespondedAt)).ToList(),
             evt.CreatedAt, evt.EventTypeId, evt.CalendarEventType?.SuperGroupId,
-            evt.Status.ToString(), evt.OwnerUserId, evt.IsBlocking, evt.AcknowledgedAt)).ToList();
+            evt.Status.ToString(), evt.OwnerUserId, evt.IsBlocking, evt.AcknowledgedAt,
+            evt.WaivedReason, evt.CompletedByUserId, evt.CompletedAt,
+            evt.EvidenceUrl, evt.EvidenceDocumentSetId)).ToList();
     }
 }

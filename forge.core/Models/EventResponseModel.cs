@@ -21,7 +21,14 @@ public record EventResponseModel(
     string? Status = null,
     int? OwnerUserId = null,
     bool IsBlocking = false,
-    DateTimeOffset? AcknowledgedAt = null);
+    DateTimeOffset? AcknowledgedAt = null,
+    // compliance-calendar status-dialog: read-back of the full workflow state so a
+    // status dialog can pre-fill owner / waive-reason / evidence.
+    string? WaivedReason = null,
+    int? CompletedByUserId = null,
+    DateTimeOffset? CompletedAt = null,
+    string? EvidenceUrl = null,
+    int? EvidenceDocumentSetId = null);
 
 public record EventAttendeeResponseModel(
     int Id,
