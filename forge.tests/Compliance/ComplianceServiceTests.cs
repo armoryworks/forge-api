@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Services;
+using Forge.Core.Entities;
 using Forge.Core.Entities.Compliance;
 using Forge.Core.Enums;
 using Forge.Tests.Helpers;
@@ -41,5 +42,45 @@ public sealed class ComplianceServiceTests(PostgresFixture fixture)
 
         var missing = await svc.GetMissingRequiredFieldsAsync("part.create", new HashSet<string> { "serialNumber" });
         missing.Should().BeEquivalentTo(["lotNumber"]);
+    }
+
+    [Fact]
+    public async Task Assembly_sds_aggregates_deduped_from_bom()
+    {
+        await using var db = fixture.CreateContext();
+        await db.PartSafetyDataSheets.ExecuteDeleteAsync();
+        await db.Set<BOMLine>().ExecuteDeleteAsync();
+
+        Part MkPart(string n) => new()
+        {
+            PartNumber = $"{n}-{Guid.NewGuid():N}"[..16],
+            Name = n,
+            Status = PartStatus.Active,
+            ProcurementSource = ProcurementSource.Make,
+            InventoryClass = InventoryClass.Component,
+        };
+        var asm = MkPart("ASM");
+        var c1 = MkPart("C1");
+        var c2 = MkPart("C2");
+        db.Parts.AddRange(asm, c1, c2);
+        await db.SaveChangesAsync();
+        db.Set<BOMLine>().AddRange(
+            new BOMLine { ParentPartId = asm.Id, ChildPartId = c1.Id, Quantity = 1 },
+            new BOMLine { ParentPartId = asm.Id, ChildPartId = c2.Id, Quantity = 2 });
+        await db.SaveChangesAsync();
+
+        var ds1 = new DocumentSet { Kind = "sds" };
+        var ds2 = new DocumentSet { Kind = "sds" };
+        db.Set<DocumentSet>().AddRange(ds1, ds2);
+        await db.SaveChangesAsync();
+        // c1 and c2 share ds1 (same material SDS) → collapses; c2 also has ds2.
+        db.PartSafetyDataSheets.AddRange(
+            new PartSafetyDataSheet { PartId = c1.Id, DocumentSetId = ds1.Id, SdsType = SdsType.Manufacturing },
+            new PartSafetyDataSheet { PartId = c2.Id, DocumentSetId = ds1.Id, SdsType = SdsType.Manufacturing },
+            new PartSafetyDataSheet { PartId = c2.Id, DocumentSetId = ds2.Id, SdsType = SdsType.Consumer });
+        await db.SaveChangesAsync();
+
+        var agg = await new ComplianceService(db).GetAssemblySdsAsync(asm.Id);
+        agg.Select(s => s.DocumentSetId).Should().BeEquivalentTo([ds1.Id, ds2.Id]);
     }
 }

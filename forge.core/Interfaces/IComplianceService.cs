@@ -1,3 +1,4 @@
+using Forge.Core.Entities;
 using Forge.Core.Models;
 
 namespace Forge.Core.Interfaces;
@@ -16,4 +17,10 @@ public interface IComplianceService
     /// </summary>
     Task<IReadOnlyList<string>> GetMissingRequiredFieldsAsync(
         string processStep, ISet<string> presentFields, CancellationToken ct = default);
+
+    /// <summary>
+    /// regulated-parts-safety C-3: the deduped SDS set for an assembly — every descendant BOM
+    /// material's SDS, collapsed by document set. Computed on-the-fly (no cache).
+    /// </summary>
+    Task<IReadOnlyList<PartSafetyDataSheet>> GetAssemblySdsAsync(int assemblyPartId, CancellationToken ct = default);
 }

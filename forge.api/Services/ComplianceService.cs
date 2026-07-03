@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -47,5 +48,28 @@ public sealed class ComplianceService(AppDbContext db) : IComplianceService
             .Select(f => f.FieldKey)
             .Distinct()
             .ToList();
+    }
+
+    public async Task<IReadOnlyList<PartSafetyDataSheet>> GetAssemblySdsAsync(int assemblyPartId, CancellationToken ct = default)
+    {
+        // Walk the BOM breadth-first to collect every descendant part (cycle-safe).
+        var allParts = new HashSet<int> { assemblyPartId };
+        var frontier = new List<int> { assemblyPartId };
+        while (frontier.Count > 0)
+        {
+            var children = await db.Set<BOMLine>().AsNoTracking()
+                .Where(b => frontier.Contains(b.ParentPartId))
+                .Select(b => b.ChildPartId)
+                .Distinct()
+                .ToListAsync(ct);
+            frontier = children.Where(allParts.Add).ToList(); // Add returns true only for new ids
+        }
+
+        var sds = await db.PartSafetyDataSheets.AsNoTracking()
+            .Where(s => allParts.Contains(s.PartId))
+            .ToListAsync(ct);
+
+        // Dedupe: the same SDS (document set) shared across materials collapses to one.
+        return sds.GroupBy(s => s.DocumentSetId).Select(g => g.First()).ToList();
     }
 }
