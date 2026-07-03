@@ -33,6 +33,25 @@ public class Event : BaseAuditableEntity
     public bool IsAllDay { get; set; }
     public bool IsSystemGenerated { get; set; }
 
+    // ── compliance-calendar A-4: tiered workflow (populated only when the event's type
+    //    is flagged RequiresTracking; reminder-tier events leave these null/default) ──
+
+    /// <summary>Workflow status; null for reminder-tier events. Overdue is derived.</summary>
+    public EventStatus? Status { get; set; }
+    public int? OwnerUserId { get; set; }
+    public int? CompletedByUserId { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+    public string? WaivedReason { get; set; }
+
+    /// <summary>Forced-acknowledgement alert — blocking, must-ack (A-4 escalation).</summary>
+    public bool IsBlocking { get; set; }
+    public int? AcknowledgedByUserId { get; set; }
+    public DateTimeOffset? AcknowledgedAt { get; set; }
+
+    /// <summary>Evidence: a stored DocumentSet and/or an external URL.</summary>
+    public int? EvidenceDocumentSetId { get; set; }
+    public string? EvidenceUrl { get; set; }
+
     // Navigation
     public ICollection<EventAttendee> Attendees { get; set; } = new List<EventAttendee>();
 }

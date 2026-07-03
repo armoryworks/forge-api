@@ -71,6 +71,21 @@ public class EventsController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{id:int}/status")]
+    public async Task<IActionResult> UpdateStatus(int id, [FromBody] EventStatusRequestModel request)
+    {
+        await mediator.Send(new UpdateEventStatusCommand(
+            id, request.Status, request.OwnerUserId, request.WaivedReason, request.EvidenceUrl, request.EvidenceDocumentSetId));
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/acknowledge")]
+    public async Task<IActionResult> Acknowledge(int id)
+    {
+        await mediator.Send(new AcknowledgeEventCommand(id));
+        return NoContent();
+    }
+
     [HttpGet("upcoming")]
     public async Task<ActionResult<List<EventResponseModel>>> GetUpcomingEvents()
     {

@@ -3359,6 +3359,16 @@ CREATE TABLE public.events (
     reminder_sent_at timestamp with time zone,
     is_all_day boolean DEFAULT false NOT NULL,
     is_system_generated boolean DEFAULT false NOT NULL,
+    status character varying(20),
+    owner_user_id integer,
+    completed_by_user_id integer,
+    completed_at timestamp with time zone,
+    waived_reason character varying(1000),
+    is_blocking boolean DEFAULT false NOT NULL,
+    acknowledged_by_user_id integer,
+    acknowledged_at timestamp with time zone,
+    evidence_document_set_id integer,
+    evidence_url character varying(1000),
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,
@@ -9153,6 +9163,9 @@ ALTER TABLE ONLY public.event_attendees
 ALTER TABLE ONLY public.events
     ADD CONSTRAINT fk_events__calendar_event_types_event_type_id FOREIGN KEY (event_type_id) REFERENCES public.calendar_event_types(id) ON DELETE RESTRICT;
 
+ALTER TABLE ONLY public.events
+    ADD CONSTRAINT fk_events__document_sets_evidence_document_set_id FOREIGN KEY (evidence_document_set_id) REFERENCES public.document_sets(id) ON DELETE SET NULL;
+
 ALTER TABLE ONLY public.exchange_rates
     ADD CONSTRAINT fk_exchange_rates_currencies_from_currency_id FOREIGN KEY (from_currency_id) REFERENCES public.currencies(id) ON DELETE RESTRICT;
 
@@ -10699,6 +10712,10 @@ CREATE INDEX ix_event_attendees_user_id ON public.event_attendees USING btree (u
 CREATE INDEX ix_events_created_by_user_id ON public.events USING btree (created_by_user_id);
 
 CREATE INDEX ix_events_event_type_id ON public.events USING btree (event_type_id);
+
+CREATE INDEX ix_events_evidence_document_set_id ON public.events USING btree (evidence_document_set_id);
+
+CREATE INDEX ix_events_owner_user_id ON public.events USING btree (owner_user_id);
 
 CREATE INDEX ix_events_start_time ON public.events USING btree (start_time);
 
