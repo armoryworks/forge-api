@@ -4,14 +4,14 @@
     "title": "Visión general de OEE",
     "summary": "Qué es la Eficiencia General de los Equipos, los tres factores (Disponibilidad x Rendimiento x Calidad), los referentes de clase mundial, las Seis Grandes Pérdidas y cómo leer el panel de OEE.",
     "contentJson": {
-      "body": "## Visión general de OEE\n\nOEE (**Overall Equipment Effectiveness**, Eficiencia General de los Equipos) es la métrica individual más utilizada para medir qué tan bien funciona una operación de manufactura. Comprime tres preguntas independientes en un solo número: *¿La máquina está funcionando cuando debería? ¿Funciona tan rápido como debería? ¿Está fabricando piezas buenas?* El módulo de OEE calcula esto por **centro de trabajo** sobre un rango de fechas que usted elige, y le muestra no solo la puntuación, sino dónde se ocultan las pérdidas.\n\n### La fórmula de OEE\n\nOEE es el producto de tres factores, cada uno una proporción entre 0 y 1 (mostrada como porcentaje):\n\n**OEE = Disponibilidad x Rendimiento x Calidad**\n\nDado que los tres se multiplican, el OEE siempre es menor que su factor más bajo. Una máquina que está 90% disponible, con 90% de rendimiento y 90% de calidad solo es 0.9 x 0.9 x 0.9 = 72.9% efectiva —las pérdidas se acumulan.\n\n### Factor 1 — Disponibilidad\n\nLa Disponibilidad responde: *¿la máquina funcionó cuando estaba programada para hacerlo?* Es el tiempo de funcionamiento dividido entre el tiempo disponible. El tiempo disponible son los **minutos programados** menos el **tiempo de inactividad planificado** (descansos, mantenimiento planificado). Cualquier cosa que detenga la máquina cuando debería estar funcionando —averías, tiempo de inactividad no planificado, preparaciones largas— le cuesta a la Disponibilidad.\n\n`Disponibilidad = Minutos de funcionamiento / Minutos disponibles`\n\n### Factor 2 — Rendimiento\n\nEl Rendimiento responde: *¿la máquina funcionó tan rápido como debería mientras estaba funcionando?* Compara el tiempo de ciclo ideal (el tiempo teórico más rápido por pieza) multiplicado por el total de piezas producidas contra el tiempo de funcionamiento real. Las paradas pequeñas, la marcha en vacío y la velocidad reducida arrastran el Rendimiento hacia abajo. El Rendimiento nunca puede exceder legítimamente el 100% —si lo hace, el tiempo de ciclo ideal está configurado demasiado lento.\n\n`Rendimiento = (Tiempo de ciclo ideal x Cantidad total) / Tiempo de funcionamiento`\n\n### Factor 3 — Calidad\n\nLa Calidad responde: *¿cuántas de las piezas producidas fueron buenas?* Es la cantidad buena dividida entre la cantidad total. Tanto el desecho como el retrabajo reducen la Calidad —una pieza que tuvo que retrabajarse no se hizo bien la primera vez.\n\n`Calidad = Cantidad buena / Cantidad total`\n\n### OEE de clase mundial\n\nUn centro de trabajo se marca como **clase mundial** cuando alcanza el referente reconocido —en términos generales, 85% de OEE, que corresponde aproximadamente a ~90% de Disponibilidad, ~95% de Rendimiento y ~99% de Calidad. La mayoría de las operaciones comienzan muy por debajo de esto; 60% es típico para un taller que no ha estado midiendo, e incluso pequeñas mejoras se acumulan rápidamente debido a la multiplicación. El panel cuenta cuántos de sus centros de trabajo son de clase mundial.\n\n### Las Seis Grandes Pérdidas\n\nCada punto de OEE que pierde se asigna a una de seis categorías clásicas de pérdida, agrupadas por el factor que perjudican. El panel de detalle de OEE desglosa los minutos perdidos entre las seis:\n\n**Pérdidas de Disponibilidad**\n- **Falla del equipo** — averías y paradas no planificadas.\n- **Preparación y ajuste** — tiempo de cambio, cambios de herramental, calentamiento.\n\n**Pérdidas de Rendimiento**\n- **Marcha en vacío y paradas menores** — paradas cortas, atascos, condiciones de bloqueo o falta de alimentación.\n- **Velocidad reducida** — funcionar más lento que el tiempo de ciclo ideal.\n\n**Pérdidas de Calidad**\n- **Defectos de proceso** — desecho y defectos producidos durante el funcionamiento en régimen estable.\n- **Rendimiento reducido** — defectos producidos durante el arranque, el calentamiento o después de un cambio.\n\nLas seis pérdidas suman el total de minutos perdidos, y ver qué categoría domina le indica exactamente dónde enfocar el esfuerzo de mejora.\n\n### Leer el panel\n\nLa página de OEE se abre en una **cuadrícula de centros de trabajo** —una tarjeta por centro de trabajo, cada una mostrando su indicador de OEE, los tres factores y los conteos (total, buenas, desecho). Un distintivo de estrella marca los centros de clase mundial. La barra de herramientas muestra el **OEE promedio** de todos los centros y un **conteo de clase mundial**. Elija un rango de fechas con el selector de período (Últimos 30 días, Este mes, Esta semana). Seleccione una tarjeta para abrir el **panel de detalle**, que muestra un gráfico de **Tendencia de OEE** (Disponibilidad, Rendimiento, Calidad y OEE a lo largo del tiempo —conmutable entre granularidad Diaria, Semanal y Mensual) y un desglose de las **Seis Grandes Pérdidas**.\n\n### Cómo se conecta OEE con el resto de QB Engineer\n\nOEE se calcula a partir de datos de producción —el tiempo de funcionamiento, el tiempo de inactividad y las cantidades producidas fluyen desde los trabajos, las corridas de producción y los registros de calidad. Las cantidades de **desecho y retrabajo** provienen de los reportes de calidad y producción; el **tiempo de inactividad** proviene de los eventos de máquina y de reloj. Los centros de trabajo en sí son los equipos en los que ejecuta los trabajos. OEE nunca cambia ninguno de esos datos —solo los lee y le muestra el panorama.\n\n### Cuándo usar OEE\n\n- Para encontrar su centro de trabajo con peor desempeño y el factor individual que lo está arrastrando\n- Para decidir si invertir en tiempo de actividad (Disponibilidad), velocidad (Rendimiento) o reducción de desecho (Calidad)\n- Para rastrear si una mejora realmente movió el número, mediante el gráfico de tendencia\n- Para compararse con el objetivo de clase mundial del 85%\n- Para traducir quejas vagas de 'la máquina está lenta' en una categoría de pérdida específica",
+      "body": "## Visión general de OEE\n\nOEE (**Overall Equipment Effectiveness**, Eficiencia General de los Equipos) es la medida más utilizada de qué tan bien funciona una máquina o centro de trabajo. Responde tres preguntas en un solo número: *¿La máquina está funcionando cuando debería? ¿Funciona tan rápido como debería? ¿Está fabricando piezas buenas?* Ve la puntuación por centro de trabajo sobre las fechas que está mirando, además de dónde se ocultan las pérdidas —para que sepa qué arreglar primero.\n\n### La fórmula de OEE\n\nOEE son tres factores multiplicados entre sí, cada uno un porcentaje:\n\n**OEE = Disponibilidad x Rendimiento x Calidad**\n\nComo los multiplica, el OEE siempre queda por debajo de su factor más débil. Una máquina que está 90% disponible, funcionando al 90% de velocidad y 90% buena solo es 0.9 x 0.9 x 0.9 = 72.9% efectiva. Las pérdidas se acumulan —no se promedian. Ese es todo el sentido del OEE: tres números que cada uno se ve bien aún pueden sumar una máquina mediocre.\n\n### Factor 1 — Disponibilidad\n\nLa Disponibilidad pregunta: *¿la máquina funcionó cuando debía?* Es el tiempo de funcionamiento dividido entre el tiempo que planeó para que funcionara. Parte de los minutos que estaba programada, quita las paradas planificadas (descansos, mantenimiento programado) para obtener el tiempo disponible, y luego compara los minutos que realmente funcionó. Las averías, las paradas no planificadas y los cambios largos le cuestan a la Disponibilidad.\n\n### Factor 2 — Rendimiento\n\nEl Rendimiento pregunta: *mientras funcionaba, ¿funcionó a plena velocidad?* Compara el tiempo más rápido posible para hacer una pieza —el tiempo de ciclo ideal— contra qué tan rápido funcionó realmente. Las paradas cortas, la marcha en vacío y la marcha lenta bajan el Rendimiento. El Rendimiento nunca debería pasar del 100%. Si lo hace, el tiempo de ciclo ideal se configuró demasiado rápido para ser real —eso es un problema de datos que corregir, no una máquina venciendo a la física.\n\n### Factor 3 — Calidad\n\nLa Calidad pregunta: *¿cuántas piezas salieron bien a la primera?* Es las piezas buenas divididas entre todas las piezas hechas. Tanto el desecho como el retrabajo la bajan —una pieza que tuvo que retrabajarse no se hizo bien la primera vez, así que cuenta en su contra.\n\n### OEE de clase mundial\n\nUn centro de trabajo gana una estrella de **clase mundial** cuando alcanza el referente reconocido —alrededor del 85% de OEE, que se traduce en aproximadamente 90% de Disponibilidad, 95% de Rendimiento y 99% de Calidad. La mayoría de los talleres comienzan muy por debajo de eso. Alrededor del 60% es normal para una operación que nunca ha medido antes. La buena noticia: como los factores se multiplican, las pequeñas ganancias se acumulan rápido, así que las mejoras tempranas rinden pronto.\n\n### Las Seis Grandes Pérdidas\n\nCada punto de OEE que pierde cae en una de seis categorías clásicas de pérdida, agrupadas por el factor que perjudica. Saber cuál categoría es la mayor le indica exactamente dónde apuntar su esfuerzo de mejora.\n\n**Pérdidas de Disponibilidad (tiempo de actividad)**\n- **Falla del equipo** — averías y paradas no planificadas.\n- **Preparación y ajuste** — tiempo de cambio, cambios de herramental, calentamiento.\n\n**Pérdidas de Rendimiento (velocidad)**\n- **Marcha en vacío y paradas menores** — paradas cortas, atascos, condiciones de bloqueo o falta de alimentación.\n- **Velocidad reducida** — funcionar más lento que el tiempo de ciclo ideal.\n\n**Pérdidas de Calidad (piezas buenas)**\n- **Defectos de proceso** — desecho y defectos hechos mientras la máquina funciona de forma estable.\n- **Rendimiento reducido** — defectos hechos durante el arranque, el calentamiento o justo después de un cambio.\n\nSume los minutos de las seis y obtiene su total de minutos perdidos. La barra más alta es donde está el dinero.\n\n### Leer los números\n\nCada centro de trabajo muestra su puntuación de OEE, los tres factores y los conteos de piezas (total hechas, buenas, desechadas). Una estrella marca los centros de clase mundial. Sobre los centros verá el OEE promedio de todo su taller y cuántos centros alcanzaron la clase mundial —una lectura rápida de la operación en conjunto. Elija un centro para mirar más de cerca: verá su puntuación a lo largo del tiempo y sus Seis Grandes Pérdidas detalladas, para que pueda saber si un cambio realmente ayudó y qué pérdida le está costando más.\n\n### De dónde salen los números\n\nUsted nunca teclea una puntuación de OEE —se lee directamente del trabajo que ya reporta. El tiempo de funcionamiento y el de inactividad salen de los eventos de reloj y de máquina. Los conteos de buenas, desecho y retrabajo salen de los registros de calidad y producción que su equipo llena a medida que corren los trabajos. El OEE solo reúne todo eso y hace la cuenta. Así que la manera de mover el número es arreglar el piso: reducir una avería, agilizar un cambio, perseguir el desecho. La puntuación sigue.\n\n### Cuándo usar OEE\n\n- Para encontrar su centro de trabajo con peor desempeño y el único factor que lo arrastra\n- Para decidir si invertir en tiempo de actividad (Disponibilidad), velocidad (Rendimiento) o reducción de desecho (Calidad)\n- Para comprobar si una mejora realmente movió el número\n- Para compararse con el objetivo de clase mundial del 85%\n- Para convertir una queja vaga de 'la máquina está lenta' en una pérdida específica y arreglable",
       "sections": []
     }
   },
   {
     "slug": "oee-walkthrough",
     "title": "OEE — Recorrido guiado",
-    "summary": "Un recorrido guiado por el panel de OEE: el selector de período, los KPI de OEE promedio y de clase mundial, la cuadrícula de tarjetas de centros de trabajo, el panel de detalle, el gráfico de tendencia y el desglose de las Seis Grandes Pérdidas.",
+    "summary": "Un recorrido guiado por el panel de OEE: elegir sus fechas, leer el OEE promedio de todo el taller y el conteo de clase mundial, las puntuaciones por centro de trabajo, y una mirada más de cerca a la tendencia de un centro a lo largo del tiempo y sus Seis Grandes Pérdidas.",
     "contentJson": {
       "appRoute": "/oee",
       "startButtonLabel": "Recorrer OEE",
@@ -19,8 +19,8 @@
         {
           "element": "app-date-range-picker",
           "popover": {
-            "title": "Período de reporte",
-            "description": "Elija las fechas sobre las que se mide el OEE. Escoja un preajuste rápido —Últimos 30 días, Este mes o Esta semana— o fije sus propias fechas de inicio y fin. Cada tarjeta y el panel de detalle se actualizan para coincidir.",
+            "title": "Elija sus fechas",
+            "description": "Escoja el tramo de tiempo que quiere medir —los últimos 30 días, este mes, esta semana o sus propias fechas de inicio y fin. Todo en la página refleja la ventana que elige, así que puede mirar una semana suelta o todo un trimestre.",
             "side": "bottom"
           }
         },
@@ -35,15 +35,15 @@
         {
           "element": ".oee-page__grid",
           "popover": {
-            "title": "Cuadrícula de centros de trabajo",
-            "description": "Cada tarjeta es un centro de trabajo. Muestra la puntuación de OEE, los tres factores —Disponibilidad, Rendimiento y Calidad— y cuántas piezas se hicieron, cuántas salieron buenas y cuántas se desecharon. Una estrella marca un centro de clase mundial. Haga clic en una tarjeta para ver sus detalles.",
+            "title": "Sus centros de trabajo",
+            "description": "Cada tarjeta es un centro de trabajo. Muestra la puntuación de OEE, los tres factores —Disponibilidad, Rendimiento y Calidad— y cuántas piezas se hicieron, cuántas salieron buenas y cuántas se desecharon. Una estrella marca un centro de clase mundial. Elija una tarjeta para ver sus detalles.",
             "side": "top"
           }
         },
         {
           "element": "app-oee-work-center-card",
           "popover": {
-            "title": "Tarjeta de centro de trabajo",
+            "title": "Un solo centro de trabajo",
             "description": "El número grande de arriba es la puntuación de OEE de este centro. Sale de multiplicar los tres factores, así que siempre queda por debajo del más débil. Eso le dice de un vistazo si lo que hay que arreglar es el tiempo de actividad, la velocidad o el desecho.",
             "side": "top"
           }
@@ -51,16 +51,16 @@
         {
           "element": ".oee-page__detail",
           "popover": {
-            "title": "Panel de detalle",
-            "description": "Haga clic en una tarjeta y sus detalles se abren aquí, bajo el nombre del centro. Use el selector de granularidad para ver la tendencia por día, semana o mes. Esto no cambia sus fechas de reporte.",
+            "title": "Una mirada más de cerca",
+            "description": "Elija un centro y sus detalles se abren aquí, bajo su nombre. Puede ver los números por día, semana o mes —por día para una semana suelta, por mes para ver si un arreglo aguantó a lo largo de una temporada. Esto no cambia las fechas que está midiendo.",
             "side": "top"
           }
         },
         {
           "element": "app-oee-trend-chart",
           "popover": {
-            "title": "Tendencia de OEE",
-            "description": "Este gráfico sigue la Disponibilidad, el Rendimiento, la Calidad y el OEE general a lo largo del tiempo para el centro que eligió. Úselo para comprobar si un cambio realmente ayudó y para ver qué factor varía más.",
+            "title": "OEE a lo largo del tiempo",
+            "description": "Esto sigue la Disponibilidad, el Rendimiento, la Calidad y el OEE general a lo largo del tiempo para el centro que eligió. Úselo para comprobar si un cambio realmente ayudó y para ver qué factor varía más.",
             "side": "top"
           }
         },
@@ -78,7 +78,7 @@
   {
     "slug": "oee-field-reference",
     "title": "Referencia de campos de OEE",
-    "summary": "Referencia completa de los factores y la fórmula de OEE, cada métrica de un cálculo de centro de trabajo, las Seis Grandes Pérdidas, los referentes de clase mundial y los controles del panel.",
+    "summary": "Referencia completa de los factores y la fórmula de OEE, cada métrica detrás de la puntuación de un centro de trabajo, las Seis Grandes Pérdidas, los referentes de clase mundial y cómo leer los números y actuar sobre ellos.",
     "contentJson": {
       "title": "Referencia de campos de OEE",
       "groups": [
@@ -87,11 +87,11 @@
           "items": [
             {
               "label": "OEE",
-              "value": "Disponibilidad por Rendimiento por Calidad, mostrado como porcentaje en cada tarjeta. Como los tres se multiplican, el OEE siempre queda por debajo del más débil."
+              "value": "Disponibilidad por Rendimiento por Calidad, mostrado como porcentaje. Como los tres se multiplican, el OEE siempre queda por debajo del más débil."
             },
             {
               "label": "Disponibilidad",
-              "value": "El tiempo de funcionamiento dividido entre el tiempo disponible. ¿La máquina funcionó cuando estaba programada? Las averías, las paradas no planificadas y las preparaciones largas la bajan."
+              "value": "El tiempo de funcionamiento dividido entre el tiempo que planeó para que funcionara. ¿La máquina funcionó cuando estaba programada? Las averías, las paradas no planificadas y las preparaciones largas la bajan."
             },
             {
               "label": "Rendimiento",
@@ -99,7 +99,7 @@
             },
             {
               "label": "Calidad",
-              "value": "Las piezas buenas divididas entre todas las piezas hechas. ¿Cuántas salieron bien? El desecho y el retrabajo la bajan."
+              "value": "Las piezas buenas divididas entre todas las piezas hechas. ¿Cuántas salieron bien a la primera? El desecho y el retrabajo la bajan."
             }
           ]
         },
@@ -108,7 +108,7 @@
           "items": [
             {
               "label": "Minutos programados",
-              "value": "Cuántos minutos estaba previsto que el centro de trabajo funcionara durante el período."
+              "value": "Cuántos minutos estaba previsto que el centro de trabajo funcionara durante el tramo que está mirando."
             },
             {
               "label": "Minutos de inactividad planificada",
@@ -128,7 +128,7 @@
             },
             {
               "label": "Tiempo de ciclo ideal (segundos)",
-              "value": "El tiempo más rápido posible para hacer una pieza. Se usa para medir el Rendimiento."
+              "value": "El tiempo más rápido posible para hacer una pieza. Se usa para medir el Rendimiento —si lo configura demasiado rápido, el Rendimiento sube por encima del 100% y sabe que el número está mal."
             }
           ]
         },
@@ -137,7 +137,7 @@
           "items": [
             {
               "label": "Cantidad total",
-              "value": "Todas las piezas hechas durante el período —buenas, desecho y retrabajo juntas."
+              "value": "Todas las piezas hechas en el tramo que está mirando —buenas, desecho y retrabajo juntas."
             },
             {
               "label": "Cantidad buena",
@@ -182,7 +182,7 @@
             },
             {
               "label": "Total de minutos perdidos",
-              "value": "Las seis causas sumadas."
+              "value": "Las seis causas sumadas —su total de minutos perdidos del período."
             }
           ]
         },
@@ -195,44 +195,44 @@
             },
             {
               "label": "Color del OEE promedio",
-              "value": "La puntuación promedio es verde en 85% o más, ámbar del 60% al 84% y rojo por debajo del 60%."
+              "value": "La puntuación promedio se ve verde en 85% o más, ámbar del 60% al 84% y rojo por debajo del 60% —un color rápido de salud del taller."
             },
             {
               "label": "Conteo de clase mundial",
-              "value": "Cuántos centros de trabajo son de clase mundial del total."
+              "value": "Cuántos centros de trabajo son de clase mundial del total. Véalo subir a medida que mejora el piso."
             }
           ]
         },
         {
-          "heading": "Controles del panel",
+          "heading": "Leer los números",
           "items": [
             {
-              "label": "Período (rango de fechas)",
-              "value": "Establece las fechas sobre las que se mide el OEE. Los preajustes son Últimos 30 días, Este mes y Esta semana, y arranca en los últimos 30 días. Actualiza todas las tarjetas y el panel de detalle."
+              "label": "Empiece por el factor más débil",
+              "value": "El OEE siempre queda por debajo de su factor más bajo. Encuentre ese factor primero —es el que frena al centro, y arreglarlo mueve la puntuación lo más posible."
             },
             {
-              "label": "Cuadrícula de centros de trabajo",
-              "value": "Una tarjeta por centro de trabajo, mostrando la puntuación de OEE, los tres factores y los conteos de piezas. Una estrella significa clase mundial. Haga clic en una tarjeta para abrir sus detalles."
+              "label": "Disponibilidad baja",
+              "value": "La máquina no está funcionando cuando debería. Persiga las averías y los cambios largos —las pérdidas de Falla del equipo y de Preparación."
             },
             {
-              "label": "Panel de detalle",
-              "value": "Se abre para la tarjeta que hizo clic, bajo el nombre del centro. Contiene el selector de granularidad, el gráfico de tendencia y el gráfico de las Seis Grandes Pérdidas."
+              "label": "Rendimiento bajo",
+              "value": "Funciona, pero lento. Persiga las paradas pequeñas, los atascos y la velocidad reducida. Además, verifique que el tiempo de ciclo ideal no esté mal configurado."
             },
             {
-              "label": "Granularidad",
-              "value": "Ve el gráfico de tendencia por día, semana o mes. No cambia sus fechas de reporte."
+              "label": "Calidad baja",
+              "value": "Funciona rápido pero hace piezas malas. Persiga el desecho y el retrabajo —las pérdidas de Defectos de proceso y de Rendimiento reducido."
             },
             {
-              "label": "Gráfico de Tendencia de OEE",
-              "value": "Sigue la Disponibilidad, el Rendimiento, la Calidad y el OEE general a lo largo del tiempo para el centro que eligió."
+              "label": "Véalo a lo largo del tiempo",
+              "value": "Mire la puntuación día por día para una semana suelta, o mes por mes para ver si un arreglo aguantó a lo largo de una temporada. Un cambio que ayudó aparece como un escalón en la línea."
             },
             {
-              "label": "Gráfico de las Seis Grandes Pérdidas",
-              "value": "Reparte los minutos perdidos en las seis causas para que vea cuál duele más."
+              "label": "Lea el desglose de pérdidas",
+              "value": "La más alta de las seis barras de pérdida es a donde se van sus minutos. Apunte su próxima mejora ahí, no al factor que ya está bien."
             },
             {
-              "label": "Estado vacío",
-              "value": "Cuando ningún centro de trabajo tiene datos para las fechas que eligió, se muestra un mensaje breve en lugar de la cuadrícula."
+              "label": "Aún sin datos",
+              "value": "Un centro de trabajo solo aparece una vez que hay producción que puntuar para las fechas que está mirando. Un tramo en blanco significa que no corrió ningún trabajo ahí, no un número roto."
             }
           ]
         }
@@ -443,51 +443,51 @@
         },
         {
           "id": "oe9",
-          "text": "Selecciona una tarjeta de centro de trabajo. ¿Qué muestra el panel de detalle?",
+          "text": "Quiere saber si un cambio que hizo a una máquina realmente ayudó a su OEE. ¿Cuál es la mejor manera de comprobarlo?",
           "options": [
             {
               "id": "a",
-              "text": "Una lista de clientes para ese centro de trabajo"
+              "text": "Mirar la lista de clientes de ese centro de trabajo"
             },
             {
               "id": "b",
-              "text": "Un gráfico de tendencia de OEE (Disponibilidad, Rendimiento, Calidad, OEE a lo largo del tiempo) y un desglose de las Seis Grandes Pérdidas",
+              "text": "Ver el OEE del centro a lo largo del tiempo y buscar un escalón hacia arriba después del cambio",
               "isCorrect": true
             },
             {
               "id": "c",
-              "text": "Solo el número crudo de minutos programados"
+              "text": "Teclear a mano una puntuación de OEE nueva y más alta"
             },
             {
               "id": "d",
-              "text": "Un formulario editable para cambiar la puntuación de OEE"
+              "text": "Nada —el OEE no puede mostrar cambios a lo largo del tiempo"
             }
           ],
-          "explanation": "Seleccionar una tarjeta abre el panel de detalle para ese centro de trabajo, con un gráfico de tendencia de OEE conmutable por granularidad y el gráfico de las Seis Grandes Pérdidas. OEE es un análisis de solo lectura —no puede editar la puntuación; la cambia mejorando la producción subyacente."
+          "explanation": "El OEE se ve a lo largo del tiempo, así que una mejora real aparece como un escalón hacia arriba en la línea después de que hizo el cambio. También puede ver qué factor se movió. Nunca teclea una puntuación a mano —la mueve mejorando el piso, y el número sigue."
         },
         {
           "id": "oe10",
-          "text": "La página de OEE se recalcula cuando cambia un control en particular. ¿Cuál es (y cuál solo afecta el gráfico de tendencia)?",
+          "text": "Mejoró la Disponibilidad de un centro del 80% al 90%, pero su OEE casi no se movió. ¿Cuál es la razón más probable?",
           "options": [
             {
               "id": "a",
-              "text": "El rango de fechas del período recalcula todo; la granularidad solo cambia la agrupación temporal del gráfico de tendencia",
+              "text": "Otro factor —el Rendimiento o la Calidad— sigue bajo y ahora es lo que frena el OEE",
               "isCorrect": true
             },
             {
               "id": "b",
-              "text": "La granularidad recalcula todo; el período solo afecta la tendencia"
+              "text": "La Disponibilidad en realidad no afecta el OEE"
             },
             {
               "id": "c",
-              "text": "Ninguno de los controles afecta los datos"
+              "text": "El OEE nunca puede cambiar una vez que está establecido"
             },
             {
               "id": "d",
-              "text": "Ambos controles solo afectan los KPI"
+              "text": "Subir la Disponibilidad siempre baja el OEE"
             }
           ],
-          "explanation": "El período (rango de fechas) establece la ventana sobre la que se calculan todas las tarjetas y el panel de detalle. El selector de granularidad (Diaria/Semanal/Mensual) solo cambia cómo el gráfico de tendencia agrupa el tiempo —no cambia el período de reporte."
+          "explanation": "El OEE es los tres factores multiplicados, así que solo sube tanto como lo permita su factor más débil. Si el OEE casi no se movió tras una ganancia de Disponibilidad, el cuello de botella se corrió —el Rendimiento o la Calidad ahora es el factor débil. Revise el desglose de pérdidas y apunte su próximo arreglo ahí."
         },
         {
           "id": "oe11",
@@ -495,7 +495,7 @@
           "options": [
             {
               "id": "a",
-              "text": "Porque el software lo limita artificialmente"
+              "text": "Porque está limitado al 100% sin importar cómo funcione la máquina"
             },
             {
               "id": "b",

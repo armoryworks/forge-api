@@ -4,7 +4,7 @@
     "title": "Transportistas de envío",
     "summary": "Gestione los transportistas de envío y las credenciales de API que impulsan las tarifas en vivo, las etiquetas y el seguimiento.",
     "contentJson": {
-      "body": "## Transportistas de envío\n\nEsta página es el único hogar para sus transportistas de envío, y el único lugar donde introduce los datos de acceso de un transportista. Cada fila es un transportista —uno integrado como UPS, FedEx, USPS o DHL, o un transportista personalizado que usted mismo configura.\n\n### Acciones clave\n\n- **Nuevo transportista** abre una ventana donde establece el nombre, el código, el tipo de conexión (Manual o Api), cómo llegan las actualizaciones de seguimiento (Manual, Poll o Webhook) y si se requiere un escaneo para enviar.\n- **Credenciales** (el icono de llave) abre un formulario con los datos de acceso del transportista: ID de cliente, secreto, un número de cuenta opcional y si está en modo de prueba o en vivo. El secreto se guarda de forma segura y nunca se muestra de vuelta, así que lo vuelve a introducir cada vez que edita.\n- **Probar** (el icono de señal) comprueba la conexión en vivo con el transportista y le dice si funcionó. Permanece deshabilitado hasta que se guardan los datos de acceso.\n\n### Transportistas Manual frente a Api\n\nEl **tipo de conexión** que elija cambia todo lo demás en la fila. Un transportista **Manual** es solo una etiqueta —sus encargados de envío escriben un número de seguimiento a mano, así que no hay datos de acceso, ni botón de Probar, ni ID de servicio. Un transportista **Api** se conecta con el sistema en vivo del transportista, por lo que muestra el campo de ID de servicio al crearlo, agrega los iconos de llave y de señal a su fila, y muestra una advertencia amarilla hasta que se guardan los datos de acceso. Elija Manual cuando solo necesite registrar un número de seguimiento. Elija Api cuando quiera tarifas en vivo, etiquetas impresas y seguimiento automático en la página de Envíos.\n\n### Cómo llegan las actualizaciones de seguimiento\n\nEsto controla cómo se actualiza el estado de seguimiento de un envío después de que sale. **Manual** significa que alguien actualiza el estado a mano. **Poll** significa que Forge consulta al transportista los últimos eventos de seguimiento cada cierto tiempo. **Webhook** significa que el transportista envía los cambios de estado a Forge a medida que ocurren —la opción más al día, pero solo para transportistas que la admiten. Manual es el valor predeterminado seguro para un transportista Manual.\n\n### No hay edición ni desactivación de fila\n\nLa tabla se mantiene sencilla a propósito: una fila de transportista no tiene botón de editar ni de desactivar. Los únicos controles por fila son Credenciales y Probar, y esos aparecen solo en los transportistas Api. Así que planifique el nombre, el código y el tipo antes de guardar.\n\n### Cómo leer la tabla\n\nLas columnas muestran el nombre, el código, el tipo de conexión, si se requiere escaneo, un estado de acceso (verde cuando está establecido, una advertencia cuando un transportista Api no tiene ninguno) y si el transportista está activo. Los transportistas que configura aquí impulsan la comparación de tarifas, la creación de etiquetas y el seguimiento en la página de Envíos —configure correctamente los datos de acceso y deje la prueba en verde antes de confiar en un transportista para envíos reales.",
+      "body": "## Transportistas de envío\n\nEste es el único lugar donde su equipo de envío y recepción configura cada transportista con el que envía, y el único lugar donde introduce los datos de acceso de un transportista. Cada fila es un transportista —uno integrado como UPS, FedEx, USPS o DHL, o un transportista personalizado que usted mismo configura, como una mensajería propia o un agente de carga.\n\n### Acciones clave\n\n- **Nuevo transportista** abre una ventana donde establece el nombre, el código, el tipo de Integración (Manual / personalizado o Integración API), cómo llegan las Actualizaciones de entrega (Manual, Sondeo de seguimiento o Webhook) y si se requiere un escaneo de etiqueta antes de que salga un paquete.\n- **Credenciales** (el icono de llave) abre un formulario con los datos de acceso del transportista: la clave API o ID de cliente, el secreto, un número de cuenta opcional y si está en modo de prueba o en vivo. El secreto se guarda de forma segura y nunca se muestra de vuelta, así que lo vuelve a introducir cada vez que edita.\n- **Probar** (el icono de señal) comprueba la conexión en vivo con el transportista y le dice si funcionó. Permanece atenuado hasta que se guardan los datos de acceso.\n\n### Transportistas Manual frente a transportistas con Integración API\n\nEl tipo de **Integración** que elija cambia todo lo demás en la fila. Un transportista **Manual / personalizado** es solo una etiqueta —sus encargados de envío escriben un número de seguimiento a mano, así que no hay datos de acceso, ni botón de Probar, ni enlace de servicio. Un transportista de **Integración API** se conecta con el sistema en vivo del transportista, por lo que muestra el campo de ID de servicio de integración al crearlo, agrega los iconos de llave y de señal a su fila, y muestra una advertencia amarilla hasta que se guardan los datos de acceso. Elija Manual cuando solo necesite registrar un número de seguimiento. Elija Integración API cuando quiera tarifas en vivo, etiquetas impresas y seguimiento automático en la página de Envíos.\n\n### Cómo llegan las Actualizaciones de entrega\n\nEsto controla cómo se actualiza el estado de seguimiento de un envío después de que sale. **Manual** significa que alguien actualiza el estado a mano. **Sondeo de seguimiento** significa que Forge consulta al transportista los últimos eventos de seguimiento cada cierto tiempo. **Webhook** significa que el transportista envía los cambios de estado a Forge en el momento en que ocurren —la opción más al día, pero solo para transportistas que la admiten. Manual es el valor predeterminado seguro para un transportista manual.\n\n### No hay edición ni desactivación de fila\n\nLa tabla se mantiene sencilla a propósito: una fila de transportista no tiene botón de editar ni de desactivar. Los únicos controles por fila son Credenciales y Probar, y esos aparecen solo en los transportistas con Integración API. Así que planifique el nombre, el código y el tipo antes de guardar.\n\n### Cómo leer la tabla\n\nLas columnas muestran el nombre, el código, el tipo de Integración, si se requiere un escaneo de etiqueta, un estado de acceso (verde cuando está establecido, una advertencia cuando un transportista API no tiene ninguno) y si el transportista está activo. Los transportistas que configura aquí impulsan la comparación de tarifas, la impresión de etiquetas y el seguimiento en la página de Envíos —configure correctamente los datos de acceso y deje la prueba en verde antes de confiar en un transportista para envíos reales.",
       "sections": []
     }
   },
@@ -38,7 +38,7 @@
   {
     "slug": "currencies-overview",
     "title": "Monedas y tipos de cambio",
-    "summary": "Mantenga el catálogo de monedas y un historial de solo anexado de los tipos de cambio diarios.",
+    "summary": "Mantenga la lista de monedas en las que trabaja y un historial continuo de los tipos de cambio diarios.",
     "contentJson": {
       "body": "## Monedas y tipos de cambio\n\nEsta página tiene dos partes: la lista de monedas y el historial de tipos de cambio. Juntas dan soporte para trabajar en más de una moneda en la facturación, el dinero que le deben y el que debe, y los informes financieros.\n\n### Monedas\n\nLa lista muestra cada moneda con su código, nombre, símbolo, cuántos decimales usa, si es la moneda base, si está activa y su orden de aparición. **Nueva moneda** abre una ventana para agregar una —establece el código, el nombre, el símbolo, los decimales (el yen usa 0, la mayoría usa 2), si es la moneda base, si está activa y dónde va en la lista. Haga clic en cualquier fila para editarla. La moneda base es aquella contra la que se reporta todo lo demás.\n\n### Tipos de cambio\n\nEl historial de tipos conserva cada tipo que introduce. Agregar un nuevo tipo para un par de monedas en una nueva fecha agrega una entrada fresca que reemplaza a la anterior, en lugar de sobrescribirla —así siempre tiene un registro de los tipos pasados. **Nuevo tipo de cambio** (disponible una vez que tiene al menos dos monedas) le permite elegir las monedas de origen y destino, la fecha en que entra en vigor, el tipo y de dónde proviene. La lista muestra el más reciente primero, con la fecha, el par, el tipo con varios decimales, la fuente y cuándo se registró.",
       "sections": []
@@ -56,9 +56,9 @@
   {
     "slug": "automations-overview",
     "title": "Automatizaciones — Fallos de eventos",
-    "summary": "Supervise los manejadores de eventos de dominio en segundo plano que fallaron, luego reintente o resuélvalos.",
+    "summary": "Vigile las tareas automáticas en segundo plano que fallaron, luego reintente o resuélvalas.",
     "contentJson": {
-      "body": "## Automatizaciones — Fallos de eventos\n\nMuchas funciones de Forge hacen trabajo en silencio en segundo plano —por ejemplo, reaccionando después de que se crea un trabajo o un pedido. Esta página muestra a los administradores las tareas en segundo plano que fallaron, para que un tropiezo nunca pase desapercibido.\n\n### Cómo leer la tabla\n\nCada fila es una tarea fallida. Muestra qué la activó, qué intentaba hacer, un mensaje de error breve (pase el cursor para ver el texto completo), su estado por color (rojo si falló, naranja si está reintentando, verde si se resolvió), cuántas veces se ha reintentado, cuándo falló por primera vez y cuándo se reintentó por última vez. Haga clic en una fila para abrir un panel con el error completo y los detalles relacionados.\n\n### Acciones clave\n\n- El **filtro de estado** acota a Todos, Fallidos, Reintentando o Resueltos, y **Actualizar** recarga la lista.\n- **Reintentar** (en una fila fallida) ejecuta la tarea de nuevo, tras confirmar.\n- **Resolver** (en una fila fallida o reintentando) marca el fallo como atendido sin reintentar —útil una vez que ha corregido la causa o ha decidido que no es necesario reintentar.\n\n### Cómo encaja\n\nEstos controles son una herramienta de solución de problemas para administradores. Una acumulación de fallos apunta a un problema con un servicio externo o con algo dentro de Forge que no pudo terminar su trabajo.",
+      "body": "## Automatizaciones — Fallos de eventos\n\nForge hace por su cuenta mucho trabajo de seguimiento en silencio —por ejemplo, una vez que se crea un trabajo o un pedido, pone en marcha el siguiente paso sin que nadie haga clic en un botón. Esta página muestra a los administradores las tareas automáticas que fallaron, para que un tropiezo nunca pase desapercibido.\n\n### Cómo leer la tabla\n\nCada fila es una tarea fallida. Muestra qué la puso en marcha, qué intentaba hacer, un mensaje de error breve (pase el cursor para ver el texto completo), su estado por color (rojo si falló, naranja si está reintentando, verde si se resolvió), cuántas veces se ha reintentado, cuándo falló por primera vez y cuándo se reintentó por última vez. Haga clic en una fila para abrir un panel con el error completo y los detalles relacionados.\n\n### Acciones clave\n\n- El **filtro de estado** acota a Todos, Fallidos, Reintentando o Resueltos, y **Actualizar** recarga la lista.\n- **Reintentar** (en una fila fallida) ejecuta la tarea de nuevo, tras confirmar.\n- **Resolver** (en una fila fallida o reintentando) marca el fallo como atendido sin reintentar —útil una vez que ha corregido la causa o ha decidido que no es necesario reintentar.\n\n### Cómo encaja\n\nEstos controles son una herramienta de solución de problemas para administradores. Una acumulación de fallos apunta a un problema con un servicio externo o con algo dentro de Forge que no pudo terminar su trabajo.",
       "sections": []
     }
   },
@@ -67,7 +67,7 @@
     "title": "Segmentos de clientes",
     "summary": "Vista previa de los segmentos de clientes guardados —conjuntos de filtros nombrados para dirigirse a cohortes de clientes.",
     "contentJson": {
-      "body": "## Segmentos de clientes\n\nLos segmentos de clientes son grupos de clientes guardados —por ejemplo, cuentas aeroespaciales de alto valor, clientes listos para ITAR, cuentas inactivas o aquellas en vigilancia de crédito. Le permiten centrarse en un grupo definido para campañas, contacto o gestión de riesgos.\n\n### Lo que ve hoy\n\nEsta página es una **vista previa** por ahora. Muestra unos pocos segmentos de ejemplo en forma de tarjetas para que pueda ver qué hará la función; crear, editar y eliminar segmentos aún no está disponible. Cada tarjeta de ejemplo muestra un nombre de segmento, una breve descripción, un resumen en lenguaje sencillo de lo que agrupa (como clientes aeroespaciales que deben más de una cantidad establecida) y un recuento aproximado de clientes coincidentes.\n\n### Cómo funciona la agrupación\n\nLos ejemplos agrupan a los clientes por detalles reales —sus marcas de aeroespacial e ITAR, cuánto deben, su límite de crédito y si están en retención de crédito, si sus referencias resultaron bien, si están activos y cuándo hicieron su último pedido. Estos son los mismos detalles que la función terminada le permitirá combinar en sus propios segmentos guardados.\n\n### Cómo encaja\n\nCuando esté terminada, los segmentos le permitirán crear sus propios grupos, guardarlos y gestionarlos, y elegir clientes coincidentes directamente desde la lista de clientes para actuar en masa.",
+      "body": "## Segmentos de clientes\n\nLos segmentos de clientes son grupos de clientes guardados —por ejemplo, cuentas aeroespaciales de alto valor, clientes listos para ITAR, cuentas inactivas o aquellas en vigilancia de crédito. Le permiten centrarse en un grupo definido para campañas, contacto o gestión de riesgos.\n\n### Lo que ve hoy\n\nEsta página es una **vista previa** por ahora. Muestra unos pocos segmentos de ejemplo en forma de tarjetas para que pueda ver qué hará la función; crear, editar y eliminar segmentos aún no está disponible. Cada tarjeta de ejemplo muestra un nombre de segmento, una breve descripción, un resumen en lenguaje sencillo de lo que agrupa (como clientes aeroespaciales que deben más de una cantidad establecida) y un recuento aproximado de clientes coincidentes.\n\n### Cómo funciona la agrupación\n\nLos ejemplos agrupan a los clientes por detalles reales —si están marcados como aeroespacial o ITAR, cuánto deben, su límite de crédito y si están en retención de crédito, si sus referencias resultaron bien, si están activos y cuándo hicieron su último pedido. Estos son los mismos detalles que la función terminada le permitirá combinar en sus propios segmentos guardados.\n\n### Cómo encaja\n\nCuando esté terminada, los segmentos le permitirán crear sus propios grupos, guardarlos y gestionarlos, y elegir clientes coincidentes directamente desde la lista de clientes para actuar en masa.",
       "sections": []
     }
   },
@@ -128,7 +128,7 @@
           "element": "[data-testid='carrier-new-btn']",
           "popover": {
             "title": "Nuevo transportista",
-            "description": "Haga clic aquí para agregar un transportista. Establecerá un nombre, un código opcional, el tipo de conexión (Manual o Api), cómo llegan las actualizaciones de seguimiento (Manual, Poll o Webhook) y si se requiere un escaneo para enviar. Elija Api para tarifas en vivo, etiquetas y seguimiento. Elija Manual cuando solo escriba un número de seguimiento a mano.",
+            "description": "Haga clic aquí para agregar un transportista. Establecerá un nombre, un código opcional, el tipo de Integración (Manual / personalizado o Integración API), cómo llegan las Actualizaciones de entrega (Manual, Sondeo de seguimiento o Webhook) y si se requiere un escaneo de etiqueta antes de que salga un paquete. Elija Integración API para tarifas en vivo, etiquetas y seguimiento. Elija Manual cuando solo escriba un número de seguimiento a mano.",
             "side": "bottom"
           }
         },
@@ -136,7 +136,7 @@
           "element": "app-data-table",
           "popover": {
             "title": "La tabla de transportistas",
-            "description": "Cada transportista es una fila aquí. Verá el nombre, el código, el tipo de conexión, si se requiere escaneo, su estado de acceso y si está activo. Un transportista Api sin datos de acceso muestra una advertencia amarilla —su señal para abrir Credenciales a continuación. Una fila no tiene botón de editar ni de desactivar; los únicos controles por fila son Credenciales y Probar, y aparecen solo en los transportistas Api.",
+            "description": "Cada transportista es una fila aquí. Verá el nombre, el código, el tipo de Integración, si se requiere un escaneo de etiqueta, su estado de acceso y si está activo. Un transportista con Integración API sin datos de acceso muestra una advertencia amarilla —su señal para abrir Credenciales a continuación. Una fila no tiene botón de editar ni de desactivar; los únicos controles por fila son Credenciales y Probar, y aparecen solo en los transportistas con Integración API.",
             "side": "top"
           }
         },
@@ -144,7 +144,7 @@
           "element": "[data-testid='carrier-credentials-btn']",
           "popover": {
             "title": "Introducir credenciales",
-            "description": "En un transportista Api, el icono de llave abre el formulario de acceso: ID de cliente, secreto, un número de cuenta opcional y si está en modo de prueba o en vivo. El secreto se guarda de forma segura y nunca se muestra de vuelta, así que lo vuelve a introducir cada vez que edita. Guárdelo para poner verde el estado de acceso.",
+            "description": "En un transportista con Integración API, el icono de llave abre el formulario de acceso: la clave API o ID de cliente, el secreto, un número de cuenta opcional y si está en modo de prueba o en vivo. El secreto se guarda de forma segura y nunca se muestra de vuelta, así que lo vuelve a introducir cada vez que edita. Guárdelo para poner verde el estado de acceso.",
             "side": "left"
           }
         },
@@ -152,7 +152,7 @@
           "element": "[data-testid='carrier-test-btn']",
           "popover": {
             "title": "Probar la conexión",
-            "description": "El icono de señal comprueba la conexión en vivo con el transportista y le dice si funcionó. Permanece deshabilitado hasta que se guardan los datos de acceso. Déjelo en verde en modo de prueba antes de confiar en el transportista para envíos reales.",
+            "description": "El icono de señal comprueba la conexión en vivo con el transportista y le dice si funcionó. Permanece atenuado hasta que se guardan los datos de acceso. Déjelo en verde en modo de prueba antes de confiar en el transportista para envíos reales.",
             "side": "left"
           }
         }
@@ -162,7 +162,7 @@
   {
     "slug": "carriers-field-reference",
     "title": "Referencia de campos de transportistas",
-    "summary": "Referencia de cada campo, etiqueta y acción en la página de administración de Transportistas, incluyendo Manual frente a Api y las tres opciones de actualización de seguimiento.",
+    "summary": "Referencia de cada campo, etiqueta y acción en la página de administración de Transportistas, incluyendo Manual frente a Integración API y las tres opciones de actualización de entrega.",
     "contentJson": {
       "title": "Referencia de campos de transportistas",
       "groups": [
@@ -171,33 +171,33 @@
           "items": [
             { "label": "Nombre (obligatorio)", "value": "El nombre del transportista, hasta 100 caracteres (p. ej. 'UPS', 'FedEx', 'Mensajería local')." },
             { "label": "Código", "value": "Un código corto opcional, hasta 50 caracteres, usado para reconocer el transportista en listas y documentos." },
-            { "label": "Tipo de conexión (obligatorio)", "value": "Manual o Api. Manual es solo una etiqueta —sin datos de acceso, sin prueba. Api se conecta con el transportista en vivo y agrega el campo de ID de servicio más los botones de Credenciales y Probar. Empieza como Manual." },
-            { "label": "Actualizaciones de seguimiento (obligatorio)", "value": "Manual, Poll o Webhook —cómo se actualiza el estado de seguimiento después de que un envío sale. Empieza como Manual." },
-            { "label": "ID de servicio", "value": "Se muestra solo para transportistas Api. Un ID opcional que enlaza este transportista con la conexión de envío detrás de él. Hasta 50 caracteres." },
-            { "label": "Requiere escaneo para enviar", "value": "Interruptor de encendido/apagado (activado de forma predeterminada). Cuando está activado, un paquete debe escanearse antes de poder marcarse como enviado para este transportista." }
+            { "label": "Integración (obligatorio)", "value": "Manual / personalizado o Integración API. Manual es solo una etiqueta —sin datos de acceso, sin prueba. Integración API se conecta con el transportista en vivo y agrega el campo de ID de servicio más los botones de Credenciales y Probar. Empieza como Manual." },
+            { "label": "Actualizaciones de entrega (obligatorio)", "value": "Manual, Sondeo de seguimiento o Webhook —cómo se actualiza el estado de seguimiento después de que un envío sale. Empieza como Manual." },
+            { "label": "ID de servicio de integración", "value": "Se muestra solo para transportistas con Integración API. Indica qué servicio de transportista en vivo usar (ups, fedex, usps, dhl). Hasta 50 caracteres." },
+            { "label": "Requerir escaneo de etiqueta antes de enviar", "value": "Interruptor de encendido/apagado (activado de forma predeterminada). Cuando está activado, un paquete debe escanearse antes de poder marcarse como enviado para este transportista." }
           ]
         },
         {
-          "heading": "Diálogo de credenciales (solo transportistas Api)",
+          "heading": "Diálogo de credenciales (solo transportistas con Integración API)",
           "items": [
-            { "label": "ID de cliente (obligatorio)", "value": "El ID de cliente o cuenta del transportista, hasta 200 caracteres. No es secreto —se muestra precargado al reabrir el formulario." },
-            { "label": "Secreto (obligatorio)", "value": "La clave secreta del transportista. Se guarda de forma segura y nunca se muestra de vuelta, así que lo vuelve a introducir cada vez que edita." },
+            { "label": "Clave API / ID de cliente (obligatorio)", "value": "La clave o ID de cuenta del transportista, hasta 200 caracteres. No es secreto —se muestra precargado al reabrir el formulario." },
+            { "label": "Secreto API (obligatorio)", "value": "La clave secreta del transportista. Se guarda de forma segura y nunca se muestra de vuelta, así que lo vuelve a introducir cada vez que edita." },
             { "label": "Número de cuenta", "value": "Un número de cuenta del transportista opcional, hasta 50 caracteres." },
-            { "label": "Entorno (obligatorio)", "value": "Modo de prueba o en vivo. Use el modo de prueba para comprobar la conexión sin tocar envíos reales; cambie a en vivo cuando esté listo." }
+            { "label": "Entorno (obligatorio)", "value": "Prueba o en vivo. Use prueba para comprobar la conexión sin tocar envíos reales; cambie a en vivo cuando esté listo." }
           ]
         },
         {
-          "heading": "Tipo de conexión — qué cambia",
+          "heading": "Tipo de integración — qué cambia",
           "items": [
-            { "label": "Manual", "value": "Sin datos de acceso, sin botón de Probar, sin campo de ID de servicio. Sus encargados de envío escriben el número de seguimiento a mano. Use cuando no necesita tarifas ni etiquetas en vivo." },
-            { "label": "Api", "value": "Agrega el campo de ID de servicio al crearlo, más los iconos de llave (Credenciales) y señal (Probar) en la fila. Impulsa la comparación de tarifas en vivo, la creación de etiquetas y el seguimiento automático en la página de Envíos." }
+            { "label": "Manual / personalizado", "value": "Sin datos de acceso, sin botón de Probar, sin campo de ID de servicio. Sus encargados de envío escriben el número de seguimiento a mano. Use cuando no necesita tarifas ni etiquetas en vivo." },
+            { "label": "Integración API", "value": "Agrega el campo de ID de servicio al crearlo, más los iconos de llave (Credenciales) y señal (Probar) en la fila. Impulsa la comparación de tarifas en vivo, la creación de etiquetas y el seguimiento automático en la página de Envíos." }
           ]
         },
         {
-          "heading": "Actualizaciones de seguimiento",
+          "heading": "Actualizaciones de entrega",
           "items": [
-            { "label": "Manual", "value": "Alguien actualiza el estado de seguimiento del envío a mano. El valor predeterminado seguro para un transportista Manual." },
-            { "label": "Poll", "value": "Forge consulta al transportista los últimos eventos de seguimiento cada cierto tiempo y actualiza el estado." },
+            { "label": "Manual", "value": "Alguien actualiza el estado de seguimiento del envío a mano. El valor predeterminado seguro para un transportista manual." },
+            { "label": "Sondeo de seguimiento", "value": "Forge consulta al transportista los últimos eventos de seguimiento cada cierto tiempo y actualiza el estado." },
             { "label": "Webhook", "value": "El transportista envía los cambios de estado a Forge a medida que ocurren —la opción más al día, disponible solo para transportistas que la admiten." }
           ]
         },
@@ -205,19 +205,19 @@
           "heading": "Columnas de la tabla",
           "items": [
             { "label": "Transportista / Código", "value": "Nombre y código corto opcional. Ordene por cualquiera de los dos." },
-            { "label": "Conexión", "value": "Manual o Api." },
-            { "label": "Escaneo", "value": "Un icono de escáner cuando se requiere un escaneo para enviar, de lo contrario un guion." },
-            { "label": "Credenciales", "value": "Una etiqueta verde 'Configurado' cuando existen datos de acceso; una advertencia amarilla 'No configurado' cuando un transportista Api no tiene ninguno; un guion para transportistas Manual." },
+            { "label": "Integración", "value": "Manual / personalizado o Integración API." },
+            { "label": "Escaneo", "value": "Un icono de escáner cuando se requiere un escaneo de etiqueta para enviar, de lo contrario un guion." },
+            { "label": "Credenciales", "value": "Una etiqueta verde 'Configurado' cuando existen datos de acceso; una advertencia amarilla 'No configurado' cuando un transportista API no tiene ninguno; un guion para transportistas manuales." },
             { "label": "Activo", "value": "Muestra si el transportista está activo o inactivo." },
-            { "label": "Acciones", "value": "Los iconos de llave (Credenciales) y señal (Probar) —solo transportistas Api. Probar está deshabilitado hasta que existan datos de acceso. Una fila no tiene botón de editar ni de desactivar." }
+            { "label": "Acciones", "value": "Los iconos de llave (Credenciales) y señal (Probar) —solo transportistas con Integración API. Probar está atenuado hasta que existan datos de acceso. Una fila no tiene botón de editar ni de desactivar." }
           ]
         },
         {
           "heading": "Acciones",
           "items": [
             { "label": "Nuevo transportista", "value": "Abre la ventana de creación." },
-            { "label": "Credenciales (icono de llave)", "value": "Abre el formulario de acceso para un transportista Api." },
-            { "label": "Probar (icono de señal)", "value": "Comprueba la conexión en vivo con el transportista y le dice si funcionó. Deshabilitado hasta que existan datos de acceso." }
+            { "label": "Credenciales (icono de llave)", "value": "Abre el formulario de acceso para un transportista con Integración API." },
+            { "label": "Probar (icono de señal)", "value": "Comprueba la conexión en vivo con el transportista y le dice si funcionó. Atenuado hasta que existan datos de acceso." }
           ]
         }
       ]
@@ -226,7 +226,7 @@
   {
     "slug": "carriers-quiz",
     "title": "Verificación de conocimientos de transportistas",
-    "summary": "Ponga a prueba su conocimiento de la página de administración de Transportistas: Manual frente a Api, credenciales, la prueba de conexión y los modos de actualización de entrega.",
+    "summary": "Ponga a prueba su conocimiento de la página de administración de Transportistas: Manual frente a Integración API, credenciales, la prueba de conexión y los modos de actualización de entrega.",
     "contentJson": {
       "passingScore": 80,
       "questionsPerQuiz": 6,
@@ -235,62 +235,62 @@
       "questions": [
         {
           "id": "ca1",
-          "text": "Agrega un transportista y establece su tipo de conexión en Manual. ¿Qué controles NO verá para ese transportista?",
+          "text": "Agrega un transportista y establece su Integración en Manual / personalizado. ¿Qué controles NO verá para ese transportista?",
           "options": [
             { "id": "a", "text": "Los campos de Nombre y Código" },
             { "id": "b", "text": "Los botones de Credenciales (llave) y Probar (señal), y el campo de ID de servicio", "isCorrect": true },
             { "id": "c", "text": "Si el transportista está activo en la tabla" },
-            { "id": "d", "text": "El ajuste de actualizaciones de seguimiento" }
+            { "id": "d", "text": "El ajuste de Actualizaciones de entrega" }
           ],
-          "explanation": "Un transportista Manual es solo una etiqueta —sus encargados de envío escriben el número de seguimiento a mano. Así que no tiene datos de acceso, ni botón de Probar, ni campo de ID de servicio. Solo los transportistas Api muestran esos, porque se conectan con el transportista en vivo."
+          "explanation": "Un transportista manual es solo una etiqueta —sus encargados de envío escriben el número de seguimiento a mano. Así que no tiene datos de acceso, ni botón de Probar, ni campo de ID de servicio. Solo los transportistas con Integración API muestran esos, porque se conectan con el transportista en vivo."
         },
         {
           "id": "ca2",
-          "text": "Después de guardar un transportista Api con datos de acceso válidos, reabre el formulario de Credenciales. ¿Qué nota sobre el campo de Secreto?",
+          "text": "Después de guardar un transportista con Integración API con datos de acceso válidos, reabre el formulario de Credenciales. ¿Qué nota sobre el campo de Secreto?",
           "options": [
             { "id": "a", "text": "Muestra el secreto guardado para que pueda confirmar que es correcto" },
             { "id": "b", "text": "Está vacío —el secreto se guarda de forma segura y nunca se muestra de vuelta, así que debe volver a introducirlo para guardar de nuevo", "isCorrect": true },
             { "id": "c", "text": "Está bloqueado y no se puede cambiar" },
             { "id": "d", "text": "Muestra los primeros y últimos cuatro caracteres como una vista previa enmascarada" }
           ],
-          "explanation": "El secreto nunca se muestra de vuelta. Se guarda de forma segura, así que el formulario rellena el ID de cliente y el entorno, pero deja el secreto en blanco. Vuelve a introducir el secreto cada vez que edita los datos de acceso."
+          "explanation": "El secreto nunca se muestra de vuelta. Se guarda de forma segura, así que el formulario rellena la clave API y el entorno, pero deja el secreto en blanco. Vuelve a introducir el secreto cada vez que edita los datos de acceso."
         },
         {
           "id": "ca3",
           "text": "El botón Probar (señal) está atenuado en una fila de transportista. ¿Por qué?",
           "options": [
-            { "id": "a", "text": "El transportista está configurado como Manual, o es un transportista Api sin datos de acceso guardados todavía", "isCorrect": true },
+            { "id": "a", "text": "El transportista está configurado como Manual / personalizado, o es un transportista con Integración API sin datos de acceso guardados todavía", "isCorrect": true },
             { "id": "b", "text": "Su rol no puede probar transportistas" },
             { "id": "c", "text": "La función de Envíos está desactivada" },
             { "id": "d", "text": "El transportista ya se probó una vez y no se puede volver a probar" }
           ],
-          "explanation": "Probar solo aparece en los transportistas Api, y permanece deshabilitado hasta que existan datos de acceso. Si no lo ve en absoluto, el transportista es Manual; si está ahí pero atenuado, guarde primero los datos de acceso. La prueba comprueba una conexión en vivo con el transportista."
+          "explanation": "Probar solo aparece en los transportistas con Integración API, y permanece atenuado hasta que existan datos de acceso. Si no lo ve en absoluto, el transportista es manual; si está ahí pero atenuado, guarde primero los datos de acceso. La prueba comprueba una conexión en vivo con el transportista."
         },
         {
           "id": "ca4",
-          "text": "Quiere que el estado de seguimiento de un transportista se actualice en el momento en que el transportista informa de un escaneo, sin que Forge tenga que seguir preguntando. ¿Qué opción de actualizaciones de seguimiento hace esto?",
+          "text": "Quiere que el estado de seguimiento de un transportista se actualice en el momento en que el transportista informa de un escaneo, sin que Forge tenga que seguir preguntando. ¿Qué opción de Actualizaciones de entrega hace esto?",
           "options": [
             { "id": "a", "text": "Manual" },
-            { "id": "b", "text": "Poll" },
+            { "id": "b", "text": "Sondeo de seguimiento" },
             { "id": "c", "text": "Webhook", "isCorrect": true },
             { "id": "d", "text": "Auto" }
           ],
-          "explanation": "Webhook significa que el transportista envía los cambios de estado a Forge a medida que ocurren —la opción más al día. Poll significa que Forge consulta al transportista para obtener actualizaciones cada cierto tiempo. Manual significa que alguien actualiza el estado a mano. Webhook funciona solo para transportistas que lo admiten."
+          "explanation": "Webhook significa que el transportista envía los cambios de estado a Forge a medida que ocurren —la opción más al día. Sondeo de seguimiento significa que Forge consulta al transportista para obtener actualizaciones cada cierto tiempo. Manual significa que alguien actualiza el estado a mano. Webhook funciona solo para transportistas que lo admiten."
         },
         {
           "id": "ca5",
           "text": "Necesita renombrar un transportista y cambiar cómo llegan sus actualizaciones de seguimiento. ¿Qué le permite hacer la tabla de Transportistas?",
           "options": [
             { "id": "a", "text": "Hacer clic en el lápiz de editar de la fila para cambiar cualquier campo" },
-            { "id": "b", "text": "No hay botón de editar ni de desactivar —los únicos controles por fila son Credenciales y Probar (solo transportistas Api)", "isCorrect": true },
+            { "id": "b", "text": "No hay botón de editar ni de desactivar —los únicos controles por fila son Credenciales y Probar (solo transportistas con Integración API)", "isCorrect": true },
             { "id": "c", "text": "Hacer doble clic en la celda para editarla en el sitio" },
             { "id": "d", "text": "Arrastrar la fila a un área de 'Cambios pendientes'" }
           ],
-          "explanation": "La tabla de Transportistas se mantiene sencilla a propósito. Una fila muestra solo Credenciales y Probar, y esos aparecen en los transportistas Api. No hay edición en el sitio ni desactivación, así que planifique el nombre, el código y el tipo antes de guardar."
+          "explanation": "La tabla de Transportistas se mantiene sencilla a propósito. Una fila muestra solo Credenciales y Probar, y esos aparecen en los transportistas con Integración API. No hay edición en el sitio ni desactivación, así que planifique el nombre, el código y el tipo antes de guardar."
         },
         {
           "id": "ca6",
-          "text": "Antes de confiar en un nuevo transportista Api para envíos reales, ¿cuál es el orden recomendado?",
+          "text": "Antes de confiar en un nuevo transportista con Integración API para envíos reales, ¿cuál es el orden recomendado?",
           "options": [
             { "id": "a", "text": "Guardar el transportista en modo en vivo y enviar un paquete real para confirmar" },
             { "id": "b", "text": "Crear el transportista, guardar los datos de acceso en modo de prueba, ejecutar Probar hasta que pase, luego cambiar a en vivo", "isCorrect": true },
@@ -314,7 +314,7 @@
   {
     "slug": "sales-tax-field-reference",
     "title": "Referencia de campos de impuesto sobre las ventas",
-    "summary": "Referencia de cada campo, columna y acción en la pestaña de administración de Impuesto sobre las ventas, incluyendo Exenta y Cuenta contable de registro.",
+    "summary": "Referencia de cada campo, columna y acción en la pestaña de administración de Impuesto sobre las ventas, incluyendo el interruptor de Exenta y la Cuenta de registro.",
     "contentJson": {
       "title": "Referencia de campos de impuesto sobre las ventas",
       "groups": [
@@ -379,7 +379,7 @@
     "title": "Sistema de capacidades; Integraciones de transportistas; Impuesto sobre ventas y monedas — Referencia avanzada",
     "summary": "Notas de casos límite y de usuario avanzado para el sistema de capacidades, las integraciones de transportistas y las superficies de administración de impuesto sobre ventas y monedas.",
     "contentJson": {
-      "body": "## Sistema de capacidades\n\nCasos límite y notas de administrador más allá de lo básico de explorar y activar o desactivar.\n\n- **Historial y motivos.** Cada cambio —activar o desactivar una función, editar sus ajustes o aplicar un preajuste o un resultado de descubrimiento— puede llevar un motivo opcional que se guarda con él. Cada función tiene su propio historial, y hay una página de historial con todos ellos. Cada entrada registra el antes y el después, quién lo hizo (o 'sistema'), qué ocurrió, cuándo y el motivo cuando se dio uno.\n- **Dos administradores a la vez.** Si otra persona cambia una función mientras usted la tiene abierta, guardar su cambio se bloquea para que no la sobrescriba sin saberlo. Vuelva a cargar la fila e inténtelo de nuevo.\n- **Dependencias y conflictos.** Activar una función a la que le falta algo que necesita, desactivar una de la que dependen otras, o activar dos funciones que entran en conflicto se rechaza con un mensaje claro. Cuando activa o desactiva varias a la vez, es todo o nada —si una sola infringe una regla, se rechaza todo el lote.\n- **Conflicto de contabilidad.** El único conflicto integrado es entre la contabilidad integrada y la contabilidad externa —solo una puede estar activa. Active una mientras la otra está activa y se rechaza; desactive primero la otra. La contabilidad completa con libro mayor aparece en la lista pero aún no está disponible; intentar activarla le indica que no está lista.\n- **Descubrimiento y saltar a la recomendación.** Descubrimiento recuerda su lugar a medida que responde, así que el botón de atrás del navegador funciona, y muestra una recomendación de tendencia en vivo con un nivel de confianza. La pantalla final le permite saltar directamente al preajuste recomendado o elegir una alternativa; **Omitir descubrimiento** lo deja en la lista de Capacidades para configurar a mano.\n- **Comparar preajustes.** En el explorador de Preajustes, el modo Comparar le permite elegir de dos a cuatro preajustes (Personalizada queda fuera) y los muestra lado a lado antes de confirmar. El modo consultor muestra el código interno de cada función en toda la lista, las páginas de detalle y las relaciones.\n\n## Integraciones de transportistas\n\nCampos adicionales y notas de ciclo de vida para la página de Transportistas (disponible para Admin, Manager y Office Manager cuando los envíos están activados).\n\n- **ID de servicio y código del transportista.** Al crear un transportista, puede establecer un ID de servicio (que enlaza el transportista con la conexión de envío detrás de él) y su código estándar de transportista, junto con el nombre, el código, el tipo de conexión, el ajuste de actualizaciones de seguimiento y si se requiere un escaneo para enviar. El campo de ID de servicio solo aparece para transportistas Api.\n- **Requiere escaneo para enviar.** Está activado de forma predeterminada y se aplica en la página de Envíos —un paquete debe escanearse antes de poder marcarse como enviado para ese transportista. Se establece por transportista al crearlo.\n- **Número de cuenta.** El formulario de acceso toma un ID de cliente, un secreto, un número de cuenta opcional y si está en modo de prueba o en vivo. Algunos transportistas necesitan el número de cuenta para tarifas y etiquetas; el secreto se guarda de forma segura y nunca se muestra de vuelta.\n- **Pasar del modo de prueba a en vivo.** Configure las cosas en modo de prueba, ejecute la prueba de conexión hasta que pase, luego vuelva a guardar los datos de acceso cambiados a en vivo. Pasar a en vivo es solo volver a guardar los datos de acceso, no un paso separado.\n- **Activo frente a inactivo.** Los transportistas inactivos están ocultos de forma predeterminada. No hay botón de editar ni de desactivar por fila en la tabla. Si un transportista está activo alimenta la comparación de tarifas, la creación de etiquetas y el seguimiento.\n\n## Impuesto sobre ventas y monedas\n\nReglas, acceso y notas sobre el origen de los tipos para las páginas de administración de impuestos y monedas.\n\n- **Reglas y acceso del impuesto sobre ventas.** Cualquiera que haya iniciado sesión puede ver las tasas; los Admin y los Manager pueden crear y editar; solo los Admin pueden eliminar. Una tasa necesita un nombre (hasta 100 caracteres) y un código (hasta 20), la cuenta de registro admite hasta 100 caracteres, y la tasa debe estar entre 0 y 100 por ciento aunque se almacene como una fracción entre bastidores. Cada código debe ser único.\n- **Acceso a monedas.** Tanto la página de monedas como los tipos de cambio son solo para Admin. Cada moneda lleva un código, nombre, símbolo, decimales (el yen usa 0, la mayoría usa 2), si es la moneda base, si está activa y su orden de aparición. La moneda base proviene de un ajuste del sistema y se guarda en caché brevemente.\n- **Convertir montos.** Hay una herramienta de conversión que toma una moneda de origen, una de destino, un monto y una fecha. Por ahora, la conversión de monedas es un marcador de posición: devuelve el monto sin cambios y trata cada tipo como 1.0 hasta que se agregue un proveedor de tipos real. Los tipos almacenados anotan de dónde vinieron —introducidos a mano, de un proveedor o de un banco— y los tipos que usted introduce siempre se marcan como introducidos a mano.\n- **Conversiones de la misma moneda.** Convertir una moneda a sí misma siempre usa un tipo de 1.0 y devuelve el monto sin cambios, así que es una operación segura sin efecto en lugar de un error.\n- **Filtrar el historial.** Puede filtrar el historial de tipos por la moneda de origen, la de destino y un rango de fechas, y muestra el más reciente primero. El historial conserva cada tipo: establecer un tipo para un par en una fecha que ya tiene actualiza esa entrada, pero una nueva fecha agrega una entrada fresca que reemplaza a la anterior, así que los tipos pasados quedan registrados.",
+      "body": "## Sistema de capacidades\n\nNotas más profundas para un administrador que configura y mantiene qué funciones están activadas, más allá de lo básico de explorar y activar o desactivar.\n\n- **Historial y motivos.** Cada cambio —activar o desactivar una función, editar sus ajustes o aplicar un preajuste o un resultado de descubrimiento— puede llevar un motivo opcional que se guarda con él. Cada función tiene su propio historial, y hay una página de historial con todos ellos. Cada entrada registra el antes y el después, quién lo hizo (o 'sistema'), qué ocurrió, cuándo y el motivo cuando se dio uno. Es su registro de auditoría cuando alguien pregunta por qué una función está como está.\n- **Dos administradores a la vez.** Si otra persona cambia una función mientras usted la tiene abierta, guardar su cambio se bloquea para que no la sobrescriba sin saberlo. Vuelva a cargar la fila e inténtelo de nuevo.\n- **Dependencias y conflictos.** Activar una función a la que le falta algo que necesita, desactivar una de la que dependen otras, o activar dos funciones que entran en conflicto se rechaza con un mensaje claro. Cuando activa o desactiva varias a la vez, es todo o nada —si una sola infringe una regla, se rechaza todo el lote, así que nunca queda a medias.\n- **Conflicto de contabilidad.** El único conflicto integrado es entre la contabilidad integrada y la contabilidad externa —solo una puede estar activa. Active una mientras la otra está activa y se rechaza; desactive primero la otra. La contabilidad completa con libro mayor aparece en la lista pero aún no está disponible; intentar activarla le indica que no está lista.\n- **Descubrimiento y saltar a la recomendación.** Descubrimiento recuerda su lugar a medida que responde, así que el botón de atrás del navegador funciona, y muestra una recomendación de tendencia en vivo con un nivel de confianza. La pantalla final le permite saltar directamente al preajuste recomendado o elegir una alternativa; **Omitir descubrimiento** lo deja en la lista de Capacidades para configurar a mano.\n- **Comparar preajustes.** En el explorador de Preajustes, el modo Comparar le permite elegir de dos a cuatro preajustes (Personalizada queda fuera) y los muestra lado a lado antes de confirmar. El modo consultor muestra el código corto de cada función en toda la lista, las páginas de detalle y las relaciones —útil cuando un consultor está cruzando referencias con usted.\n\n## Integraciones de transportistas\n\nNotas más profundas de campos y configuración para el equipo de envío y recepción que gestiona la página de Transportistas (Admin, Manager y Office Manager pueden acceder una vez que los envíos están activados).\n\n- **ID de servicio y código del transportista.** Al crear un transportista, puede establecer un ID de servicio de integración (que indica qué servicio de transportista en vivo usar —ups, fedex, usps, dhl) y su código estándar de transportista, junto con el nombre, el código, el tipo de Integración, el ajuste de Actualizaciones de entrega y si se requiere un escaneo de etiqueta para enviar. El campo de ID de servicio solo aparece para transportistas con Integración API.\n- **Requerir escaneo de etiqueta antes de enviar.** Está activado de forma predeterminada y se aplica en la página de Envíos —un paquete debe escanearse antes de poder marcarse como enviado para ese transportista. Se establece por transportista al crearlo, así que puede eximir a una mensajería donde un escaneo no tiene sentido.\n- **Número de cuenta.** El formulario de acceso toma la clave API o ID de cliente, el secreto, un número de cuenta opcional y si está en modo de prueba o en vivo. Algunos transportistas necesitan el número de cuenta para tarifas y etiquetas; el secreto se guarda de forma segura y nunca se muestra de vuelta.\n- **Pasar de prueba a en vivo.** Configure las cosas en prueba, ejecute la prueba de conexión hasta que pase, luego vuelva a guardar los datos de acceso cambiados a en vivo. Pasar a en vivo es solo volver a guardar los datos de acceso, no un paso separado.\n- **Activo frente a inactivo.** Los transportistas inactivos están ocultos de forma predeterminada. No hay botón de editar ni de desactivar por fila en la tabla. Si un transportista está activo alimenta la comparación de tarifas, la impresión de etiquetas y el seguimiento.\n\n## Impuesto sobre ventas y monedas\n\nReglas, acceso y notas sobre el origen de los tipos para el equipo de oficina que mantiene las páginas de administración de impuestos y monedas.\n\n- **Reglas y acceso del impuesto sobre ventas.** Cualquiera que haya iniciado sesión puede ver las tasas; los Admin y los Manager pueden crear y editar; solo los Admin pueden eliminar. Una tasa necesita un nombre (hasta 100 caracteres) y un código (hasta 20), la cuenta de registro admite hasta 100 caracteres, y la tasa debe estar entre 0 y 100 por ciento. Cada código debe ser único, así que no puede crear por error dos tasas con el mismo identificador.\n- **Acceso a monedas.** Tanto la página de monedas como los tipos de cambio son solo para Admin. Cada moneda lleva un código, nombre, símbolo, decimales (el yen usa 0, la mayoría usa 2), si es la moneda base, si está activa y su orden de aparición. La moneda base es aquella contra la que se reporta todo lo demás.\n- **Convertir montos.** Hay una herramienta de conversión que toma una moneda de origen, una de destino, un monto y una fecha. Por ahora la herramienta devuelve el monto sin cambios —la conversión real basada en tipos llega cuando se conecta una fuente de tipos en vivo. Los tipos almacenados anotan de dónde vinieron —introducidos a mano, de un proveedor o de un banco— y los tipos que usted introduce siempre se marcan como introducidos a mano.\n- **Conversiones de la misma moneda.** Convertir una moneda a sí misma siempre devuelve el monto sin cambios, así que siempre es seguro hacerlo.\n- **Filtrar el historial.** Puede filtrar el historial de tipos por la moneda de origen, la de destino y un rango de fechas, y muestra el más reciente primero. El historial conserva cada tipo: establecer un tipo para un par en una fecha que ya tiene actualiza esa entrada, pero una nueva fecha agrega una entrada fresca que reemplaza a la anterior, así que los tipos pasados quedan registrados.",
       "sections": []
     }
   }

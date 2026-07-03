@@ -2,9 +2,9 @@
   {
     "slug": "time-tracking-overview",
     "title": "Visión general del Registro de tiempo",
-    "summary": "Qué hace el registro de tiempo, cómo funcionan los temporizadores y las entradas manuales, los eventos de reloj, la vinculación a trabajos, y cómo los datos de tiempo se conectan con la nómina y el costeo.",
+    "summary": "Cómo registra cómo emplea sus horas de trabajo —qué trabajos hizo, por cuánto tiempo y en qué—, y cómo esas horas se convierten en el costo del trabajo y en su pago.",
     "contentJson": {
-      "body": "## Visión general del Registro de tiempo\n\nEl módulo de Registro de tiempo registra cómo los empleados emplean sus horas de trabajo. Admite dos métodos para capturar el tiempo —temporizadores en vivo y entradas manuales— y se integra con los eventos de reloj, los trabajos, la nómina y la contabilidad de costos.\n\n### Dos formas de registrar el tiempo\n\n**Temporizadores en vivo:** Haga clic en Iniciar temporizador para comenzar a registrar el tiempo en tiempo real. El temporizador corre hasta que hace clic en Detener temporizador. La duración transcurrida se calcula automáticamente a partir de las marcas de tiempo de inicio y fin. Los temporizadores se sincronizan entre pestañas del navegador y dispositivos en tiempo real —si inicia un temporizador en su teléfono, su computadora de escritorio lo muestra corriendo de inmediato.\n\n**Entradas manuales:** Haga clic en Entrada manual para registrar el tiempo después del hecho. Introduce la fecha, las horas, los minutos, una categoría opcional y notas opcionales. Las entradas manuales se marcan con un icono de lápiz en la tabla para distinguirlas de las entradas basadas en temporizador.\n\n### Categorías\n\nCada entrada de tiempo (temporizador o manual) puede etiquetarse con una categoría:\n- **Producción** — trabajo de producción directa en un trabajo\n- **Preparación** — preparación de máquina, cambios de herramental, preparación de dispositivos\n- **Inspección** — controles de calidad, mediciones, inspección de primera pieza\n- **Mantenimiento** — mantenimiento de equipos, limpieza, calibración\n- **Capacitación** — aprendizaje, incorporación, desarrollo de habilidades\n- **Reunión** — reuniones de equipo, sesiones de planificación, reuniones diarias\n- **Administración** — papeleo, correos electrónicos, tareas administrativas\n- **Limpieza** — limpieza de fin de turno, organización\n- **Otro** — cualquier cosa que no encaje en lo anterior\n\nLas categorías son opcionales pero recomendadas —alimentan los informes y ayudan a los gerentes a comprender cómo se distribuye el tiempo entre las actividades.\n\n### Eventos de reloj\n\nLos eventos de reloj son distintos de las entradas de tiempo. Registran cuándo un empleado entra o sale de las instalaciones usando una credencial RFID, un escaneo de código de barras o una entrada manual en el quiosco del taller. Los eventos de reloj registran:\n- **Tipo de evento** — entrada, salida, inicio de descanso, fin de descanso (impulsado por datos de referencia)\n- **Marca de tiempo** — cuándo ocurrió el evento\n- **Método de escaneo** — cómo se identificó el empleado (RFID, código de barras, manual)\n- **Origen** — qué dispositivo o quiosco registró el evento\n- **Motivo** — nota opcional (p. ej., 'salida anticipada — cita')\n\nLos eventos de reloj establecen la presencia del empleado en el sitio. Las entradas de tiempo registran en qué trabajaron durante esa presencia.\n\n### Vinculación a trabajos\n\nLas entradas de tiempo pueden vincularse a un trabajo específico. Cuando se inicia un temporizador desde el panel de detalle de un trabajo en el tablero kanban, la asociación al trabajo se establece automáticamente. Esto conecta el tiempo directamente con el costeo de trabajos —el costo de mano de obra de cada entrada se calcula a partir de la tarifa del empleado y se aplica al consolidado de costos del trabajo.\n\n### Filtrado por rango de fechas\n\nLa página de registro de tiempo tiene selectores de fecha Desde y Hasta que filtran la tabla de entradas. Una línea de resumen muestra el total de horas y el número de entradas para el filtro actual. Cuando no se establecen fechas, se muestran las entradas recientes.\n\n### Bloqueo y editabilidad\n\nLas entradas de tiempo pueden bloquearse por un gerente o por el cierre del período de pago. Las entradas bloqueadas muestran un icono de candado y no pueden editarse ni eliminarse. Las entradas no bloqueadas de hoy o de fechas futuras pueden eliminarse; las entradas pasadas requieren una corrección de tiempo de administrador (que crea un rastro de auditoría).\n\n### Correcciones de tiempo de administrador\n\nLos gerentes y administradores pueden corregir entradas de tiempo mediante la página Administración > Correcciones de tiempo. Las correcciones requieren un motivo y se guardan en un rastro de auditoría que conserva los valores originales. Los campos que pueden corregirse incluyen fecha, duración, horas de inicio/fin, categoría, notas y asignación de trabajo.\n\n### Períodos de pago y horas extra\n\nLas entradas de tiempo se consolidan en períodos de pago (semanal, quincenal, bimensual o mensual —configurable en la configuración de administración). Cuando un período de pago se bloquea, todas las entradas dentro de ese período pasan a ser de solo lectura. Pueden configurarse reglas de horas extra (p. ej., >40 horas/semana = 1.5x) y el sistema calcula los desgloses de horas extra por empleado por semana.\n\n### Sincronización en tiempo real\n\nLos eventos de inicio y detención del temporizador se sincronizan al instante. Si hay dos pestañas del navegador abiertas, iniciar un temporizador en una pestaña actualiza la visualización de la otra pestaña de inmediato. El botón en la parte superior de la página alterna entre Iniciar temporizador y Detener temporizador según si hay un temporizador activo en ese momento.\n\n### Conexión con la nómina\n\nLas entradas de tiempo alimentan los cálculos de nómina. El costo de mano de obra de cada entrada se calcula a partir de la tarifa por hora del empleado multiplicada por la duración. El costo de gastos generales se rastrea por separado. Cuando la integración con QuickBooks está activa, las entradas de tiempo pueden sincronizarse con el sistema contable como actividades de tiempo.",
+      "body": "## Visión general del Registro de tiempo\n\nEl Registro de tiempo anota cómo emplea sus horas de trabajo —en qué trabajos trabajó, por cuánto tiempo y haciendo qué tipo de tarea. Ese tiempo se convierte en el costo de mano de obra de cada trabajo y en las horas de su recibo de pago, así que registrarlo bien le importa a usted y al taller.\n\n### Dos formas de registrar el tiempo\n\n**Temporizador en vivo:** Haga clic en Iniciar temporizador cuando empiece una tarea, y en Detener temporizador cuando termine. La página cuenta los minutos por usted. Úselo cuando esté haciendo la tarea en ese momento —es lo más exacto porque no está adivinando.\n\n**Entrada manual:** Haga clic en Entrada manual para anotar tiempo que ya trabajó. Introduzca la fecha, las horas, los minutos, una categoría y una nota. Úselo cuando olvidó iniciar un temporizador o está registrando el trabajo de ayer. Las entradas manuales muestran un icono de lápiz para que todos las distingan de las cronometradas.\n\n### Categorías\n\nEtiquete cada entrada con el tipo de trabajo que hizo. Esto permite que la oficina vea a dónde van las horas —cuánto es producción real frente a preparación, inspección o reuniones.\n- **Producción** — trabajo directo fabricando la pieza en un trabajo\n- **Preparación** — preparación de máquina, cambios de herramental, preparación de dispositivos\n- **Inspección** — controles de calidad, mediciones, inspección de primera pieza\n- **Mantenimiento** — cuidado de equipos, limpieza, calibración\n- **Capacitación** — aprender un trabajo o habilidad nueva, incorporación\n- **Reunión** — reuniones de equipo, planificación, reuniones de turno\n- **Administración** — papeleo, correos electrónicos, tareas de oficina\n- **Limpieza** — limpieza de fin de turno, organización\n- **Otro** — cualquier cosa que no encaje arriba\n\nLas categorías son opcionales, pero elegir una hace los informes mucho más útiles. Déjela en blanco solo cuando nada encaje.\n\n### Fichar la entrada y la salida frente al tiempo por trabajo\n\nFichar la entrada y la salida es distinto del tiempo por trabajo. Ficha la entrada cuando llega y la salida cuando se va —normalmente en el quiosco del taller, escaneando su credencial e introduciendo su PIN. Eso indica cuándo estuvo en el sitio. Las entradas de tiempo por trabajo indican en qué trabajó mientras estuvo aquí. La oficina necesita ambas: una muestra que estuvo presente, la otra muestra qué obtuvo el taller de esa presencia.\n\n### Vincular el tiempo a un trabajo\n\nLa mayor parte de su tiempo debería estar ligada a un trabajo para que su costo caiga donde corresponde. La forma fácil: inicie el temporizador desde la tarjeta del trabajo en el tablero del taller —vincula el trabajo por usted, sin escribir. Una vez vinculado, el número de ese trabajo aparece en la entrada y el costo de mano de obra se suma al total de ese trabajo.\n\n### Encontrar sus entradas por fecha\n\nUse los selectores de fecha Desde y Hasta para acotar la lista —un día, una semana o todo un período de pago. Una línea de resumen le indica el total de horas y cuántas entradas coinciden. Sin fechas establecidas, ve sus entradas recientes.\n\n### Cuándo se bloquea una entrada\n\nUna entrada se puede editar mientras es reciente. Una vez que un gerente la bloquea, o el período de pago en que cae se cierra, muestra un icono de candado y ya no puede cambiarse ni eliminarse en esta página. Todavía puede eliminar una entrada no bloqueada de hoy o de una fecha futura; una entrada pasada que esté mal tiene que pasar por una corrección de tiempo (más abajo).\n\n### Corregir una entrada pasada\n\n¿Tiene la duración o el trabajo equivocado en una entrada de la semana pasada? Un gerente o administrador la corrige en Administración > Correcciones de tiempo. Introduce lo que debería decir y un motivo del cambio. El original se conserva, así que siempre hay un rastro claro de qué cambió y por qué. Por eso no puede editar en silencio el tiempo viejo —la corrección mantiene a todos honestos.\n\n### Períodos de pago y horas extra\n\nSus entradas se consolidan en un período de pago —semanal, cada dos semanas, dos veces al mes o mensual, según lo que use su taller. Cuando la oficina cierra un período, sus entradas se congelan para que el cálculo del pago no se mueva. Si su taller paga horas extra (por ejemplo, más de 40 horas en una semana a tiempo y medio), el sistema separa sus horas regulares y las extra por usted.\n\n### El botón cambia\n\nEl botón en la parte superior de la página es Iniciar temporizador cuando no hay nada corriendo, y cambia a Detener temporizador (mostrando el tiempo hasta ahora) una vez que un temporizador está en marcha. Así, un vistazo le dice si está cronometrando una tarea en este momento.\n\n### A dónde van las horas\n\nLas horas de cada entrada por su tarifa de pago se convierten en el costo de mano de obra del trabajo —así el taller sabe cuánto costó realmente construir cada trabajo. Esas mismas horas alimentan su recibo de pago. Tiempo exacto que entra, costos y pago exactos que salen.",
       "sections": []
     }
   },
@@ -241,7 +241,7 @@
             },
             {
               "label": "Manual o cronometrado",
-              "value": "Indica si el tiempo se escribió o se registró en vivo. Determina la etiqueta Temporizador/Manual."
+              "value": "Si el tiempo se escribió o se registró en vivo con un temporizador. Esto es lo que muestra la etiqueta Temporizador/Manual."
             },
             {
               "label": "Bloqueado",
@@ -261,11 +261,11 @@
             },
             {
               "label": "Costo de gastos generales",
-              "value": "La parte de gastos generales que se agrega a la mano de obra de esta entrada."
+              "value": "La parte de gastos generales del taller que se agrega a la mano de obra de esta entrada, para que el trabajo cargue con su parte justa de los costos fijos."
             },
             {
-              "label": "Vínculo contable",
-              "value": "El registro correspondiente en QuickBooks una vez que la entrada se sincroniza. En blanco hasta entonces."
+              "label": "Enviado a contabilidad",
+              "value": "Si la oficina ya pasó las horas de esta entrada a su sistema contable. En blanco hasta que cruza; después de eso, los cambios corresponden a contabilidad."
             }
           ]
         },
@@ -373,27 +373,27 @@
           ]
         },
         {
-          "heading": "Actualizaciones en vivo",
+          "heading": "Bueno saberlo",
           "items": [
             {
-              "label": "Sincronización instantánea",
-              "value": "Iniciar o detener un temporizador actualiza la página de inmediato, sin recargar."
+              "label": "No hace falta recargar",
+              "value": "Inicie o detenga un temporizador y la página se actualiza sola —nunca tiene que recargar para ver su nueva entrada."
             },
             {
-              "label": "Cuando inicia un temporizador",
-              "value": "En cuanto inicia cualquiera de sus temporizadores, la lista se actualiza para estar al día."
+              "label": "La lista se mantiene al día",
+              "value": "Cuando inicia un temporizador, aparece en la lista de inmediato; cuando lo detiene, se muestra el tiempo terminado. Lo que ve siempre está al día."
             },
             {
-              "label": "Cuando se detiene un temporizador",
-              "value": "En cuanto se detiene cualquiera de sus temporizadores, la lista se actualiza para estar al día."
+              "label": "Un temporizador a la vez",
+              "value": "Solo puede tener un temporizador en curso. Detenga el que está usando antes de iniciar otro, para que sus horas no se traslapen."
             },
             {
-              "label": "Cambio de botón",
-              "value": "El botón de arriba alterna entre Iniciar temporizador y Detener temporizador según si tiene un temporizador en curso."
+              "label": "El botón indica su estado",
+              "value": "El botón de arriba dice Iniciar temporizador cuando no está cronometrando una tarea, y Detener temporizador cuando hay un temporizador en curso —una forma rápida de saber si está cronometrando en este momento."
             },
             {
-              "label": "Entre dispositivos",
-              "value": "Inicie o detenga un temporizador en un dispositivo y aparece en sus otras pestañas y dispositivos abiertos en segundos."
+              "label": "Continúe en cualquier dispositivo",
+              "value": "Inicie un temporizador en el quiosco y sigue corriendo cuando abre la página en otra pantalla. Su temporizador en curso lo acompaña, así no inicia un segundo por accidente."
             }
           ]
         }
@@ -403,7 +403,7 @@
   {
     "slug": "time-tracking-quiz",
     "title": "Evaluación de conocimientos del Registro de tiempo",
-    "summary": "Ponga a prueba sus conocimientos sobre el registro de tiempo: temporizadores, entradas manuales, eventos de reloj, vinculación a trabajos, bloqueo, correcciones y sincronización en tiempo real.",
+    "summary": "Ponga a prueba sus conocimientos sobre el registro de tiempo: temporizadores, entradas manuales, fichar la entrada y la salida, vincular el tiempo a un trabajo, entradas bloqueadas, correcciones y encontrar sus horas.",
     "contentJson": {
       "passingScore": 80,
       "questionsPerQuiz": 8,
@@ -456,7 +456,7 @@
               "text": "Navegar a Administración > Registro de tiempo > Temporizadores activos"
             }
           ],
-          "explanation": "El botón Iniciar temporizador en el encabezado de la página cambia dinámicamente a un botón Detener temporizador (con el tiempo transcurrido mostrado) siempre que hay un temporizador en curso. Haga clic en él para abrir el cuadro de diálogo de detención."
+          "explanation": "El mismo botón en la parte superior de la página dice Iniciar temporizador cuando no hay nada corriendo y se convierte en Detener temporizador (mostrando el tiempo hasta ahora) una vez que un temporizador está en marcha. Haga clic en él para detener y guardar su entrada —no hace falta buscar el temporizador en la lista."
         },
         {
           "id": "tt3",
@@ -497,14 +497,14 @@
             },
             {
               "id": "c",
-              "text": "La entrada se ha sincronizado con QuickBooks y está esperando confirmación"
+              "text": "La entrada ya se pagó y nunca podrá volver a verse"
             },
             {
               "id": "d",
               "text": "La entrada pertenece a otro usuario y no tiene permiso para eliminarla"
             }
           ],
-          "explanation": "El icono de candado aparece cuando una entrada está bloqueada (por un gerente o por el cierre del período de pago) o cuando es una entrada de fecha pasada. Solo pueden eliminarse directamente las entradas no bloqueadas de hoy o futuras. Las entradas pasadas requieren una corrección de tiempo de administrador."
+          "explanation": "El icono de candado aparece cuando una entrada está bloqueada (por un gerente o por el cierre del período de pago) o cuando es una entrada de fecha pasada. Solo pueden eliminarse directamente las entradas no bloqueadas de hoy o futuras. Las entradas pasadas requieren una corrección de tiempo de administrador para que el cambio deje un rastro."
         },
         {
           "id": "tt5",
@@ -540,7 +540,7 @@
             },
             {
               "id": "b",
-              "text": "El temporizador sigue corriendo porque la hora de inicio se guarda en el servidor; el tiempo transcurrido se calcula a partir de esa hora de inicio guardada",
+              "text": "El temporizador sigue corriendo —sigue contando desde que hizo clic en Iniciar, pase lo que pase con su pantalla",
               "isCorrect": true
             },
             {
@@ -552,7 +552,7 @@
               "text": "El temporizador se detiene automáticamente y se crea una entrada manual para el tiempo transcurrido"
             }
           ],
-          "explanation": "Los temporizadores viven en el servidor. La hora de inicio se guarda cuando hace clic en Iniciar, y la duración se calcula a partir de esa hora cuando se detiene. Cerrar el navegador no afecta el temporizador en curso —continúa rastreando desde la hora de inicio guardada."
+          "explanation": "Un temporizador en curso no está atado a su pantalla. Sigue contando desde el momento en que hizo clic en Iniciar, así que cerrar el navegador, un corte de luz o alejarse no lo detiene. Vuelva a abrir la página y lo verá aún corriendo con el tiempo transcurrido correcto. Solo recuerde detenerlo cuando termine la tarea."
         },
         {
           "id": "tt7",
@@ -564,7 +564,7 @@
             },
             {
               "id": "b",
-              "text": "Sí —los cambios del temporizador se sincronizan en tiempo real con todos los dispositivos donde tiene la sesión iniciada",
+              "text": "Sí —su temporizador en curso aparece en todos los dispositivos donde tiene la sesión iniciada",
               "isCorrect": true
             },
             {
@@ -576,7 +576,7 @@
               "text": "Solo si ambos dispositivos están en la misma red"
             }
           ],
-          "explanation": "Iniciar o detener un temporizador se sincroniza con todas sus pestañas y dispositivos abiertos en tiempo real. Cuando inicia un temporizador en cualquier dispositivo, el botón de arriba cambia de Iniciar temporizador a Detener temporizador en todas partes automáticamente."
+          "explanation": "Su temporizador en curso lo acompaña, no se queda en la pantalla donde lo inició. Abra la página en su teléfono y verá el mismo temporizador corriendo, con el botón de arriba diciendo Detener temporizador. Es una protección —evita que inicie un segundo temporizador y cuente sus horas dos veces."
         },
         {
           "id": "tt8",
@@ -624,7 +624,7 @@
               "text": "La lista de categorías es personalizada por empresa —no hay categorías predeterminadas"
             }
           ],
-          "explanation": "Tanto el cuadro de diálogo del temporizador como el de entrada manual ofrecen la misma lista desplegable de categorías: Ninguna (predeterminada), Producción, Preparación, Inspección, Mantenimiento, Capacitación, Reunión, Administración, Limpieza y Otro. Las categorías son opcionales pero ayudan con los informes."
+          "explanation": "Obtiene las mismas opciones de categoría ya sea que esté iniciando un temporizador o registrando una entrada manual: Ninguna (la predeterminada), Producción, Preparación, Inspección, Mantenimiento, Capacitación, Reunión, Administración, Limpieza y Otro. Elegir una es opcional, pero hace los informes mucho más útiles."
         },
         {
           "id": "tt10",
@@ -636,7 +636,7 @@
             },
             {
               "id": "b",
-              "text": "Una entrada de tiempo puede vincularse a un trabajo —cuando inicia un temporizador desde el panel de detalle de un trabajo en el tablero kanban, el vínculo se establece por usted",
+              "text": "Una entrada de tiempo puede vincularse a un trabajo —cuando inicia un temporizador desde la tarjeta del trabajo en el tablero del taller, el vínculo se establece por usted",
               "isCorrect": true
             },
             {
@@ -645,10 +645,10 @@
             },
             {
               "id": "d",
-              "text": "Todas las entradas de tiempo se vinculan automáticamente al trabajo que esté seleccionado en ese momento en el tablero kanban"
+              "text": "Todas las entradas de tiempo se vinculan automáticamente al trabajo que esté mirando en ese momento"
             }
           ],
-          "explanation": "Una entrada de tiempo puede vincularse opcionalmente a un trabajo. Cuando inicia un temporizador desde el panel de detalle de un trabajo específico, el vínculo se establece por usted. El número de trabajo vinculado aparece en la columna Trabajo, y el costo de mano de obra cae en ese trabajo."
+          "explanation": "Una entrada de tiempo puede vincularse a un trabajo, y la forma más fácil es iniciar el temporizador directamente desde la tarjeta de ese trabajo en el tablero del taller —el vínculo se establece por usted, sin escribir. El número de trabajo vinculado aparece entonces en la columna Trabajo, y su costo de mano de obra cae en ese trabajo."
         },
         {
           "id": "tt11",
@@ -660,7 +660,7 @@
             },
             {
               "id": "b",
-              "text": "La tabla se recarga con el nuevo filtro de fecha aplicado y la línea de resumen se actualiza para reflejar los resultados filtrados",
+              "text": "La lista se acota al nuevo rango de fechas y la línea de resumen se actualiza para coincidir —nuevo total de horas y conteo de entradas",
               "isCorrect": true
             },
             {
@@ -672,7 +672,7 @@
               "text": "Un cuadro de diálogo de confirmación pregunta si aplicar el nuevo filtro"
             }
           ],
-          "explanation": "Los controles de filtro de fecha activan una recarga automática de la tabla de entradas siempre que cambia su valor. La línea de resumen se recalcula a partir de las entradas filtradas, mostrando el nuevo total de horas y conteo."
+          "explanation": "Cambiar un selector de fecha acota la lista de inmediato —sin botón que presionar. La línea de resumen encima de la lista vuelve a contar para coincidir, así que el total de horas y el conteo de entradas siempre describen exactamente lo que está viendo."
         },
         {
           "id": "tt12",
@@ -696,7 +696,7 @@
               "text": "Si la entrada ha sido aprobada por un gerente (azul) o está pendiente (gris)"
             }
           ],
-          "explanation": "El distintivo de Tipo distingue cómo se registró el tiempo. 'Temporizador' (verde azulado) significa que se rastreó mediante la función Iniciar/Detener temporizador con marcas de tiempo precisas. 'Manual' (gris) significa que el usuario lo introdujo después de realizar el trabajo con una duración especificada."
+          "explanation": "La etiqueta de Tipo le indica cómo se capturó el tiempo. Un 'Temporizador' verde azulado significa que se registró en vivo con Iniciar y Detener, así que tiene horas exactas de inicio y fin. Un 'Manual' gris significa que alguien lo escribió después de hacer el trabajo. Es una forma rápida de ver qué entradas se cronometraron y cuáles se introdujeron de memoria."
         }
       ]
     }
@@ -704,9 +704,9 @@
   {
     "slug": "time-tracking-reference",
     "title": "Registro de tiempo — Referencia avanzada",
-    "summary": "Referencia para casos límite y usuarios avanzados: correcciones de tiempo de administrador, configuración de períodos de pago/bloqueo/horas extra, fichaje en el taller y móvil, y cómo el tiempo alimenta el costeo de trabajos y la nómina (mano de obra/carga, sincronización QBO).",
+    "summary": "Los detalles más a fondo para quien revisa o corrige el tiempo: corregir una entrada pasada, cómo funcionan los períodos de pago y las horas extra, fichar en el quiosco o en su teléfono, y cómo sus horas se convierten en costo del trabajo y en pago.",
     "contentJson": {
-      "body": "## Correcciones de tiempo de administrador\n\nLas entradas de fechas pasadas o bloqueadas no pueden editarse ni eliminarse desde la cuadrícula principal —se modifican mediante correcciones de administrador, que conservan un rastro de auditoría en lugar de alterar el historial silenciosamente.\n\n- **Endpoint:** `PATCH /api/v1/time-tracking/entries/{id}/correct`. Restringido a los roles `Admin, Manager` (capacidad `CAP-HR-TIMETRACK`).\n- **Fila de auditoría:** cada corrección escribe una fila `TimeCorrectionLog` que captura los valores originales, los valores corregidos, el actor y un `Reason` (motivo) **requerido**. La `TimeEntry` de origen se actualiza en su lugar; el registro es el documento inmutable de lo que cambió.\n- **Campos corregibles:** `Date`, `DurationMinutes`, horas de inicio/fin, `Category`, `Notes` y `JobId` (reasignación de trabajo). Puede suministrarse cualquier subconjunto; los campos omitidos quedan sin cambios.\n- **Vista de historial:** `GET /api/v1/time-tracking/corrections` (también `Admin, Manager`) lista el registro de correcciones para su revisión.\n- **Por qué no simplemente eliminar y volver a agregar:** eliminar pierde la marca de tiempo original y rompe la cadena de auditoría. Las correcciones son la única vía autorizada para las entradas pasadas, de modo que los totales de nómina y de costeo de trabajos sigan siendo conciliables.\n\n## Períodos de pago, bloqueo y configuración de horas extra\n\nLas entradas de tiempo se consolidan en períodos de pago, y un período cerrado congela sus entradas para que los cálculos de nómina posteriores sean estables.\n\n- **Período actual:** `GET /api/v1/time-tracking/pay-period` devuelve el `PayPeriod` activo (`type`, `periodStart`, `periodEnd`, `daysRemaining`). El `type` del período es configurable —semanal, quincenal, bimensual o mensual.\n- **Configuración del período:** `PUT /api/v1/time-tracking/pay-period/settings` (solo rol `Admin`) establece el tipo de período y el ancla.\n- **Bloqueo:** `POST /api/v1/time-tracking/lock-period` (`Admin, Manager`) establece `IsLocked = true` en cada entrada del rango. Las entradas bloqueadas muestran un icono de candado, rechazan ediciones/eliminaciones y requieren una corrección de administrador para cambiarse.\n- **Reglas de horas extra:** `GET /api/v1/time-tracking/overtime-rules` (`Admin, Manager`) lista las reglas; `POST /api/v1/time-tracking/overtime-rules` (`Admin`) crea una. Una `OvertimeRule` lleva `dailyThresholdHours`, `weeklyThresholdHours`, `overtimeMultiplier` (p. ej. 1.5x), los opcionales `doubletimeThresholdDailyHours` / `doubletimeThresholdWeeklyHours` / `doubletimeMultiplier`, un indicador `isDefault` y `applyDailyBeforeWeekly` (orden de acumulación de horas extra diarias frente a semanales).\n- **Desglose por usuario:** `GET /api/v1/time-tracking/overtime/{userId}` (`Admin, Manager`) devuelve un `OvertimeBreakdown` —`regularHours` / `overtimeHours` / `doubletimeHours`, los campos de costo correspondientes y un arreglo `dailyBreakdown` (`DailyOvertimeDetail` por día).\n\n## Fichaje en el taller y móvil\n\nLos eventos de reloj (presencia) se capturan fuera de la página principal de Registro de tiempo —en el quiosco del taller y en el reloj móvil— y son distintos de las entradas de tiempo (trabajo realizado).\n\n- **Quiosco:** el reloj de taller a pantalla completa reside en `/display/shop-floor/clock`. La identificación es por **escaneo de credencial / RFID / código de barras seguido de un PIN**; el quiosco también muestra el estado de fichaje actual del trabajador.\n- **Móvil:** la página de reloj móvil envía a `POST /api/v1/display/shop-floor/clock`.\n- **Forma del evento:** un `ClockEvent` registra `eventTypeCode` (`clock-in`, `clock-out`, `break-start`, `break-end` —impulsado por el grupo de datos de referencia `clock_event_type`), `timestamp`, `scanMethod` (RFID / código de barras / manual / NFC), `source` (qué dispositivo/quiosco) y un `reason` opcional.\n- **Lectura/escritura:** `GET /api/v1/time-tracking/clock-events` y `POST /api/v1/time-tracking/clock-events`; `GET /api/v1/time-tracking/clock-status` devuelve el estado de fichaje actual del solicitante.\n- **Límite:** los eventos de reloj establecen que un empleado estuvo en el sitio; las entradas de tiempo registran en qué trabajó durante esa presencia. Se complementan entre sí pero se almacenan y editan por separado.\n\n## Tiempo → costeo de trabajos y nómina (mano de obra/carga, sincronización QBO)\n\nCada entrada de tiempo alimenta dos consumidores posteriores: los consolidados de costos de trabajo y la nómina.\n\n- **Costeo de trabajos:** cuando una entrada tiene un `JobId` (establecido automáticamente cuando se inicia un temporizador desde el panel de detalle kanban de un trabajo), su `LaborCost` (tarifa del empleado x duración) se aplica al consolidado de costos de ese trabajo. `BurdenCost` rastrea por separado la asignación de gastos generales/carga fabril. `OperationId` habilita el costeo a nivel de operación dentro de un trabajo, y `EntryType` (`Setup`, `Run` predeterminado, `Teardown`, `Inspection`, `Rework`, `Wait`, `Other`) distingue el tipo de tiempo de operación que se registra.\n- **Nómina:** las entradas dentro de un período de pago alimentan los totales de nómina, con las horas extra divididas según la `OvertimeRule` activa. Los datos de nómina se envían mediante `POST /api/v1/payroll/sync` (capacidad `CAP-HR-PAYROLL`); los recibos de pago y los documentos fiscales se exponen bajo el mismo controlador.\n- **Sincronización con QuickBooks (QBO):** cuando QBO está conectado, una entrada de tiempo puede sincronizarse como un **Time Activity** de QuickBooks; el id externo se almacena en `AccountingTimeActivityId` (nulo cuando no está sincronizado). Este es el punto de integración del límite contable —vea `IAccountingService` / `AccountingTimeActivity`.\n- **Restricción por capacidad:** todos los endpoints de Registro de tiempo requieren `CAP-HR-TIMETRACK`; los endpoints de nómina requieren `CAP-HR-PAYROLL`. Las escrituras solo para administradores (configuración del período de pago, creación de reglas de horas extra) están además restringidas por rol.",
+      "body": "## Corregir una entrada pasada\n\nNo puede simplemente editar ni eliminar una entrada de tiempo vieja desde la lista principal —una entrada pasada o bloqueada muestra un icono de candado en lugar de un botón de eliminar. Es a propósito: una vez que el tiempo se revisó o se pagó, cambiarlo en silencio desajustaría el costo del trabajo y el recibo de pago de alguien. En su lugar, un gerente o administrador lo corrige mediante una corrección, que deja constancia del cambio.\n\n- **Quién lo hace:** gerentes y administradores, en Administración > Correcciones de tiempo. Un trabajador que detecta una entrada equivocada la reporta a su supervisor; no puede corregirla él mismo.\n- **Qué puede corregir:** la fecha, cuánto duró, las horas de inicio y fin, la categoría, las notas o a qué trabajo está ligada. Cambie solo lo que está mal y deje el resto.\n- **Se requiere un motivo.** Tiene que decir por qué lo cambia —'fichó en el trabajo equivocado', 'olvidó detener el temporizador en el almuerzo', y así. Ese motivo se guarda con el cambio.\n- **El original se conserva.** La corrección registra lo que decía la entrada antes y lo que dice ahora, quién lo cambió y por qué. Nada se borra.\n- **¿Por qué no simplemente eliminar y volver a agregar?** Eliminar tira el registro original y el rastro con él. Una corrección es la forma honesta de arreglar una entrada pasada, para que los totales de costo y pago del taller sigan cuadrando y cualquiera pueda ver qué pasó.\n\n## Períodos de pago, bloqueo y horas extra\n\nSus entradas se suman en un período de pago —el tramo de días que cubre un recibo de pago.\n\n- **Cuánto dura un período:** su taller elige semanal, cada dos semanas, dos veces al mes o mensual. Un administrador lo establece una vez; es igual para todos.\n- **Cuánto queda del período:** la página puede mostrar en qué período está y cuántos días faltan antes de que cierre —útil para saber cuándo poner su tiempo en orden.\n- **Cerrar (bloquear) un período:** al final, la oficina cierra el período. Todas sus entradas se bloquean —muestran un icono de candado y ya no pueden editarse ni eliminarse, solo corregirse mediante una corrección. Bloquee solo después de revisar el tiempo de todos, porque reabrir es un fastidio.\n- **Horas extra:** si su taller paga horas extra, la regla dice cuándo empiezan —por ejemplo, más de 8 horas en un día o más de 40 en una semana, pagadas a tiempo y medio, y a veces doble tiempo pasado un tope más alto. El sistema separa sus horas regulares, extra y de doble tiempo por usted; nadie las suma a mano.\n- **El desglose de horas extra:** un gerente puede abrir la semana de cualquier trabajador y ver horas regulares frente a extra frente a doble tiempo, día por día. Úselo para detectar un fichaje malo antes de la nómina, o para explicar un recibo de pago a un trabajador que pregunta.\n\n## Fichar en el quiosco o en su teléfono\n\nFichar la entrada y la salida es cómo el taller sabe que estuvo aquí. Es distinto del tiempo por trabajo —uno dice que está en el sitio, el otro dice en qué trabajó.\n\n- **En el quiosco:** acérquese al reloj del taller, escanee su credencial (o código de barras) e introduzca su PIN. La pantalla muestra si está fichado en ese momento, así puede ver de un vistazo si ya marcó su entrada.\n- **En su teléfono:** si su taller lo permite, puede fichar la entrada y la salida desde el reloj móvil —útil para trabajo remoto, un sitio de obra o cuando la fila del quiosco es larga.\n- **Qué se registra:** cada marca anota si es entrada, salida, inicio de descanso o fin de descanso; la hora en que ocurrió; cómo se identificó (credencial, código de barras o a mano); qué quiosco o dispositivo usó; y un motivo opcional ('salió temprano — cita médica').\n- **Descansos:** fiche la salida para el descanso y la entrada al regresar, para que el tiempo de descanso no pagado no se cuente como horas trabajadas.\n- **Presencia frente a trabajo:** fichar la entrada prueba que estuvo aquí; sus entradas de tiempo por trabajo prueban qué hizo mientras estuvo. La oficina mira ambas —las horas en el sitio deberían coincidir con las horas registradas a trabajos.\n\n## A dónde van sus horas — costo del trabajo y pago\n\nCada entrada cumple doble función: cuesta a un trabajo y le paga a usted.\n\n- **Al trabajo:** cuando una entrada está ligada a un trabajo (lo que pasa por usted al iniciar el temporizador desde la tarjeta del trabajo), sus horas por su tarifa de pago se convierten en el costo de mano de obra de ese trabajo. Se agrega encima una parte de los gastos generales del taller, para que el trabajo cargue con su parte justa del edificio, la energía y el equipo. Así el taller aprende cuánto costó realmente construir un trabajo —y si dejó ganancia.\n- **Hasta la operación:** en trabajos donde registra el tiempo paso a paso, una entrada puede nombrar la operación exacta y el tipo de tiempo —preparación, ejecución (lo habitual), desmontaje, inspección, retrabajo, espera u otro. Eso le dice al planificador a dónde fueron realmente las horas, para que la próxima cotización de esa pieza sea más cercana a la realidad.\n- **A su recibo de pago:** las horas de un período de pago alimentan la nómina, con las regulares y las extra separadas según la regla de su taller. Tiempo exacto que entra significa un recibo exacto que sale —un fichaje de salida olvidado o un trabajo equivocado perjudica tanto los números del trabajo como su pago.\n- **A contabilidad:** si su taller lleva sus libros en un sistema contable aparte, la oficina pasa las horas aprobadas para que la mano de obra caiga en las finanzas. Una vez que una entrada ha cruzado, cualquier cambio adicional corresponde a contabilidad, no aquí —otra razón por la que las entradas viejas se bloquean.",
       "sections": []
     }
   }

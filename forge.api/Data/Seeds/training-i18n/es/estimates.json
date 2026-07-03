@@ -99,7 +99,7 @@
             {"label": "Cant. (requerido)", "value": "Cuántos. Debe ser al menos 0.0001, por lo que se permiten cantidades fraccionarias."},
             {"label": "Monto (requerido)", "value": "El precio por unidad, cero o más. El total de la línea es la cantidad por el precio."},
             {"label": "Editar (lápiz) / Eliminar (papelera)", "value": "Editar reabre la descripción, la cantidad y el precio de una línea (la pieza no cambia). Eliminar quita la línea después de que confirme."},
-            {"label": "Sincronización del Monto estimado", "value": "Después de agregar, editar o eliminar una línea, el total de la estimación se actualiza a la suma de las líneas y la lista se refresca."}
+            {"label": "Sincronización del Monto estimado", "value": "Una vez que una estimación tiene líneas, su total es siempre la suma de las líneas. Agregue, cambie o quite una línea y el monto de la estimación se mueve con ella, para que la cifra que le da al cliente siempre coincida con el desglose."}
           ]
         },
         {
@@ -117,7 +117,7 @@
           "heading": "Columnas de la tabla",
           "items": [
             {"label": "Título", "value": "El título de la estimación. Ordenable."},
-            {"label": "Monto", "value": "El total de la estimación, mostrado como moneda, por ejemplo $12,500.00, y alineado a la derecha. Ordenable."},
+            {"label": "Monto", "value": "El total de la estimación, mostrado como moneda, por ejemplo $12,500.00. Ordénelo para poner primero sus estimaciones abiertas más grandes."},
             {"label": "Estado", "value": "Una etiqueta de color —Borrador (gris), Enviada (azul), Aceptada (verde), Rechazada (rojo), Vencida (ámbar) o Convertida en cotización (verde azulado). Ordenable y filtrable."},
             {"label": "Válido hasta", "value": "La fecha de vencimiento, mostrada como MM/dd/yyyy, o en blanco si no se establece ninguna. Ordenable."},
             {"label": "Creada", "value": "Cuándo se creó la estimación por primera vez, mostrada como MM/dd/yyyy. Ordenable."},
@@ -159,7 +159,7 @@
       "questions": [
         {
           "id": "est1",
-          "text": "Un cliente llama y pregunta '¿más o menos cuánto costarían 500 soportes de aluminio?' Todavía no tiene la ingeniería detallada. ¿Qué debería crear en QB Engineer?",
+          "text": "Un cliente llama y pregunta '¿más o menos cuánto costarían 500 soportes de aluminio?' Todavía no tiene la ingeniería detallada. ¿Qué debería crear?",
           "options": [
             {"id": "a", "text": "Una cotización con una sola línea para 500 soportes"},
             {"id": "b", "text": "Una orden de venta con un total estimado"},
@@ -170,7 +170,7 @@
         },
         {
           "id": "est2",
-          "text": "¿Cuál es la diferencia clave entre una estimación y una cotización en QB Engineer?",
+          "text": "¿Cuál es la diferencia clave entre una estimación y una cotización?",
           "options": [
             {"id": "a", "text": "Las estimaciones requieren aprobación del gerente; las cotizaciones no"},
             {"id": "b", "text": "Una cotización es un compromiso vinculante que lleva una tasa de impuesto y puede convertirse en una orden de venta; una estimación es más ligera, no tiene impuestos y no puede convertirse en una orden por sí sola —aunque ambas pueden desglosarse por líneas", "isCorrect": true},
@@ -181,7 +181,7 @@
         },
         {
           "id": "est3",
-          "text": "¿Dónde encuentra y gestiona las estimaciones en QB Engineer?",
+          "text": "¿Dónde encuentra y gestiona las estimaciones?",
           "options": [
             {"id": "a", "text": "En una página de Estimaciones dedicada en la navegación principal"},
             {"id": "b", "text": "En la página de detalle del cliente, bajo la pestaña Estimaciones", "isCorrect": true},

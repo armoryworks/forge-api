@@ -2,9 +2,9 @@
   {
     "slug": "events-overview",
     "title": "Visión general de Eventos",
-    "summary": "Qué son los eventos, los cuatro tipos de evento, la gestión de asistentes, el flujo de confirmación de asistencia (RSVP) y los recordatorios automáticos.",
+    "summary": "Qué son los eventos, los cuatro tipos de evento, invitar personas y dar seguimiento a quién asiste, los eventos obligatorios y los recordatorios automáticos.",
     "contentJson": {
-      "body": "## Visión general de Eventos\n\nUse Eventos para programar y dar seguimiento a los eventos de la empresa —reuniones, capacitaciones, charlas de seguridad y otras reuniones. Lo encontrará en Admin > Eventos. Le da un solo calendario para todo lo que ocurre en su organización.\n\n### Tipos de evento\n\nCada evento es de uno de cuatro tipos:\n- **Reunión** — reuniones de equipo, revisiones de proyecto, stand-ups y reuniones uno a uno.\n- **Capacitación** — capacitación en habilidades, incorporación y preparación para certificaciones.\n- **Seguridad** — charlas de seguridad, simulacros de emergencia y revisiones de cumplimiento.\n- **Otro** — convivencias de la empresa, anuncios, recorridos por las instalaciones o cualquier otra cosa.\n\nCada tipo muestra su propio icono en la lista de eventos, así que puede reconocer de un vistazo qué clase de evento es y filtrar por él.\n\n### Asistentes y confirmación de asistencia (RSVP)\n\nAl crear o editar un evento, elige asistentes entre sus empleados activos. Cada uno recibe una notificación que lo invita. Cada asistente tiene un estado:\n- **Invitado** — el estado inicial; aún sin respuesta\n- **Aceptado** — la persona confirmó que asistirá\n- **Rechazado** — la persona no puede asistir\n- **Asistió** — confirma después que la persona se presentó (útil para el cumplimiento)\n\nLa lista de eventos muestra cuántas personas están invitadas a cada evento, así que puede ver el conteo de un vistazo.\n\n**Una nota sobre responder:** los asistentes aún no pueden aceptar ni rechazar desde la aplicación. El estado de cada persona aparece en su perfil como solo lectura, y no hay ningún botón para cambiarlo. Por ahora el estado se establece por usted de forma interna, no porque alguien pulse un botón.\n\n### Eventos obligatorios frente a opcionales\n\nPuede marcar un evento como Obligatorio. Cuando lo hace:\n- La invitación destaca con más fuerza en las notificaciones de cada persona\n- Aparece una etiqueta amarilla Obligatorio junto al evento en la lista\n- Todos pueden ver que la asistencia es obligatoria (por ejemplo, charlas de seguridad o capacitación de cumplimiento)\n\nLos eventos opcionales se muestran como texto sin formato en la lista.\n\n### Recordatorios automáticos\n\nEl sistema envía a cada asistente un recordatorio unos 30 minutos antes de que comience el evento. Esto ayuda a que las personas se presenten aunque se hayan perdido la invitación original. Cada recordatorio se envía una sola vez.\n\n### Dónde aparecen los eventos\n\n- **Admin > Eventos** — el lugar principal para crear, editar, filtrar y cancelar eventos\n- **Pantalla de planta de producción** — los próximos eventos aparecen en la sección de próximos de la planta, para que los trabajadores de producción vean lo que está programado\n- **Perfil del empleado** — el perfil de cada empleado tiene una pestaña Eventos que lista los próximos eventos a los que está invitado, con su estado (Invitado, Aceptado, Rechazado o Asistió). Aquí es solo para ver — no hay nada que responder.\n\n### Cancelar eventos\n\nCancelar un evento no lo elimina. El evento sale de la lista, pero se conserva su registro, así que el historial queda intacto.\n\n### Cuándo usar los eventos\n\n- Programar una reunión de equipo o una revisión de proyecto\n- Organizar charlas de seguridad obligatorias o simulacros de emergencia\n- Planificar capacitación para nuevas contrataciones o desarrollo de habilidades\n- Dar seguimiento a la asistencia con fines de cumplimiento (quién asistió a qué capacitación de seguridad)\n- Anunciar reuniones para toda la empresa o eventos sociales",
+      "body": "## Visión general de Eventos\n\nUse Eventos para planear y dar seguimiento a todo lo que ocurre en su taller —reuniones de equipo, capacitaciones, charlas de seguridad y convivencias de la empresa. Lo encontrará en Admin > Eventos. Le da un solo lugar para programar lo que viene y ver quién debe estar presente.\n\n### Tipos de evento\n\nCada evento es de uno de cuatro tipos:\n- **Reunión** — reuniones de equipo, revisiones de proyecto, stand-ups y reuniones uno a uno.\n- **Capacitación** — capacitación en habilidades, incorporación y preparación para certificaciones.\n- **Seguridad** — charlas de seguridad, simulacros de emergencia y revisiones de cumplimiento.\n- **Otro** — convivencias de la empresa, anuncios, recorridos por las instalaciones o cualquier otra cosa.\n\nCada tipo tiene su propio icono en la lista, así que puede reconocer de un vistazo qué clase de evento es y filtrar para ver solo una clase.\n\n### Invitar personas\n\nAl crear o editar un evento, elige quién debe asistir entre sus empleados activos. Todas las personas que agregue reciben una notificación que las invita, así que todo el equipo sabe que está en el calendario sin que usted envíe un correo aparte.\n\nCada persona que invita lleva un estado, para que vea en qué situación está:\n- **Invitado** — agregado al evento, aún sin respuesta\n- **Aceptado** — confirmó que asistirá\n- **Rechazado** — no puede asistir\n- **Asistió** — se presentó (su comprobante para el registro)\n\nLa lista muestra un conteo de personas para cada evento, así que puede ver de un vistazo a cuántas personas invitó.\n\n### Eventos obligatorios frente a opcionales\n\nMarque un evento como Obligatorio cuando la asistencia no sea una opción —una charla de seguridad o una capacitación de cumplimiento obligatoria. Un evento obligatorio destaca con más fuerza en las notificaciones de cada persona y muestra una etiqueta amarilla Obligatorio en la lista, para que nadie lo confunda con uno opcional. Todo lo demás se mantiene sencillo.\n\n### Recordatorios automáticos\n\nTodas las personas que invita reciben un recordatorio poco antes de que comience el evento. Así se presentan a tiempo aunque la invitación original se les haya pasado —usted no tiene que andar persiguiendo a nadie.\n\n### Dónde aparecen los eventos\n\n- **Admin > Eventos** — donde crea, edita, filtra y cancela eventos\n- **Pantalla de planta de producción** — los próximos eventos aparecen en la pantalla de la planta, para que los operadores vean lo que está programado sin dejar su estación\n- **Perfil del empleado** — el perfil de cada persona tiene una pestaña Eventos que lista los eventos a los que fue invitada y si asistió, útil cuando revisa el historial de capacitación de alguien\n\n### Cancelar un evento\n\nCancelar quita un evento del calendario pero no lo borra —el registro se conserva, así que mantiene un historial fiel de lo que estuvo programado. Se les avisa a todas las personas invitadas que se canceló.\n\n### Cuándo recurrir a Eventos\n\n- Programar una reunión de equipo o una revisión de proyecto\n- Convocar una charla de seguridad obligatoria o un simulacro de emergencia\n- Planificar capacitación para nuevas contrataciones o desarrollo de habilidades\n- Llevar un registro de quién asistió a qué capacitación de seguridad para el cumplimiento\n- Anunciar una reunión o una convivencia para toda la empresa",
       "sections": []
     }
   },
@@ -46,31 +46,31 @@
   {
     "slug": "events-field-reference",
     "title": "Referencia de campos de Eventos",
-    "summary": "Referencia completa de cada campo, botón, tipo de evento, estado de asistente, regla de validación y acción en Eventos.",
+    "summary": "Una guía más a fondo de Eventos: cada campo, tipo de evento, estado de asistente, acción y consejos para lograr buena asistencia.",
     "contentJson": {
       "title": "Referencia de campos de Eventos",
       "groups": [
         {
           "heading": "Campos del formulario de evento",
           "items": [
-            {"label": "Título (obligatorio)", "value": "El nombre del evento, hasta 200 caracteres. Se muestra en la lista, en las notificaciones y a los asistentes. Por ejemplo: 'Charla semanal de seguridad', 'Revisión de proyecto del 2.º trimestre' u 'Orientación de nuevas contrataciones'."},
-            {"label": "Tipo de evento (obligatorio)", "value": "Elija uno: Reunión, Capacitación, Seguridad u Otro. Esto define el icono del evento en la lista y le permite filtrar por él. Empieza en Reunión."},
-            {"label": "Ubicación", "value": "Opcional, hasta 200 caracteres. Dónde ocurre el evento, presencial o en línea; por ejemplo 'Sala de conferencias B', 'Bahía 3 de la planta' o 'Enlace de Zoom en la descripción'."},
-            {"label": "Fecha de inicio (obligatorio)", "value": "Elija la fecha en que comienza el evento. Funciona junto con la hora de inicio."},
-            {"label": "Hora de inicio (obligatorio)", "value": "Escriba la hora en que comienza, en formato de 24 horas HH:MM. Empieza a las 09:00."},
-            {"label": "Fecha de fin (obligatorio)", "value": "Elija la fecha en que termina. Para un evento de un solo día, use la misma fecha que el inicio."},
-            {"label": "Hora de fin (obligatorio)", "value": "Escriba la hora en que termina, en formato de 24 horas HH:MM. Debe ser posterior al inicio. Empieza a las 10:00."},
-            {"label": "Descripción", "value": "Opcional, hasta 2000 caracteres. Agregue la agenda, instrucciones de preparación o cualquier detalle adicional."},
-            {"label": "Asistentes", "value": "Elija los empleados activos que quiera de la lista (mostrados como Apellido, Nombre). Todas las personas que elija reciben una notificación de invitación cuando guarda el evento."},
-            {"label": "Asistencia obligatoria", "value": "Un interruptor de encendido/apagado. Actívelo para marcar el evento como obligatorio. La invitación destaca con más fuerza en las notificaciones de cada persona, y aparece una etiqueta amarilla 'Obligatorio' junto al evento en la lista."}
+            {"label": "Título", "value": "El nombre del evento —lo que las personas ven en la lista y en su invitación. Hágalo específico para que quede claro de un vistazo, como 'Charla semanal de seguridad', 'Revisión de proyecto del 2.º trimestre' u 'Orientación de nuevas contrataciones'."},
+            {"label": "Tipo de evento", "value": "Elija Reunión, Capacitación, Seguridad u Otro. Esto define el icono en la lista y le permite filtrar para ver una sola clase. Los eventos nuevos empiezan como Reunión, así que cámbielo si programa una capacitación o un evento de seguridad."},
+            {"label": "Ubicación", "value": "Dónde ocurre, presencial o en línea —'Sala de conferencias B', 'Bahía 3 de la planta' o un enlace de videollamada. Opcional, pero conviene completarlo para que nadie tenga que preguntar a dónde ir."},
+            {"label": "Fecha de inicio", "value": "El día en que comienza el evento. Combínela con la hora de inicio para fijar exactamente cuándo arranca."},
+            {"label": "Hora de inicio", "value": "La hora en que comienza. Los eventos nuevos vienen por defecto a las 9:00 de la mañana; ajústela al inicio real."},
+            {"label": "Fecha de fin", "value": "El día en que termina. Para un evento de un solo día, use la misma fecha que el inicio."},
+            {"label": "Hora de fin", "value": "Cuándo termina. El fin debe ser posterior al inicio, así que una reunión corta podría ir de 9:00 a 9:30."},
+            {"label": "Descripción", "value": "La agenda, qué llevar o un enlace de videollamada. Opcional, pero es el lugar para poner cualquier cosa que las personas necesiten preparar."},
+            {"label": "Asistentes", "value": "Elija quién debe asistir entre sus empleados activos, listados por nombre. Agregue los que necesite —todas las personas que elija reciben una invitación cuando guarda."},
+            {"label": "Asistencia obligatoria", "value": "Actívela cuando presentarse no sea opcional. Hace que la invitación destaque y pone una etiqueta amarilla Obligatorio en la lista. Úsela para charlas de seguridad y capacitación obligatoria; déjela apagada para lo que la gente pueda omitir."}
           ]
         },
         {
-          "heading": "Campos del asistente",
+          "heading": "Quiénes asisten",
           "items": [
-            {"label": "Usuario", "value": "El empleado invitado al evento, mostrado como Apellido, Nombre."},
-            {"label": "Estado", "value": "En qué situación está la persona: Invitado (el inicio), Aceptado, Rechazado o Asistió. Es de solo lectura — todavía no hay forma de responder en la aplicación. El estado de cada persona aparece en su perfil, y no puede cambiarlo ahí."},
-            {"label": "Respondido el", "value": "Cuándo cambió la persona su estado por última vez. En blanco mientras siga como Invitado. No se puede cambiar en la aplicación hoy."}
+            {"label": "La persona", "value": "Cada asistente es uno de sus empleados, listado por nombre para que sepa exactamente quién se espera."},
+            {"label": "Su estado", "value": "En qué situación está cada persona: Invitado, Aceptado, Rechazado o Asistió. Así lee la asistencia: quién confirmó, quién no viene y quién realmente se presentó."},
+            {"label": "Conteo de personas", "value": "La lista muestra cuántas personas están invitadas a cada evento, así que puede calcular la asistencia de un vistazo antes de entrar."}
           ]
         },
         {
@@ -85,57 +85,57 @@
         {
           "heading": "Estados del asistente",
           "items": [
-            {"label": "Invitado", "value": "El estado inicial cuando agrega a alguien a un evento. Significa que aún no ha respondido."},
-            {"label": "Aceptado", "value": "La persona confirmó que asistirá."},
-            {"label": "Rechazado", "value": "La persona dijo que no puede asistir."},
-            {"label": "Asistió", "value": "Confirma después que la persona se presentó. Útil para el cumplimiento, como comprobar quién estuvo en una capacitación de seguridad."}
+            {"label": "Invitado", "value": "Está en la lista pero aún no ha respondido —el punto de partida para todas las personas que agrega."},
+            {"label": "Aceptado", "value": "Confirmó que asistirá."},
+            {"label": "Rechazado", "value": "No puede asistir —un aviso para dar seguimiento si es alguien que necesita."},
+            {"label": "Asistió", "value": "Se presentó. Este es su registro para el cumplimiento —comprobante de quién estuvo en una capacitación de seguridad cuando un auditor o un cliente lo pide."}
           ]
         },
         {
           "heading": "Botones y acciones",
           "items": [
-            {"label": "Nuevo evento (botón principal)", "value": "Abre el formulario para crear un evento. Todo empieza en blanco — tipo Reunión, de 09:00 a 10:00, no obligatorio."},
-            {"label": "Guardar / Crear evento", "value": "Guarda el evento. Está atenuado hasta que el formulario esté bien completado, o mientras se guarda. Cuando está atenuado, haga clic en el triángulo de advertencia a su izquierda para ver qué falta. Guardar envía notificaciones a todas las personas que invitó."},
-            {"label": "Cancelar (en el formulario)", "value": "Cierra el formulario sin guardar los cambios."},
-            {"label": "Editar (icono de fila)", "value": "El lápiz en cada fila. Abre el formulario del evento con sus detalles actuales, incluidas las personas invitadas."},
-            {"label": "Cancelar evento (icono de fila)", "value": "La X roja en cada fila. Le pide confirmar y luego cancela el evento. Sale de la lista, pero su registro se conserva."},
-            {"label": "Filtro de tipo", "value": "Un menú encima de la lista. Muestra solo un tipo de evento. Elija Todos, Reunión, Capacitación, Seguridad u Otro."}
+            {"label": "Nuevo evento", "value": "Inicia un evento en blanco, listo para completar —defina el tipo, la hora, los asistentes y si es obligatorio, y luego guarde."},
+            {"label": "Guardar", "value": "Crea el evento y envía invitaciones a todas las personas incluidas. Si falta algo obligatorio, Guardar permanece deshabilitado hasta que lo complete; el indicador a su lado le dice qué falta."},
+            {"label": "Cancelar (en el formulario)", "value": "Cierra el formulario y descarta sus cambios —no se guarda nada y no se envían invitaciones."},
+            {"label": "Editar", "value": "El lápiz en una fila reabre el evento con sus detalles actuales, incluidas las personas invitadas, para que pueda agregar gente o cambiar la hora."},
+            {"label": "Cancelar evento", "value": "La X roja en una fila da el evento por cancelado. Primero confirma, y luego se les avisa a todas las personas invitadas que se canceló. El evento sale del calendario pero se queda en su historial."},
+            {"label": "Filtro de tipo", "value": "El menú encima de la lista la acota a un solo tipo de evento. Elija Seguridad para revisar solo su calendario de seguridad, Capacitación para capacitación, y así."}
           ]
         },
         {
-          "heading": "Reglas de validación",
+          "heading": "Lograr buena asistencia",
           "items": [
-            {"label": "Título", "value": "Obligatorio. No puede estar vacío. Hasta 200 caracteres."},
-            {"label": "Tipo de evento", "value": "Obligatorio. Debe ser Reunión, Capacitación, Seguridad u Otro."},
-            {"label": "Fecha de inicio", "value": "Obligatorio. Debe ser una fecha real."},
-            {"label": "Hora de inicio", "value": "Obligatorio. Use el formato de 24 horas HH:MM."},
-            {"label": "Fecha de fin", "value": "Obligatorio. Debe ser una fecha real."},
-            {"label": "Hora de fin", "value": "Obligatorio. El fin debe ser posterior al inicio."},
-            {"label": "Descripción", "value": "Opcional. Hasta 2000 caracteres."},
-            {"label": "Ubicación", "value": "Opcional. Hasta 200 caracteres."},
-            {"label": "Asistentes", "value": "Opcional. Elija la cantidad de empleados activos que quiera. Los duplicados se descartan automáticamente."},
-            {"label": "Qué muestra el triángulo de advertencia", "value": "Cuando el formulario no está listo, el botón Guardar aparece atenuado. Haga clic en el triángulo de advertencia a su izquierda para ver exactamente qué necesita corregir, por ejemplo 'El título es obligatorio' o 'La fecha de inicio es obligatoria'."}
+            {"label": "Reserve Obligatorio para lo verdaderamente ineludible", "value": "Un evento obligatorio destaca en las notificaciones y lleva una etiqueta amarilla. Resérvelo para lo que la gente realmente no puede omitir, para que la etiqueta conserve su peso."},
+            {"label": "Invite a todo el equipo para las charlas", "value": "Cuando una charla de seguridad es para toda la planta, agregue a todos. Asistió se vuelve entonces una lista limpia de quién realmente llegó."},
+            {"label": "Ponga los detalles en la descripción", "value": "Agenda, qué llevar o el enlace de videollamada —cualquier cosa en la descripción le ahorra una ronda de preguntas de antemano."},
+            {"label": "Deje que el recordatorio haga el trabajo", "value": "Todas las personas invitadas reciben un aviso automático antes del evento, así que no tiene que reunir a la gente la mañana del evento."},
+            {"label": "Dé una hora de fin realista", "value": "El fin debe ser posterior al inicio. Una ventana realista ayuda a las personas a planear el resto de su día en torno al evento."},
+            {"label": "Eventos recurrentes", "value": "Aún no hay opción de repetir, así que cree cada ocurrencia como su propio evento. Mantenga el título consistente para que sean fáciles de encontrar."},
+            {"label": "Dé seguimiento a una capacitación rechazada", "value": "Si alguien no puede asistir a una capacitación obligatoria, programe un evento de reposición y marque su asistencia ahí una vez que se ponga al día."},
+            {"label": "Cambiaron los planes", "value": "Edite para cambiar la hora o intercambiar asistentes, o cancele si ya no va —de cualquier forma todas las personas invitadas quedan al tanto."},
+            {"label": "Vigile el conteo", "value": "Un conteo bajo en un evento obligatorio es su señal para dar un empujón a la gente antes de que llegue el día."},
+            {"label": "Filtre para preparar la semana", "value": "Use el filtro de tipo para sacar solo sus eventos de seguridad o de capacitación y confirmar que todo está programado y con gente asignada."}
           ]
         },
         {
           "heading": "Columnas de la lista",
           "items": [
-            {"label": "Título", "value": "El nombre del evento. Haga clic para ordenar."},
-            {"label": "Tipo", "value": "El tipo del evento, con su icono. Puede ordenar o filtrar por él."},
-            {"label": "Inicio", "value": "Cuándo comienza el evento, con fecha y hora. Haga clic para ordenar."},
-            {"label": "Fin", "value": "Cuándo termina el evento, con fecha y hora. Haga clic para ordenar."},
-            {"label": "Ubicación", "value": "Dónde ocurre, presencial o en línea. Haga clic para ordenar."},
-            {"label": "Asistentes", "value": "Cuántas personas están invitadas. Haga clic para ordenar."},
-            {"label": "Obligatorio", "value": "Muestra una etiqueta amarilla 'Obligatorio' para los eventos obligatorios, o un 'Opcional' atenuado en caso contrario. Haga clic para ordenar."},
+            {"label": "Título", "value": "El nombre del evento. Haga clic para ordenar la lista alfabéticamente."},
+            {"label": "Tipo", "value": "La clase del evento, con su icono. Ordene o filtre por él."},
+            {"label": "Inicio", "value": "Cuándo comienza el evento. Haga clic para ordenar cronológicamente y ver qué viene a continuación."},
+            {"label": "Fin", "value": "Cuándo termina el evento. Haga clic para ordenar."},
+            {"label": "Ubicación", "value": "Dónde ocurre, presencial o en línea."},
+            {"label": "Asistentes", "value": "El conteo de personas —a cuántas invitó."},
+            {"label": "Obligatorio", "value": "Una etiqueta amarilla Obligatorio en los eventos obligatorios, un Opcional sencillo en los demás. Ordene por él para llevar los ineludibles arriba."},
             {"label": "Acciones", "value": "Los botones de editar (lápiz) y cancelar (X) de cada fila."}
           ]
         },
         {
-          "heading": "Notificaciones y recordatorios",
+          "heading": "Qué reciben las personas",
           "items": [
-            {"label": "Invitación", "value": "Se envía a cada persona que invita cuando guarda el evento. Indica quién la invitó, el título del evento y cuándo comienza. Los eventos obligatorios destacan con más fuerza que los opcionales."},
-            {"label": "Recordatorio de evento", "value": "Cada asistente recibe un recordatorio unos 30 minutos antes de que comience el evento. Se envía una sola vez."},
-            {"label": "Cancelación", "value": "Cuando cancela un evento, sale de la lista pero su registro se conserva, y se les avisa a todas las personas invitadas que se canceló."}
+            {"label": "Invitación", "value": "Todas las personas que invita reciben una notificación en cuanto guarda —quién las invitó, el evento y cuándo comienza. Los eventos obligatorios llegan con más énfasis."},
+            {"label": "Recordatorio", "value": "Un aviso antes de que comience el evento, para que las personas se presenten a tiempo aunque la invitación se les haya pasado."},
+            {"label": "Cancelación", "value": "Si da el evento por cancelado, se les avisa a todas las personas invitadas, así nadie se presenta a una sala vacía."}
           ]
         }
       ]
@@ -144,7 +144,7 @@
   {
     "slug": "events-quiz",
     "title": "Evaluación de conocimientos de Eventos",
-    "summary": "Ponga a prueba sus conocimientos sobre el módulo de Eventos: tipos, asistentes, estados de RSVP, recordatorios y flujos de trabajo de administración.",
+    "summary": "Ponga a prueba sus conocimientos sobre Eventos: tipos, asistentes, estados de asistencia, recordatorios y tareas cotidianas de programación.",
     "contentJson": {
       "passingScore": 80,
       "questionsPerQuiz": 8,
@@ -186,36 +186,36 @@
         },
         {
           "id": "ev4",
-          "text": "Entre los cuatro estados de asistente, ¿cuál está pensado para la confirmación posterior al evento de que una persona estuvo físicamente presente (el estado que importa para el seguimiento de cumplimiento)?",
+          "text": "Entre los cuatro estados de asistente, ¿cuál le indica que una persona realmente se presentó —el estado que importa cuando necesita comprobar la asistencia para el cumplimiento?",
           "options": [
             {"id": "a", "text": "Aceptado —lo confirmaron de antemano"},
-            {"id": "b", "text": "Asistió —confirma la presencia física después del evento", "isCorrect": true},
+            {"id": "b", "text": "Asistió —la persona estuvo ahí", "isCorrect": true},
             {"id": "c", "text": "Completado —marca la capacitación como finalizada"},
             {"id": "d", "text": "Presente —un estado de registro de entrada"}
           ],
-          "explanation": "El estado Asistió está pensado específicamente para la confirmación posterior al evento de la presencia física, que es lo que necesita el seguimiento de cumplimiento —comprobar que las personas realmente se presentaron, no solo que aceptaron. Ten en cuenta que los estados de asistente no se establecen desde un botón en la aplicación hoy; los cuatro estados son Invitado, Aceptado, Rechazado y Asistió."
+          "explanation": "Asistió es el estado que dice que una persona realmente se presentó. Eso es lo que necesita el cumplimiento —comprobante de quién estuvo en la sala, no solo de quién dijo que vendría. Los cuatro estados son Invitado, Aceptado, Rechazado y Asistió."
         },
         {
           "id": "ev5",
-          "text": "¿Cómo recuerda el sistema a los asistentes sobre los próximos eventos?",
+          "text": "¿Cómo ayuda el sistema a asegurar que las personas invitadas se presenten?",
           "options": [
-            {"id": "a", "text": "Se envía un correo electrónico 1 hora antes de que comience el evento"},
-            {"id": "b", "text": "Se envía una notificación push a su dispositivo móvil"},
-            {"id": "c", "text": "El sistema envía una notificación de recordatorio unos 30 minutos antes de que comience el evento", "isCorrect": true},
-            {"id": "d", "text": "No hay recordatorios automáticos —los asistentes deben revisar el calendario por su cuenta"}
+            {"id": "a", "text": "Llama al teléfono de cada asistente la mañana del evento"},
+            {"id": "b", "text": "Publica el evento solo en un tablón de anuncios público"},
+            {"id": "c", "text": "Envía a cada persona invitada un recordatorio automático poco antes de que comience el evento", "isCorrect": true},
+            {"id": "d", "text": "No hay recordatorios —los asistentes deben revisar el calendario por su cuenta"}
           ],
-          "explanation": "El sistema envía automáticamente a cada asistente un recordatorio unos 30 minutos antes de que comience un evento. Cada recordatorio se envía una sola vez, así que nadie recibe el mismo recordatorio dos veces."
+          "explanation": "Todas las personas invitadas reciben un recordatorio automático poco antes de que comience el evento, así se presentan a tiempo aunque la invitación original se les haya pasado. Usted no tiene que perseguir a nadie."
         },
         {
           "id": "ev6",
           "text": "Quiere cancelar un evento programado. ¿Qué sucede cuando hace clic en el icono de cancelar (X) en una fila de evento?",
           "options": [
-            {"id": "a", "text": "El registro del evento se elimina permanentemente de la base de datos"},
-            {"id": "b", "text": "Aparece una ventana de confirmación, y al confirmar se cancela el evento —sale de la lista pero el registro se conserva", "isCorrect": true},
+            {"id": "a", "text": "El evento se borra para siempre, sin dejar registro"},
+            {"id": "b", "text": "Aparece una ventana de confirmación, y al confirmar se cancela el evento —sale del calendario pero se queda en su historial", "isCorrect": true},
             {"id": "c", "text": "El evento se mueve a una sección de archivo en la parte inferior de la página"},
             {"id": "d", "text": "Se eliminan todos los asistentes pero el evento permanece visible en la lista"}
           ],
-          "explanation": "Cancelar no elimina un evento. Una ventana pregunta '¿Cancelar evento?' y advierte que se avisará a los asistentes. Una vez que confirma, el evento sale de la lista, pero su registro se conserva para que el historial quede intacto."
+          "explanation": "Cancelar no borra un evento. Una ventana le pide confirmar y advierte que se avisará a los asistentes. Una vez que confirma, el evento sale del calendario, pero se queda en su historial para que conserve un registro fiel de lo que estuvo programado."
         },
         {
           "id": "ev7",
@@ -241,14 +241,14 @@
         },
         {
           "id": "ev9",
-          "text": "Al crear un evento, el botón Guardar aparece atenuado y hace clic en el triángulo de advertencia a su izquierda. ¿Qué muestra?",
+          "text": "Está creando un evento y Guardar no lo deja hacer clic. ¿Cómo averigua qué se lo impide?",
           "options": [
-            {"id": "a", "text": "Un indicador de carga que señala que el guardado está en curso"},
-            {"id": "b", "text": "Un mensaje que dice 'El formulario no es válido'"},
-            {"id": "c", "text": "Una lista corta de exactamente qué campos aún necesitan atención (por ejemplo, 'El título es obligatorio' o 'La fecha de inicio es obligatoria')", "isCorrect": true},
-            {"id": "d", "text": "Nada —el botón simplemente no se puede pulsar cuando está atenuado"}
+            {"id": "a", "text": "Actualizar la página y empezar el evento de nuevo"},
+            {"id": "b", "text": "Adivinar qué campo está mal y probar uno por uno"},
+            {"id": "c", "text": "Revisar el indicador junto a Guardar —lista exactamente qué falta por completar, como un título o una fecha de inicio ausentes", "isCorrect": true},
+            {"id": "d", "text": "No hay nada que hacer —guarde de todos modos y corríjalo después"}
           ],
-          "explanation": "Cuando el formulario no está listo, el botón Guardar aparece atenuado. Haga clic en el triángulo de advertencia a su izquierda para ver una lista corta de exactamente qué campos aún necesitan atención, así sabe qué corregir antes de guardar."
+          "explanation": "Guardar permanece deshabilitado hasta que el evento tenga todo lo que necesita. El indicador a su lado detalla qué falta —un título, una fecha de inicio, y así— para que sepa exactamente qué completar antes de que se guarde."
         },
         {
           "id": "ev10",
@@ -263,14 +263,14 @@
         },
         {
           "id": "ev11",
-          "text": "Un empleado abre la pestaña Eventos de su Detalle del empleado y quiere aceptar una invitación a un evento. ¿Qué puede hacer desde esa pantalla?",
+          "text": "Una auditoría de un cliente le pide comprobar qué empleados asistieron a la capacitación de seguridad del trimestre pasado. ¿Dónde busca?",
           "options": [
-            {"id": "a", "text": "Hacer clic en un botón Aceptar en la fila del evento para establecer su RSVP en Aceptado"},
-            {"id": "b", "text": "Nada —la pestaña muestra su estado como solo lectura; no hay ningún botón de responder ni aceptar en la aplicación hoy", "isCorrect": true},
-            {"id": "c", "text": "Arrastrar el evento a una columna 'Aceptado' para confirmar la asistencia"},
-            {"id": "d", "text": "Responder a la notificación de invitación, lo que actualiza su estado"}
+            {"id": "a", "text": "El módulo de Seguimiento de tiempo, filtrado al día de la capacitación"},
+            {"id": "b", "text": "Abrir la pestaña Eventos del perfil del empleado, o la lista de asistentes del evento de capacitación, y ver quién está marcado como Asistió", "isCorrect": true},
+            {"id": "c", "text": "La Pantalla de planta de producción, que guarda un registro de asistencia permanente"},
+            {"id": "d", "text": "En ningún lado —la asistencia no se registra una vez que el evento termina"}
           ],
-          "explanation": "Responder aún no está disponible en la aplicación. La pestaña Eventos del empleado muestra su estado (Invitado, Aceptado, Rechazado o Asistió) como solo lectura —por ahora no hay ningún botón para aceptar o rechazar desde esa pantalla."
+          "explanation": "El perfil de cada persona tiene una pestaña Eventos que lista los eventos a los que fue invitada y si asistió, y el evento en sí lleva una lista de asistentes. El estado Asistió en ellos es su registro de cumplimiento de quién estuvo realmente presente."
         }
       ]
     }

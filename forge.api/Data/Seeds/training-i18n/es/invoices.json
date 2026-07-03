@@ -193,11 +193,11 @@
           "text": "Su taller no usa QuickBooks ni ningún otro proveedor de contabilidad. ¿En qué modo opera el módulo de Facturas?",
           "options": [
             {"id": "a", "text": "Modo integrado —las facturas se sincronizan desde el sistema de contabilidad"},
-            {"id": "b", "text": "Modo independiente —usted tiene control CRUD completo sobre las facturas directamente en QB Engineer", "isCorrect": true},
+            {"id": "b", "text": "Modo independiente —usted crea, envía, anula y elimina facturas aquí mismo en Forge", "isCorrect": true},
             {"id": "c", "text": "Modo de solo lectura —las facturas solo se pueden ver, no crear"},
             {"id": "d", "text": "Modo deshabilitado —la página de Facturas se oculta por completo"}
           ],
-          "explanation": "Cuando no hay ningún proveedor de contabilidad conectado, las facturas operan en modo independiente con capacidades completas de crear, editar, enviar, anular y eliminar. Esto es lo predeterminado para los talleres sin software de contabilidad externo."
+          "explanation": "Cuando no hay software de contabilidad conectado, las facturas funcionan en modo independiente: puede crearlas, enviarlas, anularlas y eliminarlas aquí mismo. Esto es lo predeterminado para los talleres que no usan software de contabilidad aparte."
         },
         {
           "id": "inv2",
@@ -212,7 +212,7 @@
         },
         {
           "id": "inv3",
-          "text": "Una factura tiene un estado de 'Enviada' (chip azul). ¿Qué acciones están disponibles?",
+          "text": "Una factura tiene un estado de 'Enviada' (etiqueta azul). ¿Qué acciones están disponibles?",
           "options": [
             {"id": "a", "text": "Editar, Anular, Eliminar y Enviar"},
             {"id": "b", "text": "Solo Anular —puede cancelar la factura pero no eliminarla ni editarla", "isCorrect": true},
@@ -223,7 +223,7 @@
         },
         {
           "id": "inv4",
-          "text": "¿Qué indica el chip de estado amarillo 'Pagada parcialmente'?",
+          "text": "¿Qué indica la etiqueta de estado amarilla 'Pagada parcialmente'?",
           "options": [
             {"id": "a", "text": "El cliente ha pagado exactamente la mitad del total de la factura"},
             {"id": "b", "text": "El cliente ha realizado al menos un pago, pero el Saldo adeudado sigue siendo mayor que cero", "isCorrect": true},
@@ -274,14 +274,14 @@
             {"id": "c", "text": "El módulo de facturas está en modo integrado"},
             {"id": "d", "text": "Hay demasiados trabajos sin facturar en la cola"}
           ],
-          "explanation": "El botón Facturar en el panel de Trabajos sin facturar está deshabilitado cuando un trabajo no tiene un cliente asignado. La información sobre herramientas dice 'No customer assigned'. Necesita asignar un cliente al trabajo primero, y entonces el botón se activa."
+          "explanation": "El botón Facturar en el panel de Trabajos sin facturar aparece atenuado cuando un trabajo no tiene cliente. Pase el cursor por encima y le indica que no hay cliente asignado. Asigne un cliente al trabajo primero, y entonces el botón se activa."
         },
         {
           "id": "inv9",
           "text": "¿Qué sucede cuando anula una factura?",
           "options": [
-            {"id": "a", "text": "La factura se elimina permanentemente de la base de datos"},
-            {"id": "b", "text": "El estado de la factura cambia a Anulada (chip gris) y permanece en el sistema con fines de auditoría sin impacto financiero", "isCorrect": true},
+            {"id": "a", "text": "La factura se borra permanentemente y desaparece para siempre"},
+            {"id": "b", "text": "El estado de la factura cambia a Anulada (etiqueta gris) y permanece en el archivo para su historial sin afectar ningún total", "isCorrect": true},
             {"id": "c", "text": "La factura se mueve a una página de archivo de Facturas anuladas aparte"},
             {"id": "d", "text": "Todos los pagos aplicados a la factura se reembolsan automáticamente"}
           ],
@@ -289,21 +289,21 @@
         },
         {
           "id": "inv10",
-          "text": "Conectó QuickBooks Online a QB Engineer. ¿Qué le sucede a la página de Facturas?",
+          "text": "Conectó QuickBooks Online a su taller. ¿Qué le sucede a la página de Facturas?",
           "options": [
             {"id": "a", "text": "Nada cambia —las facturas funcionan exactamente igual"},
-            {"id": "b", "text": "La página muestra un banner que indica que las facturas son gestionadas por QuickBooks, y la creación/edición de facturas se deshabilita (solo lectura)", "isCorrect": true},
+            {"id": "b", "text": "La página muestra un banner que dice que las facturas son gestionadas por QuickBooks, y puede verlas aquí pero ya no crearlas ni cambiarlas", "isCorrect": true},
             {"id": "c", "text": "La página de Facturas se oculta por completo de la navegación"},
             {"id": "d", "text": "Solo se oculta el botón Nueva factura —todavía puede editar las facturas existentes"}
           ],
-          "explanation": "Cuando se conecta un proveedor de contabilidad, el módulo de Facturas cambia a modo integrado. Aparece un banner cloud_sync en la parte superior, y todas las operaciones CRUD se deshabilitan. Las facturas se sincronizan desde QuickBooks y se muestran de solo lectura."
+          "explanation": "Cuando se conecta software de contabilidad, la página de Facturas cambia a solo lectura. Aparece un banner en la parte superior que explica que QuickBooks ahora gestiona las facturas. Sus facturas se traen desde QuickBooks para referencia, y usted hace la facturación allá."
         },
         {
           "id": "inv11",
           "text": "En la vista de detalle de la factura, ve enlaces azules interactivos para 'Cliente', 'Orden de venta' y 'Envío'. ¿Qué hacen estos enlaces?",
           "options": [
             {"id": "a", "text": "Copian el ID de la entidad al portapapeles"},
-            {"id": "b", "text": "Abren el diálogo o la página de detalle de la entidad respectiva, lo que le permite navegar toda la cadena de orden a cobro", "isCorrect": true},
+            {"id": "b", "text": "Abren ese cliente, orden de venta o envío, lo que le permite rastrear la orden desde la orden hasta el pago", "isCorrect": true},
             {"id": "c", "text": "Envían una notificación por correo electrónico al propietario de la entidad relacionada"},
             {"id": "d", "text": "Exportan un informe en PDF para la entidad vinculada"}
           ],
@@ -326,9 +326,9 @@
   {
     "slug": "invoices-reference",
     "title": "Facturas — Referencia avanzada",
-    "summary": "Referencia para usuarios avanzados y administradores sobre facturas: multidivisa/tipo de cambio, el modo de cola de facturas, los endpoints de correo electrónico/PDF, el guardado automático de borradores y la restricción por rol + capacidad.",
+    "summary": "Para el oficinista o encargado de cuentas por cobrar con experiencia: facturar en otra divisa, enrutar las facturas nuevas a una sola persona, imprimir y enviar por correo una factura, retomar una factura sin terminar y quién puede ver la página de Facturas.",
     "contentJson": {
-      "body": "## Multidivisa y tipo de cambio\n\nEl encabezado de la factura lleva un `CurrencyId` y un `FxRate` opcionales (que pasan a través de `CreateInvoiceRequestModel` a `CreateInvoiceCommand`). Ambos son **aditivos y se ocultan en instalaciones de una sola divisa**:\n\n- El **selector de divisa** solo se muestra cuando existe más de una divisa *activa* (`ActiveCurrencyService.listActiveCurrencies()` devuelve >1). Los talleres con una sola divisa nunca lo ven.\n- El formulario establece `currencyId` de forma predeterminada en la **divisa base** (`isBaseCurrency`, con respaldo en la primera divisa activa) y `fxRate` en `1`.\n- El **campo de tipo de cambio** solo se muestra cuando se selecciona una divisa *distinta de la base*. Para la divisa base, el tipo de cambio es implícitamente 1 y el campo permanece oculto. `fxRate` se valida como obligatorio, `min` 0.0000001.\n- Los montos de línea se ingresan en la divisa elegida; el tipo de cambio es la conversión de vuelta a la divisa base contable. Las instalaciones de una sola divisa no se ven afectadas: todo el bloque queda inerte.\n\n## Configuración de la cola de facturas\n\nDos filas de `SystemSetting` controlan cómo se enrutan las nuevas facturas, leídas mediante `GET /api/v1/invoices/queue-settings` y escritas mediante `PUT /api/v1/invoices/queue-settings`:\n\n- `invoice_mode` — `\"direct\"` (predeterminado) o `\"managed\"`. Directo = cualquier persona autorizada crea facturas en línea; gestionado = las facturas se enrutan a la cola de un usuario asignado.\n- `invoice_queue_assignee` — el id de usuario (almacenado como texto) al que se asignan las facturas en modo gestionado. El GET lo resuelve a `assignedUserName`.\n\nLa **lectura** está permitida para `Admin, Manager, OfficeManager`; la **escritura** (`PUT`) es **solo para Admin**. El modelo de respuesta es `InvoiceQueueSettingsResponse(Mode, AssignedUserId, AssignedUserName)`.\n\n## Correo electrónico y PDF (los endpoints existen; aún no expuestos)\n\nEl controlador ya los expone, pero la interfaz de lista/detalle aún no conecta botones a ellos: están listos a nivel de API:\n\n- `GET /api/v1/invoices/{id}/pdf` — PDF generado en el servidor mediante QuestPDF (`GenerateInvoicePdfQuery`), devuelto como `invoice-{id}.pdf`.\n- `POST /api/v1/invoices/{id}/email` — cuerpo `{ recipientEmail }` (`SendInvoiceEmailCommand`). El envío pasa por `IIntegrationOutboxService` con una clave de idempotencia `invoice-email:{id}:{recipient}`, de modo que los reenvíos a la misma dirección se deduplican.\n\nHasta que lleguen los botones, solo se puede acceder a estos mediante llamadas directas a la API.\n\n## Guardado automático de borradores y reanudación\n\nEl diálogo de creación es un `DraftableForm` registrado con `entityType: 'invoice'` (consulte el sistema de Borradores de formulario). El estado del formulario modificado se guarda automáticamente en IndexedDB y sobrevive al cierre de sesión, a la actualización y al cierre de la pestaña. En la página de lista, `InvoicesComponent.ngOnInit()` llama a `DraftResumeService.consume('invoice')`: si existe un borrador de factura pendiente, el diálogo de creación **se reabre automáticamente** para que el usuario pueda terminar donde lo dejó.\n\n## Roles y restricción por capacidad\n\n- Todo el `InvoicesController` tiene `[Authorize(Roles = \"Admin,Manager,OfficeManager\")]` y `[RequiresCapability(\"CAP-O2C-INVOICE\")]`. Los roles de ingeniero y de planta no tienen acceso a las facturas.\n- `CAP-O2C-INVOICE` está **activado de forma predeterminada**, área `O2C`. Controla la generación de facturas del lado de ventas después del envío. La entidad de factura residente en la aplicación existe en el modo de contabilidad integrado; en el modo de contabilidad conectada, la factura se exporta a QB y es **de solo lectura** localmente (el límite contable ⚡; consulte el módulo de Visión general).\n- El gemelo de cuentas por pagar es `CAP-P2P-BILL` (facturas de proveedor); ambos son simétricos a través de la división de orden a cobro / compra a pago.\n- `DELETE /api/v1/invoices/{id}` lleva `[IfMatch(typeof(Invoice))]`: requiere un ETag `If-Match` para la seguridad de concurrencia optimista y (según las reglas del ciclo de vida) solo las facturas en Borrador se pueden eliminar.",
+      "body": "## Facturar a un cliente en otra divisa\n\nLa mayoría de los talleres facturan a todos en una sola divisa y nunca piensan en esto. Pero si su empresa ha configurado más de una divisa, aparece una opción adicional cuando arma una factura:\n\n- Aparece un **selector de divisa** en la factura. Su divisa local se elige por usted, así que un taller de una sola divisa nunca ve el selector.\n- Cuando elige una divisa que no es su divisa local, aparece un **campo de tipo de cambio**. Usted ingresa el tipo — cuánto vale una unidad de esa divisa en su divisa local el día en que factura.\n- Escriba los precios de línea en la divisa en la que factura. El tipo de cambio es lo que permite que sus libros conviertan la factura de vuelta a su divisa local.\n\nEn caso de duda, deje la divisa como está: la predeterminada siempre es su divisa local, y el campo del tipo de cambio permanece oculto.\n\n## Enrutar las facturas nuevas a una sola persona\n\nUn taller puede facturar de una de dos maneras, y un administrador establece cuál:\n\n- **Cualquiera factura directamente** (la configuración habitual): quien esté en la página de Facturas crea la factura y listo.\n- **Una sola persona es dueña de la facturación**: las facturas nuevas caen en la cola de una persona elegida en lugar de salir de inmediato. Use esto cuando quiera que un solo contador revise y envíe cada factura, para que nada llegue a un cliente sin una segunda mirada.\n\nSi su taller enruta las facturas a una sola persona, por eso una factura nueva puede no enviarse en el momento en que la arma — está esperando al dueño de la facturación. Pregunte a su administrador quién es.\n\n## Imprimir y enviar por correo una factura\n\nCada factura puede convertirse en un PDF limpio con el nombre de su empresa, el logotipo, las líneas, los totales y las condiciones de pago — el mismo documento que enviaría por correo o entregaría a un cliente. Guárdelo para imprimir, o adjúntelo a un correo para que el cliente reciba una cuenta de aspecto profesional. Enviar la misma factura a la misma dirección dos veces no envía dos copias; la segunda se reconoce como repetida y se omite, de modo que un cliente nunca recibe duplicados.\n\n## Retomar una factura que no terminó\n\nSi empieza una factura y algo lo interrumpe — cierra sesión, cierra la pestaña o su navegador se actualiza — su trabajo no se pierde. Forge guarda en silencio la factura a medio hacer. La próxima vez que abra la página de Facturas, le ofrece reabrirla justo donde la dejó para que pueda terminarla y guardarla.\n\n## Quién puede ver y trabajar con facturas\n\nLas facturas son trabajo de oficina, no de planta. Solo los roles de oficina — un administrador, un gerente o el encargado de oficina — pueden abrir la página de Facturas y facturar a los clientes. Los maquinistas, los ingenieros y otros roles de planta no ven facturas en absoluto; ven los trabajos, no la facturación.\n\n## El límite con el software de contabilidad, en términos sencillos\n\nCuánto puede hacer aquí depende de si su taller ha conectado software de contabilidad externo como QuickBooks:\n\n- **Sin software de contabilidad conectado:** Forge es su sistema de facturación. Usted crea, envía, anula y elimina facturas aquí mismo. Tenga en cuenta que un borrador no se puede editar en el lugar — para cambiar uno, elimínelo y arme uno nuevo. Y solo puede eliminar una factura mientras siga siendo un borrador; una vez enviada, el registro queda para su historial y solo se puede anular.\n- **Software de contabilidad conectado:** su software de contabilidad es dueño de las facturas. Forge se las entrega y las muestra aquí solo para referencia — la facturación real la hará allá en QuickBooks. Un banner en la parte superior de la página le indica cuándo es este el caso.\n\nLas facturas que usted debe a sus proveedores funcionan de la misma manera del lado del pago — ambas se reflejan mutuamente, una para el dinero que entra y otra para el dinero que sale.",
       "sections": []
     }
   }
