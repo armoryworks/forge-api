@@ -105,6 +105,17 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new ExplainJournalEntryQuery(bookId, entryId), ct));
 
     /// <summary>
+    /// Read-only anomaly scan (§5A): a reviewer's "look at these" list over the book's posted manual
+    /// journal entries — deterministic rules (manual posting to a control account; large manual entry
+    /// at/above <c>largeManualThreshold</c>). Flagged entries can be narrated via the explain endpoint.
+    /// </summary>
+    [HttpGet("anomalies")]
+    public async Task<ActionResult<IReadOnlyList<GlAnomaly>>> GetGlAnomalies(
+        [FromQuery] int bookId, [FromQuery] DateOnly? fromDate, [FromQuery] DateOnly? toDate,
+        [FromQuery] decimal largeManualThreshold = 100000m, CancellationToken ct = default)
+        => Ok(await mediator.Send(new GetGlAnomaliesQuery(bookId, fromDate, toDate, largeManualThreshold), ct));
+
+    /// <summary>
     /// Maker-checker async approval (§5.7): finalize a <c>PendingApproval</c> manual JE to <c>Posted</c>,
     /// folding it into the ledger. The approver (this caller) must differ from the submitter — the engine
     /// enforces it (<c>APPROVER_NOT_DISTINCT</c>).
