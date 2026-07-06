@@ -27,6 +27,7 @@ public class RagSearchValidator : AbstractValidator<RagSearchCommand>
 public class RagSearchHandler(
     IAiService aiService,
     IEmbeddingRepository embeddingRepo,
+    ILiveContextProvider liveContext,
     ILogger<RagSearchHandler> logger) : IRequestHandler<RagSearchCommand, RagSearchResponseModel>
 {
     private static readonly RagSearchResponseModel EmptyResponse = new([], null);
@@ -68,8 +69,26 @@ public class RagSearchHandler(
         {
             try
             {
-                var contextChunks = results.Take(5);
+                var contextChunks = results.Take(5).ToList();
+
+                // D-3 hybrid freshness: overlay current volatile facts (stock/status/cost) for the
+                // entities surfaced, so the model answers from live data rather than stale embeddings.
+                var liveRefs = contextChunks
+                    .Select(c => new EntityReference(c.EntityType, c.EntityId))
+                    .Distinct()
+                    .ToList();
+                var liveFacts = await liveContext.GetFactsAsync(liveRefs, ct);
+
                 var contextBuilder = new StringBuilder();
+
+                if (liveFacts.Count > 0)
+                {
+                    contextBuilder.AppendLine("Current data (live — authoritative over any figures in the context below):");
+                    foreach (var fact in liveFacts)
+                        contextBuilder.AppendLine($"[{fact.EntityType} #{fact.EntityId}]: {fact.Facts}");
+                    contextBuilder.AppendLine();
+                }
+
                 foreach (var chunk in contextChunks)
                 {
                     contextBuilder.AppendLine($"[{chunk.EntityType} #{chunk.EntityId} — {chunk.SourceField}]:");
