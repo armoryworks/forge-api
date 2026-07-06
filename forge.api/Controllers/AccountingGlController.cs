@@ -72,6 +72,16 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new GetPendingJournalEntriesQuery(bookId), ct));
 
     /// <summary>
+    /// Read-only chart of accounts for a book (§5A) — the account pick-list behind the manual
+    /// journal-entry editor. <c>postableOnly=true</c> narrows to hand-postable (postable, non-control)
+    /// accounts.
+    /// </summary>
+    [HttpGet("accounts")]
+    public async Task<ActionResult<IReadOnlyList<GlAccountModel>>> GetChartOfAccounts(
+        [FromQuery] int bookId, [FromQuery] bool postableOnly = false, CancellationToken ct = default)
+        => Ok(await mediator.Send(new GetChartOfAccountsQuery(bookId, postableOnly), ct));
+
+    /// <summary>
     /// Read-only GL register (ACCOUNTING_SUITE_PLAN §5A): the time-ordered journal for a book with
     /// per-line account labels and drill-back refs, feeding the ledger-view UI. Newest first,
     /// offset-paginated, optionally filtered by date range, entry status, and account.
