@@ -72,6 +72,29 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new GetPendingJournalEntriesQuery(bookId), ct));
 
     /// <summary>
+    /// Read-only GL register (ACCOUNTING_SUITE_PLAN §5A): the time-ordered journal for a book with
+    /// per-line account labels and drill-back refs, feeding the ledger-view UI. Newest first,
+    /// offset-paginated, optionally filtered by date range, entry status, and account.
+    /// </summary>
+    [HttpGet("ledger")]
+    public async Task<ActionResult<LedgerRegisterPage>> GetLedgerRegister(
+        [FromQuery] int bookId, [FromQuery] DateOnly? fromDate, [FromQuery] DateOnly? toDate,
+        [FromQuery] JournalEntryStatus? status, [FromQuery] int? glAccountId,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken ct = default)
+        => Ok(await mediator.Send(
+            new GetLedgerRegisterQuery(bookId, fromDate, toDate, status, glAccountId, page, pageSize), ct));
+
+    /// <summary>
+    /// Read-only Accounting-AI advisory (§5A): a plain-language explanation of a journal entry for a
+    /// reviewer. Advisory only — reads the ledger and narrates via the assistant, never posts; degrades
+    /// to a deterministic summary when the assistant is offline.
+    /// </summary>
+    [HttpGet("journal-entries/{entryId:long}/explain")]
+    public async Task<ActionResult<JournalEntryExplanation>> ExplainJournalEntry(
+        long entryId, [FromQuery] int bookId, CancellationToken ct)
+        => Ok(await mediator.Send(new ExplainJournalEntryQuery(bookId, entryId), ct));
+
+    /// <summary>
     /// Maker-checker async approval (§5.7): finalize a <c>PendingApproval</c> manual JE to <c>Posted</c>,
     /// folding it into the ledger. The approver (this caller) must differ from the submitter — the engine
     /// enforces it (<c>APPROVER_NOT_DISTINCT</c>).

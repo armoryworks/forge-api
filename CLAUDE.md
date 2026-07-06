@@ -425,13 +425,13 @@ Some features duplicate functionality that an accounting system (QuickBooks, Xer
    - Vendor management (full local CRUD — read-only when integrated)
    - Credit terms management
 
-4. **Never-in-app features** (regardless of mode):
-   - General ledger / bookkeeping
-   - Payroll tax calculations
+4. **Native full-GL features** — **real and substantially built, but "dark" by default** behind `CAP-ACCT-FULLGL` (default OFF; depends on `CAP-ACCT-BUILTIN`; mutex with `CAP-ACCT-EXTERNAL`). These are **not** "never-in-app": the native double-entry GL suite is implemented — posting engine (`ForgeGlPostingEngine`) + `SaveChanges` immutability interceptor + Postgres BEFORE UPDATE/DELETE triggers, the `acct_*` schema, sub-ledgers, financial statements, period/year-end close, FX, payroll, and bank reconciliation (built to ~Phase 2/3; see `ACCOUNTING_SUITE_PLAN.md` + `PHASE*_STATUS.md`). They stay off until an install enables FULLGL (gated on the §7A opening-balances conversion). When `CAP-ACCT-EXTERNAL` is connected instead, these live in the external system (QuickBooks/etc.) and the app is operational-only.
+   - General ledger / journal entries / chart of accounts / trial balance
+   - Period close + year-end retained-earnings roll
    - Bank reconciliation
-   - Check writing
    - Depreciation schedules
-   - Full accrual-basis accounting
+   - Payroll + payroll-tax journals
+   - Full accrual-basis accounting (AR/AP sub-ledgers, standard costing + variances, multi-currency / FX)
 
 5. **Always-in-app features** (regardless of mode):
    - Sales Orders, Quotes, Shipments
@@ -439,7 +439,7 @@ Some features duplicate functionality that an accounting system (QuickBooks, Xer
    - Customer Addresses (multi-address model)
    - Margin calculations (estimated from app-owned data)
 
-6. **Codified via Phase 4 capability gating.** The accounting boundary is now enforced through the capability system as the mutex pair `CAP-ACCT-EXTERNAL ⊥ CAP-ACCT-BUILTIN` (the only declared mutex in the catalog). `CAP-ACCT-FULLGL` is registered as an aspirational placeholder — never enabled, gating returns 403 with a "not yet available" tone. See the **Capability Gating** section below for the mechanism.
+6. **Codified via capability gating.** The boundary is enforced through the capability system; the only declared mutex is `CAP-ACCT-EXTERNAL ⊥ CAP-ACCT-BUILTIN`. **`CAP-ACCT-FULLGL` is a real, dependency-gated toggle — default OFF ("dark"), depends on `CAP-ACCT-BUILTIN`, mutex with `CAP-ACCT-EXTERNAL`** — backed by the substantially-built native GL. It is **not** an "aspirational placeholder": nothing force-blocks it, and the 403 when it's disabled is the standard capability-disabled response (`CapabilityGateBehavior` / `CapabilityDisabledException`), not a bespoke "not yet available" message. Enabling it is gated on posted opening balances (§7A conversion); the `GlCapabilityGate` enable-path seam exists but isn't yet wired into `ToggleCapabilityHandler`. Authoritative, current descriptions live in `CapabilityCatalog.cs` (`CAP-ACCT-EXTERNAL` / `-BUILTIN` / `-FULLGL`) and `CapabilityCatalogRelations.cs`. See the **Capability Gating** section below for the mechanism.
 
 ### Implementation Pattern
 ```csharp
