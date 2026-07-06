@@ -134,6 +134,16 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new RejectJournalEntryCommand(id, reason), ct));
 
     /// <summary>
+    /// §5A "Reverse / correct": reverse a Posted entry by posting its equal-and-opposite and flipping the
+    /// original to <c>Reversed</c>. The engine enforces the preconditions (Posted, no double-reverse,
+    /// period not HardClosed) and the <c>ReverseJournalEntry</c> SoD capability; a reason is required.
+    /// </summary>
+    [HttpPost("journal-entries/{id:long}/reverse")]
+    public async Task<ActionResult<ManualJournalEntryResult>> ReverseJournalEntry(
+        long id, [FromBody] ReverseJournalEntryRequest body, CancellationToken ct)
+        => Ok(await mediator.Send(new ReverseJournalEntryCommand(id, body.ReversalDate, body.Reason), ct));
+
+    /// <summary>
     /// Produce a filter-immune trial balance for the book over an optional date
     /// range (§5.3 / §5.9). Asserts total Dr == total Cr via
     /// <see cref="TrialBalance.IsBalanced"/>.
