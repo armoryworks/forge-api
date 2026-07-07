@@ -24,7 +24,7 @@ public class CreateAddendumOrderHandlerTests
         var parent = new SalesOrder
         {
             Id = 100, OrderNumber = "SO-00042", CustomerId = 1, Customer = customer,
-            Status = status, TaxRate = 0.05m, CustomerPO = "PO-1", CreditTerms = CreditTerms.Net30,
+            Status = status, TaxRate = 0.05m, CustomerPO = "PO-1", CreditTerms = CreditTerms.Net30, QuoteId = 9,
         };
         _db.SalesOrders.Add(parent);
         await _db.SaveChangesAsync();
@@ -49,6 +49,8 @@ public class CreateAddendumOrderHandlerTests
         addendum.TaxRate.Should().Be(0.05m);
         addendum.CreditTerms.Should().Be(CreditTerms.Net30);
         addendum.Lines.Should().BeEmpty("an addendum carries only the delta");
+        addendum.QuoteId.Should().BeNull(
+            "ix_sales_orders_quote_id enforces one order per quote — copying it 500'd on Postgres");
     }
 
     [Fact]

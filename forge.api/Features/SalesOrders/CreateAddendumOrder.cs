@@ -59,7 +59,8 @@ public class CreateAddendumOrderHandler(AppDbContext db)
             // SO-00042-A1, SO-00042-A2, …
             OrderNumber = $"{parent.OrderNumber}-A{nextNumber + 1}",
             CustomerId = parent.CustomerId,
-            QuoteId = parent.QuoteId,
+            // QuoteId is NOT copied: ix_sales_orders_quote_id enforces one
+            // order per quote — the addendum's provenance is ParentSalesOrderId.
             ShippingAddressId = parent.ShippingAddressId,
             BillingAddressId = parent.BillingAddressId,
             TaxRate = parent.TaxRate,
