@@ -1,14 +1,20 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Quotes;
 
 public record ConvertQuoteToOrderCommand(int Id) : IRequest<SalesOrderListItemModel>;
 
-public class ConvertQuoteToOrderHandler(IQuoteRepository quoteRepo, ISalesOrderRepository orderRepo)
+// S2: db is optional / null-default so the existing isolated (mock-repo) unit-test
+// constructions stay valid — the DI path always supplies it. When present, it drives
+// the payment-schedule re-link below.
+public class ConvertQuoteToOrderHandler(IQuoteRepository quoteRepo, ISalesOrderRepository orderRepo, AppDbContext? db = null)
     : IRequestHandler<ConvertQuoteToOrderCommand, SalesOrderListItemModel>
 {
     public async Task<SalesOrderListItemModel> Handle(ConvertQuoteToOrderCommand request, CancellationToken cancellationToken)
@@ -60,6 +66,26 @@ public class ConvertQuoteToOrderHandler(IQuoteRepository quoteRepo, ISalesOrderR
 
         await orderRepo.AddAsync(order, cancellationToken);
         await quoteRepo.SaveChangesAsync(cancellationToken);
+
+        // S2: a pre-payment schedule defined on the quote follows the order — the SAME
+        // row is re-linked (SalesOrderId set), never cloned, and goes Active. Runs after
+        // the save so order.Id is assigned.
+        if (db is not null)
+        {
+            var schedule = await db.PaymentSchedules.FirstOrDefaultAsync(
+                s => s.QuoteId == quote.Id && s.Status != PaymentScheduleStatus.Cancelled,
+                cancellationToken);
+            if (schedule is not null)
+            {
+                schedule.SalesOrderId = order.Id;
+                schedule.Status = PaymentScheduleStatus.Active;
+                db.LogActivityAt(
+                    "payment-schedule-activated",
+                    $"Payment schedule re-linked to order {order.OrderNumber} and activated",
+                    ("Quote", quote.Id), ("SalesOrder", order.Id));
+                await db.SaveChangesAsync(cancellationToken);
+            }
+        }
 
         var total = order.Lines.Sum(l => l.Quantity * l.UnitPrice);
 
