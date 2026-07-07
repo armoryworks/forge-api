@@ -1,7 +1,9 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -20,7 +22,11 @@ public class ExplodeJobBomValidator : AbstractValidator<ExplodeJobBomCommand>
     }
 }
 
-public class ExplodeJobBomHandler(AppDbContext db, IJobRepository jobRepo) : IRequestHandler<ExplodeJobBomCommand, BomExplosionResponseModel>
+public class ExplodeJobBomHandler(
+    AppDbContext db,
+    IJobRepository jobRepo,
+    IBarcodeService barcodeService,
+    IHubContext<BoardHub> boardHub) : IRequestHandler<ExplodeJobBomCommand, BomExplosionResponseModel>
 {
     public async Task<BomExplosionResponseModel> Handle(ExplodeJobBomCommand request, CancellationToken ct)
     {
@@ -41,12 +47,14 @@ public class ExplodeJobBomHandler(AppDbContext db, IJobRepository jobRepo) : IRe
             ?? throw new KeyNotFoundException($"Part {parentJob.PartId.Value} not found.");
 
         if (part.BOMLines.Count == 0)
-            throw new InvalidOperationException($"Part {part.PartNumber} has no BOM lines.");
+            throw new InvalidOperationException(
+                $"Part {part.PartNumber} has no BOM lines to explode. Add BOM lines to the part first.");
 
         var firstStage = parentJob.TrackType.Stages.FirstOrDefault()
             ?? throw new InvalidOperationException($"Track type '{parentJob.TrackType.Name}' has no stages configured.");
 
         var createdJobs = new List<BomExplosionChildJobModel>();
+        var newChildJobs = new List<Job>();
         var buyItems = new List<BomExplosionBuyItemModel>();
         var stockItems = new List<BomExplosionStockItemModel>();
 
@@ -98,6 +106,7 @@ public class ExplodeJobBomHandler(AppDbContext db, IJobRepository jobRepo) : IRe
                         Quantity = bomLine.Quantity,
                     });
 
+                    newChildJobs.Add(childJob);
                     createdJobs.Add(new BomExplosionChildJobModel(
                         childJob.Id,
                         childJob.JobNumber,
@@ -166,6 +175,20 @@ public class ExplodeJobBomHandler(AppDbContext db, IJobRepository jobRepo) : IRe
         }
 
         await db.SaveChangesAsync(ct);
+
+        // Give each child job a scannable barcode and announce it to the live
+        // board — without the broadcast the board behind the explode dialog
+        // never refreshed and the whole explosion looked like a no-op.
+        foreach (var childJob in newChildJobs)
+        {
+            await barcodeService.CreateBarcodeAsync(
+                BarcodeEntityType.Job, childJob.Id, childJob.JobNumber, ct);
+
+            await boardHub.Clients.Group($"board:{parentJob.TrackTypeId}")
+                .SendAsync("jobCreated", new BoardJobCreatedEvent(
+                    childJob.Id, childJob.JobNumber, childJob.Title, parentJob.TrackTypeId,
+                    firstStage.Id, firstStage.Name, childJob.BoardPosition), ct);
+        }
 
         return new BomExplosionResponseModel(
             parentJob.Id,

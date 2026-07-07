@@ -45,6 +45,7 @@ public class JobRepository(AppDbContext db) : IJobRepository
                 .ThenInclude(sol => sol!.SalesOrder)
                     .ThenInclude(so => so.Invoices)
             .Include(j => j.ChildJobs)
+            .Include(j => j.ParentJob)
             .Include(j => j.CoverPhotoFile)
             .OrderBy(j => j.CurrentStage.SortOrder)
             .ThenBy(j => j.BoardPosition)
@@ -110,7 +111,9 @@ public class JobRepository(AppDbContext db) : IJobRepository
                 j.ExternalRef,
                 null,
                 activeHolds,
-                j.CoverPhotoFileId.HasValue ? $"/api/v1/files/{j.CoverPhotoFileId}" : null);
+                j.CoverPhotoFileId.HasValue ? $"/api/v1/files/{j.CoverPhotoFileId}" : null,
+                j.ParentJobId,
+                j.ParentJob?.JobNumber);
         }).ToList();
     }
 
@@ -182,6 +185,7 @@ public class JobRepository(AppDbContext db) : IJobRepository
                 .ThenInclude(sol => sol!.SalesOrder)
                     .ThenInclude(so => so.Invoices)
             .Include(j => j.ChildJobs)
+            .Include(j => j.ParentJob)
             .Include(j => j.CoverPhotoFile)
             .ToListAsync(ct);
 
@@ -245,7 +249,9 @@ public class JobRepository(AppDbContext db) : IJobRepository
                 j.ExternalRef,
                 null,
                 activeHolds,
-                j.CoverPhotoFileId.HasValue ? $"/api/v1/files/{j.CoverPhotoFileId}" : null);
+                j.CoverPhotoFileId.HasValue ? $"/api/v1/files/{j.CoverPhotoFileId}" : null,
+                j.ParentJobId,
+                j.ParentJob?.JobNumber);
         }).ToList();
 
         return new PagedResponse<JobListResponseModel>(

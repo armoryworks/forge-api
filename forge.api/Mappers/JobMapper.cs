@@ -89,6 +89,8 @@ public static partial class JobMapper
             ChildJobCount: job.ChildJobs?.Count(c => c.DeletedAt == null) ?? 0,
             ExternalRef: job.ExternalRef,
             AccountingDocumentType: job.CurrentStage?.AccountingDocumentType?.ToString(),
-            ActiveHolds: []);
+            ActiveHolds: [],
+            ParentJobId: job.ParentJobId,
+            ParentJobNumber: job.ParentJob?.JobNumber);
     }
 }

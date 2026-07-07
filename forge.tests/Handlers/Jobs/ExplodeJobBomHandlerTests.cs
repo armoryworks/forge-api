@@ -1,8 +1,10 @@
 using Bogus;
 using FluentAssertions;
+using Microsoft.AspNetCore.SignalR;
 using Moq;
 
 using Forge.Api.Features.Jobs;
+using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -14,6 +16,9 @@ namespace Forge.Tests.Handlers.Jobs;
 public class ExplodeJobBomHandlerTests
 {
     private readonly Mock<IJobRepository> _jobRepo = new();
+    private readonly Mock<IBarcodeService> _barcodes = new();
+    private readonly Mock<IHubContext<BoardHub>> _boardHub = new();
+    private readonly Mock<IClientProxy> _boardGroup = new();
     private readonly AppDbContext _dbContext;
     private readonly ExplodeJobBomHandler _handler;
 
@@ -22,7 +27,10 @@ public class ExplodeJobBomHandlerTests
     public ExplodeJobBomHandlerTests()
     {
         _dbContext = TestDbContextFactory.Create();
-        _handler = new ExplodeJobBomHandler(_dbContext, _jobRepo.Object);
+        var clients = new Mock<IHubClients>();
+        clients.Setup(c => c.Group(It.IsAny<string>())).Returns(_boardGroup.Object);
+        _boardHub.SetupGet(h => h.Clients).Returns(clients.Object);
+        _handler = new ExplodeJobBomHandler(_dbContext, _jobRepo.Object, _barcodes.Object, _boardHub.Object);
     }
 
     [Fact]
@@ -76,6 +84,13 @@ public class ExplodeJobBomHandlerTests
         links.Should().HaveCount(2);
         links.Should().Contain(l => l.LinkType == JobLinkType.Parent);
         links.Should().Contain(l => l.LinkType == JobLinkType.Child);
+
+        // Each child job gets a scannable barcode and a live-board broadcast —
+        // without the broadcast the explosion looked like a no-op to the user.
+        _barcodes.Verify(b => b.CreateBarcodeAsync(
+            BarcodeEntityType.Job, It.IsAny<int>(), childJobNumber, It.IsAny<CancellationToken>()), Times.Once);
+        _boardGroup.Verify(p => p.SendCoreAsync(
+            "jobCreated", It.IsAny<object[]>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -112,6 +127,8 @@ public class ExplodeJobBomHandlerTests
         result.BuyItems[0].LeadTimeDays.Should().Be(7);
 
         _jobRepo.Verify(r => r.AddAsync(It.IsAny<Job>(), It.IsAny<CancellationToken>()), Times.Never);
+        _boardGroup.Verify(p => p.SendCoreAsync(
+            It.IsAny<string>(), It.IsAny<object[]>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
