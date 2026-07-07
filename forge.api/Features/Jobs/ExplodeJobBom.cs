@@ -53,8 +53,7 @@ public class ExplodeJobBomHandler(
         var firstStage = parentJob.TrackType.Stages.FirstOrDefault()
             ?? throw new InvalidOperationException($"Track type '{parentJob.TrackType.Name}' has no stages configured.");
 
-        var createdJobs = new List<BomExplosionChildJobModel>();
-        var newChildJobs = new List<Job>();
+        var newChildJobs = new List<(Job Job, Part Part, decimal Quantity)>();
         var buyItems = new List<BomExplosionBuyItemModel>();
         var stockItems = new List<BomExplosionStockItemModel>();
 
@@ -83,37 +82,32 @@ public class ExplodeJobBomHandler(
 
                     await jobRepo.AddAsync(childJob, ct);
 
-                    // Create bidirectional links
+                    // Bidirectional links + JobPart reference the child through
+                    // navigation properties: the child's id doesn't exist until
+                    // SaveChanges, and raw-int FKs captured a 0 here (FK
+                    // violation on Postgres — the reported "button does nothing").
                     db.Set<JobLink>().Add(new JobLink
                     {
                         SourceJobId = parentJob.Id,
-                        TargetJobId = childJob.Id,
+                        TargetJob = childJob,
                         LinkType = JobLinkType.Parent,
                     });
 
                     db.Set<JobLink>().Add(new JobLink
                     {
-                        SourceJobId = childJob.Id,
+                        SourceJob = childJob,
                         TargetJobId = parentJob.Id,
                         LinkType = JobLinkType.Child,
                     });
 
-                    // Create JobPart for the child job
                     db.Set<JobPart>().Add(new JobPart
                     {
-                        JobId = childJob.Id,
+                        Job = childJob,
                         PartId = childPart.Id,
                         Quantity = bomLine.Quantity,
                     });
 
-                    newChildJobs.Add(childJob);
-                    createdJobs.Add(new BomExplosionChildJobModel(
-                        childJob.Id,
-                        childJob.JobNumber,
-                        childJob.Title,
-                        childPart.Id,
-                        childPart.PartNumber,
-                        bomLine.Quantity));
+                    newChildJobs.Add((childJob, childPart, bomLine.Quantity));
                     break;
                 }
 
@@ -176,11 +170,23 @@ public class ExplodeJobBomHandler(
 
         await db.SaveChangesAsync(ct);
 
+        // Response models are built AFTER the save so they carry the real
+        // database-assigned child ids (building them earlier captured 0s).
+        var createdJobs = new List<BomExplosionChildJobModel>(newChildJobs.Count);
+
         // Give each child job a scannable barcode and announce it to the live
         // board — without the broadcast the board behind the explode dialog
         // never refreshed and the whole explosion looked like a no-op.
-        foreach (var childJob in newChildJobs)
+        foreach (var (childJob, childPart, quantity) in newChildJobs)
         {
+            createdJobs.Add(new BomExplosionChildJobModel(
+                childJob.Id,
+                childJob.JobNumber,
+                childJob.Title,
+                childPart.Id,
+                childPart.PartNumber,
+                quantity));
+
             await barcodeService.CreateBarcodeAsync(
                 BarcodeEntityType.Job, childJob.Id, childJob.JobNumber, ct);
 
