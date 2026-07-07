@@ -6,8 +6,7 @@ using Forge.Data.Context;
 namespace Forge.Api.Features.Accounting;
 
 /// <summary>
-/// Outcome of the opening-balances hard-gate evaluation (§5.5 / §7A). Logic only
-/// in Phase 0 — nothing flips a capability based on this yet.
+/// Outcome of the opening-balances hard-gate evaluation (§5.5 / §7A).
 /// </summary>
 /// <param name="CanEnable">True when CAP-ACCT-FULLGL may be enabled for the book.</param>
 /// <param name="Reason">Human-readable explanation when <see cref="CanEnable"/> is false.</param>
@@ -17,14 +16,12 @@ public readonly record struct FullGlEnableEligibility(bool CanEnable, string? Re
 /// The CAP-ACCT-FULLGL enablement gate (ACCOUNTING_SUITE_PLAN §5.5 / §7A).
 /// Implements the <b>opening-balances hard-gate</b>: the capability cannot be
 /// enabled for a book until that book's opening balances are loaded
-/// (go-live gate = native opening TB == external closing TB). This is the seam a
-/// future capability-toggle path would call before flipping CAP-ACCT-FULLGL on.
+/// (go-live gate = native opening TB == external closing TB).
 /// <para>
-/// <b>Logic only in Phase 0.</b> CAP-ACCT-FULLGL stays OFF by default and no
-/// toggle path invokes this yet — the helper exists so the hard-gate rule is
-/// real and testable now, not retrofitted later. It is intentionally NOT wired
-/// into <c>ToggleCapabilityHandler</c> (that would be a Phase-1 step), keeping
-/// the engine dark.
+/// <b>Wired 2026-07-07:</b> <c>ToggleCapabilityHandler</c> evaluates this gate for
+/// every active book before flipping CAP-ACCT-FULLGL on (409
+/// <c>capability-gl-opening-balances</c> when any book fails). CAP-ACCT-FULLGL
+/// still ships OFF by default.
 /// </para>
 /// </summary>
 public interface IGlCapabilityGate

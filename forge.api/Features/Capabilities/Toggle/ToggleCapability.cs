@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Capabilities.Descriptor;
 using Forge.Api.Hubs;
 using Forge.Api.Services;
@@ -53,9 +54,13 @@ public class ToggleCapabilityHandler(
     AppDbContext db,
     ICapabilitySnapshotProvider snapshots,
     ISystemAuditWriter auditWriter,
-    IHubContext<NotificationHub> notificationHub)
+    IHubContext<NotificationHub> notificationHub,
+    IGlCapabilityGate glGate)
     : IRequestHandler<ToggleCapabilityCommand, CapabilityDescriptorEntry>
 {
+    /// <summary>The one capability with a domain hard-gate beyond the dependency graph (§5.5/§7A).</summary>
+    private const string FullGlCapability = "CAP-ACCT-FULLGL";
+
     public async Task<CapabilityDescriptorEntry> Handle(
         ToggleCapabilityCommand request,
         CancellationToken cancellationToken)
@@ -127,6 +132,36 @@ public class ToggleCapabilityHandler(
                             ["capability"] = request.Code,
                             ["conflicts"] = conflicts,
                         });
+                }
+
+                // §5.5 / §7A opening-balances hard-gate (wired 2026-07-07; the gate logic itself
+                // shipped dark in Phase 0): CAP-ACCT-FULLGL cannot be enabled while any active
+                // book lacks its posted Conversion opening journal. Installs with no Book yet
+                // pass trivially — there is no ledger to protect.
+                if (request.Code == FullGlCapability)
+                {
+                    var activeBookIds = await db.Books
+                        .AsNoTracking()
+                        .Where(b => b.IsActive)
+                        .Select(b => b.Id)
+                        .ToListAsync(cancellationToken);
+
+                    foreach (var bookId in activeBookIds)
+                    {
+                        var eligibility = await glGate.EvaluateAsync(bookId, cancellationToken);
+                        if (!eligibility.CanEnable)
+                        {
+                            throw new CapabilityMutationException(
+                                StatusCodes.Status409Conflict,
+                                "capability-gl-opening-balances",
+                                eligibility.Reason ?? $"Book {bookId} has not passed the opening-balances gate.",
+                                new Dictionary<string, object?>
+                                {
+                                    ["capability"] = request.Code,
+                                    ["bookId"] = bookId,
+                                });
+                        }
+                    }
                 }
             }
             else
