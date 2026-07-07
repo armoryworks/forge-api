@@ -35,7 +35,9 @@ public class GetSalesOrderProjectionByIdHandler(AppDbContext db)
                 j.JobParts.Count(),
                 j.QuotedPrice,
                 j.DueDate,
-                j.CreatedAt))
+                j.CreatedAt,
+                j.SalesOrderLine != null ? j.SalesOrderLine.SalesOrderId : (int?)null,
+                j.Id))
             .FirstOrDefaultAsync(cancellationToken);
     }
 }

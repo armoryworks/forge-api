@@ -220,12 +220,16 @@ public class GetSalesOrdersListHandler(AppDbContext db)
                     o.Lines.Count,
                     o.Lines.Sum(l => l.Quantity * l.UnitPrice),
                     o.RequestedDeliveryDate,
-                    o.CreatedAt))
+                    o.CreatedAt,
+                    o.Id,
+                    null))
                 .ToListAsync(cancellationToken));
         }
 
         // Job portion fills the remainder of the page.
         // customerPO has no Job analog (null); lineCount uses JobParts; total uses QuotedPrice.
+        // SalesOrderId resolves through SalesOrderLine so the row opens the SO it
+        // actually belongs to (Job.Id and SalesOrder.Id are unrelated sequences).
         var remaining = pageSize - items.Count;
         if (remaining > 0)
         {
@@ -243,7 +247,9 @@ public class GetSalesOrdersListHandler(AppDbContext db)
                     j.JobParts.Count(),
                     j.QuotedPrice,
                     j.DueDate,
-                    j.CreatedAt))
+                    j.CreatedAt,
+                    j.SalesOrderLine != null ? j.SalesOrderLine.SalesOrderId : (int?)null,
+                    j.Id))
                 .ToListAsync(cancellationToken));
         }
 

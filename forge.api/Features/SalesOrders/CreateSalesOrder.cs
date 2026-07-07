@@ -107,6 +107,7 @@ public class CreateSalesOrderHandler(
         return new SalesOrderListItemModel(
             order.Id, order.OrderNumber, order.CustomerId, customer.Name,
             order.Status.ToString(), order.CustomerPO, order.Lines.Count,
-            total, order.RequestedDeliveryDate, order.CreatedAt);
+            total, order.RequestedDeliveryDate, order.CreatedAt,
+            SalesOrderId: order.Id, JobId: null);
     }
 }

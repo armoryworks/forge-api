@@ -35,7 +35,9 @@ public class SalesOrderRepository(AppDbContext db) : ISalesOrderRepository
                 so.Lines.Count,
                 so.Lines.Sum(l => l.Quantity * l.UnitPrice),
                 so.RequestedDeliveryDate,
-                so.CreatedAt))
+                so.CreatedAt,
+                so.Id,
+                null))
             .ToListAsync(ct);
     }
 

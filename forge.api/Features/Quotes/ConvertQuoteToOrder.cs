@@ -64,6 +64,7 @@ public class ConvertQuoteToOrderHandler(IQuoteRepository quoteRepo, ISalesOrderR
         return new SalesOrderListItemModel(
             order.Id, order.OrderNumber, order.CustomerId, quote.Customer.Name,
             order.Status.ToString(), null, order.Lines.Count,
-            total, null, order.CreatedAt);
+            total, null, order.CreatedAt,
+            SalesOrderId: order.Id, JobId: null);
     }
 }
