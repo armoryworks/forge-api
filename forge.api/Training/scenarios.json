@@ -1,0 +1,93 @@
+[
+  {
+    "id": "first-entry",
+    "track": "both",
+    "order": 10,
+    "titleKey": "accounting.training.scenarios.firstEntry.title",
+    "briefKey": "accounting.training.scenarios.firstEntry.brief",
+    "baitKey": null,
+    "hintKeys": ["accounting.training.scenarios.firstEntry.hint1"],
+    "validators": [
+      { "type": "entryPosted", "memoContains": "practice" },
+      { "type": "memoRequired" },
+      { "type": "trialBalanced" }
+    ],
+    "successKey": "accounting.training.scenarios.firstEntry.done"
+  },
+  {
+    "id": "fix-miscoded-utilities",
+    "track": "both",
+    "order": 20,
+    "titleKey": "accounting.training.scenarios.miscoded.title",
+    "briefKey": "accounting.training.scenarios.miscoded.brief",
+    "baitKey": "accounting.training.scenarios.miscoded.bait",
+    "hintKeys": ["accounting.training.scenarios.miscoded.hint1", "accounting.training.scenarios.miscoded.hint2"],
+    "validators": [
+      { "type": "entryReversed", "memoContains": "power bill", "accountNumber": "60100" },
+      { "type": "entryLinked", "memoContains": "power bill" },
+      { "type": "entryPosted", "drAccountNumber": "60300", "crAccountNumber": "10100", "amount": 842.17 },
+      { "type": "trialBalanced" }
+    ],
+    "successKey": "accounting.training.scenarios.miscoded.done"
+  },
+  {
+    "id": "remove-duplicate",
+    "track": "both",
+    "order": 30,
+    "titleKey": "accounting.training.scenarios.duplicate.title",
+    "briefKey": "accounting.training.scenarios.duplicate.brief",
+    "baitKey": "accounting.training.scenarios.duplicate.bait",
+    "hintKeys": ["accounting.training.scenarios.duplicate.hint1"],
+    "validators": [
+      { "type": "entryReversed", "memoContains": "City Power", "accountNumber": "60300" },
+      { "type": "entryLinked", "memoContains": "City Power" },
+      { "type": "trialBalanced" }
+    ],
+    "successKey": "accounting.training.scenarios.duplicate.done"
+  },
+  {
+    "id": "nsf-check",
+    "track": "both",
+    "order": 40,
+    "titleKey": "accounting.training.scenarios.nsf.title",
+    "briefKey": "accounting.training.scenarios.nsf.brief",
+    "baitKey": null,
+    "hintKeys": ["accounting.training.scenarios.nsf.hint1"],
+    "validators": [
+      { "type": "entryReversed", "memoContains": "check deposit" },
+      { "type": "entryLinked", "memoContains": "check deposit" },
+      { "type": "trialBalanced" }
+    ],
+    "successKey": "accounting.training.scenarios.nsf.done"
+  },
+  {
+    "id": "control-account-handpost",
+    "track": "both",
+    "order": 50,
+    "titleKey": "accounting.training.scenarios.control.title",
+    "briefKey": "accounting.training.scenarios.control.brief",
+    "baitKey": "accounting.training.scenarios.control.bait",
+    "hintKeys": ["accounting.training.scenarios.control.hint1"],
+    "validators": [
+      { "type": "entryReversed", "memoContains": "Adjust AR" },
+      { "type": "entryLinked", "memoContains": "Adjust AR" },
+      { "type": "trialBalanced" }
+    ],
+    "successKey": "accounting.training.scenarios.control.done"
+  },
+  {
+    "id": "undocumented-adjustment",
+    "track": "both",
+    "order": 60,
+    "titleKey": "accounting.training.scenarios.narration.title",
+    "briefKey": "accounting.training.scenarios.narration.brief",
+    "baitKey": null,
+    "hintKeys": ["accounting.training.scenarios.narration.hint1"],
+    "validators": [
+      { "type": "entryReversed", "memoContains": "match bank" },
+      { "type": "memoRequired" },
+      { "type": "trialBalanced" }
+    ],
+    "successKey": "accounting.training.scenarios.narration.done"
+  }
+]

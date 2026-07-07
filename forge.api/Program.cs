@@ -543,6 +543,14 @@ try
     builder.Services.AddScoped<Forge.Core.Interfaces.ILiveContextProvider,
                                Forge.Api.Services.LiveContextProvider>();
 
+    // §5A.4 GL training system — sandbox seeder/reset, shipped scenario catalog, end-state runner.
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.Training.ITrainingSandboxService,
+                               Forge.Api.Features.Accounting.Training.TrainingSandboxService>();
+    builder.Services.AddSingleton<Forge.Api.Features.Accounting.Training.ITrainingScenarioProvider,
+                                  Forge.Api.Features.Accounting.Training.TrainingScenarioProvider>();
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.Training.ILedgerScenarioRunner,
+                               Forge.Api.Features.Accounting.Training.LedgerScenarioRunner>();
+
     // regulatory-watchtower (cluster B) — poller + feed client (mock = offline no-op;
     // real per-feed-type clients swap in on an internet-connected node).
     builder.Services.AddScoped<Forge.Api.Services.IRegulatoryPoller,
