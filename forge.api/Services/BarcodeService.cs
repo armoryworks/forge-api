@@ -21,6 +21,7 @@ public class BarcodeService(AppDbContext db, IHttpContextAccessor httpContextAcc
         [BarcodeEntityType.PurchaseOrder] = "PO",
         [BarcodeEntityType.Asset] = "AST",
         [BarcodeEntityType.StorageLocation] = "LOC",
+        [BarcodeEntityType.Lot] = "LOT",
     };
 
     public async Task<Barcode> CreateBarcodeAsync(
@@ -28,12 +29,16 @@ public class BarcodeService(AppDbContext db, IHttpContextAccessor httpContextAcc
         CancellationToken cancellationToken = default)
     {
         var prefix = Prefixes[entityType];
-        var value = $"{prefix}-{naturalIdentifier}";
+        // Some natural identifiers already carry the type prefix (lot numbers
+        // are generated as LOT-yyyyMMdd-nnn) — don't stutter it into LOT-LOT-….
+        var value = naturalIdentifier.StartsWith($"{prefix}-", StringComparison.Ordinal)
+            ? naturalIdentifier
+            : $"{prefix}-{naturalIdentifier}";
 
         // Ensure uniqueness — if a collision exists, append entity ID
         var exists = await db.Barcodes.AnyAsync(b => b.Value == value, cancellationToken);
         if (exists)
-            value = $"{prefix}-{naturalIdentifier}-{entityId}";
+            value = $"{value}-{entityId}";
 
         var barcode = new Barcode
         {
@@ -66,6 +71,9 @@ public class BarcodeService(AppDbContext db, IHttpContextAccessor httpContextAcc
             case BarcodeEntityType.StorageLocation:
                 barcode.StorageLocationId = entityId;
                 break;
+            case BarcodeEntityType.Lot:
+                barcode.LotRecordId = entityId;
+                break;
         }
 
         db.Barcodes.Add(barcode);
@@ -80,6 +88,7 @@ public class BarcodeService(AppDbContext db, IHttpContextAccessor httpContextAcc
             BarcodeEntityType.PurchaseOrder => "PurchaseOrder",
             BarcodeEntityType.Asset => "Asset",
             BarcodeEntityType.StorageLocation => "StorageLocation",
+            BarcodeEntityType.Lot => "Lot",
             _ => null,
         };
 

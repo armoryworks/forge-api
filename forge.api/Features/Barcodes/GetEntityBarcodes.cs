@@ -25,6 +25,7 @@ public class GetEntityBarcodesHandler(AppDbContext db)
             BarcodeEntityType.PurchaseOrder => query.Where(b => b.PurchaseOrderId == request.EntityId),
             BarcodeEntityType.Asset => query.Where(b => b.AssetId == request.EntityId),
             BarcodeEntityType.StorageLocation => query.Where(b => b.StorageLocationId == request.EntityId),
+            BarcodeEntityType.Lot => query.Where(b => b.LotRecordId == request.EntityId),
             _ => query,
         };
 

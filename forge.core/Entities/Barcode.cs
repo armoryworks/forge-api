@@ -32,4 +32,7 @@ public class Barcode : BaseAuditableEntity
 
     public int? StorageLocationId { get; set; }
     public StorageLocation? StorageLocation { get; set; }
+
+    public int? LotRecordId { get; set; }
+    public LotRecord? LotRecord { get; set; }
 }

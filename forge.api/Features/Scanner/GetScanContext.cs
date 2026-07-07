@@ -63,6 +63,31 @@ public class GetScanContextHandler(AppDbContext db)
             }
         }
 
+        // Lot labels resolve to the lot's part — the barcode value IS the lot
+        // number, so match either the registry or lot_records directly.
+        if (part == null)
+        {
+            var lotPartId = await db.LotRecords
+                .AsNoTracking()
+                .Where(l => l.LotNumber == identifier)
+                .Select(l => (int?)l.PartId)
+                .FirstOrDefaultAsync(cancellationToken)
+                ?? await db.Barcodes
+                    .AsNoTracking()
+                    .Where(b => b.Value == identifier && b.EntityType == BarcodeEntityType.Lot && b.LotRecordId.HasValue)
+                    .Select(b => (int?)b.LotRecord!.PartId)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+            if (lotPartId.HasValue)
+            {
+                part = await db.Parts
+                    .AsNoTracking()
+                    .Where(p => p.Id == lotPartId.Value)
+                    .Select(p => new { p.Id, p.PartNumber, p.Description })
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+        }
+
         if (part == null)
             throw new KeyNotFoundException($"Part not found for identifier '{identifier}'");
 

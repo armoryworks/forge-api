@@ -72,6 +72,48 @@ public class GetLotTraceabilityHandler(AppDbContext db)
                 i.CreatedAt))
             .ToListAsync(cancellationToken);
 
+        // Flattened, date-ordered timeline — the shape the lot detail panel
+        // actually renders. The categorized lists above stay for the quality
+        // module; the panel previously read these (absent) fields and showed a
+        // blank quantity and a dead timeline.
+        var lotRows = await db.LotRecords
+            .AsNoTracking()
+            .Where(l => l.LotNumber == request.LotNumber)
+            .Select(l => new
+            {
+                l.CreatedAt,
+                l.Quantity,
+                JobNumber = l.Job != null ? l.Job.JobNumber : null,
+                JobTitle = l.Job != null ? l.Job.Title : null,
+                RunNumber = l.ProductionRun != null ? l.ProductionRun.RunNumber : null,
+                RunStatus = l.ProductionRun != null ? l.ProductionRun.Status.ToString() : null,
+                PoNumber = l.PurchaseOrderLine != null ? l.PurchaseOrderLine.PurchaseOrder.PONumber : null,
+                VendorName = l.PurchaseOrderLine != null ? l.PurchaseOrderLine.PurchaseOrder.Vendor.CompanyName : null,
+            })
+            .ToListAsync(cancellationToken);
+
+        var binRows = await db.BinContents
+            .AsNoTracking()
+            .Where(bc => bc.EntityType == "part" && bc.EntityId == lot.PartId && bc.LotNumber == request.LotNumber)
+            .Select(bc => new { bc.Location.Name, bc.Quantity, bc.PlacedAt })
+            .ToListAsync(cancellationToken);
+
+        var events = new List<LotTraceEventModel>();
+        foreach (var row in lotRows)
+        {
+            if (row.JobNumber != null)
+                events.Add(new LotTraceEventModel("Job", row.JobNumber, row.JobTitle ?? string.Empty, row.CreatedAt, row.Quantity));
+            if (row.RunNumber != null)
+                events.Add(new LotTraceEventModel("ProductionRun", row.RunNumber, row.RunStatus ?? string.Empty, row.CreatedAt, row.Quantity));
+            if (row.PoNumber != null)
+                events.Add(new LotTraceEventModel("PurchaseOrder", row.PoNumber, row.VendorName ?? string.Empty, row.CreatedAt, row.Quantity));
+        }
+        events.AddRange(binRows.Select(b =>
+            new LotTraceEventModel("BinLocation", b.Name, string.Empty, b.PlacedAt, b.Quantity)));
+        events.AddRange(inspections.Select(i =>
+            new LotTraceEventModel("QcInspection", $"QC #{i.Id}", $"{i.Status} — {i.InspectorName}", i.CreatedAt, null)));
+        events.Sort((a, b) => a.Date.CompareTo(b.Date));
+
         return new LotTraceabilityResponseModel(
             lot.LotNumber,
             lot.Part.PartNumber,
@@ -80,6 +122,10 @@ public class GetLotTraceabilityHandler(AppDbContext db)
             productionRuns,
             purchaseOrders,
             binLocations,
-            inspections);
+            inspections,
+            lot.Quantity,
+            lot.ExpirationDate,
+            lot.SupplierLotNumber,
+            events);
     }
 }

@@ -1317,6 +1317,7 @@ CREATE TABLE public.barcodes (
     purchase_order_id integer,
     asset_id integer,
     storage_location_id integer,
+    lot_record_id integer,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,
@@ -9055,6 +9056,9 @@ ALTER TABLE ONLY public.barcodes
 ALTER TABLE ONLY public.barcodes
     ADD CONSTRAINT fk_barcodes_assets_asset_id FOREIGN KEY (asset_id) REFERENCES public.assets(id) ON DELETE CASCADE;
 
+ALTER TABLE ONLY public.barcodes
+    ADD CONSTRAINT fk_barcodes__lot_records_lot_record_id FOREIGN KEY (lot_record_id) REFERENCES public.lot_records(id) ON DELETE CASCADE;
+
 ALTER TABLE ONLY public.bin_contents
     ADD CONSTRAINT fk_bin_contents__jobs_job_id FOREIGN KEY (job_id) REFERENCES public.jobs(id) ON DELETE SET NULL;
 
@@ -10809,6 +10813,10 @@ CREATE INDEX ix_discovery_runs_applied_preset_id ON public.discovery_runs USING 
 CREATE INDEX ix_discovery_runs_completed_at ON public.discovery_runs USING btree (completed_at);
 
 CREATE INDEX ix_discovery_runs_run_by_user_id ON public.discovery_runs USING btree (run_by_user_id);
+
+CREATE INDEX ix_document_embeddings_embedding_hnsw
+    ON public.document_embeddings
+    USING hnsw (embedding public.vector_cosine_ops);
 
 CREATE INDEX ix_document_embeddings_entity_type_entity_id ON public.document_embeddings USING btree (entity_type, entity_id);
 

@@ -9,4 +9,5 @@ public enum BarcodeEntityType
     PurchaseOrder,
     Asset,
     StorageLocation,
+    Lot,
 }

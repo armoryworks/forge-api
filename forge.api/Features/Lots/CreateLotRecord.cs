@@ -3,6 +3,8 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
+using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -23,7 +25,7 @@ public class CreateLotRecordCommandValidator : AbstractValidator<CreateLotRecord
     }
 }
 
-public class CreateLotRecordHandler(AppDbContext db)
+public class CreateLotRecordHandler(AppDbContext db, IBarcodeService barcodeService)
     : IRequestHandler<CreateLotRecordCommand, LotRecordResponseModel>
 {
     public async Task<LotRecordResponseModel> Handle(
@@ -50,6 +52,11 @@ public class CreateLotRecordHandler(AppDbContext db)
 
         db.LotRecords.Add(lot);
         await db.SaveChangesAsync(cancellationToken);
+
+        // Every lot gets a scannable barcode (value == the lot number) so lot
+        // labels resolve on the shop floor like jobs/parts do.
+        await barcodeService.CreateBarcodeAsync(
+            BarcodeEntityType.Lot, lot.Id, lot.LotNumber, cancellationToken);
 
         return await db.LotRecords
             .AsNoTracking()
