@@ -54,8 +54,18 @@ public class OnSalesOrderConfirmed_AutoCreateJobs(
             return;
         }
 
-        var firstStage = await trackRepo.FindFirstActiveStageAsync(productionTrack.Id, ct);
-        if (firstStage is null)
+        // A job born from a *confirmed* order starts at the order_confirmed
+        // stage — the Sales Orders surface's entry point — not at the quote
+        // stages it never went through. Starting below order_confirmed made a
+        // freshly-confirmed SO invisible on the Sales Orders list (the Draft
+        // block excludes it and the Job projection didn't see it yet). Custom
+        // tracks without that stage code fall back to the first active stage.
+        var startStage = await db.JobStages.AsNoTracking()
+            .Where(s => s.TrackTypeId == productionTrack.Id && s.IsActive && s.Code == "order_confirmed")
+            .OrderBy(s => s.SortOrder)
+            .FirstOrDefaultAsync(ct)
+            ?? await trackRepo.FindFirstActiveStageAsync(productionTrack.Id, ct);
+        if (startStage is null)
         {
             logger.LogError("No active stages for TrackType {TrackTypeId} — cannot auto-create jobs for SO {OrderNumber}",
                 productionTrack.Id, so.OrderNumber);
@@ -84,7 +94,7 @@ public class OnSalesOrderConfirmed_AutoCreateJobs(
         foreach (var line in linesToProcess)
         {
             var jobNumber = await jobRepo.GenerateNextJobNumberAsync(ct);
-            var maxPosition = await jobRepo.GetMaxBoardPositionAsync(firstStage.Id, ct);
+            var maxPosition = await jobRepo.GetMaxBoardPositionAsync(startStage.Id, ct);
 
             var title = !string.IsNullOrWhiteSpace(line.Part?.Description)
                 ? line.Part.Description
@@ -96,7 +106,7 @@ public class OnSalesOrderConfirmed_AutoCreateJobs(
                 Title = title,
                 Description = $"Auto-created from Sales Order {so.OrderNumber}, Line {line.LineNumber}. Qty: {line.Quantity}.",
                 TrackTypeId = productionTrack.Id,
-                CurrentStageId = firstStage.Id,
+                CurrentStageId = startStage.Id,
                 SalesOrderLineId = line.Id,
                 PartId = line.PartId,
                 CustomerId = so.CustomerId,
@@ -112,7 +122,7 @@ public class OnSalesOrderConfirmed_AutoCreateJobs(
             });
 
             await jobRepo.AddAsync(job, ct);
-            createdJobs.Add((job, firstStage));
+            createdJobs.Add((job, startStage));
         }
 
         await jobRepo.SaveChangesAsync(ct);
