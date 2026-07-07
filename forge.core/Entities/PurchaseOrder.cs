@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 using Forge.Core.Enums;
 
 namespace Forge.Core.Entities;
@@ -35,6 +37,15 @@ public class PurchaseOrder : BaseAuditableEntity, IConcurrencyVersioned
     public string? ExternalId { get; set; }
     public string? ExternalRef { get; set; }
     public string? Provider { get; set; }
+
+    /// <summary>
+    /// Where this PO came from (F11 provenance): manual entry (with the user),
+    /// MRP auto-generation, quote-driven automation, or an external system.
+    /// </summary>
+    public PoOriginSource OriginSource { get; set; } = PoOriginSource.Manual;
+    public int? OriginUserId { get; set; }
+    [MaxLength(200)]
+    public string? OriginReference { get; set; }
 
     // ─── Bought-parts effort PR2 — landed cost foundation ──────────────
     /// <summary>

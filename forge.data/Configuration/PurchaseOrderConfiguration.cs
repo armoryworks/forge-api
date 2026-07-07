@@ -8,6 +8,7 @@ public class PurchaseOrderConfiguration : IEntityTypeConfiguration<PurchaseOrder
 {
     public void Configure(EntityTypeBuilder<PurchaseOrder> builder)
     {
+        builder.Property(e => e.OriginSource).HasConversion<string>().HasMaxLength(30);
 
         // Legacy backfill defaults — declared to match the deployed schema so the squashed
         // InitialBaseline is a schema no-op (squash plan §3.3). Vestigial; revisit separately.

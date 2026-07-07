@@ -13,9 +13,13 @@ public class LotRecord : BaseAuditableEntity
     public DateTimeOffset? ExpirationDate { get; set; }
     public string? SupplierLotNumber { get; set; }
     public string? Notes { get; set; }
+    // S4c staged scheduling — a lot may be allocated to one SO stage (same
+    // multi-link pattern as JobId/ProductionRunId/PurchaseOrderLineId).
+    public int? SalesOrderStageId { get; set; }
 
     public Part Part { get; set; } = null!;
     public Job? Job { get; set; }
     public ProductionRun? ProductionRun { get; set; }
     public PurchaseOrderLine? PurchaseOrderLine { get; set; }
+    public SalesOrderStage? SalesOrderStage { get; set; }
 }

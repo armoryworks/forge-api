@@ -35,6 +35,12 @@ public class Quote : BaseAuditableEntity, IConcurrencyVersioned
     [MaxLength(50)]
     public string? CustomerPO { get; set; }
 
+    /// <summary>
+    /// The verified tax certificate justifying the current TaxRate when it
+    /// deviates from the computed default (S1 document-gated tax editing).
+    /// </summary>
+    public int? TaxDocumentId { get; set; }
+
     // Conversion tracking (set on Quote-type row generated from an Estimate)
     public int? SourceEstimateId { get; set; }
     public DateTimeOffset? ConvertedAt { get; set; }
@@ -56,4 +62,5 @@ public class Quote : BaseAuditableEntity, IConcurrencyVersioned
     public Quote? GeneratedQuote { get; set; }
     public ICollection<QuoteLine> Lines { get; set; } = [];
     public SalesOrder? SalesOrder { get; set; }
+    public CustomerTaxDocument? TaxDocument { get; set; }
 }

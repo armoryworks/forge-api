@@ -195,6 +195,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<QcInspectionResult> QcInspectionResults => Set<QcInspectionResult>();
     public DbSet<LotRecord> LotRecords => Set<LotRecord>();
 
+    // Track C (QA-feedback plan): tax docs, payment schedules, terms, customer-PO docs, staged scheduling
+    public DbSet<CustomerTaxDocument> CustomerTaxDocuments => Set<CustomerTaxDocument>();
+    public DbSet<PaymentSchedule> PaymentSchedules => Set<PaymentSchedule>();
+    public DbSet<PaymentMilestone> PaymentMilestones => Set<PaymentMilestone>();
+    public DbSet<TermsDocument> TermsDocuments => Set<TermsDocument>();
+    public DbSet<QuoteTermsSnapshot> QuoteTermsSnapshots => Set<QuoteTermsSnapshot>();
+    public DbSet<CustomerPoDocument> CustomerPoDocuments => Set<CustomerPoDocument>();
+    public DbSet<SalesOrderStage> SalesOrderStages => Set<SalesOrderStage>();
+    public DbSet<SalesOrderStageLine> SalesOrderStageLines => Set<SalesOrderStageLine>();
+
     // Operations
     public DbSet<Operation> Operations => Set<Operation>();
     public DbSet<OperationMaterial> OperationMaterials => Set<OperationMaterial>();
