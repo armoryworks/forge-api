@@ -341,7 +341,10 @@ public class AutoPurchaseOrderJob(
                     var po = await poGenerator.GeneratePurchaseOrder(
                         vendorGroup.Key, lines, poStatus,
                         $"Auto-generated from demand analysis. Source SOs: {JsonSerializer.Serialize(allSoIds)}",
-                        ct);
+                        ct,
+                        // S4b provenance — the demand source that drove this PO
+                        // (generator truncates to the column length).
+                        originReference: $"Demand analysis SO(s) {string.Join(", ", allSoIds)}");
 
                     createdPOs.Add(po);
                 }

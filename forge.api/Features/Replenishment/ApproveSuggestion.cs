@@ -41,6 +41,11 @@ public class ApproveSuggestionHandler(
             PONumber = poNumber,
             VendorId = vendorId,
             Notes = $"Auto-created from reorder suggestion #{suggestion.Id} for {suggestion.Part.PartNumber}",
+            // S4b provenance — replenishment-driven (MRP) PO; the approving
+            // user is kept for audit alongside the suggestion reference.
+            OriginSource = PoOriginSource.AutoMrp,
+            OriginUserId = request.UserId > 0 ? request.UserId : null,
+            OriginReference = $"Reorder suggestion #{suggestion.Id}",
         };
 
         po.Lines.Add(new PurchaseOrderLine

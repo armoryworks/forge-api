@@ -38,6 +38,12 @@ public class BulkConvertAutoPoSuggestionsHandler(
             var earliestNeededBy = vendorSuggestions.Min(s => s.NeededByDate);
             var suggestionIds = string.Join(", ", vendorSuggestions.Select(s => $"#{s.Id}"));
 
+            // S4b provenance — MRP-suggested PO. OriginReference is
+            // varchar(200); truncate defensively for large batches.
+            var originReference = $"Auto-PO suggestions {suggestionIds}";
+            if (originReference.Length > 200)
+                originReference = originReference[..200];
+
             var po = new PurchaseOrder
             {
                 PONumber = poNumber,
@@ -45,6 +51,9 @@ public class BulkConvertAutoPoSuggestionsHandler(
                 Status = PurchaseOrderStatus.Draft,
                 ExpectedDeliveryDate = earliestNeededBy,
                 Notes = $"Auto-generated from demand suggestions: {suggestionIds}",
+                OriginSource = PoOriginSource.AutoMrp,
+                OriginUserId = request.UserId > 0 ? request.UserId : null,
+                OriginReference = originReference,
             };
 
             foreach (var suggestion in vendorSuggestions)

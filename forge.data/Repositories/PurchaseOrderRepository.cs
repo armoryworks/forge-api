@@ -96,29 +96,60 @@ public class PurchaseOrderRepository(AppDbContext db) : IPurchaseOrderRepository
         // Bought-parts effort PR2.5 — BelowVendorMinimum is computed in the
         // projection (line value + EstimatedFreight vs Vendor.MinOrderAmount)
         // so the list can render a warning chip without a second round trip.
-        var items = await ordered
+        var rows = await ordered
             .Skip(query.Skip)
             .Take(query.EffectivePageSize)
-            .Select(po => new PurchaseOrderListItemModel(
-                po.Id,
-                po.PONumber,
-                po.VendorId,
-                po.Vendor.CompanyName,
-                po.JobId,
-                po.Job != null ? po.Job.JobNumber : null,
-                po.Status.ToString(),
-                po.Lines.Count,
-                po.Lines.Sum(l => l.OrderedQuantity),
-                po.Lines.Sum(l => l.ReceivedQuantity),
-                po.ExpectedDeliveryDate,
-                po.IsBlanket,
-                po.CreatedAt,
-                po.Vendor.MinOrderAmount.HasValue
-                    && po.Vendor.MinOrderAmount.Value > 0m
-                    && po.Lines.Sum(l => l.OrderedQuantity * l.UnitPrice)
-                        + (po.EstimatedFreight ?? 0m)
-                        < po.Vendor.MinOrderAmount.Value))
+            .Select(po => new
+            {
+                Item = new PurchaseOrderListItemModel(
+                    po.Id,
+                    po.PONumber,
+                    po.VendorId,
+                    po.Vendor.CompanyName,
+                    po.JobId,
+                    po.Job != null ? po.Job.JobNumber : null,
+                    po.Status.ToString(),
+                    po.Lines.Count,
+                    po.Lines.Sum(l => l.OrderedQuantity),
+                    po.Lines.Sum(l => l.ReceivedQuantity),
+                    po.ExpectedDeliveryDate,
+                    po.IsBlanket,
+                    po.CreatedAt,
+                    po.Vendor.MinOrderAmount.HasValue
+                        && po.Vendor.MinOrderAmount.Value > 0m
+                        && po.Lines.Sum(l => l.OrderedQuantity * l.UnitPrice)
+                            + (po.EstimatedFreight ?? 0m)
+                            < po.Vendor.MinOrderAmount.Value,
+                    po.OriginSource.ToString(),
+                    null,
+                    po.OriginReference),
+                po.OriginUserId,
+            })
             .ToListAsync(ct);
+
+        // S4b provenance — resolve the origin user display names ("Last,
+        // First") in ONE batched query over the page slice instead of a
+        // per-row subquery inside the projection (N+1 rule).
+        var originUserIds = rows
+            .Where(r => r.OriginUserId.HasValue)
+            .Select(r => r.OriginUserId!.Value)
+            .Distinct()
+            .ToList();
+
+        var originUserNames = originUserIds.Count > 0
+            ? await db.Users
+                .AsNoTracking()
+                .Where(u => originUserIds.Contains(u.Id))
+                .Select(u => new { u.Id, Name = u.LastName + ", " + u.FirstName })
+                .ToDictionaryAsync(x => x.Id, x => x.Name, ct)
+            : new Dictionary<int, string>();
+
+        var items = rows
+            .Select(r => r.OriginUserId.HasValue
+                && originUserNames.TryGetValue(r.OriginUserId.Value, out var name)
+                    ? r.Item with { OriginUserName = name }
+                    : r.Item)
+            .ToList();
 
         return new PagedResponse<PurchaseOrderListItemModel>(
             items,

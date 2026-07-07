@@ -35,6 +35,11 @@ public class ConvertAutoPoSuggestionHandler(
             Status = PurchaseOrderStatus.Draft,
             ExpectedDeliveryDate = suggestion.NeededByDate,
             Notes = $"Auto-generated from demand suggestion #{suggestion.Id}",
+            // S4b provenance — MRP-suggested PO; the converting user is kept
+            // for audit alongside the suggestion reference.
+            OriginSource = PoOriginSource.AutoMrp,
+            OriginUserId = request.UserId > 0 ? request.UserId : null,
+            OriginReference = $"Auto-PO suggestion #{suggestion.Id}",
         };
 
         po.Lines.Add(new PurchaseOrderLine

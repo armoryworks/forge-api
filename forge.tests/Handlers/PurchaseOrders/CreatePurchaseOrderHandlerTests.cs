@@ -288,6 +288,75 @@ public class CreatePurchaseOrderHandlerTests
     }
 
     [Fact]
+    public async Task Handle_SetsManualOriginWithCurrentUser()
+    {
+        // S4b provenance — the manual-create path stamps Manual + the
+        // creating user from the JWT claims.
+        var vendorId = 1;
+        var partId = 2;
+        var vendor = new Vendor { Id = vendorId, CompanyName = "Vendor" };
+        var part = new Part { Id = partId, PartNumber = "P-001", Description = "Part" };
+        _vendorRepo.Setup(r => r.FindAsync(vendorId, It.IsAny<CancellationToken>())).ReturnsAsync(vendor);
+        _poRepo.Setup(r => r.GenerateNextPONumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("PO-0001");
+        _partRepo.Setup(r => r.FindAsync(partId, It.IsAny<CancellationToken>())).ReturnsAsync(part);
+
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext
+        {
+            User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
+                [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "42")])),
+        };
+        var accessor = new Mock<Microsoft.AspNetCore.Http.IHttpContextAccessor>();
+        accessor.SetupGet(a => a.HttpContext).Returns(httpContext);
+
+        var handler = new CreatePurchaseOrderHandler(
+            _poRepo.Object, _vendorRepo.Object, _partRepo.Object,
+            Mock.Of<IBarcodeService>(),
+            Mock.Of<MediatR.IMediator>(),
+            accessor.Object,
+            _db);
+
+        var command = new CreatePurchaseOrderCommand(
+            vendorId, null, null,
+            [new CreatePurchaseOrderLineModel(partId, null, 1, 10m, null)]);
+
+        await handler.Handle(command, CancellationToken.None);
+
+        _poRepo.Verify(r => r.AddAsync(It.Is<PurchaseOrder>(po =>
+            po.OriginSource == Forge.Core.Enums.PoOriginSource.Manual
+            && po.OriginUserId == 42
+            && po.OriginReference == null
+        ), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_NoHttpContext_ManualOriginWithoutUser()
+    {
+        // S4b provenance — when no user principal exists (the shared test
+        // handler mocks an empty accessor), OriginUserId stays null but the
+        // origin is still declared Manual.
+        var vendorId = 1;
+        var partId = 2;
+        var vendor = new Vendor { Id = vendorId, CompanyName = "Vendor" };
+        var part = new Part { Id = partId, PartNumber = "P-001", Description = "Part" };
+        _vendorRepo.Setup(r => r.FindAsync(vendorId, It.IsAny<CancellationToken>())).ReturnsAsync(vendor);
+        _poRepo.Setup(r => r.GenerateNextPONumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("PO-0001");
+        _partRepo.Setup(r => r.FindAsync(partId, It.IsAny<CancellationToken>())).ReturnsAsync(part);
+
+        var command = new CreatePurchaseOrderCommand(
+            vendorId, null, null,
+            [new CreatePurchaseOrderLineModel(partId, null, 1, 10m, null)]);
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.OriginSource.Should().Be("Manual");
+
+        _poRepo.Verify(r => r.AddAsync(It.Is<PurchaseOrder>(po =>
+            po.OriginSource == Forge.Core.Enums.PoOriginSource.Manual
+            && po.OriginUserId == null
+        ), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Handle_CallerOverridesHeaderFields_UsesProvidedValues()
     {
         var vendorId = 1;

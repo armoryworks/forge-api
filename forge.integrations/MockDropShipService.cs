@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 
@@ -16,6 +17,10 @@ public class MockDropShipService(ILogger<MockDropShipService> logger) : IDropShi
             Id = 1,
             PONumber = "PO-DS-0001",
             VendorId = vendorId,
+            // S4b provenance — drop-ship POs are demand-driven automation
+            // (raised straight from a sales-order line).
+            OriginSource = PoOriginSource.AutoMrp,
+            OriginReference = $"Drop-ship SO line #{salesOrderLineId}",
         };
         return Task.FromResult(po);
     }

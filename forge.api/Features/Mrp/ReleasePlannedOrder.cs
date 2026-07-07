@@ -44,6 +44,9 @@ public class ReleasePlannedOrderHandler(AppDbContext db, IClock clock, IBarcodeS
                 VendorId = vendorId.Value,
                 Status = PurchaseOrderStatus.Draft,
                 Notes = $"Auto-generated from MRP planned order {order.Id}",
+                // S4b provenance — released from an MRP planned order.
+                OriginSource = PoOriginSource.AutoMrp,
+                OriginReference = $"MRP planned order #{order.Id}",
             };
             db.PurchaseOrders.Add(po);
             await db.SaveChangesAsync(cancellationToken);

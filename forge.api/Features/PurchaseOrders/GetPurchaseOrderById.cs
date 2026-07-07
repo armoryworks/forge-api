@@ -1,18 +1,32 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.PurchaseOrders;
 
 public record GetPurchaseOrderByIdQuery(int Id) : IRequest<PurchaseOrderDetailResponseModel>;
 
-public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo)
+public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo, AppDbContext db)
     : IRequestHandler<GetPurchaseOrderByIdQuery, PurchaseOrderDetailResponseModel>
 {
     public async Task<PurchaseOrderDetailResponseModel> Handle(GetPurchaseOrderByIdQuery request, CancellationToken cancellationToken)
     {
         var po = await repo.FindWithDetailsAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Purchase order {request.Id} not found");
+
+        // S4b provenance — resolve the origin user's display name ("Last,
+        // First") for Manual POs so the detail chip can show who raised it.
+        string? originUserName = null;
+        if (po.OriginUserId.HasValue)
+        {
+            originUserName = await db.Users
+                .AsNoTracking()
+                .Where(u => u.Id == po.OriginUserId.Value)
+                .Select(u => u.LastName + ", " + u.FirstName)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
 
         // Bought-parts effort PR2 — surface the vendor-minimum warning so
         // the UI can render a non-blocking banner. Pre-compute here rather
@@ -68,6 +82,9 @@ public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo)
             po.FxRate,
             po.FxRateSource,
             BelowVendorMinimum: belowMin,
-            VendorMinimumOrderAmount: po.Vendor.MinOrderAmount);
+            VendorMinimumOrderAmount: po.Vendor.MinOrderAmount,
+            OriginSource: po.OriginSource.ToString(),
+            OriginUserName: originUserName,
+            OriginReference: po.OriginReference);
     }
 }

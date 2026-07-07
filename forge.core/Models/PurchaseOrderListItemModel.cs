@@ -22,4 +22,11 @@ public record PurchaseOrderListItemModel(
     // warning chip alongside the row so the buyer sees the issue without
     // opening the PO. Re-computed in the detail handler so the two views
     // can't drift.
-    bool BelowVendorMinimum = false);
+    bool BelowVendorMinimum = false,
+    // S4b provenance — where the PO came from (PoOriginSource as string:
+    // Manual / AutoMrp / AutoQuote / ExternalIntegration / Edi), the display
+    // name of the creating user for Manual POs ("Last, First"), and the
+    // free-text origin reference (suggestion id, RFQ number, provider name).
+    string OriginSource = "Manual",
+    string? OriginUserName = null,
+    string? OriginReference = null);

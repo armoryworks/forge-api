@@ -92,6 +92,11 @@ public class CreatePurchaseOrderHandler(
             }
         }
 
+        // S4b provenance — this handler is the manual-entry path: stamp
+        // Manual + the creating user from the JWT claims. Kiosk/system calls
+        // without a user principal leave OriginUserId null.
+        var userId = int.Parse(httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+
         var po = new PurchaseOrder
         {
             PONumber = poNumber,
@@ -101,6 +106,8 @@ public class CreatePurchaseOrderHandler(
             Incoterm = request.Incoterm ?? defaultIncoterm ?? Incoterm.FOB_Origin,
             EstimatedFreight = request.EstimatedFreight,
             QuoteCurrency = request.QuoteCurrency ?? defaultCurrency ?? "USD",
+            OriginSource = PoOriginSource.Manual,
+            OriginUserId = userId > 0 ? userId : null,
         };
 
         for (var i = 0; i < request.Lines.Count; i++)
@@ -131,7 +138,6 @@ public class CreatePurchaseOrderHandler(
             BarcodeEntityType.PurchaseOrder, po.Id, po.PONumber, cancellationToken);
 
         // Publish domain event for calendar integration
-        var userId = int.Parse(httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
         if (userId > 0)
             await mediator.Publish(new PurchaseOrderCreatedEvent(po.Id, userId), cancellationToken);
 
@@ -140,6 +146,8 @@ public class CreatePurchaseOrderHandler(
             po.JobId, null, po.Status.ToString(),
             po.Lines.Count,
             po.Lines.Sum(l => l.OrderedQuantity),
-            0, null, po.IsBlanket, po.CreatedAt);
+            0, null, po.IsBlanket, po.CreatedAt,
+            OriginSource: po.OriginSource.ToString(),
+            OriginReference: po.OriginReference);
     }
 }

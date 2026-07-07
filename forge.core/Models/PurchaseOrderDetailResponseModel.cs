@@ -34,4 +34,10 @@ public record PurchaseOrderDetailResponseModel(
     // Soft-warning surface: when true, the vendor's MinOrderAmount is set
     // and the PO total falls below it. UI shows a non-blocking banner.
     bool BelowVendorMinimum = false,
-    decimal? VendorMinimumOrderAmount = null);
+    decimal? VendorMinimumOrderAmount = null,
+    // S4b provenance — where the PO came from (PoOriginSource as string),
+    // the creating user's display name for Manual POs ("Last, First"), and
+    // the free-text origin reference (suggestion id, RFQ number, provider).
+    string OriginSource = "Manual",
+    string? OriginUserName = null,
+    string? OriginReference = null);

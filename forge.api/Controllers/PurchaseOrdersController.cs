@@ -168,6 +168,20 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// S4b provenance — idempotent, admin-only backfill of pre-provenance PO
+    /// rows: Provider != null → ExternalIntegration; converted auto-PO
+    /// suggestions → AutoMrp; the rest stay Manual. Safe to re-run — only
+    /// rows still at the untouched Manual default are candidates.
+    /// </summary>
+    [HttpPost("backfill-origins")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<BackfillPurchaseOrderOriginsResponseModel>> BackfillOrigins(CancellationToken ct)
+    {
+        var result = await mediator.Send(new BackfillPurchaseOrderOriginsCommand(), ct);
+        return Ok(result);
+    }
+
     // AI-assisted review of a manual unit-price override (forge#6). Also gated on
     // the AI capability; the handler degrades gracefully when the model is offline.
     [HttpPost("price-variance-review")]

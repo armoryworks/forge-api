@@ -47,11 +47,21 @@ public class ApproveBulkSuggestionsHandler(
             }
 
             var poNumber = await poRepo.GenerateNextPONumberAsync(cancellationToken);
+
+            // S4b provenance — replenishment-driven (MRP) PO. OriginReference
+            // is varchar(200); truncate defensively for large batches.
+            var originReference = $"Reorder suggestions {string.Join(", ", vendorGroup.Select(s => $"#{s.Id}"))}";
+            if (originReference.Length > 200)
+                originReference = originReference[..200];
+
             var po = new PurchaseOrder
             {
                 PONumber = poNumber,
                 VendorId = vendorGroup.Key.Value,
                 Notes = $"Bulk auto-created from {vendorGroup.Count()} reorder suggestion(s)",
+                OriginSource = PoOriginSource.AutoMrp,
+                OriginUserId = request.UserId > 0 ? request.UserId : null,
+                OriginReference = originReference,
             };
 
             foreach (var s in vendorGroup)

@@ -115,6 +115,10 @@ public class RfqService(AppDbContext db, IClock clock) : IRfqService
             VendorId = response.VendorId,
             Status = PurchaseOrderStatus.Draft,
             Notes = $"Generated from {rfq.RfqNumber}",
+            // S4b provenance — quote-driven automation: PO raised by awarding
+            // an RFQ vendor response.
+            OriginSource = PoOriginSource.AutoQuote,
+            OriginReference = rfq.RfqNumber,
         };
 
         po.Lines.Add(new PurchaseOrderLine
