@@ -6,6 +6,7 @@ using Forge.Api.Features.Activity;
 using Forge.Api.Features.Customers;
 using Forge.Api.Features.Customers.BulkIntake;
 using Forge.Api.Features.Customers.Segments;
+using Forge.Api.Features.CustomerTaxDocuments;
 using Forge.Api.Features.OutreachPreferences;
 using Forge.Core.Models;
 
@@ -282,6 +283,20 @@ public class CustomersController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<ActivityResponseModel>>> GetCustomerActivity(int id)
     {
         var result = await mediator.Send(new GetEntityActivityQuery("Customer", id));
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// S1 — whether the quote dialog may let the user edit the tax rate for
+    /// this customer (requires a Verified, unexpired tax certificate). Lives
+    /// here rather than on CustomerTaxDocumentsController so every role that
+    /// can open the quote dialog can probe it — the tax-documents controller
+    /// is restricted to Admin/Manager/OfficeManager.
+    /// </summary>
+    [HttpGet("{id:int}/tax-editability")]
+    public async Task<ActionResult<CustomerTaxEditabilityResponseModel>> GetTaxEditability(int id, CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new GetCustomerTaxEditabilityQuery(id), ct);
         return Ok(result);
     }
 

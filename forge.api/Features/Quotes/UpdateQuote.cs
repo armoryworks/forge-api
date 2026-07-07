@@ -25,7 +25,10 @@ public class UpdateQuoteValidator : AbstractValidator<UpdateQuoteCommand>
     }
 }
 
-public class UpdateQuoteHandler(IQuoteRepository repo)
+public class UpdateQuoteHandler(
+    IQuoteRepository repo,
+    // S1: optional/null-default so isolated unit-test constructions stay valid; DI supplies it.
+    Forge.Api.Services.TaxOverrideGuard? taxGuard = null)
     : IRequestHandler<UpdateQuoteCommand>
 {
     public async Task Handle(UpdateQuoteCommand request, CancellationToken cancellationToken)
@@ -39,7 +42,19 @@ public class UpdateQuoteHandler(IQuoteRepository repo)
         if (request.ShippingAddressId.HasValue) quote.ShippingAddressId = request.ShippingAddressId;
         if (request.ExpirationDate.HasValue) quote.ExpirationDate = request.ExpirationDate;
         if (request.Notes != null) quote.Notes = request.Notes;
-        if (request.TaxRate.HasValue) quote.TaxRate = request.TaxRate.Value;
+        if (request.TaxRate.HasValue)
+        {
+            quote.TaxRate = request.TaxRate.Value;
+
+            // S1: a rate deviating from the customer's computed default requires
+            // a verified tax certificate; matching the default clears the stamp.
+            if (taxGuard is not null)
+            {
+                var defaultRate = await taxGuard.GetDefaultRateAsync(quote.CustomerId, cancellationToken);
+                quote.TaxDocumentId = await taxGuard.EnsureCanOverrideAsync(
+                    quote.CustomerId, request.TaxRate.Value, defaultRate, cancellationToken);
+            }
+        }
         // Empty string clears the PO; null leaves it untouched (patch semantics).
         if (request.CustomerPO != null)
             quote.CustomerPO = string.IsNullOrWhiteSpace(request.CustomerPO) ? null : request.CustomerPO.Trim();

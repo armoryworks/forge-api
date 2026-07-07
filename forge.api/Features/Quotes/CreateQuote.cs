@@ -39,7 +39,9 @@ public class CreateQuoteHandler(
     ICustomerRepository customerRepo,
     IPartRepository partRepo,
     // AUDIT-19-S1: optional/null-default so isolated unit-test constructions stay valid; DI supplies it.
-    Forge.Api.Services.CustomerPriceResolver? priceResolver = null)
+    Forge.Api.Services.CustomerPriceResolver? priceResolver = null,
+    // S1: optional/null-default for the same reason; DI supplies it.
+    Forge.Api.Services.TaxOverrideGuard? taxGuard = null)
     : IRequestHandler<CreateQuoteCommand, QuoteListItemModel>
 {
     public async Task<QuoteListItemModel> Handle(CreateQuoteCommand request, CancellationToken cancellationToken)
@@ -47,6 +49,16 @@ public class CreateQuoteHandler(
         var customer = await customerRepo.FindAsync(request.CustomerId, cancellationToken);
         // Phase 3 H2 / WU-12: customer-active check on quote create.
         ActiveCheck.EnsureActive(customer, "Customer", "customerId", request.CustomerId);
+
+        // S1: a tax rate deviating from the customer's computed default requires
+        // a verified tax certificate — the qualifying doc is stamped on the quote.
+        int? taxDocumentId = null;
+        if (taxGuard is not null)
+        {
+            var defaultRate = await taxGuard.GetDefaultRateAsync(request.CustomerId, cancellationToken);
+            taxDocumentId = await taxGuard.EnsureCanOverrideAsync(
+                request.CustomerId, request.TaxRate, defaultRate, cancellationToken);
+        }
 
         var quoteNumber = await repo.GenerateNextQuoteNumberAsync(cancellationToken);
 
@@ -58,6 +70,7 @@ public class CreateQuoteHandler(
             ExpirationDate = request.ExpirationDate,
             Notes = request.Notes,
             TaxRate = request.TaxRate,
+            TaxDocumentId = taxDocumentId,
             CustomerPO = string.IsNullOrWhiteSpace(request.CustomerPO) ? null : request.CustomerPO.Trim(),
         };
 
