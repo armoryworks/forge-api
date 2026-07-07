@@ -13,7 +13,8 @@ public record CreateQuoteCommand(
     DateTimeOffset? ExpirationDate,
     string? Notes,
     decimal TaxRate,
-    List<CreateQuoteLineModel> Lines) : IRequest<QuoteListItemModel>;
+    List<CreateQuoteLineModel> Lines,
+    string? CustomerPO = null) : IRequest<QuoteListItemModel>;
 
 public class CreateQuoteValidator : AbstractValidator<CreateQuoteCommand>
 {
@@ -22,6 +23,7 @@ public class CreateQuoteValidator : AbstractValidator<CreateQuoteCommand>
         RuleFor(x => x.CustomerId).GreaterThan(0);
         RuleFor(x => x.Lines).NotEmpty().WithMessage("At least one line item is required");
         RuleFor(x => x.TaxRate).GreaterThanOrEqualTo(0).LessThan(1);
+        RuleFor(x => x.CustomerPO).MaximumLength(50).When(x => x.CustomerPO is not null);
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
             line.RuleFor(l => l.Description).NotEmpty();
@@ -56,6 +58,7 @@ public class CreateQuoteHandler(
             ExpirationDate = request.ExpirationDate,
             Notes = request.Notes,
             TaxRate = request.TaxRate,
+            CustomerPO = string.IsNullOrWhiteSpace(request.CustomerPO) ? null : request.CustomerPO.Trim(),
         };
 
         var lineNumber = 1;

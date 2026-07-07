@@ -4,4 +4,5 @@ public record UpdateQuoteRequestModel(
     int? ShippingAddressId,
     DateTimeOffset? ExpirationDate,
     string? Notes,
-    decimal? TaxRate);
+    decimal? TaxRate,
+    string? CustomerPO = null);

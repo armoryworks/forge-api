@@ -10,4 +10,5 @@ public record CustomerAddressResponseModel(
     string State,
     string PostalCode,
     string Country,
-    bool IsDefault);
+    bool IsDefault,
+    bool IsActive = true);

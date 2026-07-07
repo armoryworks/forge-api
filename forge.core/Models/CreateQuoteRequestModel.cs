@@ -6,7 +6,8 @@ public record CreateQuoteRequestModel(
     DateTimeOffset? ExpirationDate,
     string? Notes,
     decimal TaxRate,
-    List<CreateQuoteLineModel> Lines);
+    List<CreateQuoteLineModel> Lines,
+    string? CustomerPO = null);
 
 public record CreateQuoteLineModel(
     int? PartId,

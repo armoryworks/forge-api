@@ -8,10 +8,11 @@ namespace Forge.Data.Repositories;
 
 public class CustomerAddressRepository(AppDbContext db) : ICustomerAddressRepository
 {
-    public async Task<List<CustomerAddressResponseModel>> GetByCustomerAsync(int customerId, CancellationToken ct)
+    public async Task<List<CustomerAddressResponseModel>> GetByCustomerAsync(int customerId, CancellationToken ct, bool includeInactive = false)
     {
         return await db.CustomerAddresses
             .Where(a => a.CustomerId == customerId)
+            .Where(a => includeInactive || a.IsActive)
             .OrderByDescending(a => a.IsDefault)
             .ThenBy(a => a.Label)
             .Select(a => new CustomerAddressResponseModel(
@@ -24,7 +25,8 @@ public class CustomerAddressRepository(AppDbContext db) : ICustomerAddressReposi
                 a.State,
                 a.PostalCode,
                 a.Country,
-                a.IsDefault))
+                a.IsDefault,
+                a.IsActive))
             .ToListAsync(ct);
     }
 

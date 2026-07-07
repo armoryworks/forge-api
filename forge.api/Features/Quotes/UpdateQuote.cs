@@ -10,7 +10,8 @@ public record UpdateQuoteCommand(
     int? ShippingAddressId,
     DateTimeOffset? ExpirationDate,
     string? Notes,
-    decimal? TaxRate) : IRequest;
+    decimal? TaxRate,
+    string? CustomerPO = null) : IRequest;
 
 public class UpdateQuoteValidator : AbstractValidator<UpdateQuoteCommand>
 {
@@ -20,6 +21,7 @@ public class UpdateQuoteValidator : AbstractValidator<UpdateQuoteCommand>
         RuleFor(x => x.ShippingAddressId).GreaterThan(0).When(x => x.ShippingAddressId.HasValue);
         RuleFor(x => x.Notes).MaximumLength(2000).When(x => x.Notes is not null);
         RuleFor(x => x.TaxRate).InclusiveBetween(0, 1).When(x => x.TaxRate.HasValue);
+        RuleFor(x => x.CustomerPO).MaximumLength(50).When(x => x.CustomerPO is not null);
     }
 }
 
@@ -38,6 +40,9 @@ public class UpdateQuoteHandler(IQuoteRepository repo)
         if (request.ExpirationDate.HasValue) quote.ExpirationDate = request.ExpirationDate;
         if (request.Notes != null) quote.Notes = request.Notes;
         if (request.TaxRate.HasValue) quote.TaxRate = request.TaxRate.Value;
+        // Empty string clears the PO; null leaves it untouched (patch semantics).
+        if (request.CustomerPO != null)
+            quote.CustomerPO = string.IsNullOrWhiteSpace(request.CustomerPO) ? null : request.CustomerPO.Trim();
 
         await repo.SaveChangesAsync(cancellationToken);
     }

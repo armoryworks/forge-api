@@ -20,4 +20,5 @@ public record QuoteDetailResponseModel(
     int? SourceEstimateId,
     List<QuoteLineResponseModel> Lines,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    string? CustomerPO = null);

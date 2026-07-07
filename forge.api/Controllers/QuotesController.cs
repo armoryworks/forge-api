@@ -46,7 +46,7 @@ public class QuotesController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new CreateQuoteCommand(
             request.CustomerId, request.ShippingAddressId, request.ExpirationDate,
-            request.Notes, request.TaxRate, request.Lines));
+            request.Notes, request.TaxRate, request.Lines, request.CustomerPO));
         return CreatedAtAction(nameof(GetQuote), new { id = result.Id }, result);
     }
 
@@ -56,7 +56,7 @@ public class QuotesController(IMediator mediator) : ControllerBase
     {
         await mediator.Send(new UpdateQuoteCommand(
             id, request.ShippingAddressId, request.ExpirationDate,
-            request.Notes, request.TaxRate));
+            request.Notes, request.TaxRate, request.CustomerPO));
         return NoContent();
     }
 

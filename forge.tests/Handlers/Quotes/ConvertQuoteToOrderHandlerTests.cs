@@ -37,6 +37,7 @@ public class ConvertQuoteToOrderHandlerTests
             Status = QuoteStatus.Accepted,
             TaxRate = 0.07m,
             ShippingAddressId = 5,
+            CustomerPO = "PO-ACME-77",
             Customer = new Customer { Id = customerId, Name = "Acme Corp" },
         };
         quote.Lines.Add(new QuoteLine
@@ -87,6 +88,7 @@ public class ConvertQuoteToOrderHandlerTests
             o.QuoteId == quoteId &&
             o.ShippingAddressId == 5 &&
             o.TaxRate == 0.07m &&
+            o.CustomerPO == "PO-ACME-77" &&
             o.Lines.Count == 2
         ), It.IsAny<CancellationToken>()), Times.Once);
 

@@ -38,6 +38,8 @@ public class ConvertQuoteToOrderHandler(IQuoteRepository quoteRepo, ISalesOrderR
             TaxRate = quote.TaxRate,
             // AUDIT-S3: preserve the quote's Notes onto the order (was dropped on convert).
             Notes = quote.Notes,
+            // F7: the customer's PO reference captured at quote time follows the order.
+            CustomerPO = quote.CustomerPO,
         };
 
         var lineNumber = 1;

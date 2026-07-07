@@ -2508,6 +2508,7 @@ CREATE TABLE public.customer_addresses (
     postal_code character varying(20) NOT NULL,
     country character varying(10) NOT NULL,
     is_default boolean NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,
@@ -6288,6 +6289,7 @@ CREATE TABLE public.quotes (
     sent_date timestamp with time zone,
     accepted_date timestamp with time zone,
     tax_rate numeric(8,6) NOT NULL,
+    customer_po character varying(50),
     source_estimate_id integer,
     converted_at timestamp with time zone,
     external_id character varying(100),
@@ -6793,6 +6795,8 @@ CREATE TABLE public.sales_orders (
     external_id character varying(100),
     external_ref character varying(100),
     provider character varying(50),
+    parent_sales_order_id integer,
+    addendum_number integer,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,
@@ -10022,6 +10026,9 @@ ALTER TABLE ONLY public.sales_orders
 ALTER TABLE ONLY public.sales_orders
     ADD CONSTRAINT fk_sales_orders_quotes_quote_id FOREIGN KEY (quote_id) REFERENCES public.quotes(id) ON DELETE SET NULL;
 
+ALTER TABLE ONLY public.sales_orders
+    ADD CONSTRAINT fk_sales_orders_sales_orders_parent_sales_order_id FOREIGN KEY (parent_sales_order_id) REFERENCES public.sales_orders(id) ON DELETE RESTRICT;
+
 ALTER TABLE ONLY public.sample_shipments
     ADD CONSTRAINT fk_sample_shipments_leads_lead_id FOREIGN KEY (lead_id) REFERENCES public.leads(id) ON DELETE CASCADE;
 
@@ -11671,6 +11678,8 @@ CREATE INDEX ix_sales_orders_billing_address_id ON public.sales_orders USING btr
 CREATE INDEX ix_sales_orders_customer_id ON public.sales_orders USING btree (customer_id);
 
 CREATE UNIQUE INDEX ix_sales_orders_order_number ON public.sales_orders USING btree (order_number);
+
+CREATE INDEX ix_sales_orders_parent_sales_order_id ON public.sales_orders USING btree (parent_sales_order_id);
 
 CREATE UNIQUE INDEX ix_sales_orders_quote_id ON public.sales_orders USING btree (quote_id);
 

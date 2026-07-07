@@ -45,6 +45,7 @@ public class GetQuoteByIdHandler(IQuoteRepository repo)
                 l.LineNumber,
                 l.Notes)).ToList(),
             quote.CreatedAt,
-            quote.UpdatedAt);
+            quote.UpdatedAt,
+            quote.CustomerPO);
     }
 }

@@ -23,9 +23,13 @@ namespace Forge.Api.Controllers;
 public class CustomerAddressesController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<List<CustomerAddressResponseModel>>> GetAddresses(int customerId)
+    public async Task<ActionResult<List<CustomerAddressResponseModel>>> GetAddresses(
+        int customerId, [FromQuery] bool includeInactive = false)
     {
-        var result = await mediator.Send(new GetCustomerAddressesQuery(customerId));
+        // Inactive addresses are admin-only context; other roles silently get
+        // the active set even if they pass the flag.
+        var showInactive = includeInactive && User.IsInRole("Admin");
+        var result = await mediator.Send(new GetCustomerAddressesQuery(customerId, showInactive));
         return Ok(result);
     }
 
@@ -54,6 +58,15 @@ public class CustomerAddressesController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> DeleteAddress(int customerId, int id)
     {
         await mediator.Send(new DeleteCustomerAddressCommand(id));
+        return NoContent();
+    }
+
+    /// <summary>Admin-only active/inactive toggle — see SetCustomerAddressActive.</summary>
+    [HttpPatch("{id:int}/active")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> SetAddressActive(int customerId, int id, SetAddressActiveRequestModel request)
+    {
+        await mediator.Send(new SetCustomerAddressActiveCommand(id, request.IsActive));
         return NoContent();
     }
 }

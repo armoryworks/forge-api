@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 using Forge.Core.Enums;
 
 namespace Forge.Core.Entities;
@@ -25,6 +27,13 @@ public class Quote : BaseAuditableEntity, IConcurrencyVersioned
     public DateTimeOffset? SentDate { get; set; }
     public DateTimeOffset? AcceptedDate { get; set; }
     public decimal TaxRate { get; set; }
+
+    /// <summary>
+    /// The customer's own purchase-order reference, captured at quote time and
+    /// carried onto the SalesOrder at conversion.
+    /// </summary>
+    [MaxLength(50)]
+    public string? CustomerPO { get; set; }
 
     // Conversion tracking (set on Quote-type row generated from an Estimate)
     public int? SourceEstimateId { get; set; }

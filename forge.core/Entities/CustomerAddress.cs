@@ -15,5 +15,12 @@ public class CustomerAddress : BaseAuditableEntity
     public string Country { get; set; } = "US";
     public bool IsDefault { get; set; }
 
+    /// <summary>
+    /// Inactive addresses stay on file for history (past orders reference them)
+    /// but are hidden from non-admin views and pickers. Admin-only toggle;
+    /// soft-delete (DeletedAt) remains the true removal path.
+    /// </summary>
+    public bool IsActive { get; set; } = true;
+
     public Customer Customer { get; set; } = null!;
 }
