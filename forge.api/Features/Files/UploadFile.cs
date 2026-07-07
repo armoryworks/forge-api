@@ -14,18 +14,11 @@ public record UploadFileCommand(string EntityType, int EntityId, IFormFile File)
 
 public class UploadFileCommandValidator : AbstractValidator<UploadFileCommand>
 {
-    private static readonly HashSet<string> ValidEntityTypes =
-    [
-        "jobs", "expenses", "assets", "parts", "leads", "employees",
-        "identity-docs", "employee-docs", "compliance-templates",
-        "pay-stubs", "tax-documents",
-    ];
-
     public UploadFileCommandValidator()
     {
         RuleFor(x => x.EntityType)
             .NotEmpty().WithMessage("Entity type is required.")
-            .Must(t => ValidEntityTypes.Contains(t)).WithMessage("Invalid entity type.");
+            .Must(t => FileEntityTypes.Valid.Contains(t)).WithMessage("Invalid entity type.");
 
         RuleFor(x => x.EntityId)
             .GreaterThan(0).WithMessage("Entity ID is required.");
@@ -46,7 +39,7 @@ public class UploadFileHandler(
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var file = request.File;
 
-        var bucketName = ResolveBucket(request.EntityType);
+        var bucketName = FileEntityTypes.ResolveBucket(request.EntityType, minioOptions.Value);
         var objectKey = $"{request.EntityType}/{request.EntityId}/{Guid.NewGuid():N}-{file.FileName}";
 
         await using var stream = file.OpenReadStream();
@@ -68,17 +61,5 @@ public class UploadFileHandler(
 
         var files = await fileRepo.GetByEntityAsync(request.EntityType, request.EntityId, cancellationToken);
         return files.First(f => f.Id == attachment.Id);
-    }
-
-    private string ResolveBucket(string entityType)
-    {
-        var opts = minioOptions.Value;
-        return entityType switch
-        {
-            "expenses" => opts.ReceiptsBucket,
-            "employees" or "identity-docs" or "employee-docs"
-                or "compliance-templates" or "pay-stubs" or "tax-documents" => opts.EmployeeDocsBucket,
-            _ => opts.JobFilesBucket,
-        };
     }
 }

@@ -23,18 +23,11 @@ public record UploadFileChunkCommand(
 
 public class UploadFileChunkCommandValidator : AbstractValidator<UploadFileChunkCommand>
 {
-    private static readonly HashSet<string> ValidEntityTypes =
-    [
-        "jobs", "expenses", "assets", "parts", "leads", "employees",
-        "identity-docs", "employee-docs", "compliance-templates",
-        "pay-stubs", "tax-documents",
-    ];
-
     public UploadFileChunkCommandValidator()
     {
         RuleFor(x => x.EntityType)
             .NotEmpty().WithMessage("Entity type is required.")
-            .Must(t => ValidEntityTypes.Contains(t)).WithMessage("Invalid entity type.");
+            .Must(t => FileEntityTypes.Valid.Contains(t)).WithMessage("Invalid entity type.");
 
         RuleFor(x => x.EntityId)
             .GreaterThan(0).WithMessage("Entity ID is required.");
@@ -126,7 +119,7 @@ public class UploadFileChunkHandler(
         var userId = int.Parse(
             httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        var bucketName = ResolveBucket(request.EntityType);
+        var bucketName = FileEntityTypes.ResolveBucket(request.EntityType, minioOptions.Value);
         var objectKey = $"{request.EntityType}/{request.EntityId}/{Guid.NewGuid():N}-{request.FileName}";
 
         using var assembledStream = new MemoryStream();
@@ -186,18 +179,6 @@ public class UploadFileChunkHandler(
         {
             logger.LogWarning(ex, "Failed to clean up temp directory for upload {UploadId}", uploadId);
         }
-    }
-
-    private string ResolveBucket(string entityType)
-    {
-        var opts = minioOptions.Value;
-        return entityType switch
-        {
-            "expenses" => opts.ReceiptsBucket,
-            "employees" or "identity-docs" or "employee-docs"
-                or "compliance-templates" or "pay-stubs" or "tax-documents" => opts.EmployeeDocsBucket,
-            _ => opts.JobFilesBucket,
-        };
     }
 
     private static string GetTempDirectory(string uploadId) =>
