@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 using Forge.Core.Enums;
 
 namespace Forge.Core.Entities;
@@ -25,12 +27,24 @@ public class SalesOrder : BaseAuditableEntity, IConcurrencyVersioned
     public string? ExternalRef { get; set; }
     public string? Provider { get; set; }
 
+    /// <summary>
+    /// Addendum orders — post-lock changes to an accepted order are captured as
+    /// a new Draft SO linked to the original (delta lines only), never by
+    /// editing the locked record. Numbered {parent}-A{n}.
+    /// </summary>
+    public int? ParentSalesOrderId { get; set; }
+    public int? AddendumNumber { get; set; }
+
     public decimal Subtotal => Lines.Sum(l => l.LineTotal);
     public decimal TaxAmount => Subtotal * TaxRate;
     public decimal Total => Subtotal + TaxAmount;
 
     public Customer Customer { get; set; } = null!;
     public Quote? Quote { get; set; }
+    [ForeignKey(nameof(ParentSalesOrderId))]
+    public SalesOrder? ParentSalesOrder { get; set; }
+    [InverseProperty(nameof(ParentSalesOrder))]
+    public ICollection<SalesOrder> Addenda { get; set; } = [];
     public CustomerAddress? ShippingAddress { get; set; }
     public CustomerAddress? BillingAddress { get; set; }
     public ICollection<SalesOrderLine> Lines { get; set; } = [];

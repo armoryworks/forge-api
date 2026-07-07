@@ -104,6 +104,14 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Post-lock change control — see CreateAddendumOrder.</summary>
+    [HttpPost("{id:int}/addendum")]
+    public async Task<ActionResult<SalesOrderListItemModel>> CreateAddendum(int id)
+    {
+        var result = await mediator.Send(new CreateAddendumOrderCommand(id));
+        return CreatedAtAction(nameof(GetSalesOrder), new { id = result.Id }, result);
+    }
+
     // One-click: ship the order's production-complete, unshipped lines (creates the shipment for you).
     [HttpPost("{id:int}/create-shipment")]
     public async Task<ActionResult<ShipmentListItemModel>> CreateShipmentFromOrder(int id)
