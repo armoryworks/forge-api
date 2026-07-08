@@ -144,8 +144,12 @@ jobs:
           else
             distance=$(git rev-list --count "${anchor}..HEAD")
           fi
-          patch=$((base_patch + distance))
-          version="${major}.${minor}.${patch}"
+          if [[ "$base" == *-* ]]; then
+            version="$base"   # prerelease VERSION (e.g. 1.0.0-beta.1) — verbatim, no patch bump
+          else
+            patch=$((base_patch + distance))
+            version="${major}.${minor}.${patch}"
+          fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "minor=${major}.${minor}" >> "$GITHUB_OUTPUT"
           echo "Computed image version: ${version} (base=${base}, distance=${distance})"
