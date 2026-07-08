@@ -5,6 +5,7 @@ using Forge.Api.Capabilities;
 using Forge.Api.Concurrency;
 using Forge.Api.Features.CustomerAddresses;
 using Forge.Api.Features.Shipments;
+using Forge.Api.Features.Shipping;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -25,6 +26,11 @@ public class ShipmentsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new GetShipmentsQuery(salesOrderId, status));
         return Ok(result);
     }
+
+    /// <summary>Shipping-workspace ready-to-ship queue: open orders with unshipped line quantity.</summary>
+    [HttpGet("ready-to-ship")]
+    public async Task<ActionResult<List<ReadyToShipOrderModel>>> GetReadyToShip()
+        => Ok(await mediator.Send(new GetReadyToShipQueueQuery()));
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ShipmentDetailResponseModel>> GetShipment(int id)
