@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.CustomerPoDocuments;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -14,7 +15,14 @@ public record ConvertQuoteToOrderCommand(int Id) : IRequest<SalesOrderListItemMo
 // S2: db is optional / null-default so the existing isolated (mock-repo) unit-test
 // constructions stay valid — the DI path always supplies it. When present, it drives
 // the payment-schedule re-link below.
-public class ConvertQuoteToOrderHandler(IQuoteRepository quoteRepo, ISalesOrderRepository orderRepo, AppDbContext? db = null)
+// S4a: settings + mediator follow the same optional/null-default pattern; when both
+// are present they drive the auto customer-PO generation after the save.
+public class ConvertQuoteToOrderHandler(
+    IQuoteRepository quoteRepo,
+    ISalesOrderRepository orderRepo,
+    AppDbContext? db = null,
+    ISystemSettingRepository? settings = null,
+    IMediator? mediator = null)
     : IRequestHandler<ConvertQuoteToOrderCommand, SalesOrderListItemModel>
 {
     public async Task<SalesOrderListItemModel> Handle(ConvertQuoteToOrderCommand request, CancellationToken cancellationToken)
@@ -85,6 +93,17 @@ public class ConvertQuoteToOrderHandler(IQuoteRepository quoteRepo, ISalesOrderR
                     ("Quote", quote.Id), ("SalesOrder", order.Id));
                 await db.SaveChangesAsync(cancellationToken);
             }
+        }
+
+        // S4a: when the sales:auto_customer_po_enabled toggle is on, mint the internal
+        // customer-PO identity record for the new order. Runs after the save so
+        // order.Id / OrderNumber exist (generation must never happen at quote-accept —
+        // there is no SO yet). The document itself renders live from the SO.
+        if (settings is not null && mediator is not null)
+        {
+            var autoCustomerPo = await settings.FindByKeyAsync("sales:auto_customer_po_enabled", cancellationToken);
+            if (autoCustomerPo is not null && bool.TryParse(autoCustomerPo.Value, out var autoEnabled) && autoEnabled)
+                await mediator.Send(new GenerateCustomerPoDocumentCommand(order.Id, quote.Id), cancellationToken);
         }
 
         var total = order.Lines.Sum(l => l.Quantity * l.UnitPrice);
