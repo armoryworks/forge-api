@@ -95,6 +95,27 @@ public class ConvertQuoteToOrderHandler(
             }
         }
 
+        // Acceptance channel — auto-satisfy the SO acceptance gate when the quote was accepted by the
+        // customer via the portal (AcceptedByContactId is set; a staff accept leaves it null). Carries
+        // the online acceptance forward as QuotePortal proof so production isn't blocked for a deal the
+        // customer already accepted. Runs after the save so order.Id exists.
+        if (db is not null && quote.AcceptedByContactId is not null)
+        {
+            db.SalesOrderAcceptances.Add(new SalesOrderAcceptance
+            {
+                SalesOrderId = order.Id,
+                Status = AcceptanceStatus.Accepted,
+                Method = AcceptanceMethod.QuotePortal,
+                AcceptedByContactId = quote.AcceptedByContactId,
+                ProviderReference = quote.QuoteNumber,
+                AcceptedAt = quote.AcceptedDate,
+                Note = $"Carried from online quote acceptance ({quote.QuoteNumber}).",
+            });
+            db.LogActivityAt("so-acceptance-recorded",
+                "Customer acceptance carried from online quote acceptance (QuotePortal)", ("SalesOrder", order.Id));
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         // S4a: when the sales:auto_customer_po_enabled toggle is on, mint the internal
         // customer-PO identity record for the new order. Runs after the save so
         // order.Id / OrderNumber exist (generation must never happen at quote-accept —

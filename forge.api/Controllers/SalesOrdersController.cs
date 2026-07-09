@@ -97,6 +97,84 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    // ─── Customer acceptance (production gate; behavior gated by CAP-O2C-SO-ACCEPTANCE) ───
+
+    [HttpGet("{id:int}/acceptance")]
+    public async Task<ActionResult<List<Forge.Api.Features.SalesOrders.Acceptance.SalesOrderAcceptanceResponseModel>>> GetAcceptances(int id)
+    {
+        var result = await mediator.Send(new Forge.Api.Features.SalesOrders.Acceptance.GetSalesOrderAcceptancesQuery(id));
+        return Ok(result);
+    }
+
+    /// <summary>Record an offline customer acceptance (upload / fax / email / verbal). File tagged CustomerAcceptance.</summary>
+    [HttpPost("{id:int}/acceptance")]
+    [RequestSizeLimit(52_428_800)]
+    public async Task<ActionResult<Forge.Api.Features.SalesOrders.Acceptance.SalesOrderAcceptanceResponseModel>> RecordAcceptance(
+        int id, [FromForm] AcceptanceMethod method, [FromForm] string? note, IFormFile? file)
+    {
+        var result = await mediator.Send(
+            new Forge.Api.Features.SalesOrders.Acceptance.RecordManualAcceptanceCommand(id, method, note, file));
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:int}/acceptance/{acceptanceId:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> RevokeAcceptance(int id, int acceptanceId, [FromQuery] string? reason)
+    {
+        await mediator.Send(new Forge.Api.Features.SalesOrders.Acceptance.RevokeSalesOrderAcceptanceCommand(id, acceptanceId, reason));
+        return NoContent();
+    }
+
+    /// <summary>E-signature channel — send the order to the customer to sign via the signing provider.</summary>
+    [HttpPost("{id:int}/acceptance/send-signature")]
+    public async Task<ActionResult<Forge.Api.Features.SalesOrders.Acceptance.SendForSignatureResponseModel>> SendForSignature(
+        int id, [FromBody] SendForSignatureRequest request)
+    {
+        var result = await mediator.Send(
+            new Forge.Api.Features.SalesOrders.Acceptance.SendSalesOrderForSignatureCommand(id, request.SignerEmail, request.SignerName));
+        return Ok(result);
+    }
+
+    /// <summary>Reconcile a pending e-signature with the provider (poll → store signed PDF → Accepted).</summary>
+    [HttpPost("{id:int}/acceptance/{acceptanceId:int}/check-signature")]
+    public async Task<ActionResult<Forge.Api.Features.SalesOrders.Acceptance.SalesOrderAcceptanceResponseModel>> CheckSignature(
+        int id, int acceptanceId)
+    {
+        var result = await mediator.Send(
+            new Forge.Api.Features.SalesOrders.Acceptance.CompleteSignatureAcceptanceCommand(id, acceptanceId));
+        return Ok(result);
+    }
+
+    /// <summary>Public accept portal (staff side) — mint a token + second-key link for the customer to accept online.</summary>
+    [HttpPost("{id:int}/acceptance/request-portal")]
+    public async Task<ActionResult<Forge.Api.Features.SalesOrders.Acceptance.RequestPublicAcceptanceResponseModel>> RequestPortal(
+        int id, [FromBody] RequestPortalRequest request)
+    {
+        var result = await mediator.Send(new Forge.Api.Features.SalesOrders.Acceptance.RequestPublicAcceptanceCommand(
+            id, request.RecipientEmail, request.VerificationKey, request.ValidDays ?? 14));
+        return Ok(result);
+    }
+
+    /// <summary>Email-ingest seam — register an inbound acceptance email as a Pending record for staff review.</summary>
+    [HttpPost("{id:int}/acceptance/email-ingest")]
+    public async Task<ActionResult<Forge.Api.Features.SalesOrders.Acceptance.SalesOrderAcceptanceResponseModel>> IngestEmailAcceptance(
+        int id, [FromBody] EmailIngestRequest request)
+    {
+        var result = await mediator.Send(
+            new Forge.Api.Features.SalesOrders.Acceptance.IngestEmailAcceptanceCommand(id, request.FromEmail, request.Note));
+        return Ok(result);
+    }
+
+    /// <summary>Confirm a pending inbound-email acceptance (staff review → Accepted).</summary>
+    [HttpPost("{id:int}/acceptance/{acceptanceId:int}/confirm-email")]
+    public async Task<ActionResult<Forge.Api.Features.SalesOrders.Acceptance.SalesOrderAcceptanceResponseModel>> ConfirmEmailAcceptance(
+        int id, int acceptanceId)
+    {
+        var result = await mediator.Send(
+            new Forge.Api.Features.SalesOrders.Acceptance.ConfirmEmailAcceptanceCommand(id, acceptanceId));
+        return Ok(result);
+    }
+
     [HttpPost("{id:int}/cancel")]
     public async Task<IActionResult> CancelSalesOrder(int id)
     {
@@ -149,3 +227,12 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 }
+
+/// <summary>Body for sending a Sales Order to the customer for e-signature.</summary>
+public record SendForSignatureRequest(string SignerEmail, string SignerName);
+
+/// <summary>Body for minting a public accept-portal link.</summary>
+public record RequestPortalRequest(string RecipientEmail, string VerificationKey, int? ValidDays);
+
+/// <summary>Body for registering an inbound acceptance email.</summary>
+public record EmailIngestRequest(string FromEmail, string? Note);

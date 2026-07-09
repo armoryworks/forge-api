@@ -370,6 +370,7 @@ try
     // Standard costing — cost rollup (routing × WC rates + recursive BOM material) + the resolver that uses it.
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IStandardCostRollupService, Forge.Api.Features.Accounting.StandardCostRollupService>();
     builder.Services.AddScoped<IStandardCostResolver, Forge.Api.Features.Accounting.StandardCostResolver>();
+    builder.Services.AddScoped<Forge.Api.Features.SalesOrders.Acceptance.ISalesOrderAcceptanceGate, Forge.Api.Features.SalesOrders.Acceptance.SalesOrderAcceptanceGate>();
     // Phase-2 STAGE E — perpetual inventory valuation store (receipt-fed; ties to GL inventory control).
     builder.Services.AddScoped<IInventoryValuationService, Forge.Api.Features.Accounting.InventoryValuationService>();
     // Phase-2 STAGE E — material-issue WIP posting (relieves the valuation store at weighted-average).

@@ -204,6 +204,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<CustomerPoDocument> CustomerPoDocuments => Set<CustomerPoDocument>();
     public DbSet<SalesOrderStage> SalesOrderStages => Set<SalesOrderStage>();
     public DbSet<SalesOrderStageLine> SalesOrderStageLines => Set<SalesOrderStageLine>();
+    public DbSet<SalesOrderAcceptance> SalesOrderAcceptances => Set<SalesOrderAcceptance>();
 
     // Operations
     public DbSet<Operation> Operations => Set<Operation>();

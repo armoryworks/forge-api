@@ -40,6 +40,7 @@ public class CreateJobHandlerTests
             Mock.Of<IBarcodeService>(),
             Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>(),
             _db,
+            new Forge.Api.Features.SalesOrders.Acceptance.SalesOrderAcceptanceGate(_db, StubCapabilitySnapshotProvider.Off),
             new NoOpCloudFolderAutoCreator());
     }
 

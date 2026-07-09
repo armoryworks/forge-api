@@ -10,7 +10,8 @@ using Forge.Core.Models;
 
 namespace Forge.Api.Features.Files;
 
-public record UploadFileCommand(string EntityType, int EntityId, IFormFile File) : IRequest<FileAttachmentResponseModel>;
+public record UploadFileCommand(string EntityType, int EntityId, IFormFile File, string? DocumentType = null)
+    : IRequest<FileAttachmentResponseModel>;
 
 public class UploadFileCommandValidator : AbstractValidator<UploadFileCommand>
 {
@@ -55,6 +56,7 @@ public class UploadFileHandler(
             EntityType = request.EntityType,
             EntityId = request.EntityId,
             UploadedById = userId,
+            DocumentType = request.DocumentType,
         };
 
         await fileRepo.AddAsync(attachment, cancellationToken);

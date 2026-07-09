@@ -31,7 +31,13 @@ public class RespondToQuoteHandler(AppDbContext db)
         }
 
         quote.Status = request.Accepted ? QuoteStatus.Accepted : QuoteStatus.Declined;
-        if (request.Accepted) quote.AcceptedDate = DateTimeOffset.UtcNow;
+        if (request.Accepted)
+        {
+            quote.AcceptedDate = DateTimeOffset.UtcNow;
+            // Stamp the accepting customer contact — this is what marks the acceptance as genuine
+            // customer proof (vs a staff accept), so a converted order can auto-satisfy its gate.
+            quote.AcceptedByContactId = request.ContactId;
+        }
 
         await db.SaveChangesAsync(ct);
     }

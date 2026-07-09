@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.SalesOrders.Acceptance;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -15,7 +16,7 @@ namespace Forge.Api.Features.SalesOrders;
 public record GetAssignableSalesOrderLinesQuery(bool IncludeAssigned, string? Search)
     : IRequest<List<AssignableSalesOrderLineModel>>;
 
-public class GetAssignableSalesOrderLinesHandler(AppDbContext db)
+public class GetAssignableSalesOrderLinesHandler(AppDbContext db, ISalesOrderAcceptanceGate acceptanceGate)
     : IRequestHandler<GetAssignableSalesOrderLinesQuery, List<AssignableSalesOrderLineModel>>
 {
     public async Task<List<AssignableSalesOrderLineModel>> Handle(
@@ -25,6 +26,12 @@ public class GetAssignableSalesOrderLinesHandler(AppDbContext db)
         var query = db.SalesOrderLines
             .AsNoTracking()
             .Where(l => l.SalesOrder.Status != SalesOrderStatus.Cancelled);
+
+        // When the acceptance gate is on, only offer lines whose SO has accepted proof — otherwise a
+        // job linked from the board would be rejected by CreateJobHandler anyway.
+        if (acceptanceGate.IsEnabled)
+            query = query.Where(l => db.SalesOrderAcceptances
+                .Any(a => a.SalesOrderId == l.SalesOrderId && a.Status == AcceptanceStatus.Accepted));
 
         // "Actively assigned" = has at least one open job (not archived, not disposed).
         // The soft-delete global filter already excludes deleted jobs from the nav.

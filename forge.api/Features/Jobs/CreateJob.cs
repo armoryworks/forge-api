@@ -47,6 +47,7 @@ public class CreateJobHandler(
     IBarcodeService barcodeService,
     IHttpContextAccessor httpContextAccessor,
     AppDbContext db,
+    Forge.Api.Features.SalesOrders.Acceptance.ISalesOrderAcceptanceGate acceptanceGate,
     ICloudFolderAutoCreator folderAutoCreator) : IRequestHandler<CreateJobCommand, JobDetailResponseModel>
 {
     public async Task<JobDetailResponseModel> Handle(CreateJobCommand request, CancellationToken cancellationToken)
@@ -57,9 +58,15 @@ public class CreateJobHandler(
         // #27: validate the optional SO-line association before creating the job.
         if (request.SalesOrderLineId is int soLineId)
         {
-            var soLineExists = await db.SalesOrderLines.AnyAsync(l => l.Id == soLineId, cancellationToken);
-            if (!soLineExists)
+            var soId = await db.SalesOrderLines
+                .Where(l => l.Id == soLineId)
+                .Select(l => (int?)l.SalesOrderId)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (soId is null)
                 throw new KeyNotFoundException($"Sales order line {soLineId} not found.");
+            // Close the board bypass: a job can't be linked to an SO line unless the SO has
+            // customer acceptance proof (no-op when CAP-O2C-SO-ACCEPTANCE is off).
+            await acceptanceGate.EnsureReleasableAsync(soId.Value, cancellationToken);
         }
 
         var firstStage = await trackRepo.FindFirstActiveStageAsync(request.TrackTypeId, cancellationToken)

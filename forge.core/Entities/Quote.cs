@@ -26,6 +26,9 @@ public class Quote : BaseAuditableEntity, IConcurrencyVersioned
     public int? ShippingAddressId { get; set; }
     public DateTimeOffset? SentDate { get; set; }
     public DateTimeOffset? AcceptedDate { get; set; }
+    /// <summary>Customer contact who accepted via the portal (RespondToQuote) — not set by a staff accept.
+    /// Distinguishes genuine customer acceptance so quote→order conversion can auto-satisfy the SO gate.</summary>
+    public int? AcceptedByContactId { get; set; }
     public decimal TaxRate { get; set; }
 
     /// <summary>

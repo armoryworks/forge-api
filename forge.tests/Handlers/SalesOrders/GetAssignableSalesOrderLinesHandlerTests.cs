@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Forge.Api.Features.SalesOrders;
+using Forge.Api.Features.SalesOrders.Acceptance;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
@@ -15,7 +16,7 @@ public class GetAssignableSalesOrderLinesHandlerTests
     public GetAssignableSalesOrderLinesHandlerTests()
     {
         _db = TestDbContextFactory.Create();
-        _handler = new GetAssignableSalesOrderLinesHandler(_db);
+        _handler = new GetAssignableSalesOrderLinesHandler(_db, new SalesOrderAcceptanceGate(_db, StubCapabilitySnapshotProvider.Off));
     }
 
     private async Task<(int unassignedLineId, int assignedLineId)> SeedAsync()

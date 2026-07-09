@@ -123,6 +123,7 @@ public static class CapabilityCatalogRelations
         new("CAP-O2C-CPQ", "CAP-MD-PRICELIST"),
         new("CAP-O2C-SO", "CAP-MD-CUSTOMERS"),
         // CAP-O2C-SO → CAP-MD-PARTS removed per Pro Services rollout.
+        new("CAP-O2C-SO-ACCEPTANCE", "CAP-O2C-SO"),
         new("CAP-O2C-RECURRING", "CAP-O2C-SO"),
         new("CAP-O2C-PICKPACK", "CAP-O2C-SO"),
         new("CAP-O2C-PICKPACK", "CAP-INV-CORE"),
