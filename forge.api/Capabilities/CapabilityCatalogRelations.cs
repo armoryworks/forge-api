@@ -162,6 +162,9 @@ public static class CapabilityCatalogRelations
         new("CAP-MFG-SHOPFLOOR", "CAP-MFG-LABOR"),
         new("CAP-MFG-STOPPAGE", "CAP-MFG-SHOPFLOOR"),
         new("CAP-MFG-MACHINE-CONNECT", "CAP-MD-WORKCENTERS"),
+        // Tier-2 departmental overhead rates are keyed by work center — the rate config surface can't
+        // exist without work centers to hang rates on.
+        new("CAP-COSTING-TIER2-DEPTRATES", "CAP-MD-WORKCENTERS"),
 
         // ── PLAN ────────────────────────────────────────────────────────────
         new("CAP-PLAN-MRP", "CAP-MD-PARTS"),

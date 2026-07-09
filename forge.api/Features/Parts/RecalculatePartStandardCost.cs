@@ -58,7 +58,8 @@ public class RecalculatePartStandardCostHandler(
             EntityType = "Part",
             EntityId = part.Id,
             ProfileId = profile.Id,
-            ProfileVersion = 1, // no profile-versioning scheme yet; the rollup uses work-center rates directly
+            ProfileVersion = 1, // no numeric versioning scheme yet; the rollup applies the active profile's mode
+                                // (flat work-center rates, or Tier-2 departmental percentages) at calc time
             ResultAmount = elements.Total,
             ResultBreakdown = JsonSerializer.Serialize(new
             {

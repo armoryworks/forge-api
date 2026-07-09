@@ -17,7 +17,7 @@ namespace Forge.Tests.Accounting;
 public class RecalculatePartStandardCostHandlerTests
 {
     private static RecalculatePartStandardCostHandler Handler(AppDbContext db)
-        => new(db, new StandardCostRollupService(db), new SystemClock());
+        => new(db, new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off), new SystemClock());
 
     [Fact]
     public async Task Recalculate_PersistsDecomposition_AsCurrentSnapshot_ResolverReadsIt()
@@ -50,7 +50,7 @@ public class RecalculatePartStandardCostHandlerTests
         saved.CurrentCostCalculation.Inputs.OverheadAmount.Should().Be(1m);
 
         // The resolver now returns the frozen snapshot (priority #1), not a fresh recompute.
-        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db)).ResolveAsync(part.Id);
+        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off)).ResolveAsync(part.Id);
         elements.Material.Should().Be(10m);
         elements.Labor.Should().Be(2m);
         elements.Overhead.Should().Be(1m);

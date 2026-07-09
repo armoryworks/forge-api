@@ -1,8 +1,11 @@
+using System.Text.Json;
+
 using FluentAssertions;
 
 using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Data.Context;
+using Forge.Integrations;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Accounting;
@@ -37,7 +40,7 @@ public class StandardCostRollupServiceTests
         var partId = await AddPartAsync(db);
         await AddRoutingAsync(db, partId, minutes: 90, laborRate: 20m, burdenRate: 8m); // 1.5 hr
 
-        var e = await new StandardCostRollupService(db).RollupAsync(partId);
+        var e = await new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off).RollupAsync(partId);
 
         e.Labor.Should().Be(30m);    // 1.5 × 20
         e.Overhead.Should().Be(12m); // 1.5 × 8
@@ -54,7 +57,7 @@ public class StandardCostRollupServiceTests
         db.Add(new BOMLine { ParentPartId = parent, ChildPartId = child, Quantity = 2m });
         await db.SaveChangesAsync();
 
-        var e = await new StandardCostRollupService(db).RollupAsync(parent);
+        var e = await new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off).RollupAsync(parent);
 
         e.Material.Should().Be(20m);  // 2 × 10 (child standard)
         e.Labor.Should().Be(5m);
@@ -77,7 +80,7 @@ public class StandardCostRollupServiceTests
         db.Add(new BOMLine { ParentPartId = parent, ChildPartId = sub, Quantity = 1m });
         await db.SaveChangesAsync();
 
-        var e = await new StandardCostRollupService(db).RollupAsync(parent);
+        var e = await new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off).RollupAsync(parent);
 
         // Sub standard = material 5 (leaf) + labor 4 = 9; parent material = 1 × 9.
         e.Material.Should().Be(9m);
@@ -94,7 +97,71 @@ public class StandardCostRollupServiceTests
         await db.SaveChangesAsync();
 
         // Must terminate (cycle guard) rather than recurse forever.
-        var e = await new StandardCostRollupService(db).RollupAsync(a);
+        var e = await new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off).RollupAsync(a);
         e.Should().NotBeNull();
+    }
+
+    /// <summary>Seed one op on a fresh work center; returns the work-center id for departmental rate config.</summary>
+    private static async Task<int> AddSingleOpWorkCenterAsync(AppDbContext db, int partId, int minutes, decimal laborRate, decimal burdenRate)
+    {
+        var wc = new WorkCenter { Name = "WC", Code = $"WC-{Guid.NewGuid():N}", LaborCostPerHour = laborRate, BurdenRatePerHour = burdenRate, IsActive = true };
+        db.Add(wc);
+        await db.SaveChangesAsync();
+        db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Op", EstimatedMinutes = minutes, WorkCenterId = wc.Id });
+        await db.SaveChangesAsync();
+        return wc.Id;
+    }
+
+    private static async Task AddDepartmentalProfileAsync(AppDbContext db, params (int WorkCenterId, decimal RatePct)[] rates)
+    {
+        var rows = rates.Select(r => new { work_center_id = r.WorkCenterId, rate_pct = r.RatePct }).ToArray();
+        db.Add(new CostingProfile
+        {
+            Code = "default",
+            Mode = "departmental",
+            DepartmentalRates = JsonSerializer.Serialize(rows, StandardCostRollupService.DeptRateJson),
+            EffectiveFrom = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)),
+        });
+        await db.SaveChangesAsync();
+    }
+
+    [Fact] // Tier 2: departmental overhead = per-work-center % of the op's direct labor (not burden × hours).
+    public async Task Rollup_DepartmentalMode_AppliesPctOfLabor()
+    {
+        using var db = TestDbContextFactory.Create();
+        var partId = await AddPartAsync(db);
+        var wcId = await AddSingleOpWorkCenterAsync(db, partId, minutes: 90, laborRate: 20m, burdenRate: 8m); // 1.5 hr
+        await AddDepartmentalProfileAsync(db, (wcId, 150m)); // 150% of labor
+
+        var e = await new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Tier2On).RollupAsync(partId);
+
+        e.Labor.Should().Be(30m);    // 1.5 × 20
+        e.Overhead.Should().Be(45m); // labor 30 × 150% — NOT the flat 1.5 × 8 = 12
+    }
+
+    [Fact] // Departmental mode: a work center with no configured rate falls back to its flat burden rate.
+    public async Task Rollup_DepartmentalMode_FallsBackToBurden_WhenWorkCenterUnrated()
+    {
+        using var db = TestDbContextFactory.Create();
+        var partId = await AddPartAsync(db);
+        var wcId = await AddSingleOpWorkCenterAsync(db, partId, minutes: 90, laborRate: 20m, burdenRate: 8m);
+        await AddDepartmentalProfileAsync(db, (wcId + 9999, 150m)); // rate is for some OTHER work center
+
+        var e = await new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Tier2On).RollupAsync(partId);
+
+        e.Overhead.Should().Be(12m); // fallback: 1.5 × 8
+    }
+
+    [Fact] // Capability gate: a departmental profile is ignored (flat rates) when CAP-COSTING-TIER2 is off.
+    public async Task Rollup_DepartmentalProfile_IgnoredWhenCapabilityDisabled()
+    {
+        using var db = TestDbContextFactory.Create();
+        var partId = await AddPartAsync(db);
+        var wcId = await AddSingleOpWorkCenterAsync(db, partId, minutes: 90, laborRate: 20m, burdenRate: 8m);
+        await AddDepartmentalProfileAsync(db, (wcId, 150m));
+
+        var e = await new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off).RollupAsync(partId);
+
+        e.Overhead.Should().Be(12m); // flat 1.5 × 8 — departmental config not applied without the capability
     }
 }

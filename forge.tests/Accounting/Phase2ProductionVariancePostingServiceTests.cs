@@ -68,7 +68,7 @@ public class Phase2ProductionVariancePostingServiceTests
 
     private static ProductionVariancePostingService ServiceWithStd(AppDbContext db)
         => new(db, Engine(db), new FakeCapabilities(true), new JobCostService(db),
-            auditWriter: null, standardCost: new StandardCostResolver(db, new StandardCostRollupService(db)));
+            auditWriter: null, standardCost: new StandardCostResolver(db, new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off)));
 
     private static async Task<AppDbContext> SeedAsync()
     {

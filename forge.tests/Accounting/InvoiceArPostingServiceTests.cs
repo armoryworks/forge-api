@@ -83,7 +83,7 @@ public class InvoiceArPostingServiceTests
             new FakeCapabilities(fullGlOn),
             auditWriter: null,
             valuation: new InventoryValuationService(db),
-            standardCost: new StandardCostResolver(db, new StandardCostRollupService(db)));
+            standardCost: new StandardCostResolver(db, new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off)));
 
     private static async Task<AppDbContext> SeedAsync()
     {

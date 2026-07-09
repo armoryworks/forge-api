@@ -4,6 +4,7 @@ using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
+using Forge.Integrations;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Accounting;
@@ -41,7 +42,7 @@ public class StandardCostResolverTests
         part.CurrentCostCalculationId = calc.Id;
         await db.SaveChangesAsync();
 
-        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db)).ResolveAsync(part.Id);
+        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off)).ResolveAsync(part.Id);
 
         elements.Material.Should().Be(18m);
         elements.Labor.Should().Be(8m);
@@ -60,7 +61,7 @@ public class StandardCostResolverTests
         db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Mill", EstimatedMinutes = 60, WorkCenterId = wc.Id });
         await db.SaveChangesAsync();
 
-        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db)).ResolveAsync(partId);
+        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off)).ResolveAsync(partId);
 
         elements.Labor.Should().Be(18m);     // 1 hr × 18
         elements.Overhead.Should().Be(12m);  // 1 hr × 12
@@ -74,7 +75,7 @@ public class StandardCostResolverTests
         using var db = TestDbContextFactory.Create();
         var partId = await AddPartAsync(db, manualOverride: 25m);
 
-        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db)).ResolveAsync(partId);
+        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off)).ResolveAsync(partId);
 
         elements.Material.Should().Be(25m);
         elements.Labor.Should().Be(0m);
@@ -92,7 +93,7 @@ public class StandardCostResolverTests
         db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Op", EstimatedMinutes = 60, WorkCenterId = wc.Id });
         await db.SaveChangesAsync();
 
-        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db)).ResolveAsync(partId);
+        var elements = await new StandardCostResolver(db, new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off)).ResolveAsync(partId);
 
         // Conversion 30 exceeds the override 15 → scaled to fit, no implied material; total stays at 15.
         elements.Material.Should().Be(0m);
