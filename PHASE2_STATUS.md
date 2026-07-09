@@ -16,6 +16,11 @@
 
 ## Two constraints that shape Phase 2 scope
 
+> **Update 2026-07-08:** Constraint #1 below is **RESOLVED** — the operational inventory substrate is now wired
+> (Armory Plastics hold lifted 2026-06-07). `ReceiveItems.cs` writes `BinContent` + advances PO status;
+> `ShipShipment.cs` relieves on-hand + releases the SO-line reservation via `InventoryReliefService` (registered,
+> no longer orphaned); the RED remediation tests are now GREEN. Original point-in-time text kept below for history.
+
 1. **Operational inventory substrate is INCOMPLETE and must not be perturbed yet.** The flows Phase-2
    COGS/inventory posting would hook into are not finished operationally:
    - `Features/PurchaseOrders/ReceiveItems.cs` creates `ReceivingRecord`s but **does not create `BinContent`**

@@ -11,7 +11,7 @@ branch `feat/accounting-gl-phase1`, no migration applied, nothing deployed):
   late-posting date resolver.
 - **Phase 4a** — fixed-asset register + straight-line depreciation posting.
 - **Phase 4b** — multi-currency posting (engine FxRate, backward-compatible) + period-end unrealized FX
-  revaluation (realized-on-settlement still to do — see §1).
+  revaluation (realized-on-settlement now **DONE 2026-07-08** — see §1).
 - **§7A conversion** — opening-balance journal (balance-sheet + AR/AP open items).
 - **Cross-cutting §12** — reversal-of-reversal policy, dimension-required (Job/CostCenter), maker-checker
   large-JE threshold.
@@ -24,7 +24,7 @@ un-darking (sandbox has none).
 
 ---
 
-## 1. Phase 4b — FX revaluation — **DONE** (commit `7a4b519d`), except realized-on-settlement
+## 1. Phase 4b — FX revaluation — **DONE** (commit `7a4b519d`; realized-on-settlement closed 2026-07-08)
 
 - **Multi-currency posting — done.** `PostingRequest.FxRate` (default 1); the engine computes
   `FunctionalAmount = round(TxnAmount × FxRate)`. At `FxRate == 1` it's **byte-for-byte** the old
@@ -36,13 +36,16 @@ un-darking (sandbox has none).
   (reuses the close auto-reversal). Functional-currency + no-rate-change are no-ops. `POST
   /accounting/fx-revaluation`, gated `CAP-ACCT-FXREVAL`. +5 tests.
 
-**Remaining FX piece — realized FX on settlement.** When a foreign invoice/bill settles at a rate different
-from its booking rate, the difference is a *realized* gain/loss. This needs **per-open-item booking-rate
-tracking** (the AR/AP sub-ledger is currently a control-balance projection, not strict open items), then a
-hook in the payment/settlement posting services: relieve AR/AP at the booked functional carrying value, take
-cash at the settlement rate, and post the difference to `FX_GAIN`/`FX_LOSS`. Build alongside an open-item
-sub-ledger load (it pairs naturally with §7A's open-item conversion). A future `CTA` line handles equity
-translation for consolidations.
+**Realized FX on settlement — ✅ DONE (2026-07-08).** The per-open-item sub-ledger now exists
+(`Entities/Accounting/ArOpenItem.cs`, `ApOpenItem.cs`), so settlement carries each open item's booking rate.
+`Features/Accounting/PaymentCashPostingService.cs:226-346` relieves AR/AP at the booked functional carrying
+value, takes cash at the settlement rate, and posts the difference to `FX_GAIN`/`FX_LOSS` (corroborated in
+`docs/accounting/architecture.md:328`). Only a future `CTA` line for equity translation in consolidations
+remains, which is out of scope here.
+
+_(Original open-item write-up, kept for history: this needed per-open-item booking-rate tracking — the AR/AP
+sub-ledger was a control-balance projection, not strict open items — plus a hook in the settlement posting
+services, built alongside §7A's open-item conversion.)_
 
 ## 2. Cross-cutting §12 — JE attachments — **supported by existing infra**
 

@@ -16,7 +16,7 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
 | AUDIT-S4 / BE20-C | **HIGH** | Quotes · api | `ConvertQuoteToOrder.cs:27-48` converts a zero-line quote into a live, confirmable order | An empty quote cannot convert (throws) | `Quotes/ConvertQuoteToOrderRemediationTests` | ✅ |
 | AUDIT-S6 / BE18-1 | **HIGH** | Leads · api | `ConvertLead.cs` split `SaveChanges`, no transaction → orphan customer on partial failure | Lead→customer convert is atomic (one transaction; rolls back on failure) | xUnit handler + `TestDbContextFactory` | ☐ |
 | AUDIT-P06-1 / Q2C-BE-8 | **HIGH** | Invoices · api | `CreateInvoice.cs:49-99` does not enforce `invoiced ≤ shipped` | Cannot invoice more than has shipped (validation rejects) | xUnit handler | ☐ |
-| AUDIT-P06-3 / INV-1 | **HIGH** | Shipments/Inventory · api | Shipping does not relieve on-hand; `InventoryReliefService` orphaned (`Program.cs:387`) | Shipping a line decrements bin on-hand | xUnit handler / integration | ☐ |
+| AUDIT-P06-3 / INV-1 | **HIGH** | Shipments/Inventory · api | Shipping does not relieve on-hand; `InventoryReliefService` orphaned (`Program.cs:387`) | Shipping a line decrements bin on-hand | xUnit handler / integration | ✅ (2026-07-08: `ShipShipment.cs:77-89` calls `InventoryReliefService`; registered `Program.cs:637`; test GREEN) |
 | AUDIT-19-S1 | **HIGH** | Quotes pricing · api | Customer price lists are a dead input to quote line pricing | Quote line price resolves from the customer's price list when present | xUnit handler | ☐ |
 | AUDIT-V9 | **HIGH** | Vendors · api | Vendor off-tier variance % silently dropped (request + response models omit `OffTierVariancePct`) | The variance % round-trips through PUT then GET | `Vendors/VendorsRemediationTests` | ✅ |
 | AUDIT-D5 | **HIGH** | Parts/BOM · api | No BOM cycle guard (A→B→A possible) | Adding a BOM edge that forms a cycle is rejected | xUnit handler + `TestDbContextFactory` | ✅ |
@@ -27,9 +27,9 @@ Status: `☐` todo · `🔴` RED test written (skipped, awaiting fix) · `✅` g
 | G-MFA-3 | **BLOCKER** | MFA · api | TOTP HMAC keyed on `UTF8.GetBytes(secret)` vs the base32 QR secret → authenticator codes never match; QR enrolment broken | Base32-decode the secret before HMAC; QR + validation agree (golden-vector test) | xUnit handler | ✅ (MfaService: Base32Encoding.ToBytes + ManualEntryKey=secret; golden-vector test; existing E2E test corrected) |
 | G-38-MRP-3 / F-07B-03 | **BLOCKER** | Planning · api | `PlanningCyclesController` mutations reachable by ProductionWorker — no role gate (live POST→201) | `[Authorize(Roles="Admin,Manager")]` on all planning-cycle mutations | `WebApplicationFactory` integration | ✅ |
 | F-EXP-01 | **BLOCKER** | Expenses · api | `PATCH /expenses/{id}/status` has no role/self gate — any user approves any expense (live) | Approval gated by role/ownership; routed through `ApprovalService` | `WebApplicationFactory` integration | ✅ (role gate; `ApprovalService` routing = F-26B-05) |
-| S-MV1 | **HIGH** | Shipments/Inventory · api | `ShipShipment` leaks on two axes: never relieves `on_hand` AND never releases the SO-line reservation (sharpens AUDIT-P06-3) | Ship decrements `BinContent` **and** releases the `SalesOrderLineId` reservation | xUnit + `TestDbContextFactory` | ☐ |
+| S-MV1 | **HIGH** | Shipments/Inventory · api | `ShipShipment` leaks on two axes: never relieves `on_hand` AND never releases the SO-line reservation (sharpens AUDIT-P06-3) | Ship decrements `BinContent` **and** releases the `SalesOrderLineId` reservation | xUnit + `TestDbContextFactory` | ✅ (2026-07-08: `InventoryReliefService.cs:105-122` relieves on-hand + releases the reservation) |
 | S-RI1 | **HIGH** | Inventory · api | `TransferStock`/`AdjustStock`/`UpdateCycleCount`/`RemoveBinContent` ignore `ReservedQuantity`, inflating `available` | Reducing/removing a bin throws if `newQty < ReservedQuantity`; transfer carries reserved to dest | `TestDbContextFactory` | ✅ all 4 surfaces (Adjust/Remove/Transfer/CycleCount-approve) |
-| PRI-1 / PRI-2 / PRI-3 | **HIGH** | Purchasing/Inventory · api | PO-side ReceiveDialog marks PO Received + signals "Materials Ready" but writes no `BinContent`; inv-tab Receive stocks but never advances PO status (notify-XOR-stock) | One receive path both writes `BinContent` and advances PO status; location required when stocking | xUnit + `TestDbContextFactory` | ☐ |
+| PRI-1 / PRI-2 / PRI-3 | **HIGH** | Purchasing/Inventory · api | PO-side ReceiveDialog marks PO Received + signals "Materials Ready" but writes no `BinContent`; inv-tab Receive stocks but never advances PO status (notify-XOR-stock) | One receive path both writes `BinContent` and advances PO status; location required when stocking | xUnit + `TestDbContextFactory` | ✅ (2026-07-08: `ReceiveItems.cs:159-244` writes BinContent + advances PO status; tests GREEN) |
 | F-JQ1 | **HIGH** | Jobs/Quality · api | Job advances through completion with open NCRs / failed inspections / unresolved CAPAs | `MoveJobStage` rejects advance when `NCR.Status==Open` or `QcInspection.Status==Failed` | xUnit handler | ☐ |
 | F-26B-01 | **HIGH** | Expenses · api+db | Expense has no vendor/payee link full-stack (no FK, API, or UI field) | Add `VendorId`/`PayeeId` FK to `Expense`; vendor picker on create | `WebApplicationFactory` integration | ☐ |
 | F-26B-02 | **HIGH** | Expenses/QBO · api | Expense→QBO posts as a vendorless cash purchase (no `VendorRef`); invisible in vendor aging | Set `VendorExternalId` on the accounting expense from the vendor FK | `WebApplicationFactory` integration | ☐ |
@@ -185,6 +185,14 @@ suite verified, committed + pushed**. Full suite now **49 passed / 9 skipped / 0
   (new `LeadQueuePullRemediationTests` runs the pull end-to-end + asserts the text store type).
 
 ### Remaining after 2026-05-28 (wave 2)
+
+> **Reconciled 2026-07-08:** the live `grep 'Skip = "RED"'` source of truth now shows **3** RED, not 8 —
+> **E-1** (estimate compute path), **F-EXP-03** (expense `Reimbursed` state), **MRP-03** (forecast approval
+> guard). Closed GREEN since this snapshot: **P06-3 / S-MV1** (`ShipShipment` relieves on-hand + releases the
+> reservation via `InventoryReliefService`) and **PRI-1/2/3** (`ReceiveItems` writes `BinContent` + advances PO
+> status) — table rows above updated. **AUDIT-21-S1** (invoice/payment → QBO sync-queue enqueue) is *not* among
+> the active RED tests; its status is unverified here — check before relying on it. The wave-2 list below is
+> kept as the historical snapshot.
 
 **8 api findings still RED** — each deferred for a real reason (design decision or complex
 multi-entity seeding), NOT a harness gap. (C1-back closed 2026-05-28: Converted is now
