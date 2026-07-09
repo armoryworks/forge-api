@@ -19,8 +19,10 @@ branch `feat/accounting-gl-phase1`, no migration applied, nothing deployed):
 - **forge-ui /accounting** — full read UI + interactive period-close and bank-reconciliation (branch
   `feat/accounting-gl-phase1` on forge-ui).
 
-Full InMemory suite **1370 green**. The PG atomicity/concurrency tests still need a Docker box before
-un-darking (sandbox has none).
+Full InMemory suite **1370 green**. ~~The PG atomicity/concurrency tests still need a Docker box before
+un-darking (sandbox has none).~~ **Update 2026-07-09:** Docker/Testcontainers is available in the current
+environment — the PG atomicity/concurrency suite RUNS and is GREEN (`dotnet test --filter ~AtomicityTests` →
+**17/17 passed**, 32s). The "no Docker" blocker is lifted; these are no longer written-but-unrun.
 
 ---
 
