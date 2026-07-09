@@ -33,8 +33,8 @@ public class MrpRemediationTests
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
 
-    [Fact(Skip = "RED: MRP-03 — ApplyForecastToMps has no approval-state guard; a Draft forecast can " +
-                 "be applied. Remove Skip when applying a non-Approved forecast is rejected (409).")]
+    // GREEN (MRP-03): ApplyForecastToMps now rejects a non-Approved forecast with 409.
+    [Fact]
     public async Task Applying_a_draft_forecast_to_the_MPS_is_rejected()
     {
         var admin = AuthClient();

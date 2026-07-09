@@ -47,6 +47,15 @@ public class ExpensesController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    // F-EXP-03: mark an approved expense reimbursed (terminal). Accounting-role action.
+    [HttpPost("{id:int}/reimburse")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager")]
+    public async Task<IActionResult> Reimburse(int id)
+    {
+        await mediator.Send(new ReimburseExpenseCommand(id));
+        return NoContent();
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteExpense(int id)
     {

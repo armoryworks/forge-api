@@ -6,5 +6,7 @@ public enum ExpenseStatus
     Approved,
     Rejected,
     SelfApproved,
-    NeedsRevision
+    NeedsRevision,
+    // F-EXP-03: terminal state once an approved expense has been reimbursed (syncs to AP/QBO).
+    Reimbursed
 }

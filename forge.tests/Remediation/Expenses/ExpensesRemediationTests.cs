@@ -88,8 +88,8 @@ public class ExpensesRemediationTests
             "an expense must be attributable to a vendor/payee (for QBO bills + vendor aging)");
     }
 
-    [Fact(Skip = "RED: F-EXP-03 — the reimbursement lifecycle is missing (no Reimbursed state). " +
-                 "Remove Skip when ExpenseStatus includes Reimbursed.")]
+    // GREEN (F-EXP-03): ExpenseStatus now has Reimbursed + a POST /expenses/{id}/reimburse action.
+    [Fact]
     public void ExpenseStatus_includes_a_reimbursed_state()
     {
         Enum.GetNames(typeof(ExpenseStatus)).Should().Contain("Reimbursed",
