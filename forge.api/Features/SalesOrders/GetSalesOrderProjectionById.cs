@@ -31,7 +31,7 @@ public class GetSalesOrderProjectionByIdHandler(AppDbContext db)
                 j.CustomerId ?? 0,
                 j.Customer != null ? j.Customer.Name : string.Empty,
                 GetSalesOrdersListHandler.MapStageCodeToSoStatus(j.CurrentStage.Code),
-                null,
+                j.SalesOrderLine != null ? j.SalesOrderLine.SalesOrder.CustomerPO : null,
                 j.JobParts.Count(),
                 j.QuotedPrice,
                 j.DueDate,

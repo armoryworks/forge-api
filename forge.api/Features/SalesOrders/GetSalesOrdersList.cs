@@ -227,9 +227,10 @@ public class GetSalesOrdersListHandler(AppDbContext db)
         }
 
         // Job portion fills the remainder of the page.
-        // customerPO has no Job analog (null); lineCount uses JobParts; total uses QuotedPrice.
-        // SalesOrderId resolves through SalesOrderLine so the row opens the SO it
-        // actually belongs to (Job.Id and SalesOrder.Id are unrelated sequences).
+        // customerPO and SalesOrderId both resolve through the SalesOrderLine link
+        // to the originating SO (null for jobs created outside the SO flow) — the
+        // row opens the SO it actually belongs to (Job.Id and SalesOrder.Id are
+        // unrelated sequences). lineCount uses JobParts; total uses QuotedPrice.
         var remaining = pageSize - items.Count;
         if (remaining > 0)
         {
@@ -243,7 +244,7 @@ public class GetSalesOrdersListHandler(AppDbContext db)
                     j.CustomerId ?? 0,
                     j.Customer != null ? j.Customer.Name : string.Empty,
                     MapStageCodeToSoStatus(j.CurrentStage.Code),
-                    null, // CustomerPO — no Job analog (vestigial SO-only field)
+                    j.SalesOrderLine != null ? j.SalesOrderLine.SalesOrder.CustomerPO : null,
                     j.JobParts.Count(),
                     j.QuotedPrice,
                     j.DueDate,
