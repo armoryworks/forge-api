@@ -20,6 +20,7 @@ public class SalesOrderConfiguration : IEntityTypeConfiguration<SalesOrder>
         builder.Property(e => e.CustomerPO).HasMaxLength(50);
         builder.Property(e => e.Notes).HasMaxLength(2000);
         builder.Property(e => e.TaxRate).HasPrecision(8, 6);
+        builder.Property(e => e.CancellationFeeAmount).HasPrecision(18, 2);
         builder.Property(e => e.ExternalId).HasMaxLength(100);
         builder.Property(e => e.ExternalRef).HasMaxLength(100);
         builder.Property(e => e.Provider).HasMaxLength(50);

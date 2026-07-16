@@ -18,6 +18,11 @@ public class SalesOrder : BaseAuditableEntity, IConcurrencyVersioned
     public CreditTerms? CreditTerms { get; set; }
     public DateTimeOffset? ConfirmedDate { get; set; }
     public DateTimeOffset? RequestedDeliveryDate { get; set; }
+
+    /// <summary>Fee charged when this order was cancelled late (null = no fee). Billed via a fee invoice.</summary>
+    public decimal? CancellationFeeAmount { get; set; }
+    public string? CancellationFeeReason { get; set; }
+
     public string? CustomerPO { get; set; }
     public string? Notes { get; set; }
     public decimal TaxRate { get; set; }

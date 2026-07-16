@@ -176,9 +176,9 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/cancel")]
-    public async Task<IActionResult> CancelSalesOrder(int id)
+    public async Task<IActionResult> CancelSalesOrder(int id, [FromBody] CancelSalesOrderRequestModel? request = null)
     {
-        await mediator.Send(new CancelSalesOrderCommand(id));
+        await mediator.Send(new CancelSalesOrderCommand(id, request?.FeeAmount, request?.FeeReason));
         return NoContent();
     }
 

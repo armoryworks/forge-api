@@ -63,4 +63,17 @@ public class PaymentSchedulesController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new GenerateMilestoneInvoiceCommand(id));
         return Created($"/api/v1/invoices/{result.Id}", result);
     }
+
+    /// <summary>
+    /// Auto-generate invoices for every payment milestone that is now due against the order's
+    /// current state (deposit-on-confirmation, pre-production, on-shipment, on-delivery, elapsed
+    /// fixed-date/net-days). Idempotent — already-invoiced milestones are skipped. Runs
+    /// automatically on confirmation; this endpoint is the manual catch-up for later transitions.
+    /// </summary>
+    [HttpPost("orders/{salesOrderId:int}/payment-schedule/advance")]
+    public async Task<ActionResult<List<InvoiceListItemModel>>> Advance(int salesOrderId)
+    {
+        var result = await mediator.Send(new AdvancePaymentScheduleCommand(salesOrderId));
+        return Ok(result);
+    }
 }
