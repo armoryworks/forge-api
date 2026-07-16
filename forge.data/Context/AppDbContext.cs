@@ -355,6 +355,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
 
     // Lot genealogy edges (regulated-parts-safety C-2)
     public DbSet<LotConsumption> LotConsumptions => Set<LotConsumption>();
+    public DbSet<Recall> Recalls => Set<Recall>();
+    public DbSet<RecallAffectedLot> RecallAffectedLots => Set<RecallAffectedLot>();
+    public DbSet<RecallAffectedShipment> RecallAffectedShipments => Set<RecallAffectedShipment>();
 
     // Part SDS documents (regulated-parts-safety C-3)
     public DbSet<PartSafetyDataSheet> PartSafetyDataSheets => Set<PartSafetyDataSheet>();

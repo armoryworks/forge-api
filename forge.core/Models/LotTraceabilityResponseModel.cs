@@ -12,4 +12,9 @@ public record LotTraceabilityResponseModel(
     decimal Quantity,
     DateTimeOffset? ExpirationDate,
     string? SupplierLotNumber,
-    List<LotTraceEventModel> Events);
+    List<LotTraceEventModel> Events,
+    // Component genealogy (regulated-parts-safety C-2): ConsumedLots are the input
+    // lots that went INTO this lot (backward trace); ProducedLots are the output
+    // lots this lot was consumed INTO (forward trace — the recall blast radius).
+    List<LotConsumptionEdgeModel> ConsumedLots,
+    List<LotConsumptionEdgeModel> ProducedLots);

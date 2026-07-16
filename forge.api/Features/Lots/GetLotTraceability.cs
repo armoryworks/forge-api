@@ -98,6 +98,30 @@ public class GetLotTraceabilityHandler(AppDbContext db)
             .Select(bc => new { bc.Location.Name, bc.Quantity, bc.PlacedAt })
             .ToListAsync(cancellationToken);
 
+        // Component genealogy edges (regulated-parts-safety C-2). Backward = the input
+        // lots consumed to make this lot; forward = the output lots this lot went into.
+        var consumedLots = await db.LotConsumptions
+            .AsNoTracking()
+            .Where(c => c.ProducedLotId == lot.Id)
+            .Include(c => c.ConsumedLot).ThenInclude(l => l.Part)
+            .OrderBy(c => c.CreatedAt)
+            .Select(c => new LotConsumptionEdgeModel(
+                c.Id, c.ConsumedLotId, c.ConsumedLot.LotNumber,
+                c.ConsumedLot.PartId, c.ConsumedLot.Part.PartNumber,
+                c.Quantity, c.JobId, c.ProductionRunId, c.CreatedAt))
+            .ToListAsync(cancellationToken);
+
+        var producedLots = await db.LotConsumptions
+            .AsNoTracking()
+            .Where(c => c.ConsumedLotId == lot.Id)
+            .Include(c => c.ProducedLot).ThenInclude(l => l.Part)
+            .OrderBy(c => c.CreatedAt)
+            .Select(c => new LotConsumptionEdgeModel(
+                c.Id, c.ProducedLotId, c.ProducedLot.LotNumber,
+                c.ProducedLot.PartId, c.ProducedLot.Part.PartNumber,
+                c.Quantity, c.JobId, c.ProductionRunId, c.CreatedAt))
+            .ToListAsync(cancellationToken);
+
         var events = new List<LotTraceEventModel>();
         foreach (var row in lotRows)
         {
@@ -112,6 +136,10 @@ public class GetLotTraceabilityHandler(AppDbContext db)
             new LotTraceEventModel("BinLocation", b.Name, string.Empty, b.PlacedAt, b.Quantity)));
         events.AddRange(inspections.Select(i =>
             new LotTraceEventModel("QcInspection", $"QC #{i.Id}", $"{i.Status} — {i.InspectorName}", i.CreatedAt, null)));
+        events.AddRange(consumedLots.Select(c =>
+            new LotTraceEventModel("ConsumedInput", c.LotNumber, c.PartNumber, c.CreatedAt, c.Quantity)));
+        events.AddRange(producedLots.Select(p =>
+            new LotTraceEventModel("ConsumedInto", p.LotNumber, p.PartNumber, p.CreatedAt, p.Quantity)));
         events.Sort((a, b) => a.Date.CompareTo(b.Date));
 
         return new LotTraceabilityResponseModel(
@@ -126,6 +154,8 @@ public class GetLotTraceabilityHandler(AppDbContext db)
             lot.Quantity,
             lot.ExpirationDate,
             lot.SupplierLotNumber,
-            events);
+            events,
+            consumedLots,
+            producedLots);
     }
 }

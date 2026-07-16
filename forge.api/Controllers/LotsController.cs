@@ -53,4 +53,17 @@ public class LotsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new GetLotTraceabilityQuery(lotNumber));
         return Ok(result);
     }
+
+    /// <summary>
+    /// regulated-parts-safety C-2: records which input lots were consumed to produce
+    /// this (produced) lot — the component-genealogy edges CAP-QC-RECALL trace/quarantine
+    /// walk. Idempotent per (consumed, produced) pair; rejects self-reference and cycles.
+    /// </summary>
+    [HttpPost("{id:int}/consumption")]
+    public async Task<ActionResult<List<LotConsumptionEdgeModel>>> RecordConsumption(
+        int id, [FromBody] RecordLotConsumptionRequestModel request)
+    {
+        var result = await mediator.Send(new RecordLotConsumptionCommand(id, request));
+        return Ok(result);
+    }
 }
