@@ -25,6 +25,8 @@ public class ReceiveStockHandlerTests
         accessor.Setup(a => a.HttpContext).Returns(new DefaultHttpContext { User = principal });
         _repo.Setup(r => r.FindLocationAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new StorageLocation { Id = 5, Name = "A1" });
+        _repo.Setup(r => r.PartExistsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
         _handler = new ReceiveStockHandler(_repo.Object, accessor.Object);
     }
 
@@ -77,6 +79,18 @@ public class ReceiveStockHandlerTests
         movement.Reason.Should().Be(BinMovementReason.Receive);
         movement.Notes.Should().Contain("Manual receipt");
         _repo.Verify(r => r.AddBinContentAsync(It.IsAny<BinContent>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact] // B38: a nonexistent partId must be rejected, not silently write a phantom bin.
+    public async Task UnknownPart_throwsKeyNotFound()
+    {
+        _repo.Setup(r => r.PartExistsAsync(3, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        var act = () => _handler.Handle(Cmd(5), CancellationToken.None);
+
+        await act.Should().ThrowAsync<KeyNotFoundException>().WithMessage("*Part 3*");
+        _repo.Verify(r => r.AddBinContentAsync(It.IsAny<BinContent>(), It.IsAny<CancellationToken>()), Times.Never);
+        _repo.Verify(r => r.AddMovementAsync(It.IsAny<BinMovement>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact] // Single-location mode: no location supplied -> uses (or creates) the default location.

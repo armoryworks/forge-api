@@ -25,6 +25,8 @@ public class UseStockHandlerTests
         accessor.Setup(a => a.HttpContext).Returns(new DefaultHttpContext { User = principal });
         _repo.Setup(r => r.FindLocationAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new StorageLocation { Id = 5, Name = "A1" });
+        _repo.Setup(r => r.PartExistsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
         _handler = new UseStockHandler(_repo.Object, accessor.Object);
     }
 
@@ -78,6 +80,17 @@ public class UseStockHandlerTests
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*reserved*");
         existing.Quantity.Should().Be(10);
+        _repo.Verify(r => r.AddMovementAsync(It.IsAny<BinMovement>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact] // B38: a nonexistent partId must be rejected before even looking for bin content.
+    public async Task UnknownPart_throwsKeyNotFound()
+    {
+        _repo.Setup(r => r.PartExistsAsync(3, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        var act = () => _handler.Handle(Cmd(1), CancellationToken.None);
+
+        await act.Should().ThrowAsync<KeyNotFoundException>().WithMessage("*Part 3*");
         _repo.Verify(r => r.AddMovementAsync(It.IsAny<BinMovement>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 

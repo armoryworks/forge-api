@@ -15,6 +15,11 @@ public interface IInventoryRepository
     Task<bool> BarcodeExistsAsync(string barcode, int? excludeId, CancellationToken ct);
     Task AddLocationAsync(StorageLocation location, CancellationToken ct);
 
+    /// <summary>Existence check for a non-deleted Part — used by the friendly stock
+    /// verbs (receive-stock/use-stock) to reject an unknown partId before writing
+    /// bin content for it. See inventory.md B38.</summary>
+    Task<bool> PartExistsAsync(int partId, CancellationToken ct);
+
     /// <summary>
     /// Returns the single default storage location, creating a "Main" bin if none
     /// exists. Used by single-location mode so manual stock can be tracked without

@@ -125,6 +125,9 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
         return query.AnyAsync(ct);
     }
 
+    public Task<bool> PartExistsAsync(int partId, CancellationToken ct)
+        => db.Parts.AnyAsync(p => p.Id == partId && p.DeletedAt == null, ct);
+
     public async Task AddLocationAsync(StorageLocation location, CancellationToken ct)
     {
         await db.StorageLocations.AddAsync(location, ct);

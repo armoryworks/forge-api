@@ -46,6 +46,9 @@ public class ReceiveStockHandler(
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var now = DateTimeOffset.UtcNow;
 
+        if (!await repo.PartExistsAsync(data.PartId, cancellationToken))
+            throw new KeyNotFoundException($"Part {data.PartId} not found");
+
         int locationId;
         if (data.LocationId is int requested)
         {
