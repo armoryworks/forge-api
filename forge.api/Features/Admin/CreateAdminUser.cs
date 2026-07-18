@@ -138,7 +138,7 @@ public class CreateAdminUserHandler(
             user.SetupTokenExpiresAt.Value);
     }
 
-    private static string GenerateInitials(string firstName, string lastName)
+    internal static string GenerateInitials(string firstName, string lastName)
     {
         var first = string.IsNullOrEmpty(firstName) ? "" : firstName[..1].ToUpper();
         var last = string.IsNullOrEmpty(lastName) ? "" : lastName[..1].ToUpper();

@@ -45,6 +45,16 @@ public class AdminController(IMediator mediator) : ControllerBase
         return CreatedAtAction(nameof(GetUsers), result);
     }
 
+    // One-shot kiosk identity provisioning (barcode + PIN). Closes the
+    // chicken/egg for scripted bring-up: no already-authenticated set-pin
+    // call or SQL insert needed to mint a kiosk-login credential.
+    [HttpPost("users/kiosk")]
+    public async Task<ActionResult<CreateKioskUserResponseModel>> CreateKioskUser(CreateKioskUserCommand command)
+    {
+        var result = await mediator.Send(command);
+        return CreatedAtAction(nameof(GetUsers), result);
+    }
+
     [HttpPut("users/{id:int}")]
     public async Task<ActionResult<AdminUserResponseModel>> UpdateUser(int id, UpdateAdminUserCommand command)
     {
