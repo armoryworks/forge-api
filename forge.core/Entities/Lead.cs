@@ -6,6 +6,15 @@ public class Lead : BaseAuditableEntity
 {
     public string CompanyName { get; set; } = string.Empty;
     public string? ContactName { get; set; }
+
+    /// <summary>Human label for the lead. Individuals have no company, so the
+    /// company name is preferred but falls back to the contact name (and, as a
+    /// last resort, email) so a name-less-company lead never renders blank.</summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string DisplayName =>
+        !string.IsNullOrWhiteSpace(CompanyName) ? CompanyName
+        : !string.IsNullOrWhiteSpace(ContactName) ? ContactName!
+        : Email ?? string.Empty;
     public string? Email { get; set; }
     public string? Phone { get; set; }
     public string? Source { get; set; }

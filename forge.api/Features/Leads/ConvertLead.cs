@@ -89,8 +89,11 @@ public class ConvertLeadHandler(
         // Customer.SourceLead pair set below.
         var customer = new Customer
         {
-            Name = lead.CompanyName,
-            CompanyName = lead.CompanyName,
+            // Individuals have no company — fall back to the contact so the
+            // customer is never created nameless. CompanyName stays null for
+            // an individual rather than echoing the person's name.
+            Name = lead.DisplayName,
+            CompanyName = string.IsNullOrWhiteSpace(lead.CompanyName) ? null : lead.CompanyName,
             Email = lead.Email,
             Phone = lead.Phone,
             // Wave 2 — richer carry-over from the convert stepper.
@@ -209,9 +212,9 @@ public class ConvertLeadHandler(
         // lead's activity tab will show "converted to customer #N" and the
         // customer's will show "converted from lead #N — companyName".
         var conversionDescription =
-            $"Converted lead → customer: {lead.CompanyName}" +
+            $"Converted lead → customer: {lead.DisplayName}" +
             (string.IsNullOrEmpty(lead.Source) ? "" : $" (source: {lead.Source})") +
-            (string.IsNullOrEmpty(lead.ContactName) ? "" : $" — contact: {lead.ContactName}");
+            (!string.IsNullOrWhiteSpace(lead.CompanyName) && !string.IsNullOrEmpty(lead.ContactName) ? $" — contact: {lead.ContactName}" : "");
         db.LogActivityAt(
             "lead-converted",
             conversionDescription,
@@ -233,7 +236,7 @@ public class ConvertLeadHandler(
             if (defaultTrackType > 0)
             {
                 var jobResult = await mediator.Send(new CreateJobCommand(
-                    Title: $"New Job — {lead.CompanyName}",
+                    Title: $"New Job — {lead.DisplayName}",
                     Description: lead.Notes,
                     TrackTypeId: defaultTrackType,
                     AssigneeId: null,

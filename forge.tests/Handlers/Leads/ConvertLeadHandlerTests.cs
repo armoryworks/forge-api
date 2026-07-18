@@ -66,6 +66,19 @@ public class ConvertLeadHandlerTests
     }
 
     [Fact]
+    public async Task Handle_IndividualLead_NamesCustomerAfterContactWithNullCompany()
+    {
+        // Individual (no company) — the workaround-free path: contact only.
+        var lead = await SeedLead(companyName: "", contactName: "Dana Rivers");
+
+        var result = await _handler.Handle(new ConvertLeadCommand(lead.Id, new ConvertLeadRequestModel(CreateJob: false)), CancellationToken.None);
+
+        var customer = await _db.Customers.FirstAsync(c => c.Id == result.CustomerId);
+        customer.Name.Should().Be("Dana Rivers");   // falls back to the contact
+        customer.CompanyName.Should().BeNull();       // not echoed from the person's name
+    }
+
+    [Fact]
     public async Task Handle_LeadStatusBecomesConvertedWithBackLink()
     {
         var lead = await SeedLead();

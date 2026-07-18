@@ -41,6 +41,12 @@ public class UpdateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequest
             lead.ContactName = data.ContactName.Trim();
             changedFields.Add("contactName");
         }
+
+        // A lead must remain identifiable — company OR contact. Individuals are
+        // allowed (blank company), but clearing both is not.
+        if (string.IsNullOrWhiteSpace(lead.CompanyName) && string.IsNullOrWhiteSpace(lead.ContactName))
+            throw new ValidationException("A lead must have a company name or a contact name.");
+
         if (data.Email is not null && data.Email.Trim() != lead.Email)
         {
             lead.Email = data.Email.Trim();

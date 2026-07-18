@@ -8,6 +8,7 @@ namespace Forge.Api.Mappers;
 [Mapper]
 public static partial class LeadMapper
 {
+    [MapperIgnoreSource(nameof(Lead.DisplayName))] // computed convenience — not a wire field
     [MapperIgnoreSource(nameof(Lead.ConvertedCustomer))]
     [MapperIgnoreSource(nameof(Lead.Campaign))]
     [MapperIgnoreSource(nameof(Lead.LeadSource))]

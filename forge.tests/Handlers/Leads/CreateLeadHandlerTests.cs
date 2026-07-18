@@ -75,6 +75,27 @@ public class CreateLeadHandlerTests
     }
 
     [Fact]
+    public async Task Handle_IndividualLead_BlankCompany_CreatesWithContactOnly()
+    {
+        // Individual (no company) — company blank, contact present.
+        var requestModel = new CreateLeadRequestModel(
+            "", "Dana Rivers", "dana@example.com", null, "Referral", null, null);
+
+        _leadRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LeadResponseModel(
+                1, "", "Dana Rivers", "dana@example.com", null, "Referral",
+                LeadStatus.New, null, null, null, null, DateTime.UtcNow, DateTime.UtcNow));
+
+        await _handler.Handle(new CreateLeadCommand(requestModel), CancellationToken.None);
+
+        _leadRepo.Verify(r => r.AddAsync(It.Is<Lead>(l =>
+            l.CompanyName == "" &&
+            l.ContactName == "Dana Rivers" &&
+            l.DisplayName == "Dana Rivers"   // fallback for the individual
+        ), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Handle_TrimsWhitespace()
     {
         // Arrange

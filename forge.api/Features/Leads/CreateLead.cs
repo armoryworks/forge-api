@@ -14,7 +14,13 @@ public class CreateLeadCommandValidator : AbstractValidator<CreateLeadCommand>
 {
     public CreateLeadCommandValidator()
     {
-        RuleFor(x => x.Data.CompanyName).NotEmpty().MaximumLength(200);
+        // A lead is identified by a company OR a person — individuals (no
+        // company) are first-class, so require at least one of the two rather
+        // than mandating CompanyName.
+        RuleFor(x => x.Data.CompanyName)
+            .Must((cmd, _) => !string.IsNullOrWhiteSpace(cmd.Data.CompanyName) || !string.IsNullOrWhiteSpace(cmd.Data.ContactName))
+            .WithMessage("Provide a company name or a contact name.");
+        RuleFor(x => x.Data.CompanyName).MaximumLength(200);
         RuleFor(x => x.Data.ContactName).MaximumLength(200).When(x => x.Data.ContactName is not null);
         RuleFor(x => x.Data.Email).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Data.Email));
         RuleFor(x => x.Data.Phone).MaximumLength(50).When(x => x.Data.Phone is not null);
@@ -31,7 +37,7 @@ public class CreateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequest
 
         var lead = new Lead
         {
-            CompanyName = data.CompanyName.Trim(),
+            CompanyName = data.CompanyName?.Trim() ?? string.Empty,
             ContactName = data.ContactName?.Trim(),
             Email = data.Email?.Trim(),
             Phone = data.Phone?.Trim(),
@@ -53,9 +59,14 @@ public class CreateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequest
         var shapeFragment = lead.EngagementShape == Core.Enums.LeadEngagementShape.Unknown
             ? ""
             : $" [{lead.EngagementShape}]";
+        // Show "Company — Contact" when both exist; for an individual (blank
+        // company) DisplayName already resolves to the contact, so don't repeat it.
+        var contactFragment = !string.IsNullOrWhiteSpace(lead.CompanyName) && !string.IsNullOrEmpty(lead.ContactName)
+            ? $" — {lead.ContactName}"
+            : "";
         db.LogActivityAt(
             "created",
-            $"Created lead: {lead.CompanyName}{(string.IsNullOrEmpty(lead.ContactName) ? "" : $" — {lead.ContactName}")}{(string.IsNullOrEmpty(lead.Source) ? "" : $" (source: {lead.Source})")}{shapeFragment}",
+            $"Created lead: {lead.DisplayName}{contactFragment}{(string.IsNullOrEmpty(lead.Source) ? "" : $" (source: {lead.Source})")}{shapeFragment}",
             ("Lead", lead.Id));
         await db.SaveChangesAsync(cancellationToken);
 

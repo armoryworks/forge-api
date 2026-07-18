@@ -24,7 +24,7 @@ public sealed class DeleteLeadHandler(ILeadRepository repo, AppDbContext db, ICl
 
         db.LogActivityAt(
             "deleted",
-            $"Deleted lead: {lead.CompanyName}{(string.IsNullOrEmpty(lead.ContactName) ? "" : $" — {lead.ContactName}")}",
+            $"Deleted lead: {lead.DisplayName}{(!string.IsNullOrWhiteSpace(lead.CompanyName) && !string.IsNullOrEmpty(lead.ContactName) ? $" — {lead.ContactName}" : "")}",
             ("Lead", lead.Id));
 
         await repo.SaveChangesAsync(cancellationToken);

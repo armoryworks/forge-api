@@ -112,11 +112,12 @@ public class BulkLeadIntakeHandler(AppDbContext db, IClock clock)
         {
             var key = row.ExternalRowKey;
 
-            // 0. Sanity — companyName is the absolute minimum.
-            if (string.IsNullOrWhiteSpace(row.CompanyName))
+            // 0. Sanity — a lead needs a company OR a contact name (individuals
+            // have no company).
+            if (string.IsNullOrWhiteSpace(row.CompanyName) && string.IsNullOrWhiteSpace(row.ContactName))
             {
                 results.Add(new BulkLeadIntakeRowResult(key, BulkLeadIntakeRowStatus.Invalid, null, null, null,
-                    "companyName is required"));
+                    "companyName or contactName is required"));
                 continue;
             }
 
@@ -193,7 +194,7 @@ public class BulkLeadIntakeHandler(AppDbContext db, IClock clock)
 
             var lead = new Lead
             {
-                CompanyName = row.CompanyName.Trim(),
+                CompanyName = row.CompanyName?.Trim() ?? string.Empty,
                 ContactName = row.ContactName?.Trim(),
                 Email = string.IsNullOrWhiteSpace(row.Email) ? null : row.Email.Trim(),
                 Phone = string.IsNullOrWhiteSpace(row.Phone) ? null : row.Phone.Trim(),
