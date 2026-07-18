@@ -34,17 +34,34 @@ public class BarcodeService(AppDbContext db, IHttpContextAccessor httpContextAcc
         var value = naturalIdentifier.StartsWith($"{prefix}-", StringComparison.Ordinal)
             ? naturalIdentifier
             : $"{prefix}-{naturalIdentifier}";
+        var identityType = BarcodeIdentityType.Internal;
 
-        // Ensure uniqueness — if a collision exists, append entity ID
-        var exists = await db.Barcodes.AnyAsync(b => b.Value == value, cancellationToken);
-        if (exists)
-            value = $"{value}-{entityId}";
+        // A Part carrying a licensed GS1 GTIN uses the GTIN itself as its (globally-unique) barcode value.
+        if (entityType == BarcodeEntityType.Part)
+        {
+            var gtin = await db.Parts.Where(p => p.Id == entityId).Select(p => p.Gtin).FirstOrDefaultAsync(cancellationToken);
+            if (!string.IsNullOrWhiteSpace(gtin))
+            {
+                value = gtin;
+                identityType = BarcodeIdentityType.Gs1;
+            }
+        }
+
+        // Internal codes get a uniqueness suffix on collision; a licensed GTIN stays exact — its
+        // global uniqueness is guaranteed upstream by the parts.gtin unique index.
+        if (identityType == BarcodeIdentityType.Internal)
+        {
+            var exists = await db.Barcodes.AnyAsync(b => b.Value == value, cancellationToken);
+            if (exists)
+                value = $"{value}-{entityId}";
+        }
 
         var barcode = new Barcode
         {
             Value = value,
             EntityType = entityType,
             IsActive = true,
+            IdentityType = identityType,
         };
 
         // Set the appropriate FK
@@ -119,5 +136,49 @@ public class BarcodeService(AppDbContext db, IHttpContextAccessor httpContextAcc
     {
         return await db.Barcodes
             .FirstOrDefaultAsync(b => b.Value == value && b.IsActive, cancellationToken);
+    }
+
+    public async Task RefreshPartBarcodeAsync(int partId, CancellationToken cancellationToken = default)
+    {
+        var part = await db.Parts
+            .Where(p => p.Id == partId)
+            .Select(p => new { p.PartNumber, p.Gtin })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (part is null) return;
+
+        string value;
+        BarcodeIdentityType identity;
+        if (!string.IsNullOrWhiteSpace(part.Gtin))
+        {
+            value = part.Gtin;
+            identity = BarcodeIdentityType.Gs1;
+        }
+        else
+        {
+            value = $"{Prefixes[BarcodeEntityType.Part]}-{part.PartNumber}";
+            identity = BarcodeIdentityType.Internal;
+        }
+
+        var barcode = await db.Barcodes.FirstOrDefaultAsync(b => b.PartId == partId && b.IsActive, cancellationToken);
+        if (barcode is null)
+        {
+            if (identity == BarcodeIdentityType.Internal
+                && await db.Barcodes.AnyAsync(b => b.Value == value, cancellationToken))
+                value = $"{value}-{partId}";
+            db.Barcodes.Add(new Barcode
+            {
+                Value = value,
+                EntityType = BarcodeEntityType.Part,
+                PartId = partId,
+                IsActive = true,
+                IdentityType = identity,
+            });
+        }
+        else
+        {
+            barcode.Value = value;
+            barcode.IdentityType = identity;
+        }
+        await db.SaveChangesAsync(cancellationToken);
     }
 }

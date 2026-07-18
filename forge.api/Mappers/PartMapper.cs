@@ -103,6 +103,7 @@ public static partial class PartMapper
             InspectionSkipAfterN: part.InspectionSkipAfterN,
             EffectivePrice: resolvedPrice?.UnitPrice ?? 0m,
             EffectivePriceCurrency: resolvedPrice?.Currency ?? "USD",
-            EffectivePriceSource: (resolvedPrice?.Source ?? PartPriceSource.Default).ToString());
+            EffectivePriceSource: (resolvedPrice?.Source ?? PartPriceSource.Default).ToString(),
+            Gtin: part.Gtin);
     }
 }

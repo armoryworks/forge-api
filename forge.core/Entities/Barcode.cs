@@ -12,6 +12,10 @@ public class Barcode : BaseAuditableEntity
     public BarcodeEntityType EntityType { get; set; }
     public bool IsActive { get; set; } = true;
 
+    /// <summary>Internal self-generated code vs. a licensed GS1 GTIN — lets downstream surfaces (shipping,
+    /// marketplace export) tell a globally-unique GTIN from an internal-only code.</summary>
+    public BarcodeIdentityType IdentityType { get; set; } = BarcodeIdentityType.Internal;
+
     // ─── Dedicated FKs (exactly one is non-null) ───
     public int? UserId { get; set; }
 

@@ -91,4 +91,6 @@ public record PartDetailResponseModel(
     // when no rung resolves, EffectivePriceSource is "Default" and EffectivePrice is 0.
     decimal EffectivePrice = 0m,
     string EffectivePriceCurrency = "USD",
-    string EffectivePriceSource = "Default");
+    string EffectivePriceSource = "Default",
+    // Licensed GS1 GTIN (CAP-MD-GS1). Null = internal identity only.
+    string? Gtin = null);

@@ -262,6 +262,10 @@ public class Part : BaseAuditableEntity, IActiveAware
     public DateTimeOffset? LicenseExpiresAt { get; set; }
     public int? LicenseRenewalLeadDays { get; set; }
 
+    /// <summary>Licensed GS1 GTIN for this trade item (globally unique). NULL = internal identity only;
+    /// the barcode falls back to the self-generated internal scheme.</summary>
+    public string? Gtin { get; set; }
+
     // Phase 3 H4 / WU-20 — BOM revision history. CurrentBomRevisionId points
     // at the active immutable snapshot of this part's BOM. Older revisions
     // hang off the part via the BomRevisions collection but stay frozen.

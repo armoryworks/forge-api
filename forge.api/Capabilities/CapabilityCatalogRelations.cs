@@ -56,6 +56,7 @@ public static class CapabilityCatalogRelations
         new("CAP-MD-VENDORS", "CAP-IDEN-TENANT-CONFIG"),
         new("CAP-MD-PARTS", "CAP-IDEN-TENANT-CONFIG"),
         new("CAP-MD-PARTS", "CAP-MD-UOM"),
+        new("CAP-MD-GS1", "CAP-MD-PARTS"),
         new("CAP-MD-BOM", "CAP-MD-PARTS"),
         new("CAP-MD-ROUTING", "CAP-MD-PARTS"),
         new("CAP-MD-ROUTING", "CAP-MD-WORKCENTERS"),

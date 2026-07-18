@@ -1310,6 +1310,8 @@ CREATE TABLE public.barcodes (
     value character varying(500) NOT NULL,
     entity_type character varying(50) NOT NULL,
     is_active boolean NOT NULL,
+    -- 'Internal' (self-generated, unique within this install) | 'Gs1' (licensed GTIN, globally unique).
+    identity_type character varying(20) DEFAULT 'Internal'::character varying NOT NULL,
     user_id integer,
     part_id integer,
     job_id integer,
@@ -5492,6 +5494,8 @@ CREATE TABLE public.parts (
     manual_cost_override numeric(18,4),
     current_cost_calculation_id integer,
     current_bom_revision_id integer,
+    -- Licensed GS1 GTIN for this trade item (globally unique). NULL = internal identity only.
+    gtin character varying(14),
     is_license boolean DEFAULT false NOT NULL,
     license_expires_at timestamp with time zone,
     license_renewal_lead_days integer,
@@ -12637,6 +12641,8 @@ CREATE UNIQUE INDEX ux_acct_stmt_lines_account_fitid ON public.acct_bank_stateme
 CREATE UNIQUE INDEX ux_customer_po_documents_document_number ON public.customer_po_documents USING btree (document_number);
 
 CREATE UNIQUE INDEX ux_customer_po_documents_sales_order_id ON public.customer_po_documents USING btree (sales_order_id) WHERE (deleted_at IS NULL);
+
+CREATE UNIQUE INDEX ux_parts_gtin ON public.parts USING btree (gtin) WHERE (gtin IS NOT NULL AND deleted_at IS NULL);
 
 CREATE UNIQUE INDEX ux_payment_batches_number ON public.payment_batches USING btree (batch_number);
 

@@ -13,6 +13,7 @@ public class BarcodeConfiguration : IEntityTypeConfiguration<Barcode>
 
         builder.Property(e => e.Value).HasMaxLength(500);
         builder.Property(e => e.EntityType).HasConversion<string>().HasMaxLength(50);
+        builder.Property(e => e.IdentityType).HasConversion<string>().HasMaxLength(20);
 
         builder.HasIndex(e => e.Value).IsUnique();
         builder.HasIndex(e => e.EntityType);
