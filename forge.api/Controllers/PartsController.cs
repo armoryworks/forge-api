@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Activity;
 using Forge.Api.Features.Parts;
+using Forge.Api.Features.Parts.BulkIntake;
 using Forge.Api.Features.Parts.PromoteStatus;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -63,6 +64,25 @@ public class PartsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<PartDetailResponseModel>> UpdatePart(int id, [FromBody] UpdatePartRequestModel request)
     {
         var result = await mediator.Send(new UpdatePartCommand(id, request));
+        return Ok(result);
+    }
+
+    /// <summary>Dry-run classification of an uploaded part CSV — new / duplicate-in-batch /
+    /// duplicate-existing / invalid — without persisting anything.</summary>
+    [HttpPost("bulk-intake/preview")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
+    public async Task<ActionResult<BulkPartIntakeResponseModel>> BulkIntakePreview([FromBody] BulkPartIntakeRequest request)
+    {
+        var result = await mediator.Send(new BulkPartIntakeCommand(request, Commit: false));
+        return Ok(result);
+    }
+
+    /// <summary>Persists the rows classified as new (server-issued part numbers + barcodes).</summary>
+    [HttpPost("bulk-intake/commit")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
+    public async Task<ActionResult<BulkPartIntakeResponseModel>> BulkIntakeCommit([FromBody] BulkPartIntakeRequest request)
+    {
+        var result = await mediator.Send(new BulkPartIntakeCommand(request, Commit: true));
         return Ok(result);
     }
 
