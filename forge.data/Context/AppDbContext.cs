@@ -82,7 +82,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<BomRevisionLine> BomRevisionLines => Set<BomRevisionLine>();
     public DbSet<ReferenceData> ReferenceData => Set<ReferenceData>();
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
-    public DbSet<Checkpoint> Checkpoints => Set<Checkpoint>();
     public DbSet<SyncQueueEntry> SyncQueueEntries => Set<SyncQueueEntry>();
     public DbSet<IntegrationOutboxEntry> IntegrationOutboxEntries => Set<IntegrationOutboxEntry>();
     public DbSet<StorageLocation> StorageLocations => Set<StorageLocation>();
