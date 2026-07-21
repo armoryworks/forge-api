@@ -97,7 +97,8 @@ public static class PresetCatalog
         EnabledCapabilities: AssemblePreset(
             remove:
             [
-                "CAP-MD-BOM", "CAP-MD-ROUTING", "CAP-MD-WORKCENTERS", "CAP-MD-CALENDARS",
+                // CAP-MD-CALENDARS stays: CAP-HR-SHIFTS (added below) requires it.
+                "CAP-MD-BOM", "CAP-MD-ROUTING", "CAP-MD-WORKCENTERS",
                 "CAP-MFG-WO-RELEASE", "CAP-MFG-MATL-ISSUE", "CAP-MFG-LABOR",
                 "CAP-MFG-MULTIOP", "CAP-MFG-COMPLETE", "CAP-MFG-SHOPFLOOR",
                 "CAP-ACCT-BUILTIN",
@@ -238,7 +239,7 @@ public static class PresetCatalog
                 "CAP-O2C-LEAD", "CAP-O2C-COLLECTIONS", "CAP-O2C-RMA", "CAP-O2C-CREDITMEMO",
                 "CAP-MFG-WOVARIANCE", "CAP-MFG-STOPPAGE",
                 "CAP-PLAN-SAFETYSTOCK", "CAP-PLAN-CAPACITY",
-                "CAP-PLAN-MRP", "CAP-PLAN-MPS",
+                "CAP-PLAN-MRP", "CAP-PLAN-MPS", "CAP-PLAN-FORECAST",
                 "CAP-INV-RESERVE", "CAP-INV-MULTILOC",
                 "CAP-QC-INSPECTION", "CAP-QC-NCR", "CAP-QC-CAPA",
                 "CAP-MAINT-PM", "CAP-MAINT-BREAKDOWN",
