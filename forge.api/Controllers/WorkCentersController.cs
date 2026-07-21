@@ -11,11 +11,15 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/work-centers")]
-[Authorize(Roles = "Admin,Manager")]
+[Authorize]
 [RequiresCapability("CAP-MD-WORKCENTERS")]
 public class WorkCentersController(IMediator mediator) : ControllerBase
 {
+    // Read is open to Engineer as well as Admin/Manager: defining a routing/operation
+    // requires reading the work centers operations route through (core MRP/engineering
+    // read). Writes stay Admin/Manager. Mirrors the Quality ECO/Gage method-level split.
     [HttpGet]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
     public async Task<ActionResult<List<WorkCenterResponseModel>>> GetAll()
     {
         var result = await mediator.Send(new GetWorkCentersQuery());
@@ -23,6 +27,7 @@ public class WorkCentersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<WorkCenterResponseModel>> Create([FromBody] CreateWorkCenterRequest request)
     {
         var result = await mediator.Send(new CreateWorkCenterCommand(
@@ -35,6 +40,7 @@ public class WorkCentersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<WorkCenterResponseModel>> Update(int id, [FromBody] UpdateWorkCenterRequest request)
     {
         var result = await mediator.Send(new UpdateWorkCenterCommand(
@@ -47,6 +53,7 @@ public class WorkCentersController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Delete(int id)
     {
         await mediator.Send(new DeleteWorkCenterCommand(id));
