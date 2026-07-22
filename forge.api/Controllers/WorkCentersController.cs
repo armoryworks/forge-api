@@ -15,9 +15,13 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-MD-WORKCENTERS")]
 public class WorkCentersController(IMediator mediator) : ControllerBase
 {
-    // Read is open to Engineer as well as Admin/Manager: defining a routing/operation
-    // requires reading the work centers operations route through (core MRP/engineering
-    // read). Writes stay Admin/Manager. Mirrors the Quality ECO/Gage method-level split.
+    // Read AND authoring (create/update) are open to Engineer as well as Admin/Manager:
+    // defining a work center is core engineering/MRP master-data authoring — an Engineer
+    // who builds routings/operations also defines the work centers those operations run on,
+    // mirroring how the Parts controller lets an Engineer create/update master-data parts.
+    // DELETE stays Admin/Manager: destroying master data is heavier than defining it, and an
+    // Engineer routing through a work center should not be able to remove it out from under
+    // downstream operations. CAP-MD-WORKCENTERS still gates the whole controller.
     [HttpGet]
     [Authorize(Roles = "Admin,Manager,Engineer")]
     public async Task<ActionResult<List<WorkCenterResponseModel>>> GetAll()
@@ -27,7 +31,7 @@ public class WorkCentersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
     public async Task<ActionResult<WorkCenterResponseModel>> Create([FromBody] CreateWorkCenterRequest request)
     {
         var result = await mediator.Send(new CreateWorkCenterCommand(
@@ -40,7 +44,7 @@ public class WorkCentersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
     public async Task<ActionResult<WorkCenterResponseModel>> Update(int id, [FromBody] UpdateWorkCenterRequest request)
     {
         var result = await mediator.Send(new UpdateWorkCenterCommand(

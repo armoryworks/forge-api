@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 
 using FluentAssertions;
 
@@ -7,12 +8,13 @@ using Forge.Tests.Capabilities;
 namespace Forge.Tests.Remediation.Scheduling;
 
 /// <summary>
-/// Work-center read reachability. The controller previously restricted every action
-/// (including GET) to Admin/Manager, so an Engineer-role identity got 403 on
-/// GET /api/v1/work-centers. Defining a routing/operation is core engineering/MRP
-/// work and requires reading the work centers operations route through, so the read
-/// is now open to Engineer while writes stay Admin/Manager (mirrors the Quality
-/// ECO/Gage method-level split). CAP-MD-WORKCENTERS is default-on.
+/// Work-center authoring reachability. The controller previously restricted every action
+/// (including GET) to Admin/Manager; B163 opened GET to Engineer. Defining a work center is
+/// core engineering/MRP master-data authoring — an Engineer who builds routings/operations
+/// also defines the work centers those operations run on — so CREATE and UPDATE are now open
+/// to Engineer as well, mirroring how the Parts controller lets an Engineer author master-data
+/// parts. DELETE stays Admin/Manager (destroying master data is heavier than defining it).
+/// CAP-MD-WORKCENTERS is default-on, so this is purely the ASP.NET role gate.
 /// </summary>
 [Collection(CapabilityTestCollection.Name)]
 public class WorkCentersReadReachabilityTests
@@ -36,11 +38,34 @@ public class WorkCentersReadReachabilityTests
             "an Engineer defining routings/operations must be able to read the work centers they route through");
     }
 
-    [Fact] // read reachability must not broaden write: Engineer still cannot create
-    public async Task Engineer_cannot_create_a_work_center()
+    [Fact] // negative->positive control: Engineer can now CREATE a work center (was 403)
+    public async Task Engineer_can_create_a_work_center()
     {
-        var response = await AuthClient("Engineer").PostAsync("/api/v1/work-centers", null);
+        var body = new
+        {
+            name = "Engineer-authored Cell",
+            code = "ENG-WC-01",
+            description = "Authored by an Engineer-role identity",
+            dailyCapacityHours = 8m,
+            efficiencyPercent = 100m,
+            numberOfMachines = 1,
+            laborCostPerHour = 25m,
+            burdenRatePerHour = 10m,
+            assetId = (int?)null,
+            companyLocationId = (int?)null,
+            sortOrder = 0,
+        };
+
+        var response = await AuthClient("Engineer").PostAsJsonAsync("/api/v1/work-centers", body);
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
+            "defining a work center is core engineering master-data authoring, mirroring Engineer Part creation");
+    }
+
+    [Fact] // authoring grant must not broaden destroy: Engineer still cannot delete
+    public async Task Engineer_cannot_delete_a_work_center()
+    {
+        var response = await AuthClient("Engineer").DeleteAsync("/api/v1/work-centers/1");
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden,
-            "creating a work center stays Admin/Manager; only read was opened to Engineer");
+            "deleting a work center stays Admin/Manager; only read + authoring were opened to Engineer");
     }
 }
