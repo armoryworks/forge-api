@@ -50,13 +50,21 @@ public class PartsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Client-facing parts config (e.g. whether manual part numbers are allowed).</summary>
+    [HttpGet("config")]
+    public async Task<ActionResult<PartsConfigResponseModel>> GetPartsConfig()
+    {
+        var result = await mediator.Send(new GetPartsConfigQuery());
+        return Ok(result);
+    }
+
     [HttpPost]
     public async Task<ActionResult<PartDetailResponseModel>> CreatePart([FromBody] CreatePartRequestModel request)
     {
         var result = await mediator.Send(new CreatePartCommand(
             request.Name, request.Description, request.Revision,
             request.ProcurementSource, request.InventoryClass,
-            request.MaterialSpecId));
+            request.MaterialSpecId, request.PartNumber));
         return Created($"/api/v1/parts/{result.Id}", result);
     }
 

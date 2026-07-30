@@ -16,4 +16,8 @@ public record CreatePartRequestModel(
     string? Revision,
     ProcurementSource ProcurementSource,
     InventoryClass InventoryClass,
-    int? MaterialSpecId);
+    int? MaterialSpecId,
+    // Optional caller-supplied part number. Honored only when the
+    // "parts.allow_manual_numbers" system setting is enabled; otherwise ignored
+    // and a number is auto-generated. Left null/blank => always auto-generated.
+    string? PartNumber = null);

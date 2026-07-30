@@ -24,6 +24,9 @@ public class CreatePartHandlerTests
     {
         _handler = new CreatePartHandler(
             _partRepo.Object,
+            // Default mock returns null from FindByKeyAsync → manual part numbers
+            // disabled, so these tests continue to assert auto-generation.
+            Mock.Of<ISystemSettingRepository>(),
             Mock.Of<ISyncQueueRepository>(),
             Mock.Of<IAccountingProviderFactory>(),
             Mock.Of<IBarcodeService>(),
