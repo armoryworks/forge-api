@@ -58,6 +58,15 @@ public class PartsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Existing parts whose name is trigram-similar to <paramref name="name"/> —
+    /// powers the "did you mean one of these?" near-duplicate guard on part creation.</summary>
+    [HttpGet("similar")]
+    public async Task<ActionResult<List<PartSimilarityResultModel>>> GetSimilarParts([FromQuery] string name)
+    {
+        var result = await mediator.Send(new GetSimilarPartsQuery(name));
+        return Ok(result);
+    }
+
     [HttpPost]
     public async Task<ActionResult<PartDetailResponseModel>> CreatePart([FromBody] CreatePartRequestModel request)
     {

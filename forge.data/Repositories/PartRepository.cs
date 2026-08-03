@@ -26,6 +26,31 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
         return paged.Items.ToList();
     }
 
+    public async Task<List<PartSimilarityResultModel>> FindSimilarByNameAsync(
+        string name, double threshold, int limit, CancellationToken ct)
+    {
+        var term = name?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(term))
+            return new List<PartSimilarityResultModel>();
+
+        // pg_trgm similarity(name, term). db.Parts carries the soft-delete query
+        // filter (deleted_at IS NULL), matching the partial trigram index.
+        return await db.Parts
+            .Select(p => new
+            {
+                p.Id,
+                p.PartNumber,
+                p.Name,
+                Score = EF.Functions.TrigramsSimilarity(p.Name, term),
+            })
+            .Where(x => x.Score >= threshold)
+            .OrderByDescending(x => x.Score)
+            .ThenBy(x => x.Name)
+            .Take(limit)
+            .Select(x => new PartSimilarityResultModel(x.Id, x.PartNumber, x.Name, x.Score))
+            .ToListAsync(ct);
+    }
+
     public async Task<PagedResponse<PartListResponseModel>> GetPagedAsync(
         PartListQuery query, CancellationToken ct)
     {

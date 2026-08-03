@@ -21,6 +21,11 @@ public interface IPartRepository
     Task<PartDetailResponseModel?> GetDetailAsync(int id, CancellationToken ct);
     Task<Part?> FindAsync(int id, CancellationToken ct);
     Task<bool> PartNumberExistsAsync(string partNumber, int? excludeId, CancellationToken ct);
+    /// <summary>
+    /// Existing (non-deleted) parts whose name is trigram-similar to <paramref name="name"/>,
+    /// ranked most-similar first. Backs the near-duplicate guard on part creation.
+    /// </summary>
+    Task<List<PartSimilarityResultModel>> FindSimilarByNameAsync(string name, double threshold, int limit, CancellationToken ct);
     Task<string> GetNextPartNumberAsync(InventoryClass inventoryClass, CancellationToken ct);
     Task AddAsync(Part part, CancellationToken ct);
     Task<BOMLine?> FindBomLineAsync(int bomLineId, int parentPartId, CancellationToken ct);
