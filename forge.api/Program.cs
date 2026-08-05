@@ -311,6 +311,7 @@ try
     builder.Services.AddScoped<IJobLinkRepository, JobLinkRepository>();
     builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
     builder.Services.AddScoped<ITerminologyRepository, TerminologyRepository>();
+    builder.Services.AddScoped<II18nTranslationService, AiI18nTranslationService>();
     builder.Services.AddScoped<IReportRepository, ReportRepository>();
     builder.Services.AddScoped<ISankeyReportRepository, SankeyReportRepository>();
     builder.Services.AddScoped<ISearchRepository, SearchRepository>();
@@ -1203,6 +1204,7 @@ try
     builder.Services.AddScoped<ComputeLeadIcpScoresJob>();
     builder.Services.AddScoped<RecomputeLeadSourceQualityJob>();
     builder.Services.AddScoped<MarkStaleSamplesJob>();
+    builder.Services.AddScoped<I18nPendingTranslationJob>();
 
     // Health checks
     builder.Services.AddHealthChecks()
@@ -1845,6 +1847,12 @@ try
         "mark-stale-samples",
         job => job.RunAsync(CancellationToken.None),
         Cron.Daily(2, 45)); // 2:45 AM UTC daily
+
+    // i18n label overrides — retry machine translations queued while the AI container was down
+    RecurringJob.AddOrUpdate<I18nPendingTranslationJob>(
+        "i18n-pending-translations",
+        job => job.RunAsync(CancellationToken.None),
+        "*/30 * * * *"); // Every 30 minutes — no-op when nothing is pending
 
     // Auto-PO demand projection
     RecurringJob.AddOrUpdate<AutoPurchaseOrderJob>(

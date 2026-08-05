@@ -426,6 +426,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     // Multi-Language
     public DbSet<TranslatedLabel> TranslatedLabels => Set<TranslatedLabel>();
     public DbSet<SupportedLanguage> SupportedLanguages => Set<SupportedLanguage>();
+    public DbSet<I18nLabelOverride> I18nLabelOverrides => Set<I18nLabelOverride>();
 
     // IoT / Machine Integration
     public DbSet<MachineConnection> MachineConnections => Set<MachineConnection>();
