@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Estimates;
 using Forge.Core.Enums;
@@ -81,10 +82,16 @@ public class EstimatesController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    // #24: body carries optional per-line resolutions for lump-sum lines
+    // (eliminate / replace-with-part). An empty/absent body keeps the legacy
+    // carry-everything-over behavior for existing callers.
     [HttpPost("{id:int}/convert")]
-    public async Task<ActionResult<QuoteListItemModel>> ConvertToQuote(int id, CancellationToken ct = default)
+    public async Task<ActionResult<QuoteListItemModel>> ConvertToQuote(
+        int id,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] ConvertEstimateToQuoteRequestModel? request,
+        CancellationToken ct = default)
     {
-        var result = await mediator.Send(new ConvertEstimateToQuoteCommand(id), ct);
+        var result = await mediator.Send(new ConvertEstimateToQuoteCommand(id, request?.LineResolutions), ct);
         return Ok(result);
     }
 }
