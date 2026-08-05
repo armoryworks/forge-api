@@ -40,4 +40,7 @@ public record JobDetailResponseModel(
     string? CoverPhotoUrl = null,
     // WU-11 / TODO E1 — optimistic-locking version. UI uses this as If-Match
     // on subsequent PATCH/PUT/DELETE.
-    uint RowVersion = 0);
+    uint RowVersion = 0,
+    // Back-link to the originating sales order (via the job's SO-line link).
+    int? SalesOrderId = null,
+    string? SalesOrderNumber = null);

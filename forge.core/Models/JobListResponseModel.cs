@@ -21,4 +21,9 @@ public record JobListResponseModel(
     List<string> ActiveHolds,
     string? CoverPhotoUrl = null,
     int? ParentJobId = null,
-    string? ParentJobNumber = null);
+    string? ParentJobNumber = null,
+    // Card back-links: the customer and the originating sales order (via the
+    // job's SO-line link) so the board can render navigable references.
+    int? CustomerId = null,
+    int? SalesOrderId = null,
+    string? SalesOrderNumber = null);

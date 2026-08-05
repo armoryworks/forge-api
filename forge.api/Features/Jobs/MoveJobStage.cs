@@ -64,6 +64,28 @@ public class MoveJobStageHandler(
         var lastStage = allStages.OrderByDescending(s => s.SortOrder).FirstOrDefault();
         var movingToCompletion = lastStage is not null && lastStage.Id == request.StageId;
 
+        // Workflow sequencing: a forward move must not skip over an active
+        // mandatory stage (e.g. jumping from QC/Review straight to Payment
+        // Received past Shipped + Invoiced/Sent). Backward moves and moves
+        // into the mandatory stage itself are unaffected; dispose/cancel
+        // dispositions never route through this handler.
+        if (previousStage is not null && targetStage.SortOrder > previousStage.SortOrder)
+        {
+            var skippedMandatory = allStages
+                .Where(s => s.IsMandatory
+                    && s.SortOrder > previousStage.SortOrder
+                    && s.SortOrder < targetStage.SortOrder)
+                .OrderBy(s => s.SortOrder)
+                .Select(s => $"'{s.Name}'")
+                .ToList();
+
+            if (skippedMandatory.Count > 0)
+                throw new InvalidOperationException(
+                    $"Cannot move to '{targetStage.Name}' — this would skip the mandatory stage" +
+                    $"{(skippedMandatory.Count > 1 ? "s" : "")} {string.Join(", ", skippedMandatory)}. " +
+                    "Move the job through each mandatory stage in order.");
+        }
+
         // F-JQ1: a job must not advance INTO completion (the final stage) while it has an open NCR or a
         // failed QC inspection. Checked before the move is applied, so the job stays put rather than
         // completing with unresolved quality issues. (Scope: gated at the final stage only; an NCR

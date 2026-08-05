@@ -57,7 +57,9 @@ public static partial class JobMapper
             CreatedAt: job.CreatedAt,
             UpdatedAt: job.UpdatedAt,
             CoverPhotoUrl: null,
-            RowVersion: job.Version);
+            RowVersion: job.Version,
+            SalesOrderId: job.SalesOrderLine?.SalesOrderId,
+            SalesOrderNumber: job.SalesOrderLine?.SalesOrder?.OrderNumber);
     }
 
     /// <summary>
@@ -91,6 +93,9 @@ public static partial class JobMapper
             AccountingDocumentType: job.CurrentStage?.AccountingDocumentType?.ToString(),
             ActiveHolds: [],
             ParentJobId: job.ParentJobId,
-            ParentJobNumber: job.ParentJob?.JobNumber);
+            ParentJobNumber: job.ParentJob?.JobNumber,
+            CustomerId: job.CustomerId,
+            SalesOrderId: job.SalesOrderLine?.SalesOrderId,
+            SalesOrderNumber: job.SalesOrderLine?.SalesOrder?.OrderNumber);
     }
 }

@@ -31,8 +31,8 @@ public static partial class SeedData
                 new JobStage { TrackTypeId = production.Id, Name = "Materials Received", Code = "materials_received", SortOrder = 5, Color = "#a855f7", IsShopFloor = true },
                 new JobStage { TrackTypeId = production.Id, Name = "In Production", Code = "in_production", SortOrder = 6, Color = "#f59e0b", IsShopFloor = true },
                 new JobStage { TrackTypeId = production.Id, Name = "QC/Review", Code = "qc_review", SortOrder = 7, Color = "#ec4899", IsShopFloor = true },
-                new JobStage { TrackTypeId = production.Id, Name = "Shipped", Code = "shipped", SortOrder = 8, Color = "#c2410c", AccountingDocumentType = AccountingDocumentType.Invoice, IsShopFloor = true },
-                new JobStage { TrackTypeId = production.Id, Name = "Invoiced/Sent", Code = "invoiced_sent", SortOrder = 9, Color = "#dc2626", AccountingDocumentType = AccountingDocumentType.Invoice, IsIrreversible = true },
+                new JobStage { TrackTypeId = production.Id, Name = "Shipped", Code = "shipped", SortOrder = 8, Color = "#c2410c", AccountingDocumentType = AccountingDocumentType.Invoice, IsShopFloor = true, IsMandatory = true },
+                new JobStage { TrackTypeId = production.Id, Name = "Invoiced/Sent", Code = "invoiced_sent", SortOrder = 9, Color = "#dc2626", AccountingDocumentType = AccountingDocumentType.Invoice, IsIrreversible = true, IsMandatory = true },
                 new JobStage { TrackTypeId = production.Id, Name = "Payment Received", Code = "payment_received", SortOrder = 10, Color = "#15803d", AccountingDocumentType = AccountingDocumentType.Payment, IsIrreversible = true }
             );
             await db.SaveChangesAsync();
@@ -64,6 +64,34 @@ public static partial class SeedData
             await db.SaveChangesAsync();
 
             Log.Information("Seeded track types and stages");
+        }
+
+        // Workflow sequencing — one-time data migration for existing installs.
+        // Fresh installs seed Shipped + Invoiced/Sent as mandatory above; installs
+        // created before the is_mandatory column existed get the column default
+        // (false) from the schema reconciler, so flag the production track's
+        // must-not-be-skipped stages here by their immutable codes. Guarded by a
+        // SystemSetting marker so an admin who later intentionally clears the
+        // flag is never re-flagged on the next boot.
+        const string mandatoryStagesMarkerKey = "seed.jobStages.mandatoryBackfillApplied";
+        if (!await db.SystemSettings.AnyAsync(s => s.Key == mandatoryStagesMarkerKey))
+        {
+            var mandatoryCodes = new[] { "shipped", "invoiced_sent" };
+            var stagesToFlag = await db.JobStages
+                .Where(s => mandatoryCodes.Contains(s.Code) && !s.IsMandatory)
+                .ToListAsync();
+            foreach (var stage in stagesToFlag)
+                stage.IsMandatory = true;
+
+            db.SystemSettings.Add(new SystemSetting
+            {
+                Key = mandatoryStagesMarkerKey,
+                Value = "true",
+                Description = "Marker: Shipped + Invoiced/Sent stages were flagged IsMandatory by the one-time seed backfill.",
+            });
+            await db.SaveChangesAsync();
+            if (stagesToFlag.Count > 0)
+                Log.Information("Flagged {Count} existing job stages as mandatory (workflow sequencing backfill)", stagesToFlag.Count);
         }
 
         // Reference Data

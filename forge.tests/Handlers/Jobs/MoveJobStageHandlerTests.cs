@@ -101,6 +101,135 @@ public class MoveJobStageHandlerTests
         _jobRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    // ── Workflow sequencing: mandatory stages must not be skipped ─────────
+
+    /// <summary>Builds the production-track tail: QC(7) → Shipped(8, mandatory) → Invoiced/Sent(9, mandatory, irreversible) → Payment Received(10, irreversible).</summary>
+    private static List<JobStage> ProductionTailStages(int trackTypeId) =>
+    [
+        new JobStage { Id = 7, TrackTypeId = trackTypeId, Name = "QC/Review", SortOrder = 7 },
+        new JobStage { Id = 8, TrackTypeId = trackTypeId, Name = "Shipped", SortOrder = 8, IsMandatory = true },
+        new JobStage { Id = 9, TrackTypeId = trackTypeId, Name = "Invoiced/Sent", SortOrder = 9, IsMandatory = true, IsIrreversible = true },
+        new JobStage { Id = 10, TrackTypeId = trackTypeId, Name = "Payment Received", SortOrder = 10, IsIrreversible = true },
+    ];
+
+    private void SetupStages(int trackTypeId, List<JobStage> stages)
+    {
+        foreach (var stage in stages)
+            _trackRepo.Setup(r => r.FindStageAsync(stage.Id, It.IsAny<CancellationToken>())).ReturnsAsync(stage);
+        _trackRepo.Setup(r => r.GetStagesByTrackTypeAsync(trackTypeId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(stages);
+    }
+
+    private void SetupJobResult(int jobId)
+    {
+        var result = new JobDetailResponseModel(
+            jobId, "JOB-0001", "Test", null, 1, "Production",
+            0, "Stage", "#22c55e", null, null, null, null,
+            "Normal", null, null, null, null, null, false, 1, 0, null,
+            null, null, null, null, null, null, null, null, null, null, 0,
+            DateTime.UtcNow, DateTime.UtcNow);
+        _mediator.Setup(m => m.Send(It.IsAny<GetJobByIdQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(result);
+    }
+
+    [Fact]
+    public async Task Handle_ForwardMoveSkippingMandatoryStages_Throws()
+    {
+        // QC/Review → Payment Received would skip mandatory Shipped + Invoiced/Sent.
+        var job = new Job { Id = 1, JobNumber = "JOB-0001", TrackTypeId = 1, CurrentStageId = 7 };
+        _jobRepo.Setup(r => r.FindAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(job);
+        SetupStages(1, ProductionTailStages(1));
+
+        var act = () => _handler.Handle(new MoveJobStageCommand(1, 10), CancellationToken.None);
+
+        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+        ex.Which.Message.Should().Contain("'Shipped'").And.Contain("'Invoiced/Sent'")
+            .And.Contain("mandatory");
+        job.CurrentStageId.Should().Be(7, "the job must stay put when the move is blocked");
+    }
+
+    [Fact]
+    public async Task Handle_ForwardMoveSkippingSingleMandatoryStage_ThrowsNamingIt()
+    {
+        // Shipped → Payment Received skips only Invoiced/Sent.
+        var job = new Job { Id = 1, JobNumber = "JOB-0001", TrackTypeId = 1, CurrentStageId = 8 };
+        _jobRepo.Setup(r => r.FindAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(job);
+        SetupStages(1, ProductionTailStages(1));
+
+        var act = () => _handler.Handle(new MoveJobStageCommand(1, 10), CancellationToken.None);
+
+        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+        ex.Which.Message.Should().Contain("'Invoiced/Sent'").And.NotContain("'Shipped'");
+    }
+
+    [Fact]
+    public async Task Handle_AdjacentForwardMoveIntoMandatoryStage_Succeeds()
+    {
+        // QC/Review → Shipped: moving INTO the mandatory stage is fine.
+        var job = new Job { Id = 1, JobNumber = "JOB-0001", TrackTypeId = 1, CurrentStageId = 7 };
+        _jobRepo.Setup(r => r.FindAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(job);
+        SetupStages(1, ProductionTailStages(1));
+        _jobRepo.Setup(r => r.GetMaxBoardPositionAsync(8, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        SetupJobResult(1);
+
+        await _handler.Handle(new MoveJobStageCommand(1, 8), CancellationToken.None);
+
+        job.CurrentStageId.Should().Be(8);
+        _jobRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_BackwardMove_NotBlockedByMandatoryGuard()
+    {
+        // Shipped (mandatory, not irreversible) → QC/Review: backward moves are unaffected.
+        var job = new Job { Id = 1, JobNumber = "JOB-0001", TrackTypeId = 1, CurrentStageId = 8 };
+        _jobRepo.Setup(r => r.FindAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(job);
+        SetupStages(1, ProductionTailStages(1));
+        _jobRepo.Setup(r => r.GetMaxBoardPositionAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        SetupJobResult(1);
+
+        await _handler.Handle(new MoveJobStageCommand(1, 7), CancellationToken.None);
+
+        job.CurrentStageId.Should().Be(7);
+    }
+
+    // ── F-JQ1 regression: NCR/QC gate on final-stage entry still works ────
+
+    [Fact]
+    public async Task Handle_MoveToFinalStageWithOpenNcr_Throws()
+    {
+        var job = new Job { Id = 1, JobNumber = "JOB-0001", TrackTypeId = 1, CurrentStageId = 9 };
+        _jobRepo.Setup(r => r.FindAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(job);
+        SetupStages(1, ProductionTailStages(1));
+
+        _db.NonConformances.Add(new NonConformance { JobId = 1, PartId = 1, DetectedById = 1, Status = NcrStatus.Open });
+        await _db.SaveChangesAsync();
+
+        var act = () => _handler.Handle(new MoveJobStageCommand(1, 10), CancellationToken.None);
+
+        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+        ex.Which.Message.Should().Contain("non-conformance");
+        job.CurrentStageId.Should().Be(9);
+    }
+
+    [Fact]
+    public async Task Handle_MoveToFinalStageWithResolvedNcr_Succeeds()
+    {
+        var job = new Job { Id = 1, JobNumber = "JOB-0001", TrackTypeId = 1, CurrentStageId = 9 };
+        _jobRepo.Setup(r => r.FindAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(job);
+        SetupStages(1, ProductionTailStages(1));
+        _jobRepo.Setup(r => r.GetMaxBoardPositionAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        SetupJobResult(1);
+
+        _db.NonConformances.Add(new NonConformance { JobId = 1, PartId = 1, DetectedById = 1, Status = NcrStatus.Closed });
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(new MoveJobStageCommand(1, 10), CancellationToken.None);
+
+        job.CurrentStageId.Should().Be(10);
+        job.CompletedDate.Should().NotBeNull();
+    }
+
     [Fact]
     public async Task Handle_JobNotFound_ThrowsKeyNotFoundException()
     {

@@ -31,7 +31,8 @@ public class TrackTypeRepository(AppDbContext db) : ITrackTypeRepository
                         s.Color,
                         s.WIPLimit,
                         s.AccountingDocumentType != null ? s.AccountingDocumentType.ToString() : null,
-                        s.IsIrreversible))
+                        s.IsIrreversible,
+                        s.IsMandatory))
                     .ToList()))
             .ToListAsync(ct);
     }
@@ -58,7 +59,8 @@ public class TrackTypeRepository(AppDbContext db) : ITrackTypeRepository
                         s.Color,
                         s.WIPLimit,
                         s.AccountingDocumentType != null ? s.AccountingDocumentType.ToString() : null,
-                        s.IsIrreversible))
+                        s.IsIrreversible,
+                        s.IsMandatory))
                     .ToList()))
             .FirstOrDefaultAsync(ct);
     }

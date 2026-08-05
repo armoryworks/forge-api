@@ -113,7 +113,10 @@ public class JobRepository(AppDbContext db) : IJobRepository
                 activeHolds,
                 j.CoverPhotoFileId.HasValue ? $"/api/v1/files/{j.CoverPhotoFileId}" : null,
                 j.ParentJobId,
-                j.ParentJob?.JobNumber);
+                j.ParentJob?.JobNumber,
+                j.CustomerId,
+                j.SalesOrderLine?.SalesOrderId,
+                j.SalesOrderLine?.SalesOrder?.OrderNumber);
         }).ToList();
     }
 
@@ -251,7 +254,10 @@ public class JobRepository(AppDbContext db) : IJobRepository
                 activeHolds,
                 j.CoverPhotoFileId.HasValue ? $"/api/v1/files/{j.CoverPhotoFileId}" : null,
                 j.ParentJobId,
-                j.ParentJob?.JobNumber);
+                j.ParentJob?.JobNumber,
+                j.CustomerId,
+                j.SalesOrderLine?.SalesOrderId,
+                j.SalesOrderLine?.SalesOrder?.OrderNumber);
         }).ToList();
 
         return new PagedResponse<JobListResponseModel>(
@@ -271,6 +277,8 @@ public class JobRepository(AppDbContext db) : IJobRepository
             .Include(j => j.ParentJob)
             .Include(j => j.ChildJobs)
             .Include(j => j.CoverPhotoFile)
+            .Include(j => j.SalesOrderLine)
+                .ThenInclude(sol => sol!.SalesOrder)
             .FirstOrDefaultAsync(j => j.Id == id, ct);
 
         if (job is null) return null;
@@ -317,7 +325,9 @@ public class JobRepository(AppDbContext db) : IJobRepository
             job.CreatedAt,
             job.UpdatedAt,
             job.CoverPhotoFileId.HasValue ? $"/api/v1/files/{job.CoverPhotoFileId}" : null,
-            job.Version);
+            job.Version,
+            job.SalesOrderLine?.SalesOrderId,
+            job.SalesOrderLine?.SalesOrder?.OrderNumber);
     }
 
     public async Task<Job?> FindAsync(int id, CancellationToken ct)

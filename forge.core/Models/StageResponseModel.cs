@@ -8,4 +8,5 @@ public record StageResponseModel(
     string Color,
     int? WIPLimit,
     string? AccountingDocumentType,
-    bool IsIrreversible);
+    bool IsIrreversible,
+    bool IsMandatory = false);
