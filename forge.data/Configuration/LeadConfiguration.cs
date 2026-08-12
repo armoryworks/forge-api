@@ -88,5 +88,12 @@ public class LeadConfiguration : IEntityTypeConfiguration<Lead>
         builder.Property(e => e.PartClassCode).HasMaxLength(100);
         builder.HasIndex(e => e.SecondaryOwnerUserId);
         builder.HasIndex(e => e.PartClassCode);
+
+        // Lead-intake idempotency key (the relaying system's stable id, e.g.
+        // Tuyere's submission id). Filtered unique mirrors ix_lead_sources_code:
+        // NULLs are distinct (interactive leads carry none) and a soft-deleted
+        // lead frees its external id for re-intake.
+        builder.Property(e => e.ExternalId).HasMaxLength(100);
+        builder.HasIndex(e => e.ExternalId).IsUnique().HasFilter(@"deleted_at IS NULL");
     }
 }

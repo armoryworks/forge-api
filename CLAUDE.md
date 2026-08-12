@@ -233,6 +233,7 @@ review that delta before allowing it; a dev volume is disposable, a shared one m
 - RESTful: `/api/v1/jobs`, `/api/v1/jobs/{id}`, `/api/v1/jobs/{id}/subtasks`
 - Plural nouns for collections; no verbs except RPC-like (`/archive`)
 - POST → 201 + Location header; DELETE/PUT no-body → 204
+- Idempotent creates (client-supplied idempotency key): when a create endpoint accepts a stable external key (e.g. `POST /api/v1/leads` + `externalId` from the Tuyere intake relay), the handler returns a `CreateXxxResult(Model, bool Created)` and the controller answers 201 on first create, **200 with the existing row** on a replay of the same key — never 409 for a retried identical create. Pair the key with a filtered unique index (`WHERE deleted_at IS NULL`) and an exact-match list filter (`GET ?externalId=...`) so clients can probe before retrying. See `docs/api-key-integrations.md` §1.6.
 - `IOptions<T>` for config — never raw `IConfiguration` in services
 - `MOCK_INTEGRATIONS=true` env var bypasses all external API calls with mock responses
 

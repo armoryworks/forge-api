@@ -4497,6 +4497,7 @@ CREATE TABLE public.leads (
     export_control character varying(40) DEFAULT ''::character varying NOT NULL,
     secondary_owner_user_id integer,
     part_class_code character varying(100),
+    external_id character varying(100),
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,
@@ -11660,6 +11661,8 @@ CREATE INDEX ix_leads_campaign_id ON public.leads USING btree (campaign_id);
 CREATE INDEX ix_leads_capability_fit ON public.leads USING btree (capability_fit);
 
 CREATE UNIQUE INDEX ix_leads_converted_customer_id ON public.leads USING btree (converted_customer_id);
+
+CREATE UNIQUE INDEX ix_leads_external_id ON public.leads USING btree (external_id) WHERE (deleted_at IS NULL);
 
 CREATE INDEX ix_leads_icp_score ON public.leads USING btree (icp_score);
 

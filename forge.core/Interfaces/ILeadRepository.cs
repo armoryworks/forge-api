@@ -6,7 +6,7 @@ namespace Forge.Core.Interfaces;
 
 public interface ILeadRepository
 {
-    Task<List<LeadResponseModel>> GetLeadsAsync(LeadStatus? status, string? search, CancellationToken ct);
+    Task<List<LeadResponseModel>> GetLeadsAsync(LeadStatus? status, string? search, string? externalId, CancellationToken ct);
     Task<LeadResponseModel?> GetByIdAsync(int id, CancellationToken ct);
     Task<Lead?> FindAsync(int id, CancellationToken ct);
     Task AddAsync(Lead lead, CancellationToken ct);

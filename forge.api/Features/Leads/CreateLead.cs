@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+
 using FluentValidation;
 using MediatR;
 using Forge.Core.Entities;
@@ -8,7 +10,7 @@ using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Leads;
 
-public record CreateLeadCommand(CreateLeadRequestModel Data) : IRequest<LeadResponseModel>;
+public record CreateLeadCommand(CreateLeadRequestModel Data) : IRequest<CreateLeadResult>;
 
 public class CreateLeadCommandValidator : AbstractValidator<CreateLeadCommand>
 {
@@ -24,16 +26,46 @@ public class CreateLeadCommandValidator : AbstractValidator<CreateLeadCommand>
         RuleFor(x => x.Data.ContactName).MaximumLength(200).When(x => x.Data.ContactName is not null);
         RuleFor(x => x.Data.Email).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Data.Email));
         RuleFor(x => x.Data.Phone).MaximumLength(50).When(x => x.Data.Phone is not null);
+        RuleFor(x => x.Data.ExternalId).MaximumLength(100).When(x => x.Data.ExternalId is not null);
+        RuleFor(x => x.Data.LeadSourceCode).MaximumLength(100).When(x => x.Data.LeadSourceCode is not null);
     }
 }
 
-public class CreateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequestHandler<CreateLeadCommand, LeadResponseModel>
+public class CreateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequestHandler<CreateLeadCommand, CreateLeadResult>
 {
-    public async Task<LeadResponseModel> Handle(CreateLeadCommand request, CancellationToken cancellationToken)
+    public async Task<CreateLeadResult> Handle(CreateLeadCommand request, CancellationToken cancellationToken)
     {
         var data = request.Data;
         var userId = db.CurrentUserId
             ?? throw new InvalidOperationException("CreateLead requires an authenticated caller.");
+
+        // Idempotent intake: when a relay retries a POST it already sent
+        // (network timeout / 5xx with the outcome unknown), the ExternalId it
+        // stamps finds the lead the first attempt created — return that lead
+        // rather than duplicating it or bouncing the retry with a 409.
+        var externalId = string.IsNullOrWhiteSpace(data.ExternalId) ? null : data.ExternalId.Trim();
+        if (externalId is not null)
+        {
+            var existingId = await db.Leads
+                .Where(l => l.ExternalId == externalId)
+                .Select(l => (int?)l.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (existingId is not null)
+                return new CreateLeadResult(
+                    (await repo.GetByIdAsync(existingId.Value, cancellationToken))!, Created: false);
+        }
+
+        // Formal source attribution: resolve the caller-supplied
+        // lead_sources.code to its FK. Unknown / missing code degrades to
+        // LeadSourceId = null (the free-text Source still lands) rather than
+        // failing the intake over a lookup row.
+        int? leadSourceId = null;
+        var sourceCode = data.LeadSourceCode?.Trim();
+        if (!string.IsNullOrEmpty(sourceCode))
+            leadSourceId = await db.LeadSources
+                .Where(s => s.Code == sourceCode)
+                .Select(s => (int?)s.Id)
+                .FirstOrDefaultAsync(cancellationToken);
 
         var lead = new Lead
         {
@@ -51,6 +83,8 @@ public class CreateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequest
             EngagementShape = data.EngagementShape,
             CustomFieldValues = data.CustomFieldValues,
             AccountId = data.AccountId,
+            ExternalId = externalId,
+            LeadSourceId = leadSourceId,
         };
 
         await repo.AddAsync(lead, cancellationToken);
@@ -70,6 +104,6 @@ public class CreateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequest
             ("Lead", lead.Id));
         await db.SaveChangesAsync(cancellationToken);
 
-        return (await repo.GetByIdAsync(lead.Id, cancellationToken))!;
+        return new CreateLeadResult((await repo.GetByIdAsync(lead.Id, cancellationToken))!, Created: true);
     }
 }

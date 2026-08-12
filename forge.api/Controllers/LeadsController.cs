@@ -36,9 +36,10 @@ public class LeadsController(IMediator mediator) : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<LeadResponseModel>>> GetLeads(
         [FromQuery] LeadStatus? status,
-        [FromQuery] string? search)
+        [FromQuery] string? search,
+        [FromQuery] string? externalId)
     {
-        var result = await mediator.Send(new GetLeadsQuery(status, search));
+        var result = await mediator.Send(new GetLeadsQuery(status, search, externalId));
         return Ok(result);
     }
 
@@ -53,7 +54,12 @@ public class LeadsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<LeadResponseModel>> CreateLead([FromBody] CreateLeadRequestModel request)
     {
         var result = await mediator.Send(new CreateLeadCommand(request));
-        return Created($"/api/v1/leads/{result.Id}", result);
+        // Idempotent replay: a request whose externalId matches an existing
+        // live lead gets that lead back as 200 rather than 201, so intake
+        // relays can retry POSTs safely. See docs/api-key-integrations.md §1.6.
+        return result.Created
+            ? Created($"/api/v1/leads/{result.Lead.Id}", result.Lead)
+            : Ok(result.Lead);
     }
 
     [HttpPatch("{id:int}")]

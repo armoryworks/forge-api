@@ -28,12 +28,20 @@ public class LeadRepository(AppDbContext db) : ILeadRepository
     /// <summary>Engagement window for the recent-activity count chip.</summary>
     private const int EngagementWindowDays = 30;
 
-    public async Task<List<LeadResponseModel>> GetLeadsAsync(LeadStatus? status, string? search, CancellationToken ct)
+    public async Task<List<LeadResponseModel>> GetLeadsAsync(LeadStatus? status, string? search, string? externalId, CancellationToken ct)
     {
         var query = db.Leads.AsQueryable();
 
         if (status.HasValue)
             query = query.Where(l => l.Status == status.Value);
+
+        // Exact match on the intake idempotency key — this is the relay
+        // clients' "did I already create this lead?" dedupe probe.
+        if (!string.IsNullOrWhiteSpace(externalId))
+        {
+            var externalIdTerm = externalId.Trim();
+            query = query.Where(l => l.ExternalId == externalIdTerm);
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -129,7 +137,11 @@ public class LeadRepository(AppDbContext db) : ILeadRepository
             l.Status, l.Notes, l.FollowUpDate, l.LostReason,
             l.ConvertedCustomerId, l.CreatedAt, l.UpdatedAt,
             l.EngagementShape, l.CustomFieldValues,
-            lastActivity, engagementCount, isStale);
+            lastActivity, engagementCount, isStale,
+            // Intake-relay round-trip fields: the relay verifies its stamped
+            // idempotency key and the resolved source attribution on read-back.
+            LeadSourceId: l.LeadSourceId,
+            ExternalId: l.ExternalId);
     }
 
     private sealed record LeadEngagementStat(DateTimeOffset? LastActivityAt, int RecentEngagementCount);

@@ -58,4 +58,7 @@ public record LeadResponseModel(
     /// <summary>Phase 1r / Batch 16 — engineer handoff secondary owner.</summary>
     int? SecondaryOwnerUserId = null,
     /// <summary>Phase 1r / Batch 16 — RFQ part-class code for win/loss-by-commodity reports.</summary>
-    string? PartClassCode = null);
+    string? PartClassCode = null,
+    /// <summary>Intake idempotency key stamped by the relaying system (e.g. Tuyere).
+    /// Null for interactively created leads.</summary>
+    string? ExternalId = null);

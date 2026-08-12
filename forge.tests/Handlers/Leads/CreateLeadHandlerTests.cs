@@ -58,9 +58,10 @@ public class CreateLeadHandlerTests
 
         // Assert
         result.Should().NotBeNull();
-        result.CompanyName.Should().Be(companyName);
-        result.ContactName.Should().Be(contactName);
-        result.Email.Should().Be(email);
+        result.Created.Should().BeTrue();
+        result.Lead.CompanyName.Should().Be(companyName);
+        result.Lead.ContactName.Should().Be(contactName);
+        result.Lead.Email.Should().Be(email);
 
         _leadRepo.Verify(r => r.AddAsync(It.Is<Lead>(l =>
             l.CompanyName == companyName.Trim() &&
@@ -150,12 +151,12 @@ public class CreateLeadHandlerTests
 
         // Assert
         result.Should().NotBeNull();
-        result.ContactName.Should().BeNull();
-        result.Email.Should().BeNull();
-        result.Phone.Should().BeNull();
-        result.Source.Should().BeNull();
-        result.Notes.Should().BeNull();
-        result.FollowUpDate.Should().BeNull();
+        result.Lead.ContactName.Should().BeNull();
+        result.Lead.Email.Should().BeNull();
+        result.Lead.Phone.Should().BeNull();
+        result.Lead.Source.Should().BeNull();
+        result.Lead.Notes.Should().BeNull();
+        result.Lead.FollowUpDate.Should().BeNull();
 
         _leadRepo.Verify(r => r.AddAsync(It.Is<Lead>(l =>
             l.ContactName == null &&
@@ -214,7 +215,112 @@ public class CreateLeadHandlerTests
         var result = await _handler.Handle(command, CancellationToken.None);
 
         // Assert
-        result.Should().Be(expectedResponse);
-        result.Id.Should().Be(42);
+        result.Lead.Should().Be(expectedResponse);
+        result.Lead.Id.Should().Be(42);
+        result.Created.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_ExternalId_TrimsAndPersists()
+    {
+        // Intake relays stamp their submission id as the idempotency key.
+        var requestModel = new CreateLeadRequestModel(
+            "Acme Corp", null, null, null, null, null, null,
+            ExternalId: "  tuyere:sub-123  ");
+
+        _leadRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LeadResponseModel(
+                1, "Acme Corp", null, null, null, null,
+                LeadStatus.New, null, null, null, null,
+                DateTime.UtcNow, DateTime.UtcNow, ExternalId: "tuyere:sub-123"));
+
+        var result = await _handler.Handle(new CreateLeadCommand(requestModel), CancellationToken.None);
+
+        result.Created.Should().BeTrue();
+        _leadRepo.Verify(r => r.AddAsync(It.Is<Lead>(l =>
+            l.ExternalId == "tuyere:sub-123"
+        ), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_DuplicateExternalId_ReturnsExistingLeadWithoutCreating()
+    {
+        // A retried intake POST (timeout / 5xx on the first attempt) must not
+        // duplicate the lead — the ExternalId finds the original.
+        _db.Leads.Add(new Lead
+        {
+            Id = 7,
+            CompanyName = "Acme Corp",
+            ExternalId = "tuyere:sub-123",
+            CreatedBy = _userId,
+        });
+        await _db.SaveChangesAsync();
+
+        var existingResponse = new LeadResponseModel(
+            7, "Acme Corp", null, null, null, null,
+            LeadStatus.New, null, null, null, null,
+            DateTime.UtcNow, DateTime.UtcNow, ExternalId: "tuyere:sub-123");
+        _leadRepo.Setup(r => r.GetByIdAsync(7, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingResponse);
+
+        var requestModel = new CreateLeadRequestModel(
+            "Acme Corp", null, null, null, null, null, null,
+            ExternalId: "tuyere:sub-123");
+
+        var result = await _handler.Handle(new CreateLeadCommand(requestModel), CancellationToken.None);
+
+        result.Created.Should().BeFalse("the externalId replay must be idempotent, not a duplicate insert");
+        result.Lead.Id.Should().Be(7);
+        _leadRepo.Verify(r => r.AddAsync(It.IsAny<Lead>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_LeadSourceCode_ResolvesToLeadSourceId()
+    {
+        _db.LeadSources.Add(new LeadSource
+        {
+            Id = 5,
+            Name = "ArmoryWorks Website",
+            Code = "armoryworks.com",
+        });
+        await _db.SaveChangesAsync();
+
+        var requestModel = new CreateLeadRequestModel(
+            "Acme Corp", null, null, null, null, null, null,
+            LeadSourceCode: "armoryworks.com");
+
+        _leadRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LeadResponseModel(
+                1, "Acme Corp", null, null, null, null,
+                LeadStatus.New, null, null, null, null,
+                DateTime.UtcNow, DateTime.UtcNow, LeadSourceId: 5));
+
+        await _handler.Handle(new CreateLeadCommand(requestModel), CancellationToken.None);
+
+        _leadRepo.Verify(r => r.AddAsync(It.Is<Lead>(l =>
+            l.LeadSourceId == 5
+        ), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_UnknownLeadSourceCode_LeavesLeadSourceIdNull()
+    {
+        // Unknown code degrades to null attribution — never fails the intake.
+        var requestModel = new CreateLeadRequestModel(
+            "Acme Corp", null, null, null, null, null, null,
+            LeadSourceCode: "no-such-source");
+
+        _leadRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LeadResponseModel(
+                1, "Acme Corp", null, null, null, null,
+                LeadStatus.New, null, null, null, null,
+                DateTime.UtcNow, DateTime.UtcNow));
+
+        var result = await _handler.Handle(new CreateLeadCommand(requestModel), CancellationToken.None);
+
+        result.Created.Should().BeTrue();
+        _leadRepo.Verify(r => r.AddAsync(It.Is<Lead>(l =>
+            l.LeadSourceId == null
+        ), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

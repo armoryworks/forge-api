@@ -78,6 +78,15 @@ public class Lead : BaseAuditableEntity
     /// <summary>Phase 1r / Batch 16 — RFQ part class for win/loss-by-commodity reports (e.g. "machining-stainless", "injection-plastic").</summary>
     public string? PartClassCode { get; set; }
 
+    /// <summary>
+    /// Stable identifier stamped by the external system that relayed this lead
+    /// (e.g. Tuyere's contact-form relay stamps its submission id). Acts as the
+    /// intake idempotency key: CreateLead returns the existing lead when a live
+    /// lead already carries the same value, so POST retries are safe. Unique
+    /// among non-deleted leads; null for interactively created leads.
+    /// </summary>
+    public string? ExternalId { get; set; }
+
     public Customer? ConvertedCustomer { get; set; }
     public OutreachCampaign? Campaign { get; set; }
     public LeadSource? LeadSource { get; set; }

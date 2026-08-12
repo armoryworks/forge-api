@@ -19,4 +19,15 @@ public record CreateLeadRequestModel(
     // Phase 1r / Batch 12 — optional B2B parent account at intake. Lets
     // the fork dialog group new leads under an existing Account without a
     // follow-up edit. Null = unaffiliated (legacy flat-lead shape).
-    int? AccountId = null);
+    int? AccountId = null,
+    // Intake idempotency key: the relaying system's stable id for this
+    // submission (e.g. Tuyere's submission id). When a live lead already
+    // carries the same value, CreateLead returns that lead (200) instead of
+    // creating a duplicate — POST retries after a timeout/5xx are safe.
+    // Null for interactive creates.
+    string? ExternalId = null,
+    // Formal source attribution: a lead_sources.code (e.g. "armoryworks.com").
+    // Resolved server-side to LeadSourceId; an unknown or missing code leaves
+    // LeadSourceId null rather than failing the create (the free-text Source
+    // field still lands either way).
+    string? LeadSourceCode = null);
