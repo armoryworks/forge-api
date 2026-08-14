@@ -10,21 +10,36 @@ public record TestECommerceConnectionCommand(int Id) : IRequest<TestECommerceCon
 
 public record TestECommerceConnectionResult(bool Success, string? ErrorMessage);
 
-public class TestECommerceConnectionHandler(AppDbContext db, IECommerceService eCommerceService)
+public class TestECommerceConnectionHandler(AppDbContext db, IECommerceServiceFactory connectorFactory)
     : IRequestHandler<TestECommerceConnectionCommand, TestECommerceConnectionResult>
 {
     public async Task<TestECommerceConnectionResult> Handle(
-        TestECommerceConnectionCommand request, CancellationToken cancellationToken)
+        TestECommerceConnectionCommand request, CancellationToken ct)
     {
         var integration = await db.ECommerceIntegrations
             .AsNoTracking()
-            .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken)
+            .FirstOrDefaultAsync(i => i.Id == request.Id, ct)
             ?? throw new KeyNotFoundException($"ECommerceIntegration {request.Id} not found");
+
+        // Resolve the connector for THIS integration's platform. Previously this
+        // injected IECommerceService directly, which — now that several
+        // connectors are registered — would have handed back whichever one the
+        // container resolved last and cheerfully reported a green connection
+        // test against an entirely different platform.
+        if (!connectorFactory.IsSupported(integration.Platform))
+        {
+            return new TestECommerceConnectionResult(
+                false,
+                $"No connector is available for {integration.Platform} yet, so this integration cannot be tested " +
+                "or polled. Orders for it have to be entered through the retail-order endpoint.");
+        }
+
+        var connector = connectorFactory.For(integration.Platform);
 
         try
         {
-            var success = await eCommerceService.TestConnectionAsync(
-                integration.EncryptedCredentials, integration.StoreUrl ?? string.Empty, cancellationToken);
+            var success = await connector.TestConnectionAsync(
+                integration.EncryptedCredentials, integration.StoreUrl ?? string.Empty, ct);
             return new TestECommerceConnectionResult(success, success ? null : "Connection test failed");
         }
         catch (Exception ex)

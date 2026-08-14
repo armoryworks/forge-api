@@ -807,7 +807,19 @@ try
         builder.Services.AddSingleton<ILocalizationService, MockLocalizationService>();
         builder.Services.AddScoped<IPlantContextService, MockPlantContextService>();
         builder.Services.AddSingleton<IMachineDataService, MockMachineDataService>();
-        builder.Services.AddSingleton<IECommerceService, MockECommerceService>();
+        // E-commerce connectors — one MOCK per platform, resolved through the
+        // factory. Registering per-platform (rather than a single mock) is what
+        // makes mock mode exercise the real multi-channel shape: an install runs
+        // an eBay store, an Etsy shop and a Shopify site at the same time.
+        foreach (var mockPlatform in Enum.GetValues<Forge.Core.Enums.ECommercePlatform>())
+        {
+            if (mockPlatform == Forge.Core.Enums.ECommercePlatform.Manual) continue; // no API by design
+            var captured = mockPlatform;
+            builder.Services.AddSingleton<IECommerceService>(sp =>
+                new MockECommerceService(
+                    captured, sp.GetRequiredService<ILogger<MockECommerceService>>()));
+        }
+        builder.Services.AddSingleton<IECommerceServiceFactory, ECommerceServiceFactory>();
         builder.Services.AddSingleton<IBiService, MockBiService>();
         builder.Services.AddSingleton<IConsignmentService, MockConsignmentService>();
         builder.Services.AddSingleton<IAbcClassificationService, MockAbcClassificationService>();
@@ -908,7 +920,21 @@ try
         builder.Services.AddScoped<IPlantContextService, MockPlantContextService>();
         // IoT, E-Commerce, BI — mock for now until real integrations built
         builder.Services.AddSingleton<IMachineDataService, MockMachineDataService>();
-        builder.Services.AddSingleton<IECommerceService, MockECommerceService>();
+        // E-commerce connectors. Registered per platform and resolved through
+        // IECommerceServiceFactory — a single IECommerceService registration
+        // could only ever bind one platform, while an install genuinely runs
+        // several storefronts and marketplaces concurrently.
+        //
+        // Shopify + WooCommerce are real HTTP connectors. The marketplaces
+        // (eBay, Amazon, Etsy, Walmart) are NOT registered yet: each needs a
+        // developer account and an OAuth app registered with that marketplace
+        // before a connector can be written or tested. Until then the factory's
+        // NotSupportedException is the honest answer — better than a stub that
+        // pretends to poll and silently returns nothing.
+        builder.Services.AddHttpClient();
+        builder.Services.AddSingleton<IECommerceService, ShopifyECommerceService>();
+        builder.Services.AddSingleton<IECommerceService, WooCommerceECommerceService>();
+        builder.Services.AddSingleton<IECommerceServiceFactory, ECommerceServiceFactory>();
         builder.Services.AddSingleton<IBiService, MockBiService>();
         // Consignment, ABC, Pick Wave, Drop Ship — mock for now until real engines built
         builder.Services.AddSingleton<IConsignmentService, MockConsignmentService>();
