@@ -66,19 +66,37 @@ public class SalesOrderRepository(AppDbContext db) : ISalesOrderRepository
             .FirstOrDefaultAsync(so => so.Id == id, ct);
     }
 
-    public async Task<string> GenerateNextOrderNumberAsync(CancellationToken ct)
+    public Task<string> GenerateNextOrderNumberAsync(CancellationToken ct)
+        => GenerateNextOrderNumberAsync(DefaultOrderNumberPrefix, ct);
+
+    /// <summary>
+    /// Next order number within a prefix series.
+    ///
+    /// <para>Per-prefix rather than global. Channels may carry their own
+    /// <c>OrderNumberPrefix</c> so marketplace orders are recognizable in a
+    /// mixed list, and the sequences must not interfere: scanning globally for
+    /// the newest row would find (say) <c>EB-00042</c> when generating an
+    /// <c>SO-</c> number, fail the prefix match, and restart the SO series at
+    /// 00001 — colliding with the unique index on the very next insert.</para>
+    /// </summary>
+    public async Task<string> GenerateNextOrderNumberAsync(string prefix, CancellationToken ct)
     {
+        var token = $"{prefix}-";
+
         var last = await db.SalesOrders
             .IgnoreQueryFilters()
+            .Where(so => so.OrderNumber.StartsWith(token))
             .OrderByDescending(so => so.Id)
             .Select(so => so.OrderNumber)
             .FirstOrDefaultAsync(ct);
 
-        if (last != null && last.StartsWith("SO-") && int.TryParse(last[3..], out var lastNum))
-            return $"SO-{lastNum + 1:D5}";
+        if (last != null && int.TryParse(last[token.Length..], out var lastNum))
+            return $"{token}{lastNum + 1:D5}";
 
-        return "SO-00001";
+        return $"{token}00001";
     }
+
+    private const string DefaultOrderNumberPrefix = "SO";
 
     public async Task AddAsync(SalesOrder order, CancellationToken ct)
     {

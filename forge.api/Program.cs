@@ -1192,6 +1192,7 @@ try
     builder.Services.AddScoped<DailyDigestJob>();
     builder.Services.AddTransient<DatabaseBackupJob>();
     builder.Services.AddScoped<CustomerSyncJob>();
+    builder.Services.AddScoped<RetailBuyerPurgeJob>();
     builder.Services.AddScoped<AccountingCacheSyncJob>();
     builder.Services.AddScoped<OrphanDetectionJob>();
     builder.Services.AddScoped<ItemSyncJob>();
@@ -1529,6 +1530,7 @@ try
                 ["DatabaseBackupJob"]              = (typeof(DatabaseBackupJob),              "RunBackupAsync"),
                 ["IntegrationOutboxDispatcherJob"] = (typeof(IntegrationOutboxDispatcherJob), "DispatchPendingAsync"),
                 ["CustomerSyncJob"]                = (typeof(CustomerSyncJob),                "SyncCustomersAsync"),
+                ["RetailBuyerPurgeJob"]            = (typeof(RetailBuyerPurgeJob),            "PurgeExpiredAsync"),
                 ["AccountingCacheSyncJob"]         = (typeof(AccountingCacheSyncJob),         "RefreshCacheAsync"),
                 ["OrphanDetectionJob"]             = (typeof(OrphanDetectionJob),             "DetectOrphansAsync"),
                 ["ItemSyncJob"]                    = (typeof(ItemSyncJob),                    "SyncItemsAsync"),
@@ -1703,6 +1705,10 @@ try
         "generate-recurring-orders",
         job => job.GenerateDueOrdersAsync(CancellationToken.None),
         Cron.Daily(6)); // 6 AM UTC daily
+    RecurringJob.AddOrUpdate<RetailBuyerPurgeJob>(
+        "purge-retail-buyer-pii",
+        job => job.PurgeExpiredAsync(CancellationToken.None),
+        Cron.Daily(3)); // 3 AM UTC daily — marketplace data-protection retention sweep
     RecurringJob.AddOrUpdate<RecurringExpenseJob>(
         "generate-recurring-expenses",
         job => job.GenerateDueExpensesAsync(CancellationToken.None),
