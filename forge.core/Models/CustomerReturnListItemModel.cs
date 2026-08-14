@@ -5,8 +5,9 @@ public record CustomerReturnListItemModel(
     string ReturnNumber,
     int CustomerId,
     string CustomerName,
-    int OriginalJobId,
-    string OriginalJobNumber,
+    /// <summary>Null on retail returns of stocked items, which have no originating job.</summary>
+    int? OriginalJobId,
+    string? OriginalJobNumber,
     int? ReworkJobId,
     string? ReworkJobNumber,
     string Status,

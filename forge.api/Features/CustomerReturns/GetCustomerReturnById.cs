@@ -16,6 +16,7 @@ public class GetCustomerReturnByIdHandler(AppDbContext db)
         var r = await db.CustomerReturns
             .Include(r => r.Customer)
             .Include(r => r.OriginalJob)
+            .Include(r => r.Channel)
             .Include(r => r.ReworkJob)
             .FirstOrDefaultAsync(r => r.Id == request.Id, ct)
             ?? throw new KeyNotFoundException($"Customer return {request.Id} not found");
@@ -29,10 +30,12 @@ public class GetCustomerReturnByIdHandler(AppDbContext db)
 
         return new CustomerReturnDetailResponseModel(
             r.Id, r.ReturnNumber, r.CustomerId, r.Customer.Name,
-            r.OriginalJobId, r.OriginalJob.JobNumber, r.OriginalJob.Title,
+            r.OriginalJobId, r.OriginalJob?.JobNumber, r.OriginalJob?.Title,
             r.ReworkJobId, r.ReworkJob?.JobNumber,
             r.Status.ToString(), r.Reason, r.Notes, r.ReturnDate,
             r.InspectedById, inspectedByName, r.InspectedAt, r.InspectionNotes,
-            r.CreatedAt, r.UpdatedAt);
+            r.CreatedAt, r.UpdatedAt,
+            r.ChannelId, r.Channel?.Name, r.ExternalRmaId,
+            r.RefundAmount, r.Quantity, r.SalesOrderLineId);
     }
 }

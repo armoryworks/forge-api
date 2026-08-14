@@ -40,6 +40,27 @@ public class CustomerReturnsController(IMediator mediator) : ControllerBase
         return CreatedAtAction(nameof(GetReturn), new { id = result.Id }, result);
     }
 
+    /// <summary>
+    /// Record a return that a sales channel authorised. Separate from the
+    /// standard RMA path because the platform has already approved it under its
+    /// own policy — we are recording a decision, not making one — and because a
+    /// retail return of a stocked item has no originating job.
+    ///
+    /// <para>Idempotent on (channel, externalRmaId): a connector replay returns
+    /// 200 with the existing return rather than a duplicate.</para>
+    /// </summary>
+    [HttpPost("channel")]
+    [RequiresCapability("CAP-O2C-RETAIL")]
+    public async Task<ActionResult<CustomerReturnListItemModel>> CreateChannelReturn(
+        [FromBody] CreateChannelReturnRequestModel request, CancellationToken ct)
+    {
+        var result = await mediator.Send(new CreateChannelReturnCommand(request), ct);
+
+        return result.Created
+            ? CreatedAtAction(nameof(GetReturn), new { id = result.Return.Id }, result.Return)
+            : Ok(result.Return);
+    }
+
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateReturn(int id, UpdateCustomerReturnRequestModel request)
     {

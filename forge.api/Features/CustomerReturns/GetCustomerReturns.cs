@@ -29,7 +29,7 @@ public class GetCustomerReturnsHandler(AppDbContext db)
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => new CustomerReturnListItemModel(
                 r.Id, r.ReturnNumber, r.CustomerId, r.Customer.Name,
-                r.OriginalJobId, r.OriginalJob.JobNumber,
+                r.OriginalJobId, r.OriginalJob != null ? r.OriginalJob.JobNumber : null,
                 r.ReworkJobId, r.ReworkJob != null ? r.ReworkJob.JobNumber : null,
                 r.Status.ToString(), r.Reason, r.ReturnDate, r.CreatedAt))
             .ToListAsync(ct);

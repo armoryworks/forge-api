@@ -112,7 +112,7 @@ public class CreateCustomerReturnHandler(AppDbContext db, IMediator mediator, IH
         await db.SaveChangesAsync(ct);
 
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-        await mediator.Publish(new CustomerReturnReceivedEvent(customerReturn.Id, customerReturn.OriginalJobId, userId), ct);
+        await mediator.Publish(new CustomerReturnReceivedEvent(customerReturn.Id, request.OriginalJobId, userId), ct);
 
         return new CustomerReturnListItemModel(
             customerReturn.Id, customerReturn.ReturnNumber,

@@ -2669,7 +2669,8 @@ CREATE TABLE public.customer_returns (
     id integer NOT NULL,
     return_number character varying(50) NOT NULL,
     customer_id integer NOT NULL,
-    original_job_id integer NOT NULL,
+    original_job_id integer,
+    sales_order_line_id integer,
     rework_job_id integer,
     reason character varying(1000) NOT NULL,
     notes character varying(2000),
@@ -2678,6 +2679,10 @@ CREATE TABLE public.customer_returns (
     inspected_by_id integer,
     inspected_at timestamp with time zone,
     inspection_notes character varying(2000),
+    channel_id integer,
+    external_rma_id character varying(200),
+    refund_amount numeric(18,2),
+    quantity numeric(18,4),
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,
@@ -9864,6 +9869,12 @@ ALTER TABLE ONLY public.customer_returns
 ALTER TABLE ONLY public.customer_returns
     ADD CONSTRAINT fk_customer_returns_customers_customer_id FOREIGN KEY (customer_id) REFERENCES public.customers(id) ON DELETE RESTRICT;
 
+ALTER TABLE ONLY public.customer_returns
+    ADD CONSTRAINT fk_customer_returns__sales_channels_channel_id FOREIGN KEY (channel_id) REFERENCES public.sales_channels(id) ON DELETE RESTRICT;
+
+ALTER TABLE ONLY public.customer_returns
+    ADD CONSTRAINT fk_customer_returns__sales_order_lines_sales_order_line_id FOREIGN KEY (sales_order_line_id) REFERENCES public.sales_order_lines(id) ON DELETE RESTRICT;
+
 ALTER TABLE ONLY public.customer_tax_documents
     ADD CONSTRAINT fk_customer_tax_documents_customers_customer_id FOREIGN KEY (customer_id) REFERENCES public.customers(id) ON DELETE RESTRICT;
 
@@ -11499,6 +11510,10 @@ CREATE INDEX ix_customer_portal_accesses_customer_id ON public.customer_portal_a
 
 CREATE INDEX ix_customer_portal_accesses_one_time_token_hash ON public.customer_portal_accesses USING btree (one_time_token_hash);
 
+CREATE INDEX ix_customer_returns_channel_id ON public.customer_returns USING btree (channel_id);
+
+CREATE UNIQUE INDEX ix_customer_returns_channel_id_external_rma_id ON public.customer_returns USING btree (channel_id, external_rma_id) WHERE ((channel_id IS NOT NULL) AND (external_rma_id IS NOT NULL) AND (deleted_at IS NULL));
+
 CREATE INDEX ix_customer_returns_customer_id ON public.customer_returns USING btree (customer_id);
 
 CREATE INDEX ix_customer_returns_original_job_id ON public.customer_returns USING btree (original_job_id);
@@ -11506,6 +11521,8 @@ CREATE INDEX ix_customer_returns_original_job_id ON public.customer_returns USIN
 CREATE UNIQUE INDEX ix_customer_returns_return_number ON public.customer_returns USING btree (return_number);
 
 CREATE INDEX ix_customer_returns_rework_job_id ON public.customer_returns USING btree (rework_job_id);
+
+CREATE INDEX ix_customer_returns_sales_order_line_id ON public.customer_returns USING btree (sales_order_line_id);
 
 CREATE INDEX ix_customer_returns_status ON public.customer_returns USING btree (status);
 
