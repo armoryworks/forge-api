@@ -145,6 +145,20 @@ public static class CapabilityCatalogRelations
         new("CAP-O2C-RMA", "CAP-O2C-INVOICE"),
         new("CAP-O2C-RMA", "CAP-INV-CORE"),
 
+        // ── Sales-channel / retail lane ─────────────────────────────────────
+        // Channels are a routing layer over sales orders, so the spine needs SO.
+        // Retail needs the channel spine AND the customer master, because the
+        // house account that receives a retail order's receivable is a Customer
+        // row even though the buyer is not. Settlement is meaningless without
+        // the retail orders it reconciles against, and the connectors that
+        // import those orders sit on top of the whole stack.
+        new("CAP-O2C-CHANNELS", "CAP-O2C-SO"),
+        new("CAP-O2C-RETAIL", "CAP-O2C-CHANNELS"),
+        new("CAP-O2C-RETAIL", "CAP-MD-CUSTOMERS"),
+        new("CAP-O2C-SETTLEMENT", "CAP-O2C-RETAIL"),
+        new("CAP-EXT-ECOMMERCE", "CAP-O2C-RETAIL"),
+        new("CAP-EXT-ECOMMERCE", "CAP-MD-PARTS"),
+
         // ── MFG ─────────────────────────────────────────────────────────────
         new("CAP-MFG-WO-RELEASE", "CAP-MD-BOM"),
         new("CAP-MFG-WO-RELEASE", "CAP-MD-ROUTING"),

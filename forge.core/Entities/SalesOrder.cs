@@ -10,7 +10,57 @@ public class SalesOrder : BaseAuditableEntity, IConcurrencyVersioned
     public uint Version { get; set; }
 
     public string OrderNumber { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The account that owes the money. Always set. On a retail or marketplace
+    /// channel this is the channel's house account (see
+    /// <see cref="SalesChannel.SoldToCustomerId"/>) rather than the person who
+    /// bought — that consumer is <see cref="RetailBuyerId"/>. Keeping this
+    /// non-nullable is what lets AR aging, statements, credit and accounting
+    /// sync stay untouched by the retail work.
+    /// </summary>
     public int CustomerId { get; set; }
+
+    /// <summary>
+    /// Route to market. Null resolves to the install's default channel — the
+    /// same "null = the default row" convention <c>ApplicationUser.WorkLocationId</c>
+    /// uses — so the column could land on existing installs without a NOT NULL
+    /// backfill. New orders always set it explicitly.
+    /// </summary>
+    public int? ChannelId { get; set; }
+    public SalesChannel? Channel { get; set; }
+
+    /// <summary>
+    /// The consumer this order is for, on retail and marketplace channels.
+    /// Null on B2B orders, where <see cref="Customer"/> is already the buyer.
+    /// </summary>
+    public int? RetailBuyerId { get; set; }
+    public RetailBuyer? RetailBuyer { get; set; }
+
+    /// <summary>
+    /// Who collected the sales tax on this order. <see cref="Enums.TaxCollectedBy.Marketplace"/>
+    /// makes <see cref="TaxAmount"/> a pass-through that never reaches the
+    /// install's sales-tax liability. Defaults to <see cref="Enums.TaxCollectedBy.Seller"/>,
+    /// which is the pre-channel behaviour for every existing row.
+    /// </summary>
+    public TaxCollectedBy TaxCollectedBy { get; set; } = TaxCollectedBy.Seller;
+
+    /// <summary>
+    /// The channel's own order number (marketplace order id). On retail orders
+    /// this is what <see cref="CustomerPO"/> is for a B2B order — the buyer's
+    /// reference, echoed on documents and used to find the order from a
+    /// customer-service query.
+    /// </summary>
+    public string? ExternalOrderNumber { get; set; }
+
+    /// <summary>
+    /// Frozen consumer ship-to. Populated on retail orders where the
+    /// destination is not a <see cref="CustomerAddress"/> under the house
+    /// account. See <see cref="OrderShipTo"/> for why this is not reusing the
+    /// customer address table.
+    /// </summary>
+    public OrderShipTo? ShipTo { get; set; }
+
     public int? QuoteId { get; set; }
     public int? ShippingAddressId { get; set; }
     public int? BillingAddressId { get; set; }
@@ -43,6 +93,16 @@ public class SalesOrder : BaseAuditableEntity, IConcurrencyVersioned
     public decimal Subtotal => Lines.Sum(l => l.LineTotal);
     public decimal TaxAmount => Subtotal * TaxRate;
     public decimal Total => Subtotal + TaxAmount;
+
+    /// <summary>
+    /// The portion of <see cref="TaxAmount"/> the install actually owes a
+    /// taxing authority. Zero when a marketplace facilitator collected and
+    /// remits it — the buyer still paid the tax and it still belongs on the
+    /// document total, but it is not the install's payable. Anything computing
+    /// sales-tax liability must read this, never <see cref="TaxAmount"/>.
+    /// </summary>
+    public decimal SellerTaxLiability =>
+        TaxCollectedBy == TaxCollectedBy.Marketplace ? 0m : TaxAmount;
 
     public Customer Customer { get; set; } = null!;
     public Quote? Quote { get; set; }

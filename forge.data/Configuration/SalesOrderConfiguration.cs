@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 
 namespace Forge.Data.Configuration;
 
@@ -12,6 +13,7 @@ public class SalesOrderConfiguration : IEntityTypeConfiguration<SalesOrder>
         builder.Ignore(e => e.Subtotal);
         builder.Ignore(e => e.TaxAmount);
         builder.Ignore(e => e.Total);
+        builder.Ignore(e => e.SellerTaxLiability);
 
         // WU-11 / TODO E1 — optimistic locking
         builder.Property(e => e.Version).HasDefaultValue(1u);
@@ -24,11 +26,27 @@ public class SalesOrderConfiguration : IEntityTypeConfiguration<SalesOrder>
         builder.Property(e => e.ExternalId).HasMaxLength(100);
         builder.Property(e => e.ExternalRef).HasMaxLength(100);
         builder.Property(e => e.Provider).HasMaxLength(50);
+        builder.Property(e => e.ExternalOrderNumber).HasMaxLength(100);
+        // Default declared at the database level so the column could be added
+        // NOT NULL to an existing sales_orders table without a backfill pass —
+        // every pre-channel order is seller-collected by definition.
+        builder.Property(e => e.TaxCollectedBy)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(TaxCollectedBy.Seller);
 
         builder.HasIndex(e => e.OrderNumber).IsUnique();
         builder.HasIndex(e => e.CustomerId);
         builder.HasIndex(e => e.QuoteId);
         builder.HasIndex(e => e.Status);
+        builder.HasIndex(e => e.ChannelId);
+        builder.HasIndex(e => e.RetailBuyerId);
+
+        // Customer-service lookup path: "the buyer is quoting me their Amazon
+        // order number". Scoped by channel because external numbers are only
+        // unique within a marketplace.
+        builder.HasIndex(e => new { e.ChannelId, e.ExternalOrderNumber })
+            .HasFilter("external_order_number IS NOT NULL");
 
         builder.HasOne(e => e.Customer)
             .WithMany(c => c.SalesOrders)
@@ -39,6 +57,19 @@ public class SalesOrderConfiguration : IEntityTypeConfiguration<SalesOrder>
             .WithOne(q => q.SalesOrder)
             .HasForeignKey<SalesOrder>(e => e.QuoteId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // Restrict on both: a channel or buyer with orders against it must be
+        // deactivated, not deleted, or the order loses the context that
+        // explains why it skipped credit and quoting.
+        builder.HasOne(e => e.Channel)
+            .WithMany(c => c.SalesOrders)
+            .HasForeignKey(e => e.ChannelId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(e => e.RetailBuyer)
+            .WithMany(b => b.SalesOrders)
+            .HasForeignKey(e => e.RetailBuyerId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(e => e.ShippingAddress)
             .WithMany()

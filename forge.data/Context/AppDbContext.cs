@@ -141,6 +141,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<ShipmentLine> ShipmentLines => Set<ShipmentLine>();
     public DbSet<Carrier> Carriers => Set<Carrier>();
 
+    // Sales channels — the retail / marketplace lane. SalesChannel routes an
+    // order; RetailBuyer is the consumer behind a retail order (distinct from
+    // the house-account Customer that carries the AR); OrderShipTo is the
+    // frozen consumer destination; ChannelListing maps external SKUs to parts;
+    // ChannelSettlement reconciles net marketplace payouts to gross orders.
+    public DbSet<SalesChannel> SalesChannels => Set<SalesChannel>();
+    public DbSet<RetailBuyer> RetailBuyers => Set<RetailBuyer>();
+    public DbSet<OrderShipTo> OrderShipTos => Set<OrderShipTo>();
+    public DbSet<ChannelListing> ChannelListings => Set<ChannelListing>();
+    public DbSet<ChannelSettlement> ChannelSettlements => Set<ChannelSettlement>();
+    public DbSet<ChannelSettlementLine> ChannelSettlementLines => Set<ChannelSettlementLine>();
+
     // Standalone Financial (⚡ Accounting Boundary)
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();

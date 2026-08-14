@@ -554,6 +554,43 @@ public static partial class SeedData
         // does not exist.
         await db.Database.ExecuteSqlRawAsync("CREATE SEQUENCE IF NOT EXISTS job_number_seq START WITH 1");
         Log.Information("Ensured job_number_seq exists");
+
+        // ── Sales channels (essential) ────────────────────────────────────
+        await SeedSalesChannelsAsync(db);
+    }
+
+    /// <summary>
+    /// The install's default sales channel. Essential rather than demo data:
+    /// <c>SalesOrder.ChannelId</c> is nullable and resolves null to the single
+    /// <c>IsDefault</c> channel, so the application assumes one exists. The
+    /// filtered unique index enforces at-most-one; this guarantees at-least-one.
+    ///
+    /// <para>Mirrors forge-db's <c>seed/0020-sales-channels.sql</c>, which covers
+    /// installs provisioned through the forge-db harness rather than through
+    /// boot seeding. Both are idempotent and key on <c>Code</c>, so an install
+    /// that gets both never ends up with two rows.</para>
+    ///
+    /// <para>DirectB2B + Seller-collected tax is deliberately the pre-channel
+    /// behaviour — every order that existed before channels was account
+    /// business on which the install collected its own sales tax.</para>
+    /// </summary>
+    private static async Task SeedSalesChannelsAsync(AppDbContext db)
+    {
+        if (await db.SalesChannels.AnyAsync(c => c.Code == "DIRECT"))
+            return;
+
+        db.SalesChannels.Add(new SalesChannel
+        {
+            Name = "Direct",
+            Code = "DIRECT",
+            Description = "Default channel for account business booked directly rather than through a storefront or marketplace.",
+            ChannelType = SalesChannelType.DirectB2B,
+            TaxCollectedBy = TaxCollectedBy.Seller,
+            IsDefault = true,
+            IsActive = true,
+        });
+        await db.SaveChangesAsync();
+        Log.Information("Seeded default sales channel (DIRECT)");
     }
 
     /// <summary>
