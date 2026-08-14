@@ -282,7 +282,8 @@ BaseEntity (Id, CreatedAt, UpdatedAt, DeletedAt, DeletedBy)
 ├── AiAssistant, ChatMessage, ChatRoom, ChatRoomMember
 ├── AppNotification, UserNotificationPreference
 ├── QcTemplate, QcInspection, LotRecord, ProductionRun
-├── CustomerReturn, SalesTaxRate, ScheduledTask
+├── CustomerReturn (OriginalJobId nullable — retail returns have no job), SalesTaxRate, ScheduledTask
+├── SalesChannel, RetailBuyer, OrderShipTo, ChannelListing, ChannelSettlement(+Line)
 ├── AuditLogEntry, ActivityLog (polymorphic EntityType/EntityId)
 ├── UserScanIdentifier, UserPreference
 ├── Event, EventAttendee
@@ -535,6 +536,57 @@ RecurringOrder, RecurringOrderLine
 
 ### New Enums
 `SalesOrderStatus`, `QuoteType`, `QuoteStatus`, `ShipmentStatus`, `InvoiceStatus`, `PaymentMethod`, `CreditTerms`, `AddressType`
+
+---
+
+
+## Sales Channels & the Retail Lane
+
+The B2B path assumes **one counterparty per order**: the `Customer` both owes the money and receives the goods. Retail breaks that apart — on a marketplace, Amazon owes you and a consumer receives the goods. Rather than fork `SalesOrder`, the counterparty **role** is split.
+
+### The two roles
+
+| Role | Entity | Notes |
+|------|--------|-------|
+| **Sold-to** (owes the money) | `Customer` | Always set. On a retail/marketplace channel this is the channel's *house account* (`SalesChannel.SoldToCustomerId`), not the consumer. |
+| **End consumer** (receives the goods) | `RetailBuyer` | Null on B2B orders. Channel-scoped, keyed `(ChannelId, ExternalBuyerId)`. |
+
+**`SalesOrder.CustomerId` stays NOT NULL.** That is the load-bearing decision: every existing AR aging, statement, credit, and accounting-sync query is untouched by the retail work.
+
+### Entities
+
+```
+SalesChannel                        ← routes an order; ChannelType drives every retail divergence
+RetailBuyer                         ← the consumer; deliberately thin and purgeable
+OrderShipTo                         ← frozen per-order ship-to (1:1 with SalesOrder)
+ChannelListing                      ← external SKU → Part mapping (replaced PartMappingsJson)
+ChannelSettlement, ChannelSettlementLine  ← marketplace payout reconciliation
+```
+
+New enums: `SalesChannelType` (DirectB2B / DirectRetail / Marketplace), `TaxCollectedBy` (Seller / Marketplace), `ChannelSettlementLineType`, `ChannelSettlementStatus`.
+
+### Rules you will be tempted to break
+
+1. **Never read `SalesOrder.ChannelId` directly — go through `ISalesChannelResolver`.** A null channel is legal and means *the default channel* (same "null = the default row" convention `ApplicationUser.WorkLocationId` uses against `company_locations`). That fallback is what let the column land on existing installs without a NOT NULL backfill; scattering it across handlers is how it gets forgotten in one of them.
+2. **Anything computing sales-tax liability reads `SalesOrder.SellerTaxLiability`, never `TaxAmount`.** Under marketplace-facilitator law the platform collects AND remits — that money is on the document because the buyer paid it, but it is never our payable. Reading `TaxAmount` over-reports the liability.
+3. **`OrderShipTo`, not `CustomerAddress`, for retail destinations.** Both `sales_orders.shipping_address_id` and `shipments.shipping_address_id` FK into `customer_addresses`, whose rows belong to a `Customer`. Routing consumer addresses there would pile every one in the install under a single house account. Resolution order is `Shipment.ShippingAddress ?? SalesOrder.ShippingAddress ?? SalesOrder.ShipTo`.
+4. **Connectors return data; they never construct aggregates.** `IECommerceService` has no create/import method. Order creation is `CreateRetailOrderCommand` — the same path manual retail entry uses — so activity logging, validation and capability gating apply. The pre-rebuild design put aggregate construction in `forge.integrations` and bypassed all three.
+5. **Resolve connectors through `IECommerceServiceFactory`, never by injecting `IECommerceService`.** An install runs several platforms concurrently; a bare injection binds whichever registration resolved last.
+6. **An unresolvable SKU must not fail an import.** A marketplace order is already paid for and already owed to a customer. The line lands with a null `PartId` and shows up in unmapped-listing triage.
+7. **A retail channel can never be the install default.** The default absorbs orders created without an explicit channel, and those are account business.
+8. **Order numbering is per-prefix** (`ISalesOrderRepository.GenerateNextOrderNumberAsync(prefix, ct)`). Channels may set `OrderNumberPrefix`; a global scan restarts the wrong series and collides with the unique index.
+
+### Capabilities
+
+`CAP-O2C-CHANNELS` (default **ON**, behaviour-neutral on its own — every install gets one seeded "Direct" channel), `CAP-O2C-RETAIL`, `CAP-O2C-SETTLEMENT`, `CAP-EXT-ECOMMERCE` (all default OFF).
+
+### Connector status
+
+Real: **Shopify**, **WooCommerce** (both storefronts — you are merchant of record, so `PollSettlementsAsync` returns empty). Mock: one per platform, so mock mode exercises the multi-channel shape. **Not built:** eBay, Amazon, Etsy, Walmart — each needs a developer account and a registered OAuth app first. They are deliberately unregistered so the factory's `NotSupportedException` is the honest answer rather than a stub that pretends to poll.
+
+### PII retention
+
+`RetailBuyer` PII is **scrubbed, never deleted** (`PurgeRetailBuyerPiiCommand`): name/email/phone on the buyer and name/company/street/phone on each `OrderShipTo`. The row, its order links and its totals survive so repeat-buyer analytics do; city/state/postal stay because they identify no one. Driven by marketplace data-protection terms. Runs on request (Admin) and on a daily Hangfire sweep against `PurgeAfter`.
 
 ---
 

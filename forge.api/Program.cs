@@ -1219,6 +1219,7 @@ try
     builder.Services.AddTransient<DatabaseBackupJob>();
     builder.Services.AddScoped<CustomerSyncJob>();
     builder.Services.AddScoped<RetailBuyerPurgeJob>();
+    builder.Services.AddScoped<ChannelInventorySyncJob>();
     builder.Services.AddScoped<AccountingCacheSyncJob>();
     builder.Services.AddScoped<OrphanDetectionJob>();
     builder.Services.AddScoped<ItemSyncJob>();
@@ -1557,6 +1558,7 @@ try
                 ["IntegrationOutboxDispatcherJob"] = (typeof(IntegrationOutboxDispatcherJob), "DispatchPendingAsync"),
                 ["CustomerSyncJob"]                = (typeof(CustomerSyncJob),                "SyncCustomersAsync"),
                 ["RetailBuyerPurgeJob"]            = (typeof(RetailBuyerPurgeJob),            "PurgeExpiredAsync"),
+                ["ChannelInventorySyncJob"]        = (typeof(ChannelInventorySyncJob),        "SyncAsync"),
                 ["AccountingCacheSyncJob"]         = (typeof(AccountingCacheSyncJob),         "RefreshCacheAsync"),
                 ["OrphanDetectionJob"]             = (typeof(OrphanDetectionJob),             "DetectOrphansAsync"),
                 ["ItemSyncJob"]                    = (typeof(ItemSyncJob),                    "SyncItemsAsync"),
@@ -1731,6 +1733,10 @@ try
         "generate-recurring-orders",
         job => job.GenerateDueOrdersAsync(CancellationToken.None),
         Cron.Daily(6)); // 6 AM UTC daily
+    RecurringJob.AddOrUpdate<ChannelInventorySyncJob>(
+        "sync-channel-inventory",
+        job => job.SyncAsync(CancellationToken.None),
+        "*/15 * * * *"); // Every 15 minutes — keeps storefronts from overselling stock already gone
     RecurringJob.AddOrUpdate<RetailBuyerPurgeJob>(
         "purge-retail-buyer-pii",
         job => job.PurgeExpiredAsync(CancellationToken.None),
