@@ -547,6 +547,10 @@ try
     builder.Services.AddScoped<Forge.Core.Interfaces.ILiveContextProvider,
                                Forge.Api.Services.LiveContextProvider>();
 
+    // Admin database dump / clean-rebuild import (forge-db-compatible archives).
+    builder.Services.AddScoped<Forge.Core.Interfaces.IDatabaseTransferService,
+                               Forge.Api.Services.DatabaseTransferService>();
+
     // §5A.4 GL training system — sandbox seeder/reset, shipped scenario catalog, end-state runner.
     builder.Services.AddScoped<Forge.Api.Features.Accounting.Training.ITrainingSandboxService,
                                Forge.Api.Features.Accounting.Training.TrainingSandboxService>();
