@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
@@ -21,6 +22,7 @@ namespace Forge.Api.Jobs;
 public class ChannelInventorySyncJob(
     AppDbContext db,
     IECommerceServiceFactory connectorFactory,
+    IECommerceCredentialProtector protector,
     IClock clock,
     ILogger<ChannelInventorySyncJob> logger)
 {
@@ -98,7 +100,7 @@ public class ChannelInventorySyncJob(
                 try
                 {
                     await connector.SyncInventoryAsync(
-                        integration.EncryptedCredentials,
+                        protector.Unprotect(integration.EncryptedCredentials) ?? string.Empty,
                         integration.StoreUrl ?? string.Empty,
                         listing.ExternalListingId,
                         onHand,

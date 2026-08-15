@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.RetailOrders;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -30,6 +31,7 @@ public record ImportChannelOrdersCommand(int ChannelId, DateTimeOffset? Since = 
 public class ImportChannelOrdersHandler(
     AppDbContext db,
     IECommerceServiceFactory connectorFactory,
+    IECommerceCredentialProtector protector,
     IMediator mediator,
     IClock clock,
     ILogger<ImportChannelOrdersHandler> logger)
@@ -67,7 +69,7 @@ public class ImportChannelOrdersHandler(
         try
         {
             polled = await connector.PollOrdersAsync(
-                integration.EncryptedCredentials, integration.StoreUrl ?? string.Empty, since, ct);
+                protector.Unprotect(integration.EncryptedCredentials) ?? string.Empty, integration.StoreUrl ?? string.Empty, since, ct);
         }
         catch (Exception ex)
         {

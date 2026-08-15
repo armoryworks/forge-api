@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -18,7 +19,8 @@ public class CreateECommerceIntegrationValidator : AbstractValidator<CreateEComm
     }
 }
 
-public class CreateECommerceIntegrationHandler(AppDbContext db, IMediator mediator)
+public class CreateECommerceIntegrationHandler(
+    AppDbContext db, IMediator mediator, IECommerceCredentialProtector protector)
     : IRequestHandler<CreateECommerceIntegrationCommand, ECommerceIntegrationResponseModel>
 {
     public async Task<ECommerceIntegrationResponseModel> Handle(
@@ -29,7 +31,9 @@ public class CreateECommerceIntegrationHandler(AppDbContext db, IMediator mediat
         {
             Name = model.Name,
             Platform = model.Platform,
-            EncryptedCredentials = model.Credentials,
+            // Protected at the seam, not assigned raw. The column has always been
+            // NAMED EncryptedCredentials; until now nothing made that true.
+            EncryptedCredentials = protector.Protect(model.Credentials) ?? string.Empty,
             StoreUrl = model.StoreUrl,
             AutoImportOrders = model.AutoImportOrders,
             SyncInventory = model.SyncInventory,

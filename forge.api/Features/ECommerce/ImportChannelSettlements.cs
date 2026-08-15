@@ -3,6 +3,7 @@ using System.Text.Json;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -38,6 +39,7 @@ public record ImportChannelSettlementsResult(
 public class ImportChannelSettlementsHandler(
     AppDbContext db,
     IECommerceServiceFactory connectorFactory,
+    IECommerceCredentialProtector protector,
     IClock clock,
     ILogger<ImportChannelSettlementsHandler> logger)
     : IRequestHandler<ImportChannelSettlementsCommand, ImportChannelSettlementsResult>
@@ -75,7 +77,7 @@ public class ImportChannelSettlementsHandler(
         var since = request.Since ?? clock.UtcNow - InitialLookback;
 
         var polled = await connector.PollSettlementsAsync(
-            integration.EncryptedCredentials, integration.StoreUrl ?? string.Empty, since, ct);
+            protector.Unprotect(integration.EncryptedCredentials) ?? string.Empty, integration.StoreUrl ?? string.Empty, since, ct);
 
         if (polled.Count == 0)
             return new ImportChannelSettlementsResult(0, 0, 0, 0, 0);

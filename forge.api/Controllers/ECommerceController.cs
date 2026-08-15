@@ -22,6 +22,19 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-EXT-ECOMMERCE")]
 public class ECommerceController(IMediator mediator) : ControllerBase
 {
+    /// <summary>
+    /// Selectable platforms, each flagged with whether a connector for it
+    /// exists. Offered so the admin screen can be honest up front rather than
+    /// letting someone configure credentials for a platform that cannot be
+    /// polled and only discovering it when the first import returns nothing.
+    /// </summary>
+    [HttpGet("platforms")]
+    public async Task<ActionResult<List<ECommercePlatformOptionModel>>> GetPlatforms(CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetECommercePlatformsQuery(), ct);
+        return Ok(result);
+    }
+
     [HttpGet]
     public async Task<ActionResult<List<ECommerceIntegrationResponseModel>>> GetIntegrations()
     {

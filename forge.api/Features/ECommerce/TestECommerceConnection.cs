@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
@@ -10,7 +11,8 @@ public record TestECommerceConnectionCommand(int Id) : IRequest<TestECommerceCon
 
 public record TestECommerceConnectionResult(bool Success, string? ErrorMessage);
 
-public class TestECommerceConnectionHandler(AppDbContext db, IECommerceServiceFactory connectorFactory)
+public class TestECommerceConnectionHandler(
+    AppDbContext db, IECommerceServiceFactory connectorFactory, IECommerceCredentialProtector protector)
     : IRequestHandler<TestECommerceConnectionCommand, TestECommerceConnectionResult>
 {
     public async Task<TestECommerceConnectionResult> Handle(
@@ -39,7 +41,7 @@ public class TestECommerceConnectionHandler(AppDbContext db, IECommerceServiceFa
         try
         {
             var success = await connector.TestConnectionAsync(
-                integration.EncryptedCredentials, integration.StoreUrl ?? string.Empty, ct);
+                protector.Unprotect(integration.EncryptedCredentials) ?? string.Empty, integration.StoreUrl ?? string.Empty, ct);
             return new TestECommerceConnectionResult(success, success ? null : "Connection test failed");
         }
         catch (Exception ex)

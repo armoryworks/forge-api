@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -25,6 +26,7 @@ public record SyncChannelListingsResult(int Created, int Updated, int Deactivate
 public class SyncChannelListingsHandler(
     AppDbContext db,
     IECommerceServiceFactory connectorFactory,
+    IECommerceCredentialProtector protector,
     IClock clock,
     ILogger<SyncChannelListingsHandler> logger)
     : IRequestHandler<SyncChannelListingsCommand, SyncChannelListingsResult>
@@ -43,7 +45,7 @@ public class SyncChannelListingsHandler(
         var connector = connectorFactory.For(integration.Platform);
 
         var polled = await connector.PollListingsAsync(
-            integration.EncryptedCredentials, integration.StoreUrl ?? string.Empty, ct);
+            protector.Unprotect(integration.EncryptedCredentials) ?? string.Empty, integration.StoreUrl ?? string.Empty, ct);
 
         // Load the channel's existing listings once and index them, rather than
         // querying per polled row.

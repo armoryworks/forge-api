@@ -632,6 +632,9 @@ try
     builder.Services.AddScoped<IPartPricingResolver, PartPricingResolver>();
     builder.Services.AddScoped<IVendorCostResolver, VendorCostResolver>();
     builder.Services.AddScoped<ISalesChannelResolver, SalesChannelResolver>();
+    // Storefront / marketplace credentials at rest. The column was named
+    // EncryptedCredentials from the start; this is what finally makes it true.
+    builder.Services.AddSingleton<IECommerceCredentialProtector, ECommerceCredentialProtector>();
     builder.Services.AddScoped<IAtpService, AtpService>();
     builder.Services.AddScoped<IForecastService, ForecastService>();
     builder.Services.AddScoped<ISchedulingService, SchedulingService>();

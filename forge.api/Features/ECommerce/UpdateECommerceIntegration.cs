@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -17,7 +18,8 @@ public class UpdateECommerceIntegrationValidator : AbstractValidator<UpdateEComm
     }
 }
 
-public class UpdateECommerceIntegrationHandler(AppDbContext db, IMediator mediator)
+public class UpdateECommerceIntegrationHandler(
+    AppDbContext db, IMediator mediator, IECommerceCredentialProtector protector)
     : IRequestHandler<UpdateECommerceIntegrationCommand, ECommerceIntegrationResponseModel>
 {
     public async Task<ECommerceIntegrationResponseModel> Handle(
@@ -36,8 +38,10 @@ public class UpdateECommerceIntegrationHandler(AppDbContext db, IMediator mediat
         integration.SyncInventory = model.SyncInventory;
         integration.DefaultCustomerId = model.DefaultCustomerId;
 
+        // Blank means "leave the stored secret alone" — the API never returns
+        // it, so a blank field is the UI saying unchanged, not clear.
         if (!string.IsNullOrEmpty(model.Credentials))
-            integration.EncryptedCredentials = model.Credentials;
+            integration.EncryptedCredentials = protector.Protect(model.Credentials) ?? string.Empty;
 
         await db.SaveChangesAsync(cancellationToken);
 
