@@ -85,7 +85,7 @@ public class IngestInboundEmailHandler(
                 "Already ingested; nothing to do.", null, false);
         }
 
-        var resolution = await partyResolver.ResolveAsync(email.FromAddress, ct);
+        var resolution = await partyResolver.ResolveAsync(email.FromAddress, CommunicationChannel.Email, ct);
 
         var communication = new Communication
         {

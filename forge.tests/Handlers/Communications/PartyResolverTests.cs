@@ -45,7 +45,7 @@ public class PartyResolverTests
         });
         await _db.SaveChangesAsync();
 
-        var result = await _resolver.ResolveAsync("bob@bobsparts.com", default);
+        var result = await _resolver.ResolveAsync("bob@bobsparts.com", CommunicationChannel.Email, default);
 
         result.Confidence.Should().Be(CommunicationMatchConfidence.Exact);
         result.PartyType.Should().Be(CommunicationPartyType.Contact);
@@ -63,7 +63,7 @@ public class PartyResolverTests
         });
         await _db.SaveChangesAsync();
 
-        var result = await _resolver.ResolveAsync("  BOB@BobsParts.COM  ", default);
+        var result = await _resolver.ResolveAsync("  BOB@BobsParts.COM  ", CommunicationChannel.Email, default);
 
         result.Confidence.Should().Be(CommunicationMatchConfidence.Exact);
     }
@@ -84,7 +84,7 @@ public class PartyResolverTests
         });
         await _db.SaveChangesAsync();
 
-        var result = await _resolver.ResolveAsync("someone-new@bobsparts.com", default);
+        var result = await _resolver.ResolveAsync("someone-new@bobsparts.com", CommunicationChannel.Email, default);
 
         result.Confidence.Should().Be(CommunicationMatchConfidence.Domain);
         result.PartyId.Should().Be(customer.Id);
@@ -108,7 +108,7 @@ public class PartyResolverTests
         });
         await _db.SaveChangesAsync();
 
-        var result = await _resolver.ResolveAsync("bob@bobsparts.com", default);
+        var result = await _resolver.ResolveAsync("bob@bobsparts.com", CommunicationChannel.Email, default);
 
         result.Confidence.Should().Be(CommunicationMatchConfidence.Unmatched);
     }
@@ -140,7 +140,7 @@ public class PartyResolverTests
         });
         await _db.SaveChangesAsync();
 
-        var result = await _resolver.ResolveAsync(address, default);
+        var result = await _resolver.ResolveAsync(address, CommunicationChannel.Email, default);
 
         result.Confidence.Should().Be(CommunicationMatchConfidence.Unmatched);
         result.PartyId.Should().BeNull();
@@ -159,7 +159,7 @@ public class PartyResolverTests
         });
         await _db.SaveChangesAsync();
 
-        var result = await _resolver.ResolveAsync("sam@gmail.com", default);
+        var result = await _resolver.ResolveAsync("sam@gmail.com", CommunicationChannel.Email, default);
 
         result.Confidence.Should().Be(CommunicationMatchConfidence.Exact);
         result.IsActionable.Should().BeTrue();
@@ -179,7 +179,7 @@ public class PartyResolverTests
         });
         await _db.SaveChangesAsync();
 
-        var result = await _resolver.ResolveAsync("sam@gmail.com", default);
+        var result = await _resolver.ResolveAsync("sam@gmail.com", CommunicationChannel.Email, default);
 
         result.Confidence.Should().Be(CommunicationMatchConfidence.Exact);
         result.PartyId.Should().Be(customer.Id);
@@ -200,7 +200,7 @@ public class PartyResolverTests
         // Same domain as a known contact, with no domain rule. Inferring the
         // party from that shared domain would be a guess, and a guess here ends
         // up as evidence that someone authorized an order.
-        var result = await _resolver.ResolveAsync("stranger@bobsparts.com", default);
+        var result = await _resolver.ResolveAsync("stranger@bobsparts.com", CommunicationChannel.Email, default);
 
         result.Confidence.Should().Be(CommunicationMatchConfidence.Unmatched);
         result.PartyId.Should().BeNull();
@@ -218,7 +218,7 @@ public class PartyResolverTests
         });
         await _db.SaveChangesAsync();
 
-        var result = await _resolver.ResolveAsync("orders@bobsparts.com", default);
+        var result = await _resolver.ResolveAsync("orders@bobsparts.com", CommunicationChannel.Email, default);
 
         result.Confidence.Should().Be(CommunicationMatchConfidence.Unmatched);
         result.Reason.Should().Contain("triage");
@@ -230,7 +230,7 @@ public class PartyResolverTests
     [InlineData("not-an-address")]
     public async Task Unparseable_IsUnmatched(string address)
     {
-        var result = await _resolver.ResolveAsync(address, default);
+        var result = await _resolver.ResolveAsync(address, CommunicationChannel.Email, default);
         result.Confidence.Should().Be(CommunicationMatchConfidence.Unmatched);
     }
 
@@ -248,5 +248,57 @@ public class PartyResolverTests
     public void FreeMailDomains_RecognisesConsumerProviders(string? input, bool expected)
     {
         FreeMailDomains.IsFreeMail(input).Should().Be(expected);
+    }
+
+    // ── Voice ──
+
+    [Theory]
+    [InlineData("+1 (503) 555-1212")]
+    [InlineData("503-555-1212")]
+    [InlineData("5035551212")]
+    [InlineData("1-503-555-1212")]
+    public async Task VoiceMatchesAContactNumberHoweverItWasTyped(string caller)
+    {
+        // Contact numbers are stored as a human typed them; the caller id arrives
+        // as E.164. Both sides normalize to digits so the formats stop mattering.
+        var customer = SeedCustomer();
+        _db.Contacts.Add(new Contact
+        {
+            CustomerId = customer.Id, FirstName = "Bob", LastName = "Vance", Phone = "(503) 555-1212",
+        });
+        await _db.SaveChangesAsync();
+
+        var result = await _resolver.ResolveAsync(caller, CommunicationChannel.Voice, default);
+
+        result.Confidence.Should().Be(CommunicationMatchConfidence.Exact);
+        result.ContactId.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task UnknownCallerGoesToTriage()
+    {
+        var result = await _resolver.ResolveAsync("+1 (503) 555-9999", CommunicationChannel.Voice, default);
+
+        result.Confidence.Should().Be(CommunicationMatchConfidence.Unmatched);
+        result.PartyId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task VoiceHasNoDomainWildcardToFallBackOn()
+    {
+        // A domain rule is an email concept. There is no "anyone at this company"
+        // equivalent for a phone number, so an unrecognised caller is unmatched
+        // rather than being attached to whoever shares an area code.
+        var customer = SeedCustomer();
+        _db.CommunicationIngestRules.Add(new CommunicationIngestRule
+        {
+            MatchType = IngestRuleMatchType.Domain, Pattern = "bobsparts.com", IsEnabled = true,
+            PartyType = CommunicationPartyType.Customer, PartyId = customer.Id,
+        });
+        await _db.SaveChangesAsync();
+
+        var result = await _resolver.ResolveAsync("5035551212", CommunicationChannel.Voice, default);
+
+        result.Confidence.Should().Be(CommunicationMatchConfidence.Unmatched);
     }
 }

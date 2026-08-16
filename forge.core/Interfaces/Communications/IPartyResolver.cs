@@ -21,7 +21,11 @@ public interface IPartyResolver
     /// rather than a best effort — the message still lands, in triage, where a
     /// human decides.</para>
     /// </summary>
-    Task<PartyResolution> ResolveAsync(string address, CancellationToken ct);
+    /// <param name="channel">
+    /// Picks the lookup field — Email matches a contact's address, Voice matches
+    /// their phone. Same tiers and the same refusal to guess either way.
+    /// </param>
+    Task<PartyResolution> ResolveAsync(string address, CommunicationChannel channel, CancellationToken ct);
 }
 
 /// <summary>

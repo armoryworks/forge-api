@@ -10,22 +10,35 @@ namespace Forge.Api.Features.Communications;
 /// <inheritdoc cref="IPartyResolver"/>
 public class PartyResolver(AppDbContext db, ILogger<PartyResolver> logger) : IPartyResolver
 {
-    public async Task<PartyResolution> ResolveAsync(string address, CancellationToken ct)
+    public async Task<PartyResolution> ResolveAsync(
+        string address, CommunicationChannel channel, CancellationToken ct)
     {
-        var normalized = Normalize(address);
+        var normalized = Normalize(address, channel);
         if (string.IsNullOrEmpty(normalized))
             return PartyResolution.Unmatched("Sender address was empty or unparseable.");
 
-        var domain = DomainOf(normalized);
-
         // ── Tier 1: the address itself is on file as a contact ──
-        // Strongest signal available. A named person at a customer sent this
-        // from the address we have for them.
-        var contact = await db.Contacts
-            .AsNoTracking()
-            .Where(c => c.Email != null && c.Email.ToLower() == normalized)
-            .Select(c => new { c.Id, c.CustomerId })
-            .FirstOrDefaultAsync(ct);
+        // Strongest signal available. A named person at a customer reached us
+        // from the address or number we have for them.
+        //
+        // Phone matching is normalized on both sides in memory rather than in
+        // SQL: contact numbers are stored as typed ("(503) 555-1212", "+1 503
+        // 555 1212") and no index can compare those to a digit string. The
+        // contact table is small enough that this is a cheap scan; if it stops
+        // being so, the fix is a stored normalized column, not a LIKE.
+        var contact = channel == CommunicationChannel.Voice
+            ? (await db.Contacts.AsNoTracking()
+                    .Where(c => c.Phone != null)
+                    .Select(c => new { c.Id, c.CustomerId, c.Phone })
+                    .ToListAsync(ct))
+                .Where(c => Normalize(c.Phone, channel) == normalized)
+                .Select(c => new { c.Id, c.CustomerId })
+                .FirstOrDefault()
+            : await db.Contacts
+                .AsNoTracking()
+                .Where(c => c.Email != null && c.Email.ToLower() == normalized)
+                .Select(c => new { c.Id, c.CustomerId })
+                .FirstOrDefaultAsync(ct);
 
         if (contact is not null)
         {
@@ -34,7 +47,7 @@ public class PartyResolver(AppDbContext db, ILogger<PartyResolver> logger) : IPa
                 CommunicationPartyType.Contact,
                 contact.Id,
                 contact.Id,
-                $"Exact match on contact address {normalized}.");
+                $"Exact match on contact {(channel == CommunicationChannel.Voice ? "number" : "address")} {normalized}.");
         }
 
         // ── Tier 2: an explicit Address ingest rule ──
@@ -61,6 +74,15 @@ public class PartyResolver(AppDbContext db, ILogger<PartyResolver> logger) : IPa
                     + "Assign one in triage.");
         }
 
+        if (channel == CommunicationChannel.Voice)
+        {
+            // There is no domain-equivalent for a phone number — no wildcard
+            // that means "anyone at this company". An unrecognised number goes
+            // to triage, which is the correct answer rather than a limitation.
+            return PartyResolution.Unmatched($"No contact or ingest rule matches the number {normalized}.");
+        }
+
+        var domain = DomainOf(normalized);
         if (string.IsNullOrEmpty(domain))
             return PartyResolution.Unmatched($"Could not read a domain from {normalized}.");
 
@@ -114,9 +136,24 @@ public class PartyResolver(AppDbContext db, ILogger<PartyResolver> logger) : IPa
             $"No contact or ingest rule matches {normalized}.");
     }
 
-    /// <summary>Lowercase + trim. Mirrors <see cref="CommunicationMatcher"/>'s email normalization.</summary>
-    internal static string Normalize(string? raw) =>
-        string.IsNullOrWhiteSpace(raw) ? string.Empty : raw.Trim().ToLowerInvariant();
+    /// <summary>
+    /// Comparable form. Email lowercases and trims; voice keeps digits only and
+    /// drops a leading US country code, so "+1 (503) 555-1212" and "5035551212"
+    /// are the same number. Mirrors <see cref="CommunicationMatcher"/>.
+    /// </summary>
+    internal static string Normalize(string? raw, CommunicationChannel channel)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+
+        if (channel != CommunicationChannel.Voice)
+            return raw.Trim().ToLowerInvariant();
+
+        var digits = new string(raw.Where(char.IsDigit).ToArray());
+        return digits.Length == 11 && digits[0] == '1' ? digits[1..] : digits;
+    }
+
+    /// <summary>Email-shaped overload, kept so existing call sites read cleanly.</summary>
+    internal static string Normalize(string? raw) => Normalize(raw, CommunicationChannel.Email);
 
     /// <summary>Everything after the last '@'. Empty when there is no '@'.</summary>
     internal static string DomainOf(string normalizedAddress)
