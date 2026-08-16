@@ -7,6 +7,7 @@ using Forge.Api.Features.SalesOrders;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
+using Forge.Core.Models.Communications;
 
 namespace Forge.Api.Controllers;
 
@@ -22,6 +23,20 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
         [FromQuery] SalesOrderStatus? status)
     {
         var result = await mediator.Send(new GetSalesOrdersQuery(customerId, status));
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// What authorized this order — the document, its hash, when it arrived and
+    /// from whom, with routes through to the original message and the agreement
+    /// chain behind it. Null when the order was keyed in or converted from a
+    /// quote, which is information rather than an error.
+    /// </summary>
+    [HttpGet("{id:int}/authorization")]
+    public async Task<ActionResult<SalesOrderAuthorizationResponseModel?>> GetAuthorization(
+        int id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetSalesOrderAuthorizationQuery(id), ct);
         return Ok(result);
     }
 

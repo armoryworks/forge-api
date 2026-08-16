@@ -223,4 +223,67 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
     /// </summary>
     private static string CapabilityForKind(CommunicationKind kind)
         => kind == CommunicationKind.Email ? "CAP-EXT-EMAIL-SYNC" : "CAP-EXT-VOIP-SYNC";
+
+    // ── Proof of intent ──
+    // The review surface. Reading is permitted broadly so anyone triaging can
+    // see what arrived; approving is not, because approving mints an order and
+    // the attestation that authorizes it.
+
+    /// <summary>
+    /// One communication with its hashed artifacts, what it was filed against,
+    /// its thread, and the standing agreements the party already has on file.
+    /// The chain matters: a purchase order authorizes because an earlier
+    /// agreement says it does, and a reviewer who cannot see that is approving
+    /// on trust.
+    /// </summary>
+    [HttpGet("{id:int}")]
+    [RequiresCapability("CAP-EXT-EMAIL-SYNC")]
+    public async Task<ActionResult<CommunicationDetailResponseModel>> GetDetail(int id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetCommunicationDetailQuery(id), ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Approve a reviewed communication into a draft sales order, recording the
+    /// attestation that authorizes it.
+    ///
+    /// <para>This is the only path from an inbound message to an order, and it
+    /// requires a person. Nothing upstream commits, and there is no setting that
+    /// changes that.</para>
+    ///
+    /// <para>Restricted beyond the controller's default: approving asserts that
+    /// a customer authorized work, which is a commercial commitment rather than
+    /// a data-entry task.</para>
+    /// </summary>
+    [HttpPost("{id:int}/approve-draft")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager,PM")]
+    [RequiresCapability("CAP-O2C-SO")]
+    public async Task<ActionResult<ApproveDraftResult>> ApproveDraft(
+        int id, [FromBody] ApproveDraftRequestModel body, CancellationToken ct)
+    {
+        var result = await mediator.Send(new ApproveDraftFromCommunicationCommand(
+            id, body.CustomerId, body.AuthorizingArtifactId, body.CustomerPo,
+            body.RequestedDeliveryDate, body.TaxRate, body.Lines,
+            body.SupportedByAttestationId, body.Note), ct);
+
+        return Ok(result);
+    }
+}
+
+/// <summary>
+/// What the reviewer approved. Line values come from the screen, not from the
+/// extraction — the reviewer may have corrected them, and taking the extracted
+/// values here would make the review cosmetic.
+/// </summary>
+public record ApproveDraftRequestModel
+{
+    public int CustomerId { get; init; }
+    public int AuthorizingArtifactId { get; init; }
+    public string? CustomerPo { get; init; }
+    public DateTimeOffset? RequestedDeliveryDate { get; init; }
+    public decimal TaxRate { get; init; }
+    public List<Forge.Core.Models.CreateSalesOrderLineModel> Lines { get; init; } = [];
+    public int? SupportedByAttestationId { get; init; }
+    public string? Note { get; init; }
 }
