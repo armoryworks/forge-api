@@ -409,6 +409,53 @@ Every MediatR command handler that mutates a tracked entity MUST emit at least o
 
 
 <!-- ===== Accounting Boundary (Critical) ===== -->
+## Proof of Intent
+
+The evidence trail behind a sales order: a customer emails their purchase order, and the order can
+prove it. Communication, artifacts, and the attestation that authorizes the order.
+
+### Entities
+
+```
+Communication          (was ContactInteraction)  any party, any channel, threaded
+CommunicationArtifact  immutable, hashed         the .eml and each attachment
+CommunicationLink      polymorphic               Quote | SalesOrder | Part | Customer | Vendor
+CommunicationIngestRule                          the opt-in allowlist
+Attestation            (was SalesOrderAcceptance) a statement a party made
+```
+
+`SalesOrder.AuthorizingAttestationId` points at the statement currently in force.
+
+### Rules you will be tempted to break
+
+1. **Nothing commits without a person.** Ingestion proposes; `ApproveDraftFromCommunicationCommand`
+   is the only path to an order and it takes a reviewer's input. There is no setting that changes
+   this, and there must never be one.
+2. **Hash before anything else reads the bytes.** `IArtifactStore` computes SHA-256 while streaming
+   to storage. Hashing after a parse attests to what the pipeline did, not what the customer sent.
+3. **Only `Exact` confidence may feed a draft.** A domain match files correspondence under a party;
+   anyone at that domain can send mail, so it authorizes nothing.
+4. **Free-mail domains are refused for wildcard rules in code, not config** (`FreeMailDomains`), and
+   checked BEFORE the domain lookup so a rule that should never have existed cannot match.
+5. **Never guess a party.** An unknown address sharing a domain with a known contact is `Unmatched`.
+   A guess here becomes evidence that someone authorized an order.
+6. **Artifacts are write-once.** No `DeletedAt`, plus a Postgres BEFORE UPDATE OR DELETE trigger.
+   Retention purges the communication and the storage object, never by rewriting artifact rows.
+7. **Extraction degrades, never blocks.** A failing extractor, unreadable text or a binary attachment
+   all yield a blank draft beside stored evidence. `IOrderExtractor` is the seam — swap the
+   implementation without touching the pipeline.
+8. **`Superseded` and `Revoked` are different.** Superseded means the party made a newer statement;
+   Revoked means we withdrew it with nothing replacing it. A dispute asks exactly that.
+
+### Channel-agnostic by design
+
+Voice lands through `IngestVoiceCallHandler`, which is deliberately near-identical to the email
+handler. A transcript is hashed separately from its audio so a dispute can tell "the recording says
+X" from "our transcription says X". Recording is off by default — consent law varies and several
+jurisdictions require every party to agree.
+
+---
+
 ## ⚡ Accounting Boundary (Critical)
 
 Some features duplicate functionality that an accounting system (QuickBooks, Xero, etc.) handles natively. These features must be **cordoned off** so they only activate in standalone mode (no accounting provider connected). See `docs/qb-integration.md` for the authoritative boundary definition.
