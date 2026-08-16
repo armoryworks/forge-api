@@ -32,6 +32,20 @@ A PostToolUse hook in `.claude/settings.json` runs eslint on every UI .ts/.html 
 
 For .NET: CI runs `dotnet build --configuration Release -warnaserror`. Compiler warnings break the build. There's no broader analyzer/StyleCop pack wired in today (CLAUDE.md previously claimed both — that was aspirational; only `Nullable enable` + `-warnaserror` are actually configured). Adding a real analyzer pack is a separate effort.
 
+### Enforced standards — `forge.tests/Architecture/` (added 2026-08-16)
+
+Rules that lived only in this file were measured and found eroding (214 files using `DateTime.UtcNow` despite the `IClock` rule; 27 controllers with no capability attribute). They are now **tests that fail the build**, so `dotnet test` is the enforcement, not this prose:
+
+| Test | Rule | Kind |
+|---|---|---|
+| `ControllerCapabilityGateTests` | §0: every controller carries `[RequiresCapability]` or `[CapabilityBootstrap]` (class-level, or on **every** HTTP action) | hard fail for new controllers; `LegacyUngated` allowlist for the 27 that predate enforcement — the second test fails if an entry becomes gated and isn't removed |
+| `SourceStandardsRatchetTests` | `IClock` over `DateTime.UtcNow` (Features/Services/Jobs); no try/catch in Controllers; <5 top-level types per file | **per-file ratchet** against `standards-baseline.json` |
+| `ClaudeMdFactsTests` | the verifiable numbers in this file (capability count, .NET version) match the code | hard fail — **fix the doc, not the test** |
+
+**How the ratchet works:** a file NOT in `standards-baseline.json` must have zero violations (new code follows the rule); a baselined file may not exceed its recorded count; a file that improved or disappeared fails with "RATCHET DOWN"/"STALE ENTRY" until you rerun `FORGE_STANDARDS_UPDATE_BASELINE=1 dotnet test --filter Architecture` and commit the rewritten baseline **in the same commit**. The baseline is a debt register, never a permission slip — it is never edited by hand to a larger number. Fixing a violation therefore costs one extra command; introducing one costs a red build.
+
+**When you touch a baselined file for other reasons, fix its violations while you're there** — that's how the register drains without a dedicated cleanup effort.
+
 ### ONE OBJECT PER FILE (Non-Negotiable)
 - **Angular:** One component, service, pipe, directive, guard, interceptor, or model per file. No barrel files (`index.ts`).
 - **.NET:** One class, interface, enum, or record per file. Exception: related request/response pair if < 20 lines total.
@@ -82,7 +96,7 @@ For .NET: CI runs `dotnet build --configuration Release -warnaserror`. Compiler 
 
 ### Tech Stack
 - **Frontend:** Angular 21, Angular Material 21, SCSS, standalone components, zoneless (signals)
-- **Backend:** .NET 9, MediatR (CQRS), FluentValidation, EF Core + Npgsql
+- **Backend:** .NET 10, MediatR (CQRS), FluentValidation, EF Core + Npgsql
 - **Database:** PostgreSQL with `timestamptz` columns (all DateTimes must be UTC)
 - **Storage:** MinIO (S3-compatible), **Auth:** ASP.NET Identity + JWT + tiered kiosk auth (RFID/NFC/barcode + PIN) + optional SSO (Google/Microsoft/OIDC) + TOTP MFA
 - **Real-time:** SignalR, **Background:** Hangfire, **Mapping:** Mapperly (source-generated), **Logging:** Serilog
@@ -517,7 +531,7 @@ readonly isStandalone = this.accountingService.isStandalone;
 <!-- ===== Capability Gating ===== -->
 ## Capability Gating (Phase 4)
 
-The system runs on a **per-install capability gate**: 157 named capabilities (e.g., `CAP-MD-CUSTOMERS`, `CAP-INV-LOTS`, `CAP-EXT-AI-ASSISTANT`) are registered in a static catalog. Each install's capability state is stored in the `capabilities` table; controllers and Hangfire-fired commands carry `[RequiresCapability("CAP-...")]` attributes; the `CapabilityGateMiddleware` (controller side) and `CapabilityGateBehavior` (MediatR side) short-circuit with 403 + envelope when a capability is disabled. Bootstrap-exempt endpoints (auth, descriptor, capability admin) carry `[CapabilityBootstrap]` instead so admins are never locked out.
+The system runs on a **per-install capability gate**: 164 named capabilities (e.g., `CAP-MD-CUSTOMERS`, `CAP-INV-LOTS`, `CAP-EXT-AI-ASSISTANT`) are registered in a static catalog. Each install's capability state is stored in the `capabilities` table; controllers and Hangfire-fired commands carry `[RequiresCapability("CAP-...")]` attributes; the `CapabilityGateMiddleware` (controller side) and `CapabilityGateBehavior` (MediatR side) short-circuit with 403 + envelope when a capability is disabled. Bootstrap-exempt endpoints (auth, descriptor, capability admin) carry `[CapabilityBootstrap]` instead so admins are never locked out.
 
 **Where things live:**
 - **Catalog (source of truth)**: `forge-api/forge.api/Capabilities/CapabilityCatalog.cs` — 157 capabilities with code, name, area, default-state, dependencies/mutexes
