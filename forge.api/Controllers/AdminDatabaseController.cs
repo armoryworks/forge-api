@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Features.Admin;
 using Forge.Core.Models;
 
@@ -11,10 +12,13 @@ namespace Forge.Api.Controllers;
 /// Database dump / clean-rebuild import (the in-app face of forge-db's dump/import — same zip
 /// layout, so archives are interchangeable with the CLI). Dump is read-only; import truncates and
 /// reloads the selected tables, so both sit behind the Admin role and the UI double-confirms.
+/// Bootstrap-exempt like the capability/preset admin surface: this is the recovery tool an admin
+/// reaches for when an install is in a bad state, so it must never itself be gated off.
 /// </summary>
 [ApiController]
 [Route("api/v1/admin/database")]
 [Authorize(Roles = "Admin")]
+[CapabilityBootstrap]
 public class AdminDatabaseController(IMediator mediator) : ControllerBase
 {
     [HttpGet("summary")]
