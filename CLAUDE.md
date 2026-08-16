@@ -211,7 +211,15 @@ review that delta before allowing it; a dev volume is disposable, a shared one m
 >
 > **Do NOT add EF migrations or call `MigrateAsync`/`dotnet ef migrations add`.** All schema changes
 > go through forge-db; then regenerate the embedded SQL:
-> `forge-db assemble --repo <forge-db> --out forge.data/Schema/forge-schema.sql`. The
+> `forge-db assemble --repo <forge-db> --out forge.data/Schema/forge-schema.sql`.
+>
+> **Renaming a table or column needs one extra step: a `forge-db/premigrate/` script.** pg-schema-diff
+> compares states and has no concept of a rename — editing `schema/tables/` alone makes it plan
+> `DROP` + `CREATE`, which deletes every row on a populated install. Add the `ALTER TABLE … RENAME`
+> to `premigrate/` (numbered, idempotent, applied-once) and `forge-db apply` runs it as phase 0,
+> before the plan is even computed. See forge-db `docs/DESIGN.md` §6.3 and `premigrate/README.md`.
+> The reconcile only reaches an existing install when `ENABLE_SCHEMA_RECONCILE=true` in that box's
+> forge-deploy `.env` — `SchemaBootstrapper` provisions a fresh DB and is a no-op on an existing one. The
 > `schema-drift-check` workflow asserts the embedded SQL stays in sync with forge-db; the
 > Postgres-backed test collection (`PostgresFixture`, which applies the same schema) catches
 > EF-model-vs-schema drift. History: the EF squash (`docs/db/MIGRATION_SQUASH_PLAN.md`) seeded
