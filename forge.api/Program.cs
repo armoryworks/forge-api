@@ -638,6 +638,13 @@ try
                                Forge.Api.Features.Communications.PartyResolver>();
     builder.Services.AddScoped<Forge.Core.Interfaces.Communications.IArtifactStore,
                                Forge.Api.Features.Communications.ArtifactStore>();
+    // Extraction sits behind its own interface so the implementation can change
+    // without the ingestion pipeline noticing. Swap this registration for an
+    // LLM- or vendor-backed extractor; nothing downstream moves.
+    builder.Services.AddScoped<Forge.Core.Interfaces.Communications.IOrderExtractor,
+                               Forge.Api.Features.Communications.Extraction.HeuristicOrderExtractor>();
+    builder.Services.AddScoped<Forge.Core.Interfaces.Communications.IPriceCrossChecker,
+                               Forge.Api.Features.Communications.Extraction.PriceCrossChecker>();
     // Storefront / marketplace credentials at rest. The column was named
     // EncryptedCredentials from the start; this is what finally makes it true.
     builder.Services.AddSingleton<IECommerceCredentialProtector, ECommerceCredentialProtector>();
