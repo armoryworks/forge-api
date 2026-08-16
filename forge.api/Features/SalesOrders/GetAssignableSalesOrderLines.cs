@@ -30,7 +30,7 @@ public class GetAssignableSalesOrderLinesHandler(AppDbContext db, ISalesOrderAcc
         // When the acceptance gate is on, only offer lines whose SO has accepted proof — otherwise a
         // job linked from the board would be rejected by CreateJobHandler anyway.
         if (acceptanceGate.IsEnabled)
-            query = query.Where(l => db.SalesOrderAcceptances
+            query = query.Where(l => db.Attestations
                 .Any(a => a.SalesOrderId == l.SalesOrderId && a.Status == AcceptanceStatus.Accepted));
 
         // "Actively assigned" = has at least one open job (not archived, not disposed).

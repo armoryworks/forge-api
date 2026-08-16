@@ -60,7 +60,7 @@ public class RecordManualAcceptanceHandler(AppDbContext db, IMediator mediator, 
             fileId = uploaded.Id;
         }
 
-        var acceptance = new SalesOrderAcceptance
+        var acceptance = new Attestation
         {
             SalesOrderId = request.SalesOrderId,
             Status = AcceptanceStatus.Accepted,
@@ -70,7 +70,7 @@ public class RecordManualAcceptanceHandler(AppDbContext db, IMediator mediator, 
             Note = request.Note,
             AcceptedAt = clock.UtcNow,
         };
-        db.SalesOrderAcceptances.Add(acceptance);
+        db.Attestations.Add(acceptance);
 
         db.LogActivityAt("so-acceptance-recorded",
             $"Customer acceptance recorded ({request.Method})", ("SalesOrder", request.SalesOrderId));

@@ -112,7 +112,7 @@ public class IngestTwilioWebhookHandlerTests
 
         await _handler.Handle(new IngestTwilioWebhookCommand(fields), CancellationToken.None);
 
-        var interaction = _db.ContactInteractions.Single();
+        var interaction = _db.Communications.Single();
         interaction.DurationMinutes.Should().Be(2); // 90s → 2 min (rounded up)
     }
 

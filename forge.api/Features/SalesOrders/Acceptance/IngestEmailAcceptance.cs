@@ -35,7 +35,7 @@ public class IngestEmailAcceptanceHandler(AppDbContext db) : IRequestHandler<Ing
         if (!soExists)
             throw new KeyNotFoundException($"Sales order {request.SalesOrderId} not found.");
 
-        var acceptance = new SalesOrderAcceptance
+        var acceptance = new Attestation
         {
             SalesOrderId = request.SalesOrderId,
             Status = AcceptanceStatus.Pending,
@@ -43,7 +43,7 @@ public class IngestEmailAcceptanceHandler(AppDbContext db) : IRequestHandler<Ing
             SentTo = request.FromEmail,
             Note = request.Note ?? $"Inbound email from {request.FromEmail} awaiting review.",
         };
-        db.SalesOrderAcceptances.Add(acceptance);
+        db.Attestations.Add(acceptance);
         db.LogActivityAt("so-acceptance-email-ingested",
             $"Inbound acceptance email from {request.FromEmail} queued for review", ("SalesOrder", request.SalesOrderId));
         await db.SaveChangesAsync(cancellationToken);

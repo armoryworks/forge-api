@@ -101,7 +101,7 @@ public class ConvertQuoteToOrderHandler(
         // customer already accepted. Runs after the save so order.Id exists.
         if (db is not null && quote.AcceptedByContactId is not null)
         {
-            db.SalesOrderAcceptances.Add(new SalesOrderAcceptance
+            db.Attestations.Add(new Attestation
             {
                 SalesOrderId = order.Id,
                 Status = AcceptanceStatus.Accepted,

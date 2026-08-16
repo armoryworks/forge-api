@@ -70,7 +70,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<Contact> Contacts => Set<Contact>();
     public DbSet<ContactOutreachPreferences> ContactOutreachPreferences => Set<ContactOutreachPreferences>();
     public DbSet<CustomerPortalAccess> CustomerPortalAccesses => Set<CustomerPortalAccess>();
-    public DbSet<ContactInteraction> ContactInteractions => Set<ContactInteraction>();
+    // Proof-of-intent. Communication generalizes the old ContactInteraction
+    // (contact-only) to any party, any channel, threaded, with immutable hashed
+    // artifacts and polymorphic links to what the exchange was about.
+    public DbSet<Communication> Communications => Set<Communication>();
+    public DbSet<CommunicationArtifact> CommunicationArtifacts => Set<CommunicationArtifact>();
+    public DbSet<CommunicationLink> CommunicationLinks => Set<CommunicationLink>();
+    public DbSet<CommunicationIngestRule> CommunicationIngestRules => Set<CommunicationIngestRule>();
     public DbSet<CommunicationSyncConfig> CommunicationSyncConfigs => Set<CommunicationSyncConfig>();
     public DbSet<OAuthStateToken> OAuthStateTokens => Set<OAuthStateToken>();
     public DbSet<Part> Parts => Set<Part>();
@@ -216,7 +222,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<CustomerPoDocument> CustomerPoDocuments => Set<CustomerPoDocument>();
     public DbSet<SalesOrderStage> SalesOrderStages => Set<SalesOrderStage>();
     public DbSet<SalesOrderStageLine> SalesOrderStageLines => Set<SalesOrderStageLine>();
-    public DbSet<SalesOrderAcceptance> SalesOrderAcceptances => Set<SalesOrderAcceptance>();
+    // Attestation generalizes SalesOrderAcceptance: a statement by a party,
+    // which may or may not be scoped to one order. The gate reads it unchanged.
+    public DbSet<Attestation> Attestations => Set<Attestation>();
 
     // Operations
     public DbSet<Operation> Operations => Set<Operation>();

@@ -55,7 +55,7 @@ public class SendSalesOrderForSignatureHandler(
         var templateId = await signing.CreateTemplateFromPdfAsync($"SO-Acceptance-{order.OrderNumber}", pdfBytes, cancellationToken);
         var submission = await signing.CreateSubmissionAsync(templateId, request.SignerEmail, request.SignerName, cancellationToken);
 
-        var acceptance = new SalesOrderAcceptance
+        var acceptance = new Attestation
         {
             SalesOrderId = order.Id,
             Status = AcceptanceStatus.Pending,
@@ -67,7 +67,7 @@ public class SendSalesOrderForSignatureHandler(
             RecordedByUserId = db.CurrentUserId,
             ExpiresAt = clock.UtcNow.AddDays(30),
         };
-        db.SalesOrderAcceptances.Add(acceptance);
+        db.Attestations.Add(acceptance);
         db.LogActivityAt("so-acceptance-sent",
             $"Sales order sent to {request.SignerEmail} for e-signature", ("SalesOrder", order.Id));
         await db.SaveChangesAsync(cancellationToken);

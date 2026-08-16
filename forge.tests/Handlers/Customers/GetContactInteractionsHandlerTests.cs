@@ -46,9 +46,9 @@ public class GetContactInteractionsHandlerTests
     {
         var (customer, c1, c2, user) = await SeedData();
 
-        _db.ContactInteractions.AddRange(
-            new ContactInteraction { ContactId = c1.Id, UserId = user.Id, Type = InteractionType.Call, Subject = "Call 1", InteractionDate = DateTimeOffset.UtcNow.AddDays(-1) },
-            new ContactInteraction { ContactId = c2.Id, UserId = user.Id, Type = InteractionType.Email, Subject = "Email 1", InteractionDate = DateTimeOffset.UtcNow });
+        _db.Communications.AddRange(
+            new Communication { ContactId = c1.Id, HandledByUserId = user.Id, Type = InteractionType.Call, Subject = "Call 1", OccurredAt = DateTimeOffset.UtcNow.AddDays(-1) },
+            new Communication { ContactId = c2.Id, HandledByUserId = user.Id, Type = InteractionType.Email, Subject = "Email 1", OccurredAt = DateTimeOffset.UtcNow });
         await _db.SaveChangesAsync();
 
         var result = await _handler.Handle(new GetContactInteractionsQuery(customer.Id, null), CancellationToken.None);
@@ -61,9 +61,9 @@ public class GetContactInteractionsHandlerTests
     {
         var (customer, c1, c2, user) = await SeedData();
 
-        _db.ContactInteractions.AddRange(
-            new ContactInteraction { ContactId = c1.Id, UserId = user.Id, Type = InteractionType.Call, Subject = "For C1", InteractionDate = DateTimeOffset.UtcNow },
-            new ContactInteraction { ContactId = c2.Id, UserId = user.Id, Type = InteractionType.Email, Subject = "For C2", InteractionDate = DateTimeOffset.UtcNow });
+        _db.Communications.AddRange(
+            new Communication { ContactId = c1.Id, HandledByUserId = user.Id, Type = InteractionType.Call, Subject = "For C1", OccurredAt = DateTimeOffset.UtcNow },
+            new Communication { ContactId = c2.Id, HandledByUserId = user.Id, Type = InteractionType.Email, Subject = "For C2", OccurredAt = DateTimeOffset.UtcNow });
         await _db.SaveChangesAsync();
 
         var result = await _handler.Handle(new GetContactInteractionsQuery(customer.Id, c1.Id), CancellationToken.None);
@@ -77,9 +77,9 @@ public class GetContactInteractionsHandlerTests
     {
         var (customer, c1, _, user) = await SeedData();
 
-        _db.ContactInteractions.AddRange(
-            new ContactInteraction { ContactId = c1.Id, UserId = user.Id, Type = InteractionType.Note, Subject = "Older", InteractionDate = DateTimeOffset.UtcNow.AddDays(-5) },
-            new ContactInteraction { ContactId = c1.Id, UserId = user.Id, Type = InteractionType.Note, Subject = "Newer", InteractionDate = DateTimeOffset.UtcNow });
+        _db.Communications.AddRange(
+            new Communication { ContactId = c1.Id, HandledByUserId = user.Id, Type = InteractionType.Note, Subject = "Older", OccurredAt = DateTimeOffset.UtcNow.AddDays(-5) },
+            new Communication { ContactId = c1.Id, HandledByUserId = user.Id, Type = InteractionType.Note, Subject = "Newer", OccurredAt = DateTimeOffset.UtcNow });
         await _db.SaveChangesAsync();
 
         var result = await _handler.Handle(new GetContactInteractionsQuery(customer.Id, null), CancellationToken.None);

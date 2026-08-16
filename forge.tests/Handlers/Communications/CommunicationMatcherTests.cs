@@ -73,9 +73,9 @@ public class CommunicationMatcherTests
         var result = await _matcher.MatchAndLogAsync(comm, CancellationToken.None);
 
         result.Matched.Should().BeTrue();
-        // Lead-side match writes only ActivityLog (no ContactInteraction yet —
-        // leads have no Contact entity). So no ContactInteraction rows landed.
-        _db.ContactInteractions.Should().BeEmpty();
+        // Lead-side match writes only ActivityLog (no Communication yet —
+        // leads have no Contact entity). So no Communication rows landed.
+        _db.Communications.Should().BeEmpty();
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public class CommunicationMatcherTests
         var result = await _matcher.MatchAndLogAsync(comm, CancellationToken.None);
 
         result.Matched.Should().BeTrue();
-        var interactions = _db.ContactInteractions.ToList();
+        var interactions = _db.Communications.ToList();
         interactions.Should().HaveCount(1);
         interactions[0].ContactId.Should().Be(contact.Id);
         interactions[0].Type.Should().Be(InteractionType.Email);
@@ -165,8 +165,8 @@ public class CommunicationMatcherTests
         var result = await _matcher.MatchAndLogAsync(comm, CancellationToken.None);
 
         result.Matched.Should().BeTrue();
-        // Lead match — no ContactInteraction (leads write only ActivityLog).
-        _db.ContactInteractions.Should().BeEmpty();
+        // Lead match — no Communication (leads write only ActivityLog).
+        _db.Communications.Should().BeEmpty();
     }
 
     [Fact]
@@ -210,7 +210,7 @@ public class CommunicationMatcherTests
 
         result.Matched.Should().BeTrue();
         // Should fall through to the customer Contact since the lead is Lost.
-        var interactions = _db.ContactInteractions.ToList();
+        var interactions = _db.Communications.ToList();
         interactions.Should().HaveCount(1);
         interactions[0].ContactId.Should().Be(contact.Id);
     }
@@ -235,7 +235,7 @@ public class CommunicationMatcherTests
 
         result.Matched.Should().BeFalse();
         result.UnmatchedReason.Should().Be("no-match");
-        _db.ContactInteractions.Should().BeEmpty();
+        _db.Communications.Should().BeEmpty();
     }
 
     [Fact]
@@ -268,7 +268,7 @@ public class CommunicationMatcherTests
         result.Matched.Should().BeTrue();
         // The third recipient is unmatched, but the outer call still flags
         // Matched=true since at least one recipient hit. Lead-side matches
-        // don't currently produce ContactInteraction rows.
-        _db.ContactInteractions.Should().BeEmpty();
+        // don't currently produce Communication rows.
+        _db.Communications.Should().BeEmpty();
     }
 }

@@ -32,7 +32,7 @@ public class SubmitPublicAcceptanceHandler(AppDbContext db, IClock clock) : IReq
 {
     public async Task Handle(SubmitPublicAcceptanceCommand request, CancellationToken cancellationToken)
     {
-        var acceptance = await db.SalesOrderAcceptances
+        var acceptance = await db.Attestations
             .FirstOrDefaultAsync(a => a.AccessToken == request.Token && a.Method == AcceptanceMethod.PublicPortal, cancellationToken)
             ?? throw new KeyNotFoundException("This acceptance link is not valid.");
 
@@ -55,7 +55,7 @@ public class SubmitPublicAcceptanceHandler(AppDbContext db, IClock clock) : IReq
         acceptance.AcceptedAt = clock.UtcNow;
 
         db.LogActivityAt("so-acceptance-recorded",
-            $"Customer accepted online via portal ({request.AcceptedByName.Trim()})", ("SalesOrder", acceptance.SalesOrderId));
+            $"Customer accepted online via portal ({request.AcceptedByName.Trim()})", ("SalesOrder", acceptance.RequireSalesOrderId));
         await db.SaveChangesAsync(cancellationToken);
     }
 }

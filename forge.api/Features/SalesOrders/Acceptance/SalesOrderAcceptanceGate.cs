@@ -34,7 +34,7 @@ public sealed class SalesOrderAcceptanceGate(AppDbContext db, ICapabilitySnapsho
     public bool IsEnabled => capabilities.IsEnabled(Capability);
 
     public Task<bool> IsAcceptedAsync(int salesOrderId, CancellationToken ct = default)
-        => db.SalesOrderAcceptances.AsNoTracking()
+        => db.Attestations.AsNoTracking()
             .AnyAsync(a => a.SalesOrderId == salesOrderId && a.Status == AcceptanceStatus.Accepted, ct);
 
     public async Task EnsureReleasableAsync(int salesOrderId, CancellationToken ct = default)

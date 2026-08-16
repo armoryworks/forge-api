@@ -21,7 +21,7 @@ public class ConfirmEmailAcceptanceHandler(AppDbContext db, IClock clock)
 {
     public async Task<SalesOrderAcceptanceResponseModel> Handle(ConfirmEmailAcceptanceCommand request, CancellationToken cancellationToken)
     {
-        var acceptance = await db.SalesOrderAcceptances
+        var acceptance = await db.Attestations
             .FirstOrDefaultAsync(a => a.Id == request.AcceptanceId && a.SalesOrderId == request.SalesOrderId, cancellationToken)
             ?? throw new KeyNotFoundException($"Acceptance {request.AcceptanceId} not found on sales order {request.SalesOrderId}.");
 

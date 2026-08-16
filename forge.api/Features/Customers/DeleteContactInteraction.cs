@@ -14,13 +14,13 @@ public class DeleteContactInteractionHandler(AppDbContext db, IClock clock)
 {
     public async Task Handle(DeleteContactInteractionCommand request, CancellationToken cancellationToken)
     {
-        var interaction = await db.ContactInteractions
+        var interaction = await db.Communications
             .Include(ci => ci.Contact)
             .FirstOrDefaultAsync(ci => ci.Id == request.InteractionId
-                && ci.Contact.CustomerId == request.CustomerId, cancellationToken)
+                && ci.Contact!.CustomerId == request.CustomerId, cancellationToken)
             ?? throw new KeyNotFoundException($"Interaction {request.InteractionId} not found for customer {request.CustomerId}");
 
-        // Soft-delete (was hard-delete via Remove() — bug fix). ContactInteraction
+        // Soft-delete (was hard-delete via Remove() — bug fix). Communication
         // extends BaseAuditableEntity and the global query filter hides it
         // from subsequent reads. DeletedBy auto-stamped by SetTimestamps.
         interaction.DeletedAt = clock.UtcNow;
@@ -29,7 +29,7 @@ public class DeleteContactInteractionHandler(AppDbContext db, IClock clock)
             "interaction-removed",
             $"Removed interaction: {interaction.Subject}",
             ("Customer", request.CustomerId),
-            ("Contact", interaction.ContactId));
+            ("Contact", interaction.ContactId!.Value));
 
         await db.SaveChangesAsync(cancellationToken);
     }

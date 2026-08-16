@@ -11,7 +11,7 @@ namespace Forge.Api.Features.Communications;
 
 /// <summary>
 /// Wave 8 — matches inbound communications (email or voice) against active
-/// leads or customer contacts and writes ContactInteraction rows for each
+/// leads or customer contacts and writes Communication rows for each
 /// hit. Single implementation regardless of provider — Gmail / IMAP /
 /// Twilio / RingCentral / etc. all flow through here once their adapter
 /// has translated to <see cref="InboundCommunication"/>.
@@ -30,7 +30,7 @@ namespace Forge.Api.Features.Communications;
 ///
 /// Outbound communications (tenant → external) match against the To list
 /// rather than the From; same precedence logic, just iterating the To
-/// addresses one by one and creating one ContactInteraction per matched
+/// addresses one by one and creating one Communication per matched
 /// recipient (so a salesperson CC'ing two leads on the same email
 /// produces two interaction rows).
 /// </summary>
@@ -68,7 +68,7 @@ public class CommunicationMatcher(AppDbContext db) : ICommunicationMatcher
             return new CommunicationMatchResult(false, [], comm.ExternalId, "no-match");
         }
 
-        // Lead-side matches write only an activity-log row (no ContactInteraction
+        // Lead-side matches write only an activity-log row (no Communication
         // yet — leads don't have a Contact entity), so a successful match may
         // produce zero entries in createdIds. Matched is true regardless.
         await db.SaveChangesAsync(ct);
@@ -149,10 +149,10 @@ public class CommunicationMatcher(AppDbContext db) : ICommunicationMatcher
 
     private async Task<int?> LogInteractionAsync(InboundCommunication comm, string address, MatchTarget target, CancellationToken ct)
     {
-        // ContactInteraction requires a ContactId. For lead-side matches we
+        // Communication requires a ContactId. For lead-side matches we
         // don't have a Contact yet (leads have a single inline contactName,
         // not a Contact entity) — so for now lead matches log only an
-        // ActivityLog row anchored to the Lead and skip ContactInteraction.
+        // ActivityLog row anchored to the Lead and skip Communication.
         // The interaction-on-lead-without-contact path is a follow-on
         // (creating an inline "shadow" contact at conversion time, or
         // promoting LeadContact to a real entity).
@@ -193,17 +193,17 @@ public class CommunicationMatcher(AppDbContext db) : ICommunicationMatcher
             // sentinel "system" user id zero which the controller display
             // logic shows as "(automated)".
             var userId = db.CurrentUserId ?? 0;
-            var interaction = new ContactInteraction
+            var interaction = new Communication
             {
                 ContactId = target.ContactId.Value,
-                UserId = userId,
+                HandledByUserId = userId,
                 Type = comm.Kind == CommunicationKind.Email ? InteractionType.Email : InteractionType.Call,
                 Subject = TrimToSubject(comm.Subject ?? comm.Body ?? "(auto-logged)"),
                 Body = comm.Body,
-                InteractionDate = comm.OccurredAt,
+                OccurredAt = comm.OccurredAt,
                 DurationMinutes = comm.DurationMinutes,
             };
-            db.ContactInteractions.Add(interaction);
+            db.Communications.Add(interaction);
 
             // Indexing-points pair on Customer + Contact, matching the
             // hand-logged interaction path's activity convention.

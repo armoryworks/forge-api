@@ -61,6 +61,15 @@ public class SalesOrder : BaseAuditableEntity, IConcurrencyVersioned
     /// </summary>
     public OrderShipTo? ShipTo { get; set; }
 
+    /// <summary>
+    /// The single attestation that authorizes this order — the one rendered on
+    /// the Authorized-by line. Distinct from the one-to-many acceptance history:
+    /// several statements may exist (a superseded PO, the MSA behind it), and
+    /// this points at the one currently in force.
+    /// </summary>
+    public int? AuthorizingAttestationId { get; set; }
+    public Attestation? AuthorizingAttestation { get; set; }
+
     public int? QuoteId { get; set; }
     public int? ShippingAddressId { get; set; }
     public int? BillingAddressId { get; set; }

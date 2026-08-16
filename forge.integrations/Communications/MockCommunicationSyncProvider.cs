@@ -37,7 +37,7 @@ public class MockEmailSyncProvider(
     }
 
     /// <summary>Returns a single canned event so dev can verify the matcher
-    /// + ContactInteraction flow without standing up a real mailbox.</summary>
+    /// + Communication flow without standing up a real mailbox.</summary>
     public async Task<int> SyncRecentAsync(int connectionId, CancellationToken ct)
     {
         var canned = new InboundCommunication(

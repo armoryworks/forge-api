@@ -15,7 +15,7 @@ public record UpdateContactInteractionCommand(
     string Type,
     string Subject,
     string? Body,
-    DateTimeOffset InteractionDate,
+    DateTimeOffset OccurredAt,
     int? DurationMinutes) : IRequest<ContactInteractionResponseModel>;
 
 public class UpdateContactInteractionValidator : AbstractValidator<UpdateContactInteractionCommand>
@@ -35,10 +35,10 @@ public class UpdateContactInteractionHandler(AppDbContext db)
     public async Task<ContactInteractionResponseModel> Handle(
         UpdateContactInteractionCommand request, CancellationToken cancellationToken)
     {
-        var interaction = await db.ContactInteractions
+        var interaction = await db.Communications
             .Include(ci => ci.Contact)
             .FirstOrDefaultAsync(ci => ci.Id == request.InteractionId
-                && ci.Contact.CustomerId == request.CustomerId, cancellationToken)
+                && ci.Contact!.CustomerId == request.CustomerId, cancellationToken)
             ?? throw new KeyNotFoundException($"Interaction {request.InteractionId} not found for customer {request.CustomerId}");
 
         var changedFields = new List<string>();
@@ -46,9 +46,9 @@ public class UpdateContactInteractionHandler(AppDbContext db)
         if (newType != interaction.Type) { interaction.Type = newType; changedFields.Add("type"); }
         if (request.Subject != interaction.Subject) { interaction.Subject = request.Subject; changedFields.Add("subject"); }
         if (request.Body != interaction.Body) { interaction.Body = request.Body; changedFields.Add("body"); }
-        if (request.InteractionDate != interaction.InteractionDate)
+        if (request.OccurredAt != interaction.OccurredAt)
         {
-            interaction.InteractionDate = request.InteractionDate;
+            interaction.OccurredAt = request.OccurredAt;
             changedFields.Add("interactionDate");
         }
         if (request.DurationMinutes != interaction.DurationMinutes)
@@ -63,26 +63,26 @@ public class UpdateContactInteractionHandler(AppDbContext db)
                 "interaction-updated",
                 $"Updated interaction ({interaction.Subject}) — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}",
                 ("Customer", request.CustomerId),
-                ("Contact", interaction.ContactId));
+                ("Contact", interaction.ContactId!.Value));
         }
 
         await db.SaveChangesAsync(cancellationToken);
 
         var userInfo = await db.Users
-            .Where(u => u.Id == interaction.UserId)
+            .Where(u => u.Id == interaction.HandledByUserId)
             .Select(u => new { u.FirstName, u.LastName })
             .FirstAsync(cancellationToken);
 
         return new ContactInteractionResponseModel(
             interaction.Id,
-            interaction.ContactId,
-            $"{interaction.Contact.LastName}, {interaction.Contact.FirstName}",
-            interaction.UserId,
+            interaction.ContactId!.Value,
+            $"{interaction.Contact!.LastName}, {interaction.Contact.FirstName}",
+            interaction.HandledByUserId ?? 0,
             $"{userInfo.LastName}, {userInfo.FirstName}",
             interaction.Type.ToString(),
             interaction.Subject,
             interaction.Body,
-            interaction.InteractionDate,
+            interaction.OccurredAt,
             interaction.DurationMinutes,
             interaction.CreatedAt);
     }

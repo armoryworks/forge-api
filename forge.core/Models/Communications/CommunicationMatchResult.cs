@@ -8,7 +8,7 @@ namespace Forge.Core.Models.Communications;
 /// telemetry land in subsequent commits.
 /// </summary>
 public sealed record CommunicationMatchResult(
-    /// <summary>True when the matcher created at least one ContactInteraction
+    /// <summary>True when the matcher created at least one Communication
     /// row anchored to a Lead or Customer/Contact pair.</summary>
     bool Matched,
 

@@ -16,7 +16,7 @@ public record CreateContactInteractionCommand(
     string Type,
     string Subject,
     string? Body,
-    DateTimeOffset InteractionDate,
+    DateTimeOffset OccurredAt,
     int? DurationMinutes) : IRequest<ContactInteractionResponseModel>;
 
 public class CreateContactInteractionValidator : AbstractValidator<CreateContactInteractionCommand>
@@ -39,7 +39,7 @@ public class CreateContactInteractionHandler(AppDbContext db)
         // CurrentUserId is set by middleware on every authenticated request;
         // null only happens for system / Hangfire callers, who aren't expected
         // to log interactions. Treat unauthenticated reach here as a 401-class
-        // bug and fail loudly rather than silently writing UserId=0.
+        // bug and fail loudly rather than silently writing HandledByUserId=0.
         var userId = db.CurrentUserId
             ?? throw new InvalidOperationException("CreateContactInteraction requires an authenticated caller.");
 
@@ -63,20 +63,20 @@ public class CreateContactInteractionHandler(AppDbContext db)
             contactId = primaryContact.Id;
         }
 
-        var interaction = new ContactInteraction
+        var interaction = new Communication
         {
             ContactId = contactId,
-            UserId = userId,
+            HandledByUserId = userId,
             Type = Enum.Parse<InteractionType>(request.Type, true),
             Subject = request.Subject,
             Body = request.Body,
-            InteractionDate = request.InteractionDate,
+            OccurredAt = request.OccurredAt,
             DurationMinutes = request.DurationMinutes,
         };
 
-        db.ContactInteractions.Add(interaction);
+        db.Communications.Add(interaction);
 
-        // ContactInteraction is transactional, but per the activity-logging
+        // Communication is transactional, but per the activity-logging
         // indexing-points convention we still log the event on both anchors
         // (Customer + Contact) so the customer's activity tab shows that an
         // interaction was recorded. The Subject is the human-readable hook.
@@ -101,14 +101,14 @@ public class CreateContactInteractionHandler(AppDbContext db)
 
         return new ContactInteractionResponseModel(
             interaction.Id,
-            interaction.ContactId,
+            contactId,
             $"{contactInfo.LastName}, {contactInfo.FirstName}",
-            interaction.UserId,
+            userId,
             $"{userInfo.LastName}, {userInfo.FirstName}",
             interaction.Type.ToString(),
             interaction.Subject,
             interaction.Body,
-            interaction.InteractionDate,
+            interaction.OccurredAt,
             interaction.DurationMinutes,
             interaction.CreatedAt);
     }

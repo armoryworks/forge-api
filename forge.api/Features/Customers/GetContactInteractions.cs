@@ -21,27 +21,29 @@ public class GetContactInteractionsHandler(AppDbContext db)
             .Select(c => c.Id)
             .ToListAsync(cancellationToken);
 
-        var query = db.ContactInteractions
-            .Where(ci => contactIds.Contains(ci.ContactId));
+        var query = db.Communications
+            // Contact-scoped view: the generalization allows party-level rows
+            // with no contact, and those belong on the party timeline, not here.
+            .Where(ci => ci.ContactId != null && contactIds.Contains(ci.ContactId.Value));
 
         if (request.ContactId.HasValue)
             query = query.Where(ci => ci.ContactId == request.ContactId.Value);
 
         return await query
-            .OrderByDescending(ci => ci.InteractionDate)
+            .OrderByDescending(ci => ci.OccurredAt)
             .Select(ci => new ContactInteractionResponseModel(
                 ci.Id,
-                ci.ContactId,
-                ci.Contact.LastName + ", " + ci.Contact.FirstName,
-                ci.UserId,
+                ci.ContactId!.Value,
+                ci.Contact!.LastName + ", " + ci.Contact.FirstName,
+                ci.HandledByUserId ?? 0,
                 db.Users
-                    .Where(u => u.Id == ci.UserId)
+                    .Where(u => u.Id == ci.HandledByUserId)
                     .Select(u => u.LastName + ", " + u.FirstName)
                     .FirstOrDefault() ?? "",
                 ci.Type.ToString(),
                 ci.Subject,
                 ci.Body,
-                ci.InteractionDate,
+                ci.OccurredAt,
                 ci.DurationMinutes,
                 ci.CreatedAt))
             .ToListAsync(cancellationToken);

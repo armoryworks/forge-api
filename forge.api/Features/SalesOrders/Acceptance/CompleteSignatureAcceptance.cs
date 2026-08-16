@@ -28,7 +28,7 @@ public class CompleteSignatureAcceptanceHandler(
 {
     public async Task<SalesOrderAcceptanceResponseModel> Handle(CompleteSignatureAcceptanceCommand request, CancellationToken cancellationToken)
     {
-        var acceptance = await db.SalesOrderAcceptances
+        var acceptance = await db.Attestations
             .FirstOrDefaultAsync(a => a.Id == request.AcceptanceId && a.SalesOrderId == request.SalesOrderId, cancellationToken)
             ?? throw new KeyNotFoundException($"Acceptance {request.AcceptanceId} not found on sales order {request.SalesOrderId}.");
 
@@ -61,7 +61,7 @@ public class CompleteSignatureAcceptanceHandler(
                     BucketName = bucket,
                     ObjectKey = objectKey,
                     EntityType = "sales-orders",
-                    EntityId = acceptance.SalesOrderId,
+                    EntityId = acceptance.RequireSalesOrderId,
                     UploadedById = db.CurrentUserId ?? 1,
                     DocumentType = "CustomerAcceptance",
                 };
@@ -72,12 +72,12 @@ public class CompleteSignatureAcceptanceHandler(
                 acceptance.FileAttachmentId = file.Id;
                 acceptance.AcceptedAt = status.CompletedAt ?? clock.UtcNow;
                 db.LogActivityAt("so-acceptance-recorded",
-                    "Customer e-signature completed", ("SalesOrder", acceptance.SalesOrderId));
+                    "Customer e-signature completed", ("SalesOrder", acceptance.RequireSalesOrderId));
                 break;
 
             case "declined":
                 acceptance.Status = AcceptanceStatus.Declined;
-                db.LogActivityAt("so-acceptance-declined", "Customer declined e-signature", ("SalesOrder", acceptance.SalesOrderId));
+                db.LogActivityAt("so-acceptance-declined", "Customer declined e-signature", ("SalesOrder", acceptance.RequireSalesOrderId));
                 break;
 
             case "expired":

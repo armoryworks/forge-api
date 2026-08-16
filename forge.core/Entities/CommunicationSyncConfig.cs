@@ -10,7 +10,7 @@ namespace Forge.Core.Entities;
 /// adapters store <see cref="LastSyncedAt"/> + <see cref="LastSyncedExternalId"/>
 /// to bound the next-fetch window; webhook-driven adapters mostly leave
 /// those null and rely on idempotency by ExternalId at the
-/// <c>ContactInteraction</c> insertion site.
+/// <c>Communication</c> insertion site.
 ///
 /// Tokens are stored encrypted via ASP.NET Data Protection API at the
 /// service tier (matches the QuickBooks accounting adapter pattern;

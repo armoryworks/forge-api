@@ -38,7 +38,7 @@ public class RecordExternalAcceptanceHandler(AppDbContext db, IClock clock)
         if (!soExists)
             throw new KeyNotFoundException($"Sales order {request.SalesOrderId} not found.");
 
-        var acceptance = new SalesOrderAcceptance
+        var acceptance = new Attestation
         {
             SalesOrderId = request.SalesOrderId,
             Status = AcceptanceStatus.Accepted,
@@ -49,7 +49,7 @@ public class RecordExternalAcceptanceHandler(AppDbContext db, IClock clock)
             Note = request.Note,
             AcceptedAt = clock.UtcNow,
         };
-        db.SalesOrderAcceptances.Add(acceptance);
+        db.Attestations.Add(acceptance);
 
         db.LogActivityAt("so-acceptance-recorded",
             $"Customer acceptance recorded by external system (ref {request.Reference})", ("SalesOrder", request.SalesOrderId));

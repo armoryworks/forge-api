@@ -3,7 +3,8 @@ namespace Forge.Api.Features.SalesOrders.Acceptance;
 /// <summary>One acceptance record on a Sales Order, for the acceptance panel/history.</summary>
 public record SalesOrderAcceptanceResponseModel(
     int Id,
-    int SalesOrderId,
+    /// <summary>Null on a party-level statement (a master agreement authorizes orders that do not exist yet).</summary>
+    int? SalesOrderId,
     string Status,
     string Method,
     int? FileAttachmentId,

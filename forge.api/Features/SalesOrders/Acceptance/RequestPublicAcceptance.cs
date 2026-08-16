@@ -44,7 +44,7 @@ public class RequestPublicAcceptanceHandler(AppDbContext db, IClock clock)
             throw new KeyNotFoundException($"Sales order {request.SalesOrderId} not found.");
 
         var token = AcceptancePortalCrypto.GenerateToken();
-        var acceptance = new SalesOrderAcceptance
+        var acceptance = new Attestation
         {
             SalesOrderId = request.SalesOrderId,
             Status = AcceptanceStatus.Pending,
@@ -55,7 +55,7 @@ public class RequestPublicAcceptanceHandler(AppDbContext db, IClock clock)
             RecordedByUserId = db.CurrentUserId,
             ExpiresAt = clock.UtcNow.AddDays(request.ValidDays),
         };
-        db.SalesOrderAcceptances.Add(acceptance);
+        db.Attestations.Add(acceptance);
         db.LogActivityAt("so-acceptance-requested",
             $"Public acceptance link issued to {request.RecipientEmail}", ("SalesOrder", request.SalesOrderId));
         await db.SaveChangesAsync(cancellationToken);

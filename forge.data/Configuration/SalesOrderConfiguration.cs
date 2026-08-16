@@ -71,6 +71,15 @@ public class SalesOrderConfiguration : IEntityTypeConfiguration<SalesOrder>
             .HasForeignKey(e => e.RetailBuyerId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Explicit, or EF pairs this with Attestation.SalesOrder and mints a
+        // shadow authorizing_attestation_id1 column alongside the real one.
+        // Restrict: the authorizing statement is the order's proof of intent —
+        // it must never be silently detachable.
+        builder.HasOne(e => e.AuthorizingAttestation)
+            .WithMany()
+            .HasForeignKey(e => e.AuthorizingAttestationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne(e => e.ShippingAddress)
             .WithMany()
             .HasForeignKey(e => e.ShippingAddressId)

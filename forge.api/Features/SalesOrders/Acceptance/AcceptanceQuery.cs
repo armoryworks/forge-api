@@ -10,17 +10,17 @@ internal static class AcceptanceQuery
 {
     public static async Task<SalesOrderAcceptanceResponseModel> ByIdAsync(AppDbContext db, int id, CancellationToken ct)
     {
-        var rows = await LoadAsync(db, db.SalesOrderAcceptances.AsNoTracking().Where(a => a.Id == id), ct);
+        var rows = await LoadAsync(db, db.Attestations.AsNoTracking().Where(a => a.Id == id), ct);
         return rows.Single();
     }
 
     public static Task<List<SalesOrderAcceptanceResponseModel>> ForSalesOrderAsync(AppDbContext db, int salesOrderId, CancellationToken ct)
-        => LoadAsync(db, db.SalesOrderAcceptances.AsNoTracking()
+        => LoadAsync(db, db.Attestations.AsNoTracking()
             .Where(a => a.SalesOrderId == salesOrderId)
             .OrderByDescending(a => a.CreatedAt), ct);
 
     private static async Task<List<SalesOrderAcceptanceResponseModel>> LoadAsync(
-        AppDbContext db, IQueryable<SalesOrderAcceptance> source, CancellationToken ct)
+        AppDbContext db, IQueryable<Attestation> source, CancellationToken ct)
     {
         // Materialize entity + joined display names, then map in memory (enum→string is client-side).
         var rows = await (

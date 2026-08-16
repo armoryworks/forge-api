@@ -632,6 +632,12 @@ try
     builder.Services.AddScoped<IPartPricingResolver, PartPricingResolver>();
     builder.Services.AddScoped<IVendorCostResolver, VendorCostResolver>();
     builder.Services.AddScoped<ISalesChannelResolver, SalesChannelResolver>();
+    // Proof-of-intent ingestion. The resolver decides whose a message is and how
+    // confidently; the artifact store takes Forge's hashed, immutable copy.
+    builder.Services.AddScoped<Forge.Core.Interfaces.Communications.IPartyResolver,
+                               Forge.Api.Features.Communications.PartyResolver>();
+    builder.Services.AddScoped<Forge.Core.Interfaces.Communications.IArtifactStore,
+                               Forge.Api.Features.Communications.ArtifactStore>();
     // Storefront / marketplace credentials at rest. The column was named
     // EncryptedCredentials from the start; this is what finally makes it true.
     builder.Services.AddSingleton<IECommerceCredentialProtector, ECommerceCredentialProtector>();

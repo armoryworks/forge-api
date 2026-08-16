@@ -7,7 +7,7 @@ namespace Forge.Core.Interfaces.Communications;
 /// <see cref="ICommunicationSyncProvider"/>. Adapters translate their
 /// native event into <see cref="InboundCommunication"/> and hand it here;
 /// the matcher normalizes addresses, looks up Lead/Contact, applies
-/// tiebreaker logic, and writes the resulting ContactInteraction(s).
+/// tiebreaker logic, and writes the resulting Communication(s).
 ///
 /// Designed as the single piece of code that knows about address
 /// normalization, lead-vs-contact precedence, ambiguity resolution, and
@@ -17,7 +17,7 @@ namespace Forge.Core.Interfaces.Communications;
 public interface ICommunicationMatcher
 {
     /// <summary>Match the inbound communication against active leads
-    /// + contacts and create one or more ContactInteraction rows for
+    /// + contacts and create one or more Communication rows for
     /// successful matches. Returns the result (matched/not, ids,
     /// idempotency external id) so the caller can log telemetry +
     /// dedupe re-deliveries.</summary>

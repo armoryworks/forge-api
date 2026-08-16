@@ -26,7 +26,7 @@ public class SalesOrderAcceptanceGateTests
 
     private static async Task AddAcceptanceAsync(AppDbContext db, int soId, AcceptanceStatus status)
     {
-        db.Add(new SalesOrderAcceptance { SalesOrderId = soId, Status = status, Method = AcceptanceMethod.ManualUpload });
+        db.Add(new Attestation { SalesOrderId = soId, Status = status, Method = AcceptanceMethod.ManualUpload });
         await db.SaveChangesAsync();
     }
 

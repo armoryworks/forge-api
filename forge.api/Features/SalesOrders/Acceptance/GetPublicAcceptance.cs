@@ -22,7 +22,7 @@ public class GetPublicAcceptanceHandler(AppDbContext db, ISystemSettingRepositor
 {
     public async Task<PublicAcceptanceViewModel> Handle(GetPublicAcceptanceQuery request, CancellationToken cancellationToken)
     {
-        var acceptance = await db.SalesOrderAcceptances.AsNoTracking()
+        var acceptance = await db.Attestations.AsNoTracking()
             .FirstOrDefaultAsync(a => a.AccessToken == request.Token && a.Method == AcceptanceMethod.PublicPortal, cancellationToken)
             ?? throw new KeyNotFoundException("This acceptance link is not valid.");
 

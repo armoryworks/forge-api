@@ -22,7 +22,7 @@ public record QueueLeadResponseModel(
 
 public record DispositionLeadRequest(
     OutreachState NextState,
-    /// <summary>Free-text reason / notes captured per disposition. Falls into the resulting ContactInteraction body.</summary>
+    /// <summary>Free-text reason / notes captured per disposition. Falls into the resulting Communication body.</summary>
     string? Notes,
     /// <summary>For CallbackScheduled — when the prospect wants to be re-contacted.</summary>
     DateTimeOffset? CallbackAt);
