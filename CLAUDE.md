@@ -38,7 +38,7 @@ Rules that lived only in this file were measured and found eroding (214 files us
 
 | Test | Rule | Kind |
 |---|---|---|
-| `ControllerCapabilityGateTests` | §0: every controller carries `[RequiresCapability]` or `[CapabilityBootstrap]` (class-level, or on **every** HTTP action) | hard fail for new controllers; `LegacyUngated` allowlist for the 27 that predate enforcement — the second test fails if an entry becomes gated and isn't removed |
+| `ControllerCapabilityGateTests` | §0: every controller carries `[RequiresCapability]` or `[CapabilityBootstrap]` (class-level, or on **every** HTTP action) | hard fail — the `LegacyUngated` register is **empty** (all 27 legacy controllers were gated 2026-08-16); a new entry needs a CLAUDE.md conversation, and the second test evicts entries the moment they become gated. Note: class-level `[CapabilityBootstrap]` **overrides** action-level gates (the middleware checks bootstrap first), so a controller that mixes gated and exempt actions must be attributed action-by-action — see `AdminController` |
 | `SourceStandardsRatchetTests` | `IClock` over `DateTime.UtcNow` (Features/Services/Jobs); no try/catch in Controllers; <5 top-level types per file | **per-file ratchet** against `standards-baseline.json` |
 | `ClaudeMdFactsTests` | the verifiable numbers in this file (capability count, .NET version) match the code | hard fail — **fix the doc, not the test** |
 
