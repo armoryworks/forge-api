@@ -17,11 +17,13 @@ namespace Forge.Api.Controllers;
 [ApiController]
 [Route("api/v1/admin")]
 [Authorize(Roles = "Admin")]
+// Admin surface is bootstrap-exempt ACTION-BY-ACTION (not class-level, which would override the MFA/audit-log gates below): an admin must never be able to lock themselves out of user/role/reference-data/branding administration. Same posture as AdminSettingsController.
 public class AdminController(IMediator mediator) : ControllerBase
 {
     // ── Roles ──
 
     [HttpGet("roles")]
+    [CapabilityBootstrap]
     [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<List<RoleItem>>> GetRoles()
     {
@@ -32,6 +34,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── Users ──
 
     [HttpGet("users")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<List<AdminUserResponseModel>>> GetUsers()
     {
         var result = await mediator.Send(new GetAdminUsersQuery());
@@ -39,6 +42,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("users")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<CreateAdminUserResponseModel>> CreateUser(CreateAdminUserCommand command)
     {
         var result = await mediator.Send(command);
@@ -49,6 +53,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // chicken/egg for scripted bring-up: no already-authenticated set-pin
     // call or SQL insert needed to mint a kiosk-login credential.
     [HttpPost("users/kiosk")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<CreateKioskUserResponseModel>> CreateKioskUser(CreateKioskUserCommand command)
     {
         var result = await mediator.Send(command);
@@ -56,6 +61,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("users/{id:int}")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<AdminUserResponseModel>> UpdateUser(int id, UpdateAdminUserCommand command)
     {
         var cmd = command with { Id = id };
@@ -70,6 +76,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // scopes its emitted role claims to. CRUD only — no user-assignment surface.
 
     [HttpGet("role-templates")]
+    [CapabilityBootstrap]
     [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<List<RoleTemplateResponseModel>>> GetRoleTemplates(
         [FromQuery] bool includeDeactivated = false)
@@ -79,6 +86,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("role-templates")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<RoleTemplateResponseModel>> CreateRoleTemplate(CreateRoleTemplateCommand command)
     {
         var result = await mediator.Send(command);
@@ -86,6 +94,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("role-templates/{id:int}")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<RoleTemplateResponseModel>> UpdateRoleTemplate(int id, UpdateRoleTemplateCommand command)
     {
         var cmd = command with { Id = id };
@@ -94,6 +103,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("role-templates/{id:int}")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> DeleteRoleTemplate(int id)
     {
         await mediator.Send(new DeleteRoleTemplateCommand(id));
@@ -104,6 +114,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── Track Types ──
 
     [HttpGet("track-types")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<List<TrackTypeResponseModel>>> GetTrackTypes()
     {
         var result = await mediator.Send(new GetTrackTypesQuery());
@@ -111,6 +122,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("track-types")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<TrackTypeResponseModel>> CreateTrackType(CreateTrackTypeCommand command)
     {
         var result = await mediator.Send(command);
@@ -118,6 +130,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("track-types/{id:int}")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<TrackTypeResponseModel>> UpdateTrackType(int id, UpdateTrackTypeCommand command)
     {
         var cmd = command with { Id = id };
@@ -126,6 +139,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("track-types/{id:int}")]
+    [CapabilityBootstrap]
     public async Task<ActionResult> DeleteTrackType(int id)
     {
         await mediator.Send(new DeleteTrackTypeCommand(id));
@@ -135,6 +149,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── Reference Data ──
 
     [HttpGet("reference-data")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<List<ReferenceDataGroupResponseModel>>> GetReferenceData()
     {
         var result = await mediator.Send(new GetReferenceDataGroupsQuery());
@@ -142,6 +157,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("reference-data")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<ReferenceDataResponseModel>> CreateReferenceData(CreateReferenceDataCommand command)
     {
         var result = await mediator.Send(command);
@@ -149,6 +165,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("reference-data/{id:int}")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<ReferenceDataResponseModel>> UpdateReferenceData(int id, UpdateReferenceDataCommand command)
     {
         var cmd = command with { Id = id };
@@ -157,6 +174,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("reference-data/{id:int}")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> DeleteReferenceData(int id)
     {
         await mediator.Send(new DeleteReferenceDataCommand(id));
@@ -167,6 +185,7 @@ public class AdminController(IMediator mediator) : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("brand")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<BrandSettingsResponseModel>> GetBrandSettings()
     {
         var result = await mediator.Send(new GetBrandSettingsQuery());
@@ -177,6 +196,7 @@ public class AdminController(IMediator mediator) : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("logo")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> GetLogo()
     {
         var result = await mediator.Send(new GetLogoQuery());
@@ -185,6 +205,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("logo")]
+    [CapabilityBootstrap]
     [RequestSizeLimit(5 * 1024 * 1024)]
     public async Task<IActionResult> UploadLogo(IFormFile file)
     {
@@ -197,6 +218,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("logo")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> DeleteLogo()
     {
         await mediator.Send(new DeleteLogoCommand());
@@ -210,6 +232,7 @@ public class AdminController(IMediator mediator) : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("branding/{kind}")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> GetLockup(string kind, [FromQuery] string? theme = null)
     {
         if (!Enum.TryParse<LockupKind>(kind, ignoreCase: true, out var parsedKind))
@@ -225,6 +248,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("branding/{kind}")]
+    [CapabilityBootstrap]
     [RequestSizeLimit(5 * 1024 * 1024)]
     public async Task<IActionResult> UploadLockup(string kind, IFormFile file)
     {
@@ -240,6 +264,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("branding/{kind}")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> DeleteLockup(string kind)
     {
         if (!Enum.TryParse<LockupKind>(kind, ignoreCase: true, out var parsedKind))
@@ -252,6 +277,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── System Settings ──
 
     [HttpGet("system-settings")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<List<SystemSettingResponseModel>>> GetSystemSettings()
     {
         var result = await mediator.Send(new GetSystemSettingsQuery());
@@ -259,6 +285,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("system-settings")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<List<SystemSettingResponseModel>>> UpsertSystemSettings(UpsertSystemSettingsCommand command)
     {
         var result = await mediator.Send(command);
@@ -268,6 +295,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── Setup Token & Invite ──
 
     [HttpPost("users/{id:int}/setup-token")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<SetupTokenResponseModel>> GenerateSetupToken(int id)
     {
         var result = await mediator.Send(new GenerateSetupTokenCommand(id));
@@ -275,6 +303,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("users/{id:int}/send-invite")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> SendSetupInvite(int id, [FromQuery] string baseUrl)
     {
         await mediator.Send(new SendSetupInviteCommand(id, baseUrl));
@@ -282,6 +311,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("users/{id:int}/reset-pin")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> ResetUserPin(int id)
     {
         await mediator.Send(new ResetUserPinCommand(id));
@@ -291,6 +321,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── User Lifecycle ──
 
     [HttpPost("users/{id:int}/deactivate")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> DeactivateUser(int id)
     {
         await mediator.Send(new DeactivateUserCommand(id));
@@ -298,6 +329,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("users/{id:int}/reactivate")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> ReactivateUser(int id)
     {
         await mediator.Send(new ReactivateUserCommand(id));
@@ -307,6 +339,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── Employee Documents / Certifications ──
 
     [HttpGet("users/{id:int}/documents")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<List<EmployeeDocumentResponseModel>>> GetEmployeeDocuments(int id)
     {
         var result = await mediator.Send(new GetEmployeeDocumentsQuery(id));
@@ -329,6 +362,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── Scan Identifiers (NFC/RFID/Barcode) ──
 
     [HttpGet("users/{userId:int}/scan-identifiers")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<List<ScanIdentifierResponseModel>>> GetScanIdentifiers(int userId)
     {
         var result = await mediator.Send(new GetUserScanIdentifiersQuery(userId));
@@ -336,6 +370,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("users/{userId:int}/scan-identifiers")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> AddScanIdentifier(int userId, [FromBody] AddScanIdentifierRequestModel request)
     {
         var result = await mediator.Send(new AddScanIdentifierCommand(userId, request.IdentifierType, request.IdentifierValue));
@@ -343,6 +378,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("users/{userId:int}/scan-identifiers/{id:int}")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> RemoveScanIdentifier(int userId, int id)
     {
         await mediator.Send(new RemoveScanIdentifierCommand(id));
@@ -352,6 +388,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── Storage Usage ──
 
     [HttpGet("storage-usage")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<List<StorageUsageResponseModel>>> GetStorageUsage()
     {
         var result = await mediator.Send(new GetStorageUsageQuery());
@@ -361,6 +398,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── Employee Profiles ──
 
     [HttpGet("users/{userId:int}/employee-profile")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<EmployeeProfileResponseModel>> GetEmployeeProfile(int userId, CancellationToken ct)
     {
         var result = await mediator.Send(new GetAdminEmployeeProfileQuery(userId), ct);
@@ -368,6 +406,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("users/{userId:int}/employee-profile")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<EmployeeProfileResponseModel>> UpdateEmployeeProfile(
         int userId, [FromBody] AdminUpdateEmployeeProfileRequestModel data, CancellationToken ct)
     {
@@ -378,6 +417,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── Work Location Assignment ──
 
     [HttpPatch("users/{userId:int}/work-location")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> UpdateUserWorkLocation(int userId, [FromBody] UpdateUserWorkLocationRequestModel request)
     {
         await mediator.Send(new UpdateUserWorkLocationCommand(userId, request.WorkLocationId));
@@ -387,6 +427,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── Integrations ──
 
     [HttpGet("integrations")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<IntegrationSettingsResult>> GetIntegrations()
     {
         var result = await mediator.Send(new GetIntegrationSettingsQuery());
@@ -394,6 +435,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("integrations/{provider}")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<IntegrationStatusModel>> UpdateIntegration(string provider, [FromBody] UpdateIntegrationSettingsRequestModel request)
     {
         var result = await mediator.Send(new UpdateIntegrationSettingsCommand(provider, request.Settings));
@@ -401,6 +443,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("integrations/{provider}/test")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<TestIntegrationResultModel>> TestIntegration(string provider)
     {
         var result = await mediator.Send(new TestIntegrationConnectionCommand(provider));
@@ -410,6 +453,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── Company Profile ──
 
     [HttpGet("company-profile")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<CompanyProfileResponseModel>> GetCompanyProfile()
     {
         var result = await mediator.Send(new GetCompanyProfileQuery());
@@ -417,6 +461,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("company-profile")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<CompanyProfileResponseModel>> UpdateCompanyProfile(CompanyProfileRequestModel request)
     {
         var result = await mediator.Send(new UpdateCompanyProfileCommand(
@@ -427,10 +472,12 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── Labor Rates ──
 
     [HttpGet("labor-rates/{userId:int}")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<List<LaborRateResponseModel>>> GetLaborRates(int userId, CancellationToken ct)
         => Ok(await mediator.Send(new GetLaborRatesQuery(userId), ct));
 
     [HttpPost("labor-rates")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<LaborRateResponseModel>> CreateLaborRate(
         [FromBody] CreateLaborRateRequest request, CancellationToken ct)
     {
@@ -443,12 +490,14 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── Shift Assignments ──
 
     [HttpGet("shift-assignments")]
+    [CapabilityBootstrap]
     [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<List<ShiftAssignmentResponseModel>>> GetShiftAssignments(
         [FromQuery] int? userId, CancellationToken ct)
         => Ok(await mediator.Send(new GetShiftAssignmentsQuery(userId), ct));
 
     [HttpPost("shift-assignments")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<ShiftAssignmentResponseModel>> CreateShiftAssignment(
         [FromBody] CreateShiftAssignmentRequestModel request, CancellationToken ct)
     {
@@ -457,6 +506,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("shift-assignments/{id:int}")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> DeleteShiftAssignment(int id, CancellationToken ct)
     {
         await mediator.Send(new DeleteShiftAssignmentCommand(id), ct);
@@ -484,6 +534,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     // ── Integration Outbox ──
 
     [HttpGet("integration-outbox")]
+    [CapabilityBootstrap]
     public async Task<ActionResult<List<OutboxEntryResponseModel>>> GetOutboxEntries(
         [FromQuery] OutboxStatus? status,
         [FromQuery] IntegrationProvider? provider,
@@ -495,6 +546,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("integration-outbox/{id:int}/retry")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> RetryOutboxEntry(int id, CancellationToken ct)
     {
         await mediator.Send(new RetryOutboxEntryCommand(id), ct);
@@ -502,6 +554,7 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("integration-outbox/{id:int}/discard")]
+    [CapabilityBootstrap]
     public async Task<IActionResult> DiscardOutboxEntry(int id, CancellationToken ct)
     {
         await mediator.Send(new DiscardOutboxEntryCommand(id), ct);

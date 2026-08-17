@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Features.TariffRates;
 using Forge.Core.Models;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
@@ -17,6 +18,8 @@ namespace Forge.Api.Controllers;
 [ApiController]
 [Route("api/v1/tariff-rates")]
 [Authorize(Roles = "Admin")]
+// HTS tariff rates feed landed-cost duty on purchased parts — procurement
+[RequiresCapability("CAP-P2P-PO")]
 public class TariffRatesController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

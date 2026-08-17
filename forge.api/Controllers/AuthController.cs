@@ -12,11 +12,14 @@ using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Features.Auth;
 using Forge.Api.Services;
 using Forge.Core.Models;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/auth")]
+// sign-in/refresh/MFA challenge must never be gateable — an admin who disables it locks everyone out (CLAUDE.md: auth is bootstrap-exempt)
+[CapabilityBootstrap]
 public class AuthController(IMediator mediator, ISsoHandoffStore handoffStore) : ControllerBase
 {
     [HttpPost("login")]

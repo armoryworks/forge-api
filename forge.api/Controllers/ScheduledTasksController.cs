@@ -3,12 +3,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Features.ScheduledTasks;
 using Forge.Core.Models;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/scheduled-tasks")]
 [Authorize(Roles = "Admin")]
+// admin surface over background jobs — recovery tooling, never gateable
+[CapabilityBootstrap]
 public class ScheduledTasksController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

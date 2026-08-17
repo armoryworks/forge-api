@@ -4,12 +4,15 @@ using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Authorization;
 using Forge.Api.Features.ReferenceData;
 using Forge.Core.Models;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/reference-data")]
 [Authorize]
+// reference_data powers dropdowns on every screen; gating it blanks the whole app
+[CapabilityBootstrap]
 public class ReferenceDataController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

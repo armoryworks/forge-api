@@ -24,40 +24,12 @@ namespace Forge.Tests.Architecture;
 public sealed class ControllerCapabilityGateTests
 {
     /// <summary>Controllers that predate §0 enforcement and still lack a capability attribute.
-    /// Each is a TODO: pick a capability from CapabilityCatalog.cs, or mark [CapabilityBootstrap]
-    /// with a comment saying why an install must never be able to turn it off.</summary>
+    /// Now empty — kept as the mechanism (a controller may only be added here with a CLAUDE.md
+    /// conversation, and the second test evicts entries the moment they become gated).</summary>
     private static readonly HashSet<string> LegacyUngated = new(StringComparer.Ordinal)
     {
-        // 27 controllers as of 2026-08-16. AdminController and CommunicationsController are
-        // PARTIALLY gated (some actions carry an attribute, some don't) — that reads as covered
-        // in a grep and isn't, which is exactly why this is a reflection test.
-        "AddressesController",
-        "AdminController",
-        "AdminUserIntegrationsController",
-        "AuthController",
-        "BarcodesController",
-        "CalendarController",
-        "CommunicationsController",
-        "DomainEventFailuresController",
-        "EntityCapabilityRequirementsController",
-        "EntityCompletenessController",
-        "EntityValidatorsController",
-        "FollowUpTasksController",
-        "LanguagesController",
-        "ReferenceDataController",
-        "ScheduledTasksController",
-        "SearchController",
-        "ShippingWebhookController",
-        "ShopFloorController",
-        "StorageController",
-        "SystemController",
-        "TariffRatesController",
-        "TerminologyController",
-        "TrainingController",
-        "UserIntegrationsController",
-        "UserPreferencesController",
-        "WorkflowDefinitionsController",
-        "WorkflowsController",
+        // Emptied 2026-08-16: all 27 legacy controllers were assigned a capability or marked
+        // bootstrap-exempt with a reason. Adding an entry here requires a CLAUDE.md conversation.
     };
 
     private static IEnumerable<Type> Controllers() =>

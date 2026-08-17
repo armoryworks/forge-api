@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Features.EntityCapabilityRequirements;
 using Forge.Core.Models;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
@@ -19,6 +20,8 @@ namespace Forge.Api.Controllers;
 [ApiController]
 [Route("api/v1/admin/entity-capability-requirements")]
 [Authorize(Roles = "Admin")]
+// capability administration, same posture as CapabilitiesController / PresetsController
+[CapabilityBootstrap]
 public class EntityCapabilityRequirementsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

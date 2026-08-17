@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Features.Admin;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
@@ -16,6 +17,8 @@ namespace Forge.Api.Controllers;
 [ApiController]
 [Route("api/v1/system")]
 [Authorize]
+// app-init configuration (base currency, currency list) read before any feature renders
+[CapabilityBootstrap]
 public class SystemController(ICurrencyService currencyService, IMediator mediator) : ControllerBase
 {
     /// <summary>

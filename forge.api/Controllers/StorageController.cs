@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Core.Interfaces;
 using Forge.Integrations;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
@@ -14,6 +15,8 @@ namespace Forge.Api.Controllers;
 [ApiController]
 [AllowAnonymous]
 [Route("api/v1/storage")]
+// signed-URL file fetch serves record attachments
+[RequiresCapability("CAP-CROSS-ATTACHMENTS")]
 public class StorageController(IStorageService storageService) : ControllerBase
 {
     [HttpGet("{bucket}/{**key}")]

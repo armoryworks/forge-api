@@ -4,12 +4,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using Forge.Core.Interfaces;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/user-integrations")]
 [Authorize]
+// the per-user credential store behind several integrations; each consuming feature is gated by its own EXT capability — gating the store would strand them all
+[CapabilityBootstrap]
 public class UserIntegrationsController(IUserIntegrationService integrationService) : ControllerBase
 {
     private int GetUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);

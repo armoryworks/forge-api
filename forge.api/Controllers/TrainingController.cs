@@ -16,6 +16,8 @@ namespace Forge.Api.Controllers;
 [Authorize]
 // The training LMS is always available — it is no longer capability-gated. Other
 // capabilities influence which content is relevant, but the feature can't be removed.
+// in-app training modules / walkthroughs are help infrastructure spanning every feature; gating it strands every tour
+[CapabilityBootstrap]
 public class TrainingController(IMediator mediator) : ControllerBase
 {
     private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

@@ -4,12 +4,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Features.UserPreferences;
 using Forge.Core.Models;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/user-preferences")]
 [Authorize]
+// loaded on app init (theme, locale, table layouts); gating it degrades every screen
+[CapabilityBootstrap]
 public class UserPreferencesController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

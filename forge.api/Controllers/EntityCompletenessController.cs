@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Features.EntityCompleteness;
 using Forge.Core.Models;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
@@ -21,6 +22,8 @@ namespace Forge.Api.Controllers;
 [ApiController]
 [Route("api/v1/entities/{entityType}/{entityId:int}/completeness")]
 [Authorize]
+// cross-entity read (the completeness chip renders on every entity); the requirement catalog it reads is admin-owned
+[CapabilityBootstrap]
 public class EntityCompletenessController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

@@ -6,12 +6,15 @@ using Forge.Api.Authorization;
 using Forge.Api.Features.Search;
 using Forge.Api.Features.ShopFloor;
 using Forge.Core.Models;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/display/shop-floor")]
 [Authorize]
+// the shop-floor display surface
+[RequiresCapability("CAP-MFG-SHOPFLOOR")]
 public class ShopFloorController(IMediator mediator) : ControllerBase
 {
     private static readonly HashSet<string> KioskEntityTypes = new(["Job", "Part"]);

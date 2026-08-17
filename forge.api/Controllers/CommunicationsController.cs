@@ -27,6 +27,7 @@ namespace Forge.Api.Controllers;
 [ApiController]
 [Route("api/v1/communications")]
 [Authorize]
+// Connection CRUD / IMAP + OAuth handshakes / sync / ingest are the email-sync surface (CAP-EXT-EMAIL-SYNC, the gate GetDetail already carried); the Twilio webhook is VoIP sync. Off-by-default on purpose — the "My Connections" panel is hidden by the same capabilities in the UI.
 public class CommunicationsController(IMediator mediator, ICapabilitySnapshotProvider snapshots) : ControllerBase
 {
     /// <summary>
@@ -44,6 +45,7 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
     /// is never stranded — it just doesn't list while its kind is off.
     /// </summary>
     [HttpGet("connections")]
+    [RequiresCapability("CAP-EXT-EMAIL-SYNC")]
     public async Task<ActionResult<List<CommunicationSyncConfigResponseModel>>> GetConnections(CancellationToken ct)
     {
         var configs = await mediator.Send(new GetCommunicationSyncConfigsQuery(), ct);
@@ -57,6 +59,7 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
     /// the same envelope as middleware-gated endpoints.
     /// </summary>
     [HttpPost("connections")]
+    [RequiresCapability("CAP-EXT-EMAIL-SYNC")]
     public async Task<ActionResult<CommunicationSyncConfigResponseModel>> CreateConnection(
         CreateCommunicationSyncConfigRequestModel request, CancellationToken ct)
     {
@@ -74,6 +77,7 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
     /// the connection forever).
     /// </summary>
     [HttpDelete("connections/{id:int}")]
+    [RequiresCapability("CAP-EXT-EMAIL-SYNC")]
     public async Task<IActionResult> DeleteConnection(int id, CancellationToken ct)
     {
         await mediator.Send(new DeleteCommunicationSyncConfigCommand(id), ct);
@@ -88,6 +92,7 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
     /// the JSON or land a broken row.
     /// </summary>
     [HttpPost("connections/imap")]
+    [RequiresCapability("CAP-EXT-EMAIL-SYNC")]
     public async Task<ActionResult<CommunicationSyncConfigResponseModel>> ConnectImap(
         ConnectImapCommand request, CancellationToken ct)
     {
@@ -103,6 +108,7 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
     /// (code, state) pair to <see cref="CompleteOAuthImap"/>.
     /// </summary>
     [HttpPost("oauth/imap/{provider}/begin")]
+    [RequiresCapability("CAP-EXT-EMAIL-SYNC")]
     public async Task<ActionResult<BeginOAuthImapResult>> BeginOAuthImap(
         string provider, CancellationToken ct)
     {
@@ -118,6 +124,7 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
     /// (CSRF guard inside the handler).
     /// </summary>
     [HttpPost("oauth/imap/{provider}/complete")]
+    [RequiresCapability("CAP-EXT-EMAIL-SYNC")]
     public async Task<ActionResult<CommunicationSyncConfigResponseModel>> CompleteOAuthImap(
         string provider, [FromBody] CompleteOAuthImapBody body, CancellationToken ct)
     {
@@ -136,6 +143,7 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
     /// after they connect a mailbox / phone.
     /// </summary>
     [HttpPost("connections/{id:int}/sync")]
+    [RequiresCapability("CAP-EXT-EMAIL-SYNC")]
     public async Task<ActionResult<SyncCommunicationConnectionResult>> SyncConnection(int id, CancellationToken ct)
     {
         var result = await mediator.Send(new SyncCommunicationConnectionCommand(id), ct);
@@ -151,6 +159,7 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
     /// production traffic.
     /// </summary>
     [HttpPost("ingest")]
+    [RequiresCapability("CAP-EXT-EMAIL-SYNC")]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<CommunicationMatchResult>> Ingest(
         InboundCommunication communication, CancellationToken ct)
@@ -170,6 +179,7 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
     /// AllowAnonymous + signature verification handles auth.
     /// </summary>
     [HttpPost("webhook/twilio")]
+    [RequiresCapability("CAP-EXT-VOIP-SYNC")]
     [AllowAnonymous]
     [Consumes("application/x-www-form-urlencoded")]
     public async Task<ActionResult<CommunicationMatchResult>> TwilioWebhook(

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Features.Shipments;
 using Forge.Core.Models;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
@@ -16,6 +17,8 @@ namespace Forge.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/shipping")]
+// inbound carrier tracking webhook — same gate as ShipmentsController; with shipping off, rejecting carrier callbacks is correct
+[RequiresCapability("CAP-O2C-SHIP")]
 public class ShippingWebhookController(
     IMediator mediator,
     IConfiguration configuration,

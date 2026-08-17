@@ -3,12 +3,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Features.Search;
 using Forge.Core.Models;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/search")]
 [Authorize]
+// global header search is the search half of the list-UX capability
+[RequiresCapability("CAP-CROSS-LIST-UX")]
 public class SearchController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

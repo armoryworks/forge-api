@@ -3,12 +3,15 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Features.DomainEvents;
 using Forge.Core.Entities;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/domain-event-failures")]
 [Authorize(Roles = "Admin")]
+// admin recovery surface for failed domain events — must stay reachable when an install is in a bad state
+[CapabilityBootstrap]
 public class DomainEventFailuresController(DomainEventFailureService failureService) : ControllerBase
 {
     [HttpGet]

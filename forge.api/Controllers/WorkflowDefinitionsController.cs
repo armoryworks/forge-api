@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Features.Workflows.Definitions;
 using Forge.Core.Models;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
@@ -14,6 +15,8 @@ namespace Forge.Api.Controllers;
 [ApiController]
 [Route("api/v1/workflow-definitions")]
 [Authorize]
+// guided-workflow ENGINE — the features built on it are gated (onboarding → CAP-HR-HIRE, part wizards → CAP-MD-PARTS); gate the features, not the engine
+[CapabilityBootstrap]
 public class WorkflowDefinitionsController(IMediator mediator) : ControllerBase
 {
     /// <summary>List workflow definitions (optionally filtered by entityType).</summary>

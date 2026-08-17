@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Features.Workflows.Validators;
 using Forge.Core.Models;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
@@ -17,6 +18,8 @@ namespace Forge.Api.Controllers;
 [ApiController]
 [Route("api/v1/entity-validators")]
 [Authorize]
+// guided-workflow ENGINE — the features built on it are gated (onboarding → CAP-HR-HIRE, part wizards → CAP-MD-PARTS); gate the features, not the engine
+[CapabilityBootstrap]
 public class EntityValidatorsController(IMediator mediator) : ControllerBase
 {
     /// <summary>List entity readiness validators (optionally filtered by entityType).</summary>

@@ -68,7 +68,25 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
             .WriteTo.Console()
             .CreateLogger();
 
-        return base.CreateHost(builder);
+        var host = base.CreateHost(builder);
+
+        // Seed the capability catalog + hydrate the snapshot, exactly as
+        // CapabilityTestWebApplicationFactory does: the production startup hook is
+        // skipped under WebApplicationFactory, which left this host with an EMPTY
+        // snapshot — every [RequiresCapability] endpoint answered 403. That was
+        // invisible while every gated controller also carried [Authorize] (401
+        // wins first); it surfaced the moment an [AllowAnonymous]+kiosk-auth
+        // controller (shop-floor) gained its gate. Default-ON capabilities are now
+        // enabled here, matching a freshly bootstrapped install.
+        using (var scope = host.Services.CreateScope())
+        {
+            var seeder = scope.ServiceProvider.GetRequiredService<Forge.Api.Capabilities.ICapabilityCatalogSeeder>();
+            seeder.SeedAsync().GetAwaiter().GetResult();
+        }
+        host.Services.GetRequiredService<Forge.Api.Capabilities.ICapabilitySnapshotProvider>()
+            .RefreshAsync().GetAwaiter().GetResult();
+
+        return host;
     }
 }
 

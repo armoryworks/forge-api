@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Features.Calendar;
 using Forge.Core.Models;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
@@ -15,6 +16,8 @@ namespace Forge.Api.Controllers;
 [ApiController]
 [Route("api/v1/calendar")]
 [Authorize]
+// saved views + super-groups are view persistence for the calendar list — the list-UX capability
+[RequiresCapability("CAP-CROSS-LIST-UX")]
 public class CalendarController(IMediator mediator) : ControllerBase
 {
     /// <summary>Super-Groups (with Event-Types) the current user may see — the layer list.</summary>

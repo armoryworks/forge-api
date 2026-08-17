@@ -4,12 +4,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using Forge.Core.Interfaces;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/user-integrations")]
 [Authorize(Roles = "Admin")]
+// admin view/revoke of the per-user credential store (Email/DocuSeal/QuickBooks/Shipping/Webhook/Sms) — the features that USE each credential carry their own EXT gate; the store itself is infrastructure
+[CapabilityBootstrap]
 public class AdminUserIntegrationsController(IUserIntegrationService integrationService) : ControllerBase
 {
     private int GetUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);

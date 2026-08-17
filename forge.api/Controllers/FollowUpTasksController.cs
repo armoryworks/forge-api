@@ -7,12 +7,15 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Features.FollowUpTasks;
 using Forge.Core.Enums;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/follow-up-tasks")]
 [Authorize]
+// polymorphic follow-up nudges (SourceEntityType/Id) are the notifications & alerts capability
+[RequiresCapability("CAP-CROSS-NOTIFICATIONS")]
 public class FollowUpTasksController(IMediator mediator) : ControllerBase
 {
     private int GetUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);

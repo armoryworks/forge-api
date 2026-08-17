@@ -3,12 +3,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Features.Terminology;
 using Forge.Core.Models;
+using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/terminology")]
 [Authorize]
+// TerminologyService loads on app init; gating it renders raw keys everywhere
+[CapabilityBootstrap]
 public class TerminologyController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
