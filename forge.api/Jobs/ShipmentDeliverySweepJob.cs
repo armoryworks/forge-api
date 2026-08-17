@@ -6,6 +6,8 @@ using Forge.Api.Features.Shipments;
 using Forge.Core.Enums;
 using Forge.Data.Context;
 
+using Forge.Api.Capabilities;
+
 namespace Forge.Api.Jobs;
 
 /// <summary>
@@ -20,13 +22,21 @@ public class ShipmentDeliverySweepJob(
     AppDbContext db,
     Forge.Core.Interfaces.IShippingService shipping,
     IMediator mediator,
-    ILogger<ShipmentDeliverySweepJob> logger)
+    ILogger<ShipmentDeliverySweepJob> logger,
+    ICapabilitySnapshotProvider capabilities)
 {
     /// <summary>Cap per run — a large in-transit book drains over successive sweeps, not in one bite.</summary>
     public const int MaxPerSweep = 100;
 
     public async Task SweepAsync(CancellationToken ct)
     {
+        // ── Capability gate (self-gating job — the VarianceWatchdogJob pattern):
+        // shipping is capability-owned; when the capability is off (services /
+        // construction installs) the schedule still ticks but the job is a no-op,
+        // so toggling the capability takes effect without a restart.
+        if (!capabilities.IsEnabled("CAP-O2C-SHIP"))
+            return;
+
         var candidates = await db.Shipments.AsNoTracking()
             .Where(s => (s.Status == ShipmentStatus.Shipped || s.Status == ShipmentStatus.InTransit)
                 && s.TrackingNumber != null

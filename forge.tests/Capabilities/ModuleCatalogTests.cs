@@ -16,7 +16,7 @@ public class ModuleCatalogTests
 
         set.Should().Contain("CAP-INV-CORE");
         set.Should().Contain("CAP-INV-ADJUST");
-        set.Should().Contain("CAP-MD-PARTS");      // foundation
+        set.Should().Contain("CAP-MD-PARTS");      // closure via CAP-INV-CORE (no longer a foundation)
         set.Should().Contain("CAP-IDEN-USERS");    // foundation
 
         set.Should().NotContain("CAP-O2C-SO");          // sales not selected

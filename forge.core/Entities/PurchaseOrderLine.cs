@@ -3,7 +3,12 @@ namespace Forge.Core.Entities;
 public class PurchaseOrderLine : BaseEntity
 {
     public int PurchaseOrderId { get; set; }
-    public int PartId { get; set; }
+    // Nullable since the construction/pro-services enablement (2026-08-17): a PO line may be a
+    // service or described material with no Part row. The capability graph already removed the
+    // PO -> Parts dependency ("Quote/SO/PO schemas already make PartId optional") — this makes
+    // that claim true for PO lines. Part-less lines require a Description, are never binned at
+    // receipt, and post to operating expense rather than inventory.
+    public int? PartId { get; set; }
     public string Description { get; set; } = string.Empty;
     // Phase 3 / WU-10 / F8-partial: quantities are decimal, not int. UoM-aware
     // shops need fractional quantities — material-by-weight (lb, kg), by-time
@@ -47,7 +52,7 @@ public class PurchaseOrderLine : BaseEntity
     public decimal UnbilledReceivedQuantity => ReceivedQuantity - BilledQuantity;
 
     public PurchaseOrder PurchaseOrder { get; set; } = null!;
-    public Part Part { get; set; } = null!;
+    public Part? Part { get; set; }
     public MrpPlannedOrder? MrpPlannedOrder { get; set; }
     public UnitOfMeasure? Uom { get; set; }
     public PartPurchaseUnit? PurchaseUnit { get; set; }

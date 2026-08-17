@@ -9,7 +9,9 @@ public record CreatePurchaseOrderRequestModel(
 // Phase 3 / WU-10 / F8-partial — Quantity is decimal (was int). UoM-aware shops
 // need fractional quantities — material-by-weight, by-time, by-volume.
 public record CreatePurchaseOrderLineModel(
-    int PartId,
+    // Null = a part-less line (a service, or material described in words rather than a Part
+    // row — services shops and construction installs). Description becomes required then.
+    int? PartId,
     string? Description,
     decimal Quantity,
     decimal UnitPrice,

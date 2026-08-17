@@ -194,10 +194,15 @@ public class ReceiveItemsHandler(
             int? defaultBinId = null;
             foreach (var (req, line, rec) in newRecords)
             {
+                // A part-less line (service / described material) has nothing to stock:
+                // receipt updates the line quantity, but no bin content or movement exists.
+                if (line.PartId is not int stockPartId)
+                    continue;
+
                 var locationId = req.StorageLocationId
                     ?? (defaultBinId ??= await ResolveDefaultBinAsync(inventory, userId, clock, cancellationToken));
 
-                var existing = await inventory.FindActiveBinContentByPartLocationAsync(line.PartId, locationId, cancellationToken);
+                var existing = await inventory.FindActiveBinContentByPartLocationAsync(stockPartId, locationId, cancellationToken);
                 if (existing is not null)
                 {
                     existing.Quantity += rec.QuantityReceived;
@@ -208,7 +213,7 @@ public class ReceiveItemsHandler(
                     {
                         LocationId = locationId,
                         EntityType = "part",
-                        EntityId = line.PartId,
+                        EntityId = stockPartId,
                         Quantity = rec.QuantityReceived,
                         Status = BinContentStatus.Stored,
                         PlacedBy = userId,
@@ -219,7 +224,7 @@ public class ReceiveItemsHandler(
                 await inventory.AddMovementAsync(new BinMovement
                 {
                     EntityType = "part",
-                    EntityId = line.PartId,
+                    EntityId = stockPartId,
                     Quantity = rec.QuantityReceived,
                     ToLocationId = locationId,
                     MovedBy = userId,

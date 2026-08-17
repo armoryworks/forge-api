@@ -9,6 +9,8 @@ using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
+using Forge.Api.Capabilities;
+
 namespace Forge.Api.Jobs;
 
 public class OverdueMaintenanceJob(
@@ -16,10 +18,18 @@ public class OverdueMaintenanceJob(
     UserManager<ApplicationUser> userManager,
     ISender mediator,
     IClock clock,
-    ILogger<OverdueMaintenanceJob> logger)
+    ILogger<OverdueMaintenanceJob> logger,
+    ICapabilitySnapshotProvider capabilities)
 {
     public async Task CheckOverdueMaintenanceAsync(CancellationToken ct = default)
     {
+        // ── Capability gate (self-gating job — the VarianceWatchdogJob pattern):
+        // preventive maintenance is capability-owned; when the capability is off (services /
+        // construction installs) the schedule still ticks but the job is a no-op,
+        // so toggling the capability takes effect without a restart.
+        if (!capabilities.IsEnabled("CAP-MAINT-PM"))
+            return;
+
         var now = clock.UtcNow;
 
         var overdueSchedules = await db.MaintenanceSchedules

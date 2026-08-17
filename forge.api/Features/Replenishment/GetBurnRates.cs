@@ -80,12 +80,13 @@ public class GetBurnRatesHandler(AppDbContext db, IPartSourcingResolver sourcing
 
         var incomingRaw = await db.PurchaseOrderLines
             .Include(l => l.PurchaseOrder)
-            .Where(l => partIds.Contains(l.PartId)
+            .Where(l => l.PartId != null
+                && partIds.Contains(l.PartId.Value)
                 && l.PurchaseOrder.DeletedAt == null
                 && openStatuses.Contains(l.PurchaseOrder.Status))
             .Select(l => new
             {
-                l.PartId,
+                PartId = l.PartId!.Value,
                 RemainingQty = (decimal)(l.OrderedQuantity - l.ReceivedQuantity),
                 ExpectedDate = l.PurchaseOrder.ExpectedDeliveryDate,
             })

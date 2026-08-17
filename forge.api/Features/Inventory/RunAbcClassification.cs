@@ -41,7 +41,8 @@ public class RunAbcClassificationHandler(AppDbContext db, IClock clock) : IReque
         // Get latest unit price per part from purchase order lines as cost proxy
         var latestCosts = await db.PurchaseOrderLines
             .AsNoTracking()
-            .GroupBy(pol => pol.PartId)
+            .Where(pol => pol.PartId != null)
+            .GroupBy(pol => pol.PartId!.Value)
             .Select(g => new { PartId = g.Key, UnitCost = g.OrderByDescending(pol => pol.Id).First().UnitPrice })
             .ToDictionaryAsync(x => x.PartId, x => x.UnitCost, cancellationToken);
 

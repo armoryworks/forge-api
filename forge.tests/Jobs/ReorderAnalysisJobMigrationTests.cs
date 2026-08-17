@@ -76,7 +76,8 @@ public class ReorderAnalysisJobMigrationTests
 
         var job = new ReorderAnalysisJob(
             db, new FixedClock(), new PartSourcingResolver(db),
-            NullLogger<ReorderAnalysisJob>.Instance);
+            NullLogger<ReorderAnalysisJob>.Instance,
+            new StubCapabilitySnapshotProvider("CAP-PLAN-SAFETYSTOCK"));
 
         // Act
         await job.RunAnalysisAsync();
@@ -124,7 +125,8 @@ public class ReorderAnalysisJobMigrationTests
 
         var job = new ReorderAnalysisJob(
             db, new FixedClock(), new PartSourcingResolver(db),
-            NullLogger<ReorderAnalysisJob>.Instance);
+            NullLogger<ReorderAnalysisJob>.Instance,
+            new StubCapabilitySnapshotProvider("CAP-PLAN-SAFETYSTOCK"));
 
         // Act
         await job.RunAnalysisAsync();

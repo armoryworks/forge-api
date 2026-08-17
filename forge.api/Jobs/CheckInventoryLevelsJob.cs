@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.DomainEvents;
 using Forge.Data.Context;
 
+using Forge.Api.Capabilities;
+
 namespace Forge.Api.Jobs;
 
 /// <summary>
@@ -14,12 +16,20 @@ namespace Forge.Api.Jobs;
 public class CheckInventoryLevelsJob(
     AppDbContext db,
     IPublisher publisher,
-    ILogger<CheckInventoryLevelsJob> logger)
+    ILogger<CheckInventoryLevelsJob> logger,
+    ICapabilitySnapshotProvider capabilities)
 {
     private const int ChunkSize = 500;
 
     public async Task Execute(CancellationToken ct)
     {
+        // ── Capability gate (self-gating job — the VarianceWatchdogJob pattern):
+        // inventory levels is capability-owned; when the capability is off (services /
+        // construction installs) the schedule still ticks but the job is a no-op,
+        // so toggling the capability takes effect without a restart.
+        if (!capabilities.IsEnabled("CAP-INV-CORE"))
+            return;
+
         // Get parts that have a reorder point defined
         var partsWithReorder = await db.Parts
             .Where(p => p.ReorderPoint.HasValue && p.ReorderPoint > 0 && p.DeletedAt == null)

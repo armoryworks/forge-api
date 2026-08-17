@@ -6458,7 +6458,7 @@ ALTER TABLE ONLY public.projects
 CREATE TABLE public.purchase_order_lines (
     id integer NOT NULL,
     purchase_order_id integer NOT NULL,
-    part_id integer NOT NULL,
+    part_id integer,
     description character varying(500) NOT NULL,
     ordered_quantity numeric(18,4) NOT NULL,
     received_quantity numeric(18,4) NOT NULL,

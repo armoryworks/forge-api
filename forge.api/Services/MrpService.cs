@@ -128,7 +128,8 @@ public class MrpService(
                 .Include(l => l.PurchaseOrder)
                 .Where(l => l.PurchaseOrder!.Status != PurchaseOrderStatus.Cancelled
                     && l.PurchaseOrder!.Status != PurchaseOrderStatus.Closed
-                    && partIds.Contains(l.PartId)
+                    && l.PartId != null
+                    && partIds.Contains(l.PartId.Value)
                     && (l.OrderedQuantity - l.ReceivedQuantity) > 0)
                 .Select(l => new
                 {
@@ -244,7 +245,7 @@ public class MrpService(
                 supplyRecords.Add(new MrpSupply
                 {
                     MrpRunId = mrpRun.Id,
-                    PartId = po.PartId,
+                    PartId = po.PartId!.Value,
                     Source = MrpSupplySource.PurchaseOrder,
                     SourceEntityId = po.Id,
                     Quantity = po.Quantity,

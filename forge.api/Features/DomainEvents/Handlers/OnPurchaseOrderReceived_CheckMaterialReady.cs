@@ -56,7 +56,8 @@ public class OnPurchaseOrderReceived_CheckMaterialReady(
                     .ToListAsync(ct);
 
                 var receivedByPart = allPoLinesForJob
-                    .GroupBy(l => l.PartId)
+                    .Where(l => l.PartId != null)
+                    .GroupBy(l => l.PartId!.Value)
                     .ToDictionary(g => g.Key, g => g.All(l => l.ReceivedQuantity >= l.OrderedQuantity));
 
                 // Check if all BOM buy-type materials have been fully received

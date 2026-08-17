@@ -345,7 +345,7 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
             r.PurchaseOrderLineId,
             r.PurchaseOrderLine.PurchaseOrder.PONumber,
             r.PurchaseOrderLine.PartId,
-            r.PurchaseOrderLine.Part.PartNumber,
+            r.PurchaseOrderLine.Part?.PartNumber,
             r.QuantityReceived,
             r.ReceivedBy,
             r.StorageLocationId,

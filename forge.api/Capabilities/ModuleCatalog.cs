@@ -35,8 +35,14 @@ public static class ModuleCatalog
         "CAP-CROSS-PERMS-MATRIX", "CAP-CROSS-ACTIVITY-LOG", "CAP-CROSS-LIST-UX",
         "CAP-CROSS-BULK-OPS", "CAP-CROSS-DOCS", "CAP-CROSS-ATTACHMENTS",
         "CAP-CROSS-NOTIFICATIONS", "CAP-CROSS-INTEG-FILE", "CAP-CROSS-CONCURRENCY",
-        // Core master data every flow leans on
-        "CAP-MD-PARTS", "CAP-MD-UOM", "CAP-MD-LOCATIONS", "CAP-MD-CURRENCIES", "CAP-MD-TAXCODES",
+        // Core master data every flow leans on. CAP-MD-PARTS is deliberately NOT
+        // here (moved out 2026-08-17): services shops and non-manufacturing verticals
+        // (construction) run without a Part catalog, and Foundations-membership made
+        // the module picker unable to express that while PRESET-08 (Pro Services)
+        // removes the capability — the two mechanisms contradicted each other.
+        // Modules that genuinely need the item master (inventory, production via
+        // BOM/routing) pull it back in through dependency closure instead.
+        "CAP-MD-UOM", "CAP-MD-LOCATIONS", "CAP-MD-CURRENCIES", "CAP-MD-TAXCODES",
         // Baseline dashboards + mobile shell. Operational reports (CAP-RPT-OPERATIONAL)
         // are deliberately NOT here: they require customer + vendor master data, so a
         // foundations slot would force Customers/Vendors on for every install (e.g.

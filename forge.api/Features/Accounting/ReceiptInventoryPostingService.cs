@@ -143,8 +143,8 @@ public sealed class ReceiptInventoryPostingService(
             // is the material price variance posted below. No resolver wired, or no resolvable standard, falls
             // back to landed actual (no variance) — backward compatible with actual-cost carrying.
             var stocked = IsStocked(line.Part);
-            var stdUnit = stocked && standardCost is not null
-                ? (await standardCost.ResolveAsync(line.PartId, ct)).Total
+            var stdUnit = stocked && standardCost is not null && line.PartId is int stdPartId
+                ? (await standardCost.ResolveAsync(stdPartId, ct)).Total
                 : 0m;
             var inventoryAmount = stocked && stdUnit > 0m
                 ? Math.Round(stdUnit * rec.QuantityReceived, 2, MidpointRounding.AwayFromZero)
@@ -154,15 +154,15 @@ public sealed class ReceiptInventoryPostingService(
             {
                 AccountKey = DebitKeyFor(line.Part),
                 Debit = inventoryAmount,
-                Description = $"Receipt {receiptNumber} — {(line.Part?.PartNumber ?? $"part {line.PartId}")} x{rec.QuantityReceived}",
+                Description = $"Receipt {receiptNumber} — {(line.Part?.PartNumber ?? (line.PartId is int dp ? $"part {dp}" : line.Description))} x{rec.QuantityReceived}",
             });
             totalBase += baseCost;
             totalFreight += freight;
             totalInventory += inventoryAmount;
 
             // Consumables/tools are expensed (not stocked) — only perpetual-stocked classes feed the store.
-            if (stocked)
-                valuationFeeds.Add((line.PartId, rec.QuantityReceived, inventoryAmount));
+            if (stocked && line.PartId is int feedPartId)
+                valuationFeeds.Add((feedPartId, rec.QuantityReceived, inventoryAmount));
         }
 
         if (totalBase + totalFreight <= 0m)
@@ -234,16 +234,19 @@ public sealed class ReceiptInventoryPostingService(
         InventoryClass.Raw or InventoryClass.Component or InventoryClass.Subassembly or InventoryClass.FinishedGood;
 
     /// <summary>Maps a received part's <see cref="InventoryClass"/> to the inventory determination key
-    /// it capitalizes to. Consumables / tools are expensed (not stocked-for-production); a null/unknown
-    /// class defaults to raw-materials inventory (a purchased input).</summary>
-    private static string DebitKeyFor(Part? part) => part?.InventoryClass switch
-    {
-        InventoryClass.Raw or InventoryClass.Component => KeyInventoryRaw,
-        InventoryClass.Subassembly => KeyInventorySubassembly,
-        InventoryClass.FinishedGood => KeyInventoryFg,
-        InventoryClass.Consumable or InventoryClass.Tool => KeyOperatingExpense,
-        _ => KeyInventoryRaw,
-    };
+    /// it capitalizes to. Consumables / tools are expensed (not stocked-for-production). A line with NO
+    /// part at all (service / described material) is expensed — nothing enters inventory. A part with an
+    /// unknown class defaults to raw-materials inventory (a purchased input).</summary>
+    private static string DebitKeyFor(Part? part) => part is null
+        ? KeyOperatingExpense
+        : part.InventoryClass switch
+        {
+            InventoryClass.Raw or InventoryClass.Component => KeyInventoryRaw,
+            InventoryClass.Subassembly => KeyInventorySubassembly,
+            InventoryClass.FinishedGood => KeyInventoryFg,
+            InventoryClass.Consumable or InventoryClass.Tool => KeyOperatingExpense,
+            _ => KeyInventoryRaw,
+        };
 
     private async Task TryAuditAsync(
         string receiptNumber, int purchaseOrderId, JournalEntry entry, decimal totalBase, decimal totalFreight,
