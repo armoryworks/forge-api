@@ -34,6 +34,29 @@ public class BarcodesController(IMediator mediator) : ControllerBase
             cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>Add a manual alternate barcode (manufacturer UPC, vendor SKU, legacy label) on top of the
+    /// entity's auto-assigned code. The value must be globally unique.</summary>
+    [HttpPost]
+    public async Task<IActionResult> AddManual(
+        [FromBody] AddManualBarcodeRequestModel request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(
+            new AddManualBarcodeCommand(request.EntityType, request.EntityId, request.Value),
+            cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>Remove a manually-added alternate barcode. The auto-assigned code cannot be removed.</summary>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> RemoveManual(int id, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new RemoveManualBarcodeCommand(id), cancellationToken);
+        return NoContent();
+    }
 }
 
 public record RegenerateBarcodeRequestModel(BarcodeEntityType EntityType, int EntityId, string NaturalIdentifier);
+
+public record AddManualBarcodeRequestModel(BarcodeEntityType EntityType, int EntityId, string Value);

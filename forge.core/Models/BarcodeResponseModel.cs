@@ -5,4 +5,6 @@ public record BarcodeResponseModel(
     string Value,
     string EntityType,
     bool IsActive,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string Source = "System",
+    string IdentityType = "Internal");
