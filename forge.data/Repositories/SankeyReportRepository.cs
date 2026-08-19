@@ -206,11 +206,12 @@ public class SankeyReportRepository(AppDbContext db) : ISankeyReportRepository
     {
         var poLines = await db.PurchaseOrderLines.AsNoTracking()
             .Include(l => l.PurchaseOrder)
-            .Where(l => l.PurchaseOrder != null)
+            // Part-less lines (services / described material) have no part node to flow to.
+            .Where(l => l.PurchaseOrder != null && l.PartId != null)
             .Select(l => new
             {
                 VendorId = l.PurchaseOrder!.VendorId,
-                l.PartId,
+                PartId = l.PartId!.Value,
                 l.OrderedQuantity,
             })
             .ToListAsync(ct);

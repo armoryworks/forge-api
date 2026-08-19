@@ -5,6 +5,8 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
+using Forge.Api.Capabilities;
+
 namespace Forge.Api.Jobs;
 
 /// <summary>
@@ -15,7 +17,8 @@ public class ReorderAnalysisJob(
     AppDbContext db,
     IClock clock,
     IPartSourcingResolver sourcingResolver,
-    ILogger<ReorderAnalysisJob> logger)
+    ILogger<ReorderAnalysisJob> logger,
+    ICapabilitySnapshotProvider capabilities)
 {
     private const int ChunkSize = 500;
 
@@ -32,6 +35,13 @@ public class ReorderAnalysisJob(
 
     public async Task RunAnalysisAsync(CancellationToken ct = default)
     {
+        // ── Capability gate (self-gating job — the VarianceWatchdogJob pattern):
+        // replenishment analysis is capability-owned; when the capability is off (services /
+        // construction installs) the schedule still ticks but the job is a no-op,
+        // so toggling the capability takes effect without a restart.
+        if (!capabilities.IsEnabled("CAP-PLAN-SAFETYSTOCK"))
+            return;
+
         var now = clock.UtcNow;
         var cutoff90 = now.AddDays(-90);
 
@@ -116,12 +126,13 @@ public class ReorderAnalysisJob(
             // Incoming PO quantities per part (for this chunk)
             var incomingRaw = await db.PurchaseOrderLines
                 .Include(l => l.PurchaseOrder)
-                .Where(l => partIds.Contains(l.PartId)
+                .Where(l => l.PartId != null
+                    && partIds.Contains(l.PartId.Value)
                     && l.PurchaseOrder.DeletedAt == null
                     && OpenPoStatuses.Contains(l.PurchaseOrder.Status))
                 .Select(l => new
                 {
-                    l.PartId,
+                    PartId = l.PartId!.Value,
                     RemainingQty = (decimal)(l.OrderedQuantity - l.ReceivedQuantity),
                     l.PurchaseOrder.ExpectedDeliveryDate,
                 })

@@ -30,9 +30,12 @@ public class GetEntityBarcodesHandler(AppDbContext db)
         };
 
         return await query
-            .OrderByDescending(b => b.CreatedAt)
+            // System (auto-assigned) code first, then manual aliases oldest-first.
+            .OrderByDescending(b => b.Source == BarcodeSource.System)
+            .ThenBy(b => b.CreatedAt)
             .Select(b => new BarcodeResponseModel(
-                b.Id, b.Value, b.EntityType.ToString(), b.IsActive, b.CreatedAt))
+                b.Id, b.Value, b.EntityType.ToString(), b.IsActive, b.CreatedAt,
+                b.Source.ToString(), b.IdentityType.ToString()))
             .ToListAsync(cancellationToken);
     }
 }

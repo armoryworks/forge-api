@@ -656,6 +656,16 @@ try
     builder.Services.AddScoped<INcrCapaService, NcrCapaService>();
     builder.Services.AddScoped<IUomService, UomService>();
     builder.Services.AddScoped<IApprovalService, ApprovalService>();
+
+    // Gated Sequence Engine (CAP-CROSS-SEQUENCES): storage-aware evaluator + built-in gate sources.
+    // Modules add their own gates by registering further IGateSource implementations (SourceType Custom + CustomKey).
+    builder.Services.AddScoped<Forge.Core.Interfaces.ISequenceEvaluationService, Forge.Api.Services.SequenceEvaluationService>();
+    builder.Services.AddScoped<Forge.Core.Sequences.IGateSource, Forge.Api.Features.Sequences.GateSources.ManualClearanceGateSource>();
+    builder.Services.AddScoped<Forge.Core.Sequences.IGateSource, Forge.Api.Features.Sequences.GateSources.TimeWindowGateSource>();
+    builder.Services.AddScoped<Forge.Core.Sequences.IGateSource, Forge.Api.Features.Sequences.GateSources.ResourceClockGateSource>();
+    builder.Services.AddScoped<Forge.Core.Sequences.IGateSource, Forge.Api.Features.Sequences.GateSources.ApprovalGateSource>();
+    builder.Services.AddScoped<Forge.Core.Sequences.IGateSource, Forge.Api.Features.Sequences.GateSources.JobStageGateSource>();
+    builder.Services.AddScoped<Forge.Api.Jobs.SequenceClockJob>();
     builder.Services.AddScoped<ICreditManagementService, CreditManagementService>();
     builder.Services.AddScoped<InventoryReliefService>();  // BE-1 / F-030
     builder.Services.AddScoped<CustomerPriceResolver>();   // AUDIT-19-S1 — price-list → line pricing
@@ -1883,6 +1893,10 @@ try
         "approval-escalations",
         job => job.ExecuteAsync(CancellationToken.None),
         Cron.Hourly); // Every hour
+    RecurringJob.AddOrUpdate<Forge.Api.Jobs.SequenceClockJob>(
+        "sequence-clocks",
+        job => job.ExecuteAsync(CancellationToken.None),
+        Cron.Minutely); // the Gated Sequence Engine's only timer: fires clocks, re-evaluates time gates
     RecurringJob.AddOrUpdate<CheckCreditReviewsDueJob>(
         "check-credit-reviews-due",
         job => job.ExecuteAsync(CancellationToken.None),

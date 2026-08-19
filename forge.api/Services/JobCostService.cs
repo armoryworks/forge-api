@@ -99,7 +99,7 @@ public class JobCostService(AppDbContext db) : IJobCostService
                 && pol.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled)
             .Join(db.Operations.Where(o => o.IsSubcontract),
                 pol => pol.PartId,
-                op => op.PartId,
+                op => (int?)op.PartId,
                 (pol, op) => pol.UnitPrice * pol.OrderedQuantity)
             .SumAsync(ct);
     }

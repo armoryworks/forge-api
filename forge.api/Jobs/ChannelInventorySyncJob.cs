@@ -4,6 +4,8 @@ using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
+using Forge.Api.Capabilities;
+
 namespace Forge.Api.Jobs;
 
 /// <summary>
@@ -24,10 +26,18 @@ public class ChannelInventorySyncJob(
     IECommerceServiceFactory connectorFactory,
     IECommerceCredentialProtector protector,
     IClock clock,
-    ILogger<ChannelInventorySyncJob> logger)
+    ILogger<ChannelInventorySyncJob> logger,
+    ICapabilitySnapshotProvider capabilities)
 {
     public async Task SyncAsync(CancellationToken ct = default)
     {
+        // ── Capability gate (self-gating job — the VarianceWatchdogJob pattern):
+        // channel inventory sync is capability-owned; when the capability is off (services /
+        // construction installs) the schedule still ticks but the job is a no-op,
+        // so toggling the capability takes effect without a restart.
+        if (!capabilities.IsEnabled("CAP-EXT-ECOMMERCE"))
+            return;
+
         var channels = await db.SalesChannels
             .Include(c => c.ECommerceIntegration)
             .Where(c => c.IsActive

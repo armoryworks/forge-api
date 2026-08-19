@@ -7,7 +7,7 @@ public record PurchaseOrderReleaseResponseModel
     public int Id { get; init; }
     public int ReleaseNumber { get; init; }
     public int PurchaseOrderLineId { get; init; }
-    public string PartNumber { get; init; } = string.Empty;
+    public string? PartNumber { get; init; } = string.Empty;
     public string PartDescription { get; init; } = string.Empty;
     public decimal Quantity { get; init; }
     public DateTimeOffset RequestedDeliveryDate { get; init; }

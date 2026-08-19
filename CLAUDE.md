@@ -531,7 +531,7 @@ readonly isStandalone = this.accountingService.isStandalone;
 <!-- ===== Capability Gating ===== -->
 ## Capability Gating (Phase 4)
 
-The system runs on a **per-install capability gate**: 164 named capabilities (e.g., `CAP-MD-CUSTOMERS`, `CAP-INV-LOTS`, `CAP-EXT-AI-ASSISTANT`) are registered in a static catalog. Each install's capability state is stored in the `capabilities` table; controllers and Hangfire-fired commands carry `[RequiresCapability("CAP-...")]` attributes; the `CapabilityGateMiddleware` (controller side) and `CapabilityGateBehavior` (MediatR side) short-circuit with 403 + envelope when a capability is disabled. Bootstrap-exempt endpoints (auth, descriptor, capability admin) carry `[CapabilityBootstrap]` instead so admins are never locked out.
+The system runs on a **per-install capability gate**: 165 named capabilities (e.g., `CAP-MD-CUSTOMERS`, `CAP-INV-LOTS`, `CAP-EXT-AI-ASSISTANT`) are registered in a static catalog. Each install's capability state is stored in the `capabilities` table; controllers and Hangfire-fired commands carry `[RequiresCapability("CAP-...")]` attributes; the `CapabilityGateMiddleware` (controller side) and `CapabilityGateBehavior` (MediatR side) short-circuit with 403 + envelope when a capability is disabled. Bootstrap-exempt endpoints (auth, descriptor, capability admin) carry `[CapabilityBootstrap]` instead so admins are never locked out.
 
 **Where things live:**
 - **Catalog (source of truth)**: `forge-api/forge.api/Capabilities/CapabilityCatalog.cs` — 157 capabilities with code, name, area, default-state, dependencies/mutexes
@@ -729,6 +729,28 @@ Real: **Shopify**, **WooCommerce** (both storefronts — you are merchant of rec
 
 
 <!-- ===== What NOT to Do + Efficiency/Memory ===== -->
+## Gated Sequence Engine (Sequences, `CAP-CROSS-SEQUENCES`)
+
+Added 2026-08-18. A general-purpose gated-process primitive — a Petri net with guarded transitions and clocks — for
+routing gates, inspection sign-offs, lot expiry, permit/inspection chains. Design + record:
+`forge/docs/delivery/in-progress/gated-sequence-engine/`. Rules when touching it:
+
+- **Definition vs instance.** `SequenceDefinition` (`Code`+`Version`, Draft→Published→Retired) is immutable once
+  Published; instances pin the version they started on. Never mutate a Published definition — `new-version`.
+- **The evaluator is pure.** `Forge.Core.Sequences.SequenceEvaluator` takes (net, instance, verdicts, now) and returns
+  events; it never touches storage, clocks, or gate sources. Storage/DI live in `forge.api/Services/SequenceEvaluationService`.
+  Keep it that way — it is what makes the engine unit-testable and idempotent.
+- **Blocked is derived, never stored.** A step is Blocked when its predecessors are satisfied and a gate is not Go.
+  Do not add a Blocked status.
+- **Every state change is a `SequenceEvent` row** (append-only) plus an `ActivityLog` row against the instance and its
+  subject (`SequenceQueries.IndexingPoints`). Override / skip / rework / cancel require a reason.
+- **Adding a gate kind = registering an `IGateSource`** (`SourceType = Custom`, `CustomKey = "<key>"`) in DI; the gate's
+  `config_json` names it via `{ "key": "<key>" }`. Unknown keys fail closed (NoGo). Sources must be side-effect free.
+- **Anything that can change a verdict must dispatch `ReevaluateSequenceCommand`.** Built-in triggers: step complete,
+  gate clear/override, rework, `SequenceClockJob` (minutely — the engine's only timer), `ApprovalCompletedEvent`.
+- Domain events published: `SequenceStepReadyEvent`, `SequenceInstanceCompletedEvent`, `SequenceClockExpiredEvent`.
+  No default reactions — consumers subscribe.
+
 ## What NOT to Do
 
 - Never use `FormsModule` / `ngModel` in features — always `ReactiveFormsModule`

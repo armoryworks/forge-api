@@ -127,6 +127,11 @@ public static class CapabilityCatalogRelations
         new("CAP-O2C-SO-ACCEPTANCE", "CAP-O2C-SO"),
         new("CAP-O2C-RECURRING", "CAP-O2C-SO"),
         new("CAP-O2C-PICKPACK", "CAP-O2C-SO"),
+        // Inventory stores and moves *parts* — the item master is a real prerequisite.
+        // This edge was implicit while CAP-MD-PARTS sat in Foundations; when Parts moved
+        // out of Foundations (2026-08-17, services/construction installs) the dependency
+        // had to become explicit so an inventory-module install still closes over it.
+        new("CAP-INV-CORE", "CAP-MD-PARTS"),
         new("CAP-O2C-PICKPACK", "CAP-INV-CORE"),
         new("CAP-O2C-SHIP", "CAP-O2C-PICKPACK"),
         // Note: CAP-O2C-INVOICE depends on (CAP-ACCT-BUILTIN OR CAP-ACCT-EXTERNAL) per 4A —

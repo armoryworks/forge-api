@@ -159,7 +159,10 @@ public class BarcodeService(AppDbContext db, IHttpContextAccessor httpContextAcc
             identity = BarcodeIdentityType.Internal;
         }
 
-        var barcode = await db.Barcodes.FirstOrDefaultAsync(b => b.PartId == partId && b.IsActive, cancellationToken);
+        // Only the System (auto-generated) row is re-synced — manual alternate barcodes on the
+        // same part (manufacturer UPCs, vendor SKUs, legacy labels) are left untouched.
+        var barcode = await db.Barcodes.FirstOrDefaultAsync(
+            b => b.PartId == partId && b.IsActive && b.Source == BarcodeSource.System, cancellationToken);
         if (barcode is null)
         {
             if (identity == BarcodeIdentityType.Internal
@@ -172,6 +175,7 @@ public class BarcodeService(AppDbContext db, IHttpContextAccessor httpContextAcc
                 PartId = partId,
                 IsActive = true,
                 IdentityType = identity,
+                Source = BarcodeSource.System,
             });
         }
         else

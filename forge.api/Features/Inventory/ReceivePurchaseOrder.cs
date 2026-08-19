@@ -76,6 +76,11 @@ public class ReceivePurchaseOrderHandler(
         // If location provided, create bin content
         if (data.LocationId.HasValue)
         {
+            // Part-less lines (service / described material) have nothing to stock.
+            if (line.PartId is not int stockPartId)
+                throw new InvalidOperationException(
+                    $"PO line {line.Id} has no part; a part-less line cannot be received into a bin location.");
+
             var location = await inventoryRepo.FindLocationAsync(data.LocationId.Value, cancellationToken)
                 ?? throw new KeyNotFoundException($"Location {data.LocationId} not found");
 
@@ -83,7 +88,7 @@ public class ReceivePurchaseOrderHandler(
             {
                 LocationId = data.LocationId.Value,
                 EntityType = "part",
-                EntityId = line.PartId,
+                EntityId = stockPartId,
                 Quantity = baseQuantityReceived,
                 LotNumber = data.LotNumber,
                 PlacedBy = userId,
@@ -97,7 +102,7 @@ public class ReceivePurchaseOrderHandler(
             var movement = new BinMovement
             {
                 EntityType = "part",
-                EntityId = line.PartId,
+                EntityId = stockPartId,
                 Quantity = baseQuantityReceived,
                 LotNumber = data.LotNumber,
                 ToLocationId = data.LocationId.Value,

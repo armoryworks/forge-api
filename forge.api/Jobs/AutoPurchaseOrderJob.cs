@@ -8,6 +8,8 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
+using Forge.Api.Capabilities;
+
 namespace Forge.Api.Jobs;
 
 /// <summary>
@@ -20,7 +22,8 @@ public class AutoPurchaseOrderJob(
     ISystemSettingRepository settingsRepo,
     PurchaseOrderGenerator poGenerator,
     IPartSourcingResolver sourcingResolver,
-    ILogger<AutoPurchaseOrderJob> logger)
+    ILogger<AutoPurchaseOrderJob> logger,
+    ICapabilitySnapshotProvider capabilities)
 {
     private static readonly PurchaseOrderStatus[] OpenPoStatuses =
     [
@@ -39,6 +42,13 @@ public class AutoPurchaseOrderJob(
 
     public async Task Execute(CancellationToken ct)
     {
+        // ── Capability gate (self-gating job — the VarianceWatchdogJob pattern):
+        // auto-PO is capability-owned; when the capability is off (services /
+        // construction installs) the schedule still ticks but the job is a no-op,
+        // so toggling the capability takes effect without a restart.
+        if (!capabilities.IsEnabled("CAP-P2P-AUTOPO"))
+            return;
+
         var now = clock.UtcNow;
         logger.LogInformation("[AutoPO] Starting auto-PO analysis at {Time}", now);
 
@@ -176,10 +186,11 @@ public class AutoPurchaseOrderJob(
         var inTransitByPart = await db.PurchaseOrderLines
             .AsNoTracking()
             .Include(l => l.PurchaseOrder)
-            .Where(l => childPartIds.Contains(l.PartId)
+            .Where(l => l.PartId != null
+                && childPartIds.Contains(l.PartId.Value)
                 && l.PurchaseOrder.DeletedAt == null
                 && OpenPoStatuses.Contains(l.PurchaseOrder.Status))
-            .GroupBy(l => l.PartId)
+            .GroupBy(l => l.PartId!.Value)
             .Select(g => new { PartId = g.Key, InTransit = g.Sum(l => l.OrderedQuantity - l.ReceivedQuantity) })
             .ToDictionaryAsync(x => x.PartId, x => x.InTransit, ct);
 

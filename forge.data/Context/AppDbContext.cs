@@ -547,6 +547,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<WorkflowRun> WorkflowRuns => Set<WorkflowRun>();
     public DbSet<WorkflowRunEntity> WorkflowRunEntities => Set<WorkflowRunEntity>();
     public DbSet<WorkflowDefinition> WorkflowDefinitions => Set<WorkflowDefinition>();
+
+    // Gated Sequence Engine (CAP-CROSS-SEQUENCES) — versioned definitions, runs (instances) with their
+    // step/gate marking, the append-only event log, and resource clocks that travel with a resource.
+    public DbSet<SequenceDefinition> SequenceDefinitions => Set<SequenceDefinition>();
+    public DbSet<SequenceStepDefinition> SequenceStepDefinitions => Set<SequenceStepDefinition>();
+    public DbSet<SequenceEdgeDefinition> SequenceEdgeDefinitions => Set<SequenceEdgeDefinition>();
+    public DbSet<SequenceGateDefinition> SequenceGateDefinitions => Set<SequenceGateDefinition>();
+    public DbSet<SequenceInstance> SequenceInstances => Set<SequenceInstance>();
+    public DbSet<SequenceStepInstance> SequenceStepInstances => Set<SequenceStepInstance>();
+    public DbSet<SequenceGateInstance> SequenceGateInstances => Set<SequenceGateInstance>();
+    public DbSet<SequenceEvent> SequenceEvents => Set<SequenceEvent>();
+    public DbSet<SequenceResourceClock> SequenceResourceClocks => Set<SequenceResourceClock>();
     public DbSet<EntityReadinessValidator> EntityReadinessValidators => Set<EntityReadinessValidator>();
     public DbSet<EntityCapabilityRequirement> EntityCapabilityRequirements => Set<EntityCapabilityRequirement>();
     public DbSet<CostingProfile> CostingProfiles => Set<CostingProfile>();

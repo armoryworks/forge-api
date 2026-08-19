@@ -61,7 +61,7 @@ public class CreatePurchaseOrderReleaseHandler(AppDbContext db) : IRequestHandle
             Id = release.Id,
             ReleaseNumber = release.ReleaseNumber,
             PurchaseOrderLineId = release.PurchaseOrderLineId,
-            PartNumber = line.Part.PartNumber,
+            PartNumber = line.Part?.PartNumber,
             PartDescription = line.Description,
             Quantity = release.Quantity,
             RequestedDeliveryDate = release.RequestedDeliveryDate,

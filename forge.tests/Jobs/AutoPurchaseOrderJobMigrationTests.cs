@@ -143,7 +143,8 @@ public class AutoPurchaseOrderJobMigrationTests
             settingsRepo.Object,
             poGen,
             new PartSourcingResolver(db),
-            NullLogger<AutoPurchaseOrderJob>.Instance);
+            NullLogger<AutoPurchaseOrderJob>.Instance,
+            new StubCapabilitySnapshotProvider("CAP-P2P-AUTOPO"));
     }
 
     [Fact]

@@ -180,6 +180,43 @@ public class ToggleCapabilityHandler(
                             ["dependents"] = dependents,
                         });
                 }
+
+                // Deactivation guard (fullgl-deactivation §3.5): once a book is live
+                // (opening balances loaded), CAP-ACCT-FULLGL must NOT be turned off by a
+                // raw capability toggle. Stopping posting mid-period silently desyncs the
+                // sub-ledgers from the general ledger (a half-posted period), which is the
+                // one failure mode the ledger design must make impossible. Turning the
+                // ledger off is a governed, dated cutover (close & tie out the period, then
+                // deactivate with a successor system) — not a capability flip. Books with no
+                // loaded opening balances have no ledger history to protect and stay toggle-able.
+                if (request.Code == FullGlCapability)
+                {
+                    var activeBookIds = await db.Books
+                        .AsNoTracking()
+                        .Where(b => b.IsActive)
+                        .Select(b => b.Id)
+                        .ToListAsync(cancellationToken);
+
+                    foreach (var bookId in activeBookIds)
+                    {
+                        if (await glGate.AreOpeningBalancesLoadedAsync(bookId, cancellationToken))
+                        {
+                            throw new CapabilityMutationException(
+                                StatusCodes.Status409Conflict,
+                                "capability-gl-live-ledger",
+                                $"CAP-ACCT-FULLGL cannot be turned off for book {bookId} by toggling the " +
+                                "capability: the ledger is live (opening balances are loaded), so stopping " +
+                                "posting mid-period would desync the sub-ledgers from the general ledger. Turn " +
+                                "the ledger off through the governed deactivation cutover (close and tie out the " +
+                                "period, then deactivate with a successor system).",
+                                new Dictionary<string, object?>
+                                {
+                                    ["capability"] = request.Code,
+                                    ["bookId"] = bookId,
+                                });
+                        }
+                    }
+                }
             }
         }
 

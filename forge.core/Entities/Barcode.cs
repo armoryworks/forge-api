@@ -16,6 +16,11 @@ public class Barcode : BaseAuditableEntity
     /// marketplace export) tell a globally-unique GTIN from an internal-only code.</summary>
     public BarcodeIdentityType IdentityType { get; set; } = BarcodeIdentityType.Internal;
 
+    /// <summary>System = the entity's auto-generated code (one per entity, kept in sync, not user-removable);
+    /// Manual = a user-added alternate value (manufacturer UPC, vendor SKU, legacy label) that coexists with
+    /// the system code and resolves the same on scan. Refresh only touches the System row.</summary>
+    public BarcodeSource Source { get; set; } = BarcodeSource.System;
+
     // ─── Dedicated FKs (exactly one is non-null) ───
     public int? UserId { get; set; }
 

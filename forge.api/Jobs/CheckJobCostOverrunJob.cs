@@ -7,6 +7,8 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
+using Forge.Api.Capabilities;
+
 namespace Forge.Api.Jobs;
 
 /// <summary>
@@ -17,13 +19,21 @@ public class CheckJobCostOverrunJob(
     AppDbContext db,
     IJobCostService costService,
     IPublisher publisher,
-    ILogger<CheckJobCostOverrunJob> logger)
+    ILogger<CheckJobCostOverrunJob> logger,
+    ICapabilitySnapshotProvider capabilities)
 {
     private const decimal VarianceThreshold = 0.10m; // 10%
     private const int ChunkSize = 100;
 
     public async Task Execute(CancellationToken ct)
     {
+        // ── Capability gate (self-gating job — the VarianceWatchdogJob pattern):
+        // work-order costing is capability-owned; when the capability is off (services /
+        // construction installs) the schedule still ticks but the job is a no-op,
+        // so toggling the capability takes effect without a restart.
+        if (!capabilities.IsEnabled("CAP-MFG-WO-RELEASE"))
+            return;
+
         // Get active jobs with non-zero estimated costs
         var activeJobIds = await db.Jobs
             .AsNoTracking()

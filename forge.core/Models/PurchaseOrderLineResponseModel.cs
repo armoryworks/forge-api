@@ -6,8 +6,8 @@ namespace Forge.Core.Models;
 // "5 received / 5 short-closed / 10 ordered" without a separate query.
 public record PurchaseOrderLineResponseModel(
     int Id,
-    int PartId,
-    string PartNumber,
+    int? PartId,
+    string? PartNumber,
     string Description,
     decimal OrderedQuantity,
     decimal ReceivedQuantity,

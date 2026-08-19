@@ -122,13 +122,33 @@ public class ToggleCapabilityFullGlGateTests
     }
 
     [Fact]
-    public async Task Disabling_FULLGL_is_not_gated_on_opening_balances()
+    public async Task Disabling_FULLGL_is_allowed_when_no_ledger_history_exists()
     {
+        // No posted opening journal → the book is not live → nothing to protect,
+        // so a raw disable is still permitted (fullgl-deactivation §3.5).
         await using var db = SeededDb(withOpeningJournal: false);
         db.Capabilities.Single(c => c.Code == "CAP-ACCT-FULLGL").Enabled = true;
         db.SaveChanges();
 
         var result = await Handler(db).Handle(new ToggleCapabilityCommand("CAP-ACCT-FULLGL", Enabled: false), default);
         result.Enabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Disabling_FULLGL_is_refused_once_the_ledger_is_live()
+    {
+        // Opening balances loaded → the ledger is live. A raw capability-off would
+        // stop posting mid-period and desync the sub-ledgers from the GL, so it is
+        // refused (409 capability-gl-live-ledger) — deactivation must go through the
+        // governed cutover instead (fullgl-deactivation §3.5).
+        await using var db = SeededDb(withOpeningJournal: true);
+        db.Capabilities.Single(c => c.Code == "CAP-ACCT-FULLGL").Enabled = true;
+        db.SaveChanges();
+
+        var act = () => Handler(db).Handle(new ToggleCapabilityCommand("CAP-ACCT-FULLGL", Enabled: false), default);
+
+        var ex = await act.Should().ThrowAsync<CapabilityMutationException>();
+        ex.Which.Message.Should().Contain("deactivation cutover");
+        db.Capabilities.Single(c => c.Code == "CAP-ACCT-FULLGL").Enabled.Should().BeTrue();
     }
 }
