@@ -23,6 +23,13 @@ public class SequenceDefinition : BaseAuditableEntity
 
     public SequenceDefinitionStatus Status { get; set; } = SequenceDefinitionStatus.Draft;
 
+    /// <summary>
+    /// When true and Published, a run starts automatically for every newly created subject of
+    /// <see cref="SubjectEntityType"/> (today: "Job" via <c>JobCreatedEvent</c>). One definition per code — the
+    /// latest published version wins.
+    /// </summary>
+    public bool AutoStartOnSubjectCreate { get; set; }
+
     public DateTimeOffset? PublishedAt { get; set; }
 
     public int? PublishedByUserId { get; set; }

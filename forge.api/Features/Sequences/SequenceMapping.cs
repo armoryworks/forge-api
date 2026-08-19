@@ -8,7 +8,7 @@ namespace Forge.Api.Features.Sequences;
 public static class SequenceMapping
 {
     public static SequenceDefinitionResponseModel ToModel(SequenceDefinition d) => new(
-        d.Id, d.Code, d.Version, d.Name, d.Description, d.SubjectEntityType, d.Status, d.PublishedAt,
+        d.Id, d.Code, d.Version, d.Name, d.Description, d.SubjectEntityType, d.Status, d.AutoStartOnSubjectCreate, d.PublishedAt,
         d.Steps.OrderBy(s => s.SortOrder).ThenBy(s => s.Key).Select(s => new SequenceStepDefinitionModel(
             s.Key, s.Name, s.Description, s.SortOrder, s.JoinPolicy, s.MaxDwellMinutes, s.DwellExpiryAction, s.EscalateRole)).ToList(),
         d.Edges.OrderBy(e => e.FromStepKey).ThenBy(e => e.ToStepKey).Select(e => new SequenceEdgeDefinitionModel(e.FromStepKey, e.ToStepKey, e.IsRework)).ToList(),

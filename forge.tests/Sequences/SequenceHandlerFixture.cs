@@ -22,12 +22,10 @@ public sealed class SequenceHandlerFixture : IAsyncDisposable
         Publisher.Setup(p => p.Publish(It.IsAny<INotification>(), It.IsAny<CancellationToken>()))
             .Callback<INotification, CancellationToken>((n, _) => Published.Add(n))
             .Returns(Task.CompletedTask);
-        var sources = new List<IGateSource>
-        {
-            new ManualClearanceGateSource(), new TimeWindowGateSource(), new ResourceClockGateSource(Db), new ApprovalGateSource(Db),
-        };
-        sources.AddRange(extraSources);
-        Evaluation = new SequenceEvaluationService(Db, sources, Clock, Publisher.Object);
+        Sources.AddRange([new ManualClearanceGateSource(), new TimeWindowGateSource(), new ResourceClockGateSource(Db), new ApprovalGateSource(Db)]);
+        Sources.AddRange(extraSources);
+        // the service enumerates the live list, so tests may Sources.Add(...) after construction
+        Evaluation = new SequenceEvaluationService(Db, Sources, Clock, Publisher.Object);
     }
 
     public const int UserId = 7;
@@ -35,6 +33,7 @@ public sealed class SequenceHandlerFixture : IAsyncDisposable
     public MutableClock Clock { get; }
     public Mock<IPublisher> Publisher { get; }
     public List<INotification> Published { get; } = [];
+    public List<IGateSource> Sources { get; } = [];
     public ISequenceEvaluationService Evaluation { get; }
 
     public ValueTask DisposeAsync() => Db.DisposeAsync();

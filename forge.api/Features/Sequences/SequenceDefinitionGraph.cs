@@ -11,6 +11,7 @@ public static class SequenceDefinitionGraph
         def.Name = m.Name.Trim();
         def.Description = string.IsNullOrWhiteSpace(m.Description) ? null : m.Description.Trim();
         def.SubjectEntityType = string.IsNullOrWhiteSpace(m.SubjectEntityType) ? null : m.SubjectEntityType.Trim();
+        def.AutoStartOnSubjectCreate = m.AutoStartOnSubjectCreate && def.SubjectEntityType is not null;
 
         def.Steps.Clear();
         foreach (var s in m.Steps ?? [])

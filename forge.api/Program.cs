@@ -664,6 +664,7 @@ try
     builder.Services.AddScoped<Forge.Core.Sequences.IGateSource, Forge.Api.Features.Sequences.GateSources.TimeWindowGateSource>();
     builder.Services.AddScoped<Forge.Core.Sequences.IGateSource, Forge.Api.Features.Sequences.GateSources.ResourceClockGateSource>();
     builder.Services.AddScoped<Forge.Core.Sequences.IGateSource, Forge.Api.Features.Sequences.GateSources.ApprovalGateSource>();
+    builder.Services.AddScoped<Forge.Core.Sequences.IGateSource, Forge.Api.Features.Sequences.GateSources.JobStageGateSource>();
     builder.Services.AddScoped<Forge.Api.Jobs.SequenceClockJob>();
     builder.Services.AddScoped<ICreditManagementService, CreditManagementService>();
     builder.Services.AddScoped<InventoryReliefService>();  // BE-1 / F-030

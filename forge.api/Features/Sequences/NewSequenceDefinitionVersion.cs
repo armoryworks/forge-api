@@ -26,6 +26,7 @@ public class NewSequenceDefinitionVersionHandler(AppDbContext db) : IRequestHand
         {
             Code = src.Code, Version = latest + 1, Name = src.Name, Description = src.Description,
             SubjectEntityType = src.SubjectEntityType, Status = SequenceDefinitionStatus.Draft,
+            AutoStartOnSubjectCreate = src.AutoStartOnSubjectCreate,
         };
         foreach (var s in src.Steps) copy.Steps.Add(new SequenceStepDefinition
         {

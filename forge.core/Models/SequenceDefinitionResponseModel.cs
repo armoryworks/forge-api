@@ -10,6 +10,7 @@ public record SequenceDefinitionResponseModel(
     string? Description,
     string? SubjectEntityType,
     SequenceDefinitionStatus Status,
+    bool AutoStartOnSubjectCreate,
     DateTimeOffset? PublishedAt,
     IReadOnlyList<SequenceStepDefinitionModel> Steps,
     IReadOnlyList<SequenceEdgeDefinitionModel> Edges,

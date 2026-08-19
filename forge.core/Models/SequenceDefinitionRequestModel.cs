@@ -8,4 +8,5 @@ public record SequenceDefinitionRequestModel(
     string? SubjectEntityType,
     IReadOnlyList<SequenceStepDefinitionModel> Steps,
     IReadOnlyList<SequenceEdgeDefinitionModel> Edges,
-    IReadOnlyList<SequenceGateDefinitionModel> Gates);
+    IReadOnlyList<SequenceGateDefinitionModel> Gates,
+    bool AutoStartOnSubjectCreate = false);

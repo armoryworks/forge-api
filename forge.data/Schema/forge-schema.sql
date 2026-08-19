@@ -7718,6 +7718,8 @@ CREATE TABLE public.sequence_definitions (
     subject_entity_type character varying(50),
     -- 'Draft' | 'Published' | 'Retired'
     status character varying(20) NOT NULL,
+    -- when true and Published, a run auto-starts for each newly created subject of subject_entity_type (Job today)
+    auto_start_on_subject_create boolean DEFAULT false NOT NULL,
     published_at timestamp with time zone,
     published_by_user_id integer,
     created_at timestamp with time zone NOT NULL,
