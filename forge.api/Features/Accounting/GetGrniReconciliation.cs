@@ -14,7 +14,7 @@ namespace Forge.Api.Features.Accounting;
 /// posted; OFF by default, so the path is unreachable (the controller is additionally Controller-role per
 /// §5.7).</para>
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record GetGrniReconciliationQuery(int BookId, DateOnly? AsOfDate = null)
     : IRequest<GrniReconciliation>;
 

@@ -14,7 +14,7 @@ namespace Forge.Api.Features.Accounting;
 /// default, so the ledger read path is unreachable (the controller is additionally
 /// <c>[Authorize(Roles = "Controller")]</c> per §5.7).</para>
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record GetApAgingQuery(int BookId, DateOnly? AsOfDate = null)
     : IRequest<ApAging>;
 

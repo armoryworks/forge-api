@@ -16,7 +16,7 @@ namespace Forge.Api.Features.Accounting;
 /// reversal net to zero, and the CPA needs to see both rows to follow the audit
 /// trail. Built as a single AsNoTracking join query (no N+1).
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record ExportGlDetailCsvQuery(
     int BookId,
     DateOnly? FromDate = null,

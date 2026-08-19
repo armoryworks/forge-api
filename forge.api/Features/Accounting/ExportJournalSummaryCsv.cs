@@ -16,7 +16,7 @@ namespace Forge.Api.Features.Accounting;
 /// <see cref="ITrialBalanceService"/> for the aggregation; the QBO push (Part B)
 /// uses the same shape so the file and the API push can never disagree.
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record ExportJournalSummaryCsvQuery(
     int BookId,
     DateOnly? FromDate = null,

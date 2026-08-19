@@ -250,6 +250,7 @@ public static class CapabilityCatalogRelations
         new("CAP-ACCT-EXTERNAL", "CAP-IDEN-TENANT-CONFIG"),
         new("CAP-ACCT-BUILTIN", "CAP-IDEN-TENANT-CONFIG"),
         new("CAP-ACCT-FULLGL", "CAP-ACCT-BUILTIN"),
+        new("CAP-ACCT-GL-VIEW", "CAP-ACCT-BUILTIN"),
         new("CAP-ACCT-EXPENSES", "CAP-MD-EMPLOYEES"),
         new("CAP-ACCT-PERIOD", "CAP-ACCT-FULLGL"),
         new("CAP-ACCT-DEPRECIATION", "CAP-MD-ASSETS"),

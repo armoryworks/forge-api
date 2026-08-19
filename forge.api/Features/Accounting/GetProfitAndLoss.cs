@@ -24,7 +24,7 @@ namespace Forge.Api.Features.Accounting;
 /// handler.
 /// </para>
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record GetProfitAndLossQuery(
     int BookId,
     DateOnly? FromDate = null,

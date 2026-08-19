@@ -12,7 +12,7 @@ namespace Forge.Api.Features.Accounting;
 /// <c>PostableOnly</c> narrows to postable, non-control accounts (control accounts post only via
 /// sub-ledgers, so they aren't hand-postable). Read seam only — never writes.
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record GetChartOfAccountsQuery(int BookId, bool PostableOnly = false) : IRequest<IReadOnlyList<GlAccountModel>>;
 
 public class GetChartOfAccountsHandler(AppDbContext db)

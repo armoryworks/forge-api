@@ -20,7 +20,7 @@ namespace Forge.Api.Features.Accounting;
 /// controller endpoint (financial-statements reporting gate). Both default OFF.
 /// </para>
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record GetBalanceSheetQuery(int BookId, DateOnly? AsOfDate = null)
     : IRequest<BalanceSheet>;
 

@@ -60,6 +60,7 @@ public class ToggleCapabilityHandler(
 {
     /// <summary>The one capability with a domain hard-gate beyond the dependency graph (§5.5/§7A).</summary>
     private const string FullGlCapability = "CAP-ACCT-FULLGL";
+    private const string GlViewCapability = "CAP-ACCT-GL-VIEW";
 
     public async Task<CapabilityDescriptorEntry> Handle(
         ToggleCapabilityCommand request,
@@ -225,6 +226,32 @@ public class ToggleCapabilityHandler(
         //    BiApiKeyRevoked in Phase 3 / WU-04).
         row.Enabled = toState;
         await db.SaveChangesAsync(cancellationToken);
+
+        // Cascade: enabling CAP-ACCT-FULLGL also enables the read-only view surface
+        // CAP-ACCT-GL-VIEW (you can't post without being able to view). GL-VIEW is
+        // deliberately NOT turned off when FULLGL is disabled, so a deactivated ledger
+        // stays viewable and reportable read-only for audit/tax (fullgl-deactivation §3.1).
+        if (request.Code == FullGlCapability && toState)
+        {
+            var view = await db.Capabilities.FirstOrDefaultAsync(c => c.Code == GlViewCapability, cancellationToken);
+            if (view is null)
+            {
+                db.Capabilities.Add(new Capability
+                {
+                    Code = GlViewCapability,
+                    Area = "ACCT",
+                    Name = "General-ledger read-only view",
+                    Description = "Read-only access to the ledger, statements and exports. Auto-enabled with full GL.",
+                    Enabled = true,
+                });
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            else if (!view.Enabled)
+            {
+                view.Enabled = true;
+                await db.SaveChangesAsync(cancellationToken);
+            }
+        }
 
         // 4. Refresh the snapshot so the very next request reflects the new
         //    state (the gate middleware reads this dictionary).

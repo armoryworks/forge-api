@@ -11,7 +11,7 @@ namespace Forge.Api.Features.Accounting;
 /// Phase-3 — the book's fiscal calendar (years + their periods, with statuses) for the close screen.
 /// Read-only; <c>CAP-ACCT-FULLGL</c> gated.
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record GetFiscalCalendarQuery(int BookId) : IRequest<IReadOnlyList<FiscalYearModel>>;
 
 public class GetFiscalCalendarHandler(AppDbContext db)

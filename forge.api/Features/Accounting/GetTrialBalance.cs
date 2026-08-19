@@ -18,7 +18,7 @@ namespace Forge.Api.Features.Accounting;
 /// short-circuit the request, so the ledger read path is unreachable.
 /// </para>
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record GetTrialBalanceQuery(
     int BookId,
     DateOnly? FromDate = null,

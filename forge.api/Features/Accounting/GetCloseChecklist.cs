@@ -12,7 +12,7 @@ namespace Forge.Api.Features.Accounting;
 /// Phase-3 — the pre-close checklist for a fiscal period (evaluated as of the period end). Lets the UI show
 /// what's clean/dirty before a hard-close. CAP-ACCT-FULLGL gated.
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record GetCloseChecklistQuery(int PeriodId) : IRequest<CloseChecklistResult>;
 
 public class GetCloseChecklistHandler(IPeriodCloseChecklistService checklist, AppDbContext db)

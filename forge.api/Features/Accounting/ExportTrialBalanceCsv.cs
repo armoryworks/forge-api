@@ -12,7 +12,7 @@ namespace Forge.Api.Features.Accounting;
 /// filter-immune Posted+Reversed projection the on-screen report uses) and only
 /// adds the CSV rendering, so the file can never disagree with the screen.
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record ExportTrialBalanceCsvQuery(
     int BookId,
     DateOnly? FromDate = null,

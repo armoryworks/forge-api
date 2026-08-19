@@ -19,7 +19,7 @@ namespace Forge.Api.Features.Accounting;
 /// (2) a <b>large manual entry</b> at/above <c>LargeManualThreshold</c>.
 /// </para>
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record GetGlAnomaliesQuery(
     int BookId,
     DateOnly? FromDate = null,

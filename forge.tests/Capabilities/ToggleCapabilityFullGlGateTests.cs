@@ -135,6 +135,21 @@ public class ToggleCapabilityFullGlGateTests
     }
 
     [Fact]
+    public async Task Enabling_FULLGL_cascades_the_read_only_GL_VIEW_capability_on()
+    {
+        // GL-VIEW splits *viewing* the ledger from *posting*; enabling full GL must turn the
+        // view surface on too, and it stays on after FULLGL is later turned off so a deactivated
+        // ledger remains viewable read-only (fullgl-deactivation §3.1).
+        await using var db = SeededDb(withOpeningJournal: true);
+
+        await Handler(db).Handle(new ToggleCapabilityCommand("CAP-ACCT-FULLGL", Enabled: true), default);
+
+        var view = db.Capabilities.SingleOrDefault(c => c.Code == "CAP-ACCT-GL-VIEW");
+        view.Should().NotBeNull();
+        view!.Enabled.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Disabling_FULLGL_is_refused_once_the_ledger_is_live()
     {
         // Opening balances loaded → the ledger is live. A raw capability-off would

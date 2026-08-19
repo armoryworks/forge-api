@@ -30,7 +30,13 @@ namespace Forge.Api.Controllers;
 [ApiController]
 [Route("api/v1/accounting")]
 [Authorize(Roles = "Controller")]
-[RequiresCapability("CAP-ACCT-FULLGL")]
+// Class-level gate is the read-only VIEW surface (CAP-ACCT-GL-VIEW): the whole ledger,
+// chart of accounts, trial balance, statements, aging and exports are viewable whenever the
+// view capability is on — which it is once a book has ever been on full GL, and it stays on
+// after a ledger is deactivated (fullgl-deactivation §3.1). Every *write* action below adds
+// [RequiresCapability("CAP-ACCT-FULLGL")] so posting still requires full GL (dual-gated;
+// FULLGL cascades GL-VIEW on when enabled, so a live book satisfies both).
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public class AccountingGlController(IMediator mediator) : ControllerBase
 {
     /// <summary>
@@ -39,6 +45,7 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     /// inline. An unbalanced / invalid request surfaces as a
     /// <c>PostingException</c> → 400 (validation 400 also fires at the edge).
     /// </summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("journal-entries")]
     public async Task<ActionResult<ManualJournalEntryResult>> CreateManualJournalEntry(
         [FromBody] CreateManualJournalEntryRequest request,
@@ -120,6 +127,7 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     /// folding it into the ledger. The approver (this caller) must differ from the submitter — the engine
     /// enforces it (<c>APPROVER_NOT_DISTINCT</c>).
     /// </summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("journal-entries/{id:long}/approve")]
     public async Task<ActionResult<ManualJournalEntryResult>> ApproveJournalEntry(long id, CancellationToken ct)
         => Ok(await mediator.Send(new ApproveJournalEntryCommand(id), ct));
@@ -128,6 +136,7 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     /// Maker-checker async rejection (§5.7): return a <c>PendingApproval</c> manual JE to <c>Draft</c> with an
     /// optional reason (appended to the memo). Nothing was applied to the ledger, so nothing unwinds.
     /// </summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("journal-entries/{id:long}/reject")]
     public async Task<ActionResult<ManualJournalEntryResult>> RejectJournalEntry(
         long id, [FromQuery] string? reason, CancellationToken ct)
@@ -138,6 +147,7 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     /// original to <c>Reversed</c>. The engine enforces the preconditions (Posted, no double-reverse,
     /// period not HardClosed) and the <c>ReverseJournalEntry</c> SoD capability; a reason is required.
     /// </summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("journal-entries/{id:long}/reverse")]
     public async Task<ActionResult<ManualJournalEntryResult>> ReverseJournalEntry(
         long id, [FromBody] ReverseJournalEntryRequest body, CancellationToken ct)
@@ -201,16 +211,19 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     /// Phase-3 — soft-close a fiscal period (Open → SoftClosed). Posting into it then requires an audited
     /// controller override; reopen returns it to Open. CAP-ACCT-FULLGL gated.
     /// </summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("periods/{id:int}/soft-close")]
     public async Task<ActionResult<FiscalPeriodModel>> SoftClosePeriod(int id, CancellationToken ct)
         => Ok(await mediator.Send(new SetFiscalPeriodStatusCommand(id, FiscalPeriodStatus.SoftClosed), ct));
 
     /// <summary>Phase-3 — hard-close a fiscal period (→ HardClosed): a permanent lock; posting is rejected outright.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("periods/{id:int}/hard-close")]
     public async Task<ActionResult<FiscalPeriodModel>> HardClosePeriod(int id, CancellationToken ct)
         => Ok(await mediator.Send(new SetFiscalPeriodStatusCommand(id, FiscalPeriodStatus.HardClosed), ct));
 
     /// <summary>Phase-3 — reopen a soft-closed fiscal period (SoftClosed → Open). A hard-closed period cannot reopen.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("periods/{id:int}/reopen")]
     public async Task<ActionResult<FiscalPeriodModel>> ReopenPeriod(int id, CancellationToken ct)
         => Ok(await mediator.Send(new SetFiscalPeriodStatusCommand(id, FiscalPeriodStatus.Open), ct));
@@ -225,6 +238,7 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     /// Phase-3 — year-end close: posts the Retained-Earnings roll (zeroes every P&amp;L account into RE),
     /// hard-closes every period in the year, and marks the year Closed. CAP-ACCT-FULLGL gated.
     /// </summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("years/{id:int}/close")]
     public async Task<ActionResult<YearEndCloseResult>> CloseFiscalYear(int id, CancellationToken ct)
         => Ok(await mediator.Send(new CloseFiscalYearCommand(id), ct));
@@ -335,11 +349,13 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     /// and sweep the remaining WIP balance to PRODUCTION_VARIANCE. Idempotent; run after the job's production
     /// receipts.
     /// </summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("jobs/{jobId:int}/close-production-cost")]
     public async Task<ActionResult<JobProductionCostCloseResult>> CloseJobProductionCost(int jobId, CancellationToken ct)
         => Ok(await mediator.Send(new CloseJobProductionCostCommand(jobId), ct));
 
     /// <summary>Standard costing — record actual overhead incurred into the single-plant pool (OVERHEAD_CONTROL).</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("overhead/record")]
     public async Task<ActionResult> RecordActualOverhead([FromBody] RecordActualOverheadRequest body, CancellationToken ct)
     {
@@ -348,6 +364,7 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>Standard costing — close the overhead pool for a period: post the spending variance + clear the pool.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("overhead/close")]
     public async Task<ActionResult<OverheadPoolCloseResult>> CloseOverheadPool([FromBody] CloseOverheadPoolRequest body, CancellationToken ct)
         => Ok(await mediator.Send(new CloseOverheadPoolCommand(body.AsOf), ct));
@@ -371,6 +388,7 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     /// (column mapping auto-detected; pin exact headers via Admin → Settings → Payroll).
     /// Posting remains the separate PostPayRun step.
     /// </summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("payroll/runs/import")]
     public async Task<ActionResult<PayrollRegisterImportResultModel>> ImportPayrollRegister(
         [FromForm] int bookId, [FromForm] DateOnly payDate,
@@ -400,6 +418,7 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
 
     /// <summary>§7A conversion — post the opening-balance journal (balance-sheet opening balances + AR/AP
     /// open items) at go-live. Idempotent per book.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("opening-balances")]
     public async Task<ActionResult<OpeningBalanceResult>> PostOpeningBalances(
         [FromBody] PostOpeningBalancesModel model, CancellationToken ct)
@@ -492,6 +511,7 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     // ─────────────────────────── Phase-3 journal templates ───────────────────────────
 
     /// <summary>Phase-3 — create a recurring/standard journal template.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("journal-templates")]
     public async Task<ActionResult<JournalTemplateModel>> CreateJournalTemplate(
         [FromBody] CreateJournalTemplateModel model, CancellationToken ct)
@@ -504,6 +524,7 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new ListJournalTemplatesQuery(bookId), ct));
 
     /// <summary>Phase-3 — post a journal entry from a template for a given date.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("journal-templates/{id:int}/post")]
     public async Task<ActionResult<PostedFromTemplateModel>> PostFromTemplate(
         int id, [FromBody] PostFromTemplateRequest body, CancellationToken ct)
@@ -524,6 +545,7 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new ListBankReconciliationsQuery(bookId), ct));
 
     /// <summary>Phase-3 — start a bank reconciliation (Draft) for a cash account against a statement.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("bank-reconciliations")]
     public async Task<ActionResult<BankReconciliationWorksheet>> StartBankReconciliation(
         [FromBody] StartBankReconciliationRequest body, CancellationToken ct)
@@ -536,12 +558,14 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new GetBankReconciliationQuery(id), ct));
 
     /// <summary>Phase-3 — toggle a cash line's cleared flag on a Draft reconciliation.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("bank-reconciliations/{id:int}/items/{journalLineId:long}/cleared")]
     public async Task<ActionResult<BankReconciliationWorksheet>> SetBankReconciliationItemCleared(
         int id, long journalLineId, [FromQuery] bool cleared, CancellationToken ct)
         => Ok(await mediator.Send(new SetBankReconciliationItemClearedCommand(id, journalLineId, cleared), ct));
 
     /// <summary>Phase-3 — finalize a reconciliation (requires it to be in balance).</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
     [HttpPost("bank-reconciliations/{id:int}/finalize")]
     public async Task<ActionResult<BankReconciliationWorksheet>> FinalizeBankReconciliation(int id, CancellationToken ct)
         => Ok(await mediator.Send(new FinalizeBankReconciliationCommand(id), ct));

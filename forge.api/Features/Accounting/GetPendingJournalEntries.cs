@@ -13,7 +13,7 @@ namespace Forge.Api.Features.Accounting;
 /// DARK behind <c>CAP-ACCT-FULLGL</c>. <c>PostedBy</c> on each result identifies the submitter (the maker), so
 /// the approver can see they are not approving their own entry.
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record GetPendingJournalEntriesQuery(int BookId) : IRequest<IReadOnlyList<ManualJournalEntryResult>>;
 
 public class GetPendingJournalEntriesHandler(AppDbContext db)

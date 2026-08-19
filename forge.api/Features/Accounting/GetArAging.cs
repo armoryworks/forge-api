@@ -22,7 +22,7 @@ namespace Forge.Api.Features.Accounting;
 /// §5.7).
 /// </para>
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record GetArAgingQuery(int BookId, DateOnly? AsOfDate = null)
     : IRequest<ArAging>;
 

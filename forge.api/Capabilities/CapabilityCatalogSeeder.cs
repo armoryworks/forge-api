@@ -71,6 +71,19 @@ public class CapabilityCatalogSeeder(AppDbContext db, ILogger<CapabilityCatalogS
                 "[CAPABILITY-SEED] Catalog seed complete: inserted={Inserted}, refreshed={Refreshed}, total={Total}",
                 inserted, refreshed, CapabilityCatalog.All.Count);
 
+            // Backfill (2026-08-19): CAP-ACCT-GL-VIEW is a new capability that splits *viewing*
+            // the ledger from *posting* to it. Any install already running full GL must have the
+            // read-only view surface enabled too (posting implies viewing), else its ledger and
+            // statements would 403 after this deploy. Enable GL-VIEW wherever FULLGL is on.
+            var fullGl = await db.Capabilities.FirstOrDefaultAsync(c => c.Code == "CAP-ACCT-FULLGL", ct);
+            var glView = await db.Capabilities.FirstOrDefaultAsync(c => c.Code == "CAP-ACCT-GL-VIEW", ct);
+            if (fullGl?.Enabled == true && glView is { Enabled: false })
+            {
+                glView.Enabled = true;
+                await db.SaveChangesAsync(ct);
+                logger.LogInformation("[CAPABILITY-SEED] Backfilled CAP-ACCT-GL-VIEW on (FULLGL already enabled).");
+            }
+
             // Opt-in override: SEED_ENABLE_CAPABILITIES is an explicit,
             // comma-separated list of capability codes to force-enable after the
             // catalog seed. Used by the e2e / demo stack to exercise

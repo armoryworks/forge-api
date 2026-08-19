@@ -16,7 +16,7 @@ namespace Forge.Api.Features.Accounting;
 /// offline it degrades to a deterministic, non-AI summary (<c>AiAvailable=false</c>). DARK behind
 /// <c>CAP-ACCT-FULLGL</c>; the AI itself degrades gracefully when the assistant is unavailable.
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record ExplainJournalEntryQuery(int BookId, long EntryId) : IRequest<JournalEntryExplanation>;
 
 public class ExplainJournalEntryHandler(AppDbContext db, IAiService ai)

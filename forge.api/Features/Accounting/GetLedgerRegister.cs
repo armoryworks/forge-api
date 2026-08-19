@@ -13,7 +13,7 @@ namespace Forge.Api.Features.Accounting;
 /// paginated (default 25 / max 100), optionally filtered by date range, entry status, and account.
 /// This is a read seam only: it never touches <c>IPostingEngine</c> and never writes.
 /// </summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record GetLedgerRegisterQuery(
     int BookId,
     DateOnly? FromDate = null,

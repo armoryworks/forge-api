@@ -7,7 +7,7 @@ using Forge.Core.Models.Accounting;
 namespace Forge.Api.Features.Accounting;
 
 /// <summary>STAGE E — perpetual inventory valuation per part. CAP-ACCT-FULLGL gated.</summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record GetInventoryValuationQuery(int BookId) : IRequest<IReadOnlyList<InventoryValuationModel>>;
 
 public class GetInventoryValuationHandler(IInventoryValuationService service)
@@ -18,7 +18,7 @@ public class GetInventoryValuationHandler(IInventoryValuationService service)
 }
 
 /// <summary>STAGE E — valuation-store vs GL inventory-control reconciliation. CAP-ACCT-FULLGL gated.</summary>
-[RequiresCapability("CAP-ACCT-FULLGL")]
+[RequiresCapability("CAP-ACCT-GL-VIEW")]
 public record GetInventoryValuationReconciliationQuery(int BookId) : IRequest<InventoryValuationReconciliation>;
 
 public class GetInventoryValuationReconciliationHandler(IInventoryValuationService service)
