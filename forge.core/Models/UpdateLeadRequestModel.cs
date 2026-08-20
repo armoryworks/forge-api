@@ -28,4 +28,7 @@ public record UpdateLeadRequestModel(
     ExportControlClearance? ExportControl = null,
     // Phase 1r / Batch 12 — multi-contact B2B parent grouping. Setting null
     // explicitly clears the link (lead becomes flat / unaffiliated).
-    int? AccountId = null);
+    int? AccountId = null,
+    // User-settable lead number. Supplying a changed value requires
+    // leads.allow_manual_numbers to be on; validated for uniqueness.
+    string? LeadNumber = null);

@@ -85,6 +85,35 @@ public class LeadRepository(AppDbContext db) : ILeadRepository
     public Task<Lead?> FindAsync(int id, CancellationToken ct)
         => db.Leads.FirstOrDefaultAsync(l => l.Id == id, ct);
 
+    public async Task<string> GenerateNextLeadNumberAsync(CancellationToken ct)
+    {
+        // Per-prefix max-scan mirroring SalesOrderRepository.GenerateNextOrderNumberAsync:
+        // take the newest row carrying a LEAD- number and increment its suffix.
+        // IgnoreQueryFilters so a soft-deleted lead's number is still counted —
+        // the partial unique index covers all rows, so reusing a suffix would 23505.
+        const string token = "LEAD-";
+
+        var last = await db.Leads
+            .IgnoreQueryFilters()
+            .Where(l => l.LeadNumber != null && l.LeadNumber.StartsWith(token))
+            .OrderByDescending(l => l.Id)
+            .Select(l => l.LeadNumber)
+            .FirstOrDefaultAsync(ct);
+
+        if (last != null && int.TryParse(last[token.Length..], out var lastNum))
+            return $"{token}{lastNum + 1:D5}";
+
+        return $"{token}00001";
+    }
+
+    public Task<bool> LeadNumberExistsAsync(string number, int? excludeId, CancellationToken ct)
+    {
+        var query = db.Leads.Where(l => l.LeadNumber == number);
+        if (excludeId.HasValue)
+            query = query.Where(l => l.Id != excludeId.Value);
+        return query.AnyAsync(ct);
+    }
+
     public async Task AddAsync(Lead lead, CancellationToken ct)
     {
         await db.Leads.AddAsync(lead, ct);
@@ -141,7 +170,8 @@ public class LeadRepository(AppDbContext db) : ILeadRepository
             // Intake-relay round-trip fields: the relay verifies its stamped
             // idempotency key and the resolved source attribution on read-back.
             LeadSourceId: l.LeadSourceId,
-            ExternalId: l.ExternalId);
+            ExternalId: l.ExternalId,
+            LeadNumber: l.LeadNumber);
     }
 
     private sealed record LeadEngagementStat(DateTimeOffset? LastActivityAt, int RecentEngagementCount);

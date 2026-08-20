@@ -58,7 +58,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<PurchaseOrderListItemModel>> CreatePurchaseOrder(CreatePurchaseOrderRequestModel request)
     {
         var result = await mediator.Send(new CreatePurchaseOrderCommand(
-            request.VendorId, request.JobId, request.Notes, request.Lines));
+            request.VendorId, request.JobId, request.Notes, request.Lines, PONumber: request.PONumber));
         return CreatedAtAction(nameof(GetPurchaseOrder), new { id = result.Id }, result);
     }
 
@@ -66,7 +66,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     [IfMatch(typeof(PurchaseOrder))]
     public async Task<IActionResult> UpdatePurchaseOrder(int id, UpdatePurchaseOrderRequestModel request)
     {
-        await mediator.Send(new UpdatePurchaseOrderCommand(id, request.Notes, request.ExpectedDeliveryDate));
+        await mediator.Send(new UpdatePurchaseOrderCommand(id, request.Notes, request.ExpectedDeliveryDate, PONumber: request.PONumber));
         return NoContent();
     }
 

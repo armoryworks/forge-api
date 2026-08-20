@@ -31,7 +31,8 @@ public class LeadsRemediationTests
         var repo = new Mock<ILeadRepository>();
         repo.Setup(r => r.FindAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(lead);
 
-        var handler = new UpdateLeadHandler(repo.Object, db);
+        var handler = new UpdateLeadHandler(
+            repo.Object, Mock.Of<ISystemSettingRepository>(), Mock.Of<IBusinessIdentifierService>(), db);
         var command = new UpdateLeadCommand(1,
             new UpdateLeadRequestModel(null, null, null, null, null, LeadStatus.New, null, null, null));
 

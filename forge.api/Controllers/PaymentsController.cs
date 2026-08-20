@@ -52,7 +52,7 @@ public class PaymentsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new CreatePaymentCommand(
             request.CustomerId, request.Method, request.Amount,
             request.PaymentDate, request.ReferenceNumber, request.Notes,
-            request.Applications));
+            request.Applications, request.PaymentNumber));
         return CreatedAtAction(nameof(GetPayment), new { id = result.Id }, result);
     }
 

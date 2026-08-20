@@ -3,6 +3,7 @@ namespace Forge.Core.Models;
 public record VendorDetailResponseModel(
     int Id,
     string CompanyName,
+    string? VendorNumber,
     string? ContactName,
     string? Email,
     string? Phone,

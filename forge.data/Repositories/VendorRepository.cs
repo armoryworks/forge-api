@@ -97,6 +97,7 @@ public class VendorRepository(AppDbContext db) : IVendorRepository
             .Select(v => new VendorListItemModel(
                 v.Id,
                 v.CompanyName,
+                v.VendorNumber,
                 v.ContactName,
                 v.Email,
                 v.Phone,
@@ -115,6 +116,35 @@ public class VendorRepository(AppDbContext db) : IVendorRepository
     public async Task<Vendor?> FindAsync(int id, CancellationToken ct)
     {
         return await db.Vendors.FirstOrDefaultAsync(v => v.Id == id, ct);
+    }
+
+    public async Task<string> GenerateNextVendorNumberAsync(CancellationToken ct)
+    {
+        // Per-prefix max-scan mirroring SalesOrderRepository.GenerateNextOrderNumberAsync:
+        // take the newest row carrying a VEND- number and increment its suffix.
+        // IgnoreQueryFilters so a soft-deleted vendor's number is still counted —
+        // the partial unique index covers all rows, so reusing a suffix would 23505.
+        const string token = "VEND-";
+
+        var last = await db.Vendors
+            .IgnoreQueryFilters()
+            .Where(v => v.VendorNumber != null && v.VendorNumber.StartsWith(token))
+            .OrderByDescending(v => v.Id)
+            .Select(v => v.VendorNumber)
+            .FirstOrDefaultAsync(ct);
+
+        if (last != null && int.TryParse(last[token.Length..], out var lastNum))
+            return $"{token}{lastNum + 1:D5}";
+
+        return $"{token}00001";
+    }
+
+    public Task<bool> VendorNumberExistsAsync(string number, int? excludeId, CancellationToken ct)
+    {
+        var query = db.Vendors.Where(v => v.VendorNumber == number);
+        if (excludeId.HasValue)
+            query = query.Where(v => v.Id != excludeId.Value);
+        return query.AnyAsync(ct);
     }
 
     public async Task<Vendor?> FindWithDetailsAsync(int id, CancellationToken ct)

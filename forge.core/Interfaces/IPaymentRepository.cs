@@ -20,6 +20,10 @@ public interface IPaymentRepository
     Task<Payment?> FindAsync(int id, CancellationToken ct);
     Task<Payment?> FindWithDetailsAsync(int id, CancellationToken ct);
     Task<string> GenerateNextPaymentNumberAsync(CancellationToken ct);
+
+    /// <summary>True when <paramref name="number"/> is already used by another payment (optionally excluding one id).</summary>
+    Task<bool> PaymentNumberExistsAsync(string number, int? excludeId, CancellationToken ct);
+
     Task AddAsync(Payment payment, CancellationToken ct);
     Task SaveChangesAsync(CancellationToken ct);
 }

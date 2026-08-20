@@ -7,7 +7,10 @@ public record CreateQuoteRequestModel(
     string? Notes,
     decimal TaxRate,
     List<CreateQuoteLineModel> Lines,
-    string? CustomerPO = null);
+    string? CustomerPO = null,
+    // Optional caller-supplied quote number — honored only when the
+    // quotes.allow_manual_numbers setting is on; otherwise auto-generated.
+    string? QuoteNumber = null);
 
 public record CreateQuoteLineModel(
     int? PartId,

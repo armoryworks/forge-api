@@ -14,7 +14,10 @@ public record CreateInvoiceRequestModel(
     // currency; FxRate is the booking rate (txn→functional). Defaults (null / 1) keep single-currency callers
     // unchanged — the invoice books in functional currency at unity.
     int? CurrencyId = null,
-    decimal FxRate = 1m);
+    decimal FxRate = 1m,
+    // Optional caller-supplied invoice number. Honored only when the
+    // invoices.allow_manual_numbers setting is on; otherwise auto-generated.
+    string? InvoiceNumber = null);
 
 public record CreateInvoiceLineModel(
     int? PartId,

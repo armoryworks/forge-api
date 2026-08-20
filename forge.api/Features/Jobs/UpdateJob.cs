@@ -22,7 +22,10 @@ public record UpdateJobCommand(
     JobPriority? Priority,
     DateTimeOffset? DueDate,
     int? IterationCount,
-    string? IterationNotes) : IRequest<JobDetailResponseModel>;
+    string? IterationNotes,
+    // Optional caller-supplied job number — editable while the job is not yet
+    // disposed, gated by jobs.allow_manual_numbers.
+    string? JobNumber = null) : IRequest<JobDetailResponseModel>;
 
 public class UpdateJobCommandValidator : AbstractValidator<UpdateJobCommand>
 {
@@ -40,8 +43,13 @@ public class UpdateJobHandler(
     IMediator mediator,
     IHubContext<BoardHub> boardHub,
     IHttpContextAccessor httpContext,
+    ISystemSettingRepository systemSettings,
+    IBusinessIdentifierService identifiers,
     AppDbContext db) : IRequestHandler<UpdateJobCommand, JobDetailResponseModel>
 {
+    // System setting that gates caller-supplied job numbers (shared with CreateJob).
+    private const string AllowManualJobNumbersKey = "jobs.allow_manual_numbers";
+
     public async Task<JobDetailResponseModel> Handle(UpdateJobCommand request, CancellationToken cancellationToken)
     {
         var job = await repo.FindAsync(request.Id, cancellationToken)
@@ -54,6 +62,34 @@ public class UpdateJobHandler(
         int? currentUserId = userIdClaim is not null ? int.Parse(userIdClaim.Value) : null;
 
         var changes = new List<JobActivityLog>();
+
+        // User-settable job number — only while the job is still open (not disposed),
+        // manual numbers enabled, and unique (excluding this job). The DB sequence is
+        // untouched: an edit renames the human-readable number, it doesn't draw a new one.
+        if (request.JobNumber is not null)
+        {
+            var newNumber = request.JobNumber.Trim();
+            if (newNumber.Length > 0 && !string.Equals(newNumber, job.JobNumber, StringComparison.Ordinal))
+            {
+                if (job.Disposition.HasValue)
+                    throw new InvalidOperationException(
+                        $"Job {job.JobNumber} has been disposed — its number can no longer be changed.");
+                if (!await ManualJobNumbersAllowedAsync(cancellationToken))
+                    throw new InvalidOperationException(
+                        "Manual job numbers are disabled. Turn on 'jobs.allow_manual_numbers' in settings to change a job number.");
+                if (await repo.JobNumberExistsAsync(newNumber, job.Id, cancellationToken))
+                    throw new InvalidOperationException($"Job number '{newNumber}' is already in use.");
+                await identifiers.IssueAsync(BusinessEntityType.Job, job.Id, job.JobNumber, cancellationToken);
+                await identifiers.RenameAsync(BusinessEntityType.Job, job.Id, newNumber, cancellationToken);
+                changes.Add(new JobActivityLog
+                {
+                    JobId = job.Id, UserId = currentUserId, Action = ActivityAction.FieldChanged,
+                    FieldName = "JobNumber", OldValue = job.JobNumber, NewValue = newNumber,
+                    Description = $"Job number changed from {job.JobNumber} to {newNumber}.",
+                });
+                job.JobNumber = newNumber;
+            }
+        }
 
         if (request.Title is not null && request.Title != job.Title)
         {
@@ -181,5 +217,11 @@ public class UpdateJobHandler(
             .SendAsync("jobUpdated", evt, cancellationToken);
 
         return result;
+    }
+
+    private async Task<bool> ManualJobNumbersAllowedAsync(CancellationToken ct)
+    {
+        var setting = await systemSettings.FindByKeyAsync(AllowManualJobNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 }

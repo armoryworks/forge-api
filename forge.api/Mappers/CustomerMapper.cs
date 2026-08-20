@@ -21,6 +21,7 @@ public static partial class CustomerMapper
     [MapperIgnoreSource(nameof(Customer.ExternalId))]
     [MapperIgnoreSource(nameof(Customer.ExternalRef))]
     [MapperIgnoreSource(nameof(Customer.Provider))]
+    [MapperIgnoreSource(nameof(Customer.CustomerNumber))]
     [MapperIgnoreSource(nameof(Customer.CompanyName))]
     [MapperIgnoreSource(nameof(Customer.Email))]
     [MapperIgnoreSource(nameof(Customer.Phone))]

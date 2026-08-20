@@ -44,6 +44,14 @@ public class ShipmentRepository(AppDbContext db) : IShipmentRepository
         return await db.Shipments.FirstOrDefaultAsync(s => s.Id == id, ct);
     }
 
+    public Task<bool> ShipmentNumberExistsAsync(string shipmentNumber, int? excludeId, CancellationToken ct)
+    {
+        var query = db.Shipments.Where(s => s.ShipmentNumber == shipmentNumber);
+        if (excludeId.HasValue)
+            query = query.Where(s => s.Id != excludeId.Value);
+        return query.AnyAsync(ct);
+    }
+
     public async Task<Shipment?> FindWithDetailsAsync(int id, CancellationToken ct)
     {
         return await db.Shipments

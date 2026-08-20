@@ -27,7 +27,9 @@ public record CreateCustomerCommand(
     int? DefaultTaxCodeId = null,
     string? DefaultCurrency = null,
     AddressInput? BillingAddress = null,
-    AddressInput? ShippingAddress = null) : IRequest<CustomerListItemModel>;
+    AddressInput? ShippingAddress = null,
+    // Optional caller-supplied customer number — see CreateCustomerRequestModel.CustomerNumber.
+    string? CustomerNumber = null) : IRequest<CustomerListItemModel>;
 
 public class CreateCustomerValidator : AbstractValidator<CreateCustomerCommand>
 {
@@ -45,6 +47,9 @@ public class CreateCustomerValidator : AbstractValidator<CreateCustomerCommand>
         RuleFor(x => x.CompanyName).MaximumLength(200);
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
         RuleFor(x => x.Phone).MaximumLength(50);
+        // Matches the customers.customer_number column (varchar(50)). Uniqueness
+        // is checked in the handler since it needs a DB lookup.
+        RuleFor(x => x.CustomerNumber).MaximumLength(50).When(x => !string.IsNullOrWhiteSpace(x.CustomerNumber));
         RuleFor(x => x.TaxExemptionId).MaximumLength(50);
         // If they checked the box, they must give us the cert # — auditors
         // will eventually ask for it and we'd rather not chase the customer.
@@ -111,15 +116,23 @@ public class CreateCustomerValidator : AbstractValidator<CreateCustomerCommand>
 
 public class CreateCustomerHandler(
     ICustomerRepository repo,
+    ISystemSettingRepository systemSettings,
+    IBusinessIdentifierService identifiers,
     AppDbContext db,
     ICloudFolderAutoCreator folderAutoCreator)
     : IRequestHandler<CreateCustomerCommand, CustomerListItemModel>
 {
+    // System setting that gates caller-supplied customer numbers. Stored as "true"/"false".
+    private const string AllowManualCustomerNumbersKey = "customers.allow_manual_numbers";
+
     public async Task<CustomerListItemModel> Handle(CreateCustomerCommand request, CancellationToken cancellationToken)
     {
+        var customerNumber = await ResolveCustomerNumberAsync(request, cancellationToken);
+
         var customer = new Customer
         {
             Name = request.Name,
+            CustomerNumber = customerNumber,
             CompanyName = request.CompanyName,
             Email = request.Email,
             Phone = request.Phone,
@@ -149,6 +162,9 @@ public class CreateCustomerHandler(
             ("Customer", customer.Id));
         await db.SaveChangesAsync(cancellationToken);
 
+        // Record the number in the identifier registry (history + resolution).
+        await identifiers.IssueAsync(BusinessEntityType.Customer, customer.Id, customer.CustomerNumber!, cancellationToken);
+
         // Pro Services rollout (D2 dual-path) — best-effort cloud folder
         // auto-anchor when CAP-EXT-CLOUD-STORAGE is enabled and the active
         // FolderMapBundle has a "Customer" suggestion. No-op otherwise.
@@ -164,12 +180,34 @@ public class CreateCustomerHandler(
         return new CustomerListItemModel(
             customer.Id,
             customer.Name,
+            customer.CustomerNumber,
             customer.CompanyName,
             customer.Email,
             customer.Phone,
             customer.IsActive,
             0, 0,
             customer.CreatedAt);
+    }
+
+    // Uses a caller-supplied customer number when manual numbers are enabled and one
+    // was provided; otherwise auto-generates the next sequential number.
+    private async Task<string> ResolveCustomerNumberAsync(CreateCustomerCommand request, CancellationToken ct)
+    {
+        var supplied = request.CustomerNumber?.Trim();
+        if (!string.IsNullOrWhiteSpace(supplied) && await ManualNumbersAllowedAsync(ct))
+        {
+            if (await repo.CustomerNumberExistsAsync(supplied, null, ct))
+                throw new InvalidOperationException($"Customer number '{supplied}' is already in use.");
+            return supplied;
+        }
+
+        return await repo.GenerateNextCustomerNumberAsync(ct);
+    }
+
+    private async Task<bool> ManualNumbersAllowedAsync(CancellationToken ct)
+    {
+        var setting = await systemSettings.FindByKeyAsync(AllowManualCustomerNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 
     private static CustomerAddress MapAddress(AddressInput input, AddressType type, string label) =>

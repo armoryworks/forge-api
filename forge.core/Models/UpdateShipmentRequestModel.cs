@@ -9,4 +9,7 @@ public record UpdateShipmentRequestModel(
     int? ShippingAddressId = null,
     decimal? Length = null,
     decimal? Width = null,
-    decimal? Height = null);
+    decimal? Height = null,
+    // Optional caller-supplied shipment number — editable only before the shipment
+    // has shipped, gated by shipments.allow_manual_numbers.
+    string? ShipmentNumber = null);

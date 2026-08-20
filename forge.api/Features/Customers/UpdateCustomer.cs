@@ -25,7 +25,9 @@ public record UpdateCustomerCommand(
     bool? IsAutomotive = null,
     bool? IsItarControlled = null,
     bool? IsReferenceOk = null,
-    string? ReferenceNotes = null) : IRequest;
+    string? ReferenceNotes = null,
+    // User-settable customer number — see UpdateCustomerRequestModel.CustomerNumber.
+    string? CustomerNumber = null) : IRequest;
 
 public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
 {
@@ -36,12 +38,21 @@ public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
         RuleFor(x => x.Phone).MaximumLength(50).When(x => x.Phone is not null);
         RuleFor(x => x.TaxExemptionId).MaximumLength(50).When(x => x.TaxExemptionId is not null);
+        RuleFor(x => x.CustomerNumber).NotEmpty().MaximumLength(50).When(x => x.CustomerNumber is not null);
     }
 }
 
-public class UpdateCustomerHandler(ICustomerRepository repo, AppDbContext db, IClock clock)
+public class UpdateCustomerHandler(
+    ICustomerRepository repo,
+    ISystemSettingRepository systemSettings,
+    IBusinessIdentifierService identifiers,
+    AppDbContext db,
+    IClock clock)
     : IRequestHandler<UpdateCustomerCommand>
 {
+    // System setting that gates caller-supplied customer numbers (shared with CreateCustomer).
+    private const string AllowManualCustomerNumbersKey = "customers.allow_manual_numbers";
+
     public async Task Handle(UpdateCustomerCommand request, CancellationToken cancellationToken)
     {
         var customer = await repo.FindAsync(request.Id, cancellationToken)
@@ -50,6 +61,30 @@ public class UpdateCustomerHandler(ICustomerRepository repo, AppDbContext db, IC
         // Rollup rule — collect changed-field markers as we apply patches so
         // one activity row summarises the whole save instead of one per field.
         var changedFields = new List<string>();
+
+        // User-settable customer number — only when manual numbers are enabled, and only
+        // after a uniqueness check that excludes this customer. The DB partial-unique
+        // index is the final backstop.
+        if (request.CustomerNumber is not null)
+        {
+            var newNumber = request.CustomerNumber.Trim();
+            if (newNumber.Length > 0 && !string.Equals(newNumber, customer.CustomerNumber, StringComparison.Ordinal))
+            {
+                if (!await ManualNumbersAllowedAsync(cancellationToken))
+                    throw new InvalidOperationException(
+                        "Manual customer numbers are disabled. Turn on 'customers.allow_manual_numbers' in settings to change a customer number.");
+                if (await repo.CustomerNumberExistsAsync(newNumber, customer.Id, cancellationToken))
+                    throw new InvalidOperationException($"Customer number '{newNumber}' is already in use.");
+                // Record the rename in the identifier registry: ensure the current number is on
+                // record (covers legacy customers with no number yet), then supersede it — the old
+                // number stays resolvable. RenameAsync alone opens the first active row when null.
+                if (!string.IsNullOrWhiteSpace(customer.CustomerNumber))
+                    await identifiers.IssueAsync(BusinessEntityType.Customer, customer.Id, customer.CustomerNumber, cancellationToken);
+                await identifiers.RenameAsync(BusinessEntityType.Customer, customer.Id, newNumber, cancellationToken);
+                customer.CustomerNumber = newNumber;
+                changedFields.Add("customerNumber");
+            }
+        }
 
         if (request.Name is not null && request.Name != customer.Name)
         {
@@ -152,5 +187,11 @@ public class UpdateCustomerHandler(ICustomerRepository repo, AppDbContext db, IC
         }
 
         await repo.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<bool> ManualNumbersAllowedAsync(CancellationToken ct)
+    {
+        var setting = await systemSettings.FindByKeyAsync(AllowManualCustomerNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 }

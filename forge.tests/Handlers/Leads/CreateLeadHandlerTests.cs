@@ -25,7 +25,8 @@ public class CreateLeadHandlerTests
     {
         _userId = _faker.Random.Int(1, 100);
         _db.CurrentUserId = _userId;
-        _handler = new CreateLeadHandler(_leadRepo.Object, _db);
+        _handler = new CreateLeadHandler(
+            _leadRepo.Object, Mock.Of<ISystemSettingRepository>(), Mock.Of<IBusinessIdentifierService>(), _db);
     }
 
     [Fact]

@@ -70,6 +70,14 @@ public class QuoteRepository(AppDbContext db) : IQuoteRepository
         return "QT-00001";
     }
 
+    public Task<bool> QuoteNumberExistsAsync(string number, int? excludeId, CancellationToken ct)
+    {
+        var query = db.Quotes.Where(q => q.QuoteNumber == number);
+        if (excludeId.HasValue)
+            query = query.Where(q => q.Id != excludeId.Value);
+        return query.AnyAsync(ct);
+    }
+
     public async Task AddAsync(Quote quote, CancellationToken ct)
     {
         await db.Quotes.AddAsync(quote, ct);

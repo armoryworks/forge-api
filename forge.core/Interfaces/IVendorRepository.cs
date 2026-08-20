@@ -21,6 +21,13 @@ public interface IVendorRepository
 
     Task<Vendor?> FindAsync(int id, CancellationToken ct);
     Task<Vendor?> FindWithDetailsAsync(int id, CancellationToken ct);
+
+    /// <summary>Next auto-generated vendor number in the <c>VEND-#####</c> series.</summary>
+    Task<string> GenerateNextVendorNumberAsync(CancellationToken ct);
+
+    /// <summary>True when <paramref name="number"/> is already in use, optionally excluding one vendor id.</summary>
+    Task<bool> VendorNumberExistsAsync(string number, int? excludeId, CancellationToken ct);
+
     Task AddAsync(Vendor vendor, CancellationToken ct);
     Task SaveChangesAsync(CancellationToken ct);
 }

@@ -25,7 +25,9 @@ public record CreateInvoiceCommand(
     // Multi-currency (Phase-4 FULLGL, additive). Null CurrencyId → the active book's functional currency;
     // FxRate is the booking rate (txn→functional). Defaults keep single-currency callers byte-for-byte unchanged.
     int? CurrencyId = null,
-    decimal FxRate = 1m) : IRequest<InvoiceListItemModel>;
+    decimal FxRate = 1m,
+    // Optional caller-supplied invoice number — see CreateInvoiceRequestModel.InvoiceNumber.
+    string? InvoiceNumber = null) : IRequest<InvoiceListItemModel>;
 
 public class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
 {
@@ -55,9 +57,16 @@ public class CreateInvoiceHandler(
     // AUDIT-21-S1: optional / null-default so isolated unit-test constructions stay valid; the DI
     // path supplies both. The QBO enqueue self-gates on a provider being connected.
     IAccountingService? accountingService = null,
-    ISyncQueueRepository? syncQueue = null)
+    ISyncQueueRepository? syncQueue = null,
+    // Optional / null-default (same reason): a manual-number override needs the setting repo, and the
+    // identifier registry records the number for resolution/history. DI supplies both.
+    ISystemSettingRepository? systemSettings = null,
+    IBusinessIdentifierService? identifiers = null)
     : IRequestHandler<CreateInvoiceCommand, InvoiceListItemModel>
 {
+    // System setting that gates caller-supplied invoice numbers. Stored as "true"/"false".
+    private const string AllowManualInvoiceNumbersKey = "invoices.allow_manual_numbers";
+
     public async Task<InvoiceListItemModel> Handle(CreateInvoiceCommand request, CancellationToken cancellationToken)
     {
         var customer = await customerRepo.FindAsync(request.CustomerId, cancellationToken)
@@ -102,7 +111,7 @@ public class CreateInvoiceHandler(
             }
         }
 
-        var invoiceNumber = await repo.GenerateNextInvoiceNumberAsync(cancellationToken);
+        var invoiceNumber = await ResolveInvoiceNumberAsync(request, cancellationToken);
 
         CreditTerms? creditTerms = request.CreditTerms != null
             ? Enum.Parse<CreditTerms>(request.CreditTerms, true)
@@ -157,6 +166,10 @@ public class CreateInvoiceHandler(
         await repo.AddAsync(invoice, cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);
 
+        // Record the number in the identifier registry (history + resolution).
+        if (identifiers is not null)
+            await identifiers.IssueAsync(BusinessEntityType.Invoice, invoice.Id, invoice.InvoiceNumber, cancellationToken);
+
         var total = invoice.Lines.Sum(l => l.Quantity * l.UnitPrice) * (1 + invoice.TaxRate);
 
         // AUDIT-21-S1 (BLOCKER): enqueue a QBO sync row so AR reaches the accounting provider —
@@ -184,6 +197,28 @@ public class CreateInvoiceHandler(
             invoice.Id, invoice.InvoiceNumber, invoice.CustomerId, customer.Name,
             invoice.Status.ToString(), invoice.InvoiceDate, invoice.DueDate,
             total, 0, total, invoice.CreatedAt);
+    }
+
+    // Uses a caller-supplied invoice number when manual numbers are enabled and one
+    // was provided; otherwise auto-generates the next sequential number.
+    private async Task<string> ResolveInvoiceNumberAsync(CreateInvoiceCommand request, CancellationToken ct)
+    {
+        var supplied = request.InvoiceNumber?.Trim();
+        if (!string.IsNullOrWhiteSpace(supplied) && await ManualInvoiceNumbersAllowedAsync(ct))
+        {
+            if (await repo.InvoiceNumberExistsAsync(supplied, null, ct))
+                throw new InvalidOperationException($"Invoice number '{supplied}' is already in use.");
+            return supplied;
+        }
+
+        return await repo.GenerateNextInvoiceNumberAsync(ct);
+    }
+
+    private async Task<bool> ManualInvoiceNumbersAllowedAsync(CancellationToken ct)
+    {
+        if (systemSettings is null) return false;
+        var setting = await systemSettings.FindByKeyAsync(AllowManualInvoiceNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 
     /// <summary>

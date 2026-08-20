@@ -17,7 +17,8 @@ public class CreateVendorHandlerTests
 
     public CreateVendorHandlerTests()
     {
-        _handler = new CreateVendorHandler(_vendorRepo.Object);
+        _handler = new CreateVendorHandler(
+            _vendorRepo.Object, Mock.Of<ISystemSettingRepository>(), Mock.Of<IBusinessIdentifierService>());
     }
 
     [Fact]

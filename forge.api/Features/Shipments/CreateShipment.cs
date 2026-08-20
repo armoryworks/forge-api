@@ -23,7 +23,9 @@ public record CreateShipmentCommand(
     List<CreateShipmentLineModel> Lines,
     // Optional selected carrier (master data). Additive: callers that pass only the free-text
     // Carrier string are unchanged. Drives the scan-to-ship gate + delivery automation.
-    int? CarrierId = null) : IRequest<ShipmentListItemModel>;
+    int? CarrierId = null,
+    // Optional caller-supplied shipment number — gated by shipments.allow_manual_numbers.
+    string? ShipmentNumber = null) : IRequest<ShipmentListItemModel>;
 
 public class CreateShipmentValidator : AbstractValidator<CreateShipmentCommand>
 {
@@ -49,10 +51,16 @@ public class CreateShipmentHandler(
     IMediator mediator,
     IHttpContextAccessor httpContext,
     // Optional / null-default so the mock-based handler tests stay constructible; the DI path
-    // supplies it. Used to validate the selected carrier (clean 404 vs. an FK-violation 500).
+    // supplies them. systemSettings/identifiers gate + register a caller-supplied shipment number.
+    ISystemSettingRepository? systemSettings = null,
+    IBusinessIdentifierService? identifiers = null,
+    // Used to validate the selected carrier (clean 404 vs. an FK-violation 500).
     AppDbContext? db = null)
     : IRequestHandler<CreateShipmentCommand, ShipmentListItemModel>
 {
+    // System setting that gates caller-supplied shipment numbers. Stored as "true"/"false".
+    private const string AllowManualShipmentNumbersKey = "shipments.allow_manual_numbers";
+
     public async Task<ShipmentListItemModel> Handle(CreateShipmentCommand request, CancellationToken cancellationToken)
     {
         var order = await orderRepo.FindWithDetailsAsync(request.SalesOrderId, cancellationToken)
@@ -66,7 +74,7 @@ public class CreateShipmentHandler(
             && !await db.Carriers.AnyAsync(c => c.Id == carrierId && c.IsActive, cancellationToken))
             throw new KeyNotFoundException($"Carrier {carrierId} not found or inactive");
 
-        var shipmentNumber = await shipmentRepo.GenerateNextShipmentNumberAsync(cancellationToken);
+        var shipmentNumber = await ResolveShipmentNumberAsync(request, cancellationToken);
 
         var shipment = new Shipment
         {
@@ -145,6 +153,10 @@ public class CreateShipmentHandler(
         await shipmentRepo.AddAsync(shipment, cancellationToken);
         await shipmentRepo.SaveChangesAsync(cancellationToken);
 
+        // Record the number in the identifier registry (history + resolution).
+        if (identifiers is not null)
+            await identifiers.IssueAsync(BusinessEntityType.Shipment, shipment.Id, shipment.ShipmentNumber, cancellationToken);
+
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
         await mediator.Publish(new ShipmentCreatedEvent(shipment.Id, request.SalesOrderId, userId), cancellationToken);
 
@@ -153,5 +165,27 @@ public class CreateShipmentHandler(
             order.OrderNumber, order.Customer.Name, shipment.Status.ToString(),
             shipment.Carrier, shipment.TrackingNumber, shipment.ShippedDate,
             shipment.CreatedAt);
+    }
+
+    // Uses a caller-supplied shipment number when manual numbers are enabled and one
+    // was provided; otherwise auto-generates the next sequential number.
+    private async Task<string> ResolveShipmentNumberAsync(CreateShipmentCommand request, CancellationToken ct)
+    {
+        var supplied = request.ShipmentNumber?.Trim();
+        if (!string.IsNullOrWhiteSpace(supplied) && await ManualShipmentNumbersAllowedAsync(ct))
+        {
+            if (await shipmentRepo.ShipmentNumberExistsAsync(supplied, null, ct))
+                throw new InvalidOperationException($"Shipment number '{supplied}' is already in use.");
+            return supplied;
+        }
+
+        return await shipmentRepo.GenerateNextShipmentNumberAsync(ct);
+    }
+
+    private async Task<bool> ManualShipmentNumbersAllowedAsync(CancellationToken ct)
+    {
+        if (systemSettings is null) return false;
+        var setting = await systemSettings.FindByKeyAsync(AllowManualShipmentNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 }

@@ -6,6 +6,13 @@ namespace Forge.Core.Entities;
 public class Vendor : BaseAuditableEntity, IActiveAware
 {
     public string CompanyName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// User-settable business number (auto-generated <c>VEND-#####</c> by
+    /// default, or a manual value when <c>vendors.allow_manual_numbers</c> is
+    /// on). Unique among non-null values; recorded in the identifier registry.
+    /// </summary>
+    public string? VendorNumber { get; set; }
     public string? ContactName { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }

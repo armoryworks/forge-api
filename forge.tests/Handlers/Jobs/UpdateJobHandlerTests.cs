@@ -36,6 +36,8 @@ public class UpdateJobHandlerTests
             _mediator.Object,
             _boardHub.Object,
             Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>(),
+            Mock.Of<ISystemSettingRepository>(),
+            Mock.Of<IBusinessIdentifierService>(),
             TestDbContextFactory.Create());
     }
 

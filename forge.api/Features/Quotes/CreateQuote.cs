@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 
@@ -14,7 +15,9 @@ public record CreateQuoteCommand(
     string? Notes,
     decimal TaxRate,
     List<CreateQuoteLineModel> Lines,
-    string? CustomerPO = null) : IRequest<QuoteListItemModel>;
+    string? CustomerPO = null,
+    // Optional caller-supplied quote number — see CreateQuoteRequestModel.QuoteNumber.
+    string? QuoteNumber = null) : IRequest<QuoteListItemModel>;
 
 public class CreateQuoteValidator : AbstractValidator<CreateQuoteCommand>
 {
@@ -24,6 +27,9 @@ public class CreateQuoteValidator : AbstractValidator<CreateQuoteCommand>
         RuleFor(x => x.Lines).NotEmpty().WithMessage("At least one line item is required");
         RuleFor(x => x.TaxRate).GreaterThanOrEqualTo(0).LessThan(1);
         RuleFor(x => x.CustomerPO).MaximumLength(50).When(x => x.CustomerPO is not null);
+        // Matches the quotes.quote_number column (varchar(20)). Uniqueness is
+        // checked in the handler since it needs a DB lookup.
+        RuleFor(x => x.QuoteNumber).MaximumLength(20).When(x => !string.IsNullOrWhiteSpace(x.QuoteNumber));
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
             line.RuleFor(l => l.Description).NotEmpty();
@@ -41,9 +47,15 @@ public class CreateQuoteHandler(
     // AUDIT-19-S1: optional/null-default so isolated unit-test constructions stay valid; DI supplies it.
     Forge.Api.Services.CustomerPriceResolver? priceResolver = null,
     // S1: optional/null-default for the same reason; DI supplies it.
-    Forge.Api.Services.TaxOverrideGuard? taxGuard = null)
+    Forge.Api.Services.TaxOverrideGuard? taxGuard = null,
+    // Optional/null-default for the same reason; DI supplies both.
+    ISystemSettingRepository? systemSettings = null,
+    IBusinessIdentifierService? identifiers = null)
     : IRequestHandler<CreateQuoteCommand, QuoteListItemModel>
 {
+    // System setting that gates caller-supplied quote numbers. Stored as "true"/"false".
+    private const string AllowManualQuoteNumbersKey = "quotes.allow_manual_numbers";
+
     public async Task<QuoteListItemModel> Handle(CreateQuoteCommand request, CancellationToken cancellationToken)
     {
         var customer = await customerRepo.FindAsync(request.CustomerId, cancellationToken);
@@ -60,7 +72,7 @@ public class CreateQuoteHandler(
                 request.CustomerId, request.TaxRate, defaultRate, cancellationToken);
         }
 
-        var quoteNumber = await repo.GenerateNextQuoteNumberAsync(cancellationToken);
+        var quoteNumber = await ResolveQuoteNumberAsync(request, cancellationToken);
 
         var quote = new Quote
         {
@@ -106,11 +118,37 @@ public class CreateQuoteHandler(
         await repo.AddAsync(quote, cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);
 
+        // Record the number in the identifier registry (history + resolution).
+        if (identifiers is not null)
+            await identifiers.IssueAsync(BusinessEntityType.Quote, quote.Id, quote.QuoteNumber!, cancellationToken);
+
         var total = quote.Lines.Sum(l => l.Quantity * l.UnitPrice);
 
         return new QuoteListItemModel(
             quote.Id, quote.QuoteNumber, quote.CustomerId, customer.Name,
             quote.Status.ToString(), quote.Lines.Count, total,
             quote.ExpirationDate, quote.CreatedAt);
+    }
+
+    // Uses a caller-supplied quote number when manual numbers are enabled and one
+    // was provided; otherwise auto-generates the next sequential "QT" number.
+    private async Task<string> ResolveQuoteNumberAsync(CreateQuoteCommand request, CancellationToken ct)
+    {
+        var supplied = request.QuoteNumber?.Trim();
+        if (!string.IsNullOrWhiteSpace(supplied) && await ManualQuoteNumbersAllowedAsync(ct))
+        {
+            if (await repo.QuoteNumberExistsAsync(supplied, null, ct))
+                throw new InvalidOperationException($"Quote number '{supplied}' is already in use.");
+            return supplied;
+        }
+
+        return await repo.GenerateNextQuoteNumberAsync(ct);
+    }
+
+    private async Task<bool> ManualQuoteNumbersAllowedAsync(CancellationToken ct)
+    {
+        if (systemSettings is null) return false;
+        var setting = await systemSettings.FindByKeyAsync(AllowManualQuoteNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 }

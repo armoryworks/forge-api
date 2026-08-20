@@ -24,7 +24,9 @@ public record CreatePurchaseOrderCommand(
     // doesn't yet have a freight quote (distinct from $0 = free shipping).
     Incoterm? Incoterm = null,
     decimal? EstimatedFreight = null,
-    string? QuoteCurrency = null) : IRequest<PurchaseOrderListItemModel>;
+    string? QuoteCurrency = null,
+    // Optional caller-supplied PO number — gated by purchase_orders.allow_manual_numbers.
+    string? PONumber = null) : IRequest<PurchaseOrderListItemModel>;
 
 public class CreatePurchaseOrderValidator : AbstractValidator<CreatePurchaseOrderCommand>
 {
@@ -60,11 +62,16 @@ public class CreatePurchaseOrderHandler(
     IVendorRepository vendorRepo,
     IPartRepository partRepo,
     IBarcodeService barcodeService,
+    ISystemSettingRepository systemSettings,
+    IBusinessIdentifierService identifiers,
     IMediator mediator,
     IHttpContextAccessor httpContextAccessor,
     AppDbContext db)
     : IRequestHandler<CreatePurchaseOrderCommand, PurchaseOrderListItemModel>
 {
+    // System setting that gates caller-supplied PO numbers. Stored as "true"/"false".
+    private const string AllowManualPONumbersKey = "purchase_orders.allow_manual_numbers";
+
     public async Task<PurchaseOrderListItemModel> Handle(CreatePurchaseOrderCommand request, CancellationToken cancellationToken)
     {
         var vendor = await vendorRepo.FindAsync(request.VendorId, cancellationToken);
@@ -73,7 +80,7 @@ public class CreatePurchaseOrderHandler(
         // gap. NotFound preserved as KeyNotFoundException → 404 via middleware.
         ActiveCheck.EnsureActive(vendor, "Vendor", "vendorId", request.VendorId);
 
-        var poNumber = await poRepo.GenerateNextPONumberAsync(cancellationToken);
+        var poNumber = await ResolvePONumberAsync(request, cancellationToken);
 
         // Bought-parts PR2.5 — derive Incoterm/QuoteCurrency defaults from
         // the preferred VendorPart for the first line's (vendor, part) when
@@ -148,6 +155,9 @@ public class CreatePurchaseOrderHandler(
         await barcodeService.CreateBarcodeAsync(
             BarcodeEntityType.PurchaseOrder, po.Id, po.PONumber, cancellationToken);
 
+        // Record the number in the identifier registry (history + resolution).
+        await identifiers.IssueAsync(BusinessEntityType.PurchaseOrder, po.Id, po.PONumber, cancellationToken);
+
         // Publish domain event for calendar integration
         if (userId > 0)
             await mediator.Publish(new PurchaseOrderCreatedEvent(po.Id, userId), cancellationToken);
@@ -160,5 +170,26 @@ public class CreatePurchaseOrderHandler(
             0, null, po.IsBlanket, po.CreatedAt,
             OriginSource: po.OriginSource.ToString(),
             OriginReference: po.OriginReference);
+    }
+
+    // Uses a caller-supplied PO number when manual numbers are enabled and one
+    // was provided; otherwise auto-generates the next sequential number.
+    private async Task<string> ResolvePONumberAsync(CreatePurchaseOrderCommand request, CancellationToken ct)
+    {
+        var supplied = request.PONumber?.Trim();
+        if (!string.IsNullOrWhiteSpace(supplied) && await ManualPONumbersAllowedAsync(ct))
+        {
+            if (await poRepo.PONumberExistsAsync(supplied, null, ct))
+                throw new InvalidOperationException($"Purchase order number '{supplied}' is already in use.");
+            return supplied;
+        }
+
+        return await poRepo.GenerateNextPONumberAsync(ct);
+    }
+
+    private async Task<bool> ManualPONumbersAllowedAsync(CancellationToken ct)
+    {
+        var setting = await systemSettings.FindByKeyAsync(AllowManualPONumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 }

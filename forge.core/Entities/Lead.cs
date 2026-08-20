@@ -5,6 +5,13 @@ namespace Forge.Core.Entities;
 public class Lead : BaseAuditableEntity
 {
     public string CompanyName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// User-settable business number (auto-generated <c>LEAD-#####</c> by
+    /// default, or a manual value when <c>leads.allow_manual_numbers</c> is
+    /// on). Unique among non-null values; recorded in the identifier registry.
+    /// </summary>
+    public string? LeadNumber { get; set; }
     public string? ContactName { get; set; }
 
     /// <summary>Human label for the lead. Individuals have no company, so the

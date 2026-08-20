@@ -13,4 +13,7 @@ public record UpdateVendorRequestModel(
     string? PaymentTerms,
     string? Notes,
     decimal? OffTierVariancePct,
-    bool? IsActive);
+    bool? IsActive,
+    // User-settable vendor number. Supplying a changed value requires
+    // vendors.allow_manual_numbers to be on; validated for uniqueness.
+    string? VendorNumber = null);

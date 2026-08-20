@@ -21,7 +21,8 @@ public class CreateCustomerHandlerTests
     public CreateCustomerHandlerTests()
     {
         _handler = new CreateCustomerHandler(
-            _customerRepo.Object, _db, new NoOpCloudFolderAutoCreator());
+            _customerRepo.Object, Mock.Of<ISystemSettingRepository>(), Mock.Of<IBusinessIdentifierService>(),
+            _db, new NoOpCloudFolderAutoCreator());
     }
 
     /// <summary>

@@ -14,6 +14,7 @@ public class VendorConfiguration : IEntityTypeConfiguration<Vendor>
         builder.Ignore(e => e.IsActiveForNewTransactions);
 
         builder.Property(e => e.CompanyName).HasMaxLength(200);
+        builder.Property(e => e.VendorNumber).HasMaxLength(50);
         builder.Property(e => e.ContactName).HasMaxLength(200);
         builder.Property(e => e.Email).HasMaxLength(200);
         builder.Property(e => e.Phone).HasMaxLength(50);

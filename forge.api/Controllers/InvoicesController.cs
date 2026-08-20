@@ -54,7 +54,8 @@ public class InvoicesController(IMediator mediator) : ControllerBase
             request.CustomerId, request.SalesOrderId, request.ShipmentId,
             request.InvoiceDate, request.DueDate, request.CreditTerms,
             request.TaxRate, request.Notes, request.Lines,
-            CurrencyId: request.CurrencyId, FxRate: request.FxRate));
+            CurrencyId: request.CurrencyId, FxRate: request.FxRate,
+            InvoiceNumber: request.InvoiceNumber));
         return CreatedAtAction(nameof(GetInvoice), new { id = result.Id }, result);
     }
 
@@ -76,6 +77,13 @@ public class InvoicesController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> VoidInvoice(int id)
     {
         await mediator.Send(new VoidInvoiceCommand(id));
+        return NoContent();
+    }
+
+    [HttpPatch("{id:int}/number")]
+    public async Task<IActionResult> RenameInvoiceNumber(int id, RenameInvoiceNumberRequestModel request)
+    {
+        await mediator.Send(new RenameInvoiceNumberCommand(id, request.InvoiceNumber));
         return NoContent();
     }
 

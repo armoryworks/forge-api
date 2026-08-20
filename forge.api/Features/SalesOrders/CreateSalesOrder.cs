@@ -18,7 +18,9 @@ public record CreateSalesOrderCommand(
     string? CustomerPO,
     string? Notes,
     decimal TaxRate,
-    List<CreateSalesOrderLineModel> Lines) : IRequest<SalesOrderListItemModel>;
+    List<CreateSalesOrderLineModel> Lines,
+    // Optional caller-supplied order number — see CreateSalesOrderRequestModel.OrderNumber.
+    string? OrderNumber = null) : IRequest<SalesOrderListItemModel>;
 
 public class CreateSalesOrderValidator : AbstractValidator<CreateSalesOrderCommand>
 {
@@ -27,6 +29,9 @@ public class CreateSalesOrderValidator : AbstractValidator<CreateSalesOrderComma
         RuleFor(x => x.CustomerId).GreaterThan(0);
         RuleFor(x => x.Lines).NotEmpty().WithMessage("At least one line item is required");
         RuleFor(x => x.TaxRate).GreaterThanOrEqualTo(0).LessThan(1);
+        // Matches the sales_orders.order_number column (varchar(20)). Uniqueness is
+        // checked in the handler since it needs a DB lookup.
+        RuleFor(x => x.OrderNumber).MaximumLength(20).When(x => !string.IsNullOrWhiteSpace(x.OrderNumber));
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
             line.RuleFor(l => l.Description).NotEmpty();
@@ -41,9 +46,15 @@ public class CreateSalesOrderHandler(
     ISalesOrderRepository repo,
     ICustomerRepository customerRepo,
     IPartRepository partRepo,
-    IBarcodeService barcodeService)
+    IBarcodeService barcodeService,
+    // Optional/null-default so isolated unit-test constructions stay valid; DI supplies both.
+    ISystemSettingRepository? systemSettings = null,
+    IBusinessIdentifierService? identifiers = null)
     : IRequestHandler<CreateSalesOrderCommand, SalesOrderListItemModel>
 {
+    // System setting that gates caller-supplied order numbers. Stored as "true"/"false".
+    private const string AllowManualOrderNumbersKey = "sales_orders.allow_manual_numbers";
+
     public async Task<SalesOrderListItemModel> Handle(CreateSalesOrderCommand request, CancellationToken cancellationToken)
     {
         var customer = await customerRepo.FindAsync(request.CustomerId, cancellationToken);
@@ -51,7 +62,7 @@ public class CreateSalesOrderHandler(
         // gate that Phase 1 found missing.
         ActiveCheck.EnsureActive(customer, "Customer", "customerId", request.CustomerId);
 
-        var orderNumber = await repo.GenerateNextOrderNumberAsync(cancellationToken);
+        var orderNumber = await ResolveOrderNumberAsync(request, cancellationToken);
 
         CreditTerms? creditTerms = request.CreditTerms != null
             ? Enum.Parse<CreditTerms>(request.CreditTerms, true)
@@ -102,6 +113,10 @@ public class CreateSalesOrderHandler(
         await barcodeService.CreateBarcodeAsync(
             BarcodeEntityType.SalesOrder, order.Id, order.OrderNumber, cancellationToken);
 
+        // Record the number in the identifier registry (history + resolution).
+        if (identifiers is not null)
+            await identifiers.IssueAsync(BusinessEntityType.SalesOrder, order.Id, order.OrderNumber, cancellationToken);
+
         var total = order.Lines.Sum(l => l.Quantity * l.UnitPrice);
 
         return new SalesOrderListItemModel(
@@ -109,5 +124,27 @@ public class CreateSalesOrderHandler(
             order.Status.ToString(), order.CustomerPO, order.Lines.Count,
             total, order.RequestedDeliveryDate, order.CreatedAt,
             SalesOrderId: order.Id, JobId: null);
+    }
+
+    // Uses a caller-supplied order number when manual numbers are enabled and one
+    // was provided; otherwise auto-generates the next sequential "SO" number.
+    private async Task<string> ResolveOrderNumberAsync(CreateSalesOrderCommand request, CancellationToken ct)
+    {
+        var supplied = request.OrderNumber?.Trim();
+        if (!string.IsNullOrWhiteSpace(supplied) && await ManualOrderNumbersAllowedAsync(ct))
+        {
+            if (await repo.OrderNumberExistsAsync(supplied, null, ct))
+                throw new InvalidOperationException($"Sales order number '{supplied}' is already in use.");
+            return supplied;
+        }
+
+        return await repo.GenerateNextOrderNumberAsync(ct);
+    }
+
+    private async Task<bool> ManualOrderNumbersAllowedAsync(CancellationToken ct)
+    {
+        if (systemSettings is null) return false;
+        var setting = await systemSettings.FindByKeyAsync(AllowManualOrderNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 }

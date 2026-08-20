@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 
@@ -17,13 +18,18 @@ public record CreateVendorCommand(
     string? ZipCode,
     string? Country,
     string? PaymentTerms,
-    string? Notes) : IRequest<VendorListItemModel>;
+    string? Notes,
+    // Optional caller-supplied vendor number — see CreateVendorRequestModel.VendorNumber.
+    string? VendorNumber = null) : IRequest<VendorListItemModel>;
 
 public class CreateVendorValidator : AbstractValidator<CreateVendorCommand>
 {
     public CreateVendorValidator()
     {
         RuleFor(x => x.CompanyName).NotEmpty().MaximumLength(200);
+        // Matches the vendors.vendor_number column (varchar(50)). Uniqueness is
+        // checked in the handler since it needs a DB lookup.
+        RuleFor(x => x.VendorNumber).MaximumLength(50).When(x => !string.IsNullOrWhiteSpace(x.VendorNumber));
         RuleFor(x => x.ContactName).MaximumLength(200);
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
         RuleFor(x => x.Phone).MaximumLength(50);
@@ -32,14 +38,23 @@ public class CreateVendorValidator : AbstractValidator<CreateVendorCommand>
     }
 }
 
-public class CreateVendorHandler(IVendorRepository repo)
+public class CreateVendorHandler(
+    IVendorRepository repo,
+    ISystemSettingRepository systemSettings,
+    IBusinessIdentifierService identifiers)
     : IRequestHandler<CreateVendorCommand, VendorListItemModel>
 {
+    // System setting that gates caller-supplied vendor numbers. Stored as "true"/"false".
+    private const string AllowManualVendorNumbersKey = "vendors.allow_manual_numbers";
+
     public async Task<VendorListItemModel> Handle(CreateVendorCommand request, CancellationToken cancellationToken)
     {
+        var vendorNumber = await ResolveVendorNumberAsync(request, cancellationToken);
+
         var vendor = new Vendor
         {
             CompanyName = request.CompanyName,
+            VendorNumber = vendorNumber,
             ContactName = request.ContactName,
             Email = request.Email,
             Phone = request.Phone,
@@ -55,8 +70,32 @@ public class CreateVendorHandler(IVendorRepository repo)
         await repo.AddAsync(vendor, cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);
 
+        // Record the number in the identifier registry (history + resolution).
+        await identifiers.IssueAsync(BusinessEntityType.Vendor, vendor.Id, vendor.VendorNumber!, cancellationToken);
+
         return new VendorListItemModel(
-            vendor.Id, vendor.CompanyName, vendor.ContactName,
+            vendor.Id, vendor.CompanyName, vendor.VendorNumber, vendor.ContactName,
             vendor.Email, vendor.Phone, vendor.IsActive, 0, vendor.CreatedAt);
+    }
+
+    // Uses a caller-supplied vendor number when manual numbers are enabled and one
+    // was provided; otherwise auto-generates the next sequential number.
+    private async Task<string> ResolveVendorNumberAsync(CreateVendorCommand request, CancellationToken ct)
+    {
+        var supplied = request.VendorNumber?.Trim();
+        if (!string.IsNullOrWhiteSpace(supplied) && await ManualNumbersAllowedAsync(ct))
+        {
+            if (await repo.VendorNumberExistsAsync(supplied, null, ct))
+                throw new InvalidOperationException($"Vendor number '{supplied}' is already in use.");
+            return supplied;
+        }
+
+        return await repo.GenerateNextVendorNumberAsync(ct);
+    }
+
+    private async Task<bool> ManualNumbersAllowedAsync(CancellationToken ct)
+    {
+        var setting = await systemSettings.FindByKeyAsync(AllowManualVendorNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 }

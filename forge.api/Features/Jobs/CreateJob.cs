@@ -24,7 +24,9 @@ public record CreateJobCommand(
     DateTimeOffset? DueDate,
     int? PartId = null,
     // #27: optionally associate the new job with an open sales-order line at create time.
-    int? SalesOrderLineId = null) : IRequest<JobDetailResponseModel>;
+    int? SalesOrderLineId = null,
+    // Optional caller-supplied job number — gated by jobs.allow_manual_numbers.
+    string? JobNumber = null) : IRequest<JobDetailResponseModel>;
 
 public class CreateJobCommandValidator : AbstractValidator<CreateJobCommand>
 {
@@ -48,8 +50,13 @@ public class CreateJobHandler(
     IHttpContextAccessor httpContextAccessor,
     AppDbContext db,
     Forge.Api.Features.SalesOrders.Acceptance.ISalesOrderAcceptanceGate acceptanceGate,
-    ICloudFolderAutoCreator folderAutoCreator) : IRequestHandler<CreateJobCommand, JobDetailResponseModel>
+    ICloudFolderAutoCreator folderAutoCreator,
+    ISystemSettingRepository systemSettings,
+    IBusinessIdentifierService identifiers) : IRequestHandler<CreateJobCommand, JobDetailResponseModel>
 {
+    // System setting that gates caller-supplied job numbers. Stored as "true"/"false".
+    private const string AllowManualJobNumbersKey = "jobs.allow_manual_numbers";
+
     public async Task<JobDetailResponseModel> Handle(CreateJobCommand request, CancellationToken cancellationToken)
     {
         if (request.AssigneeId.HasValue)
@@ -72,7 +79,7 @@ public class CreateJobHandler(
         var firstStage = await trackRepo.FindFirstActiveStageAsync(request.TrackTypeId, cancellationToken)
             ?? throw new KeyNotFoundException($"No active stages found for TrackType {request.TrackTypeId}.");
 
-        var jobNumber = await jobRepo.GenerateNextJobNumberAsync(cancellationToken);
+        var jobNumber = await ResolveJobNumberAsync(request, cancellationToken);
         var maxPosition = await jobRepo.GetMaxBoardPositionAsync(firstStage.Id, cancellationToken);
 
         var job = new Job
@@ -119,6 +126,9 @@ public class CreateJobHandler(
         await barcodeService.CreateBarcodeAsync(
             Core.Enums.BarcodeEntityType.Job, job.Id, job.JobNumber, cancellationToken);
 
+        // Record the number in the identifier registry (history + resolution).
+        await identifiers.IssueAsync(BusinessEntityType.Job, job.Id, job.JobNumber, cancellationToken);
+
         var result = await mediator.Send(new GetJobByIdQuery(job.Id), cancellationToken);
 
         // Broadcast to board group
@@ -158,5 +168,26 @@ public class CreateJobHandler(
             entityType: "Job", entityId: job.Id, tokenContext, cancellationToken);
 
         return result;
+    }
+
+    // Uses a caller-supplied job number when manual numbers are enabled and one
+    // was provided; otherwise draws the next number from the DB sequence.
+    private async Task<string> ResolveJobNumberAsync(CreateJobCommand request, CancellationToken ct)
+    {
+        var supplied = request.JobNumber?.Trim();
+        if (!string.IsNullOrWhiteSpace(supplied) && await ManualJobNumbersAllowedAsync(ct))
+        {
+            if (await jobRepo.JobNumberExistsAsync(supplied, null, ct))
+                throw new InvalidOperationException($"Job number '{supplied}' is already in use.");
+            return supplied;
+        }
+
+        return await jobRepo.GenerateNextJobNumberAsync(ct);
+    }
+
+    private async Task<bool> ManualJobNumbersAllowedAsync(CancellationToken ct)
+    {
+        var setting = await systemSettings.FindByKeyAsync(AllowManualJobNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 }

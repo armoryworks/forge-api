@@ -2934,6 +2934,7 @@ CREATE TABLE public.customers (
     id integer NOT NULL,
     name character varying(200) NOT NULL,
     company_name character varying(200),
+    customer_number character varying(50),
     email character varying(200),
     phone character varying(50),
     is_active boolean NOT NULL,
@@ -4731,6 +4732,7 @@ ALTER TABLE ONLY public.lead_sources
 CREATE TABLE public.leads (
     id integer NOT NULL,
     company_name character varying(200) NOT NULL,
+    lead_number character varying(50),
     contact_name character varying(200),
     email character varying(200),
     phone character varying(50),
@@ -9454,6 +9456,7 @@ ALTER TABLE ONLY public.vendor_scorecards
 CREATE TABLE public.vendors (
     id integer NOT NULL,
     company_name character varying(200) NOT NULL,
+    vendor_number character varying(50),
     contact_name character varying(200),
     email character varying(200),
     phone character varying(50),
@@ -11989,6 +11992,8 @@ CREATE INDEX ix_customer_tax_documents_file_attachment_id ON public.customer_tax
 
 CREATE INDEX ix_customers_credit_hold_by_id ON public.customers USING btree (credit_hold_by_id);
 
+CREATE UNIQUE INDEX ix_customers_customer_number ON public.customers USING btree (customer_number) WHERE customer_number IS NOT NULL;
+
 CREATE INDEX ix_customers_default_tax_code_id ON public.customers USING btree (default_tax_code_id);
 
 CREATE INDEX ix_customers_is_tax_exempt ON public.customers USING btree (is_tax_exempt);
@@ -12368,6 +12373,8 @@ CREATE UNIQUE INDEX ix_leads_converted_customer_id ON public.leads USING btree (
 CREATE UNIQUE INDEX ix_leads_external_id ON public.leads USING btree (external_id) WHERE (deleted_at IS NULL);
 
 CREATE INDEX ix_leads_icp_score ON public.leads USING btree (icp_score);
+
+CREATE UNIQUE INDEX ix_leads_lead_number ON public.leads USING btree (lead_number) WHERE lead_number IS NOT NULL;
 
 CREATE INDEX ix_leads_lead_source_id ON public.leads USING btree (lead_source_id);
 
@@ -13301,6 +13308,8 @@ CREATE INDEX ix_vendor_payments_vendor ON public.vendor_payments USING btree (ve
 CREATE INDEX ix_vendor_scorecards_vendor_id_period_start ON public.vendor_scorecards USING btree (vendor_id, period_start);
 
 CREATE INDEX ix_vendors_company_name ON public.vendors USING btree (company_name);
+
+CREATE UNIQUE INDEX ix_vendors_vendor_number ON public.vendors USING btree (vendor_number) WHERE vendor_number IS NOT NULL;
 
 CREATE INDEX ix_vpa_bill ON public.vendor_payment_applications USING btree (vendor_bill_id);
 

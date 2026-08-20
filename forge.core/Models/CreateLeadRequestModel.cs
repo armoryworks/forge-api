@@ -30,4 +30,7 @@ public record CreateLeadRequestModel(
     // Resolved server-side to LeadSourceId; an unknown or missing code leaves
     // LeadSourceId null rather than failing the create (the free-text Source
     // field still lands either way).
-    string? LeadSourceCode = null);
+    string? LeadSourceCode = null,
+    // Optional caller-supplied lead number. Honoured only when
+    // leads.allow_manual_numbers is on; otherwise auto-generated (LEAD-#####).
+    string? LeadNumber = null);

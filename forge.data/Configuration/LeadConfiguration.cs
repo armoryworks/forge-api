@@ -19,6 +19,7 @@ public class LeadConfiguration : IEntityTypeConfiguration<Lead>
         builder.Ignore(e => e.IsDeleted);
 
         builder.Property(e => e.CompanyName).HasMaxLength(200);
+        builder.Property(e => e.LeadNumber).HasMaxLength(50);
         builder.Property(e => e.ContactName).HasMaxLength(200);
         builder.Property(e => e.Email).HasMaxLength(200);
         builder.Property(e => e.Phone).HasMaxLength(50);

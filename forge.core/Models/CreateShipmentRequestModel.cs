@@ -9,7 +9,9 @@ public record CreateShipmentRequestModel(
     decimal? Weight,
     string? Notes,
     List<CreateShipmentLineModel> Lines,
-    int? CarrierId = null);
+    int? CarrierId = null,
+    // Optional caller-supplied shipment number — gated by shipments.allow_manual_numbers.
+    string? ShipmentNumber = null);
 
 public record CreateShipmentLineModel(
     int? SalesOrderLineId,

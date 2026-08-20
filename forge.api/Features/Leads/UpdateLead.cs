@@ -16,13 +16,21 @@ public class UpdateLeadCommandValidator : AbstractValidator<UpdateLeadCommand>
     {
         RuleFor(x => x.Id).GreaterThan(0);
         RuleFor(x => x.Data.CompanyName).MaximumLength(200).When(x => x.Data.CompanyName is not null);
+        RuleFor(x => x.Data.LeadNumber).NotEmpty().MaximumLength(50).When(x => x.Data.LeadNumber is not null);
         RuleFor(x => x.Data.Email).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Data.Email));
         RuleFor(x => x.Data.Phone).MaximumLength(50).When(x => x.Data.Phone is not null);
     }
 }
 
-public class UpdateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequestHandler<UpdateLeadCommand, LeadResponseModel>
+public class UpdateLeadHandler(
+    ILeadRepository repo,
+    ISystemSettingRepository systemSettings,
+    IBusinessIdentifierService identifiers,
+    AppDbContext db) : IRequestHandler<UpdateLeadCommand, LeadResponseModel>
 {
+    // System setting that gates caller-supplied lead numbers (shared with CreateLead).
+    private const string AllowManualLeadNumbersKey = "leads.allow_manual_numbers";
+
     public async Task<LeadResponseModel> Handle(UpdateLeadCommand request, CancellationToken cancellationToken)
     {
         var lead = await repo.FindAsync(request.Id, cancellationToken)
@@ -30,6 +38,29 @@ public class UpdateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequest
 
         var data = request.Data;
         var changedFields = new List<string>();
+
+        // User-settable lead number — only when manual numbers are enabled, and only after a
+        // uniqueness check that excludes this lead. The DB partial-unique index is the final backstop.
+        if (data.LeadNumber is not null)
+        {
+            var newNumber = data.LeadNumber.Trim();
+            if (newNumber.Length > 0 && !string.Equals(newNumber, lead.LeadNumber, StringComparison.Ordinal))
+            {
+                if (!await ManualNumbersAllowedAsync(cancellationToken))
+                    throw new InvalidOperationException(
+                        "Manual lead numbers are disabled. Turn on 'leads.allow_manual_numbers' in settings to change a lead number.");
+                if (await repo.LeadNumberExistsAsync(newNumber, lead.Id, cancellationToken))
+                    throw new InvalidOperationException($"Lead number '{newNumber}' is already in use.");
+                // Ensure the current number is on record (covers legacy leads with none), then
+                // supersede it — the old number stays resolvable. RenameAsync alone opens the
+                // first active row when the current value is null.
+                if (!string.IsNullOrWhiteSpace(lead.LeadNumber))
+                    await identifiers.IssueAsync(BusinessEntityType.Lead, lead.Id, lead.LeadNumber, cancellationToken);
+                await identifiers.RenameAsync(BusinessEntityType.Lead, lead.Id, newNumber, cancellationToken);
+                lead.LeadNumber = newNumber;
+                changedFields.Add("leadNumber");
+            }
+        }
 
         if (data.CompanyName is not null && data.CompanyName.Trim() != lead.CompanyName)
         {
@@ -153,5 +184,11 @@ public class UpdateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequest
         await repo.SaveChangesAsync(cancellationToken);
 
         return (await repo.GetByIdAsync(lead.Id, cancellationToken))!;
+    }
+
+    private async Task<bool> ManualNumbersAllowedAsync(CancellationToken ct)
+    {
+        var setting = await systemSettings.FindByKeyAsync(AllowManualLeadNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 }

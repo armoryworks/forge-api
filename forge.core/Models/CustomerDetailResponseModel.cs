@@ -29,7 +29,10 @@ public record CustomerDetailResponseModel(
     bool IsAutomotive = false,
     bool IsItarControlled = false,
     bool IsReferenceOk = false,
-    string? ReferenceNotes = null);
+    string? ReferenceNotes = null,
+    // User-settable business number (CUST-#####). Optional default keeps
+    // pre-existing positional call sites / fixtures compiling.
+    string? CustomerNumber = null);
 
 /// <summary>
 /// Minimal nested address shape returned alongside a customer record. Phase 3 F3.

@@ -61,4 +61,7 @@ public record LeadResponseModel(
     string? PartClassCode = null,
     /// <summary>Intake idempotency key stamped by the relaying system (e.g. Tuyere).
     /// Null for interactively created leads.</summary>
-    string? ExternalId = null);
+    string? ExternalId = null,
+    /// <summary>User-settable business number (LEAD-#####). Optional default
+    /// keeps pre-existing positional call sites / fixtures compiling.</summary>
+    string? LeadNumber = null);

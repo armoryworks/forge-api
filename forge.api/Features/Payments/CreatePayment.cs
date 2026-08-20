@@ -21,7 +21,9 @@ public record CreatePaymentCommand(
     DateTimeOffset PaymentDate,
     string? ReferenceNumber,
     string? Notes,
-    List<CreatePaymentApplicationModel>? Applications) : IRequest<PaymentListItemModel>;
+    List<CreatePaymentApplicationModel>? Applications,
+    // Optional caller-supplied payment number — see CreatePaymentRequestModel.PaymentNumber.
+    string? PaymentNumber = null) : IRequest<PaymentListItemModel>;
 
 public class CreatePaymentValidator : AbstractValidator<CreatePaymentCommand>
 {
@@ -70,9 +72,16 @@ public class CreatePaymentHandler(
     // AUDIT-21-S1: same optional/null-default pattern — DI supplies both; the QBO enqueue self-gates
     // on a provider being connected.
     IAccountingService? accountingService = null,
-    ISyncQueueRepository? syncQueue = null)
+    ISyncQueueRepository? syncQueue = null,
+    // Optional / null-default (same reason): a manual-number override needs the setting repo, and the
+    // identifier registry records the number for resolution/history. DI supplies both.
+    ISystemSettingRepository? systemSettings = null,
+    IBusinessIdentifierService? identifiers = null)
     : IRequestHandler<CreatePaymentCommand, PaymentListItemModel>
 {
+    // System setting that gates caller-supplied payment numbers. Stored as "true"/"false".
+    private const string AllowManualPaymentNumbersKey = "payments.allow_manual_numbers";
+
     public async Task<PaymentListItemModel> Handle(CreatePaymentCommand request, CancellationToken cancellationToken)
     {
         var customer = await customerRepo.FindAsync(request.CustomerId, cancellationToken)
@@ -87,7 +96,7 @@ public class CreatePaymentHandler(
         // ignored no-op, so the mock-based handler tests are unaffected.
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
 
-        var paymentNumber = await repo.GenerateNextPaymentNumberAsync(cancellationToken);
+        var paymentNumber = await ResolvePaymentNumberAsync(request, cancellationToken);
         var method = Enum.Parse<PaymentMethod>(request.Method, true);
 
         var payment = new Payment
@@ -189,6 +198,11 @@ public class CreatePaymentHandler(
             throw new InvalidOperationException("Concurrent payment conflict — please retry.");
         }
 
+        // Record the number in the identifier registry (history + resolution). Inside the open
+        // transaction so the registry row commits/rolls back with the payment.
+        if (identifiers is not null)
+            await identifiers.IssueAsync(BusinessEntityType.Payment, payment.Id, payment.PaymentNumber, cancellationToken);
+
         // ── Order-to-cash completion. An order that is fully shipped with all its
         // (non-voided) invoices paid is done — advance it to Completed, the terminal
         // O2C state the prior pipeline never set (CreateShipment only reaches Shipped).
@@ -255,5 +269,27 @@ public class CreatePaymentHandler(
             payment.Method.ToString(), payment.Amount, appliedTotal,
             payment.Amount - appliedTotal, payment.PaymentDate,
             payment.ReferenceNumber, payment.CreatedAt);
+    }
+
+    // Uses a caller-supplied payment number when manual numbers are enabled and one
+    // was provided; otherwise auto-generates the next sequential number.
+    private async Task<string> ResolvePaymentNumberAsync(CreatePaymentCommand request, CancellationToken ct)
+    {
+        var supplied = request.PaymentNumber?.Trim();
+        if (!string.IsNullOrWhiteSpace(supplied) && await ManualPaymentNumbersAllowedAsync(ct))
+        {
+            if (await repo.PaymentNumberExistsAsync(supplied, null, ct))
+                throw new InvalidOperationException($"Payment number '{supplied}' is already in use.");
+            return supplied;
+        }
+
+        return await repo.GenerateNextPaymentNumberAsync(ct);
+    }
+
+    private async Task<bool> ManualPaymentNumbersAllowedAsync(CancellationToken ct)
+    {
+        if (systemSettings is null) return false;
+        var setting = await systemSettings.FindByKeyAsync(AllowManualPaymentNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 }

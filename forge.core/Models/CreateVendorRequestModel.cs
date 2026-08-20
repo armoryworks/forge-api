@@ -11,4 +11,7 @@ public record CreateVendorRequestModel(
     string? ZipCode,
     string? Country,
     string? PaymentTerms,
-    string? Notes);
+    string? Notes,
+    // Optional caller-supplied vendor number. Honoured only when
+    // vendors.allow_manual_numbers is on; otherwise auto-generated (VEND-#####).
+    string? VendorNumber = null);

@@ -21,6 +21,10 @@ public interface IInvoiceRepository
     Task<Invoice?> FindAsync(int id, CancellationToken ct);
     Task<Invoice?> FindWithDetailsAsync(int id, CancellationToken ct);
     Task<string> GenerateNextInvoiceNumberAsync(CancellationToken ct);
+
+    /// <summary>True when <paramref name="number"/> is already used by another invoice (optionally excluding one id).</summary>
+    Task<bool> InvoiceNumberExistsAsync(string number, int? excludeId, CancellationToken ct);
+
     Task AddAsync(Invoice invoice, CancellationToken ct);
     Task SaveChangesAsync(CancellationToken ct);
 }

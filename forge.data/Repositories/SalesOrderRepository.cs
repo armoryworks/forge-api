@@ -98,6 +98,14 @@ public class SalesOrderRepository(AppDbContext db) : ISalesOrderRepository
 
     private const string DefaultOrderNumberPrefix = "SO";
 
+    public Task<bool> OrderNumberExistsAsync(string number, int? excludeId, CancellationToken ct)
+    {
+        var query = db.SalesOrders.Where(so => so.OrderNumber == number);
+        if (excludeId.HasValue)
+            query = query.Where(so => so.Id != excludeId.Value);
+        return query.AnyAsync(ct);
+    }
+
     public async Task AddAsync(SalesOrder order, CancellationToken ct)
     {
         await db.SalesOrders.AddAsync(order, ct);

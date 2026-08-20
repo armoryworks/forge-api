@@ -3,6 +3,7 @@ namespace Forge.Core.Models;
 public record CustomerListItemModel(
     int Id,
     string Name,
+    string? CustomerNumber,
     string? CompanyName,
     string? Email,
     string? Phone,

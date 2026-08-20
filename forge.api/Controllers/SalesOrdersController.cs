@@ -68,7 +68,7 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new CreateSalesOrderCommand(
             request.CustomerId, request.QuoteId, request.ShippingAddressId,
             request.BillingAddressId, request.CreditTerms, request.RequestedDeliveryDate,
-            request.CustomerPO, request.Notes, request.TaxRate, request.Lines));
+            request.CustomerPO, request.Notes, request.TaxRate, request.Lines, request.OrderNumber));
         return CreatedAtAction(nameof(GetSalesOrder), new { id = result.Id }, result);
     }
 
@@ -79,7 +79,7 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
         await mediator.Send(new UpdateSalesOrderCommand(
             id, request.ShippingAddressId, request.BillingAddressId,
             request.CreditTerms, request.RequestedDeliveryDate,
-            request.CustomerPO, request.Notes, request.TaxRate));
+            request.CustomerPO, request.Notes, request.TaxRate, request.OrderNumber));
         return NoContent();
     }
 

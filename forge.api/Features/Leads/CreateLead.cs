@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using FluentValidation;
 using MediatR;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -28,11 +29,21 @@ public class CreateLeadCommandValidator : AbstractValidator<CreateLeadCommand>
         RuleFor(x => x.Data.Phone).MaximumLength(50).When(x => x.Data.Phone is not null);
         RuleFor(x => x.Data.ExternalId).MaximumLength(100).When(x => x.Data.ExternalId is not null);
         RuleFor(x => x.Data.LeadSourceCode).MaximumLength(100).When(x => x.Data.LeadSourceCode is not null);
+        // Matches the leads.lead_number column (varchar(50)). Uniqueness is
+        // checked in the handler since it needs a DB lookup.
+        RuleFor(x => x.Data.LeadNumber).MaximumLength(50).When(x => !string.IsNullOrWhiteSpace(x.Data.LeadNumber));
     }
 }
 
-public class CreateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequestHandler<CreateLeadCommand, CreateLeadResult>
+public class CreateLeadHandler(
+    ILeadRepository repo,
+    ISystemSettingRepository systemSettings,
+    IBusinessIdentifierService identifiers,
+    AppDbContext db) : IRequestHandler<CreateLeadCommand, CreateLeadResult>
 {
+    // System setting that gates caller-supplied lead numbers. Stored as "true"/"false".
+    private const string AllowManualLeadNumbersKey = "leads.allow_manual_numbers";
+
     public async Task<CreateLeadResult> Handle(CreateLeadCommand request, CancellationToken cancellationToken)
     {
         var data = request.Data;
@@ -67,9 +78,12 @@ public class CreateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequest
                 .Select(s => (int?)s.Id)
                 .FirstOrDefaultAsync(cancellationToken);
 
+        var leadNumber = await ResolveLeadNumberAsync(data, cancellationToken);
+
         var lead = new Lead
         {
             CompanyName = data.CompanyName?.Trim() ?? string.Empty,
+            LeadNumber = leadNumber,
             ContactName = data.ContactName?.Trim(),
             Email = data.Email?.Trim(),
             Phone = data.Phone?.Trim(),
@@ -104,6 +118,30 @@ public class CreateLeadHandler(ILeadRepository repo, AppDbContext db) : IRequest
             ("Lead", lead.Id));
         await db.SaveChangesAsync(cancellationToken);
 
+        // Record the number in the identifier registry (history + resolution).
+        await identifiers.IssueAsync(BusinessEntityType.Lead, lead.Id, lead.LeadNumber!, cancellationToken);
+
         return new CreateLeadResult((await repo.GetByIdAsync(lead.Id, cancellationToken))!, Created: true);
+    }
+
+    // Uses a caller-supplied lead number when manual numbers are enabled and one
+    // was provided; otherwise auto-generates the next sequential number.
+    private async Task<string> ResolveLeadNumberAsync(CreateLeadRequestModel data, CancellationToken ct)
+    {
+        var supplied = data.LeadNumber?.Trim();
+        if (!string.IsNullOrWhiteSpace(supplied) && await ManualNumbersAllowedAsync(ct))
+        {
+            if (await repo.LeadNumberExistsAsync(supplied, null, ct))
+                throw new InvalidOperationException($"Lead number '{supplied}' is already in use.");
+            return supplied;
+        }
+
+        return await repo.GenerateNextLeadNumberAsync(ct);
+    }
+
+    private async Task<bool> ManualNumbersAllowedAsync(CancellationToken ct)
+    {
+        var setting = await systemSettings.FindByKeyAsync(AllowManualLeadNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 }

@@ -163,6 +163,14 @@ public class PurchaseOrderRepository(AppDbContext db) : IPurchaseOrderRepository
         return await db.PurchaseOrders.FirstOrDefaultAsync(po => po.Id == id, ct);
     }
 
+    public Task<bool> PONumberExistsAsync(string poNumber, int? excludeId, CancellationToken ct)
+    {
+        var query = db.PurchaseOrders.Where(po => po.PONumber == poNumber);
+        if (excludeId.HasValue)
+            query = query.Where(po => po.Id != excludeId.Value);
+        return query.AnyAsync(ct);
+    }
+
     public async Task<PurchaseOrder?> FindWithDetailsAsync(int id, CancellationToken ct)
     {
         return await db.PurchaseOrders

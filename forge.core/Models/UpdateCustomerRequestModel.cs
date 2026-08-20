@@ -14,4 +14,7 @@ public record UpdateCustomerRequestModel(
     bool? IsAutomotive = null,
     bool? IsItarControlled = null,
     bool? IsReferenceOk = null,
-    string? ReferenceNotes = null);
+    string? ReferenceNotes = null,
+    // User-settable customer number. Supplying a changed value requires
+    // customers.allow_manual_numbers to be on; validated for uniqueness.
+    string? CustomerNumber = null);

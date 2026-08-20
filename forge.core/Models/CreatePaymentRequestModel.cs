@@ -7,7 +7,10 @@ public record CreatePaymentRequestModel(
     DateTimeOffset PaymentDate,
     string? ReferenceNumber,
     string? Notes,
-    List<CreatePaymentApplicationModel>? Applications);
+    List<CreatePaymentApplicationModel>? Applications,
+    // Optional caller-supplied payment number. Honored only when the
+    // payments.allow_manual_numbers setting is on; otherwise auto-generated.
+    string? PaymentNumber = null);
 
 public record CreatePaymentApplicationModel(
     int InvoiceId,

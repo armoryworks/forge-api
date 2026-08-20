@@ -24,6 +24,7 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
 
         builder.Property(e => e.Name).HasMaxLength(200);
         builder.Property(e => e.CompanyName).HasMaxLength(200);
+        builder.Property(e => e.CustomerNumber).HasMaxLength(50);
         builder.Property(e => e.Email).HasMaxLength(200);
         builder.Property(e => e.Phone).HasMaxLength(50);
         builder.Property(e => e.ExternalId).HasMaxLength(100);

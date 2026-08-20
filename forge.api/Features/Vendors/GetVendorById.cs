@@ -17,6 +17,7 @@ public class GetVendorByIdHandler(IVendorRepository repo)
         return new VendorDetailResponseModel(
             vendor.Id,
             vendor.CompanyName,
+            vendor.VendorNumber,
             vendor.ContactName,
             vendor.Email,
             vendor.Phone,

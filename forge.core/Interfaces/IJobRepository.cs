@@ -22,6 +22,9 @@ public interface IJobRepository
     Task<JobDetailResponseModel?> GetDetailAsync(int id, CancellationToken ct);
     Task<Job?> FindAsync(int id, CancellationToken ct);
     Task<string> GenerateNextJobNumberAsync(CancellationToken ct);
+
+    /// <summary>True when <paramref name="jobNumber"/> is already used by another job (excluding <paramref name="excludeId"/>).</summary>
+    Task<bool> JobNumberExistsAsync(string jobNumber, int? excludeId, CancellationToken ct);
     Task<int> GetMaxBoardPositionAsync(int stageId, CancellationToken ct);
     Task<List<Job>> FindMultipleAsync(List<int> ids, CancellationToken ct);
     Task<List<ChildJobResponseModel>> GetChildJobsAsync(int parentJobId, CancellationToken ct);

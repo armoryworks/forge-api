@@ -335,6 +335,14 @@ public class JobRepository(AppDbContext db) : IJobRepository
         return await db.Jobs.FirstOrDefaultAsync(j => j.Id == id, ct);
     }
 
+    public Task<bool> JobNumberExistsAsync(string jobNumber, int? excludeId, CancellationToken ct)
+    {
+        var query = db.Jobs.Where(j => j.JobNumber == jobNumber);
+        if (excludeId.HasValue)
+            query = query.Where(j => j.Id != excludeId.Value);
+        return query.AnyAsync(ct);
+    }
+
     public async Task<string> GenerateNextJobNumberAsync(CancellationToken ct)
     {
         // Use a PostgreSQL sequence for atomic, concurrent-safe job number generation.

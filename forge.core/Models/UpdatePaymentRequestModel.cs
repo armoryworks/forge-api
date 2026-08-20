@@ -6,4 +6,7 @@ public record UpdatePaymentRequestModel(
     decimal Amount,
     DateTimeOffset PaymentDate,
     string? ReferenceNumber,
-    string? Notes);
+    string? Notes,
+    // Optional caller-supplied payment number. Editable only while the payment has no
+    // applications and the payments.allow_manual_numbers setting is on (see UpdatePaymentHandler).
+    string? PaymentNumber = null);

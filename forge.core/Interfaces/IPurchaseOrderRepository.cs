@@ -22,6 +22,9 @@ public interface IPurchaseOrderRepository
     Task<PurchaseOrder?> FindWithDetailsAsync(int id, CancellationToken ct);
     Task<PurchaseOrderLine?> FindLineAsync(int lineId, CancellationToken ct);
     Task<string> GenerateNextPONumberAsync(CancellationToken ct);
+
+    /// <summary>True when <paramref name="poNumber"/> is already used by another PO (excluding <paramref name="excludeId"/>).</summary>
+    Task<bool> PONumberExistsAsync(string poNumber, int? excludeId, CancellationToken ct);
     Task AddAsync(PurchaseOrder po, CancellationToken ct);
     Task AddReceivingRecordAsync(ReceivingRecord record, CancellationToken ct);
     Task SaveChangesAsync(CancellationToken ct);

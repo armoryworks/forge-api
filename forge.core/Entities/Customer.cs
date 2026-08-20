@@ -6,6 +6,13 @@ public class Customer : BaseAuditableEntity, IActiveAware
 {
     public string Name { get; set; } = string.Empty;
     public string? CompanyName { get; set; }
+
+    /// <summary>
+    /// User-settable business number (auto-generated <c>CUST-#####</c> by
+    /// default, or a manual value when <c>customers.allow_manual_numbers</c> is
+    /// on). Unique among non-null values; recorded in the identifier registry.
+    /// </summary>
+    public string? CustomerNumber { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }
     public bool IsActive { get; set; } = true;

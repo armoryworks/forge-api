@@ -59,7 +59,8 @@ public class VendorsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new CreateVendorCommand(
             request.CompanyName, request.ContactName, request.Email, request.Phone,
             request.Address, request.City, request.State, request.ZipCode,
-            request.Country, request.PaymentTerms, request.Notes));
+            request.Country, request.PaymentTerms, request.Notes,
+            request.VendorNumber));
         return CreatedAtAction(nameof(GetVendor), new { id = result.Id }, result);
     }
 
@@ -70,7 +71,8 @@ public class VendorsController(IMediator mediator) : ControllerBase
             id, request.CompanyName, request.ContactName, request.Email, request.Phone,
             request.Address, request.City, request.State, request.ZipCode,
             request.Country, request.PaymentTerms, request.Notes,
-            request.OffTierVariancePct, request.IsActive));
+            request.OffTierVariancePct, request.IsActive,
+            request.VendorNumber));
         return NoContent();
     }
 

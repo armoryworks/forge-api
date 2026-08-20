@@ -136,6 +136,14 @@ public class InvoiceRepository(AppDbContext db) : IInvoiceRepository
         return "INV-00001";
     }
 
+    public Task<bool> InvoiceNumberExistsAsync(string number, int? excludeId, CancellationToken ct)
+    {
+        var query = db.Invoices.Where(i => i.InvoiceNumber == number);
+        if (excludeId.HasValue)
+            query = query.Where(i => i.Id != excludeId.Value);
+        return query.AnyAsync(ct);
+    }
+
     public async Task AddAsync(Invoice invoice, CancellationToken ct)
     {
         await db.Invoices.AddAsync(invoice, ct);

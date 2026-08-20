@@ -2,6 +2,8 @@ using FluentValidation;
 using MediatR;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
+using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.PurchaseOrders;
 
@@ -9,6 +11,9 @@ public record UpdatePurchaseOrderCommand(
     int Id,
     string? Notes,
     DateTimeOffset? ExpectedDeliveryDate,
+    // Optional caller-supplied PO number — editable in Draft only, gated by
+    // purchase_orders.allow_manual_numbers.
+    string? PONumber = null,
     // Bought-parts effort PR2.5 — landed-cost header fields. Editable in
     // Draft only; once Submitted, the FX snapshot is locked and these no
     // longer move (carrier costs and Incoterm renegotiation post-submit
@@ -41,9 +46,16 @@ public class UpdatePurchaseOrderValidator : AbstractValidator<UpdatePurchaseOrde
     }
 }
 
-public class UpdatePurchaseOrderHandler(IPurchaseOrderRepository repo)
+public class UpdatePurchaseOrderHandler(
+    IPurchaseOrderRepository repo,
+    ISystemSettingRepository systemSettings,
+    IBusinessIdentifierService identifiers,
+    AppDbContext db)
     : IRequestHandler<UpdatePurchaseOrderCommand>
 {
+    // System setting that gates caller-supplied PO numbers (shared with CreatePurchaseOrder).
+    private const string AllowManualPONumbersKey = "purchase_orders.allow_manual_numbers";
+
     public async Task Handle(UpdatePurchaseOrderCommand request, CancellationToken cancellationToken)
     {
         var po = await repo.FindAsync(request.Id, cancellationToken)
@@ -53,6 +65,31 @@ public class UpdatePurchaseOrderHandler(IPurchaseOrderRepository repo)
         // behavior preserved). Header landed-cost fields: Draft only.
         if (po.Status != PurchaseOrderStatus.Draft && po.Status != PurchaseOrderStatus.Submitted)
             throw new InvalidOperationException("Can only update Draft or Submitted purchase orders");
+
+        // User-settable PO number — Draft only, manual numbers enabled, and unique
+        // (excluding this PO). Registry records the rename; the old number stays resolvable.
+        if (request.PONumber is not null)
+        {
+            var newNumber = request.PONumber.Trim();
+            if (newNumber.Length > 0 && !string.Equals(newNumber, po.PONumber, StringComparison.Ordinal))
+            {
+                if (po.Status != PurchaseOrderStatus.Draft)
+                    throw new InvalidOperationException(
+                        "A purchase order number can only be changed while the PO is in Draft.");
+                if (!await ManualPONumbersAllowedAsync(cancellationToken))
+                    throw new InvalidOperationException(
+                        "Manual purchase order numbers are disabled. Turn on 'purchase_orders.allow_manual_numbers' in settings to change a PO number.");
+                if (await repo.PONumberExistsAsync(newNumber, po.Id, cancellationToken))
+                    throw new InvalidOperationException($"Purchase order number '{newNumber}' is already in use.");
+                await identifiers.IssueAsync(BusinessEntityType.PurchaseOrder, po.Id, po.PONumber, cancellationToken);
+                await identifiers.RenameAsync(BusinessEntityType.PurchaseOrder, po.Id, newNumber, cancellationToken);
+                db.LogActivityAt(
+                    "updated",
+                    $"Changed PO number from {po.PONumber} to {newNumber}",
+                    ("PurchaseOrder", po.Id));
+                po.PONumber = newNumber;
+            }
+        }
 
         if (request.Notes != null) po.Notes = request.Notes;
         if (request.ExpectedDeliveryDate.HasValue) po.ExpectedDeliveryDate = request.ExpectedDeliveryDate;
@@ -77,5 +114,11 @@ public class UpdatePurchaseOrderHandler(IPurchaseOrderRepository repo)
         }
 
         await repo.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<bool> ManualPONumbersAllowedAsync(CancellationToken ct)
+    {
+        var setting = await systemSettings.FindByKeyAsync(AllowManualPONumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 }

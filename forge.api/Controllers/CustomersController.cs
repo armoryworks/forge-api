@@ -102,7 +102,8 @@ public class CustomersController(IMediator mediator) : ControllerBase
             DefaultTaxCodeId: request.DefaultTaxCodeId,
             DefaultCurrency: request.DefaultCurrency,
             BillingAddress: request.BillingAddress,
-            ShippingAddress: request.ShippingAddress));
+            ShippingAddress: request.ShippingAddress,
+            CustomerNumber: request.CustomerNumber));
         return CreatedAtAction(nameof(GetCustomer), new { id = result.Id }, result);
     }
 
@@ -132,7 +133,8 @@ public class CustomersController(IMediator mediator) : ControllerBase
             IsAutomotive: request.IsAutomotive,
             IsItarControlled: request.IsItarControlled,
             IsReferenceOk: request.IsReferenceOk,
-            ReferenceNotes: request.ReferenceNotes));
+            ReferenceNotes: request.ReferenceNotes,
+            CustomerNumber: request.CustomerNumber));
         return NoContent();
     }
 

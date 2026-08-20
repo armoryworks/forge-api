@@ -41,7 +41,9 @@ public class CreateJobHandlerTests
             Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>(),
             _db,
             new Forge.Api.Features.SalesOrders.Acceptance.SalesOrderAcceptanceGate(_db, StubCapabilitySnapshotProvider.Off),
-            new NoOpCloudFolderAutoCreator());
+            new NoOpCloudFolderAutoCreator(),
+            Mock.Of<ISystemSettingRepository>(),
+            Mock.Of<IBusinessIdentifierService>());
     }
 
     /// <summary>Test-only no-op folder auto-creator.</summary>

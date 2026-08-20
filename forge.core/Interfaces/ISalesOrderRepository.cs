@@ -18,6 +18,13 @@ public interface ISalesOrderRepository
     /// for why a global scan would collide.
     /// </summary>
     Task<string> GenerateNextOrderNumberAsync(string prefix, CancellationToken ct);
+
+    /// <summary>
+    /// True when <paramref name="number"/> is already used by another sales order.
+    /// Excludes <paramref name="excludeId"/> so an order can keep its own number on
+    /// update. Mirrors <c>IPartRepository.PartNumberExistsAsync</c>.
+    /// </summary>
+    Task<bool> OrderNumberExistsAsync(string number, int? excludeId, CancellationToken ct);
     Task AddAsync(SalesOrder order, CancellationToken ct);
     Task SaveChangesAsync(CancellationToken ct);
 }

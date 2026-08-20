@@ -129,6 +129,14 @@ public class PaymentRepository(AppDbContext db) : IPaymentRepository
         return "PMT-00001";
     }
 
+    public Task<bool> PaymentNumberExistsAsync(string number, int? excludeId, CancellationToken ct)
+    {
+        var query = db.Payments.Where(p => p.PaymentNumber == number);
+        if (excludeId.HasValue)
+            query = query.Where(p => p.Id != excludeId.Value);
+        return query.AnyAsync(ct);
+    }
+
     public async Task AddAsync(Payment payment, CancellationToken ct)
     {
         await db.Payments.AddAsync(payment, ct);
