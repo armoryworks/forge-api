@@ -22,6 +22,10 @@ public class CreatePartHandlerTests
 
     public CreatePartHandlerTests()
     {
+        var identifiers = new Mock<IBusinessIdentifierService>();
+        identifiers.Setup(i => i.IssueAsync(It.IsAny<Forge.Core.Enums.BusinessEntityType>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Forge.Core.Entities.BusinessIdentifier());
+
         _handler = new CreatePartHandler(
             _partRepo.Object,
             // Default mock returns null from FindByKeyAsync → manual part numbers
@@ -30,6 +34,7 @@ public class CreatePartHandlerTests
             Mock.Of<ISyncQueueRepository>(),
             Mock.Of<IAccountingProviderFactory>(),
             Mock.Of<IBarcodeService>(),
+            identifiers.Object,
             _db,
             Mock.Of<ILogger<CreatePartHandler>>());
     }

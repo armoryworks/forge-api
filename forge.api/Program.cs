@@ -495,6 +495,7 @@ try
 
     builder.Services.AddScoped<IBarcodeService, BarcodeService>();
     builder.Services.AddScoped<IBusinessIdentifierService, BusinessIdentifierService>();
+    builder.Services.AddScoped<Forge.Api.Bootstrap.IIdentifierBackfillSeeder, Forge.Api.Bootstrap.IdentifierBackfillSeeder>();
     builder.Services.AddSingleton<ICsvExportService, CsvExportService>();
     builder.Services.AddSingleton<IImageService, ImageService>();
     builder.Services.AddSingleton<ITokenEncryptionService, TokenEncryptionService>();
@@ -1387,6 +1388,8 @@ try
             await capabilitySeeder.SeedAsync();
             var capabilitySnapshots = app.Services.GetRequiredService<Forge.Api.Capabilities.ICapabilitySnapshotProvider>();
             await capabilitySnapshots.RefreshAsync();
+
+            await scope.ServiceProvider.GetRequiredService<Forge.Api.Bootstrap.IIdentifierBackfillSeeder>().SeedAsync();
             Log.Information("[CAPABILITY-SEED] Snapshot hydrated: {Count} capabilities ({Enabled} enabled)",
                 capabilitySnapshots.Current.EnabledByCode.Count,
                 capabilitySnapshots.Current.EnabledByCode.Count(kv => kv.Value));

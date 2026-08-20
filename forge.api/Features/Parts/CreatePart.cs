@@ -40,6 +40,7 @@ public class CreatePartHandler(
     ISyncQueueRepository syncQueue,
     IAccountingProviderFactory providerFactory,
     IBarcodeService barcodeService,
+    IBusinessIdentifierService identifiers,
     AppDbContext db,
     ILogger<CreatePartHandler> logger) : IRequestHandler<CreatePartCommand, PartDetailResponseModel>
 {
@@ -72,6 +73,9 @@ public class CreatePartHandler(
 
         await barcodeService.CreateBarcodeAsync(
             BarcodeEntityType.Part, part.Id, part.PartNumber, cancellationToken);
+
+        // Record the number in the identifier registry (history + resolution).
+        await identifiers.IssueAsync(BusinessEntityType.Part, part.Id, part.PartNumber, cancellationToken);
 
         // Enqueue QB Item creation if accounting is connected
         try

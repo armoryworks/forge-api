@@ -16,15 +16,22 @@ public class UpdatePartHandlerTests
     private readonly Mock<IPartRepository> _partRepo = new();
     private readonly Mock<ISystemSettingRepository> _settings = new();
     private readonly Mock<IBarcodeService> _barcodes = new();
+    private readonly Mock<IBusinessIdentifierService> _identifiers = new();
     private readonly AppDbContext _db = TestDbContextFactory.Create();
     private readonly UpdatePartHandler _handler;
 
     public UpdatePartHandlerTests()
     {
+        _identifiers.Setup(i => i.IssueAsync(It.IsAny<Forge.Core.Enums.BusinessEntityType>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Forge.Core.Entities.BusinessIdentifier());
+        _identifiers.Setup(i => i.RenameAsync(It.IsAny<Forge.Core.Enums.BusinessEntityType>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Forge.Core.Entities.BusinessIdentifier());
+
         _handler = new UpdatePartHandler(
             _partRepo.Object,
             _settings.Object,
             _barcodes.Object,
+            _identifiers.Object,
             Mock.Of<ISyncQueueRepository>(),
             Mock.Of<IAccountingProviderFactory>(),
             _db,

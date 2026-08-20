@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -38,6 +39,7 @@ public class UpdatePartHandler(
     IPartRepository repo,
     ISystemSettingRepository systemSettings,
     IBarcodeService barcodeService,
+    IBusinessIdentifierService identifiers,
     ISyncQueueRepository syncQueue,
     IAccountingProviderFactory providerFactory,
     AppDbContext db,
@@ -66,6 +68,10 @@ public class UpdatePartHandler(
                         "Manual part numbers are disabled. Turn on 'parts.allow_manual_numbers' in settings to change a part number.");
                 if (await repo.PartNumberExistsAsync(newNumber, part.Id, cancellationToken))
                     throw new InvalidOperationException($"Part number '{newNumber}' is already in use.");
+                // Record the rename in the identifier registry: ensure the current number is on record
+                // (covers pre-registry parts), then supersede it — the old number stays resolvable.
+                await identifiers.IssueAsync(BusinessEntityType.Part, part.Id, part.PartNumber, cancellationToken);
+                await identifiers.RenameAsync(BusinessEntityType.Part, part.Id, newNumber, cancellationToken);
                 part.PartNumber = newNumber;
                 partNumberChanged = true;
             }
