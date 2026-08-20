@@ -70,4 +70,8 @@ public record UpdatePartRequestModel(
     bool? IsConfigurable = null,
     int? DefaultBinId = null,
     int? SourcePartId = null,
-    string? HtsCode = null);
+    string? HtsCode = null,
+    // User-settable human-readable identifier. Only honored when the
+    // `parts.allow_manual_numbers` setting is on; uniqueness-validated
+    // (excluding this part) before it replaces the current number. Null = no change.
+    string? PartNumber = null);

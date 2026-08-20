@@ -14,6 +14,8 @@ namespace Forge.Tests.Handlers.Parts;
 public class UpdatePartHandlerTests
 {
     private readonly Mock<IPartRepository> _partRepo = new();
+    private readonly Mock<ISystemSettingRepository> _settings = new();
+    private readonly Mock<IBarcodeService> _barcodes = new();
     private readonly AppDbContext _db = TestDbContextFactory.Create();
     private readonly UpdatePartHandler _handler;
 
@@ -21,10 +23,60 @@ public class UpdatePartHandlerTests
     {
         _handler = new UpdatePartHandler(
             _partRepo.Object,
+            _settings.Object,
+            _barcodes.Object,
             Mock.Of<ISyncQueueRepository>(),
             Mock.Of<IAccountingProviderFactory>(),
             _db,
             Mock.Of<ILogger<UpdatePartHandler>>());
+    }
+
+    private void AllowManualNumbers(bool allowed) =>
+        _settings.Setup(s => s.FindByKeyAsync("parts.allow_manual_numbers", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SystemSetting { Key = "parts.allow_manual_numbers", Value = allowed ? "true" : "false" });
+
+    private static UpdatePartRequestModel WithPartNumber(string partNumber) =>
+        new(null, null, null, null, null, null, null, null, null, null, null, null, PartNumber: partNumber);
+
+    [Fact]
+    public async Task Renames_the_part_number_when_manual_numbers_allowed_and_unique()
+    {
+        var part = new Part { Id = 1, PartNumber = "PRT-00001", Name = "Test", Status = PartStatus.Active };
+        SetupRepoForUpdate(part);
+        AllowManualNumbers(true);
+        _partRepo.Setup(r => r.PartNumberExistsAsync("ACME-42", 1, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        await _handler.Handle(new UpdatePartCommand(1, WithPartNumber("ACME-42")), CancellationToken.None);
+
+        part.PartNumber.Should().Be("ACME-42");
+        _barcodes.Verify(b => b.RefreshPartBarcodeAsync(1, It.IsAny<CancellationToken>()), Times.Once); // barcode re-synced
+    }
+
+    [Fact]
+    public async Task Rejects_a_duplicate_part_number()
+    {
+        var part = new Part { Id = 1, PartNumber = "PRT-00001", Name = "Test", Status = PartStatus.Active };
+        SetupRepoForUpdate(part);
+        AllowManualNumbers(true);
+        _partRepo.Setup(r => r.PartNumberExistsAsync("TAKEN", 1, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var act = () => _handler.Handle(new UpdatePartCommand(1, WithPartNumber("TAKEN")), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("already in use");
+        part.PartNumber.Should().Be("PRT-00001");
+    }
+
+    [Fact]
+    public async Task Rejects_a_rename_when_manual_numbers_disabled()
+    {
+        var part = new Part { Id = 1, PartNumber = "PRT-00001", Name = "Test", Status = PartStatus.Active };
+        SetupRepoForUpdate(part);
+        AllowManualNumbers(false);
+
+        var act = () => _handler.Handle(new UpdatePartCommand(1, WithPartNumber("ACME-42")), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("disabled");
+        part.PartNumber.Should().Be("PRT-00001");
     }
 
     private static PartDetailResponseModel BuildDetailResponse() =>

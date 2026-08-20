@@ -23,6 +23,7 @@ public class UpdatePartCommandValidator : AbstractValidator<UpdatePartCommand>
             .When(x => x.Data.Name is not null);
         RuleFor(x => x.Data.Description).MaximumLength(2000).When(x => x.Data.Description is not null);
         RuleFor(x => x.Data.Revision).MaximumLength(10).When(x => x.Data.Revision is not null);
+        RuleFor(x => x.Data.PartNumber).NotEmpty().MaximumLength(50).When(x => x.Data.PartNumber is not null);
         // Pillar 4 Phase 2 — mirror the entity-config max lengths for the new
         // editable string fields (see PartConfiguration.cs).
         RuleFor(x => x.Data.HtsCode).MaximumLength(20).When(x => x.Data.HtsCode is not null);
@@ -35,17 +36,40 @@ public class UpdatePartCommandValidator : AbstractValidator<UpdatePartCommand>
 
 public class UpdatePartHandler(
     IPartRepository repo,
+    ISystemSettingRepository systemSettings,
+    IBarcodeService barcodeService,
     ISyncQueueRepository syncQueue,
     IAccountingProviderFactory providerFactory,
     AppDbContext db,
     ILogger<UpdatePartHandler> logger) : IRequestHandler<UpdatePartCommand, PartDetailResponseModel>
 {
+    // System setting that gates caller-supplied part numbers (shared with CreatePart).
+    private const string AllowManualPartNumbersKey = "parts.allow_manual_numbers";
+
     public async Task<PartDetailResponseModel> Handle(UpdatePartCommand request, CancellationToken cancellationToken)
     {
         var part = await repo.FindAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Part {request.Id} not found");
 
         var data = request.Data;
+
+        // User-settable part number — only when manual numbers are enabled, and only after a
+        // uniqueness check that excludes this part. The DB unique index is the final backstop.
+        var partNumberChanged = false;
+        if (data.PartNumber is not null)
+        {
+            var newNumber = data.PartNumber.Trim();
+            if (newNumber.Length > 0 && !string.Equals(newNumber, part.PartNumber, StringComparison.Ordinal))
+            {
+                if (!await ManualPartNumbersAllowedAsync(cancellationToken))
+                    throw new InvalidOperationException(
+                        "Manual part numbers are disabled. Turn on 'parts.allow_manual_numbers' in settings to change a part number.");
+                if (await repo.PartNumberExistsAsync(newNumber, part.Id, cancellationToken))
+                    throw new InvalidOperationException($"Part number '{newNumber}' is already in use.");
+                part.PartNumber = newNumber;
+                partNumberChanged = true;
+            }
+        }
 
         if (data.Name is not null) part.Name = data.Name.Trim();
         if (data.Description is not null)
@@ -169,6 +193,7 @@ public class UpdatePartHandler(
         // an entity this wide it's not worth the per-field branching;
         // request-driven granularity is fine for an audit summary.
         var changedFields = CollectChangedFieldNames(data);
+        if (partNumberChanged) changedFields.Insert(0, "partNumber");
         if (changedFields.Count > 0)
         {
             db.LogActivityAt(
@@ -178,6 +203,11 @@ public class UpdatePartHandler(
         }
 
         await repo.SaveChangesAsync(cancellationToken);
+
+        // The auto-generated barcode derives from the part number (PRT-<number>), so a
+        // rename re-syncs the System barcode; manual alias barcodes are left untouched.
+        if (partNumberChanged)
+            await barcodeService.RefreshPartBarcodeAsync(part.Id, cancellationToken);
 
         // Enqueue QB Item update if part is linked and accounting is connected
         try
@@ -212,6 +242,12 @@ public class UpdatePartHandler(
     /// responses, so a future log reader can grep them against the wire
     /// payload.
     /// </summary>
+    private async Task<bool> ManualPartNumbersAllowedAsync(CancellationToken ct)
+    {
+        var setting = await systemSettings.FindByKeyAsync(AllowManualPartNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
+    }
+
     private static List<string> CollectChangedFieldNames(UpdatePartRequestModel data)
     {
         var fields = new List<string>();
