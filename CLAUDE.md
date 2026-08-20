@@ -751,6 +751,31 @@ routing gates, inspection sign-offs, lot expiry, permit/inspection chains. Desig
 - Domain events published: `SequenceStepReadyEvent`, `SequenceInstanceCompletedEvent`, `SequenceClockExpiredEvent`.
   No default reactions — consumers subscribe.
 
+## Business Identifier Registry (editable human-readable numbers)
+
+Added 2026-08-20. Every major entity (Part, Customer, Vendor, Lead, SalesOrder, Quote, Invoice,
+PurchaseOrder, Job, Shipment, Payment) carries a user-settable, uniqueness-validated human-readable
+number backed by the temporal `business_identifiers` registry (`IBusinessIdentifierService`). A
+rename closes the old row (`effective_to = now`) and opens a new one, so **old numbers still
+resolve**; uniqueness is enforced among ACTIVE identifiers via the generated `is_active` column
+(`= effective_to IS NULL`) + partial unique indexes.
+
+- **Master-data (Customer/Vendor/Lead):** nullable `{entity}_number` column, auto-generated on create
+  (`GenerateNext{Entity}NumberAsync`, `CUST-/VEND-/LEAD-` prefix), manual override gated by the
+  `{entity_plural}.allow_manual_numbers` system setting, editable on update.
+- **Documents (SalesOrder/Quote/PO/Shipment/Job/Payment):** existing auto-number; optional manual
+  override on create; number editable on update **only inside the doc's lifecycle window** (SO/Quote/PO
+  Draft, Shipment pre-ship, Job not disposed, Payment un-applied). Invoice is immutable except a
+  Draft-only rename via `PATCH /api/v1/invoices/{id}/number`.
+
+**Wiring a NEW entity into the registry:** (1) add the value to `BusinessEntityType`; (2) create →
+`identifiers.IssueAsync(type, id, number, ct)` after save; update → gate + `{X}NumberExistsAsync` +
+`IssueAsync(current)` then `RenameAsync(new)`; (3) add `{X}NumberExistsAsync(value, int? excludeId, ct)`
+to the repo; (4) **if the entity is created by a workflow adapter** (`IWorkflowEntityCreator`), replicate
+the auto-gen + `IssueAsync` there too — the adapter bypasses `Create{Entity}Command` (see
+`CustomerWorkflowAdapter`/`VendorWorkflowAdapter`); (5) extend `IdentifierBackfillSeeder` (idempotent
+boot backfill); (6) surface the flag in `GetManualNumberSettings` + the UI `ManualNumberSettingsService`.
+
 ## What NOT to Do
 
 - Never use `FormsModule` / `ngModel` in features — always `ReactiveFormsModule`
