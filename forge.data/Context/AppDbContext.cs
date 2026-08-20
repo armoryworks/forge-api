@@ -279,6 +279,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
 
     // Central Barcode Registry
     public DbSet<Barcode> Barcodes => Set<Barcode>();
+    public DbSet<BusinessIdentifier> BusinessIdentifiers => Set<BusinessIdentifier>();
 
     // Employee Profiles
     public DbSet<EmployeeProfile> EmployeeProfiles => Set<EmployeeProfile>();

@@ -494,6 +494,7 @@ try
                                Forge.Api.Features.Accounting.ReceiptInventoryPostingService>();
 
     builder.Services.AddScoped<IBarcodeService, BarcodeService>();
+    builder.Services.AddScoped<IBusinessIdentifierService, BusinessIdentifierService>();
     builder.Services.AddSingleton<ICsvExportService, CsvExportService>();
     builder.Services.AddSingleton<IImageService, ImageService>();
     builder.Services.AddSingleton<ITokenEncryptionService, TokenEncryptionService>();
