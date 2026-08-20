@@ -53,6 +53,7 @@ public class GetCustomerSummaryHandler(AppDbContext db)
         return new CustomerSummaryResponseModel(
             customer.Id,
             customer.Name,
+            customer.CustomerNumber,
             customer.CompanyName,
             customer.Email,
             customer.Phone,

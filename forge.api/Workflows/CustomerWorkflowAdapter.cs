@@ -5,6 +5,7 @@ using FluentValidation.Results;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
@@ -35,9 +36,17 @@ namespace Forge.Api.Workflows;
 ///   customer detail page.</item>
 /// </list>
 /// </summary>
-public class CustomerWorkflowAdapter(AppDbContext db)
+public class CustomerWorkflowAdapter(
+    AppDbContext db,
+    ICustomerRepository customerRepo,
+    ISystemSettingRepository systemSettings,
+    IBusinessIdentifierService identifiers)
     : IWorkflowEntityCreator, IWorkflowFieldApplier, IWorkflowEntityPromoter
 {
+    // System setting that gates caller-supplied customer numbers (shared with
+    // CreateCustomerHandler / UpdateCustomerHandler).
+    private const string AllowManualCustomerNumbersKey = "customers.allow_manual_numbers";
+
     public string EntityType => "Customer";
 
     /// <summary>
@@ -58,6 +67,8 @@ public class CustomerWorkflowAdapter(AppDbContext db)
                 new[] { new ValidationFailure("name", "Name is required.") });
         }
 
+        var suppliedNumber = ReadStringOrDefault(initialData, "customerNumber")?.Trim().NullIfEmpty();
+
         var customer = new Customer
         {
             Name = name,
@@ -72,13 +83,69 @@ public class CustomerWorkflowAdapter(AppDbContext db)
         };
         db.Customers.Add(customer);
         await db.SaveChangesAsync(ct);
+
+        // Mirror CreateCustomerHandler: honour a caller-supplied number when
+        // manual numbers are enabled (and unique), otherwise auto-generate the
+        // next sequential number. Then record it in the identifier registry so
+        // guided-created customers get the same history/resolution as the
+        // command path. The field-applier re-runs with the same payload — the
+        // equality guard there keeps this from being issued twice.
+        var number = await ResolveCustomerNumberAsync(suppliedNumber, customer.Id, ct);
+        customer.CustomerNumber = number;
+        await db.SaveChangesAsync(ct);
+        await identifiers.IssueAsync(BusinessEntityType.Customer, customer.Id, number, ct);
+
         return customer.Id;
+    }
+
+    // Uses a caller-supplied customer number when manual numbers are enabled and one
+    // was provided (and unique); otherwise auto-generates the next sequential number.
+    // Mirrors CreateCustomerHandler.ResolveCustomerNumberAsync.
+    private async Task<string> ResolveCustomerNumberAsync(string? supplied, int customerId, CancellationToken ct)
+    {
+        var value = supplied?.Trim();
+        if (!string.IsNullOrWhiteSpace(value) && await ManualNumbersAllowedAsync(ct))
+        {
+            if (await customerRepo.CustomerNumberExistsAsync(value, customerId, ct))
+                throw new InvalidOperationException($"Customer number '{value}' is already in use.");
+            return value;
+        }
+
+        return await customerRepo.GenerateNextCustomerNumberAsync(ct);
+    }
+
+    private async Task<bool> ManualNumbersAllowedAsync(CancellationToken ct)
+    {
+        var setting = await systemSettings.FindByKeyAsync(AllowManualCustomerNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 
     public async Task ApplyAsync(int entityId, JsonElement fields, CancellationToken ct)
     {
         var customer = await db.Customers.FirstOrDefaultAsync(c => c.Id == entityId, ct)
             ?? throw new KeyNotFoundException($"Customer id {entityId} not found.");
+
+        // Identity step — user-settable customer number. Only when manual
+        // numbers are enabled, only on an actual change, and only after a
+        // uniqueness check that excludes this customer. Keeps the identifier
+        // registry in sync (Issue-then-Rename) exactly like UpdateCustomerHandler.
+        // On the materialization patch the value already matches (the creator
+        // resolved it from the same payload) so the equality guard skips it.
+        if (TryReadString(fields, "customerNumber", out var customerNumber)
+            && !string.IsNullOrWhiteSpace(customerNumber))
+        {
+            var newNumber = customerNumber.Trim();
+            if (!string.Equals(newNumber, customer.CustomerNumber, StringComparison.Ordinal)
+                && await ManualNumbersAllowedAsync(ct))
+            {
+                if (await customerRepo.CustomerNumberExistsAsync(newNumber, customer.Id, ct))
+                    throw new InvalidOperationException($"Customer number '{newNumber}' is already in use.");
+                if (!string.IsNullOrWhiteSpace(customer.CustomerNumber))
+                    await identifiers.IssueAsync(BusinessEntityType.Customer, customer.Id, customer.CustomerNumber, ct);
+                await identifiers.RenameAsync(BusinessEntityType.Customer, customer.Id, newNumber, ct);
+                customer.CustomerNumber = newNumber;
+            }
+        }
 
         // Identity step
         if (TryReadString(fields, "name", out var name) && name is not null)

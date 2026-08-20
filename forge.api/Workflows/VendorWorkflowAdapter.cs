@@ -28,9 +28,17 @@ namespace Forge.Api.Workflows;
 /// admins who want to flag relationship can type it into Notes manually
 /// (see CLAUDE.md "Vendor workflow migration" entry, 2026-05-31).</para>
 /// </summary>
-public class VendorWorkflowAdapter(AppDbContext db)
+public class VendorWorkflowAdapter(
+    AppDbContext db,
+    IVendorRepository repo,
+    IBusinessIdentifierService identifiers,
+    ISystemSettingRepository systemSettings)
     : IWorkflowEntityCreator, IWorkflowFieldApplier, IWorkflowEntityPromoter
 {
+    // System setting that gates caller-supplied vendor numbers (shared with
+    // CreateVendorHandler / UpdateVendorHandler).
+    private const string AllowManualVendorNumbersKey = "vendors.allow_manual_numbers";
+
     public string EntityType => "Vendor";
 
     /// <summary>
@@ -79,8 +87,35 @@ public class VendorWorkflowAdapter(AppDbContext db)
             AutoPoMode = ReadNullableEnum<AutoPoMode>(initialData, "autoPoMode"),
             IsActive = true,
         };
+
+        // Vendor number — mirrors CreateVendorHandler.ResolveVendorNumberAsync.
+        // A caller-supplied number is honoured only when manual numbers are
+        // enabled and it isn't already taken; otherwise it's auto-generated
+        // after persist. CreateVendorHandler's auto-gen + registry Issue does
+        // NOT run for guided-created vendors (they bypass CreateVendorCommand),
+        // so it's reproduced here.
+        var suppliedNumber = ReadStringOrDefault(initialData, "vendorNumber")?.Trim().NullIfEmpty();
+        if (suppliedNumber is not null && await ManualNumbersAllowedAsync(ct))
+        {
+            if (await repo.VendorNumberExistsAsync(suppliedNumber, null, ct))
+                throw new InvalidOperationException($"Vendor number '{suppliedNumber}' is already in use.");
+            vendor.VendorNumber = suppliedNumber;
+        }
+
         db.Vendors.Add(vendor);
         await db.SaveChangesAsync(ct);
+
+        if (string.IsNullOrWhiteSpace(vendor.VendorNumber))
+        {
+            vendor.VendorNumber = await repo.GenerateNextVendorNumberAsync(ct);
+            await db.SaveChangesAsync(ct);
+        }
+
+        // Record the number in the identifier registry (history + resolution).
+        // The field-applier skips issuance on this first patch because the
+        // incoming value already matches, so there's no double-issue.
+        await identifiers.IssueAsync(BusinessEntityType.Vendor, vendor.Id, vendor.VendorNumber!, ct);
+
         return vendor.Id;
     }
 
@@ -92,6 +127,23 @@ public class VendorWorkflowAdapter(AppDbContext db)
         // Identity step
         if (TryReadString(fields, "companyName", out var companyName) && companyName is not null)
             vendor.CompanyName = companyName.Trim();
+        // Vendor number — only a genuine change (manual-enabled + unique) does
+        // anything. On the materialization patch the value already matches what
+        // CreateDraftAsync set/generated, so this is a no-op there and never
+        // double-issues. Mirrors UpdateVendorHandler's rename dance.
+        if (TryReadString(fields, "vendorNumber", out var vendorNumber) && !string.IsNullOrWhiteSpace(vendorNumber))
+        {
+            var newNumber = vendorNumber.Trim();
+            if (!string.Equals(newNumber, vendor.VendorNumber, StringComparison.Ordinal) && await ManualNumbersAllowedAsync(ct))
+            {
+                if (await repo.VendorNumberExistsAsync(newNumber, vendor.Id, ct))
+                    throw new InvalidOperationException($"Vendor number '{newNumber}' is already in use.");
+                if (!string.IsNullOrWhiteSpace(vendor.VendorNumber))
+                    await identifiers.IssueAsync(BusinessEntityType.Vendor, vendor.Id, vendor.VendorNumber, ct);
+                await identifiers.RenameAsync(BusinessEntityType.Vendor, vendor.Id, newNumber, ct);
+                vendor.VendorNumber = newNumber;
+            }
+        }
         if (TryReadString(fields, "contactName", out var contactName))
             vendor.ContactName = contactName?.Trim().NullIfEmpty();
         if (TryReadString(fields, "email", out var email))
@@ -142,6 +194,12 @@ public class VendorWorkflowAdapter(AppDbContext db)
         vendor.DeletedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         return true;
+    }
+
+    private async Task<bool> ManualNumbersAllowedAsync(CancellationToken ct)
+    {
+        var setting = await systemSettings.FindByKeyAsync(AllowManualVendorNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 
     // ─── JSON helpers (verbatim from PartWorkflowAdapter — keep in sync) ───

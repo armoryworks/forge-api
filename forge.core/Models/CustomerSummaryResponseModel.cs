@@ -3,6 +3,7 @@ namespace Forge.Core.Models;
 public record CustomerSummaryResponseModel(
     int Id,
     string Name,
+    string? CustomerNumber,
     string? CompanyName,
     string? Email,
     string? Phone,
