@@ -685,18 +685,21 @@ try
 
     // Integration services (mock or real based on config).
     //
-    // Phase 1m.4 — per-integration Mock/Real/Disabled toggle. The global
-    // MockIntegrations flag still drives the legacy ~30 services (PDF,
-    // EDI, CPQ, projection layers, etc.) since those don't have admin-
-    // managed descriptors yet. The 5 cluster-B services that DO have
-    // descriptors (storage/SMTP/AI/USPS/DocuSeal) consult the bootstrap
-    // helper for their per-integration mode.
+    // Phase 1m.4 / Phase 3 — per-integration Mock/Real/Auto/Disabled. The global
+    // MockIntegrations flag is now the POSTURE, not a per-service switch: in a mock
+    // posture (dev) an integration stays Mock unless explicitly set to Real; in a real
+    // posture (production) an integration adopts its real impl once its credential is
+    // configured (Auto default) and otherwise falls back to Mock so calls don't crash —
+    // IIntegrationReadinessService surfaces the gap. The descriptor-backed real-capable
+    // services (storage/SMTP/AI/USPS/DocuSeal) resolve through the bootstrap helper below;
+    // accounting/shipping/e-commerce use their own provider factories; the remaining
+    // legacy services are mock-only (no real impl exists yet) so they register a mock
+    // regardless of posture.
     //
-    // Mode resolution: read at startup from system_settings via plain
-    // ADO.NET. Admin saves persist; restart picks up new modes. (Live
-    // mode-switching would require factory-based service resolution
-    // which is a deeper refactor — admins get a "restart required"
-    // toast in the meantime.)
+    // Mode resolution: read at startup from system_settings via plain ADO.NET (modes +
+    // configured-check keys). Admin saves persist; restart picks up new modes. (Live
+    // mode-switching would require factory-based service resolution — a deeper refactor;
+    // admins get a "restart required" toast in the meantime.)
     var useMocks = builder.Configuration.GetValue<bool>("MockIntegrations");
     var integrationMode = Forge.Api.Bootstrap.IntegrationModeBootstrap.Load(builder.Configuration);
     builder.Services.Configure<MinioOptions>(builder.Configuration.GetSection(MinioOptions.SectionName));
@@ -988,17 +991,15 @@ try
         builder.Services.AddSingleton<IPredictiveMaintenanceService, MockPredictiveMaintenanceService>();
     }
 
-    // Phase 1m.4 — per-integration Mock/Real override. Applied AFTER the
-    // global if/else block, so per-integration modes set in the admin
-    // UI (Admin → Integrations → {provider} → Mode) take precedence over
-    // the global MockIntegrations flag for the 5 cluster-B services that
-    // have descriptor entries.
+    // Phase 1m.4 / Phase 3 — per-integration resolution. Applied AFTER the global
+    // if/else block, so the resolved mode (explicit Mock/Real/Disabled, or Auto =
+    // configured?real:mock, with the global flag as the posture) takes precedence for
+    // the descriptor-backed real-capable services. This is what makes "configure the
+    // real credential → the mock steps aside" work without a manual mode flip.
     //
-    // Storage / Email / AI / Address Validation / DocuSeal each get
-    // their stored mode resolved (with fallback to the global flag),
-    // existing registrations are removed, and the resolved impl is
-    // registered. RemoveAll on a missing service is a no-op so this
-    // block is safe regardless of which branch ran above.
+    // Storage / Email / AI / Address Validation / DocuSeal each get their mode resolved,
+    // the existing registration removed, and the resolved impl registered. RemoveAll on a
+    // missing service is a no-op so this block is safe regardless of which branch ran above.
     Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions
         .RemoveAll<IEmailService>(builder.Services);
     // Scoped: SmtpEmailService consumes scoped ISettingsService. The mock
