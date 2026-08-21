@@ -611,6 +611,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<Forge.Core.Entities.Accounting.BankStatementImport> BankStatementImports => Set<Forge.Core.Entities.Accounting.BankStatementImport>();
     public DbSet<Forge.Core.Entities.Accounting.BankStatementLine> BankStatementLines => Set<Forge.Core.Entities.Accounting.BankStatementLine>();
 
+    // Costing — Tier-3 ABC standard-costing (CAP-COSTING-TIER3-ABC).
+    public DbSet<Forge.Core.Entities.Costing.CostingPeriod> CostingPeriods => Set<Forge.Core.Entities.Costing.CostingPeriod>();
+    public DbSet<Forge.Core.Entities.Costing.CostingCostCenter> CostingCostCenters => Set<Forge.Core.Entities.Costing.CostingCostCenter>();
+    public DbSet<Forge.Core.Entities.Costing.OverheadCostPool> OverheadCostPools => Set<Forge.Core.Entities.Costing.OverheadCostPool>();
+    public DbSet<Forge.Core.Entities.Costing.OverheadPoolBudget> OverheadPoolBudgets => Set<Forge.Core.Entities.Costing.OverheadPoolBudget>();
+    public DbSet<Forge.Core.Entities.Costing.WorkCenterCostRate> WorkCenterCostRates => Set<Forge.Core.Entities.Costing.WorkCenterCostRate>();
+    public DbSet<Forge.Core.Entities.Costing.CostAllocationRule> CostAllocationRules => Set<Forge.Core.Entities.Costing.CostAllocationRule>();
+    public DbSet<Forge.Core.Entities.Costing.ItemStandardCost> ItemStandardCosts => Set<Forge.Core.Entities.Costing.ItemStandardCost>();
+    public DbSet<Forge.Core.Entities.Costing.ItemBurden> ItemBurdens => Set<Forge.Core.Entities.Costing.ItemBurden>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
