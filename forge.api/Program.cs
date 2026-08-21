@@ -1360,6 +1360,22 @@ try
             // Seed essential data idempotently (roles, track types, reference data).
             // Demo data (users, customers, jobs, etc.) only seeded when SEED_DEMO_DATA=true.
             var seedDemoData = builder.Configuration.GetValue<bool>("SEED_DEMO_DATA");
+
+            // Production guard: demo seeding fabricates users/customers/jobs directly into
+            // the live database — irreversible pollution that must never happen by accident
+            // (a stray SEED_DEMO_DATA=true in a prod .env). Refuse to boot rather than seed.
+            // Escape hatch for a deliberate demo/sales box: ALLOW_DEMO_DATA_IN_PRODUCTION=true.
+            if (seedDemoData
+                && builder.Environment.IsProduction()
+                && !builder.Configuration.GetValue<bool>("ALLOW_DEMO_DATA_IN_PRODUCTION"))
+            {
+                throw new InvalidOperationException(
+                    "SEED_DEMO_DATA=true with ASPNETCORE_ENVIRONMENT=Production — refusing to boot. " +
+                    "Demo seeding writes fabricated users, customers, and jobs into the production " +
+                    "database. Set SEED_DEMO_DATA=false in this environment's config. If this is a " +
+                    "deliberate demo/sales box, set ALLOW_DEMO_DATA_IN_PRODUCTION=true to override.");
+            }
+
             Log.Information("[DB-LIFECYCLE] Running seed data (demo={SeedDemo})...", seedDemoData);
             await SeedData.SeedAsync(scope.ServiceProvider, seedDemoData);
             Log.Information("[DB-LIFECYCLE] Seed data complete");
