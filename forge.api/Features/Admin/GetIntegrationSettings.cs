@@ -1,5 +1,6 @@
 using MediatR;
 
+using Forge.Api.Services;
 using Forge.Core.Models;
 using Forge.Core.Settings;
 
@@ -17,13 +18,17 @@ namespace Forge.Api.Features.Admin;
 /// </summary>
 public record GetIntegrationSettingsQuery : IRequest<IntegrationSettingsResult>;
 
-public class GetIntegrationSettingsHandler(ISettingsService settings)
+public class GetIntegrationSettingsHandler(ISettingsService settings, IIntegrationReadinessService readiness)
     : IRequestHandler<GetIntegrationSettingsQuery, IntegrationSettingsResult>
 {
     private const string SecretMask = "••••••••";
 
     public async Task<IntegrationSettingsResult> Handle(GetIntegrationSettingsQuery request, CancellationToken ct)
     {
+        var report = await readiness.BuildAsync(ct);
+        var readinessByProvider = report.Integrations.ToDictionary(
+            r => r.Provider, StringComparer.OrdinalIgnoreCase);
+
         var integrations = new List<IntegrationStatusModel>(IntegrationDescriptorCatalog.All.Count);
 
         foreach (var integration in IntegrationDescriptorCatalog.All)
@@ -62,6 +67,8 @@ public class GetIntegrationSettingsHandler(ISettingsService settings)
                 ? !string.IsNullOrEmpty(primaryValue)
                 : fields.Any(f => f.IsRequired && !string.IsNullOrEmpty(f.Value) && f.Value != SecretMask);
 
+            readinessByProvider.TryGetValue(integration.Provider, out var r);
+
             integrations.Add(new IntegrationStatusModel(
                 Provider: integration.Provider,
                 Name: integration.Name,
@@ -72,12 +79,20 @@ public class GetIntegrationSettingsHandler(ISettingsService settings)
                 Category: integration.Category,
                 SandboxSteps: integration.SetupSteps?.ToList(),
                 SandboxUrl: integration.SignupUrl,
-                LogoUrl: integration.LogoUrl));
+                LogoUrl: integration.LogoUrl,
+                CapabilityCode: integration.CapabilityCode,
+                CapabilityEnabled: r?.CapabilityEnabled ?? true,
+                Readiness: (r?.Status ?? IntegrationReadinessStatus.Mock).ToString()));
         }
 
         // ShowSandboxGuides is now always-on — descriptor catalog has
         // setup steps for every integration that benefits from them.
-        return new IntegrationSettingsResult(ShowSandboxGuides: true, integrations);
+        return new IntegrationSettingsResult(
+            ShowSandboxGuides: true,
+            Integrations: integrations,
+            ProductionPosture: report.ProductionPosture,
+            MockIntegrationsInProduction: report.MockIntegrationsInProduction,
+            GapCount: report.Gaps.Count);
     }
 
     private static string MapInputType(SettingDescriptor d) => d.DataType switch

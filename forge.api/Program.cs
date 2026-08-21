@@ -784,6 +784,12 @@ try
     builder.Services.AddScoped<Forge.Core.Settings.ISettingsService,
         Forge.Api.Features.Settings.SettingsService>();
 
+    // Integration readiness — joins the descriptor catalog with stored settings,
+    // the capability snapshot, and the environment posture to surface gaps
+    // (capability ON but integration unconfigured in production).
+    builder.Services.AddScoped<Forge.Api.Services.IIntegrationReadinessService,
+        Forge.Api.Services.IntegrationReadinessService>();
+
     // Wave 8 + Phase 1m — Twilio webhook signature verifier. AuthToken
     // now comes from ISettingsService (admin-managed); when unset the
     // verifier accepts anything.
@@ -1409,6 +1415,37 @@ try
             Log.Information("[CAPABILITY-SEED] Snapshot hydrated: {Count} capabilities ({Enabled} enabled)",
                 capabilitySnapshots.Current.EnabledByCode.Count,
                 capabilitySnapshots.Current.EnabledByCode.Count(kv => kv.Value));
+
+            // Integration readiness — now that settings are hydrated and the
+            // capability snapshot is live, report the posture and any gaps
+            // (capability ON but integration unconfigured in production). This is
+            // the boot-time twin of the admin Integration Readiness panel.
+            try
+            {
+                var readinessReport = await scope.ServiceProvider
+                    .GetRequiredService<Forge.Api.Services.IIntegrationReadinessService>()
+                    .BuildAsync();
+
+                if (readinessReport.MockIntegrationsInProduction)
+                    Log.Warning(
+                        "[INTEGRATION-READINESS] ⚠ MockIntegrations=true while ASPNETCORE_ENVIRONMENT=Production — " +
+                        "every external integration is returning canned data. Set MockIntegrations=false and " +
+                        "configure real providers before serving real users.");
+
+                if (readinessReport.Gaps.Count > 0)
+                    Log.Warning(
+                        "[INTEGRATION-READINESS] {Count} capability(ies) are ON but their integration is unconfigured " +
+                        "in production: {Providers}. Configure each, or turn the capability off.",
+                        readinessReport.Gaps.Count,
+                        string.Join(", ", readinessReport.Gaps.Select(g => $"{g.Name} ({g.CapabilityCode})")));
+
+                if (readinessReport.ProductionPosture && readinessReport.Gaps.Count == 0)
+                    Log.Information("[INTEGRATION-READINESS] Production posture — no unconfigured-capability gaps.");
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[INTEGRATION-READINESS] Readiness check failed; continuing boot.");
+            }
 
             // Accounting GL — validate the account-determination map at startup
             // (ACCOUNTING_SUITE_PLAN §5.2). Runs after the capability snapshot so

@@ -38,12 +38,29 @@ public record IntegrationStatusModel(
     string Category = "service",
     List<string>? SandboxSteps = null,
     string? SandboxUrl = null,
-    string? LogoUrl = null
+    string? LogoUrl = null,
+    /// <summary>Capability whose being ON makes this integration needed. Null =
+    /// infrastructure integration with no gating capability.</summary>
+    string? CapabilityCode = null,
+    /// <summary>Whether that gating capability is currently enabled (true when
+    /// there is no gating capability).</summary>
+    bool CapabilityEnabled = true,
+    /// <summary>Readiness verdict: NotNeeded / Configured / Mock / Gap / Optional.
+    /// "Gap" is the actionable state — capability on, unconfigured, in production.</summary>
+    string Readiness = "Mock"
 );
 
 public record IntegrationSettingsResult(
     bool ShowSandboxGuides,
-    List<IntegrationStatusModel> Integrations
+    List<IntegrationStatusModel> Integrations,
+    /// <summary>True when running a production posture (production env, not globally
+    /// forced to mock) — the UI surfaces gaps as actionable rather than informational.</summary>
+    bool ProductionPosture = false,
+    /// <summary>True when MockIntegrations=true while ASPNETCORE_ENVIRONMENT=Production —
+    /// a misconfiguration the admin panel should warn about.</summary>
+    bool MockIntegrationsInProduction = false,
+    /// <summary>Count of integrations in the "Gap" state — drives the admin banner.</summary>
+    int GapCount = 0
 );
 
 public record UpdateIntegrationSettingsRequestModel(

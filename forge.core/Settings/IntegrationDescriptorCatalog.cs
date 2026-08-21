@@ -48,7 +48,8 @@ public static class IntegrationDescriptorCatalog
                 "Create credentials: APIs & Services → Credentials → Create Credentials → OAuth Client ID → Web application. Add the Redirect URI shown in this card as an authorized redirect URI.",
                 "Authorize the https://mail.google.com/ scope. Copy the Client ID + Client Secret into the fields below.",
             ],
-            SignupUrl: "https://console.cloud.google.com/apis/credentials"),
+            SignupUrl: "https://console.cloud.google.com/apis/credentials",
+            CapabilityCode: "CAP-EXT-EMAIL-SYNC"),
 
         new(
             Provider: "microsoft-oauth",
@@ -74,7 +75,8 @@ public static class IntegrationDescriptorCatalog
                 "Grant admin consent if you're on a Workspace/Azure tenant. Personal MSA accounts auto-consent on first auth.",
                 "Copy Application (client) ID + the secret value into the fields below.",
             ],
-            SignupUrl: "https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps"),
+            SignupUrl: "https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps",
+            CapabilityCode: "CAP-EXT-EMAIL-SYNC"),
 
         // ── Voice ─────────────────────────────────────────────────
         new(
@@ -99,7 +101,8 @@ public static class IntegrationDescriptorCatalog
                 "Configure the Voice Status Callback URL on your phone number(s): Phone Numbers → Manage → click number → A Call Comes In: Webhook → set to https://your-domain/api/v1/communications/webhook/twilio.",
                 "Enable Require Signature once you've verified production webhooks are reaching you correctly.",
             ],
-            SignupUrl: "https://www.twilio.com/try-twilio"),
+            SignupUrl: "https://www.twilio.com/try-twilio",
+            CapabilityCode: "CAP-EXT-VOIP-SYNC"),
 
         // ── Email infrastructure ──────────────────────────────────
         new(
@@ -181,7 +184,8 @@ public static class IntegrationDescriptorCatalog
                 "Credentials → Create credentials → OAuth Client ID → Web application. Add this Forge install's public URL + /auth/sso/google/callback as an Authorized redirect URI.",
                 "Copy the Client ID + Client Secret into the fields below. Save. Each user then connects their own Drive via Account → Integrations.",
             ],
-            SignupUrl: "https://console.cloud.google.com/apis/credentials"),
+            SignupUrl: "https://console.cloud.google.com/apis/credentials",
+            CapabilityCode: "CAP-EXT-CLOUD-STORAGE-GDRIVE"),
 
         // ── Address validation ────────────────────────────────────
         new(
@@ -256,7 +260,8 @@ public static class IntegrationDescriptorCatalog
                 "Pull the embedding model: docker exec forge-ai ollama pull all-minilm:l6-v2",
                 "Larger models (7B+) give better results but require more RAM. The defaults below work on 8GB+.",
             ],
-            SignupUrl: "https://ollama.com/library"),
+            SignupUrl: "https://ollama.com/library",
+            CapabilityCode: "CAP-EXT-AI-ASSISTANT"),
 
         // ── Shipping carriers ─────────────────────────────────────
         // Carrier credentials are managed on the dedicated /admin/carriers page (DB-backed Carrier rows
@@ -285,7 +290,8 @@ public static class IntegrationDescriptorCatalog
                 "A sandbox company is auto-created — Dashboard → Sandbox Companies. Comes pre-loaded with sample data.",
                 "Use Development credentials for dev. Production requires Intuit app review.",
             ],
-            SignupUrl: "https://developer.intuit.com/app/developer/myapps"),
+            SignupUrl: "https://developer.intuit.com/app/developer/myapps",
+            CapabilityCode: "CAP-ACCT-EXTERNAL"),
 
         new(
             Provider: "xero",
@@ -302,7 +308,8 @@ public static class IntegrationDescriptorCatalog
                 "Enter app name + Redirect URI. Copy Client ID immediately. Click Generate a secret to create Client Secret (shown once).",
                 "Test org: Xero → click your org name → My Xero → Try the Demo Company. Connect via OAuth and pick Demo Company.",
             ],
-            SignupUrl: "https://developer.xero.com/app/manage"),
+            SignupUrl: "https://developer.xero.com/app/manage",
+            CapabilityCode: "CAP-ACCT-EXTERNAL"),
 
         new(
             Provider: "freshbooks",
@@ -320,7 +327,8 @@ public static class IntegrationDescriptorCatalog
                 "Copy Client ID + Client Secret. Pre-built Authorization URL is shown lower in the page.",
                 "Your own FreshBooks account doubles as the sandbox — no separate environment.",
             ],
-            SignupUrl: "https://my.freshbooks.com/#/developer"),
+            SignupUrl: "https://my.freshbooks.com/#/developer",
+            CapabilityCode: "CAP-ACCT-EXTERNAL"),
 
         new(
             Provider: "sage",
@@ -338,7 +346,8 @@ public static class IntegrationDescriptorCatalog
                 "Provisioning can take up to 72 hours. Once approved, copy Client ID + Client Secret.",
                 "Sandbox includes sample companies, contacts, invoices.",
             ],
-            SignupUrl: "https://developer.sage.com/accounting/"),
+            SignupUrl: "https://developer.sage.com/accounting/",
+            CapabilityCode: "CAP-ACCT-EXTERNAL"),
 
         new(
             Provider: "netsuite",
@@ -365,7 +374,8 @@ public static class IntegrationDescriptorCatalog
                 "Setup → Users/Roles → Access Tokens → New. Pick the integration record + a user. Copy Token ID + Token Secret (shown once).",
                 "Account ID is in the URL when logged in (e.g. TSTDRV123456 for sandbox).",
             ],
-            SignupUrl: "https://www.netsuite.com/portal/free-trial.shtml"),
+            SignupUrl: "https://www.netsuite.com/portal/free-trial.shtml",
+            CapabilityCode: "CAP-ACCT-EXTERNAL"),
 
         new(
             Provider: "wave",
@@ -386,7 +396,8 @@ public static class IntegrationDescriptorCatalog
                 "Wave uses GraphQL — single endpoint gql.waveapps.com/graphql/public.",
                 "End-users connecting via API need a Wave Pro Plan (as of May 2025). Devs can use Full Access Tokens for personal testing.",
             ],
-            SignupUrl: "https://developer.waveapps.com"),
+            SignupUrl: "https://developer.waveapps.com",
+            CapabilityCode: "CAP-ACCT-EXTERNAL"),
 
         new(
             Provider: "zoho",
@@ -404,6 +415,7 @@ public static class IntegrationDescriptorCatalog
                 "Sandbox: Zoho Books → Settings → Developer Space → Sandbox to create an isolated org.",
                 "Organization ID is shown in Manage Organizations or via GET /organizations.",
             ],
-            SignupUrl: "https://api-console.zoho.com/"),
+            SignupUrl: "https://api-console.zoho.com/",
+            CapabilityCode: "CAP-ACCT-EXTERNAL"),
     ];
 }

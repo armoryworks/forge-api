@@ -42,4 +42,11 @@ public sealed record IntegrationDescriptor(
     IReadOnlyList<string>? SetupSteps = null,
     /// <summary>Direct link to the provider's signup / dev-portal
     /// landing page — the "I want to set this up" CTA destination.</summary>
-    string? SignupUrl = null);
+    string? SignupUrl = null,
+    /// <summary>Capability whose being ON makes this integration
+    /// *needed*. When set and the capability is enabled but the
+    /// integration is unconfigured (and not in mock mode), readiness
+    /// flags a gap: "configure it, or turn the capability off". Null =
+    /// infrastructure integration with no gating capability (SMTP,
+    /// storage) — treated as optional rather than a hard gap.</summary>
+    string? CapabilityCode = null);
