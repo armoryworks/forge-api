@@ -65,10 +65,23 @@ jobs:
             sha_short=$(git rev-parse --short HEAD)
             sha_tag="main-${sha_short}"
           fi
+
+          # :latest must always resolve to the HIGHEST published release. Decide whether the
+          # version being stitched is that highest semver, compared against every published tag
+          # (the previous logic skipped :latest on explicit-version runs — i.e. on every release —
+          # so :latest went stale at an old version).
+          img="${{ env.IMAGE_NAME }}"
+          tok=$(curl -s "https://ghcr.io/token?scope=repository:${img}:pull&service=ghcr.io" | jq -r '.token // empty')
+          published=$(curl -s -H "Authorization: Bearer ${tok}" "https://ghcr.io/v2/${img}/tags/list?n=10000" \
+                        | jq -r '.tags[]? // empty' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$' || true)
+          newest=$(printf '%s\n%s\n' "${published}" "${version}" | grep -v '^$' | sort -V | tail -n1)
+          is_latest=false; [[ "${newest}" == "${version}" ]] && is_latest=true
+
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "minor=${minor_tag}" >> "$GITHUB_OUTPUT"
           echo "sha_tag=${sha_tag}" >> "$GITHUB_OUTPUT"
-          echo "Computed manifest version: ${version} (minor=${minor_tag} sha_tag=${sha_tag})"
+          echo "is_latest=${is_latest}" >> "$GITHUB_OUTPUT"
+          echo "Computed manifest version: ${version} (minor=${minor_tag} sha_tag=${sha_tag} is_latest=${is_latest}; newest incl this=${newest})"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -82,9 +95,10 @@ jobs:
 
       - name: Stitch per-arch images into manifest list
         env:
-          VERSION: ${{ steps.version.outputs.version }}
-          MINOR:   ${{ steps.version.outputs.minor }}
-          SHA_TAG: ${{ steps.version.outputs.sha_tag }}
+          VERSION:   ${{ steps.version.outputs.version }}
+          MINOR:     ${{ steps.version.outputs.minor }}
+          SHA_TAG:   ${{ steps.version.outputs.sha_tag }}
+          IS_LATEST: ${{ steps.version.outputs.is_latest }}
         run: |
           set -euo pipefail
           IMG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
@@ -106,9 +120,10 @@ jobs:
           fi
 
           dest_tags=("${IMG}:${VERSION}" "${IMG}:${MINOR}")
-          if [[ -n "${SHA_TAG}" ]]; then
-            dest_tags+=("${IMG}:latest" "${IMG}:${SHA_TAG}")
-          fi
+          [[ -n "${SHA_TAG}" ]] && dest_tags+=("${IMG}:${SHA_TAG}")
+          # :latest points at the highest published release only (a main-<sha> build is never
+          # "latest"; a release is, when it's the newest — computed in the version step).
+          [[ "${IS_LATEST}" == "true" ]] && dest_tags+=("${IMG}:latest")
 
           tag_args=()
           for t in "${dest_tags[@]}"; do tag_args+=("-t" "$t"); done
@@ -118,6 +133,6 @@ jobs:
           docker buildx imagetools create "${tag_args[@]}" "${sources[@]}"
 
       - name: Inspect resulting :latest
-        if: steps.version.outputs.sha_tag != ''
+        if: steps.version.outputs.is_latest == 'true'
         run: |
           docker buildx imagetools inspect "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" || true
