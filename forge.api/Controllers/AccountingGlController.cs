@@ -88,6 +88,27 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         [FromQuery] int bookId, [FromQuery] bool postableOnly = false, CancellationToken ct = default)
         => Ok(await mediator.Send(new GetChartOfAccountsQuery(bookId, postableOnly), ct));
 
+    /// <summary>Full chart of accounts (incl. inactive + HasPostings lock flag) for the management screen.</summary>
+    [HttpGet("accounts/manage")]
+    public async Task<ActionResult<IReadOnlyList<GlAccountAdminModel>>> ListAccountsForManagement(
+        [FromQuery] int bookId, CancellationToken ct = default)
+        => Ok(await mediator.Send(new ListGlAccountsForManagementQuery(bookId), ct));
+
+    /// <summary>Create a new postable chart-of-accounts account.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
+    [HttpPost("accounts")]
+    public async Task<ActionResult<GlAccountAdminModel>> CreateAccount([FromBody] CreateGlAccountCommand command, CancellationToken ct)
+    {
+        var result = await mediator.Send(command, ct);
+        return CreatedAtAction(nameof(ListAccountsForManagement), new { bookId = command.BookId }, result);
+    }
+
+    /// <summary>Edit a chart-of-accounts account (structural fields locked once it has postings).</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
+    [HttpPut("accounts/{id:int}")]
+    public async Task<ActionResult<GlAccountAdminModel>> UpdateAccount(int id, [FromBody] UpdateGlAccountCommand command, CancellationToken ct)
+        => Ok(await mediator.Send(command with { Id = id }, ct));
+
     /// <summary>
     /// Read-only GL register (ACCOUNTING_SUITE_PLAN §5A): the time-ordered journal for a book with
     /// per-line account labels and drill-back refs, feeding the ledger-view UI. Newest first,
