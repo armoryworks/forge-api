@@ -80,6 +80,11 @@ public static partial class SeedData
         // (run-once on empty acct_books). See §5.4.
         await SeedAccountingAsync(db);
 
+        // ── 2g. US state sales-tax base rates — reference data (self-guarded
+        // run-once), not demo data: without it a clean install silently falls
+        // back to the default rate for every customer nexus lookup.
+        await SeedSalesTaxRatesAsync(db);
+
         // ── Stop here for clean installs — setup wizard handles user creation ──
         if (!seedDemoData)
         {
@@ -718,9 +723,6 @@ public static partial class SeedData
             await db.SaveChangesAsync();
             Log.Information("Seeded {Count} pre-packaged reports", 27);
         }
-
-        // ── Sales Tax Rates ────────────────────────────────────────────────
-        await SeedSalesTaxRatesAsync(db);
 
         // ── Default Chat Channels ────────────────────────────────────────────
         await SeedDefaultChannelsAsync(db, admin.Id);
