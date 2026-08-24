@@ -71,6 +71,15 @@ public static partial class SeedData
         // ── 2e. Regulatory Watchtower sources (cluster B) ──
         await SeedRegulatorySourcesAsync(db);
 
+        // ── 2f. Accounting GL Phase-0 foundation (dark; CAP-ACCT-FULLGL off) ──
+        // Book + chart of accounts + determination rules + current fiscal
+        // year/periods. This is config/reference data, NOT demo data — a clean
+        // install needs it or the GL can never post (FULLGL toggled on with no
+        // Book throws NO_POSTING_BOOK on every posting path, and the budgets /
+        // chart-of-accounts screens have nothing to show). Idempotent
+        // (run-once on empty acct_books). See §5.4.
+        await SeedAccountingAsync(db);
+
         // ── Stop here for clean installs — setup wizard handles user creation ──
         if (!seedDemoData)
         {
@@ -715,11 +724,6 @@ public static partial class SeedData
 
         // ── Default Chat Channels ────────────────────────────────────────────
         await SeedDefaultChannelsAsync(db, admin.Id);
-
-        // ── Accounting GL Phase-0 foundation (dark; CAP-ACCT-FULLGL off) ─────
-        // Book + chart of accounts + determination rules + current fiscal
-        // year/periods. Idempotent (run-once on empty acct_books). See §5.4.
-        await SeedAccountingAsync(db);
 
         // ── Historical Data ────────────────────────────────────────────────
         await SeedHistoricalDataAsync(db, admin.Id, akim.Id, dhart.Id, jsilva.Id, mreyes.Id,
