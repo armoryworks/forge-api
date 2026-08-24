@@ -573,6 +573,43 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         int id, [FromBody] PostFromTemplateRequest body, CancellationToken ct)
         => Ok(await mediator.Send(new PostFromTemplateCommand(id, body.EntryDate, body.Memo), ct));
 
+    // ─────────────────────────── Budgets + budget-vs-actual ───────────────────────────
+
+    /// <summary>Create or update a budget line (upsert by book/account/year/month). CAP-ACCT-FULLGL gated.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
+    [HttpPost("budgets")]
+    public async Task<ActionResult<BudgetLineModel>> UpsertBudget(
+        [FromBody] UpsertBudgetRequestModel model, CancellationToken ct)
+        => Ok(await mediator.Send(new UpsertBudgetCommand(model), ct));
+
+    /// <summary>List a book's budget lines for a fiscal year. CAP-ACCT-FULLGL gated.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
+    [HttpGet("budgets")]
+    public async Task<ActionResult<IReadOnlyList<BudgetLineModel>>> ListBudgets(
+        [FromQuery] int bookId, [FromQuery] int fiscalYear, CancellationToken ct)
+        => Ok(await mediator.Send(new ListBudgetsQuery(bookId, fiscalYear), ct));
+
+    /// <summary>Soft-delete a budget line. CAP-ACCT-FULLGL gated.</summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
+    [HttpDelete("budgets/{id:int}")]
+    public async Task<IActionResult> DeleteBudget(int id, CancellationToken ct)
+    {
+        await mediator.Send(new DeleteBudgetCommand(id), ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Budget-vs-actual P&amp;L comparison for a book over a fiscal year (or a single
+    /// month via <c>periodMonth</c>). Actuals come from the shared ledger projection
+    /// (the same one the P&amp;L uses). CAP-ACCT-FULLGL gated.
+    /// </summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
+    [HttpGet("budget-vs-actual")]
+    public async Task<ActionResult<BudgetVsActual>> GetBudgetVsActual(
+        [FromQuery] int bookId, [FromQuery] int fiscalYear, CancellationToken ct,
+        [FromQuery] int? periodMonth = null)
+        => Ok(await mediator.Send(new GetBudgetVsActualQuery(bookId, fiscalYear, periodMonth), ct));
+
     // ─────────────────────────── Phase-3 bank reconciliation ───────────────────────────
 
     /// <summary>Phase-3 — cash GL accounts available to reconcile.</summary>
