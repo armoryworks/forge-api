@@ -63,4 +63,11 @@ public class Tier3CostingController(IMediator mediator) : ControllerBase
     [HttpPut("budgets")]
     public async Task<ActionResult<OverheadPoolBudgetResponseModel>> UpsertBudget([FromBody] UpsertOverheadPoolBudgetCommand command)
         => Ok(await mediator.Send(command));
+
+    /// <summary>Prepackaged costing setup — a few answers populate the cost center,
+    /// period, overhead pools + budgets, and (FULLGL on) the GL budget lines.</summary>
+    [HttpPost("quick-start")]
+    public async Task<ActionResult<CostingQuickStartResponseModel>> QuickStart(
+        [FromBody] ApplyCostingQuickStartRequestModel model, CancellationToken cancellationToken)
+        => Ok(await mediator.Send(new ApplyCostingQuickStartCommand(model), cancellationToken));
 }
