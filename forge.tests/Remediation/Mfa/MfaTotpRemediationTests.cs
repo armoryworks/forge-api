@@ -17,7 +17,7 @@ namespace Forge.Tests.Remediation.Mfa;
 /// </summary>
 public class MfaTotpRemediationTests
 {
-    private static MfaService NewService() => new(null!, null!, null!, null!, null!, null!);
+    private static MfaService NewService() => new(null!, null!, null!, null!, null!, null!, null!);
 
     [Fact] // G-MFA-3 GREEN — a code from a standard authenticator (Base32-decoded secret) validates
     public void Totp_code_from_a_standard_authenticator_validates()

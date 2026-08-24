@@ -21,6 +21,7 @@ public class MfaService(
     ITokenService tokenService,
     ISessionStore sessionStore,
     IMemoryCache cache,
+    IMfaTrustedDeviceTokenService trustedDeviceTokens,
     ILogger<MfaService> logger) : IMfaService
 {
     private const int MaxFailedAttempts = 5;
@@ -242,7 +243,14 @@ public class MfaService(
         // Invalidate challenge
         cache.Remove(cacheKey);
 
-        return await GenerateFullTokenAsync(challengeData.UserId, ct);
+        var result = await GenerateFullTokenAsync(challengeData.UserId, ct);
+
+        // "Remember this device for 30 days" — issue a trusted-device token the
+        // client stores and presents on next login to skip the MFA challenge.
+        if (rememberDevice)
+            result = result with { TrustedDeviceToken = trustedDeviceTokens.Issue(challengeData.UserId) };
+
+        return result;
     }
 
     // ── Recovery ───────────────────────────────────────────

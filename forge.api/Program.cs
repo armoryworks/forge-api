@@ -502,6 +502,7 @@ try
     builder.Services.AddSingleton<IPiiProtector, PiiProtector>();
     builder.Services.AddSingleton<ITokenService, JwtTokenService>();
     builder.Services.AddSingleton<IMfaPreAuthTokenService, MfaPreAuthTokenService>();
+    builder.Services.AddSingleton<IMfaTrustedDeviceTokenService, MfaTrustedDeviceTokenService>();
     builder.Services.AddSingleton<IPortalAuthService, PortalAuthService>();
     builder.Services.AddSingleton<ISessionStore, SessionStore>();
     // Single-use handoff for the browser SSO callback — keeps the JWT out of

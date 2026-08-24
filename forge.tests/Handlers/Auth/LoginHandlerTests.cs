@@ -54,7 +54,8 @@ public class LoginHandlerTests
             _sessionStoreMock.Object, _httpContextAccessorMock.Object, _db,
             _auditWriterMock.Object,
             _roleClaimsExpanderMock.Object,
-            _mfaPreAuthMock.Object);
+            _mfaPreAuthMock.Object,
+            new Mock<IMfaTrustedDeviceTokenService>().Object);
     }
 
     [Fact]

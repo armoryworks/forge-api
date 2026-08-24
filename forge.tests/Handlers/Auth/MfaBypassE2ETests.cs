@@ -69,7 +69,7 @@ public class MfaBypassE2ETests : IDisposable
 
         _mfa = new MfaService(
             _db, _encryption, tokenService, sessionStore.Object,
-            _cache, NullLogger<MfaService>.Instance);
+            _cache, new MfaTrustedDeviceTokenService(config), NullLogger<MfaService>.Instance);
 
         _preAuth = new MfaPreAuthTokenService(config);
         _challengeHandler = new CreateMfaChallengeHandler(_mfa, _preAuth);

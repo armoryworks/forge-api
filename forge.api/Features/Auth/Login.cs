@@ -23,7 +23,7 @@ public record AuthUserResponseModel(
 
 // --- Login ---
 
-public record LoginCommand(string Email, string Password) : IRequest<LoginResponse>;
+public record LoginCommand(string Email, string Password, string? TrustedDeviceToken = null) : IRequest<LoginResponse>;
 
 public record LoginResponse(string Token, DateTimeOffset ExpiresAt, AuthUserResponseModel User, bool MfaRequired = false, string? MfaPendingToken = null);
 
@@ -49,7 +49,8 @@ public class LoginHandler(
     AppDbContext db,
     ISystemAuditWriter auditWriter,
     IRoleClaimsExpander roleClaimsExpander,
-    IMfaPreAuthTokenService mfaPreAuth)
+    IMfaPreAuthTokenService mfaPreAuth,
+    IMfaTrustedDeviceTokenService trustedDeviceTokens)
     : IRequestHandler<LoginCommand, LoginResponse>
 {
     public async Task<LoginResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -96,8 +97,14 @@ public class LoginHandler(
             throw new UnauthorizedAccessException("Invalid credentials");
         }
 
-        // Check if MFA is required
-        if (user.MfaEnabled)
+        // Check if MFA is required. A valid "remember this device for 30 days"
+        // trusted-device token for THIS user skips the challenge (the password
+        // check above still gates it). The token is subject-bound and signed, so
+        // a token minted for another user or tampered with fails validation.
+        var trustedForUser = !string.IsNullOrEmpty(request.TrustedDeviceToken)
+            && trustedDeviceTokens.ValidateAndGetUserId(request.TrustedDeviceToken) == user.Id;
+
+        if (user.MfaEnabled && !trustedForUser)
         {
             // F-054: the password check has now passed — issue a single-purpose
             // MFA-pending token as proof of the first factor. /mfa/challenge
