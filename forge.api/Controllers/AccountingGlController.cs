@@ -222,6 +222,21 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Sales-tax liability report — the seller sales-tax the business owes,
+    /// aggregated by jurisdiction (ship-to US state) over an optional date range.
+    /// Read-only aggregate over sales orders; sums
+    /// <see cref="Forge.Core.Entities.SalesOrder.SellerTaxLiability"/> (never
+    /// <c>TaxAmount</c>), so marketplace-facilitator tax the platform remits is
+    /// excluded. Gated on <c>CAP-ACCT-GL-VIEW</c> like the aging reports.
+    /// </summary>
+    [HttpGet("sales-tax-liability")]
+    public async Task<ActionResult<SalesTaxLiabilityReport>> GetSalesTaxLiability(
+        [FromQuery] DateOnly? fromDate,
+        [FromQuery] DateOnly? toDate,
+        CancellationToken ct)
+        => Ok(await mediator.Send(new GetSalesTaxLiabilityQuery(fromDate, toDate), ct));
+
     /// <summary>Phase-3 — the book's fiscal calendar (years + periods with statuses) for the close screen.</summary>
     [HttpGet("fiscal-calendar")]
     public async Task<ActionResult<IReadOnlyList<FiscalYearModel>>> GetFiscalCalendar(
