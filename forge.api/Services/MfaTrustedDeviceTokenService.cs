@@ -19,7 +19,7 @@ namespace Forge.Api.Services;
 /// DERIVED from the main JWT key so it is inert against every other token
 /// pipeline. Differs only in TTL (30 days) and purpose.
 /// </summary>
-public class MfaTrustedDeviceTokenService(IConfiguration config) : IMfaTrustedDeviceTokenService
+public class MfaTrustedDeviceTokenService(IConfiguration config, IClock clock) : IMfaTrustedDeviceTokenService
 {
     private const string PurposeClaim = "token_use";
     private const string PurposeValue = "mfa_trusted_device";
@@ -51,7 +51,7 @@ public class MfaTrustedDeviceTokenService(IConfiguration config) : IMfaTrustedDe
                 new Claim(PurposeClaim, PurposeValue),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             ],
-            expires: DateTime.UtcNow.Add(Ttl),
+            expires: clock.UtcNow.UtcDateTime.Add(Ttl),
             signingCredentials: new SigningCredentials(SigningKey, SecurityAlgorithms.HmacSha256));
 
         return new JwtSecurityTokenHandler().WriteToken(token);

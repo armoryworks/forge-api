@@ -9,6 +9,7 @@ using Forge.Api.Features.Auth;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Integrations;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 using Forge.Data.Services;
@@ -69,7 +70,7 @@ public class MfaBypassE2ETests : IDisposable
 
         _mfa = new MfaService(
             _db, _encryption, tokenService, sessionStore.Object,
-            _cache, new MfaTrustedDeviceTokenService(config), NullLogger<MfaService>.Instance);
+            _cache, new MfaTrustedDeviceTokenService(config, new SystemClock()), NullLogger<MfaService>.Instance);
 
         _preAuth = new MfaPreAuthTokenService(config);
         _challengeHandler = new CreateMfaChallengeHandler(_mfa, _preAuth);
