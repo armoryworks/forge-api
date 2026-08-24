@@ -60,6 +60,18 @@ public interface IInvoiceArPostingService
     /// <param name="invoiceId">The invoice being finalized.</param>
     /// <param name="finalizedByUserId">Server-trusted actor (recorded as PostedBy + audit actor).</param>
     Task PostInvoiceFinalizedAsync(int invoiceId, int finalizedByUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Delivery trigger for an invoice that was finalized BEFORE delivery (§8.4 / matrix row 2):
+    /// reclassifies the invoice's DEFERRED_REVENUE credits to SALES_REVENUE (Dr deferred / Cr
+    /// revenue per original line) and posts the COGS / finished-goods relief that was deferred with
+    /// it. A no-op while CAP-ACCT-FULLGL is off, when the invoice was booked straight to revenue,
+    /// or when its original AR entry is absent/reversed. Idempotent (purpose <c>:REVENUE_RECLASS</c>;
+    /// COGS keeps its own <c>:COGS</c> key).
+    /// </summary>
+    /// <param name="invoiceId">The invoice whose shipment was delivered.</param>
+    /// <param name="deliveredByUserId">Server-trusted actor (recorded as PostedBy).</param>
+    Task PostDeliveryReclassAsync(int invoiceId, int deliveredByUserId, CancellationToken ct = default);
 }
 
 /// <inheritdoc />
@@ -105,6 +117,107 @@ public sealed class InvoiceArPostingService(
         // PostingException propagate. We only defensively guard the OFF path
         // (handled above) so a dark boot can never be perturbed.
         await PostCoreAsync(invoiceId, finalizedByUserId, ct);
+    }
+
+    public async Task PostDeliveryReclassAsync(int invoiceId, int deliveredByUserId, CancellationToken ct = default)
+    {
+        // Same dark gate as the finalize posting: zero behavior while FULLGL is off.
+        if (!capabilities.IsEnabled(FullGlCapability))
+            return;
+
+        var invoice = await db.Invoices
+            .Include(i => i.Lines).ThenInclude(l => l.Part).ThenInclude(p => p!.CurrentCostCalculation)
+            .Include(i => i.Customer)
+            .Include(i => i.Shipment)
+            .FirstOrDefaultAsync(i => i.Id == invoiceId, ct);
+        if (invoice is null)
+        {
+            Log.Warning("Delivery reclass skipped: invoice {InvoiceId} not found (FULLGL on).", invoiceId);
+            return;
+        }
+
+        var book = await db.Books.AsNoTracking()
+            .Where(b => b.IsActive)
+            .OrderBy(b => b.Id)
+            .FirstOrDefaultAsync(ct);
+        if (book is null)
+            throw new PostingException(
+                "NO_POSTING_BOOK",
+                "CAP-ACCT-FULLGL is enabled but no active accounting Book is seeded to post the delivery reclass into.");
+
+        // Only the original AR entry's DEFERRED_REVENUE credits reclass. An invoice booked
+        // straight to revenue (control had transferred at finalize) has none; a reversed
+        // (voided) entry must not resurrect revenue.
+        var originalKey = $"{JournalSource.AR}:Invoice:{invoice.Id}:REVENUE";
+        var original = await db.JournalEntries.AsNoTracking()
+            .Include(e => e.Lines)
+            .FirstOrDefaultAsync(
+                e => e.BookId == book.Id && e.IdempotencyKey == originalKey
+                     && e.Status == JournalEntryStatus.Posted,
+                ct);
+        if (original is null)
+        {
+            Log.Information(
+                "Delivery reclass skipped: invoice {InvoiceId} has no posted AR entry (never finalized under FULLGL, or voided).",
+                invoiceId);
+            return;
+        }
+
+        // Account-set aware: every account the book's DEFERRED_REVENUE key resolves to.
+        var deferredAccounts = await db.AccountDeterminationRules.AsNoTracking()
+            .Where(r => r.BookId == book.Id && r.Key == KeyDeferredRevenue)
+            .Select(r => r.GlAccountId)
+            .Distinct()
+            .ToListAsync(ct);
+        var deferredLines = original.Lines
+            .Where(l => deferredAccounts.Contains(l.GlAccountId) && l.Credit > 0m)
+            .OrderBy(l => l.LineNumber)
+            .ToList();
+        if (deferredLines.Count == 0)
+        {
+            // Straight-to-revenue invoice — revenue and COGS were both recognized at finalize.
+            return;
+        }
+
+        var lines = new List<PostingLine>(deferredLines.Count * 2);
+        foreach (var deferred in deferredLines)
+        {
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeyDeferredRevenue,
+                Debit = deferred.Credit,
+                Description = $"Delivery reclass — {deferred.Description}",
+            });
+            lines.Add(new PostingLine
+            {
+                AccountKey = KeySalesRevenue,
+                Credit = deferred.Credit,
+                Description = $"Delivery reclass — {deferred.Description}",
+            });
+        }
+
+        // EntryDate = the delivery date (the recognition event); reclass at the invoice's
+        // BOOKING rate so deferred clears exactly and no FX effect arises here (unrealized
+        // FX on the AR side is the revaluation service's business).
+        var deliveredAt = invoice.Shipment?.DeliveredDate ?? invoice.InvoiceDate;
+        var request = new PostingRequest
+        {
+            BookId = book.Id,
+            EntryDate = DateOnly.FromDateTime(deliveredAt.UtcDateTime),
+            Source = JournalSource.AR,
+            SourceType = "Invoice",
+            SourceId = invoice.Id,
+            CurrencyId = invoice.CurrencyId,
+            FxRate = invoice.FxRate,
+            Memo = $"Deferred-revenue reclass on delivery — invoice {invoice.InvoiceNumber}",
+            IdempotencyKey = $"{JournalSource.AR}:Invoice:{invoice.Id}:REVENUE_RECLASS",
+            Lines = lines,
+        };
+        await postingEngine.PostAsync(request, deliveredByUserId, ct);
+
+        // COGS / finished-goods relief that waited for this same delivery trigger (STAGE B).
+        // Its own :COGS idempotency key makes this safe if it somehow already posted.
+        await PostCogsAsync(invoice, book, deliveredByUserId, ct);
     }
 
     private async Task PostCoreAsync(int invoiceId, int finalizedByUserId, CancellationToken ct)
@@ -300,13 +413,9 @@ public sealed class InvoiceArPostingService(
         if (controlTransferred)
             await PostCogsAsync(invoice, book, finalizedByUserId, ct);
 
-        // ── TODO (Phase 1 — deferred-revenue reclass on delivery, §8.4 / matrix
-        // row 2): when the invoice was booked to DEFERRED_REVENUE (invoice
-        // precedes delivery), a delivery trigger must reclassify it to
-        // SALES_REVENUE: Dr DEFERRED_REVENUE / Cr SALES_REVENUE per line. The
-        // intended trigger is the ShipmentDelivered transition (Shipment.Status
-        // → Delivered / DeliveredDate set). That handler is not wired in STAGE A;
-        // documented here as the reclass site (idempotency purpose = REVENUE_RECLASS).
+        // ── Deferred-revenue reclass on delivery (§8.4 / matrix row 2): handled by
+        // PostDeliveryReclassAsync above, triggered by ShipmentDeliveredEvent via
+        // OnShipmentDelivered_ReclassDeferredRevenue (idempotency purpose = REVENUE_RECLASS).
     }
 
     /// <summary>

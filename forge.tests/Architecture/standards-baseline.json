@@ -96,7 +96,6 @@
     "forge.api/Features/Inventory/DeleteStorageLocation.cs": 1,
     "forge.api/Features/Inventory/GetPendingInspections.cs": 1,
     "forge.api/Features/Inventory/PlaceBinContent.cs": 2,
-    "forge.api/Features/Inventory/ReceivePurchaseOrder.cs": 3,
     "forge.api/Features/Inventory/ReceiveStock.cs": 1,
     "forge.api/Features/Inventory/RecordInspectionResult.cs": 1,
     "forge.api/Features/Inventory/ReleaseReservation.cs": 1,

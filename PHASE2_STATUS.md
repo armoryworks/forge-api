@@ -146,7 +146,11 @@ Filter-immune projection like the trial balance. Endpoint `GET /api/v1/accountin
   netting) instead of hardcoded false — so the P&L/BS drop the incomplete-margin caveat once COGS is live.
   §12 decisions baked in + documented: cost source = standard; FG-not-yet-loaded → post-regardless (FG can
   go negative until opening-balance load §7A; valuation-store guard is a STAGE-E refinement); deferred-
-  revenue invoices still defer COGS to the (unbuilt) delivery-reclass trigger. 6-lens adversarial review;
+  revenue invoices defer COGS to the delivery-reclass trigger — **BUILT 2026-08-24**
+  (`PostDeliveryReclassAsync` + `OnShipmentDelivered_ReclassDeferredRevenue`; Dr DEFERRED_REVENUE /
+  Cr SALES_REVENUE per original line at the booking rate on `ShipmentDeliveredEvent`, then the deferred
+  COGS/FG relief; idempotency `:REVENUE_RECLASS`; reversed originals and straight-to-revenue invoices
+  no-op; 6 tests in `Phase2DeliveryReclassTests`). 6-lens adversarial review;
   fixes applied. Tests: COGS cases in `InvoiceArPostingServiceTests` + `CogsPosted` derivation/reversal/
   window cases in `FinancialStatementServiceTests`. Full InMemory suite 1252 green.
 - **STAGE C — PO receipt (built, dark):** `ReceiptInventoryPostingService`, hooked into `ReceiveItems`
@@ -161,9 +165,10 @@ Filter-immune projection like the trial balance. Endpoint `GET /api/v1/accountin
   - **Decisions:** receipt values inventory at **actual PO price** — the standard-vs-actual + bill-vs-PO
     variance is recognized as **PPV at the STAGE-D 3-way match**, not at receipt. **Consumables/tools are
     expensed** at receipt (no perpetual-supplies key / tool-capitalization signal yet).
-  - **Follow-ups before un-darking:** the **second receive path** (`Features/Inventory/ReceivePurchaseOrder`,
-    single-line, no `ReceiptNumber`) creates `BinContent` but is **not** GRNI-posted — a stock-without-
-    liability asymmetry to converge (mirror-image of "ReceiveItems doesn't create BinContent"). **Freight
+  - **Follow-ups before un-darking:** ~~the **second receive path** (`Features/Inventory/ReceivePurchaseOrder`,
+    single-line, no `ReceiptNumber`) creates `BinContent` but is **not** GRNI-posted~~ — **DONE 2026-08-24**:
+    the inv-tab receive now stamps a `ReceiptNumber` and posts the same inline inventory/GRNI accrual
+    (transaction-wrapped, FULLGL-gated) as `ReceiveItems`; asymmetry closed. **Freight
     rounding:** Σ `AllocatedFreight` can drift sub-cent from `ActualFreight`, so STAGE D must reconcile
     `FREIGHT_CLEARING` to the freight invoice and route the delta to a variance/rounding account (the
     receipt JE itself always balances — it credits Σ allocated, not `ActualFreight`).

@@ -4,10 +4,12 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 
+using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.Inventory;
 
@@ -30,7 +32,14 @@ public class ReceivePurchaseOrderCommandValidator : AbstractValidator<ReceivePur
 public class ReceivePurchaseOrderHandler(
     IPurchaseOrderRepository poRepo,
     IInventoryRepository inventoryRepo,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    IClock clock,
+    // Phase-2 STAGE C parity: the primary receive path (ReceiveItems) posts inventory/GRNI inline; this
+    // inv-tab path previously stocked WITHOUT the accrual (stock-without-liability asymmetry). Optional /
+    // null-default so mock-based handler tests stay constructible; production DI supplies both, and the
+    // posting no-ops while CAP-ACCT-FULLGL is off.
+    AppDbContext? db = null,
+    IReceiptInventoryPostingService? receiptPosting = null)
     : IRequestHandler<ReceivePurchaseOrderCommand, ReceivingRecordResponseModel>
 {
     public async Task<ReceivingRecordResponseModel> Handle(
@@ -48,6 +57,10 @@ public class ReceivePurchaseOrderHandler(
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var userName = httpContext.HttpContext.User.FindFirstValue(ClaimTypes.Name) ?? "Unknown";
 
+        // Same receipt-number scheme as ReceiveItems: it keys the GRNI accrual JE (idempotency +
+        // the D.3 line-level reconciliation sweep resolves records by it). No freight on this path.
+        var receiptNumber = $"R-{clock.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}";
+
         // Create receiving record
         var record = new ReceivingRecord
         {
@@ -56,6 +69,7 @@ public class ReceivePurchaseOrderHandler(
             ReceivedBy = userName,
             StorageLocationId = data.LocationId,
             Notes = data.Notes,
+            ReceiptNumber = receiptNumber,
         };
 
         await poRepo.AddReceivingRecordAsync(record, cancellationToken);
@@ -92,7 +106,7 @@ public class ReceivePurchaseOrderHandler(
                 Quantity = baseQuantityReceived,
                 LotNumber = data.LotNumber,
                 PlacedBy = userId,
-                PlacedAt = DateTimeOffset.UtcNow,
+                PlacedAt = clock.UtcNow,
                 Notes = data.Notes,
             };
 
@@ -107,7 +121,7 @@ public class ReceivePurchaseOrderHandler(
                 LotNumber = data.LotNumber,
                 ToLocationId = data.LocationId.Value,
                 MovedBy = userId,
-                MovedAt = DateTimeOffset.UtcNow,
+                MovedAt = clock.UtcNow,
                 Reason = BinMovementReason.Receive,
             };
 
@@ -123,7 +137,7 @@ public class ReceivePurchaseOrderHandler(
             if (po.Lines.All(l => l.RemainingQuantity <= 0))
             {
                 po.Status = PurchaseOrderStatus.Received;
-                po.ReceivedDate = DateTimeOffset.UtcNow;
+                po.ReceivedDate = clock.UtcNow;
             }
             else if (po.Lines.Any(l => l.ReceivedQuantity > 0))
             {
@@ -131,7 +145,27 @@ public class ReceivePurchaseOrderHandler(
             }
         }
 
+        // One transaction: the receiving record + stock-in AND the inline inventory/GRNI posting commit
+        // (or roll back) together — same locked inline model as ReceiveItems. db is null only in
+        // mock-based handler tests, where no transaction is opened.
+        await using var tx = db is not null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         await poRepo.SaveChangesAsync(cancellationToken);
+
+        // Inline inventory / GRNI posting (Phase-2 STAGE C parity for the inv-tab receive). Runs AFTER
+        // the operational SaveChanges so the record is flushed and resolvable by ReceiptNumber; no-op
+        // while CAP-ACCT-FULLGL is off.
+        if (receiptPosting is not null)
+        {
+            var entryDate = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
+            await receiptPosting.PostReceiptAsync(
+                line.PurchaseOrderId, receiptNumber, entryDate, userId, cancellationToken);
+        }
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
 
         return new ReceivingRecordResponseModel(
             record.Id,
