@@ -307,9 +307,13 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         [FromQuery] int bookId,
         [FromQuery] DateOnly? fromDate,
         [FromQuery] DateOnly? toDate,
-        CancellationToken ct)
+        CancellationToken ct,
+        [FromQuery] bool compare = false,
+        [FromQuery] DateOnly? compareFromDate = null,
+        [FromQuery] DateOnly? compareToDate = null)
     {
-        var result = await mediator.Send(new GetProfitAndLossQuery(bookId, fromDate, toDate), ct);
+        var result = await mediator.Send(
+            new GetProfitAndLossQuery(bookId, fromDate, toDate, compare, compareFromDate, compareToDate), ct);
         return Ok(result);
     }
 
@@ -336,9 +340,12 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<BalanceSheet>> GetBalanceSheet(
         [FromQuery] int bookId,
         [FromQuery] DateOnly? asOfDate,
-        CancellationToken ct)
+        CancellationToken ct,
+        [FromQuery] bool compare = false,
+        [FromQuery] DateOnly? compareAsOfDate = null)
     {
-        var result = await mediator.Send(new GetBalanceSheetQuery(bookId, asOfDate), ct);
+        var result = await mediator.Send(
+            new GetBalanceSheetQuery(bookId, asOfDate, compare, compareAsOfDate), ct);
         return Ok(result);
     }
 

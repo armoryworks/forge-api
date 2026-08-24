@@ -21,7 +21,11 @@ namespace Forge.Api.Features.Accounting;
 /// </para>
 /// </summary>
 [RequiresCapability("CAP-ACCT-GL-VIEW")]
-public record GetBalanceSheetQuery(int BookId, DateOnly? AsOfDate = null)
+public record GetBalanceSheetQuery(
+    int BookId,
+    DateOnly? AsOfDate = null,
+    bool Compare = false,
+    DateOnly? CompareAsOfDate = null)
     : IRequest<BalanceSheet>;
 
 public class GetBalanceSheetHandler(IFinancialStatementService financialStatementService)
@@ -29,5 +33,6 @@ public class GetBalanceSheetHandler(IFinancialStatementService financialStatemen
 {
     public Task<BalanceSheet> Handle(GetBalanceSheetQuery request, CancellationToken cancellationToken)
         => financialStatementService.GetBalanceSheetAsync(
-            request.BookId, request.AsOfDate, cancellationToken);
+            request.BookId, request.AsOfDate,
+            request.Compare, request.CompareAsOfDate, cancellationToken);
 }

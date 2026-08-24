@@ -35,11 +35,24 @@ public interface IFinancialStatementService
     /// <paramref name="fromDate"/>..<paramref name="toDate"/> window (null bounds =
     /// open-ended). Income and Expense lines are signed in their statement
     /// direction; net income = Σ income − Σ expense.
+    /// <para>
+    /// When <paramref name="compare"/> is <c>true</c> the same statement is
+    /// computed for a prior window and folded in as per-line and per-total
+    /// prior/variance figures. The prior window is
+    /// <paramref name="compareFromDate"/>..<paramref name="compareToDate"/> when
+    /// supplied; otherwise the service derives the immediately-preceding period of
+    /// equal length (see the implementation for the exact rule). When
+    /// <paramref name="compare"/> is <c>false</c> the result is identical to the
+    /// single-period statement (all comparison fields null).
+    /// </para>
     /// </summary>
     Task<ProfitAndLoss> GetProfitAndLossAsync(
         int bookId,
         DateOnly? fromDate = null,
         DateOnly? toDate = null,
+        bool compare = false,
+        DateOnly? compareFromDate = null,
+        DateOnly? compareToDate = null,
         CancellationToken ct = default);
 
     /// <summary>
@@ -48,9 +61,19 @@ public interface IFinancialStatementService
     /// Liability and Equity lines are signed in their statement direction; a
     /// computed current-year-earnings equity line folds in net income earned
     /// within the current fiscal year up to the as-of date.
+    /// <para>
+    /// When <paramref name="compare"/> is <c>true</c> the sheet is also struck as
+    /// of a prior date and folded in as per-line and per-total prior/variance
+    /// figures. The prior date is <paramref name="compareAsOfDate"/> when supplied;
+    /// otherwise the service defaults to the same date one year earlier. When
+    /// <paramref name="compare"/> is <c>false</c> the result is identical to the
+    /// single-date sheet (all comparison fields null).
+    /// </para>
     /// </summary>
     Task<BalanceSheet> GetBalanceSheetAsync(
         int bookId,
         DateOnly? asOfDate = null,
+        bool compare = false,
+        DateOnly? compareAsOfDate = null,
         CancellationToken ct = default);
 }

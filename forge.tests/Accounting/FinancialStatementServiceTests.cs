@@ -389,4 +389,182 @@ public class FinancialStatementServiceTests
         bs.AsOfDate.Should().Be(AsOf);
         bs.TotalAssets.Should().Be(1000m);
     }
+
+    // ── Comparative period ───────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Pnl_NoComparison_PriorAndVarianceNull()
+    {
+        using var db = await SeedAsync();
+        await PostAsync(db, RentExpenseId, CashId, 300m, new DateOnly(2026, 2, 1), "Expense");
+
+        var pnl = await Service(db).GetProfitAndLossAsync(BookId, new DateOnly(2026, 1, 1), AsOf);
+
+        pnl.HasComparison.Should().BeFalse();
+        pnl.CompareFromDate.Should().BeNull();
+        pnl.PriorTotalExpense.Should().BeNull();
+        var rent = pnl.Expense.Single(l => l.GlAccountId == RentExpenseId);
+        rent.PriorAmount.Should().BeNull();
+        rent.Variance.Should().BeNull();
+        rent.VariancePercent.Should().BeNull();
+        pnl.TotalExpenseVariance.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Pnl_ExplicitCompareRange_ComputesVarianceAndPercent()
+    {
+        using var db = await SeedAsync();
+        // Prior window (Q1): rent 100. Current window (Q2): rent 300.
+        await PostAsync(db, RentExpenseId, CashId, 100m, new DateOnly(2026, 2, 1), "Expense");
+        await PostAsync(db, RentExpenseId, CashId, 300m, new DateOnly(2026, 5, 1), "Expense");
+
+        var pnl = await Service(db).GetProfitAndLossAsync(
+            BookId,
+            new DateOnly(2026, 4, 1), new DateOnly(2026, 6, 30),
+            compare: true,
+            compareFromDate: new DateOnly(2026, 1, 1), compareToDate: new DateOnly(2026, 3, 31));
+
+        pnl.HasComparison.Should().BeTrue();
+        pnl.CompareFromDate.Should().Be(new DateOnly(2026, 1, 1));
+        pnl.CompareToDate.Should().Be(new DateOnly(2026, 3, 31));
+
+        var rent = pnl.Expense.Single(l => l.GlAccountId == RentExpenseId);
+        rent.Amount.Should().Be(300m);
+        rent.PriorAmount.Should().Be(100m);
+        rent.Variance.Should().Be(200m);
+        rent.VariancePercent.Should().Be(200m); // (300−100)/100 × 100
+
+        pnl.PriorTotalExpense.Should().Be(100m);
+        pnl.TotalExpenseVariance.Should().Be(200m);
+        pnl.TotalExpenseVariancePercent.Should().Be(200m);
+        pnl.PriorNetIncome.Should().Be(-100m);
+        pnl.NetIncomeVariance.Should().Be(-200m); // net −300 vs prior −100
+    }
+
+    [Fact]
+    public async Task Pnl_Comparison_PriorZero_VariancePercentNull_DivideByZeroGuard()
+    {
+        using var db = await SeedAsync();
+        // Revenue only in the current window; nothing in the prior window.
+        await PostAsync(db, ArControlId, RevenueId, 500m, new DateOnly(2026, 5, 1), "Invoice",
+            debitParty: SubledgerPartyType.Customer, debitPartyId: CustomerAId);
+
+        var pnl = await Service(db).GetProfitAndLossAsync(
+            BookId,
+            new DateOnly(2026, 4, 1), new DateOnly(2026, 6, 30),
+            compare: true,
+            compareFromDate: new DateOnly(2026, 1, 1), compareToDate: new DateOnly(2026, 3, 31));
+
+        var rev = pnl.Income.Single(l => l.GlAccountId == RevenueId);
+        rev.Amount.Should().Be(500m);
+        rev.PriorAmount.Should().Be(0m);          // present now, absent prior → 0, not null
+        rev.Variance.Should().Be(500m);
+        rev.VariancePercent.Should().BeNull();    // prior 0 → guarded divide-by-zero → null
+    }
+
+    [Fact]
+    public async Task Pnl_Comparison_AccountOnlyInPrior_ShowsAsCurrentZeroLine()
+    {
+        using var db = await SeedAsync();
+        // Rent only in the PRIOR window; none in current.
+        await PostAsync(db, RentExpenseId, CashId, 400m, new DateOnly(2026, 2, 1), "Expense");
+
+        var pnl = await Service(db).GetProfitAndLossAsync(
+            BookId,
+            new DateOnly(2026, 4, 1), new DateOnly(2026, 6, 30),
+            compare: true,
+            compareFromDate: new DateOnly(2026, 1, 1), compareToDate: new DateOnly(2026, 3, 31));
+
+        var rent = pnl.Expense.Single(l => l.GlAccountId == RentExpenseId);
+        rent.Amount.Should().Be(0m);              // dropped to nothing this period, still visible
+        rent.PriorAmount.Should().Be(400m);
+        rent.Variance.Should().Be(-400m);
+        rent.VariancePercent.Should().Be(-100m);  // (0−400)/400 × 100
+    }
+
+    [Fact]
+    public async Task Pnl_Comparison_DerivesImmediatelyPrecedingEqualLengthPeriod()
+    {
+        using var db = await SeedAsync();
+        // Window chosen so the derived prior period + its just-before edge all fall
+        // inside the seeded FY2026 (the posting engine requires a fiscal period).
+        var curFrom = new DateOnly(2026, 5, 1);
+        var curTo = new DateOnly(2026, 6, 30);
+        // Same derivation the service uses: prior ends the day before current starts,
+        // same inclusive length.
+        var priorTo = curFrom.AddDays(-1);
+        var priorFrom = priorTo.AddDays(-(curTo.DayNumber - curFrom.DayNumber));
+
+        await PostAsync(db, RentExpenseId, CashId, 300m, curFrom, "Expense");            // current
+        await PostAsync(db, RentExpenseId, CashId, 120m, priorTo, "Expense");            // prior (edge)
+        await PostAsync(db, RentExpenseId, CashId, 80m, priorFrom, "Expense");           // prior (edge)
+        await PostAsync(db, RentExpenseId, CashId, 999m, priorFrom.AddDays(-1), "Expense"); // just before → excluded
+
+        var pnl = await Service(db).GetProfitAndLossAsync(
+            BookId, curFrom, curTo, compare: true); // no explicit compare range → derive
+
+        pnl.HasComparison.Should().BeTrue();
+        pnl.CompareFromDate.Should().Be(priorFrom);
+        pnl.CompareToDate.Should().Be(priorTo);
+        pnl.TotalExpense.Should().Be(300m);
+        pnl.PriorTotalExpense.Should().Be(200m); // 120 + 80, the 999 is out of window
+    }
+
+    [Fact]
+    public async Task BalanceSheet_ExplicitCompareAsOf_ComputesVariance()
+    {
+        using var db = await SeedAsync();
+        // 1000 of cash by prior date; +500 more before the current date.
+        await PostAsync(db, CashId, CommonStockId, 1000m, new DateOnly(2026, 1, 1), "Capital");
+        await PostAsync(db, CashId, CommonStockId, 500m, new DateOnly(2026, 5, 1), "Capital");
+
+        var bs = await Service(db).GetBalanceSheetAsync(
+            BookId, AsOf, compare: true, compareAsOfDate: new DateOnly(2026, 4, 30)); // 2026-06-30 vs 2026-04-30
+
+        bs.HasComparison.Should().BeTrue();
+        bs.CompareAsOfDate.Should().Be(new DateOnly(2026, 4, 30));
+
+        var cash = bs.Assets.Single(l => l.GlAccountId == CashId);
+        cash.Amount.Should().Be(1500m);
+        cash.PriorAmount.Should().Be(1000m);
+        cash.Variance.Should().Be(500m);
+        cash.VariancePercent.Should().Be(50m);
+
+        bs.TotalAssets.Should().Be(1500m);
+        bs.PriorTotalAssets.Should().Be(1000m);
+        bs.TotalAssetsVariance.Should().Be(500m);
+        bs.TotalAssetsVariancePercent.Should().Be(50m);
+    }
+
+    [Fact]
+    public async Task BalanceSheet_Comparison_DefaultsToOneYearPrior()
+    {
+        using var db = await SeedAsync();
+        await PostAsync(db, CashId, CommonStockId, 1000m, new DateOnly(2026, 1, 1), "Capital");
+
+        var bs = await Service(db).GetBalanceSheetAsync(BookId, AsOf, compare: true); // no compareAsOf
+
+        bs.HasComparison.Should().BeTrue();
+        bs.CompareAsOfDate.Should().Be(AsOf.AddYears(-1)); // 2025-06-30
+        // The 2026-01-01 capital is after the 2025 prior date → prior assets 0.
+        bs.PriorTotalAssets.Should().Be(0m);
+        bs.TotalAssets.Should().Be(1000m);
+        bs.TotalAssetsVariance.Should().Be(1000m);
+        bs.TotalAssetsVariancePercent.Should().BeNull(); // prior 0 → guarded → null
+    }
+
+    [Fact]
+    public async Task BalanceSheet_NoComparison_PriorAndVarianceNull()
+    {
+        using var db = await SeedAsync();
+        await PostAsync(db, CashId, CommonStockId, 1000m, new DateOnly(2026, 1, 1), "Capital");
+
+        var bs = await Service(db).GetBalanceSheetAsync(BookId, AsOf);
+
+        bs.HasComparison.Should().BeFalse();
+        bs.CompareAsOfDate.Should().BeNull();
+        bs.PriorTotalAssets.Should().BeNull();
+        bs.TotalAssetsVariance.Should().BeNull();
+        bs.Assets.Single(l => l.GlAccountId == CashId).PriorAmount.Should().BeNull();
+    }
 }

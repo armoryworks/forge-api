@@ -74,6 +74,36 @@ public sealed class BalanceSheet
     /// </summary>
     public bool IsBalanced => TotalAssets == TotalLiabilitiesAndEquity;
 
+    // ── Comparative period (optional) ────────────────────────────────────────
+    // Populated only when the caller requests a comparison (default: same date
+    // one year prior). All-null on the default single-date sheet, so existing
+    // callers are unaffected. Per-line prior/variance live on BalanceSheetLine;
+    // these are the matching total figures. Variance getters delegate to
+    // StatementVariance (shared divide-by-zero-guarded rule).
+
+    /// <summary>The comparison as-of date, when a comparison is in effect.</summary>
+    public DateOnly? CompareAsOfDate { get; init; }
+
+    /// <summary><c>true</c> when this sheet carries a prior-date comparison.</summary>
+    public bool HasComparison => CompareAsOfDate is not null;
+
+    public decimal? PriorTotalAssets { get; init; }
+    public decimal? PriorTotalLiabilities { get; init; }
+    public decimal? PriorCurrentYearEarnings { get; init; }
+    public decimal? PriorTotalEquityWithEarnings { get; init; }
+    public decimal? PriorTotalLiabilitiesAndEquity { get; init; }
+
+    public decimal? TotalAssetsVariance => StatementVariance.Variance(TotalAssets, PriorTotalAssets);
+    public decimal? TotalAssetsVariancePercent => StatementVariance.Percent(TotalAssets, PriorTotalAssets);
+    public decimal? TotalLiabilitiesVariance => StatementVariance.Variance(TotalLiabilities, PriorTotalLiabilities);
+    public decimal? TotalLiabilitiesVariancePercent => StatementVariance.Percent(TotalLiabilities, PriorTotalLiabilities);
+    public decimal? CurrentYearEarningsVariance => StatementVariance.Variance(CurrentYearEarnings, PriorCurrentYearEarnings);
+    public decimal? CurrentYearEarningsVariancePercent => StatementVariance.Percent(CurrentYearEarnings, PriorCurrentYearEarnings);
+    public decimal? TotalEquityWithEarningsVariance => StatementVariance.Variance(TotalEquityWithEarnings, PriorTotalEquityWithEarnings);
+    public decimal? TotalEquityWithEarningsVariancePercent => StatementVariance.Percent(TotalEquityWithEarnings, PriorTotalEquityWithEarnings);
+    public decimal? TotalLiabilitiesAndEquityVariance => StatementVariance.Variance(TotalLiabilitiesAndEquity, PriorTotalLiabilitiesAndEquity);
+    public decimal? TotalLiabilitiesAndEquityVariancePercent => StatementVariance.Percent(TotalLiabilitiesAndEquity, PriorTotalLiabilitiesAndEquity);
+
     /// <summary>
     /// <c>false</c> in Phase 1 — COGS is not posted yet (Phase 2), so the
     /// current-year-earnings figure (and therefore equity) reflects an incomplete
@@ -102,4 +132,17 @@ public sealed class BalanceSheetLine
     /// Asset → Dr − Cr; Liability/Equity → Cr − Dr.
     /// </summary>
     public decimal Amount { get; init; }
+
+    /// <summary>
+    /// The same account's balance on the comparison date. <c>null</c> when no
+    /// comparison is in effect; <c>0</c> when the account had no balance on the
+    /// prior date but does now (variance reads as the full movement).
+    /// </summary>
+    public decimal? PriorAmount { get; init; }
+
+    /// <summary>Current − prior; <c>null</c> when no comparison.</summary>
+    public decimal? Variance => StatementVariance.Variance(Amount, PriorAmount);
+
+    /// <summary>Signed % movement vs prior; <c>null</c> when no comparison or prior is zero.</summary>
+    public decimal? VariancePercent => StatementVariance.Percent(Amount, PriorAmount);
 }

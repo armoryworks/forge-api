@@ -28,7 +28,10 @@ namespace Forge.Api.Features.Accounting;
 public record GetProfitAndLossQuery(
     int BookId,
     DateOnly? FromDate = null,
-    DateOnly? ToDate = null)
+    DateOnly? ToDate = null,
+    bool Compare = false,
+    DateOnly? CompareFromDate = null,
+    DateOnly? CompareToDate = null)
     : IRequest<ProfitAndLoss>;
 
 public class GetProfitAndLossHandler(IFinancialStatementService financialStatementService)
@@ -36,5 +39,6 @@ public class GetProfitAndLossHandler(IFinancialStatementService financialStateme
 {
     public Task<ProfitAndLoss> Handle(GetProfitAndLossQuery request, CancellationToken cancellationToken)
         => financialStatementService.GetProfitAndLossAsync(
-            request.BookId, request.FromDate, request.ToDate, cancellationToken);
+            request.BookId, request.FromDate, request.ToDate,
+            request.Compare, request.CompareFromDate, request.CompareToDate, cancellationToken);
 }

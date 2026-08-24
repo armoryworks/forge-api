@@ -44,6 +44,38 @@ public sealed class ProfitAndLoss
     /// <summary>Net income = <see cref="TotalIncome"/> − <see cref="TotalExpense"/>.</summary>
     public decimal NetIncome => TotalIncome - TotalExpense;
 
+    // ── Comparative period (optional) ────────────────────────────────────────
+    // Populated only when the caller requests a comparison. All-null on the
+    // default (single-period) statement, so existing callers are unaffected. The
+    // per-line prior/variance figures live on ProfitAndLossLine; these are the
+    // matching statement-total figures. Variance getters delegate to
+    // StatementVariance so lines and totals share one divide-by-zero-guarded rule.
+
+    /// <summary>Inclusive start of the comparison window, when a comparison is in effect.</summary>
+    public DateOnly? CompareFromDate { get; init; }
+
+    /// <summary>Inclusive end of the comparison window, when a comparison is in effect.</summary>
+    public DateOnly? CompareToDate { get; init; }
+
+    /// <summary><c>true</c> when this statement carries a prior-period comparison.</summary>
+    public bool HasComparison => CompareFromDate is not null || CompareToDate is not null;
+
+    /// <summary>Σ income for the comparison window; <c>null</c> when no comparison.</summary>
+    public decimal? PriorTotalIncome { get; init; }
+
+    /// <summary>Σ expense for the comparison window; <c>null</c> when no comparison.</summary>
+    public decimal? PriorTotalExpense { get; init; }
+
+    /// <summary>Prior-period net income; <c>null</c> when no comparison.</summary>
+    public decimal? PriorNetIncome { get; init; }
+
+    public decimal? TotalIncomeVariance => StatementVariance.Variance(TotalIncome, PriorTotalIncome);
+    public decimal? TotalIncomeVariancePercent => StatementVariance.Percent(TotalIncome, PriorTotalIncome);
+    public decimal? TotalExpenseVariance => StatementVariance.Variance(TotalExpense, PriorTotalExpense);
+    public decimal? TotalExpenseVariancePercent => StatementVariance.Percent(TotalExpense, PriorTotalExpense);
+    public decimal? NetIncomeVariance => StatementVariance.Variance(NetIncome, PriorNetIncome);
+    public decimal? NetIncomeVariancePercent => StatementVariance.Percent(NetIncome, PriorNetIncome);
+
     /// <summary>
     /// <c>false</c> in Phase 1 — COGS is not posted yet (Phase 2). Surfaced so the
     /// consumer can label gross margin as incomplete.
@@ -75,4 +107,17 @@ public sealed class ProfitAndLossLine
     /// Income → Cr − Dr; Expense → Dr − Cr.
     /// </summary>
     public decimal Amount { get; init; }
+
+    /// <summary>
+    /// The same account's amount in the comparison window. <c>null</c> when no
+    /// comparison is in effect; <c>0</c> when the account had no activity in the
+    /// prior window but did this window (so variance reads as the full movement).
+    /// </summary>
+    public decimal? PriorAmount { get; init; }
+
+    /// <summary>Current − prior; <c>null</c> when no comparison.</summary>
+    public decimal? Variance => StatementVariance.Variance(Amount, PriorAmount);
+
+    /// <summary>Signed % movement vs prior; <c>null</c> when no comparison or prior is zero.</summary>
+    public decimal? VariancePercent => StatementVariance.Percent(Amount, PriorAmount);
 }
