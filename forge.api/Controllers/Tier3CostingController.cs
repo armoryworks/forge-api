@@ -64,10 +64,31 @@ public class Tier3CostingController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<OverheadPoolBudgetResponseModel>> UpsertBudget([FromBody] UpsertOverheadPoolBudgetCommand command)
         => Ok(await mediator.Send(command));
 
-    /// <summary>Prepackaged costing setup — a few answers populate the cost center,
-    /// period, overhead pools + budgets, and (FULLGL on) the GL budget lines.</summary>
-    [HttpPost("quick-start")]
-    public async Task<ActionResult<CostingQuickStartResponseModel>> QuickStart(
-        [FromBody] ApplyCostingQuickStartRequestModel model, CancellationToken cancellationToken)
-        => Ok(await mediator.Send(new ApplyCostingQuickStartCommand(model), cancellationToken));
+    // ─────────────────────────── Costing templates (quick-start packages) ───────────────────────────
+
+    /// <summary>Lists costing templates (system + user) with their lines.</summary>
+    [HttpGet("templates")]
+    public async Task<ActionResult<IReadOnlyList<CostingTemplateResponseModel>>> ListTemplates(CancellationToken cancellationToken)
+        => Ok(await mediator.Send(new ListCostingTemplatesQuery(), cancellationToken));
+
+    /// <summary>Creates (no id) or replaces (id) a costing template with its whole line graph.</summary>
+    [HttpPost("templates")]
+    public async Task<ActionResult<CostingTemplateResponseModel>> SaveTemplate(
+        [FromBody] SaveCostingTemplateRequestModel model, CancellationToken cancellationToken)
+        => Ok(await mediator.Send(new SaveCostingTemplateCommand(model), cancellationToken));
+
+    /// <summary>Soft-deletes a user template. System templates are never deletable.</summary>
+    [HttpDelete("templates/{id:int}")]
+    public async Task<IActionResult> DeleteTemplate(int id, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new DeleteCostingTemplateCommand(id), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>Applies a template: a few answers populate the cost center, period,
+    /// overhead pools + budgets, and (FULLGL on) the GL expense accounts + budget lines.</summary>
+    [HttpPost("templates/{id:int}/apply")]
+    public async Task<ActionResult<CostingQuickStartResponseModel>> ApplyTemplate(
+        int id, [FromBody] ApplyCostingTemplateRequestModel model, CancellationToken cancellationToken)
+        => Ok(await mediator.Send(new ApplyCostingTemplateCommand(id, model), cancellationToken));
 }
