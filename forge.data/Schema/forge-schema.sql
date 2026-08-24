@@ -9696,6 +9696,8 @@ CREATE TABLE public.vendors (
     auto_po_mode character varying(20),
     min_order_amount numeric(18,4),
     off_tier_variance_pct numeric(6,2),
+    is_1099 boolean DEFAULT false NOT NULL,
+    tax_id character varying(32),
     external_id character varying(100),
     external_ref character varying(100),
     provider character varying(50),

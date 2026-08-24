@@ -34,6 +34,7 @@ public class VendorConfiguration : IEntityTypeConfiguration<Vendor>
         builder.Property(e => e.MinOrderAmount).HasPrecision(18, 4);
         // Bought-parts effort PR4 — variance pct stored to 2dp (e.g. 7.50 = 7.5%).
         builder.Property(e => e.OffTierVariancePct).HasPrecision(6, 2);
+        builder.Property(e => e.TaxId).HasMaxLength(32);
 
         builder.HasIndex(e => e.CompanyName);
     }

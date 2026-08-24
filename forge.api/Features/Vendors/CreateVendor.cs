@@ -19,6 +19,8 @@ public record CreateVendorCommand(
     string? Country,
     string? PaymentTerms,
     string? Notes,
+    bool Is1099 = false,
+    string? TaxId = null,
     // Optional caller-supplied vendor number — see CreateVendorRequestModel.VendorNumber.
     string? VendorNumber = null) : IRequest<VendorListItemModel>;
 
@@ -35,6 +37,7 @@ public class CreateVendorValidator : AbstractValidator<CreateVendorCommand>
         RuleFor(x => x.Phone).MaximumLength(50);
         RuleFor(x => x.Address).MaximumLength(500);
         RuleFor(x => x.Notes).MaximumLength(2000);
+        RuleFor(x => x.TaxId).MaximumLength(32);
     }
 }
 
@@ -65,6 +68,8 @@ public class CreateVendorHandler(
             Country = request.Country,
             PaymentTerms = request.PaymentTerms,
             Notes = request.Notes,
+            Is1099 = request.Is1099,
+            TaxId = string.IsNullOrWhiteSpace(request.TaxId) ? null : request.TaxId.Trim(),
         };
 
         await repo.AddAsync(vendor, cancellationToken);

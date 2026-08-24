@@ -16,6 +16,8 @@ public record VendorDetailResponseModel(
     string? Notes,
     decimal? OffTierVariancePct,
     bool IsActive,
+    bool Is1099,
+    string? TaxId,
     string? ExternalId,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,

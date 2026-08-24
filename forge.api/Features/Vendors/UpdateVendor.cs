@@ -20,6 +20,8 @@ public record UpdateVendorCommand(
     string? Notes,
     decimal? OffTierVariancePct,
     bool? IsActive,
+    bool? Is1099 = null,
+    string? TaxId = null,
     // User-settable vendor number — see UpdateVendorRequestModel.VendorNumber.
     string? VendorNumber = null) : IRequest;
 
@@ -35,6 +37,7 @@ public class UpdateVendorValidator : AbstractValidator<UpdateVendorCommand>
             .InclusiveBetween(0m, 100m)
             .When(x => x.OffTierVariancePct.HasValue)
             .WithMessage("Off-tier variance % must be between 0 and 100.");
+        RuleFor(x => x.TaxId).MaximumLength(32).When(x => x.TaxId != null);
     }
 }
 
@@ -90,6 +93,9 @@ public class UpdateVendorHandler(
         if (request.Notes != null) vendor.Notes = request.Notes;
         // V9: off-tier variance % round-trips (was silently dropped — request model omitted it).
         if (request.OffTierVariancePct.HasValue) vendor.OffTierVariancePct = request.OffTierVariancePct;
+        if (request.Is1099.HasValue) vendor.Is1099 = request.Is1099.Value;
+        if (request.TaxId != null)
+            vendor.TaxId = string.IsNullOrWhiteSpace(request.TaxId) ? null : request.TaxId.Trim();
 
         // Phase 3 H2 / WU-12: stamp DeactivationDate when transitioning
         // active → inactive; clear it on reactivation. Drives the lifecycle

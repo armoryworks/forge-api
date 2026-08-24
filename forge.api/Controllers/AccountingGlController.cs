@@ -237,6 +237,18 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         CancellationToken ct)
         => Ok(await mediator.Send(new GetSalesTaxLiabilityQuery(fromDate, toDate), ct));
 
+    /// <summary>
+    /// 1099 report — every vendor flagged as a 1099 payee with its total cash paid
+    /// in the calendar year, for preparing Form 1099-NEC filings. Read-only
+    /// aggregate over vendor payments; sums the disbursed amount and marks each
+    /// vendor that reaches the IRS $600 reporting threshold. Gated on
+    /// <c>CAP-ACCT-GL-VIEW</c> like the sales-tax and aging reports.
+    /// </summary>
+    [HttpGet("1099-report")]
+    public async Task<ActionResult<Form1099Report>> Get1099Report(
+        [FromQuery] int year, CancellationToken ct)
+        => Ok(await mediator.Send(new Get1099ReportQuery(year), ct));
+
     /// <summary>Phase-3 — the book's fiscal calendar (years + periods with statuses) for the close screen.</summary>
     [HttpGet("fiscal-calendar")]
     public async Task<ActionResult<IReadOnlyList<FiscalYearModel>>> GetFiscalCalendar(

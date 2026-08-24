@@ -48,6 +48,20 @@ public class Vendor : BaseAuditableEntity, IActiveAware
     /// </summary>
     public decimal? OffTierVariancePct { get; set; }
 
+    /// <summary>
+    /// Marks the vendor as a 1099 payee — an unincorporated contractor/service
+    /// provider whose calendar-year payments must be reported to the IRS on a
+    /// Form 1099-NEC. Drives inclusion in the 1099 report; false by default.
+    /// </summary>
+    public bool Is1099 { get; set; }
+
+    /// <summary>
+    /// The vendor's taxpayer identification number (TIN/EIN/SSN) collected on a
+    /// W-9, used for 1099 filing. Stored in full; the UI masks all but the last
+    /// four digits. Null when not yet collected.
+    /// </summary>
+    public string? TaxId { get; set; }
+
     // Accounting integration
     public string? ExternalId { get; set; }
     public string? ExternalRef { get; set; }

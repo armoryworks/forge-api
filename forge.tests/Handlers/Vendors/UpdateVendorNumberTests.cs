@@ -35,9 +35,9 @@ public class UpdateVendorNumberTests
         _vendorRepo.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
     }
 
-    // Id + all string/decimal/bool fields null, then the number (last positional arg).
+    // Id + all string/decimal/bool fields null, then the number (named — last positional arg).
     private static UpdateVendorCommand WithVendorNumber(int id, string number) =>
-        new(id, null, null, null, null, null, null, null, null, null, null, null, null, null, number);
+        new(id, null, null, null, null, null, null, null, null, null, null, null, null, null, VendorNumber: number);
 
     [Fact]
     public async Task Renames_the_vendor_number_when_manual_numbers_allowed_and_unique()

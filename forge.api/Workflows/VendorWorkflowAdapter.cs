@@ -82,6 +82,8 @@ public class VendorWorkflowAdapter(
             Country = ReadStringOrDefault(initialData, "country")?.Trim().NullIfEmpty(),
             PaymentTerms = ReadStringOrDefault(initialData, "paymentTerms")?.Trim().NullIfEmpty(),
             Notes = ReadStringOrDefault(initialData, "notes")?.Trim().NullIfEmpty(),
+            Is1099 = ReadBoolOrDefault(initialData, "is1099") ?? false,
+            TaxId = ReadStringOrDefault(initialData, "taxId")?.Trim().NullIfEmpty(),
             OffTierVariancePct = ReadDecimalOrDefault(initialData, "offTierVariancePct"),
             MinOrderAmount = ReadDecimalOrDefault(initialData, "minOrderAmount"),
             AutoPoMode = ReadNullableEnum<AutoPoMode>(initialData, "autoPoMode"),
@@ -168,6 +170,10 @@ public class VendorWorkflowAdapter(
             vendor.PaymentTerms = paymentTerms?.Trim().NullIfEmpty();
         if (TryReadString(fields, "notes", out var notes))
             vendor.Notes = notes?.Trim().NullIfEmpty();
+        if (TryReadString(fields, "taxId", out var taxId))
+            vendor.TaxId = taxId?.Trim().NullIfEmpty();
+        if (TryReadBool(fields, "is1099", out var is1099) && is1099.HasValue)
+            vendor.Is1099 = is1099.Value;
         if (TryReadDecimal(fields, "offTierVariancePct", out var pct))
             vendor.OffTierVariancePct = pct;
         if (TryReadDecimal(fields, "minOrderAmount", out var minOrder))
@@ -218,6 +224,18 @@ public class VendorWorkflowAdapter(
         return prop.ValueKind == JsonValueKind.Number && prop.TryGetDecimal(out var d) ? d : null;
     }
 
+    private static bool? ReadBoolOrDefault(JsonElement? root, string name)
+    {
+        if (root is null || root.Value.ValueKind != JsonValueKind.Object) return null;
+        if (!root.Value.TryGetProperty(name, out var prop)) return null;
+        return prop.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => null,
+        };
+    }
+
     private static T? ReadNullableEnum<T>(JsonElement? root, string name) where T : struct, Enum
     {
         if (root is null || root.Value.ValueKind != JsonValueKind.Object) return null;
@@ -246,6 +264,20 @@ public class VendorWorkflowAdapter(
         if (prop.ValueKind == JsonValueKind.Null) { value = null; return true; }
         if (prop.ValueKind == JsonValueKind.Number && prop.TryGetDecimal(out var d)) { value = d; return true; }
         return false;
+    }
+
+    private static bool TryReadBool(JsonElement root, string name, out bool? value)
+    {
+        value = null;
+        if (root.ValueKind != JsonValueKind.Object) return false;
+        if (!root.TryGetProperty(name, out var prop)) return false;
+        switch (prop.ValueKind)
+        {
+            case JsonValueKind.Null: value = null; return true;
+            case JsonValueKind.True: value = true; return true;
+            case JsonValueKind.False: value = false; return true;
+            default: return false;
+        }
     }
 
     private static bool TryReadNullableEnum<T>(JsonElement root, string name, out T? value) where T : struct, Enum

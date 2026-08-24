@@ -30,6 +30,8 @@ public class GetVendorByIdHandler(IVendorRepository repo)
             vendor.Notes,
             vendor.OffTierVariancePct,
             vendor.IsActive,
+            vendor.Is1099,
+            vendor.TaxId,
             vendor.ExternalId,
             vendor.CreatedAt,
             vendor.UpdatedAt,
