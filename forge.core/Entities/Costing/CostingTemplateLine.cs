@@ -11,7 +11,7 @@ namespace Forge.Core.Entities.Costing;
 /// (<see cref="AmountBasis"/> + optional default), and which GL expense account
 /// mirrors it when full GL is on.
 /// </summary>
-public class CostingTemplateLine : BaseEntity
+public class CostingTemplateLine : BaseAuditableEntity
 {
     public int CostingTemplateId { get; set; }
 

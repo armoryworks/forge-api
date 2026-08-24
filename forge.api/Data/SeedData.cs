@@ -89,6 +89,10 @@ public static partial class SeedData
         // (run-once on no system template existing).
         await SeedCostingTemplatesAsync(db);
 
+        // ── 2i. Jurisdiction minimum wages — reference data for the piece-rate
+        // weekly make-up check (run-once on empty).
+        await SeedMinimumWageRatesAsync(db);
+
         // ── Stop here for clean installs — setup wizard handles user creation ──
         if (!seedDemoData)
         {

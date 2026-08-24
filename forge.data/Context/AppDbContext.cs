@@ -619,6 +619,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<Forge.Core.Entities.Costing.OverheadPoolBudget> OverheadPoolBudgets => Set<Forge.Core.Entities.Costing.OverheadPoolBudget>();
     public DbSet<Forge.Core.Entities.Costing.CostingTemplate> CostingTemplates => Set<Forge.Core.Entities.Costing.CostingTemplate>();
     public DbSet<Forge.Core.Entities.Costing.CostingTemplateLine> CostingTemplateLines => Set<Forge.Core.Entities.Costing.CostingTemplateLine>();
+    public DbSet<PieceRate> PieceRates => Set<PieceRate>();
+    public DbSet<PieceWorkEntry> PieceWorkEntries => Set<PieceWorkEntry>();
+    public DbSet<MinimumWageRate> MinimumWageRates => Set<MinimumWageRate>();
     public DbSet<Forge.Core.Entities.Costing.WorkCenterCostRate> WorkCenterCostRates => Set<Forge.Core.Entities.Costing.WorkCenterCostRate>();
     public DbSet<Forge.Core.Entities.Costing.CostAllocationRule> CostAllocationRules => Set<Forge.Core.Entities.Costing.CostAllocationRule>();
     public DbSet<Forge.Core.Entities.Costing.ItemStandardCost> ItemStandardCosts => Set<Forge.Core.Entities.Costing.ItemStandardCost>();
