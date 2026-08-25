@@ -20,9 +20,11 @@ namespace Forge.Api.Workflows;
 /// those endpoints directly (no need to duplicate nested-entity edits
 /// through this applier).
 /// </summary>
-public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo)
+public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemSettingRepository systemSettings)
     : IWorkflowEntityCreator, IWorkflowFieldApplier, IWorkflowEntityPromoter
 {
+    private const string AllowManualPartNumbersKey = "parts.allow_manual_numbers";
+
     public string EntityType => "Part";
 
     public async Task<int> CreateDraftAsync(JsonElement? initialData, CancellationToken ct)
@@ -87,7 +89,30 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo)
         }
         var description = ReadStringOrDefault(initialData, "description");
 
-        var partNumber = await repo.GetNextPartNumberAsync(inventoryClass, ct);
+        // Optional caller-supplied part number — same gate + uniqueness contract
+        // as CreatePartHandler; auto-numbered when absent.
+        var partNumber = ReadStringOrDefault(initialData, "partNumber")?.Trim();
+        if (!string.IsNullOrWhiteSpace(partNumber))
+        {
+            var setting = await systemSettings.FindByKeyAsync(AllowManualPartNumbersKey, ct);
+            var allowed = setting is not null && bool.TryParse(setting.Value, out var on) && on;
+            if (!allowed)
+            {
+                throw new ValidationException(
+                    "Manual part numbers are disabled.",
+                    new[] { new ValidationFailure("partNumber", "Manual part numbers are disabled. Turn on 'parts.allow_manual_numbers' in settings.") });
+            }
+            if (await db.Parts.AnyAsync(x => x.PartNumber == partNumber, ct))
+            {
+                throw new ValidationException(
+                    $"Part number '{partNumber}' is already in use.",
+                    new[] { new ValidationFailure("partNumber", $"Part number '{partNumber}' is already in use.") });
+            }
+        }
+        else
+        {
+            partNumber = await repo.GetNextPartNumberAsync(inventoryClass, ct);
+        }
 
         var part = new Part
         {
