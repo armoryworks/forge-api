@@ -507,6 +507,7 @@ try
     builder.Services.AddScoped<ISessionStore, DbSessionStore>();
     builder.Services.AddScoped<IDeviceCredentialService, DeviceCredentialService>();
     builder.Services.AddScoped<IPasskeyService, PasskeyService>();
+    builder.Services.AddSingleton<IScanCollapseService, ScanCollapseService>();
     // Single-use handoff for the browser SSO callback — keeps the JWT out of
     // the redirect URL (it would otherwise land in proxy logs / Referer).
     builder.Services.AddSingleton<ISsoHandoffStore, SsoHandoffStore>();
@@ -1740,6 +1741,7 @@ try
     app.UseMiddleware<Forge.Api.Middleware.SharedDeviceMiddleware>();
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseMiddleware<Forge.Api.Middleware.IdempotencyMiddleware>();
 
     // Phase 4 Phase-A — capability gating. Runs after UseRouting so the
     // endpoint metadata is resolved, after auth so we know who the user is

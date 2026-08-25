@@ -532,6 +532,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<DeviceRefreshToken> DeviceRefreshTokens => Set<DeviceRefreshToken>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<DeviceEnrollmentToken> DeviceEnrollmentTokens => Set<DeviceEnrollmentToken>();
+    public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
 
     // Scanner Action Logs
     public DbSet<ScanActionLog> ScanActionLogs => Set<ScanActionLog>();
