@@ -69,7 +69,7 @@ public class EnrollDeviceHandler(
             throw new UnauthorizedAccessException("Enrollment code is invalid or expired.");
 
         if (token.IsShared || token.TargetUserId is null)
-            throw new InvalidOperationException("Shared-device enrollment is not available yet.");
+            throw new InvalidOperationException("This code enrolls a shared device — use the shared-device path.");
 
         var user = await userManager.FindByIdAsync(token.TargetUserId.Value.ToString());
         if (user is null || !user.IsActive)

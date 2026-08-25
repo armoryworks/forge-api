@@ -60,6 +60,17 @@ public class DevicesController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("enroll-shared")]
+    [AllowAnonymous]
+    public async Task<ActionResult<SharedDeviceEnrollResponseModel>> EnrollShared(
+        [FromBody] EnrollRequestModel request)
+    {
+        var result = await mediator.Send(new EnrollSharedDeviceCommand(
+            request.Token, request.DeviceUuid, request.DeviceName,
+            request.Platform, request.OsVersion, request.AppVersion));
+        return Ok(result);
+    }
+
     public record RefreshRequestModel(string RefreshToken, string DeviceUuid);
 
     [HttpPost("refresh")]

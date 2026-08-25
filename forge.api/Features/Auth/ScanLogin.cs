@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Middleware;
 using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -84,6 +85,15 @@ public class ScanLoginHandler(
             httpContext.HttpContext?.Connection.RemoteIpAddress?.ToString(),
             httpContext.HttpContext?.Request.Headers.UserAgent.ToString(),
             cancellationToken);
+
+        // Shared mobile device: the person's session is attributed to the device.
+        if (httpContext.HttpContext?.Items[SharedDeviceMiddleware.ItemKey] is int sharedDeviceId)
+        {
+            await db.UserSessions
+                .Where(s => s.Jti == result.Jti)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.UserDeviceId, sharedDeviceId),
+                    cancellationToken);
+        }
 
         return new LoginResponse(
             result.Token,

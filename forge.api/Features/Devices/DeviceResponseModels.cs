@@ -20,7 +20,14 @@ public record EnrollmentTokenResponseModel(
     string Token,
     DateTimeOffset ExpiresAt,
     string InstanceName,
-    string? CertSha256);
+    string? CertSha256,
+    bool IsShared);
+
+public record SharedDeviceEnrollResponseModel(
+    int DeviceId,
+    string DeviceName,
+    string DeviceToken,
+    string InstanceName);
 
 public record MobileAuthResponseModel(
     string AccessToken,

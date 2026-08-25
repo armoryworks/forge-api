@@ -37,17 +37,16 @@ public class CreateEnrollmentTokenHandler(
     public async Task<EnrollmentTokenResponseModel> Handle(
         CreateEnrollmentTokenCommand request, CancellationToken cancellationToken)
     {
-        if (request.IsShared)
-            throw new InvalidOperationException(
-                "Shared-device enrollment is not available yet.");
-
         var adminId = int.Parse(
             httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        var target = await userManager.FindByIdAsync(request.TargetUserId.ToString())
-            ?? throw new KeyNotFoundException($"User {request.TargetUserId} not found");
-        if (!target.IsActive)
-            throw new InvalidOperationException("Cannot enroll a device for an inactive user.");
+        if (!request.IsShared)
+        {
+            var target = await userManager.FindByIdAsync(request.TargetUserId.ToString())
+                ?? throw new KeyNotFoundException($"User {request.TargetUserId} not found");
+            if (!target.IsActive)
+                throw new InvalidOperationException("Cannot enroll a device for an inactive user.");
+        }
 
         var now = clock.UtcNow;
         var raw = OpaqueTokens.NewToken();
@@ -56,8 +55,8 @@ public class CreateEnrollmentTokenHandler(
         db.DeviceEnrollmentTokens.Add(new DeviceEnrollmentToken
         {
             TokenHash = OpaqueTokens.Sha256Hex(raw),
-            TargetUserId = request.TargetUserId,
-            IsShared = false,
+            TargetUserId = request.IsShared ? null : request.TargetUserId,
+            IsShared = request.IsShared,
             IssuedByUserId = adminId,
             CreatedAt = now,
             ExpiresAt = expiresAt,
@@ -67,10 +66,10 @@ public class CreateEnrollmentTokenHandler(
         await auditWriter.WriteAsync(
             DeviceAuditEvents.EnrollmentTokenIssued, adminId,
             entityType: DeviceAuditEvents.EntityType,
-            details: JsonSerializer.Serialize(new { targetUserId = request.TargetUserId }),
+            details: JsonSerializer.Serialize(new { targetUserId = request.TargetUserId, shared = request.IsShared }),
             ct: cancellationToken);
 
         return new EnrollmentTokenResponseModel(
-            raw, expiresAt, options.Value.InstanceName, options.Value.CertSha256);
+            raw, expiresAt, options.Value.InstanceName, options.Value.CertSha256, request.IsShared);
     }
 }

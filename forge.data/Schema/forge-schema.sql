@@ -9509,6 +9509,7 @@ CREATE TABLE public.user_devices (
     revoked_at timestamp with time zone,
     revoked_by_user_id integer,
     is_flagged boolean NOT NULL,
+    device_token_hash character varying(64),
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,
@@ -13846,6 +13847,8 @@ CREATE INDEX ix_uom_conversions_to_uom_id ON public.uom_conversions USING btree 
 CREATE INDEX ix_user_cloud_storage_links_provider_id ON public.user_cloud_storage_links USING btree (provider_id);
 
 CREATE UNIQUE INDEX ix_user_cloud_storage_links_user_id_provider_id ON public.user_cloud_storage_links USING btree (user_id, provider_id) WHERE (deleted_at IS NULL);
+
+CREATE UNIQUE INDEX ix_user_devices_device_token_hash ON public.user_devices USING btree (device_token_hash);
 
 CREATE UNIQUE INDEX ix_user_devices_device_uuid ON public.user_devices USING btree (device_uuid);
 

@@ -42,4 +42,8 @@ public class UserDevice : BaseAuditableEntity
 
     /// <summary>Set when a consumed refresh token is replayed — possible theft.</summary>
     public bool IsFlagged { get; set; }
+
+    /// <summary>Shared devices only: SHA-256 of the device credential sent as X-Device-Token.</summary>
+    [MaxLength(64)]
+    public string? DeviceTokenHash { get; set; }
 }

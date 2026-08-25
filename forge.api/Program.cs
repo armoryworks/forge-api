@@ -1737,6 +1737,7 @@ try
 
     app.UseRouting();
     app.UseSession();
+    app.UseMiddleware<Forge.Api.Middleware.SharedDeviceMiddleware>();
     app.UseAuthentication();
     app.UseAuthorization();
 
