@@ -709,6 +709,7 @@ try
     builder.Services.Configure<AiOptions>(builder.Configuration.GetSection(AiOptions.SectionName));
     builder.Services.Configure<UspsOptions>(builder.Configuration.GetSection(UspsOptions.SectionName));
     builder.Services.Configure<DocuSealOptions>(builder.Configuration.GetSection(DocuSealOptions.SectionName));
+    builder.Services.Configure<MobileOptions>(builder.Configuration.GetSection(MobileOptions.SectionName));
     // Shipping carrier options
     builder.Services.Configure<UpsOptions>(builder.Configuration.GetSection(UpsOptions.SectionName));
     builder.Services.Configure<FedExOptions>(builder.Configuration.GetSection(FedExOptions.SectionName));

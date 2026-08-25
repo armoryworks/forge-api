@@ -141,6 +141,30 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 Type = "about:blank",
             });
         }
+        catch (Features.Devices.DeviceRevokedException ex)
+        {
+            // Mobile device revoked by an admin. 401 with code
+            // "device-revoked" is the app's contract to wipe this instance's
+            // local data (tokens, cache, queue) and return to first-run.
+            logger.LogInformation("[DEVICES] Revoked device presented a credential — returning device-revoked");
+
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.ContentType = "application/problem+json";
+
+            var envelope = new
+            {
+                status = StatusCodes.Status401Unauthorized,
+                title = "Device revoked",
+                detail = ex.Message,
+                type = "about:blank",
+                code = "device-revoked",
+            };
+            var json = JsonSerializer.Serialize(envelope, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            });
+            await context.Response.WriteAsync(json);
+        }
         catch (UnauthorizedAccessException ex)
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
