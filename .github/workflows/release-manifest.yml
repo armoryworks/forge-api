@@ -7,7 +7,8 @@ on:
   workflow_run:
     workflows: ["Release amd64", "Release arm64"]
     types: [completed]
-    branches: [main]
+    # No branches filter: tag builds (v*) report the tag as head_branch and
+    # must stitch too — with [main] here, releases never got their manifest.
   workflow_dispatch:
     inputs:
       version:
@@ -41,29 +42,30 @@ jobs:
         id: version
         run: |
           set -euo pipefail
+          head_ref="${{ github.event.workflow_run.head_branch }}"
           if [[ -n "${{ github.event.inputs.version }}" ]]; then
             version="${{ github.event.inputs.version }}"
             IFS='.' read -r major minor _ <<< "$version"
             minor_tag="${major}.${minor}"
             sha_tag=""
-          else
-            base=$(tr -d '[:space:]' < VERSION 2>/dev/null || echo "0.0.0")
-            IFS='.' read -r major minor base_patch <<< "$base"
-            anchor=$(git log -1 --format=%H -- VERSION 2>/dev/null || echo "")
-            if [[ -z "$anchor" ]]; then
-              distance=0
-            else
-              distance=$(git rev-list --count "${anchor}..HEAD")
-            fi
-            if [[ "$base" == *-* ]]; then
-              version="$base"   # prerelease VERSION (e.g. 1.0.0-beta.1) — verbatim, no patch bump
-            else
-              patch=$((base_patch + distance))
-              version="${major}.${minor}.${patch}"
-            fi
+            is_release=true
+          elif [[ "$head_ref" == v[0-9]* ]]; then
+            # Tag build: the tag IS the version. Never derive a release version
+            # from the VERSION file here.
+            version="${head_ref#v}"
+            IFS='.' read -r major minor _ <<< "$version"
             minor_tag="${major}.${minor}"
+            sha_tag=""
+            is_release=true
+          else
+            # Main build: stitch the main-<sha> dev manifest ONLY. Deriving a
+            # semver from a stale prerelease VERSION file made every main build
+            # rebuild + overwrite an already-published release (rebuilt-beta.2).
             sha_short=$(git rev-parse --short HEAD)
-            sha_tag="main-${sha_short}"
+            version="main-${sha_short}"
+            minor_tag=""
+            sha_tag=""
+            is_release=false
           fi
 
           # :latest must always resolve to the HIGHEST published release. Decide whether the
@@ -75,7 +77,7 @@ jobs:
           published=$(curl -s -H "Authorization: Bearer ${tok}" "https://ghcr.io/v2/${img}/tags/list?n=10000" \
                         | jq -r '.tags[]? // empty' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$' || true)
           newest=$(printf '%s\n%s\n' "${published}" "${version}" | grep -v '^$' | sort -V | tail -n1)
-          is_latest=false; [[ "${newest}" == "${version}" ]] && is_latest=true
+          is_latest=false; [[ "$is_release" == true && "${newest}" == "${version}" ]] && is_latest=true
 
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "minor=${minor_tag}" >> "$GITHUB_OUTPUT"
@@ -119,7 +121,8 @@ jobs:
             exit 0
           fi
 
-          dest_tags=("${IMG}:${VERSION}" "${IMG}:${MINOR}")
+          dest_tags=("${IMG}:${VERSION}")
+          [[ -n "${MINOR}" ]] && dest_tags+=("${IMG}:${MINOR}")
           [[ -n "${SHA_TAG}" ]] && dest_tags+=("${IMG}:${SHA_TAG}")
           # :latest points at the highest published release only (a main-<sha> build is never
           # "latest"; a release is, when it's the newest — computed in the version step).

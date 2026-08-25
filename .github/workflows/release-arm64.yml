@@ -157,9 +157,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ steps.version.outputs.version }}-arm64,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=${{ steps.version.outputs.minor }}-arm64,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=latest-arm64,enable=${{ github.ref == 'refs/heads/main' }}
+            # Main builds are dev builds: main-<sha> only. Release semver tags come
+            # exclusively from v* tag builds — a stale VERSION file must never let a
+            # main build overwrite a published release (the rebuilt-beta.2 incident).
             type=sha,prefix=main-,suffix=-arm64,format=short,enable=${{ github.ref == 'refs/heads/main' }}
             type=semver,pattern={{version}},suffix=-arm64
             type=semver,pattern={{major}}.{{minor}},suffix=-arm64
