@@ -1,33 +1,29 @@
+using System.Security.Claims;
 using System.Text.Json;
 
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 using Forge.Api.Features.Auth;
 using Forge.Api.Services;
-using Forge.Core.Entities;
 using Forge.Core.Interfaces;
-using Forge.Core.Models;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Devices;
 
-public record EnrollDeviceCommand(
-    string Token,
+public record EnrollOwnDeviceCommand(
     string DeviceUuid,
     string DeviceName,
     string Platform,
     string? OsVersion,
     string? AppVersion) : IRequest<MobileAuthResponseModel>;
 
-public class EnrollDeviceValidator : AbstractValidator<EnrollDeviceCommand>
+public class EnrollOwnDeviceValidator : AbstractValidator<EnrollOwnDeviceCommand>
 {
-    public EnrollDeviceValidator()
+    public EnrollOwnDeviceValidator()
     {
-        RuleFor(x => x.Token).NotEmpty().MaximumLength(100);
         RuleFor(x => x.DeviceUuid).NotEmpty().MaximumLength(64);
         RuleFor(x => x.DeviceName).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Platform).NotEmpty().Must(p => p is "ios" or "android")
@@ -38,71 +34,47 @@ public class EnrollDeviceValidator : AbstractValidator<EnrollDeviceCommand>
 }
 
 /// <summary>
-/// Exchanges an admin-issued one-time enrollment token for device
-/// credentials: a device record, a rotating refresh-token family, and a
-/// first access token. The QR that carried the token counts as the second
-/// factor for this enrollment; afterwards the device plus local unlock is
-/// the factor.
+/// Manual-path enrollment: the caller holds a full access token from a
+/// normal login on the phone — which by definition satisfied the instance's
+/// second-factor policy — and enrolls the device they are holding. Issues
+/// the refresh family plus a fresh access token bound to the device.
 /// </summary>
-public class EnrollDeviceHandler(
+public class EnrollOwnDeviceHandler(
     AppDbContext db,
     UserManager<ApplicationUser> userManager,
     ITokenService tokenService,
     ISessionStore sessionStore,
     IRoleClaimsExpander roleClaimsExpander,
     IDeviceCredentialService deviceCredentials,
-    IClock clock,
     IHttpContextAccessor httpContext,
     ISystemAuditWriter auditWriter)
-    : IRequestHandler<EnrollDeviceCommand, MobileAuthResponseModel>
+    : IRequestHandler<EnrollOwnDeviceCommand, MobileAuthResponseModel>
 {
     public async Task<MobileAuthResponseModel> Handle(
-        EnrollDeviceCommand request, CancellationToken cancellationToken)
+        EnrollOwnDeviceCommand request, CancellationToken cancellationToken)
     {
-        var now = clock.UtcNow;
-        var hash = OpaqueTokens.Sha256Hex(request.Token);
+        var http = httpContext.HttpContext!;
+        var userId = int.Parse(http.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        var token = await db.DeviceEnrollmentTokens
-            .FirstOrDefaultAsync(t => t.TokenHash == hash, cancellationToken);
-
-        if (token is null || token.ExpiresAt <= now || token.ConsumedAt is not null)
-            throw new UnauthorizedAccessException("Enrollment code is invalid or expired.");
-
-        if (token.IsShared || token.TargetUserId is null)
-            throw new InvalidOperationException("Shared-device enrollment is not available yet.");
-
-        var user = await userManager.FindByIdAsync(token.TargetUserId.Value.ToString());
+        var user = await userManager.FindByIdAsync(userId.ToString());
         if (user is null || !user.IsActive)
-            throw new UnauthorizedAccessException("Enrollment code is invalid or expired.");
-
-        // Single-winner consume: a raced duplicate scan loses here.
-        var won = await db.DeviceEnrollmentTokens
-            .Where(t => t.Id == token.Id && t.ConsumedAt == null)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.ConsumedAt, now), cancellationToken);
-        if (won == 0)
-            throw new UnauthorizedAccessException("Enrollment code is invalid or expired.");
+            throw new UnauthorizedAccessException("Account is disabled.");
 
         var credential = await deviceCredentials.MintAsync(
-            user.Id, request.DeviceUuid, request.DeviceName, request.Platform,
+            userId, request.DeviceUuid, request.DeviceName, request.Platform,
             request.OsVersion, request.AppVersion,
-            enrolledByUserId: token.IssuedByUserId, cancellationToken);
+            enrolledByUserId: userId, cancellationToken);
         var device = credential.Device;
-
-        await db.DeviceEnrollmentTokens
-            .Where(t => t.Id == token.Id)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.ConsumedByDeviceId, device.Id),
-                cancellationToken);
 
         var roles = await roleClaimsExpander.GetEffectiveRolesAsync(user, cancellationToken);
         var access = tokenService.GenerateToken(
             user.Id, user.Email!, user.FirstName, user.LastName,
             user.Initials, user.AvatarColor, roles);
 
-        var http = httpContext.HttpContext;
         await sessionStore.CreateSessionAsync(user.Id, access.Jti, access.ExpiresAt,
-            authMethod: "mobile-enroll",
-            ipAddress: http?.Connection.RemoteIpAddress?.ToString(),
-            userAgent: http?.Request.Headers.UserAgent.ToString(),
+            authMethod: "mobile-enroll-manual",
+            ipAddress: http.Connection.RemoteIpAddress?.ToString(),
+            userAgent: http.Request.Headers.UserAgent.ToString(),
             ct: cancellationToken);
         await db.UserSessions
             .Where(s => s.Jti == access.Jti)
@@ -116,7 +88,7 @@ public class EnrollDeviceHandler(
             {
                 device.DeviceUuid,
                 device.Platform,
-                issuedBy = token.IssuedByUserId,
+                path = "manual",
             }),
             ct: cancellationToken);
 

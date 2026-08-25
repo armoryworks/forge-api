@@ -11,5 +11,6 @@ public static class DeviceAuditEvents
     public const string EnrollmentTokenIssued = "DeviceEnrollmentTokenIssued";
     public const string Enrolled = "DeviceEnrolled";
     public const string Revoked = "DeviceRevoked";
+    public const string Renamed = "DeviceRenamed";
     public const string TokenReuseDetected = "DeviceTokenReuseDetected";
 }

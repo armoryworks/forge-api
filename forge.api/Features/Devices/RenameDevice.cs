@@ -1,9 +1,11 @@
 using System.Security.Claims;
+using System.Text.Json;
 
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Devices;
@@ -20,7 +22,8 @@ public class RenameDeviceValidator : AbstractValidator<RenameDeviceCommand>
 
 public class RenameDeviceHandler(
     AppDbContext db,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    ISystemAuditWriter auditWriter)
     : IRequestHandler<RenameDeviceCommand>
 {
     public async Task Handle(RenameDeviceCommand request, CancellationToken cancellationToken)
@@ -36,7 +39,14 @@ public class RenameDeviceHandler(
         if (!isAdmin && device.UserId != actorId)
             throw new UnauthorizedAccessException("Not your device.");
 
+        var oldName = device.Name;
         device.Name = request.Name;
         await db.SaveChangesAsync(cancellationToken);
+
+        await auditWriter.WriteAsync(
+            DeviceAuditEvents.Renamed, actorId,
+            entityType: DeviceAuditEvents.EntityType, entityId: device.Id,
+            details: JsonSerializer.Serialize(new { oldName, newName = request.Name }),
+            ct: cancellationToken);
     }
 }

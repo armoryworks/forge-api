@@ -45,6 +45,21 @@ public class DevicesController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    public record EnrollOwnRequestModel(
+        string DeviceUuid, string DeviceName, string Platform,
+        string? OsVersion = null, string? AppVersion = null);
+
+    [HttpPost("enroll-mine")]
+    [Authorize]
+    public async Task<ActionResult<MobileAuthResponseModel>> EnrollMine(
+        [FromBody] EnrollOwnRequestModel request)
+    {
+        var result = await mediator.Send(new EnrollOwnDeviceCommand(
+            request.DeviceUuid, request.DeviceName, request.Platform,
+            request.OsVersion, request.AppVersion));
+        return Ok(result);
+    }
+
     public record RefreshRequestModel(string RefreshToken, string DeviceUuid);
 
     [HttpPost("refresh")]

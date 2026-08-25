@@ -104,7 +104,8 @@ public sealed class DeviceEnrollmentFlowTests(PostgresFixture fixture)
 
     private EnrollDeviceHandler EnrollHandler(AppDbContext db, ApplicationUser user) => new(
         db, MockUserManager(user).Object, MockTokens().Object,
-        Mock.Of<ISessionStore>(), MockRoles().Object, _clock, _options,
+        Mock.Of<ISessionStore>(), MockRoles().Object,
+        new DeviceCredentialService(db, _clock, _options), _clock,
         MockHttp().Object, Mock.Of<ISystemAuditWriter>());
 
     private RefreshDeviceTokenHandler RefreshHandler(AppDbContext db, ApplicationUser user) => new(
