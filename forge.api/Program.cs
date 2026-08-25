@@ -504,7 +504,7 @@ try
     builder.Services.AddSingleton<IMfaPreAuthTokenService, MfaPreAuthTokenService>();
     builder.Services.AddSingleton<IMfaTrustedDeviceTokenService, MfaTrustedDeviceTokenService>();
     builder.Services.AddSingleton<IPortalAuthService, PortalAuthService>();
-    builder.Services.AddSingleton<ISessionStore, SessionStore>();
+    builder.Services.AddScoped<ISessionStore, DbSessionStore>();
     // Single-use handoff for the browser SSO callback — keeps the JWT out of
     // the redirect URL (it would otherwise land in proxy logs / Referer).
     builder.Services.AddSingleton<ISsoHandoffStore, SsoHandoffStore>();

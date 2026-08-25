@@ -209,7 +209,6 @@
     "forge.api/Services/MfaPreAuthTokenService.cs": 1,
     "forge.api/Services/PartPricingResolver.cs": 2,
     "forge.api/Services/QuickBooksTokenService.cs": 5,
-    "forge.api/Services/SessionStore.cs": 1,
     "forge.api/Services/SpcService.cs": 2,
     "forge.api/Services/UserIntegrationService.cs": 2,
     "forge.api/Services/VendorCostResolver.cs": 1
