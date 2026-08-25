@@ -25,4 +25,10 @@ public class MobileOptions
 
     /// <summary>Devices with no check-in for this many days are flagged stale in the admin list.</summary>
     public int StaleDeviceDays { get; set; } = 30;
+
+    /// <summary>Default local-lock idle timeout for floor-tier roles (8 hours).</summary>
+    public int IdleTimeoutFloorMinutes { get; set; } = 480;
+
+    /// <summary>Default local-lock idle timeout for office-tier roles.</summary>
+    public int IdleTimeoutOfficeMinutes { get; set; } = 15;
 }

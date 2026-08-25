@@ -82,6 +82,11 @@ public class DevicesController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<DeviceResponseModel>>> Mine()
         => Ok(await mediator.Send(new ListMyDevicesQuery()));
 
+    [HttpGet("lock-policy")]
+    [Authorize]
+    public async Task<ActionResult<LockPolicyResponseModel>> LockPolicy()
+        => Ok(await mediator.Send(new GetLockPolicyQuery()));
+
     public record RenameRequestModel(string Name);
 
     [HttpPatch("{id:int}")]
