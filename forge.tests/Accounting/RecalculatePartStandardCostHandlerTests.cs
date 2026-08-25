@@ -29,7 +29,7 @@ public class RecalculatePartStandardCostHandlerTests
         var wc = new WorkCenter { Name = "WC", Code = "WC-RC", LaborCostPerHour = 2m, BurdenRatePerHour = 1m, IsActive = true };
         db.Add(wc);
         await db.SaveChangesAsync();
-        db.Add(new Operation { PartId = part.Id, StepNumber = 1, Title = "Op", EstimatedMinutes = 60, WorkCenterId = wc.Id });
+        db.Add(new Operation { PartId = part.Id, StepNumber = 1, Title = "Op", EstimatedMs = 3_600_000L, WorkCenterId = wc.Id });
         await db.SaveChangesAsync();
 
         var result = await Handler(db).Handle(new RecalculatePartStandardCostCommand(part.Id), default);

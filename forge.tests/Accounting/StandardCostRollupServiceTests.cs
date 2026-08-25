@@ -12,7 +12,7 @@ namespace Forge.Tests.Accounting;
 
 /// <summary>
 /// StandardCostRollupService — computes a part's decomposed standard from master data: labor/overhead from
-/// routing (EstimatedMinutes × work-center rates) and material from the recursive BOM (child standard × qty).
+/// routing (EstimatedMs × work-center rates) and material from the recursive BOM (child standard × qty).
 /// </summary>
 public class StandardCostRollupServiceTests
 {
@@ -29,7 +29,7 @@ public class StandardCostRollupServiceTests
         var wc = new WorkCenter { Name = "WC", Code = $"WC-{Guid.NewGuid():N}", LaborCostPerHour = laborRate, BurdenRatePerHour = burdenRate, IsActive = true };
         db.Add(wc);
         await db.SaveChangesAsync();
-        db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Op", EstimatedMinutes = minutes, WorkCenterId = wc.Id });
+        db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Op", EstimatedMs = minutes * 60_000L, WorkCenterId = wc.Id });
         await db.SaveChangesAsync();
     }
 
@@ -107,7 +107,7 @@ public class StandardCostRollupServiceTests
         var wc = new WorkCenter { Name = "WC", Code = $"WC-{Guid.NewGuid():N}", LaborCostPerHour = laborRate, BurdenRatePerHour = burdenRate, IsActive = true };
         db.Add(wc);
         await db.SaveChangesAsync();
-        db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Op", EstimatedMinutes = minutes, WorkCenterId = wc.Id });
+        db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Op", EstimatedMs = minutes * 60_000L, WorkCenterId = wc.Id });
         await db.SaveChangesAsync();
         return wc.Id;
     }

@@ -63,7 +63,7 @@ public class CreateOperationHandler(IPartRepository repo, IVendorRepository vend
             Title = data.Title.Trim(),
             Instructions = data.Instructions?.Trim(),
             WorkCenterId = data.WorkCenterId,
-            EstimatedMinutes = data.EstimatedMinutes,
+            EstimatedMs = data.EstimatedMs,
             IsQcCheckpoint = data.IsQcCheckpoint,
             QcCriteria = data.QcCriteria?.Trim(),
             ReferencedOperationId = data.ReferencedOperationId,

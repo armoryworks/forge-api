@@ -73,9 +73,17 @@ public class BackwardSchedulingService(
         if (!partId.HasValue)
             return DefaultProductionDays;
 
-        var totalMinutes = await db.Operations
+        // EstimatedMs is canonical milliseconds; SetupMinutes stays minutes. Sum each column
+        // separately (both translate to a plain SQL SUM) and combine into minutes in memory —
+        // a mixed ms/minutes expression inside SumAsync would not translate.
+        var totalEstimatedMs = await db.Operations
             .Where(o => o.PartId == partId.Value)
-            .SumAsync(o => (o.EstimatedMinutes ?? 0) + (int)o.SetupMinutes, ct);
+            .SumAsync(o => o.EstimatedMs ?? 0L, ct);
+        var totalSetupMinutes = await db.Operations
+            .Where(o => o.PartId == partId.Value)
+            .SumAsync(o => o.SetupMinutes, ct);
+
+        var totalMinutes = (totalEstimatedMs / 60000.0) + (double)totalSetupMinutes;
 
         if (totalMinutes <= 0)
             return DefaultProductionDays;

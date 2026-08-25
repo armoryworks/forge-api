@@ -54,7 +54,7 @@ public class UpdateOperationHandler(IPartRepository repo, IVendorRepository vend
         if (data.Title is not null) operation.Title = data.Title.Trim();
         if (data.Instructions is not null) operation.Instructions = data.Instructions.Trim();
         if (data.WorkCenterId is not null) operation.WorkCenterId = data.WorkCenterId;
-        if (data.EstimatedMinutes is not null) operation.EstimatedMinutes = data.EstimatedMinutes;
+        if (data.EstimatedMs is not null) operation.EstimatedMs = data.EstimatedMs;
         if (data.IsQcCheckpoint.HasValue) operation.IsQcCheckpoint = data.IsQcCheckpoint.Value;
         if (data.QcCriteria is not null) operation.QcCriteria = data.QcCriteria.Trim();
         if (data.ReferencedOperationId is not null) operation.ReferencedOperationId = data.ReferencedOperationId == 0 ? null : data.ReferencedOperationId;

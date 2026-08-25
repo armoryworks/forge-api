@@ -8,7 +8,7 @@ public class Operation : BaseAuditableEntity
     public string? Instructions { get; set; }
     public int? WorkCenterId { get; set; }
     public int? AssetId { get; set; }
-    public int? EstimatedMinutes { get; set; }
+    public long? EstimatedMs { get; set; }
     public bool IsQcCheckpoint { get; set; }
     public string? QcCriteria { get; set; }
     public int? ReferencedOperationId { get; set; }

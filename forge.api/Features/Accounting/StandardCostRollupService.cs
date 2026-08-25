@@ -15,8 +15,8 @@ namespace Forge.Api.Features.Accounting;
 /// data — the "cost rollup" the variance decomposition needs (the D5 cost-recalc engine, used live by
 /// <see cref="StandardCostResolver"/> now and available to persist into <c>CostCalculation</c> later):
 /// <list type="bullet">
-///   <item><b>Labor</b> = Σ operations <c>(EstimatedMinutes/60) × WorkCenter.LaborCostPerHour</c>.</item>
-///   <item><b>Overhead (flat, Tier 1)</b> = Σ operations <c>(EstimatedMinutes/60) × WorkCenter.BurdenRatePerHour</c>
+///   <item><b>Labor</b> = Σ operations <c>(EstimatedMs/3600000) × WorkCenter.LaborCostPerHour</c>.</item>
+///   <item><b>Overhead (flat, Tier 1)</b> = Σ operations <c>(EstimatedMs/3600000) × WorkCenter.BurdenRatePerHour</c>
 ///         (work-center burden rate × hours).</item>
 ///   <item><b>Overhead (departmental, Tier 2)</b> = Σ operations <c>opLaborCost × ratePct(WorkCenter)/100</c> —
 ///         a per-work-center percentage of direct labor from the active <see cref="CostingProfile"/> in
@@ -95,8 +95,8 @@ public sealed class StandardCostRollupService(
     private async Task<(decimal Labor, decimal Overhead)> RollupConversionAsync(int partId, ConversionPolicy policy, CancellationToken ct)
     {
         var ops = await db.Operations.AsNoTracking()
-            .Where(o => o.PartId == partId && !o.IsSubcontract && o.WorkCenterId != null && o.EstimatedMinutes != null)
-            .Select(o => new { Minutes = o.EstimatedMinutes!.Value, WorkCenterId = o.WorkCenterId!.Value })
+            .Where(o => o.PartId == partId && !o.IsSubcontract && o.WorkCenterId != null && o.EstimatedMs != null)
+            .Select(o => new { Ms = o.EstimatedMs!.Value, WorkCenterId = o.WorkCenterId!.Value })
             .ToListAsync(ct);
         if (ops.Count == 0)
             return (0m, 0m);
@@ -110,9 +110,9 @@ public sealed class StandardCostRollupService(
         decimal labor = 0m, overhead = 0m;
         foreach (var op in ops)
         {
-            if (op.Minutes <= 0 || !rates.TryGetValue(op.WorkCenterId, out var rate))
+            if (op.Ms <= 0 || !rates.TryGetValue(op.WorkCenterId, out var rate))
                 continue;
-            var hours = op.Minutes / 60m;
+            var hours = op.Ms / 3_600_000m;
             var opLabor = hours * rate.LaborCostPerHour;
             labor += opLabor;
 

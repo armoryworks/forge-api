@@ -433,7 +433,7 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
                 s.Instructions,
                 s.WorkCenterId,
                 s.WorkCenter != null ? s.WorkCenter.Name : null,
-                s.EstimatedMinutes,
+                s.EstimatedMs,
                 s.IsQcCheckpoint,
                 s.QcCriteria,
                 s.ReferencedOperationId,

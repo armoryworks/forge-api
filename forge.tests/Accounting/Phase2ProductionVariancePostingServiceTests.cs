@@ -291,7 +291,7 @@ public class Phase2ProductionVariancePostingServiceTests
         var wc = new WorkCenter { Name = "WC", Code = "WC-STD", LaborCostPerHour = 2m, BurdenRatePerHour = 1m, IsActive = true };
         db.Add(wc);
         await db.SaveChangesAsync();
-        db.Add(new Operation { PartId = part.Id, StepNumber = 1, Title = "Op", EstimatedMinutes = 60, WorkCenterId = wc.Id });
+        db.Add(new Operation { PartId = part.Id, StepNumber = 1, Title = "Op", EstimatedMs = 3_600_000L, WorkCenterId = wc.Id });
         db.Add(new MaterialIssue { JobId = JobId, PartId = part.Id, Quantity = 11m, UnitCost = 10m, IssuedById = 7, IssuedAt = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero), IssueType = MaterialIssueType.Issue });
         db.Add(new ProductionRun { JobId = JobId, PartId = part.Id, RunNumber = "RUN-STD", TargetQuantity = 10, CompletedQuantity = 10, ReceivedQuantity = 10, ReceivedToStockAt = DateTimeOffset.UtcNow, Status = ProductionRunStatus.Completed });
         await db.SaveChangesAsync();
@@ -327,7 +327,7 @@ public class Phase2ProductionVariancePostingServiceTests
         var wc = new WorkCenter { Name = "WC2", Code = "WC-STD2", LaborCostPerHour = 2m, BurdenRatePerHour = 1m, IsActive = true };
         db.Add(wc);
         await db.SaveChangesAsync();
-        db.Add(new Operation { PartId = part.Id, StepNumber = 1, Title = "Op", EstimatedMinutes = 60, WorkCenterId = wc.Id });
+        db.Add(new Operation { PartId = part.Id, StepNumber = 1, Title = "Op", EstimatedMs = 3_600_000L, WorkCenterId = wc.Id });
         db.Add(new MaterialIssue { JobId = JobId, PartId = part.Id, Quantity = 11m, UnitCost = 10m, IssuedById = 7, IssuedAt = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero), IssueType = MaterialIssueType.Issue });
         db.Add(new ProductionRun { JobId = JobId, PartId = part.Id, RunNumber = "RUN-STD2", TargetQuantity = 10, CompletedQuantity = 10, ReceivedQuantity = 10, ReceivedToStockAt = DateTimeOffset.UtcNow, Status = ProductionRunStatus.Completed });
         await db.SaveChangesAsync();

@@ -5,7 +5,7 @@ public record CreateOperationRequestModel(
     string Title,
     string? Instructions,
     int? WorkCenterId,
-    int? EstimatedMinutes,
+    long? EstimatedMs,
     bool IsQcCheckpoint,
     string? QcCriteria,
     int? ReferencedOperationId,

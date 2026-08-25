@@ -8,7 +8,7 @@ public record OperationResponseModel(
     string? Instructions,
     int? WorkCenterId,
     string? WorkCenterName,
-    int? EstimatedMinutes,
+    long? EstimatedMs,
     bool IsQcCheckpoint,
     string? QcCriteria,
     int? ReferencedOperationId,

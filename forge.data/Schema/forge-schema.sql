@@ -5730,7 +5730,7 @@ CREATE TABLE public.operations (
     instructions character varying(4000),
     work_center_id integer,
     asset_id integer,
-    estimated_minutes integer,
+    estimated_ms bigint,
     is_qc_checkpoint boolean NOT NULL,
     qc_criteria character varying(1000),
     referenced_operation_id integer,

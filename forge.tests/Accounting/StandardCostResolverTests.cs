@@ -58,7 +58,7 @@ public class StandardCostResolverTests
         var wc = new WorkCenter { Name = "Mill", Code = "MILL", LaborCostPerHour = 18m, BurdenRatePerHour = 12m, IsActive = true };
         db.Add(wc);
         await db.SaveChangesAsync();
-        db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Mill", EstimatedMinutes = 60, WorkCenterId = wc.Id });
+        db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Mill", EstimatedMs = 3_600_000L, WorkCenterId = wc.Id });
         await db.SaveChangesAsync();
 
         var elements = await new StandardCostResolver(db, new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off)).ResolveAsync(partId);
@@ -90,7 +90,7 @@ public class StandardCostResolverTests
         var wc = new WorkCenter { Name = "Op", Code = "OP1", LaborCostPerHour = 18m, BurdenRatePerHour = 12m, IsActive = true };
         db.Add(wc);
         await db.SaveChangesAsync();
-        db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Op", EstimatedMinutes = 60, WorkCenterId = wc.Id });
+        db.Add(new Operation { PartId = partId, StepNumber = 1, Title = "Op", EstimatedMs = 3_600_000L, WorkCenterId = wc.Id });
         await db.SaveChangesAsync();
 
         var elements = await new StandardCostResolver(db, new StandardCostRollupService(db, new SystemClock(), StubCapabilitySnapshotProvider.Off)).ResolveAsync(partId);
