@@ -42,6 +42,35 @@ public class MobileController(IMediator mediator) : ControllerBase
         int id, [FromBody] AdvanceRequestModel request)
         => Ok(await mediator.Send(new AdvanceJobCommand(id, DeviceKey(), request.ScanCode)));
 
+    [HttpGet("lookup")]
+    public async Task<ActionResult<List<ScanResolveResponseModel>>> Lookup([FromQuery] string q)
+        => Ok(await mediator.Send(new LookupQuery(q ?? string.Empty)));
+
+    [HttpGet("clock/state")]
+    public async Task<ActionResult<ClockStateResponseModel>> ClockState()
+        => Ok(await mediator.Send(new GetClockStateQuery()));
+
+    public record ClockPunchRequestModel(string EventType);
+
+    [HttpPost("clock/punch")]
+    public async Task<ActionResult<ClockPunchResponseModel>> ClockPunch([FromBody] ClockPunchRequestModel request)
+        => Ok(await mediator.Send(new RecordClockPunchCommand(request.EventType)));
+
+    [HttpDelete("clock/events/{eventId:int}")]
+    public async Task<ActionResult<ClockStateResponseModel>> UndoClockPunch(int eventId)
+        => Ok(await mediator.Send(new UndoClockPunchCommand(eventId)));
+
+    [HttpGet("stock/on-hand")]
+    public async Task<ActionResult<OnHandResponseModel>> OnHand([FromQuery] int partId, [FromQuery] int locationId)
+        => Ok(await mediator.Send(new GetOnHandQuery(partId, locationId)));
+
+    public record MoveStockRequestModel(int PartId, int FromLocationId, int ToLocationId, decimal Quantity, string? LotNumber);
+
+    [HttpPost("stock/move")]
+    public async Task<ActionResult<StockMoveResponseModel>> MoveStock([FromBody] MoveStockRequestModel request)
+        => Ok(await mediator.Send(new MoveStockCommand(
+            request.PartId, request.FromLocationId, request.ToLocationId, request.Quantity, request.LotNumber, DeviceKey())));
+
     private string DeviceKey()
     {
         if (Request.Headers.TryGetValue(DeviceHeader, out var uuid) && !string.IsNullOrWhiteSpace(uuid))
