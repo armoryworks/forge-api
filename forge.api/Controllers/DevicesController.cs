@@ -85,8 +85,9 @@ public class DevicesController(IMediator mediator) : ControllerBase
 
     [HttpGet]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<List<DeviceResponseModel>>> List([FromQuery] int? userId)
-        => Ok(await mediator.Send(new ListDevicesQuery(userId)));
+    public async Task<ActionResult<List<DeviceResponseModel>>> List(
+        [FromQuery] int? userId, [FromQuery] bool shared = false)
+        => Ok(await mediator.Send(new ListDevicesQuery(userId, shared)));
 
     [HttpGet("mine")]
     [Authorize]

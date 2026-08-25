@@ -8,7 +8,7 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.Devices;
 
-public record ListDevicesQuery(int? UserId) : IRequest<List<DeviceResponseModel>>;
+public record ListDevicesQuery(int? UserId, bool SharedOnly = false) : IRequest<List<DeviceResponseModel>>;
 
 public class ListDevicesHandler(
     AppDbContext db,
@@ -24,6 +24,8 @@ public class ListDevicesHandler(
         var query = db.UserDevices.AsNoTracking();
         if (request.UserId is not null)
             query = query.Where(d => d.UserId == request.UserId);
+        if (request.SharedOnly)
+            query = query.Where(d => d.IsShared);
 
         return await query
             .OrderByDescending(d => d.LastSeenAt)
