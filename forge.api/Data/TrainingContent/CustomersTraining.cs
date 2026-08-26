@@ -12,7 +12,7 @@ public class CustomersTraining : TrainingContentBase
 
     public override IReadOnlyList<string> Capabilities =>
     [
-        "CAP-MD-CUSTOMERS", "CAP-MD-CUSTOMER-CONTACTS", "CAP-MD-CUSTOMER-ADDRESSES", "CAP-MD-CUSTOMER-INTERACTIONS", "CAP-MD-PRICELIST", "CAP-EXT-CUSTOMER-PORTAL",
+        "CAP-MD-CUSTOMERS", "CAP-MD-CUSTOMER-CONTACTS", "CAP-MD-CUSTOMER-ADDRESSES", "CAP-MD-CUSTOMER-INTERACTIONS", "CAP-MD-PRICELIST", "CAP-EXT-CUSTOMER-PORTAL", "CAP-O2C-CREDIT-LIMITS",
     ];
 
     public override async Task SeedAsync()

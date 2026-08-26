@@ -12,7 +12,7 @@ public class MrpTraining : TrainingContentBase
 
     public override IReadOnlyList<string> Capabilities =>
     [
-        "CAP-PLAN-MRP",
+        "CAP-PLAN-MRP", "CAP-PLAN-MPS", "CAP-PLAN-FORECAST",
     ];
 
     public override async Task SeedAsync()

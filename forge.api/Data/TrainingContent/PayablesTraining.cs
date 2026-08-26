@@ -12,7 +12,7 @@ public class PayablesTraining : TrainingContentBase
 
     public override IReadOnlyList<string> Capabilities =>
     [
-        "CAP-P2P-BILL", "CAP-P2P-PAY",
+        "CAP-P2P-BILL", "CAP-P2P-PAY", "CAP-BANK-NACHA",
     ];
 
     public override async Task SeedAsync()

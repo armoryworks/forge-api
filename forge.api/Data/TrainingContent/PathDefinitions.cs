@@ -66,7 +66,12 @@ public class PathDefinitions
             ("account-security-walkthrough", false),
             ("onboarding-wizard-overview", true),
             ("onboarding-wizard-walkthrough", true),
-        ]);
+                    ("everywhere-lists", true),
+            ("everywhere-permissions", false),
+            ("everywhere-record-changed", false),
+            ("everywhere-quiz", false),
+            ("hr-sso-overview", false),
+]);
 
         // ── Path 2: Production Engineer ─────────────────────────────────
         await SeedPath(new TrainingPath
@@ -114,6 +119,10 @@ public class PathDefinitions
                     ("sequences-overview", true),
             ("sequences-quiz", false),
             ("costing-overview", false),
+            ("manufacturing-overview", true),
+            ("manufacturing-work-orders", true),
+            ("manufacturing-quiz", false),
+            ("planning-adv-safety-stock-overview", false),
 ]);
 
         // ── Path 3: Shop Floor Worker ───────────────────────────────────
@@ -144,6 +153,7 @@ public class PathDefinitions
             ("kanban-overview", false),
             ("mobile-overview", true),
             ("mobile-quiz", false),
+            ("integrations-mobile-web-overview", false),
 ]);
 
         // ── Path 4: Project Manager ─────────────────────────────────────
@@ -413,6 +423,8 @@ public class PathDefinitions
                     ("i18n-labels-overview", false),
             ("i18n-labels-walkthrough", false),
             ("sequences-editor-walkthrough", false),
+            ("integrations-communication-tracking", false),
+            ("everywhere-import-export", false),
 ]);
 
         // ── Path 8: Sales ───────────────────────────────────────────────
@@ -476,6 +488,7 @@ public class PathDefinitions
             ("sales-channels-quiz", false),
             ("proof-of-intent-overview", true),
             ("proof-of-intent-quiz", false),
+            ("integrations-communication-tracking", false),
 ]);
 
         // ── Path 9: Quality Inspector ───────────────────────────────────
@@ -504,7 +517,9 @@ public class PathDefinitions
             ("production-lots-create-trace-walkthrough", true),
             ("production-lots-reading-trace-timeline", true),
             ("compliance-forms-field-reference", false),
-        ]);
+                    ("quality-adv-watchtower-overview", false),
+            ("orders-adv-part-compliance", false),
+]);
 
         // ── Path 10: Accounting / Bookkeeper ────────────────────────────
         await SeedPath(new TrainingPath
@@ -557,6 +572,12 @@ public class PathDefinitions
                     ("costing-overview", true),
             ("costing-walkthrough", false),
             ("costing-quiz", false),
+            ("gl-overview", true),
+            ("gl-chart-of-accounts", false),
+            ("gl-journal-entries", false),
+            ("gl-period-close", false),
+            ("gl-bank-reconciliation", false),
+            ("gl-quiz", false),
 ]);
 
         // ── Path 11: Maintenance Technician ─────────────────────────────
@@ -614,7 +635,13 @@ public class PathDefinitions
             ("production-lots-overview", true),
             ("production-lots-walkthrough", true),
             ("production-lots-quiz", true),
-        ]);
+                    ("inventory-adv-overview", true),
+            ("inventory-adv-cycle-counts", true),
+            ("inventory-adv-cycle-count-walkthrough", false),
+            ("inventory-adv-reservations", false),
+            ("inventory-adv-quiz", false),
+            ("planning-adv-safety-stock-overview", false),
+]);
 
         // ── Path 13: Shipping & Receiving ───────────────────────────────
         await SeedPath(new TrainingPath
