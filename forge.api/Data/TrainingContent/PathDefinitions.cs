@@ -111,7 +111,10 @@ public class PathDefinitions
             ("oee-walkthrough", true),
             ("oee-field-reference", false),
             ("oee-quiz", true),
-        ]);
+                    ("sequences-overview", true),
+            ("sequences-quiz", false),
+            ("costing-overview", false),
+]);
 
         // ── Path 3: Shop Floor Worker ───────────────────────────────────
         await SeedPath(new TrainingPath
@@ -256,7 +259,9 @@ public class PathDefinitions
             ("announcements-admin-walkthrough", true),
             ("announcements-admin-field-reference", false),
             ("announcements-admin-quiz", true),
-        ]);
+                    ("piece-rates-overview", false),
+            ("piece-rates-quiz", false),
+]);
 
         // ── Path 6: Purchasing ──────────────────────────────────────────
         await SeedPath(new TrainingPath
@@ -405,7 +410,10 @@ public class PathDefinitions
             ("employees-walkthrough", true),
             ("events-field-reference", false),
             ("shop-floor-kiosk-setup", true),
-        ]);
+                    ("i18n-labels-overview", false),
+            ("i18n-labels-walkthrough", false),
+            ("sequences-editor-walkthrough", false),
+]);
 
         // ── Path 8: Sales ───────────────────────────────────────────────
         await SeedPath(new TrainingPath
@@ -464,7 +472,11 @@ public class PathDefinitions
             ("sales-orders-recurring-walkthrough", false),
             ("shipments-quiz", true),
             ("shipments-field-reference", false),
-        ]);
+                    ("sales-channels-overview", true),
+            ("sales-channels-quiz", false),
+            ("proof-of-intent-overview", true),
+            ("proof-of-intent-quiz", false),
+]);
 
         // ── Path 9: Quality Inspector ───────────────────────────────────
         await SeedPath(new TrainingPath
@@ -542,7 +554,10 @@ public class PathDefinitions
             ("reports-field-reference", false),
             ("reports-quiz", true),
             ("assets-acquisition-accounting", false),
-        ]);
+                    ("costing-overview", true),
+            ("costing-walkthrough", false),
+            ("costing-quiz", false),
+]);
 
         // ── Path 11: Maintenance Technician ─────────────────────────────
         await SeedPath(new TrainingPath
