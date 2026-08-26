@@ -478,6 +478,35 @@ jurisdictions require every party to agree.
 
 ---
 
+## Mobile app (native shell) — server side (added 2026-08-25)
+
+`MobileController` (`api/v1/mobile`, `CAP-MOBILE-*` per action) serves the phone's five
+screens; `DevicesController` (`CAP-MOBILE-CORE`) owns enrollment, refresh and revoke;
+`WellKnownController` publishes `/.well-known/forge.json` (instance name, auth methods,
+certificate fingerprint, minimum app version, optional crash DSN). Rules:
+
+- **Sessions are persisted** (`DbSessionStore`, `user_sessions`) for every client, not just
+  phones. **Refresh tokens are device-bound and rotate** (`DeviceRefreshToken` families);
+  reuse of a rotated token revokes the whole family and flags the device. A revoked device
+  gets the `device-revoked` 401 code and wipes itself — never a plain 401.
+- **Every mobile mutation is idempotent.** `IdempotencyMiddleware` stores the response per
+  `Idempotency-Key` for 24 h (`idempotency_keys`); a replay with a different body fingerprint
+  is 422; 5xx responses are not stored. `ScanCollapseService` folds the same device+code+action
+  inside 3 s. Add new mobile endpoints behind both, and return the compensating action in the
+  response so the phone's undo can call it.
+- **Per-screen flags depend on the core** (`CapabilityCatalogRelations`): a
+  `MobileController` action carries its own `[RequiresCapability("CAP-MOBILE-<SCREEN>")]`
+  (the closest attribute wins at the gate), and the edge to `CAP-MOBILE-CORE` is what stops
+  the core from being disabled underneath it. `MobileCapabilityRelationsTests` enforces both.
+- **Shared devices** authenticate with `X-Device-Token` (`SharedDeviceMiddleware`); the
+  person is attributed per action via scan-login. Clock undo is the caller's own latest event
+  inside 45 s — older corrections are desktop time corrections, on purpose.
+- **Nothing leaves the instance.** Problem reports become admin notifications + a log line;
+  `Mobile:CrashReportingDsn` is the operator's own GlitchTip (forge-deploy
+  `crash-reporting` profile), off by default. Do not add any Armory Works endpoint.
+- Options: `MobileOptions` (`Mobile:` section — instance name, `CertSha256` for TOFU pinning,
+  refresh lifetime 90 d, enrollment token 10 min, stale device 30 d, idle floors 8 h / 15 min).
+
 ## ⚡ Accounting Boundary (Critical)
 
 Some features duplicate functionality that an accounting system (QuickBooks, Xero, etc.) handles natively. These features must be **cordoned off** so they only activate in standalone mode (no accounting provider connected). See `docs/qb-integration.md` for the authoritative boundary definition.
