@@ -20,7 +20,8 @@ namespace Forge.Api.Workflows;
 /// those endpoints directly (no need to duplicate nested-entity edits
 /// through this applier).
 /// </summary>
-public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemSettingRepository systemSettings)
+public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemSettingRepository systemSettings,
+    IBusinessIdentifierService identifiers)
     : IWorkflowEntityCreator, IWorkflowFieldApplier, IWorkflowEntityPromoter
 {
     private const string AllowManualPartNumbersKey = "parts.allow_manual_numbers";
@@ -94,9 +95,7 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemS
         var partNumber = ReadStringOrDefault(initialData, "partNumber")?.Trim();
         if (!string.IsNullOrWhiteSpace(partNumber))
         {
-            var setting = await systemSettings.FindByKeyAsync(AllowManualPartNumbersKey, ct);
-            var allowed = setting is not null && bool.TryParse(setting.Value, out var on) && on;
-            if (!allowed)
+            if (!await ManualPartNumbersAllowedAsync(ct))
             {
                 throw new ValidationException(
                     "Manual part numbers are disabled.",
@@ -154,9 +153,16 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemS
         return await SavePartAndReturnIdAsync(part, ct);
     }
 
+    private async Task<bool> ManualPartNumbersAllowedAsync(CancellationToken ct)
+    {
+        var setting = await systemSettings.FindByKeyAsync(AllowManualPartNumbersKey, ct);
+        return setting is not null && bool.TryParse(setting.Value, out var on) && on;
+    }
+
     private async Task<int> SavePartAndReturnIdAsync(Part part, CancellationToken ct)
     {
         await db.SaveChangesAsync(ct);
+        await identifiers.IssueAsync(BusinessEntityType.Part, part.Id, part.PartNumber, ct);
         return part.Id;
     }
 
@@ -164,6 +170,22 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemS
     {
         var part = await db.Parts.FirstOrDefaultAsync(p => p.Id == entityId, ct)
             ?? throw new KeyNotFoundException($"Part id {entityId} not found.");
+
+        // Issue-then-Rename keeps the registry in sync exactly like UpdatePartHandler.
+        // On the materialization patch the value already matches, so the guard skips it.
+        if (TryReadString(fields, "partNumber", out var partNumber) && !string.IsNullOrWhiteSpace(partNumber))
+        {
+            var newNumber = partNumber.Trim();
+            if (!string.Equals(newNumber, part.PartNumber, StringComparison.Ordinal)
+                && await ManualPartNumbersAllowedAsync(ct))
+            {
+                if (await repo.PartNumberExistsAsync(newNumber, part.Id, ct))
+                    throw new InvalidOperationException($"Part number '{newNumber}' is already in use.");
+                await identifiers.IssueAsync(BusinessEntityType.Part, part.Id, part.PartNumber, ct);
+                await identifiers.RenameAsync(BusinessEntityType.Part, part.Id, newNumber, ct);
+                part.PartNumber = newNumber;
+            }
+        }
 
         if (TryReadString(fields, "name", out var name) && name is not null)
             part.Name = name.Trim();
