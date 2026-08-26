@@ -338,6 +338,13 @@ public static class CapabilityCatalogRelations
         new("CAP-PS-PROJECT-COST", "CAP-PS-ENGAGEMENT"),
         new("CAP-PS-UTILIZATION", "CAP-PS-ENGAGEMENT"),
         new("CAP-PS-UTILIZATION", "CAP-PS-TIME-BILLABLE"),
+
+        // ── Mobile app — per-screen flags layer on the enrollment core ──
+        new("CAP-MOBILE-SCAN", "CAP-MOBILE-CORE"),
+        new("CAP-MOBILE-CLOCK", "CAP-MOBILE-CORE"),
+        new("CAP-MOBILE-JOBS", "CAP-MOBILE-CORE"),
+        new("CAP-MOBILE-STOCK", "CAP-MOBILE-CORE"),
+        new("CAP-MOBILE-LOOKUP", "CAP-MOBILE-CORE"),
     };
 
     /// <summary>

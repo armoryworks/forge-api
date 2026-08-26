@@ -28,7 +28,8 @@ public class WellKnownController(
         [property: JsonPropertyName("name")] string Name,
         [property: JsonPropertyName("auth")] string[] Auth,
         [property: JsonPropertyName("cert_sha256")] string? CertSha256,
-        [property: JsonPropertyName("min_app_version")] string MinAppVersion);
+        [property: JsonPropertyName("min_app_version")] string MinAppVersion,
+        [property: JsonPropertyName("crash_dsn")] string? CrashDsn);
 
     [HttpGet("forge.json")]
     [AllowAnonymous]
@@ -45,6 +46,7 @@ public class WellKnownController(
             options.Value.InstanceName,
             auth.ToArray(),
             string.IsNullOrWhiteSpace(options.Value.CertSha256) ? null : options.Value.CertSha256,
-            options.Value.MinAppVersion));
+            options.Value.MinAppVersion,
+            string.IsNullOrWhiteSpace(options.Value.CrashReportingDsn) ? null : options.Value.CrashReportingDsn));
     }
 }

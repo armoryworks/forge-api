@@ -15,6 +15,14 @@ public class MobileOptions
     /// </summary>
     public string? CertSha256 { get; set; }
 
+    /// <summary>
+    /// Sentry-compatible DSN of this instance's own crash-reporting service
+    /// (e.g. the optional self-hosted GlitchTip in the compose stack). Published
+    /// in /.well-known/forge.json; the app reports only when one is set and
+    /// the device's diagnostics toggle is on. Never points at Armory Works.
+    /// </summary>
+    public string? CrashReportingDsn { get; set; }
+
     /// <summary>Oldest app version this instance accepts.</summary>
     public string MinAppVersion { get; set; } = "1.0.0";
 
