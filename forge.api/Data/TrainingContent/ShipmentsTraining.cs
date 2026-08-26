@@ -10,6 +10,11 @@ public class ShipmentsTraining : TrainingContentBase
 {
     public ShipmentsTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-O2C-SHIP", "CAP-O2C-PICKPACK",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

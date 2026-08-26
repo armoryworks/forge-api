@@ -10,6 +10,11 @@ public class MfaTraining : TrainingContentBase
 {
     public MfaTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-IDEN-AUTH-MFA", "CAP-IDEN-AUTH-PASSWORD",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

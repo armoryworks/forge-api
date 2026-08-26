@@ -10,6 +10,11 @@ public class ReportsTraining : TrainingContentBase
 {
     public ReportsTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-RPT-OPERATIONAL", "CAP-RPT-FINANCIALS", "CAP-RPT-INVVAL", "CAP-RPT-MRPEX",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

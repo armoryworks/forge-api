@@ -10,6 +10,11 @@ public class TimeTrackingTraining : TrainingContentBase
 {
     public TimeTrackingTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-HR-TIMETRACK",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

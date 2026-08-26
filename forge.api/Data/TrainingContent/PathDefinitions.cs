@@ -139,7 +139,9 @@ public class PathDefinitions
             ("quality-overview", true),
             ("quality-walkthrough", false),
             ("kanban-overview", false),
-        ]);
+            ("mobile-overview", true),
+            ("mobile-quiz", false),
+]);
 
         // ── Path 4: Project Manager ─────────────────────────────────────
         await SeedPath(new TrainingPath
@@ -329,6 +331,9 @@ public class PathDefinitions
             ("mfa-overview", true),
             ("mfa-walkthrough", true),
             ("mfa-quiz", true),
+            ("mobile-admin-devices", true),
+            ("mobile-admin-walkthrough", false),
+            ("mobile-quiz", false),
             ("ai-overview", false),
             ("ai-walkthrough", false),
             ("admin-users-and-roles", true),

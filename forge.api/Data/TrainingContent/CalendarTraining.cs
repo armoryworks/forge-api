@@ -10,6 +10,11 @@ public class CalendarTraining : TrainingContentBase
 {
     public CalendarTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-MD-CALENDARS",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

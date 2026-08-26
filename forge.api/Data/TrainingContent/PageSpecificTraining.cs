@@ -10,6 +10,11 @@ public class PageSpecificTraining : TrainingContentBase
 {
     public PageSpecificTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-IDEN-CAPABILITY-ADMIN", "CAP-MD-CURRENCIES", "CAP-MD-TAXCODES", "CAP-O2C-RECURRING",
+    ];
+
     public override async Task SeedAsync()
     {
         // 1 ── Carriers ──────────────────────────────────────────────────

@@ -10,6 +10,11 @@ public class ShopFloorTraining : TrainingContentBase
 {
     public ShopFloorTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-EXT-SHOPFLOOR-KIOSK", "CAP-IDEN-AUTH-KIOSK", "CAP-MFG-SHOPFLOOR", "CAP-MFG-LABOR",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

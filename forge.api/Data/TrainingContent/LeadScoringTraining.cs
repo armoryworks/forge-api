@@ -22,6 +22,11 @@ public class LeadScoringTraining : TrainingContentBase
 {
     public LeadScoringTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-O2C-LEAD",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Lead Sources & Quality Scores (Article) ──────────────────────

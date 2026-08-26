@@ -10,6 +10,11 @@ public class ComplianceTraining : TrainingContentBase
 {
     public ComplianceTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-QC-COMPLIANCE-FORMS", "CAP-HR-HIRE",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

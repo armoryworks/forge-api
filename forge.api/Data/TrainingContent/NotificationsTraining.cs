@@ -10,6 +10,11 @@ public class NotificationsTraining : TrainingContentBase
 {
     public NotificationsTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-CROSS-NOTIFICATIONS",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

@@ -10,6 +10,11 @@ public class AdminTraining : TrainingContentBase
 {
     public AdminTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-IDEN-USERS", "CAP-IDEN-ROLES", "CAP-IDEN-TENANT-CONFIG", "CAP-IDEN-AUDIT-SYSTEM-LOG", "CAP-IDEN-AUTH-API-KEYS", "CAP-CROSS-ACTIVITY-LOG",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

@@ -10,6 +10,11 @@ public class SchedulingTraining : TrainingContentBase
 {
     public SchedulingTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-PLAN-CAPACITY",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

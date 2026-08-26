@@ -10,6 +10,11 @@ public class SalesOrdersTraining : TrainingContentBase
 {
     public SalesOrdersTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-O2C-SO", "CAP-O2C-RECURRING",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

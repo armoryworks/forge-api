@@ -10,6 +10,11 @@ public class ChatTraining : TrainingContentBase
 {
     public ChatTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-EXT-CHAT",
+    ];
+
     public override async Task SeedAsync()
     {
         await GetOrCreateModule(new TrainingModule

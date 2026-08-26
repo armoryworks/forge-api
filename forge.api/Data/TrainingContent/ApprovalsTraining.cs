@@ -10,6 +10,11 @@ public class ApprovalsTraining : TrainingContentBase
 {
     public ApprovalsTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-P2P-APPROVALS",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

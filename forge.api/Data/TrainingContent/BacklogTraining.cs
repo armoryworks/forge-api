@@ -10,6 +10,11 @@ public class BacklogTraining : TrainingContentBase
 {
     public BacklogTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-EXT-KANBAN",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

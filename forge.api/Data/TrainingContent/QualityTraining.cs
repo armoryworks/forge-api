@@ -10,6 +10,11 @@ public class QualityTraining : TrainingContentBase
 {
     public QualityTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-QC-INSPECTION", "CAP-QC-NCR", "CAP-QC-CAPA", "CAP-QC-SPC", "CAP-QC-GAGE", "CAP-MD-ECO",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

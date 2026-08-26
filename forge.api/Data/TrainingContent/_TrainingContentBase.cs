@@ -54,6 +54,14 @@ public abstract class TrainingContentBase
     public abstract Task SeedAsync();
 
     /// <summary>
+    /// Capability codes this feature's modules teach. The training-coverage
+    /// ratchet (forge.tests/Architecture) requires every catalog capability to
+    /// be claimed by at least one seeder; a new capability without training
+    /// fails the build.
+    /// </summary>
+    public virtual IReadOnlyList<string> Capabilities => [];
+
+    /// <summary>
     /// Loads the slug → ID map from the database.
     /// </summary>
     public static async Task<Dictionary<string, int>> LoadSlugMapAsync(AppDbContext db)

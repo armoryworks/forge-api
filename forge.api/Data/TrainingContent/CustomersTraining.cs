@@ -10,6 +10,11 @@ public class CustomersTraining : TrainingContentBase
 {
     public CustomersTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-MD-CUSTOMERS", "CAP-MD-CUSTOMER-CONTACTS", "CAP-MD-CUSTOMER-ADDRESSES", "CAP-MD-CUSTOMER-INTERACTIONS", "CAP-MD-PRICELIST", "CAP-EXT-CUSTOMER-PORTAL",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

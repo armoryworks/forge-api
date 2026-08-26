@@ -10,6 +10,11 @@ public class PayrollTraining : TrainingContentBase
 {
     public PayrollTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-HR-PAYROLL", "CAP-PAYROLL-RUN",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

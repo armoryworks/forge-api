@@ -10,6 +10,11 @@ public class MaintenanceTraining : TrainingContentBase
 {
     public MaintenanceTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-MAINT-PM", "CAP-MAINT-BREAKDOWN", "CAP-MAINT-PREDICTIVE",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────
