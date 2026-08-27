@@ -51,7 +51,13 @@ public class RefreshDeviceTokenHandler(
         var now = clock.UtcNow;
         var hash = OpaqueTokens.Sha256Hex(request.RefreshToken);
 
+        // AsNoTracking is load-bearing, not an optimisation: the writes below go
+        // through ExecuteUpdate, which never touches the change tracker. A tracked
+        // read would win identity resolution and hand back stale ConsumedAt /
+        // RevokedAt values, so a replay would look like a live token and skip the
+        // reuse branch entirely.
         var token = await db.DeviceRefreshTokens
+            .AsNoTracking()
             .Include(t => t.UserDevice)
             .FirstOrDefaultAsync(t => t.TokenHash == hash, cancellationToken);
 
@@ -113,8 +119,12 @@ public class RefreshDeviceTokenHandler(
             ExpiresAt = refreshExpiresAt,
         });
 
-        device.LastSeenAt = now;
         await db.SaveChangesAsync(cancellationToken);
+        await db.UserDevices
+            .Where(d => d.Id == device.Id)
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(x => x.LastSeenAt, now).SetProperty(x => x.UpdatedAt, now),
+                cancellationToken);
 
         // One live access-token session per device: retire the previous one.
         var oldJtis = await db.UserSessions
