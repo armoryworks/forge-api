@@ -54,7 +54,7 @@ public class MobileTraining : TrainingContentBase
             SortOrder = 3,
             AppRoutes = """["/admin/users"]""",
             Tags = """["mobile","admin","walkthrough"]""",
-            ContentJson = """{"appRoute":"/admin/users","startButtonLabel":"Tour Add a Phone","steps":[{"element":"[data-testid='admin-user-add-device']","popover":{"title":"Add a Device","description":"The phone icon on a person's row opens Add a device: a ten-minute QR code for their phone, plus the list of phones they already have and a Sign out button for each.","side":"left"}},{"element":"[data-testid='admin-shared-device']","popover":{"title":"Shared Device","description":"For a phone the whole shift uses. It is enrolled to your Forge, not a person; every action on it starts with a badge scan.","side":"bottom"}}]}"""
+            ContentJson = """{"appRoute": "/admin/users", "startButtonLabel": "Tour Add a Phone", "steps": [{"element": "[data-testid='admin-shared-device']", "popover": {"title": "Shared Device", "description": "For a phone the whole shift uses. It is enrolled to your Forge, not a person; every action on it starts with a badge scan.", "side": "bottom"}}, {"element": "[data-testid='admin-user-add-device']", "popover": {"title": "Add a Device", "description": "The phone icon on a person's row opens Add a device: a ten-minute QR code for their phone, plus the list of phones they already have and a Sign out button for each.", "side": "left"}}]}"""
         });
 
         await GetOrCreateModule(new TrainingModule
