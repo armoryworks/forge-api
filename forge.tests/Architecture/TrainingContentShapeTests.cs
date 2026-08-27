@@ -39,6 +39,12 @@ public sealed class TrainingContentShapeTests
             }
             catch (JsonException) { failures.Add($"{m.Slug}: AppRoutes is not a JSON array"); }
 
+            // The DB caps these; the in-memory provider does not, so a long
+            // string would only surface as a crash seeding a real install.
+            if (m.Title.Length > 300) failures.Add($"{m.Slug}: title is {m.Title.Length} chars (max 300)");
+            if (m.Slug.Length > 200) failures.Add($"{m.Slug}: slug is {m.Slug.Length} chars (max 200)");
+            if (m.Summary.Length > 1000) failures.Add($"{m.Slug}: summary is {m.Summary.Length} chars (max 1000)");
+
             var root = content.RootElement;
             switch (m.ContentType)
             {
