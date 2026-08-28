@@ -501,6 +501,8 @@ try
     builder.Services.AddSingleton<ITokenEncryptionService, TokenEncryptionService>();
     builder.Services.AddSingleton<IPiiProtector, PiiProtector>();
     builder.Services.AddSingleton<ITokenService, JwtTokenService>();
+    builder.Services.Configure<SetupOptions>(builder.Configuration.GetSection(SetupOptions.SectionName));
+    builder.Services.AddSingleton<ISetupActivationGuard, SetupActivationGuard>();
     builder.Services.AddSingleton<IMfaPreAuthTokenService, MfaPreAuthTokenService>();
     builder.Services.AddSingleton<IMfaTrustedDeviceTokenService, MfaTrustedDeviceTokenService>();
     builder.Services.AddSingleton<IPortalAuthService, PortalAuthService>();

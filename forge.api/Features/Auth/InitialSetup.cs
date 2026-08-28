@@ -32,12 +32,23 @@ public record InitialSetupCommand(
     string? LocationPostalCode,
     // Quick-start module picker: the modules the shop chose to turn on. Null/empty
     // (the Full guided branch) leaves the catalog defaults in place.
-    IReadOnlyList<string>? SelectedModules = null) : IRequest<LoginResponse>;
+    IReadOnlyList<string>? SelectedModules = null,
+    // The code the customer got from their contact at Forge. Only demanded on an
+    // install that was provisioned with one (Setup:ActivationCodeHash); ignored on
+    // a self-hosted install.
+    string? ActivationCode = null) : IRequest<LoginResponse>;
 
 public class InitialSetupValidator : AbstractValidator<InitialSetupCommand>
 {
-    public InitialSetupValidator()
+    public InitialSetupValidator(ISetupActivationGuard activation)
     {
+        // Checked here rather than in the handler so a wrong code comes back as a
+        // field-level 400 on ActivationCode, and so nothing is created before the
+        // claim is proven.
+        RuleFor(x => x.ActivationCode)
+            .Must(activation.Verify)
+            .WithMessage("That activation code isn't right. Check it with your contact at Forge.");
+
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email is required.")
             .EmailAddress().WithMessage("A valid email address is required.");

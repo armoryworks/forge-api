@@ -54,6 +54,17 @@ public class AuthController(IMediator mediator, ISsoHandoffStore handoffStore) :
         return Ok(result);
     }
 
+    // The gate screen checks the code before the wizard collects anything, so a
+    // wrong code fails on the screen that explains where to get a right one.
+    [HttpPost("setup/verify-activation")]
+    [AllowAnonymous]
+    public async Task<ActionResult<VerifySetupActivationResponseModel>> VerifyActivation(
+        [FromBody] VerifyActivationRequest request)
+    {
+        var result = await mediator.Send(new VerifySetupActivationQuery(request.Code));
+        return Ok(result);
+    }
+
     // The first-run module picker reads this list (anonymous — it renders during
     // setup, before any admin exists). Static catalog data; no DB hit.
     [HttpGet("setup/modules")]
@@ -401,6 +412,8 @@ public class AuthController(IMediator mediator, ISsoHandoffStore handoffStore) :
 }
 
 public record BeginMfaSetupRequest(string? DeviceName);
+
+public record VerifyActivationRequest(string? Code);
 // F-054: challenge is gated on the MFA-pending token (proof the password step
 // passed), not a caller-supplied userId. The bound userId is read from the token.
 public record MfaChallengeRequest(string MfaPendingToken);
