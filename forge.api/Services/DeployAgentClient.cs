@@ -15,12 +15,17 @@ namespace Forge.Api.Services;
 public partial class DeployAgentClient(HttpClient http, IConfiguration config, ILogger<DeployAgentClient> log)
     : IDeployAgentClient
 {
-    private static readonly (string Repo, string Service)[] Tiers =
+    // A tier can be served by more than one container name. The UI upgrades by
+    // blue/green cutover, which alternates between forge-ui and forge-ui-b — so
+    // after every UI upgrade the live container is the *other* name. Matching
+    // only the repo name made the whole tier vanish from the admin screen the
+    // moment it was upgraded.
+    private static readonly (string Repo, string Service, string[] Containers)[] Tiers =
     [
-        ("forge-api", "api"),
-        ("forge-ui", "ui"),
-        ("forge-test", "test"),
-        ("forge-demo", "demo"),
+        ("forge-api", "api", ["forge-api"]),
+        ("forge-ui", "ui", ["forge-ui", "forge-ui-b"]),
+        ("forge-test", "test", ["forge-test"]),
+        ("forge-demo", "demo", ["forge-demo"]),
     ];
 
     private static readonly DeployStateModel Unavailable = new(false, null, [], null);
@@ -36,12 +41,13 @@ public partial class DeployAgentClient(HttpClient http, IConfiguration config, I
         var state = root.Value.TryGetProperty("state", out var s) ? s : default;
         var images = RunningImages(root.Value);
         var tiers = Tiers
-            .Where(t => images.ContainsKey(t.Repo) || HasRecord(state, t.Repo))
-            .Select(t => new DeployTierModel(
-                t.Service,
-                images.GetValueOrDefault(t.Repo),
-                Str(state, t.Repo, "current"),
-                Date(state, t.Repo, "deployedAt")))
+            .Select(t => (Tier: t, Running: t.Containers.Select(images.GetValueOrDefault).FirstOrDefault(v => v is not null)))
+            .Where(x => x.Running is not null || HasRecord(state, x.Tier.Repo))
+            .Select(x => new DeployTierModel(
+                x.Tier.Service,
+                x.Running,
+                Str(state, x.Tier.Repo, "current"),
+                Date(state, x.Tier.Repo, "deployedAt")))
             .ToList();
 
         var running = root.Value.TryGetProperty("running", out var r) && r.ValueKind == JsonValueKind.Object
