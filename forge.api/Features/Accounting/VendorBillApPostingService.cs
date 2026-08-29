@@ -23,7 +23,7 @@ namespace Forge.Api.Features.Accounting;
 ///   <item><b>Dr</b> each bill line's resolved expense/asset account (the line's
 ///         <c>AccountDeterminationKey</c>, default <c>OPERATING_EXPENSE</c>) for the line total.</item>
 ///   <item><b>Dr</b> <c>OPERATING_EXPENSE</c> for the bill's <c>TaxAmount</c> when present — purchase tax
-///         expensed as non-recoverable (the common U.S. treatment; ratify per PHASE2_STATUS).</item>
+///         expensed as non-recoverable (the common U.S. treatment; ratify per docs/accounting/PHASE2_STATUS.md).</item>
 ///   <item><b>Cr</b> <c>AP_CONTROL</c> for the bill <c>Total</c> — the vendor payable (party = vendor, §5.2).</item>
 /// </list>
 /// The entry balances by construction: Σ line totals + tax == Total.
@@ -60,7 +60,7 @@ public sealed class VendorBillApPostingService(
     private const string FullGlCapability = "CAP-ACCT-FULLGL";
 
     private const string KeyApControl = "AP_CONTROL";
-    // Purchase tax (non-recoverable) expensed to G&A. Ratify per PHASE2_STATUS (use-tax vs recoverable).
+    // Purchase tax (non-recoverable) expensed to G&A. Ratify per docs/accounting/PHASE2_STATUS.md (use-tax vs recoverable).
     private const string KeyPurchaseTaxExpense = "OPERATING_EXPENSE";
     // STAGE-D 3-way match: a PO-linked bill clears GRNI (at PO price) instead of debiting expense, with the
     // bill-vs-PO price difference going to PPV.

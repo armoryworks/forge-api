@@ -71,7 +71,7 @@ public sealed class VendorPaymentCashPostingService(
     // §7 BANK-002 clearing: electronic disbursements credit CASH_IN_TRANSIT at origination (intent);
     // the transmission-success settlement entry moves it to CASH (confirmed).
     private const string KeyCashInTransit = "CASH_IN_TRANSIT";
-    // Unapplied vendor cash = an advance/prepayment to the vendor (asset). Ratify per PHASE2_STATUS.
+    // Unapplied vendor cash = an advance/prepayment to the vendor (asset). Ratify per docs/accounting/PHASE2_STATUS.md.
     private const string KeyVendorAdvance = "PREPAID_EXPENSE";
     // Realized FX (Phase-4): the difference between the AP carrying value (booking rate) and the cash paid
     // (settlement rate). FX_REVALUATION is for period-end UNrealized revaluation only — never here.

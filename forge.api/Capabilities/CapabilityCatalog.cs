@@ -1,23 +1,16 @@
 namespace Forge.Api.Capabilities;
 
 /// <summary>
-/// Phase 4 Phase-A — Authoritative static catalog of every capability the
-/// application knows about. Mirrors the Phase 4A capability catalog markdown
-/// (e:/dev/forge/phase-4-output/4A-capability-catalog/capability-catalog.md).
-/// 
-/// 128 rows from the catalog body + 1 (CAP-IDEN-CAPABILITY-ADMIN) per 4E-
-/// decisions-log #9 / 4F-decisions-log #1 + 4 (CAP-MD-CUSTOMER-CONTACTS,
-/// CAP-MD-CUSTOMER-ADDRESSES, CAP-MD-CUSTOMER-INTERACTIONS,
-/// CAP-O2C-CREDIT-LIMITS) per the Customer/Lead parity audit + 2
-/// (CAP-EXT-EMAIL-SYNC, CAP-EXT-VOIP-SYNC) per Wave 8 communication
-/// sync skeleton + 2 (CAP-P2P-BILL, CAP-P2P-PAY) per the owner-ratified
-/// AP capability split + 1 (CAP-ACCT-QBO-EXPORT) per the QB-001 owner
-/// ratification + 1 (CAP-BANK-NACHA) per BANK-002 Phase A = 139 total.
-/// The catalog header claims 121 because three INV/QC/MD entries are listed
-/// in two areas; the Phase A implementation treats every distinct code as
-/// one row and accepts the count-discrepancy. See _catalog-rows.cs.txt and
-/// the 4F implementation-decisions doc for the parse / count discussion.
-/// 
+/// Authoritative static catalog of every capability the application knows
+/// about. This list is the source of truth for the count — do not restate it
+/// in a comment (an arithmetic tally lived here and drifted by 34).
+/// `ClaudeMdFactsTests` asserts CLAUDE.md's stated number matches this list.
+///
+/// Rows originate from the Phase 4A capability-catalog design work and have
+/// grown with each feature since. A capability's <c>Code</c> is permanent once
+/// shipped: it is written into installs' <c>capabilities</c> rows and into
+/// <c>[RequiresCapability]</c> attributes.
+///
 /// The seeder (<see cref="Seeding.CapabilityCatalogSeeder"/>) upserts these
 /// into the <c>capabilities</c> table on startup. Per 4F decision #4 the
 /// upsert is INSERT-on-missing only — never overwrites the

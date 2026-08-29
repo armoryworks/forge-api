@@ -578,7 +578,7 @@ The system runs on a **per-install capability gate**: 173 named capabilities (e.
 **Adding a new feature**: see `docs/coding-standards.md` §0 — every new endpoint either reuses an existing capability or registers a new one in the catalog before it ships.
 
 **Design artifacts (deep-dive, decision history)**:
-- `phase-4-output/4A-capability-catalog/` — all 129 capabilities with rationale (Phase 4 snapshot; catalog is 157 today)
+- `phase-4-output/4A-capability-catalog/` — the original 129 capabilities with rationale (a Phase 4 snapshot; the live catalog is `CapabilityCatalog.cs`, which has grown well past it)
 - `phase-4-output/4B-preset-design/` — 8 presets with target profile + capability set
 - `phase-4-output/4C-discovery-flow/` — 22-question wizard + recommendation algorithm
 - `phase-4-output/4D-gating-mechanism/` — middleware + descriptor + audit pipeline
