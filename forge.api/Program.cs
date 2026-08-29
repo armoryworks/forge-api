@@ -785,6 +785,25 @@ try
         Forge.Api.Features.Communications.IImapOAuthService,
         Forge.Api.Features.Communications.ImapOAuthService>();
 
+    // Self-service upgrade. forge-agent is the privileged host process that runs the gated deploy
+    // CLI; this API never gets the docker socket, because forge-api is one of the containers an
+    // upgrade destroys. Registered unconditionally — the client reports IsConfigured false when
+    // Deploy:AgentUrl is unset, which is the normal state for a cohosted or centrally managed
+    // install where upgrades are not the tenant's to run.
+    builder.Services.AddHttpClient<IDeployAgentClient, DeployAgentClient>(client =>
+    {
+        var agentUrl = builder.Configuration["Deploy:AgentUrl"];
+        if (!string.IsNullOrWhiteSpace(agentUrl))
+            client.BaseAddress = new Uri(agentUrl.TrimEnd('/') + "/");
+
+        var agentToken = builder.Configuration["Deploy:AgentToken"];
+        if (!string.IsNullOrWhiteSpace(agentToken))
+            client.DefaultRequestHeaders.Add("X-Forge-Agent-Token", agentToken);
+
+        client.Timeout = TimeSpan.FromSeconds(90);
+    });
+    builder.Services.AddHostedService<UpgradeCompletionBroadcaster>();
+
     // Phase 1m — descriptor-driven admin settings. Scoped per-request so
     // the in-memory cache is fresh on each request without manual
     // invalidation; secret values seal/unseal via Data Protection API
