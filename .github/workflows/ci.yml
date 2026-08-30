@@ -1,6 +1,6 @@
 # PR + push CI for forge-api
 #
-# Runs on: every PR into develop or main, every push to develop or main.
+# Runs on: every PR into main, every push to main.
 # Steps: restore, build (analyzers run during build), unit + integration tests.
 # Integration tests use a real Postgres (service container), not mocks.
 
@@ -8,9 +8,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [main]
   push:
-    branches: [develop, main]
+    branches: [main]
 
 permissions:
   contents: read

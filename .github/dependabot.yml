@@ -1,6 +1,6 @@
 # Dependabot config for forge-api
 #
-# Weekly updates against develop. NuGet groups by category to reduce PR noise.
+# Weekly updates against main. NuGet groups by category to reduce PR noise.
 
 version: 2
 updates:
@@ -9,7 +9,7 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-    target-branch: "develop"
+    target-branch: "main"
     open-pull-requests-limit: 5
     groups:
       microsoft-extensions:
@@ -39,11 +39,11 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-    target-branch: "develop"
+    target-branch: "main"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
-    target-branch: "develop"
+    target-branch: "main"

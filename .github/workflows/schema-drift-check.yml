@@ -33,10 +33,10 @@ on:
         required: false
   # --- Uncomment after forge-db#1 merges to run automatically on schema/embedded-SQL changes: ---
   # pull_request:
-  #   branches: [develop, main]
+  #   branches: [main]
   #   paths: ['forge.data/Schema/**', 'forge.data/**', 'forge.core/**']
   # push:
-  #   branches: [develop, main]
+  #   branches: [main]
   #   paths: ['forge.data/Schema/**', 'forge.data/**', 'forge.core/**']
 
 permissions:
