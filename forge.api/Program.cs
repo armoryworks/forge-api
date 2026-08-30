@@ -502,6 +502,12 @@ try
     builder.Services.AddSingleton<IPiiProtector, PiiProtector>();
     builder.Services.AddSingleton<ITokenService, JwtTokenService>();
     builder.Services.Configure<SetupOptions>(builder.Configuration.GetSection(SetupOptions.SectionName));
+    builder.Services.Configure<TelemetryOptions>(builder.Configuration.GetSection(TelemetryOptions.SectionName));
+    // Reports health to Armory Works when — and only when — the operator has opted in.
+    // Short timeout and no retry: a customer's ERP must not slow down because a
+    // vendor's monitoring endpoint is unreachable.
+    builder.Services.AddHttpClient<ITelemetryReporter, TelemetryReporter>(http =>
+        http.Timeout = TimeSpan.FromSeconds(10));
     builder.Services.AddSingleton<ISetupActivationGuard, SetupActivationGuard>();
     builder.Services.AddSingleton<IMfaPreAuthTokenService, MfaPreAuthTokenService>();
     builder.Services.AddSingleton<IMfaTrustedDeviceTokenService, MfaTrustedDeviceTokenService>();
@@ -1845,6 +1851,13 @@ try
         "integration-outbox-dispatcher",
         job => job.DispatchPendingAsync(CancellationToken.None),
         "* * * * *"); // Every 1 minute — drains pending email/integration queue
+    // Opt-in health report to Armory Works. Always scheduled, does nothing unless the
+    // operator accepted the agreement — so switching it on takes effect on the next
+    // tick rather than needing a restart.
+    RecurringJob.AddOrUpdate<TelemetryHeartbeatJob>(
+        "telemetry-heartbeat",
+        job => job.ReportAsync(CancellationToken.None),
+        "*/5 * * * *"); // Every 5 minutes — matches the control plane's staleness window
     RecurringJob.AddOrUpdate<RecurringOrderJob>(
         "generate-recurring-orders",
         job => job.GenerateDueOrdersAsync(CancellationToken.None),
