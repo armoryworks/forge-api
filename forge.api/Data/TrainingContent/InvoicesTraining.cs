@@ -10,6 +10,11 @@ public class InvoicesTraining : TrainingContentBase
 {
     public InvoicesTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-O2C-INVOICE",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

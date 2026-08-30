@@ -478,6 +478,35 @@ jurisdictions require every party to agree.
 
 ---
 
+## Mobile app (native shell) — server side (added 2026-08-25)
+
+`MobileController` (`api/v1/mobile`, `CAP-MOBILE-*` per action) serves the phone's five
+screens; `DevicesController` (`CAP-MOBILE-CORE`) owns enrollment, refresh and revoke;
+`WellKnownController` publishes `/.well-known/forge.json` (instance name, auth methods,
+certificate fingerprint, minimum app version, optional crash DSN). Rules:
+
+- **Sessions are persisted** (`DbSessionStore`, `user_sessions`) for every client, not just
+  phones. **Refresh tokens are device-bound and rotate** (`DeviceRefreshToken` families);
+  reuse of a rotated token revokes the whole family and flags the device. A revoked device
+  gets the `device-revoked` 401 code and wipes itself — never a plain 401.
+- **Every mobile mutation is idempotent.** `IdempotencyMiddleware` stores the response per
+  `Idempotency-Key` for 24 h (`idempotency_keys`); a replay with a different body fingerprint
+  is 422; 5xx responses are not stored. `ScanCollapseService` folds the same device+code+action
+  inside 3 s. Add new mobile endpoints behind both, and return the compensating action in the
+  response so the phone's undo can call it.
+- **Per-screen flags depend on the core** (`CapabilityCatalogRelations`): a
+  `MobileController` action carries its own `[RequiresCapability("CAP-MOBILE-<SCREEN>")]`
+  (the closest attribute wins at the gate), and the edge to `CAP-MOBILE-CORE` is what stops
+  the core from being disabled underneath it. `MobileCapabilityRelationsTests` enforces both.
+- **Shared devices** authenticate with `X-Device-Token` (`SharedDeviceMiddleware`); the
+  person is attributed per action via scan-login. Clock undo is the caller's own latest event
+  inside 45 s — older corrections are desktop time corrections, on purpose.
+- **Nothing leaves the instance.** Problem reports become admin notifications + a log line;
+  `Mobile:CrashReportingDsn` is the operator's own GlitchTip (forge-deploy
+  `crash-reporting` profile), off by default. Do not add any Armory Works endpoint.
+- Options: `MobileOptions` (`Mobile:` section — instance name, `CertSha256` for TOFU pinning,
+  refresh lifetime 90 d, enrollment token 10 min, stale device 30 d, idle floors 8 h / 15 min).
+
 ## ⚡ Accounting Boundary (Critical)
 
 Some features duplicate functionality that an accounting system (QuickBooks, Xero, etc.) handles natively. These features must be **cordoned off** so they only activate in standalone mode (no accounting provider connected). See `docs/qb-integration.md` for the authoritative boundary definition.
@@ -531,10 +560,10 @@ readonly isStandalone = this.accountingService.isStandalone;
 <!-- ===== Capability Gating ===== -->
 ## Capability Gating (Phase 4)
 
-The system runs on a **per-install capability gate**: 167 named capabilities (e.g., `CAP-MD-CUSTOMERS`, `CAP-INV-LOTS`, `CAP-EXT-AI-ASSISTANT`) are registered in a static catalog. Each install's capability state is stored in the `capabilities` table; controllers and Hangfire-fired commands carry `[RequiresCapability("CAP-...")]` attributes; the `CapabilityGateMiddleware` (controller side) and `CapabilityGateBehavior` (MediatR side) short-circuit with 403 + envelope when a capability is disabled. Bootstrap-exempt endpoints (auth, descriptor, capability admin) carry `[CapabilityBootstrap]` instead so admins are never locked out.
+The system runs on a **per-install capability gate**: 173 named capabilities (e.g., `CAP-MD-CUSTOMERS`, `CAP-INV-LOTS`, `CAP-EXT-AI-ASSISTANT`) are registered in a static catalog. Each install's capability state is stored in the `capabilities` table; controllers and Hangfire-fired commands carry `[RequiresCapability("CAP-...")]` attributes; the `CapabilityGateMiddleware` (controller side) and `CapabilityGateBehavior` (MediatR side) short-circuit with 403 + envelope when a capability is disabled. Bootstrap-exempt endpoints (auth, descriptor, capability admin) carry `[CapabilityBootstrap]` instead so admins are never locked out.
 
 **Where things live:**
-- **Catalog (source of truth)**: `forge-api/forge.api/Capabilities/CapabilityCatalog.cs` — 157 capabilities with code, name, area, default-state, dependencies/mutexes
+- **Catalog (source of truth)**: `forge-api/forge.api/Capabilities/CapabilityCatalog.cs` — 173 capabilities with code, name, area, default-state, dependencies/mutexes
 - **Relations**: `CapabilityCatalogRelations.cs` — dependency edges + mutex pairs (only one declared mutex today: `CAP-ACCT-EXTERNAL ⊥ CAP-ACCT-BUILTIN`)
 - **Snapshot + middleware**: `CapabilitySnapshot.cs`, `ICapabilitySnapshotProvider`, `CapabilityGateMiddleware.cs`, `CapabilityGateBehavior.cs`
 - **Mutation API**: `CapabilitiesController` exposes `PUT /api/v1/capabilities/{code}/enabled`, bulk-toggle, validate, audit-log; preset & discovery endpoints layered on top
@@ -549,7 +578,7 @@ The system runs on a **per-install capability gate**: 167 named capabilities (e.
 **Adding a new feature**: see `docs/coding-standards.md` §0 — every new endpoint either reuses an existing capability or registers a new one in the catalog before it ships.
 
 **Design artifacts (deep-dive, decision history)**:
-- `phase-4-output/4A-capability-catalog/` — all 129 capabilities with rationale (Phase 4 snapshot; catalog is 157 today)
+- `phase-4-output/4A-capability-catalog/` — the original 129 capabilities with rationale (a Phase 4 snapshot; the live catalog is `CapabilityCatalog.cs`, which has grown well past it)
 - `phase-4-output/4B-preset-design/` — 8 presets with target profile + capability set
 - `phase-4-output/4C-discovery-flow/` — 22-question wizard + recommendation algorithm
 - `phase-4-output/4D-gating-mechanism/` — middleware + descriptor + audit pipeline

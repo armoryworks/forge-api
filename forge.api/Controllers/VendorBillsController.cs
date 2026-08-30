@@ -18,7 +18,7 @@ namespace Forge.Api.Controllers;
 [Route("api/v1/vendor-bills")]
 [Authorize(Roles = "Admin,Manager,OfficeManager")]
 // Dedicated AP capability (default-on, split from CAP-P2P-PO per the owner-ratified AP capability
-// taxonomy — see PHASE2_STATUS "capability taxonomy").
+// taxonomy — see docs/accounting/PHASE2_STATUS.md "capability taxonomy").
 [RequiresCapability("CAP-P2P-BILL")]
 public class VendorBillsController(IMediator mediator) : ControllerBase
 {

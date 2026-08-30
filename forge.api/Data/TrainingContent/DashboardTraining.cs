@@ -10,6 +10,11 @@ public class DashboardTraining : TrainingContentBase
 {
     public DashboardTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-RPT-DASHBOARDS",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

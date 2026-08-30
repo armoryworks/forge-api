@@ -10,6 +10,11 @@ public class PartsTraining : TrainingContentBase
 {
     public PartsTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-MD-PARTS", "CAP-MD-BOM",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

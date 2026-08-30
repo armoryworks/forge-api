@@ -10,6 +10,11 @@ public class PayablesTraining : TrainingContentBase
 {
     public PayablesTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-P2P-BILL", "CAP-P2P-PAY", "CAP-BANK-NACHA",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

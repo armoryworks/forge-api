@@ -10,6 +10,11 @@ public class AccountingTraining : TrainingContentBase
 {
     public AccountingTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-ACCT-BUILTIN", "CAP-ACCT-EXTERNAL", "CAP-ACCT-GL-VIEW", "CAP-ACCT-PERIOD", "CAP-ACCT-QBO-EXPORT",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

@@ -10,6 +10,11 @@ public class InventoryTraining : TrainingContentBase
 {
     public InventoryTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-INV-CORE", "CAP-INV-MULTILOC", "CAP-MD-UOM", "CAP-MD-LOCATIONS",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

@@ -10,6 +10,11 @@ public class EdiTraining : TrainingContentBase
 {
     public EdiTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-CROSS-INTEG-EDI",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

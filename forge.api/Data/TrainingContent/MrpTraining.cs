@@ -10,6 +10,11 @@ public class MrpTraining : TrainingContentBase
 {
     public MrpTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-PLAN-MRP", "CAP-PLAN-MPS", "CAP-PLAN-FORECAST",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

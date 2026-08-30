@@ -10,6 +10,11 @@ public class OnboardingTraining : TrainingContentBase
 {
     public OnboardingTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-HR-HIRE",
+    ];
+
     public override async Task SeedAsync()
     {
         await GetOrCreateModule(new TrainingModule

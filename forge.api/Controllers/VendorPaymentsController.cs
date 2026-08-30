@@ -17,7 +17,7 @@ namespace Forge.Api.Controllers;
 [Route("api/v1/vendor-payments")]
 [Authorize(Roles = "Admin,Manager,OfficeManager")]
 // Dedicated AP capability (default-on, split from CAP-P2P-PO, symmetric to AR's CAP-O2C-CASH —
-// see PHASE2_STATUS "capability taxonomy").
+// see docs/accounting/PHASE2_STATUS.md "capability taxonomy").
 [RequiresCapability("CAP-P2P-PAY")]
 public class VendorPaymentsController(IMediator mediator) : ControllerBase
 {

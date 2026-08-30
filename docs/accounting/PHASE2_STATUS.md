@@ -36,7 +36,7 @@
 
 2. **Real-Postgres verification needs Docker** (the InMemory provider ignores transactions, can't model the
    filtered-unique-index / `ExecuteUpdate` / trigger paths). The authoring sandbox currently has **no Docker
-   access** (see PHASE1_STATUS "STAGE F"). InMemory service tests DO cover posting *logic* (this is how the
+   access** (see docs/accounting/PHASE1_STATUS.md "STAGE F"). InMemory service tests DO cover posting *logic* (this is how the
    Phase-1 posting services are tested). Transaction-rollback proofs (Postgres) are written but must be run
    where Docker is available.
 

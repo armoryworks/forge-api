@@ -10,6 +10,11 @@ public class AnnouncementsTraining : TrainingContentBase
 {
     public AnnouncementsTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-EXT-ANNOUNCEMENTS",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

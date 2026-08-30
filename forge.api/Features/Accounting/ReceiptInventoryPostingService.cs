@@ -76,7 +76,7 @@ public sealed class ReceiptInventoryPostingService(
     // Consumables / tools are not stocked-for-production inventory (per the InventoryClass doc comments:
     // issued to overhead / durable, not a BOM input) — expensed at receipt. A future INVENTORY_SUPPLIES
     // key could perpetual-stock consumables; high-value tools could capitalize as an Asset (no
-    // capitalization-threshold signal exists at this layer yet). Decision recorded in PHASE2_STATUS.
+    // capitalization-threshold signal exists at this layer yet). Decision recorded in docs/accounting/PHASE2_STATUS.md.
     private const string KeyOperatingExpense = "OPERATING_EXPENSE";
 
     public async Task PostReceiptAsync(

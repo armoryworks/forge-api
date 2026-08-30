@@ -14,7 +14,7 @@ namespace Forge.Api.Services;
 /// browser history. The code itself is worthless after one consumption and
 /// expires within seconds, so leaking it is non-exploitable.
 ///
-/// In-memory by design, mirroring <see cref="SessionStore"/>: the codes are
+/// In-memory by design, mirroring the retired in-memory SessionStore: the codes are
 /// consumed within seconds of issuance and a container restart simply forces
 /// the (rare) in-flight SSO login to be retried.
 /// </summary>

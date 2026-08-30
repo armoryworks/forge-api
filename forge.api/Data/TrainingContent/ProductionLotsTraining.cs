@@ -10,6 +10,11 @@ public class ProductionLotsTraining : TrainingContentBase
 {
     public ProductionLotsTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-INV-LOTS", "CAP-INV-SERIALS",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

@@ -17,6 +17,11 @@ public class AutomationsTraining : TrainingContentBase
 {
     public AutomationsTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-P2P-AUTOPO",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Lead Assignment Rules (Article) ──────────────────────────────

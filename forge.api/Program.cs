@@ -506,7 +506,10 @@ try
     builder.Services.AddSingleton<IMfaPreAuthTokenService, MfaPreAuthTokenService>();
     builder.Services.AddSingleton<IMfaTrustedDeviceTokenService, MfaTrustedDeviceTokenService>();
     builder.Services.AddSingleton<IPortalAuthService, PortalAuthService>();
-    builder.Services.AddSingleton<ISessionStore, SessionStore>();
+    builder.Services.AddScoped<ISessionStore, DbSessionStore>();
+    builder.Services.AddScoped<IDeviceCredentialService, DeviceCredentialService>();
+    builder.Services.AddScoped<IPasskeyService, PasskeyService>();
+    builder.Services.AddSingleton<IScanCollapseService, ScanCollapseService>();
     // Single-use handoff for the browser SSO callback — keeps the JWT out of
     // the redirect URL (it would otherwise land in proxy logs / Referer).
     builder.Services.AddSingleton<ISsoHandoffStore, SsoHandoffStore>();
@@ -711,6 +714,7 @@ try
     builder.Services.Configure<AiOptions>(builder.Configuration.GetSection(AiOptions.SectionName));
     builder.Services.Configure<UspsOptions>(builder.Configuration.GetSection(UspsOptions.SectionName));
     builder.Services.Configure<DocuSealOptions>(builder.Configuration.GetSection(DocuSealOptions.SectionName));
+    builder.Services.Configure<MobileOptions>(builder.Configuration.GetSection(MobileOptions.SectionName));
     // Shipping carrier options
     builder.Services.Configure<UpsOptions>(builder.Configuration.GetSection(UpsOptions.SectionName));
     builder.Services.Configure<FedExOptions>(builder.Configuration.GetSection(FedExOptions.SectionName));
@@ -782,6 +786,25 @@ try
     builder.Services.AddHttpClient<
         Forge.Api.Features.Communications.IImapOAuthService,
         Forge.Api.Features.Communications.ImapOAuthService>();
+
+    // Self-service upgrade. forge-agent is the privileged host process that runs the gated deploy
+    // CLI; this API never gets the docker socket, because forge-api is one of the containers an
+    // upgrade destroys. Registered unconditionally — the client reports IsConfigured false when
+    // Deploy:AgentUrl is unset, which is the normal state for a cohosted or centrally managed
+    // install where upgrades are not the tenant's to run.
+    builder.Services.AddHttpClient<IDeployAgentClient, DeployAgentClient>(client =>
+    {
+        var agentUrl = builder.Configuration["Deploy:AgentUrl"];
+        if (!string.IsNullOrWhiteSpace(agentUrl))
+            client.BaseAddress = new Uri(agentUrl.TrimEnd('/') + "/");
+
+        var agentToken = builder.Configuration["Deploy:AgentToken"];
+        if (!string.IsNullOrWhiteSpace(agentToken))
+            client.DefaultRequestHeaders.Add("X-Forge-Agent-Token", agentToken);
+
+        client.Timeout = TimeSpan.FromSeconds(90);
+    });
+    builder.Services.AddHostedService<UpgradeCompletionBroadcaster>();
 
     // Phase 1m — descriptor-driven admin settings. Scoped per-request so
     // the in-memory cache is fresh on each request without manual
@@ -1736,8 +1759,10 @@ try
 
     app.UseRouting();
     app.UseSession();
+    app.UseMiddleware<Forge.Api.Middleware.SharedDeviceMiddleware>();
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseMiddleware<Forge.Api.Middleware.IdempotencyMiddleware>();
 
     // Phase 4 Phase-A — capability gating. Runs after UseRouting so the
     // endpoint metadata is resolved, after auth so we know who the user is

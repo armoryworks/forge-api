@@ -10,6 +10,11 @@ public class AiTraining : TrainingContentBase
 {
     public AiTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-EXT-AI-ASSISTANT",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────

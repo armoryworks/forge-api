@@ -10,6 +10,11 @@ public class PurchaseOrdersTraining : TrainingContentBase
 {
     public PurchaseOrdersTraining(AppDbContext db, Dictionary<string, int> slugMap) : base(db, slugMap) { }
 
+    public override IReadOnlyList<string> Capabilities =>
+    [
+        "CAP-P2P-PO", "CAP-P2P-RECEIVE",
+    ];
+
     public override async Task SeedAsync()
     {
         // ── Overview (Article) ───────────────────────────────────────────
