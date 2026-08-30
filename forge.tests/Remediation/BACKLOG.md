@@ -144,7 +144,7 @@ need a **focused or reviewed session**, not an unattended pass:
   `-warnaserror` build before pushing, not just the test run.
 - **Set-default unique-index races** (working-calendar `F-12-BE-01`/BE-1, CompanyLocation
   `F-12-BE-02`, OvertimeRule `F-14-BE-02`): ✅ DONE (2026-05-28). Added a **Testcontainers
-  real-Postgres** harness (`Helpers/PostgresFixture.cs` — `pgvector/pgvector:pg17`, full
+  real-Postgres** harness (`Helpers/PostgresFixture.cs` — `pgvector/pgvector:pg18`, full
   `MigrateAsync`, real `AppDbContext` with `UseVector()`; `[Collection("postgres")]`). All
   three handlers now do an **atomic swap**: clear the prior default via a discrete
   `ExecuteUpdate` statement inside a transaction, then set/insert the target — so the

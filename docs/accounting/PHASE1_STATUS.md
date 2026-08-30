@@ -146,7 +146,7 @@ the dark unit tests are unaffected.
 > run on a Docker-enabled box before `CAP-ACCT-FULLGL` is turned on.** Two ways:
 > 1. **Testcontainers (default):** any environment whose user can reach the Docker socket — `dotnet test --filter "FullyQualifiedName~Phase1PostingAtomicityTests"`.
 > 2. **External Postgres (new `FORGE_TEST_PG` escape hatch on `PostgresFixture`):** start a pgvector PG
->    and point the fixture at it — `docker run -d --name pg -e POSTGRES_USER=forge -e POSTGRES_PASSWORD=forgetest -e POSTGRES_DB=forge_test -p 55432:5432 pgvector/pgvector:pg17`,
+>    and point the fixture at it — `docker run -d --name pg -e POSTGRES_USER=forge -e POSTGRES_PASSWORD=forgetest -e POSTGRES_DB=forge_test -p 55432:5432 pgvector/pgvector:pg18`,
 >    then `FORGE_TEST_PG="Host=localhost;Port=55432;Database=forge_test;Username=forge;Password=forgetest" dotnet test --filter "FullyQualifiedName~Phase1PostingAtomicityTests"`.
 >    This same env var lets the existing `SetDefault`/`LeadQueue` Postgres tests run where Testcontainers' Docker.DotNet client is blocked.
 

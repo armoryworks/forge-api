@@ -31,7 +31,7 @@ Inside `forge.api`, the shape is CQRS with MediatR: a request record, a result r
 ## Prerequisites
 
 - **.NET 10 SDK** (`global.json` pins `10.0.100` with `rollForward: latestFeature`)
-- **PostgreSQL 17 with the `pgvector` extension** — the schema declares `CREATE EXTENSION vector`, so a stock `postgres` image will not boot the app. Use `pgvector/pgvector:pg17`.
+- **PostgreSQL 18 with the `pgvector` extension** — the schema declares `CREATE EXTENSION vector`, so a stock `postgres` image will not boot the app. Use `pgvector/pgvector:pg18`.
 - **Docker** — required for the Postgres-backed test collection, and the easiest way to get the database above.
 
 ## Quickstart
@@ -45,7 +45,7 @@ docker run -d --name forge-db \
   -e POSTGRES_PASSWORD=postgres \
   -e POSTGRES_DB=forge \
   -p 5432:5432 \
-  pgvector/pgvector:pg17
+  pgvector/pgvector:pg18
 
 # A JWT signing key is mandatory — the app refuses to start without one,
 # and it must be at least 32 characters.
@@ -108,7 +108,7 @@ dotnet test --filter Architecture    # the architecture ratchet tests only
 Three kinds of test live in `forge.tests`:
 
 - **Unit and in-memory integration tests.** Most of the suite. These use the EF Core in-memory provider and a `WebApplicationFactory` with Hangfire on memory storage; no external services needed.
-- **The Postgres-backed collection.** Roughly three dozen test classes that need real PostgreSQL semantics — filtered unique indexes, `ExecuteUpdate`, pgvector columns, ledger triggers. `PostgresFixture` starts a `pgvector/pgvector:pg17` container through Testcontainers and applies the forge-db schema once per collection, **so a reachable Docker daemon is required.** If Testcontainers cannot reach your daemon, point the fixture at a Postgres you started yourself:
+- **The Postgres-backed collection.** Roughly three dozen test classes that need real PostgreSQL semantics — filtered unique indexes, `ExecuteUpdate`, pgvector columns, ledger triggers. `PostgresFixture` starts a `pgvector/pgvector:pg18` container through Testcontainers and applies the forge-db schema once per collection, **so a reachable Docker daemon is required.** If Testcontainers cannot reach your daemon, point the fixture at a Postgres you started yourself:
 
   ```bash
   export FORGE_TEST_PG="Host=localhost;Port=55432;Database=forge_test;Username=forge;Password=forgetest"

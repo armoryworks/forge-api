@@ -52,10 +52,10 @@ jobs:
 
     steps:
       - name: Checkout forge-api
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Checkout forge-db (desired-state schema)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: armoryworks/forge-db
           ref: ${{ github.event.inputs.forge_db_ref || 'main' }}
@@ -63,7 +63,7 @@ jobs:
           token: ${{ secrets.FORGE_DB_RO_TOKEN }}   # delete this line if forge-db is public
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 

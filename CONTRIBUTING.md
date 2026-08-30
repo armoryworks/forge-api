@@ -18,7 +18,7 @@ docker run -d --name forge \
   -e POSTGRES_PASSWORD=postgres \
   -e POSTGRES_DB=forge \
   -p 5432:5432 \
-  pgvector/pgvector:pg17
+  pgvector/pgvector:pg18
 
 dotnet restore
 Jwt__Key="a-local-dev-key-at-least-32-characters" dotnet run --project forge.api

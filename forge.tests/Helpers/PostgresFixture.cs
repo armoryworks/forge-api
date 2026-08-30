@@ -26,7 +26,7 @@ namespace Forge.Tests.Helpers;
 /// starting a container. This is for environments where the Testcontainers
 /// <c>Docker.DotNet</c> client cannot reach the daemon socket (e.g. a sandbox that
 /// proxies the docker CLI but blocks raw-socket access, or a uid not in the
-/// <c>docker</c> group) — point it at a manually-started <c>pgvector/pgvector:pg17</c>
+/// <c>docker</c> group) — point it at a manually-started <c>pgvector/pgvector:pg18</c>
 /// container: <c>FORGE_TEST_PG="Host=localhost;Port=55432;Database=forge_test;Username=forge;Password=forgetest"</c>.
 /// Unset (the default) → Testcontainers, exactly as before.
 /// </para>
@@ -46,7 +46,7 @@ public sealed class PostgresFixture : IAsyncLifetime
         {
             _container = new PostgreSqlBuilder()
                 // pgvector image — the migration history calls CREATE EXTENSION vector.
-                .WithImage("pgvector/pgvector:pg17")
+                .WithImage("pgvector/pgvector:pg18")
                 .Build();
         }
     }
