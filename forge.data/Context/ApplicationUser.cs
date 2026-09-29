@@ -46,6 +46,8 @@ public class ApplicationUser : IdentityUser<int>, IActiveAware
     public DateTimeOffset? MfaEnabledAt { get; set; }
     public int MfaRecoveryCodesRemaining { get; set; }
 
+    public bool IsNonEmployee { get; set; }
+
     // IActiveAware — Phase 3 H2 active-check. A deactivated user cannot be the
     // target of new shift-assignment / job-assignment records.
     public bool IsActiveForNewTransactions => IsActive;

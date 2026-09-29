@@ -30,7 +30,8 @@ public class CheckI9ReverificationJob(
                 s.Template.FormType == ComplianceFormType.I9
                 && s.I9Section2SignedAt != null
                 && s.I9ReverificationDueAt != null
-                && s.I9ReverificationDueAt <= warningCutoff)
+                && s.I9ReverificationDueAt <= warningCutoff
+                && !db.Users.Any(u => u.Id == s.UserId && u.IsNonEmployee))
             .ToListAsync(ct);
 
         if (due.Count == 0)

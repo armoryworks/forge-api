@@ -15,6 +15,18 @@ public class GetOnboardingStatusHandler(AppDbContext db)
     public async Task<OnboardingStatusModel> Handle(
         GetOnboardingStatusQuery request, CancellationToken ct)
     {
+        var isNonEmployee = await db.Users
+            .AsNoTracking()
+            .Where(u => u.Id == request.UserId)
+            .Select(u => u.IsNonEmployee)
+            .FirstOrDefaultAsync(ct);
+
+        if (isNonEmployee)
+            return new OnboardingStatusModel(
+                W4Complete: true, I9Complete: true, StateWithholdingComplete: true,
+                DirectDepositComplete: true, WorkersCompComplete: true, HandbookComplete: true,
+                AllComplete: true, CanBeAssigned: true);
+
         var profile = await db.EmployeeProfiles
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == request.UserId, ct);

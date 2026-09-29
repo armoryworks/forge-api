@@ -8,6 +8,14 @@ public static class AssigneeComplianceCheck
 {
     public static async Task EnsureCanBeAssigned(AppDbContext db, int userId, CancellationToken ct)
     {
+        var isNonEmployee = await db.Users
+            .AsNoTracking()
+            .Where(u => u.Id == userId)
+            .Select(u => u.IsNonEmployee)
+            .FirstOrDefaultAsync(ct);
+
+        if (isNonEmployee) return;
+
         var profile = await db.EmployeeProfiles
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == userId, ct);

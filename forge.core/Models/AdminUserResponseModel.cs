@@ -22,4 +22,5 @@ public record AdminUserResponseModel(
     string[] MissingComplianceItems,
     int? WorkLocationId,
     string? WorkLocationName,
-    I9ComplianceStatus? I9Status);
+    I9ComplianceStatus? I9Status,
+    bool IsNonEmployee);

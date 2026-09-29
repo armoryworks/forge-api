@@ -27,7 +27,8 @@ public class CheckI9OverdueJob(
                 && s.I9Section1SignedAt != null
                 && s.I9Section2SignedAt == null
                 && s.I9Section2OverdueAt != null
-                && s.I9Section2OverdueAt <= now)
+                && s.I9Section2OverdueAt <= now
+                && !db.Users.Any(u => u.Id == s.UserId && u.IsNonEmployee))
             .ToListAsync(ct);
 
         if (overdue.Count == 0)

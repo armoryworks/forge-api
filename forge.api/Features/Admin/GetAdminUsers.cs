@@ -151,7 +151,8 @@ public class GetAdminUsersHandler(AppDbContext db, UserManager<ApplicationUser> 
                 missingItems,
                 user.WorkLocationId,
                 user.WorkLocation?.Name,
-                i9Status));
+                i9Status,
+                user.IsNonEmployee));
         }
 
         return result;

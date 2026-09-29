@@ -1190,6 +1190,7 @@ CREATE TABLE public.asp_net_users (
     mfa_enforced_by_policy boolean DEFAULT false NOT NULL,
     mfa_enabled_at timestamp with time zone,
     mfa_recovery_codes_remaining integer DEFAULT 0 NOT NULL,
+    is_non_employee boolean DEFAULT false NOT NULL,
     user_name character varying(256),
     normalized_user_name character varying(256),
     email character varying(256),

@@ -424,6 +424,14 @@ public class AdminController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpPatch("users/{userId:int}/non-employee")]
+    [CapabilityBootstrap]
+    public async Task<IActionResult> UpdateUserNonEmployee(int userId, [FromBody] UpdateUserNonEmployeeRequestModel request)
+    {
+        await mediator.Send(new UpdateUserNonEmployeeCommand(userId, request.IsNonEmployee));
+        return NoContent();
+    }
+
     // ── Integrations ──
 
     [HttpGet("integrations")]

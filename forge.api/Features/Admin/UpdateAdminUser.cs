@@ -197,6 +197,7 @@ public class UpdateAdminUserHandler(
             missingItems,
             user.WorkLocationId,
             user.WorkLocation?.Name,
-            null); // I9Status — computed in Batch F (I9StatusComputer)
+            null, // I9Status — computed in Batch F (I9StatusComputer)
+            user.IsNonEmployee);
     }
 }
