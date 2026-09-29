@@ -551,9 +551,27 @@ public static class DiscoveryRecommendationEngine
     /// install's current snapshot and the chosen preset's target. Used by
     /// the preview endpoint and the apply orchestration.
     /// </summary>
+
+    private static void ApplyDiagnosticOverrides(HashSet<string> targetSet, DiscoveryAnswerSet? answers)
+    {
+        if (answers is null) return;
+
+        var payroll = answers.Get("Q-D7");
+        if (string.Equals(payroll, "no", StringComparison.OrdinalIgnoreCase))
+        {
+            targetSet.Remove("CAP-QC-COMPLIANCE-FORMS");
+            targetSet.Remove("CAP-HR-PAYROLL");
+        }
+        else if (string.Equals(payroll, "yes", StringComparison.OrdinalIgnoreCase))
+        {
+            targetSet.Add("CAP-QC-COMPLIANCE-FORMS");
+        }
+    }
+
     public static IReadOnlyList<CapabilityDelta> ComputeDeltas(
         string presetId,
-        IReadOnlyDictionary<string, bool> currentState)
+        IReadOnlyDictionary<string, bool> currentState,
+        DiscoveryAnswerSet? answers = null)
     {
         var preset = PresetCatalog.FindById(presetId)
             ?? throw new ArgumentException($"Unknown preset id: {presetId}", nameof(presetId));
@@ -566,6 +584,8 @@ public static class DiscoveryRecommendationEngine
                 CapabilityCatalog.All.Where(c => c.IsDefaultOn).Select(c => c.Code),
                 StringComparer.Ordinal)
             : new HashSet<string>(preset.EnabledCapabilities, StringComparer.Ordinal);
+
+        ApplyDiagnosticOverrides(targetSet, answers);
 
         var deltas = new List<CapabilityDelta>();
 

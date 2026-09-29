@@ -79,7 +79,7 @@ public class ApplyDiscoveryRecommendationHandler(
         // the recommended one).
         var snapshot = snapshots.Current;
         var deltas = DiscoveryRecommendationEngine.ComputeDeltas(
-            request.ChosenPresetId, snapshot.EnabledByCode);
+            request.ChosenPresetId, snapshot.EnabledByCode, answerSet);
 
         // Write the DiscoveryRun audit row FIRST so the bulk-toggle audit rows
         // can reference its id (via the system audit details payload).
@@ -151,7 +151,7 @@ public class ApplyDiscoveryRecommendationHandler(
         // Return the recommendation tuple decorated with the freshly-recomputed
         // deltas (now empty after apply) so the UI can render the success state.
         var freshDeltas = DiscoveryRecommendationEngine.ComputeDeltas(
-            request.ChosenPresetId, snapshots.Current.EnabledByCode);
+            request.ChosenPresetId, snapshots.Current.EnabledByCode, answerSet);
 
         return new DiscoveryRecommendationResponseModel(
             PresetId: request.ChosenPresetId,

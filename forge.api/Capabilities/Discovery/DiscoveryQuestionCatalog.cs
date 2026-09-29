@@ -395,6 +395,14 @@ public static class DiscoveryQuestionCatalog
             new("custom", "Mostly custom each time"),
         ]);
 
+    private static readonly DiscoveryQuestion QD7 = new(
+        Id: "Q-D7",
+        Stage: DiscoveryStage.Diagnostic,
+        Category: DiscoveryCategory.Diagnostic,
+        Type: DiscoveryQuestionType.YesNo,
+        Text: "Do you want to handle employee hiring paperwork and payroll in this system \u2014 W-4, I-9, state withholding, pay stubs? Answer no if your accountant, PEO, or payroll provider already does this.",
+        WhyAsking: "Most shops already run payroll somewhere else, and this is the one area where saying yes means asking staff for a Social Security number, dependents and bank details. Answering no keeps those screens off the install entirely rather than leaving them switched on and unused.");
+
     // ── Exit ramp (Q-X1) ──────────────────────────────────────────────────
 
     private static readonly DiscoveryQuestion QX1 = new(
@@ -548,7 +556,7 @@ public static class DiscoveryQuestionCatalog
         QB1, QB2, QB3, QB4,
         QC1, QC2, QC3, QC4,
         QV1, QV2,
-        QD1, QD2, QD3, QD4, QD5, QD6,
+        QD1, QD2, QD3, QD4, QD5, QD6, QD7,
         QX1,
         // Consultant deepdive — surfaced only when mode = consultant.
         QA5_DD, QA6_DD, QA7_DD, QA8_DD,
@@ -557,13 +565,13 @@ public static class DiscoveryQuestionCatalog
     };
 
     /// <summary>
-    /// Self-serve catalog count: 28 = 1 top-of-funnel (Q-S1, Pro Services D4) +
-    /// 6 opening + 4 Branch A + 4 Branch B + 4 Branch C + 2 override + 6 diagnostic
+    /// Self-serve catalog count: 29 = 1 top-of-funnel (Q-S1, Pro Services D4) +
+    /// 6 opening + 4 Branch A + 4 Branch B + 4 Branch C + 2 override + 7 diagnostic
     /// + 1 exit. A given user typically answers far fewer because only one branch's
     /// questions apply AND Q-S1 = "services" / "both" short-circuits the entire
-    /// manufacturing tree. The catalog ships all 28.
+    /// manufacturing tree. The catalog ships all 29.
     /// </summary>
-    public const int SelfServeCount = 28;
+    public const int SelfServeCount = 29;
 
     /// <summary>Per-user count after branch routing — what the 4C design calls "22 questions." For Q-S1 = products this is still 22; for services/both, it's effectively 1.</summary>
     public const int PerUserAnsweredCount = 22;

@@ -38,6 +38,33 @@ public class DiscoveryFlowTests
         return client;
     }
 
+    // ─── Q-D7: employee paperwork opt-out ──────────────────────────────────
+
+    [Fact]
+    public void QD7_No_Strips_Employee_Paperwork_From_A_Preset_That_Wants_It()
+    {
+        var empty = new Dictionary<string, bool>(StringComparer.Ordinal);
+        var answers = new DiscoveryAnswerSet([new DiscoveryAnswer("Q-D7", "no")]);
+
+        var withAnswer = DiscoveryRecommendationEngine.ComputeDeltas("PRESET-05", empty, answers);
+        var without = DiscoveryRecommendationEngine.ComputeDeltas("PRESET-05", empty);
+
+        Assert.Contains(without, d => d.Code == "CAP-QC-COMPLIANCE-FORMS" && d.WillBeEnabled);
+        Assert.DoesNotContain(withAnswer, d => d.Code == "CAP-QC-COMPLIANCE-FORMS" && d.WillBeEnabled);
+        Assert.DoesNotContain(withAnswer, d => d.Code == "CAP-HR-PAYROLL" && d.WillBeEnabled);
+    }
+
+    [Fact]
+    public void QD7_Yes_Turns_Employee_Paperwork_On_For_A_Preset_Without_It()
+    {
+        var empty = new Dictionary<string, bool>(StringComparer.Ordinal);
+        var answers = new DiscoveryAnswerSet([new DiscoveryAnswer("Q-D7", "yes")]);
+
+        var deltas = DiscoveryRecommendationEngine.ComputeDeltas("PRESET-02", empty, answers);
+
+        Assert.Contains(deltas, d => d.Code == "CAP-QC-COMPLIANCE-FORMS" && d.WillBeEnabled);
+    }
+
     // ─── Question catalog endpoint ─────────────────────────────────────────
 
     [Fact]
@@ -49,13 +76,13 @@ public class DiscoveryFlowTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<QuestionsResponseRow>();
         Assert.NotNull(result);
-        // The catalog ships 28 self-serve questions: 1 top-of-funnel (Q-S1,
+        // The catalog ships 29 self-serve questions: 1 top-of-funnel (Q-S1,
         // Pro Services rollout D4) + 6 opening + 4 per branch × 3 + 2 override
-        // + 6 diagnostic + 1 exit. A given user typically answers fewer because
+        // + 7 diagnostic + 1 exit. A given user typically answers fewer because
         // only one branch applies AND Q-S1 = "services" / "both" short-circuits
         // the entire mfg tree — the wizard filters at render time.
-        Assert.Equal(28, result!.Questions.Count);
-        Assert.Equal(28, result.SelfServeCount);
+        Assert.Equal(29, result!.Questions.Count);
+        Assert.Equal(29, result.SelfServeCount);
 
         // Verify the opening / branch / override / diagnostic / exit categories
         // are all present.

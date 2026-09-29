@@ -74,7 +74,7 @@ public class PreviewDiscoveryRecommendationHandler(ICapabilitySnapshotProvider s
                 $"Recommendation produced unknown preset {recommendation.PresetId}");
 
         var deltas = DiscoveryRecommendationEngine.ComputeDeltas(
-            recommendation.PresetId, snapshots.Current.EnabledByCode);
+            recommendation.PresetId, snapshots.Current.EnabledByCode, answerSet);
 
         return Task.FromResult(new DiscoveryRecommendationResponseModel(
             PresetId: recommendation.PresetId,
