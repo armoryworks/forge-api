@@ -26,7 +26,8 @@ public record CreateJobCommand(
     // #27: optionally associate the new job with an open sales-order line at create time.
     int? SalesOrderLineId = null,
     // Optional caller-supplied job number — gated by jobs.allow_manual_numbers.
-    string? JobNumber = null) : IRequest<JobDetailResponseModel>;
+    string? JobNumber = null,
+    decimal? Quantity = null) : IRequest<JobDetailResponseModel>;
 
 public class CreateJobCommandValidator : AbstractValidator<CreateJobCommand>
 {
@@ -38,6 +39,14 @@ public class CreateJobCommandValidator : AbstractValidator<CreateJobCommand>
 
         RuleFor(x => x.TrackTypeId)
             .GreaterThan(0).WithMessage("TrackTypeId is required.");
+
+        RuleFor(x => x.Quantity)
+            .GreaterThan(0).When(x => x.Quantity.HasValue)
+            .WithMessage("Quantity must be greater than zero.");
+
+        RuleFor(x => x.PartId)
+            .NotNull().When(x => x.Quantity.HasValue)
+            .WithMessage("A quantity needs a part to count.");
     }
 }
 
@@ -110,6 +119,15 @@ public class CreateJobHandler(
                 .Select(p => p.CurrentBomRevisionId)
                 .FirstOrDefaultAsync(cancellationToken);
             job.BomRevisionIdAtRelease = currentRevId;
+        }
+
+        if (request.PartId is int jobPartId)
+        {
+            job.JobParts.Add(new JobPart
+            {
+                PartId = jobPartId,
+                Quantity = request.Quantity ?? 1m,
+            });
         }
 
         job.ActivityLogs.Add(new JobActivityLog

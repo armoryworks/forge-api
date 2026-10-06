@@ -6,5 +6,7 @@ public enum JobDisposition
     AddToInventory,
     CapitalizeAsAsset,
     Scrap,
-    HoldForReview
+    HoldForReview,
+    EnteredInError,
+    Other
 }

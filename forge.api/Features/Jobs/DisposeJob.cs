@@ -1,6 +1,8 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -24,6 +26,8 @@ public class DisposeJobHandler(
     IJobRepository jobRepo,
     IAssetRepository assetRepo,
     IMediator mediator,
+    IHubContext<BoardHub> boardHub,
+    IClock clock,
     AppDbContext db) : IRequestHandler<DisposeJobCommand, JobDetailResponseModel>
 {
     public async Task<JobDetailResponseModel> Handle(DisposeJobCommand request, CancellationToken cancellationToken)
@@ -36,7 +40,20 @@ public class DisposeJobHandler(
 
         job.Disposition = request.Data.Disposition;
         job.DispositionNotes = request.Data.Notes?.Trim();
-        job.DispositionAt = DateTimeOffset.UtcNow;
+        job.DispositionAt = clock.UtcNow;
+
+        if (request.Data.Disposition == JobDisposition.EnteredInError)
+            job.IsArchived = true;
+
+        job.ActivityLogs.Add(new JobActivityLog
+        {
+            Action = request.Data.Disposition == JobDisposition.EnteredInError
+                ? ActivityAction.Archived
+                : ActivityAction.StatusChanged,
+            Description = request.Data.Disposition == JobDisposition.EnteredInError
+                ? $"Job {job.JobNumber} marked as entered in error and removed from the board."
+                : $"Job {job.JobNumber} disposed as {request.Data.Disposition}.",
+        });
 
         if (request.Data.Disposition == JobDisposition.CapitalizeAsAsset)
         {
@@ -61,6 +78,9 @@ public class DisposeJobHandler(
         {
             await jobRepo.SaveChangesAsync(cancellationToken);
         }
+
+        await boardHub.Clients.Group($"board:{job.TrackTypeId}")
+            .SendAsync("boardUpdated", new { reason = "dispose" }, cancellationToken);
 
         return await mediator.Send(new GetJobByIdQuery(job.Id), cancellationToken);
     }

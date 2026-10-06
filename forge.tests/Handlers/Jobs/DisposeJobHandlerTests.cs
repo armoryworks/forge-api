@@ -1,7 +1,10 @@
 using Bogus;
 using FluentAssertions;
 using MediatR;
+using Microsoft.AspNetCore.SignalR;
 using Moq;
+
+using Forge.Api.Hubs;
 
 using Forge.Api.Features.Jobs;
 using Forge.Core.Entities;
@@ -18,6 +21,8 @@ public class DisposeJobHandlerTests
     private readonly Mock<IJobRepository> _jobRepo = new();
     private readonly Mock<IAssetRepository> _assetRepo = new();
     private readonly Mock<IMediator> _mediator = new();
+    private readonly Mock<IHubContext<BoardHub>> _boardHub = new();
+    private readonly Mock<IClock> _clock = new();
     private readonly AppDbContext _dbContext;
     private readonly DisposeJobHandler _handler;
 
@@ -27,10 +32,18 @@ public class DisposeJobHandlerTests
     {
         _dbContext = TestDbContextFactory.Create();
 
+        var mockClients = new Mock<IHubClients>();
+        var mockClientProxy = new Mock<IClientProxy>();
+        mockClients.Setup(c => c.Group(It.IsAny<string>())).Returns(mockClientProxy.Object);
+        _boardHub.Setup(h => h.Clients).Returns(mockClients.Object);
+        _clock.Setup(c => c.UtcNow).Returns(new DateTimeOffset(2026, 10, 6, 12, 0, 0, TimeSpan.Zero));
+
         _handler = new DisposeJobHandler(
             _jobRepo.Object,
             _assetRepo.Object,
             _mediator.Object,
+            _boardHub.Object,
+            _clock.Object,
             _dbContext);
     }
 
@@ -69,9 +82,65 @@ public class DisposeJobHandlerTests
         job.Disposition.Should().Be(JobDisposition.ShipToCustomer);
         job.DispositionNotes.Should().Be("Ship with order");
         job.DispositionAt.Should().NotBeNull();
-        job.DispositionAt!.Value.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        job.DispositionAt!.Value.Should().Be(_clock.Object.UtcNow);
 
         _jobRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private Job ArrangeJob(int jobId, string jobNumber)
+    {
+        var job = new Job
+        {
+            Id = jobId,
+            JobNumber = jobNumber,
+            Title = _faker.Commerce.ProductName(),
+            TrackTypeId = 7,
+            CurrentStageId = 1,
+            Disposition = null,
+        };
+        _jobRepo.Setup(r => r.FindAsync(jobId, It.IsAny<CancellationToken>())).ReturnsAsync(job);
+        _mediator.Setup(m => m.Send(It.IsAny<GetJobByIdQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BuildJobDetailResponse(jobId, jobNumber));
+        return job;
+    }
+
+    [Fact]
+    public async Task Handle_EnteredInError_ArchivesSoTheCardLeavesTheBoard()
+    {
+        var job = ArrangeJob(42, "JOB-0042");
+
+        await _handler.Handle(
+            new DisposeJobCommand(42, new DisposeJobRequestModel(JobDisposition.EnteredInError, "wrong part")),
+            CancellationToken.None);
+
+        job.Disposition.Should().Be(JobDisposition.EnteredInError);
+        job.IsArchived.Should().BeTrue(
+            "the board filters on IsArchived, so a mistaken entry that stays unarchived keeps its card");
+    }
+
+    [Fact]
+    public async Task Handle_RealDisposition_DoesNotArchive()
+    {
+        var job = ArrangeJob(43, "JOB-0043");
+
+        await _handler.Handle(
+            new DisposeJobCommand(43, new DisposeJobRequestModel(JobDisposition.ShipToCustomer, null)),
+            CancellationToken.None);
+
+        job.IsArchived.Should().BeFalse("shipping is an outcome, not a retraction");
+    }
+
+    [Fact]
+    public async Task Handle_WritesAnActivityLogRow()
+    {
+        var job = ArrangeJob(44, "JOB-0044");
+
+        await _handler.Handle(
+            new DisposeJobCommand(44, new DisposeJobRequestModel(JobDisposition.Scrap, null)),
+            CancellationToken.None);
+
+        job.ActivityLogs.Should().ContainSingle()
+            .Which.Action.Should().Be(ActivityAction.StatusChanged);
     }
 
     [Fact]

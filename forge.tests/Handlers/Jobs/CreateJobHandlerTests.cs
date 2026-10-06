@@ -216,6 +216,73 @@ public class CreateJobHandlerTests
         ), It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task Handle_WithPartAndQuantity_RecordsThemOnTheJob()
+    {
+        var stageId = 7;
+        _trackRepo.Setup(r => r.FindFirstActiveStageAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JobStage { Id = stageId, TrackTypeId = 1, Name = "Quote" });
+        _jobRepo.Setup(r => r.GenerateNextJobNumberAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync("JOB-0099");
+        _jobRepo.Setup(r => r.GetMaxBoardPositionAsync(stageId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        _db.Parts.Add(new Part { Id = 500, PartNumber = "40-1700M", Description = "Clutch weight" });
+        await _db.SaveChangesAsync();
+
+        var expectedResult = new JobDetailResponseModel(
+            1, "JOB-0099", "Test", null, 1, "Production",
+            stageId, "Quote", "#94a3b8", null, null, null, null,
+            "Normal", null, null, null, null, null, false, 1, 0, null,
+            null, null, null, null, null, null, null, null, null, null, 0,
+            DateTime.UtcNow, DateTime.UtcNow);
+        _mediator.Setup(m => m.Send(It.IsAny<GetJobByIdQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedResult);
+
+        var command = new CreateJobCommand(
+            "Test", null, 1, null, null, null, null, PartId: 500, Quantity: 250m);
+
+        await _handler.Handle(command, CancellationToken.None);
+
+        _jobRepo.Verify(r => r.AddAsync(
+            It.Is<Job>(j => j.JobParts.Count == 1
+                && j.JobParts.First().PartId == 500
+                && j.JobParts.First().Quantity == 250m),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WithPartButNoQuantity_DefaultsToOne()
+    {
+        var stageId = 7;
+        _trackRepo.Setup(r => r.FindFirstActiveStageAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JobStage { Id = stageId, TrackTypeId = 1, Name = "Quote" });
+        _jobRepo.Setup(r => r.GenerateNextJobNumberAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync("JOB-0100");
+        _jobRepo.Setup(r => r.GetMaxBoardPositionAsync(stageId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        _db.Parts.Add(new Part { Id = 501, PartNumber = "40-1800M", Description = "Spacer" });
+        await _db.SaveChangesAsync();
+
+        var expectedResult = new JobDetailResponseModel(
+            1, "JOB-0100", "Test", null, 1, "Production",
+            stageId, "Quote", "#94a3b8", null, null, null, null,
+            "Normal", null, null, null, null, null, false, 1, 0, null,
+            null, null, null, null, null, null, null, null, null, null, 0,
+            DateTime.UtcNow, DateTime.UtcNow);
+        _mediator.Setup(m => m.Send(It.IsAny<GetJobByIdQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedResult);
+
+        var command = new CreateJobCommand("Test", null, 1, null, null, null, null, PartId: 501);
+
+        await _handler.Handle(command, CancellationToken.None);
+
+        _jobRepo.Verify(r => r.AddAsync(
+            It.Is<Job>(j => j.JobParts.Count == 1 && j.JobParts.First().Quantity == 1m),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     [Fact] // #27 — a new job can be associated with an open sales-order line at create time.
     public async Task Handle_WithSalesOrderLineId_LinksJobToLine()
     {
