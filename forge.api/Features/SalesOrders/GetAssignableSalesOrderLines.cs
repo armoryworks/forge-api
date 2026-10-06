@@ -22,10 +22,12 @@ public class GetAssignableSalesOrderLinesHandler(AppDbContext db, ISalesOrderAcc
     public async Task<List<AssignableSalesOrderLineModel>> Handle(
         GetAssignableSalesOrderLinesQuery request, CancellationToken cancellationToken)
     {
-        // Cancelled orders aren't workable, so their lines are never assignable.
         var query = db.SalesOrderLines
             .AsNoTracking()
-            .Where(l => l.SalesOrder.Status != SalesOrderStatus.Cancelled);
+            .Where(l =>
+                l.SalesOrder.Status == SalesOrderStatus.Confirmed ||
+                l.SalesOrder.Status == SalesOrderStatus.InProduction ||
+                l.SalesOrder.Status == SalesOrderStatus.PartiallyShipped);
 
         // When the acceptance gate is on, only offer lines whose SO has accepted proof — otherwise a
         // job linked from the board would be rejected by CreateJobHandler anyway.

@@ -76,4 +76,41 @@ public class GetAssignableSalesOrderLinesHandlerTests
 
         result.Select(r => r.Id).Should().Contain(line.Id, "an archived job is not an active assignment");
     }
+
+    [Theory]
+    [InlineData(SalesOrderStatus.Draft)]
+    [InlineData(SalesOrderStatus.Cancelled)]
+    [InlineData(SalesOrderStatus.Shipped)]
+    [InlineData(SalesOrderStatus.Completed)]
+    public async Task Handle_NonWorkableStatus_LineIsNotAssignable(SalesOrderStatus status)
+    {
+        var so = new SalesOrder { OrderNumber = $"SO-{status}", CustomerId = 1, Status = status };
+        _db.SalesOrders.Add(so);
+        await _db.SaveChangesAsync();
+        _db.SalesOrderLines.Add(new SalesOrderLine
+        { SalesOrderId = so.Id, Description = "Line", Quantity = 1m, UnitPrice = 1m, LineNumber = 1 });
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new GetAssignableSalesOrderLinesQuery(false, null), CancellationToken.None);
+
+        result.Should().BeEmpty($"a {status} order is not workable");
+    }
+
+    [Theory]
+    [InlineData(SalesOrderStatus.Confirmed)]
+    [InlineData(SalesOrderStatus.InProduction)]
+    [InlineData(SalesOrderStatus.PartiallyShipped)]
+    public async Task Handle_WorkableStatus_LineIsAssignable(SalesOrderStatus status)
+    {
+        var so = new SalesOrder { OrderNumber = $"SO-{status}", CustomerId = 1, Status = status };
+        _db.SalesOrders.Add(so);
+        await _db.SaveChangesAsync();
+        _db.SalesOrderLines.Add(new SalesOrderLine
+        { SalesOrderId = so.Id, Description = "Line", Quantity = 1m, UnitPrice = 1m, LineNumber = 1 });
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new GetAssignableSalesOrderLinesQuery(false, null), CancellationToken.None);
+
+        result.Should().HaveCount(1, $"a {status} order is workable");
+    }
 }

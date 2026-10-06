@@ -115,6 +115,16 @@ public class OnSalesOrderConfirmed_AutoCreateJobs(
                 BoardPosition = maxPosition + 1,
             };
 
+            if (line.PartId is int partId)
+            {
+                job.JobParts.Add(new JobPart
+                {
+                    PartId = partId,
+                    Quantity = line.Quantity,
+                    Notes = $"From {so.OrderNumber} line {line.LineNumber}",
+                });
+            }
+
             job.ActivityLogs.Add(new JobActivityLog
             {
                 Action = ActivityAction.Created,

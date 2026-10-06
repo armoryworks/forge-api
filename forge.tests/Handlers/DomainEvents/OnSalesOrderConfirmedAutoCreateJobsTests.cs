@@ -108,4 +108,35 @@ public class OnSalesOrderConfirmedAutoCreateJobsTests
         _addedJobs.Should().ContainSingle();
         _addedJobs[0].CurrentStageId.Should().Be(70);
     }
+
+    [Fact]
+    public async Task Line_with_a_part_records_part_and_quantity_structurally()
+    {
+        var so = await SeedAsync(withOrderConfirmedStage: true);
+        _db.Parts.Add(new Part { Id = 900, PartNumber = "CW-1001", Description = "Clutch weight" });
+        var line = await _db.SalesOrderLines.FindAsync(601);
+        line!.PartId = 900;
+        line.Quantity = 50m;
+        await _db.SaveChangesAsync();
+
+        await Handler().Handle(new SalesOrderConfirmedEvent(so.Id, 1), CancellationToken.None);
+
+        _addedJobs.Should().ContainSingle();
+        var jobPart = _addedJobs[0].JobParts.Should().ContainSingle().Subject;
+        jobPart.PartId.Should().Be(900);
+        jobPart.Quantity.Should().Be(50m,
+            "quantity has to be queryable to compute allocation against the ordered quantity — " +
+            "a number in the description string cannot be summed");
+    }
+
+    [Fact]
+    public async Task Line_without_a_part_records_no_job_part()
+    {
+        var so = await SeedAsync(withOrderConfirmedStage: true);
+
+        await Handler().Handle(new SalesOrderConfirmedEvent(so.Id, 1), CancellationToken.None);
+
+        _addedJobs.Should().ContainSingle();
+        _addedJobs[0].JobParts.Should().BeEmpty("a free-text line has no part to record");
+    }
 }
