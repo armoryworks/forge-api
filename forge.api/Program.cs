@@ -75,19 +75,22 @@ try
         }
     });
 
-    // Clock abstraction — MockClock in development (controllable via /api/v1/dev/clock),
-    // SystemClock in production.
-    var useMockClock = builder.Environment.IsDevelopment();
+    // Clock abstraction — MockClock only when a simulation explicitly asks for it, because it
+    // latches time at construction and never advances. ASPNETCORE_ENVIRONMENT=Development alone
+    // used to be enough, which silently froze every install that inherited that default.
+    var useMockClock = builder.Environment.IsDevelopment()
+        && builder.Configuration.GetValue<bool>("UseMockClock");
     if (useMockClock)
     {
         var mockClock = new MockClock();
         builder.Services.AddSingleton<MockClock>(mockClock);
         builder.Services.AddSingleton<IClock>(mockClock);
-        Log.Information("Clock: MockClock (development) — controllable via POST /api/v1/dev/clock");
+        Log.Warning("Clock: MockClock — time is FROZEN at {Now:O} until POST /api/v1/dev/clock moves it", mockClock.UtcNow);
     }
     else
     {
         builder.Services.AddSingleton<IClock, SystemClock>();
+        Log.Information("Clock: SystemClock");
     }
 
     // EF Core + PostgreSQL (with pgvector for AI embeddings)
@@ -1601,23 +1604,25 @@ try
         // ── Dev-only: clock control for E2E simulation ─────────────────────
         // Admin-role gated so external simulations (or curl) must authenticate
         // before altering server time on a shared/public dev deployment.
-        var devClock = app.Services.GetRequiredService<MockClock>();
-
-        app.MapPost("/api/v1/dev/clock", (ClockSetRequest req) =>
+        var devClock = app.Services.GetService<MockClock>();
+        if (devClock is not null)
         {
-            devClock.Set(req.Now);
-            return Results.Ok(new { now = devClock.UtcNow });
-        }).RequireAuthorization(p => p.RequireRole("Admin"));
+            app.MapPost("/api/v1/dev/clock", (ClockSetRequest req) =>
+            {
+                devClock.Set(req.Now);
+                return Results.Ok(new { now = devClock.UtcNow });
+            }).RequireAuthorization(p => p.RequireRole("Admin"));
 
-        app.MapGet("/api/v1/dev/clock", () =>
-            Results.Ok(new { now = devClock.UtcNow }))
-            .RequireAuthorization(p => p.RequireRole("Admin"));
+            app.MapGet("/api/v1/dev/clock", () =>
+                Results.Ok(new { now = devClock.UtcNow }))
+                .RequireAuthorization(p => p.RequireRole("Admin"));
 
-        app.MapDelete("/api/v1/dev/clock", () =>
-        {
-            devClock.Set(DateTimeOffset.UtcNow);
-            return Results.Ok(new { now = devClock.UtcNow });
-        }).RequireAuthorization(p => p.RequireRole("Admin"));
+            app.MapDelete("/api/v1/dev/clock", () =>
+            {
+                devClock.Set(DateTimeOffset.UtcNow);
+                return Results.Ok(new { now = devClock.UtcNow });
+            }).RequireAuthorization(p => p.RequireRole("Admin"));
+        }
 
         // ── Dev-only: simulation state summary ─────────────────────────────
         app.MapGet("/api/v1/dev/simulation-state", async (AppDbContext db) =>
@@ -1629,7 +1634,7 @@ try
                 .Select(g => new { Stage = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.Stage, x => x.Count);
 
-            var now = devClock.UtcNow;
+            var now = app.Services.GetRequiredService<IClock>().UtcNow;
             return Results.Ok(new
             {
                 openLeads       = await db.Leads.CountAsync(l => l.DeletedAt == null
