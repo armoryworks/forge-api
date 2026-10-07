@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -37,6 +38,20 @@ public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo, AppDbCon
             && po.Vendor.MinOrderAmount.Value > 0
             && poTotal < po.Vendor.MinOrderAmount.Value;
 
+        var partDefaultBinIds = po.Lines
+            .Where(l => l.Part?.DefaultBinId is not null)
+            .Select(l => l.Part!.DefaultBinId!.Value)
+            .Distinct()
+            .ToList();
+        var receivableDefaultBinIds = partDefaultBinIds.Count == 0
+            ? new HashSet<int>()
+            : (await db.StorageLocations
+                .AsNoTracking()
+                .Where(s => partDefaultBinIds.Contains(s.Id) && s.IsActive && s.LocationType == LocationType.Bin)
+                .Select(s => s.Id)
+                .ToListAsync(cancellationToken))
+                .ToHashSet();
+
         return new PurchaseOrderDetailResponseModel(
             po.Id,
             po.PONumber,
@@ -72,7 +87,9 @@ public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo, AppDbCon
                 l.PurchaseUnitId,
                 l.PurchaseUnit != null ? l.PurchaseUnit.Label : null,
                 l.ManualOverrideReason,
-                l.Part?.DefaultBinId)).ToList(),
+                l.Part?.DefaultBinId is int defaultBinId && receivableDefaultBinIds.Contains(defaultBinId)
+                    ? defaultBinId
+                    : null)).ToList(),
             po.CreatedAt,
             po.UpdatedAt,
             po.ShortCloseReason,
