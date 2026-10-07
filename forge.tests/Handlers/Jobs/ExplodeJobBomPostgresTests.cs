@@ -154,7 +154,7 @@ public sealed class ExplodeJobBomPostgresTests(PostgresFixture fixture)
             var hub = new Mock<IHubContext<BoardHub>>();
             hub.SetupGet(h => h.Clients).Returns(clients.Object);
             var handler = new ExplodeJobBomHandler(
-                db, new JobRepository(db), Mock.Of<IBarcodeService>(), hub.Object);
+                db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBarcodeService>(), hub.Object);
             try
             {
                 await handler.Handle(new ExplodeJobBomCommand(parentJobId), CancellationToken.None);
@@ -245,7 +245,7 @@ public sealed class ExplodeJobBomPostgresTests(PostgresFixture fixture)
             var hub = new Mock<IHubContext<BoardHub>>();
             hub.SetupGet(h => h.Clients).Returns(clients.Object);
             var handler = new ExplodeJobBomHandler(
-                db, new JobRepository(db), Mock.Of<IBarcodeService>(), hub.Object);
+                db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBarcodeService>(), hub.Object);
             try
             {
                 await handler.Handle(new ExplodeJobBomCommand(parentJobId), CancellationToken.None);

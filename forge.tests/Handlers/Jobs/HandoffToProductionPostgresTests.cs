@@ -55,7 +55,7 @@ public sealed class HandoffToProductionPostgresTests(PostgresFixture fixture)
         }
 
         await using var db = fixture.CreateContext();
-        var handler = new HandoffToProductionHandler(db, new JobRepository(db));
+        var handler = new HandoffToProductionHandler(db, new JobRepository(db, new Forge.Integrations.SystemClock()));
 
         var prodJobId = await handler.Handle(new HandoffToProductionCommand(rdJobId), CancellationToken.None);
 
