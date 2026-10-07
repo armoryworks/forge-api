@@ -1,6 +1,7 @@
 using FluentAssertions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 using Forge.Api.Features.Parts;
@@ -21,6 +22,8 @@ public class ClonePartTests
     private readonly Mock<ISystemSettingRepository> _settings = new();
     private readonly Mock<IBomRevisionService> _bomRevisions = new();
     private readonly Mock<ISender> _sender = new();
+    private readonly Mock<ISyncQueueRepository> _syncQueue = new();
+    private readonly Mock<IAccountingProviderFactory> _providerFactory = new();
     private readonly ClonePartHandler _handler;
 
     public ClonePartTests()
@@ -40,7 +43,10 @@ public class ClonePartTests
             Mock.Of<IBarcodeService>(),
             identifiers.Object,
             _bomRevisions.Object,
-            _sender.Object);
+            _syncQueue.Object,
+            _providerFactory.Object,
+            _sender.Object,
+            Mock.Of<ILogger<ClonePartHandler>>());
     }
 
     private async Task<Part> SeedPartAsync(string partNumber, InventoryClass inventoryClass = InventoryClass.Subassembly)
@@ -106,6 +112,15 @@ public class ClonePartTests
     private static ClonePartRequestModel Request(
         string? partNumber = null, bool copyBom = true, bool copyRouting = true, bool copyVendorSources = false)
         => new("Valve body, 3/4 in", partNumber, null, copyBom, copyRouting, copyVendorSources);
+
+    private void SetAccountingConnection(bool connected)
+    {
+        var provider = new Mock<IAccountingService>();
+        provider.Setup(p => p.GetSyncStatusAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AccountingSyncStatus(connected, null, 0, 0));
+        _providerFactory.Setup(f => f.GetActiveProviderAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(provider.Object);
+    }
 
     private void EnableManualNumbers()
         => _settings.Setup(s => s.FindByKeyAsync("parts.allow_manual_numbers", It.IsAny<CancellationToken>()))
@@ -294,5 +309,53 @@ public class ClonePartTests
         var act = () => _handler.Handle(new ClonePartCommand(999, Request()), CancellationToken.None);
 
         await act.Should().ThrowAsync<KeyNotFoundException>();
+    }
+
+    [Fact]
+    public async Task Clone_QueuesAccountingItemForTheNewPart_WhenAccountingIsConnected()
+    {
+        var source = await SeedPartAsync("ASM-00007");
+        SetAccountingConnection(connected: true);
+
+        var result = await _handler.Handle(
+            new ClonePartCommand(source.Id, Request(copyBom: false, copyRouting: false)), CancellationToken.None);
+
+        _syncQueue.Verify(q => q.EnqueueAsync(
+            "Part", result.Id, "CreateItem",
+            It.Is<string>(payload => payload.Contains(result.PartNumber)),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _syncQueue.Verify(q => q.EnqueueAsync(
+            It.IsAny<string>(), source.Id, It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(null)]
+    public async Task Clone_QueuesNothing_WhenAccountingIsDisconnectedOrAbsent(bool? connected)
+    {
+        var source = await SeedPartAsync("ASM-00007");
+        if (connected is { } c)
+            SetAccountingConnection(c);
+
+        await _handler.Handle(
+            new ClonePartCommand(source.Id, Request(copyBom: false, copyRouting: false)), CancellationToken.None);
+
+        _syncQueue.Verify(q => q.EnqueueAsync(
+            It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Clone_StillSucceeds_WhenQueueingTheAccountingItemFails()
+    {
+        var source = await SeedPartAsync("ASM-00007");
+        SetAccountingConnection(connected: true);
+        _syncQueue.Setup(q => q.EnqueueAsync(
+                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("queue unavailable"));
+
+        var result = await _handler.Handle(
+            new ClonePartCommand(source.Id, Request(copyBom: false, copyRouting: false)), CancellationToken.None);
+
+        (await _db.Parts.AnyAsync(p => p.Id == result.Id)).Should().BeTrue();
     }
 }

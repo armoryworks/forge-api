@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +17,9 @@ namespace Forge.Api.Features.Parts;
 /// <summary>
 /// Duplicates a part as a new Draft part, carrying its descriptive and engineering fields and,
 /// on request, its BOM, routing (operations plus their material links) and vendor sources.
-/// Inventory, revisions, prices, accounting links, attachments and alternates are never copied.
+/// Inventory, revisions, prices, accounting links, attachments, alternates, piece rates and SPC
+/// characteristics are never copied. On a connected accounting install the new part is queued
+/// for item creation, as a newly created part is.
 /// </summary>
 public record ClonePartCommand(int SourcePartId, ClonePartRequestModel Data) : IRequest<PartDetailResponseModel>;
 
@@ -37,7 +41,10 @@ public class ClonePartHandler(
     IBarcodeService barcodeService,
     IBusinessIdentifierService identifiers,
     IBomRevisionService bomRevisions,
-    ISender sender) : IRequestHandler<ClonePartCommand, PartDetailResponseModel>
+    ISyncQueueRepository syncQueue,
+    IAccountingProviderFactory providerFactory,
+    ISender sender,
+    ILogger<ClonePartHandler> logger) : IRequestHandler<ClonePartCommand, PartDetailResponseModel>
 {
     private const string AllowManualPartNumbersKey = "parts.allow_manual_numbers";
 
@@ -84,6 +91,8 @@ public class ClonePartHandler(
         await sender.Send(new RecalculatePartStandardCostCommand(part.Id), cancellationToken);
 
         await tx.CommitAsync(cancellationToken);
+
+        await EnqueueAccountingItemAsync(part, cancellationToken);
 
         return (await repo.GetDetailAsync(part.Id, cancellationToken))!;
     }
@@ -281,6 +290,30 @@ public class ClonePartHandler(
             throw new InvalidOperationException($"Part number '{supplied}' is already in use.");
 
         return supplied;
+    }
+
+    private async Task EnqueueAccountingItemAsync(Part part, CancellationToken ct)
+    {
+        try
+        {
+            var accountingService = await providerFactory.GetActiveProviderAsync(ct);
+            if (accountingService is null)
+                return;
+
+            var syncStatus = await accountingService.GetSyncStatusAsync(ct);
+            if (!syncStatus.Connected)
+                return;
+
+            var item = new AccountingItem(
+                null, part.PartNumber, part.Name,
+                "NonInventory", null, null, part.PartNumber, true);
+            await syncQueue.EnqueueAsync("Part", part.Id, "CreateItem", JsonSerializer.Serialize(item), ct);
+            logger.LogInformation("Enqueued CreateItem sync for Part {PartId}", part.Id);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to enqueue item sync for Part {PartId} — continuing", part.Id);
+        }
     }
 
     private async Task<bool> ManualPartNumbersAllowedAsync(CancellationToken ct)
