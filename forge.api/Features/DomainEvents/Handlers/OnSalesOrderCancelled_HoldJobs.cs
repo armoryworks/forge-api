@@ -40,10 +40,26 @@ public class OnSalesOrderCancelled_HoldJobs(
             .AsNoTracking()
             .Where(j => j.SalesOrderLineId.HasValue && openLineIds.Contains(j.SalesOrderLineId.Value)
                         && !j.IsArchived && j.CompletedDate == null && j.Disposition == null)
-            .Select(j => new { j.Id, j.JobNumber, j.TrackTypeId })
+            .Select(j => new OpenJob(j.Id, j.JobNumber, j.TrackTypeId))
             .ToListAsync(ct);
 
         if (jobs.Count == 0) return;
+
+        var seen = jobs.Select(j => j.Id).ToHashSet();
+        var parentIds = seen.ToList();
+        while (parentIds.Count > 0)
+        {
+            var children = await db.Jobs
+                .AsNoTracking()
+                .Where(j => j.ParentJobId.HasValue && parentIds.Contains(j.ParentJobId.Value)
+                            && !j.IsArchived && j.CompletedDate == null && j.Disposition == null)
+                .Select(j => new OpenJob(j.Id, j.JobNumber, j.TrackTypeId))
+                .ToListAsync(ct);
+
+            var unseen = children.Where(c => seen.Add(c.Id)).ToList();
+            jobs.AddRange(unseen);
+            parentIds = unseen.Select(c => c.Id).ToList();
+        }
 
         var jobIds = jobs.Select(j => j.Id).ToList();
         var alreadyHeld = (await db.StatusEntries
@@ -54,12 +70,22 @@ public class OnSalesOrderCancelled_HoldJobs(
             .ToHashSet();
 
         var reason = $"Sales order {so.OrderNumber} cancelled";
-        var held = jobs.Where(j => !alreadyHeld.Contains(j.Id)).ToList();
+        var held = new List<OpenJob>();
 
-        foreach (var job in held)
+        foreach (var job in jobs.Where(j => !alreadyHeld.Contains(j.Id)))
         {
-            await mediator.Send(new AddHoldCommand(JobEntityType, job.Id,
-                new AddHoldRequestModel(HoldStatusCode, reason)), ct);
+            try
+            {
+                await mediator.Send(new AddHoldCommand(JobEntityType, job.Id,
+                    new AddHoldRequestModel(HoldStatusCode, reason)), ct);
+                held.Add(job);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                db.ChangeTracker.Clear();
+                logger.LogWarning(ex, "Could not hold job {JobNumber} for cancelled SO {OrderNumber}",
+                    job.JobNumber, so.OrderNumber);
+            }
         }
 
         if (held.Count == 0) return;
@@ -115,4 +141,6 @@ public class OnSalesOrderCancelled_HoldJobs(
 
         logger.LogInformation("Placed {Count} job(s) on hold for cancelled SO {OrderNumber}", held.Count, so.OrderNumber);
     }
+
+    private sealed record OpenJob(int Id, string JobNumber, int TrackTypeId);
 }

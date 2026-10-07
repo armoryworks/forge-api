@@ -171,6 +171,51 @@ public class CancelSalesOrderHoldJobsTests
     }
 
     [Fact]
+    public async Task Child_jobs_of_an_open_job_are_held_too()
+    {
+        await SeedAsync();
+        _db.Jobs.AddRange(
+            new Job { Id = 6, JobNumber = "J-6", Title = "Bracket sub", TrackTypeId = 8, CurrentStageId = 80, ParentJobId = 1 },
+            new Job { Id = 7, JobNumber = "J-7", Title = "Bracket sub-sub", TrackTypeId = 8, CurrentStageId = 80, ParentJobId = 6 },
+            new Job
+            {
+                Id = 8, JobNumber = "J-8", Title = "Done sub", TrackTypeId = 8, CurrentStageId = 89, ParentJobId = 1,
+                CompletedDate = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero),
+            },
+            new Job { Id = 9, JobNumber = "J-9", Title = "Pin sub", TrackTypeId = 8, CurrentStageId = 80, ParentJobId = 4 });
+        await _db.SaveChangesAsync();
+
+        await Handler().Handle(new SalesOrderCancelledEvent(501), CancellationToken.None);
+
+        (await ActiveJobHoldsAsync()).Select(h => h.EntityId).Should().BeEquivalentTo([1, 2, 6, 7]);
+        _boardGroups.Should().Contain(["board:8", "job:6", "job:7"]);
+    }
+
+    [Fact]
+    public async Task A_failed_hold_does_not_stop_the_rest_or_the_notification()
+    {
+        await SeedAsync();
+        var addHold = new AddHoldHandler(
+            _db,
+            new StatusEntryRepository(_db),
+            new ActivityLogRepository(_db),
+            Mock.Of<IWorkCenterContext>(),
+            Mock.Of<IHttpContextAccessor>());
+        _mediator.Setup(m => m.Send(It.IsAny<AddHoldCommand>(), It.IsAny<CancellationToken>()))
+            .Returns<AddHoldCommand, CancellationToken>((cmd, ct) => cmd.EntityId == 1
+                ? throw new InvalidOperationException("Job already has an active hold")
+                : addHold.Handle(cmd, ct));
+
+        await Handler().Handle(new SalesOrderCancelledEvent(501), CancellationToken.None);
+
+        (await ActiveJobHoldsAsync()).Select(h => h.EntityId).Should().BeEquivalentTo([2]);
+        var notification = await _db.Notifications.SingleAsync();
+        notification.Message.Should().Contain("1 open job(s)").And.Contain("J-2").And.NotContain("J-1");
+        (await _db.ActivityLogs.SingleAsync(l => l.EntityType == "SalesOrder" && l.Action == "jobs-held"))
+            .Description.Should().StartWith("1 open job(s)");
+    }
+
+    [Fact]
     public async Task Cancel_handler_publishes_the_cancelled_event_after_saving()
     {
         var repo = new Mock<ISalesOrderRepository>();
