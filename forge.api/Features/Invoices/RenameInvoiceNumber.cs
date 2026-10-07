@@ -43,7 +43,8 @@ public class RenameInvoiceNumberHandler(
             throw new InvalidOperationException("An invoice's number can only be changed while it is Draft.");
 
         if (!await ManualInvoiceNumbersAllowedAsync(cancellationToken))
-            throw new InvalidOperationException("Manual invoice numbers are disabled.");
+            throw new InvalidOperationException(
+                "Manual invoice numbers are turned off. Turn them on in the Numbering settings to change an invoice number.");
 
         if (await repo.InvoiceNumberExistsAsync(newNumber, invoice.Id, cancellationToken))
             throw new InvalidOperationException($"Invoice number '{newNumber}' is already in use.");

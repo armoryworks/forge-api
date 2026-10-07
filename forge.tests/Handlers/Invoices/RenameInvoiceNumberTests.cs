@@ -76,7 +76,7 @@ public class RenameInvoiceNumberTests
 
         var act = () => _handler.Handle(new RenameInvoiceNumberCommand(1, "ACME-9"), CancellationToken.None);
 
-        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("disabled");
+        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("Numbering settings").And.NotContain("allow_manual_numbers");
         invoice.InvoiceNumber.Should().Be("INV-00001");
     }
 
