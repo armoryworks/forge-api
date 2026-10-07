@@ -21,7 +21,7 @@ public sealed class ReleasePlannedOrderTests(PostgresFixture fixture)
 {
     private const int NumberColumnLength = 20;
 
-    private static ReleasePlannedOrderHandler Handler(AppDbContext db)
+    private static ReleasePlannedOrderHandler Handler(AppDbContext db, IBusinessIdentifierService? identifiers = null)
     {
         var clock = new SystemClock();
         return new ReleasePlannedOrderHandler(
@@ -29,7 +29,7 @@ public sealed class ReleasePlannedOrderTests(PostgresFixture fixture)
             Mock.Of<IBarcodeService>(),
             new PurchaseOrderRepository(db),
             new JobRepository(db, clock),
-            new BusinessIdentifierService(db, clock),
+            identifiers ?? new BusinessIdentifierService(db, clock),
             new VendorCostResolver(db),
             Mock.Of<ICurrencyService>(c => c.GetBaseCurrencyAsync(It.IsAny<CancellationToken>()) == Task.FromResult("USD")));
     }
@@ -302,5 +302,35 @@ public sealed class ReleasePlannedOrderTests(PostgresFixture fixture)
             (await db.MrpSupplies.SingleAsync(s => s.MrpRunId == secondRun.Id && s.Source == MrpSupplySource.Job))
                 .SourceEntityId.Should().Be(result.CreatedJobId);
         }
+    }
+
+    [Fact]
+    public async Task ReleasePurchase_ThatFailsPartWay_LeavesNoPurchaseOrder_AndTheOrderStillPlanned()
+    {
+        int plannedOrderId;
+        int vendorId;
+        await using (var seed = fixture.CreateContext())
+        {
+            var (vendor, part) = await SeedBoughtPartAsync(seed);
+            vendorId = vendor.Id;
+            plannedOrderId = (await SeedPlannedPurchaseAsync(seed, part.Id, 4)).Id;
+        }
+
+        var failingIdentifiers = new Mock<IBusinessIdentifierService>();
+        failingIdentifiers
+            .Setup(i => i.IssueAsync(It.IsAny<BusinessEntityType>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("identifier registry unavailable"));
+
+        await using (var db = fixture.CreateContext())
+        {
+            var release = () => Handler(db, failingIdentifiers.Object)
+                .Handle(new ReleasePlannedOrderCommand(plannedOrderId), CancellationToken.None);
+            await release.Should().ThrowAsync<InvalidOperationException>();
+        }
+
+        await using var verify = fixture.CreateContext();
+        (await verify.PurchaseOrders.AnyAsync(p => p.VendorId == vendorId)).Should().BeFalse();
+        (await verify.MrpPlannedOrders.SingleAsync(o => o.Id == plannedOrderId)).Status
+            .Should().Be(MrpPlannedOrderStatus.Planned);
     }
 }

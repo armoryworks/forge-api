@@ -39,6 +39,8 @@ public class ReleasePlannedOrderHandler(
         int? createdPoId = null;
         int? createdJobId = null;
 
+        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+
         if (order.OrderType == MrpOrderType.Purchase)
         {
             var vendorId = order.Part?.PreferredVendorId;
@@ -141,6 +143,7 @@ public class ReleasePlannedOrderHandler(
 
         order.Status = MrpPlannedOrderStatus.Released;
         await db.SaveChangesAsync(cancellationToken);
+        await tx.CommitAsync(cancellationToken);
 
         return new ReleasePlannedOrderResult(order.Id, order.OrderType.ToString(), createdPoId, createdJobId);
     }
