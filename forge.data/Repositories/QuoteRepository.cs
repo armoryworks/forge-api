@@ -55,20 +55,14 @@ public class QuoteRepository(AppDbContext db) : IQuoteRepository
             .FirstOrDefaultAsync(q => q.Id == id && q.Type == QuoteType.Quote, ct);
     }
 
-    public async Task<string> GenerateNextQuoteNumberAsync(CancellationToken ct)
-    {
-        var last = await db.Quotes
-            .IgnoreQueryFilters()
-            .Where(q => q.Type == QuoteType.Quote && q.QuoteNumber != null)
-            .OrderByDescending(q => q.Id)
-            .Select(q => q.QuoteNumber)
-            .FirstOrDefaultAsync(ct);
-
-        if (last != null && last.StartsWith("QT-") && int.TryParse(last[3..], out var lastNum))
-            return $"QT-{lastNum + 1:D5}";
-
-        return "QT-00001";
-    }
+    public Task<string> GenerateNextQuoteNumberAsync(CancellationToken ct)
+        => DocumentNumberSequence.NextAsync(
+            db.Quotes
+                .IgnoreQueryFilters()
+                .Where(q => q.Type == QuoteType.Quote && q.QuoteNumber != null)
+                .Select(q => q.QuoteNumber!),
+            "QT",
+            ct);
 
     public Task<bool> QuoteNumberExistsAsync(string number, int? excludeId, CancellationToken ct)
     {

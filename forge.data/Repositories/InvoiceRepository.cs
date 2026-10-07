@@ -122,19 +122,9 @@ public class InvoiceRepository(AppDbContext db) : IInvoiceRepository
             .FirstOrDefaultAsync(i => i.Id == id, ct);
     }
 
-    public async Task<string> GenerateNextInvoiceNumberAsync(CancellationToken ct)
-    {
-        var last = await db.Invoices
-            .IgnoreQueryFilters()
-            .OrderByDescending(i => i.Id)
-            .Select(i => i.InvoiceNumber)
-            .FirstOrDefaultAsync(ct);
-
-        if (last != null && last.StartsWith("INV-") && int.TryParse(last[4..], out var lastNum))
-            return $"INV-{lastNum + 1:D5}";
-
-        return "INV-00001";
-    }
+    public Task<string> GenerateNextInvoiceNumberAsync(CancellationToken ct)
+        => DocumentNumberSequence.NextAsync(
+            db.Invoices.IgnoreQueryFilters().Select(i => i.InvoiceNumber), "INV", ct);
 
     public Task<bool> InvoiceNumberExistsAsync(string number, int? excludeId, CancellationToken ct)
     {

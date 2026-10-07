@@ -79,22 +79,9 @@ public class SalesOrderRepository(AppDbContext db) : ISalesOrderRepository
     /// <c>SO-</c> number, fail the prefix match, and restart the SO series at
     /// 00001 — colliding with the unique index on the very next insert.</para>
     /// </summary>
-    public async Task<string> GenerateNextOrderNumberAsync(string prefix, CancellationToken ct)
-    {
-        var token = $"{prefix}-";
-
-        var last = await db.SalesOrders
-            .IgnoreQueryFilters()
-            .Where(so => so.OrderNumber.StartsWith(token))
-            .OrderByDescending(so => so.Id)
-            .Select(so => so.OrderNumber)
-            .FirstOrDefaultAsync(ct);
-
-        if (last != null && int.TryParse(last[token.Length..], out var lastNum))
-            return $"{token}{lastNum + 1:D5}";
-
-        return $"{token}00001";
-    }
+    public Task<string> GenerateNextOrderNumberAsync(string prefix, CancellationToken ct)
+        => DocumentNumberSequence.NextAsync(
+            db.SalesOrders.IgnoreQueryFilters().Select(so => so.OrderNumber), prefix, ct);
 
     private const string DefaultOrderNumberPrefix = "SO";
 
