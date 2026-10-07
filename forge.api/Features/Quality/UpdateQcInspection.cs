@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.DomainEvents;
 using Forge.Core.Entities;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -29,7 +30,7 @@ public class UpdateQcInspectionCommandValidator : AbstractValidator<UpdateQcInsp
     }
 }
 
-public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHttpContextAccessor httpContext)
+public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHttpContextAccessor httpContext, IClock clock)
     : IRequestHandler<UpdateQcInspectionCommand, QcInspectionResponseModel>
 {
     public async Task<QcInspectionResponseModel> Handle(
@@ -42,11 +43,11 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
 
         var data = request.Data;
 
-        if (data.Status is not null)
+        if (data.Status is not null && data.Status != inspection.Status)
         {
             inspection.Status = data.Status;
             if (data.Status is "Passed" or "Failed")
-                inspection.CompletedAt = DateTimeOffset.UtcNow;
+                inspection.CompletedAt = clock.UtcNow;
         }
 
         if (data.Notes is not null)
