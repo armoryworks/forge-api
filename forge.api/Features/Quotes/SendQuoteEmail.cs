@@ -7,8 +7,6 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-using QuestPDF.Fluent;
-
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -22,7 +20,8 @@ namespace Forge.Api.Features.Quotes;
 /// <summary>
 /// S3 — send the quote to a recipient by email: compiles the quote's dynamic
 /// T&amp;C, persists an immutable <see cref="QuoteTermsSnapshot"/> (backing the
-/// anonymous "view full terms" link), enqueues the email (PDF attached) on the
+/// anonymous "view full terms" link), enqueues the email (PDF from
+/// <see cref="GetQuotePdfQuery"/>, identical to the download) on the
 /// integration outbox with an idempotent operation key, then flips the quote
 /// to Sent via <see cref="SendQuoteCommand"/> so one UI call does both.
 /// Separate from <see cref="SendQuoteCommand"/>, which remains the plain
@@ -57,6 +56,9 @@ public class SendQuoteEmailHandler(
     IClock clock,
     IMediator mediator) : IRequestHandler<SendQuoteEmailCommand>
 {
+    public const string MissingCompanyNameMessage =
+        "Set your company name in Admin > Company before sending documents to customers.";
+
     public async Task Handle(SendQuoteEmailCommand request, CancellationToken ct)
     {
         var quote = await db.Quotes
@@ -69,8 +71,8 @@ public class SendQuoteEmailHandler(
         if (quote.Status != QuoteStatus.Draft && quote.Status != QuoteStatus.Sent)
             throw new InvalidOperationException("Only Draft or Sent quotes can be emailed");
 
-        var companySetting = await settings.FindByKeyAsync("company_name", ct);
-        var companyName = companySetting?.Value ?? "QB Engineer";
+        var companyName = await GetQuotePdfHandler.ReadCompanyNameAsync(settings, ct)
+            ?? throw new InvalidOperationException(MissingCompanyNameMessage);
 
         // ── Compile terms + immutable snapshot ────────────────────────────
         var partIds = quote.Lines
@@ -79,6 +81,7 @@ public class SendQuoteEmailHandler(
             .Distinct()
             .ToList();
         var compiled = await compiler.CompileForQuoteAsync(quote.CustomerId, partIds, ct);
+        var pdfBytes = await mediator.Send(new GetQuotePdfQuery(quote.Id), ct);
 
         var accessToken = GenerateAccessToken();
         db.QuoteTermsSnapshots.Add(new QuoteTermsSnapshot
@@ -106,7 +109,6 @@ public class SendQuoteEmailHandler(
 
         // ── Email (PDF attached) via the idempotent outbox ────────────────
         var quoteNumber = quote.QuoteNumber ?? quote.Id.ToString();
-        var pdfBytes = new QuotePdfDocument(quote, companyName, compiled.Sections).GeneratePdf();
         var termsUrl = $"{request.PublicBaseUrl.TrimEnd('/')}/api/v1/public/terms/{accessToken}";
 
         var message = new EmailMessage(

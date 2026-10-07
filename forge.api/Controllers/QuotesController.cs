@@ -115,6 +115,13 @@ public class QuotesController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("{id:int}/pdf")]
+    public async Task<IActionResult> GetQuotePdf(int id)
+    {
+        var pdf = await mediator.Send(new GetQuotePdfQuery(id));
+        return File(pdf, "application/pdf", $"quote-{id}.pdf");
+    }
+
     [HttpPost("{id:int}/accept")]
     public async Task<IActionResult> AcceptQuote(int id)
     {

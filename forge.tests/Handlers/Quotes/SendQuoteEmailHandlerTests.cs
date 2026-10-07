@@ -25,19 +25,22 @@ public class SendQuoteEmailHandlerTests
     private readonly Mock<IMediator> _mediator = new();
     private readonly IClock _clock = new SystemClock();
     private readonly SendQuoteEmailHandler _handler;
+    private static readonly byte[] QuotePdfBytes = [0x25, 0x50, 0x44, 0x46];
 
     public SendQuoteEmailHandlerTests()
     {
         QuestPDF.Settings.License = LicenseType.Community;
 
-        _settings.Setup(s => s.FindByKeyAsync("company_name", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SystemSetting?)null);
+        _settings.Setup(s => s.FindByKeyAsync("company.name", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SystemSetting { Key = "company.name", Value = "Northwind Fabrication" });
         _outbox.Setup(o => o.EnqueueEmailAsync(
                 It.IsAny<string>(), It.IsAny<EmailMessage>(), It.IsAny<string?>(),
                 It.IsAny<int?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new IntegrationOutboxEntry());
         _mediator.Setup(m => m.Send(It.IsAny<SendQuoteCommand>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
+        _mediator.Setup(m => m.Send(It.IsAny<GetQuotePdfQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(QuotePdfBytes);
 
         _handler = new SendQuoteEmailHandler(
             _db, _settings.Object, _outbox.Object,
@@ -89,7 +92,9 @@ public class SendQuoteEmailHandlerTests
                 && m.HtmlBody.Contains("https://forge.example.com/api/v1/public/terms/")
                 && m.HtmlBody.Contains("Thanks!")
                 && m.HtmlBody.Contains("Standard Terms")
-                && m.Attachments != null && m.Attachments.Count == 1),
+                && m.Subject == "Quote Q-1001 from Northwind Fabrication"
+                && m.Attachments != null && m.Attachments.Count == 1
+                && m.Attachments[0].Content == QuotePdfBytes),
             "Quote",
             quote.Id,
             It.IsAny<CancellationToken>()), Times.Once);
@@ -143,6 +148,24 @@ public class SendQuoteEmailHandlerTests
 
         await act.Should().ThrowAsync<InvalidOperationException>();
         _outbox.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task Handle_MissingCompanyName_Throws_WithoutSnapshotOrEmail()
+    {
+        _settings.Setup(s => s.FindByKeyAsync("company.name", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SystemSetting { Key = "company.name", Value = "" });
+        var quote = await SeedQuoteAsync(QuoteStatus.Draft);
+
+        var act = () => _handler.Handle(
+            new SendQuoteEmailCommand(quote.Id, "buyer@acme.test", null, "https://forge.example.com"),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage(SendQuoteEmailHandler.MissingCompanyNameMessage);
+        _db.QuoteTermsSnapshots.Should().BeEmpty();
+        _outbox.VerifyNoOtherCalls();
+        _mediator.VerifyNoOtherCalls();
     }
 
     [Fact]

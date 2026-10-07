@@ -17,10 +17,10 @@ namespace Forge.Api.Features.Quotes;
 public class QuotePdfDocument : IDocument
 {
     private readonly Quote _quote;
-    private readonly string _companyName;
+    private readonly string? _companyName;
     private readonly IReadOnlyList<CompiledTermsSection> _termsSections;
 
-    public QuotePdfDocument(Quote quote, string companyName, IReadOnlyList<CompiledTermsSection> termsSections)
+    public QuotePdfDocument(Quote quote, string? companyName, IReadOnlyList<CompiledTermsSection> termsSections)
     {
         _quote = quote;
         _companyName = companyName;
@@ -50,7 +50,8 @@ public class QuotePdfDocument : IDocument
             {
                 row.RelativeItem().Column(left =>
                 {
-                    left.Item().Text(_companyName).Bold().FontSize(18);
+                    if (!string.IsNullOrWhiteSpace(_companyName))
+                        left.Item().Text(_companyName).Bold().FontSize(18);
                 });
 
                 row.RelativeItem().AlignRight().Column(right =>
