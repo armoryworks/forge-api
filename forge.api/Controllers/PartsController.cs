@@ -77,6 +77,14 @@ public class PartsController(IMediator mediator) : ControllerBase
         return Created($"/api/v1/parts/{result.Id}", result);
     }
 
+    /// <summary>Duplicates a part as a new Draft part, optionally with its BOM, routing and vendor sources.</summary>
+    [HttpPost("{id:int}/clone")]
+    public async Task<ActionResult<PartDetailResponseModel>> ClonePart(int id, [FromBody] ClonePartRequestModel request, CancellationToken ct)
+    {
+        var result = await mediator.Send(new ClonePartCommand(id, request), ct);
+        return Created($"/api/v1/parts/{result.Id}", result);
+    }
+
     [HttpPatch("{id:int}")]
     public async Task<ActionResult<PartDetailResponseModel>> UpdatePart(int id, [FromBody] UpdatePartRequestModel request)
     {
