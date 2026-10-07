@@ -10,6 +10,8 @@ namespace Forge.Tests.Compliance;
 
 public class NonEmployeeExclusionTests
 {
+    private static readonly StubCapabilitySnapshotProvider HrOn = new("CAP-HR-HIRE");
+
     private static ApplicationUser SeedUser(AppDbContext db, int id, bool nonEmployee)
     {
         var user = new ApplicationUser
@@ -32,7 +34,7 @@ public class NonEmployeeExclusionTests
         SeedUser(db, 1, nonEmployee: true);
         await db.SaveChangesAsync();
 
-        var act = async () => await AssigneeComplianceCheck.EnsureCanBeAssigned(db, 1, default);
+        var act = async () => await AssigneeComplianceCheck.EnsureCanBeAssigned(db, HrOn, 1, default);
 
         await act.Should().NotThrowAsync();
     }
@@ -44,7 +46,7 @@ public class NonEmployeeExclusionTests
         SeedUser(db, 2, nonEmployee: false);
         await db.SaveChangesAsync();
 
-        var act = async () => await AssigneeComplianceCheck.EnsureCanBeAssigned(db, 2, default);
+        var act = async () => await AssigneeComplianceCheck.EnsureCanBeAssigned(db, HrOn, 2, default);
 
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
@@ -56,7 +58,7 @@ public class NonEmployeeExclusionTests
         SeedUser(db, 3, nonEmployee: true);
         await db.SaveChangesAsync();
 
-        var status = await new GetOnboardingStatusHandler(db)
+        var status = await new GetOnboardingStatusHandler(db, HrOn)
             .Handle(new GetOnboardingStatusQuery(3), default);
 
         status.AllComplete.Should().BeTrue();
@@ -75,14 +77,14 @@ public class NonEmployeeExclusionTests
         });
         await db.SaveChangesAsync();
 
-        var suppressed = await new GetOnboardingStatusHandler(db)
+        var suppressed = await new GetOnboardingStatusHandler(db, HrOn)
             .Handle(new GetOnboardingStatusQuery(4), default);
         suppressed.AllComplete.Should().BeTrue();
 
         user.IsNonEmployee = false;
         await db.SaveChangesAsync();
 
-        var restored = await new GetOnboardingStatusHandler(db)
+        var restored = await new GetOnboardingStatusHandler(db, HrOn)
             .Handle(new GetOnboardingStatusQuery(4), default);
 
         restored.W4Complete.Should().BeTrue();

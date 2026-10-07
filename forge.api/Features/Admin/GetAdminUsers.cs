@@ -1,10 +1,10 @@
-using System.Text.Json;
-
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Features.ComplianceForms;
+using Forge.Api.Features.EmployeeProfile;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -13,7 +13,10 @@ namespace Forge.Api.Features.Admin;
 
 public record GetAdminUsersQuery : IRequest<List<AdminUserResponseModel>>;
 
-public class GetAdminUsersHandler(AppDbContext db, UserManager<ApplicationUser> userManager)
+public class GetAdminUsersHandler(
+    AppDbContext db,
+    UserManager<ApplicationUser> userManager,
+    ICapabilitySnapshotProvider capabilities)
     : IRequestHandler<GetAdminUsersQuery, List<AdminUserResponseModel>>
 {
     public async Task<List<AdminUserResponseModel>> Handle(GetAdminUsersQuery request, CancellationToken cancellationToken)
@@ -59,11 +62,13 @@ public class GetAdminUsersHandler(AppDbContext db, UserManager<ApplicationUser> 
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Key == "company_state", cancellationToken);
 
-        // Pre-load all state withholding reference data for batch lookup
-        var stateRefs = await db.ReferenceData
+        var stateLabels = await db.ReferenceData
             .AsNoTracking()
             .Where(r => r.GroupCode == "state_withholding")
-            .ToDictionaryAsync(r => r.Code, cancellationToken);
+            .ToDictionaryAsync(r => r.Code, r => r.Label, cancellationToken);
+
+        var hrOn = EmployeeComplianceRules.IsHrTrackingOn(capabilities);
+        var resolveStateCategory = await EmployeeComplianceRules.LoadStateCategoryResolverAsync(db, cancellationToken);
 
         var result = new List<AdminUserResponseModel>();
         foreach (var user in users)
@@ -81,52 +86,29 @@ public class GetAdminUsersHandler(AppDbContext db, UserManager<ApplicationUser> 
                 ?? defaultLocation?.State
                 ?? companyStateSetting?.Value;
 
-            var isNoTaxState = false;
-            string stateLabel = "State Tax Withholding";
-            if (!string.IsNullOrWhiteSpace(stateCode) && stateRefs.TryGetValue(stateCode, out var stateRef))
-            {
-                stateLabel = $"State Tax Withholding ({stateRef.Label})";
-                if (!string.IsNullOrWhiteSpace(stateRef.Metadata))
-                {
-                    try
-                    {
-                        using var doc = JsonDocument.Parse(stateRef.Metadata);
-                        if (doc.RootElement.TryGetProperty("category", out var cat) && cat.GetString() == "no_tax")
-                            isNoTaxState = true;
-                    }
-                    catch (JsonException) { }
-                }
-            }
+            var stateCategory = resolveStateCategory(user.WorkLocation?.State);
+            var stateLabel = !string.IsNullOrWhiteSpace(stateCode) && stateLabels.TryGetValue(stateCode, out var stateName)
+                ? $"State Tax Withholding ({stateName})"
+                : "State Tax Withholding";
 
             // Compute compliance items (mirrors GetProfileCompleteness logic)
-            var complianceItems = new (string Key, string Label, bool IsComplete, bool BlocksAssignment)[]
+            var complianceItems = new (string Key, string Label, bool IsComplete)[]
             {
-                ("w4", "W-4 Federal Tax Withholding", profile?.W4CompletedAt is not null, true),
-                ("i9", "I-9 Employment Eligibility", profile?.I9CompletedAt is not null, true),
+                ("w4", "W-4 Federal Tax Withholding", profile?.W4CompletedAt is not null),
+                ("i9", "I-9 Employment Eligibility", profile?.I9CompletedAt is not null),
                 ("state_withholding", stateLabel,
-                    isNoTaxState || profile?.StateWithholdingCompletedAt is not null,
-                    !isNoTaxState),
-                ("emergency_contact", "Emergency Contact",
-                    profile is not null &&
-                    !string.IsNullOrWhiteSpace(profile.EmergencyContactName) &&
-                    !string.IsNullOrWhiteSpace(profile.EmergencyContactPhone), true),
-                ("address", "Home Address",
-                    profile is not null &&
-                    !string.IsNullOrWhiteSpace(profile.Street1) &&
-                    !string.IsNullOrWhiteSpace(profile.City) &&
-                    !string.IsNullOrWhiteSpace(profile.State) &&
-                    !string.IsNullOrWhiteSpace(profile.ZipCode), false),
-                ("direct_deposit", "Direct Deposit", profile?.DirectDepositCompletedAt is not null, false),
-                ("workers_comp", "Workers' Comp", profile?.WorkersCompAcknowledgedAt is not null, false),
-                ("handbook", "Employee Handbook", profile?.HandbookAcknowledgedAt is not null, false),
+                    EmployeeComplianceRules.IsStateWithholdingSatisfied(profile, stateCategory)),
+                ("emergency_contact", "Emergency Contact", EmployeeComplianceRules.HasEmergencyContact(profile)),
+                ("address", "Home Address", EmployeeComplianceRules.HasHomeAddress(profile)),
+                ("direct_deposit", "Direct Deposit", profile?.DirectDepositCompletedAt is not null),
+                ("workers_comp", "Workers' Comp", profile?.WorkersCompAcknowledgedAt is not null),
+                ("handbook", "Employee Handbook", profile?.HandbookAcknowledgedAt is not null),
             };
 
-            // Bypass flag — mirrors GetProfileCompleteness short-circuit. Treat profile as complete
-            // when an admin explicitly skipped onboarding (employee completed off-platform).
-            var isBypassed = profile?.OnboardingBypassedAt is not null;
-            var completedCount = isBypassed ? complianceItems.Length : complianceItems.Count(i => i.IsComplete);
-            var canBeAssigned = isBypassed || complianceItems.Where(i => i.BlocksAssignment).All(i => i.IsComplete);
-            var missingItems = isBypassed ? Array.Empty<string>() : complianceItems.Where(i => !i.IsComplete).Select(i => i.Label).ToArray();
+            var treatAsComplete = !hrOn || profile?.OnboardingBypassedAt is not null;
+            var completedCount = treatAsComplete ? complianceItems.Length : complianceItems.Count(i => i.IsComplete);
+            var canBeAssigned = EmployeeComplianceRules.CanBeAssignedJobs(profile, stateCategory, hrOn);
+            var missingItems = treatAsComplete ? Array.Empty<string>() : complianceItems.Where(i => !i.IsComplete).Select(i => i.Label).ToArray();
 
             i9Submissions.TryGetValue(user.Id, out var i9Submission);
             var i9Status = I9StatusComputer.Compute(i9Submission);

@@ -55,7 +55,8 @@ public class LoginHandlerTests
             _auditWriterMock.Object,
             _roleClaimsExpanderMock.Object,
             _mfaPreAuthMock.Object,
-            new Mock<IMfaTrustedDeviceTokenService>().Object);
+            new Mock<IMfaTrustedDeviceTokenService>().Object,
+            new StubCapabilitySnapshotProvider("CAP-HR-HIRE"));
     }
 
     [Fact]

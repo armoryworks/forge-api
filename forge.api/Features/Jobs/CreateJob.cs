@@ -4,6 +4,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Capabilities;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
@@ -61,7 +62,8 @@ public class CreateJobHandler(
     Forge.Api.Features.SalesOrders.Acceptance.ISalesOrderAcceptanceGate acceptanceGate,
     ICloudFolderAutoCreator folderAutoCreator,
     ISystemSettingRepository systemSettings,
-    IBusinessIdentifierService identifiers) : IRequestHandler<CreateJobCommand, JobDetailResponseModel>
+    IBusinessIdentifierService identifiers,
+    ICapabilitySnapshotProvider capabilities) : IRequestHandler<CreateJobCommand, JobDetailResponseModel>
 {
     // System setting that gates caller-supplied job numbers. Stored as "true"/"false".
     private const string AllowManualJobNumbersKey = "jobs.allow_manual_numbers";
@@ -69,7 +71,7 @@ public class CreateJobHandler(
     public async Task<JobDetailResponseModel> Handle(CreateJobCommand request, CancellationToken cancellationToken)
     {
         if (request.AssigneeId.HasValue)
-            await AssigneeComplianceCheck.EnsureCanBeAssigned(db, request.AssigneeId.Value, cancellationToken);
+            await AssigneeComplianceCheck.EnsureCanBeAssigned(db, capabilities, request.AssigneeId.Value, cancellationToken);
 
         // #27: validate the optional SO-line association before creating the job.
         if (request.SalesOrderLineId is int soLineId)

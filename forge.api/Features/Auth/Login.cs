@@ -5,6 +5,8 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Capabilities;
+using Forge.Api.Features.EmployeeProfile;
 using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -50,7 +52,8 @@ public class LoginHandler(
     ISystemAuditWriter auditWriter,
     IRoleClaimsExpander roleClaimsExpander,
     IMfaPreAuthTokenService mfaPreAuth,
-    IMfaTrustedDeviceTokenService trustedDeviceTokens)
+    IMfaTrustedDeviceTokenService trustedDeviceTokens,
+    ICapabilitySnapshotProvider capabilities)
     : IRequestHandler<LoginCommand, LoginResponse>
 {
     public async Task<LoginResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -132,7 +135,7 @@ public class LoginHandler(
             httpContext.HttpContext?.Request.Headers.UserAgent.ToString(),
             cancellationToken);
 
-        var profileComplete = await CheckProfileComplete(user.Id, cancellationToken);
+        var profileComplete = await EmployeeComplianceRules.IsProfileCompleteAsync(db, capabilities, user.Id, cancellationToken);
 
         await auditWriter.WriteAsync("UserLoggedIn", user.Id,
             entityType: "ApplicationUser",
@@ -156,29 +159,6 @@ public class LoginHandler(
 
         return new LoginResponse(result.Token, result.ExpiresAt, userResponse);
     }
-
-    private async Task<bool> CheckProfileComplete(int userId, CancellationToken ct)
-    {
-        var profile = await db.EmployeeProfiles
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.UserId == userId, ct);
-
-        if (profile is null) return false;
-        if (profile.OnboardingBypassedAt is not null) return true;
-
-        return !string.IsNullOrWhiteSpace(profile.Street1) &&
-               !string.IsNullOrWhiteSpace(profile.City) &&
-               !string.IsNullOrWhiteSpace(profile.State) &&
-               !string.IsNullOrWhiteSpace(profile.ZipCode) &&
-               !string.IsNullOrWhiteSpace(profile.EmergencyContactName) &&
-               !string.IsNullOrWhiteSpace(profile.EmergencyContactPhone) &&
-               profile.W4CompletedAt is not null &&
-               profile.I9CompletedAt is not null &&
-               profile.StateWithholdingCompletedAt is not null &&
-               profile.DirectDepositCompletedAt is not null &&
-               profile.WorkersCompAcknowledgedAt is not null &&
-               profile.HandbookAcknowledgedAt is not null;
-    }
 }
 
 // --- Get Current User ---
@@ -188,7 +168,8 @@ public record GetCurrentUserQuery(ClaimsPrincipal User) : IRequest<AuthUserRespo
 public class GetCurrentUserHandler(
     UserManager<ApplicationUser> userManager,
     AppDbContext db,
-    IRoleClaimsExpander roleClaimsExpander)
+    IRoleClaimsExpander roleClaimsExpander,
+    ICapabilitySnapshotProvider capabilities)
     : IRequestHandler<GetCurrentUserQuery, AuthUserResponseModel>
 {
     public async Task<AuthUserResponseModel> Handle(GetCurrentUserQuery request, CancellationToken cancellationToken)
@@ -205,24 +186,7 @@ public class GetCurrentUserHandler(
         // WU-06 / C1 — same expansion as login so /auth/me reflects rollups.
         var roles = await roleClaimsExpander.GetEffectiveRolesAsync(user, cancellationToken);
 
-        var profile = await db.EmployeeProfiles
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.UserId == user.Id, cancellationToken);
-
-        var profileComplete = profile is not null && (
-            profile.OnboardingBypassedAt is not null ||
-            (!string.IsNullOrWhiteSpace(profile.Street1) &&
-             !string.IsNullOrWhiteSpace(profile.City) &&
-             !string.IsNullOrWhiteSpace(profile.State) &&
-             !string.IsNullOrWhiteSpace(profile.ZipCode) &&
-             !string.IsNullOrWhiteSpace(profile.EmergencyContactName) &&
-             !string.IsNullOrWhiteSpace(profile.EmergencyContactPhone) &&
-             profile.W4CompletedAt is not null &&
-             profile.I9CompletedAt is not null &&
-             profile.StateWithholdingCompletedAt is not null &&
-             profile.DirectDepositCompletedAt is not null &&
-             profile.WorkersCompAcknowledgedAt is not null &&
-             profile.HandbookAcknowledgedAt is not null));
+        var profileComplete = await EmployeeComplianceRules.IsProfileCompleteAsync(db, capabilities, user.Id, cancellationToken);
 
         return new AuthUserResponseModel(
             user.Id,

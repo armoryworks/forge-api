@@ -43,7 +43,8 @@ public class CreateJobHandlerTests
             new Forge.Api.Features.SalesOrders.Acceptance.SalesOrderAcceptanceGate(_db, StubCapabilitySnapshotProvider.Off),
             new NoOpCloudFolderAutoCreator(),
             Mock.Of<ISystemSettingRepository>(),
-            Mock.Of<IBusinessIdentifierService>());
+            Mock.Of<IBusinessIdentifierService>(),
+            StubCapabilitySnapshotProvider.Off);
     }
 
     /// <summary>Test-only no-op folder auto-creator.</summary>

@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
+using Forge.Api.Capabilities;
 using Forge.Api.Features.Jobs;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
@@ -16,12 +17,13 @@ public class BulkAssignJobHandler(
     IJobRepository jobRepo,
     IActivityLogRepository actRepo,
     IHubContext<BoardHub> boardHub,
-    AppDbContext db) : IRequestHandler<BulkAssignJobCommand, BulkOperationResponseModel>
+    AppDbContext db,
+    ICapabilitySnapshotProvider capabilities) : IRequestHandler<BulkAssignJobCommand, BulkOperationResponseModel>
 {
     public async Task<BulkOperationResponseModel> Handle(BulkAssignJobCommand request, CancellationToken ct)
     {
         if (request.AssigneeId.HasValue)
-            await AssigneeComplianceCheck.EnsureCanBeAssigned(db, request.AssigneeId.Value, ct);
+            await AssigneeComplianceCheck.EnsureCanBeAssigned(db, capabilities, request.AssigneeId.Value, ct);
 
         var jobs = await jobRepo.FindMultipleAsync(request.JobIds, ct);
         var errors = new List<BulkOperationError>();

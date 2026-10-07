@@ -42,7 +42,8 @@ public class UpdateJobNumberTests
             Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>(),
             _settings.Object,
             _identifiers.Object,
-            _db);
+            _db,
+            StubCapabilitySnapshotProvider.Off);
     }
 
     private void AllowManualNumbers(bool allowed) =>

@@ -38,7 +38,8 @@ public class UpdateJobHandlerTests
             Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>(),
             Mock.Of<ISystemSettingRepository>(),
             Mock.Of<IBusinessIdentifierService>(),
-            TestDbContextFactory.Create());
+            TestDbContextFactory.Create(),
+            StubCapabilitySnapshotProvider.Off);
     }
 
     private Job CreateExistingJob(int id = 1)

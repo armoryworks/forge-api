@@ -2,6 +2,8 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Capabilities;
+using Forge.Api.Features.EmployeeProfile;
 using Forge.Api.Services;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -35,7 +37,8 @@ public class UpdateAdminUserValidator : AbstractValidator<UpdateAdminUserCommand
 public class UpdateAdminUserHandler(
     UserManager<ApplicationUser> userManager,
     AppDbContext db,
-    ISystemAuditWriter auditWriter)
+    ISystemAuditWriter auditWriter,
+    ICapabilitySnapshotProvider capabilities)
     : IRequestHandler<UpdateAdminUserCommand, AdminUserResponseModel>
 {
     public async Task<AdminUserResponseModel> Handle(UpdateAdminUserCommand request, CancellationToken cancellationToken)
@@ -153,29 +156,29 @@ public class UpdateAdminUserHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == user.Id, cancellationToken);
 
-        var complianceItems = new (string Label, bool IsComplete, bool BlocksAssignment)[]
+        var hrOn = EmployeeComplianceRules.IsHrTrackingOn(capabilities);
+        var stateCategory = hrOn
+            ? await EmployeeComplianceRules.ResolveStateCategoryAsync(db, user.Id, cancellationToken)
+            : null;
+
+        var complianceItems = new (string Label, bool IsComplete)[]
         {
-            ("W-4 Federal Tax Withholding", profile?.W4CompletedAt is not null, true),
-            ("I-9 Employment Eligibility", profile?.I9CompletedAt is not null, true),
-            ("State Tax Withholding", profile?.StateWithholdingCompletedAt is not null, true),
-            ("Emergency Contact",
-                profile is not null &&
-                !string.IsNullOrWhiteSpace(profile.EmergencyContactName) &&
-                !string.IsNullOrWhiteSpace(profile.EmergencyContactPhone), true),
-            ("Home Address",
-                profile is not null &&
-                !string.IsNullOrWhiteSpace(profile.Street1) &&
-                !string.IsNullOrWhiteSpace(profile.City) &&
-                !string.IsNullOrWhiteSpace(profile.State) &&
-                !string.IsNullOrWhiteSpace(profile.ZipCode), false),
-            ("Direct Deposit", profile?.DirectDepositCompletedAt is not null, false),
-            ("Workers' Comp", profile?.WorkersCompAcknowledgedAt is not null, false),
-            ("Employee Handbook", profile?.HandbookAcknowledgedAt is not null, false),
+            ("W-4 Federal Tax Withholding", profile?.W4CompletedAt is not null),
+            ("I-9 Employment Eligibility", profile?.I9CompletedAt is not null),
+            ("State Tax Withholding", EmployeeComplianceRules.IsStateWithholdingSatisfied(profile, stateCategory)),
+            ("Emergency Contact", EmployeeComplianceRules.HasEmergencyContact(profile)),
+            ("Home Address", EmployeeComplianceRules.HasHomeAddress(profile)),
+            ("Direct Deposit", profile?.DirectDepositCompletedAt is not null),
+            ("Workers' Comp", profile?.WorkersCompAcknowledgedAt is not null),
+            ("Employee Handbook", profile?.HandbookAcknowledgedAt is not null),
         };
 
-        var completedCount = complianceItems.Count(i => i.IsComplete);
-        var canBeAssigned = complianceItems.Where(i => i.BlocksAssignment).All(i => i.IsComplete);
-        var missingItems = complianceItems.Where(i => !i.IsComplete).Select(i => i.Label).ToArray();
+        var treatAsComplete = !hrOn || profile?.OnboardingBypassedAt is not null;
+        var completedCount = treatAsComplete ? complianceItems.Length : complianceItems.Count(i => i.IsComplete);
+        var canBeAssigned = EmployeeComplianceRules.CanBeAssignedJobs(profile, stateCategory, hrOn);
+        var missingItems = treatAsComplete
+            ? Array.Empty<string>()
+            : complianceItems.Where(i => !i.IsComplete).Select(i => i.Label).ToArray();
 
         return new AdminUserResponseModel(
             user.Id,

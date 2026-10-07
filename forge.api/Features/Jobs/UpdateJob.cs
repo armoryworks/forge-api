@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -45,7 +46,8 @@ public class UpdateJobHandler(
     IHttpContextAccessor httpContext,
     ISystemSettingRepository systemSettings,
     IBusinessIdentifierService identifiers,
-    AppDbContext db) : IRequestHandler<UpdateJobCommand, JobDetailResponseModel>
+    AppDbContext db,
+    ICapabilitySnapshotProvider capabilities) : IRequestHandler<UpdateJobCommand, JobDetailResponseModel>
 {
     // System setting that gates caller-supplied job numbers (shared with CreateJob).
     private const string AllowManualJobNumbersKey = "jobs.allow_manual_numbers";
@@ -56,7 +58,7 @@ public class UpdateJobHandler(
             ?? throw new KeyNotFoundException($"Job with ID {request.Id} not found.");
 
         if (request.AssigneeId.HasValue)
-            await AssigneeComplianceCheck.EnsureCanBeAssigned(db, request.AssigneeId.Value, cancellationToken);
+            await AssigneeComplianceCheck.EnsureCanBeAssigned(db, capabilities, request.AssigneeId.Value, cancellationToken);
 
         var userIdClaim = httpContext.HttpContext?.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
         int? currentUserId = userIdClaim is not null ? int.Parse(userIdClaim.Value) : null;

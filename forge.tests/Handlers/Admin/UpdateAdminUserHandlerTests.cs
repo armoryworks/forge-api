@@ -31,7 +31,8 @@ public class UpdateAdminUserHandlerTests
         _userManagerMock.Setup(x => x.HasPasswordAsync(It.IsAny<ApplicationUser>()))
             .ReturnsAsync(true);
 
-        _handler = new UpdateAdminUserHandler(_userManagerMock.Object, _db, _auditWriterMock.Object);
+        _handler = new UpdateAdminUserHandler(
+            _userManagerMock.Object, _db, _auditWriterMock.Object, new StubCapabilitySnapshotProvider("CAP-HR-HIRE"));
     }
 
     private ApplicationUser SeedUser(int id, string email)

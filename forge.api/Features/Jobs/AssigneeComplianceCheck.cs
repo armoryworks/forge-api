@@ -1,13 +1,18 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Capabilities;
+using Forge.Api.Features.EmployeeProfile;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Jobs;
 
 public static class AssigneeComplianceCheck
 {
-    public static async Task EnsureCanBeAssigned(AppDbContext db, int userId, CancellationToken ct)
+    public static async Task EnsureCanBeAssigned(
+        AppDbContext db, ICapabilitySnapshotProvider capabilities, int userId, CancellationToken ct)
     {
+        if (!EmployeeComplianceRules.IsHrTrackingOn(capabilities)) return;
+
         var isNonEmployee = await db.Users
             .AsNoTracking()
             .Where(u => u.Id == userId)
@@ -20,18 +25,9 @@ public static class AssigneeComplianceCheck
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == userId, ct);
 
-        // Allow assignment if the user has bypassed onboarding (e.g., skipped on mobile)
-        var onboardingBypassed = profile?.OnboardingBypassedAt is not null;
+        var stateCategory = await EmployeeComplianceRules.ResolveStateCategoryAsync(db, userId, ct);
 
-        var canBeAssigned = profile is not null &&
-            (onboardingBypassed || (
-                profile.W4CompletedAt is not null &&
-                profile.I9CompletedAt is not null &&
-                profile.StateWithholdingCompletedAt is not null &&
-                !string.IsNullOrWhiteSpace(profile.EmergencyContactName) &&
-                !string.IsNullOrWhiteSpace(profile.EmergencyContactPhone)));
-
-        if (!canBeAssigned)
+        if (!EmployeeComplianceRules.CanBeAssignedJobs(profile, stateCategory, hrOn: true))
         {
             throw new InvalidOperationException(
                 "User cannot be assigned to jobs — required compliance documents are incomplete " +
