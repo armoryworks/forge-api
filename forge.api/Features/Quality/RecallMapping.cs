@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 
-using Forge.Api.Features.Lots;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -23,12 +22,6 @@ internal static class RecallMapping
             .FirstOrDefaultAsync(r => r.Id == recallId, ct)
             ?? throw new KeyNotFoundException($"Recall {recallId} not found.");
 
-        var soLineIds = await InitiateRecallHandler.AffectedSalesOrderLineIdsAsync(
-            db, recall.AffectedLots.Select(al => al.JobId), ct);
-        var approximateShipmentIds = (await LotShipmentResolver.ForUnlottedSalesOrderLinesAsync(db, soLineIds, ct))
-            .Select(r => r.ShipmentId)
-            .ToHashSet();
-
         return new RecallDetailResponseModel(
             recall.Id,
             recall.InitiatedLotId,
@@ -49,8 +42,7 @@ internal static class RecallMapping
             recall.AffectedShipments
                 .Select(s => new RecallAffectedShipmentModel(
                     s.ShipmentId, s.Shipment.ShipmentNumber, s.CustomerId, s.Customer.Name,
-                    s.AffectedQuantity, s.ShippedDate, s.TrackingNumber,
-                    approximateShipmentIds.Contains(s.ShipmentId)))
+                    s.AffectedQuantity, s.ShippedDate, s.TrackingNumber, s.IsApproximate))
                 .ToList(),
             recall.CreatedAt);
     }

@@ -7279,6 +7279,7 @@ CREATE TABLE public.recall_affected_shipments (
     affected_quantity numeric(18,4) NOT NULL,
     shipped_date timestamp with time zone,
     tracking_number character varying(200),
+    is_approximate boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,

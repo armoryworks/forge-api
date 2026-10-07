@@ -230,6 +230,22 @@ public sealed class InitiateRecallHandlerTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task The_approximate_flag_is_frozen_with_the_recall()
+    {
+        await using var db = fixture.CreateContext();
+        var part = await SeedPartAsync(db);
+        var shipped = await SeedShipmentAsync(db, "Relieved Later Buyer", 10);
+        var job = await SeedJobAsync(db, shipped.SoLine.Id);
+        var produced = await SeedLotAsync(db, part.Id, 10, jobId: job.Id);
+        var initiated = await new InitiateRecallHandler(db, Http()).Handle(Recall(produced.Id), CancellationToken.None);
+
+        await ShipAsync(db, shipped.Line, produced.LotNumber, 10);
+        var detail = await new GetRecallDetailHandler(db).Handle(new GetRecallDetailQuery(initiated.Id), CancellationToken.None);
+
+        detail.AffectedShipments.Should().ContainSingle().Which.IsApproximate.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Stock_built_lot_lists_the_customers_it_actually_shipped_to()
     {
         await using var db = fixture.CreateContext();

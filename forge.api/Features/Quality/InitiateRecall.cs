@@ -89,6 +89,7 @@ public class InitiateRecallHandler(AppDbContext db, IHttpContextAccessor httpCon
                 ShippedDate = g.Max(x => x.ShippedDate),
                 TrackingNumber = g.Select(x => x.TrackingNumber).FirstOrDefault(),
                 AffectedQty = g.Sum(x => x.Quantity),
+                IsApproximate = g.Any(x => x.IsApproximate),
             })
             .ToList();
 
@@ -128,6 +129,7 @@ public class InitiateRecallHandler(AppDbContext db, IHttpContextAccessor httpCon
                 AffectedQuantity = s.AffectedQty,
                 ShippedDate = s.ShippedDate,
                 TrackingNumber = s.TrackingNumber,
+                IsApproximate = s.IsApproximate,
             });
         }
 
@@ -137,7 +139,7 @@ public class InitiateRecallHandler(AppDbContext db, IHttpContextAccessor httpCon
         return await RecallMapping.LoadDetailAsync(db, recall.Id, cancellationToken);
     }
 
-    internal static async Task<List<int>> AffectedSalesOrderLineIdsAsync(
+    private static async Task<List<int>> AffectedSalesOrderLineIdsAsync(
         AppDbContext db, IEnumerable<int?> jobIds, CancellationToken ct)
     {
         var ids = jobIds.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();

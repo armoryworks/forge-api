@@ -20,4 +20,5 @@ public class RecallAffectedShipment : BaseAuditableEntity
     public decimal AffectedQuantity { get; set; }
     public DateTimeOffset? ShippedDate { get; set; }
     public string? TrackingNumber { get; set; }
+    public bool IsApproximate { get; set; }
 }
