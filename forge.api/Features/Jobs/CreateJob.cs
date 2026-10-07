@@ -89,8 +89,6 @@ public class CreateJobHandler(
                 {
                     l.SalesOrderId,
                     l.PartId,
-                    l.Quantity,
-                    l.ShippedQuantity,
                     l.SalesOrder.CustomerId,
                     l.SalesOrder.RequestedDeliveryDate,
                 })
@@ -103,14 +101,7 @@ public class CreateJobHandler(
             partId ??= line.PartId;
             customerId ??= line.CustomerId;
             dueDate ??= line.RequestedDeliveryDate;
-            if (quantity is null)
-            {
-                var onOpenJobs = await db.Jobs
-                    .Where(j => j.SalesOrderLineId == soLineId && !j.IsArchived && j.Disposition == null)
-                    .SelectMany(j => j.JobParts.Where(jp => jp.PartId == j.PartId))
-                    .SumAsync(jp => (decimal?)jp.Quantity, cancellationToken) ?? 0m;
-                quantity = Math.Max(1m, line.Quantity - line.ShippedQuantity - onOpenJobs);
-            }
+            quantity ??= await SalesOrderLineDefaultQuantity.ComputeAsync(db, soLineId, null, cancellationToken);
 
             if (partId is null && request.Quantity.HasValue)
                 throw new ValidationException(
