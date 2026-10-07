@@ -58,12 +58,15 @@ public class CreateJobsForSalesOrderLinesTests
         }
     }
 
-    private async Task<SalesOrder> SeedOrderAsync(params SalesOrderLine[] lines)
+    private Task<SalesOrder> SeedOrderAsync(params SalesOrderLine[] lines) =>
+        SeedOrderAsync(SalesOrderStatus.Confirmed, lines);
+
+    private async Task<SalesOrder> SeedOrderAsync(SalesOrderStatus status, params SalesOrderLine[] lines)
     {
         _db.Customers.Add(new Customer { Id = 1, Name = "Acme" });
         var so = new SalesOrder
         {
-            Id = 501, OrderNumber = "SO-00001", CustomerId = 1, Status = SalesOrderStatus.Confirmed,
+            Id = 501, OrderNumber = "SO-00001", CustomerId = 1, Status = status,
             RequestedDeliveryDate = new DateTimeOffset(2026, 11, 2, 0, 0, 0, TimeSpan.Zero),
         };
         foreach (var line in lines)
@@ -223,6 +226,28 @@ public class CreateJobsForSalesOrderLinesTests
         result.Skipped.Should().ContainSingle()
             .Which.Should().BeEquivalentTo(new { LineNumber = 1, Reason = "Already has a job" });
         (await _db.Jobs.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Shipped_lines_are_skipped_and_a_part_shipped_line_gets_a_job_for_what_remains()
+    {
+        SeedTrack();
+        AddPart(900, "CW-1001", ProcurementSource.Make);
+        var shipped = Line(601, 1, 900, 10m);
+        shipped.ShippedQuantity = 10m;
+        var halfShipped = Line(602, 2, 900, 40m);
+        halfShipped.ShippedQuantity = 15m;
+        var so = await SeedOrderAsync(SalesOrderStatus.PartiallyShipped, shipped, halfShipped);
+
+        var result = await Handler().Handle(new CreateJobsForSalesOrderLinesCommand(so.Id), CancellationToken.None);
+
+        result.Created.Should().Be(1);
+        result.Skipped.Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(new { LineNumber = 1, Reason = "Already shipped" });
+        var job = await _db.Jobs.Include(j => j.JobParts).SingleAsync();
+        job.SalesOrderLineId.Should().Be(602);
+        job.Title.Should().Be("CW-1001 x 25");
+        job.JobParts.Single().Quantity.Should().Be(25m);
     }
 
     [Fact]

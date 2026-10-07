@@ -90,6 +90,12 @@ public class CreateJobsForSalesOrderLinesHandler(
                 continue;
             }
 
+            if (line.IsFullyShipped)
+            {
+                skipped.Add(new SkippedSalesOrderLineResponseModel(line.LineNumber, "Already shipped"));
+                continue;
+            }
+
             var reason = SkipReason(line, routedPartIds);
             if (reason is not null)
                 skipped.Add(new SkippedSalesOrderLineResponseModel(line.LineNumber, reason));
@@ -107,13 +113,14 @@ public class CreateJobsForSalesOrderLinesHandler(
         foreach (var line in toCreate)
         {
             var partId = line.PartId!.Value;
+            var quantity = line.RemainingQuantity;
             var jobNumber = await jobRepo.GenerateNextJobNumberAsync(cancellationToken);
 
             var job = new Job
             {
                 JobNumber = jobNumber,
-                Title = JobTitle(so, line),
-                Description = $"Created from Sales Order {so.OrderNumber}, Line {line.LineNumber}. Qty: {FormatQuantity(line.Quantity)}.",
+                Title = JobTitle(so, line, quantity),
+                Description = $"Created from Sales Order {so.OrderNumber}, Line {line.LineNumber}. Qty: {FormatQuantity(quantity)}.",
                 TrackTypeId = track.Id,
                 CurrentStageId = startStage.Id,
                 SalesOrderLineId = line.Id,
@@ -128,7 +135,7 @@ public class CreateJobsForSalesOrderLinesHandler(
             job.JobParts.Add(new JobPart
             {
                 PartId = partId,
-                Quantity = line.Quantity,
+                Quantity = quantity,
                 Notes = $"From {so.OrderNumber} line {line.LineNumber}",
             });
 
@@ -176,10 +183,10 @@ public class CreateJobsForSalesOrderLinesHandler(
         };
     }
 
-    private static string JobTitle(SalesOrder so, SalesOrderLine line)
+    private static string JobTitle(SalesOrder so, SalesOrderLine line, decimal quantity)
     {
         var title = !string.IsNullOrWhiteSpace(line.Part?.PartNumber)
-            ? $"{line.Part.PartNumber} x {FormatQuantity(line.Quantity)}"
+            ? $"{line.Part.PartNumber} x {FormatQuantity(quantity)}"
             : !string.IsNullOrWhiteSpace(line.Description)
                 ? line.Description
                 : $"{so.OrderNumber} Line {line.LineNumber}";
