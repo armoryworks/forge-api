@@ -45,7 +45,7 @@ public class ExplodeJobBomScalingTests
     public async Task Explode_ScalesEveryLineByTheParentBuildQuantity()
     {
         var (parentPart, parentJob) = await SeedParentAsync(buildQty: 500m);
-        var each = await SeedUomAsync("ea", "Each");
+        var each = await SeedUomAsync("ea", "Each", UomCategory.Count, 0);
         var makePart = await SeedPartAsync("MK-1", each);
         var buyPart = await SeedPartAsync("BY-1", each);
         var stockPart = await SeedPartAsync("SK-1", each);
@@ -95,8 +95,8 @@ public class ExplodeJobBomScalingTests
     public async Task Explode_RoundsUpOnlyForEachUnits()
     {
         var (parentPart, parentJob) = await SeedParentAsync(buildQty: 3m);
-        var each = await SeedUomAsync("ea", "Each");
-        var kg = await SeedUomAsync("kg", "Kilogram");
+        var each = await SeedUomAsync("ea", "Each", UomCategory.Count, 0);
+        var kg = await SeedUomAsync("kg", "Kilogram", UomCategory.Weight, 3);
         var piecePart = await SeedPartAsync("PC-1", each);
         var resinPart = await SeedPartAsync("RS-1", kg);
 
@@ -109,6 +109,30 @@ public class ExplodeJobBomScalingTests
 
         result.BuyItems.Single(b => b.PartId == piecePart.Id).Quantity.Should().Be(2m);
         result.BuyItems.Single(b => b.PartId == resinPart.Id).Quantity.Should().Be(0.75m);
+    }
+
+    [Fact]
+    public async Task Explode_RoundsUpForAnyCountOrWholeNumberUnit()
+    {
+        var (parentPart, parentJob) = await SeedParentAsync(buildQty: 5m);
+        var pieces = await SeedUomAsync("pcs", "Pieces", UomCategory.Count, 2);
+        var roll = await SeedUomAsync("roll", "Roll", UomCategory.Length, 0);
+        var metre = await SeedUomAsync("m", "Metre", UomCategory.Length, 2);
+        var piecePart = await SeedPartAsync("PCS-1", pieces);
+        var rollPart = await SeedPartAsync("ROLL-1", roll);
+        var wirePart = await SeedPartAsync("WIRE-1", metre);
+
+        _db.BOMLines.AddRange(
+            new BOMLine { ParentPartId = parentPart.Id, ChildPartId = piecePart.Id, Quantity = 0.5m, SourceType = BOMSourceType.Buy, SortOrder = 1 },
+            new BOMLine { ParentPartId = parentPart.Id, ChildPartId = rollPart.Id, Quantity = 0.1m, SourceType = BOMSourceType.Buy, SortOrder = 2 },
+            new BOMLine { ParentPartId = parentPart.Id, ChildPartId = wirePart.Id, Quantity = 0.25m, SourceType = BOMSourceType.Buy, SortOrder = 3 });
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new ExplodeJobBomCommand(parentJob.Id), CancellationToken.None);
+
+        result.BuyItems.Single(b => b.PartId == piecePart.Id).Quantity.Should().Be(3m);
+        result.BuyItems.Single(b => b.PartId == rollPart.Id).Quantity.Should().Be(1m);
+        result.BuyItems.Single(b => b.PartId == wirePart.Id).Quantity.Should().Be(1.25m);
     }
 
     [Fact]
@@ -230,9 +254,9 @@ public class ExplodeJobBomScalingTests
         return (parentPart, parentJob);
     }
 
-    private async Task<UnitOfMeasure> SeedUomAsync(string code, string name)
+    private async Task<UnitOfMeasure> SeedUomAsync(string code, string name, UomCategory category, int decimalPlaces)
     {
-        var uom = new UnitOfMeasure { Code = code, Name = name, IsActive = true };
+        var uom = new UnitOfMeasure { Code = code, Name = name, Category = category, DecimalPlaces = decimalPlaces, IsActive = true };
         _db.Set<UnitOfMeasure>().Add(uom);
         await _db.SaveChangesAsync();
         return uom;

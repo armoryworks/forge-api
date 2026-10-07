@@ -273,13 +273,16 @@ public class ExplodeJobBomHandler(
     private static decimal RequiredQuantity(BomExplosionLine line, decimal buildQty)
     {
         var required = line.Quantity * buildQty;
-        return IsEach(line.ChildPart.StockUom, line.LineUom) ? Math.Ceiling(required) : required;
+        return IsWholeUnit(line.ChildPart.StockUom, line.LineUom) ? Math.Ceiling(required) : required;
     }
 
-    private static bool IsEach(UnitOfMeasure? stockUom, string? lineUom)
+    private static bool IsWholeUnit(UnitOfMeasure? stockUom, string? lineUom)
     {
         if (stockUom is not null)
-            return IsEachName(stockUom.Code) || IsEachName(stockUom.Name);
+            return stockUom.Category == UomCategory.Count
+                || stockUom.DecimalPlaces == 0
+                || IsEachName(stockUom.Code)
+                || IsEachName(stockUom.Name);
 
         return IsEachName(lineUom);
     }
