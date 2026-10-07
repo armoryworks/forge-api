@@ -25,6 +25,7 @@ public class DailyDigestJob(
 
         var now = clock.UtcNow;
         var yesterday = now.AddDays(-1);
+        var startOfToday = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
 
         foreach (var user in users)
         {
@@ -45,7 +46,7 @@ public class DailyDigestJob(
                 // Overdue jobs
                 var overdueJobs = await db.Jobs
                     .Where(j => j.AssigneeId == user.Id && !j.IsArchived
-                        && j.DueDate.HasValue && j.DueDate.Value < now
+                        && j.DueDate.HasValue && j.DueDate.Value < startOfToday
                         && j.CompletedDate == null)
                     .Select(j => new { j.JobNumber, j.Title, j.DueDate })
                     .Take(10)

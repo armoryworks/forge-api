@@ -35,11 +35,11 @@ public class GetJobStatusHandler(AppDbContext db, IMediator mediator, IClock clo
             .Take(3)
             .ToList();
 
-        var now = clock.UtcNow;
+        var startOfToday = new DateTimeOffset(clock.UtcNow.UtcDateTime.Date, TimeSpan.Zero);
         return new JobStatusResponseModel(
             job.Id, job.JobNumber, job.Title, job.CustomerName,
             job.CurrentStageId, job.StageName, job.StageColor,
-            job.DueDate, job.DueDate is not null && job.DueDate < now && job.CompletedDate is null,
+            job.DueDate, job.DueDate is not null && job.DueDate < startOfToday && job.CompletedDate is null,
             next?.Id, next?.Name, previous?.Id, previous?.Name,
             job.RowVersion, activity);
     }
