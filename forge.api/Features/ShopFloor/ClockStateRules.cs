@@ -61,7 +61,10 @@ public static class ClockStateRules
         var since = now.AddHours(-lookbackHours);
         var query = db.ClockEvents.AsNoTracking().Where(e => e.Timestamp >= since);
         if (userIds is not null)
-            query = query.Where(e => userIds.Contains(e.UserId));
+        {
+            var ids = userIds.ToArray();
+            query = query.Where(e => ids.Contains(e.UserId));
+        }
 
         var events = await query.ToListAsync(ct);
 
