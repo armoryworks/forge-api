@@ -8,6 +8,7 @@ using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Quality;
 
@@ -41,32 +42,52 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
             .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Inspection {request.Id} not found.");
 
+        if (inspection.Status is "Passed" or "Failed")
+            throw new InvalidOperationException(
+                $"Inspection {inspection.Id} is {inspection.Status} and can no longer be changed.");
+
         var data = request.Data;
+        var changedFields = new List<string>();
+
+        if (data.Notes is not null)
+        {
+            var notes = data.Notes.Trim();
+            if (notes != inspection.Notes)
+            {
+                inspection.Notes = notes;
+                changedFields.Add("notes");
+            }
+        }
+
+        if (data.Results is not null)
+        {
+            ApplyResults(inspection, data.Results);
+            changedFields.Add("results");
+        }
+
+        var completing = data.Status is "Passed" or "Failed";
+        if (data.Status == "Passed")
+            await EnsureRequiredItemsPassedAsync(inspection, cancellationToken);
 
         if (data.Status is not null && data.Status != inspection.Status)
         {
             inspection.Status = data.Status;
-            if (data.Status is "Passed" or "Failed")
-                inspection.CompletedAt = clock.UtcNow;
+            changedFields.Add("status");
         }
 
-        if (data.Notes is not null)
-            inspection.Notes = data.Notes.Trim();
+        if (completing)
+            inspection.CompletedAt = clock.UtcNow;
 
-        if (data.Results is not null)
+        if (completing || changedFields.Count > 0)
         {
-            // Remove existing results and replace
-            db.QcInspectionResults.RemoveRange(inspection.Results);
-
-            inspection.Results = data.Results.Select(r => new QcInspectionResult
-            {
-                InspectionId = inspection.Id,
-                ChecklistItemId = r.ChecklistItemId,
-                Description = r.Description.Trim(),
-                Passed = r.Passed,
-                MeasuredValue = r.MeasuredValue?.Trim(),
-                Notes = r.Notes?.Trim(),
-            }).ToList();
+            var description = completing
+                ? $"Inspection QC #{inspection.Id} {data.Status!.ToLowerInvariant()}"
+                : $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}";
+            var action = completing ? $"inspection-{data.Status!.ToLowerInvariant()}" : "updated";
+            var points = new List<(string, int)> { ("QcInspection", inspection.Id) };
+            if (inspection.JobId is int jobId)
+                points.Add(("Job", jobId));
+            db.LogActivityAt(action, description, [.. points]);
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -106,5 +127,57 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
                 )).ToList(),
                 i.CreatedAt))
             .FirstAsync(cancellationToken);
+    }
+
+    private void ApplyResults(QcInspection inspection, List<UpdateQcInspectionResultModel> incoming)
+    {
+        var keptIds = incoming.Where(r => r.Id.HasValue).Select(r => r.Id!.Value).ToHashSet();
+        var unknown = keptIds.Where(id => inspection.Results.All(r => r.Id != id)).ToList();
+        if (unknown.Count > 0)
+            throw new KeyNotFoundException(
+                $"Inspection {inspection.Id} has no result {string.Join(", ", unknown)}.");
+
+        foreach (var stale in inspection.Results.Where(r => !keptIds.Contains(r.Id)).ToList())
+        {
+            inspection.Results.Remove(stale);
+            db.QcInspectionResults.Remove(stale);
+        }
+
+        foreach (var model in incoming)
+        {
+            var row = model.Id is int id ? inspection.Results.First(r => r.Id == id) : null;
+            if (row is null)
+            {
+                row = new QcInspectionResult { InspectionId = inspection.Id, ChecklistItemId = model.ChecklistItemId };
+                inspection.Results.Add(row);
+            }
+
+            row.Description = model.Description.Trim();
+            row.Passed = model.Passed;
+            row.MeasuredValue = model.MeasuredValue?.Trim();
+            row.Notes = model.Notes?.Trim();
+        }
+    }
+
+    private async Task EnsureRequiredItemsPassedAsync(QcInspection inspection, CancellationToken cancellationToken)
+    {
+        if (inspection.TemplateId is not int templateId)
+            return;
+
+        var requiredItems = await db.QcChecklistItems
+            .AsNoTracking()
+            .Where(i => i.TemplateId == templateId && i.IsRequired)
+            .OrderBy(i => i.SortOrder)
+            .Select(i => new { i.Id, i.Description })
+            .ToListAsync(cancellationToken);
+
+        var failed = requiredItems
+            .Where(item => !inspection.Results.Any(r => r.ChecklistItemId == item.Id && r.Passed))
+            .Select(item => item.Description)
+            .ToList();
+
+        if (failed.Count > 0)
+            throw new InvalidOperationException(
+                $"Inspection {inspection.Id} cannot pass: required checklist items did not pass ({string.Join(", ", failed)}).");
     }
 }
