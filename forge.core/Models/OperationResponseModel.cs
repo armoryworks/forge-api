@@ -22,4 +22,6 @@ public record OperationResponseModel(
     bool IsSubcontract = false,
     int? SubcontractVendorId = null,
     string? SubcontractVendorName = null,
-    decimal? SubcontractTurnTimeDays = null);
+    decimal? SubcontractTurnTimeDays = null,
+    decimal SetupMinutes = 0,
+    decimal RunMinutesLot = 0);

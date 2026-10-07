@@ -13,4 +13,6 @@ public record CreateOperationRequestModel(
     // these two fields are required (validated in CreateOperation handler).
     bool? IsSubcontract = null,
     int? SubcontractVendorId = null,
-    decimal? SubcontractTurnTimeDays = null);
+    decimal? SubcontractTurnTimeDays = null,
+    decimal? SetupMinutes = null,
+    decimal? RunMinutesLot = null);

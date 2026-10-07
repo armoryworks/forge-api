@@ -14,8 +14,8 @@ namespace Forge.Tests.Handlers.Parts;
 
 /// <summary>
 /// Round-trips <see cref="Operation.EstimatedMs"/> (canonical milliseconds) through the
-/// create/update operation handlers, and checks the Hours/Minutes/Milliseconds compose math the
-/// routing editor uses (<c>hours*3600000 + minutes*60000 + ms</c>).
+/// create/update operation handlers, and checks the Hours/Minutes/Seconds compose math the
+/// routing editor uses (<c>hours*3600000 + minutes*60000 + round(seconds*1000)</c>).
 /// </summary>
 public class OperationEstimatedMsHandlerTests
 {
@@ -39,13 +39,15 @@ public class OperationEstimatedMsHandlerTests
 
     [Theory]
     [InlineData(0, 0, 0, 0L)]
-    [InlineData(0, 0, 500, 500L)]           // sub-second only
-    [InlineData(0, 1, 30_000, 90_000L)]     // 1 min 30 s
+    [InlineData(0, 0, 0.5, 500L)]           // sub-second only
+    [InlineData(0, 0, 7.5, 7_500L)]
+    [InlineData(0, 1, 30, 90_000L)]         // 1 min 30 s
     [InlineData(1, 0, 0, 3_600_000L)]       // 1 hr
-    [InlineData(2, 15, 250, 8_100_250L)]    // 2 hr 15 min 0.25 s
-    public void Compose_HoursMinutesMs_ProducesCanonicalMs(int hours, int minutes, int ms, long expected)
+    [InlineData(2, 15, 0.25, 8_100_250L)]   // 2 hr 15 min 0.25 s
+    [InlineData(0, 0, 59.999, 59_999L)]
+    public void Compose_HoursMinutesSeconds_ProducesCanonicalMs(int hours, int minutes, double seconds, long expected)
     {
-        var composed = (hours * 3_600_000L) + (minutes * 60_000L) + ms;
+        var composed = (hours * 3_600_000L) + (minutes * 60_000L) + (long)Math.Round(seconds * 1000, MidpointRounding.AwayFromZero);
         composed.Should().Be(expected);
     }
 

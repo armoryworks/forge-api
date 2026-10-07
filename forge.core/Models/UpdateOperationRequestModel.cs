@@ -14,4 +14,6 @@ public record UpdateOperationRequestModel(
     // (validated in UpdateOperation handler).
     bool? IsSubcontract = null,
     int? SubcontractVendorId = null,
-    decimal? SubcontractTurnTimeDays = null);
+    decimal? SubcontractTurnTimeDays = null,
+    decimal? SetupMinutes = null,
+    decimal? RunMinutesLot = null);

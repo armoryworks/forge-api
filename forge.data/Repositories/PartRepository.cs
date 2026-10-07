@@ -452,7 +452,9 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
                 s.IsSubcontract,
                 s.SubcontractVendorId,
                 s.SubcontractVendor != null ? s.SubcontractVendor.CompanyName : null,
-                s.SubcontractTurnTimeDays))
+                s.SubcontractTurnTimeDays,
+                s.SetupMinutes,
+                s.RunMinutesLot))
             .ToListAsync(ct);
     }
 
