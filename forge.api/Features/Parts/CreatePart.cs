@@ -2,6 +2,7 @@ using System.Text.Json;
 
 using FluentValidation;
 using MediatR;
+using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -44,9 +45,6 @@ public class CreatePartHandler(
     AppDbContext db,
     ILogger<CreatePartHandler> logger) : IRequestHandler<CreatePartCommand, PartDetailResponseModel>
 {
-    // System setting that gates caller-supplied part numbers. Stored as "true"/"false".
-    private const string AllowManualPartNumbersKey = "parts.allow_manual_numbers";
-
     public async Task<PartDetailResponseModel> Handle(CreatePartCommand request, CancellationToken cancellationToken)
     {
         var partNumber = await ResolvePartNumberAsync(request, cancellationToken);
@@ -103,24 +101,16 @@ public class CreatePartHandler(
         return (await repo.GetDetailAsync(part.Id, cancellationToken))!;
     }
 
-    // Uses a caller-supplied part number when manual numbers are enabled and one
-    // was provided; otherwise auto-generates the next sequential number.
     private async Task<string> ResolvePartNumberAsync(CreatePartCommand request, CancellationToken ct)
     {
         var supplied = request.PartNumber?.Trim();
-        if (!string.IsNullOrWhiteSpace(supplied) && await ManualPartNumbersAllowedAsync(ct))
-        {
-            if (await repo.PartNumberExistsAsync(supplied, null, ct))
-                throw new InvalidOperationException($"Part number '{supplied}' is already in use.");
-            return supplied;
-        }
+        if (string.IsNullOrWhiteSpace(supplied))
+            return await repo.GetNextPartNumberAsync(request.InventoryClass, ct);
 
-        return await repo.GetNextPartNumberAsync(request.InventoryClass, ct);
-    }
+        if (!await PartNumberCheck.ManualNumbersAllowedAsync(systemSettings, ct))
+            throw PartNumberCheck.ManualNumbersOffOnCreate();
 
-    private async Task<bool> ManualPartNumbersAllowedAsync(CancellationToken ct)
-    {
-        var setting = await systemSettings.FindByKeyAsync(AllowManualPartNumbersKey, ct);
-        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
+        await PartNumberCheck.EnsureAvailableAsync(repo, supplied, null, ct);
+        return supplied;
     }
 }

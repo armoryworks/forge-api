@@ -338,12 +338,15 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
     public Task<Part?> FindAsync(int id, CancellationToken ct)
         => db.Parts.FirstOrDefaultAsync(p => p.Id == id, ct);
 
-    public Task<bool> PartNumberExistsAsync(string partNumber, int? excludeId, CancellationToken ct)
+    public async Task<PartNumberStatus> PartNumberStatusAsync(string partNumber, int? excludeId, CancellationToken ct)
     {
-        var query = db.Parts.Where(p => p.PartNumber == partNumber);
+        var query = db.Parts.IgnoreQueryFilters().Where(p => p.PartNumber == partNumber);
         if (excludeId.HasValue)
             query = query.Where(p => p.Id != excludeId.Value);
-        return query.AnyAsync(ct);
+        var deletedFlags = await query.Select(p => p.DeletedAt != null).ToListAsync(ct);
+        if (deletedFlags.Count == 0)
+            return PartNumberStatus.None;
+        return deletedFlags.Any(deleted => !deleted) ? PartNumberStatus.Active : PartNumberStatus.Deleted;
     }
 
     public async Task<string> GetNextPartNumberAsync(InventoryClass inventoryClass, CancellationToken ct)

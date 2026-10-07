@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Forge.Api.Validation;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -45,9 +46,6 @@ public class UpdatePartHandler(
     AppDbContext db,
     ILogger<UpdatePartHandler> logger) : IRequestHandler<UpdatePartCommand, PartDetailResponseModel>
 {
-    // System setting that gates caller-supplied part numbers (shared with CreatePart).
-    private const string AllowManualPartNumbersKey = "parts.allow_manual_numbers";
-
     public async Task<PartDetailResponseModel> Handle(UpdatePartCommand request, CancellationToken cancellationToken)
     {
         var part = await repo.FindAsync(request.Id, cancellationToken)
@@ -63,11 +61,9 @@ public class UpdatePartHandler(
             var newNumber = data.PartNumber.Trim();
             if (newNumber.Length > 0 && !string.Equals(newNumber, part.PartNumber, StringComparison.Ordinal))
             {
-                if (!await ManualPartNumbersAllowedAsync(cancellationToken))
-                    throw new InvalidOperationException(
-                        "Manual part numbers are disabled. Turn on 'parts.allow_manual_numbers' in settings to change a part number.");
-                if (await repo.PartNumberExistsAsync(newNumber, part.Id, cancellationToken))
-                    throw new InvalidOperationException($"Part number '{newNumber}' is already in use.");
+                if (!await PartNumberCheck.ManualNumbersAllowedAsync(systemSettings, cancellationToken))
+                    throw PartNumberCheck.ManualNumbersOffOnRename();
+                await PartNumberCheck.EnsureAvailableAsync(repo, newNumber, part.Id, cancellationToken);
                 // Record the rename in the identifier registry: ensure the current number is on record
                 // (covers pre-registry parts), then supersede it — the old number stays resolvable.
                 await identifiers.IssueAsync(BusinessEntityType.Part, part.Id, part.PartNumber, cancellationToken);
@@ -248,12 +244,6 @@ public class UpdatePartHandler(
     /// responses, so a future log reader can grep them against the wire
     /// payload.
     /// </summary>
-    private async Task<bool> ManualPartNumbersAllowedAsync(CancellationToken ct)
-    {
-        var setting = await systemSettings.FindByKeyAsync(AllowManualPartNumbersKey, ct);
-        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
-    }
-
     private static List<string> CollectChangedFieldNames(UpdatePartRequestModel data)
     {
         var fields = new List<string>();

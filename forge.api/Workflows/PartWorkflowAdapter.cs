@@ -4,6 +4,7 @@ using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -24,8 +25,6 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemS
     IBusinessIdentifierService identifiers)
     : IWorkflowEntityCreator, IWorkflowFieldApplier, IWorkflowEntityPromoter
 {
-    private const string AllowManualPartNumbersKey = "parts.allow_manual_numbers";
-
     public string EntityType => "Part";
 
     public async Task<int> CreateDraftAsync(JsonElement? initialData, CancellationToken ct)
@@ -95,18 +94,9 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemS
         var partNumber = ReadStringOrDefault(initialData, "partNumber")?.Trim();
         if (!string.IsNullOrWhiteSpace(partNumber))
         {
-            if (!await ManualPartNumbersAllowedAsync(ct))
-            {
-                throw new ValidationException(
-                    "Manual part numbers are disabled.",
-                    new[] { new ValidationFailure("partNumber", "Manual part numbers are disabled. Turn on 'parts.allow_manual_numbers' in settings.") });
-            }
-            if (await db.Parts.AnyAsync(x => x.PartNumber == partNumber, ct))
-            {
-                throw new ValidationException(
-                    $"Part number '{partNumber}' is already in use.",
-                    new[] { new ValidationFailure("partNumber", $"Part number '{partNumber}' is already in use.") });
-            }
+            if (!await PartNumberCheck.ManualNumbersAllowedAsync(systemSettings, ct))
+                throw PartNumberCheck.ManualNumbersOffOnCreate();
+            await PartNumberCheck.EnsureAvailableAsync(repo, partNumber, null, ct);
         }
         else
         {
@@ -153,12 +143,6 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemS
         return await SavePartAndReturnIdAsync(part, ct);
     }
 
-    private async Task<bool> ManualPartNumbersAllowedAsync(CancellationToken ct)
-    {
-        var setting = await systemSettings.FindByKeyAsync(AllowManualPartNumbersKey, ct);
-        return setting is not null && bool.TryParse(setting.Value, out var on) && on;
-    }
-
     private async Task<int> SavePartAndReturnIdAsync(Part part, CancellationToken ct)
     {
         await db.SaveChangesAsync(ct);
@@ -176,11 +160,11 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemS
         if (TryReadString(fields, "partNumber", out var partNumber) && !string.IsNullOrWhiteSpace(partNumber))
         {
             var newNumber = partNumber.Trim();
-            if (!string.Equals(newNumber, part.PartNumber, StringComparison.Ordinal)
-                && await ManualPartNumbersAllowedAsync(ct))
+            if (!string.Equals(newNumber, part.PartNumber, StringComparison.Ordinal))
             {
-                if (await repo.PartNumberExistsAsync(newNumber, part.Id, ct))
-                    throw new InvalidOperationException($"Part number '{newNumber}' is already in use.");
+                if (!await PartNumberCheck.ManualNumbersAllowedAsync(systemSettings, ct))
+                    throw PartNumberCheck.ManualNumbersOffOnRename();
+                await PartNumberCheck.EnsureAvailableAsync(repo, newNumber, part.Id, ct);
                 await identifiers.IssueAsync(BusinessEntityType.Part, part.Id, part.PartNumber, ct);
                 await identifiers.RenameAsync(BusinessEntityType.Part, part.Id, newNumber, ct);
                 part.PartNumber = newNumber;

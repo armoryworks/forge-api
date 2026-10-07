@@ -20,7 +20,11 @@ public interface IPartRepository
 
     Task<PartDetailResponseModel?> GetDetailAsync(int id, CancellationToken ct);
     Task<Part?> FindAsync(int id, CancellationToken ct);
-    Task<bool> PartNumberExistsAsync(string partNumber, int? excludeId, CancellationToken ct);
+    /// <summary>
+    /// Whether <paramref name="partNumber"/> is free, held by a live part, or held only by a
+    /// soft-deleted part. Soft-deleted rows count because the unique index covers them.
+    /// </summary>
+    Task<PartNumberStatus> PartNumberStatusAsync(string partNumber, int? excludeId, CancellationToken ct);
     /// <summary>
     /// Existing (non-deleted) parts whose name is trigram-similar to <paramref name="name"/>,
     /// ranked most-similar first. Backs the near-duplicate guard on part creation.

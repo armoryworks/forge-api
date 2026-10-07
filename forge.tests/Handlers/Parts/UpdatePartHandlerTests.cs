@@ -1,4 +1,5 @@
 using FluentAssertions;
+using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Forge.Api.Features.Parts;
@@ -51,7 +52,7 @@ public class UpdatePartHandlerTests
         var part = new Part { Id = 1, PartNumber = "PRT-00001", Name = "Test", Status = PartStatus.Active };
         SetupRepoForUpdate(part);
         AllowManualNumbers(true);
-        _partRepo.Setup(r => r.PartNumberExistsAsync("ACME-42", 1, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _partRepo.Setup(r => r.PartNumberStatusAsync("ACME-42", 1, It.IsAny<CancellationToken>())).ReturnsAsync(PartNumberStatus.None);
 
         await _handler.Handle(new UpdatePartCommand(1, WithPartNumber("ACME-42")), CancellationToken.None);
 
@@ -65,11 +66,27 @@ public class UpdatePartHandlerTests
         var part = new Part { Id = 1, PartNumber = "PRT-00001", Name = "Test", Status = PartStatus.Active };
         SetupRepoForUpdate(part);
         AllowManualNumbers(true);
-        _partRepo.Setup(r => r.PartNumberExistsAsync("TAKEN", 1, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _partRepo.Setup(r => r.PartNumberStatusAsync("TAKEN", 1, It.IsAny<CancellationToken>())).ReturnsAsync(PartNumberStatus.Active);
 
         var act = () => _handler.Handle(new UpdatePartCommand(1, WithPartNumber("TAKEN")), CancellationToken.None);
 
-        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("already in use");
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Message.Should().Contain("already in use");
+        part.PartNumber.Should().Be("PRT-00001");
+    }
+
+    [Fact]
+    public async Task Rejects_a_number_held_by_a_deleted_part()
+    {
+        var part = new Part { Id = 1, PartNumber = "PRT-00001", Name = "Test", Status = PartStatus.Active };
+        SetupRepoForUpdate(part);
+        AllowManualNumbers(true);
+        _partRepo.Setup(r => r.PartNumberStatusAsync("OLD-100", 1, It.IsAny<CancellationToken>())).ReturnsAsync(PartNumberStatus.Deleted);
+
+        var act = () => _handler.Handle(new UpdatePartCommand(1, WithPartNumber("OLD-100")), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e =>
+            e.PropertyName == "partNumber"
+            && e.ErrorMessage == "Part number 'OLD-100' belongs to a deleted part. Restore that part or choose another number.");
         part.PartNumber.Should().Be("PRT-00001");
     }
 
@@ -82,7 +99,9 @@ public class UpdatePartHandlerTests
 
         var act = () => _handler.Handle(new UpdatePartCommand(1, WithPartNumber("ACME-42")), CancellationToken.None);
 
-        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("disabled");
+        var message = (await act.Should().ThrowAsync<ValidationException>()).Which.Message;
+        message.Should().Contain("Admin > Settings > Numbering");
+        message.Should().NotContain("allow_manual_numbers");
         part.PartNumber.Should().Be("PRT-00001");
     }
 
