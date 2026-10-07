@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Quality;
@@ -58,6 +59,29 @@ public class NcrCapaController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> DispositionNcr(int id, [FromBody] DispositionNcrRequestModel request)
     {
         await mediator.Send(new DispositionNcrCommand(id, request));
+        return NoContent();
+    }
+
+    [HttpPost("ncrs/{id:int}/contain")]
+    public async Task<IActionResult> ContainNcr(int id, [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] ContainNcrRequestModel? request)
+    {
+        await mediator.Send(new ContainNcrCommand(id, request ?? new ContainNcrRequestModel()));
+        return NoContent();
+    }
+
+    [HttpPost("ncrs/{id:int}/close")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> CloseNcr(int id, [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CloseNcrRequestModel? request)
+    {
+        await mediator.Send(new CloseNcrCommand(id, request ?? new CloseNcrRequestModel()));
+        return NoContent();
+    }
+
+    [HttpPost("ncrs/{id:int}/reopen")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> ReopenNcr(int id, [FromBody] ReopenNcrRequestModel request)
+    {
+        await mediator.Send(new ReopenNcrCommand(id, request));
         return NoContent();
     }
 

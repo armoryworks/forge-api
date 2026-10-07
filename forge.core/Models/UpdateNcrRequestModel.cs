@@ -11,5 +11,4 @@ public record UpdateNcrRequestModel
     public string? ContainmentActions { get; init; }
     public decimal? MaterialCost { get; init; }
     public decimal? LaborCost { get; init; }
-    public NcrStatus? Status { get; init; }
 }

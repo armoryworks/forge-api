@@ -9,6 +9,7 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Quality;
 
@@ -23,6 +24,10 @@ public class DispositionNcrValidator : AbstractValidator<DispositionNcrCommand>
             .NotEmpty()
             .When(x => x.Request.Code == NcrDispositionCode.Rework)
             .WithMessage("Rework instructions are required when disposition is Rework");
+        RuleFor(x => x.Request.Notes)
+            .NotEmpty()
+            .When(x => x.Request.Code is NcrDispositionCode.UseAsIs or NcrDispositionCode.Reject)
+            .WithMessage("Notes are required when disposition is Use As Is or Reject");
     }
 }
 
@@ -38,6 +43,10 @@ public class DispositionNcrHandler(
             .FirstOrDefaultAsync(n => n.Id == command.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"NCR {command.Id} not found");
 
+        if (ncr.Status is not (NcrStatus.Open or NcrStatus.UnderReview or NcrStatus.Contained))
+            throw new InvalidOperationException(
+                $"NCR {ncr.NcrNumber} is already {ncr.Status} and cannot be dispositioned again.");
+
         var userId = int.Parse(httpContextAccessor.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         ncr.DispositionCode = command.Request.Code;
@@ -46,6 +55,11 @@ public class DispositionNcrHandler(
         ncr.DispositionById = userId;
         ncr.DispositionAt = clock.UtcNow;
         ncr.Status = NcrStatus.Dispositioned;
+
+        db.LogActivityAt(
+            "dispositioned",
+            $"Dispositioned as {command.Request.Code}",
+            ("NonConformance", ncr.Id));
 
         await db.SaveChangesAsync(cancellationToken);
     }

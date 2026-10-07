@@ -86,7 +86,8 @@ public class NcrCapaService(AppDbContext db, IClock clock) : INcrCapaService
         await db.SaveChangesAsync(ct);
 
         ncr.CapaId = capa.Id;
-        ncr.Status = NcrStatus.UnderReview;
+        if (ncr.Status == NcrStatus.Open)
+            ncr.Status = NcrStatus.UnderReview;
         await db.SaveChangesAsync(ct);
 
         return capa;
