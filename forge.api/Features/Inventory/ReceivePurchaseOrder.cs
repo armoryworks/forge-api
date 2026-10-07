@@ -4,6 +4,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -39,7 +40,8 @@ public class ReceivePurchaseOrderHandler(
     // null-default so mock-based handler tests stay constructible; production DI supplies both, and the
     // posting no-ops while CAP-ACCT-FULLGL is off.
     AppDbContext? db = null,
-    IReceiptInventoryPostingService? receiptPosting = null)
+    IReceiptInventoryPostingService? receiptPosting = null,
+    ICapabilitySnapshotProvider? capabilities = null)
     : IRequestHandler<ReceivePurchaseOrderCommand, ReceivingRecordResponseModel>
 {
     public async Task<ReceivingRecordResponseModel> Handle(
@@ -70,6 +72,7 @@ public class ReceivePurchaseOrderHandler(
             StorageLocationId = data.LocationId,
             Notes = data.Notes,
             ReceiptNumber = receiptNumber,
+            InspectionStatus = ReceivingInspectionPolicy.InitialStatus(line.Part?.RequiresReceivingInspection == true, capabilities),
         };
 
         await poRepo.AddReceivingRecordAsync(record, cancellationToken);

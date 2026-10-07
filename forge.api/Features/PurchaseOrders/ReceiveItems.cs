@@ -2,8 +2,10 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.Inventory;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -30,7 +32,8 @@ public class ReceiveItemsHandler(
     IReceiptInventoryPostingService? receiptPosting = null,
     // Operational stock-in: when supplied (production DI), receiving stocks the part into a bin (creates/
     // increments BinContent + a Receive movement). Null in mock-based handler tests → no stock movement.
-    IInventoryRepository? inventory = null)
+    IInventoryRepository? inventory = null,
+    ICapabilitySnapshotProvider? capabilities = null)
     : IRequestHandler<ReceiveItemsCommand>
 {
     public async Task Handle(ReceiveItemsCommand request, CancellationToken cancellationToken)
@@ -84,6 +87,7 @@ public class ReceiveItemsHandler(
                 StorageLocationId = receiveItem.StorageLocationId,
                 Notes = receiveItem.Notes,
                 ReceiptNumber = receiptNumber,
+                InspectionStatus = ReceivingInspectionPolicy.InitialStatus(line.Part?.RequiresReceivingInspection == true, capabilities),
                 ActualFreight = actualFreight,
                 FreightAllocationMethod = request.FreightAllocationMethod,
                 // Filled in below once totals are known.

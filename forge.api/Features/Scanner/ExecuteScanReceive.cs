@@ -5,6 +5,8 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Capabilities;
+using Forge.Api.Features.Inventory;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -29,7 +31,8 @@ public class ExecuteScanReceiveCommandValidator : AbstractValidator<ExecuteScanR
 public class ExecuteScanReceiveHandler(
     AppDbContext db,
     IClock clock,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    ICapabilitySnapshotProvider? capabilities = null)
     : IRequestHandler<ExecuteScanReceiveCommand, int>
 {
     public async Task<int> Handle(ExecuteScanReceiveCommand request, CancellationToken cancellationToken)
@@ -66,7 +69,7 @@ public class ExecuteScanReceiveHandler(
         // Get part info
         var part = await db.Parts.AsNoTracking()
             .Where(p => p.Id == data.PartId)
-            .Select(p => new { p.PartNumber })
+            .Select(p => new { p.PartNumber, p.RequiresReceivingInspection })
             .FirstAsync(cancellationToken);
 
         // Create receiving record
@@ -78,6 +81,7 @@ public class ExecuteScanReceiveHandler(
             QuantityReceived = data.Quantity,
             ReceivedBy = userName,
             StorageLocationId = data.ToLocationId,
+            InspectionStatus = ReceivingInspectionPolicy.InitialStatus(part.RequiresReceivingInspection, capabilities),
         };
         db.ReceivingRecords.Add(receivingRecord);
 
