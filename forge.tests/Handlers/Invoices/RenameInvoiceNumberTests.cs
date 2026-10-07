@@ -94,4 +94,20 @@ public class RenameInvoiceNumberTests
         invoice.InvoiceNumber.Should().Be("INV-00001");
         _identifiers.Verify(i => i.RenameAsync(It.IsAny<BusinessEntityType>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public void Validator_rejects_a_number_longer_than_the_column()
+    {
+        var result = new RenameInvoiceNumberCommandValidator().Validate(new RenameInvoiceNumberCommand(1, new string('A', 21)));
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().ContainSingle(e => e.PropertyName == nameof(RenameInvoiceNumberCommand.InvoiceNumber));
+    }
+
+    [Fact]
+    public void Validator_accepts_a_twenty_character_number()
+    {
+        new RenameInvoiceNumberCommandValidator().Validate(new RenameInvoiceNumberCommand(1, new string('A', 20)))
+            .IsValid.Should().BeTrue();
+    }
 }

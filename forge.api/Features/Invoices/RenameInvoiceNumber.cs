@@ -18,7 +18,7 @@ public class RenameInvoiceNumberCommandValidator : AbstractValidator<RenameInvoi
 {
     public RenameInvoiceNumberCommandValidator()
     {
-        RuleFor(x => x.InvoiceNumber).NotEmpty().MaximumLength(50);
+        RuleFor(x => x.InvoiceNumber).NotEmpty().MaximumLength(20);
     }
 }
 

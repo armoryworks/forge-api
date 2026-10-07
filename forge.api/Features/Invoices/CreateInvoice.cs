@@ -38,6 +38,7 @@ public class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
         RuleFor(x => x.TaxRate).GreaterThanOrEqualTo(0).LessThan(1);
         RuleFor(x => x.DueDate).GreaterThanOrEqualTo(x => x.InvoiceDate);
         RuleFor(x => x.CustomerPO).MaximumLength(50);
+        RuleFor(x => x.InvoiceNumber).MaximumLength(20).When(x => !string.IsNullOrWhiteSpace(x.InvoiceNumber));
         // FX booking rate must be positive (a 0 or negative rate would zero/invert the functional amount).
         RuleFor(x => x.FxRate).GreaterThan(0m);
         RuleForEach(x => x.Lines).ChildRules(line =>
