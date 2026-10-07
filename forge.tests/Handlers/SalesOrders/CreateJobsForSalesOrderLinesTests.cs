@@ -229,6 +229,27 @@ public class CreateJobsForSalesOrderLinesTests
     }
 
     [Fact]
+    public async Task Scrapped_job_covers_its_line_unless_that_line_is_requested_explicitly()
+    {
+        SeedTrack();
+        AddPart(900, "CW-1001", ProcurementSource.Make);
+        var so = await SeedOrderAsync(Line(601, 1, 900, 5m));
+        _db.Jobs.Add(new Job
+        {
+            JobNumber = "J-1", Title = "Scrapped", TrackTypeId = 7, CurrentStageId = 73, SalesOrderLineId = 601,
+            Disposition = JobDisposition.Scrap, IsArchived = true,
+        });
+        await _db.SaveChangesAsync();
+
+        var sweep = await Handler().Handle(new CreateJobsForSalesOrderLinesCommand(so.Id), CancellationToken.None);
+        var replacement = await Handler().Handle(new CreateJobsForSalesOrderLinesCommand(so.Id, [601]), CancellationToken.None);
+
+        sweep.Created.Should().Be(0);
+        replacement.Created.Should().Be(1);
+        (await _db.Jobs.CountAsync(j => j.SalesOrderLineId == 601 && j.Disposition == null)).Should().Be(1);
+    }
+
+    [Fact]
     public async Task Shipped_lines_are_skipped_and_a_part_shipped_line_gets_a_job_for_what_remains()
     {
         SeedTrack();

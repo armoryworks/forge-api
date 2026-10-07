@@ -63,12 +63,15 @@ public class CreateJobsForSalesOrderLinesHandler(
         }
 
         var lineIds = lines.Select(l => l.Id).ToList();
+        JobDisposition[] uncoveringDispositions = explicitLines
+            ? [JobDisposition.EnteredInError, JobDisposition.Scrap]
+            : [JobDisposition.EnteredInError];
         var linkedLineIds = (await db.Jobs
-            .Where(j => j.SalesOrderLineId.HasValue && lineIds.Contains(j.SalesOrderLineId.Value)
-                && j.Disposition != JobDisposition.EnteredInError)
-            .Select(j => j.SalesOrderLineId!.Value)
-            .Distinct()
+            .Where(j => j.SalesOrderLineId.HasValue && lineIds.Contains(j.SalesOrderLineId.Value))
+            .Select(j => new { LineId = j.SalesOrderLineId!.Value, j.Disposition })
             .ToListAsync(cancellationToken))
+            .Where(j => j.Disposition is not JobDisposition d || !uncoveringDispositions.Contains(d))
+            .Select(j => j.LineId)
             .ToHashSet();
 
         var partIds = lines.Where(l => l.PartId.HasValue).Select(l => l.PartId!.Value).Distinct().ToList();
