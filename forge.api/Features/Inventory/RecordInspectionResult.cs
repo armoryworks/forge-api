@@ -36,6 +36,18 @@ public class RecordInspectionResultValidator : AbstractValidator<RecordInspectio
             RuleFor(x => x.Data.RejectedQuantity).GreaterThan(0)
                 .WithMessage("A partial accept needs a rejected quantity above zero.");
         });
+
+        When(x => x.Data.Result == nameof(ReceivingInspectionStatus.Passed), () =>
+        {
+            RuleFor(x => x.Data.RejectedQuantity).Equal(0m)
+                .WithMessage("A passed inspection cannot reject any quantity; record a partial accept instead.");
+        });
+
+        When(x => x.Data.Result == nameof(ReceivingInspectionStatus.Failed), () =>
+        {
+            RuleFor(x => x.Data.AcceptedQuantity).Equal(0m)
+                .WithMessage("A failed inspection cannot accept any quantity; record a partial accept instead.");
+        });
     }
 }
 

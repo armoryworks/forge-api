@@ -238,6 +238,8 @@ public class ReceivingInspectionTests
     [InlineData("Waived", 10, 0, false)]
     [InlineData("InProgress", 10, 0, false)]
     [InlineData("Passed", -1, 11, false)]
+    [InlineData("Passed", 8, 2, false)]
+    [InlineData("Failed", 3, 7, false)]
     public void RecordValidator_EnforcesResultAndQuantityRules(string result, decimal accepted, decimal rejected, bool valid)
     {
         var outcome = new RecordInspectionResultValidator().Validate(Command(1, result, accepted, rejected));
