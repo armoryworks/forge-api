@@ -106,17 +106,30 @@ public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo, AppDbCon
         if (wanted.Count == 0)
             return [];
 
-        var locations = await db.StorageLocations
-            .AsNoTracking()
-            .Where(s => s.DeletedAt == null)
-            .Select(s => new { s.Id, s.Name, s.ParentId, s.IsActive, s.LocationType })
-            .ToDictionaryAsync(s => s.Id, ct);
+        var locations = (await db.StorageLocations
+                .AsNoTracking()
+                .Where(s => s.DeletedAt == null && wanted.Contains(s.Id)
+                    && s.IsActive && s.LocationType == LocationType.Bin)
+                .ToListAsync(ct))
+            .ToDictionary(s => s.Id);
+        var receivable = locations.Keys.ToList();
+
+        var toLoad = ParentsNotLoaded(locations.Values, locations);
+        while (toLoad.Count > 0)
+        {
+            var ancestors = await db.StorageLocations
+                .AsNoTracking()
+                .Where(s => s.DeletedAt == null && toLoad.Contains(s.Id))
+                .ToListAsync(ct);
+            foreach (var ancestor in ancestors)
+                locations[ancestor.Id] = ancestor;
+            toLoad = ParentsNotLoaded(ancestors, locations);
+        }
 
         var paths = new Dictionary<int, string>();
-        foreach (var id in wanted)
+        foreach (var id in receivable)
         {
-            if (!locations.TryGetValue(id, out var bin) || !bin.IsActive || bin.LocationType != LocationType.Bin)
-                continue;
+            var bin = locations[id];
             var names = new List<string> { bin.Name };
             var parentId = bin.ParentId;
             while (parentId is int pid && locations.TryGetValue(pid, out var parent) && names.Count <= locations.Count)
@@ -128,4 +141,10 @@ public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo, AppDbCon
         }
         return paths;
     }
+
+    private static List<int> ParentsNotLoaded(IEnumerable<StorageLocation> loaded, Dictionary<int, StorageLocation> known)
+        => loaded.Where(l => l.ParentId is int parentId && !known.ContainsKey(parentId))
+            .Select(l => l.ParentId!.Value)
+            .Distinct()
+            .ToList();
 }
