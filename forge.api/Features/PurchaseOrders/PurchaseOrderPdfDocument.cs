@@ -41,7 +41,6 @@ public class PurchaseOrderPdfDocument : IDocument
     public static string UomFor(PurchaseOrderLine line) =>
         line.PurchaseUnit?.Label
         ?? line.Uom?.Code
-        ?? line.Part?.PurchaseUom?.Code
         ?? line.Part?.StockUom?.Code
         ?? string.Empty;
 

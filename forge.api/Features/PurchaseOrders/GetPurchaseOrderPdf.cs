@@ -25,7 +25,6 @@ public class GetPurchaseOrderPdfHandler(AppDbContext db) : IRequestHandler<GetPu
         var po = await db.PurchaseOrders
             .AsNoTracking()
             .Include(p => p.Vendor)
-            .Include(p => p.Lines).ThenInclude(l => l.Part!).ThenInclude(p => p.PurchaseUom)
             .Include(p => p.Lines).ThenInclude(l => l.Part!).ThenInclude(p => p.StockUom)
             .Include(p => p.Lines).ThenInclude(l => l.Uom)
             .Include(p => p.Lines).ThenInclude(l => l.PurchaseUnit)

@@ -38,8 +38,9 @@ public class GetPurchaseOrderPdfTests
             PaymentTerms = "Net 30",
         };
         _db.Vendors.Add(vendor);
-        _db.UnitsOfMeasure.Add(new UnitOfMeasure { Id = 3, Code = "LB", Name = "Pound" });
-        _db.Parts.Add(new Part { Id = 20, PartNumber = "BAR-1018", Name = "1018 bar", PurchaseUomId = 3 });
+        _db.UnitsOfMeasure.Add(new UnitOfMeasure { Id = 3, Code = "EA", Name = "Each" });
+        _db.UnitsOfMeasure.Add(new UnitOfMeasure { Id = 4, Code = "BOX", Name = "Box" });
+        _db.Parts.Add(new Part { Id = 20, PartNumber = "BAR-1018", Name = "1018 bar", StockUomId = 3, PurchaseUomId = 4 });
         _db.Parts.Add(new Part { Id = 21, PartNumber = "BOLT-38", Name = "3/8 bolt" });
         _db.PartPurchaseUnits.Add(new PartPurchaseUnit { Id = 30, PartId = 21, Label = "Box of 100", ContentQuantity = 100 });
         _db.VendorParts.Add(new VendorPart { VendorId = 10, PartId = 20, VendorPartNumber = "MSS-1018-12", Currency = "USD" });
@@ -101,7 +102,7 @@ public class GetPurchaseOrderPdfTests
         document.VendorPartNumberFor(lines[0]).Should().Be("MSS-1018-12");
         document.VendorPartNumberFor(lines[1]).Should().BeEmpty("the only vendor part number on file belongs to another vendor");
         document.VendorPartNumberFor(lines[2]).Should().BeEmpty();
-        PurchaseOrderPdfDocument.UomFor(lines[0]).Should().Be("LB");
+        PurchaseOrderPdfDocument.UomFor(lines[0]).Should().Be("EA", "a line without a purchase unit is ordered in the stock unit, whatever the part's purchase UOM says");
         PurchaseOrderPdfDocument.UomFor(lines[1]).Should().Be("Box of 100");
         PurchaseOrderPdfDocument.UomFor(lines[2]).Should().BeEmpty();
     }
