@@ -40,9 +40,9 @@ public static class ActiveCheck
     /// message (e.g. "Vendor", "Customer", "Part"). Used both in the
     /// not-found message and in the validation message.</param>
     /// <param name="fieldPath">Field name for the validation envelope
-    /// (e.g. "vendorId", "lines[0].partId"). Used as the dictionary key in
-    /// the eventual ValidationProblemDetails response so the UI can highlight
-    /// the offending control.</param>
+    /// (e.g. "vendorId", "lines[0].partId"). Becomes the <c>field</c> of the
+    /// matching <c>errors[]</c> entry in the validation envelope so the UI can
+    /// highlight the offending control.</param>
     /// <param name="entityId">Used when the entity itself is null, so the
     /// thrown <see cref="KeyNotFoundException"/> matches the existing error
     /// message format used across the codebase.</param>

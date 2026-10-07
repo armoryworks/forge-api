@@ -87,8 +87,7 @@ public class LeadRepository(AppDbContext db) : ILeadRepository
 
     public async Task<string> GenerateNextLeadNumberAsync(CancellationToken ct)
     {
-        // Per-prefix max-scan mirroring SalesOrderRepository.GenerateNextOrderNumberAsync:
-        // take the newest row carrying a LEAD- number and increment its suffix.
+        // Take the newest row carrying a LEAD- number and increment its suffix.
         // IgnoreQueryFilters so a soft-deleted lead's number is still counted —
         // the partial unique index covers all rows, so reusing a suffix would 23505.
         const string token = "LEAD-";

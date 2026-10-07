@@ -131,8 +131,7 @@ public class CustomerRepository(AppDbContext db) : ICustomerRepository
 
     public async Task<string> GenerateNextCustomerNumberAsync(CancellationToken ct)
     {
-        // Per-prefix max-scan mirroring SalesOrderRepository.GenerateNextOrderNumberAsync:
-        // take the newest row carrying a CUST- number and increment its suffix.
+        // Take the newest row carrying a CUST- number and increment its suffix.
         // IgnoreQueryFilters so a soft-deleted customer's number is still counted —
         // the partial unique index covers all rows, so reusing a suffix would 23505.
         const string token = "CUST-";

@@ -120,8 +120,7 @@ public class VendorRepository(AppDbContext db) : IVendorRepository
 
     public async Task<string> GenerateNextVendorNumberAsync(CancellationToken ct)
     {
-        // Per-prefix max-scan mirroring SalesOrderRepository.GenerateNextOrderNumberAsync:
-        // take the newest row carrying a VEND- number and increment its suffix.
+        // Take the newest row carrying a VEND- number and increment its suffix.
         // IgnoreQueryFilters so a soft-deleted vendor's number is still counted —
         // the partial unique index covers all rows, so reusing a suffix would 23505.
         const string token = "VEND-";

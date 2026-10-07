@@ -19,9 +19,8 @@ public record GenerateCustomerPoDocumentCommand(int SalesOrderId, int? Generated
 /// is returned untouched. The document body always renders live from the SO
 /// (see GetCustomerPoDocument) — this handler only mints the identity.
 ///
-/// <para><strong>Numbering.</strong> <c>CPO-{seq:D5}</c>, following the
-/// existing app-side convention (SalesOrderRepository.GenerateNextOrderNumberAsync):
-/// read the latest row's number and increment. A Postgres sequence would be
+/// <para><strong>Numbering.</strong> <c>CPO-{seq:D5}</c>: read the latest
+/// row's number and increment. A Postgres sequence would be
 /// safer, but schema is owned by forge-db and no sequence exists for this
 /// table, so the unique index <c>ux_customer_po_documents_document_number</c>
 /// is the concurrency backstop — on a unique violation we recompute once and
@@ -82,8 +81,7 @@ public class GenerateCustomerPoDocumentHandler(AppDbContext db, IClock clock)
 
     private async Task<string> NextDocumentNumberAsync(CancellationToken ct)
     {
-        // Mirrors SalesOrderRepository.GenerateNextOrderNumberAsync: latest
-        // row (including soft-deleted, so numbers are never reused) + 1.
+        // Latest row (including soft-deleted, so numbers are never reused) + 1.
         var last = await db.CustomerPoDocuments
             .IgnoreQueryFilters()
             .OrderByDescending(d => d.Id)
