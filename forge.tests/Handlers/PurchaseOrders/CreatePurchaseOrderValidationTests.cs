@@ -171,4 +171,17 @@ public class CreatePurchaseOrderValidationTests
 
         _poRepo.Verify(r => r.AddAsync(It.Is<PurchaseOrder>(po => po.ExpectedDeliveryDate == supplied), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task Handle_ValidCommand_WritesCreatedActivity()
+    {
+        var command = new CreatePurchaseOrderCommand(
+            VendorId, null, null,
+            [new CreatePurchaseOrderLineModel(PartId, null, 1, 10m, null)]);
+
+        await _handler.Handle(command, CancellationToken.None);
+
+        _db.ActivityLogs.Should().ContainSingle(a =>
+            a.EntityType == "PurchaseOrder" && a.Action == "created" && a.Description.Contains("PO-0100"));
+    }
 }

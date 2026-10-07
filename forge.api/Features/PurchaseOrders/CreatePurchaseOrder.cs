@@ -174,6 +174,12 @@ public class CreatePurchaseOrderHandler(
         // Record the number in the identifier registry (history + resolution).
         await identifiers.IssueAsync(BusinessEntityType.PurchaseOrder, po.Id, po.PONumber, cancellationToken);
 
+        db.LogActivityAt(
+            "created",
+            $"Created purchase order {po.PONumber} for {vendor!.CompanyName} with {po.Lines.Count} line(s)",
+            ("PurchaseOrder", po.Id));
+        await db.SaveChangesAsync(cancellationToken);
+
         // Publish domain event for calendar integration
         if (userId > 0)
             await mediator.Publish(new PurchaseOrderCreatedEvent(po.Id, userId), cancellationToken);
