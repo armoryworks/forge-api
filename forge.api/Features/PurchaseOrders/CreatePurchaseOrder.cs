@@ -22,7 +22,7 @@ public record CreatePurchaseOrderCommand(
     List<CreatePurchaseOrderLineModel> Lines,
     // Bought-parts effort PR2.5 — header fields. All optional: when omitted,
     // we default Incoterm + QuoteCurrency from the preferred VendorPart of
-    // the first line's part. EstimatedFreight stays null when the buyer
+    // the first part line's part. EstimatedFreight stays null when the buyer
     // doesn't yet have a freight quote (distinct from $0 = free shipping).
     Incoterm? Incoterm = null,
     decimal? EstimatedFreight = null,
@@ -92,14 +92,13 @@ public class CreatePurchaseOrderHandler(
         var poNumber = await ResolvePONumberAsync(request, cancellationToken);
 
         // Bought-parts PR2.5 — derive Incoterm/QuoteCurrency defaults from
-        // the preferred VendorPart for the first line's (vendor, part) when
+        // the preferred VendorPart for the first part line's (vendor, part) when
         // not supplied by the caller. Falls back to entity defaults when no
         // VendorPart row exists yet (FOB_Origin / USD).
         Incoterm? defaultIncoterm = null;
         string? defaultCurrency = null;
         DateTimeOffset? defaultExpectedDelivery = null;
-        if (request.Lines.Count > 0
-            && request.Lines[0].PartId is int firstPartId
+        if (request.Lines.FirstOrDefault(l => l.PartId is not null)?.PartId is int firstPartId
             && (!request.Incoterm.HasValue
                 || string.IsNullOrEmpty(request.QuoteCurrency)
                 || !request.ExpectedDeliveryDate.HasValue))

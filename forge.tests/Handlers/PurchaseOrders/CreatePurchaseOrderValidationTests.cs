@@ -3,6 +3,7 @@ using FluentValidation;
 using Moq;
 using Forge.Api.Features.PurchaseOrders;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -153,6 +154,32 @@ public class CreatePurchaseOrderValidationTests
 
         var expected = new DateTimeOffset(2026, 10, 21, 0, 0, 0, TimeSpan.Zero);
         _poRepo.Verify(r => r.AddAsync(It.Is<PurchaseOrder>(po => po.ExpectedDeliveryDate == expected), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_ServiceLineFirst_DefaultsFromFirstPartLine()
+    {
+        _db.VendorParts.Add(new VendorPart
+        {
+            VendorId = VendorId, PartId = PartId, LeadTimeDays = 14, IsPreferred = true,
+            Incoterm = Incoterm.DDP, Currency = "EUR",
+        });
+        await _db.SaveChangesAsync();
+
+        var command = new CreatePurchaseOrderCommand(
+            VendorId, null, null,
+            [
+                new CreatePurchaseOrderLineModel(null, "Setup charge", 1, 75m, null),
+                new CreatePurchaseOrderLineModel(PartId, null, 1, 10m, null),
+            ]);
+
+        await _handler.Handle(command, CancellationToken.None);
+
+        var expected = new DateTimeOffset(2026, 10, 21, 0, 0, 0, TimeSpan.Zero);
+        _poRepo.Verify(r => r.AddAsync(It.Is<PurchaseOrder>(po =>
+            po.ExpectedDeliveryDate == expected
+            && po.Incoterm == Incoterm.DDP
+            && po.QuoteCurrency == "EUR"), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
