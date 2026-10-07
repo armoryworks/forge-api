@@ -18,8 +18,15 @@ public class ReceiveInterPlantTransferHandler(AppDbContext db, IClock clock) : I
             .FirstOrDefaultAsync(t => t.Id == command.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Transfer {command.Id} not found");
 
-        if (transfer.Status != InterPlantTransferStatus.Shipped && transfer.Status != InterPlantTransferStatus.InTransit)
-            throw new InvalidOperationException("This transfer can be received once it has shipped.");
+        var blockedReason = transfer.Status switch
+        {
+            InterPlantTransferStatus.Shipped or InterPlantTransferStatus.InTransit => null,
+            InterPlantTransferStatus.Received => "This transfer has already been received.",
+            InterPlantTransferStatus.Cancelled => "This transfer was cancelled.",
+            _ => "This transfer can be received once it has shipped.",
+        };
+        if (blockedReason is not null)
+            throw new InvalidOperationException(blockedReason);
 
         var receivedLinesByPart = command.Lines.ToDictionary(l => l.PartId, l => l.ReceivedQuantity);
 
