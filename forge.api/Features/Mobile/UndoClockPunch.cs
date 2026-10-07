@@ -4,7 +4,9 @@ using System.Text.Json;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.TimeTracking;
 using Forge.Api.Services;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
@@ -14,14 +16,16 @@ public record UndoClockPunchCommand(int EventId) : IRequest<ClockStateResponseMo
 
 /// <summary>
 /// The compensating action for a clock punch: removes the caller's own
-/// latest event, only inside the undo window. Anything older goes through
-/// the time-correction flow on the desktop instead. Audited.
+/// latest event, only inside the undo window, and resumes the job timer a
+/// clock-out stopped. Anything older goes through the time-correction flow
+/// on the desktop instead. Audited.
 /// </summary>
 public class UndoClockPunchHandler(
     AppDbContext db,
     IMediator mediator,
     IClock clock,
     IHttpContextAccessor httpContext,
+    IClockEventTypeService clockEventTypeService,
     ISystemAuditWriter auditWriter)
     : IRequestHandler<UndoClockPunchCommand, ClockStateResponseModel>
 {
@@ -41,7 +45,14 @@ public class UndoClockPunchHandler(
         if (clock.UtcNow - latest.Timestamp > UndoWindow)
             throw new InvalidOperationException("The undo window for this clock event has passed.");
 
+        var definition = await clockEventTypeService.GetByCodeAsync(latest.EventTypeCode, ct);
+        var wasClockOut = definition is null
+            ? latest.EventType == ClockEventType.ClockOut
+            : definition.StatusMapping == "Out";
+
         db.ClockEvents.Remove(latest);
+        if (wasClockOut)
+            await mediator.Send(new ResumeStoppedTimerCommand(userId, latest.Timestamp), ct);
         await db.SaveChangesAsync(ct);
 
         await auditWriter.WriteAsync(
