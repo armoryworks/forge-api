@@ -119,7 +119,7 @@ public class ConfirmSalesOrderHandlerTests
         boardHub.SetupGet(h => h.Clients).Returns(hubClients.Object);
         var createJobs = new CreateJobsForSalesOrderLinesHandler(
             _db, jobRepo.Object, Mock.Of<IBarcodeService>(), Mock.Of<IBusinessIdentifierService>(),
-            boardHub.Object, _acceptanceGate.Object);
+            boardHub.Object, _acceptanceGate.Object, Mock.Of<IMediator>(), Mock.Of<ICloudFolderAutoCreator>());
         _mediator.Setup(m => m.Publish(It.IsAny<SalesOrderConfirmedEvent>(), It.IsAny<CancellationToken>()))
             .Returns<SalesOrderConfirmedEvent, CancellationToken>((e, ct) =>
                 createJobs.Handle(new CreateJobsForSalesOrderLinesCommand(e.SalesOrderId, FromConfirmation: true), ct));

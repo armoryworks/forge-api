@@ -1,8 +1,10 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using MediatR;
 using Moq;
 
+using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.SalesOrders;
 using Forge.Api.Features.SalesOrders.Acceptance;
 using Forge.Api.Hubs;
@@ -23,6 +25,8 @@ public class CreateJobsForSalesOrderLinesTests
     private readonly Mock<IHubContext<BoardHub>> _boardHub = new();
     private readonly Mock<IClientProxy> _boardClients = new();
     private readonly Mock<ISalesOrderAcceptanceGate> _acceptanceGate = new();
+    private readonly Mock<IMediator> _mediator = new();
+    private readonly Mock<ICloudFolderAutoCreator> _folders = new();
     private int _nextJobNumber = 9001;
 
     public CreateJobsForSalesOrderLinesTests()
@@ -38,7 +42,8 @@ public class CreateJobsForSalesOrderLinesTests
     }
 
     private CreateJobsForSalesOrderLinesHandler Handler() => new(
-        _db, _jobRepo.Object, _barcodes.Object, _identifiers.Object, _boardHub.Object, _acceptanceGate.Object);
+        _db, _jobRepo.Object, _barcodes.Object, _identifiers.Object, _boardHub.Object, _acceptanceGate.Object,
+        _mediator.Object, _folders.Object);
 
     private void SeedTrack(bool withOrderConfirmedStage = true)
     {
@@ -285,6 +290,25 @@ public class CreateJobsForSalesOrderLinesTests
         job.SalesOrderLineId.Should().Be(602);
         job.Title.Should().Be("CW-1001 x 25");
         job.JobParts.Single().Quantity.Should().Be(25m);
+    }
+
+    [Fact]
+    public async Task Created_jobs_raise_job_created_and_get_a_cloud_folder()
+    {
+        SeedTrack();
+        AddPart(900, "CW-1001", ProcurementSource.Make);
+        var so = await SeedOrderAsync(Line(601, 1, 900, 5m));
+        _db.CurrentUserId = 12;
+
+        await Handler().Handle(new CreateJobsForSalesOrderLinesCommand(so.Id), CancellationToken.None);
+
+        var job = await _db.Jobs.SingleAsync();
+        _mediator.Verify(m => m.Publish(
+            It.Is<JobCreatedEvent>(e => e.JobId == job.Id && e.UserId == 12), It.IsAny<CancellationToken>()), Times.Once);
+        _folders.Verify(f => f.AutoCreateAsync(
+            "Job", job.Id,
+            It.Is<IReadOnlyDictionary<string, string>>(t => t["Job"] == job.JobNumber && t["Customer"] == "Acme"),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

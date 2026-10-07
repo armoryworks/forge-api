@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.SalesOrders.Acceptance;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
@@ -25,7 +26,9 @@ public class CreateJobsForSalesOrderLinesHandler(
     IBarcodeService barcodeService,
     IBusinessIdentifierService identifiers,
     IHubContext<BoardHub> boardHub,
-    ISalesOrderAcceptanceGate acceptanceGate)
+    ISalesOrderAcceptanceGate acceptanceGate,
+    IMediator mediator,
+    ICloudFolderAutoCreator folderAutoCreator)
     : IRequestHandler<CreateJobsForSalesOrderLinesCommand, CreateJobsForSalesOrderLinesResponseModel>
 {
     private const int MaxTitleLength = 200;
@@ -168,6 +171,25 @@ public class CreateJobsForSalesOrderLinesHandler(
                 .SendAsync("jobCreated", new BoardJobCreatedEvent(
                     job.Id, job.JobNumber, job.Title, track.Id,
                     startStage.Id, startStage.Name, job.BoardPosition), cancellationToken);
+        }
+
+        if (created.Count == 0)
+            return new CreateJobsForSalesOrderLinesResponseModel(created.Count, skipped);
+
+        var userId = db.CurrentUserId ?? 0;
+        var customerName = await db.Customers.AsNoTracking()
+            .Where(c => c.Id == so.CustomerId)
+            .Select(c => string.IsNullOrWhiteSpace(c.CompanyName) ? c.Name : $"{c.Name} ({c.CompanyName})")
+            .FirstOrDefaultAsync(cancellationToken);
+        foreach (var job in created)
+        {
+            if (userId > 0)
+                await mediator.Publish(new JobCreatedEvent(job.Id, userId), cancellationToken);
+
+            var tokenContext = new Dictionary<string, string> { ["Job"] = job.JobNumber };
+            if (!string.IsNullOrEmpty(customerName))
+                tokenContext["Customer"] = customerName;
+            await folderAutoCreator.AutoCreateAsync("Job", job.Id, tokenContext, cancellationToken);
         }
 
         return new CreateJobsForSalesOrderLinesResponseModel(created.Count, skipped);
