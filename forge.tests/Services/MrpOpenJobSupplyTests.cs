@@ -89,6 +89,9 @@ public class MrpOpenJobSupplyTests
     private static Task<List<MrpSupply>> JobSuppliesAsync(AppDbContext db, int runId)
         => db.MrpSupplies.Where(s => s.MrpRunId == runId && s.Source == MrpSupplySource.Job).ToListAsync();
 
+    private static Task<List<MrpException>> ExceptionsAsync(AppDbContext db, int runId)
+        => db.MrpExceptions.Where(e => e.MrpRunId == runId).ToListAsync();
+
     [Fact]
     public async Task OpenSoLinkedJob_SatisfiesItsLine_SoNoPlannedOrderIsSuggested()
     {
@@ -109,6 +112,8 @@ public class MrpOpenJobSupplyTests
         supply.SourceEntityId.Should().Be(job.Id);
         supply.Quantity.Should().Be(100);
         supply.AvailableDate.Should().Be(Now.AddDays(45));
+        (await ExceptionsAsync(db, run.Id)).Should().ContainSingle(e => e.ExceptionType == MrpExceptionType.Expedite)
+            .Which.Message.Should().Contain("J-1");
     }
 
     [Fact]
@@ -264,5 +269,94 @@ public class MrpOpenJobSupplyTests
 
         (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle().Which.Quantity.Should().Be(100);
         (await PlannedOrdersAsync(db, run.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task TwoJobsOnOneLine_CoverTheLineOnlyOnce_SoALaterLineStillGetsAPlannedOrder()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        var line = await SeedSoLineAsync(db, part.Id, 100, daysOut: 30);
+        await SeedSoLineAsync(db, part.Id, 50, daysOut: 40);
+
+        var autoJob = NewJob(part.Id, "J-8A", jobPartQuantity: 100);
+        autoJob.SalesOrderLineId = line.Id;
+        autoJob.DueDate = Now.AddDays(20);
+        var manualJob = NewJob(part.Id, "J-8B", jobPartQuantity: 100);
+        manualJob.SalesOrderLineId = line.Id;
+        manualJob.DueDate = Now.AddDays(25);
+        db.Jobs.AddRange(autoJob, manualJob);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Sum(s => s.Quantity).Should().Be(100);
+        var planned = (await PlannedOrdersAsync(db, run.Id)).Should().ContainSingle().Subject;
+        planned.Quantity.Should().Be(50);
+        planned.DueDate.Should().Be(Now.AddDays(40));
+    }
+
+    [Fact]
+    public async Task JobsSplittingOneLine_EachCountTheirOwnQuantity()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        var line = await SeedSoLineAsync(db, part.Id, 100, daysOut: 30);
+
+        var first = NewJob(part.Id, "J-9A", jobPartQuantity: 60);
+        first.SalesOrderLineId = line.Id;
+        var second = NewJob(part.Id, "J-9B", jobPartQuantity: 40);
+        second.SalesOrderLineId = line.Id;
+        db.Jobs.AddRange(first, second);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Select(s => s.Quantity).Should().BeEquivalentTo([60m, 40m]);
+        (await PlannedOrdersAsync(db, run.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task JobSplitIntoRuns_CountsTheQuantityNotYetInARun()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        await SeedSoLineAsync(db, part.Id, 1000, daysOut: 30);
+
+        var job = NewJob(part.Id, "J-10", jobPartQuantity: 1000);
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+        db.ProductionRuns.Add(new ProductionRun
+        {
+            JobId = job.Id,
+            PartId = part.Id,
+            RunNumber = "PR-10",
+            TargetQuantity = 250,
+            Status = ProductionRunStatus.InProgress,
+        });
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle().Which.Quantity.Should().Be(750);
+        (await PlannedOrdersAsync(db, run.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task OpenJobLongPastItsDueDate_IsFlaggedAsPastDue()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        await SeedSoLineAsync(db, part.Id, 50, daysOut: 30);
+
+        var job = NewJob(part.Id, "J-11", jobPartQuantity: 50);
+        job.DueDate = Now.AddDays(-10);
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await ExceptionsAsync(db, run.Id)).Should().ContainSingle(e => e.ExceptionType == MrpExceptionType.PastDue)
+            .Which.Message.Should().Contain("J-11");
     }
 }
