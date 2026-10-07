@@ -160,7 +160,7 @@ public sealed class ExplodeJobBomPostgresTests(PostgresFixture fixture)
                 await handler.Handle(new ExplodeJobBomCommand(parentJobId), CancellationToken.None);
                 return true;
             }
-            catch (InvalidOperationException ex) when (ex.Message == "This work order has already been exploded.")
+            catch (InvalidOperationException ex) when (ex.Message.StartsWith("This work order has already been exploded.", StringComparison.Ordinal))
             {
                 return false;
             }
@@ -251,7 +251,7 @@ public sealed class ExplodeJobBomPostgresTests(PostgresFixture fixture)
                 await handler.Handle(new ExplodeJobBomCommand(parentJobId), CancellationToken.None);
                 return true;
             }
-            catch (InvalidOperationException ex) when (ex.Message == "This work order has already been exploded.")
+            catch (InvalidOperationException ex) when (ex.Message.StartsWith("This work order has already been exploded.", StringComparison.Ordinal))
             {
                 return false;
             }

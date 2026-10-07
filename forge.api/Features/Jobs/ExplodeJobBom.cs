@@ -28,6 +28,8 @@ public class ExplodeJobBomHandler(
     IBarcodeService barcodeService,
     IHubContext<BoardHub> boardHub) : IRequestHandler<ExplodeJobBomCommand, BomExplosionResponseModel>
 {
+    private const string AutoReserveNotePrefix = "Auto-reserved via BOM explosion for job";
+
     public async Task<BomExplosionResponseModel> Handle(ExplodeJobBomCommand request, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -55,8 +57,9 @@ public class ExplodeJobBomHandler(
             throw new InvalidOperationException(
                 $"Part {part.PartNumber} has no BOM lines to explode. Add BOM lines to the part first.");
 
-        if (await HasExplosionOutputAsync(parentJob.Id, bomLines, ct))
-            throw new InvalidOperationException("This work order has already been exploded.");
+        if (await HasLiveExplosionAsync(parentJob.Id, ct))
+            throw new InvalidOperationException(
+                "This work order has already been exploded. To redo it, mark its sub-jobs as entered in error and release its reserved stock first.");
 
         var firstStage = parentJob.TrackType.Stages.FirstOrDefault()
             ?? throw new InvalidOperationException(
@@ -174,7 +177,7 @@ public class ExplodeJobBomHandler(
                             BinContentId = bin.Id,
                             JobId = parentJob.Id,
                             Quantity = toReserve,
-                            Notes = $"Auto-reserved via BOM explosion for job {parentJob.JobNumber}",
+                            Notes = $"{AutoReserveNotePrefix} {parentJob.JobNumber}",
                         });
 
                         bin.ReservedQuantity += toReserve;
@@ -236,23 +239,19 @@ public class ExplodeJobBomHandler(
             stockItems);
     }
 
-    private async Task<bool> HasExplosionOutputAsync(
-        int parentJobId, List<BomExplosionLine> bomLines, CancellationToken ct)
+    private async Task<bool> HasLiveExplosionAsync(int parentJobId, CancellationToken ct)
     {
-        if (await db.Jobs.AnyAsync(j => j.ParentJobId == parentJobId && j.DeletedAt == null, ct))
+        if (await db.Jobs.AnyAsync(j =>
+                j.ParentJobId == parentJobId
+                && j.DeletedAt == null
+                && j.Disposition != JobDisposition.EnteredInError, ct))
             return true;
 
-        var stockPartIds = bomLines
-            .Where(l => l.SourceType == BOMSourceType.Stock)
-            .Select(l => l.ChildPart.Id)
-            .Distinct()
-            .ToList();
-
-        return stockPartIds.Count > 0
-            && await db.Set<Reservation>().AnyAsync(r =>
-                r.JobId == parentJobId
-                && r.DeletedAt == null
-                && stockPartIds.Contains(r.PartId), ct);
+        return await db.Set<Reservation>().AnyAsync(r =>
+            r.JobId == parentJobId
+            && r.DeletedAt == null
+            && r.Notes != null
+            && r.Notes.StartsWith(AutoReserveNotePrefix), ct);
     }
 
     private async Task<List<BomExplosionLine>> LoadBomLinesAsync(

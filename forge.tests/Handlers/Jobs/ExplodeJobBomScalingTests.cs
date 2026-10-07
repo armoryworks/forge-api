@@ -179,7 +179,7 @@ public class ExplodeJobBomScalingTests
         var act = () => _handler.Handle(new ExplodeJobBomCommand(parentJob.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("This work order has already been exploded.");
+            .WithMessage("This work order has already been exploded.*");
         (await _db.Jobs.CountAsync(j => j.ParentJobId == parentJob.Id)).Should().Be(1);
     }
 
@@ -197,7 +197,7 @@ public class ExplodeJobBomScalingTests
         var act = () => _handler.Handle(new ExplodeJobBomCommand(parentJob.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("This work order has already been exploded.");
+            .WithMessage("This work order has already been exploded.*");
         (await _db.Set<Reservation>().CountAsync(r => r.JobId == parentJob.Id)).Should().Be(1);
         (await _db.BinContents.SingleAsync(b => b.EntityId == stockPart.Id)).ReservedQuantity.Should().Be(8m);
     }
@@ -223,6 +223,72 @@ public class ExplodeJobBomScalingTests
 
         result.StockItems.Single().ReservedQuantity.Should().Be(8m);
         bin.ReservedQuantity.Should().Be(8m);
+    }
+
+    [Fact]
+    public async Task Explode_AfterSubJobsAreMarkedEnteredInError_ExplodesAgainAtTheNewQuantity()
+    {
+        var (parentPart, parentJob) = await SeedParentAsync(buildQty: 500m);
+        var makePart = await SeedPartAsync("MK-6", uom: null);
+        _db.BOMLines.Add(new BOMLine { ParentPartId = parentPart.Id, ChildPartId = makePart.Id, Quantity = 2, SourceType = BOMSourceType.Make, SortOrder = 1 });
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(new ExplodeJobBomCommand(parentJob.Id), CancellationToken.None);
+
+        var firstChild = await _db.Jobs.SingleAsync(j => j.ParentJobId == parentJob.Id);
+        firstChild.Disposition = JobDisposition.EnteredInError;
+        firstChild.IsArchived = true;
+        (await _db.Set<JobPart>().SingleAsync(jp => jp.JobId == parentJob.Id)).Quantity = 800m;
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new ExplodeJobBomCommand(parentJob.Id), CancellationToken.None);
+
+        result.CreatedJobs.Single().Quantity.Should().Be(1600m);
+        (await _db.Jobs.CountAsync(j => j.ParentJobId == parentJob.Id && j.Disposition == null)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Explode_WithOnlyOneSubJobMarkedEnteredInError_StillRefuses()
+    {
+        var (parentPart, parentJob) = await SeedParentAsync(buildQty: 5m);
+        var firstPart = await SeedPartAsync("MK-7", uom: null);
+        var secondPart = await SeedPartAsync("MK-8", uom: null);
+        _db.BOMLines.AddRange(
+            new BOMLine { ParentPartId = parentPart.Id, ChildPartId = firstPart.Id, Quantity = 1, SourceType = BOMSourceType.Make, SortOrder = 1 },
+            new BOMLine { ParentPartId = parentPart.Id, ChildPartId = secondPart.Id, Quantity = 1, SourceType = BOMSourceType.Make, SortOrder = 2 });
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(new ExplodeJobBomCommand(parentJob.Id), CancellationToken.None);
+
+        var child = await _db.Jobs.FirstAsync(j => j.ParentJobId == parentJob.Id && j.PartId == firstPart.Id);
+        child.Disposition = JobDisposition.EnteredInError;
+        child.IsArchived = true;
+        await _db.SaveChangesAsync();
+
+        var act = () => _handler.Handle(new ExplodeJobBomCommand(parentJob.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("This work order has already been exploded.*");
+    }
+
+    [Fact]
+    public async Task Explode_WithAReservationMadeByHand_IsNotTreatedAsAlreadyExploded()
+    {
+        var (parentPart, parentJob) = await SeedParentAsync(buildQty: 4m);
+        var stockPart = await SeedPartAsync("SK-4", uom: null);
+        _db.BOMLines.Add(new BOMLine { ParentPartId = parentPart.Id, ChildPartId = stockPart.Id, Quantity = 2, SourceType = BOMSourceType.Stock, SortOrder = 1 });
+        await SeedStockAsync(stockPart, 100m);
+        await _db.SaveChangesAsync();
+
+        var bin = await _db.BinContents.SingleAsync(b => b.EntityId == stockPart.Id);
+        _db.Set<Reservation>().Add(new Reservation { PartId = stockPart.Id, BinContentId = bin.Id, JobId = parentJob.Id, Quantity = 10m, Notes = "Held for the first article" });
+        bin.ReservedQuantity = 10m;
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new ExplodeJobBomCommand(parentJob.Id), CancellationToken.None);
+
+        result.StockItems.Single().ReservedQuantity.Should().Be(8m);
+        bin.ReservedQuantity.Should().Be(18m);
     }
 
     [Fact]
