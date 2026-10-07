@@ -142,6 +142,31 @@ public class QualityRecordsTests(CapabilityTestWebApplicationFactory factory)
         _db.ActivityLogs.Should().Contain(a => a.EntityType == "Job" && a.EntityId == 42);
     }
 
+    [Fact]
+    public async Task A_second_concurrent_completion_is_refused_and_publishes_nothing()
+    {
+        var databaseName = $"TestDb_{Guid.NewGuid()}";
+        await using var first = TestDbContextFactory.Create(databaseName);
+        await using var second = TestDbContextFactory.Create(databaseName);
+        var inspection = new QcInspection { InspectorId = 7, JobId = 42, Status = "InProgress" };
+        first.QcInspections.Add(inspection);
+        await first.SaveChangesAsync();
+        await second.QcInspections.Include(i => i.Results).SingleAsync(i => i.Id == inspection.Id);
+
+        var accessor = new Mock<IHttpContextAccessor>();
+        accessor.Setup(a => a.HttpContext).Returns(new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "7")], "Test")),
+        });
+        UpdateQcInspectionCommand Fail() => new(inspection.Id, new UpdateQcInspectionRequestModel("Failed", null, null));
+
+        await new UpdateQcInspectionHandler(first, _mediator.Object, accessor.Object, _clock).Handle(Fail(), CancellationToken.None);
+        var late = () => new UpdateQcInspectionHandler(second, _mediator.Object, accessor.Object, _clock).Handle(Fail(), CancellationToken.None);
+
+        await late.Should().ThrowAsync<InvalidOperationException>().WithMessage("*someone else*");
+        _mediator.Verify(m => m.Publish(It.IsAny<QcInspectionFailedEvent>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private async Task<LotRecord> SeedLotAsync(string lotNumber)
     {
         var lot = new LotRecord { LotNumber = lotNumber, PartId = 1, Quantity = 10 };

@@ -90,7 +90,15 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
             db.LogActivityAt(action, description, [.. points]);
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new InvalidOperationException(
+                $"Inspection {inspection.Id} was completed or changed by someone else. Reload it and try again.");
+        }
 
         if (data.Status == "Failed" && inspection.JobId.HasValue)
         {

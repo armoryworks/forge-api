@@ -13,10 +13,10 @@ namespace Forge.Tests.Helpers;
 /// </summary>
 public static class TestDbContextFactory
 {
-    public static AppDbContext Create()
+    public static AppDbContext Create(string? databaseName = null)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(databaseName: $"TestDb_{Guid.NewGuid()}")
+            .UseInMemoryDatabase(databaseName: databaseName ?? $"TestDb_{Guid.NewGuid()}")
             .ConfigureWarnings(w =>
             {
                 // Suppress the "property could not be mapped" validation error

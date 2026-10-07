@@ -12,7 +12,7 @@ public class QcInspectionConfiguration : IEntityTypeConfiguration<QcInspection>
         builder.Ignore(e => e.IsDeleted);
 
         builder.Property(e => e.LotNumber).HasMaxLength(100);
-        builder.Property(e => e.Status).HasMaxLength(50);
+        builder.Property(e => e.Status).HasMaxLength(50).IsConcurrencyToken();
         builder.Property(e => e.Notes).HasMaxLength(2000);
 
         builder.HasIndex(e => e.JobId);
