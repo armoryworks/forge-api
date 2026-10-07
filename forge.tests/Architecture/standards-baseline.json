@@ -138,7 +138,6 @@
     "forge.api/Features/PriceLists/DeletePriceList.cs": 1,
     "forge.api/Features/PriceLists/DeletePriceListEntry.cs": 1,
     "forge.api/Features/Pricing/ResolvePrice.cs": 1,
-    "forge.api/Features/PurchaseOrders/AcknowledgePurchaseOrder.cs": 1,
     "forge.api/Features/PurchaseOrders/DeletePurchaseOrder.cs": 1,
     "forge.api/Features/PurchaseOrders/ShortClosePurchaseOrder.cs": 1,
     "forge.api/Features/PurchaseOrders/SubmitPurchaseOrder.cs": 1,
