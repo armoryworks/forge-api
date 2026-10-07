@@ -40,13 +40,15 @@ public class MrpOpenJobSupplyTests
         return part;
     }
 
-    private static async Task<Part> SeedComponentAsync(AppDbContext db, int parentPartId, decimal perUnit, string number = "MRP-COMP-01")
+    private static async Task<Part> SeedComponentAsync(
+        AppDbContext db, int parentPartId, decimal perUnit, string number = "MRP-COMP-01", bool isMrpPlanned = true)
     {
         var component = new Part
         {
             PartNumber = number,
             Description = "Component",
             Status = PartStatus.Active,
+            IsMrpPlanned = isMrpPlanned,
             LotSizingRule = LotSizingRule.LotForLot,
         };
         db.Parts.Add(component);
@@ -525,7 +527,7 @@ public class MrpOpenJobSupplyTests
         using var db = TestDbContextFactory.Create();
         var part = await SeedPartAsync(db);
         var currentComponent = await SeedComponentAsync(db, part.Id, perUnit: 2);
-        var pinnedComponent = new Part { PartNumber = "MRP-COMP-OLD", Description = "Old component", Status = PartStatus.Active };
+        var pinnedComponent = new Part { PartNumber = "MRP-COMP-OLD", Description = "Old component", Status = PartStatus.Active, IsMrpPlanned = true };
         db.Parts.Add(pinnedComponent);
         await db.SaveChangesAsync();
 
@@ -572,5 +574,198 @@ public class MrpOpenJobSupplyTests
 
         (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle().Which.Quantity.Should().Be(40);
         (await PlannedOrdersAsync(db, run.Id)).Should().ContainSingle().Which.Quantity.Should().Be(50);
+    }
+
+    private static async Task<List<JobStage>> SeedTrackAsync(AppDbContext db, int stageCount)
+    {
+        var track = new TrackType { Name = $"Track {stageCount}", Code = $"track-{stageCount}" };
+        db.TrackTypes.Add(track);
+        await db.SaveChangesAsync();
+
+        var stages = Enumerable.Range(1, stageCount)
+            .Select(i => new JobStage { TrackTypeId = track.Id, Name = $"Stage {i}", Code = $"s{i}", SortOrder = i })
+            .ToList();
+        db.JobStages.AddRange(stages);
+        await db.SaveChangesAsync();
+        return stages;
+    }
+
+    private static void PlaceOn(Job job, JobStage stage)
+    {
+        job.TrackTypeId = stage.TrackTypeId;
+        job.CurrentStageId = stage.Id;
+    }
+
+    [Fact]
+    public async Task JobInTheFinalStageOfItsTrack_IsNotSupply_EvenWithoutACompletedDate()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        await SeedSoLineAsync(db, part.Id, 100, daysOut: 30);
+        var stages = await SeedTrackAsync(db, stageCount: 3);
+
+        var done = NewJob(part.Id, "J-20A", jobPartQuantity: 100);
+        PlaceOn(done, stages[2]);
+        var inProcess = NewJob(part.Id, "J-20B", jobPartQuantity: 30);
+        PlaceOn(inProcess, stages[1]);
+        db.Jobs.AddRange(done, inProcess);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle().Which.SourceEntityId.Should().Be(inProcess.Id);
+        (await PlannedOrdersAsync(db, run.Id)).Should().ContainSingle().Which.Quantity.Should().Be(70);
+    }
+
+    [Fact]
+    public async Task JobOnASingleStageTrack_IsStillSupply()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        await SeedSoLineAsync(db, part.Id, 100, daysOut: 30);
+        var stages = await SeedTrackAsync(db, stageCount: 1);
+
+        var job = NewJob(part.Id, "J-21", jobPartQuantity: 100);
+        PlaceOn(job, stages[0]);
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle().Which.Quantity.Should().Be(100);
+        (await PlannedOrdersAsync(db, run.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task OpenJobComponentDemand_NetsStockReservedToTheJob()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        var component = await SeedComponentAsync(db, part.Id, perUnit: 2);
+
+        var job = NewJob(part.Id, "J-22", jobPartQuantity: 25);
+        job.StartDate = Now.AddDays(5);
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var bin = new BinContent
+        {
+            LocationId = 1,
+            EntityType = "part",
+            EntityId = component.Id,
+            Quantity = 50,
+            ReservedQuantity = 30,
+            Status = BinContentStatus.Stored,
+            PlacedAt = Now,
+        };
+        db.BinContents.Add(bin);
+        await db.SaveChangesAsync();
+        db.Reservations.Add(new Reservation { PartId = component.Id, BinContentId = bin.Id, JobId = job.Id, Quantity = 30 });
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await db.MrpDemands.SingleAsync(d => d.MrpRunId == run.Id && d.PartId == component.Id))
+            .Quantity.Should().Be(20);
+        (await PlannedOrdersForPartAsync(db, run.Id, component.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task OpenJobComponentDemand_IsCoveredByAnOpenPoForTheComponent()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        var component = await SeedComponentAsync(db, part.Id, perUnit: 2);
+
+        var job = NewJob(part.Id, "J-23", jobPartQuantity: 25);
+        job.StartDate = Now.AddDays(20);
+        db.Jobs.Add(job);
+        var po = new PurchaseOrder { PONumber = "PO-00023", VendorId = 1, ExpectedDeliveryDate = Now.AddDays(10) };
+        po.Lines.Add(new PurchaseOrderLine { PartId = component.Id, Description = "Component", OrderedQuantity = 50 });
+        db.PurchaseOrders.Add(po);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await db.MrpDemands.SingleAsync(d => d.MrpRunId == run.Id && d.PartId == component.Id))
+            .Quantity.Should().Be(50);
+        (await PlannedOrdersForPartAsync(db, run.Id, component.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task OpenJob_DoesNotPlanComponentsThatAreNotMrpPlanned()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        var component = await SeedComponentAsync(db, part.Id, perUnit: 2, isMrpPlanned: false);
+
+        var job = NewJob(part.Id, "J-24", jobPartQuantity: 25);
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle();
+        (await db.MrpDemands.AnyAsync(d => d.MrpRunId == run.Id && d.PartId == component.Id)).Should().BeFalse();
+        (await PlannedOrdersForPartAsync(db, run.Id, component.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task PartialOutputOfAnInProgressRun_IsNotSubtractedTwiceFromTheJob()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        await SeedSoLineAsync(db, part.Id, 100, daysOut: 30);
+
+        var job = NewJob(part.Id, "J-25", jobPartQuantity: 100);
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+        db.ProductionRuns.Add(new ProductionRun
+        {
+            JobId = job.Id,
+            PartId = part.Id,
+            RunNumber = "PR-25",
+            TargetQuantity = 60,
+            CompletedQuantity = 20,
+            Status = ProductionRunStatus.InProgress,
+        });
+        db.BinContents.Add(new BinContent
+        {
+            LocationId = 1,
+            EntityType = "part",
+            EntityId = part.Id,
+            Quantity = 20,
+            JobId = job.Id,
+            Status = BinContentStatus.Stored,
+            PlacedAt = Now,
+        });
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle().Which.Quantity.Should().Be(40);
+        (await db.MrpSupplies.SingleAsync(s => s.MrpRunId == run.Id && s.Source == MrpSupplySource.ProductionRun))
+            .Quantity.Should().Be(40);
+        (await PlannedOrdersAsync(db, run.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SubassemblyJobLinkedToItsParentsLine_IsNotCappedByTheParentQuantity()
+    {
+        using var db = TestDbContextFactory.Create();
+        var parent = await SeedPartAsync(db, number: "MRP-PARENT");
+        var subassembly = await SeedPartAsync(db, number: "MRP-SUB");
+        var line = await SeedSoLineAsync(db, parent.Id, 10, daysOut: 30);
+
+        var job = NewJob(subassembly.Id, "J-26", jobPartQuantity: 20);
+        job.SalesOrderLineId = line.Id;
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        var supply = (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle().Subject;
+        supply.PartId.Should().Be(subassembly.Id);
+        supply.Quantity.Should().Be(20);
     }
 }

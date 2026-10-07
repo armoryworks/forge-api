@@ -226,7 +226,14 @@ public sealed class ReleasePlannedOrderTests(PostgresFixture fixture)
                 IsMrpPlanned = true,
                 LotSizingRule = LotSizingRule.LotForLot,
             };
-            var child = new Part { PartNumber = Unique("MRP-COMP"), Description = "Component", Status = PartStatus.Active };
+            var child = new Part
+            {
+                PartNumber = Unique("MRP-COMP"),
+                Description = "Component",
+                Status = PartStatus.Active,
+                IsMrpPlanned = true,
+                LotSizingRule = LotSizingRule.LotForLot,
+            };
             seed.Parts.AddRange(parent, child);
             await seed.SaveChangesAsync();
 
@@ -253,7 +260,7 @@ public sealed class ReleasePlannedOrderTests(PostgresFixture fixture)
             childPartId = child.Id;
         }
 
-        var options = new MrpRunOptions(PartIds: [parentPartId]);
+        var options = new MrpRunOptions(PartIds: [parentPartId, childPartId]);
         var firstRunAt = DateTimeOffset.UtcNow;
 
         MrpPlannedOrder build;
