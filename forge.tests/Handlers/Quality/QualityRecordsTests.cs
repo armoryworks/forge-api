@@ -92,6 +92,32 @@ public class QualityRecordsTests(CapabilityTestWebApplicationFactory factory)
     }
 
     [Fact]
+    public async Task An_unknown_result_id_is_a_validation_error()
+    {
+        var inspection = await SeedInspectionAsync();
+        var results = Results(inspection, true, true);
+        results[0] = results[0] with { Id = 999_999 };
+
+        var act = () => Update(inspection.Id, null, results);
+
+        (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
+            .Which.Errors.Should().ContainSingle(e => e.PropertyName == "Results" && e.ErrorMessage.Contains("999999"));
+    }
+
+    [Fact]
+    public async Task Resending_unchanged_results_logs_no_activity()
+    {
+        var inspection = await SeedInspectionAsync();
+        await Update(inspection.Id, null, Results(inspection, true, false));
+        var logged = await _db.ActivityLogs.CountAsync(a => a.EntityType == "QcInspection" && a.EntityId == inspection.Id);
+
+        await Update(inspection.Id, null, Results(inspection, true, false));
+
+        (await _db.ActivityLogs.CountAsync(a => a.EntityType == "QcInspection" && a.EntityId == inspection.Id))
+            .Should().Be(logged);
+    }
+
+    [Fact]
     public async Task Passed_is_rejected_when_a_required_checklist_item_failed()
     {
         var inspection = await SeedInspectionAsync();

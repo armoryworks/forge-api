@@ -1,4 +1,5 @@
 using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -59,11 +60,8 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
             }
         }
 
-        if (data.Results is not null)
-        {
-            ApplyResults(inspection, data.Results);
+        if (data.Results is not null && ApplyResults(inspection, data.Results))
             changedFields.Add("results");
-        }
 
         var completing = data.Status is "Passed" or "Failed";
         if (data.Status == "Passed")
@@ -137,18 +135,24 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
             .FirstAsync(cancellationToken);
     }
 
-    private void ApplyResults(QcInspection inspection, List<UpdateQcInspectionResultModel> incoming)
+    private bool ApplyResults(QcInspection inspection, List<UpdateQcInspectionResultModel> incoming)
     {
         var keptIds = incoming.Where(r => r.Id.HasValue).Select(r => r.Id!.Value).ToHashSet();
         var unknown = keptIds.Where(id => inspection.Results.All(r => r.Id != id)).ToList();
         if (unknown.Count > 0)
-            throw new KeyNotFoundException(
-                $"Inspection {inspection.Id} has no result {string.Join(", ", unknown)}.");
+            throw new ValidationException(
+            [
+                new ValidationFailure(
+                    nameof(UpdateQcInspectionRequestModel.Results),
+                    $"Inspection {inspection.Id} has no result {string.Join(", ", unknown)}."),
+            ]);
 
+        var changed = false;
         foreach (var stale in inspection.Results.Where(r => !keptIds.Contains(r.Id)).ToList())
         {
             inspection.Results.Remove(stale);
             db.QcInspectionResults.Remove(stale);
+            changed = true;
         }
 
         foreach (var model in incoming)
@@ -158,13 +162,24 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
             {
                 row = new QcInspectionResult { InspectionId = inspection.Id, ChecklistItemId = model.ChecklistItemId };
                 inspection.Results.Add(row);
+                changed = true;
             }
 
-            row.Description = model.Description.Trim();
+            var description = model.Description.Trim();
+            var measuredValue = model.MeasuredValue?.Trim();
+            var notes = model.Notes?.Trim();
+            if (row.Description == description && row.Passed == model.Passed
+                && row.MeasuredValue == measuredValue && row.Notes == notes)
+                continue;
+
+            row.Description = description;
             row.Passed = model.Passed;
-            row.MeasuredValue = model.MeasuredValue?.Trim();
-            row.Notes = model.Notes?.Trim();
+            row.MeasuredValue = measuredValue;
+            row.Notes = notes;
+            changed = true;
         }
+
+        return changed;
     }
 
     private async Task EnsureRequiredItemsPassedAsync(QcInspection inspection, CancellationToken cancellationToken)
