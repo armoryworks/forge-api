@@ -93,7 +93,7 @@ public class UpdateJobNumberTests
 
         var act = () => _handler.Handle(WithJobNumber(1, "ACME-J"), CancellationToken.None);
 
-        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("disabled");
+        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("Admin > Settings > Numbering");
         job.JobNumber.Should().Be("J-1");
     }
 

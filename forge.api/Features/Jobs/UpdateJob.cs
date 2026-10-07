@@ -1,4 +1,5 @@
 using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
@@ -26,7 +27,9 @@ public record UpdateJobCommand(
     string? IterationNotes,
     // Optional caller-supplied job number — editable while the job is not yet
     // disposed, gated by jobs.allow_manual_numbers.
-    string? JobNumber = null) : IRequest<JobDetailResponseModel>;
+    string? JobNumber = null,
+    DateTimeOffset? StartDate = null,
+    int? PartId = null) : IRequest<JobDetailResponseModel>;
 
 public class UpdateJobCommandValidator : AbstractValidator<UpdateJobCommand>
 {
@@ -35,6 +38,9 @@ public class UpdateJobCommandValidator : AbstractValidator<UpdateJobCommand>
         RuleFor(x => x.Id).GreaterThan(0);
         RuleFor(x => x.Title).MaximumLength(200).When(x => x.Title is not null);
         RuleFor(x => x.Description).MaximumLength(5000).When(x => x.Description is not null);
+        RuleFor(x => x.StartDate)
+            .Must((cmd, start) => !UpdateJobHandler.StartsAfterDue(start, cmd.DueDate))
+            .WithMessage(UpdateJobHandler.StartAfterDueMessage);
     }
 }
 
@@ -52,6 +58,12 @@ public class UpdateJobHandler(
     // System setting that gates caller-supplied job numbers (shared with CreateJob).
     private const string AllowManualJobNumbersKey = "jobs.allow_manual_numbers";
 
+    public const string StartAfterDueMessage = "The start date must be on or before the due date.";
+    public const string PartLockedMessage = "The part can't be changed after work has started.";
+
+    public static bool StartsAfterDue(DateTimeOffset? start, DateTimeOffset? due) =>
+        start.HasValue && due.HasValue && start.Value.UtcDateTime.Date > due.Value.UtcDateTime.Date;
+
     public async Task<JobDetailResponseModel> Handle(UpdateJobCommand request, CancellationToken cancellationToken)
     {
         var job = await repo.FindAsync(request.Id, cancellationToken)
@@ -64,6 +76,11 @@ public class UpdateJobHandler(
         int? currentUserId = userIdClaim is not null ? int.Parse(userIdClaim.Value) : null;
 
         var changes = new List<JobActivityLog>();
+
+        if ((request.StartDate.HasValue || request.DueDate.HasValue)
+            && StartsAfterDue(request.StartDate ?? job.StartDate, request.DueDate ?? job.DueDate))
+            throw new ValidationException(
+                [new ValidationFailure(nameof(UpdateJobCommand.StartDate), StartAfterDueMessage)]);
 
         // User-settable job number — only while the job is still open (not disposed),
         // manual numbers enabled, and unique (excluding this job). The DB sequence is
@@ -78,7 +95,7 @@ public class UpdateJobHandler(
                         $"Job {job.JobNumber} has been disposed — its number can no longer be changed.");
                 if (!await ManualJobNumbersAllowedAsync(cancellationToken))
                     throw new InvalidOperationException(
-                        "Manual job numbers are disabled. Turn on 'jobs.allow_manual_numbers' in settings to change a job number.");
+                        "Manual work order numbers are turned off. An admin can turn them on in Admin > Settings > Numbering.");
                 if (await repo.JobNumberExistsAsync(newNumber, job.Id, cancellationToken))
                     throw new InvalidOperationException($"Job number '{newNumber}' is already in use.");
                 await identifiers.IssueAsync(BusinessEntityType.Job, job.Id, job.JobNumber, cancellationToken);
@@ -182,6 +199,24 @@ public class UpdateJobHandler(
             job.DueDate = request.DueDate.Value;
         }
 
+        if (request.StartDate.HasValue && request.StartDate.Value != job.StartDate)
+        {
+            changes.Add(new JobActivityLog
+            {
+                JobId = job.Id, UserId = currentUserId, Action = ActivityAction.FieldChanged,
+                FieldName = "StartDate",
+                OldValue = job.StartDate?.ToString("MM/dd/yyyy"),
+                NewValue = request.StartDate.Value.ToString("MM/dd/yyyy"),
+                Description = job.StartDate.HasValue
+                    ? $"Start date changed from {job.StartDate.Value:MM/dd/yyyy} to {request.StartDate.Value:MM/dd/yyyy}."
+                    : $"Start date set to {request.StartDate.Value:MM/dd/yyyy}.",
+            });
+            job.StartDate = request.StartDate.Value;
+        }
+
+        if (request.PartId.HasValue && request.PartId.Value != job.PartId)
+            changes.Add(await ChangePartAsync(job, request.PartId.Value, currentUserId, cancellationToken));
+
         if (request.IterationCount.HasValue && request.IterationCount.Value != job.IterationCount)
         {
             changes.Add(new JobActivityLog
@@ -219,6 +254,38 @@ public class UpdateJobHandler(
             .SendAsync("jobUpdated", evt, cancellationToken);
 
         return result;
+    }
+
+    private async Task<JobActivityLog> ChangePartAsync(Job job, int newPartId, int? currentUserId, CancellationToken ct)
+    {
+        var workStarted = job.BomRevisionIdAtRelease.HasValue
+            || await db.TimeEntries.AnyAsync(t => t.JobId == job.Id, ct)
+            || await db.ProductionRuns.AnyAsync(r => r.JobId == job.Id, ct);
+        if (workStarted)
+            throw new InvalidOperationException(PartLockedMessage);
+
+        var newPartNumber = await db.Parts.Where(p => p.Id == newPartId)
+            .Select(p => p.PartNumber).FirstOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException($"Part with ID {newPartId} not found.");
+        var oldPartNumber = job.PartId.HasValue
+            ? await db.Parts.Where(p => p.Id == job.PartId.Value).Select(p => p.PartNumber).FirstOrDefaultAsync(ct)
+            : null;
+
+        var jobParts = await db.JobParts.Where(jp => jp.JobId == job.Id).ToListAsync(ct);
+        var carried = jobParts.FirstOrDefault(jp => jp.PartId == job.PartId);
+        if (carried is not null && jobParts.All(jp => jp.PartId != newPartId))
+            carried.PartId = newPartId;
+
+        job.PartId = newPartId;
+
+        return new JobActivityLog
+        {
+            JobId = job.Id, UserId = currentUserId, Action = ActivityAction.FieldChanged,
+            FieldName = "Part", OldValue = oldPartNumber, NewValue = newPartNumber,
+            Description = oldPartNumber is null
+                ? $"Part set to {newPartNumber}."
+                : $"Part changed from {oldPartNumber} to {newPartNumber}.",
+        };
     }
 
     private async Task<bool> ManualJobNumbersAllowedAsync(CancellationToken ct)
