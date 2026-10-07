@@ -292,6 +292,26 @@ public class ExplodeJobBomScalingTests
     }
 
     [Fact]
+    public async Task Explode_EmptyPinnedRevision_NamesTheRevisionInsteadOfAskingForBomLines()
+    {
+        var (parentPart, parentJob) = await SeedParentAsync(buildQty: 3m);
+        var liveChild = await SeedPartAsync("LIVE-2", uom: null);
+
+        var revision = new BomRevision { PartId = parentPart.Id, RevisionNumber = 4, EffectiveDate = ParentDue.AddMonths(-1) };
+        _db.Set<BomRevision>().Add(revision);
+        _db.BOMLines.Add(new BOMLine { ParentPartId = parentPart.Id, ChildPartId = liveChild.Id, Quantity = 1, SourceType = BOMSourceType.Make, SortOrder = 1 });
+        await _db.SaveChangesAsync();
+        parentJob.BomRevisionIdAtRelease = revision.Id;
+        await _db.SaveChangesAsync();
+
+        var act = () => _handler.Handle(new ExplodeJobBomCommand(parentJob.Id), CancellationToken.None);
+
+        var thrown = await act.Should().ThrowAsync<InvalidOperationException>();
+        thrown.Which.Message.Should().Contain("BOM revision 4").And.Contain("Create a new work order");
+        thrown.Which.Message.Should().NotContain("Add BOM lines");
+    }
+
+    [Fact]
     public async Task Explode_Twice_ReturnsConflictThroughTheMiddleware()
     {
         var (parentPart, parentJob) = await SeedParentAsync(buildQty: 5m);

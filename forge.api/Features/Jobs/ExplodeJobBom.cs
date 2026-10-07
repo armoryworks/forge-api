@@ -54,8 +54,7 @@ public class ExplodeJobBomHandler(
         var bomLines = await LoadBomLinesAsync(parentJob, part, ct);
 
         if (bomLines.Count == 0)
-            throw new InvalidOperationException(
-                $"Part {part.PartNumber} has no BOM lines to explode. Add BOM lines to the part first.");
+            throw new InvalidOperationException(await EmptyBomMessageAsync(parentJob, part, ct));
 
         if (await HasLiveExplosionAsync(parentJob.Id, ct))
             throw new InvalidOperationException(
@@ -252,6 +251,20 @@ public class ExplodeJobBomHandler(
             && r.DeletedAt == null
             && r.Notes != null
             && r.Notes.StartsWith(AutoReserveNotePrefix), ct);
+    }
+
+    private async Task<string> EmptyBomMessageAsync(Job parentJob, Part part, CancellationToken ct)
+    {
+        if (parentJob.BomRevisionIdAtRelease is not int revisionId)
+            return $"Part {part.PartNumber} has no BOM lines to explode. Add BOM lines to the part first.";
+
+        var revisionNumber = await db.Set<BomRevision>()
+            .Where(r => r.Id == revisionId)
+            .Select(r => (int?)r.RevisionNumber)
+            .FirstOrDefaultAsync(ct);
+
+        return $"Work order {parentJob.JobNumber} was released against BOM revision {revisionNumber?.ToString() ?? revisionId.ToString()} of part {part.PartNumber}, which has no lines. "
+            + "Lines added to the part since then do not apply to this work order. Create a new work order to build from the current BOM.";
     }
 
     private async Task<List<BomExplosionLine>> LoadBomLinesAsync(
