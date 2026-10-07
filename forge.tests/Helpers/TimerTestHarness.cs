@@ -42,7 +42,7 @@ public sealed class TimerTestHarness
     public TimerTestHarness()
     {
         Repo = new TimeTrackingRepository(Db);
-        Jobs = new JobRepository(Db);
+        Jobs = new JobRepository(Db, Clock.Object);
         Clock.Setup(c => c.UtcNow).Returns(() => Now);
 
         var clients = new Mock<IHubClients>();

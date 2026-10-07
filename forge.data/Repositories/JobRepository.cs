@@ -6,7 +6,7 @@ using Forge.Data.Context;
 
 namespace Forge.Data.Repositories;
 
-public class JobRepository(AppDbContext db) : IJobRepository
+public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
 {
     public async Task<List<JobListResponseModel>> GetJobsAsync(
         int? trackTypeId, int? stageId, int? assigneeId,
@@ -51,81 +51,14 @@ public class JobRepository(AppDbContext db) : IJobRepository
             .ThenBy(j => j.BoardPosition)
             .ToListAsync(ct);
 
-        // Load assignee info separately (ApplicationUser is in data layer)
-        var assigneeIds = jobs
-            .Where(j => j.AssigneeId.HasValue)
-            .Select(j => j.AssigneeId!.Value)
-            .Distinct()
-            .ToList();
-
-        var assignees = assigneeIds.Count > 0
-            ? await db.Users
-                .Where(u => assigneeIds.Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, ct)
-            : [];
-
-        // Load active holds for all jobs in the result set
-        var jobIds = jobs.Select(j => j.Id).ToList();
-        var activeHoldsByJobId = jobIds.Count > 0
-            ? await db.StatusEntries
-                .Where(se =>
-                    se.EntityType == "Job" &&
-                    jobIds.Contains(se.EntityId) &&
-                    se.Category == "hold" &&
-                    se.EndedAt == null)
-                .GroupBy(se => se.EntityId)
-                .ToDictionaryAsync(
-                    g => g.Key,
-                    g => g.Select(se => se.StatusLabel).ToList(),
-                    ct)
-            : [];
-
-        return jobs.Select(j =>
-        {
-            var assignee = j.AssigneeId.HasValue && assignees.TryGetValue(j.AssigneeId.Value, out var u) ? u : null;
-            string? billingStatus = null;
-            if (j.CompletedDate != null)
-            {
-                var hasInvoice = j.SalesOrderLine?.SalesOrder?.Invoices?.Any() == true;
-                billingStatus = hasInvoice ? "Invoiced" : "Uninvoiced";
-            }
-
-            var activeHolds = activeHoldsByJobId.TryGetValue(j.Id, out var holds) ? holds : [];
-
-            return new JobListResponseModel(
-                j.Id,
-                j.JobNumber,
-                j.Title,
-                j.CurrentStage.Name,
-                j.CurrentStage.Color,
-                j.AssigneeId,
-                assignee?.Initials,
-                assignee?.AvatarColor,
-                j.Priority.ToString(),
-                j.DueDate,
-                j.DueDate.HasValue && j.DueDate.Value < DateTimeOffset.UtcNow && j.CompletedDate == null,
-                j.Customer?.Name,
-                billingStatus,
-                j.Disposition?.ToString(),
-                j.ChildJobs.Count(c => c.DeletedAt == null),
-                j.ExternalRef,
-                null,
-                activeHolds,
-                j.CoverPhotoFileId.HasValue ? $"/api/v1/files/{j.CoverPhotoFileId}" : null,
-                j.ParentJobId,
-                j.ParentJob?.JobNumber,
-                j.CustomerId,
-                j.SalesOrderLine?.SalesOrderId,
-                j.SalesOrderLine?.SalesOrder?.OrderNumber);
-        }).ToList();
+        return await ToListModelsAsync(jobs, ct);
     }
 
     public async Task<PagedResponse<JobListResponseModel>> GetPagedJobsAsync(
         JobListQuery query, CancellationToken ct)
     {
         // Phase 3 F7-broad / WU-22 — standardised paged-list contract for the
-        // table-view of jobs. Kanban + calendar continue to use the legacy
-        // GetJobsAsync (stage order, no paging) by design.
+        // jobs table and, with sort=board, the board.
         var q = db.Jobs
             .Include(j => j.CurrentStage)
             .Include(j => j.Customer)
@@ -170,6 +103,9 @@ public class JobRepository(AppDbContext db) : IJobRepository
             "title"       => desc ? q.OrderByDescending(j => j.Title)              : q.OrderBy(j => j.Title),
             "jobnumber"   => desc ? q.OrderByDescending(j => j.JobNumber)          : q.OrderBy(j => j.JobNumber),
             "stage"       => desc ? q.OrderByDescending(j => j.CurrentStage.SortOrder) : q.OrderBy(j => j.CurrentStage.SortOrder),
+            "board"       => desc
+                ? q.OrderByDescending(j => j.CurrentStage.SortOrder).ThenByDescending(j => j.BoardPosition)
+                : q.OrderBy(j => j.CurrentStage.SortOrder).ThenBy(j => j.BoardPosition),
             "priority"    => desc ? q.OrderByDescending(j => j.Priority)           : q.OrderBy(j => j.Priority),
             "duedate"     => desc ? q.OrderByDescending(j => j.DueDate)            : q.OrderBy(j => j.DueDate),
             "startdate"   => desc ? q.OrderByDescending(j => j.StartDate)          : q.OrderBy(j => j.StartDate),
@@ -192,7 +128,18 @@ public class JobRepository(AppDbContext db) : IJobRepository
             .Include(j => j.CoverPhotoFile)
             .ToListAsync(ct);
 
-        // Load assignee info for the page slice
+        var items = await ToListModelsAsync(jobs, ct);
+
+        return new PagedResponse<JobListResponseModel>(
+            items,
+            totalCount,
+            query.EffectivePage,
+            query.EffectivePageSize);
+    }
+
+    private async Task<List<JobListResponseModel>> ToListModelsAsync(List<Job> jobs, CancellationToken ct)
+    {
+        // Load assignee info separately (ApplicationUser is in data layer)
         var assigneeIds = jobs
             .Where(j => j.AssigneeId.HasValue)
             .Select(j => j.AssigneeId!.Value)
@@ -205,7 +152,7 @@ public class JobRepository(AppDbContext db) : IJobRepository
                 .ToDictionaryAsync(u => u.Id, ct)
             : [];
 
-        // Load active holds for jobs in the result set
+        // Load active holds for all jobs in the result set
         var jobIds = jobs.Select(j => j.Id).ToList();
         var activeHoldsByJobId = jobIds.Count > 0
             ? await db.StatusEntries
@@ -221,7 +168,25 @@ public class JobRepository(AppDbContext db) : IJobRepository
                     ct)
             : [];
 
-        var items = jobs.Select(j =>
+        var makingByJobId = jobIds.Count > 0
+            ? await db.Jobs
+                .Where(j => jobIds.Contains(j.Id))
+                .Select(j => new
+                {
+                    j.Id,
+                    PartNumber = j.Part != null ? j.Part.PartNumber : null,
+                    Quantity = j.SalesOrderLineId != null
+                        ? (decimal?)j.SalesOrderLine!.Quantity
+                        : j.JobParts.Any(jp => jp.PartId == j.PartId)
+                            ? j.JobParts.Where(jp => jp.PartId == j.PartId).Sum(jp => jp.Quantity)
+                            : null,
+                })
+                .ToDictionaryAsync(x => x.Id, ct)
+            : [];
+
+        var today = clock.UtcNow.UtcDateTime.Date;
+
+        return jobs.Select(j =>
         {
             var assignee = j.AssigneeId.HasValue && assignees.TryGetValue(j.AssigneeId.Value, out var u) ? u : null;
             string? billingStatus = null;
@@ -232,6 +197,7 @@ public class JobRepository(AppDbContext db) : IJobRepository
             }
 
             var activeHolds = activeHoldsByJobId.TryGetValue(j.Id, out var holds) ? holds : [];
+            var making = makingByJobId.GetValueOrDefault(j.Id);
 
             return new JobListResponseModel(
                 j.Id,
@@ -244,7 +210,7 @@ public class JobRepository(AppDbContext db) : IJobRepository
                 assignee?.AvatarColor,
                 j.Priority.ToString(),
                 j.DueDate,
-                j.DueDate.HasValue && j.DueDate.Value < DateTimeOffset.UtcNow && j.CompletedDate == null,
+                j.DueDate.HasValue && j.DueDate.Value.UtcDateTime.Date < today && j.CompletedDate == null,
                 j.Customer?.Name,
                 billingStatus,
                 j.Disposition?.ToString(),
@@ -257,14 +223,11 @@ public class JobRepository(AppDbContext db) : IJobRepository
                 j.ParentJob?.JobNumber,
                 j.CustomerId,
                 j.SalesOrderLine?.SalesOrderId,
-                j.SalesOrderLine?.SalesOrder?.OrderNumber);
+                j.SalesOrderLine?.SalesOrder?.OrderNumber,
+                j.BoardPosition,
+                making?.PartNumber,
+                making?.Quantity);
         }).ToList();
-
-        return new PagedResponse<JobListResponseModel>(
-            items,
-            totalCount,
-            query.EffectivePage,
-            query.EffectivePageSize);
     }
 
     public async Task<JobDetailResponseModel?> GetDetailAsync(int id, CancellationToken ct)

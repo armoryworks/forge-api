@@ -26,4 +26,7 @@ public record JobListResponseModel(
     // job's SO-line link) so the board can render navigable references.
     int? CustomerId = null,
     int? SalesOrderId = null,
-    string? SalesOrderNumber = null);
+    string? SalesOrderNumber = null,
+    int BoardPosition = 0,
+    string? PartNumber = null,
+    decimal? Quantity = null);

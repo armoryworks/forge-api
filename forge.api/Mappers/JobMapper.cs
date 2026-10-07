@@ -84,7 +84,7 @@ public static partial class JobMapper
             AssigneeColor: assigneeColor,
             PriorityName: job.Priority.ToString(),
             DueDate: job.DueDate,
-            IsOverdue: job.DueDate.HasValue && job.DueDate.Value < DateTimeOffset.UtcNow && job.CompletedDate == null,
+            IsOverdue: job.DueDate.HasValue && job.DueDate.Value.UtcDateTime.Date < DateTimeOffset.UtcNow.UtcDateTime.Date && job.CompletedDate == null,
             CustomerName: job.Customer?.Name,
             BillingStatus: billingStatus,
             Disposition: job.Disposition?.ToString(),
@@ -96,6 +96,8 @@ public static partial class JobMapper
             ParentJobNumber: job.ParentJob?.JobNumber,
             CustomerId: job.CustomerId,
             SalesOrderId: job.SalesOrderLine?.SalesOrderId,
-            SalesOrderNumber: job.SalesOrderLine?.SalesOrder?.OrderNumber);
+            SalesOrderNumber: job.SalesOrderLine?.SalesOrder?.OrderNumber,
+            BoardPosition: job.BoardPosition,
+            PartNumber: job.Part?.PartNumber);
     }
 }

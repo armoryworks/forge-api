@@ -74,7 +74,7 @@ public sealed class ExplodeJobBomPostgresTests(PostgresFixture fixture)
         hub.SetupGet(h => h.Clients).Returns(clients.Object);
 
         var handler = new ExplodeJobBomHandler(
-            db, new JobRepository(db), Mock.Of<IBarcodeService>(), hub.Object);
+            db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBarcodeService>(), hub.Object);
 
         // Before the fix this threw DbUpdateException (FK violation on job_links).
         var result = await handler.Handle(new ExplodeJobBomCommand(parentJobId), CancellationToken.None);
