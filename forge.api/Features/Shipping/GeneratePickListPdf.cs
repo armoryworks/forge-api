@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using QuestPDF.Fluent;
 
+using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
@@ -25,8 +26,7 @@ public class GeneratePickListPdfHandler(
             .FirstOrDefaultAsync(w => w.Id == request.WaveId, ct)
             ?? throw new KeyNotFoundException($"Pick wave {request.WaveId} not found");
 
-        var companySetting = await settings.FindByKeyAsync("company_name", ct);
-        var companyName = companySetting?.Value ?? "QB Engineer";
+        var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct);
 
         var document = new PickListPdfDocument(wave, companyName, clock.UtcNow);
         return document.GeneratePdf();

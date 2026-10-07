@@ -18,9 +18,9 @@ public class CustomerPoPdfDocument : IDocument
 {
     private readonly CustomerPoDocument _document;
     private readonly SalesOrder _order;
-    private readonly string _companyName;
+    private readonly string? _companyName;
 
-    public CustomerPoPdfDocument(CustomerPoDocument document, string companyName)
+    public CustomerPoPdfDocument(CustomerPoDocument document, string? companyName)
     {
         _document = document;
         _order = document.SalesOrder;
@@ -50,7 +50,8 @@ public class CustomerPoPdfDocument : IDocument
             {
                 row.RelativeItem().Column(left =>
                 {
-                    left.Item().Text(_companyName).Bold().FontSize(18);
+                    if (_companyName is not null)
+                        left.Item().Text(_companyName).Bold().FontSize(18);
                 });
 
                 row.RelativeItem().AlignRight().Column(right =>

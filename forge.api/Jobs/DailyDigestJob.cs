@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -14,8 +15,7 @@ public class DailyDigestJob(
 {
     public async Task SendDailyDigestAsync(CancellationToken ct = default)
     {
-        var companySetting = await settings.FindByKeyAsync("company_name", ct);
-        var companyName = companySetting?.Value ?? "QB Engineer";
+        var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct) ?? "Forge";
 
         // Get users with email digest enabled
         var users = await db.Users

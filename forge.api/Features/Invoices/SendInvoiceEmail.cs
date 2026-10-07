@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using QuestPDF.Fluent;
 
+using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -28,8 +29,9 @@ public class SendInvoiceEmailHandler(
             .FirstOrDefaultAsync(i => i.Id == request.Id, ct)
             ?? throw new KeyNotFoundException($"Invoice {request.Id} not found");
 
-        var companySetting = await settings.FindByKeyAsync("company_name", ct);
-        var companyName = companySetting?.Value ?? "QB Engineer";
+        var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct)
+            ?? throw new InvalidOperationException(
+                "Set your company name in Admin > Company before sending documents to customers.");
 
         var pdfDoc = new InvoicePdfDocument(invoice, companyName);
         var pdfBytes = pdfDoc.GeneratePdf();

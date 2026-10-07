@@ -9,13 +9,13 @@ namespace Forge.Api.Features.Shipments;
 public class BillOfLadingPdfDocument : IDocument
 {
     private readonly Shipment _shipment;
-    private readonly string _companyName;
+    private readonly string? _companyName;
     private readonly string? _companyAddress;
     private readonly string? _companyPhone;
 
     public BillOfLadingPdfDocument(
         Shipment shipment,
-        string companyName,
+        string? companyName,
         string? companyAddress = null,
         string? companyPhone = null)
     {
@@ -61,7 +61,8 @@ public class BillOfLadingPdfDocument : IDocument
                 row.RelativeItem().Border(1).Padding(8).Column(shipper =>
                 {
                     shipper.Item().Text("SHIPPER (From):").Bold().FontSize(8).FontColor(Colors.Grey.Darken2);
-                    shipper.Item().PaddingTop(4).Text(_companyName).SemiBold();
+                    if (_companyName is not null)
+                        shipper.Item().PaddingTop(4).Text(_companyName).SemiBold();
                     if (!string.IsNullOrEmpty(_companyAddress))
                         shipper.Item().Text(_companyAddress);
                     if (!string.IsNullOrEmpty(_companyPhone))

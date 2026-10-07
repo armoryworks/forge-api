@@ -9,9 +9,9 @@ namespace Forge.Api.Features.Invoices;
 public class InvoicePdfDocument : IDocument
 {
     private readonly Invoice _invoice;
-    private readonly string _companyName;
+    private readonly string? _companyName;
 
-    public InvoicePdfDocument(Invoice invoice, string companyName)
+    public InvoicePdfDocument(Invoice invoice, string? companyName)
     {
         _invoice = invoice;
         _companyName = companyName;
@@ -40,7 +40,8 @@ public class InvoicePdfDocument : IDocument
             {
                 row.RelativeItem().Column(left =>
                 {
-                    left.Item().Text(_companyName).Bold().FontSize(18);
+                    if (_companyName is not null)
+                        left.Item().Text(_companyName).Bold().FontSize(18);
                 });
 
                 row.RelativeItem().AlignRight().Column(right =>

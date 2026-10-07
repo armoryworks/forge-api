@@ -9,10 +9,10 @@ namespace Forge.Api.Features.Shipping;
 public class PickListPdfDocument : IDocument
 {
     private readonly PickWave _wave;
-    private readonly string _companyName;
+    private readonly string? _companyName;
     private readonly DateTimeOffset _generatedAt;
 
-    public PickListPdfDocument(PickWave wave, string companyName, DateTimeOffset generatedAt)
+    public PickListPdfDocument(PickWave wave, string? companyName, DateTimeOffset generatedAt)
     {
         _wave = wave;
         _companyName = companyName;
@@ -42,7 +42,8 @@ public class PickListPdfDocument : IDocument
             {
                 row.RelativeItem().Column(left =>
                 {
-                    left.Item().Text(_companyName).Bold().FontSize(18);
+                    if (_companyName is not null)
+                        left.Item().Text(_companyName).Bold().FontSize(18);
                 });
 
                 row.RelativeItem().AlignRight().Column(right =>

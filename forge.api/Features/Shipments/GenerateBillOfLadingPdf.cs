@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using QuestPDF.Fluent;
 
+using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
@@ -29,7 +30,7 @@ public class GenerateBillOfLadingPdfHandler(
             .FirstOrDefaultAsync(s => s.Id == request.Id, ct)
             ?? throw new KeyNotFoundException($"Shipment {request.Id} not found");
 
-        var companyName = (await settings.FindByKeyAsync("company_name", ct))?.Value ?? "QB Engineer";
+        var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct);
         var companyAddress = (await settings.FindByKeyAsync("company_address", ct))?.Value;
         var companyPhone = (await settings.FindByKeyAsync("company_phone", ct))?.Value;
 

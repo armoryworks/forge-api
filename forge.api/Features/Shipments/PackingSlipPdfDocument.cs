@@ -10,9 +10,9 @@ namespace Forge.Api.Features.Shipments;
 public class PackingSlipPdfDocument : IDocument
 {
     private readonly Shipment _shipment;
-    private readonly string _companyName;
+    private readonly string? _companyName;
 
-    public PackingSlipPdfDocument(Shipment shipment, string companyName)
+    public PackingSlipPdfDocument(Shipment shipment, string? companyName)
     {
         _shipment = shipment;
         _companyName = companyName;
@@ -41,7 +41,8 @@ public class PackingSlipPdfDocument : IDocument
             {
                 row.RelativeItem().Column(left =>
                 {
-                    left.Item().Text(_companyName).Bold().FontSize(18);
+                    if (_companyName is not null)
+                        left.Item().Text(_companyName).Bold().FontSize(18);
                 });
 
                 row.RelativeItem().AlignRight().PaddingRight(10).Column(right =>

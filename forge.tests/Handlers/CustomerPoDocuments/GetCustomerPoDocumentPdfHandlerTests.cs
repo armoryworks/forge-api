@@ -71,8 +71,8 @@ public class GetCustomerPoDocumentPdfHandlerTests
         await db.SaveChangesAsync();
 
         var settings = new Mock<ISystemSettingRepository>();
-        settings.Setup(s => s.FindByKeyAsync("company_name", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SystemSetting { Key = "company_name", Value = "Armory Works Test" });
+        settings.Setup(s => s.FindByKeyAsync("company.name", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SystemSetting { Key = "company.name", Value = "Armory Works Test" });
 
         var handler = new GetCustomerPoDocumentPdfHandler(db, settings.Object);
 

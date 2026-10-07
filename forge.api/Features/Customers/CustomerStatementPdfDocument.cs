@@ -10,7 +10,7 @@ public class CustomerStatementPdfDocument(
     Customer customer,
     List<Invoice> invoices,
     List<Payment> payments,
-    string companyName,
+    string? companyName,
     DateTimeOffset statementDate) : IDocument
 {
     public void Compose(IDocumentContainer container)
@@ -26,7 +26,9 @@ public class CustomerStatementPdfDocument(
             {
                 col.Item().Row(row =>
                 {
-                    row.RelativeItem().Text(companyName).FontSize(18).Bold();
+                    var companyCell = row.RelativeItem();
+                    if (companyName is not null)
+                        companyCell.Text(companyName).FontSize(18).Bold();
                     row.ConstantItem(200).AlignRight().Column(right =>
                     {
                         right.Item().Text("CUSTOMER STATEMENT").FontSize(14).Bold();

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using QuestPDF.Fluent;
 
+using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
@@ -32,8 +33,7 @@ public class GetCustomerPoDocumentPdfHandler(
             ?? throw new KeyNotFoundException(
                 $"No customer PO document exists for sales order {request.SalesOrderId}");
 
-        var companySetting = await settings.FindByKeyAsync("company_name", ct);
-        var companyName = companySetting?.Value ?? "QB Engineer";
+        var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct);
 
         var pdf = new CustomerPoPdfDocument(document, companyName);
         return pdf.GeneratePdf();

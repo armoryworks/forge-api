@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using QuestPDF.Fluent;
 
+using Forge.Api.Services;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Customers;
@@ -30,9 +31,7 @@ public class GenerateCustomerStatementHandler(AppDbContext db)
             .Where(p => p.CustomerId == request.CustomerId)
             .ToListAsync(ct);
 
-        var companySetting = await db.SystemSettings
-            .FirstOrDefaultAsync(s => s.Key == "company_name", ct);
-        var companyName = companySetting?.Value ?? "QB Engineer";
+        var companyName = await CompanyIdentity.GetCompanyNameAsync(db, ct);
 
         var document = new CustomerStatementPdfDocument(
             customer, invoices, payments, companyName, DateTimeOffset.UtcNow);
