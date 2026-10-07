@@ -20,13 +20,24 @@ public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db) : I
 
         // Onboarding "Getting Started" completion counts. Cheap COUNTs; the
         // global soft-delete query filter excludes deleted rows. Surfaced so
-        // the dashboard banner keys step completion off real customer /
-        // track-type counts instead of unrelated kanban stage counts.
+        // the dashboard banner keys step completion off real record counts
+        // instead of unrelated kanban stage counts.
         var customerCount = await db.Customers.CountAsync(cancellationToken);
         var trackTypeCount = await db.TrackTypes.CountAsync(cancellationToken);
+        var workCenterCount = await db.WorkCenters.CountAsync(cancellationToken);
+        var partsWithOperationsCount = await db.Parts
+            .CountAsync(p => db.Operations.Any(o => o.PartId == p.Id), cancellationToken);
+        var quoteCount = await db.Quotes.CountAsync(q => q.Type == QuoteType.Quote, cancellationToken);
+        var shipmentCount = await db.Shipments.CountAsync(cancellationToken);
+        var totalJobCount = await db.Jobs.CountAsync(cancellationToken);
+
+        var empty = new DashboardResponseModel([], [], [], [], [],
+            new DashboardKPIsResponseModel(0, 0, 0, 0, "0h", "neutral"),
+            customerCount, trackTypeCount, workCenterCount, partsWithOperationsCount,
+            quoteCount, shipmentCount, totalJobCount);
 
         if (data.ProductionTrack is null)
-            return EmptyDashboard(customerCount, trackTypeCount);
+            return empty;
 
         var stages = data.ProductionTrack.Stages
             .Where(s => s.IsActive)
@@ -135,14 +146,16 @@ public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db) : I
             hoursLabel,
             totalHoursValue > 0 ? "up" : "neutral");
 
-        return new DashboardResponseModel(tasks, stageCounts, teamMembers, activity, deadlines, kpis,
-            customerCount, trackTypeCount);
+        return empty with
+        {
+            Tasks = tasks,
+            Stages = stageCounts,
+            Team = teamMembers,
+            Activity = activity,
+            Deadlines = deadlines,
+            Kpis = kpis,
+        };
     }
-
-    private static DashboardResponseModel EmptyDashboard(int customerCount = 0, int trackTypeCount = 0) =>
-        new([], [], [], [], [],
-            new DashboardKPIsResponseModel(0, 0, 0, 0, "0h", "neutral"),
-            customerCount, trackTypeCount);
 
     private static string GenerateDisplayTime(int index)
     {

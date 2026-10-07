@@ -3,6 +3,7 @@ using Moq;
 
 using Forge.Api.Features.Dashboard;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Tests.Helpers;
 
@@ -107,5 +108,37 @@ public class GetDashboardHandlerTests
         result.Team.Should().HaveCount(2);
         result.Team.First().TaskCount.Should().Be(2);
         result.Team.First().Initials.Should().Be("DH");
+    }
+
+    [Fact]
+    public async Task Handle_CountsTheRecordsTheGettingStartedChecklistTracks()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.WorkCenters.Add(new WorkCenter { Id = 1, Name = "Mill", Code = "MILL" });
+        db.Parts.AddRange(
+            new Part { Id = 1, PartNumber = "P-1", Name = "Routed" },
+            new Part { Id = 2, PartNumber = "P-2", Name = "Unrouted" });
+        db.Operations.AddRange(
+            new Operation { Id = 1, PartId = 1, StepNumber = 10, Title = "Rough" },
+            new Operation { Id = 2, PartId = 1, StepNumber = 20, Title = "Finish" });
+        db.Quotes.AddRange(
+            new Quote { Id = 1, CustomerId = 1, Type = QuoteType.Quote },
+            new Quote { Id = 2, CustomerId = 1, Type = QuoteType.Estimate });
+        db.Shipments.Add(new Shipment { Id = 1, ShipmentNumber = "SHP-1", SalesOrderId = 1 });
+        db.Jobs.Add(new Job { Id = 1, Title = "Job 1", JobNumber = "JOB-001", TrackTypeId = 1, CurrentStageId = 1 });
+        await db.SaveChangesAsync();
+
+        _repo.Setup(r => r.GetDashboardDataAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DashboardDataSet(null, [], new Dictionary<int, ApplicationUserInfo>(), []));
+
+        var handler = new GetDashboardHandler(_repo.Object, db);
+
+        var result = await handler.Handle(new GetDashboardQuery(), CancellationToken.None);
+
+        result.WorkCenterCount.Should().Be(1);
+        result.PartsWithOperationsCount.Should().Be(1);
+        result.QuoteCount.Should().Be(1);
+        result.ShipmentCount.Should().Be(1);
+        result.TotalJobCount.Should().Be(1);
     }
 }

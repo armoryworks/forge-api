@@ -8,4 +8,9 @@ public record DashboardResponseModel(
     List<DeadlineEntryResponseModel> Deadlines,
     DashboardKPIsResponseModel Kpis,
     int CustomerCount,
-    int TrackTypeCount);
+    int TrackTypeCount,
+    int WorkCenterCount,
+    int PartsWithOperationsCount,
+    int QuoteCount,
+    int ShipmentCount,
+    int TotalJobCount);
