@@ -8,6 +8,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Shipments;
 
@@ -303,5 +304,77 @@ public class CreateShipmentHandlerTests
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*not on sales order*");
+    }
+
+    [Fact]
+    public async Task Handle_CustomerOnCreditHold_RefusesToShip()
+    {
+        var order = CreateConfirmedOrder(1, 10, 20);
+        order.Customer.IsOnCreditHold = true;
+        order.Customer.CreditHoldReason = "90 days past due";
+        _orderRepo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+
+        var act = () => _handler.Handle(new CreateShipmentCommand(
+            1, null, null, null, null, null, null,
+            [new CreateShipmentLineModel(10, 5, null)]), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Test Customer is on credit hold: 90 days past due. Release the hold before shipping.");
+        order.Lines.First().ShippedQuantity.Should().Be(0);
+        _shipmentRepo.Verify(r => r.AddAsync(It.IsAny<Shipment>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(null, null, 302)]
+    [InlineData(null, 400, 400)]
+    [InlineData(500, 400, 500)]
+    public async Task Handle_ShipTo_FallsBackFromRequestToOrderToCustomerDefault(
+        int? requested, int? onOrder, int expected)
+    {
+        await using var db = TestDbContextFactory.Create();
+        db.CustomerAddresses.AddRange(
+            new CustomerAddress { Id = 300, CustomerId = 1, Label = "Billing", AddressType = AddressType.Billing, IsDefault = true, Line1 = "1 Bill St", City = "X", State = "UT", PostalCode = "84000" },
+            new CustomerAddress { Id = 301, CustomerId = 1, Label = "Old dock", AddressType = AddressType.Shipping, IsDefault = true, IsActive = false, Line1 = "2 Old St", City = "X", State = "UT", PostalCode = "84000" },
+            new CustomerAddress { Id = 302, CustomerId = 1, Label = "Dock", AddressType = AddressType.Shipping, IsDefault = true, Line1 = "3 Dock St", City = "X", State = "UT", PostalCode = "84000" },
+            new CustomerAddress { Id = 303, CustomerId = 1, Label = "Annex", AddressType = AddressType.Shipping, Line1 = "4 Annex St", City = "X", State = "UT", PostalCode = "84000" },
+            new CustomerAddress { Id = 310, CustomerId = 2, Label = "Other", AddressType = AddressType.Both, IsDefault = true, Line1 = "5 Else St", City = "X", State = "UT", PostalCode = "84000" });
+        await db.SaveChangesAsync();
+
+        var order = CreateConfirmedOrder(1, 10, 20);
+        order.ShippingAddressId = onOrder;
+        _orderRepo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        _shipmentRepo.Setup(r => r.GenerateNextShipmentNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("SHP-0001");
+        Shipment? saved = null;
+        _shipmentRepo.Setup(r => r.AddAsync(It.IsAny<Shipment>(), It.IsAny<CancellationToken>()))
+            .Callback<Shipment, CancellationToken>((s, _) => saved = s);
+        var handler = new CreateShipmentHandler(_shipmentRepo.Object, _orderRepo.Object, _mediator.Object, _httpContext.Object, db: db);
+
+        await handler.Handle(new CreateShipmentCommand(
+            1, requested, null, null, null, null, null,
+            [new CreateShipmentLineModel(10, 5, null)]), CancellationToken.None);
+
+        saved!.ShippingAddressId.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task Handle_NoDefaultShipTo_LeavesAddressEmpty()
+    {
+        await using var db = TestDbContextFactory.Create();
+        db.CustomerAddresses.Add(new CustomerAddress { Id = 300, CustomerId = 1, Label = "Billing", AddressType = AddressType.Billing, IsDefault = true, Line1 = "1 Bill St", City = "X", State = "UT", PostalCode = "84000" });
+        await db.SaveChangesAsync();
+
+        var order = CreateConfirmedOrder(1, 10, 20);
+        _orderRepo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        _shipmentRepo.Setup(r => r.GenerateNextShipmentNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("SHP-0001");
+        Shipment? saved = null;
+        _shipmentRepo.Setup(r => r.AddAsync(It.IsAny<Shipment>(), It.IsAny<CancellationToken>()))
+            .Callback<Shipment, CancellationToken>((s, _) => saved = s);
+        var handler = new CreateShipmentHandler(_shipmentRepo.Object, _orderRepo.Object, _mediator.Object, _httpContext.Object, db: db);
+
+        await handler.Handle(new CreateShipmentCommand(
+            1, null, null, null, null, null, null,
+            [new CreateShipmentLineModel(10, 5, null)]), CancellationToken.None);
+
+        saved!.ShippingAddressId.Should().BeNull();
     }
 }

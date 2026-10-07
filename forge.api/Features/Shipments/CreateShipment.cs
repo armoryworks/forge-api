@@ -54,7 +54,7 @@ public class CreateShipmentHandler(
     // supplies them. systemSettings/identifiers gate + register a caller-supplied shipment number.
     ISystemSettingRepository? systemSettings = null,
     IBusinessIdentifierService? identifiers = null,
-    // Used to validate the selected carrier (clean 404 vs. an FK-violation 500).
+    // Validates the selected carrier (clean 404 vs. an FK-violation 500) and resolves the default ship-to.
     AppDbContext? db = null)
     : IRequestHandler<CreateShipmentCommand, ShipmentListItemModel>
 {
@@ -70,17 +70,24 @@ public class CreateShipmentHandler(
             throw new InvalidOperationException(
                 $"Sales order {order.OrderNumber} must be confirmed before a shipment can be created (current status: {order.Status}).");
 
+        if (order.Customer is { IsOnCreditHold: true } heldCustomer)
+            throw new InvalidOperationException(
+                $"{heldCustomer.Name} is on credit hold: {heldCustomer.CreditHoldReason ?? "no reason recorded"}. Release the hold before shipping.");
+
         if (request.CarrierId is int carrierId && db is not null
             && !await db.Carriers.AnyAsync(c => c.Id == carrierId && c.IsActive, cancellationToken))
             throw new KeyNotFoundException($"Carrier {carrierId} not found or inactive");
 
         var shipmentNumber = await ResolveShipmentNumberAsync(request, cancellationToken);
+        var shippingAddressId = request.ShippingAddressId
+            ?? order.ShippingAddressId
+            ?? await FindDefaultShipToAsync(order, cancellationToken);
 
         var shipment = new Shipment
         {
             ShipmentNumber = shipmentNumber,
             SalesOrderId = request.SalesOrderId,
-            ShippingAddressId = request.ShippingAddressId ?? order.ShippingAddressId,
+            ShippingAddressId = shippingAddressId,
             Carrier = request.Carrier,
             CarrierId = request.CarrierId,
             TrackingNumber = request.TrackingNumber,
@@ -180,6 +187,20 @@ public class CreateShipmentHandler(
         }
 
         return await shipmentRepo.GenerateNextShipmentNumberAsync(ct);
+    }
+
+    private async Task<int?> FindDefaultShipToAsync(SalesOrder order, CancellationToken ct)
+    {
+        if (db is null) return null;
+
+        return await db.CustomerAddresses
+            .AsNoTracking()
+            .Where(a => a.CustomerId == order.CustomerId && a.IsActive && a.IsDefault
+                        && (a.AddressType == AddressType.Shipping || a.AddressType == AddressType.Both))
+            .OrderBy(a => a.AddressType == AddressType.Shipping ? 0 : 1)
+            .ThenBy(a => a.Id)
+            .Select(a => (int?)a.Id)
+            .FirstOrDefaultAsync(ct);
     }
 
     private async Task<bool> ManualShipmentNumbersAllowedAsync(CancellationToken ct)
