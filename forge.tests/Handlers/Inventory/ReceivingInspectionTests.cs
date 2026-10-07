@@ -287,6 +287,24 @@ public class ReceivingInspectionTests
         (await _db.ReceivingRecords.SingleAsync()).InspectionStatus.Should().Be(status);
     }
 
+    [Fact]
+    public async Task PendingQueue_MeasuresDaysWaitingAgainstTheClock()
+    {
+        var receipt = await SeedReceiptAsync();
+        await SeedReceiptAsync(status: ReceivingInspectionStatus.Passed);
+        var tracked = await _db.ReceivingRecords.SingleAsync(r => r.Id == receipt.Id);
+        tracked.CreatedAt = _clock.UtcNow.AddDays(-3);
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var queue = await new GetPendingInspectionsHandler(_db, _clock)
+            .Handle(new GetPendingInspectionsQuery(), CancellationToken.None);
+
+        queue.Should().ContainSingle();
+        queue[0].ReceivingRecordId.Should().Be(receipt.Id);
+        queue[0].DaysWaiting.Should().Be(3);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]

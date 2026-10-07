@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -9,12 +10,12 @@ namespace Forge.Api.Features.Inventory;
 
 public record GetPendingInspectionsQuery : IRequest<List<PendingInspectionItem>>;
 
-public class GetPendingInspectionsHandler(AppDbContext db)
+public class GetPendingInspectionsHandler(AppDbContext db, IClock clock)
     : IRequestHandler<GetPendingInspectionsQuery, List<PendingInspectionItem>>
 {
     public async Task<List<PendingInspectionItem>> Handle(GetPendingInspectionsQuery request, CancellationToken ct)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.UtcNow;
 
         return await db.ReceivingRecords
             .AsNoTracking()
