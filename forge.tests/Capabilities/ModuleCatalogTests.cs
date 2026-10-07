@@ -93,4 +93,46 @@ public class ModuleCatalogTests
 
         referenced.Should().OnlyContain(code => known.Contains(code));
     }
+
+    [Fact]
+    public void JobShopBundle_selectsTheSixJobShopModules()
+    {
+        var bundle = ModuleCatalog.Bundles.Single(b => b.Id == "job-shop");
+
+        bundle.ModuleIds.Should().BeEquivalentTo(
+            "sales", "production", "purchasing", "shipping", "invoicing", "inventory");
+    }
+
+    [Fact]
+    public void EveryBundleModuleId_namesARealModule()
+    {
+        var moduleIds = ModuleCatalog.All.Select(m => m.Id).ToHashSet();
+
+        ModuleCatalog.Bundles.SelectMany(b => b.ModuleIds)
+            .Should().OnlyContain(id => moduleIds.Contains(id));
+    }
+
+    [Fact]
+    public void EveryBundle_resolvesToADependencyCompleteSet()
+    {
+        foreach (var bundle in ModuleCatalog.Bundles)
+        {
+            var set = ModuleCatalog.EnabledCapabilitiesFor(bundle.ModuleIds);
+            var enabled = EnabledMap(set);
+
+            foreach (var code in set)
+            {
+                CapabilityDependencyResolver.FindMissingDependencies(code, enabled)
+                    .Should().BeEmpty($"{code} (pulled in by bundle '{bundle.Id}') must have its prerequisites enabled");
+                CapabilityDependencyResolver.FindEnabledMutexConflicts(code, enabled).Should().BeEmpty();
+            }
+        }
+    }
+
+    [Fact]
+    public void DefaultSelection_staysInventoryOnly()
+    {
+        ModuleCatalog.All.Where(m => m.DefaultSelected).Select(m => m.Id)
+            .Should().BeEquivalentTo("inventory");
+    }
 }

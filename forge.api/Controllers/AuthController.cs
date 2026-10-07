@@ -69,12 +69,15 @@ public class AuthController(IMediator mediator, ISsoHandoffStore handoffStore) :
     // setup, before any admin exists). Static catalog data; no DB hit.
     [HttpGet("setup/modules")]
     [AllowAnonymous]
-    public ActionResult<IReadOnlyList<SetupModuleResponseModel>> SetupModules()
+    public ActionResult<SetupModulesResponseModel> SetupModules()
     {
         var modules = Forge.Api.Capabilities.ModuleCatalog.All
             .Select(m => new SetupModuleResponseModel(m.Id, m.Name, m.Summary, m.PrerequisiteNote, m.DefaultSelected))
             .ToList();
-        return Ok(modules);
+        var bundles = Forge.Api.Capabilities.ModuleCatalog.Bundles
+            .Select(b => new SetupModuleBundleResponseModel(b.Id, b.Name, b.ModuleIds))
+            .ToList();
+        return Ok(new SetupModulesResponseModel(modules, bundles));
     }
 
     // The module -> capability mapping (full catalog + per-module resolved sets).

@@ -70,13 +70,13 @@ public static class ModuleCatalog
             new[] { "CAP-MD-VENDORS", "CAP-P2P-PO", "CAP-P2P-RECEIVE", "CAP-P2P-BILL", "CAP-P2P-PAY" }),
 
         new("sales", "Sales and quoting",
-            "Quote customers and turn quotes into sales orders.",
+            "Quote customers and turn won quotes into sales orders and jobs.",
             "Turns on customer records, contacts, and addresses.",
             new[] { "CAP-MD-CUSTOMERS", "CAP-MD-CUSTOMER-CONTACTS", "CAP-MD-CUSTOMER-ADDRESSES",
                     "CAP-O2C-QUOTE", "CAP-O2C-SO" }),
 
         new("production", "Production",
-            "Build products from a bill of materials with routings and a shop-floor board.",
+            "Run jobs or build products through your routings and work centers, track time on the floor, and see every job on the board.",
             "Turns on BOMs, routings, work centers, and the job board.",
             new[] { "CAP-MD-BOM", "CAP-MD-ROUTING", "CAP-MD-WORKCENTERS", "CAP-MD-CALENDARS",
                     "CAP-MFG-WO-RELEASE", "CAP-MFG-MATL-ISSUE", "CAP-MFG-LABOR", "CAP-MFG-MULTIOP",
@@ -106,6 +106,13 @@ public static class ModuleCatalog
             "Manage employees, hiring, time tracking, and training.",
             "Turns on employee records.",
             new[] { "CAP-MD-EMPLOYEES", "CAP-HR-HIRE", "CAP-HR-TERMINATION", "CAP-HR-TIMETRACK" }),
+    };
+
+    /// <summary>One-click module combinations offered above the picker's module cards.</summary>
+    public static IReadOnlyList<ModuleBundle> Bundles { get; } = new List<ModuleBundle>
+    {
+        new("job-shop", "Job shop",
+            new[] { "sales", "production", "purchasing", "shipping", "invoicing", "inventory" }),
     };
 
     public static ModuleDefinition? FindById(string id) =>
