@@ -130,7 +130,5 @@ public class ReceiveStockHandlerTests
 
         added!.LotNumber.Should().BeNull();
         added.Quantity.Should().Be(4);
-        _repo.Verify(r => r.FindActiveBinContentByPartLocationAsync(
-            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

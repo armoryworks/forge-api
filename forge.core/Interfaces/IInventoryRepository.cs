@@ -31,9 +31,9 @@ public interface IInventoryRepository
     // Bin contents
     Task<List<BinContentResponseModel>> GetBinContentsAsync(int locationId, CancellationToken ct);
     Task<BinContent?> FindBinContentAsync(int id, CancellationToken ct);
-    /// <summary>Active (not removed) bin content for a part at a location, if any —
-    /// used by the manual on-hand override to decide create vs adjust.</summary>
-    Task<BinContent?> FindActiveBinContentByPartLocationAsync(int partId, int locationId, CancellationToken ct);
+    /// <summary>Every active (not removed) bin content for a part at a location, un-lotted first and then
+    /// oldest placed first — the draw-down order for stock-outs and counts across lots.</summary>
+    Task<List<BinContent>> GetActiveBinContentsByPartLocationAsync(int partId, int locationId, CancellationToken ct);
     /// <summary>Active (not removed) bin content for a part at a location holding the given
     /// lot (null matches only un-lotted content) — used by PO receiving so lots never blend.</summary>
     Task<BinContent?> FindActiveBinContentByPartLocationLotAsync(int partId, int locationId, string? lotNumber, CancellationToken ct);

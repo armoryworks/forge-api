@@ -31,21 +31,25 @@ public class SetOnHandQuantityCommandValidator : AbstractValidator<SetOnHandQuan
 /// <summary>
 /// Manual inventory override (forge-api#4): directly set the on-hand quantity of
 /// an existing part at a location, bypassing receiving (RFQ → PO → receive).
-/// Creates the bin content when none exists yet (opening stock / found inventory)
-/// or adjusts the existing one. Operational only — writes a BinMovement audit row
-/// carrying the mandatory reason + optional PO/vendor provenance, and never posts
-/// to a general ledger (see docs/delivery/in-progress/inventory-override/design.md).
+/// The quantity is the location total across every lot held there. Creates the bin
+/// content when none exists yet (opening stock / found inventory); otherwise a rise
+/// lands on the un-lotted content (or the newest lot when all stock is lotted) and a
+/// drop draws down un-lotted content first, then the oldest lots. Operational only —
+/// writes BinMovement audit rows carrying the mandatory reason + optional PO/vendor
+/// provenance, and never posts to a general ledger (see
+/// docs/delivery/in-progress/inventory-override/design.md).
 /// </summary>
 public class SetOnHandQuantityHandler(
     IInventoryRepository repo,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    IClock clock)
     : IRequestHandler<SetOnHandQuantityCommand>
 {
     public async Task Handle(SetOnHandQuantityCommand request, CancellationToken cancellationToken)
     {
         var data = request.Data;
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.UtcNow;
 
         int locationId;
         if (data.LocationId is int requested)
@@ -60,14 +64,12 @@ public class SetOnHandQuantityHandler(
             locationId = (await repo.EnsureDefaultLocationAsync(cancellationToken)).Id;
         }
 
-        var existing = await repo.FindActiveBinContentByPartLocationAsync(data.PartId, locationId, cancellationToken);
+        var rows = await repo.GetActiveBinContentsByPartLocationAsync(data.PartId, locationId, cancellationToken);
         var auditNote = BuildNote(data);
 
-        decimal delta;
-        if (existing is null)
+        if (rows.Count == 0)
         {
             // Opening stock / found inventory — no prior bin content at this location.
-            delta = data.Quantity;
             await repo.AddBinContentAsync(new BinContent
             {
                 EntityType = "part",
@@ -79,39 +81,51 @@ public class SetOnHandQuantityHandler(
                 PlacedAt = now,
                 Notes = data.Notes,
             }, cancellationToken);
+            await AddAdjustmentAsync(data.PartId, locationId, data.Quantity, null, userId, now, auditNote, cancellationToken);
         }
         else
         {
             // S-RI1: never let the override drop on-hand below what's reserved.
-            if (data.Quantity < existing.ReservedQuantity)
+            var reserved = rows.Sum(r => r.ReservedQuantity);
+            if (data.Quantity < reserved)
                 throw new InvalidOperationException(
-                    $"Cannot set this bin to {data.Quantity}: {existing.ReservedQuantity} unit(s) are reserved. " +
+                    $"Cannot set this location to {data.Quantity}: {reserved} unit(s) are reserved. " +
                     "Release the reservation first.");
 
-            delta = data.Quantity - existing.Quantity;
-            existing.Quantity = data.Quantity;
-            if (data.Quantity == 0)
+            var delta = data.Quantity - rows.Sum(r => r.Quantity);
+            if (delta < 0)
             {
-                existing.RemovedAt = now;
-                existing.RemovedBy = userId;
+                foreach (var (row, taken) in BinContentDrawDown.Take(rows, -delta, userId, now))
+                    await AddAdjustmentAsync(data.PartId, locationId, -taken, row.LotNumber, userId, now, auditNote, cancellationToken);
+            }
+            else
+            {
+                var target = rows.FirstOrDefault(r => r.LotNumber is null)
+                    ?? rows.OrderByDescending(r => r.PlacedAt).ThenByDescending(r => r.Id).First();
+                target.Quantity += delta;
+                await AddAdjustmentAsync(data.PartId, locationId, delta, target.LotNumber, userId, now, auditNote, cancellationToken);
             }
         }
 
-        await repo.AddMovementAsync(new BinMovement
+        await repo.SaveChangesAsync(cancellationToken);
+    }
+
+    private Task AddAdjustmentAsync(
+        int partId, int locationId, decimal delta, string? lotNumber, int userId, DateTimeOffset now, string note,
+        CancellationToken ct)
+        => repo.AddMovementAsync(new BinMovement
         {
             EntityType = "part",
-            EntityId = data.PartId,
+            EntityId = partId,
             Quantity = Math.Abs(delta),
+            LotNumber = lotNumber,
             FromLocationId = delta < 0 ? locationId : null,
             ToLocationId = delta >= 0 ? locationId : null,
             MovedBy = userId,
             MovedAt = now,
             Reason = BinMovementReason.Adjustment,
-            Notes = auditNote,
-        }, cancellationToken);
-
-        await repo.SaveChangesAsync(cancellationToken);
-    }
+            Notes = note,
+        }, ct);
 
     private static string BuildNote(SetOnHandQuantityRequestModel d)
     {

@@ -66,7 +66,7 @@ public class ReceiveProductionRunToStockHandler(
                 ? await db.Database.BeginTransactionAsync(cancellationToken)
                 : null;
 
-            // Operational FG stock-in (not CAP-ACCT-FULLGL gated): find-or-create the active BinContent for
+            // Operational FG stock-in (not CAP-ACCT-FULLGL gated): find-or-create the active un-lotted BinContent for
             // (part, bin) and increment it, then record a Receive movement.
             string? binName = null;
             if (inventory is not null)
@@ -76,8 +76,8 @@ public class ReceiveProductionRunToStockHandler(
                 var locationId = location.Id;
                 binName = location.Name;
 
-                var existing = await inventory.FindActiveBinContentByPartLocationAsync(
-                    run.PartId, locationId, cancellationToken);
+                var existing = await inventory.FindActiveBinContentByPartLocationLotAsync(
+                    run.PartId, locationId, null, cancellationToken);
                 if (existing is not null)
                 {
                     existing.Quantity += goodQty;

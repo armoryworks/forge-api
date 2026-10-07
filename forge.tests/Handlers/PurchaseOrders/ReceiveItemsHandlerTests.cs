@@ -413,8 +413,6 @@ public class ReceiveItemsHandlerTests
         heatA.Quantity.Should().Be(5m);
         _addedContents.Single().LotNumber.Should().Be("HEAT-B");
         _addedContents.Single().Quantity.Should().Be(3m);
-        _inventory.Verify(i => i.FindActiveBinContentByPartLocationAsync(
-            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

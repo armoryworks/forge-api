@@ -15,6 +15,8 @@ namespace Forge.Tests.Handlers.Inventory;
 public class UseStockHandlerTests
 {
     private readonly Mock<IInventoryRepository> _repo = new();
+    private static readonly DateTimeOffset Now = new(2026, 10, 7, 12, 0, 0, TimeSpan.Zero);
+    private readonly Mock<IClock> _clock = new();
     private readonly UseStockHandler _handler;
 
     public UseStockHandlerTests()
@@ -23,11 +25,12 @@ public class UseStockHandlerTests
             new[] { new Claim(ClaimTypes.NameIdentifier, "7") }, "Test"));
         var accessor = new Mock<IHttpContextAccessor>();
         accessor.Setup(a => a.HttpContext).Returns(new DefaultHttpContext { User = principal });
+        _clock.Setup(c => c.UtcNow).Returns(Now);
         _repo.Setup(r => r.FindLocationAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new StorageLocation { Id = 5, Name = "A1" });
         _repo.Setup(r => r.PartExistsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        _handler = new UseStockHandler(_repo.Object, accessor.Object);
+        _handler = new UseStockHandler(_repo.Object, accessor.Object, _clock.Object);
     }
 
     private static UseStockCommand Cmd(decimal qty, int? location = 5, string? reason = null)
@@ -37,8 +40,8 @@ public class UseStockHandlerTests
     public async Task ReducesQuantityAndRecordsIssueMovement()
     {
         var existing = new BinContent { Id = 9, EntityType = "part", EntityId = 3, LocationId = 5, Quantity = 12, ReservedQuantity = 0 };
-        _repo.Setup(r => r.FindActiveBinContentByPartLocationAsync(3, 5, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existing);
+        _repo.Setup(r => r.GetActiveBinContentsByPartLocationAsync(3, 5, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<BinContent> { existing });
         BinMovement? movement = null;
         _repo.Setup(r => r.AddMovementAsync(It.IsAny<BinMovement>(), It.IsAny<CancellationToken>()))
             .Callback<BinMovement, CancellationToken>((m, _) => movement = m).Returns(Task.CompletedTask);
@@ -57,8 +60,8 @@ public class UseStockHandlerTests
     public async Task UsingAllStock_marksBinRemoved()
     {
         var existing = new BinContent { Id = 9, EntityType = "part", EntityId = 3, LocationId = 5, Quantity = 8, ReservedQuantity = 0 };
-        _repo.Setup(r => r.FindActiveBinContentByPartLocationAsync(3, 5, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existing);
+        _repo.Setup(r => r.GetActiveBinContentsByPartLocationAsync(3, 5, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<BinContent> { existing });
         _repo.Setup(r => r.AddMovementAsync(It.IsAny<BinMovement>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
@@ -73,8 +76,8 @@ public class UseStockHandlerTests
     public async Task UsingMoreThanAvailable_respectsReservedAndPersistsNothing()
     {
         var existing = new BinContent { Id = 9, EntityType = "part", EntityId = 3, LocationId = 5, Quantity = 10, ReservedQuantity = 8 };
-        _repo.Setup(r => r.FindActiveBinContentByPartLocationAsync(3, 5, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existing);
+        _repo.Setup(r => r.GetActiveBinContentsByPartLocationAsync(3, 5, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<BinContent> { existing });
 
         var act = () => _handler.Handle(Cmd(5), CancellationToken.None);
 
@@ -97,8 +100,8 @@ public class UseStockHandlerTests
     [Fact]
     public async Task NoStockOnHand_throws()
     {
-        _repo.Setup(r => r.FindActiveBinContentByPartLocationAsync(3, 5, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((BinContent?)null);
+        _repo.Setup(r => r.GetActiveBinContentsByPartLocationAsync(3, 5, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<BinContent>());
 
         var act = () => _handler.Handle(Cmd(1), CancellationToken.None);
 
@@ -112,8 +115,8 @@ public class UseStockHandlerTests
         _repo.Setup(r => r.EnsureDefaultLocationAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new StorageLocation { Id = 1, Name = "Main", IsDefault = true });
         var existing = new BinContent { Id = 9, EntityType = "part", EntityId = 3, LocationId = 1, Quantity = 20, ReservedQuantity = 0 };
-        _repo.Setup(r => r.FindActiveBinContentByPartLocationAsync(3, 1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existing);
+        _repo.Setup(r => r.GetActiveBinContentsByPartLocationAsync(3, 1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<BinContent> { existing });
         _repo.Setup(r => r.AddMovementAsync(It.IsAny<BinMovement>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
@@ -122,5 +125,44 @@ public class UseStockHandlerTests
         existing.Quantity.Should().Be(16);
         _repo.Verify(r => r.EnsureDefaultLocationAsync(It.IsAny<CancellationToken>()), Times.Once);
         _repo.Verify(r => r.FindLocationAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task TwoLotsInOneBin_drawsAcrossThemOldestFirst()
+    {
+        var heatA = new BinContent { Id = 1, EntityType = "part", EntityId = 3, LocationId = 5, Quantity = 24, LotNumber = "HEAT-A" };
+        var heatB = new BinContent { Id = 2, EntityType = "part", EntityId = 3, LocationId = 5, Quantity = 24, LotNumber = "HEAT-B" };
+        _repo.Setup(r => r.GetActiveBinContentsByPartLocationAsync(3, 5, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<BinContent> { heatA, heatB });
+        var movements = new List<BinMovement>();
+        _repo.Setup(r => r.AddMovementAsync(It.IsAny<BinMovement>(), It.IsAny<CancellationToken>()))
+            .Callback<BinMovement, CancellationToken>((m, _) => movements.Add(m)).Returns(Task.CompletedTask);
+
+        await _handler.Handle(Cmd(30), CancellationToken.None);
+
+        heatA.Quantity.Should().Be(0);
+        heatA.RemovedAt.Should().Be(Now);
+        heatB.Quantity.Should().Be(18);
+        heatB.RemovedAt.Should().BeNull();
+        movements.Select(m => (m.LotNumber, m.Quantity)).Should().Equal(("HEAT-A", 24m), ("HEAT-B", 6m));
+    }
+
+    [Fact]
+    public async Task TwoLotsInOneBin_skipsReservedUnitsAndChecksTheLocationTotal()
+    {
+        var unlotted = new BinContent { Id = 1, EntityType = "part", EntityId = 3, LocationId = 5, Quantity = 10, ReservedQuantity = 10 };
+        var heatA = new BinContent { Id = 2, EntityType = "part", EntityId = 3, LocationId = 5, Quantity = 24, ReservedQuantity = 4, LotNumber = "HEAT-A" };
+        _repo.Setup(r => r.GetActiveBinContentsByPartLocationAsync(3, 5, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<BinContent> { unlotted, heatA });
+        _repo.Setup(r => r.AddMovementAsync(It.IsAny<BinMovement>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        await _handler.Handle(Cmd(20), CancellationToken.None);
+
+        unlotted.Quantity.Should().Be(10);
+        heatA.Quantity.Should().Be(4);
+
+        var act = () => _handler.Handle(Cmd(1), CancellationToken.None);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*only 0 available*");
     }
 }

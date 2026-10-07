@@ -220,5 +220,28 @@ public class ReceiveProductionRunToStockHandlerTests : IDisposable
         log.UserId.Should().Be(1);
     }
 
+    [Fact]
+    public async Task Handle_BinHoldsALot_AddsToTheUnlottedRowAndLeavesTheLotAlone()
+    {
+        var run = await SeedRunAsync(completedQty: 8);
+        var bin = new StorageLocation { Name = "FG-1", LocationType = LocationType.Bin, IsActive = true };
+        _db.StorageLocations.Add(bin);
+        await _db.SaveChangesAsync();
+        _db.BinContents.AddRange(
+            new BinContent { LocationId = bin.Id, EntityType = "part", EntityId = run.PartId, Quantity = 5m, LotNumber = "HEAT-A" },
+            new BinContent { LocationId = bin.Id, EntityType = "part", EntityId = run.PartId, Quantity = 3m });
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(
+            new ReceiveProductionRunToStockCommand(run.JobId, run.Id, ReceivedByUserId: 1, LocationId: bin.Id),
+            default);
+
+        _db.ChangeTracker.Clear();
+        var rows = await _db.BinContents.Where(b => b.EntityType == "part" && b.EntityId == run.PartId).ToListAsync();
+        rows.Should().HaveCount(2);
+        rows.Single(b => b.LotNumber == "HEAT-A").Quantity.Should().Be(5m);
+        rows.Single(b => b.LotNumber == null).Quantity.Should().Be(11m);
+    }
+
     public void Dispose() => _db.Dispose();
 }

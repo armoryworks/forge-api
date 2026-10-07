@@ -189,10 +189,14 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
     public Task<BinContent?> FindBinContentAsync(int id, CancellationToken ct)
         => db.BinContents.Include(c => c.Location).FirstOrDefaultAsync(c => c.Id == id, ct);
 
-    public Task<BinContent?> FindActiveBinContentByPartLocationAsync(int partId, int locationId, CancellationToken ct)
+    public Task<List<BinContent>> GetActiveBinContentsByPartLocationAsync(int partId, int locationId, CancellationToken ct)
         => db.BinContents.Include(c => c.Location)
-            .FirstOrDefaultAsync(c => c.EntityType == "part" && c.EntityId == partId
-                && c.LocationId == locationId && c.RemovedAt == null, ct);
+            .Where(c => c.EntityType == "part" && c.EntityId == partId
+                && c.LocationId == locationId && c.RemovedAt == null)
+            .OrderBy(c => c.LotNumber != null)
+            .ThenBy(c => c.PlacedAt)
+            .ThenBy(c => c.Id)
+            .ToListAsync(ct);
 
     public Task<BinContent?> FindActiveBinContentByPartLocationLotAsync(
         int partId, int locationId, string? lotNumber, CancellationToken ct)

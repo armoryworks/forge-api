@@ -30,20 +30,22 @@ public class UseStockCommandValidator : AbstractValidator<UseStockCommand>
 /// Friendly stock-out for a standalone inventory shop: consume a quantity of a
 /// part without a shipment or job issue, so a clerk can record "stock used" in one
 /// step. When no location is supplied (single-location mode) the default location
-/// is used. The amount used can never drop on-hand below what is reserved (S-RI1),
-/// nor below zero. Writes a BinMovement (Reason = Issue) as the audit trail; never
-/// posts to a ledger.
+/// is used. Stock is drawn from un-lotted content first, then the oldest lots, so a
+/// location holding several lots is used as one total. The amount used can never
+/// drop on-hand below what is reserved (S-RI1), nor below zero. Writes a BinMovement
+/// (Reason = Issue) per row drawn as the audit trail; never posts to a ledger.
 /// </summary>
 public class UseStockHandler(
     IInventoryRepository repo,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    IClock clock)
     : IRequestHandler<UseStockCommand>
 {
     public async Task Handle(UseStockCommand request, CancellationToken cancellationToken)
     {
         var data = request.Data;
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.UtcNow;
 
         if (!await repo.PartExistsAsync(data.PartId, cancellationToken))
             throw new KeyNotFoundException($"Part {data.PartId} not found");
@@ -60,36 +62,37 @@ public class UseStockHandler(
             locationId = (await repo.EnsureDefaultLocationAsync(cancellationToken)).Id;
         }
 
-        var existing = await repo.FindActiveBinContentByPartLocationAsync(data.PartId, locationId, cancellationToken)
-            ?? throw new InvalidOperationException(
+        var rows = await repo.GetActiveBinContentsByPartLocationAsync(data.PartId, locationId, cancellationToken);
+        if (rows.Count == 0)
+            throw new InvalidOperationException(
                 "No stock of this part is on hand to use. Receive stock before using it.");
 
         // S-RI1: reserved units are spoken for, so only the free balance can be used.
-        var available = existing.Quantity - existing.ReservedQuantity;
+        var onHand = rows.Sum(r => r.Quantity);
+        var reserved = rows.Sum(r => r.ReservedQuantity);
+        var available = onHand - reserved;
         if (data.Quantity > available)
             throw new InvalidOperationException(
                 $"Cannot use {data.Quantity}: only {available} available " +
-                $"({existing.ReservedQuantity} of {existing.Quantity} on hand are reserved).");
+                $"({reserved} of {onHand} on hand are reserved).");
 
-        existing.Quantity -= data.Quantity;
-        if (existing.Quantity == 0)
+        var note = BuildNote(data);
+        foreach (var (row, taken) in BinContentDrawDown.Take(rows, data.Quantity, userId, now))
         {
-            existing.RemovedAt = now;
-            existing.RemovedBy = userId;
+            await repo.AddMovementAsync(new BinMovement
+            {
+                EntityType = "part",
+                EntityId = data.PartId,
+                Quantity = taken,
+                LotNumber = row.LotNumber,
+                FromLocationId = locationId,
+                ToLocationId = null,
+                MovedBy = userId,
+                MovedAt = now,
+                Reason = BinMovementReason.Issue,
+                Notes = note,
+            }, cancellationToken);
         }
-
-        await repo.AddMovementAsync(new BinMovement
-        {
-            EntityType = "part",
-            EntityId = data.PartId,
-            Quantity = data.Quantity,
-            FromLocationId = locationId,
-            ToLocationId = null,
-            MovedBy = userId,
-            MovedAt = now,
-            Reason = BinMovementReason.Issue,
-            Notes = BuildNote(data),
-        }, cancellationToken);
 
         await repo.SaveChangesAsync(cancellationToken);
     }
