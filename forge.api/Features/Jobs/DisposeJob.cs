@@ -81,8 +81,15 @@ public class DisposeJobHandler(
             throw new InvalidOperationException(ProductionHistoryMessage);
 
         StockPlan? stockPlan = null;
-        if (disposition == JobDisposition.AddToInventory && capabilities.IsEnabled(StockingCapability))
-            stockPlan = await PlanStockAsync(job, request.Data, cancellationToken);
+        if (disposition == JobDisposition.AddToInventory)
+        {
+            var stock = await GetJobDispositionStockHandler.LoadAsync(db, job.Id, job.PartId, cancellationToken);
+            if (stock.PartId is null && !stock.HasSeveralParts)
+                throw new InvalidOperationException(NoPartMessage);
+
+            if (capabilities.IsEnabled(StockingCapability))
+                stockPlan = await PlanStockAsync(stock, request.Data, cancellationToken);
+        }
 
         if (releasingHold)
         {
@@ -152,10 +159,9 @@ public class DisposeJobHandler(
 
     private sealed record StockPlan(int PartId, int TopUpQuantity);
 
-    private async Task<StockPlan> PlanStockAsync(Job job, DisposeJobRequestModel data, CancellationToken ct)
+    private async Task<StockPlan> PlanStockAsync(
+        JobDispositionStockResponseModel stock, DisposeJobRequestModel data, CancellationToken ct)
     {
-        var stock = await GetJobDispositionStockHandler.LoadAsync(db, job.Id, job.PartId, ct);
-
         if (stock.HasSeveralParts)
             throw new InvalidOperationException(SeveralPartsMessage);
 
@@ -228,6 +234,14 @@ public class DisposeJobHandler(
                 Notes = $"Recorded by the {JobDisposition.AddToInventory} disposition of job {job.JobNumber}.",
             };
             db.ProductionRuns.Add(run);
+            job.ActivityLogs.Add(new JobActivityLog
+            {
+                UserId = request.UserId,
+                Action = ActivityAction.Created,
+                Description = $"Recorded run {run.RunNumber} with {plan.TopUpQuantity} good parts "
+                    + $"for the {JobDisposition.AddToInventory} disposition.",
+                CreatedAt = now,
+            });
             await db.SaveChangesAsync(ct);
             runIds.Add(run.Id);
         }

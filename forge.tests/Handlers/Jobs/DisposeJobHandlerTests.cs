@@ -489,6 +489,7 @@ public class DisposeJobHandlerTests
             .Where(l => l.JobId == job.Id)
             .Select(l => l.Description)
             .ToListAsync();
+        activity.Should().Contain(d => d.StartsWith($"Recorded run {run.RunNumber} with 500 good parts"));
         activity.Should().Contain($"Received 500 of 40-1700M from run {run.RunNumber} into A-03.");
     }
 
@@ -680,12 +681,25 @@ public class DisposeJobHandlerTests
     {
         _capabilities.Setup(c => c.IsEnabled(DisposeJobHandler.StockingCapability)).Returns(false);
         var job = ArrangeJob(65, "JOB-0065");
+        job.PartId = 650;
 
         await DisposeToInventory(65, null, null);
 
         job.Disposition.Should().Be(JobDisposition.AddToInventory);
         _mediator.Verify(m => m.Send(It.IsAny<ReceiveProductionRunToStockCommand>(), It.IsAny<CancellationToken>()), Times.Never);
         _jobRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_AddToInventory_WithStockingCapabilityOff_StillRefusesAJobWithoutAPart()
+    {
+        _capabilities.Setup(c => c.IsEnabled(DisposeJobHandler.StockingCapability)).Returns(false);
+        var job = ArrangeJob(66, "JOB-0066");
+
+        var act = () => DisposeToInventory(66, null, null);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage(DisposeJobHandler.NoPartMessage);
+        job.Disposition.Should().BeNull();
     }
 
     [Fact]
