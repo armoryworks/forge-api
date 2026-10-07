@@ -184,4 +184,80 @@ public class SchedulingServiceTests
         result.ConflictsDetected.Should().Be(0);
         load.Buckets.Sum(b => b.ScheduledHours).Should().BeApproximately(37.5m, 0.0001m);
     }
+
+    [Fact]
+    public async Task Schedule_OperationLongerThanAShift_SpansIntoTheNextDay()
+    {
+        var wc = await SeedWorkCenterAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 60000);
+        var longJob = await SeedJobAsync(part, 500m, j => j.DueDate = new DateTimeOffset(2026, 10, 20, 0, 0, 0, TimeSpan.Zero));
+        var nextJob = await SeedJobAsync(part, 60m, j => j.DueDate = new DateTimeOffset(2026, 10, 21, 0, 0, 0, TimeSpan.Zero));
+
+        var result = await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        result.OperationsScheduled.Should().Be(2);
+        result.ConflictsDetected.Should().Be(0);
+        var longOp = await _db.ScheduledOperations.SingleAsync(so => so.JobId == longJob.Id);
+        longOp.ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 5, 8, 0, 0, TimeSpan.Zero));
+        longOp.ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 6, 8, 20, 0, TimeSpan.Zero));
+        var nextOp = await _db.ScheduledOperations.SingleAsync(so => so.JobId == nextJob.Id);
+        nextOp.ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 6, 8, 20, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task Schedule_MultiDayOperation_SkipsNonWorkingDaysAndSpreadsLoad()
+    {
+        var wc = await SeedWorkCenterAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 60000);
+        await SeedJobAsync(part, 2880m);
+
+        var result = await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+        var load = await _service.GetWorkCenterLoadAsync(wc.Id, From, From.AddDays(13), CancellationToken.None);
+
+        result.ConflictsDetected.Should().Be(0);
+        var scheduled = await _db.ScheduledOperations.SingleAsync();
+        scheduled.ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 12, 16, 0, 0, TimeSpan.Zero));
+        load.Buckets.Select(b => b.ScheduledHours).Should().Equal(40m, 8m);
+    }
+
+    [Fact]
+    public async Task Schedule_OperationLargerThanTheOverflowWindow_IsAConflict()
+    {
+        var wc = await SeedWorkCenterAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 60000);
+        await SeedJobAsync(part, 18000m);
+
+        var result = await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        result.OperationsScheduled.Should().Be(0);
+        result.ConflictsDetected.Should().Be(1);
+        (await _db.ScheduledOperations.AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Schedule_LockedMultiDayOperation_HoldsCapacityOnEveryDayItSpans()
+    {
+        var wc = await SeedWorkCenterAsync();
+        var (part, op) = await SeedPartAsync(wc, estimatedMs: 60000);
+        var lockedJob = await SeedJobAsync(part, 960m, j => j.IsArchived = true);
+        _db.ScheduledOperations.Add(new ScheduledOperation
+        {
+            JobId = lockedJob.Id,
+            OperationId = op.Id,
+            WorkCenterId = wc.Id,
+            ScheduledStart = new DateTimeOffset(2026, 10, 5, 8, 0, 0, TimeSpan.Zero),
+            ScheduledEnd = new DateTimeOffset(2026, 10, 6, 16, 0, 0, TimeSpan.Zero),
+            RunHours = 16m,
+            TotalHours = 16m,
+            Status = ScheduledOperationStatus.Scheduled,
+            IsLocked = true,
+        });
+        await _db.SaveChangesAsync();
+        var openJob = await SeedJobAsync(part, 60m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var scheduled = await _db.ScheduledOperations.SingleAsync(so => so.JobId == openJob.Id);
+        scheduled.ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 7, 8, 0, 0, TimeSpan.Zero));
+    }
 }

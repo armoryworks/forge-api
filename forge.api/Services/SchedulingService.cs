@@ -98,13 +98,14 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
             // Load existing locked operations (pinned — won't be moved)
             var lockedOps = await db.ScheduledOperations
                 .Where(so => so.IsLocked && so.Status != ScheduledOperationStatus.Cancelled)
+                .OrderBy(so => so.ScheduledStart)
                 .ToListAsync(ct);
 
             foreach (var locked in lockedOps)
             {
-                var date = DateOnly.FromDateTime(locked.ScheduledStart.UtcDateTime);
-                var key = (locked.WorkCenterId, date);
-                capacityUsed[key] = capacityUsed.GetValueOrDefault(key) + locked.TotalHours;
+                var (lockedShifts, lockedCalendar, _, lockedMachines) = capacityLookup.GetValueOrDefault(
+                    locked.WorkCenterId, ([], [], 1m, 1));
+                SpreadAcrossDays(locked, lockedShifts, lockedCalendar, lockedMachines, capacityUsed);
             }
 
             // 4. Remove non-locked scheduled operations (if not simulation)
@@ -178,12 +179,12 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                     }
 
                     // Find available slot
-                    var (start, end) = FindAvailableSlot(
+                    var slot = FindAvailableSlot(
                         wcId, cursor, totalHours, machines,
                         shifts, calendar, capacityUsed,
                         parameters.Direction, parameters.ScheduleFrom, parameters.ScheduleTo);
 
-                    if (start == DateTimeOffset.MinValue)
+                    if (slot is not (var start, var end, var allocations))
                     {
                         conflicts++;
                         logger.LogWarning("No capacity found for Job {JobId} Op {OpId} at WorkCenter {WcId}",
@@ -210,9 +211,11 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                     scheduledCount++;
 
                     // Update capacity tracking
-                    var startDate = DateOnly.FromDateTime(start.UtcDateTime);
-                    var capKey = (wcId, startDate);
-                    capacityUsed[capKey] = capacityUsed.GetValueOrDefault(capKey) + totalHours;
+                    foreach (var (allocatedDate, allocatedHours) in allocations)
+                    {
+                        var capKey = (wcId, allocatedDate);
+                        capacityUsed[capKey] = capacityUsed.GetValueOrDefault(capKey) + allocatedHours;
+                    }
 
                     previousEnd = end;
                     cursor = end;
@@ -245,7 +248,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
         }
     }
 
-    private static (DateTimeOffset Start, DateTimeOffset End) FindAvailableSlot(
+    private static (DateTimeOffset Start, DateTimeOffset End, List<(DateOnly Date, decimal Hours)> Allocations)? FindAvailableSlot(
         int workCenterId,
         DateTimeOffset cursor,
         decimal totalHours,
@@ -259,6 +262,9 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
     {
         var date = DateOnly.FromDateTime(cursor.UtcDateTime);
         var maxDate = scheduleTo.AddDays(30); // Allow 30 days beyond horizon
+        var allocations = new List<(DateOnly Date, decimal Hours)>();
+        var hoursLeft = totalHours;
+        var start = DateTimeOffset.MinValue;
 
         while (date <= maxDate)
         {
@@ -266,20 +272,54 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
             decimal usedHours = capacityUsed.GetValueOrDefault((workCenterId, date));
             decimal remainingHours = availableHours - usedHours;
 
-            if (remainingHours >= totalHours)
+            if (remainingHours > 0 || (totalHours <= 0 && remainingHours >= 0))
             {
-                // Slot found on this date
                 var dayStart = new DateTimeOffset(date.ToDateTime(TimeOnly.FromTimeSpan(TimeSpan.FromHours(8))), TimeSpan.Zero);
-                var shiftOffset = usedHours;
-                var start = dayStart.AddHours((double)shiftOffset);
-                var end = start.AddHours((double)totalHours);
-                return (start, end);
+                var dayHours = Math.Min(remainingHours, hoursLeft);
+
+                if (allocations.Count == 0)
+                    start = dayStart.AddHours((double)usedHours);
+
+                allocations.Add((date, dayHours));
+                hoursLeft -= dayHours;
+
+                if (hoursLeft <= 0)
+                    return (start, dayStart.AddHours((double)(usedHours + dayHours)), allocations);
             }
 
             date = date.AddDays(1);
         }
 
-        return (DateTimeOffset.MinValue, DateTimeOffset.MinValue);
+        return null;
+    }
+
+    private static void SpreadAcrossDays(
+        ScheduledOperation op,
+        List<WorkCenterShiftInfo> shifts,
+        Dictionary<DateOnly, decimal> calendar,
+        int machines,
+        Dictionary<(int, DateOnly), decimal> capacityUsed)
+    {
+        var date = DateOnly.FromDateTime(op.ScheduledStart.UtcDateTime);
+        var lastDate = DateOnly.FromDateTime(op.ScheduledEnd.UtcDateTime);
+        var hoursLeft = op.TotalHours;
+
+        while (date < lastDate && hoursLeft > 0)
+        {
+            var dayKey = (op.WorkCenterId, date);
+            var dayRemaining = GetDayCapacity(op.WorkCenterId, date, shifts, calendar) * machines
+                - capacityUsed.GetValueOrDefault(dayKey);
+            var dayHours = Math.Min(hoursLeft, Math.Max(0m, dayRemaining));
+            if (dayHours > 0)
+            {
+                capacityUsed[dayKey] = capacityUsed.GetValueOrDefault(dayKey) + dayHours;
+                hoursLeft -= dayHours;
+            }
+            date = date.AddDays(1);
+        }
+
+        var key = (op.WorkCenterId, date);
+        capacityUsed[key] = capacityUsed.GetValueOrDefault(key) + hoursLeft;
     }
 
     private static decimal GetDayCapacity(
@@ -359,7 +399,12 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                 && so.Status != ScheduledOperationStatus.Cancelled
                 && so.ScheduledStart >= new DateTimeOffset(from.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
                 && so.ScheduledStart <= new DateTimeOffset(to.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero))
+            .OrderBy(so => so.ScheduledStart)
             .ToListAsync(ct);
+
+        var dailyLoad = new Dictionary<(int, DateOnly), decimal>();
+        foreach (var so in scheduledOps)
+            SpreadAcrossDays(so, shifts, calendar, wc.NumberOfMachines, dailyLoad);
 
         // Group by week
         var buckets = new List<WorkCenterLoadBucket>();
@@ -380,13 +425,9 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                 weekCapacity += GetDayCapacity(workCenterId, d, shifts, calendar) * wc.NumberOfMachines;
             }
 
-            weekScheduled = scheduledOps
-                .Where(so =>
-                {
-                    var opDate = DateOnly.FromDateTime(so.ScheduledStart.UtcDateTime);
-                    return opDate >= current && opDate <= weekEnd;
-                })
-                .Sum(so => so.TotalHours);
+            weekScheduled = dailyLoad
+                .Where(kv => kv.Key.Item2 >= current && kv.Key.Item2 <= weekEnd)
+                .Sum(kv => kv.Value);
 
             decimal utilization = weekCapacity > 0 ? weekScheduled / weekCapacity * 100m : 0;
 
