@@ -158,4 +158,47 @@ public class GetAssignableSalesOrderLinesHandlerTests
         row.RemainingQuantity.Should().Be(60m);
         row.RequestedDeliveryDate.Should().Be(requested);
     }
+
+    private async Task<SalesOrderLine> SeedLineWithJobAsync(decimal ordered, decimal shipped, decimal onJob, bool completed)
+    {
+        var so = new SalesOrder { OrderNumber = "SO-400", CustomerId = 1, Status = SalesOrderStatus.PartiallyShipped };
+        _db.SalesOrders.Add(so);
+        await _db.SaveChangesAsync();
+        var line = new SalesOrderLine
+        {
+            SalesOrderId = so.Id, PartId = 900, Description = "Line", Quantity = ordered,
+            ShippedQuantity = shipped, UnitPrice = 1m, LineNumber = 1,
+        };
+        _db.SalesOrderLines.Add(line);
+        await _db.SaveChangesAsync();
+        var job = new Job
+        {
+            JobNumber = "JOB-S", Title = "Split", TrackTypeId = 1, CurrentStageId = 1, PartId = 900,
+            SalesOrderLineId = line.Id, CompletedDate = completed ? DateTimeOffset.UnixEpoch : null,
+        };
+        job.JobParts.Add(new JobPart { PartId = 900, Quantity = onJob });
+        _db.Jobs.Add(job);
+        await _db.SaveChangesAsync();
+        return line;
+    }
+
+    [Fact]
+    public async Task Handle_CompletedJobWhoseOutputShipped_IsNotCountedTwice()
+    {
+        var line = await SeedLineWithJobAsync(ordered: 100m, shipped: 50m, onJob: 50m, completed: true);
+
+        var result = await _handler.Handle(new GetAssignableSalesOrderLinesQuery(true, null), CancellationToken.None);
+
+        result.Single(r => r.Id == line.Id).RemainingQuantity.Should().Be(50m);
+    }
+
+    [Fact]
+    public async Task Handle_RemainingQuantityNeverGoesNegative()
+    {
+        var line = await SeedLineWithJobAsync(ordered: 100m, shipped: 40m, onJob: 100m, completed: false);
+
+        var result = await _handler.Handle(new GetAssignableSalesOrderLinesQuery(true, null), CancellationToken.None);
+
+        result.Single(r => r.Id == line.Id).RemainingQuantity.Should().Be(0m);
+    }
 }

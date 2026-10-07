@@ -95,7 +95,8 @@ public class CreateJobSoDefaultsTests
         return (line, part);
     }
 
-    private async Task SeedLinkedJobAsync(int lineId, decimal quantity, bool archived = false, JobDisposition? disposition = null)
+    private async Task SeedLinkedJobAsync(
+        int lineId, decimal quantity, bool archived = false, JobDisposition? disposition = null, bool completed = false)
     {
         var job = new Job
         {
@@ -107,6 +108,7 @@ public class CreateJobSoDefaultsTests
             SalesOrderLineId = lineId,
             IsArchived = archived,
             Disposition = disposition,
+            CompletedDate = completed ? RequestedDelivery : null,
         };
         job.JobParts.Add(new JobPart { PartId = 600, Quantity = quantity });
         _db.Jobs.Add(job);
@@ -154,6 +156,17 @@ public class CreateJobSoDefaultsTests
         await _handler.Handle(ForLine(line.Id), CancellationToken.None);
 
         _created!.JobParts.Single().Quantity.Should().Be(1m);
+    }
+
+    [Fact]
+    public async Task A_completed_job_whose_output_shipped_is_not_counted_twice()
+    {
+        var (line, _) = await SeedLineAsync(100m, shipped: 50m);
+        await SeedLinkedJobAsync(line.Id, 50m, completed: true);
+
+        await _handler.Handle(ForLine(line.Id), CancellationToken.None);
+
+        _created!.JobParts.Single().Quantity.Should().Be(50m);
     }
 
     [Fact]

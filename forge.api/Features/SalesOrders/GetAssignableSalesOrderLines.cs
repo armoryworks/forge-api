@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.Jobs;
 using Forge.Api.Features.SalesOrders.Acceptance;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -49,25 +50,47 @@ public class GetAssignableSalesOrderLinesHandler(AppDbContext db, ISalesOrderAcc
                 (l.Part != null && l.Part.PartNumber.Contains(term)));
         }
 
-        return await query
+        var rows = await query
             .OrderByDescending(l => l.SalesOrderId)
             .ThenBy(l => l.LineNumber)
-            .Select(l => new AssignableSalesOrderLineModel(
+            .Select(l => new
+            {
                 l.Id,
                 l.SalesOrderId,
                 l.SalesOrder.OrderNumber,
                 l.LineNumber,
                 l.PartId,
-                l.Part != null ? l.Part.PartNumber : null,
+                PartNumber = l.Part != null ? l.Part.PartNumber : null,
                 l.Description,
                 l.Quantity,
-                l.Jobs.Count(j => !j.IsArchived && j.Disposition == null),
-                l.Quantity - l.ShippedQuantity - (l.Jobs
-                    .Where(j => !j.IsArchived && j.Disposition == null)
+                l.ShippedQuantity,
+                AssignedJobCount = l.Jobs.Count(j => !j.IsArchived && j.Disposition == null),
+                OnJobsInProgress = l.Jobs
+                    .Where(j => !j.IsArchived && j.Disposition == null && j.CompletedDate == null)
                     .SelectMany(j => j.JobParts.Where(jp => jp.PartId == j.PartId))
-                    .Sum(jp => (decimal?)jp.Quantity) ?? 0m),
-                l.SalesOrder.RequestedDeliveryDate))
+                    .Sum(jp => (decimal?)jp.Quantity) ?? 0m,
+                OnCompletedJobs = l.Jobs
+                    .Where(j => !j.IsArchived && j.Disposition == null && j.CompletedDate != null)
+                    .SelectMany(j => j.JobParts.Where(jp => jp.PartId == j.PartId))
+                    .Sum(jp => (decimal?)jp.Quantity) ?? 0m,
+                l.SalesOrder.RequestedDeliveryDate,
+            })
             .Take(100)
             .ToListAsync(cancellationToken);
+
+        return rows
+            .Select(r => new AssignableSalesOrderLineModel(
+                r.Id,
+                r.SalesOrderId,
+                r.OrderNumber,
+                r.LineNumber,
+                r.PartId,
+                r.PartNumber,
+                r.Description,
+                r.Quantity,
+                r.AssignedJobCount,
+                SalesOrderLineDefaultQuantity.Remaining(r.Quantity, r.ShippedQuantity, r.OnJobsInProgress, r.OnCompletedJobs),
+                r.RequestedDeliveryDate))
+            .ToList();
     }
 }
