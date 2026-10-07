@@ -102,6 +102,10 @@ public class InvoicesController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("sources")]
+    public async Task<ActionResult<InvoiceSourcesResponseModel>> GetInvoiceSources([FromQuery] int customerId)
+        => Ok(await mediator.Send(new GetInvoiceSourcesQuery(customerId)));
+
     [HttpGet("uninvoiced-jobs")]
     public async Task<ActionResult<List<UninvoicedJobResponseModel>>> GetUninvoicedJobs()
     {
