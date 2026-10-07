@@ -200,7 +200,7 @@ public class CreateInvoiceHandlerTests
         new(customerId, salesOrderId, shipmentId, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(30), null, 0m, null, [.. lines]);
 
     [Fact]
-    public async Task Handle_SalesOrderForAnotherCustomer_ThrowsFieldError()
+    public async Task Handle_SalesOrderForAnotherCustomer_ThrowsConflictNamingTheOrder()
     {
         var (_, order, _) = await SeedOrderAsync();
         var other = new Customer { Id = 900, Name = "Someone Else" };
@@ -209,13 +209,12 @@ public class CreateInvoiceHandlerTests
         var act = () => _handler.Handle(
             OrderCommand(other.Id, order.Id, null, new CreateInvoiceLineModel(null, "Freight", 1m, 10m)), CancellationToken.None);
 
-        var ex = (await act.Should().ThrowAsync<FluentValidation.ValidationException>()).Which;
-        ex.Errors.Should().ContainSingle(e => e.PropertyName == nameof(CreateInvoiceCommand.SalesOrderId)
-            && e.ErrorMessage.Contains("SO-00042"));
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Sales order SO-00042 belongs to a different customer than Someone Else.");
     }
 
     [Fact]
-    public async Task Handle_ShipmentFromAnotherOrder_ThrowsFieldError()
+    public async Task Handle_ShipmentFromAnotherOrder_ThrowsConflictNamingTheOrder()
     {
         var (customer, order, part) = await SeedOrderAsync();
         var secondOrder = new SalesOrder { OrderNumber = "SO-00043", CustomerId = customer.Id, Status = SalesOrderStatus.Confirmed };
@@ -226,13 +225,12 @@ public class CreateInvoiceHandlerTests
         var act = () => _handler.Handle(
             OrderCommand(customer.Id, order.Id, shipment.Id, new CreateInvoiceLineModel(null, "Freight", 1m, 10m)), CancellationToken.None);
 
-        var ex = (await act.Should().ThrowAsync<FluentValidation.ValidationException>()).Which;
-        ex.Errors.Should().ContainSingle(e => e.PropertyName == nameof(CreateInvoiceCommand.ShipmentId)
-            && e.ErrorMessage.Contains("SO-00043"));
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage($"Shipment {shipment.ShipmentNumber} belongs to sales order SO-00043, not the one on this invoice.");
     }
 
     [Fact]
-    public async Task Handle_ShipmentForAnotherCustomer_ThrowsFieldError()
+    public async Task Handle_ShipmentForAnotherCustomer_ThrowsConflictNamingTheShipment()
     {
         var (_, order, part) = await SeedOrderAsync();
         var shipment = await SeedShipmentAsync(order, part, 5m, ShipmentStatus.Shipped);
@@ -242,8 +240,8 @@ public class CreateInvoiceHandlerTests
         var act = () => _handler.Handle(
             OrderCommand(other.Id, null, shipment.Id, new CreateInvoiceLineModel(null, "Freight", 1m, 10m)), CancellationToken.None);
 
-        var ex = (await act.Should().ThrowAsync<FluentValidation.ValidationException>()).Which;
-        ex.Errors.Should().ContainSingle(e => e.PropertyName == nameof(CreateInvoiceCommand.ShipmentId));
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage($"Shipment {shipment.ShipmentNumber} belongs to a different customer than Someone Else.");
     }
 
     [Fact]

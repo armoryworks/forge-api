@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text.Json;
 
 using FluentValidation;
-using FluentValidation.Results;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
@@ -88,7 +87,7 @@ public class CreateInvoiceHandler(
                 ?? throw new KeyNotFoundException($"Sales order {linkedSoId} not found");
 
             if (salesOrder.CustomerId != request.CustomerId)
-                throw FieldError(nameof(CreateInvoiceCommand.SalesOrderId),
+                throw new InvalidOperationException(
                     $"Sales order {salesOrder.OrderNumber} belongs to a different customer than {customer.Name}.");
 
             salesOrderCustomerPo = salesOrder.CustomerPO;
@@ -103,11 +102,11 @@ public class CreateInvoiceHandler(
                 ?? throw new KeyNotFoundException($"Shipment {shipmentId} not found");
 
             if (shipment.CustomerId != request.CustomerId)
-                throw FieldError(nameof(CreateInvoiceCommand.ShipmentId),
+                throw new InvalidOperationException(
                     $"Shipment {shipment.ShipmentNumber} belongs to a different customer than {customer.Name}.");
 
             if (request.SalesOrderId is int requestedSoId && shipment.SalesOrderId != requestedSoId)
-                throw FieldError(nameof(CreateInvoiceCommand.ShipmentId),
+                throw new InvalidOperationException(
                     $"Shipment {shipment.ShipmentNumber} belongs to sales order {shipment.OrderNumber}, not the one on this invoice.");
 
             // INV-IN2: one invoice per shipment (a unique index enforces it). Guard here
@@ -248,9 +247,6 @@ public class CreateInvoiceHandler(
             invoice.Status.ToString(), invoice.InvoiceDate, invoice.DueDate,
             total, 0, total, invoice.CreatedAt);
     }
-
-    private static ValidationException FieldError(string property, string message)
-        => new([new ValidationFailure(property, message)]);
 
     private static string Qty(decimal quantity) => quantity.ToString("0.####", CultureInfo.InvariantCulture);
 
