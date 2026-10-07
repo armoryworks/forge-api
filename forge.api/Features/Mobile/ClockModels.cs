@@ -7,4 +7,4 @@ public record ClockStateResponseModel(
     DateTimeOffset? LastEventAt,
     int? LastEventId);
 
-public record ClockPunchResponseModel(int EventId, ClockStateResponseModel State);
+public record ClockPunchResponseModel(int EventId, ClockStateResponseModel State, string? StoppedJobNumber = null);

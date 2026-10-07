@@ -1,14 +1,14 @@
 using FluentValidation;
 using MediatR;
 
+using Forge.Api.Features.TimeTracking;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.ShopFloor;
 
-public record ClockInOutCommand(int UserId, string EventType) : IRequest;
+public record ClockInOutCommand(int UserId, string EventType) : IRequest<ClockInOutResponseModel>;
 
 public class ClockInOutValidator : AbstractValidator<ClockInOutCommand>
 {
@@ -22,27 +22,38 @@ public class ClockInOutValidator : AbstractValidator<ClockInOutCommand>
     }
 }
 
-public class ClockInOutHandler(AppDbContext db)
-    : IRequestHandler<ClockInOutCommand>
+public class ClockInOutHandler(
+    AppDbContext db,
+    IClockEventTypeService clockEventTypeService,
+    IMediator mediator,
+    IClock clock)
+    : IRequestHandler<ClockInOutCommand, ClockInOutResponseModel>
 {
-    public async Task Handle(ClockInOutCommand request, CancellationToken ct)
+    public async Task<ClockInOutResponseModel> Handle(ClockInOutCommand request, CancellationToken ct)
     {
         _ = await db.Users.FindAsync([request.UserId], ct)
             ?? throw new KeyNotFoundException($"User {request.UserId} not found");
 
-        // Keep legacy enum for backward compat during migration
-        var eventType = Enum.TryParse<ClockEventType>(request.EventType, out var parsed)
-            ? parsed : ClockEventType.ClockIn;
+        var definition = await clockEventTypeService.GetByCodeAsync(request.EventType, ct)
+            ?? throw new KeyNotFoundException($"Clock event type {request.EventType} not found");
 
-        db.ClockEvents.Add(new ClockEvent
+        var timestamp = clock.UtcNow;
+        var clockEvent = new ClockEvent
         {
             UserId = request.UserId,
-            EventType = eventType,
+            EventType = LegacyClockEventType.From(definition),
             EventTypeCode = request.EventType,
-            Timestamp = DateTimeOffset.UtcNow,
+            Timestamp = timestamp,
             Source = "kiosk",
-        });
+        };
+        db.ClockEvents.Add(clockEvent);
+
+        StoppedTimerResponseModel? stopped = null;
+        if (definition.StatusMapping == "Out")
+            stopped = await mediator.Send(new StopActiveTimerCommand(request.UserId, timestamp), ct);
 
         await db.SaveChangesAsync(ct);
+
+        return new ClockInOutResponseModel(clockEvent.Id, stopped?.JobNumber);
     }
 }

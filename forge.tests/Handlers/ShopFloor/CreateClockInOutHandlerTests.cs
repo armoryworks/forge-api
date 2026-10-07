@@ -1,7 +1,9 @@
 using Bogus;
 using FluentAssertions;
 
+using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 
 using Forge.Api.Features.ShopFloor;
 using Forge.Core.Enums;
@@ -20,7 +22,20 @@ public class CreateClockInOutHandlerTests
     public CreateClockInOutHandlerTests()
     {
         _db = TestDbContextFactory.Create();
-        _handler = new ClockInOutHandler(_db);
+
+        var definitions = new List<ClockEventTypeDefinition>
+        {
+            new("clock_in", "Clock In", "In", "ClockOut", "work", true, true, "login", "#22c55e"),
+            new("ClockIn", "Clock In", "In", "ClockOut", "work", true, true, "login", "#22c55e"),
+        };
+        var types = new Mock<IClockEventTypeService>();
+        types.Setup(t => t.GetByCodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string code, CancellationToken _) => definitions.FirstOrDefault(d => d.Code == code));
+
+        var clock = new Mock<IClock>();
+        clock.Setup(c => c.UtcNow).Returns(() => DateTimeOffset.UtcNow);
+
+        _handler = new ClockInOutHandler(_db, types.Object, Mock.Of<IMediator>(), clock.Object);
     }
 
     [Fact]
@@ -93,7 +108,7 @@ public class CreateClockInOutHandlerTests
     }
 
     [Fact]
-    public async Task Handle_UnknownEnumEventType_DefaultsToClockIn()
+    public async Task Handle_UnknownEventTypeCode_ThrowsKeyNotFoundException()
     {
         // Arrange
         var user = new ApplicationUser
@@ -110,13 +125,11 @@ public class CreateClockInOutHandlerTests
         var command = new ClockInOutCommand(user.Id, "custom_event");
 
         // Act
-        await _handler.Handle(command, CancellationToken.None);
+        var act = () => _handler.Handle(command, CancellationToken.None);
 
         // Assert
-        var clockEvent = await _db.ClockEvents.FirstOrDefaultAsync();
-        clockEvent.Should().NotBeNull();
-        clockEvent!.EventType.Should().Be(ClockEventType.ClockIn);
-        clockEvent.EventTypeCode.Should().Be("custom_event");
+        await act.Should().ThrowAsync<KeyNotFoundException>().WithMessage("*custom_event*");
+        (await _db.ClockEvents.AnyAsync()).Should().BeFalse();
     }
 
     [Fact]
