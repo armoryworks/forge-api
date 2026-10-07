@@ -24,7 +24,8 @@ public record DiscoveryQuestionResponseModel(
     string Text,
     string WhyAsking,
     IReadOnlyList<DiscoveryChoiceResponseModel>? Choices,
-    string? Branch);
+    string? Branch,
+    string? InternalNote);
 
 public record DiscoveryChoiceResponseModel(string Value, string Label);
 
@@ -47,7 +48,8 @@ public class GetDiscoveryQuestionsHandler
                 Choices: q.Choices is null
                     ? null
                     : q.Choices.Select(c => new DiscoveryChoiceResponseModel(c.Value, c.Label)).ToList(),
-                Branch: q.Branch))
+                Branch: q.Branch,
+                InternalNote: request.ConsultantMode ? q.InternalNote : null))
             .ToList();
 
         return Task.FromResult(new DiscoveryQuestionsResponseModel(

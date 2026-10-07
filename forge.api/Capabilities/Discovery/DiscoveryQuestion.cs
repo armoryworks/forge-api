@@ -21,7 +21,8 @@ public record DiscoveryQuestion(
     IReadOnlyList<DiscoveryChoice>? Choices = null,
     string? Branch = null,
     bool VisibleInSelfServe = true,
-    bool VisibleInConsultant = true);
+    bool VisibleInConsultant = true,
+    string? InternalNote = null);
 
 /// <summary>Single multiple-choice / radio option for a discovery question.</summary>
 public record DiscoveryChoice(string Value, string Label);

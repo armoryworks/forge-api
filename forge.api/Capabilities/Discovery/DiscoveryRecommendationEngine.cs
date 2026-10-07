@@ -129,8 +129,8 @@ public static class DiscoveryRecommendationEngine
                 PresetId: "PRESET-08",
                 Confidence: 1.0,
                 ConfidenceLabel: "high",
-                Rationale: "You checked Services only at Q-O3 — your business is professional services even " +
-                           "though Q-S1 said Products. Q-O3 is the finer-grained signal so we honor it: " +
+                Rationale: "You checked only services when describing what your business does, so it is professional " +
+                           "services even though you first said you sell products. The more detailed answer wins: " +
                            "Pro Services is the right starting point. Task-based work organization (Epic / " +
                            "Project / Story / Bug / Spike), billable hours, retainers, and deliverable tracking " +
                            "— without the manufacturing capabilities a service shop never uses.",
@@ -140,7 +140,7 @@ public static class DiscoveryRecommendationEngine
                     new DiscoveryAlternative(
                         PresetId: "PRESET-09",
                         PresetName: "Hybrid (Make + Service)",
-                        DistinguishingRationale: "If you ALSO make or resell physical products, go back to Q-O3 and check those boxes too — that routes you through the manufacturing flow with services as line items."),
+                        DistinguishingRationale: "If you ALSO make or resell physical products, go back to the question about what your business does and check those boxes too — that routes you through the manufacturing flow with services as line items."),
                     new DiscoveryAlternative(
                         PresetId: "PRESET-CUSTOM",
                         PresetName: "Custom",

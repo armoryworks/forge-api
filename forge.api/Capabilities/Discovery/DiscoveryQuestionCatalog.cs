@@ -78,7 +78,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.Opening,
         Type: DiscoveryQuestionType.MultiChoice,
         Text: "What does your business actually do? Check every line that applies — the more accurate this is, the better the preset.",
-        WhyAsking: "Q-S1 is the top-of-funnel fast-path; this is the finer reality check. Many businesses are a " +
+        WhyAsking: "Many businesses are a mix — a manufacturer that also resells partner products, an engineering firm that ships physical parts, a distributor with a consulting arm. Checking everything that applies sets you up for all of it, not just the first thing you mentioned.",
+        InternalNote: "Q-S1 is the top-of-funnel fast-path; this is the finer reality check. Many businesses are a " +
                    "combination — a manufacturer that also resells partner products, an engineering firm that ships " +
                    "physical parts, a distributor with a consulting arm. Checking Services alongside one of the " +
                    "product options routes you to the Hybrid preset (Pro Services overlay + manufacturing stack). " +
@@ -154,7 +155,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.BranchSpecific,
         Type: DiscoveryQuestionType.SingleChoice,
         Text: "Is anyone in your business full-time on production scheduling or shop-floor management — or does the same person who quotes also schedule and run the shop?",
-        WhyAsking: "Splits the Two-Person Shop preset (one person does everything) from Growing Job Shop (clear front-office vs floor split).",
+        WhyAsking: "A shop where one person quotes, schedules and runs the work needs a simpler setup than one with separate office and shop-floor roles.",
+        InternalNote: "Splits the Two-Person Shop preset (one person does everything) from Growing Job Shop (clear front-office vs floor split).",
         Branch: "A",
         Choices:
         [
@@ -268,7 +270,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.BranchSpecific,
         Type: DiscoveryQuestionType.SingleChoice,
         Text: "Do your customers buy configurable products — choose options, sizes, materials, with the price calculated from those choices — or are your products mostly fixed-spec?",
-        WhyAsking: "CPQ is the defining mid-market vs. enterprise question. PRESET-07 has it on by default; PRESET-06 does not.",
+        WhyAsking: "If customers pick options and the price follows from their choices, you need a product configurator. Fixed-spec businesses are better off without one.",
+        InternalNote: "CPQ is the defining mid-market vs. enterprise question. PRESET-07 has it on by default; PRESET-06 does not.",
         Branch: "C",
         Choices:
         [
@@ -283,7 +286,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.BranchSpecific,
         Type: DiscoveryQuestionType.YesNo,
         Text: "Do any of your major customers send purchase orders or expect shipping notices through EDI — those structured 850, 855, 856, 810 documents?",
-        WhyAsking: "EDI is on by default in PRESET-06 and PRESET-07. Asking explicitly catches the cases where it isn't and should be turned off.",
+        WhyAsking: "Large customers often require orders and shipping notices to arrive as electronic documents. If none of yours do, we leave that switched off so it stays out of your way.",
+        InternalNote: "EDI is on by default in PRESET-06 and PRESET-07. Asking explicitly catches the cases where it isn't and should be turned off.",
         Branch: "C");
 
     private static readonly DiscoveryQuestion QC4 = new(
@@ -292,7 +296,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.BranchSpecific,
         Type: DiscoveryQuestionType.YesNo,
         Text: "Do you operate in more than one currency — selling to international customers, buying from international suppliers, or running a site in another country?",
-        WhyAsking: "Multi-currency is a PRESET-07 default. Single-currency multi-site stays with PRESET-06.",
+        WhyAsking: "Selling or buying in more than one currency means prices, invoices and reports have to handle exchange rates. If you only use one currency, we keep things simple.",
+        InternalNote: "Multi-currency is a PRESET-07 default. Single-currency multi-site stays with PRESET-06.",
         Branch: "C");
 
     // ── Override (Q-V1, Q-V2) ─────────────────────────────────────────────
@@ -311,7 +316,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.Override,
         Type: DiscoveryQuestionType.FreeText,
         Text: "Is there anything unusual about how your business runs — something none of the standard descriptions would capture — that we should know about?",
-        WhyAsking: "Catches the edge cases that warrant Custom configuration. Also surfaces situations where two presets would otherwise stack.");
+        WhyAsking: "Some businesses don't fit any standard setup. If yours is one of them, we'll suggest starting from a blank setup you tailor yourself.",
+        InternalNote: "Catches the edge cases that warrant Custom configuration. Also surfaces situations where two presets would otherwise stack.");
 
     // ── Diagnostic (Q-D1 .. Q-D6) ─────────────────────────────────────────
     // Per 4C decision #5: order by capability impact descending; skip
@@ -344,7 +350,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.Diagnostic,
         Type: DiscoveryQuestionType.SingleChoice,
         Text: "Do you have a preventive maintenance schedule for any of your equipment, and do you track machine breakdowns when they happen?",
-        WhyAsking: "PM and breakdown tracking are PRESET-04+ defaults. Asking lets the small-shop operator opt in if they have valuable equipment.",
+        WhyAsking: "If you keep a maintenance schedule or log breakdowns, we can turn on equipment maintenance tracking, even for a small shop.",
+        InternalNote: "PM and breakdown tracking are PRESET-04+ defaults. Asking lets the small-shop operator opt in if they have valuable equipment.",
         Choices:
         [
             new("breakfix", "We just fix it when it breaks"),
@@ -372,7 +379,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.Diagnostic,
         Type: DiscoveryQuestionType.MultiChoice,
         Text: "Do you have an IT person or supply-chain team who would integrate this system with others — pushing data into BI tools like PowerBI or Tableau, sending events to Slack or Teams, or making outbound API calls?",
-        WhyAsking: "Integration capabilities (webhooks, BI export, API keys, chat) are off by default in everything below PRESET-07. Asking once captures all four.",
+        WhyAsking: "Connections to other systems — reporting tools, chat notifications and outside integrations — stay off unless someone will use them. One answer here covers all of them.",
+        InternalNote: "Integration capabilities (webhooks, BI export, API keys, chat) are off by default in everything below PRESET-07. Asking once captures all four.",
         Choices:
         [
             new("none", "No IT team / not interested"),
