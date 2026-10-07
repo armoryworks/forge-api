@@ -337,7 +337,7 @@ public class ReceiveItemsHandler(
     }
 
     /// <summary>
-    /// The part's own default bin when it has one and that location is still active; null otherwise.
+    /// The part's own default bin when it has one and that location is still an active bin; null otherwise.
     /// </summary>
     private static async Task<int?> FindActivePartDefaultBinAsync(
         IInventoryRepository inventory, Part? part, CancellationToken ct)
@@ -345,7 +345,7 @@ public class ReceiveItemsHandler(
         if (part?.DefaultBinId is not int defaultBinId)
             return null;
         var bin = await inventory.FindLocationAsync(defaultBinId, ct);
-        return bin is { IsActive: true } ? bin.Id : null;
+        return bin is { IsActive: true, LocationType: LocationType.Bin } ? bin.Id : null;
     }
 
     /// <summary>

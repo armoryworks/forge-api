@@ -332,11 +332,13 @@ public class ReceiveItemsHandlerTests
         _addedRecords.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task Handle_InactivePartDefaultBin_FallsBackToActiveDefaultLocation()
+    [Theory]
+    [InlineData(false, LocationType.Bin)]
+    [InlineData(true, LocationType.Shelf)]
+    public async Task Handle_PartDefaultInactiveOrNotABin_FallsBackToActiveDefaultLocation(bool isActive, LocationType type)
     {
         var po = GivenStockPo(5m, new Part { Id = 10, PartNumber = "P-10", DefaultBinId = 7 });
-        GivenLocation(7, isActive: false);
+        GivenLocation(7, isActive, type);
         _inventory.Setup(i => i.GetStorageLocationsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<StorageLocation>
         {
             new() { Id = 20, Name = "A", LocationType = LocationType.Bin, IsActive = true },
