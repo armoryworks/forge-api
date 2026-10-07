@@ -80,6 +80,6 @@ public class ConvertQuoteToOrderRemediationTests
             .Callback<SalesOrder, CancellationToken>((o, _) => onAdd(o))
             .Returns(Task.CompletedTask);
 
-        return new ConvertQuoteToOrderHandler(quoteRepo.Object, orderRepo.Object);
+        return new ConvertQuoteToOrderHandler(quoteRepo.Object, orderRepo.Object, new Mock<IBarcodeService>().Object);
     }
 }

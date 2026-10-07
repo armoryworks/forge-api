@@ -12,13 +12,14 @@ public class ConvertQuoteToOrderHandlerTests
 {
     private readonly Mock<IQuoteRepository> _quoteRepo = new();
     private readonly Mock<ISalesOrderRepository> _orderRepo = new();
+    private readonly Mock<IBarcodeService> _barcodeService = new();
     private readonly ConvertQuoteToOrderHandler _handler;
 
     private readonly Faker _faker = new();
 
     public ConvertQuoteToOrderHandlerTests()
     {
-        _handler = new ConvertQuoteToOrderHandler(_quoteRepo.Object, _orderRepo.Object);
+        _handler = new ConvertQuoteToOrderHandler(_quoteRepo.Object, _orderRepo.Object, _barcodeService.Object);
     }
 
     [Fact]

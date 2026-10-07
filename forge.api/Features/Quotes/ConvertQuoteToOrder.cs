@@ -20,9 +20,11 @@ public record ConvertQuoteToOrderCommand(int Id) : IRequest<SalesOrderListItemMo
 public class ConvertQuoteToOrderHandler(
     IQuoteRepository quoteRepo,
     ISalesOrderRepository orderRepo,
+    IBarcodeService barcodeService,
     AppDbContext? db = null,
     ISystemSettingRepository? settings = null,
-    IMediator? mediator = null)
+    IMediator? mediator = null,
+    IBusinessIdentifierService? identifiers = null)
     : IRequestHandler<ConvertQuoteToOrderCommand, SalesOrderListItemModel>
 {
     public async Task<SalesOrderListItemModel> Handle(ConvertQuoteToOrderCommand request, CancellationToken cancellationToken)
@@ -42,6 +44,7 @@ public class ConvertQuoteToOrderHandler(
             throw new InvalidOperationException("Cannot convert a quote with no lines to an order");
 
         var orderNumber = await orderRepo.GenerateNextOrderNumberAsync(cancellationToken);
+        var billingAddressId = await FindDefaultBillingAddressIdAsync(quote.CustomerId, cancellationToken);
 
         var order = new SalesOrder
         {
@@ -49,6 +52,7 @@ public class ConvertQuoteToOrderHandler(
             CustomerId = quote.CustomerId,
             QuoteId = quote.Id,
             ShippingAddressId = quote.ShippingAddressId,
+            BillingAddressId = billingAddressId,
             TaxRate = quote.TaxRate,
             // AUDIT-S3: preserve the quote's Notes onto the order (was dropped on convert).
             Notes = quote.Notes,
@@ -74,6 +78,12 @@ public class ConvertQuoteToOrderHandler(
 
         await orderRepo.AddAsync(order, cancellationToken);
         await quoteRepo.SaveChangesAsync(cancellationToken);
+
+        await barcodeService.CreateBarcodeAsync(
+            BarcodeEntityType.SalesOrder, order.Id, order.OrderNumber, cancellationToken);
+
+        if (identifiers is not null)
+            await identifiers.IssueAsync(BusinessEntityType.SalesOrder, order.Id, order.OrderNumber, cancellationToken);
 
         // S2: a pre-payment schedule defined on the quote follows the order — the SAME
         // row is re-linked (SalesOrderId set), never cloned, and goes Active. Runs after
@@ -134,5 +144,20 @@ public class ConvertQuoteToOrderHandler(
             order.Status.ToString(), order.CustomerPO, order.Lines.Count,
             total, null, order.CreatedAt,
             SalesOrderId: order.Id, JobId: null);
+    }
+
+    private async Task<int?> FindDefaultBillingAddressIdAsync(int customerId, CancellationToken ct)
+    {
+        if (db is null) return null;
+
+        return await db.CustomerAddresses
+            .Where(a => a.CustomerId == customerId
+                && a.IsDefault
+                && a.IsActive
+                && (a.AddressType == AddressType.Billing || a.AddressType == AddressType.Both))
+            .OrderBy(a => a.AddressType == AddressType.Billing ? 0 : 1)
+            .ThenBy(a => a.Id)
+            .Select(a => (int?)a.Id)
+            .FirstOrDefaultAsync(ct);
     }
 }

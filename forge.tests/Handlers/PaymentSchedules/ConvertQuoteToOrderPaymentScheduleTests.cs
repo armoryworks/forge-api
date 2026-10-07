@@ -1,8 +1,10 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using Forge.Api.Features.Quotes;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Data.Context;
 using Forge.Data.Repositories;
 using Forge.Tests.Helpers;
@@ -38,7 +40,7 @@ public class ConvertQuoteToOrderPaymentScheduleTests
     }
 
     private static ConvertQuoteToOrderHandler HandlerFor(AppDbContext db)
-        => new(new QuoteRepository(db), new SalesOrderRepository(db), db);
+        => new(new QuoteRepository(db), new SalesOrderRepository(db), new Mock<IBarcodeService>().Object, db);
 
     [Fact]
     public async Task Handle_QuoteWithSchedule_RelinksSameRowToNewOrderAndActivates()

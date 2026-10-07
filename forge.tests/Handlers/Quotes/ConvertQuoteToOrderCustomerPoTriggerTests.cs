@@ -21,6 +21,7 @@ public class ConvertQuoteToOrderCustomerPoTriggerTests
 {
     private readonly Mock<IQuoteRepository> _quoteRepo = new();
     private readonly Mock<ISalesOrderRepository> _orderRepo = new();
+    private readonly Mock<IBarcodeService> _barcodeService = new();
     private readonly Mock<ISystemSettingRepository> _settings = new();
     private readonly Mock<IMediator> _mediator = new();
 
@@ -75,7 +76,7 @@ public class ConvertQuoteToOrderCustomerPoTriggerTests
         // Back-compat: the pre-S4a constructor shape (repos only) must keep working.
         var quote = SetupAcceptedQuote();
 
-        var handler = new ConvertQuoteToOrderHandler(_quoteRepo.Object, _orderRepo.Object);
+        var handler = new ConvertQuoteToOrderHandler(_quoteRepo.Object, _orderRepo.Object, _barcodeService.Object);
         var result = await handler.Handle(new ConvertQuoteToOrderCommand(quote.Id), CancellationToken.None);
 
         result.Should().NotBeNull();
@@ -85,7 +86,7 @@ public class ConvertQuoteToOrderCustomerPoTriggerTests
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private ConvertQuoteToOrderHandler BuildHandler() =>
-        new(_quoteRepo.Object, _orderRepo.Object, db: null,
+        new(_quoteRepo.Object, _orderRepo.Object, _barcodeService.Object, db: null,
             settings: _settings.Object, mediator: _mediator.Object);
 
     private void SetupSetting(string value) =>
