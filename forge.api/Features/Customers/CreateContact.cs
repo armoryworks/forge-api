@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -51,6 +52,14 @@ public class CreateContactHandler(ICustomerRepository repo, AppDbContext db)
             IsPrimary = request.IsPrimary,
         };
 
+        List<Contact> demoted = contact.IsPrimary
+            ? await db.Contacts
+                .Where(c => c.CustomerId == customer.Id && c.IsPrimary)
+                .ToListAsync(cancellationToken)
+            : [];
+        foreach (var other in demoted)
+            other.IsPrimary = false;
+
         customer.Contacts.Add(contact);
         await repo.SaveChangesAsync(cancellationToken);
 
@@ -62,6 +71,13 @@ public class CreateContactHandler(ICustomerRepository repo, AppDbContext db)
             $"Added contact: {contact.LastName}, {contact.FirstName}{(string.IsNullOrEmpty(contact.Role) ? "" : $" ({contact.Role})")}{(contact.IsPrimary ? " — primary" : "")}",
             ("Customer", customer.Id),
             ("Contact", contact.Id));
+        foreach (var other in demoted)
+        {
+            db.LogActivityAt(
+                "contact-updated",
+                $"Updated contact ({other.LastName}, {other.FirstName}) — 1 field: cleared-primary",
+                ("Contact", other.Id));
+        }
         await db.SaveChangesAsync(cancellationToken);
 
         return new ContactResponseModel(

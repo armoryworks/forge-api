@@ -62,6 +62,10 @@ public class CreateCustomerAddressHandler(
             IsDefault = request.IsDefault,
         };
 
+        List<CustomerAddress> demoted = address.IsDefault
+            ? await DefaultAddressRule.ClearOtherDefaultsAsync(db, request.CustomerId, address.Id, addressType, cancellationToken)
+            : [];
+
         await repo.AddAsync(address, cancellationToken);
 
         // Address has semantics (default flag, billing/shipping type) so the
@@ -69,7 +73,7 @@ public class CreateCustomerAddressHandler(
         // log on the customer.
         db.LogActivityAt(
             "address-added",
-            $"Added {addressType} address: {address.Label} — {address.Line1}, {address.City}, {address.State}{(address.IsDefault ? " (default)" : "")}",
+            $"Added {addressType} address: {address.Label} — {address.Line1}, {address.City}, {address.State}{(address.IsDefault ? " (default)" : "")}{DefaultAddressRule.DescribeReplaced(demoted)}",
             ("Customer", request.CustomerId));
 
         await repo.SaveChangesAsync(cancellationToken);

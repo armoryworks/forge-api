@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -60,11 +61,15 @@ public class UpdateCustomerAddressHandler(ICustomerAddressRepository repo, AppDb
             changedFields.Add(address.IsDefault ? "set-default" : "cleared-default");
         }
 
+        List<CustomerAddress> demoted = address.IsDefault && (changedFields.Contains("set-default") || changedFields.Contains("addressType"))
+            ? await DefaultAddressRule.ClearOtherDefaultsAsync(db, address.CustomerId, address.Id, address.AddressType, cancellationToken)
+            : [];
+
         if (changedFields.Count > 0)
         {
             db.LogActivityAt(
                 "address-updated",
-                $"Updated address ({address.Label}) — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}",
+                $"Updated address ({address.Label}) — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}{DefaultAddressRule.DescribeReplaced(demoted)}",
                 ("Customer", address.CustomerId));
         }
 

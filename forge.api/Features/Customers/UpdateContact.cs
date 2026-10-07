@@ -75,6 +75,21 @@ public class UpdateContactHandler(AppDbContext db)
         {
             contact.IsPrimary = request.IsPrimary.Value;
             changedFields.Add(contact.IsPrimary ? "set-primary" : "cleared-primary");
+
+            if (contact.IsPrimary)
+            {
+                var demoted = await db.Contacts
+                    .Where(c => c.CustomerId == contact.CustomerId && c.Id != contact.Id && c.IsPrimary)
+                    .ToListAsync(cancellationToken);
+                foreach (var other in demoted)
+                {
+                    other.IsPrimary = false;
+                    db.LogActivityAt(
+                        "contact-updated",
+                        $"Updated contact ({other.LastName}, {other.FirstName}) — 1 field: cleared-primary",
+                        ("Contact", other.Id));
+                }
+            }
         }
 
         if (changedFields.Count > 0)
