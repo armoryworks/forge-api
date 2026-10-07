@@ -159,4 +159,29 @@ public class CreateClockInOutHandlerTests
         clockEvent!.Timestamp.Should().BeOnOrAfter(before);
         clockEvent.Timestamp.Should().BeOnOrBefore(DateTimeOffset.UtcNow);
     }
+
+    [Fact]
+    public async Task Handle_SupervisorPunch_LogsTheActingUserOnTheClockEvent()
+    {
+        var worker = new ApplicationUser
+        {
+            FirstName = "Floor",
+            LastName = "Worker",
+            UserName = "worker@example.com",
+            Email = "worker@example.com",
+            IsActive = true,
+        };
+        _db.Users.Add(worker);
+        await _db.SaveChangesAsync();
+        _db.CurrentUserId = 42;
+
+        await _handler.Handle(new ClockInOutCommand(worker.Id, "ClockIn", "kiosk-supervisor"), CancellationToken.None);
+
+        var clockEvent = await _db.ClockEvents.SingleAsync();
+        clockEvent.Source.Should().Be("kiosk-supervisor");
+        var log = await _db.ActivityLogs.SingleAsync(a => a.EntityType == "ClockEvent" && a.EntityId == clockEvent.Id);
+        log.UserId.Should().Be(42);
+        log.Action.Should().Be("clock-event-recorded");
+        log.Description.Should().Contain("kiosk-supervisor");
+    }
 }
