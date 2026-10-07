@@ -392,13 +392,33 @@ public class ReceiveItemsHandlerTests
     }
 
     [Fact]
-    public async Task Handle_NoActiveBins_ProvisionsReceivingBin()
+    public async Task Handle_NoActiveBins_StocksIntoTheProvisionedDefaultBin()
+    {
+        var po = GivenStockPo(5m, new Part { Id = 10, PartNumber = "P-10" });
+        _inventory.Setup(i => i.GetStorageLocationsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<StorageLocation>());
+        _inventory.Setup(i => i.EnsureDefaultLocationAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StorageLocation { Id = 40, Name = "Main", LocationType = LocationType.Bin, IsActive = true, IsDefault = true });
+
+        await _stockingHandler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 5m, StorageLocationId: null, Notes: null) }),
+            CancellationToken.None);
+
+        _inventory.Verify(i => i.AddLocationAsync(It.IsAny<StorageLocation>(), It.IsAny<CancellationToken>()), Times.Never);
+        _addedContents.Single().LocationId.Should().Be(40);
+    }
+
+    [Fact]
+    public async Task Handle_NoActiveBinsAndDefaultIsNotABin_ProvisionsReceivingBin()
     {
         var po = GivenStockPo(5m, new Part { Id = 10, PartNumber = "P-10" });
         _inventory.Setup(i => i.GetStorageLocationsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<StorageLocation>
         {
             new() { Id = 31, Name = "Retired", LocationType = LocationType.Bin, IsActive = false },
+            new() { Id = 30, Name = "Warehouse", LocationType = LocationType.Area, IsActive = true, IsDefault = true },
         });
+        _inventory.Setup(i => i.EnsureDefaultLocationAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StorageLocation { Id = 30, Name = "Warehouse", LocationType = LocationType.Area, IsActive = true, IsDefault = true });
         _inventory.Setup(i => i.AddLocationAsync(It.IsAny<StorageLocation>(), It.IsAny<CancellationToken>()))
             .Callback<StorageLocation, CancellationToken>((l, _) => l.Id = 50)
             .Returns(Task.CompletedTask);
