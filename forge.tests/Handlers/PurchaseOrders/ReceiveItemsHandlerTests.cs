@@ -458,4 +458,27 @@ public class ReceiveItemsHandlerTests
         _addedRecords[0].AllocatedFreight.Should().Be(50m);
         _addedRecords[1].AllocatedFreight.Should().Be(50m);
     }
+
+    [Fact]
+    public async Task Handle_WritesOneActivityRowOnThePurchaseOrder()
+    {
+        var po = PoWith(estimatedFreight: null, (1, 10, qty: 5m, unitPrice: 10m), (2, 11, qty: 5m, unitPrice: 10m));
+        _repo.Setup(r => r.FindWithDetailsAsync(po.Id, It.IsAny<CancellationToken>())).ReturnsAsync(po);
+        using var db = Forge.Tests.Helpers.TestDbContextFactory.Create();
+        var handler = new ReceiveItemsHandler(_repo.Object, _clock, _mediator.Object, _httpContext.Object, db);
+
+        await handler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel>
+            {
+                new(LineId: 1, Quantity: 2m, StorageLocationId: null, Notes: null, LotNumber: "HEAT-A"),
+                new(LineId: 2, Quantity: 1m, StorageLocationId: null, Notes: null),
+            }), CancellationToken.None);
+
+        var row = db.ActivityLogs.Local.Should().ContainSingle().Subject;
+        row.EntityType.Should().Be("PurchaseOrder");
+        row.EntityId.Should().Be(po.Id);
+        row.Action.Should().Be("items-received");
+        row.Description.Should().StartWith("Received 2 lines on receipt R-").And.EndWith("(lot HEAT-A)");
+    }
 }

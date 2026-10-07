@@ -11,6 +11,7 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.PurchaseOrders;
 
@@ -202,6 +203,11 @@ public class ReceiveItemsHandler(
             ? await db.Database.BeginTransactionAsync(cancellationToken)
             : null;
 
+        db?.LogActivityAt(
+            "items-received",
+            DescribeReceipt(receiptNumber, newRecords.Select(t => t.lot)),
+            ("PurchaseOrder", po.Id));
+
         await repo.SaveChangesAsync(cancellationToken);
 
         // Operational stock-in (P06-2 / PRI-1..3): stock the received goods into a bin so on-hand actually
@@ -275,6 +281,23 @@ public class ReceiveItemsHandler(
             await tx.CommitAsync(cancellationToken);
 
         await mediator.Publish(new PurchaseOrderReceivedEvent(request.PurchaseOrderId, 0, userId), cancellationToken);
+    }
+
+    /// <summary>
+    /// The PO activity line for a receipt: how many lines came in under which receipt number, plus the lots
+    /// when any were captured.
+    /// </summary>
+    private static string DescribeReceipt(string receiptNumber, IEnumerable<string?> lots)
+    {
+        var lotList = lots.ToList();
+        var description = $"Received {lotList.Count} line{(lotList.Count == 1 ? "" : "s")} on receipt {receiptNumber}";
+        var distinctLots = lotList.OfType<string>().Distinct(StringComparer.Ordinal).ToList();
+        if (distinctLots.Count == 0)
+            return description;
+        var lotText = string.Join(", ", distinctLots);
+        if (lotText.Length > 60)
+            lotText = $"{distinctLots.Count} lots";
+        return $"{description} (lot {lotText})";
     }
 
     /// <summary>
