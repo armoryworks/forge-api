@@ -82,6 +82,10 @@ public class UpdateJobHandler(
             throw new ValidationException(
                 [new ValidationFailure(nameof(UpdateJobCommand.StartDate), StartAfterDueMessage)]);
 
+        var newPart = request.PartId.HasValue && request.PartId.Value != job.PartId
+            ? await CheckPartChangeAsync(job, request.PartId.Value, cancellationToken)
+            : null;
+
         // User-settable job number — only while the job is still open (not disposed),
         // manual numbers enabled, and unique (excluding this job). The DB sequence is
         // untouched: an edit renames the human-readable number, it doesn't draw a new one.
@@ -214,8 +218,8 @@ public class UpdateJobHandler(
             job.StartDate = request.StartDate.Value;
         }
 
-        if (request.PartId.HasValue && request.PartId.Value != job.PartId)
-            changes.Add(await ChangePartAsync(job, request.PartId.Value, currentUserId, cancellationToken));
+        if (newPart is not null)
+            changes.Add(await ChangePartAsync(job, newPart, currentUserId, cancellationToken));
 
         if (request.IterationCount.HasValue && request.IterationCount.Value != job.IterationCount)
         {
@@ -256,35 +260,50 @@ public class UpdateJobHandler(
         return result;
     }
 
-    private async Task<JobActivityLog> ChangePartAsync(Job job, int newPartId, int? currentUserId, CancellationToken ct)
+    private async Task<Part> CheckPartChangeAsync(Job job, int newPartId, CancellationToken ct)
     {
-        var workStarted = job.BomRevisionIdAtRelease.HasValue
-            || await db.TimeEntries.AnyAsync(t => t.JobId == job.Id, ct)
+        var workStarted = await db.TimeEntries.AnyAsync(t => t.JobId == job.Id, ct)
             || await db.ProductionRuns.AnyAsync(r => r.JobId == job.Id, ct);
         if (workStarted)
             throw new InvalidOperationException(PartLockedMessage);
 
-        var newPartNumber = await db.Parts.Where(p => p.Id == newPartId)
-            .Select(p => p.PartNumber).FirstOrDefaultAsync(ct)
+        return await db.Parts.AsNoTracking().FirstOrDefaultAsync(p => p.Id == newPartId, ct)
             ?? throw new KeyNotFoundException($"Part with ID {newPartId} not found.");
+    }
+
+    private async Task<JobActivityLog> ChangePartAsync(Job job, Part newPart, int? currentUserId, CancellationToken ct)
+    {
         var oldPartNumber = job.PartId.HasValue
             ? await db.Parts.Where(p => p.Id == job.PartId.Value).Select(p => p.PartNumber).FirstOrDefaultAsync(ct)
             : null;
 
         var jobParts = await db.JobParts.Where(jp => jp.JobId == job.Id).ToListAsync(ct);
-        var carried = jobParts.FirstOrDefault(jp => jp.PartId == job.PartId);
-        if (carried is not null && jobParts.All(jp => jp.PartId != newPartId))
-            carried.PartId = newPartId;
+        if (jobParts.All(jp => jp.PartId != newPart.Id))
+        {
+            var carried = jobParts.FirstOrDefault(jp => jp.PartId == job.PartId);
+            if (carried is not null)
+                carried.PartId = newPart.Id;
+            else
+                db.JobParts.Add(new JobPart
+                {
+                    JobId = job.Id,
+                    PartId = newPart.Id,
+                    Quantity = job.SalesOrderLineId is int lineId
+                        ? await SalesOrderLineDefaultQuantity.ComputeAsync(db, lineId, job.Id, ct)
+                        : 1m,
+                });
+        }
 
-        job.PartId = newPartId;
+        job.PartId = newPart.Id;
+        job.BomRevisionIdAtRelease = newPart.CurrentBomRevisionId;
 
         return new JobActivityLog
         {
             JobId = job.Id, UserId = currentUserId, Action = ActivityAction.FieldChanged,
-            FieldName = "Part", OldValue = oldPartNumber, NewValue = newPartNumber,
+            FieldName = "Part", OldValue = oldPartNumber, NewValue = newPart.PartNumber,
             Description = oldPartNumber is null
-                ? $"Part set to {newPartNumber}."
-                : $"Part changed from {oldPartNumber} to {newPartNumber}.",
+                ? $"Part set to {newPart.PartNumber}."
+                : $"Part changed from {oldPartNumber} to {newPart.PartNumber}.",
         };
     }
 
