@@ -61,6 +61,19 @@ public class GetTimeByOperationReportHandler(AppDbContext db)
             .Where(j => jobIds.Contains(j.Id))
             .ToDictionaryAsync(j => j.Id, OperationTimeMath.JobBuildQuantity, cancellationToken);
 
+        Dictionary<(int JobId, int OperationId), decimal>? lifetimeMinutes = null;
+        if (request.DateFrom.HasValue || request.DateTo.HasValue)
+        {
+            var lifetime = await db.TimeEntries
+                .AsNoTracking()
+                .Where(t => t.JobId.HasValue && t.OperationId.HasValue
+                    && jobIds.Contains(t.JobId.Value) && operationIds.Contains(t.OperationId.Value))
+                .GroupBy(t => new { JobId = t.JobId!.Value, OperationId = t.OperationId!.Value })
+                .Select(g => new { g.Key.JobId, g.Key.OperationId, Minutes = g.Sum(t => (decimal)t.DurationMinutes) })
+                .ToListAsync(cancellationToken);
+            lifetimeMinutes = lifetime.ToDictionary(x => (x.JobId, x.OperationId), x => x.Minutes);
+        }
+
         var grouped = entries
             .Where(e => operations.ContainsKey(e.OperationId!.Value))
             .GroupBy(e => e.OperationId!.Value)
@@ -73,7 +86,15 @@ public class GetTimeByOperationReportHandler(AppDbContext db)
                 var totalHours = totalMinutes / 60m;
                 var jobs = g.Select(e => e.JobId!.Value).Distinct().ToList();
                 var estHours = jobs.Sum(jobId =>
-                    OperationTimeMath.PlannedMinutes(op, jobQuantities.GetValueOrDefault(jobId, 1m))) / 60m;
+                {
+                    var planned = OperationTimeMath.PlannedMinutes(op, jobQuantities.GetValueOrDefault(jobId, 1m));
+                    if (lifetimeMinutes is null
+                        || !lifetimeMinutes.TryGetValue((jobId, g.Key), out var jobLifetime)
+                        || jobLifetime <= 0)
+                        return planned;
+                    var inWindow = g.Where(e => e.JobId == jobId).Sum(e => (decimal)e.DurationMinutes);
+                    return planned * inWindow / jobLifetime;
+                }) / 60m;
                 var jobCount = jobs.Count;
 
                 return new TimeByOperationReportRow
