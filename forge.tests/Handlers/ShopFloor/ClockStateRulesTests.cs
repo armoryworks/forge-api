@@ -207,6 +207,33 @@ public class ClockStateRulesTests
     }
 
     [Fact]
+    public async Task Kiosk_DisposedJob_IsExcludedFromAssignments()
+    {
+        var user = await AddUserAsync("Job", "Holder");
+        var stage = await AddShopFloorStageAsync();
+        await AddJobAsync("JOB-OPEN", stage, user.Id, disposition: null);
+        await AddJobAsync("JOB-SCRAP", stage, user.Id, disposition: JobDisposition.Scrap);
+        _clock.Setup(c => c.UtcNow).Returns(SevenPmMountainOct7);
+
+        var result = await KioskHandler().Handle(new GetClockStatusQuery(), CancellationToken.None);
+
+        result.Single().Assignments.Select(a => a.JobNumber).Should().Equal("JOB-OPEN");
+    }
+
+    [Fact]
+    public async Task Overview_DisposedJob_IsExcludedFromActiveJobs()
+    {
+        var stage = await AddShopFloorStageAsync();
+        await AddJobAsync("JOB-OPEN", stage, null, disposition: null);
+        await AddJobAsync("JOB-SCRAP", stage, null, disposition: JobDisposition.Scrap);
+        _clock.Setup(c => c.UtcNow).Returns(SevenPmMountainOct7);
+
+        var result = await OverviewHandler().Handle(new GetShopFloorOverviewQuery(), CancellationToken.None);
+
+        result.ActiveJobs.Select(j => j.JobNumber).Should().Equal("JOB-OPEN");
+    }
+
+    [Fact]
     public async Task Overview_CountsWorkersWhoseMappedStatusIsIn()
     {
         await AddDefaultCalendarAsync(Denver);
@@ -268,6 +295,30 @@ public class ClockStateRulesTests
             EventTypeCode = type.ToString(),
             Timestamp = at,
             Source = "kiosk",
+        });
+        await _db.SaveChangesAsync();
+    }
+
+    private async Task<JobStage> AddShopFloorStageAsync()
+    {
+        var track = new TrackType { Name = "Production", Code = "production", IsDefault = true, IsShopFloor = true };
+        var stage = new JobStage { Name = "Machining", Code = "machining", SortOrder = 1, IsShopFloor = true, TrackType = track };
+        _db.TrackTypes.Add(track);
+        _db.JobStages.Add(stage);
+        await _db.SaveChangesAsync();
+        return stage;
+    }
+
+    private async Task AddJobAsync(string jobNumber, JobStage stage, int? assigneeId, JobDisposition? disposition)
+    {
+        _db.Jobs.Add(new Job
+        {
+            JobNumber = jobNumber,
+            Title = jobNumber,
+            TrackTypeId = stage.TrackTypeId,
+            CurrentStageId = stage.Id,
+            AssigneeId = assigneeId,
+            Disposition = disposition,
         });
         await _db.SaveChangesAsync();
     }

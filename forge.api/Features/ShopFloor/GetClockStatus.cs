@@ -89,7 +89,8 @@ public class GetClockStatusHandler(
                 && userIds.Contains(j.AssigneeId.Value)
                 && j.CurrentStage.IsShopFloor
                 && !j.IsArchived
-                && j.CompletedDate == null)
+                && j.CompletedDate == null
+                && j.Disposition == null)
             .OrderBy(j => j.Priority)
             .ThenBy(j => j.DueDate ?? DateTimeOffset.MaxValue)
             .Select(j => new

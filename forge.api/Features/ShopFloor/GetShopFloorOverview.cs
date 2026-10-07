@@ -27,6 +27,7 @@ public class GetShopFloorOverviewHandler(AppDbContext db, IClockEventTypeService
         var activeJobs = await db.Jobs
             .Include(j => j.CurrentStage)
             .Where(j => !j.IsArchived && j.CompletedDate == null
+                && j.Disposition == null
                 && j.CurrentStage.IsShopFloor)
             .OrderBy(j => j.DueDate ?? DateTimeOffset.MaxValue)
             .ThenBy(j => j.Priority)
@@ -146,6 +147,7 @@ public class GetShopFloorOverviewHandler(AppDbContext db, IClockEventTypeService
             .Include(j => j.TrackType)
             .CountAsync(j => !j.IsArchived
                 && j.CompletedDate == null
+                && j.Disposition == null
                 && j.TrackType.Name.Contains("Maintenance")
                 && j.DueDate < dueThroughTodayUtc, cancellationToken);
 
