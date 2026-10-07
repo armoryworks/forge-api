@@ -28,6 +28,7 @@ public class PayrollRegisterImportTests
         public Task SetAsync(string key, string? value, CancellationToken ct = default) => Task.CompletedTask;
         public Task<IReadOnlyDictionary<string, string?>> GetGroupAsync(string group, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyDictionary<string, string?>>(_values);
+        public Task<string?> GetCompanyNameAsync(CancellationToken ct = default) => Task.FromResult<string?>(null);
     }
 
     private const string AdpStyleRegister = """

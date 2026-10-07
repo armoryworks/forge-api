@@ -203,5 +203,7 @@ public class IngestTwilioWebhookHandlerTests
         }
         public Task<IReadOnlyDictionary<string, string?>> GetGroupAsync(string group, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyDictionary<string, string?>>(_bag);
+        public Task<string?> GetCompanyNameAsync(CancellationToken ct = default)
+            => Task.FromResult<string?>(null);
     }
 }

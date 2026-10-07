@@ -34,6 +34,7 @@ public class BankStatementImportTests
         public Task SetAsync(string key, string? value, CancellationToken ct = default) => Task.CompletedTask;
         public Task<IReadOnlyDictionary<string, string?>> GetGroupAsync(string group, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyDictionary<string, string?>>(new Dictionary<string, string?>());
+        public Task<string?> GetCompanyNameAsync(CancellationToken ct = default) => Task.FromResult<string?>(null);
     }
 
     private sealed class FakeClock : IClock

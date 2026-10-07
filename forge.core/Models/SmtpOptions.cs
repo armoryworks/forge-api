@@ -10,5 +10,5 @@ public class SmtpOptions
     public string? Password { get; set; }
     public bool UseSsl { get; set; } = true;
     public string FromAddress { get; set; } = "noreply@forge.local";
-    public string FromName { get; set; } = "QB Engineer";
+    public string FromName { get; set; } = string.Empty;
 }

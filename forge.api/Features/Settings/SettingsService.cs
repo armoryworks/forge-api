@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Settings;
 using Forge.Data.Context;
@@ -125,6 +126,9 @@ public class SettingsService(
         }
         return result;
     }
+
+    public Task<string?> GetCompanyNameAsync(CancellationToken ct = default)
+        => CompanyIdentity.GetCompanyNameAsync(db, ct);
 
     private async Task<string?> GetRawAsync(string key, CancellationToken ct)
     {

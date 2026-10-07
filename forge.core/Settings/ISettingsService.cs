@@ -34,4 +34,9 @@ public interface ISettingsService
     /// the editor + by typed-options hydration helpers. Returned
     /// dictionary is keyed by setting key; values are unsealed already.</summary>
     Task<IReadOnlyDictionary<string, string?>> GetGroupAsync(string group, CancellationToken ct = default);
+
+    /// <summary>The company name from Admin &gt; Company (legacy
+    /// <c>company_name</c> row as fallback). Null when unset or blank —
+    /// it is not a descriptor-catalog key, so it has no default.</summary>
+    Task<string?> GetCompanyNameAsync(CancellationToken ct = default);
 }

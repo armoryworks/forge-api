@@ -87,6 +87,8 @@ public class SmtpEmailService(ISettingsService settings, ILogger<SmtpEmailServic
         var password = await settings.GetStringAsync(SmtpSettings.KeyPassword, ct);
         var fromAddress = await settings.GetStringAsync(SmtpSettings.KeyFromAddress, ct);
         var fromName = await settings.GetStringAsync(SmtpSettings.KeyFromName, ct);
+        if (string.IsNullOrWhiteSpace(fromName))
+            fromName = await settings.GetCompanyNameAsync(ct);
 
         if (string.IsNullOrEmpty(host))
         {
@@ -104,7 +106,7 @@ public class SmtpEmailService(ISettingsService settings, ILogger<SmtpEmailServic
             Username: username,
             Password: password,
             FromAddress: fromAddress ?? "noreply@forge.local",
-            FromName: fromName ?? "QB Engineer");
+            FromName: fromName?.Trim() ?? string.Empty);
     }
 
     private sealed record SmtpResolved(
