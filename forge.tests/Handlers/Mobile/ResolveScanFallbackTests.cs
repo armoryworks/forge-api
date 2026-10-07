@@ -114,6 +114,29 @@ public sealed class ResolveScanFallbackTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Job_regex_characters_in_input_are_literal()
+    {
+        var n = UniqueNumber();
+        await SeedJobsAsync($"JOB-X{n}");
+
+        var result = await ResolveAsync($"JOB-.{n}");
+
+        result.Kind.Should().Be("unknown");
+    }
+
+    [Fact]
+    public async Task Job_suffix_match_does_not_cross_into_a_longer_number()
+    {
+        var stem = $"S{UniqueNumber()}-";
+        var ids = await SeedJobsAsync($"{stem}7", $"{stem}17");
+
+        var result = await ResolveAsync($"job-{stem.ToLowerInvariant()}07");
+
+        result.Kind.Should().Be("job");
+        result.Id.Should().Be(ids[0]);
+    }
+
+    [Fact]
     public async Task Barcode_miss_retries_the_upper_cased_value()
     {
         var n = UniqueNumber();

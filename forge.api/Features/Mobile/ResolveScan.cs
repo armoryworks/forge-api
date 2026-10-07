@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -28,6 +30,7 @@ public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
     : IRequestHandler<ResolveScanQuery, ScanResolveResponseModel>
 {
     private const string LikeEscape = "\\";
+    private const int MaxJobCandidates = 10;
 
     public async Task<ScanResolveResponseModel> Handle(ResolveScanQuery request, CancellationToken ct)
     {
@@ -102,11 +105,11 @@ public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
         if (wanted.Length == 0) return null;
 
         var unpadded = JobKey(code, unpad: true);
-        var digits = TrailingDigits(unpadded);
-        var pattern = "%" + EscapeLike(digits.Length > 0 ? digits : unpadded);
+        var pattern = JobNumberPattern(unpadded);
         var candidates = await db.Jobs.AsNoTracking()
-            .Where(j => EF.Functions.ILike(j.JobNumber, pattern, LikeEscape))
+            .Where(j => Regex.IsMatch(j.JobNumber, pattern, RegexOptions.IgnoreCase))
             .Select(j => new { j.Id, j.JobNumber })
+            .Take(MaxJobCandidates)
             .ToListAsync(ct);
 
         var exact = candidates.Where(c => JobKey(c.JobNumber, unpad: false) == wanted).Select(c => c.Id).ToList();
@@ -128,6 +131,17 @@ public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
         var trimmed = digits.TrimStart('0');
         return key[..^digits.Length] + (trimmed.Length == 0 ? "0" : trimmed);
     }
+
+    private static string JobNumberPattern(string unpadded)
+    {
+        var digits = TrailingDigits(unpadded);
+        var stem = RegexLiteral(unpadded[..^digits.Length]);
+        var number = digits.Length == 0 ? string.Empty : digits == "0" ? "0+" : "0*" + digits;
+        return "^(JOB-)?" + stem + number + "$";
+    }
+
+    private static string RegexLiteral(string value) =>
+        string.Concat(value.Select(c => char.IsLetterOrDigit(c) ? c.ToString() : "\\" + c));
 
     private static string TrailingDigits(string value)
     {
