@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Hubs;
 
 using Forge.Api.Features.Jobs;
@@ -27,6 +28,7 @@ public class DisposeJobHandlerTests
     private readonly Mock<IMediator> _mediator = new();
     private readonly Mock<IHubContext<BoardHub>> _boardHub = new();
     private readonly Mock<IClock> _clock = new();
+    private readonly Mock<ICapabilitySnapshotProvider> _capabilities = new();
     private readonly AppDbContext _dbContext;
     private readonly DisposeJobHandler _handler;
 
@@ -41,6 +43,7 @@ public class DisposeJobHandlerTests
         mockClients.Setup(c => c.Group(It.IsAny<string>())).Returns(mockClientProxy.Object);
         _boardHub.Setup(h => h.Clients).Returns(mockClients.Object);
         _clock.Setup(c => c.UtcNow).Returns(new DateTimeOffset(2026, 10, 6, 12, 0, 0, TimeSpan.Zero));
+        _capabilities.Setup(c => c.IsEnabled(DisposeJobHandler.StockingCapability)).Returns(true);
 
         _handler = new DisposeJobHandler(
             _jobRepo.Object,
@@ -48,6 +51,7 @@ public class DisposeJobHandlerTests
             _mediator.Object,
             _boardHub.Object,
             _clock.Object,
+            _capabilities.Object,
             _dbContext);
     }
 
@@ -482,22 +486,15 @@ public class DisposeJobHandlerTests
         disposed.Disposition.Should().Be(JobDisposition.AddToInventory);
     }
 
-    [Fact]
-    public async Task Handle_AddToInventory_ReusesAnUnreceivedCompletedRun()
+    private async Task<(Job Job, Part Part, StorageLocation Bin)> ArrangeStockingJob(string jobNumber)
     {
         var bin = new StorageLocation { Name = "A-03", LocationType = LocationType.Bin, IsActive = true };
         _dbContext.StorageLocations.Add(bin);
-        var part = new Part { PartNumber = "P-57", Name = "Bracket", InventoryClass = InventoryClass.FinishedGood };
+        var part = new Part { PartNumber = $"P-{jobNumber}", Name = "Bracket", InventoryClass = InventoryClass.FinishedGood };
         _dbContext.Parts.Add(part);
         await _dbContext.SaveChangesAsync();
-        var job = new Job { JobNumber = "JOB-0057", Title = "Brackets", TrackTypeId = 1, CurrentStageId = 1, PartId = part.Id };
+        var job = new Job { JobNumber = jobNumber, Title = "Brackets", TrackTypeId = 1, CurrentStageId = 1, PartId = part.Id };
         _dbContext.Jobs.Add(job);
-        await _dbContext.SaveChangesAsync();
-        _dbContext.ProductionRuns.Add(new ProductionRun
-        {
-            JobId = job.Id, PartId = part.Id, RunNumber = "RUN-57", TargetQuantity = 100,
-            CompletedQuantity = 90, Status = ProductionRunStatus.Completed,
-        });
         await _dbContext.SaveChangesAsync();
 
         _jobRepo.Setup(r => r.FindAsync(job.Id, It.IsAny<CancellationToken>())).ReturnsAsync(job);
@@ -509,15 +506,217 @@ public class DisposeJobHandlerTests
             .Returns((IRequest<ProductionRunResponseModel> c, CancellationToken ct) =>
                 receive.Handle((ReceiveProductionRunToStockCommand)c, ct));
 
-        await _handler.Handle(
-            new DisposeJobCommand(job.Id,
-                new DisposeJobRequestModel(JobDisposition.AddToInventory, null, 95m, bin.Id), 1),
+        return (job, part, bin);
+    }
+
+    private Task<JobDetailResponseModel> DisposeToInventory(int jobId, decimal? goodQuantity, int? locationId) =>
+        _handler.Handle(
+            new DisposeJobCommand(jobId,
+                new DisposeJobRequestModel(JobDisposition.AddToInventory, null, goodQuantity, locationId), 1),
             CancellationToken.None);
 
+    [Fact]
+    public async Task Handle_AddToInventory_ReceivesAnUnreceivedRunAsRecordedAndTopsUpTheRest()
+    {
+        var (job, part, bin) = await ArrangeStockingJob("JOB-0057");
+        _dbContext.ProductionRuns.Add(new ProductionRun
+        {
+            JobId = job.Id, PartId = part.Id, RunNumber = "RUN-57", TargetQuantity = 100,
+            CompletedQuantity = 90, ScrapQuantity = 10, Status = ProductionRunStatus.Completed,
+        });
+        await _dbContext.SaveChangesAsync();
+
+        await DisposeToInventory(job.Id, 95m, bin.Id);
+
         _dbContext.ChangeTracker.Clear();
-        var run = await _dbContext.ProductionRuns.SingleAsync(r => r.JobId == job.Id);
-        run.RunNumber.Should().Be("RUN-57");
-        run.ReceivedQuantity.Should().Be(95);
+        var recorded = await _dbContext.ProductionRuns.SingleAsync(r => r.RunNumber == "RUN-57");
+        recorded.TargetQuantity.Should().Be(100);
+        recorded.CompletedQuantity.Should().Be(90, "the operator's count is never rewritten");
+        recorded.ScrapQuantity.Should().Be(10);
+        recorded.ReceivedQuantity.Should().Be(90);
+
+        var topUp = await _dbContext.ProductionRuns.SingleAsync(r => r.JobId == job.Id && r.RunNumber != "RUN-57");
+        topUp.TargetQuantity.Should().Be(5);
+        topUp.CompletedQuantity.Should().Be(5);
+        topUp.ReceivedQuantity.Should().Be(5);
+
+        var onHand = await _dbContext.BinContents
+            .Where(b => b.EntityType == "part" && b.EntityId == part.Id)
+            .SumAsync(b => b.Quantity);
+        onHand.Should().Be(95m);
+    }
+
+    [Fact]
+    public async Task Handle_AddToInventory_DoesNotRestockOutputAlreadyReceived()
+    {
+        var (job, part, bin) = await ArrangeStockingJob("JOB-0058");
+        _dbContext.ProductionRuns.Add(new ProductionRun
+        {
+            JobId = job.Id, PartId = part.Id, RunNumber = "RUN-58", TargetQuantity = 500,
+            CompletedQuantity = 500, Status = ProductionRunStatus.Completed,
+            ReceivedQuantity = 500, ReceivedToStockAt = _clock.Object.UtcNow,
+        });
+        _dbContext.BinContents.Add(new BinContent
+        {
+            LocationId = bin.Id, EntityType = "part", EntityId = part.Id, Quantity = 500,
+            Status = BinContentStatus.Stored,
+        });
+        await _dbContext.SaveChangesAsync();
+
+        await DisposeToInventory(job.Id, 500m, bin.Id);
+
+        _dbContext.ChangeTracker.Clear();
+        (await _dbContext.BinContents
+            .Where(b => b.EntityType == "part" && b.EntityId == part.Id)
+            .SumAsync(b => b.Quantity)).Should().Be(500m);
+        (await _dbContext.ProductionRuns.CountAsync(r => r.JobId == job.Id)).Should().Be(1);
+        (await _dbContext.BinMovements.AnyAsync(m => m.EntityId == part.Id)).Should().BeFalse();
+        (await _dbContext.Jobs.SingleAsync(j => j.Id == job.Id)).Disposition.Should().Be(JobDisposition.AddToInventory);
+    }
+
+    [Fact]
+    public async Task Handle_AddToInventory_WithoutQuantity_StampsWhenEverythingWasReceived()
+    {
+        var (job, part, _) = await ArrangeStockingJob("JOB-0059");
+        _dbContext.ProductionRuns.Add(new ProductionRun
+        {
+            JobId = job.Id, PartId = part.Id, RunNumber = "RUN-59", TargetQuantity = 20,
+            CompletedQuantity = 20, Status = ProductionRunStatus.Completed,
+            ReceivedQuantity = 20, ReceivedToStockAt = _clock.Object.UtcNow,
+        });
+        await _dbContext.SaveChangesAsync();
+
+        await DisposeToInventory(job.Id, null, null);
+
+        _dbContext.ChangeTracker.Clear();
+        (await _dbContext.Jobs.SingleAsync(j => j.Id == job.Id)).Disposition.Should().Be(JobDisposition.AddToInventory);
+        (await _dbContext.ProductionRuns.CountAsync(r => r.JobId == job.Id)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Handle_AddToInventory_RefusesLessThanAlreadyRecorded()
+    {
+        var (job, part, bin) = await ArrangeStockingJob("JOB-0060");
+        _dbContext.ProductionRuns.Add(new ProductionRun
+        {
+            JobId = job.Id, PartId = part.Id, RunNumber = "RUN-60", TargetQuantity = 500,
+            CompletedQuantity = 500, Status = ProductionRunStatus.Completed,
+            ReceivedQuantity = 500, ReceivedToStockAt = _clock.Object.UtcNow,
+        });
+        await _dbContext.SaveChangesAsync();
+
+        var act = () => DisposeToInventory(job.Id, 400m, bin.Id);
+
+        await act.Should().ThrowAsync<FluentValidation.ValidationException>().WithMessage("*500 already recorded*");
+        job.Disposition.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_AddToInventory_RefusesAnInactiveBin()
+    {
+        var (job, _, bin) = await ArrangeStockingJob("JOB-0061");
+        bin.IsActive = false;
+        await _dbContext.SaveChangesAsync();
+
+        var act = () => DisposeToInventory(job.Id, 5m, bin.Id);
+
+        await act.Should().ThrowAsync<FluentValidation.ValidationException>().WithMessage("*active bin*");
+        job.Disposition.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_AddToInventory_WithoutABin_UsesTheReceiveFallback()
+    {
+        var (job, part, _) = await ArrangeStockingJob("JOB-0062");
+
+        await DisposeToInventory(job.Id, 5m, null);
+
+        _dbContext.ChangeTracker.Clear();
+        var stocked = await _dbContext.BinContents.SingleAsync(b => b.EntityType == "part" && b.EntityId == part.Id);
+        var location = await _dbContext.StorageLocations.SingleAsync(l => l.Id == stocked.LocationId);
+        location.Name.Should().Be("Finished Goods");
+        stocked.Quantity.Should().Be(5m);
+    }
+
+    [Fact]
+    public async Task Handle_AddToInventory_RefusedWhileARunIsInProgress()
+    {
+        var (job, part, bin) = await ArrangeStockingJob("JOB-0063");
+        _dbContext.ProductionRuns.Add(new ProductionRun
+        {
+            JobId = job.Id, PartId = part.Id, RunNumber = "RUN-63", TargetQuantity = 50,
+            CompletedQuantity = 10, Status = ProductionRunStatus.InProgress,
+        });
+        await _dbContext.SaveChangesAsync();
+
+        var act = () => DisposeToInventory(job.Id, 50m, bin.Id);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage(DisposeJobHandler.OpenRunsMessage);
+    }
+
+    [Fact]
+    public async Task Handle_AddToInventory_RefusedWhenTheJobHasSeveralPartsAndNoPart()
+    {
+        var job = ArrangeJob(64, "JOB-0064");
+        _dbContext.JobParts.AddRange(
+            new JobPart { JobId = 64, PartId = 1, Quantity = 1 },
+            new JobPart { JobId = 64, PartId = 2, Quantity = 1 });
+        await _dbContext.SaveChangesAsync();
+
+        var act = () => DisposeToInventory(64, 5m, null);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage(DisposeJobHandler.SeveralPartsMessage);
+        job.Disposition.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_AddToInventory_WithStockingCapabilityOff_OnlyStampsTheJob()
+    {
+        _capabilities.Setup(c => c.IsEnabled(DisposeJobHandler.StockingCapability)).Returns(false);
+        var job = ArrangeJob(65, "JOB-0065");
+
+        await DisposeToInventory(65, null, null);
+
+        job.Disposition.Should().Be(JobDisposition.AddToInventory);
+        _mediator.Verify(m => m.Send(It.IsAny<ReceiveProductionRunToStockCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+        _jobRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DispositionStock_UsesTheSingleJobPartAndSumsReceivedAndRecordedOutput()
+    {
+        var part = new Part { PartNumber = "P-70", Name = "Clip", InventoryClass = InventoryClass.FinishedGood, DefaultBinId = 12 };
+        _dbContext.Parts.Add(part);
+        var job = new Job { JobNumber = "JOB-0070", Title = "Clips", TrackTypeId = 1, CurrentStageId = 1 };
+        _dbContext.Jobs.Add(job);
+        await _dbContext.SaveChangesAsync();
+        _dbContext.JobParts.Add(new JobPart { JobId = job.Id, PartId = part.Id, Quantity = 1 });
+        _dbContext.ProductionRuns.AddRange(
+            new ProductionRun
+            {
+                JobId = job.Id, PartId = part.Id, RunNumber = "RUN-70A", TargetQuantity = 20, CompletedQuantity = 20,
+                Status = ProductionRunStatus.Completed, ReceivedQuantity = 20, ReceivedToStockAt = _clock.Object.UtcNow,
+            },
+            new ProductionRun
+            {
+                JobId = job.Id, PartId = part.Id, RunNumber = "RUN-70B", TargetQuantity = 10, CompletedQuantity = 7,
+                Status = ProductionRunStatus.Completed,
+            });
+        await _dbContext.SaveChangesAsync();
+
+        var stock = await new GetJobDispositionStockHandler(_dbContext)
+            .Handle(new GetJobDispositionStockQuery(job.Id), CancellationToken.None);
+
+        stock.Should().Be(new JobDispositionStockResponseModel(part.Id, false, 12, 20, 7, false));
+    }
+
+    [Fact]
+    public void Validator_RejectsAGoodQuantityBeyondTheIntegerRange()
+    {
+        new DisposeJobCommandValidator()
+            .Validate(new DisposeJobCommand(1,
+                new DisposeJobRequestModel(JobDisposition.AddToInventory, null, (decimal)int.MaxValue + 1, 1), 1))
+            .IsValid.Should().BeFalse();
     }
 
     [Theory]
