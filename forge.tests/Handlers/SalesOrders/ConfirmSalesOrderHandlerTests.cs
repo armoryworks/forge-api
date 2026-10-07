@@ -122,7 +122,7 @@ public class ConfirmSalesOrderHandlerTests
             boardHub.Object, _acceptanceGate.Object);
         _mediator.Setup(m => m.Publish(It.IsAny<SalesOrderConfirmedEvent>(), It.IsAny<CancellationToken>()))
             .Returns<SalesOrderConfirmedEvent, CancellationToken>((e, ct) =>
-                createJobs.Handle(new CreateJobsForSalesOrderLinesCommand(e.SalesOrderId), ct));
+                createJobs.Handle(new CreateJobsForSalesOrderLinesCommand(e.SalesOrderId, FromConfirmation: true), ct));
 
         var result = await Handler().Handle(new ConfirmSalesOrderCommand(so.Id), CancellationToken.None);
 

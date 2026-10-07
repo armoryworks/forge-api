@@ -15,7 +15,8 @@ using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.SalesOrders;
 
-public record CreateJobsForSalesOrderLinesCommand(int SalesOrderId, IReadOnlyCollection<int>? LineIds = null)
+public record CreateJobsForSalesOrderLinesCommand(
+    int SalesOrderId, IReadOnlyCollection<int>? LineIds = null, bool FromConfirmation = false)
     : IRequest<CreateJobsForSalesOrderLinesResponseModel>;
 
 public class CreateJobsForSalesOrderLinesHandler(
@@ -152,8 +153,10 @@ public class CreateJobsForSalesOrderLinesHandler(
             created.Add(job);
         }
 
-        if (created.Count > 0 || skipped.Count > 0)
-            db.LogActivityAt("jobs_auto_created", ActivityDescription(so.OrderNumber, created.Count, skipped), ("SalesOrder", so.Id));
+        if (created.Count > 0 || (request.FromConfirmation && skipped.Count > 0))
+            db.LogActivityAt(
+                request.FromConfirmation ? "jobs_auto_created" : "jobs_created",
+                ActivityDescription(so.OrderNumber, created.Count, skipped), ("SalesOrder", so.Id));
 
         await db.SaveChangesAsync(cancellationToken);
 

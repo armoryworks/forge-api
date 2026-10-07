@@ -23,7 +23,7 @@ public class OnSalesOrderConfirmedAutoCreateJobsTests
         await handler.Handle(new SalesOrderConfirmedEvent(501, 1), CancellationToken.None);
 
         mediator.Verify(m => m.Send(
-            It.Is<CreateJobsForSalesOrderLinesCommand>(c => c.SalesOrderId == 501 && c.LineIds == null),
+            It.Is<CreateJobsForSalesOrderLinesCommand>(c => c.SalesOrderId == 501 && c.LineIds == null && c.FromConfirmation),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 }

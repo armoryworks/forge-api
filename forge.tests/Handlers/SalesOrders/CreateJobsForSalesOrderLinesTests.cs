@@ -131,7 +131,8 @@ public class CreateJobsForSalesOrderLinesTests
             Line(602, 2, null, 1m, "Freight"),
             Line(603, 3, 901, 250m));
 
-        var result = await Handler().Handle(new CreateJobsForSalesOrderLinesCommand(so.Id), CancellationToken.None);
+        var result = await Handler().Handle(
+            new CreateJobsForSalesOrderLinesCommand(so.Id, FromConfirmation: true), CancellationToken.None);
 
         result.Created.Should().Be(2);
         result.Skipped.Should().ContainSingle()
@@ -226,6 +227,21 @@ public class CreateJobsForSalesOrderLinesTests
         result.Skipped.Should().ContainSingle()
             .Which.Should().BeEquivalentTo(new { LineNumber = 1, Reason = "Already has a job" });
         (await _db.Jobs.CountAsync()).Should().Be(1);
+        (await _db.ActivityLogs.CountAsync(a => a.Action.StartsWith("jobs_"))).Should().Be(0,
+            "a call that changed nothing leaves no activity entry");
+    }
+
+    [Fact]
+    public async Task Manual_call_logs_jobs_created_rather_than_auto_created()
+    {
+        SeedTrack();
+        AddPart(900, "CW-1001", ProcurementSource.Make);
+        var so = await SeedOrderAsync(Line(601, 1, 900, 5m));
+
+        await Handler().Handle(new CreateJobsForSalesOrderLinesCommand(so.Id), CancellationToken.None);
+
+        (await _db.ActivityLogs.Where(a => a.EntityType == "SalesOrder" && a.EntityId == so.Id).Select(a => a.Action).ToListAsync())
+            .Should().Contain("jobs_created").And.NotContain("jobs_auto_created");
     }
 
     [Fact]
