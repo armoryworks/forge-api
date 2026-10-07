@@ -61,43 +61,4 @@ public static partial class JobMapper
             SalesOrderId: job.SalesOrderLine?.SalesOrderId,
             SalesOrderNumber: job.SalesOrderLine?.SalesOrder?.OrderNumber);
     }
-
-    /// <summary>
-    /// Maps a Job entity to a JobListResponseModel.
-    /// Navigation properties (CurrentStage, Customer) must be loaded via Include.
-    /// Fields that require user lookups (AssigneeInitials, AssigneeColor) must be set manually.
-    /// </summary>
-    public static JobListResponseModel ToListModel(
-        this Job job,
-        string? assigneeInitials = null,
-        string? assigneeColor = null,
-        string? billingStatus = null)
-    {
-        return new JobListResponseModel(
-            Id: job.Id,
-            JobNumber: job.JobNumber,
-            Title: job.Title,
-            StageName: job.CurrentStage?.Name ?? string.Empty,
-            StageColor: job.CurrentStage?.Color ?? string.Empty,
-            AssigneeId: job.AssigneeId,
-            AssigneeInitials: assigneeInitials,
-            AssigneeColor: assigneeColor,
-            PriorityName: job.Priority.ToString(),
-            DueDate: job.DueDate,
-            IsOverdue: job.DueDate.HasValue && job.DueDate.Value.UtcDateTime.Date < DateTimeOffset.UtcNow.UtcDateTime.Date && job.CompletedDate == null,
-            CustomerName: job.Customer?.Name,
-            BillingStatus: billingStatus,
-            Disposition: job.Disposition?.ToString(),
-            ChildJobCount: job.ChildJobs?.Count(c => c.DeletedAt == null) ?? 0,
-            ExternalRef: job.ExternalRef,
-            AccountingDocumentType: job.CurrentStage?.AccountingDocumentType?.ToString(),
-            ActiveHolds: [],
-            ParentJobId: job.ParentJobId,
-            ParentJobNumber: job.ParentJob?.JobNumber,
-            CustomerId: job.CustomerId,
-            SalesOrderId: job.SalesOrderLine?.SalesOrderId,
-            SalesOrderNumber: job.SalesOrderLine?.SalesOrder?.OrderNumber,
-            BoardPosition: job.BoardPosition,
-            PartNumber: job.Part?.PartNumber);
-    }
 }
