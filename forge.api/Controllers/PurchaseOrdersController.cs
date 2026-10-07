@@ -46,6 +46,13 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("{id:int}/pdf")]
+    public async Task<IActionResult> GetPurchaseOrderPdf(int id, CancellationToken ct)
+    {
+        var pdf = await mediator.Send(new GetPurchaseOrderPdfQuery(id), ct);
+        return File(pdf, "application/pdf", $"purchase-order-{id}.pdf");
+    }
+
     [HttpPut("{id:int}/lines/{lineId:int}")]
     public async Task<ActionResult<PurchaseOrderDetailResponseModel>> UpdatePurchaseOrderLine(
         int id, int lineId, UpdateOrderLineRequestModel request)
