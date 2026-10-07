@@ -1,10 +1,14 @@
+using System.Globalization;
 using System.Security.Authentication;
 using System.Text.Json;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Auth;
+using Forge.Api.Validation;
 using Forge.Api.Workflows;
 
 namespace Forge.Api.Middleware;
@@ -22,20 +26,24 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             context.Response.ContentType = "application/problem+json";
 
-            var problem = new ValidationProblemDetails(
-                ex.Errors
-                    .GroupBy(e => e.PropertyName)
-                    .ToDictionary(
-                        g => g.Key,
-                        g => g.Select(e => e.ErrorMessage).ToArray()))
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Validation failed",
-                Detail = string.Join(" ", ex.Errors.Select(e => e.ErrorMessage).Distinct()),
-                Type = "about:blank"
-            };
+            var errors = ex.Errors
+                .Select(e => new
+                {
+                    field = CustomInvalidModelStateResponseFactory.NormalizeFieldName(e.PropertyName),
+                    message = e.ErrorMessage,
+                    rejectedValue = FormatRejectedValue(e.AttemptedValue),
+                })
+                .ToArray();
 
-            await context.Response.WriteAsJsonAsync(problem);
+            var envelope = new
+            {
+                status = StatusCodes.Status400BadRequest,
+                title = CustomInvalidModelStateResponseFactory.Title,
+                detail = CustomInvalidModelStateResponseFactory.Summarize(errors.Select(e => e.message).ToArray()) ?? ex.Message,
+                type = "about:blank",
+                errors,
+            };
+            await context.Response.WriteAsync(JsonSerializer.Serialize(envelope, CamelCase));
         }
         catch (KeyNotFoundException ex)
         {
@@ -101,10 +109,11 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             var problem = new ProblemDetails
             {
                 Status = StatusCodes.Status409Conflict,
-                Title = "Conflict",
+                Title = "Action not allowed",
                 Detail = ex.Message,
                 Type = "about:blank"
             };
+            problem.Extensions["code"] = "business-rule";
 
             await context.Response.WriteAsJsonAsync(problem);
         }
@@ -274,6 +283,24 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
 
             await context.Response.WriteAsJsonAsync(problem);
         }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg)
+        {
+            logger.LogWarning(ex, "Unique constraint {Constraint} violated — returning 409", pg.ConstraintName);
+
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Duplicate number",
+                Detail = "That number was just taken by another record. Save again to get the next number.",
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = "duplicate";
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Unhandled exception");
@@ -291,6 +318,19 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             await context.Response.WriteAsJsonAsync(problem);
         }
     }
+
+    private static readonly JsonSerializerOptions CamelCase = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
+    private static string? FormatRejectedValue(object? value) => value switch
+    {
+        null => null,
+        string s => s,
+        IConvertible c => c.ToString(CultureInfo.InvariantCulture),
+        _ => null,
+    };
 
     // Business handlers throw InvalidOperationException with user-readable messages
     // (e.g. "Cannot delete order with active shipments"). Framework code — EF Core

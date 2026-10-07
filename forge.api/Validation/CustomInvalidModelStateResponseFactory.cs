@@ -10,8 +10,10 @@ namespace Forge.Api.Validation;
 /// System.DateTime. Path: $.someField | LineNumber: 0 | BytePositionInLine: 42")
 /// with a clean structured envelope:
 ///
-///   { "errors": [ { "field": "someField", "message": "Date is not valid", "rejectedValue": "2025-02-29" } ] }
+///   { "status": 400, "title": "Validation failed", "detail": "Date is not valid",
+///     "errors": [ { "field": "someField", "message": "Date is not valid", "rejectedValue": "2025-02-29" } ] }
 ///
+/// ExceptionHandlingMiddleware sends the same envelope for FluentValidation failures.
 /// Per-controller validation behavior is unchanged — only the SHAPE of the
 /// binding-layer response is standardized. HTTP 400 is preserved.
 ///
@@ -38,9 +40,23 @@ public static class CustomInvalidModelStateResponseFactory
                 })
                 .ToArray();
 
-            return new BadRequestObjectResult(new { errors });
+            return new BadRequestObjectResult(new
+            {
+                status = StatusCodes.Status400BadRequest,
+                title = Title,
+                detail = Summarize(errors.Select(e => e.message).ToArray()),
+                errors,
+            });
         };
     }
+
+    internal const string Title = "Validation failed";
+
+    /// <summary>
+    /// The distinct messages joined with a space; null when there are none.
+    /// </summary>
+    internal static string? Summarize(IReadOnlyList<string> messages) =>
+        messages.Count == 0 ? null : string.Join(" ", messages.Distinct());
 
     /// <summary>
     /// Strip the "$." JSON-path prefix and any trailing "LineNumber|BytePositionInLine"
