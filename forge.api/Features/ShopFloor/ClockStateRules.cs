@@ -10,18 +10,43 @@ public static class ClockStateRules
 {
     public const string StatusIn = "In";
     public const string StatusOut = "Out";
-    public const int DefaultLookbackHours = 48;
+    public const int DefaultLookbackHours = 168;
+    public const int OpenFromPriorShiftHours = 16;
 
     public static async Task<TimeZoneInfo> ShopTimeZoneAsync(AppDbContext db, CancellationToken ct = default)
     {
-        var timeZoneId = await db.WorkingCalendars
+        var calendarZone = await db.WorkingCalendars
             .AsNoTracking()
             .Where(c => c.IsDefault)
             .Select(c => c.TimeZone)
             .FirstOrDefaultAsync(ct);
+        if (TryFindTimeZone(calendarZone) is { } calendarTimeZone)
+            return calendarTimeZone;
 
+        var plantZone = await db.Plants
+            .AsNoTracking()
+            .Where(p => p.IsActive)
+            .OrderByDescending(p => p.IsDefault)
+            .ThenBy(p => p.Id)
+            .Select(p => p.TimeZone)
+            .FirstOrDefaultAsync(ct);
+        if (TryFindTimeZone(plantZone) is { } plantTimeZone)
+            return plantTimeZone;
+
+        var bookZone = await db.Books
+            .AsNoTracking()
+            .Where(b => b.IsActive)
+            .OrderBy(b => b.Id)
+            .Select(b => b.ReportingTimeZone)
+            .FirstOrDefaultAsync(ct);
+
+        return TryFindTimeZone(bookZone) ?? TimeZoneInfo.Utc;
+    }
+
+    private static TimeZoneInfo? TryFindTimeZone(string? timeZoneId)
+    {
         if (string.IsNullOrWhiteSpace(timeZoneId))
-            return TimeZoneInfo.Utc;
+            return null;
 
         try
         {
@@ -29,7 +54,7 @@ public static class ClockStateRules
         }
         catch
         {
-            return TimeZoneInfo.Utc;
+            return null;
         }
     }
 
@@ -75,6 +100,14 @@ public static class ClockStateRules
                 g => g.OrderByDescending(e => e.Timestamp).ThenByDescending(e => e.Id).First());
     }
 
+    public static Task<ClockEvent?> LatestEventAsync(AppDbContext db, int userId, CancellationToken ct = default)
+        => db.ClockEvents
+            .AsNoTracking()
+            .Where(e => e.UserId == userId)
+            .OrderByDescending(e => e.Timestamp)
+            .ThenByDescending(e => e.Id)
+            .FirstOrDefaultAsync(ct);
+
     public static (string Status, bool CountsAsActive) ResolveStatus(
         ClockEvent? evt, IEnumerable<ClockEventTypeDefinition> definitions)
     {
@@ -98,6 +131,10 @@ public static class ClockStateRules
             : status != StatusOut && countsAsActive ? "break"
             : "out";
 
-    public static bool IsOpenFromPriorShift(ClockEvent? evt, bool countsAsActive, DateTimeOffset dayStartUtc)
-        => evt is not null && countsAsActive && evt.Timestamp < dayStartUtc;
+    public static bool IsOpenFromPriorShift(
+        ClockEvent? evt, bool countsAsActive, DateTimeOffset dayStartUtc, DateTimeOffset now)
+        => evt is not null
+            && countsAsActive
+            && evt.Timestamp < dayStartUtc
+            && now - evt.Timestamp >= TimeSpan.FromHours(OpenFromPriorShiftHours);
 }

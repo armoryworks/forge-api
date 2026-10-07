@@ -13,8 +13,7 @@ public record GetClockStateQuery(int? UserId = null) : IRequest<ClockStateRespon
 public class GetClockStateHandler(
     AppDbContext db,
     IHttpContextAccessor httpContext,
-    IClockEventTypeService clockEventTypeService,
-    IClock clock)
+    IClockEventTypeService clockEventTypeService)
     : IRequestHandler<GetClockStateQuery, ClockStateResponseModel>
 {
     public async Task<ClockStateResponseModel> Handle(GetClockStateQuery request, CancellationToken ct)
@@ -22,8 +21,7 @@ public class GetClockStateHandler(
         var userId = request.UserId
             ?? int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        var latestEvents = await ClockStateRules.LatestEventsAsync(db, [userId], clock.UtcNow, ct: ct);
-        latestEvents.TryGetValue(userId, out var last);
+        var last = await ClockStateRules.LatestEventAsync(db, userId, ct);
 
         var (status, countsAsActive) = await ClockStateRules.ResolveStatusAsync(last, clockEventTypeService, ct);
         var state = ClockStateRules.ToPhoneState(status, countsAsActive);

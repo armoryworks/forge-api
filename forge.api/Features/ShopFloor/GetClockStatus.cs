@@ -138,7 +138,7 @@ public class GetClockStatusHandler(
         {
             var hasEvent = eventMap.TryGetValue(u.Id, out var evt);
             var (status, countsAsActive) = ClockStateRules.ResolveStatus(evt, eventTypeDefs);
-            var openFromPriorShift = ClockStateRules.IsOpenFromPriorShift(evt, countsAsActive, dayStartUtc);
+            var openFromPriorShift = ClockStateRules.IsOpenFromPriorShift(evt, countsAsActive, dayStartUtc, now);
 
             timersByUser.TryGetValue(u.Id, out var timer);
             var isWorking = status == ClockStateRules.StatusIn;

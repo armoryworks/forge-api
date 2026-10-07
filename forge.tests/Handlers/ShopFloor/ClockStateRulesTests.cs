@@ -9,6 +9,7 @@ using Forge.Api.Features.Mobile;
 using Forge.Api.Features.ShopFloor;
 using Forge.Api.Features.TimeTracking;
 using Forge.Core.Entities;
+using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -70,10 +71,32 @@ public class ClockStateRulesTests
     }
 
     [Fact]
+    public async Task ShopDayStartUtcAsync_NoCalendar_UsesDefaultPlantTimeZone()
+    {
+        _db.Plants.Add(new Plant { Code = "P1", Name = "Plant", TimeZone = Denver, IsDefault = true, IsActive = true });
+        await _db.SaveChangesAsync();
+
+        var dayStart = await ClockStateRules.ShopDayStartUtcAsync(_db, SevenPmMountainOct7);
+
+        dayStart.Should().Be(new DateTimeOffset(2026, 10, 7, 6, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task ShopDayStartUtcAsync_NoCalendarOrPlant_UsesBookReportingTimeZone()
+    {
+        _db.Books.Add(new Book { Code = "MAIN", Name = "Default Book", ReportingTimeZone = Denver, IsActive = true });
+        await _db.SaveChangesAsync();
+
+        var dayStart = await ClockStateRules.ShopDayStartUtcAsync(_db, SevenPmMountainOct7);
+
+        dayStart.Should().Be(new DateTimeOffset(2026, 10, 7, 6, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
     public async Task LatestEventsAsync_IgnoresEventsOutsideLookback()
     {
         var user = await AddUserAsync("Old", "Punch");
-        await AddEventAsync(user.Id, ClockEventType.ClockIn, SevenPmMountainOct7.AddHours(-49));
+        await AddEventAsync(user.Id, ClockEventType.ClockIn, SevenPmMountainOct7.AddHours(-169));
 
         var latest = await ClockStateRules.LatestEventsAsync(_db, [user.Id], SevenPmMountainOct7);
 
@@ -133,8 +156,7 @@ public class ClockStateRulesTests
         await AddDefaultCalendarAsync(Denver);
         var user = await AddUserAsync("Eve", "Phone");
         await AddEventAsync(user.Id, ClockEventType.ClockIn, FourPmMountainOct7);
-        _clock.Setup(c => c.UtcNow).Returns(SevenPmMountainOct7);
-        var handler = new GetClockStateHandler(_db, Mock.Of<IHttpContextAccessor>(), _eventTypes.Object, _clock.Object);
+        var handler = new GetClockStateHandler(_db, Mock.Of<IHttpContextAccessor>(), _eventTypes.Object);
 
         var state = await handler.Handle(new GetClockStateQuery(user.Id), CancellationToken.None);
 
@@ -149,8 +171,7 @@ public class ClockStateRulesTests
         var user = await AddUserAsync("Coffee", "Break");
         await AddEventAsync(user.Id, ClockEventType.ClockIn, SevenPmMountainOct7.AddHours(-3));
         await AddEventAsync(user.Id, ClockEventType.BreakStart, SevenPmMountainOct7.AddMinutes(-5));
-        _clock.Setup(c => c.UtcNow).Returns(SevenPmMountainOct7);
-        var handler = new GetClockStateHandler(_db, Mock.Of<IHttpContextAccessor>(), _eventTypes.Object, _clock.Object);
+        var handler = new GetClockStateHandler(_db, Mock.Of<IHttpContextAccessor>(), _eventTypes.Object);
 
         var state = await handler.Handle(new GetClockStateQuery(user.Id), CancellationToken.None);
 
@@ -163,8 +184,7 @@ public class ClockStateRulesTests
         await AddDefaultCalendarAsync(Denver);
         var user = await AddUserAsync("Eve", "Desk");
         await AddEventAsync(user.Id, ClockEventType.ClockIn, FourPmMountainOct7);
-        _clock.Setup(c => c.UtcNow).Returns(SevenPmMountainOct7);
-        var handler = new GetUserClockStatusHandler(_db, _eventTypes.Object, _clock.Object);
+        var handler = new GetUserClockStatusHandler(_db, _eventTypes.Object);
 
         var status = await handler.Handle(new GetUserClockStatusQuery(user.Id), CancellationToken.None);
 
@@ -188,6 +208,79 @@ public class ClockStateRulesTests
         worker.IsClockedIn.Should().BeTrue();
         worker.OpenFromPriorShift.Should().BeTrue();
         worker.OpenSince.Should().Be(FourPmMountainOct7);
+    }
+
+    [Fact]
+    public async Task Kiosk_NoCalendar_EveningPunchAfterUtcMidnight_IsNotFlagged()
+    {
+        var user = await AddUserAsync("Late", "Shift");
+        await AddEventAsync(user.Id, ClockEventType.ClockIn, FourPmMountainOct7);
+        _clock.Setup(c => c.UtcNow).Returns(SevenPmMountainOct7);
+
+        var result = await KioskHandler().Handle(new GetClockStatusQuery(), CancellationToken.None);
+
+        var worker = result.Single();
+        worker.Status.Should().Be("In");
+        worker.OpenFromPriorShift.Should().BeFalse();
+        worker.OpenSince.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Kiosk_OvernightShift_IsNotFlaggedMidShift()
+    {
+        await AddDefaultCalendarAsync(Denver);
+        var user = await AddUserAsync("Night", "Shift");
+        var tenPmMountainOct7 = new DateTimeOffset(2026, 10, 8, 4, 0, 0, TimeSpan.Zero);
+        await AddEventAsync(user.Id, ClockEventType.ClockIn, tenPmMountainOct7);
+        _clock.Setup(c => c.UtcNow).Returns(tenPmMountainOct7.AddHours(5));
+
+        var result = await KioskHandler().Handle(new GetClockStatusQuery(), CancellationToken.None);
+
+        var worker = result.Single();
+        worker.Status.Should().Be("In");
+        worker.OpenFromPriorShift.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Kiosk_OpenInOverWeekend_IsFlaggedAndNotReset()
+    {
+        await AddDefaultCalendarAsync(Denver);
+        var user = await AddUserAsync("Weekend", "Forgot");
+        await AddEventAsync(user.Id, ClockEventType.ClockIn, FourPmMountainOct7);
+        _clock.Setup(c => c.UtcNow).Returns(FourPmMountainOct7.AddHours(63));
+
+        var result = await KioskHandler().Handle(new GetClockStatusQuery(), CancellationToken.None);
+
+        var worker = result.Single();
+        worker.Status.Should().Be("In");
+        worker.OpenFromPriorShift.Should().BeTrue();
+        worker.OpenSince.Should().Be(FourPmMountainOct7);
+    }
+
+    [Fact]
+    public async Task Phone_OpenInFromWeeksAgo_StillIn()
+    {
+        var user = await AddUserAsync("Weekend", "Phone");
+        await AddEventAsync(user.Id, ClockEventType.ClockIn, FourPmMountainOct7.AddDays(-30));
+        var handler = new GetClockStateHandler(_db, Mock.Of<IHttpContextAccessor>(), _eventTypes.Object);
+
+        var state = await handler.Handle(new GetClockStateQuery(user.Id), CancellationToken.None);
+
+        state.State.Should().Be("in");
+        state.LastEventAt.Should().Be(FourPmMountainOct7.AddDays(-30));
+    }
+
+    [Fact]
+    public async Task UserClockStatus_OpenInFromWeeksAgo_StillClockedIn()
+    {
+        var user = await AddUserAsync("Weekend", "Desk");
+        await AddEventAsync(user.Id, ClockEventType.ClockIn, FourPmMountainOct7.AddDays(-30));
+        var handler = new GetUserClockStatusHandler(_db, _eventTypes.Object);
+
+        var status = await handler.Handle(new GetUserClockStatusQuery(user.Id), CancellationToken.None);
+
+        status.IsClockedIn.Should().BeTrue();
+        status.ClockedInAt.Should().Be(FourPmMountainOct7.AddDays(-30));
     }
 
     [Fact]
