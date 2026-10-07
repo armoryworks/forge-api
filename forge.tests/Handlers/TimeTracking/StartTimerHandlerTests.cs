@@ -1,205 +1,174 @@
 using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using Forge.Api.Features.TimeTracking;
-using Forge.Api.Hubs;
-using Forge.Core.Entities;
-using Forge.Core.Interfaces;
+using Forge.Core.Enums;
 using Forge.Core.Models;
+using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.TimeTracking;
 
 public class StartTimerHandlerTests
 {
-    private readonly Mock<ITimeTrackingRepository> _repo = new();
+    private readonly TimerTestHarness _h = new();
     private readonly Mock<IHttpContextAccessor> _httpContext = new();
-    private readonly Mock<IHubContext<TimerHub>> _timerHub = new();
     private readonly StartTimerHandler _handler;
-
-    private const int TestUserId = 42;
+    private int _userId;
 
     public StartTimerHandlerTests()
     {
-        SetupHttpContext(TestUserId);
-        SetupHubMock();
-        _handler = new StartTimerHandler(_repo.Object, _httpContext.Object, _timerHub.Object);
+        _httpContext.Setup(h => h.HttpContext).Returns(() => new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim(ClaimTypes.NameIdentifier, _userId.ToString())], "test")),
+        });
+
+        _handler = new StartTimerHandler(
+            _h.Repo, _h.Jobs, _httpContext.Object, _h.TimerHub.Object, _h.Mediator.Object, _h.Clock.Object);
     }
 
-    private void SetupHttpContext(int userId)
+    private async Task<int> SignInAsync()
     {
-        var claims = new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) };
-        var identity = new ClaimsIdentity(claims, "test");
-        var principal = new ClaimsPrincipal(identity);
-        var httpContext = new DefaultHttpContext { User = principal };
-        _httpContext.Setup(h => h.HttpContext).Returns(httpContext);
-    }
-
-    private void SetupHubMock()
-    {
-        var mockClients = new Mock<IHubClients>();
-        var mockClientProxy = new Mock<IClientProxy>();
-        mockClients.Setup(c => c.Group(It.IsAny<string>())).Returns(mockClientProxy.Object);
-        _timerHub.Setup(h => h.Clients).Returns(mockClients.Object);
+        _userId = (await _h.AddUserAsync()).Id;
+        return _userId;
     }
 
     [Fact]
     public async Task Handle_NoActiveTimer_CreatesNewTimerEntry()
     {
-        // Arrange
-        _repo.Setup(r => r.GetActiveTimerAsync(TestUserId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((TimeEntry?)null);
+        var userId = await SignInAsync();
+        var job = await _h.AddJobAsync("JOB-0001");
 
-        var expectedResult = new TimeEntryResponseModel
-        {
-            Id = 1, JobId = 5, JobNumber = "JOB-0001", UserId = TestUserId, UserName = "John Doe",
-            Date = DateOnly.FromDateTime(DateTime.UtcNow), DurationMinutes = 0, Category = "Machining",
-            Notes = "Working on widget", TimerStart = DateTime.UtcNow, TimerStop = null,
-            IsManual = false, IsLocked = false, CreatedAt = DateTime.UtcNow,
-        };
+        var result = await _handler.Handle(
+            new StartTimerCommand(new StartTimerRequestModel(job.Id, "Machining", "Working on widget")),
+            CancellationToken.None);
 
-        _repo.Setup(r => r.GetTimeEntryByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedResult);
-
-        var request = new StartTimerRequestModel(5, "Machining", "Working on widget");
-        var command = new StartTimerCommand(request);
-
-        // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-        result.UserId.Should().Be(TestUserId);
-
-        _repo.Verify(r => r.AddTimeEntryAsync(It.Is<TimeEntry>(e =>
-            e.UserId == TestUserId &&
-            e.JobId == 5 &&
-            e.DurationMinutes == 0 &&
-            e.Category == "Machining" &&
-            e.Notes == "Working on widget" &&
-            e.TimerStart != null &&
-            e.IsManual == false
-        ), It.IsAny<CancellationToken>()), Times.Once);
+        result.UserId.Should().Be(userId);
+        var entry = await _h.Db.TimeEntries.AsNoTracking().SingleAsync();
+        entry.JobId.Should().Be(job.Id);
+        entry.DurationMinutes.Should().Be(0);
+        entry.Category.Should().Be("Machining");
+        entry.Notes.Should().Be("Working on widget");
+        entry.TimerStart.Should().Be(_h.Now);
+        entry.TimerStop.Should().BeNull();
+        entry.IsManual.Should().BeFalse();
     }
 
     [Fact]
-    public async Task Handle_ActiveTimerExists_ThrowsInvalidOperationException()
+    public async Task Handle_ActiveTimerExists_ThrowsWithItsJobNumber()
     {
-        // Arrange
-        var activeEntry = new TimeEntry
-        {
-            Id = 10,
-            UserId = TestUserId,
-            TimerStart = DateTime.UtcNow.AddHours(-1),
-        };
+        var userId = await SignInAsync();
+        var running = await _h.AddJobAsync("JOB-0007");
+        var next = await _h.AddJobAsync("JOB-0008");
+        await _h.AddRunningTimerAsync(userId, running.Id, _h.Now.AddHours(-1));
 
-        _repo.Setup(r => r.GetActiveTimerAsync(TestUserId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(activeEntry);
+        var act = () => _handler.Handle(
+            new StartTimerCommand(new StartTimerRequestModel(next.Id, null, null)), CancellationToken.None);
 
-        var request = new StartTimerRequestModel(5, null, null);
-        var command = new StartTimerCommand(request);
-
-        // Act
-        var act = () => _handler.Handle(command, CancellationToken.None);
-
-        // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*already running*");
+            .WithMessage("You're already running a timer on JOB-0007. Stop it first.");
+        (await _h.Db.TimeEntries.CountAsync()).Should().Be(1);
     }
 
     [Fact]
-    public async Task Handle_NullJobId_CreatesEntryWithoutJob()
+    public async Task Handle_ActiveTimerWithoutJob_ThrowsAlreadyRunning()
     {
-        // Arrange
-        _repo.Setup(r => r.GetActiveTimerAsync(TestUserId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((TimeEntry?)null);
+        var userId = await SignInAsync();
+        await _h.AddRunningTimerAsync(userId, null, _h.Now.AddHours(-1));
 
-        var expectedResult = new TimeEntryResponseModel
-        {
-            Id = 1, JobId = null, JobNumber = null, UserId = TestUserId, UserName = "John Doe",
-            Date = DateOnly.FromDateTime(DateTime.UtcNow), DurationMinutes = 0, Category = null,
-            Notes = null, TimerStart = DateTime.UtcNow, TimerStop = null,
-            IsManual = false, IsLocked = false, CreatedAt = DateTime.UtcNow,
-        };
+        var act = () => _handler.Handle(
+            new StartTimerCommand(new StartTimerRequestModel(null, null, null)), CancellationToken.None);
 
-        _repo.Setup(r => r.GetTimeEntryByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedResult);
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*already running*Stop it first.");
+    }
 
-        var request = new StartTimerRequestModel(null, null, null);
-        var command = new StartTimerCommand(request);
+    [Fact]
+    public async Task Handle_ArchivedJob_IsRejected()
+    {
+        await SignInAsync();
+        var job = await _h.AddJobAsync("JOB-0009", isArchived: true);
 
-        // Act
-        await _handler.Handle(command, CancellationToken.None);
+        var act = () => _handler.Handle(
+            new StartTimerCommand(new StartTimerRequestModel(job.Id, null, null)), CancellationToken.None);
 
-        // Assert
-        _repo.Verify(r => r.AddTimeEntryAsync(It.Is<TimeEntry>(e =>
-            e.JobId == null
-        ), It.IsAny<CancellationToken>()), Times.Once);
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("This work order is closed and can't take time.");
+        (await _h.Db.TimeEntries.AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Handle_DisposedJob_IsRejected()
+    {
+        await SignInAsync();
+        var job = await _h.AddJobAsync("JOB-0010", disposition: JobDisposition.ShipToCustomer);
+
+        var act = () => _handler.Handle(
+            new StartTimerCommand(new StartTimerRequestModel(job.Id, null, null)), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("This work order is closed and can't take time.");
+    }
+
+    [Fact]
+    public async Task Handle_SwitchFromActive_ClosesOldTimerAndOpensNewOneWithNoGap()
+    {
+        var userId = await SignInAsync();
+        var oldJob = await _h.AddJobAsync("JOB-0020");
+        var newJob = await _h.AddJobAsync("JOB-0021");
+        var old = await _h.AddRunningTimerAsync(userId, oldJob.Id, _h.Now.AddMinutes(-20));
+
+        var result = await _handler.Handle(
+            new StartTimerCommand(new StartTimerRequestModel(newJob.Id, null, null, SwitchFromActive: true)),
+            CancellationToken.None);
+
+        var closed = await _h.Db.TimeEntries.AsNoTracking().SingleAsync(t => t.Id == old.Id);
+        closed.TimerStop.Should().Be(_h.Now);
+        closed.DurationMinutes.Should().Be(20);
+        result.JobId.Should().Be(newJob.Id);
+        result.TimerStart.Should().Be(closed.TimerStop);
+        result.TimerStop.Should().BeNull();
+        (await _h.Db.TimeEntries.CountAsync(t => t.UserId == userId && t.TimerStop == null)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Handle_SwitchFromActive_WithNoRunningTimer_JustStarts()
+    {
+        await SignInAsync();
+
+        var result = await _handler.Handle(
+            new StartTimerCommand(new StartTimerRequestModel(null, null, null, SwitchFromActive: true)),
+            CancellationToken.None);
+
+        result.TimerStart.Should().Be(_h.Now);
+        _h.Mediator.Verify(m => m.Send(It.IsAny<StopActiveTimerCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task Handle_TrimsNotes()
     {
-        // Arrange
-        _repo.Setup(r => r.GetActiveTimerAsync(TestUserId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((TimeEntry?)null);
+        await SignInAsync();
 
-        var expectedResult = new TimeEntryResponseModel
-        {
-            Id = 1, JobId = null, JobNumber = null, UserId = TestUserId, UserName = "John Doe",
-            Date = DateOnly.FromDateTime(DateTime.UtcNow), DurationMinutes = 0, Category = "Setup",
-            Notes = "Trimmed notes", TimerStart = DateTime.UtcNow, TimerStop = null,
-            IsManual = false, IsLocked = false, CreatedAt = DateTime.UtcNow,
-        };
+        await _handler.Handle(
+            new StartTimerCommand(new StartTimerRequestModel(null, "  Setup  ", "  Trimmed notes  ")),
+            CancellationToken.None);
 
-        _repo.Setup(r => r.GetTimeEntryByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedResult);
-
-        var request = new StartTimerRequestModel(null, "  Setup  ", "  Trimmed notes  ");
-        var command = new StartTimerCommand(request);
-
-        // Act
-        await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        _repo.Verify(r => r.AddTimeEntryAsync(It.Is<TimeEntry>(e =>
-            e.Category == "Setup" &&
-            e.Notes == "Trimmed notes"
-        ), It.IsAny<CancellationToken>()), Times.Once);
+        var entry = await _h.Db.TimeEntries.AsNoTracking().SingleAsync();
+        entry.Category.Should().Be("Setup");
+        entry.Notes.Should().Be("Trimmed notes");
+        entry.JobId.Should().BeNull();
     }
 
     [Fact]
     public async Task Handle_BroadcastsTimerStartedEvent()
     {
-        // Arrange
-        _repo.Setup(r => r.GetActiveTimerAsync(TestUserId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((TimeEntry?)null);
+        await SignInAsync();
 
-        var expectedResult = new TimeEntryResponseModel
-        {
-            Id = 1, JobId = null, JobNumber = null, UserId = TestUserId, UserName = "John Doe",
-            Date = DateOnly.FromDateTime(DateTime.UtcNow), DurationMinutes = 0, Category = null,
-            Notes = null, TimerStart = DateTime.UtcNow, TimerStop = null,
-            IsManual = false, IsLocked = false, CreatedAt = DateTime.UtcNow,
-        };
+        await _handler.Handle(new StartTimerCommand(new StartTimerRequestModel(null, null, null)), CancellationToken.None);
 
-        _repo.Setup(r => r.GetTimeEntryByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedResult);
-
-        var mockClientProxy = new Mock<IClientProxy>();
-        var mockClients = new Mock<IHubClients>();
-        mockClients.Setup(c => c.Group($"user:{TestUserId}")).Returns(mockClientProxy.Object);
-        _timerHub.Setup(h => h.Clients).Returns(mockClients.Object);
-
-        var request = new StartTimerRequestModel(null, null, null);
-        var command = new StartTimerCommand(request);
-
-        // Act
-        await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        mockClientProxy.Verify(p => p.SendCoreAsync(
+        _h.UserGroup.Verify(p => p.SendCoreAsync(
             "timerStarted",
             It.Is<object?[]>(args => args.Length == 1 && args[0] is TimerStartedEvent),
             It.IsAny<CancellationToken>()), Times.Once);

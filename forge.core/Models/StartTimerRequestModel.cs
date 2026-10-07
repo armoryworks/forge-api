@@ -7,4 +7,5 @@ public record StartTimerRequestModel(
     string? Category,
     string? Notes,
     int? OperationId = null,
-    TimeEntryType EntryType = TimeEntryType.Run);
+    TimeEntryType EntryType = TimeEntryType.Run,
+    bool SwitchFromActive = false);
