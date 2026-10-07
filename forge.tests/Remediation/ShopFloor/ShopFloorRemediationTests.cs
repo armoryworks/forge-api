@@ -18,8 +18,10 @@ namespace Forge.Tests.Remediation.ShopFloor;
 /// SF-04 (complete-job) and SF-05 (assign-job) were class-[Authorize] only (any
 /// authenticated role) — complete-job jumped to the final irreversible stage and
 /// assign-job let anyone steal any job. These assert a ProductionWorker is rejected
-/// (403), and that complete-job and the scan advance move one shop-floor status only. CAP-MFG-SHOPFLOOR is on. SF-10: the clock punch needs the signed-in worker's
-/// JWT (a device token alone is 401) and only Admin/Manager may punch for someone else.
+/// (403), and that complete-job and the scan advance move one shop-floor status
+/// only, with a signed-in user. CAP-MFG-SHOPFLOOR is on. SF-10: the clock punch needs
+/// the signed-in worker's JWT (a device token alone is 401) and only Admin/Manager
+/// may punch for someone else.
 /// </summary>
 [Collection(CapabilityTestCollection.Name)]
 public class ShopFloorRemediationTests
