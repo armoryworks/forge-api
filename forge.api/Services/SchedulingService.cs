@@ -69,6 +69,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                 .Include(w => w.Shifts)
                     .ThenInclude(ws => ws.Shift)
                 .Include(w => w.CalendarOverrides)
+                .Include(w => w.Location)
                 .Where(w => w.IsActive)
                 .ToListAsync(ct);
 
@@ -82,15 +83,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
             var wcMap = workCenters.ToDictionary(w => w.Id);
 
-            // Build capacity lookup: workCenterId → (shifts, calendar overrides)
-            var capacityLookup = workCenters.ToDictionary(
-                w => w.Id,
-                w => (
-                    Shifts: w.Shifts.Select(ws => new WorkCenterShiftInfo(ws.Shift.NetHours, ws.DaysOfWeek)).ToList(),
-                    Calendar: w.CalendarOverrides.ToDictionary(c => c.Date, c => c.AvailableHours),
-                    Efficiency: w.EfficiencyPercent / 100m,
-                    Machines: w.NumberOfMachines
-                ));
+            var capacityLookup = await BuildCapacityLookupAsync(workCenters, ct);
 
             // 3. Track capacity usage per work center per date
             var capacityUsed = new Dictionary<(int WorkCenterId, DateOnly Date), decimal>();
@@ -103,9 +96,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
             foreach (var locked in lockedOps)
             {
-                var (lockedShifts, lockedCalendar, _, lockedMachines) = capacityLookup.GetValueOrDefault(
-                    locked.WorkCenterId, ([], [], 1m, 1));
-                SpreadAcrossDays(locked, lockedShifts, lockedCalendar, lockedMachines, capacityUsed);
+                SpreadAcrossDays(locked, capacityLookup.GetValueOrDefault(locked.WorkCenterId, WorkCenterCapacity.None), capacityUsed);
             }
 
             // 4. Remove non-locked scheduled operations (if not simulation)
@@ -148,7 +139,8 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                         wcId = workCenters[0].Id;
                     }
 
-                    var (shifts, calendar, efficiency, machines) = capacityLookup[wcId];
+                    var capacity = capacityLookup[wcId];
+                    var efficiency = capacity.Efficiency;
 
                     // Calculate time needed
                     decimal setupMinutes = op.SetupMinutes;
@@ -180,8 +172,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
                     // Find available slot
                     var slot = FindAvailableSlot(
-                        wcId, cursor, totalHours, machines,
-                        shifts, calendar, capacityUsed,
+                        wcId, cursor, totalHours, capacity, capacityUsed,
                         parameters.Direction, parameters.ScheduleFrom, parameters.ScheduleTo);
 
                     if (slot is not (var start, var end, var allocations))
@@ -252,9 +243,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
         int workCenterId,
         DateTimeOffset cursor,
         decimal totalHours,
-        int machines,
-        List<WorkCenterShiftInfo> shifts,
-        Dictionary<DateOnly, decimal> calendar,
+        WorkCenterCapacity capacity,
         Dictionary<(int, DateOnly), decimal> capacityUsed,
         ScheduleDirection direction,
         DateOnly scheduleFrom,
@@ -268,7 +257,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
         while (date <= maxDate)
         {
-            decimal availableHours = GetDayCapacity(workCenterId, date, shifts, calendar) * machines;
+            decimal availableHours = capacity.MachineHoursOn(date);
             decimal usedHours = capacityUsed.GetValueOrDefault((workCenterId, date));
             decimal remainingHours = availableHours - usedHours;
 
@@ -295,9 +284,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
     private static void SpreadAcrossDays(
         ScheduledOperation op,
-        List<WorkCenterShiftInfo> shifts,
-        Dictionary<DateOnly, decimal> calendar,
-        int machines,
+        WorkCenterCapacity capacity,
         Dictionary<(int, DateOnly), decimal> capacityUsed)
     {
         var date = DateOnly.FromDateTime(op.ScheduledStart.UtcDateTime);
@@ -307,8 +294,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
         while (date < lastDate && hoursLeft > 0)
         {
             var dayKey = (op.WorkCenterId, date);
-            var dayRemaining = GetDayCapacity(op.WorkCenterId, date, shifts, calendar) * machines
-                - capacityUsed.GetValueOrDefault(dayKey);
+            var dayRemaining = capacity.MachineHoursOn(date) - capacityUsed.GetValueOrDefault(dayKey);
             var dayHours = Math.Min(hoursLeft, Math.Max(0m, dayRemaining));
             if (dayHours > 0)
             {
@@ -322,37 +308,39 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
         capacityUsed[key] = capacityUsed.GetValueOrDefault(key) + hoursLeft;
     }
 
-    private static decimal GetDayCapacity(
-        int workCenterId,
-        DateOnly date,
-        List<WorkCenterShiftInfo> shifts,
-        Dictionary<DateOnly, decimal> calendar)
+    private async Task<Dictionary<int, WorkCenterCapacity>> BuildCapacityLookupAsync(
+        IReadOnlyCollection<WorkCenter> workCenters, CancellationToken ct)
     {
-        // Calendar override takes precedence
-        if (calendar.TryGetValue(date, out var overrideHours))
-            return overrideHours;
+        var locationCalendarIds = workCenters
+            .Select(w => w.Location?.WorkingCalendarId)
+            .OfType<int>()
+            .Distinct()
+            .ToList();
 
-        // Sum shift hours for this day of week
-        var dayFlag = date.DayOfWeek switch
+        var calendars = await db.WorkingCalendars
+            .AsNoTracking()
+            .Include(c => c.Holidays)
+            .Where(c => locationCalendarIds.Contains(c.Id) || (c.IsDefault && c.IsActive))
+            .ToListAsync(ct);
+
+        var defaultCalendar = calendars.FirstOrDefault(c => c.IsDefault && c.IsActive);
+
+        return workCenters.ToDictionary(w => w.Id, w =>
         {
-            System.DayOfWeek.Monday => DaysOfWeek.Monday,
-            System.DayOfWeek.Tuesday => DaysOfWeek.Tuesday,
-            System.DayOfWeek.Wednesday => DaysOfWeek.Wednesday,
-            System.DayOfWeek.Thursday => DaysOfWeek.Thursday,
-            System.DayOfWeek.Friday => DaysOfWeek.Friday,
-            System.DayOfWeek.Saturday => DaysOfWeek.Saturday,
-            System.DayOfWeek.Sunday => DaysOfWeek.Sunday,
-            _ => DaysOfWeek.None,
-        };
+            var calendarId = w.Location?.WorkingCalendarId;
+            var calendar = calendarId is null
+                ? defaultCalendar
+                : calendars.FirstOrDefault(c => c.Id == calendarId) ?? defaultCalendar;
 
-        decimal totalHours = 0;
-        foreach (var shift in shifts)
-        {
-            if (shift.DaysOfWeek.HasFlag(dayFlag))
-                totalHours += shift.NetHours;
-        }
-
-        return totalHours;
+            return new WorkCenterCapacity(
+                w.Shifts.Select(ws => new WorkCenterShiftInfo(ws.Shift.NetHours, ws.DaysOfWeek)).ToList(),
+                w.CalendarOverrides.ToDictionary(c => c.Date, c => c.AvailableHours),
+                w.DailyCapacityHours,
+                calendar?.WorkingDaysMask ?? WorkCenterCapacity.MondayToFridayMask,
+                calendar?.Holidays.Select(h => h.ObservedDate ?? h.Date).ToHashSet() ?? [],
+                w.EfficiencyPercent / 100m,
+                w.NumberOfMachines);
+        });
     }
 
     private static List<Job> SortByPriorityRule(List<Job> jobs, string priorityRule)
@@ -387,11 +375,11 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
             .AsNoTracking()
             .Include(w => w.Shifts).ThenInclude(ws => ws.Shift)
             .Include(w => w.CalendarOverrides)
+            .Include(w => w.Location)
             .FirstOrDefaultAsync(w => w.Id == workCenterId, ct)
             ?? throw new KeyNotFoundException($"Work center {workCenterId} not found.");
 
-        var shifts = wc.Shifts.Select(ws => new WorkCenterShiftInfo(ws.Shift.NetHours, ws.DaysOfWeek)).ToList();
-        var calendar = wc.CalendarOverrides.ToDictionary(c => c.Date, c => c.AvailableHours);
+        var capacity = (await BuildCapacityLookupAsync([wc], ct))[wc.Id];
 
         var scheduledOps = await db.ScheduledOperations
             .AsNoTracking()
@@ -404,7 +392,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
         var dailyLoad = new Dictionary<(int, DateOnly), decimal>();
         foreach (var so in scheduledOps)
-            SpreadAcrossDays(so, shifts, calendar, wc.NumberOfMachines, dailyLoad);
+            SpreadAcrossDays(so, capacity, dailyLoad);
 
         // Group by week
         var buckets = new List<WorkCenterLoadBucket>();
@@ -422,7 +410,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
             for (var d = current; d <= weekEnd; d = d.AddDays(1))
             {
-                weekCapacity += GetDayCapacity(workCenterId, d, shifts, calendar) * wc.NumberOfMachines;
+                weekCapacity += capacity.MachineHoursOn(d);
             }
 
             weekScheduled = dailyLoad
@@ -470,8 +458,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
         IReadOnlyList<WorkCenterShiftInfo> shifts,
         IReadOnlyDictionary<DateOnly, decimal> calendarOverrides)
     {
-        return GetDayCapacity(workCenterId, date, shifts.ToList(),
-            calendarOverrides.ToDictionary(kv => kv.Key, kv => kv.Value));
+        return (WorkCenterCapacity.None with { Shifts = shifts, Overrides = calendarOverrides }).HoursOn(date);
     }
 
     private static ScheduleRunResponseModel MapToResponse(ScheduleRun run)

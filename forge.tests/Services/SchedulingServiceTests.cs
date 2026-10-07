@@ -45,6 +45,15 @@ public class SchedulingServiceTests
         return wc;
     }
 
+    private async Task<WorkCenter> SeedWorkCenterWithoutShiftsAsync(Action<WorkCenter>? configure = null)
+    {
+        var wc = new WorkCenter { Name = "Mill", Code = "ML" };
+        configure?.Invoke(wc);
+        _db.WorkCenters.Add(wc);
+        await _db.SaveChangesAsync();
+        return wc;
+    }
+
     private async Task<(Part Part, Operation Op)> SeedPartAsync(WorkCenter wc, long estimatedMs, decimal runMinutesEach = 0m)
     {
         var part = new Part { PartNumber = $"P-{Guid.NewGuid():N}", Name = "Bracket" };
@@ -259,5 +268,76 @@ public class SchedulingServiceTests
 
         var scheduled = await _db.ScheduledOperations.SingleAsync(so => so.JobId == openJob.Id);
         scheduled.ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 7, 8, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task Schedule_WorkCenterWithoutShifts_UsesDailyCapacityOnWeekdays()
+    {
+        var wc = await SeedWorkCenterWithoutShiftsAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 30000);
+        await SeedJobAsync(part, 500m);
+
+        var result = await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+        var load = await _service.GetWorkCenterLoadAsync(wc.Id, From, From.AddDays(13), CancellationToken.None);
+
+        result.OperationsScheduled.Should().Be(1);
+        result.ConflictsDetected.Should().Be(0);
+        var scheduled = await _db.ScheduledOperations.SingleAsync();
+        scheduled.ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 5, 8, 0, 0, TimeSpan.Zero));
+        scheduled.ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 5, 12, 10, 0, TimeSpan.Zero));
+        load.Buckets[0].CapacityHours.Should().Be(40m);
+        load.Buckets.Sum(b => b.ScheduledHours).Should().BeApproximately(250m / 60m, 0.0001m);
+    }
+
+    [Fact]
+    public async Task Schedule_WorkCenterWithoutShifts_SkipsWeekendsAndDefaultCalendarHolidays()
+    {
+        var calendar = new WorkingCalendar { Name = "Plant", IsDefault = true };
+        calendar.Holidays.Add(new Holiday { Name = "Shutdown", Date = new DateOnly(2026, 10, 12) });
+        _db.WorkingCalendars.Add(calendar);
+        var wc = await SeedWorkCenterWithoutShiftsAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 60000);
+        await SeedJobAsync(part, 2880m);
+
+        var result = await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        result.ConflictsDetected.Should().Be(0);
+        var scheduled = await _db.ScheduledOperations.SingleAsync();
+        scheduled.ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 13, 16, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task Schedule_WorkCenterWithoutShifts_FollowsItsLocationCalendar()
+    {
+        var sixDay = new WorkingCalendar { Name = "Six day", WorkingDaysMask = 126 };
+        var location = new CompanyLocation { Name = "North", WorkingCalendar = sixDay };
+        _db.CompanyLocations.Add(location);
+        await _db.SaveChangesAsync();
+        var wc = await SeedWorkCenterWithoutShiftsAsync(w => w.CompanyLocationId = location.Id);
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 60000);
+        await SeedJobAsync(part, 2880m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var scheduled = await _db.ScheduledOperations.SingleAsync();
+        scheduled.ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 10, 16, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task Schedule_WorkCenterWithoutShifts_CalendarOverrideWins()
+    {
+        var wc = await SeedWorkCenterWithoutShiftsAsync(w =>
+        {
+            w.CalendarOverrides.Add(new WorkCenterCalendar { Date = From, AvailableHours = 0m });
+            w.CalendarOverrides.Add(new WorkCenterCalendar { Date = new DateOnly(2026, 10, 10), AvailableHours = 8m });
+        });
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 60000);
+        await SeedJobAsync(part, 2400m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var scheduled = await _db.ScheduledOperations.SingleAsync();
+        scheduled.ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 6, 8, 0, 0, TimeSpan.Zero));
+        scheduled.ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 10, 16, 0, 0, TimeSpan.Zero));
     }
 }
