@@ -207,6 +207,19 @@ public class ClockStateRulesTests
     }
 
     [Fact]
+    public async Task Kiosk_TeamFilter_IncludesUsersWithoutTeam()
+    {
+        var onTeam = await AddUserAsync("On", "Team", teamId: 7);
+        var noTeam = await AddUserAsync("No", "Team");
+        await AddUserAsync("Other", "Team", teamId: 8);
+        _clock.Setup(c => c.UtcNow).Returns(SevenPmMountainOct7);
+
+        var result = await KioskHandler().Handle(new GetClockStatusQuery(7), CancellationToken.None);
+
+        result.Select(w => w.UserId).Should().BeEquivalentTo([onTeam.Id, noTeam.Id]);
+    }
+
+    [Fact]
     public async Task Kiosk_DisposedJob_IsExcludedFromAssignments()
     {
         var user = await AddUserAsync("Job", "Holder");

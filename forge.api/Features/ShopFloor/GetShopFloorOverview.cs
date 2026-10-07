@@ -101,7 +101,7 @@ public class GetShopFloorOverviewHandler(AppDbContext db, IClockEventTypeService
             var clockedInUsersQuery = db.Users
                 .Where(u => clockedInUserIds.Contains(u.Id));
             if (request.TeamId.HasValue)
-                clockedInUsersQuery = clockedInUsersQuery.Where(u => u.TeamId == request.TeamId.Value);
+                clockedInUsersQuery = clockedInUsersQuery.Where(u => u.TeamId == request.TeamId.Value || u.TeamId == null);
 
             var clockedInUsers = await clockedInUsersQuery
                 .Select(u => new

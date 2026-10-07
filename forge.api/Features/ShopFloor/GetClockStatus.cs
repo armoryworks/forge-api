@@ -47,7 +47,7 @@ public class GetClockStatusHandler(
 
         var usersQuery = db.Users.Where(u => u.IsActive);
         if (request.TeamId.HasValue)
-            usersQuery = usersQuery.Where(u => u.TeamId == request.TeamId.Value);
+            usersQuery = usersQuery.Where(u => u.TeamId == request.TeamId.Value || u.TeamId == null);
 
         var users = await usersQuery
             .Select(u => new { u.Id, Name = (u.FirstName + " " + u.LastName).Trim(), u.Email, u.Initials, u.AvatarColor })
