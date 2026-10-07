@@ -25,17 +25,25 @@ public record ClockWorkerModel(
     string TimeOnTask,
     DateTimeOffset? StatusSince,
     List<WorkerAssignmentModel> Assignments,
-    string Role);
+    string Role,
+    bool OpenFromPriorShift = false,
+    DateTimeOffset? OpenSince = null);
 
 public record GetClockStatusQuery(int? TeamId = null) : IRequest<List<ClockWorkerModel>>;
 
-public class GetClockStatusHandler(AppDbContext db, UserManager<ApplicationUser> userManager, IClockEventTypeService clockEventTypeService)
+public class GetClockStatusHandler(
+    AppDbContext db,
+    UserManager<ApplicationUser> userManager,
+    IClockEventTypeService clockEventTypeService,
+    IClock clock)
     : IRequestHandler<GetClockStatusQuery, List<ClockWorkerModel>>
 {
     public async Task<List<ClockWorkerModel>> Handle(GetClockStatusQuery request, CancellationToken ct)
     {
-        var now = DateTimeOffset.UtcNow;
-        var today = now.Date;
+        var now = clock.UtcNow;
+        var shopTimeZone = await ClockStateRules.ShopTimeZoneAsync(db, ct);
+        var dayStartUtc = ClockStateRules.DayStartUtc(shopTimeZone, now);
+        var shopToday = ClockStateRules.LocalToday(shopTimeZone, now);
 
         var usersQuery = db.Users.Where(u => u.IsActive);
         if (request.TeamId.HasValue)
@@ -44,6 +52,7 @@ public class GetClockStatusHandler(AppDbContext db, UserManager<ApplicationUser>
         var users = await usersQuery
             .Select(u => new { u.Id, Name = (u.FirstName + " " + u.LastName).Trim(), u.Email, u.Initials, u.AvatarColor })
             .ToListAsync(ct);
+        var userIds = users.Select(u => u.Id).ToList();
 
         // Fetch primary role for each user (highest-privilege role wins)
         var roleOrder = new[] { "Admin", "Manager", "OfficeManager", "PM", "Engineer", "ProductionWorker" };
@@ -63,13 +72,7 @@ public class GetClockStatusHandler(AppDbContext db, UserManager<ApplicationUser>
             }
         }
 
-        var latestEvents = await db.ClockEvents
-            .Where(e => e.Timestamp >= today)
-            .GroupBy(e => e.UserId)
-            .Select(g => g.OrderByDescending(e => e.Timestamp).First())
-            .ToListAsync(ct);
-
-        var eventMap = latestEvents.ToDictionary(e => e.UserId);
+        var eventMap = await ClockStateRules.LatestEventsAsync(db, userIds, now, ct: ct);
 
         // Get active timers for all users
         var activeTimers = await db.TimeEntries
@@ -80,7 +83,6 @@ public class GetClockStatusHandler(AppDbContext db, UserManager<ApplicationUser>
         var timersByUser = activeTimers.ToDictionary(t => t.UserId);
 
         // Load assigned jobs in shop-floor stages only (physical work, not admin/office stages)
-        var userIds = users.Select(u => u.Id).ToList();
         var assignedJobs = await db.Jobs
             .Include(j => j.CurrentStage)
             .Where(j => j.AssigneeId.HasValue
@@ -114,7 +116,7 @@ public class GetClockStatusHandler(AppDbContext db, UserManager<ApplicationUser>
                     j.Priority,
                     j.StageName,
                     j.StageColor,
-                    j.DueDate.HasValue && j.DueDate.Value.Date < today,
+                    ClockStateRules.IsOverdue(j.DueDate, shopToday),
                     false)).ToList());
 
         // Mark active timer jobs
@@ -130,19 +132,15 @@ public class GetClockStatusHandler(AppDbContext db, UserManager<ApplicationUser>
 
         // Load clock event type definitions from reference data
         var eventTypeDefs = await clockEventTypeService.GetAllAsync(ct);
-        var eventTypeMap = eventTypeDefs.ToDictionary(d => d.Code);
 
         return users.Select(u =>
         {
             var hasEvent = eventMap.TryGetValue(u.Id, out var evt);
-            var typeCode = hasEvent ? evt!.EventTypeCode : null;
-            var typeDef = typeCode is not null && eventTypeMap.TryGetValue(typeCode, out var def) ? def : null;
-
-            var status = typeDef?.StatusMapping ?? "Out";
-            var countsAsActive = typeDef?.CountsAsActive ?? false;
+            var (status, countsAsActive) = ClockStateRules.ResolveStatus(evt, eventTypeDefs);
+            var openFromPriorShift = ClockStateRules.IsOpenFromPriorShift(evt, countsAsActive, dayStartUtc);
 
             timersByUser.TryGetValue(u.Id, out var timer);
-            var isWorking = status == "In";
+            var isWorking = status == ClockStateRules.StatusIn;
             var clockInTime = isWorking && hasEvent ? evt!.Timestamp : (DateTimeOffset?)null;
 
             DateTimeOffset? statusSince = null;
@@ -179,8 +177,10 @@ public class GetClockStatusHandler(AppDbContext db, UserManager<ApplicationUser>
                 timeOnTask,
                 statusSince,
                 userAssignments ?? [],
-                userRoles.GetValueOrDefault(u.Id, "ProductionWorker"));
-        }).OrderBy(w => w.Status == "Out").ThenBy(w => w.Name).ToList();
+                userRoles.GetValueOrDefault(u.Id, "ProductionWorker"),
+                openFromPriorShift,
+                openFromPriorShift ? evt!.Timestamp : null);
+        }).OrderBy(w => w.Status == ClockStateRules.StatusOut).ThenBy(w => w.Name).ToList();
     }
 
     private static string FormatDuration(TimeSpan duration)

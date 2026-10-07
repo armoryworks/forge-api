@@ -20,6 +20,7 @@ public class GetClockStatusHandlerTests
     private readonly AppDbContext _db;
     private readonly Mock<UserManager<ApplicationUser>> _userManager;
     private readonly Mock<IClockEventTypeService> _clockEventTypeService = new();
+    private readonly Mock<IClock> _clock = new();
     private readonly GetClockStatusHandler _handler;
     private readonly Faker _faker = new();
 
@@ -31,7 +32,9 @@ public class GetClockStatusHandlerTests
         _userManager = new Mock<UserManager<ApplicationUser>>(
             store.Object, null!, null!, null!, null!, null!, null!, null!, null!);
 
-        _handler = new GetClockStatusHandler(_db, _userManager.Object, _clockEventTypeService.Object);
+        _clock.Setup(c => c.UtcNow).Returns(new DateTimeOffset(DateTimeOffset.UtcNow.Date, TimeSpan.Zero).AddHours(18));
+
+        _handler = new GetClockStatusHandler(_db, _userManager.Object, _clockEventTypeService.Object, _clock.Object);
     }
 
     [Fact]

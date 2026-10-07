@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using MediatR;
 
-using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -10,14 +10,18 @@ namespace Forge.Api.Features.ShopFloor;
 
 public record GetShopFloorOverviewQuery(int? TeamId = null) : IRequest<ShopFloorOverviewResponseModel>;
 
-public class GetShopFloorOverviewHandler(AppDbContext db)
+public class GetShopFloorOverviewHandler(AppDbContext db, IClockEventTypeService clockEventTypeService, IClock clock)
     : IRequestHandler<GetShopFloorOverviewQuery, ShopFloorOverviewResponseModel>
 {
     public async Task<ShopFloorOverviewResponseModel> Handle(
         GetShopFloorOverviewQuery request, CancellationToken cancellationToken)
     {
-        var now = DateTimeOffset.UtcNow;
-        var today = now.Date;
+        var now = clock.UtcNow;
+        var shopTimeZone = await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken);
+        var shopToday = ClockStateRules.LocalToday(shopTimeZone, now);
+        var dayStartUtc = ClockStateRules.LocalMidnightUtc(shopTimeZone, shopToday);
+        var nextDayStartUtc = ClockStateRules.LocalMidnightUtc(shopTimeZone, shopToday.AddDays(1));
+        var dueThroughTodayUtc = new DateTimeOffset(shopToday.AddDays(1), TimeSpan.Zero);
 
         // Active jobs in shop-floor stages only (physical work, not admin/office stages)
         var activeJobs = await db.Jobs
@@ -73,31 +77,21 @@ public class GetShopFloorOverviewHandler(AppDbContext db)
                 assignee?.Initials,
                 assignee?.AvatarColor,
                 j.DueDate?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                j.DueDate.HasValue && j.DueDate.Value.Date < today);
+                ClockStateRules.IsOverdue(j.DueDate, shopToday));
         }).ToList();
 
         // Completed today
         var completedToday = await db.Jobs
-            .CountAsync(j => j.CompletedDate.HasValue && j.CompletedDate.Value.Date == today, cancellationToken);
+            .CountAsync(j => j.CompletedDate >= dayStartUtc && j.CompletedDate < nextDayStartUtc, cancellationToken);
 
-        // Clocked-in workers: last clock event per user is ClockIn
-        // Use subquery approach to avoid unsupported GroupBy + First() projection
-        var todayEvents = await db.ClockEvents
-            .Where(e => e.Timestamp.Date == today)
-            .OrderByDescending(e => e.Timestamp)
-            .ToListAsync(cancellationToken);
+        var latestEvents = await ClockStateRules.LatestEventsAsync(db, null, now, ct: cancellationToken);
+        var eventTypeDefs = await clockEventTypeService.GetAllAsync(cancellationToken);
 
-        var lastClockEvents = todayEvents
-            .GroupBy(e => e.UserId)
-            .Select(g => new
-            {
-                UserId = g.Key,
-                LastEvent = g.First(),
-            })
-            .Where(x => x.LastEvent.EventType == ClockEventType.ClockIn)
-            .ToList();
+        var lastClockEvents = latestEvents.Values
+            .Where(e => ClockStateRules.ResolveStatus(e, eventTypeDefs).Status == ClockStateRules.StatusIn)
+            .ToDictionary(e => e.UserId);
 
-        var clockedInUserIds = lastClockEvents.Select(x => x.UserId).ToList();
+        var clockedInUserIds = lastClockEvents.Keys.ToList();
 
         var workerModels = new List<ShopFloorWorkerResponseModel>();
 
@@ -128,7 +122,7 @@ public class GetShopFloorOverviewHandler(AppDbContext db)
 
             foreach (var user in clockedInUsers)
             {
-                var clockInTime = lastClockEvents.First(e => e.UserId == user.Id).LastEvent.Timestamp;
+                var clockInTime = lastClockEvents[user.Id].Timestamp;
                 timersByUser.TryGetValue(user.Id, out var activeTimer);
 
                 var timeOnTask = activeTimer?.TimerStart != null
@@ -153,8 +147,7 @@ public class GetShopFloorOverviewHandler(AppDbContext db)
             .CountAsync(j => !j.IsArchived
                 && j.CompletedDate == null
                 && j.TrackType.Name.Contains("Maintenance")
-                && j.DueDate.HasValue
-                && j.DueDate.Value.Date <= today, cancellationToken);
+                && j.DueDate < dueThroughTodayUtc, cancellationToken);
 
         return new ShopFloorOverviewResponseModel(jobModels, workerModels, completedToday, maintenanceAlerts);
     }
