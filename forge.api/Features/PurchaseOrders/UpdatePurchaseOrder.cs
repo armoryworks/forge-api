@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using FluentValidation;
 using MediatR;
 using Forge.Core.Enums;
@@ -56,15 +58,34 @@ public class UpdatePurchaseOrderHandler(
     // System setting that gates caller-supplied PO numbers (shared with CreatePurchaseOrder).
     private const string AllowManualPONumbersKey = "purchase_orders.allow_manual_numbers";
 
+    private static readonly PurchaseOrderStatus[] ExpectedDateEditableStatuses =
+        [PurchaseOrderStatus.Acknowledged, PurchaseOrderStatus.PartiallyReceived];
+
     public async Task Handle(UpdatePurchaseOrderCommand request, CancellationToken cancellationToken)
     {
         var po = await repo.FindAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Purchase order {request.Id} not found");
 
-        // Notes/ExpectedDeliveryDate: editable through Submitted (legacy
-        // behavior preserved). Header landed-cost fields: Draft only.
+        // Notes: editable through Submitted. ExpectedDeliveryDate: editable
+        // through PartiallyReceived. Header landed-cost fields: Draft only.
+        var landedCostFieldsTouched = request.Incoterm.HasValue
+            || request.EstimatedFreight.HasValue
+            || !string.IsNullOrEmpty(request.QuoteCurrency)
+            || request.FxRate.HasValue
+            || !string.IsNullOrEmpty(request.FxRateSource);
+
         if (po.Status != PurchaseOrderStatus.Draft && po.Status != PurchaseOrderStatus.Submitted)
-            throw new InvalidOperationException("Can only update Draft or Submitted purchase orders");
+        {
+            if (!ExpectedDateEditableStatuses.Contains(po.Status))
+                throw new InvalidOperationException("Can only update Draft or Submitted purchase orders");
+
+            var poNumberChanged = !string.IsNullOrWhiteSpace(request.PONumber)
+                && !string.Equals(request.PONumber.Trim(), po.PONumber, StringComparison.Ordinal);
+            var notesChanged = request.Notes is not null && request.Notes != po.Notes;
+            if (poNumberChanged || notesChanged || landedCostFieldsTouched)
+                throw new InvalidOperationException(
+                    "Once a purchase order is acknowledged, only its expected delivery date can be changed.");
+        }
 
         // User-settable PO number — Draft only, manual numbers enabled, and unique
         // (excluding this PO). Registry records the rename; the old number stays resolvable.
@@ -91,14 +112,23 @@ public class UpdatePurchaseOrderHandler(
             }
         }
 
-        if (request.Notes != null) po.Notes = request.Notes;
-        if (request.ExpectedDeliveryDate.HasValue) po.ExpectedDeliveryDate = request.ExpectedDeliveryDate;
+        var changedFields = new List<string>();
+        string? expectedDateChange = null;
 
-        var landedCostFieldsTouched = request.Incoterm.HasValue
-            || request.EstimatedFreight.HasValue
-            || !string.IsNullOrEmpty(request.QuoteCurrency)
-            || request.FxRate.HasValue
-            || !string.IsNullOrEmpty(request.FxRateSource);
+        if (request.Notes != null && request.Notes != po.Notes)
+        {
+            po.Notes = request.Notes;
+            changedFields.Add("notes");
+        }
+
+        if (request.ExpectedDeliveryDate.HasValue && request.ExpectedDeliveryDate != po.ExpectedDeliveryDate)
+        {
+            expectedDateChange = po.ExpectedDeliveryDate.HasValue
+                ? $"Changed expected delivery from {FormatDate(po.ExpectedDeliveryDate.Value)} to {FormatDate(request.ExpectedDeliveryDate.Value)}"
+                : $"Set expected delivery to {FormatDate(request.ExpectedDeliveryDate.Value)}";
+            po.ExpectedDeliveryDate = request.ExpectedDeliveryDate;
+            changedFields.Add("expectedDeliveryDate");
+        }
 
         if (landedCostFieldsTouched)
         {
@@ -106,15 +136,46 @@ public class UpdatePurchaseOrderHandler(
                 throw new InvalidOperationException(
                     "Incoterm, freight estimate, and currency fields can only be edited while the PO is in Draft.");
 
-            if (request.Incoterm.HasValue) po.Incoterm = request.Incoterm.Value;
-            if (request.EstimatedFreight.HasValue) po.EstimatedFreight = request.EstimatedFreight.Value;
-            if (!string.IsNullOrEmpty(request.QuoteCurrency)) po.QuoteCurrency = request.QuoteCurrency;
-            if (request.FxRate.HasValue) po.FxRate = request.FxRate.Value;
-            if (!string.IsNullOrEmpty(request.FxRateSource)) po.FxRateSource = request.FxRateSource;
+            if (request.Incoterm.HasValue && request.Incoterm.Value != po.Incoterm)
+            {
+                po.Incoterm = request.Incoterm.Value;
+                changedFields.Add("incoterm");
+            }
+            if (request.EstimatedFreight.HasValue && request.EstimatedFreight.Value != po.EstimatedFreight)
+            {
+                po.EstimatedFreight = request.EstimatedFreight.Value;
+                changedFields.Add("estimatedFreight");
+            }
+            if (!string.IsNullOrEmpty(request.QuoteCurrency) && request.QuoteCurrency != po.QuoteCurrency)
+            {
+                po.QuoteCurrency = request.QuoteCurrency;
+                changedFields.Add("quoteCurrency");
+            }
+            if (request.FxRate.HasValue && request.FxRate.Value != po.FxRate)
+            {
+                po.FxRate = request.FxRate.Value;
+                changedFields.Add("fxRate");
+            }
+            if (!string.IsNullOrEmpty(request.FxRateSource) && request.FxRateSource != po.FxRateSource)
+            {
+                po.FxRateSource = request.FxRateSource;
+                changedFields.Add("fxRateSource");
+            }
+        }
+
+        if (changedFields.Count > 0)
+        {
+            var description = changedFields.Count == 1 && expectedDateChange is not null
+                ? expectedDateChange
+                : $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}";
+            db.LogActivityAt("updated", description, ("PurchaseOrder", po.Id));
         }
 
         await repo.SaveChangesAsync(cancellationToken);
     }
+
+    private static string FormatDate(DateTimeOffset value) =>
+        value.UtcDateTime.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture);
 
     private async Task<bool> ManualPONumbersAllowedAsync(CancellationToken ct)
     {
