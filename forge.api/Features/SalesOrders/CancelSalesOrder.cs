@@ -1,5 +1,6 @@
 using MediatR;
 
+using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.Invoices;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -34,6 +35,8 @@ public class CancelSalesOrderHandler(ISalesOrderRepository repo, IMediator media
         }
 
         await repo.SaveChangesAsync(cancellationToken);
+
+        await mediator.Publish(new SalesOrderCancelledEvent(order.Id), cancellationToken);
 
         // Late-cancellation fee: billed as a one-line standalone invoice against the order —
         // no shipment, no completed lines. Reuses the canonical invoice-creation path.
