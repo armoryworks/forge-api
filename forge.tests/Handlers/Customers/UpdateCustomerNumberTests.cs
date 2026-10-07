@@ -79,7 +79,7 @@ public class UpdateCustomerNumberTests
 
         var act = () => _handler.Handle(WithCustomerNumber(1, "ACME-42"), CancellationToken.None);
 
-        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("disabled");
+        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("Admin > Settings > Numbering");
         customer.CustomerNumber.Should().Be("CUST-00001");
     }
 }

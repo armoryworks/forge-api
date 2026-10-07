@@ -76,7 +76,7 @@ public class UpdateVendorNumberTests
 
         var act = () => _handler.Handle(WithVendorNumber(1, "ACME-42"), CancellationToken.None);
 
-        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("disabled");
+        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("Admin > Settings > Numbering");
         vendor.VendorNumber.Should().Be("VEND-00001");
     }
 }

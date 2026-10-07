@@ -69,7 +69,7 @@ public class UpdateVendorHandler(
             {
                 if (!await ManualNumbersAllowedAsync(cancellationToken))
                     throw new InvalidOperationException(
-                        "Manual vendor numbers are disabled. Turn on 'vendors.allow_manual_numbers' in settings to change a vendor number.");
+                        "Vendor numbers are typed automatically. An admin can allow manual numbers in Admin > Settings > Numbering.");
                 if (await repo.VendorNumberExistsAsync(newNumber, vendor.Id, cancellationToken))
                     throw new InvalidOperationException($"Vendor number '{newNumber}' is already in use.");
                 // Ensure the current number is on record (covers legacy vendors with none), then

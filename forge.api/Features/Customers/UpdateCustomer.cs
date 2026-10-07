@@ -74,7 +74,7 @@ public class UpdateCustomerHandler(
             {
                 if (!await ManualNumbersAllowedAsync(cancellationToken))
                     throw new InvalidOperationException(
-                        "Manual customer numbers are disabled. Turn on 'customers.allow_manual_numbers' in settings to change a customer number.");
+                        "Customer numbers are typed automatically. An admin can allow manual numbers in Admin > Settings > Numbering.");
                 if (await repo.CustomerNumberExistsAsync(newNumber, customer.Id, cancellationToken))
                     throw new InvalidOperationException($"Customer number '{newNumber}' is already in use.");
                 // Record the rename in the identifier registry: ensure the current number is on
