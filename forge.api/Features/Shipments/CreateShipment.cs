@@ -70,7 +70,7 @@ public class CreateShipmentHandler(
             throw new InvalidOperationException(
                 $"Sales order {order.OrderNumber} must be confirmed before a shipment can be created (current status: {order.Status}).");
 
-        if (order.Customer is { IsOnCreditHold: true } heldCustomer)
+        if (order.RetailBuyerId is null && order.Customer is { IsOnCreditHold: true } heldCustomer)
             throw new InvalidOperationException(
                 $"{heldCustomer.Name} is on credit hold: {heldCustomer.CreditHoldReason ?? "no reason recorded"}. Release the hold before shipping.");
 
@@ -191,7 +191,10 @@ public class CreateShipmentHandler(
 
     private async Task<int?> FindDefaultShipToAsync(SalesOrder order, CancellationToken ct)
     {
-        if (db is null) return null;
+        if (db is null || order.RetailBuyerId is not null) return null;
+
+        if (await db.OrderShipTos.AnyAsync(s => s.SalesOrderId == order.Id, ct))
+            return null;
 
         return await db.CustomerAddresses
             .AsNoTracking()

@@ -377,4 +377,51 @@ public class CreateShipmentHandlerTests
 
         saved!.ShippingAddressId.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Handle_RetailOrderAgainstHeldHouseAccount_StillShips()
+    {
+        var order = CreateConfirmedOrder(1, 10, 20);
+        order.RetailBuyerId = 7;
+        order.Customer.IsOnCreditHold = true;
+        order.Customer.CreditHoldReason = "Settlement dispute";
+        _orderRepo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        _shipmentRepo.Setup(r => r.GenerateNextShipmentNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("SHP-0001");
+
+        var result = await _handler.Handle(new CreateShipmentCommand(
+            1, null, null, null, null, null, null,
+            [new CreateShipmentLineModel(10, 5, null)]), CancellationToken.None);
+
+        result.ShipmentNumber.Should().Be("SHP-0001");
+        order.Lines.First().ShippedQuantity.Should().Be(5);
+        _shipmentRepo.Verify(r => r.AddAsync(It.IsAny<Shipment>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(7, true)]
+    [InlineData(7, false)]
+    [InlineData(null, true)]
+    public async Task Handle_RetailOrder_DoesNotDefaultToHouseAccountShipTo(int? retailBuyerId, bool hasFrozenShipTo)
+    {
+        await using var db = TestDbContextFactory.Create();
+        db.CustomerAddresses.Add(new CustomerAddress { Id = 302, CustomerId = 1, Label = "House dock", AddressType = AddressType.Shipping, IsDefault = true, Line1 = "3 Dock St", City = "X", State = "UT", PostalCode = "84000" });
+        if (hasFrozenShipTo)
+            db.OrderShipTos.Add(new OrderShipTo { SalesOrderId = 1, Name = "Consumer", Line1 = "9 Home Ln", City = "Y", State = "UT", PostalCode = "84001" });
+        await db.SaveChangesAsync();
+
+        var order = CreateConfirmedOrder(1, 10, 20);
+        order.RetailBuyerId = retailBuyerId;
+        _orderRepo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        _shipmentRepo.Setup(r => r.GenerateNextShipmentNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("SHP-0001");
+        Shipment? saved = null;
+        _shipmentRepo.Setup(r => r.AddAsync(It.IsAny<Shipment>(), It.IsAny<CancellationToken>()))
+            .Callback<Shipment, CancellationToken>((s, _) => saved = s);
+        var handler = new CreateShipmentHandler(_shipmentRepo.Object, _orderRepo.Object, _mediator.Object, _httpContext.Object, db: db);
+
+        await handler.Handle(new CreateShipmentCommand(
+            1, null, null, null, null, null, null,
+            [new CreateShipmentLineModel(10, 5, null)]), CancellationToken.None);
+
+        saved!.ShippingAddressId.Should().BeNull();
+    }
 }
