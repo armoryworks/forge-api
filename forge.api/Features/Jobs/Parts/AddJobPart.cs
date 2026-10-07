@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -37,6 +38,21 @@ public class AddJobPartHandler(AppDbContext db) : IRequestHandler<AddJobPartComm
         };
 
         db.JobParts.Add(jobPart);
+
+        var setsJobPart = job.PartId is null;
+        if (setsJobPart)
+            job.PartId = part.Id;
+
+        db.JobActivityLogs.Add(new JobActivityLog
+        {
+            JobId = job.Id,
+            Action = ActivityAction.FieldChanged,
+            FieldName = setsJobPart ? "Part" : null,
+            NewValue = setsJobPart ? part.PartNumber : null,
+            Description = setsJobPart
+                ? $"Part set to {part.PartNumber} (qty {request.Quantity:0.####})."
+                : $"Part {part.PartNumber} added (qty {request.Quantity:0.####}).",
+        });
         await db.SaveChangesAsync(cancellationToken);
 
         return new JobPartResponseModel(
