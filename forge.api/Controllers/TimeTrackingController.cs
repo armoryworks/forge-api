@@ -46,6 +46,14 @@ public class TimeTrackingController(IMediator mediator) : ControllerBase
         return Created($"/api/v1/time-tracking/entries/{result.Id}", result);
     }
 
+    [HttpGet("timer/active")]
+    public async Task<ActionResult<ActiveTimerResponseModel>> GetActiveTimer(CancellationToken ct)
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var result = await mediator.Send(new GetActiveTimerQuery(userId), ct);
+        return result is null ? NoContent() : Ok(result);
+    }
+
     [HttpPost("timer/stop")]
     public async Task<ActionResult<TimeEntryResponseModel>> StopTimer([FromBody] StopTimerRequestModel request)
     {
