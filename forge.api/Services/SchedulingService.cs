@@ -47,6 +47,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                 .AsNoTracking()
                 .Include(j => j.Part)
                     .ThenInclude(p => p!.Operations.Where(o => o.DeletedAt == null))
+                .Include(j => j.JobParts)
                 .Where(j => j.DeletedAt == null
                     && !j.IsArchived
                     && j.CompletedDate == null
@@ -134,6 +135,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                     cursor = new DateTimeOffset(parameters.ScheduleTo.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero);
 
                 DateTimeOffset? previousEnd = null;
+                var quantity = OperationTimeMath.JobBuildQuantity(job);
 
                 for (int i = 0; i < operations.Count; i++)
                 {
@@ -149,10 +151,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
                     // Calculate time needed
                     decimal setupMinutes = op.SetupMinutes;
-                    decimal runMinutes = op.RunMinutesLot + (op.RunMinutesEach * (job.Part?.Operations.Count > 0 ? 1 : 1));
-                    // Use job quantity if available, otherwise estimate
-                    decimal quantity = 1m; // Default; real implementations would use job quantity
-                    runMinutes = op.RunMinutesLot + (op.RunMinutesEach * quantity);
+                    decimal runMinutes = OperationTimeMath.PlannedMinutes(op, quantity) - setupMinutes;
 
                     // Apply scrap factor
                     if (op.ScrapFactor > 0)

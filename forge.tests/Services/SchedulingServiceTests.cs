@@ -114,4 +114,74 @@ public class SchedulingServiceTests
         result.OperationsScheduled.Should().Be(0);
         (await _db.ScheduledOperations.AnyAsync()).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task Schedule_UsesJobQuantityAndEstimatedMs()
+    {
+        var wc = await SeedWorkCenterAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 30000);
+        await SeedJobAsync(part, 500m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var scheduled = await _db.ScheduledOperations.SingleAsync();
+        (scheduled.RunHours * 60m).Should().BeApproximately(250m, 0.0001m);
+        scheduled.SetupHours.Should().Be(0m);
+        scheduled.TotalHours.Should().Be(scheduled.RunHours);
+    }
+
+    [Fact]
+    public async Task Schedule_RunMinutesEachTakesPrecedenceOverEstimatedMs()
+    {
+        var wc = await SeedWorkCenterAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 30000, runMinutesEach: 0.25m);
+        await SeedJobAsync(part, 400m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var scheduled = await _db.ScheduledOperations.SingleAsync();
+        (scheduled.RunHours * 60m).Should().BeApproximately(100m, 0.0001m);
+    }
+
+    [Fact]
+    public async Task Schedule_JobWithoutJobParts_BooksOnePiece()
+    {
+        var wc = await SeedWorkCenterAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 30000);
+        await SeedJobAsync(part, quantity: null);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var scheduled = await _db.ScheduledOperations.SingleAsync();
+        (scheduled.RunHours * 60m).Should().BeApproximately(0.5m, 0.0001m);
+    }
+
+    [Fact]
+    public async Task Schedule_NineOperationRoutingInSeconds_LoadsTheWorkCenter()
+    {
+        var wc = await SeedWorkCenterAsync();
+        var part = new Part { PartNumber = "BRK-200", Name = "Housing" };
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+        for (var step = 1; step <= 9; step++)
+        {
+            _db.Operations.Add(new Operation
+            {
+                PartId = part.Id,
+                StepNumber = step * 10,
+                Title = $"Op {step}",
+                WorkCenterId = wc.Id,
+                EstimatedMs = 5000 + step * 5000,
+            });
+        }
+        await _db.SaveChangesAsync();
+        await SeedJobAsync(part, 500m);
+
+        var result = await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+        var load = await _service.GetWorkCenterLoadAsync(wc.Id, From, From.AddDays(20), CancellationToken.None);
+
+        result.OperationsScheduled.Should().Be(9);
+        result.ConflictsDetected.Should().Be(0);
+        load.Buckets.Sum(b => b.ScheduledHours).Should().BeApproximately(37.5m, 0.0001m);
+    }
 }
