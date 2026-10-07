@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Mobile;
 using Forge.Api.Features.Scanner;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -15,6 +16,12 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-MFG-SHOPFLOOR")]
 public class ScannerController(IMediator mediator) : ControllerBase
 {
+    public record ResolveCodeRequestModel(string Code);
+
+    [HttpPost("resolve")]
+    public async Task<ActionResult<ScanResolveResponseModel>> Resolve([FromBody] ResolveCodeRequestModel request)
+        => Ok(await mediator.Send(new ResolveScanQuery(request.Code)));
+
     [HttpGet("context/{partIdentifier}")]
     public async Task<ActionResult<ScanContextResponseModel>> GetContext(string partIdentifier)
     {
