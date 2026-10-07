@@ -281,8 +281,26 @@ public class ExplodeJobBomHandler(
                 .OrderBy(e => e.SortOrder)
                 .ToListAsync(ct);
 
+            var unitNames = entries
+                .Select(e => e.UnitOfMeasure)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct()
+                .ToList();
+
+            var unitsByName = (await db.Set<UnitOfMeasure>()
+                    .Where(u => unitNames.Contains(u.Name))
+                    .ToListAsync(ct))
+                .GroupBy(u => u.Name)
+                .ToDictionary(g => g.Key, g => g.First());
+
             return entries
-                .Select(e => new BomExplosionLine(e.Part, e.Quantity, e.SourceType, e.LeadTimeDays, e.UnitOfMeasure))
+                .Select(e => new BomExplosionLine(
+                    e.Part,
+                    e.Quantity,
+                    e.SourceType,
+                    e.LeadTimeDays,
+                    unitsByName.GetValueOrDefault(e.UnitOfMeasure),
+                    e.UnitOfMeasure))
                 .ToList();
         }
 
@@ -297,26 +315,32 @@ public class ExplodeJobBomHandler(
             .ToListAsync(ct);
 
         return lines
-            .Select(b => new BomExplosionLine(b.ChildPart, b.Quantity, b.SourceType, b.LeadTimeDays, b.Uom?.Code))
+            .Select(b => new BomExplosionLine(b.ChildPart, b.Quantity, b.SourceType, b.LeadTimeDays, b.Uom, b.Uom?.Code))
             .ToList();
     }
 
     private static decimal RequiredQuantity(BomExplosionLine line, decimal buildQty)
     {
         var required = line.Quantity * buildQty;
-        return IsWholeUnit(line.ChildPart.StockUom, line.LineUom) ? Math.Ceiling(required) : required;
+        return IsWholeUnit(line) ? Math.Ceiling(required) : required;
     }
 
-    private static bool IsWholeUnit(UnitOfMeasure? stockUom, string? lineUom)
+    private static bool IsWholeUnit(BomExplosionLine line)
     {
-        if (stockUom is not null)
-            return stockUom.Category == UomCategory.Count
-                || stockUom.DecimalPlaces == 0
-                || IsEachName(stockUom.Code)
-                || IsEachName(stockUom.Name);
+        if (line.LineUnit is not null)
+            return IsWholeUnit(line.LineUnit);
 
-        return IsEachName(lineUom);
+        if (line.ChildPart.StockUom is not null)
+            return IsWholeUnit(line.ChildPart.StockUom);
+
+        return IsEachName(line.LineUnitName);
     }
+
+    private static bool IsWholeUnit(UnitOfMeasure unit) =>
+        unit.Category == UomCategory.Count
+        || unit.DecimalPlaces == 0
+        || IsEachName(unit.Code)
+        || IsEachName(unit.Name);
 
     private static bool IsEachName(string? uom)
     {

@@ -292,6 +292,55 @@ public class ExplodeJobBomScalingTests
     }
 
     [Fact]
+    public async Task Explode_RoundsByTheLineUnitBeforeThePartStockUnit()
+    {
+        var (parentPart, parentJob) = await SeedParentAsync(buildQty: 3m);
+        var each = await SeedUomAsync("ea", "Each", UomCategory.Count, 0);
+        var kg = await SeedUomAsync("kg", "Kilogram", UomCategory.Weight, 3);
+        var metre = await SeedUomAsync("m", "Metre", UomCategory.Length, 2);
+        var countedPart = await SeedPartAsync("CNT-1", each);
+        var lengthPart = await SeedPartAsync("LEN-1", metre);
+
+        _db.BOMLines.AddRange(
+            new BOMLine { ParentPartId = parentPart.Id, ChildPartId = countedPart.Id, Quantity = 0.25m, UomId = kg.Id, SourceType = BOMSourceType.Buy, SortOrder = 1 },
+            new BOMLine { ParentPartId = parentPart.Id, ChildPartId = lengthPart.Id, Quantity = 0.5m, UomId = each.Id, SourceType = BOMSourceType.Buy, SortOrder = 2 });
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new ExplodeJobBomCommand(parentJob.Id), CancellationToken.None);
+
+        result.BuyItems.Single(b => b.PartId == countedPart.Id).Quantity.Should().Be(0.75m);
+        result.BuyItems.Single(b => b.PartId == lengthPart.Id).Quantity.Should().Be(2m);
+    }
+
+    [Fact]
+    public async Task Explode_PinnedRevision_RoundsByTheSnapshotUnitName()
+    {
+        var (parentPart, parentJob) = await SeedParentAsync(buildQty: 3m);
+        var each = await SeedUomAsync("ea", "Each", UomCategory.Count, 0);
+        await SeedUomAsync("kg", "Kilogram", UomCategory.Weight, 3);
+        var countedPart = await SeedPartAsync("CNT-2", each);
+
+        var revision = new BomRevision
+        {
+            PartId = parentPart.Id,
+            RevisionNumber = 2,
+            EffectiveDate = ParentDue.AddMonths(-1),
+            Entries =
+            [
+                new BomRevisionLine { PartId = countedPart.Id, Quantity = 0.25m, SourceType = BOMSourceType.Buy, UnitOfMeasure = "Kilogram", SortOrder = 1 },
+            ],
+        };
+        _db.Set<BomRevision>().Add(revision);
+        await _db.SaveChangesAsync();
+        parentJob.BomRevisionIdAtRelease = revision.Id;
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new ExplodeJobBomCommand(parentJob.Id), CancellationToken.None);
+
+        result.BuyItems.Single().Quantity.Should().Be(0.75m);
+    }
+
+    [Fact]
     public async Task Explode_EmptyPinnedRevision_NamesTheRevisionInsteadOfAskingForBomLines()
     {
         var (parentPart, parentJob) = await SeedParentAsync(buildQty: 3m);

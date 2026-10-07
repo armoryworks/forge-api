@@ -8,4 +8,5 @@ internal sealed record BomExplosionLine(
     decimal Quantity,
     BOMSourceType SourceType,
     int? LeadTimeDays,
-    string? LineUom);
+    UnitOfMeasure? LineUnit,
+    string? LineUnitName);
