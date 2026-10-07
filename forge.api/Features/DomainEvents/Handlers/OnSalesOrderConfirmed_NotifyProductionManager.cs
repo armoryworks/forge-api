@@ -41,7 +41,7 @@ public class OnSalesOrderConfirmed_NotifyProductionManager(
                 Severity = "info",
                 Source = "sales_orders",
                 Title = "Sales Order Confirmed",
-                Message = $"SO-{so.OrderNumber} for {so.Customer?.Name ?? "Unknown"} has been confirmed and is ready for production planning.",
+                Message = $"{so.OrderNumber} for {so.Customer?.Name ?? "Unknown"} has been confirmed and is ready for production planning.",
                 EntityType = "SalesOrder",
                 EntityId = so.Id,
                 SenderId = notification.UserId,

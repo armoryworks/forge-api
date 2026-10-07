@@ -38,7 +38,7 @@ public class OnSalesOrderConfirmed_CreateDeliveryMilestones(
         foreach (var line in so.Lines)
         {
             var partDescription = line.Part?.Description ?? line.Description;
-            var title = $"SO-{so.OrderNumber} Line {line.LineNumber} Delivery: {partDescription}";
+            var title = $"{so.OrderNumber} Line {line.LineNumber} Delivery: {partDescription}";
 
             db.Events.Add(new Event
             {
