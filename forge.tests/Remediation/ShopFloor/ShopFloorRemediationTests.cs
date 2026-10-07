@@ -100,4 +100,16 @@ public class ShopFloorRemediationTests
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         (await CurrentStageAsync(jobId)).Should().Be(qcId);
     }
+
+    [Fact]
+    public async Task Production_worker_can_advance_a_job_through_scan()
+    {
+        var (jobId, _, qcId) = await SeedProductionJobAsync();
+
+        var response = await AuthClient("ProductionWorker")
+            .PostAsync($"/api/v1/display/shop-floor/jobs/{jobId}/advance", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await CurrentStageAsync(jobId)).Should().Be(qcId);
+    }
 }
