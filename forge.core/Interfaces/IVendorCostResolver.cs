@@ -14,6 +14,10 @@ public interface IVendorCostResolver
     /// quantity-break selection; defaults to 1 when ≤ 0).</param>
     Task<ResolvedBaseUnitCost> ResolveAsync(int partId, decimal requestedBaseQty, CancellationToken ct);
 
+    /// <summary>Same per-base-unit, quantity-break math as <see cref="ResolveAsync"/>, but reads
+    /// only the given vendor's tiers for the part, whether or not that vendor is preferred.</summary>
+    Task<ResolvedBaseUnitCost> ResolveForVendorAsync(int partId, int vendorId, decimal requestedBaseQty, CancellationToken ct);
+
     /// <summary>Reverse direction (UI bidirectional): the per-option price implied by a target
     /// per-base-unit cost — <c>costPerBaseUnit × contentQuantity</c>.</summary>
     static decimal OptionPriceFromBaseUnitCost(decimal costPerBaseUnit, decimal contentQuantity)

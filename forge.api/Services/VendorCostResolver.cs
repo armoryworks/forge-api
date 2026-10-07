@@ -1,5 +1,8 @@
+using System.Linq.Expressions;
+
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -17,16 +20,22 @@ public class VendorCostResolver(AppDbContext db) : IVendorCostResolver
 {
     private const string DefaultCurrency = "USD";
 
-    public async Task<ResolvedBaseUnitCost> ResolveAsync(int partId, decimal requestedBaseQty, CancellationToken ct)
+    public Task<ResolvedBaseUnitCost> ResolveAsync(int partId, decimal requestedBaseQty, CancellationToken ct)
+        => ResolveFromTiersAsync(partId, t => t.VendorPart.PartId == partId && t.VendorPart.IsPreferred, requestedBaseQty, ct);
+
+    public Task<ResolvedBaseUnitCost> ResolveForVendorAsync(int partId, int vendorId, decimal requestedBaseQty, CancellationToken ct)
+        => ResolveFromTiersAsync(partId, t => t.VendorPart.PartId == partId && t.VendorPart.VendorId == vendorId, requestedBaseQty, ct);
+
+    private async Task<ResolvedBaseUnitCost> ResolveFromTiersAsync(
+        int partId, Expression<Func<VendorPartPriceTier, bool>> vendorPartFilter, decimal requestedBaseQty, CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow;
         var qty = requestedBaseQty <= 0 ? 1m : requestedBaseQty;
 
         var tiers = await db.VendorPartPriceTiers
             .AsNoTracking()
-            .Where(t => t.VendorPart.PartId == partId
-                && t.VendorPart.IsPreferred
-                && t.EffectiveFrom <= now
+            .Where(vendorPartFilter)
+            .Where(t => t.EffectiveFrom <= now
                 && (t.EffectiveTo == null || t.EffectiveTo > now))
             .Select(t => new TierRow(
                 t.Id,

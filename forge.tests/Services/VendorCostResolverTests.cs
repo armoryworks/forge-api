@@ -120,4 +120,26 @@ public class VendorCostResolverTests
         result.Resolved.Should().BeFalse();
         result.CostPerBaseUnit.Should().Be(0m);
     }
+
+    [Fact]
+    public async Task ResolveForVendor_reads_only_that_vendors_tiers_whether_or_not_it_is_preferred()
+    {
+        var (db, partId, preferredVpId) = SeedBase();
+        var second = new Vendor { CompanyName = "Second source" };
+        db.Vendors.Add(second);
+        await db.SaveChangesAsync();
+        var secondVp = new VendorPart { PartId = partId, VendorId = second.Id, IsPreferred = false, Currency = "USD" };
+        db.VendorParts.Add(secondVp);
+        await db.SaveChangesAsync();
+        db.VendorPartPriceTiers.AddRange(Tier(preferredVpId, unitPrice: 2m), Tier(secondVp.Id, unitPrice: 7m));
+        await db.SaveChangesAsync();
+
+        var resolver = new VendorCostResolver(db);
+        var forSecond = await resolver.ResolveForVendorAsync(partId, second.Id, 5m, default);
+        var forUnknown = await resolver.ResolveForVendorAsync(partId, second.Id + 1000, 5m, default);
+
+        forSecond.Resolved.Should().BeTrue();
+        forSecond.CostPerBaseUnit.Should().Be(7m);
+        forUnknown.Resolved.Should().BeFalse();
+    }
 }
