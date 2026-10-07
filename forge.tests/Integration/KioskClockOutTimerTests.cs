@@ -66,6 +66,8 @@ public class KioskClockOutTimerTests(CapabilityTestWebApplicationFactory factory
 
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add(KioskTerminalAuthAttribute.HeaderName, token);
+        client.DefaultRequestHeaders.Add("X-Test-User", "1");
+        client.DefaultRequestHeaders.Add("X-Test-Role", "Manager");
         var response = await client.PostAsJsonAsync(
             "/api/v1/display/shop-floor/clock", new ClockInOutRequestModel(userId, "ClockOut"));
 
