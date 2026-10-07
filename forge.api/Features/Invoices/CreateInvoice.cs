@@ -1,6 +1,8 @@
+using System.Globalization;
 using System.Text.Json;
 
 using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
@@ -68,17 +70,56 @@ public class CreateInvoiceHandler(
     // System setting that gates caller-supplied invoice numbers. Stored as "true"/"false".
     private const string AllowManualInvoiceNumbersKey = "invoices.allow_manual_numbers";
 
+    private static readonly ShipmentStatus[] ShippedStatuses =
+        [ShipmentStatus.Shipped, ShipmentStatus.InTransit, ShipmentStatus.Delivered];
+
     public async Task<InvoiceListItemModel> Handle(CreateInvoiceCommand request, CancellationToken cancellationToken)
     {
         var customer = await customerRepo.FindAsync(request.CustomerId, cancellationToken)
             ?? throw new KeyNotFoundException($"Customer {request.CustomerId} not found");
 
-        // INV-IN2: one invoice per shipment (a unique index enforces it). Guard here
-        // so a double-invoice returns a clean 409 instead of a DbUpdateException 500.
-        if (request.ShipmentId is int shipmentId
-            && await db.Invoices.AnyAsync(i => i.ShipmentId == shipmentId, cancellationToken))
-            throw new InvalidOperationException(
-                $"Shipment {shipmentId} has already been invoiced — each shipment can be invoiced once.");
+        string? salesOrderCustomerPo = null;
+        if (request.SalesOrderId is int linkedSoId)
+        {
+            var salesOrder = await db.SalesOrders.AsNoTracking()
+                .Where(so => so.Id == linkedSoId)
+                .Select(so => new { so.OrderNumber, so.CustomerId, so.CustomerPO })
+                .FirstOrDefaultAsync(cancellationToken)
+                ?? throw new KeyNotFoundException($"Sales order {linkedSoId} not found");
+
+            if (salesOrder.CustomerId != request.CustomerId)
+                throw FieldError(nameof(CreateInvoiceCommand.SalesOrderId),
+                    $"Sales order {salesOrder.OrderNumber} belongs to a different customer than {customer.Name}.");
+
+            salesOrderCustomerPo = salesOrder.CustomerPO;
+        }
+
+        if (request.ShipmentId is int shipmentId)
+        {
+            var shipment = await db.Shipments.AsNoTracking()
+                .Where(s => s.Id == shipmentId)
+                .Select(s => new { s.ShipmentNumber, s.SalesOrderId, s.SalesOrder.OrderNumber, s.SalesOrder.CustomerId })
+                .FirstOrDefaultAsync(cancellationToken)
+                ?? throw new KeyNotFoundException($"Shipment {shipmentId} not found");
+
+            if (shipment.CustomerId != request.CustomerId)
+                throw FieldError(nameof(CreateInvoiceCommand.ShipmentId),
+                    $"Shipment {shipment.ShipmentNumber} belongs to a different customer than {customer.Name}.");
+
+            if (request.SalesOrderId is int requestedSoId && shipment.SalesOrderId != requestedSoId)
+                throw FieldError(nameof(CreateInvoiceCommand.ShipmentId),
+                    $"Shipment {shipment.ShipmentNumber} belongs to sales order {shipment.OrderNumber}, not the one on this invoice.");
+
+            // INV-IN2: one invoice per shipment (a unique index enforces it). Guard here
+            // so a double-invoice returns a clean 409 instead of a DbUpdateException 500.
+            var existingInvoiceNumber = await db.Invoices
+                .Where(i => i.ShipmentId == shipmentId)
+                .Select(i => i.InvoiceNumber)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (existingInvoiceNumber is not null)
+                throw new InvalidOperationException(
+                    $"Shipment {shipment.ShipmentNumber} is already on invoice {existingInvoiceNumber}. Each shipment can be invoiced once.");
+        }
 
         // AUDIT-P06-1 / Q2C-BE-8: you cannot invoice more than has shipped. When the invoice is tied
         // to a sales order, cap each part's cumulative invoiced quantity (existing invoices for the SO
@@ -89,7 +130,7 @@ public class CreateInvoiceHandler(
             var shippedByPart = await db.ShipmentLines
                 .Where(sl => sl.PartId != null
                     && sl.Shipment.SalesOrderId == shippedSoId
-                    && sl.Shipment.Status == ShipmentStatus.Shipped)
+                    && ShippedStatuses.Contains(sl.Shipment.Status))
                 .GroupBy(sl => sl.PartId!.Value)
                 .Select(g => new { PartId = g.Key, Qty = g.Sum(x => x.Quantity) })
                 .ToDictionaryAsync(x => x.PartId, x => x.Qty, cancellationToken);
@@ -100,15 +141,30 @@ public class CreateInvoiceHandler(
                 .Select(g => new { PartId = g.Key, Qty = g.Sum(x => x.Quantity) })
                 .ToDictionaryAsync(x => x.PartId, x => x.Qty, cancellationToken);
 
-            foreach (var grp in request.Lines.Where(l => l.PartId != null).GroupBy(l => l.PartId!.Value))
+            var overInvoiced = request.Lines
+                .Where(l => l.PartId != null)
+                .GroupBy(l => l.PartId!.Value)
+                .Select(g => new
+                {
+                    PartId = g.Key,
+                    Requested = g.Sum(l => l.Quantity),
+                    Shipped = shippedByPart.GetValueOrDefault(g.Key),
+                    Already = invoicedByPart.GetValueOrDefault(g.Key),
+                })
+                .Where(x => x.Already + x.Requested > x.Shipped)
+                .ToList();
+
+            if (overInvoiced.Count > 0)
             {
-                var requested = grp.Sum(l => l.Quantity);
-                var shipped = shippedByPart.GetValueOrDefault(grp.Key);
-                var already = invoicedByPart.GetValueOrDefault(grp.Key);
-                if (already + requested > shipped)
-                    throw new InvalidOperationException(
-                        $"Cannot invoice {requested} of part {grp.Key}: only {shipped - already} remain " +
-                        $"invoiceable against the shipped quantity ({shipped} shipped, {already} already invoiced).");
+                var overInvoicedPartIds = overInvoiced.Select(x => x.PartId).ToList();
+                var partNumbers = await db.Parts
+                    .Where(p => overInvoicedPartIds.Contains(p.Id))
+                    .ToDictionaryAsync(p => p.Id, p => p.PartNumber, cancellationToken);
+
+                throw new InvalidOperationException(string.Join(" ", overInvoiced.Select(x =>
+                    $"Can't invoice {Qty(x.Requested)} of {partNumbers.GetValueOrDefault(x.PartId) ?? $"part {x.PartId}"}: " +
+                    $"{Qty(x.Shipped)} shipped, {Qty(x.Already)} already invoiced, " +
+                    $"{Qty(Math.Max(0m, x.Shipped - x.Already))} left to invoice.")));
             }
         }
 
@@ -120,14 +176,7 @@ public class CreateInvoiceHandler(
 
         // Propagate CustomerPO from the sourcing SO when the caller didn't
         // override. B2B customers reject invoices that don't echo their PO #.
-        var customerPo = request.CustomerPO;
-        if (customerPo is null && request.SalesOrderId is int soId)
-        {
-            customerPo = await db.SalesOrders
-                .Where(so => so.Id == soId)
-                .Select(so => so.CustomerPO)
-                .FirstOrDefaultAsync(cancellationToken);
-        }
+        var customerPo = request.CustomerPO ?? salesOrderCustomerPo;
 
         // Multi-currency (Phase-4 FULLGL, additive). Resolve the invoice currency to the caller-supplied
         // CurrencyId, else the active book's functional currency (mirrors how the posting services load the
@@ -199,6 +248,11 @@ public class CreateInvoiceHandler(
             invoice.Status.ToString(), invoice.InvoiceDate, invoice.DueDate,
             total, 0, total, invoice.CreatedAt);
     }
+
+    private static ValidationException FieldError(string property, string message)
+        => new([new ValidationFailure(property, message)]);
+
+    private static string Qty(decimal quantity) => quantity.ToString("0.####", CultureInfo.InvariantCulture);
 
     // Uses a caller-supplied invoice number when manual numbers are enabled and one
     // was provided; otherwise auto-generates the next sequential number.
