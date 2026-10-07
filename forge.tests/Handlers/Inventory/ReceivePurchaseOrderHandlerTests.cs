@@ -143,4 +143,77 @@ public class ReceivePurchaseOrderHandlerTests
 
         await act.Should().ThrowAsync<KeyNotFoundException>();
     }
+
+    [Fact]
+    public async Task Handle_LotWithStraySpaces_StoresTheTrimmedLotEverywhere()
+    {
+        var line = new PurchaseOrderLine
+        {
+            Id = 7,
+            PartId = 5,
+            OrderedQuantity = 10,
+            UnitPrice = 10m,
+            PurchaseOrder = new PurchaseOrder { PONumber = "PO-004" },
+        };
+        _poRepo.Setup(r => r.FindLineAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync(line);
+        ReceivingRecord? saved = null;
+        _poRepo.Setup(r => r.AddReceivingRecordAsync(It.IsAny<ReceivingRecord>(), It.IsAny<CancellationToken>()))
+            .Callback<ReceivingRecord, CancellationToken>((rec, _) => saved = rec)
+            .Returns(Task.CompletedTask);
+        _inventoryRepo.Setup(r => r.FindLocationAsync(3, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StorageLocation { Id = 3, Name = "A1" });
+        BinContent? content = null;
+        _inventoryRepo.Setup(r => r.AddBinContentAsync(It.IsAny<BinContent>(), It.IsAny<CancellationToken>()))
+            .Callback<BinContent, CancellationToken>((c, _) => content = c)
+            .Returns(Task.CompletedTask);
+        BinMovement? movement = null;
+        _inventoryRepo.Setup(r => r.AddMovementAsync(It.IsAny<BinMovement>(), It.IsAny<CancellationToken>()))
+            .Callback<BinMovement, CancellationToken>((m, _) => movement = m)
+            .Returns(Task.CompletedTask);
+
+        var result = await _handler.Handle(
+            new ReceivePurchaseOrderCommand(new ReceivePurchaseOrderRequestModel(7, 2, 3, "  HEAT-A ", null)),
+            CancellationToken.None);
+
+        saved!.LotNumber.Should().Be("HEAT-A");
+        content!.LotNumber.Should().Be("HEAT-A");
+        movement!.LotNumber.Should().Be("HEAT-A");
+        result.LotNumber.Should().Be("HEAT-A");
+    }
+
+    [Fact]
+    public async Task Handle_BlankLot_StoresNoLot()
+    {
+        var line = new PurchaseOrderLine
+        {
+            Id = 8,
+            PartId = 5,
+            OrderedQuantity = 10,
+            UnitPrice = 10m,
+            PurchaseOrder = new PurchaseOrder { PONumber = "PO-005" },
+        };
+        _poRepo.Setup(r => r.FindLineAsync(8, It.IsAny<CancellationToken>())).ReturnsAsync(line);
+        ReceivingRecord? saved = null;
+        _poRepo.Setup(r => r.AddReceivingRecordAsync(It.IsAny<ReceivingRecord>(), It.IsAny<CancellationToken>()))
+            .Callback<ReceivingRecord, CancellationToken>((rec, _) => saved = rec)
+            .Returns(Task.CompletedTask);
+
+        await _handler.Handle(
+            new ReceivePurchaseOrderCommand(new ReceivePurchaseOrderRequestModel(8, 2, null, "   ", null)),
+            CancellationToken.None);
+
+        saved!.LotNumber.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(100, true)]
+    [InlineData(101, false)]
+    public void Validator_CapsTheTrimmedLotAt100Characters(int length, bool valid)
+    {
+        var lot = $"  {new string('L', length)}  ";
+        var result = new ReceivePurchaseOrderCommandValidator().Validate(
+            new ReceivePurchaseOrderCommand(new ReceivePurchaseOrderRequestModel(1, 1, 3, lot, null)));
+
+        result.IsValid.Should().Be(valid);
+    }
 }

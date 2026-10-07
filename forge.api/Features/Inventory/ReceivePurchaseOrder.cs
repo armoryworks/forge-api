@@ -27,6 +27,9 @@ public class ReceivePurchaseOrderCommandValidator : AbstractValidator<ReceivePur
         // (no notify-without-stock) and on-hand actually rises.
         RuleFor(x => x.Data.LocationId)
             .NotNull().WithMessage("A storage location is required when receiving stock into inventory.");
+        RuleFor(x => x.Data.LotNumber)
+            .Must(lot => lot is null || lot.Trim().Length <= 100)
+            .WithMessage("Lot / heat number must be 100 characters or fewer.");
     }
 }
 
@@ -62,6 +65,7 @@ public class ReceivePurchaseOrderHandler(
         // Same receipt-number scheme as ReceiveItems: it keys the GRNI accrual JE (idempotency +
         // the D.3 line-level reconciliation sweep resolves records by it). No freight on this path.
         var receiptNumber = $"R-{clock.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}";
+        var lot = string.IsNullOrWhiteSpace(data.LotNumber) ? null : data.LotNumber.Trim();
 
         // Create receiving record
         var record = new ReceivingRecord
@@ -71,7 +75,7 @@ public class ReceivePurchaseOrderHandler(
             ReceivedBy = userName,
             StorageLocationId = data.LocationId,
             Notes = data.Notes,
-            LotNumber = data.LotNumber,
+            LotNumber = lot,
             ReceiptNumber = receiptNumber,
             InspectionStatus = ReceivingInspectionPolicy.InitialStatus(line.Part?.RequiresReceivingInspection == true, capabilities),
         };
@@ -108,7 +112,7 @@ public class ReceivePurchaseOrderHandler(
                 EntityType = "part",
                 EntityId = stockPartId,
                 Quantity = baseQuantityReceived,
-                LotNumber = data.LotNumber,
+                LotNumber = lot,
                 PlacedBy = userId,
                 PlacedAt = clock.UtcNow,
                 Notes = data.Notes,
@@ -122,7 +126,7 @@ public class ReceivePurchaseOrderHandler(
                 EntityType = "part",
                 EntityId = stockPartId,
                 Quantity = baseQuantityReceived,
-                LotNumber = data.LotNumber,
+                LotNumber = lot,
                 ToLocationId = data.LocationId.Value,
                 MovedBy = userId,
                 MovedAt = clock.UtcNow,
@@ -181,7 +185,7 @@ public class ReceivePurchaseOrderHandler(
             record.ReceivedBy,
             record.StorageLocationId,
             null,
-            data.LotNumber,
+            lot,
             record.Notes,
             record.CreatedAt);
     }
