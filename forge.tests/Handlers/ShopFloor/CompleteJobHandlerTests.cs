@@ -1,210 +1,105 @@
-using Bogus;
 using FluentAssertions;
+using MediatR;
+using Moq;
 
-using Microsoft.EntityFrameworkCore;
-
+using Forge.Api.Features.Jobs;
+using Forge.Api.Features.Mobile;
 using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
-using Forge.Core.Enums;
-using Forge.Core.Interfaces;
+using Forge.Core.Models;
 using Forge.Data.Context;
-using Forge.Integrations;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.ShopFloor;
 
 public class CompleteJobHandlerTests
 {
-    private readonly CompleteJobHandler _handler;
     private readonly AppDbContext _db;
-    private readonly Faker _faker = new();
+    private readonly Mock<IMediator> _mediator = new();
+    private readonly CompleteJobHandler _handler;
 
     public CompleteJobHandlerTests()
     {
         _db = TestDbContextFactory.Create();
-        _handler = new CompleteJobHandler(_db, new SystemClock());
+        _handler = new CompleteJobHandler(_db, _mediator.Object);
+    }
+
+    private async Task<(JobStage InProduction, JobStage Qc, JobStage Invoiced, JobStage Paid)> SeedProductionTrackAsync()
+    {
+        var track = new TrackType { Name = "Production", Code = "production", IsActive = true };
+        _db.TrackTypes.Add(track);
+        await _db.SaveChangesAsync();
+
+        var inProduction = new JobStage { TrackTypeId = track.Id, Name = "In Production", Code = "in_production", SortOrder = 6, IsShopFloor = true };
+        var qc = new JobStage { TrackTypeId = track.Id, Name = "QC/Review", Code = "qc_review", SortOrder = 7, IsShopFloor = true };
+        var invoiced = new JobStage { TrackTypeId = track.Id, Name = "Invoiced/Sent", Code = "invoiced_sent", SortOrder = 9, IsShopFloor = false };
+        var paid = new JobStage { TrackTypeId = track.Id, Name = "Payment Received", Code = "payment_received", SortOrder = 11, IsIrreversible = true };
+        _db.JobStages.AddRange(inProduction, qc, invoiced, paid);
+        await _db.SaveChangesAsync();
+        return (inProduction, qc, invoiced, paid);
+    }
+
+    private void GivenStatus(int jobId, JobStage current, JobStage? next) =>
+        _mediator
+            .Setup(m => m.Send(It.Is<GetJobStatusQuery>(q => q.JobId == jobId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JobStatusResponseModel(
+                jobId, "JOB-0001", "Bracket", null,
+                current.Id, current.Name, current.Color,
+                null, false,
+                next?.Id, next?.Name, null, null,
+                0, new List<ActivityResponseModel>()));
+
+    [Fact]
+    public async Task Handle_ShopFloorNextStage_MovesOneStatusThroughMoveJobStage()
+    {
+        var (inProduction, qc, _, paid) = await SeedProductionTrackAsync();
+        GivenStatus(42, inProduction, qc);
+
+        var result = await _handler.Handle(new CompleteJobCommand(42), CancellationToken.None);
+
+        result.StageName.Should().Be("QC/Review");
+        _mediator.Verify(m => m.Send(
+            It.Is<MoveJobStageCommand>(c => c.JobId == 42 && c.StageId == qc.Id),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _mediator.Verify(m => m.Send(
+            It.Is<MoveJobStageCommand>(c => c.StageId == paid.Id),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Handle_ValidJob_MovesToLastStageAndSetsCompletedAt()
+    public async Task Handle_OfficeNextStage_RefusesAndDoesNotMove()
     {
-        // Arrange
-        var trackType = new TrackType { Name = "Production", Code = "PROD", IsActive = true };
-        _db.TrackTypes.Add(trackType);
-        await _db.SaveChangesAsync();
+        var (_, qc, invoiced, _) = await SeedProductionTrackAsync();
+        GivenStatus(42, qc, invoiced);
 
-        var firstStage = new JobStage
-        {
-            TrackTypeId = trackType.Id,
-            Name = "In Production",
-            Code = "in_production",
-            SortOrder = 1,
-            IsActive = true,
-        };
-        var lastStage = new JobStage
-        {
-            TrackTypeId = trackType.Id,
-            Name = "Payment Received",
-            Code = "payment_received",
-            SortOrder = 10,
-            IsActive = true,
-        };
-        _db.JobStages.AddRange(firstStage, lastStage);
-        await _db.SaveChangesAsync();
+        var act = () => _handler.Handle(new CompleteJobCommand(42), CancellationToken.None);
 
-        var job = new Job
-        {
-            JobNumber = "JOB-0001",
-            Title = _faker.Commerce.ProductName(),
-            TrackTypeId = trackType.Id,
-            CurrentStageId = firstStage.Id,
-            Priority = JobPriority.Normal,
-        };
-        _db.Jobs.Add(job);
-        await _db.SaveChangesAsync();
-
-        var command = new CompleteJobCommand(job.Id);
-
-        // Act
-        await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        var updatedJob = await _db.Jobs.FirstAsync(j => j.Id == job.Id);
-        updatedJob.CurrentStageId.Should().Be(lastStage.Id);
-        updatedJob.CompletedDate.Should().NotBeNull();
-        updatedJob.CompletedDate.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("The next status, Invoiced/Sent, is an office status. Move it from the board.");
+        _mediator.Verify(m => m.Send(It.IsAny<MoveJobStageCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Handle_AlreadyCompletedJob_StillMovesToLastStage()
+    public async Task Handle_NoNextStage_RefusesAndDoesNotMove()
     {
-        // Arrange — a job that already has CompletedDate set but is not on last stage
-        var trackType = new TrackType { Name = "R&D", Code = "RD", IsActive = true };
-        _db.TrackTypes.Add(trackType);
-        await _db.SaveChangesAsync();
+        var (_, _, _, paid) = await SeedProductionTrackAsync();
+        GivenStatus(42, paid, null);
 
-        var stage1 = new JobStage
-        {
-            TrackTypeId = trackType.Id,
-            Name = "Design",
-            Code = "design",
-            SortOrder = 1,
-            IsActive = true,
-        };
-        var stage2 = new JobStage
-        {
-            TrackTypeId = trackType.Id,
-            Name = "Complete",
-            Code = "complete",
-            SortOrder = 2,
-            IsActive = true,
-        };
-        _db.JobStages.AddRange(stage1, stage2);
-        await _db.SaveChangesAsync();
+        var act = () => _handler.Handle(new CompleteJobCommand(42), CancellationToken.None);
 
-        var job = new Job
-        {
-            JobNumber = "JOB-0002",
-            Title = "Already Done",
-            TrackTypeId = trackType.Id,
-            CurrentStageId = stage1.Id,
-            CompletedDate = DateTime.UtcNow.AddDays(-1),
-            Priority = JobPriority.Normal,
-        };
-        _db.Jobs.Add(job);
-        await _db.SaveChangesAsync();
-
-        var command = new CompleteJobCommand(job.Id);
-
-        // Act — handler does not check for already completed, it just moves and sets date
-        await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        var updatedJob = await _db.Jobs.FirstAsync(j => j.Id == job.Id);
-        updatedJob.CurrentStageId.Should().Be(stage2.Id);
-        updatedJob.CompletedDate.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        _mediator.Verify(m => m.Send(It.IsAny<MoveJobStageCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Handle_JobWithContainedNcr_ThrowsAndLeavesJobOpen()
+    public async Task Handle_NonExistentJob_PropagatesKeyNotFound()
     {
-        var (job, firstStage) = await SeedJobAsync("JOB-0003");
-        _db.NonConformances.Add(new NonConformance
-        {
-            NcrNumber = "NCR-0042", JobId = job.Id, PartId = 1, DetectedById = 1, Status = NcrStatus.Contained,
-        });
-        await _db.SaveChangesAsync();
+        _mediator
+            .Setup(m => m.Send(It.IsAny<GetJobStatusQuery>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new KeyNotFoundException("Job 99999 not found"));
 
-        var act = () => _handler.Handle(new CompleteJobCommand(job.Id), CancellationToken.None);
+        var act = () => _handler.Handle(new CompleteJobCommand(99999), CancellationToken.None);
 
-        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
-        ex.Which.Message.Should().Contain("NCR-0042");
-        var reloaded = await _db.Jobs.AsNoTracking().FirstAsync(j => j.Id == job.Id);
-        reloaded.CurrentStageId.Should().Be(firstStage.Id);
-        reloaded.CompletedDate.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task Handle_FailedInspectionThenPassedReinspection_Completes()
-    {
-        var (job, _) = await SeedJobAsync("JOB-0004");
-        var failedAt = new DateTimeOffset(2026, 10, 1, 8, 0, 0, TimeSpan.Zero);
-        _db.QcInspections.Add(new QcInspection { JobId = job.Id, TemplateId = 3, Status = "Failed", CompletedAt = failedAt });
-        await _db.SaveChangesAsync();
-
-        var blocked = () => _handler.Handle(new CompleteJobCommand(job.Id), CancellationToken.None);
-        await blocked.Should().ThrowAsync<InvalidOperationException>();
-
-        _db.QcInspections.Add(new QcInspection { JobId = job.Id, TemplateId = 3, Status = "Passed", CompletedAt = failedAt.AddHours(1) });
-        await _db.SaveChangesAsync();
-
-        await _handler.Handle(new CompleteJobCommand(job.Id), CancellationToken.None);
-
-        var reloaded = await _db.Jobs.AsNoTracking().FirstAsync(j => j.Id == job.Id);
-        reloaded.CompletedDate.Should().NotBeNull();
-    }
-
-    private async Task<(Job Job, JobStage FirstStage)> SeedJobAsync(string jobNumber)
-    {
-        var trackType = new TrackType { Name = "Production", Code = jobNumber, IsActive = true };
-        _db.TrackTypes.Add(trackType);
-        await _db.SaveChangesAsync();
-
-        var firstStage = new JobStage
-        {
-            TrackTypeId = trackType.Id, Name = "In Production", Code = "in_production", SortOrder = 1, IsActive = true,
-        };
-        var lastStage = new JobStage
-        {
-            TrackTypeId = trackType.Id, Name = "Complete", Code = "complete", SortOrder = 10, IsActive = true,
-        };
-        _db.JobStages.AddRange(firstStage, lastStage);
-        await _db.SaveChangesAsync();
-
-        var job = new Job
-        {
-            JobNumber = jobNumber,
-            Title = _faker.Commerce.ProductName(),
-            TrackTypeId = trackType.Id,
-            CurrentStageId = firstStage.Id,
-            Priority = JobPriority.Normal,
-        };
-        _db.Jobs.Add(job);
-        await _db.SaveChangesAsync();
-        return (job, firstStage);
-    }
-
-    [Fact]
-    public async Task Handle_NonExistentJob_ThrowsKeyNotFoundException()
-    {
-        // Arrange
-        var command = new CompleteJobCommand(99999);
-
-        // Act
-        var act = () => _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        await act.Should().ThrowAsync<KeyNotFoundException>()
-            .WithMessage("*99999*");
+        await act.Should().ThrowAsync<KeyNotFoundException>().WithMessage("*99999*");
     }
 }

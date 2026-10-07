@@ -2,36 +2,36 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
-using Forge.Api.Features.Quality;
-using Forge.Core.Interfaces;
+using Forge.Api.Features.Jobs;
+using Forge.Api.Features.Mobile;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.ShopFloor;
 
-public record CompleteJobCommand(int JobId) : IRequest;
+public record CompleteJobCommand(int JobId) : IRequest<CompleteJobResponseModel>;
 
-public class CompleteJobHandler(AppDbContext db, IClock clock) : IRequestHandler<CompleteJobCommand>
+public class CompleteJobHandler(AppDbContext db, IMediator mediator)
+    : IRequestHandler<CompleteJobCommand, CompleteJobResponseModel>
 {
-    public async Task Handle(CompleteJobCommand request, CancellationToken ct)
+    public async Task<CompleteJobResponseModel> Handle(CompleteJobCommand request, CancellationToken ct)
     {
-        var job = await db.Jobs
-            .Include(j => j.CurrentStage)
-            .FirstOrDefaultAsync(j => j.Id == request.JobId, ct)
-            ?? throw new KeyNotFoundException($"Job {request.JobId} not found");
+        var status = await mediator.Send(new GetJobStatusQuery(request.JobId), ct);
 
-        var lastStage = await db.JobStages
-            .Where(s => s.TrackTypeId == job.TrackTypeId)
-            .OrderByDescending(s => s.SortOrder)
+        if (status.NextStageId is not { } nextStageId)
+            throw new InvalidOperationException("This work order is already at its final status.");
+
+        var nextStage = await db.JobStages.AsNoTracking()
+            .Where(s => s.Id == nextStageId)
+            .Select(s => new { s.Id, s.Name, s.IsShopFloor })
             .FirstOrDefaultAsync(ct)
-            ?? throw new InvalidOperationException("No stages found for track type");
+            ?? throw new KeyNotFoundException($"Stage {nextStageId} not found");
 
-        var blockers = await JobQualityGate.FindBlockersAsync(db, [job.Id], ct);
-        if (blockers.TryGetValue(job.Id, out var blocking))
-            throw new InvalidOperationException(JobQualityGate.BlockedMessage(blocking));
+        if (!nextStage.IsShopFloor)
+            throw new InvalidOperationException(
+                $"The next status, {nextStage.Name}, is an office status. Move it from the board.");
 
-        job.CurrentStageId = lastStage.Id;
-        job.CompletedDate = clock.UtcNow;
+        await mediator.Send(new MoveJobStageCommand(request.JobId, nextStage.Id), ct);
 
-        await db.SaveChangesAsync(ct);
+        return new CompleteJobResponseModel(nextStage.Name);
     }
 }

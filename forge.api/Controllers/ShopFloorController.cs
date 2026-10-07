@@ -85,12 +85,9 @@ public class ShopFloorController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("complete-job")]
-    [Authorize(Roles = "Admin,Manager")] // SF-04: completing a job (irreversible) is supervisory
-    public async Task<IActionResult> CompleteJob([FromBody] CompleteJobRequestModel model)
-    {
-        await mediator.Send(new CompleteJobCommand(model.JobId));
-        return NoContent();
-    }
+    [Authorize(Roles = "Admin,Manager")] // SF-04: completing a job from the kiosk is supervisory
+    public async Task<ActionResult<CompleteJobResponseModel>> CompleteJob([FromBody] CompleteJobRequestModel model)
+        => Ok(await mediator.Send(new CompleteJobCommand(model.JobId)));
 
     // ─── Teams ───
     [KioskTerminalAuth]

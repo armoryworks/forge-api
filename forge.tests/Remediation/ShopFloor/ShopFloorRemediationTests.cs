@@ -1,7 +1,13 @@
 using System.Net;
+using System.Net.Http.Json;
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
+using Forge.Core.Entities;
+using Forge.Core.Enums;
+using Forge.Data.Context;
 using Forge.Tests.Capabilities;
 
 namespace Forge.Tests.Remediation.ShopFloor;
@@ -28,6 +34,43 @@ public class ShopFloorRemediationTests
         return client;
     }
 
+    private IServiceScope NewScope() => _factory.Services.CreateScope();
+
+    private async Task<(int JobId, int InProductionId, int QcId)> SeedProductionJobAsync()
+    {
+        using var scope = NewScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var code = Guid.NewGuid().ToString("N")[..8];
+        var track = new TrackType { Name = $"Production {code}", Code = $"prod_{code}", IsActive = true };
+        db.TrackTypes.Add(track);
+        await db.SaveChangesAsync();
+
+        var inProduction = new JobStage { TrackTypeId = track.Id, Name = "In Production", Code = "in_production", SortOrder = 6, IsShopFloor = true };
+        var qc = new JobStage { TrackTypeId = track.Id, Name = "QC/Review", Code = "qc_review", SortOrder = 7, IsShopFloor = true };
+        var paid = new JobStage { TrackTypeId = track.Id, Name = "Payment Received", Code = "payment_received", SortOrder = 11, IsIrreversible = true };
+        db.JobStages.AddRange(inProduction, qc, paid);
+        await db.SaveChangesAsync();
+
+        var job = new Job
+        {
+            JobNumber = $"JOB-{code}",
+            Title = "Bracket",
+            TrackTypeId = track.Id,
+            CurrentStageId = inProduction.Id,
+            Priority = JobPriority.Normal,
+        };
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+        return (job.Id, inProduction.Id, qc.Id);
+    }
+
+    private async Task<int> CurrentStageAsync(int jobId)
+    {
+        using var scope = NewScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        return await db.Jobs.AsNoTracking().Where(j => j.Id == jobId).Select(j => j.CurrentStageId).FirstAsync();
+    }
+
     [Fact] // SF-04 GREEN — complete-job now requires Admin/Manager
     public async Task Production_worker_cannot_complete_a_job_from_the_kiosk()
     {
@@ -44,5 +87,17 @@ public class ShopFloorRemediationTests
             .PostAsync("/api/v1/display/shop-floor/assign-job", null);
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden,
             "assigning/stealing a job must require Admin/Manager, not any authenticated user");
+    }
+
+    [Fact]
+    public async Task Complete_job_moves_one_status_and_never_to_payment_received()
+    {
+        var (jobId, _, qcId) = await SeedProductionJobAsync();
+
+        var response = await AuthClient("Manager")
+            .PostAsJsonAsync("/api/v1/display/shop-floor/complete-job", new { jobId });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await CurrentStageAsync(jobId)).Should().Be(qcId);
     }
 }
