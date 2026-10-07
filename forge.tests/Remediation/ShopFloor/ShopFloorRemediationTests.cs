@@ -5,6 +5,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using Forge.Api.Authorization;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
@@ -17,8 +18,8 @@ namespace Forge.Tests.Remediation.ShopFloor;
 /// SF-04 (complete-job) and SF-05 (assign-job) are class-[Authorize] only (any
 /// authenticated role) — complete-job jumps to the final irreversible stage and
 /// assign-job lets anyone steal any job. These assert a ProductionWorker is rejected
-/// (403). CAP-MFG-SHOPFLOOR is on. SF-10 (clock — AllowAnonymous+KioskTerminalAuth, no
-/// role evaluated) needs a PIN/JWT-tether fix, not a role-403; tracked in the catalog.
+/// (403). CAP-MFG-SHOPFLOOR is on. SF-10: the clock punch needs the signed-in worker's
+/// JWT (a device token alone is 401) and only Admin/Manager may punch for someone else.
 /// </summary>
 [Collection(CapabilityTestCollection.Name)]
 public class ShopFloorRemediationTests
@@ -35,6 +36,19 @@ public class ShopFloorRemediationTests
     }
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
+
+    private async Task<string> SeedTerminalAsync()
+    {
+        using var scope = NewScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var team = new Team { Name = $"Team {Guid.NewGuid():N}" };
+        db.Teams.Add(team);
+        await db.SaveChangesAsync();
+        var token = Guid.NewGuid().ToString("N");
+        db.KioskTerminals.Add(new KioskTerminal { Name = "Floor", DeviceToken = token, TeamId = team.Id, ConfiguredByUserId = 1 });
+        await db.SaveChangesAsync();
+        return token;
+    }
 
     private async Task<(int JobId, int InProductionId, int QcId)> SeedProductionJobAsync()
     {
@@ -111,5 +125,28 @@ public class ShopFloorRemediationTests
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         (await CurrentStageAsync(jobId)).Should().Be(qcId);
+    }
+
+    [Fact] // SF-10
+    public async Task A_device_token_alone_cannot_punch_the_clock()
+    {
+        var token = await SeedTerminalAsync();
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add(KioskTerminalAuthAttribute.HeaderName, token);
+
+        var status = await client.GetAsync("/api/v1/display/shop-floor/clock-status");
+        status.StatusCode.Should().Be(HttpStatusCode.OK, "the read endpoints stay on device-token auth");
+
+        var punch = await client.PostAsJsonAsync("/api/v1/display/shop-floor/clock", new { userId = 1, eventType = "ClockIn" });
+        punch.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact] // SF-10
+    public async Task A_worker_cannot_punch_for_someone_else()
+    {
+        var response = await AuthClient("ProductionWorker")
+            .PostAsJsonAsync("/api/v1/display/shop-floor/clock", new { userId = 2, eventType = "ClockIn" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 }

@@ -68,12 +68,19 @@ public class ShopFloorController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    [AllowAnonymous]
-    [KioskTerminalAuth]
     [HttpPost("clock")]
     public async Task<IActionResult> ClockInOut([FromBody] ClockInOutRequestModel model)
     {
-        await mediator.Send(new ClockInOutCommand(model.UserId, model.EventType));
+        var callerClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(callerClaim, out var callerId))
+            return Unauthorized();
+
+        var forSomeoneElse = model.UserId != callerId;
+        if (forSomeoneElse && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
+            return Forbid();
+
+        var source = forSomeoneElse ? "kiosk-supervisor" : "kiosk";
+        await mediator.Send(new ClockInOutCommand(model.UserId, model.EventType, source));
         return NoContent();
     }
 

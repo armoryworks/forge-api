@@ -9,7 +9,7 @@ using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.ShopFloor;
 
-public record ClockInOutCommand(int UserId, string EventType) : IRequest<ClockInOutResponseModel>;
+public record ClockInOutCommand(int UserId, string EventType, string Source = "kiosk") : IRequest<ClockInOutResponseModel>;
 
 public class ClockInOutValidator : AbstractValidator<ClockInOutCommand>
 {
@@ -45,7 +45,7 @@ public class ClockInOutHandler(
             EventType = LegacyClockEventType.From(definition),
             EventTypeCode = request.EventType,
             Timestamp = timestamp,
-            Source = "kiosk",
+            Source = request.Source,
         };
         db.ClockEvents.Add(clockEvent);
 
