@@ -279,7 +279,7 @@ public class ExplodeJobBomHandlerTests
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage($"*{job.Id}*no associated part*");
+            .WithMessage("This work order has no part.*");
     }
 
     [Fact]

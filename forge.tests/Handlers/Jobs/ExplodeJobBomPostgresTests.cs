@@ -100,4 +100,79 @@ public sealed class ExplodeJobBomPostgresTests(PostgresFixture fixture)
         jobPart.PartId.Should().Be(childPartId);
         jobPart.Quantity.Should().Be(2);
     }
+
+    [Fact]
+    public async Task Concurrent_explosions_of_the_same_job_create_one_set_of_children()
+    {
+        int parentJobId;
+
+        await using (var seed = fixture.CreateContext())
+        {
+            var track = new TrackType { Name = "Explode-PG Race", Code = $"explode-race-{Guid.NewGuid():N}"[..24], IsActive = true };
+            seed.TrackTypes.Add(track);
+            await seed.SaveChangesAsync();
+
+            var stage = new JobStage { TrackTypeId = track.Id, Name = "Stage 1", Code = "s1", SortOrder = 1, IsActive = true };
+            seed.JobStages.Add(stage);
+
+            var parentPart = new Part { PartNumber = $"EXPR-P-{Guid.NewGuid():N}"[..16], Description = "Race parent" };
+            var childPart = new Part { PartNumber = $"EXPR-C-{Guid.NewGuid():N}"[..16], Description = "Race child" };
+            seed.Parts.AddRange(parentPart, childPart);
+            await seed.SaveChangesAsync();
+
+            seed.BOMLines.Add(new BOMLine
+            {
+                ParentPartId = parentPart.Id,
+                ChildPartId = childPart.Id,
+                Quantity = 2,
+                SourceType = BOMSourceType.Make,
+                SortOrder = 1,
+            });
+
+            var parentJob = new Job
+            {
+                JobNumber = $"J-EXPR-{Guid.NewGuid():N}"[..14],
+                Title = "Race parent job",
+                TrackTypeId = track.Id,
+                CurrentStageId = stage.Id,
+                PartId = parentPart.Id,
+            };
+            seed.Jobs.Add(parentJob);
+            await seed.SaveChangesAsync();
+
+            seed.Set<JobPart>().Add(new JobPart { JobId = parentJob.Id, PartId = parentPart.Id, Quantity = 500 });
+            await seed.SaveChangesAsync();
+
+            parentJobId = parentJob.Id;
+        }
+
+        async Task<bool> ExplodeAsync()
+        {
+            await using var db = fixture.CreateContext();
+            var clients = new Mock<IHubClients>();
+            clients.Setup(c => c.Group(It.IsAny<string>())).Returns(Mock.Of<IClientProxy>());
+            var hub = new Mock<IHubContext<BoardHub>>();
+            hub.SetupGet(h => h.Clients).Returns(clients.Object);
+            var handler = new ExplodeJobBomHandler(
+                db, new JobRepository(db), Mock.Of<IBarcodeService>(), hub.Object);
+            try
+            {
+                await handler.Handle(new ExplodeJobBomCommand(parentJobId), CancellationToken.None);
+                return true;
+            }
+            catch (InvalidOperationException ex) when (ex.Message == "This work order has already been exploded.")
+            {
+                return false;
+            }
+        }
+
+        var outcomes = await Task.WhenAll(ExplodeAsync(), ExplodeAsync());
+
+        outcomes.Count(ok => ok).Should().Be(1);
+
+        await using var verify = fixture.CreateContext();
+        var children = await verify.Jobs.Where(j => j.ParentJobId == parentJobId).ToListAsync();
+        children.Should().ContainSingle();
+        (await verify.Set<JobPart>().SingleAsync(p => p.JobId == children[0].Id)).Quantity.Should().Be(1000);
+    }
 }

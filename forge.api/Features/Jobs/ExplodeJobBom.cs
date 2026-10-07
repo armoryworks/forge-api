@@ -30,36 +30,52 @@ public class ExplodeJobBomHandler(
 {
     public async Task<BomExplosionResponseModel> Handle(ExplodeJobBomCommand request, CancellationToken ct)
     {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        if (db.Database.IsNpgsql())
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT id FROM jobs WHERE id = {request.JobId} FOR UPDATE", ct);
+
         var parentJob = await db.Jobs
             .Include(j => j.TrackType)
                 .ThenInclude(t => t.Stages.OrderBy(s => s.SortOrder))
             .FirstOrDefaultAsync(j => j.Id == request.JobId, ct)
             ?? throw new KeyNotFoundException($"Job {request.JobId} not found.");
 
+        if (await db.Jobs.AnyAsync(j => j.ParentJobId == parentJob.Id && j.DeletedAt == null, ct))
+            throw new InvalidOperationException("This work order has already been exploded.");
+
         if (!parentJob.PartId.HasValue)
-            throw new InvalidOperationException($"Job {request.JobId} has no associated part. Set PartId before exploding BOM.");
+            throw new InvalidOperationException("This work order has no part. Pick a part, then explode the BOM.");
 
         var part = await db.Parts
-            .Include(p => p.BOMLines)
-                .ThenInclude(b => b.ChildPart)
-                    .ThenInclude(cp => cp.PreferredVendor)
             .FirstOrDefaultAsync(p => p.Id == parentJob.PartId.Value, ct)
             ?? throw new KeyNotFoundException($"Part {parentJob.PartId.Value} not found.");
 
-        if (part.BOMLines.Count == 0)
+        var bomLines = await LoadBomLinesAsync(parentJob, part, ct);
+
+        if (bomLines.Count == 0)
             throw new InvalidOperationException(
                 $"Part {part.PartNumber} has no BOM lines to explode. Add BOM lines to the part first.");
 
         var firstStage = parentJob.TrackType.Stages.FirstOrDefault()
-            ?? throw new InvalidOperationException($"Track type '{parentJob.TrackType.Name}' has no stages configured.");
+            ?? throw new InvalidOperationException(
+                $"Order type '{parentJob.TrackType.Name}' has no statuses. Add statuses in Admin.");
+
+        var buildQty = await db.Set<JobPart>()
+            .Where(jp => jp.JobId == parentJob.Id && jp.PartId == parentJob.PartId.Value)
+            .SumAsync(jp => jp.Quantity, ct);
+        if (buildQty <= 0)
+            buildQty = 1;
 
         var newChildJobs = new List<(Job Job, Part Part, decimal Quantity)>();
         var buyItems = new List<BomExplosionBuyItemModel>();
         var stockItems = new List<BomExplosionStockItemModel>();
 
-        foreach (var bomLine in part.BOMLines.OrderBy(b => b.SortOrder))
+        foreach (var bomLine in bomLines)
         {
             var childPart = bomLine.ChildPart;
+            var required = RequiredQuantity(bomLine, buildQty);
 
             switch (bomLine.SourceType)
             {
@@ -78,6 +94,8 @@ public class ExplodeJobBomHandler(
                         BoardPosition = maxPos + 1,
                         PartId = childPart.Id,
                         ParentJobId = parentJob.Id,
+                        Priority = parentJob.Priority,
+                        DueDate = parentJob.DueDate,
                     };
 
                     await jobRepo.AddAsync(childJob, ct);
@@ -104,10 +122,16 @@ public class ExplodeJobBomHandler(
                     {
                         Job = childJob,
                         PartId = childPart.Id,
-                        Quantity = bomLine.Quantity,
+                        Quantity = required,
                     });
 
-                    newChildJobs.Add((childJob, childPart, bomLine.Quantity));
+                    childJob.ActivityLogs.Add(new JobActivityLog
+                    {
+                        Action = ActivityAction.Created,
+                        Description = $"Job {jobNumber} created from the BOM of job {parentJob.JobNumber}.",
+                    });
+
+                    newChildJobs.Add((childJob, childPart, required));
                     break;
                 }
 
@@ -116,15 +140,16 @@ public class ExplodeJobBomHandler(
                         childPart.Id,
                         childPart.PartNumber,
                         childPart.Description ?? childPart.Name,
-                        bomLine.Quantity,
+                        required,
                         childPart.PreferredVendorId,
                         childPart.PreferredVendor?.CompanyName,
-                        bomLine.LeadTimeDays));
+                        bomLine.LeadTimeDays,
+                        parentJob.DueDate?.AddDays(-(bomLine.LeadTimeDays ?? 0))));
                     break;
 
                 case BOMSourceType.Stock:
                 {
-                    var needed = bomLine.Quantity;
+                    var needed = required;
                     var reserved = 0m;
 
                     // Auto-reserve available stock across bins (oldest first)
@@ -168,7 +193,14 @@ public class ExplodeJobBomHandler(
             }
         }
 
+        parentJob.ActivityLogs.Add(new JobActivityLog
+        {
+            Action = ActivityAction.StatusChanged,
+            Description = $"BOM exploded for {buildQty:0.####}: {newChildJobs.Count} sub-jobs, {buyItems.Count} buy lines, {stockItems.Count} stock lines.",
+        });
+
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
 
         // Response models are built AFTER the save so they carry the real
         // database-assigned child ids (building them earlier captured 0s).
@@ -185,7 +217,8 @@ public class ExplodeJobBomHandler(
                 childJob.Title,
                 childPart.Id,
                 childPart.PartNumber,
-                quantity));
+                quantity,
+                childJob.DueDate));
 
             await barcodeService.CreateBarcodeAsync(
                 BarcodeEntityType.Job, childJob.Id, childJob.JobNumber, ct);
@@ -201,5 +234,60 @@ public class ExplodeJobBomHandler(
             createdJobs,
             buyItems,
             stockItems);
+    }
+
+    private async Task<List<BomExplosionLine>> LoadBomLinesAsync(
+        Job parentJob, Part part, CancellationToken ct)
+    {
+        if (parentJob.BomRevisionIdAtRelease is int revisionId)
+        {
+            var entries = await db.Set<BomRevisionLine>()
+                .Include(e => e.Part)
+                    .ThenInclude(p => p.PreferredVendor)
+                .Include(e => e.Part)
+                    .ThenInclude(p => p.StockUom)
+                .Where(e => e.BomRevisionId == revisionId)
+                .OrderBy(e => e.SortOrder)
+                .ToListAsync(ct);
+
+            return entries
+                .Select(e => new BomExplosionLine(e.Part, e.Quantity, e.SourceType, e.LeadTimeDays, e.UnitOfMeasure))
+                .ToList();
+        }
+
+        var lines = await db.BOMLines
+            .Include(b => b.ChildPart)
+                .ThenInclude(cp => cp.PreferredVendor)
+            .Include(b => b.ChildPart)
+                .ThenInclude(cp => cp.StockUom)
+            .Include(b => b.Uom)
+            .Where(b => b.ParentPartId == part.Id)
+            .OrderBy(b => b.SortOrder)
+            .ToListAsync(ct);
+
+        return lines
+            .Select(b => new BomExplosionLine(b.ChildPart, b.Quantity, b.SourceType, b.LeadTimeDays, b.Uom?.Code))
+            .ToList();
+    }
+
+    private static decimal RequiredQuantity(BomExplosionLine line, decimal buildQty)
+    {
+        var required = line.Quantity * buildQty;
+        return IsEach(line.ChildPart.StockUom, line.LineUom) ? Math.Ceiling(required) : required;
+    }
+
+    private static bool IsEach(UnitOfMeasure? stockUom, string? lineUom)
+    {
+        if (stockUom is not null)
+            return IsEachName(stockUom.Code) || IsEachName(stockUom.Name);
+
+        return IsEachName(lineUom);
+    }
+
+    private static bool IsEachName(string? uom)
+    {
+        var value = uom?.Trim();
+        return string.Equals(value, "ea", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "each", StringComparison.OrdinalIgnoreCase);
     }
 }

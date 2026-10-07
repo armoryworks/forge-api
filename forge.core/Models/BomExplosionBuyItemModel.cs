@@ -7,4 +7,5 @@ public record BomExplosionBuyItemModel(
     decimal Quantity,
     int? PreferredVendorId,
     string? PreferredVendorName,
-    int? LeadTimeDays);
+    int? LeadTimeDays,
+    DateTimeOffset? NeedByDate);

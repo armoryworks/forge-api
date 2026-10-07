@@ -346,6 +346,7 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
                 j.CurrentStage.Name,
                 j.Part != null ? j.Part.PartNumber : null,
                 j.JobParts.Select(jp => (decimal?)jp.Quantity).FirstOrDefault(),
+                j.DueDate,
                 j.CreatedAt))
             .ToListAsync(ct);
     }

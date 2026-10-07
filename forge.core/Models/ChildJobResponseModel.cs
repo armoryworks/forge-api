@@ -7,4 +7,5 @@ public record ChildJobResponseModel(
     string Stage,
     string? PartNumber,
     decimal? Quantity,
+    DateTimeOffset? DueDate,
     DateTimeOffset CreatedAt);

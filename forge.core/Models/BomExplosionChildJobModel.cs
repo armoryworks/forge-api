@@ -6,4 +6,5 @@ public record BomExplosionChildJobModel(
     string Title,
     int PartId,
     string PartNumber,
-    decimal Quantity);
+    decimal Quantity,
+    DateTimeOffset? DueDate);
