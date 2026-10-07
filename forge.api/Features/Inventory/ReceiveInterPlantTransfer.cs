@@ -19,7 +19,7 @@ public class ReceiveInterPlantTransferHandler(AppDbContext db, IClock clock) : I
             ?? throw new KeyNotFoundException($"Transfer {command.Id} not found");
 
         if (transfer.Status != InterPlantTransferStatus.Shipped && transfer.Status != InterPlantTransferStatus.InTransit)
-            throw new InvalidOperationException($"Cannot receive transfer in {transfer.Status} status");
+            throw new InvalidOperationException("This transfer can be received once it has shipped.");
 
         var receivedLinesByPart = command.Lines.ToDictionary(l => l.PartId, l => l.ReceivedQuantity);
 

@@ -56,7 +56,7 @@ public class MoveStockHandler(AppDbContext db, IMediator mediator)
             ?? throw new InvalidOperationException("Not enough of that part in the from-bin.");
 
         if (request.Quantity != Math.Floor(request.Quantity))
-            throw new InvalidOperationException("Move whole units from the phone.");
+            throw new InvalidOperationException("Enter a whole number.");
 
         await mediator.Send(new TransferStockCommand(new TransferStockRequestModel(
             source.Id, request.ToLocationId, (int)request.Quantity, $"mobile:{request.DeviceKey}")), ct);

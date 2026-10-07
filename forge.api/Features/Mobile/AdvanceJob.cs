@@ -30,7 +30,7 @@ public class AdvanceJobHandler(IMediator mediator, IScanCollapseService collapse
         }
 
         if (before.NextStageId is null)
-            throw new InvalidOperationException("This job is already at the last column of its track.");
+            throw new InvalidOperationException("This work order is already at its final status.");
 
         await mediator.Send(new MoveJobStageCommand(request.JobId, before.NextStageId.Value), ct);
         var after = await mediator.Send(new GetJobStatusQuery(request.JobId), ct);

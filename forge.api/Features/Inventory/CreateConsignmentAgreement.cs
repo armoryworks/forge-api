@@ -20,10 +20,10 @@ public class CreateConsignmentAgreementHandler(AppDbContext db) : IRequestHandle
             ?? throw new KeyNotFoundException($"Part {request.PartId} not found");
 
         if (request.Direction == ConsignmentDirection.Inbound && !request.VendorId.HasValue)
-            throw new InvalidOperationException("Inbound consignment requires a VendorId");
+            throw new InvalidOperationException("Choose the vendor for this consignment.");
 
         if (request.Direction == ConsignmentDirection.Outbound && !request.CustomerId.HasValue)
-            throw new InvalidOperationException("Outbound consignment requires a CustomerId");
+            throw new InvalidOperationException("Choose the customer for this consignment.");
 
         var agreement = new ConsignmentAgreement
         {
