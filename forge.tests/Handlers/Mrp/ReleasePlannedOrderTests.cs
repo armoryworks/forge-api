@@ -207,9 +207,10 @@ public sealed class ReleasePlannedOrderTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task ReleaseToJob_GivesTheJobANumberAndAQuantity_AndASecondMrpRunDoesNotSuggestAnotherBuild()
+    public async Task ReleaseToJob_GivesTheJobANumberAndAQuantity_AndASecondMrpRunPlansOnlyItsComponents()
     {
         int parentPartId;
+        int childPartId;
         await using (var seed = fixture.CreateContext())
         {
             var track = new TrackType { Name = "MRP-PG Track", Code = Unique("mrp-pg"), IsActive = true };
@@ -249,6 +250,7 @@ public sealed class ReleasePlannedOrderTests(PostgresFixture fixture)
             seed.MasterSchedules.Add(schedule);
             await seed.SaveChangesAsync();
             parentPartId = parent.Id;
+            childPartId = child.Id;
         }
 
         var options = new MrpRunOptions(PartIds: [parentPartId]);
@@ -286,7 +288,10 @@ public sealed class ReleasePlannedOrderTests(PostgresFixture fixture)
         await using (var db = fixture.CreateContext())
         {
             var secondRun = await Mrp(db, firstRunAt.AddMinutes(1)).ExecuteRunAsync(options);
-            (await db.MrpPlannedOrders.CountAsync(o => o.MrpRunId == secondRun.Id)).Should().Be(0);
+            (await db.MrpPlannedOrders.AnyAsync(o => o.MrpRunId == secondRun.Id && o.PartId == parentPartId)).Should().BeFalse();
+            var componentOrder = await db.MrpPlannedOrders.SingleAsync(o => o.MrpRunId == secondRun.Id && o.PartId == childPartId);
+            componentOrder.OrderType.Should().Be(MrpOrderType.Purchase);
+            componentOrder.Quantity.Should().Be(50);
             (await db.MrpSupplies.SingleAsync(s => s.MrpRunId == secondRun.Id && s.Source == MrpSupplySource.Job))
                 .SourceEntityId.Should().Be(result.CreatedJobId);
         }

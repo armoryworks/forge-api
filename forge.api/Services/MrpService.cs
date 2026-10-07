@@ -181,15 +181,22 @@ public class MrpService(
                 .Where(b => partIds.Contains(b.ParentPartId) || partIds.Contains(b.ChildPartId))
                 .ToListAsync(cancellationToken);
 
+            var openJobs = await LoadOpenJobsAsync(partIds, cancellationToken);
+            var pinnedComponentsByRevision = await LoadPinnedComponentsAsync(openJobs, cancellationToken);
+            var pinnedEdges = openJobs
+                .Where(j => j.BomRevisionIdAtRelease is int revisionId && pinnedComponentsByRevision.ContainsKey(revisionId))
+                .SelectMany(j => pinnedComponentsByRevision[j.BomRevisionIdAtRelease!.Value].Select(c => (j.PartId, c.PartId)));
+
             // Include child parts that may not be in the original partIds
             var allPartIds = partIds.ToHashSet();
-            foreach (var bom in bomLines)
+            var bomEdges = bomLines.Select(b => (b.ParentPartId, b.ChildPartId)).Concat(pinnedEdges).ToList();
+            foreach (var (parentPartId, childPartId) in bomEdges)
             {
-                allPartIds.Add(bom.ChildPartId);
-                allPartIds.Add(bom.ParentPartId);
+                allPartIds.Add(childPartId);
+                allPartIds.Add(parentPartId);
             }
 
-            var lowLevelCodes = ComputeLowLevelCodes(bomLines, allPartIds);
+            var lowLevelCodes = ComputeLowLevelCodes(bomEdges, allPartIds);
 
             // Step 5: Process level by level (low-level code ascending)
             var demandRecords = new List<MrpDemand>();
@@ -303,8 +310,14 @@ public class MrpService(
             // back to the Part snapshot.
             var sourcingByPart = await sourcingResolver.ResolveManyAsync(allPartIds.ToList(), cancellationToken);
 
+            // Group BOM by parent
+            var bomByParent = bomLines
+                .GroupBy(b => b.ParentPartId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
             var (peggedLineBySupply, jobNumberById) = await AddOpenJobSupplyAsync(
-                mrpRun.Id, partIds, sourcingByPart, supplyRecords, exceptions, cancellationToken);
+                new OpenJobPlanningContext(mrpRun.Id, openJobs, pinnedComponentsByRevision, bomByParent, lowLevelCodes, sourcingByPart),
+                supplyRecords, demandRecords, exceptions, cancellationToken);
 
             // Also load on-hand for child parts
             var childOnHand = await db.BinContents
@@ -319,11 +332,6 @@ public class MrpService(
 
             foreach (var ch in childOnHand)
                 onHandMap.TryAdd(ch.PartId, ch.Quantity);
-
-            // Group BOM by parent
-            var bomByParent = bomLines
-                .GroupBy(b => b.ParentPartId)
-                .ToDictionary(g => g.Key, g => g.ToList());
 
             // Pre-group demands and supplies by part for O(1) lookup (mutable for BOM explosion)
             var demandsByPart = demandRecords
@@ -688,68 +696,115 @@ public class MrpService(
         return results;
     }
 
-    private async Task<(Dictionary<MrpSupply, int> PeggedLineBySupply, Dictionary<int, string> JobNumberById)> AddOpenJobSupplyAsync(
-        int mrpRunId,
-        HashSet<int> partIds,
-        IReadOnlyDictionary<int, PartSourcingValues> sourcingByPart,
-        List<MrpSupply> supplyRecords,
-        List<MrpException> exceptions,
-        CancellationToken cancellationToken)
+    private async Task<List<OpenJobRow>> LoadOpenJobsAsync(HashSet<int> partIds, CancellationToken cancellationToken)
     {
-        var openJobs = await db.Jobs
+        return await db.Jobs
             .AsNoTracking()
             .Where(j => !j.IsArchived
                 && j.CompletedDate == null
                 && j.Disposition == null
                 && j.PartId != null
                 && partIds.Contains(j.PartId.Value))
-            .Select(j => new
-            {
+            .Select(j => new OpenJobRow(
                 j.Id,
                 j.JobNumber,
-                PartId = j.PartId!.Value,
-                PartNumber = j.Part != null ? j.Part.PartNumber : null,
+                j.PartId!.Value,
+                j.Part != null ? j.Part.PartNumber : null,
+                j.Part != null ? j.Part.ProcurementSource : ProcurementSource.Buy,
+                j.StartDate,
                 j.DueDate,
                 j.SalesOrderLineId,
-                PlannedOrderQuantity = j.MrpPlannedOrder != null ? (decimal?)j.MrpPlannedOrder.Quantity : null,
-                LineQuantity = j.SalesOrderLine != null ? (decimal?)j.SalesOrderLine.Quantity : null,
-                LineShippedQuantity = j.SalesOrderLine != null ? (decimal?)j.SalesOrderLine.ShippedQuantity : null,
-                HasJobPart = j.JobParts.Any(jp => jp.PartId == j.PartId),
-                JobPartQuantity = j.JobParts.Where(jp => jp.PartId == j.PartId).Sum(jp => (decimal?)jp.Quantity) ?? 0m,
-                ReceivedQuantity = db.ProductionRuns
+                j.BomRevisionIdAtRelease,
+                j.MrpPlannedOrder != null ? (decimal?)j.MrpPlannedOrder.Quantity : null,
+                j.SalesOrderLine != null ? (decimal?)j.SalesOrderLine.Quantity : null,
+                j.SalesOrderLine != null ? (decimal?)j.SalesOrderLine.ShippedQuantity : null,
+                j.JobParts.Any(jp => jp.PartId == j.PartId),
+                j.JobParts.Where(jp => jp.PartId == j.PartId).Sum(jp => (decimal?)jp.Quantity) ?? 0m,
+                db.ProductionRuns
                     .Where(r => r.JobId == j.Id && r.Status == ProductionRunStatus.Completed)
                     .Sum(r => (int?)r.ReceivedQuantity) ?? 0,
-                ActiveRunQuantity = db.ProductionRuns
+                db.BinContents
+                    .Where(bc => bc.JobId == j.Id
+                        && bc.EntityType == "part"
+                        && bc.EntityId == j.PartId
+                        && bc.Status != BinContentStatus.QcHold)
+                    .Sum(bc => (decimal?)bc.Quantity) ?? 0m,
+                db.ProductionRuns
                     .Where(r => r.JobId == j.Id
                         && (r.Status == ProductionRunStatus.Planned || r.Status == ProductionRunStatus.InProgress))
-                    .Sum(r => (int?)r.TargetQuantity) ?? 0,
-            })
+                    .Sum(r => (int?)r.TargetQuantity) ?? 0))
+            .ToListAsync(cancellationToken);
+    }
+
+    private async Task<Dictionary<int, List<JobComponentRow>>> LoadPinnedComponentsAsync(
+        List<OpenJobRow> openJobs, CancellationToken cancellationToken)
+    {
+        var revisionIds = openJobs
+            .Where(j => j.BomRevisionIdAtRelease.HasValue)
+            .Select(j => j.BomRevisionIdAtRelease!.Value)
+            .Distinct()
+            .ToList();
+
+        if (revisionIds.Count == 0)
+            return [];
+
+        var entries = await db.BomRevisionLines
+            .AsNoTracking()
+            .Where(l => revisionIds.Contains(l.BomRevisionId))
+            .Select(l => new { l.BomRevisionId, l.PartId, l.Quantity })
             .ToListAsync(cancellationToken);
 
+        return entries
+            .GroupBy(e => e.BomRevisionId)
+            .ToDictionary(g => g.Key, g => g.Select(e => new JobComponentRow(e.PartId, e.Quantity)).ToList());
+    }
+
+    private async Task<(Dictionary<MrpSupply, int> PeggedLineBySupply, Dictionary<int, string> JobNumberById)> AddOpenJobSupplyAsync(
+        OpenJobPlanningContext context,
+        List<MrpSupply> supplyRecords,
+        List<MrpDemand> demandRecords,
+        List<MrpException> exceptions,
+        CancellationToken cancellationToken)
+    {
         var peggedLineBySupply = new Dictionary<MrpSupply, int>(ReferenceEqualityComparer.Instance);
         var jobNumberById = new Dictionary<int, string>();
+        var jobSupplies = new List<(OpenJobRow Job, decimal JobQuantity, MrpSupply Supply)>();
+        var madeJobs = context.OpenJobs.Where(j => IsMadeInHouse(j, context)).ToList();
 
-        foreach (var job in openJobs)
+        foreach (var job in madeJobs)
         {
+            var produced = Math.Max(job.ReceivedQuantity, job.BinnedQuantity);
+            decimal jobQuantity;
             decimal quantity;
             if (job.HasJobPart)
-                quantity = job.JobPartQuantity - job.ReceivedQuantity;
+            {
+                jobQuantity = job.JobPartQuantity;
+                quantity = jobQuantity - produced;
+            }
             else if (job.PlannedOrderQuantity is decimal plannedQuantity)
-                quantity = plannedQuantity - job.ReceivedQuantity;
+            {
+                jobQuantity = plannedQuantity;
+                quantity = jobQuantity - produced;
+            }
             else if (job.LineQuantity is decimal lineQuantity)
-                quantity = lineQuantity - Math.Max(job.ReceivedQuantity, job.LineShippedQuantity ?? 0m);
+            {
+                jobQuantity = lineQuantity;
+                quantity = jobQuantity - Math.Max(produced, job.LineShippedQuantity ?? 0m);
+            }
             else
-                quantity = 0m;
+            {
+                continue;
+            }
 
             quantity -= job.ActiveRunQuantity;
             if (quantity <= 0)
                 continue;
 
-            var leadTime = sourcingByPart.TryGetValue(job.PartId, out var sourcing) ? sourcing.LeadTimeDays : null;
+            var leadTime = context.SourcingByPart.TryGetValue(job.PartId, out var sourcing) ? sourcing.LeadTimeDays : null;
 
             var supply = new MrpSupply
             {
-                MrpRunId = mrpRunId,
+                MrpRunId = context.MrpRunId,
                 PartId = job.PartId,
                 Source = MrpSupplySource.Job,
                 SourceEntityId = job.Id,
@@ -757,30 +812,19 @@ public class MrpService(
                 AvailableDate = job.DueDate ?? clock.UtcNow.AddDays(leadTime ?? 14),
             };
             supplyRecords.Add(supply);
+            jobSupplies.Add((job, jobQuantity, supply));
             jobNumberById[job.Id] = job.JobNumber;
 
             if (job.SalesOrderLineId is int lineId)
                 peggedLineBySupply[supply] = lineId;
-
-            if (job.DueDate is DateTimeOffset dueDate && dueDate < clock.UtcNow.AddDays(-StaleJobSupplyDays))
-            {
-                exceptions.Add(new MrpException
-                {
-                    MrpRunId = mrpRunId,
-                    PartId = job.PartId,
-                    ExceptionType = MrpExceptionType.PastDue,
-                    Message = $"Job {job.JobNumber} for {job.PartNumber ?? job.PartId.ToString()} was due {dueDate:MM/dd/yyyy} and is still open, so MRP counts its {quantity:N0} units as supply.",
-                    SuggestedAction = "Complete or close the job if its output is already in stock; otherwise update its due date.",
-                });
-            }
         }
 
-        foreach (var line in openJobs.Where(j => j.SalesOrderLineId.HasValue).GroupBy(j => j.SalesOrderLineId!.Value))
+        foreach (var line in madeJobs.Where(j => j.SalesOrderLineId.HasValue).GroupBy(j => j.SalesOrderLineId!.Value))
         {
             var lineQuantity = line.First().LineQuantity ?? 0m;
             var shipped = line.First().LineShippedQuantity ?? 0m;
             var stillToBuild = lineQuantity
-                - Math.Max(line.Sum(j => (decimal)j.ReceivedQuantity), shipped)
+                - Math.Max(line.Sum(j => Math.Max(j.ReceivedQuantity, j.BinnedQuantity)), shipped)
                 - line.Sum(j => (decimal)j.ActiveRunQuantity);
 
             var excess = peggedLineBySupply.Where(kv => kv.Value == line.Key).Sum(kv => kv.Key.Quantity) - Math.Max(stillToBuild, 0m);
@@ -803,13 +847,104 @@ public class MrpService(
             }
         }
 
+        jobSupplies.RemoveAll(js => js.Supply.Quantity <= 0);
+
+        foreach (var (job, _, supply) in jobSupplies)
+        {
+            if (job.DueDate is DateTimeOffset dueDate && dueDate < clock.UtcNow.AddDays(-StaleJobSupplyDays))
+            {
+                exceptions.Add(new MrpException
+                {
+                    MrpRunId = context.MrpRunId,
+                    PartId = job.PartId,
+                    ExceptionType = MrpExceptionType.PastDue,
+                    Message = $"Job {job.JobNumber} for {job.PartNumber ?? job.PartId.ToString()} was due {dueDate:MM/dd/yyyy} and is still open, so MRP counts its {supply.Quantity:N0} units as supply.",
+                    SuggestedAction = "Complete or close the job if its output is already in stock; otherwise update its due date.",
+                });
+            }
+        }
+
+        await AddJobComponentDemandAsync(context, jobSupplies, demandRecords, cancellationToken);
+
         return (peggedLineBySupply, jobNumberById);
     }
 
-    private static Dictionary<int, int> ComputeLowLevelCodes(List<BOMLine> bomLines, HashSet<int> allPartIds)
+    private async Task AddJobComponentDemandAsync(
+        OpenJobPlanningContext context,
+        List<(OpenJobRow Job, decimal JobQuantity, MrpSupply Supply)> jobSupplies,
+        List<MrpDemand> demandRecords,
+        CancellationToken cancellationToken)
+    {
+        if (jobSupplies.Count == 0)
+            return;
+
+        var jobIds = jobSupplies.Select(js => js.Job.Id).ToList();
+        var issued = await db.MaterialIssues
+            .AsNoTracking()
+            .Where(mi => jobIds.Contains(mi.JobId)
+                && (mi.IssueType == MaterialIssueType.Issue || mi.IssueType == MaterialIssueType.Return))
+            .GroupBy(mi => new { mi.JobId, mi.PartId })
+            .Select(g => new
+            {
+                g.Key.JobId,
+                g.Key.PartId,
+                Quantity = g.Sum(mi => mi.IssueType == MaterialIssueType.Issue ? mi.Quantity : -mi.Quantity),
+            })
+            .ToListAsync(cancellationToken);
+        var issuedByJobAndPart = issued.ToDictionary(i => (i.JobId, i.PartId), i => i.Quantity);
+
+        foreach (var (job, jobQuantity, supply) in jobSupplies)
+        {
+            var components = ComponentsFor(job, context)
+                .GroupBy(c => c.PartId)
+                .Select(g => (PartId: g.Key, PerUnit: g.Sum(c => c.Quantity)));
+
+            var parentLeadTime = context.SourcingByPart.TryGetValue(job.PartId, out var sourcing) ? sourcing.LeadTimeDays : null;
+            var requiredDate = job.StartDate ?? supply.AvailableDate.AddDays(-(parentLeadTime ?? 14));
+            if (requiredDate < clock.UtcNow)
+                requiredDate = clock.UtcNow;
+
+            foreach (var (componentPartId, perUnit) in components)
+            {
+                var alreadyBuiltUsage = (jobQuantity - supply.Quantity) * perUnit;
+                var issuedToWip = Math.Max(0m, issuedByJobAndPart.GetValueOrDefault((job.Id, componentPartId)) - alreadyBuiltUsage);
+                var quantity = supply.Quantity * perUnit - issuedToWip;
+                if (quantity <= 0)
+                    continue;
+
+                demandRecords.Add(new MrpDemand
+                {
+                    MrpRunId = context.MrpRunId,
+                    PartId = componentPartId,
+                    Source = MrpDemandSource.DependentDemand,
+                    Quantity = quantity,
+                    RequiredDate = requiredDate,
+                    IsDependent = true,
+                    BomLevel = context.LowLevelCodes.GetValueOrDefault(job.PartId) + 1,
+                });
+            }
+        }
+    }
+
+    private static bool IsMadeInHouse(OpenJobRow job, OpenJobPlanningContext context)
+        => job.ProcurementSource == ProcurementSource.Make
+            || context.BomByParent.ContainsKey(job.PartId)
+            || (job.BomRevisionIdAtRelease is int revisionId && context.PinnedComponentsByRevision.ContainsKey(revisionId));
+
+    private static IEnumerable<JobComponentRow> ComponentsFor(OpenJobRow job, OpenJobPlanningContext context)
+    {
+        if (job.BomRevisionIdAtRelease is int revisionId && context.PinnedComponentsByRevision.TryGetValue(revisionId, out var pinned))
+            return pinned;
+
+        return context.BomByParent.TryGetValue(job.PartId, out var lines)
+            ? lines.Select(l => new JobComponentRow(l.ChildPartId, l.Quantity))
+            : [];
+    }
+
+    private static Dictionary<int, int> ComputeLowLevelCodes(List<(int ParentPartId, int ChildPartId)> bomEdges, HashSet<int> allPartIds)
     {
         var codes = allPartIds.ToDictionary(id => id, _ => 0);
-        var childrenByParent = bomLines
+        var childrenByParent = bomEdges
             .GroupBy(b => b.ParentPartId)
             .ToDictionary(g => g.Key, g => g.Select(b => b.ChildPartId).ToList());
 
@@ -856,4 +991,33 @@ public class MrpService(
         ErrorMessage: run.ErrorMessage,
         InitiatedByUserId: run.InitiatedByUserId
     );
+
+    private sealed record OpenJobRow(
+        int Id,
+        string JobNumber,
+        int PartId,
+        string? PartNumber,
+        ProcurementSource ProcurementSource,
+        DateTimeOffset? StartDate,
+        DateTimeOffset? DueDate,
+        int? SalesOrderLineId,
+        int? BomRevisionIdAtRelease,
+        decimal? PlannedOrderQuantity,
+        decimal? LineQuantity,
+        decimal? LineShippedQuantity,
+        bool HasJobPart,
+        decimal JobPartQuantity,
+        int ReceivedQuantity,
+        decimal BinnedQuantity,
+        int ActiveRunQuantity);
+
+    private sealed record JobComponentRow(int PartId, decimal Quantity);
+
+    private sealed record OpenJobPlanningContext(
+        int MrpRunId,
+        List<OpenJobRow> OpenJobs,
+        Dictionary<int, List<JobComponentRow>> PinnedComponentsByRevision,
+        Dictionary<int, List<BOMLine>> BomByParent,
+        Dictionary<int, int> LowLevelCodes,
+        IReadOnlyDictionary<int, PartSourcingValues> SourcingByPart);
 }
