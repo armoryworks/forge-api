@@ -175,10 +175,10 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
                 {
                     j.Id,
                     PartNumber = j.Part != null ? j.Part.PartNumber : null,
-                    Quantity = j.SalesOrderLineId != null
-                        ? (decimal?)j.SalesOrderLine!.Quantity
-                        : j.JobParts.Any(jp => jp.PartId == j.PartId)
-                            ? j.JobParts.Where(jp => jp.PartId == j.PartId).Sum(jp => jp.Quantity)
+                    Quantity = j.JobParts.Any(jp => jp.PartId == j.PartId)
+                        ? (decimal?)j.JobParts.Where(jp => jp.PartId == j.PartId).Sum(jp => jp.Quantity)
+                        : j.SalesOrderLineId != null
+                            ? j.SalesOrderLine!.Quantity
                             : null,
                 })
                 .ToDictionaryAsync(x => x.Id, ct)

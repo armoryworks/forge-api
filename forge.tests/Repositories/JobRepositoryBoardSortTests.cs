@@ -94,9 +94,13 @@ public sealed class JobRepositoryBoardSortTests(PostgresFixture fixture)
         manual.JobParts.Add(new JobPart { PartId = part.Id, Quantity = 250m });
         manual.JobParts.Add(new JobPart { PartId = other.Id, Quantity = 7m });
 
-        var partless = NewJob(track, first, 3, "partless");
+        var lineWithoutJobPart = NewJob(track, first, 3, "line-without-job-part");
+        lineWithoutJobPart.PartId = part.Id;
+        lineWithoutJobPart.SalesOrderLineId = line.Id;
 
-        db.Jobs.AddRange(fromLine, manual, partless);
+        var partless = NewJob(track, first, 4, "partless");
+
+        db.Jobs.AddRange(fromLine, manual, lineWithoutJobPart, partless);
         await db.SaveChangesAsync();
 
         var repo = new JobRepository(db, new FixedClock(DateTimeOffset.UtcNow));
@@ -104,7 +108,8 @@ public sealed class JobRepositoryBoardSortTests(PostgresFixture fixture)
 
         var byTitle = page.Items.ToDictionary(j => j.Title);
         byTitle["from-line"].PartNumber.Should().Be(part.PartNumber);
-        byTitle["from-line"].Quantity.Should().Be(40m);
+        byTitle["from-line"].Quantity.Should().Be(5m);
+        byTitle["line-without-job-part"].Quantity.Should().Be(40m);
         byTitle["manual"].PartNumber.Should().Be(part.PartNumber);
         byTitle["manual"].Quantity.Should().Be(250m);
         byTitle["partless"].PartNumber.Should().BeNull();
