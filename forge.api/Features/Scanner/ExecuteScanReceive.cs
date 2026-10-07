@@ -45,6 +45,7 @@ public class ExecuteScanReceiveHandler(
         // Validate PO line exists and has unreceived qty
         var poLine = await db.PurchaseOrderLines
             .Include(pol => pol.PurchaseOrder)
+            .Include(pol => pol.PurchaseUnit)
             .Where(pol => pol.Id == data.PurchaseOrderLineId)
             .FirstOrDefaultAsync(cancellationToken)
             ?? throw new KeyNotFoundException($"Purchase order line {data.PurchaseOrderLineId} not found");
@@ -88,17 +89,22 @@ public class ExecuteScanReceiveHandler(
         // Update PO line received quantity (decimal-precision safe — Phase 3 / WU-10)
         poLine.ReceivedQuantity += data.Quantity;
 
-        // Create or update bin content at destination
+        var contentPerUnit = poLine.PurchaseUnit?.ContentQuantity;
+        var baseQuantity = contentPerUnit is > 0
+            ? data.Quantity * contentPerUnit.Value
+            : data.Quantity;
+
         var destContent = await db.BinContents
             .Where(bc => bc.EntityType == "part"
                 && bc.EntityId == data.PartId
                 && bc.LocationId == data.ToLocationId
+                && bc.LotNumber == null
                 && bc.RemovedAt == null)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (destContent != null)
         {
-            destContent.Quantity += data.Quantity;
+            destContent.Quantity += baseQuantity;
         }
         else
         {
@@ -107,7 +113,7 @@ public class ExecuteScanReceiveHandler(
                 LocationId = data.ToLocationId,
                 EntityType = "part",
                 EntityId = data.PartId,
-                Quantity = data.Quantity,
+                Quantity = baseQuantity,
                 PlacedBy = userId,
                 PlacedAt = now,
             };
@@ -122,7 +128,7 @@ public class ExecuteScanReceiveHandler(
             PartId = data.PartId,
             PartNumber = part.PartNumber,
             ToLocationId = data.ToLocationId,
-            Quantity = data.Quantity,
+            Quantity = baseQuantity,
             RelatedEntityId = poLine.PurchaseOrderId,
             RelatedEntityType = "PurchaseOrder",
         };
@@ -134,7 +140,7 @@ public class ExecuteScanReceiveHandler(
         {
             EntityType = "part",
             EntityId = data.PartId,
-            Quantity = data.Quantity,
+            Quantity = baseQuantity,
             ToLocationId = data.ToLocationId,
             MovedBy = userId,
             MovedAt = now,
