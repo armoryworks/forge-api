@@ -60,7 +60,7 @@ public class UpdateShipmentHandler(
                         "A shipment number can only be changed before the shipment has shipped.");
                 if (!await ManualShipmentNumbersAllowedAsync(cancellationToken))
                     throw new InvalidOperationException(
-                        "Manual shipment numbers are disabled. Turn on 'shipments.allow_manual_numbers' in settings to change a shipment number.");
+                        "Manual shipment numbers are turned off, so the shipment number can't be changed. Ask an admin to turn them on in Admin > Settings > Numbering.");
                 if (await repo.ShipmentNumberExistsAsync(newNumber, shipment.Id, cancellationToken))
                     throw new InvalidOperationException($"Shipment number '{newNumber}' is already in use.");
                 await identifiers.IssueAsync(BusinessEntityType.Shipment, shipment.Id, shipment.ShipmentNumber, cancellationToken);

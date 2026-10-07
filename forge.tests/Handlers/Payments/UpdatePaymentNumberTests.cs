@@ -88,7 +88,9 @@ public class UpdatePaymentNumberTests
 
         var act = () => _handler.Handle(new UpdatePaymentCommand(1, WithPaymentNumber("ACME-42")), CancellationToken.None);
 
-        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("disabled");
+        var message = (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message;
+        message.Should().Contain("Admin > Settings > Numbering");
+        message.Should().NotContain("allow_manual_numbers");
         payment.PaymentNumber.Should().Be("PMT-00001");
     }
 

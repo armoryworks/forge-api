@@ -84,7 +84,9 @@ public class UpdateQuoteNumberTests
 
         var act = () => _handler.Handle(WithQuoteNumber(1, "ACME-42"), CancellationToken.None);
 
-        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("disabled");
+        var message = (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message;
+        message.Should().Contain("Admin > Settings > Numbering");
+        message.Should().NotContain("allow_manual_numbers");
         quote.QuoteNumber.Should().Be("QT-00001");
     }
 

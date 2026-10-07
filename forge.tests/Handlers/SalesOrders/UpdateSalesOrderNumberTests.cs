@@ -88,7 +88,9 @@ public class UpdateSalesOrderNumberTests
 
         var act = () => _handler.Handle(WithOrderNumber(1, "ACME-42"), CancellationToken.None);
 
-        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("disabled");
+        var message = (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message;
+        message.Should().Contain("Admin > Settings > Numbering");
+        message.Should().NotContain("allow_manual_numbers");
         order.OrderNumber.Should().Be("SO-00001");
     }
 

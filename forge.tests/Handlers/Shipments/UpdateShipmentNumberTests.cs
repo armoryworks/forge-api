@@ -72,7 +72,9 @@ public class UpdateShipmentNumberTests
 
         var act = () => _handler.Handle(new UpdateShipmentCommand(1, null, null, null, null, null, ShipmentNumber: "ACME-SH"), CancellationToken.None);
 
-        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("disabled");
+        var message = (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message;
+        message.Should().Contain("Admin > Settings > Numbering");
+        message.Should().NotContain("allow_manual_numbers");
         shipment.ShipmentNumber.Should().Be("SH-00001");
     }
 

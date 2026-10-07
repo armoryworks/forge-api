@@ -63,7 +63,7 @@ public class UpdateQuoteHandler(
                         "This quote's number can only be changed while it is Draft.");
                 if (!await ManualQuoteNumbersAllowedAsync(cancellationToken))
                     throw new InvalidOperationException(
-                        "Manual quote numbers are disabled. Turn on 'quotes.allow_manual_numbers' in settings to change a quote number.");
+                        "Manual quote numbers are turned off, so the quote number can't be changed. Ask an admin to turn them on in Admin > Settings > Numbering.");
                 if (await repo.QuoteNumberExistsAsync(newNumber, quote.Id, cancellationToken))
                     throw new InvalidOperationException($"Quote number '{newNumber}' is already in use.");
                 // Record the rename in the identifier registry: ensure the current number is on record

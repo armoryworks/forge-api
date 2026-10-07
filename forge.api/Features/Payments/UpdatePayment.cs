@@ -68,7 +68,7 @@ public class UpdatePaymentHandler(
                         "A payment's number can only be changed before it has been applied.");
                 if (!await ManualPaymentNumbersAllowedAsync(cancellationToken))
                     throw new InvalidOperationException(
-                        "Manual payment numbers are disabled. Turn on 'payments.allow_manual_numbers' in settings to change a payment number.");
+                        "Manual payment numbers are turned off, so the payment number can't be changed. Ask an admin to turn them on in Admin > Settings > Numbering.");
                 if (await repo.PaymentNumberExistsAsync(newNumber, payment.Id, cancellationToken))
                     throw new InvalidOperationException($"Payment number '{newNumber}' is already in use.");
                 // Record the rename in the identifier registry: ensure the current number is on record

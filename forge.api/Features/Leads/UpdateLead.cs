@@ -48,7 +48,7 @@ public class UpdateLeadHandler(
             {
                 if (!await ManualNumbersAllowedAsync(cancellationToken))
                     throw new InvalidOperationException(
-                        "Manual lead numbers are disabled. Turn on 'leads.allow_manual_numbers' in settings to change a lead number.");
+                        "Manual lead numbers are turned off, so the lead number can't be changed. Ask an admin to turn them on in Admin > Settings > Numbering.");
                 if (await repo.LeadNumberExistsAsync(newNumber, lead.Id, cancellationToken))
                     throw new InvalidOperationException($"Lead number '{newNumber}' is already in use.");
                 // Ensure the current number is on record (covers legacy leads with none), then

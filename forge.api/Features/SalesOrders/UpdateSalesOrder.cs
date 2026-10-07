@@ -76,7 +76,7 @@ public class UpdateSalesOrderHandler(
                         "This sales order's number can only be changed while it is Draft.");
                 if (!await ManualOrderNumbersAllowedAsync(cancellationToken))
                     throw new InvalidOperationException(
-                        "Manual sales order numbers are disabled. Turn on 'sales_orders.allow_manual_numbers' in settings to change an order number.");
+                        "Manual sales order numbers are turned off, so the order number can't be changed. Ask an admin to turn them on in Admin > Settings > Numbering.");
                 if (await repo.OrderNumberExistsAsync(newNumber, order.Id, cancellationToken))
                     throw new InvalidOperationException($"Sales order number '{newNumber}' is already in use.");
                 // Record the rename in the identifier registry: ensure the current number is on record

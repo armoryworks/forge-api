@@ -83,7 +83,9 @@ public class UpdateLeadNumberTests
 
         var act = () => _handler.Handle(WithLeadNumber(1, "ACME-42"), CancellationToken.None);
 
-        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("disabled");
+        var message = (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message;
+        message.Should().Contain("Admin > Settings > Numbering");
+        message.Should().NotContain("allow_manual_numbers");
         lead.LeadNumber.Should().Be("LEAD-00001");
     }
 }
