@@ -316,6 +316,19 @@ public class UpdateJobStartDateAndPartTests
     }
 
     [Fact]
+    public async Task A_line_linked_job_given_a_part_other_than_the_lines_gets_a_quantity_of_one()
+    {
+        var line = await SeedLineAsync(quantity: 100m, shipped: 0m);
+        var job = await SeedJobAsync(partId: null);
+        job.SalesOrderLineId = line.Id;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(Update(partId: 701), CancellationToken.None);
+
+        (await _db.JobParts.SingleAsync(jp => jp.JobId == 1)).Quantity.Should().Be(1m);
+    }
+
+    [Fact]
     public async Task An_unknown_part_is_not_found()
     {
         await SeedJobAsync();

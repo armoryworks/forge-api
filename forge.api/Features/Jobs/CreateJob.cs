@@ -101,7 +101,9 @@ public class CreateJobHandler(
             partId ??= line.PartId;
             customerId ??= line.CustomerId;
             dueDate ??= line.RequestedDeliveryDate;
-            quantity ??= await SalesOrderLineDefaultQuantity.ComputeAsync(db, soLineId, null, cancellationToken);
+            if (quantity is null && partId is int effectivePartId)
+                quantity = await SalesOrderLineDefaultQuantity.ComputeAsync(
+                    db, soLineId, effectivePartId, null, cancellationToken);
 
             if (partId is null && request.Quantity.HasValue)
                 throw new ValidationException(

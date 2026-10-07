@@ -9,13 +9,24 @@ public static class SalesOrderLineDefaultQuantity
     public static decimal Remaining(decimal ordered, decimal shipped, decimal onJobsInProgress, decimal onCompletedJobs) =>
         Math.Max(0m, ordered - onJobsInProgress - Math.Max(shipped, onCompletedJobs));
 
-    public static async Task<decimal> ComputeAsync(
-        AppDbContext db, int salesOrderLineId, int? excludeJobId, CancellationToken ct)
+    public static async Task<decimal?> ComputeAsync(
+        AppDbContext db, int salesOrderLineId, int partId, int? excludeJobId, CancellationToken ct)
     {
         var line = await db.SalesOrderLines
             .Where(l => l.Id == salesOrderLineId)
-            .Select(l => new { l.Quantity, l.ShippedQuantity })
+            .Select(l => new
+            {
+                l.PartId,
+                l.UomId,
+                PartStockUomId = l.Part != null ? l.Part.StockUomId : null,
+                l.Quantity,
+                l.ShippedQuantity,
+            })
             .FirstAsync(ct);
+
+        if (line.PartId != partId
+            || (line.UomId.HasValue && line.PartStockUomId.HasValue && line.UomId != line.PartStockUomId))
+            return null;
 
         var onOpenJobs = await db.Jobs
             .Where(j => j.SalesOrderLineId == salesOrderLineId && !j.IsArchived && j.Disposition == null

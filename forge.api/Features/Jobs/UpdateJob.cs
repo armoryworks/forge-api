@@ -300,7 +300,7 @@ public class UpdateJobHandler(
                     JobId = job.Id,
                     PartId = newPart.Id,
                     Quantity = job.SalesOrderLineId is int lineId
-                        ? await SalesOrderLineDefaultQuantity.ComputeAsync(db, lineId, job.Id, ct)
+                        ? await SalesOrderLineDefaultQuantity.ComputeAsync(db, lineId, newPart.Id, job.Id, ct) ?? 1m
                         : 1m,
                 });
         }

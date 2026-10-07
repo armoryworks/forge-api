@@ -170,6 +170,31 @@ public class CreateJobSoDefaultsTests
     }
 
     [Fact]
+    public async Task A_part_other_than_the_lines_does_not_take_the_lines_quantity()
+    {
+        var (line, _) = await SeedLineAsync(100m);
+        _db.Parts.Add(new Part { Id = 601, PartNumber = "40-1800M", Description = "Spacer" });
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(ForLine(line.Id) with { PartId = 601 }, CancellationToken.None);
+
+        _created!.JobParts.Single().Should().Match<JobPart>(jp => jp.PartId == 601 && jp.Quantity == 1m);
+    }
+
+    [Fact]
+    public async Task A_line_in_other_units_than_the_part_stocks_does_not_set_the_quantity()
+    {
+        var (line, part) = await SeedLineAsync(100m);
+        line.UomId = 2;
+        part.StockUomId = 1;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(ForLine(line.Id), CancellationToken.None);
+
+        _created!.JobParts.Single().Quantity.Should().Be(1m);
+    }
+
+    [Fact]
     public async Task Values_the_caller_supplied_win_over_the_line()
     {
         var (line, _) = await SeedLineAsync(100m);
