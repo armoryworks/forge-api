@@ -100,6 +100,7 @@ public sealed class ReceiptInventoryPostingService(
     {
         var records = await db.Set<ReceivingRecord>()
             .Include(r => r.PurchaseOrderLine).ThenInclude(l => l.Part)
+            .Include(r => r.PurchaseOrderLine).ThenInclude(l => l.PurchaseUnit)
             // Scope by PO id too (a single receive is for one PO) so a ReceiptNumber collision across POs
             // can never pull a foreign PO's lines into this journal.
             .Where(r => r.ReceiptNumber == receiptNumber && r.PurchaseOrderLine.PurchaseOrderId == purchaseOrderId)
@@ -146,8 +147,11 @@ public sealed class ReceiptInventoryPostingService(
             var stdUnit = stocked && standardCost is not null && line.PartId is int stdPartId
                 ? (await standardCost.ResolveAsync(stdPartId, ct)).Total
                 : 0m;
+            var baseQty = line.PurchaseUnit?.ContentQuantity is decimal contentPerUnit and > 0m
+                ? rec.QuantityReceived * contentPerUnit
+                : rec.QuantityReceived;
             var inventoryAmount = stocked && stdUnit > 0m
-                ? Math.Round(stdUnit * rec.QuantityReceived, 2, MidpointRounding.AwayFromZero)
+                ? Math.Round(stdUnit * baseQty, 2, MidpointRounding.AwayFromZero)
                 : landed;
 
             lines.Add(new PostingLine
@@ -162,7 +166,7 @@ public sealed class ReceiptInventoryPostingService(
 
             // Consumables/tools are expensed (not stocked) — only perpetual-stocked classes feed the store.
             if (stocked && line.PartId is int feedPartId)
-                valuationFeeds.Add((feedPartId, rec.QuantityReceived, inventoryAmount));
+                valuationFeeds.Add((feedPartId, baseQty, inventoryAmount));
         }
 
         if (totalBase + totalFreight <= 0m)

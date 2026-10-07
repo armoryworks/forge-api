@@ -82,7 +82,8 @@ public class Phase1StandardReceiptPostingTests
     }
 
     /// <summary>Raw part with a standard unit cost; a PO line at the given PO price; a receiving record.</summary>
-    private static async Task<int> AddReceiptAsync(AppDbContext db, decimal standardUnit, decimal poPrice, decimal qty, decimal? freight = null)
+    private static async Task<int> AddReceiptAsync(
+        AppDbContext db, decimal standardUnit, decimal poPrice, decimal qty, decimal? freight = null, decimal? contentQuantity = null)
     {
         var part = new Part
         {
@@ -95,7 +96,19 @@ public class Phase1StandardReceiptPostingTests
         db.Set<PurchaseOrder>().Add(po);
         await db.SaveChangesAsync();
 
-        var line = new PurchaseOrderLine { PurchaseOrderId = po.Id, PartId = part.Id, OrderedQuantity = qty, UnitPrice = poPrice };
+        PartPurchaseUnit? purchaseUnit = null;
+        if (contentQuantity is decimal content)
+        {
+            purchaseUnit = new PartPurchaseUnit { PartId = part.Id, Label = "bar", ContentQuantity = content };
+            db.Set<PartPurchaseUnit>().Add(purchaseUnit);
+            await db.SaveChangesAsync();
+        }
+
+        var line = new PurchaseOrderLine
+        {
+            PurchaseOrderId = po.Id, PartId = part.Id, OrderedQuantity = qty, UnitPrice = poPrice,
+            PurchaseUnitId = purchaseUnit?.Id,
+        };
         db.Set<PurchaseOrderLine>().Add(line);
         await db.SaveChangesAsync();
 
@@ -164,5 +177,38 @@ public class Phase1StandardReceiptPostingTests
         var entry = await db.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines).SingleAsync();
         entry.Lines.Single(l => l.GlAccountId == InvRawId).Debit.Should().Be(50m);
         entry.Lines.Should().NotContain(l => l.GlAccountId == PpvId);
+    }
+
+    [Fact]
+    public async Task Receipt_PurchaseUnitLine_CapitalizesStandardPerBaseUnit_AndFeedsBaseQuantity()
+    {
+        using var db = await SeedAsync();
+        var poId = await AddReceiptAsync(db, standardUnit: 0.5m, poPrice: 6m, qty: 2m, contentQuantity: 12m);
+
+        await Service(db).PostReceiptAsync(poId, "R-1", EntryDate, receivedByUserId: 7);
+
+        var entry = await db.JournalEntries.IgnoreQueryFilters().Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == InvRawId).Debit.Should().Be(12m, "24 ft at 0.50 standard");
+        entry.Lines.Single(l => l.GlAccountId == GrniId).Credit.Should().Be(12m, "2 bars at 6.00");
+        entry.Lines.Should().NotContain(l => l.GlAccountId == PpvId);
+
+        var store = await db.Set<InventoryValuation>().SingleAsync();
+        store.OnHandQuantity.Should().Be(24m, "the store tracks the same base units the bins hold");
+        store.AverageUnitCost.Should().Be(0.5m);
+        store.TotalValue.Should().Be(12m);
+    }
+
+    [Fact]
+    public async Task Receipt_PurchaseUnitLine_NoStandard_FeedsBaseQuantityAtLanded()
+    {
+        using var db = await SeedAsync();
+        var poId = await AddReceiptAsync(db, standardUnit: 0m, poPrice: 6m, qty: 2m, contentQuantity: 12m);
+
+        await Service(db).PostReceiptAsync(poId, "R-1", EntryDate, receivedByUserId: 7);
+
+        var store = await db.Set<InventoryValuation>().SingleAsync();
+        store.OnHandQuantity.Should().Be(24m);
+        store.AverageUnitCost.Should().Be(0.5m);
+        store.TotalValue.Should().Be(12m);
     }
 }
