@@ -1,7 +1,10 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+
+using Forge.Api.Hubs;
 
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -32,13 +35,17 @@ public class SetWorkflowStatusHandler(
     IStatusEntryRepository repository,
     IActivityLogRepository activityRepo,
     IWorkCenterContext workCenterContext,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    IHubContext<BoardHub> boardHub,
+    IClock clock)
     : IRequestHandler<SetWorkflowStatusCommand, StatusEntryResponseModel>
 {
+    public const string JobArchivedStatusCode = "job_status_archived";
+
     public async Task<StatusEntryResponseModel> Handle(
         SetWorkflowStatusCommand request, CancellationToken cancellationToken)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.UtcNow;
 
         // Close any existing active workflow status
         var currentWorkflow = await db.StatusEntries
@@ -49,6 +56,7 @@ public class SetWorkflowStatusHandler(
             .ToListAsync(cancellationToken);
 
         var previousLabel = currentWorkflow.FirstOrDefault()?.StatusLabel;
+        var wasArchivedStatus = currentWorkflow.Any(e => e.StatusCode == JobArchivedStatusCode);
 
         foreach (var entry in currentWorkflow)
         {
@@ -93,6 +101,7 @@ public class SetWorkflowStatusHandler(
             ? $"Status changed from {previousLabel} to {label}."
             : $"Status set to {label}.";
 
+        Job? archiveToggledJob = null;
         if (string.Equals(request.EntityType, "job", System.StringComparison.OrdinalIgnoreCase))
         {
             await activityRepo.AddAsync(new JobActivityLog
@@ -107,6 +116,10 @@ public class SetWorkflowStatusHandler(
                 WorkCenterId = workCenterId,
                 OperationId = operationId,
             }, cancellationToken);
+
+            archiveToggledJob = await SyncJobArchivedFlagAsync(
+                request.EntityId, request.Data.StatusCode == JobArchivedStatusCode, wasArchivedStatus,
+                currentUserId, cancellationToken);
         }
         else
         {
@@ -125,8 +138,39 @@ public class SetWorkflowStatusHandler(
 
         await db.SaveChangesAsync(cancellationToken);
 
+        if (archiveToggledJob is not null)
+        {
+            await boardHub.Clients.Group($"board:{archiveToggledJob.TrackTypeId}")
+                .SendAsync("boardUpdated",
+                    new { reason = archiveToggledJob.IsArchived ? "archive" : "unarchive" },
+                    cancellationToken);
+        }
+
         // Reload to return with SetBy info
         var history = await repository.GetHistoryAsync(request.EntityType, request.EntityId, cancellationToken);
         return history.First(h => h.Id == statusEntry.Id);
+    }
+
+    private async Task<Job?> SyncJobArchivedFlagAsync(
+        int jobId, bool archive, bool wasArchivedStatus, int? userId, CancellationToken cancellationToken)
+    {
+        if (!archive && !wasArchivedStatus)
+            return null;
+
+        var job = await db.Jobs.FirstOrDefaultAsync(j => j.Id == jobId, cancellationToken);
+        if (job is null || job.IsArchived == archive)
+            return null;
+
+        job.IsArchived = archive;
+
+        await activityRepo.AddAsync(new JobActivityLog
+        {
+            JobId = job.Id,
+            UserId = userId,
+            Action = archive ? ActivityAction.Archived : ActivityAction.Restored,
+            Description = archive ? "Archived (workflow status)." : "Unarchived (workflow status).",
+        }, cancellationToken);
+
+        return job;
     }
 }

@@ -97,6 +97,7 @@ public static partial class SeedData
         // Reference Data
         if (!await db.ReferenceData.AnyAsync())
         {
+            db.ReferenceData.AddRange(JobWorkflowStatuses());
             db.ReferenceData.AddRange(
                 new ReferenceData { IsSeedData = true, GroupCode = "job_priority", Code = "low", Label = "Low", SortOrder = 1, Metadata = """{"color":"#94a3b8"}""" },
                 new ReferenceData { IsSeedData = true, GroupCode = "job_priority", Code = "normal", Label = "Normal", SortOrder = 2, Metadata = """{"color":"#0d9488"}""" },
@@ -135,13 +136,6 @@ public static partial class SeedData
                 new ReferenceData { IsSeedData = true, GroupCode = "lead_source", Code = "email", Label = "Email", SortOrder = 5 },
                 new ReferenceData { IsSeedData = true, GroupCode = "lead_source", Code = "social_media", Label = "Social Media", SortOrder = 6 },
                 new ReferenceData { IsSeedData = true, GroupCode = "lead_source", Code = "other", Label = "Other", SortOrder = 7 },
-
-                // Job Workflow Statuses
-                new ReferenceData { IsSeedData = true, GroupCode = "job_workflow_status", Code = "job_status_created", Label = "Created", SortOrder = 1 },
-                new ReferenceData { IsSeedData = true, GroupCode = "job_workflow_status", Code = "job_status_in_progress", Label = "In Progress", SortOrder = 2 },
-                new ReferenceData { IsSeedData = true, GroupCode = "job_workflow_status", Code = "job_status_on_hold", Label = "On Hold", SortOrder = 3 },
-                new ReferenceData { IsSeedData = true, GroupCode = "job_workflow_status", Code = "job_status_completed", Label = "Completed", SortOrder = 4 },
-                new ReferenceData { IsSeedData = true, GroupCode = "job_workflow_status", Code = "job_status_archived", Label = "Archived", SortOrder = 5 },
 
                 // Job Hold Types
                 new ReferenceData { IsSeedData = true, GroupCode = "job_hold_type", Code = "job_hold_material", Label = "Material Hold", SortOrder = 1 },
@@ -212,6 +206,8 @@ public static partial class SeedData
             await db.SaveChangesAsync();
             Log.Information("Seeded {Count} incremental reference data entries", incrementalEntries.Count);
         }
+
+        await RetireJobCompletedWorkflowStatusAsync(db);
 
         // State Withholding Forms — all US states with form info + DocuSeal template IDs where pre-loaded
         if (!await db.ReferenceData.AnyAsync(r => r.GroupCode == "state_withholding"))
@@ -557,6 +553,51 @@ public static partial class SeedData
 
         // ── Sales channels (essential) ────────────────────────────────────
         await SeedSalesChannelsAsync(db);
+    }
+
+    internal const string JobCompletedWorkflowStatusCode = "job_status_completed";
+
+    internal const string JobCompletedWorkflowStatusRetiredMarkerKey = "seed.referenceData.jobStatusCompletedRetired";
+
+    /// <summary>
+    /// The job workflow statuses offered in the job sidebar. The board stage is the
+    /// source of truth for progress, so Completed is seeded inactive: choosing it
+    /// never moved or closed the job and only contradicted the stage.
+    /// </summary>
+    internal static IEnumerable<ReferenceData> JobWorkflowStatuses() =>
+    [
+        new ReferenceData { IsSeedData = true, GroupCode = "job_workflow_status", Code = "job_status_created", Label = "Created", SortOrder = 1 },
+        new ReferenceData { IsSeedData = true, GroupCode = "job_workflow_status", Code = "job_status_in_progress", Label = "In Progress", SortOrder = 2 },
+        new ReferenceData { IsSeedData = true, GroupCode = "job_workflow_status", Code = "job_status_on_hold", Label = "On Hold", SortOrder = 3 },
+        new ReferenceData { IsSeedData = true, GroupCode = "job_workflow_status", Code = JobCompletedWorkflowStatusCode, Label = "Completed", SortOrder = 4, IsActive = false },
+        new ReferenceData { IsSeedData = true, GroupCode = "job_workflow_status", Code = "job_status_archived", Label = "Archived", SortOrder = 5 },
+    ];
+
+    /// <summary>
+    /// One-time deactivation of the Completed job workflow status on installs seeded
+    /// before it was retired. Guarded by a SystemSetting marker so an admin who
+    /// deliberately re-enables it is never overridden on a later boot.
+    /// </summary>
+    internal static async Task RetireJobCompletedWorkflowStatusAsync(AppDbContext db)
+    {
+        if (await db.SystemSettings.AnyAsync(s => s.Key == JobCompletedWorkflowStatusRetiredMarkerKey))
+            return;
+
+        var completed = await db.ReferenceData
+            .Where(r => r.GroupCode == "job_workflow_status" && r.Code == JobCompletedWorkflowStatusCode && r.IsActive)
+            .ToListAsync();
+        foreach (var row in completed)
+            row.IsActive = false;
+
+        db.SystemSettings.Add(new SystemSetting
+        {
+            Key = JobCompletedWorkflowStatusRetiredMarkerKey,
+            Value = "true",
+            Description = "Marker: the Completed job workflow status was deactivated by the one-time seed retirement.",
+        });
+        await db.SaveChangesAsync();
+        if (completed.Count > 0)
+            Log.Information("Deactivated {Count} Completed job workflow status row(s)", completed.Count);
     }
 
     /// <summary>

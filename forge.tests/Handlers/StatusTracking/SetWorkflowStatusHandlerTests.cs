@@ -1,12 +1,15 @@
 using Bogus;
 using FluentAssertions;
+using Microsoft.AspNetCore.SignalR;
 using Moq;
 
 using Forge.Api.Features.StatusTracking;
+using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Integrations;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.StatusTracking;
@@ -27,7 +30,9 @@ public class SetWorkflowStatusHandlerTests
             _statusRepo.Object,
             Mock.Of<IActivityLogRepository>(),
             Mock.Of<IWorkCenterContext>(),
-            Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>());
+            Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>(),
+            Mock.Of<IHubContext<BoardHub>>(),
+            new SystemClock());
     }
 
     [Fact]
