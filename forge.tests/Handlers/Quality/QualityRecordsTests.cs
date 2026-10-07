@@ -23,7 +23,8 @@ using Forge.Tests.Helpers;
 namespace Forge.Tests.Handlers.Quality;
 
 /// <summary>
-/// Quality records stay trustworthy: a completed inspection is locked.
+/// Quality records stay trustworthy: a completed inspection is locked, and a lot with
+/// traceability history cannot be deleted.
 /// </summary>
 [Collection(CapabilityTestCollection.Name)]
 public class QualityRecordsTests(CapabilityTestWebApplicationFactory factory)
@@ -140,6 +141,60 @@ public class QualityRecordsTests(CapabilityTestWebApplicationFactory factory)
         _db.ActivityLogs.Should().Contain(a => a.EntityType == "Job" && a.EntityId == 42);
     }
 
+    private async Task<LotRecord> SeedLotAsync(string lotNumber)
+    {
+        var lot = new LotRecord { LotNumber = lotNumber, PartId = 1, Quantity = 10 };
+        _db.LotRecords.Add(lot);
+        await _db.SaveChangesAsync();
+        return lot;
+    }
+
+    private Task DeleteLot(int id) =>
+        new DeleteLotRecordHandler(_db, _clock).Handle(new DeleteLotRecordCommand(id), CancellationToken.None);
+
+    [Fact]
+    public async Task A_consumed_lot_cannot_be_deleted()
+    {
+        var consumed = await SeedLotAsync("LOT-CONSUMED");
+        var produced = await SeedLotAsync("LOT-PRODUCED");
+        _db.LotConsumptions.Add(new LotConsumption { ConsumedLotId = consumed.Id, ProducedLotId = produced.Id, Quantity = 2 });
+        await _db.SaveChangesAsync();
+
+        var deleteConsumed = () => DeleteLot(consumed.Id);
+        var deleteProduced = () => DeleteLot(produced.Id);
+
+        await deleteConsumed.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Lot LOT-CONSUMED has traceability history and cannot be deleted. Adjust its quantity or place it on hold instead.");
+        await deleteProduced.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task A_lot_referenced_by_an_inspection_or_stocked_in_a_bin_cannot_be_deleted()
+    {
+        var inspected = await SeedLotAsync("LOT-INSPECTED");
+        var stocked = await SeedLotAsync("LOT-STOCKED");
+        _db.QcInspections.Add(new QcInspection { LotNumber = inspected.LotNumber, InspectorId = 1 });
+        _db.BinContents.Add(new BinContent { LocationId = 1, EntityId = 1, Quantity = 3, LotNumber = stocked.LotNumber });
+        await _db.SaveChangesAsync();
+
+        await FluentActions.Awaiting(() => DeleteLot(inspected.Id)).Should().ThrowAsync<InvalidOperationException>();
+        await FluentActions.Awaiting(() => DeleteLot(stocked.Id)).Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task A_lot_without_history_is_soft_deleted_with_the_clock_and_logged()
+    {
+        var lot = await SeedLotAsync("LOT-CLEAN");
+        _db.BinContents.Add(new BinContent { LocationId = 1, EntityId = 1, Quantity = 0, LotNumber = lot.LotNumber });
+        await _db.SaveChangesAsync();
+
+        await DeleteLot(lot.Id);
+
+        var stored = await _db.LotRecords.IgnoreQueryFilters().AsNoTracking().SingleAsync(l => l.Id == lot.Id);
+        stored.DeletedAt.Should().Be(Now);
+        _db.ActivityLogs.Should().Contain(a => a.EntityType == "Lot" && a.EntityId == lot.Id && a.Action == "deleted");
+    }
+
     private HttpClient Client(string role)
     {
         var client = factory.CreateClient();
@@ -188,5 +243,36 @@ public class QualityRecordsTests(CapabilityTestWebApplicationFactory factory)
             response = await admin.PutAsync($"/api/v1/quality/inspections/{id}", JsonContent.Create(new { notes = "edit" })));
 
         response!.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task A_production_worker_cannot_delete_a_lot_and_a_consumed_lot_cannot_be_deleted_by_anyone()
+    {
+        var admin = Client("Admin");
+        int cleanId, consumedId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var suffix = Guid.NewGuid().ToString("N")[..8];
+            var clean = new LotRecord { LotNumber = $"LOT-W-{suffix}", PartId = 1, Quantity = 1 };
+            var consumed = new LotRecord { LotNumber = $"LOT-C-{suffix}", PartId = 1, Quantity = 1 };
+            var produced = new LotRecord { LotNumber = $"LOT-P-{suffix}", PartId = 1, Quantity = 1 };
+            db.LotRecords.AddRange(clean, consumed, produced);
+            await db.SaveChangesAsync();
+            db.LotConsumptions.Add(new LotConsumption { ConsumedLotId = consumed.Id, ProducedLotId = produced.Id, Quantity = 1 });
+            await db.SaveChangesAsync();
+            cleanId = clean.Id;
+            consumedId = consumed.Id;
+        }
+
+        HttpResponseMessage? workerResponse = null, adminResponse = null;
+        await WithCapabilityAsync(admin, "CAP-INV-LOTS", async () =>
+        {
+            workerResponse = await Client("ProductionWorker").DeleteAsync($"/api/v1/lots/{cleanId}");
+            adminResponse = await admin.DeleteAsync($"/api/v1/lots/{consumedId}");
+        });
+
+        workerResponse!.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        adminResponse!.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 }

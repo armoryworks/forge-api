@@ -41,6 +41,7 @@ public class LotsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
     public async Task<IActionResult> DeleteLotRecord(int id)
     {
         await mediator.Send(new DeleteLotRecordCommand(id));
