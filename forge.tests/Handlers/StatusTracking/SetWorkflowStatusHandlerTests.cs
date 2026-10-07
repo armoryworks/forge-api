@@ -3,8 +3,10 @@ using FluentAssertions;
 using Microsoft.AspNetCore.SignalR;
 using Moq;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Features.StatusTracking;
 using Forge.Api.Hubs;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -32,6 +34,8 @@ public class SetWorkflowStatusHandlerTests
             Mock.Of<IWorkCenterContext>(),
             Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>(),
             Mock.Of<IHubContext<BoardHub>>(),
+            Mock.Of<ICapabilitySnapshotProvider>(),
+            Mock.Of<ISystemAuditWriter>(),
             new SystemClock());
     }
 

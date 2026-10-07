@@ -4,7 +4,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Hubs;
+using Forge.Api.Middleware;
+using Forge.Api.Services;
 
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -37,10 +40,17 @@ public class SetWorkflowStatusHandler(
     IWorkCenterContext workCenterContext,
     IHttpContextAccessor httpContext,
     IHubContext<BoardHub> boardHub,
+    ICapabilitySnapshotProvider capabilities,
+    ISystemAuditWriter auditWriter,
     IClock clock)
     : IRequestHandler<SetWorkflowStatusCommand, StatusEntryResponseModel>
 {
     public const string JobArchivedStatusCode = "job_status_archived";
+
+    private const string WorkflowStatusField = "WorkflowStatus";
+    private const string JobArchiveCapability = "CAP-MFG-WO-RELEASE";
+    private static readonly string[] JobArchiveRoles =
+        ["Admin", "Manager", "PM", "Engineer", "ProductionWorker", "OfficeManager"];
 
     public async Task<StatusEntryResponseModel> Handle(
         SetWorkflowStatusCommand request, CancellationToken cancellationToken)
@@ -57,6 +67,12 @@ public class SetWorkflowStatusHandler(
 
         var previousLabel = currentWorkflow.FirstOrDefault()?.StatusLabel;
         var wasArchivedStatus = currentWorkflow.Any(e => e.StatusCode == JobArchivedStatusCode);
+
+        var isJob = string.Equals(request.EntityType, "job", System.StringComparison.OrdinalIgnoreCase);
+        var archiveToggledJob = isJob
+            ? await FindJobToToggleArchiveAsync(
+                request.EntityId, request.Data.StatusCode == JobArchivedStatusCode, wasArchivedStatus, cancellationToken)
+            : null;
 
         foreach (var entry in currentWorkflow)
         {
@@ -75,7 +91,7 @@ public class SetWorkflowStatusHandler(
         // Capture work-center context only for jobs.
         int? workCenterId = null;
         int? operationId = null;
-        if (string.Equals(request.EntityType, "job", System.StringComparison.OrdinalIgnoreCase))
+        if (isJob)
         {
             (workCenterId, operationId) = await workCenterContext.ResolveForJobAsync(
                 request.EntityId, currentUserId, cancellationToken);
@@ -101,8 +117,7 @@ public class SetWorkflowStatusHandler(
             ? $"Status changed from {previousLabel} to {label}."
             : $"Status set to {label}.";
 
-        Job? archiveToggledJob = null;
-        if (string.Equals(request.EntityType, "job", System.StringComparison.OrdinalIgnoreCase))
+        if (isJob)
         {
             await activityRepo.AddAsync(new JobActivityLog
             {
@@ -117,9 +132,8 @@ public class SetWorkflowStatusHandler(
                 OperationId = operationId,
             }, cancellationToken);
 
-            archiveToggledJob = await SyncJobArchivedFlagAsync(
-                request.EntityId, request.Data.StatusCode == JobArchivedStatusCode, wasArchivedStatus,
-                currentUserId, cancellationToken);
+            if (archiveToggledJob is not null)
+                await ToggleJobArchivedAsync(archiveToggledJob, currentUserId, cancellationToken);
         }
         else
         {
@@ -140,6 +154,16 @@ public class SetWorkflowStatusHandler(
 
         if (archiveToggledJob is not null)
         {
+            if (!archiveToggledJob.IsArchived)
+            {
+                await auditWriter.WriteAsync(
+                    "JobUnarchived",
+                    db.CurrentUserId ?? 0,
+                    entityType: "Job",
+                    entityId: archiveToggledJob.Id,
+                    ct: cancellationToken);
+            }
+
             await boardHub.Clients.Group($"board:{archiveToggledJob.TrackTypeId}")
                 .SendAsync("boardUpdated",
                     new { reason = archiveToggledJob.IsArchived ? "archive" : "unarchive" },
@@ -151,8 +175,8 @@ public class SetWorkflowStatusHandler(
         return history.First(h => h.Id == statusEntry.Id);
     }
 
-    private async Task<Job?> SyncJobArchivedFlagAsync(
-        int jobId, bool archive, bool wasArchivedStatus, int? userId, CancellationToken cancellationToken)
+    private async Task<Job?> FindJobToToggleArchiveAsync(
+        int jobId, bool archive, bool wasArchivedStatus, CancellationToken cancellationToken)
     {
         if (!archive && !wasArchivedStatus)
             return null;
@@ -161,16 +185,42 @@ public class SetWorkflowStatusHandler(
         if (job is null || job.IsArchived == archive)
             return null;
 
-        job.IsArchived = archive;
+        var user = httpContext.HttpContext?.User;
+
+        if (archive)
+        {
+            if (!JobArchiveRoles.Any(role => user?.IsInRole(role) == true))
+                throw new ForbiddenException("You do not have permission to archive jobs.");
+            if (!capabilities.IsEnabled(JobArchiveCapability))
+                throw new CapabilityDisabledException(JobArchiveCapability);
+            return job;
+        }
+
+        var lastArchivedBy = await db.JobActivityLogs
+            .Where(l => l.JobId == jobId && l.Action == ActivityAction.Archived)
+            .OrderByDescending(l => l.Id)
+            .Select(l => l.FieldName)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (lastArchivedBy != WorkflowStatusField)
+            return null;
+
+        if (user?.IsInRole("Admin") != true)
+            throw new ForbiddenException("Only an administrator can restore an archived job.");
+
+        return job;
+    }
+
+    private async Task ToggleJobArchivedAsync(Job job, int? userId, CancellationToken cancellationToken)
+    {
+        job.IsArchived = !job.IsArchived;
 
         await activityRepo.AddAsync(new JobActivityLog
         {
             JobId = job.Id,
             UserId = userId,
-            Action = archive ? ActivityAction.Archived : ActivityAction.Restored,
-            Description = archive ? "Archived (workflow status)." : "Unarchived (workflow status).",
+            Action = job.IsArchived ? ActivityAction.Archived : ActivityAction.Restored,
+            FieldName = WorkflowStatusField,
+            Description = job.IsArchived ? "Archived (workflow status)." : "Unarchived (workflow status).",
         }, cancellationToken);
-
-        return job;
     }
 }
