@@ -250,9 +250,9 @@ public class InventoryController(IMediator mediator) : ControllerBase
     [HttpPost("inspect/{receivingRecordId:int}/waive")]
     [Authorize(Roles = "Admin,Manager")]
     [RequiresCapability("CAP-QC-INSPECTION")]
-    public async Task<IActionResult> WaiveInspection(int receivingRecordId)
+    public async Task<IActionResult> WaiveInspection(int receivingRecordId, [FromBody] WaiveInspectionRequestModel data)
     {
-        await mediator.Send(new WaiveInspectionCommand(receivingRecordId));
+        await mediator.Send(new WaiveInspectionCommand(receivingRecordId, data.Reason));
         return NoContent();
     }
 
