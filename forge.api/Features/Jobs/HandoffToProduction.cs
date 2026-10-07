@@ -27,14 +27,18 @@ public class HandoffToProductionHandler(AppDbContext db, IJobRepository jobRepo)
             .FirstOrDefaultAsync(j => j.Id == request.RdJobId, ct)
             ?? throw new KeyNotFoundException($"Job {request.RdJobId} not found.");
 
-        // Find Production track type
         var productionTrack = await db.TrackTypes
             .Include(t => t.Stages.OrderBy(s => s.SortOrder))
-            .FirstOrDefaultAsync(t => t.Name.Contains("Production"), ct)
-            ?? throw new KeyNotFoundException("No Production track type found.");
+            .Where(t => t.IsActive && t.Id != rdJob.TrackTypeId)
+            .OrderByDescending(t => t.IsDefault)
+            .ThenBy(t => t.Code == "production" ? 0 : 1)
+            .FirstOrDefaultAsync(t => t.IsDefault || t.Code == "production", ct)
+            ?? throw new InvalidOperationException(
+                "No production track is set. Mark one as the default in Admin > Order types.");
 
         var firstStage = productionTrack.Stages.FirstOrDefault()
-            ?? throw new KeyNotFoundException("Production track has no stages configured.");
+            ?? throw new InvalidOperationException(
+                $"Order type '{productionTrack.Name}' has no statuses. Add statuses in Admin.");
 
         var jobNumber = await jobRepo.GenerateNextJobNumberAsync(ct);
         var maxPos = await jobRepo.GetMaxBoardPositionAsync(firstStage.Id, ct);
@@ -52,19 +56,30 @@ public class HandoffToProductionHandler(AppDbContext db, IJobRepository jobRepo)
 
         await jobRepo.AddAsync(prodJob, ct);
 
-        // Create bidirectional links
         db.Set<JobLink>().Add(new JobLink
         {
             SourceJobId = rdJob.Id,
-            TargetJobId = prodJob.Id,
+            TargetJob = prodJob,
             LinkType = JobLinkType.HandoffTo,
         });
 
         db.Set<JobLink>().Add(new JobLink
         {
-            SourceJobId = prodJob.Id,
+            SourceJob = prodJob,
             TargetJobId = rdJob.Id,
             LinkType = JobLinkType.HandoffFrom,
+        });
+
+        prodJob.ActivityLogs.Add(new JobActivityLog
+        {
+            Action = ActivityAction.Created,
+            Description = $"Job {jobNumber} created from the R&D handoff of job {rdJob.JobNumber}.",
+        });
+
+        rdJob.ActivityLogs.Add(new JobActivityLog
+        {
+            Action = ActivityAction.StatusChanged,
+            Description = $"Handed off to production as job {jobNumber}.",
         });
 
         await db.SaveChangesAsync(ct);
