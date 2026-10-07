@@ -66,6 +66,7 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new CreatePurchaseOrderCommand(
             request.VendorId, request.JobId, request.Notes, request.Lines,
+            request.Incoterm, request.EstimatedFreight, request.QuoteCurrency,
             PONumber: request.PONumber,
             ExpectedDeliveryDate: request.ExpectedDeliveryDate));
         return CreatedAtAction(nameof(GetPurchaseOrder), new { id = result.Id }, result);

@@ -1,3 +1,5 @@
+using Forge.Core.Enums;
+
 namespace Forge.Core.Models;
 
 public record CreatePurchaseOrderRequestModel(
@@ -7,7 +9,10 @@ public record CreatePurchaseOrderRequestModel(
     List<CreatePurchaseOrderLineModel> Lines,
     // Optional caller-supplied PO number — gated by purchase_orders.allow_manual_numbers.
     string? PONumber = null,
-    DateTimeOffset? ExpectedDeliveryDate = null);
+    DateTimeOffset? ExpectedDeliveryDate = null,
+    Incoterm? Incoterm = null,
+    decimal? EstimatedFreight = null,
+    string? QuoteCurrency = null);
 
 // Phase 3 / WU-10 / F8-partial — Quantity is decimal (was int). UoM-aware shops
 // need fractional quantities — material-by-weight, by-time, by-volume.
