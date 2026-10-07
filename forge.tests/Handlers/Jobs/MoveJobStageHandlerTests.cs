@@ -231,6 +231,53 @@ public class MoveJobStageHandlerTests
     }
 
     [Fact]
+    public async Task Handle_MoveToFinalStageWithContainedNcr_ThrowsNamingIt()
+    {
+        var job = new Job { Id = 1, JobNumber = "JOB-0001", TrackTypeId = 1, CurrentStageId = 9 };
+        _jobRepo.Setup(r => r.FindAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(job);
+        SetupStages(1, ProductionTailStages(1));
+
+        _db.NonConformances.Add(new NonConformance
+        {
+            NcrNumber = "NCR-0042", JobId = 1, PartId = 1, DetectedById = 1, Status = NcrStatus.Contained,
+        });
+        await _db.SaveChangesAsync();
+
+        var act = () => _handler.Handle(new MoveJobStageCommand(1, 10), CancellationToken.None);
+
+        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+        ex.Which.Message.Should().Contain("NCR-0042");
+        job.CurrentStageId.Should().Be(9);
+        job.CompletedDate.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_MoveToFinalStageAfterPassedReinspection_Succeeds()
+    {
+        var job = new Job { Id = 1, JobNumber = "JOB-0001", TrackTypeId = 1, CurrentStageId = 9 };
+        _jobRepo.Setup(r => r.FindAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(job);
+        SetupStages(1, ProductionTailStages(1));
+        _jobRepo.Setup(r => r.GetMaxBoardPositionAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        SetupJobResult(1);
+
+        var failedAt = new DateTimeOffset(2026, 10, 1, 8, 0, 0, TimeSpan.Zero);
+        _db.QcInspections.Add(new QcInspection { JobId = 1, TemplateId = 3, Status = "Failed", CompletedAt = failedAt });
+        await _db.SaveChangesAsync();
+
+        var blocked = () => _handler.Handle(new MoveJobStageCommand(1, 10), CancellationToken.None);
+        await blocked.Should().ThrowAsync<InvalidOperationException>();
+
+        _db.QcInspections.Add(new QcInspection { JobId = 1, TemplateId = 3, Status = "Passed", CompletedAt = failedAt.AddHours(1) });
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(new MoveJobStageCommand(1, 10), CancellationToken.None);
+
+        job.CurrentStageId.Should().Be(10);
+        job.CompletedDate.Should().NotBeNull();
+        _db.QcInspections.Count(i => i.Status == "Failed").Should().Be(1);
+    }
+
+    [Fact]
     public async Task Handle_JobNotFound_ThrowsKeyNotFoundException()
     {
         // Arrange

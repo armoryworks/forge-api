@@ -134,6 +134,34 @@ public class BulkMoveJobStageHandlerTests
     }
 
     [Fact]
+    public async Task Handle_MoveToFinalStageWithUnderReviewNcr_ReportsPerJobErrorNamingIt()
+    {
+        var stages = ProductionTailStages(1);
+        var blocked = JobAt(1, stages, stageId: 9);
+        var clear = JobAt(2, stages, stageId: 9);
+        Setup(stages, 10, blocked, clear);
+
+        _db.NonConformances.Add(new NonConformance
+        {
+            NcrNumber = "NCR-0007", JobId = 1, PartId = 1, DetectedById = 1, Status = NcrStatus.UnderReview,
+        });
+        _db.NonConformances.Add(new NonConformance
+        {
+            NcrNumber = "NCR-0008", JobId = 2, PartId = 1, DetectedById = 1, Status = NcrStatus.Dispositioned,
+        });
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new BulkMoveJobStageCommand([1, 2], 10), CancellationToken.None);
+
+        result.SuccessCount.Should().Be(1);
+        var error = result.Errors.Single();
+        error.JobId.Should().Be(1);
+        error.Message.Should().Contain("JOB-0001").And.Contain("NCR-0007");
+        blocked.CurrentStageId.Should().Be(9);
+        clear.CurrentStageId.Should().Be(10);
+    }
+
+    [Fact]
     public async Task Handle_MoveToFinalStageWithFailedQcInspection_ReportsPerJobError()
     {
         var stages = ProductionTailStages(1);

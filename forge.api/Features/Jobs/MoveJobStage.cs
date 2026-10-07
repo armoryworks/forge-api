@@ -3,10 +3,10 @@ using System.Text.Json;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.Quality;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -86,20 +86,11 @@ public class MoveJobStageHandler(
                     "Move the job through each mandatory stage in order.");
         }
 
-        // F-JQ1: a job must not advance INTO completion (the final stage) while it has an open NCR or a
-        // failed QC inspection. Checked before the move is applied, so the job stays put rather than
-        // completing with unresolved quality issues. (Scope: gated at the final stage only; an NCR
-        // counts as open at NcrStatus.Open per the audit spec.)
         if (movingToCompletion)
         {
-            var hasOpenNcr = await db.NonConformances
-                .AnyAsync(n => n.JobId == job.Id && n.Status == NcrStatus.Open, cancellationToken);
-            var hasFailedInspection = await db.QcInspections
-                .AnyAsync(i => i.JobId == job.Id && i.Status == "Failed", cancellationToken);
-            if (hasOpenNcr || hasFailedInspection)
-                throw new InvalidOperationException(
-                    "Cannot complete this job while it has an open non-conformance (NCR) or a failed QC " +
-                    "inspection. Resolve the open quality issue before advancing to the final stage.");
+            var blockers = await JobQualityGate.FindBlockersAsync(db, [job.Id], cancellationToken);
+            if (blockers.TryGetValue(job.Id, out var blocking))
+                throw new InvalidOperationException(JobQualityGate.BlockedMessage(blocking));
         }
 
         job.CurrentStageId = request.StageId;

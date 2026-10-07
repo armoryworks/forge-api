@@ -1,7 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Quality;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -36,32 +36,16 @@ public class BulkMoveJobStageHandler(
         var lastStage = allStages.OrderByDescending(s => s.SortOrder).FirstOrDefault();
         var movingToCompletion = lastStage is not null && lastStage.Id == request.StageId;
 
-        // F-JQ1 quality-gate data: which of these jobs have an open NCR or a
-        // failed QC inspection? Only needed when the target is the final stage.
-        var jobIdsInBatch = jobs.Select(j => j.Id).ToList();
-        var jobIdsWithOpenNcr = new HashSet<int>();
-        var jobIdsWithFailedInspection = new HashSet<int>();
-        if (movingToCompletion && jobIdsInBatch.Count > 0)
-        {
-            jobIdsWithOpenNcr = (await db.NonConformances
-                .Where(n => n.JobId != null && jobIdsInBatch.Contains(n.JobId.Value) && n.Status == NcrStatus.Open)
-                .Select(n => n.JobId!.Value)
-                .Distinct()
-                .ToListAsync(ct)).ToHashSet();
-            jobIdsWithFailedInspection = (await db.QcInspections
-                .Where(i => i.JobId != null && jobIdsInBatch.Contains(i.JobId.Value) && i.Status == "Failed")
-                .Select(i => i.JobId!.Value)
-                .Distinct()
-                .ToListAsync(ct)).ToHashSet();
-        }
+        var qualityBlockers = movingToCompletion
+            ? await JobQualityGate.FindBlockersAsync(db, jobs.Select(j => j.Id).ToList(), ct)
+            : [];
 
         var maxPosition = await jobRepo.GetMaxBoardPositionAsync(request.StageId, ct);
 
         foreach (var job in jobs)
         {
             var validationError = ValidateMove(
-                job, targetStage, allStages, movingToCompletion,
-                jobIdsWithOpenNcr, jobIdsWithFailedInspection);
+                job, targetStage, allStages, movingToCompletion, qualityBlockers);
             if (validationError is not null)
             {
                 errors.Add(new BulkOperationError(job.Id, validationError));
@@ -121,8 +105,7 @@ public class BulkMoveJobStageHandler(
         JobStage targetStage,
         List<JobStage> allStages,
         bool movingToCompletion,
-        HashSet<int> jobIdsWithOpenNcr,
-        HashSet<int> jobIdsWithFailedInspection)
+        Dictionary<int, string> qualityBlockers)
     {
         if (job.TrackTypeId != targetStage.TrackTypeId)
             return $"Job {job.JobNumber} belongs to a different track type.";
@@ -156,14 +139,8 @@ public class BulkMoveJobStageHandler(
             }
         }
 
-        // F-JQ1: no advancing into completion with an open NCR or failed QC inspection.
-        if (movingToCompletion
-            && (jobIdsWithOpenNcr.Contains(job.Id) || jobIdsWithFailedInspection.Contains(job.Id)))
-        {
-            return $"Job {job.JobNumber}: cannot complete this job while it has an open " +
-                "non-conformance (NCR) or a failed QC inspection. Resolve the open quality " +
-                "issue before advancing to the final stage.";
-        }
+        if (movingToCompletion && qualityBlockers.TryGetValue(job.Id, out var blocking))
+            return $"Job {job.JobNumber}: {JobQualityGate.BlockedMessage(blocking)}";
 
         return null;
     }
