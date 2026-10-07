@@ -31,7 +31,12 @@ public class CreateCustomerReturnValidator : AbstractValidator<CreateCustomerRet
     }
 }
 
-public class CreateCustomerReturnHandler(AppDbContext db, IMediator mediator, IHttpContextAccessor httpContext, IJobRepository jobRepo)
+public class CreateCustomerReturnHandler(
+    AppDbContext db,
+    IMediator mediator,
+    IHttpContextAccessor httpContext,
+    IJobRepository jobRepo,
+    IBusinessIdentifierService identifiers)
     : IRequestHandler<CreateCustomerReturnCommand, CustomerReturnListItemModel>
 {
     public async Task<CustomerReturnListItemModel> Handle(CreateCustomerReturnCommand request, CancellationToken ct)
@@ -75,6 +80,7 @@ public class CreateCustomerReturnHandler(AppDbContext db, IMediator mediator, IH
                 .First();
 
             var reworkJobNumber = await jobRepo.GenerateNextJobNumberAsync(ct);
+            var maxPosition = await jobRepo.GetMaxBoardPositionAsync(firstStage.Id, ct);
 
             reworkJob = new Job
             {
@@ -83,6 +89,7 @@ public class CreateCustomerReturnHandler(AppDbContext db, IMediator mediator, IH
                 Description = $"Rework for RMA {returnNumber}. Reason: {request.Reason}",
                 TrackTypeId = originalJob.TrackTypeId,
                 CurrentStageId = firstStage.Id,
+                BoardPosition = maxPosition + 1,
                 CustomerId = request.CustomerId,
                 Priority = JobPriority.High,
                 AssigneeId = originalJob.AssigneeId,
@@ -94,6 +101,8 @@ public class CreateCustomerReturnHandler(AppDbContext db, IMediator mediator, IH
             });
             db.Jobs.Add(reworkJob);
             await db.SaveChangesAsync(ct);
+
+            await identifiers.IssueAsync(BusinessEntityType.Job, reworkJob.Id, reworkJob.JobNumber, ct);
 
             customerReturn.ReworkJobId = reworkJob.Id;
             customerReturn.Status = CustomerReturnStatus.ReworkOrdered;

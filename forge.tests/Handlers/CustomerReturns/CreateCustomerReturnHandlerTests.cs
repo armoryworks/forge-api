@@ -17,6 +17,7 @@ public class CreateCustomerReturnHandlerTests
     private readonly Faker _faker = new();
     private readonly Mock<IMediator> _mediator = new();
     private readonly Mock<IJobRepository> _jobRepo = new();
+    private readonly Mock<IBusinessIdentifierService> _identifiers = new();
     private readonly IHttpContextAccessor _httpContext;
 
     public CreateCustomerReturnHandlerTests()
@@ -28,6 +29,7 @@ public class CreateCustomerReturnHandlerTests
         mock.Setup(x => x.HttpContext).Returns(httpContext);
         _httpContext = mock.Object;
         _jobRepo.Setup(r => r.GenerateNextJobNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("J-1042");
+        _jobRepo.Setup(r => r.GetMaxBoardPositionAsync(It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync(4);
     }
 
     private async Task<(Customer customer, Job job, Data.Context.AppDbContext db)> SeedTestDataAsync()
@@ -73,7 +75,7 @@ public class CreateCustomerReturnHandlerTests
         var (customer, job, db) = await SeedTestDataAsync();
         using var _ = db;
 
-        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object);
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object, _identifiers.Object);
         var returnDate = DateTime.UtcNow;
 
         var command = new CreateCustomerReturnCommand(
@@ -102,7 +104,7 @@ public class CreateCustomerReturnHandlerTests
         var (customer, job, db) = await SeedTestDataAsync();
         using var _ = db;
 
-        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object);
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object, _identifiers.Object);
 
         var command = new CreateCustomerReturnCommand(
             customer.Id, job.Id, "Wrong dimensions", null, DateTime.UtcNow, true);
@@ -122,6 +124,8 @@ public class CreateCustomerReturnHandlerTests
         reworkJob.Priority.Should().Be(JobPriority.High);
         reworkJob.CustomerId.Should().Be(customer.Id);
         reworkJob.TrackTypeId.Should().Be(job.TrackTypeId);
+        reworkJob.BoardPosition.Should().Be(5);
+        _identifiers.Verify(i => i.IssueAsync(BusinessEntityType.Job, reworkJob.Id, "J-1042", It.IsAny<CancellationToken>()), Times.Once);
         (await db.JobActivityLogs.AnyAsync(l => l.JobId == reworkJob.Id && l.Action == ActivityAction.Created))
             .Should().BeTrue();
 
@@ -139,7 +143,7 @@ public class CreateCustomerReturnHandlerTests
         var (_, job, db) = await SeedTestDataAsync();
         using var _ = db;
 
-        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object);
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object, _identifiers.Object);
         var nonExistentCustomerId = 9999;
 
         var command = new CreateCustomerReturnCommand(
@@ -160,7 +164,7 @@ public class CreateCustomerReturnHandlerTests
         var (customer, _, db) = await SeedTestDataAsync();
         using var _ = db;
 
-        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object);
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object, _identifiers.Object);
         var nonExistentJobId = 9999;
 
         var command = new CreateCustomerReturnCommand(
@@ -181,7 +185,7 @@ public class CreateCustomerReturnHandlerTests
         var (customer, job, db) = await SeedTestDataAsync();
         using var _ = db;
 
-        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object);
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object, _identifiers.Object);
 
         // Create first return
         var command1 = new CreateCustomerReturnCommand(

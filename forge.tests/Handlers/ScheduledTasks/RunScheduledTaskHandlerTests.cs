@@ -26,16 +26,20 @@ public class RunScheduledTaskHandlerTests
 
         var jobRepo = new Mock<IJobRepository>();
         jobRepo.Setup(r => r.GenerateNextJobNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("J-77");
+        jobRepo.Setup(r => r.GetMaxBoardPositionAsync(It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync(2);
+        var identifiers = new Mock<IBusinessIdentifierService>();
         var now = new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero);
         var clock = new Mock<IClock>();
         clock.Setup(c => c.UtcNow).Returns(now);
 
-        var jobId = await new RunScheduledTaskHandler(db, jobRepo.Object, clock.Object)
+        var jobId = await new RunScheduledTaskHandler(db, jobRepo.Object, identifiers.Object, clock.Object)
             .Handle(new RunScheduledTaskCommand(task.Id), CancellationToken.None);
 
         var job = await db.Jobs.Include(j => j.ActivityLogs).SingleAsync(j => j.Id == jobId);
         job.JobNumber.Should().Be("J-77");
         job.IsInternal.Should().BeTrue();
+        job.BoardPosition.Should().Be(3);
+        identifiers.Verify(i => i.IssueAsync(BusinessEntityType.Job, job.Id, "J-77", It.IsAny<CancellationToken>()), Times.Once);
         job.ActivityLogs.Should().ContainSingle(l => l.Action == ActivityAction.Created);
         (await db.ScheduledTasks.SingleAsync(t => t.Id == task.Id)).LastRunAt.Should().Be(now);
     }
