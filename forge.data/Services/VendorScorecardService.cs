@@ -74,7 +74,9 @@ public class VendorScorecardService(
         var receivingRecords = await db.ReceivingRecords
             .AsNoTracking()
             .Where(rr => poIds.Contains(rr.PurchaseOrderLine.PurchaseOrderId)
-                && rr.InspectionStatus != ReceivingInspectionStatus.NotRequired)
+                && (rr.InspectionStatus == ReceivingInspectionStatus.Passed
+                    || rr.InspectionStatus == ReceivingInspectionStatus.Failed
+                    || rr.InspectionStatus == ReceivingInspectionStatus.PartialAccept))
             .Select(rr => new
             {
                 rr.InspectionStatus,
@@ -88,9 +90,16 @@ public class VendorScorecardService(
             rr.InspectionStatus == ReceivingInspectionStatus.Passed);
         var totalRejected = receivingRecords.Count(rr =>
             rr.InspectionStatus == ReceivingInspectionStatus.Failed);
+        var acceptedShare = receivingRecords.Sum(rr => rr.InspectionStatus switch
+        {
+            ReceivingInspectionStatus.Passed => 1m,
+            ReceivingInspectionStatus.PartialAccept when rr.Accepted + rr.Rejected > 0 =>
+                rr.Accepted / (rr.Accepted + rr.Rejected),
+            _ => 0m,
+        });
 
         var qualityAcceptancePercent = totalInspected > 0
-            ? Math.Round((decimal)totalAccepted / totalInspected * 100, 2)
+            ? Math.Round(acceptedShare / totalInspected * 100, 2)
             : 100m;
 
         // --- NCR count for this vendor in period ---
