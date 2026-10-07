@@ -62,7 +62,8 @@ public class ReceiveStockHandler(
             locationId = (await repo.EnsureDefaultLocationAsync(cancellationToken)).Id;
         }
 
-        var existing = await repo.FindActiveBinContentByPartLocationAsync(data.PartId, locationId, cancellationToken);
+        var lot = string.IsNullOrWhiteSpace(data.LotNumber) ? null : data.LotNumber.Trim();
+        var existing = await repo.FindActiveBinContentByPartLocationLotAsync(data.PartId, locationId, lot, cancellationToken);
         if (existing is null)
         {
             await repo.AddBinContentAsync(new BinContent
@@ -71,7 +72,7 @@ public class ReceiveStockHandler(
                 EntityId = data.PartId,
                 LocationId = locationId,
                 Quantity = data.Quantity,
-                LotNumber = string.IsNullOrWhiteSpace(data.LotNumber) ? null : data.LotNumber!.Trim(),
+                LotNumber = lot,
                 Status = BinContentStatus.Stored,
                 PlacedBy = userId,
                 PlacedAt = now,
@@ -88,6 +89,7 @@ public class ReceiveStockHandler(
             EntityType = "part",
             EntityId = data.PartId,
             Quantity = data.Quantity,
+            LotNumber = lot,
             FromLocationId = null,
             ToLocationId = locationId,
             MovedBy = userId,

@@ -37,7 +37,7 @@ public class ReceiveStockHandlerTests
     [Fact]
     public async Task NoExistingContent_opensBinAndRecordsReceiveMovement()
     {
-        _repo.Setup(r => r.FindActiveBinContentByPartLocationAsync(3, 5, It.IsAny<CancellationToken>()))
+        _repo.Setup(r => r.FindActiveBinContentByPartLocationLotAsync(3, 5, "L-99", It.IsAny<CancellationToken>()))
             .ReturnsAsync((BinContent?)null);
         BinContent? added = null;
         BinMovement? movement = null;
@@ -59,6 +59,7 @@ public class ReceiveStockHandlerTests
         movement.ToLocationId.Should().Be(5);
         movement.FromLocationId.Should().BeNull();
         movement.Reason.Should().Be(BinMovementReason.Receive);
+        movement.LotNumber.Should().Be("L-99");
         movement.Notes.Should().Contain("Walk-in delivery").And.Contain("Lot L-99");
     }
 
@@ -66,7 +67,7 @@ public class ReceiveStockHandlerTests
     public async Task ExistingContent_addsToQuantityWithoutCreating()
     {
         var existing = new BinContent { Id = 9, EntityType = "part", EntityId = 3, LocationId = 5, Quantity = 5 };
-        _repo.Setup(r => r.FindActiveBinContentByPartLocationAsync(3, 5, It.IsAny<CancellationToken>()))
+        _repo.Setup(r => r.FindActiveBinContentByPartLocationLotAsync(3, 5, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existing);
         BinMovement? movement = null;
         _repo.Setup(r => r.AddMovementAsync(It.IsAny<BinMovement>(), It.IsAny<CancellationToken>()))
@@ -98,7 +99,7 @@ public class ReceiveStockHandlerTests
     {
         _repo.Setup(r => r.EnsureDefaultLocationAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new StorageLocation { Id = 1, Name = "Main", IsDefault = true });
-        _repo.Setup(r => r.FindActiveBinContentByPartLocationAsync(3, 1, It.IsAny<CancellationToken>()))
+        _repo.Setup(r => r.FindActiveBinContentByPartLocationLotAsync(3, 1, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync((BinContent?)null);
         BinContent? added = null;
         _repo.Setup(r => r.AddBinContentAsync(It.IsAny<BinContent>(), It.IsAny<CancellationToken>()))
@@ -112,5 +113,24 @@ public class ReceiveStockHandlerTests
         added!.LocationId.Should().Be(1, "single-location mode receives into the default location");
         _repo.Verify(r => r.EnsureDefaultLocationAsync(It.IsAny<CancellationToken>()), Times.Once);
         _repo.Verify(r => r.FindLocationAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UnlottedReceipt_doesNotBlendIntoALottedRow()
+    {
+        _repo.Setup(r => r.FindActiveBinContentByPartLocationLotAsync(3, 5, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((BinContent?)null);
+        BinContent? added = null;
+        _repo.Setup(r => r.AddBinContentAsync(It.IsAny<BinContent>(), It.IsAny<CancellationToken>()))
+            .Callback<BinContent, CancellationToken>((c, _) => added = c).Returns(Task.CompletedTask);
+        _repo.Setup(r => r.AddMovementAsync(It.IsAny<BinMovement>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        await _handler.Handle(Cmd(4, lot: "  "), CancellationToken.None);
+
+        added!.LotNumber.Should().BeNull();
+        added.Quantity.Should().Be(4);
+        _repo.Verify(r => r.FindActiveBinContentByPartLocationAsync(
+            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }
