@@ -106,10 +106,10 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/confirm")]
-    public async Task<IActionResult> ConfirmSalesOrder(int id)
+    public async Task<ActionResult<ConfirmSalesOrderResponseModel>> ConfirmSalesOrder(int id)
     {
-        await mediator.Send(new ConfirmSalesOrderCommand(id));
-        return NoContent();
+        var result = await mediator.Send(new ConfirmSalesOrderCommand(id));
+        return Ok(result);
     }
 
     // ─── Customer acceptance (production gate; behavior gated by CAP-O2C-SO-ACCEPTANCE) ───
