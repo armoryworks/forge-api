@@ -12,15 +12,16 @@ namespace Forge.Api.Features.Jobs.ProductionRuns;
 
 /// <summary>
 /// Receive a completed production run's good output into finished-goods stock — the explicit job-complete→FG
-/// step (separate from flipping the run to Completed). Stocks the FG bin operationally and, when
+/// step (separate from flipping the run to Completed). Stocks the chosen bin operationally and, when
 /// CAP-ACCT-FULLGL is on, posts Dr INVENTORY_FG / Cr INVENTORY_WIP at standard cost + feeds the FG valuation
 /// store. Idempotent: a run already received to stock is a no-op (returns current state).
 /// </summary>
-public record ReceiveProductionRunToStockCommand(int JobId, int RunId, int ReceivedByUserId)
+public record ReceiveProductionRunToStockCommand(int JobId, int RunId, int ReceivedByUserId, int? LocationId = null)
     : IRequest<ProductionRunResponseModel>;
 
 public class ReceiveProductionRunToStockHandler(
     AppDbContext db,
+    IClock clock,
     // Operational FG stock-in (creates/increments BinContent + a Receive movement). Null in mock-based unit
     // tests → no stock movement, run is still stamped received.
     IInventoryRepository? inventory = null,
@@ -29,6 +30,8 @@ public class ReceiveProductionRunToStockHandler(
     IProductionReceiptPostingService? posting = null)
     : IRequestHandler<ReceiveProductionRunToStockCommand, ProductionRunResponseModel>
 {
+    private const string FinishedGoodsBinName = "Finished Goods";
+
     public async Task<ProductionRunResponseModel> Handle(
         ReceiveProductionRunToStockCommand request, CancellationToken cancellationToken)
     {
@@ -52,11 +55,21 @@ public class ReceiveProductionRunToStockHandler(
                 throw new InvalidOperationException(
                     $"Production run {run.Id} has no good completed quantity to receive into stock.");
 
+            var receivedAt = clock.UtcNow;
+
+            // One transaction: the stock-in, the received stamp AND the inline FG/WIP posting commit (or roll
+            // back) together. Npgsql opens a real transaction; the in-memory test provider treats it as a no-op.
+            // tx is opened only when posting is wired and no caller's transaction is already open.
+            await using var tx = posting is not null && db.Database.CurrentTransaction is null
+                ? await db.Database.BeginTransactionAsync(cancellationToken)
+                : null;
+
             // Operational FG stock-in (not CAP-ACCT-FULLGL gated): find-or-create the active BinContent for
-            // (part, FG bin) and increment it, then record a Receive movement.
+            // (part, bin) and increment it, then record a Receive movement.
             if (inventory is not null)
             {
-                var locationId = await ResolveFinishedGoodsBinAsync(inventory, cancellationToken);
+                var locationId = await ResolveReceivingBinAsync(
+                    inventory, request.LocationId, run.Part.DefaultBinId, cancellationToken);
 
                 var existing = await inventory.FindActiveBinContentByPartLocationAsync(
                     run.PartId, locationId, cancellationToken);
@@ -74,7 +87,7 @@ public class ReceiveProductionRunToStockHandler(
                         Quantity = goodQty,
                         Status = BinContentStatus.Stored,
                         PlacedBy = request.ReceivedByUserId,
-                        PlacedAt = DateTimeOffset.UtcNow,
+                        PlacedAt = receivedAt,
                     }, cancellationToken);
                 }
 
@@ -85,20 +98,13 @@ public class ReceiveProductionRunToStockHandler(
                     Quantity = goodQty,
                     ToLocationId = locationId,
                     MovedBy = request.ReceivedByUserId,
-                    MovedAt = DateTimeOffset.UtcNow,
+                    MovedAt = receivedAt,
                     Reason = BinMovementReason.Receive,
                 }, cancellationToken);
             }
 
             run.ReceivedQuantity = goodQty;
-            run.ReceivedToStockAt = DateTimeOffset.UtcNow;
-
-            // One transaction: the received stamp AND the inline FG/WIP posting commit (or roll back) together.
-            // Npgsql opens a real transaction; the in-memory test provider treats it as a no-op. tx is opened
-            // only when posting is wired.
-            await using var tx = posting is not null
-                ? await db.Database.BeginTransactionAsync(cancellationToken)
-                : null;
+            run.ReceivedToStockAt = receivedAt;
 
             await db.SaveChangesAsync(cancellationToken);
 
@@ -116,18 +122,39 @@ public class ReceiveProductionRunToStockHandler(
         return await BuildResponseAsync(run, cancellationToken);
     }
 
-    /// <summary>The finished-goods bin to stock into: the first active bin, or a freshly provisioned "Finished
-    /// Goods" bin if the warehouse has none yet (so a first production receipt always has somewhere to land).</summary>
-    private static async Task<int> ResolveFinishedGoodsBinAsync(IInventoryRepository inventory, CancellationToken ct)
+    /// <summary>The bin to stock into: the requested bin when it is an active bin, else the part's default bin
+    /// when that is an active bin, else the "Finished Goods" bin, provisioned on first use so a production receipt
+    /// always has somewhere to land. Never an arbitrary first bin.</summary>
+    private async Task<int> ResolveReceivingBinAsync(
+        IInventoryRepository inventory, int? requestedLocationId, int? partDefaultBinId, CancellationToken ct)
     {
-        var bins = await inventory.GetBinLocationsAsync(ct);
-        if (bins.Count > 0)
-            return bins[0].Id;
+        foreach (var candidate in new[] { requestedLocationId, partDefaultBinId })
+        {
+            if (candidate is int id && await IsActiveBinAsync(id, ct))
+                return id;
+        }
 
-        var fg = new StorageLocation { Name = "Finished Goods", LocationType = LocationType.Bin, IsActive = true };
+        var existing = await db.StorageLocations
+            .Where(l => l.DeletedAt == null
+                && l.IsActive
+                && l.LocationType == LocationType.Bin
+                && l.Name == FinishedGoodsBinName)
+            .OrderBy(l => l.Id)
+            .Select(l => (int?)l.Id)
+            .FirstOrDefaultAsync(ct);
+        if (existing is int existingId)
+            return existingId;
+
+        var fg = new StorageLocation { Name = FinishedGoodsBinName, LocationType = LocationType.Bin, IsActive = true };
         await inventory.AddLocationAsync(fg, ct);
         return fg.Id;
     }
+
+    private Task<bool> IsActiveBinAsync(int locationId, CancellationToken ct) =>
+        db.StorageLocations.AnyAsync(l => l.Id == locationId
+            && l.DeletedAt == null
+            && l.IsActive
+            && l.LocationType == LocationType.Bin, ct);
 
     private async Task<ProductionRunResponseModel> BuildResponseAsync(ProductionRun run, CancellationToken ct)
     {

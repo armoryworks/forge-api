@@ -109,7 +109,6 @@
     "forge.api/Features/Jobs/MoveJobStage.cs": 1,
     "forge.api/Features/Jobs/ProductionRuns/CreateProductionRun.cs": 1,
     "forge.api/Features/Jobs/ProductionRuns/DeleteProductionRun.cs": 1,
-    "forge.api/Features/Jobs/ProductionRuns/ReceiveProductionRunToStock.cs": 3,
     "forge.api/Features/Jobs/ProductionRuns/UpdateProductionRun.cs": 2,
     "forge.api/Features/Jobs/ReceiveBackSubcontract.cs": 1,
     "forge.api/Features/Jobs/ReturnMaterialIssue.cs": 2,

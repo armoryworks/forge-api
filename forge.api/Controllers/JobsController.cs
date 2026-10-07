@@ -266,10 +266,11 @@ public class JobsController(IMediator mediator) : ControllerBase
 
     [HttpPost("{id:int}/production-runs/{runId:int}/receive-to-stock")]
     [RequiresCapability("CAP-MFG-COMPLETE")]
-    public async Task<ActionResult<ProductionRunResponseModel>> ReceiveProductionRunToStock(int id, int runId)
+    public async Task<ActionResult<ProductionRunResponseModel>> ReceiveProductionRunToStock(
+        int id, int runId, [FromQuery] int? locationId = null)
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var result = await mediator.Send(new ReceiveProductionRunToStockCommand(id, runId, userId));
+        var result = await mediator.Send(new ReceiveProductionRunToStockCommand(id, runId, userId, locationId));
         return Ok(result);
     }
 
