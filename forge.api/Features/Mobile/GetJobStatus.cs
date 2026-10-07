@@ -23,7 +23,7 @@ public class GetJobStatusHandler(AppDbContext db, IMediator mediator, IClock clo
         var stages = await db.JobStages.AsNoTracking()
             .Where(s => s.TrackTypeId == job.TrackTypeId)
             .OrderBy(s => s.SortOrder)
-            .Select(s => new { s.Id, s.Name })
+            .Select(s => new { s.Id, s.Name, s.IsShopFloor })
             .ToListAsync(ct);
 
         var index = stages.FindIndex(s => s.Id == job.CurrentStageId);
@@ -41,6 +41,9 @@ public class GetJobStatusHandler(AppDbContext db, IMediator mediator, IClock clo
             job.CurrentStageId, job.StageName, job.StageColor,
             job.DueDate, job.DueDate is not null && job.DueDate < startOfToday && job.CompletedDate is null,
             next?.Id, next?.Name, previous?.Id, previous?.Name,
-            job.RowVersion, activity);
+            job.RowVersion, activity)
+        {
+            NextStageIsShopFloor = next?.IsShopFloor ?? false,
+        };
     }
 }

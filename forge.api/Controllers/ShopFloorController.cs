@@ -90,11 +90,9 @@ public class ShopFloorController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<JobStatusResponseModel>> GetJobStatus(int id)
         => Ok(await mediator.Send(new GetJobStatusQuery(id)));
 
-    [AllowAnonymous]
-    [KioskTerminalAuth]
     [HttpPost("jobs/{id:int}/advance")]
     public async Task<ActionResult<JobAdvanceResponseModel>> AdvanceJob(int id)
-        => Ok(await mediator.Send(new AdvanceJobCommand(id, KioskDeviceKey(), null)));
+        => Ok(await mediator.Send(new AdvanceShopFloorJobCommand(id)));
 
     [HttpPost("assign-job")]
     [Authorize(Roles = "Admin,Manager")] // SF-05: assigning/stealing a job is supervisory
@@ -108,14 +106,6 @@ public class ShopFloorController(IMediator mediator) : ControllerBase
     [Authorize(Roles = "Admin,Manager")] // SF-04: completing a job from the kiosk is supervisory
     public async Task<ActionResult<CompleteJobResponseModel>> CompleteJob([FromBody] CompleteJobRequestModel model)
         => Ok(await mediator.Send(new CompleteJobCommand(model.JobId)));
-
-    private string KioskDeviceKey()
-    {
-        if (Request.Headers.TryGetValue(KioskTerminalAuthAttribute.HeaderName, out var token)
-            && !string.IsNullOrWhiteSpace(token))
-            return token.ToString().Trim();
-        return $"user:{User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value}";
-    }
 
     // ─── Teams ───
     [KioskTerminalAuth]

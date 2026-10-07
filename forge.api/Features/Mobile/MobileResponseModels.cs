@@ -25,7 +25,10 @@ public record JobStatusResponseModel(
     int? PreviousStageId,
     string? PreviousStageName,
     uint RowVersion,
-    List<ActivityResponseModel> RecentActivity);
+    List<ActivityResponseModel> RecentActivity)
+{
+    public bool NextStageIsShopFloor { get; init; }
+}
 
 /// <summary>Result of advancing a job; PreviousStageId is what undo moves back to.</summary>
 public record JobAdvanceResponseModel(

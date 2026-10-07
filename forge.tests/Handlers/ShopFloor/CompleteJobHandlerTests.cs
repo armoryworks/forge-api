@@ -21,7 +21,7 @@ public class CompleteJobHandlerTests
     public CompleteJobHandlerTests()
     {
         _db = TestDbContextFactory.Create();
-        _handler = new CompleteJobHandler(_db, _mediator.Object);
+        _handler = new CompleteJobHandler(_mediator.Object);
     }
 
     private async Task<(JobStage InProduction, JobStage Qc, JobStage Invoiced, JobStage Paid)> SeedProductionTrackAsync()
@@ -47,7 +47,10 @@ public class CompleteJobHandlerTests
                 current.Id, current.Name, current.Color,
                 null, false,
                 next?.Id, next?.Name, null, null,
-                0, new List<ActivityResponseModel>()));
+                0, new List<ActivityResponseModel>())
+            {
+                NextStageIsShopFloor = next?.IsShopFloor ?? false,
+            });
 
     [Fact]
     public async Task Handle_ShopFloorNextStage_MovesOneStatusThroughMoveJobStage()
