@@ -21,35 +21,42 @@ internal static class LotShipmentResolver
         return ResolveAsync(db, movements, isApproximate: false, ct);
     }
 
-    public static async Task<List<LotShipmentRow>> ForUnlottedSalesOrderLinesAsync(
-        AppDbContext db, IReadOnlyCollection<int> salesOrderLineIds, CancellationToken ct)
+    public static async Task<List<LotShipmentRow>> ForSalesOrderLinesAsync(
+        AppDbContext db,
+        IReadOnlyCollection<int> salesOrderLineIds,
+        IReadOnlyCollection<string> exactLotNumbers,
+        CancellationToken ct)
     {
         if (salesOrderLineIds.Count == 0)
             return [];
 
+        var shipMovements = ShipMovements(db);
         var shipmentLineIds = await db.ShipmentLines
             .AsNoTracking()
-            .Where(sl => sl.SalesOrderLineId != null && salesOrderLineIds.Contains(sl.SalesOrderLineId.Value))
+            .Where(sl => sl.SalesOrderLineId != null && salesOrderLineIds.Contains(sl.SalesOrderLineId.Value)
+                && !shipMovements.Any(m => m.EntityId == sl.Id
+                    && m.LotNumber != null && exactLotNumbers.Contains(m.LotNumber)))
             .Select(sl => sl.Id)
             .ToListAsync(ct);
         if (shipmentLineIds.Count == 0)
             return [];
 
-        var movements = ShipMovements(db)
-            .Where(m => m.LotNumber == null && shipmentLineIds.Contains(m.EntityId));
-        var unlotted = await ResolveAsync(db, movements, isApproximate: true, ct);
+        var movements = shipMovements.Where(m => shipmentLineIds.Contains(m.EntityId));
+        var relieved = await ResolveAsync(db, movements, isApproximate: true, ct);
         var unrelieved = await UnrelievedLinesAsync(db, shipmentLineIds, ct);
-        return [.. unlotted, .. unrelieved];
+        return [.. relieved, .. unrelieved];
     }
 
     private static Task<List<LotShipmentRow>> UnrelievedLinesAsync(
-        AppDbContext db, List<int> shipmentLineIds, CancellationToken ct) =>
-        db.ShipmentLines
+        AppDbContext db, List<int> shipmentLineIds, CancellationToken ct)
+    {
+        var shipMovements = ShipMovements(db);
+        return db.ShipmentLines
             .AsNoTracking()
             .Where(sl => shipmentLineIds.Contains(sl.Id) && sl.Quantity > 0
-                && !db.BinMovements.Any(m => m.Reason == BinMovementReason.Ship
-                    && m.EntityType == ShipmentLineEntityType
-                    && m.EntityId == sl.Id))
+                && sl.Shipment.ShippedDate != null
+                && sl.Shipment.Status != ShipmentStatus.Cancelled
+                && !shipMovements.Any(m => m.EntityId == sl.Id))
             .Select(sl => new LotShipmentRow(
                 sl.ShipmentId,
                 sl.Shipment.ShipmentNumber,
@@ -61,6 +68,7 @@ internal static class LotShipmentResolver
                 sl.Quantity,
                 true))
             .ToListAsync(ct);
+    }
 
     private static IQueryable<BinMovement> ShipMovements(AppDbContext db) =>
         db.BinMovements

@@ -305,15 +305,9 @@ public sealed class InitiateRecallHandlerTests(PostgresFixture fixture)
         await using var db = fixture.CreateContext();
         var part = await SeedPartAsync(db);
         var orderLine = await SeedShipmentAsync(db, "Unlotted Buyer", 6);
-        var lottedElsewhere = await SeedShipmentAsync(db, "Lotted Elsewhere", 6);
         var job = await SeedJobAsync(db, orderLine.SoLine.Id);
         var produced = await SeedLotAsync(db, part.Id, 6, jobId: job.Id);
-        var other = await SeedLotAsync(db, part.Id, 6);
         await ShipAsync(db, orderLine.Line, null, 6);
-        db.ShipmentLines.Add(new ShipmentLine { ShipmentId = lottedElsewhere.Shipment.Id, SalesOrderLineId = orderLine.SoLine.Id, Quantity = 6 });
-        await db.SaveChangesAsync();
-        var lottedLine = await db.ShipmentLines.OrderByDescending(l => l.Id).FirstAsync();
-        await ShipAsync(db, lottedLine, other.LotNumber, 6);
 
         var result = await new InitiateRecallHandler(db, Http()).Handle(Recall(produced.Id), CancellationToken.None);
 
@@ -321,6 +315,60 @@ public sealed class InitiateRecallHandlerTests(PostgresFixture fixture)
         shp.CustomerName.Should().Be("Unlotted Buyer");
         shp.AffectedQuantity.Should().Be(6);
         shp.IsApproximate.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Make_to_order_line_relieved_fifo_from_an_older_lot_is_still_listed_as_approximate()
+    {
+        await using var db = fixture.CreateContext();
+        var part = await SeedPartAsync(db);
+        var stockLot = await SeedLotAsync(db, part.Id, 10);
+        var orderLine = await SeedShipmentAsync(db, "Make To Order Buyer", 10);
+        var job = await SeedJobAsync(db, orderLine.SoLine.Id);
+        var madeToOrder = await SeedLotAsync(db, part.Id, 10, jobId: job.Id);
+        await ShipAsync(db, orderLine.Line, stockLot.LotNumber, 10);
+
+        var result = await new InitiateRecallHandler(db, Http()).Handle(Recall(madeToOrder.Id), CancellationToken.None);
+
+        var shp = result.AffectedShipments.Should().ContainSingle().Subject;
+        shp.CustomerId.Should().Be(orderLine.Customer.Id);
+        shp.ShipmentNumber.Should().Be(orderLine.Shipment.ShipmentNumber);
+        shp.AffectedQuantity.Should().Be(10);
+        shp.IsApproximate.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_line_already_stamped_with_the_recalled_lot_is_not_double_counted()
+    {
+        await using var db = fixture.CreateContext();
+        var part = await SeedPartAsync(db);
+        var orderLine = await SeedShipmentAsync(db, "Exact Buyer", 10);
+        var job = await SeedJobAsync(db, orderLine.SoLine.Id);
+        var produced = await SeedLotAsync(db, part.Id, 10, jobId: job.Id);
+        await ShipAsync(db, orderLine.Line, produced.LotNumber, 10);
+
+        var result = await new InitiateRecallHandler(db, Http()).Handle(Recall(produced.Id), CancellationToken.None);
+
+        var shp = result.AffectedShipments.Should().ContainSingle().Subject;
+        shp.AffectedQuantity.Should().Be(10);
+        shp.IsApproximate.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task A_shipment_that_has_not_shipped_is_not_listed()
+    {
+        await using var db = fixture.CreateContext();
+        var part = await SeedPartAsync(db);
+        var draft = await SeedShipmentAsync(db, "Draft Shipment Buyer", 10);
+        draft.Shipment.ShippedDate = null;
+        await db.SaveChangesAsync();
+        var job = await SeedJobAsync(db, draft.SoLine.Id);
+        var produced = await SeedLotAsync(db, part.Id, 10, jobId: job.Id);
+
+        var result = await new InitiateRecallHandler(db, Http()).Handle(Recall(produced.Id), CancellationToken.None);
+
+        result.AffectedShipments.Should().BeEmpty();
+        result.AffectedShipmentsCount.Should().Be(0);
     }
 
     [Fact]
