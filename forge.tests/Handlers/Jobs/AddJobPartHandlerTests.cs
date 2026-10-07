@@ -21,7 +21,7 @@ public class AddJobPartHandlerTests
     private async Task<Job> SeedAsync(int? partId)
     {
         _db.Parts.AddRange(
-            new Part { Id = 800, PartNumber = "40-1700M", Description = "Clutch weight" },
+            new Part { Id = 800, PartNumber = "40-1700M", Description = "Clutch weight", CurrentBomRevisionId = 21 },
             new Part { Id = 801, PartNumber = "40-1800M", Description = "Spacer" });
         var job = new Job { Id = 1, JobNumber = "J-1", Title = "Test", TrackTypeId = 1, CurrentStageId = 1, PartId = partId };
         _db.Jobs.Add(job);
@@ -37,6 +37,7 @@ public class AddJobPartHandlerTests
         await _handler.Handle(new AddJobPartCommand(job.Id, 800, 12m), CancellationToken.None);
 
         job.PartId.Should().Be(800);
+        job.BomRevisionIdAtRelease.Should().Be(21);
         var log = await _db.JobActivityLogs.SingleAsync(l => l.JobId == job.Id);
         log.FieldName.Should().Be("Part");
         log.NewValue.Should().Be("40-1700M");
@@ -50,6 +51,7 @@ public class AddJobPartHandlerTests
         await _handler.Handle(new AddJobPartCommand(job.Id, 801, 3m), CancellationToken.None);
 
         job.PartId.Should().Be(800);
+        job.BomRevisionIdAtRelease.Should().BeNull();
         (await _db.JobActivityLogs.CountAsync(l => l.JobId == job.Id)).Should().Be(1);
     }
 }

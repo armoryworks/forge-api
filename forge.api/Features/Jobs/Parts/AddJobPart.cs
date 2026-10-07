@@ -41,7 +41,10 @@ public class AddJobPartHandler(AppDbContext db) : IRequestHandler<AddJobPartComm
 
         var setsJobPart = job.PartId is null;
         if (setsJobPart)
+        {
             job.PartId = part.Id;
+            job.BomRevisionIdAtRelease = part.CurrentBomRevisionId;
+        }
 
         db.JobActivityLogs.Add(new JobActivityLog
         {
