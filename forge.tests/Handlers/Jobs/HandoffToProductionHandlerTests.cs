@@ -43,7 +43,7 @@ public class HandoffToProductionHandlerTests
         links.Should().Contain(l => l.LinkType == JobLinkType.HandoffTo && l.SourceJobId == rdJob.Id && l.TargetJobId == prodJobId);
         links.Should().Contain(l => l.LinkType == JobLinkType.HandoffFrom && l.SourceJobId == prodJobId && l.TargetJobId == rdJob.Id);
         (await _db.JobActivityLogs.AnyAsync(l => l.JobId == prodJobId && l.Action == ActivityAction.Created)).Should().BeTrue();
-        (await _db.JobActivityLogs.AnyAsync(l => l.JobId == rdJob.Id)).Should().BeTrue();
+        (await _db.JobActivityLogs.AnyAsync(l => l.JobId == rdJob.Id && l.Action == ActivityAction.HandedOff)).Should().BeTrue();
     }
 
     [Fact]

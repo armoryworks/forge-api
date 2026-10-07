@@ -195,7 +195,7 @@ public class ExplodeJobBomHandler(
 
         parentJob.ActivityLogs.Add(new JobActivityLog
         {
-            Action = ActivityAction.StatusChanged,
+            Action = ActivityAction.BomExploded,
             Description = $"BOM exploded for {buildQty:0.####}: {newChildJobs.Count} sub-jobs, {buyItems.Count} buy lines, {stockItems.Count} stock lines.",
         });
 

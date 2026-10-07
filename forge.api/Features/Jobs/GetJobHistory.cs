@@ -20,6 +20,8 @@ public class GetJobHistoryHandler(AppDbContext db) : IRequestHandler<GetJobHisto
         ActivityAction.Unassigned,
         ActivityAction.Archived,
         ActivityAction.Restored,
+        ActivityAction.BomExploded,
+        ActivityAction.HandedOff,
     ];
 
     public async Task<List<ActivityResponseModel>> Handle(GetJobHistoryQuery request, CancellationToken cancellationToken)

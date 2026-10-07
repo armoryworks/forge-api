@@ -78,7 +78,7 @@ public class HandoffToProductionHandler(AppDbContext db, IJobRepository jobRepo)
 
         rdJob.ActivityLogs.Add(new JobActivityLog
         {
-            Action = ActivityAction.StatusChanged,
+            Action = ActivityAction.HandedOff,
             Description = $"Handed off to production as job {jobNumber}.",
         });
 

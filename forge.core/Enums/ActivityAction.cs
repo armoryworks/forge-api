@@ -12,5 +12,7 @@ public enum ActivityAction
     Unassigned,
     Archived,
     Restored,
-    StatusChanged
+    StatusChanged,
+    BomExploded,
+    HandedOff
 }

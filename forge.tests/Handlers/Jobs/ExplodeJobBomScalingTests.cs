@@ -191,7 +191,7 @@ public class ExplodeJobBomScalingTests
         var result = await _handler.Handle(new ExplodeJobBomCommand(parentJob.Id), CancellationToken.None);
 
         var childId = result.CreatedJobs.Single().JobId;
-        (await _db.JobActivityLogs.AnyAsync(l => l.JobId == parentJob.Id)).Should().BeTrue();
+        (await _db.JobActivityLogs.AnyAsync(l => l.JobId == parentJob.Id && l.Action == ActivityAction.BomExploded)).Should().BeTrue();
         (await _db.JobActivityLogs.AnyAsync(l => l.JobId == childId && l.Action == ActivityAction.Created)).Should().BeTrue();
     }
 
