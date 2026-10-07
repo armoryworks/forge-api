@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.SalesOrders.Acceptance;
 using Forge.Core.Enums;
@@ -20,9 +21,12 @@ public class ConfirmSalesOrderHandler(
     IMediator mediator,
     IHttpContextAccessor httpContext,
     ISalesOrderAcceptanceGate acceptanceGate,
-    IClock clock)
+    IClock clock,
+    ICapabilitySnapshotProvider capabilities)
     : IRequestHandler<ConfirmSalesOrderCommand, ConfirmSalesOrderResponseModel>
 {
+    private const string CreditLimitsCapability = "CAP-O2C-CREDIT-LIMITS";
+
     public async Task<ConfirmSalesOrderResponseModel> Handle(ConfirmSalesOrderCommand request, CancellationToken cancellationToken)
     {
         var order = await repo.FindAsync(request.Id, cancellationToken)
@@ -31,8 +35,9 @@ public class ConfirmSalesOrderHandler(
         if (order.Status != SalesOrderStatus.Draft)
             throw new InvalidOperationException("Only Draft orders can be confirmed");
 
-        var customer = await db.Customers.AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == order.CustomerId, cancellationToken);
+        var customer = capabilities.IsEnabled(CreditLimitsCapability)
+            ? await db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == order.CustomerId, cancellationToken)
+            : null;
         if (customer is { IsOnCreditHold: true })
         {
             var reason = string.IsNullOrWhiteSpace(customer.CreditHoldReason) ? "" : $": {customer.CreditHoldReason.Trim()}";

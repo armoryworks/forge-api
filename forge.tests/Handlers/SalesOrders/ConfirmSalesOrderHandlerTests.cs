@@ -41,8 +41,9 @@ public class ConfirmSalesOrderHandlerTests
         _clock.SetupGet(c => c.UtcNow).Returns(Now);
     }
 
-    private ConfirmSalesOrderHandler Handler() => new(
-        new SalesOrderRepository(_db), _db, _mediator.Object, _httpContext, _acceptanceGate.Object, _clock.Object);
+    private ConfirmSalesOrderHandler Handler(params string[] enabledCapabilities) => new(
+        new SalesOrderRepository(_db), _db, _mediator.Object, _httpContext, _acceptanceGate.Object, _clock.Object,
+        new StubCapabilitySnapshotProvider(enabledCapabilities));
 
     private void SeedTrack()
     {
@@ -83,12 +84,27 @@ public class ConfirmSalesOrderHandlerTests
             Id = 1, Name = "Acme", IsOnCreditHold = true, CreditHoldReason = "90 days past due",
         });
 
-        var act = () => Handler().Handle(new ConfirmSalesOrderCommand(so.Id), CancellationToken.None);
+        var act = () => Handler("CAP-O2C-CREDIT-LIMITS").Handle(new ConfirmSalesOrderCommand(so.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Acme is on credit hold: 90 days past due. Release the hold before confirming this order.");
         (await _db.SalesOrders.AsNoTracking().SingleAsync()).Status.Should().Be(SalesOrderStatus.Draft);
         _mediator.Verify(m => m.Publish(It.IsAny<SalesOrderConfirmedEvent>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Credit_hold_does_not_block_confirm_while_credit_limits_capability_is_off()
+    {
+        SeedTrack();
+        var so = await SeedDraftOrderAsync(new Customer
+        {
+            Id = 1, Name = "Acme", IsOnCreditHold = true, CreditHoldReason = "90 days past due",
+        });
+
+        await Handler().Handle(new ConfirmSalesOrderCommand(so.Id), CancellationToken.None);
+
+        (await _db.SalesOrders.AsNoTracking().SingleAsync()).Status.Should().Be(SalesOrderStatus.Confirmed,
+            "with the capability off the hold cannot be released, so it must not strand the customer's orders");
     }
 
     [Fact]
