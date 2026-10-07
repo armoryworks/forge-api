@@ -61,7 +61,12 @@ public class GetAssignableSalesOrderLinesHandler(AppDbContext db, ISalesOrderAcc
                 l.Part != null ? l.Part.PartNumber : null,
                 l.Description,
                 l.Quantity,
-                l.Jobs.Count(j => !j.IsArchived && j.Disposition == null)))
+                l.Jobs.Count(j => !j.IsArchived && j.Disposition == null),
+                l.Quantity - l.ShippedQuantity - (l.Jobs
+                    .Where(j => !j.IsArchived && j.Disposition == null)
+                    .SelectMany(j => j.JobParts.Where(jp => jp.PartId == j.PartId))
+                    .Sum(jp => (decimal?)jp.Quantity) ?? 0m),
+                l.SalesOrder.RequestedDeliveryDate))
             .Take(100)
             .ToListAsync(cancellationToken);
     }

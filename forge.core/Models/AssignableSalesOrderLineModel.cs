@@ -5,6 +5,8 @@ namespace Forge.Core.Models;
 /// <see cref="AssignedJobCount"/> is the number of open (non-archived, non-disposed)
 /// jobs already linked to the line; the picker hides lines with a positive count by
 /// default and surfaces them only when the "show already-assigned" override is on.
+/// <see cref="RemainingQuantity"/> is the line quantity less what has shipped and what
+/// those open jobs already cover.
 /// </summary>
 public record AssignableSalesOrderLineModel(
     int Id,
@@ -15,4 +17,6 @@ public record AssignableSalesOrderLineModel(
     string? PartNumber,
     string Description,
     decimal Quantity,
-    int AssignedJobCount);
+    int AssignedJobCount,
+    decimal RemainingQuantity,
+    DateTimeOffset? RequestedDeliveryDate);

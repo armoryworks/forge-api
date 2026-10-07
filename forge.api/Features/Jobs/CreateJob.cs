@@ -32,6 +32,8 @@ public record CreateJobCommand(
 
 public class CreateJobCommandValidator : AbstractValidator<CreateJobCommand>
 {
+    public const string QuantityNeedsPartMessage = "A quantity needs a part to count.";
+
     public CreateJobCommandValidator()
     {
         RuleFor(x => x.Title)
@@ -46,8 +48,8 @@ public class CreateJobCommandValidator : AbstractValidator<CreateJobCommand>
             .WithMessage("Quantity must be greater than zero.");
 
         RuleFor(x => x.PartId)
-            .NotNull().When(x => x.Quantity.HasValue)
-            .WithMessage("A quantity needs a part to count.");
+            .NotNull().When(x => x.Quantity.HasValue && x.SalesOrderLineId is null)
+            .WithMessage(QuantityNeedsPartMessage);
     }
 }
 
@@ -73,18 +75,47 @@ public class CreateJobHandler(
         if (request.AssigneeId.HasValue)
             await AssigneeComplianceCheck.EnsureCanBeAssigned(db, capabilities, request.AssigneeId.Value, cancellationToken);
 
+        var partId = request.PartId;
+        var quantity = request.Quantity;
+        var customerId = request.CustomerId;
+        var dueDate = request.DueDate;
+
         // #27: validate the optional SO-line association before creating the job.
         if (request.SalesOrderLineId is int soLineId)
         {
-            var soId = await db.SalesOrderLines
+            var line = await db.SalesOrderLines
                 .Where(l => l.Id == soLineId)
-                .Select(l => (int?)l.SalesOrderId)
-                .FirstOrDefaultAsync(cancellationToken);
-            if (soId is null)
-                throw new KeyNotFoundException($"Sales order line {soLineId} not found.");
+                .Select(l => new
+                {
+                    l.SalesOrderId,
+                    l.PartId,
+                    l.Quantity,
+                    l.ShippedQuantity,
+                    l.SalesOrder.CustomerId,
+                    l.SalesOrder.RequestedDeliveryDate,
+                })
+                .FirstOrDefaultAsync(cancellationToken)
+                ?? throw new KeyNotFoundException($"Sales order line {soLineId} not found.");
             // Close the board bypass: a job can't be linked to an SO line unless the SO has
             // customer acceptance proof (no-op when CAP-O2C-SO-ACCEPTANCE is off).
-            await acceptanceGate.EnsureReleasableAsync(soId.Value, cancellationToken);
+            await acceptanceGate.EnsureReleasableAsync(line.SalesOrderId, cancellationToken);
+
+            partId ??= line.PartId;
+            customerId ??= line.CustomerId;
+            dueDate ??= line.RequestedDeliveryDate;
+            if (quantity is null)
+            {
+                var onOpenJobs = await db.Jobs
+                    .Where(j => j.SalesOrderLineId == soLineId && !j.IsArchived && j.Disposition == null)
+                    .SelectMany(j => j.JobParts.Where(jp => jp.PartId == j.PartId))
+                    .SumAsync(jp => (decimal?)jp.Quantity, cancellationToken) ?? 0m;
+                quantity = Math.Max(1m, line.Quantity - line.ShippedQuantity - onOpenJobs);
+            }
+
+            if (partId is null && request.Quantity.HasValue)
+                throw new ValidationException(
+                    [new FluentValidation.Results.ValidationFailure(
+                        nameof(CreateJobCommand.PartId), CreateJobCommandValidator.QuantityNeedsPartMessage)]);
         }
 
         var firstStage = await trackRepo.FindFirstActiveStageAsync(request.TrackTypeId, cancellationToken)
@@ -101,11 +132,11 @@ public class CreateJobHandler(
             TrackTypeId = request.TrackTypeId,
             CurrentStageId = firstStage.Id,
             AssigneeId = request.AssigneeId,
-            CustomerId = request.CustomerId,
+            CustomerId = customerId,
             Priority = request.Priority ?? JobPriority.Normal,
-            DueDate = request.DueDate,
+            DueDate = dueDate,
             BoardPosition = maxPosition + 1,
-            PartId = request.PartId,
+            PartId = partId,
             SalesOrderLineId = request.SalesOrderLineId,
         };
 
@@ -114,7 +145,7 @@ public class CreateJobHandler(
         // modifications to the BOM don't retroactively alter what this job
         // was built against. Captured at create time so the pin is in place
         // before the row is even saved (single SaveChanges).
-        if (request.PartId is int pinPartId)
+        if (partId is int pinPartId)
         {
             var currentRevId = await db.Parts
                 .Where(p => p.Id == pinPartId)
@@ -123,12 +154,12 @@ public class CreateJobHandler(
             job.BomRevisionIdAtRelease = currentRevId;
         }
 
-        if (request.PartId is int jobPartId)
+        if (partId is int jobPartId)
         {
             job.JobParts.Add(new JobPart
             {
                 PartId = jobPartId,
-                Quantity = request.Quantity ?? 1m,
+                Quantity = quantity ?? 1m,
             });
         }
 

@@ -113,4 +113,49 @@ public class GetAssignableSalesOrderLinesHandlerTests
 
         result.Should().HaveCount(1, $"a {status} order is workable");
     }
+
+    [Fact]
+    public async Task Handle_ReportsRemainingQuantityAndRequestedDeliveryDate()
+    {
+        var requested = new DateTimeOffset(2026, 11, 20, 0, 0, 0, TimeSpan.Zero);
+        var so = new SalesOrder
+        {
+            OrderNumber = "SO-300", CustomerId = 1, Status = SalesOrderStatus.PartiallyShipped,
+            RequestedDeliveryDate = requested,
+        };
+        _db.SalesOrders.Add(so);
+        await _db.SaveChangesAsync();
+        var line = new SalesOrderLine
+        {
+            SalesOrderId = so.Id, PartId = 900, Description = "Line", Quantity = 100m,
+            ShippedQuantity = 10m, UnitPrice = 1m, LineNumber = 1,
+        };
+        _db.SalesOrderLines.Add(line);
+        await _db.SaveChangesAsync();
+
+        Job Linked(string number, decimal qty, bool archived = false, JobDisposition? disposition = null)
+        {
+            var job = new Job
+            {
+                JobNumber = number, Title = number, TrackTypeId = 1, CurrentStageId = 1, PartId = 900,
+                SalesOrderLineId = line.Id, IsArchived = archived, Disposition = disposition,
+            };
+            job.JobParts.Add(new JobPart { PartId = 900, Quantity = qty });
+            return job;
+        }
+
+        var open = Linked("JOB-O", 30m);
+        open.JobParts.Add(new JobPart { PartId = 901, Quantity = 500m });
+        _db.Jobs.AddRange(
+            open,
+            Linked("JOB-A", 15m, archived: true),
+            Linked("JOB-D", 20m, disposition: JobDisposition.Scrap));
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new GetAssignableSalesOrderLinesQuery(true, null), CancellationToken.None);
+
+        var row = result.Single(r => r.Id == line.Id);
+        row.RemainingQuantity.Should().Be(60m);
+        row.RequestedDeliveryDate.Should().Be(requested);
+    }
 }
