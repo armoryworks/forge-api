@@ -77,6 +77,18 @@ public class CreateInvoiceHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WritesCreatedActivityOnTheInvoice()
+    {
+        var (customer, _, _) = await SeedOrderAsync();
+
+        await _handler.Handle(
+            OrderCommand(customer.Id, null, null, new CreateInvoiceLineModel(null, "Freight", 1m, 10m)), CancellationToken.None);
+
+        _db.ActivityLogs.Should().ContainSingle(a => a.EntityType == "Invoice" && a.Action == "created")
+            .Which.Description.Should().Be("Created invoice INV-0100 for Order Customer");
+    }
+
+    [Fact]
     public async Task Handle_AssignsSequentialLineNumbers()
     {
         // Arrange

@@ -9,6 +9,7 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Invoices;
 
@@ -214,6 +215,9 @@ public class CreateInvoiceHandler(
 
         await repo.AddAsync(invoice, cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);
+
+        db.LogActivityAt("created", $"Created invoice {invoice.InvoiceNumber} for {customer.Name}", ("Invoice", invoice.Id));
+        await db.SaveChangesAsync(cancellationToken);
 
         // Record the number in the identifier registry (history + resolution).
         if (identifiers is not null)
