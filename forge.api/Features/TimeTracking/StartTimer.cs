@@ -6,6 +6,8 @@ using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.TimeTracking;
 
@@ -14,6 +16,7 @@ public record StartTimerCommand(StartTimerRequestModel Data) : IRequest<TimeEntr
 public class StartTimerHandler(
     ITimeTrackingRepository repo,
     IJobRepository jobRepository,
+    AppDbContext db,
     IHttpContextAccessor httpContext,
     IHubContext<TimerHub> timerHub,
     IMediator mediator,
@@ -57,6 +60,9 @@ public class StartTimerHandler(
         };
 
         await repo.AddTimeEntryAsync(entry, cancellationToken);
+
+        db.LogActivityAt("timer-started", "Started timer", ("TimeEntry", entry.Id));
+        await db.SaveChangesAsync(cancellationToken);
 
         var result = (await repo.GetTimeEntryByIdAsync(entry.Id, cancellationToken))!;
 

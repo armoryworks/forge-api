@@ -26,7 +26,7 @@ public class StartTimerHandlerTests
         });
 
         _handler = new StartTimerHandler(
-            _h.Repo, _h.Jobs, _httpContext.Object, _h.TimerHub.Object, _h.Mediator.Object, _h.Clock.Object);
+            _h.Repo, _h.Jobs, _h.Db, _httpContext.Object, _h.TimerHub.Object, _h.Mediator.Object, _h.Clock.Object);
     }
 
     private async Task<int> SignInAsync()
@@ -172,5 +172,17 @@ public class StartTimerHandlerTests
             "timerStarted",
             It.Is<object?[]>(args => args.Length == 1 && args[0] is TimerStartedEvent),
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_StartedTimer_WritesActivityRowOnTheTimeEntry()
+    {
+        await SignInAsync();
+
+        var result = await _handler.Handle(new StartTimerCommand(new StartTimerRequestModel(null, null, null)), CancellationToken.None);
+
+        var log = await _h.Db.ActivityLogs.AsNoTracking().SingleAsync(a => a.Action == "timer-started");
+        log.EntityType.Should().Be("TimeEntry");
+        log.EntityId.Should().Be(result.Id);
     }
 }
