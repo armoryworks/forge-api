@@ -1,3 +1,4 @@
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,20 @@ public record ReceiveItemsCommand(
     List<ReceiveLineModel> Lines,
     decimal? ActualFreight = null,
     FreightAllocationMethod FreightAllocationMethod = FreightAllocationMethod.ByExtendedValue) : IRequest;
+
+public class ReceiveItemsValidator : AbstractValidator<ReceiveItemsCommand>
+{
+    public ReceiveItemsValidator()
+    {
+        RuleForEach(x => x.Lines).ChildRules(line =>
+        {
+            line.RuleFor(l => l.LotNumber)
+                .Must(lot => lot is null || lot.Trim().Length <= 100)
+                .WithMessage("Lot / heat number must be 100 characters or fewer.");
+            line.RuleFor(l => l.Notes).MaximumLength(1000);
+        });
+    }
+}
 
 public class ReceiveItemsHandler(
     IPurchaseOrderRepository repo,
