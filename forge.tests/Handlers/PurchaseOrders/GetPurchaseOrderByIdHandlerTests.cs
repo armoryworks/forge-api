@@ -80,7 +80,10 @@ public class GetPurchaseOrderByIdHandlerTests
     public async Task Lines_CarryOnlyActiveBinDefaults_AndPartlessLinesLoad()
     {
         var db = TestDbContextFactory.Create();
-        var active = await AddPartAsync(db, "P-ACTIVE", new StorageLocation { Name = "A1", LocationType = LocationType.Bin });
+        var rack = new StorageLocation { Name = "Rack A", LocationType = LocationType.Rack };
+        db.Set<StorageLocation>().Add(rack);
+        await db.SaveChangesAsync();
+        var active = await AddPartAsync(db, "P-ACTIVE", new StorageLocation { Name = "A1", LocationType = LocationType.Bin, ParentId = rack.Id });
         var inactive = await AddPartAsync(db, "P-INACTIVE", new StorageLocation { Name = "A2", LocationType = LocationType.Bin, IsActive = false });
         var shelf = await AddPartAsync(db, "P-SHELF", new StorageLocation { Name = "Shelf", LocationType = LocationType.Shelf });
         var noBin = await AddPartAsync(db, "P-NONE", null);
@@ -109,6 +112,8 @@ public class GetPurchaseOrderByIdHandlerTests
 
         var byDescription = result.Lines.ToDictionary(l => l.Description);
         byDescription["active"].PartDefaultBinId.Should().Be(active.DefaultBinId);
+        byDescription["active"].PartDefaultBinPath.Should().Be("Rack A / A1");
+        byDescription["inactive"].PartDefaultBinPath.Should().BeNull();
         byDescription["inactive"].PartDefaultBinId.Should().BeNull();
         byDescription["shelf"].PartDefaultBinId.Should().BeNull();
         byDescription["none"].PartDefaultBinId.Should().BeNull();

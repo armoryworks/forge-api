@@ -38,19 +38,9 @@ public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo, AppDbCon
             && po.Vendor.MinOrderAmount.Value > 0
             && poTotal < po.Vendor.MinOrderAmount.Value;
 
-        var partDefaultBinIds = po.Lines
-            .Where(l => l.Part?.DefaultBinId is not null)
-            .Select(l => l.Part!.DefaultBinId!.Value)
-            .Distinct()
-            .ToList();
-        var receivableDefaultBinIds = partDefaultBinIds.Count == 0
-            ? new HashSet<int>()
-            : (await db.StorageLocations
-                .AsNoTracking()
-                .Where(s => partDefaultBinIds.Contains(s.Id) && s.IsActive && s.LocationType == LocationType.Bin)
-                .Select(s => s.Id)
-                .ToListAsync(cancellationToken))
-                .ToHashSet();
+        var receivableDefaultBinPaths = await ResolveReceivableBinPathsAsync(
+            po.Lines.Where(l => l.Part?.DefaultBinId is not null).Select(l => l.Part!.DefaultBinId!.Value),
+            cancellationToken);
 
         return new PurchaseOrderDetailResponseModel(
             po.Id,
@@ -87,8 +77,11 @@ public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo, AppDbCon
                 l.PurchaseUnitId,
                 l.PurchaseUnit != null ? l.PurchaseUnit.Label : null,
                 l.ManualOverrideReason,
-                l.Part?.DefaultBinId is int defaultBinId && receivableDefaultBinIds.Contains(defaultBinId)
+                l.Part?.DefaultBinId is int defaultBinId && receivableDefaultBinPaths.ContainsKey(defaultBinId)
                     ? defaultBinId
+                    : null,
+                l.Part?.DefaultBinId is int pathBinId
+                    ? receivableDefaultBinPaths.GetValueOrDefault(pathBinId)
                     : null)).ToList(),
             po.CreatedAt,
             po.UpdatedAt,
@@ -104,5 +97,35 @@ public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo, AppDbCon
             OriginSource: po.OriginSource.ToString(),
             OriginUserName: originUserName,
             OriginReference: po.OriginReference);
+    }
+
+    private async Task<Dictionary<int, string>> ResolveReceivableBinPathsAsync(
+        IEnumerable<int> locationIds, CancellationToken ct)
+    {
+        var wanted = locationIds.Distinct().ToList();
+        if (wanted.Count == 0)
+            return [];
+
+        var locations = await db.StorageLocations
+            .AsNoTracking()
+            .Where(s => s.DeletedAt == null)
+            .Select(s => new { s.Id, s.Name, s.ParentId, s.IsActive, s.LocationType })
+            .ToDictionaryAsync(s => s.Id, ct);
+
+        var paths = new Dictionary<int, string>();
+        foreach (var id in wanted)
+        {
+            if (!locations.TryGetValue(id, out var bin) || !bin.IsActive || bin.LocationType != LocationType.Bin)
+                continue;
+            var names = new List<string> { bin.Name };
+            var parentId = bin.ParentId;
+            while (parentId is int pid && locations.TryGetValue(pid, out var parent) && names.Count <= locations.Count)
+            {
+                names.Insert(0, parent.Name);
+                parentId = parent.ParentId;
+            }
+            paths[id] = string.Join(" / ", names);
+        }
+        return paths;
     }
 }
