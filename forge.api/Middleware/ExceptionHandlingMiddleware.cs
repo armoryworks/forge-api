@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Security.Authentication;
 using System.Text.Json;
 using FluentValidation;
@@ -31,7 +30,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 {
                     field = CustomInvalidModelStateResponseFactory.NormalizeFieldName(e.PropertyName),
                     message = e.ErrorMessage,
-                    rejectedValue = FormatRejectedValue(e.AttemptedValue),
+                    rejectedValue = (string?)null,
                 })
                 .ToArray();
 
@@ -285,7 +284,15 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg)
         {
-            logger.LogWarning(ex, "Unique constraint {Constraint} violated — returning 409", pg.ConstraintName);
+            var isDocumentNumber = pg.ConstraintName is not null && DocumentNumberConstraints.Contains(pg.ConstraintName);
+            if (isDocumentNumber)
+            {
+                logger.LogWarning(ex, "Document number constraint {Constraint} violated — returning 409", pg.ConstraintName);
+            }
+            else
+            {
+                logger.LogError(ex, "Unique constraint {Constraint} violated — returning 409", pg.ConstraintName);
+            }
 
             context.Response.StatusCode = StatusCodes.Status409Conflict;
             context.Response.ContentType = "application/problem+json";
@@ -293,8 +300,10 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             var problem = new ProblemDetails
             {
                 Status = StatusCodes.Status409Conflict,
-                Title = "Duplicate number",
-                Detail = "That number was just taken by another record. Save again to get the next number.",
+                Title = isDocumentNumber ? "Duplicate number" : "Duplicate value",
+                Detail = isDocumentNumber
+                    ? "That number was just taken by another record. Save again to get the next number."
+                    : "A record with that value already exists.",
                 Type = "about:blank",
             };
             problem.Extensions["code"] = "duplicate";
@@ -324,12 +333,11 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    private static string? FormatRejectedValue(object? value) => value switch
+    private static readonly HashSet<string> DocumentNumberConstraints = new(StringComparer.Ordinal)
     {
-        null => null,
-        string s => s,
-        IConvertible c => c.ToString(CultureInfo.InvariantCulture),
-        _ => null,
+        "ix_invoices_invoice_number",
+        "ix_quotes_quote_number",
+        "ix_sales_orders_order_number",
     };
 
     // Business handlers throw InvalidOperationException with user-readable messages

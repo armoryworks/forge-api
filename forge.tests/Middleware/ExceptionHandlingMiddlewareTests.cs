@@ -49,9 +49,23 @@ public sealed class ExceptionHandlingMiddlewareTests
         errors.GetArrayLength().Should().Be(2);
         errors[0].GetProperty("field").GetString().Should().Be("quantity");
         errors[0].GetProperty("message").GetString().Should().Be("Quantity must be greater than zero.");
-        errors[0].GetProperty("rejectedValue").GetString().Should().Be("0");
+        errors[0].GetProperty("rejectedValue").ValueKind.Should().Be(JsonValueKind.Null);
         errors[1].GetProperty("field").GetString().Should().Be("lines[0].UnitPrice");
         errors[1].GetProperty("rejectedValue").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task Handler_validator_failures_never_echo_the_submitted_value()
+    {
+        var ex = new ValidationException(new[]
+        {
+            new ValidationFailure("Password", "Password must be at least 12 characters.") { AttemptedValue = "hunter2" },
+        });
+
+        var (_, body) = await Run(ex);
+
+        body.GetProperty("errors")[0].GetProperty("rejectedValue").ValueKind.Should().Be(JsonValueKind.Null);
+        body.GetRawText().Should().NotContain("hunter2");
     }
 
     [Fact]
@@ -115,9 +129,11 @@ public sealed class ExceptionHandlingMiddlewareTests
     }
 
     [Fact]
-    public async Task Unique_violation_on_save_is_a_409_duplicate()
+    public async Task Document_number_collision_is_a_409_asking_to_save_again()
     {
-        var pg = new PostgresException("duplicate key value violates unique constraint", "ERROR", "ERROR", PostgresErrorCodes.UniqueViolation);
+        var pg = new PostgresException(
+            "duplicate key value violates unique constraint", "ERROR", "ERROR", PostgresErrorCodes.UniqueViolation,
+            constraintName: "ix_invoices_invoice_number");
 
         var (status, body) = await Run(new DbUpdateException("save failed", pg));
 
@@ -125,6 +141,31 @@ public sealed class ExceptionHandlingMiddlewareTests
         body.GetProperty("code").GetString().Should().Be("duplicate");
         body.GetProperty("detail").GetString()
             .Should().Be("That number was just taken by another record. Save again to get the next number.");
+    }
+
+    [Fact]
+    public async Task Other_unique_violations_are_a_409_with_a_neutral_detail()
+    {
+        var pg = new PostgresException(
+            "duplicate key value violates unique constraint", "ERROR", "ERROR", PostgresErrorCodes.UniqueViolation,
+            constraintName: "ix_barcodes_value");
+
+        var (status, body) = await Run(new DbUpdateException("save failed", pg));
+
+        status.Should().Be(StatusCodes.Status409Conflict);
+        body.GetProperty("code").GetString().Should().Be("duplicate");
+        body.GetProperty("title").GetString().Should().Be("Duplicate value");
+        body.GetProperty("detail").GetString().Should().Be("A record with that value already exists.");
+    }
+
+    [Fact]
+    public async Task Unique_violation_without_a_constraint_name_gets_the_neutral_detail()
+    {
+        var pg = new PostgresException("duplicate key value violates unique constraint", "ERROR", "ERROR", PostgresErrorCodes.UniqueViolation);
+
+        var (_, body) = await Run(new DbUpdateException("save failed", pg));
+
+        body.GetProperty("detail").GetString().Should().Be("A record with that value already exists.");
     }
 
     [Fact]
