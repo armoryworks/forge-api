@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -19,6 +20,7 @@ public class GetJobOperationTimeSummaryHandler(AppDbContext db)
             .AsNoTracking()
             .Include(j => j.Part)
             .ThenInclude(p => p!.Operations)
+            .Include(j => j.JobParts)
             .FirstOrDefaultAsync(j => j.Id == request.JobId, cancellationToken)
             ?? throw new KeyNotFoundException($"Job {request.JobId} not found");
 
@@ -33,6 +35,8 @@ public class GetJobOperationTimeSummaryHandler(AppDbContext db)
             .Where(t => t.JobId == request.JobId && t.OperationId.HasValue && operationIds.Contains(t.OperationId.Value))
             .ToListAsync(cancellationToken);
 
+        var quantity = OperationTimeMath.JobBuildQuantity(job);
+
         var entriesByOp = timeEntries
             .GroupBy(t => t.OperationId!.Value)
             .ToDictionary(g => g.Key, g => g.ToList());
@@ -46,7 +50,7 @@ public class GetJobOperationTimeSummaryHandler(AppDbContext db)
                 var runMinutes = entries.Where(e => e.EntryType == TimeEntryType.Run).Sum(e => (decimal)e.DurationMinutes);
                 var totalMinutes = entries.Sum(e => (decimal)e.DurationMinutes);
                 var estSetup = op.SetupMinutes;
-                var estRun = op.RunMinutesEach + op.RunMinutesLot;
+                var estRun = OperationTimeMath.PerPieceRunMinutes(op) * quantity + op.RunMinutesLot;
                 var estTotal = estSetup + estRun;
 
                 return new OperationTimeAnalysisModel

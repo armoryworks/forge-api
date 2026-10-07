@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -50,17 +51,15 @@ public class GetTimeByOperationReportHandler(AppDbContext db)
             operationsQuery = operationsQuery.Where(o => o.PartId == request.PartId.Value);
 
         var operations = await operationsQuery
-            .Select(o => new
-            {
-                o.Id,
-                o.Title,
-                o.PartId,
-                PartNumber = o.Part.PartNumber,
-                o.SetupMinutes,
-                o.RunMinutesEach,
-                o.RunMinutesLot,
-            })
+            .Include(o => o.Part)
             .ToDictionaryAsync(o => o.Id, cancellationToken);
+
+        var jobIds = entries.Select(e => e.JobId!.Value).Distinct().ToList();
+        var jobQuantities = await db.Jobs
+            .AsNoTracking()
+            .Include(j => j.JobParts)
+            .Where(j => jobIds.Contains(j.Id))
+            .ToDictionaryAsync(j => j.Id, OperationTimeMath.JobBuildQuantity, cancellationToken);
 
         var grouped = entries
             .Where(e => operations.ContainsKey(e.OperationId!.Value))
@@ -72,13 +71,15 @@ public class GetTimeByOperationReportHandler(AppDbContext db)
                 var runEntries = g.Where(e => e.EntryType == TimeEntryType.Run);
                 var totalMinutes = g.Sum(e => (decimal)e.DurationMinutes);
                 var totalHours = totalMinutes / 60m;
-                var estHours = (op.SetupMinutes + op.RunMinutesEach + op.RunMinutesLot) / 60m;
-                var jobCount = g.Select(e => e.JobId).Distinct().Count();
+                var jobs = g.Select(e => e.JobId!.Value).Distinct().ToList();
+                var estHours = jobs.Sum(jobId =>
+                    OperationTimeMath.PlannedMinutes(op, jobQuantities.GetValueOrDefault(jobId, 1m))) / 60m;
+                var jobCount = jobs.Count;
 
                 return new TimeByOperationReportRow
                 {
                     PartId = op.PartId,
-                    PartNumber = op.PartNumber,
+                    PartNumber = op.Part.PartNumber,
                     OperationId = op.Id,
                     OperationName = op.Title,
                     JobCount = jobCount,
