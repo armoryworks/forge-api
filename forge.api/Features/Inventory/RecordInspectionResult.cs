@@ -69,11 +69,16 @@ public class RecordInspectionResultHandler(
     public async Task Handle(RecordInspectionResultCommand request, CancellationToken ct)
     {
         var data = request.Data;
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
         var record = await db.ReceivingRecords
             .Include(r => r.PurchaseOrderLine)
                 .ThenInclude(l => l.PurchaseOrder)
             .FirstOrDefaultAsync(r => r.Id == request.ReceivingRecordId, ct)
             ?? throw new KeyNotFoundException($"ReceivingRecord {request.ReceivingRecordId} not found.");
+
+        await ReceivingInspectionLock.LockAsync(db, record, ct);
 
         if (record.InspectionStatus is not (ReceivingInspectionStatus.Pending or ReceivingInspectionStatus.InProgress))
             throw new InvalidOperationException(
@@ -98,8 +103,6 @@ public class RecordInspectionResultHandler(
         var now = clock.UtcNow;
         var notes = string.IsNullOrWhiteSpace(data.Notes) ? null : data.Notes.Trim();
         var receiptRef = record.ReceiptNumber ?? $"receipt {record.Id}";
-
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
 
         NonConformance? ncr = null;
         if (raiseNcr)

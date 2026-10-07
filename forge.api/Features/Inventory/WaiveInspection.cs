@@ -27,10 +27,14 @@ public class WaiveInspectionHandler(AppDbContext db, IHttpContextAccessor httpCo
 {
     public async Task Handle(WaiveInspectionCommand request, CancellationToken ct)
     {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
         var record = await db.ReceivingRecords
             .Include(r => r.PurchaseOrderLine)
             .FirstOrDefaultAsync(r => r.Id == request.ReceivingRecordId, ct)
             ?? throw new KeyNotFoundException($"ReceivingRecord {request.ReceivingRecordId} not found.");
+
+        await ReceivingInspectionLock.LockAsync(db, record, ct);
 
         if (record.InspectionStatus is not (ReceivingInspectionStatus.Pending or ReceivingInspectionStatus.InProgress))
             throw new InvalidOperationException(
@@ -50,5 +54,6 @@ public class WaiveInspectionHandler(AppDbContext db, IHttpContextAccessor httpCo
             ("PurchaseOrder", record.PurchaseOrderLine.PurchaseOrderId));
 
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
     }
 }
