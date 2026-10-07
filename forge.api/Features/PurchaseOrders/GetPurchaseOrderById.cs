@@ -59,7 +59,7 @@ public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo, AppDbCon
             po.Lines.Select(l => new PurchaseOrderLineResponseModel(
                 l.Id,
                 l.PartId,
-                l.Part!.PartNumber,
+                l.Part != null ? l.Part.PartNumber : null,
                 l.Description,
                 l.OrderedQuantity,
                 l.ReceivedQuantity,
