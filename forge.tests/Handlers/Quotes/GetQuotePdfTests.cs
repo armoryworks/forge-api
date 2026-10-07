@@ -80,19 +80,6 @@ public class GetQuotePdfTests
         Encoding.ASCII.GetString(bytes, 0, 5).Should().Be("%PDF-");
     }
 
-    [Theory]
-    [InlineData(null, null)]
-    [InlineData("   ", null)]
-    [InlineData(" Northwind Fabrication ", "Northwind Fabrication")]
-    public async Task ReadCompanyName_TrimsAndTreatsBlankAsMissing(string? stored, string? expected)
-    {
-        SetCompanyName(stored);
-
-        var name = await GetQuotePdfHandler.ReadCompanyNameAsync(_settings.Object, CancellationToken.None);
-
-        name.Should().Be(expected);
-    }
-
     [Fact]
     public async Task Handle_UnknownQuote_ThrowsKeyNotFound()
     {

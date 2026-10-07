@@ -16,8 +16,6 @@ public class GetQuotePdfHandler(
     ISystemSettingRepository settings,
     ITermsCompilationService compiler) : IRequestHandler<GetQuotePdfQuery, byte[]>
 {
-    public const string CompanyNameSettingKey = "company.name";
-
     public async Task<byte[]> Handle(GetQuotePdfQuery request, CancellationToken ct)
     {
         var quote = await db.Quotes
@@ -27,7 +25,7 @@ public class GetQuotePdfHandler(
             .FirstOrDefaultAsync(q => q.Id == request.Id, ct)
             ?? throw new KeyNotFoundException($"Quote {request.Id} not found");
 
-        var companyName = await ReadCompanyNameAsync(settings, ct);
+        var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct);
 
         var partIds = quote.Lines
             .Where(l => l.PartId.HasValue)
@@ -37,11 +35,5 @@ public class GetQuotePdfHandler(
         var compiled = await compiler.CompileForQuoteAsync(quote.CustomerId, partIds, ct);
 
         return new QuotePdfDocument(quote, companyName, compiled.Sections).GeneratePdf();
-    }
-
-    public static async Task<string?> ReadCompanyNameAsync(ISystemSettingRepository settings, CancellationToken ct)
-    {
-        var companyName = (await settings.FindByKeyAsync(CompanyNameSettingKey, ct))?.Value?.Trim();
-        return string.IsNullOrEmpty(companyName) ? null : companyName;
     }
 }

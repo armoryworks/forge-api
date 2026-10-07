@@ -71,7 +71,7 @@ public class SendQuoteEmailHandler(
         if (quote.Status != QuoteStatus.Draft && quote.Status != QuoteStatus.Sent)
             throw new InvalidOperationException("Only Draft or Sent quotes can be emailed");
 
-        var companyName = await GetQuotePdfHandler.ReadCompanyNameAsync(settings, ct)
+        var companyName = await CompanyIdentity.GetCompanyNameAsync(settings, ct)
             ?? throw new InvalidOperationException(MissingCompanyNameMessage);
 
         // ── Compile terms + immutable snapshot ────────────────────────────
