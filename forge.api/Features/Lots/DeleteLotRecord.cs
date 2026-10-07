@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 using Forge.Data.Extensions;
@@ -33,5 +34,6 @@ public sealed class DeleteLotRecordHandler(AppDbContext db, IClock clock) : IReq
         || await db.NonConformances.AnyAsync(n => n.LotNumber == lotNumber, ct)
         || await db.MaterialIssues.AnyAsync(m => m.LotNumber == lotNumber, ct)
         || await db.SpcMeasurements.AnyAsync(s => s.LotNumber == lotNumber, ct)
+        || await db.BinMovements.AnyAsync(m => m.LotNumber == lotNumber && m.Reason == BinMovementReason.Ship, ct)
         || await db.BinContents.AnyAsync(b => b.LotNumber == lotNumber && b.Quantity > 0, ct);
 }

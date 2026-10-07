@@ -183,6 +183,23 @@ public class QualityRecordsTests(CapabilityTestWebApplicationFactory factory)
     }
 
     [Fact]
+    public async Task A_fully_shipped_lot_with_an_empty_bin_cannot_be_deleted()
+    {
+        var shipped = await SeedLotAsync("LOT-SHIPPED-OUT");
+        _db.BinContents.Add(new BinContent { LocationId = 1, EntityId = 1, Quantity = 0, LotNumber = shipped.LotNumber });
+        _db.BinMovements.Add(new BinMovement
+        {
+            EntityType = "ShipmentLine", EntityId = 1, Quantity = -10, LotNumber = shipped.LotNumber,
+            Reason = BinMovementReason.Ship, MovedAt = Now,
+        });
+        await _db.SaveChangesAsync();
+
+        await FluentActions.Awaiting(() => DeleteLot(shipped.Id)).Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Lot LOT-SHIPPED-OUT has traceability history*");
+        (await _db.LotRecords.AsNoTracking().SingleAsync(l => l.Id == shipped.Id)).DeletedAt.Should().BeNull();
+    }
+
+    [Fact]
     public async Task A_lot_without_history_is_soft_deleted_with_the_clock_and_logged()
     {
         var lot = await SeedLotAsync("LOT-CLEAN");
