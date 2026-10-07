@@ -42,9 +42,6 @@ public class ExplodeJobBomHandler(
             .FirstOrDefaultAsync(j => j.Id == request.JobId, ct)
             ?? throw new KeyNotFoundException($"Job {request.JobId} not found.");
 
-        if (await db.Jobs.AnyAsync(j => j.ParentJobId == parentJob.Id && j.DeletedAt == null, ct))
-            throw new InvalidOperationException("This work order has already been exploded.");
-
         if (!parentJob.PartId.HasValue)
             throw new InvalidOperationException("This work order has no part. Pick a part, then explode the BOM.");
 
@@ -57,6 +54,9 @@ public class ExplodeJobBomHandler(
         if (bomLines.Count == 0)
             throw new InvalidOperationException(
                 $"Part {part.PartNumber} has no BOM lines to explode. Add BOM lines to the part first.");
+
+        if (await HasExplosionOutputAsync(parentJob.Id, bomLines, ct))
+            throw new InvalidOperationException("This work order has already been exploded.");
 
         var firstStage = parentJob.TrackType.Stages.FirstOrDefault()
             ?? throw new InvalidOperationException(
@@ -234,6 +234,25 @@ public class ExplodeJobBomHandler(
             createdJobs,
             buyItems,
             stockItems);
+    }
+
+    private async Task<bool> HasExplosionOutputAsync(
+        int parentJobId, List<BomExplosionLine> bomLines, CancellationToken ct)
+    {
+        if (await db.Jobs.AnyAsync(j => j.ParentJobId == parentJobId && j.DeletedAt == null, ct))
+            return true;
+
+        var stockPartIds = bomLines
+            .Where(l => l.SourceType == BOMSourceType.Stock)
+            .Select(l => l.ChildPart.Id)
+            .Distinct()
+            .ToList();
+
+        return stockPartIds.Count > 0
+            && await db.Set<Reservation>().AnyAsync(r =>
+                r.JobId == parentJobId
+                && r.DeletedAt == null
+                && stockPartIds.Contains(r.PartId), ct);
     }
 
     private async Task<List<BomExplosionLine>> LoadBomLinesAsync(

@@ -175,4 +175,94 @@ public sealed class ExplodeJobBomPostgresTests(PostgresFixture fixture)
         children.Should().ContainSingle();
         (await verify.Set<JobPart>().SingleAsync(p => p.JobId == children[0].Id)).Quantity.Should().Be(1000);
     }
+
+    [Fact]
+    public async Task Concurrent_explosions_of_a_stock_only_bom_reserve_stock_once()
+    {
+        int parentJobId;
+        int binId;
+
+        await using (var seed = fixture.CreateContext())
+        {
+            var track = new TrackType { Name = "Explode-PG Stock Race", Code = $"explode-srace-{Guid.NewGuid():N}"[..24], IsActive = true };
+            seed.TrackTypes.Add(track);
+            await seed.SaveChangesAsync();
+
+            var stage = new JobStage { TrackTypeId = track.Id, Name = "Stage 1", Code = "s1", SortOrder = 1, IsActive = true };
+            seed.JobStages.Add(stage);
+
+            var parentPart = new Part { PartNumber = $"EXPS-P-{Guid.NewGuid():N}"[..16], Description = "Kit parent" };
+            var stockPart = new Part { PartNumber = $"EXPS-C-{Guid.NewGuid():N}"[..16], Description = "Kit component" };
+            var location = new StorageLocation { Name = $"Bin {Guid.NewGuid():N}"[..20] };
+            seed.Parts.AddRange(parentPart, stockPart);
+            seed.StorageLocations.Add(location);
+            await seed.SaveChangesAsync();
+
+            seed.BOMLines.Add(new BOMLine
+            {
+                ParentPartId = parentPart.Id,
+                ChildPartId = stockPart.Id,
+                Quantity = 2,
+                SourceType = BOMSourceType.Stock,
+                SortOrder = 1,
+            });
+
+            var bin = new BinContent
+            {
+                LocationId = location.Id,
+                EntityType = "part",
+                EntityId = stockPart.Id,
+                Quantity = 100,
+                ReservedQuantity = 0,
+                PlacedBy = 1,
+                PlacedAt = DateTimeOffset.UtcNow.AddDays(-1),
+            };
+            seed.BinContents.Add(bin);
+
+            var parentJob = new Job
+            {
+                JobNumber = $"J-EXPS-{Guid.NewGuid():N}"[..14],
+                Title = "Kit parent job",
+                TrackTypeId = track.Id,
+                CurrentStageId = stage.Id,
+                PartId = parentPart.Id,
+            };
+            seed.Jobs.Add(parentJob);
+            await seed.SaveChangesAsync();
+
+            seed.Set<JobPart>().Add(new JobPart { JobId = parentJob.Id, PartId = parentPart.Id, Quantity = 10 });
+            await seed.SaveChangesAsync();
+
+            parentJobId = parentJob.Id;
+            binId = bin.Id;
+        }
+
+        async Task<bool> ExplodeAsync()
+        {
+            await using var db = fixture.CreateContext();
+            var clients = new Mock<IHubClients>();
+            clients.Setup(c => c.Group(It.IsAny<string>())).Returns(Mock.Of<IClientProxy>());
+            var hub = new Mock<IHubContext<BoardHub>>();
+            hub.SetupGet(h => h.Clients).Returns(clients.Object);
+            var handler = new ExplodeJobBomHandler(
+                db, new JobRepository(db), Mock.Of<IBarcodeService>(), hub.Object);
+            try
+            {
+                await handler.Handle(new ExplodeJobBomCommand(parentJobId), CancellationToken.None);
+                return true;
+            }
+            catch (InvalidOperationException ex) when (ex.Message == "This work order has already been exploded.")
+            {
+                return false;
+            }
+        }
+
+        var outcomes = await Task.WhenAll(ExplodeAsync(), ExplodeAsync());
+
+        outcomes.Count(ok => ok).Should().Be(1);
+
+        await using var verify = fixture.CreateContext();
+        (await verify.Set<Reservation>().CountAsync(r => r.JobId == parentJobId)).Should().Be(1);
+        (await verify.BinContents.SingleAsync(b => b.Id == binId)).ReservedQuantity.Should().Be(20);
+    }
 }
