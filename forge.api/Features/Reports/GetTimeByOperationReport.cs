@@ -74,6 +74,10 @@ public class GetTimeByOperationReportHandler(AppDbContext db)
             lifetimeMinutes = lifetime.ToDictionary(x => (x.JobId, x.OperationId), x => x.Minutes);
         }
 
+        var inWindowMinutes = entries
+            .GroupBy(e => (JobId: e.JobId!.Value, OperationId: e.OperationId!.Value))
+            .ToDictionary(g => g.Key, g => g.Sum(e => (decimal)e.DurationMinutes));
+
         var grouped = entries
             .Where(e => operations.ContainsKey(e.OperationId!.Value))
             .GroupBy(e => e.OperationId!.Value)
@@ -92,8 +96,7 @@ public class GetTimeByOperationReportHandler(AppDbContext db)
                         || !lifetimeMinutes.TryGetValue((jobId, g.Key), out var jobLifetime)
                         || jobLifetime <= 0)
                         return planned;
-                    var inWindow = g.Where(e => e.JobId == jobId).Sum(e => (decimal)e.DurationMinutes);
-                    return planned * inWindow / jobLifetime;
+                    return planned * inWindowMinutes[(jobId, g.Key)] / jobLifetime;
                 }) / 60m;
                 var jobCount = jobs.Count;
 
