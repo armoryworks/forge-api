@@ -1,5 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.StatusTracking;
 using Forge.Api.Hubs;
 using Forge.Api.Services;
 using Forge.Core.Entities;
@@ -22,6 +24,7 @@ public class BulkUnarchiveJobsHandler(
     IActivityLogRepository actRepo,
     IHubContext<BoardHub> boardHub,
     ISystemAuditWriter auditWriter,
+    IClock clock,
     AppDbContext db) : IRequestHandler<BulkUnarchiveJobsCommand, BulkOperationResponseModel>
 {
     public async Task<BulkOperationResponseModel> Handle(BulkUnarchiveJobsCommand request, CancellationToken ct)
@@ -55,6 +58,17 @@ public class BulkUnarchiveJobsHandler(
         var foundIds = jobs.Select(j => j.Id).ToHashSet();
         foreach (var id in request.JobIds.Where(id => !foundIds.Contains(id)))
             errors.Add(new BulkOperationError(id, $"Job with ID {id} not found."));
+
+        var archivedWorkflowStatuses = await db.StatusEntries
+            .Where(s => s.EntityType.ToLower() == "job"
+                        && unarchivedJobIds.Contains(s.EntityId)
+                        && s.Category == "workflow"
+                        && s.StatusCode == SetWorkflowStatusHandler.JobArchivedStatusCode
+                        && s.EndedAt == null)
+            .ToListAsync(ct);
+        var now = clock.UtcNow;
+        foreach (var entry in archivedWorkflowStatuses)
+            entry.EndedAt = now;
 
         await jobRepo.SaveChangesAsync(ct);
 
