@@ -5,13 +5,14 @@ using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 
 using Forge.Api.Services;
+using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Customers;
 
 public record GenerateCustomerStatementQuery(int CustomerId) : IRequest<byte[]>;
 
-public class GenerateCustomerStatementHandler(AppDbContext db)
+public class GenerateCustomerStatementHandler(AppDbContext db, IClock clock)
     : IRequestHandler<GenerateCustomerStatementQuery, byte[]>
 {
     public async Task<byte[]> Handle(GenerateCustomerStatementQuery request, CancellationToken ct)
@@ -34,7 +35,7 @@ public class GenerateCustomerStatementHandler(AppDbContext db)
         var companyName = await CompanyIdentity.GetCompanyNameAsync(db, ct);
 
         var document = new CustomerStatementPdfDocument(
-            customer, invoices, payments, companyName, DateTimeOffset.UtcNow);
+            customer, invoices, payments, companyName, clock.UtcNow);
 
         return document.GeneratePdf();
     }
