@@ -113,7 +113,6 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/create-missing-jobs")]
-    [Authorize(Roles = "Admin,Manager,PM,Engineer,ProductionWorker,OfficeManager")]
     [RequiresCapability("CAP-MFG-WO-RELEASE")]
     public async Task<ActionResult<CreateJobsForSalesOrderLinesResponseModel>> CreateMissingJobs(
         int id, [FromQuery] int? lineId, CancellationToken ct)
