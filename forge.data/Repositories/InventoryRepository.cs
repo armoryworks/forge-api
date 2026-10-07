@@ -50,7 +50,7 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
         return locations
             .Where(l => l.LocationType == LocationType.Bin)
             .Select(l => new StorageLocationFlatResponseModel(
-                l.Id, l.Name, l.LocationType, l.Barcode, BuildPath(l, byId)))
+                l.Id, l.Name, l.LocationType, l.Barcode, BuildPath(l, byId), l.IsActive))
             .ToList();
     }
 
@@ -78,7 +78,7 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
         var bins = allLocations
             .Where(l => l.LocationType == LocationType.Bin)
             .Select(l => new StorageLocationFlatResponseModel(
-                l.Id, l.Name, l.LocationType, l.Barcode, BuildPath(l, byId)))
+                l.Id, l.Name, l.LocationType, l.Barcode, BuildPath(l, byId), l.IsActive))
             .ToList();
 
         if (!string.IsNullOrWhiteSpace(search))

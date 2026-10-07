@@ -7,4 +7,5 @@ public record StorageLocationFlatResponseModel(
     string Name,
     LocationType LocationType,
     string? Barcode,
-    string LocationPath);
+    string LocationPath,
+    bool IsActive = true);
