@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -68,6 +69,12 @@ public class CreatePartNumberEndpointTests(CapabilityTestWebApplicationFactory f
         await db.SaveChangesAsync();
     }
 
+    private static async Task<string?> DetailOf(HttpResponseMessage response)
+    {
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return doc.RootElement.GetProperty("detail").GetString();
+    }
+
     private static object Body(string partNumber) => new
     {
         name = "Bracket",
@@ -88,7 +95,7 @@ public class CreatePartNumberEndpointTests(CapabilityTestWebApplicationFactory f
             var response = await AuthenticatedClient().PostAsJsonAsync("/api/v1/parts", Body("DEL-PN-001"));
 
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-            (await response.Content.ReadAsStringAsync()).Should().Contain(
+            (await DetailOf(response)).Should().Be(
                 "Part number 'DEL-PN-001' belongs to a deleted part. Restore that part or choose another number.");
         }
         finally
@@ -107,7 +114,7 @@ public class CreatePartNumberEndpointTests(CapabilityTestWebApplicationFactory f
             var response = await AuthenticatedClient().PostAsJsonAsync("/api/v1/parts", Body("TYPED-PN-001"));
 
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-            (await response.Content.ReadAsStringAsync()).Should().Contain("Manual part numbers are turned off.");
+            (await DetailOf(response)).Should().StartWith("Manual part numbers are turned off.");
         }
         finally
         {

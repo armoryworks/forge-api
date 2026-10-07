@@ -31,6 +31,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             {
                 Status = StatusCodes.Status400BadRequest,
                 Title = "Validation failed",
+                Detail = string.Join(" ", ex.Errors.Select(e => e.ErrorMessage).Distinct()),
                 Type = "about:blank"
             };
 
