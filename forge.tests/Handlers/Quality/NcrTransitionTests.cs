@@ -157,6 +157,41 @@ public class NcrTransitionTests
     }
 
     [Fact]
+    public async Task Update_CostsOnLegacyRowWithDefectiveAboveAffected_Allowed()
+    {
+        var ncr = await SeedNcrAsync(NcrStatus.Dispositioned, affected: 2, defective: 5);
+
+        await UpdateHandler().Handle(
+            new UpdateNcrCommand(ncr.Id, new UpdateNcrRequestModel { MaterialCost = 12 }),
+            CancellationToken.None);
+
+        var saved = await ReloadAsync(ncr.Id);
+        saved.MaterialCost.Should().Be(12m);
+        saved.DefectiveQuantity.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task Update_ContainmentActionsAfterContainment_KeepsOriginalStamp()
+    {
+        var ncr = await SeedNcrAsync(NcrStatus.Dispositioned);
+        var containedAt = Now.AddDays(-3);
+        ncr.ContainmentActions = "Quarantined lot 42";
+        ncr.ContainmentById = 3;
+        ncr.ContainmentAt = containedAt;
+        await _db.SaveChangesAsync();
+
+        await UpdateHandler().Handle(
+            new UpdateNcrCommand(ncr.Id, new UpdateNcrRequestModel { ContainmentActions = "Quarantined lot 42; lot 43 sorted" }),
+            CancellationToken.None);
+
+        var saved = await ReloadAsync(ncr.Id);
+        saved.ContainmentActions.Should().Be("Quarantined lot 42; lot 43 sorted");
+        saved.ContainmentById.Should().Be(3);
+        saved.ContainmentAt.Should().Be(containedAt);
+        (await ActivityFor(ncr.Id)).Should().ContainSingle(a => a.Action == "updated");
+    }
+
+    [Fact]
     public void UpdateValidator_RejectsNegativeCostsAndDefectiveAboveAffected()
     {
         var validator = new UpdateNcrValidator();
@@ -190,6 +225,36 @@ public class NcrTransitionTests
         saved.ContainmentById.Should().Be(UserId);
         saved.ContainmentAt.Should().Be(Now);
         (await ActivityFor(ncr.Id)).Should().ContainSingle(a => a.Action == "contained");
+    }
+
+    [Fact]
+    public async Task Contain_WithNoContainmentActions_ThrowsValidation()
+    {
+        var ncr = await SeedNcrAsync(NcrStatus.Open);
+
+        var act = () => new ContainNcrHandler(_db, _clock, _httpContextAccessor).Handle(
+            new ContainNcrCommand(ncr.Id, new ContainNcrRequestModel { ContainmentActions = " " }), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ValidationException>();
+        var saved = await ReloadAsync(ncr.Id);
+        saved.Status.Should().Be(NcrStatus.Open);
+        saved.ContainmentAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Contain_UsesStoredContainmentActionsWhenRequestHasNone()
+    {
+        var ncr = await SeedNcrAsync(NcrStatus.UnderReview);
+        ncr.ContainmentActions = "Held at receiving";
+        await _db.SaveChangesAsync();
+
+        await new ContainNcrHandler(_db, _clock, _httpContextAccessor).Handle(
+            new ContainNcrCommand(ncr.Id, new ContainNcrRequestModel()), CancellationToken.None);
+
+        var saved = await ReloadAsync(ncr.Id);
+        saved.Status.Should().Be(NcrStatus.Contained);
+        saved.ContainmentActions.Should().Be("Held at receiving");
+        saved.ContainmentAt.Should().Be(Now);
     }
 
     [Theory]

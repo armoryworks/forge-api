@@ -71,7 +71,8 @@ public class UpdateNcrHandler(
 
         var effectiveAffected = req.AffectedQuantity ?? ncr.AffectedQuantity;
         var effectiveDefective = req.DefectiveQuantity ?? ncr.DefectiveQuantity;
-        if (effectiveDefective.HasValue && effectiveDefective.Value > effectiveAffected)
+        var quantityChanged = effectiveAffected != ncr.AffectedQuantity || effectiveDefective != ncr.DefectiveQuantity;
+        if (quantityChanged && effectiveDefective.HasValue && effectiveDefective.Value > effectiveAffected)
             throw new ValidationException(
             [
                 new ValidationFailure("Request.DefectiveQuantity", "Defective quantity cannot exceed affected quantity"),
@@ -103,7 +104,7 @@ public class UpdateNcrHandler(
         {
             ncr.ContainmentActions = req.ContainmentActions;
             changedFields.Add("containmentActions");
-            if (!string.IsNullOrWhiteSpace(req.ContainmentActions))
+            if (ncr.ContainmentAt is null && !string.IsNullOrWhiteSpace(req.ContainmentActions))
             {
                 ncr.ContainmentById = int.Parse(httpContextAccessor.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
                 ncr.ContainmentAt = clock.UtcNow;

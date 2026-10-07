@@ -1,6 +1,7 @@
 using System.Security.Claims;
 
 using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -41,6 +42,11 @@ public class ContainNcrHandler(
 
         if (!string.IsNullOrWhiteSpace(command.Request.ContainmentActions))
             ncr.ContainmentActions = command.Request.ContainmentActions;
+        else if (string.IsNullOrWhiteSpace(ncr.ContainmentActions))
+            throw new ValidationException(
+            [
+                new ValidationFailure("Request.ContainmentActions", "Describe the containment actions taken before containing the NCR"),
+            ]);
 
         ncr.ContainmentById = int.Parse(httpContextAccessor.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         ncr.ContainmentAt = clock.UtcNow;
