@@ -3,6 +3,7 @@ using FluentValidation;
 using Moq;
 using Forge.Api.Features.SalesOrders;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 
@@ -138,5 +139,49 @@ public class CreateSalesOrderAddressTests
         (await act.Should().ThrowAsync<ValidationException>())
             .Which.Errors.Should().ContainSingle(e => e.PropertyName == "billingAddressId");
         _orderRepo.Verify(r => r.AddAsync(It.IsAny<SalesOrder>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_SuppliedInactiveAddress_IsRejected()
+    {
+        GivenAddresses();
+        _addressRepo.Setup(r => r.FindAsync(13, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CustomerAddress { Id = 13, CustomerId = CustomerId, IsActive = false });
+
+        var act = () => _handler.Handle(Command(shippingAddressId: 13), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>())
+            .Which.Errors.Should().ContainSingle(e => e.PropertyName == "shippingAddressId");
+        _orderRepo.Verify(r => r.AddAsync(It.IsAny<SalesOrder>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(AddressType.Billing, "shippingAddressId")]
+    [InlineData(AddressType.Shipping, "billingAddressId")]
+    public async Task Handle_SuppliedAddressOfTheOtherType_IsRejected(AddressType type, string field)
+    {
+        GivenAddresses();
+        _addressRepo.Setup(r => r.FindAsync(14, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CustomerAddress { Id = 14, CustomerId = CustomerId, AddressType = type });
+        var command = field == "shippingAddressId" ? Command(shippingAddressId: 14) : Command(billingAddressId: 14);
+
+        var act = () => _handler.Handle(command, CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>())
+            .Which.Errors.Should().ContainSingle(e => e.PropertyName == field);
+        _orderRepo.Verify(r => r.AddAsync(It.IsAny<SalesOrder>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_SuppliedBothAddress_IsAcceptedForShipToAndBillTo()
+    {
+        GivenAddresses();
+        _addressRepo.Setup(r => r.FindAsync(15, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CustomerAddress { Id = 15, CustomerId = CustomerId, AddressType = AddressType.Both });
+
+        await _handler.Handle(Command(shippingAddressId: 15, billingAddressId: 15), CancellationToken.None);
+
+        _added!.ShippingAddressId.Should().Be(15);
+        _added.BillingAddressId.Should().Be(15);
     }
 }

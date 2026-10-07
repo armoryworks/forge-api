@@ -155,15 +155,11 @@ public class CreateSalesOrderHandler(
         {
             var address = await addressRepo.FindAsync(id, ct);
             if (address is null || address.CustomerId != customerId)
-            {
-                throw new ValidationException(new[]
-                {
-                    new ValidationFailure(fieldPath, $"Address {id} does not belong to this customer.")
-                    {
-                        AttemptedValue = id,
-                    },
-                });
-            }
+                throw AddressRejected(fieldPath, id, $"Address {id} does not belong to this customer.");
+            if (!address.IsActive)
+                throw AddressRejected(fieldPath, id, $"Address {id} is inactive.");
+            if (address.AddressType != addressType && address.AddressType != AddressType.Both)
+                throw AddressRejected(fieldPath, id, $"Address {id} is a {address.AddressType} address, not a {addressType} address.");
             return id;
         }
 
@@ -174,6 +170,9 @@ public class CreateSalesOrderHandler(
         return (defaults.FirstOrDefault(a => a.AddressType == typeName)
             ?? defaults.FirstOrDefault(a => a.AddressType == nameof(AddressType.Both)))?.Id;
     }
+
+    private static ValidationException AddressRejected(string fieldPath, int id, string message) =>
+        new(new[] { new ValidationFailure(fieldPath, message) { AttemptedValue = id } });
 
     private async Task<bool> ManualOrderNumbersAllowedAsync(CancellationToken ct)
     {
