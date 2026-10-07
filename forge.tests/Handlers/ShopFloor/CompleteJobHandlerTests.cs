@@ -126,6 +126,75 @@ public class CompleteJobHandlerTests
     }
 
     [Fact]
+    public async Task Handle_JobWithContainedNcr_ThrowsAndLeavesJobOpen()
+    {
+        var (job, firstStage) = await SeedJobAsync("JOB-0003");
+        _db.NonConformances.Add(new NonConformance
+        {
+            NcrNumber = "NCR-0042", JobId = job.Id, PartId = 1, DetectedById = 1, Status = NcrStatus.Contained,
+        });
+        await _db.SaveChangesAsync();
+
+        var act = () => _handler.Handle(new CompleteJobCommand(job.Id), CancellationToken.None);
+
+        var ex = await act.Should().ThrowAsync<InvalidOperationException>();
+        ex.Which.Message.Should().Contain("NCR-0042");
+        var reloaded = await _db.Jobs.AsNoTracking().FirstAsync(j => j.Id == job.Id);
+        reloaded.CurrentStageId.Should().Be(firstStage.Id);
+        reloaded.CompletedDate.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_FailedInspectionThenPassedReinspection_Completes()
+    {
+        var (job, _) = await SeedJobAsync("JOB-0004");
+        var failedAt = new DateTimeOffset(2026, 10, 1, 8, 0, 0, TimeSpan.Zero);
+        _db.QcInspections.Add(new QcInspection { JobId = job.Id, TemplateId = 3, Status = "Failed", CompletedAt = failedAt });
+        await _db.SaveChangesAsync();
+
+        var blocked = () => _handler.Handle(new CompleteJobCommand(job.Id), CancellationToken.None);
+        await blocked.Should().ThrowAsync<InvalidOperationException>();
+
+        _db.QcInspections.Add(new QcInspection { JobId = job.Id, TemplateId = 3, Status = "Passed", CompletedAt = failedAt.AddHours(1) });
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(new CompleteJobCommand(job.Id), CancellationToken.None);
+
+        var reloaded = await _db.Jobs.AsNoTracking().FirstAsync(j => j.Id == job.Id);
+        reloaded.CompletedDate.Should().NotBeNull();
+    }
+
+    private async Task<(Job Job, JobStage FirstStage)> SeedJobAsync(string jobNumber)
+    {
+        var trackType = new TrackType { Name = "Production", Code = jobNumber, IsActive = true };
+        _db.TrackTypes.Add(trackType);
+        await _db.SaveChangesAsync();
+
+        var firstStage = new JobStage
+        {
+            TrackTypeId = trackType.Id, Name = "In Production", Code = "in_production", SortOrder = 1, IsActive = true,
+        };
+        var lastStage = new JobStage
+        {
+            TrackTypeId = trackType.Id, Name = "Complete", Code = "complete", SortOrder = 10, IsActive = true,
+        };
+        _db.JobStages.AddRange(firstStage, lastStage);
+        await _db.SaveChangesAsync();
+
+        var job = new Job
+        {
+            JobNumber = jobNumber,
+            Title = _faker.Commerce.ProductName(),
+            TrackTypeId = trackType.Id,
+            CurrentStageId = firstStage.Id,
+            Priority = JobPriority.Normal,
+        };
+        _db.Jobs.Add(job);
+        await _db.SaveChangesAsync();
+        return (job, firstStage);
+    }
+
+    [Fact]
     public async Task Handle_NonExistentJob_ThrowsKeyNotFoundException()
     {
         // Arrange
