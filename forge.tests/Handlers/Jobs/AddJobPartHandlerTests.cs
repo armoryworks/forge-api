@@ -44,6 +44,17 @@ public class AddJobPartHandlerTests
     }
 
     [Fact]
+    public async Task The_activity_row_credits_the_current_user()
+    {
+        var job = await SeedAsync(partId: null);
+        _db.CurrentUserId = 17;
+
+        await _handler.Handle(new AddJobPartCommand(job.Id, 800, 1m), CancellationToken.None);
+
+        (await _db.JobActivityLogs.SingleAsync(l => l.JobId == job.Id)).UserId.Should().Be(17);
+    }
+
+    [Fact]
     public async Task A_job_that_already_has_a_part_keeps_it()
     {
         var job = await SeedAsync(partId: 800);

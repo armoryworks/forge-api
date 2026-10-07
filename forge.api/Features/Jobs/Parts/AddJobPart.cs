@@ -49,6 +49,7 @@ public class AddJobPartHandler(AppDbContext db) : IRequestHandler<AddJobPartComm
         db.JobActivityLogs.Add(new JobActivityLog
         {
             JobId = job.Id,
+            UserId = db.CurrentUserId,
             Action = ActivityAction.FieldChanged,
             FieldName = setsJobPart ? "Part" : null,
             NewValue = setsJobPart ? part.PartNumber : null,
