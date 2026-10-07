@@ -4,4 +4,6 @@ namespace Forge.Core.Models;
 
 public record DisposeJobRequestModel(
     JobDisposition Disposition,
-    string? Notes);
+    string? Notes,
+    decimal? GoodQuantity = null,
+    int? LocationId = null);

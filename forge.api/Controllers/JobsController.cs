@@ -334,7 +334,10 @@ public class JobsController(IMediator mediator) : ControllerBase
     [HttpPost("{id:int}/dispose")]
     [Authorize(Roles = "Admin,Manager")] // K-F14: disposition can capitalize an Asset
     public async Task<ActionResult<JobDetailResponseModel>> DisposeJob(int id, DisposeJobRequestModel request)
-        => Ok(await mediator.Send(new DisposeJobCommand(id, request)));
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        return Ok(await mediator.Send(new DisposeJobCommand(id, request, userId)));
+    }
 
     // R&D Handoff
     [HttpPost("{id:int}/handoff-to-production")]
