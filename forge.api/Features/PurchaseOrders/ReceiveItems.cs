@@ -64,7 +64,7 @@ public class ReceiveItemsHandler(
         // need the totals, so we collect first then divvy up. Manual reads
         // each request line's ManualFreight directly. Weight allocation
         // falls back to ByExtendedValue when any part lacks a weight.
-        var newRecords = new List<(ReceiveLineModel req, PurchaseOrderLine line, ReceivingRecord rec)>();
+        var newRecords = new List<(ReceiveLineModel req, PurchaseOrderLine line, ReceivingRecord rec, decimal baseQty, string? lot)>();
         decimal totalExtended = 0m;
         decimal totalQty = 0m;
         foreach (var receiveItem in request.Lines)
@@ -80,12 +80,19 @@ public class ReceiveItemsHandler(
 
             line.ReceivedQuantity += receiveItem.Quantity;
 
+            var contentPerUnit = line.PurchaseUnit?.ContentQuantity;
+            var baseQty = contentPerUnit is > 0
+                ? receiveItem.Quantity * contentPerUnit.Value
+                : receiveItem.Quantity;
+            var lot = string.IsNullOrWhiteSpace(receiveItem.LotNumber) ? null : receiveItem.LotNumber.Trim();
+
             var rec = new ReceivingRecord
             {
                 PurchaseOrderLineId = line.Id,
                 QuantityReceived = receiveItem.Quantity,
                 StorageLocationId = receiveItem.StorageLocationId,
                 Notes = receiveItem.Notes,
+                LotNumber = lot,
                 ReceiptNumber = receiptNumber,
                 InspectionStatus = ReceivingInspectionPolicy.InitialStatus(line.Part?.RequiresReceivingInspection == true, capabilities),
                 ActualFreight = actualFreight,
@@ -93,11 +100,19 @@ public class ReceiveItemsHandler(
                 // Filled in below once totals are known.
                 AllocatedFreight = null,
             };
-            newRecords.Add((receiveItem, line, rec));
+            newRecords.Add((receiveItem, line, rec, baseQty, lot));
 
             totalExtended += receiveItem.Quantity * line.UnitPrice;
             totalQty += receiveItem.Quantity;
         }
+
+        var requestedLocations = inventory is null
+            ? new Dictionary<int, StorageLocation>()
+            : await ValidateRequestedBinsAsync(
+                inventory,
+                newRecords.Where(t => t.line.PartId is not null && t.req.StorageLocationId is not null)
+                    .Select(t => t.req.StorageLocationId!.Value),
+                cancellationToken);
 
         // Allocation. Skip when no freight to allocate.
         if (actualFreight.HasValue && actualFreight.Value > 0m && newRecords.Count > 0)
@@ -105,14 +120,14 @@ public class ReceiveItemsHandler(
             switch (request.FreightAllocationMethod)
             {
                 case FreightAllocationMethod.Manual:
-                    foreach (var (req, _, rec) in newRecords)
+                    foreach (var (req, _, rec, _, _) in newRecords)
                         rec.AllocatedFreight = req.ManualFreight ?? 0m;
                     break;
 
                 case FreightAllocationMethod.ByQuantity:
                     if (totalQty > 0m)
                     {
-                        foreach (var (_, _, rec) in newRecords)
+                        foreach (var (_, _, rec, _, _) in newRecords)
                             rec.AllocatedFreight = Math.Round(actualFreight.Value * (rec.QuantityReceived / totalQty), 4);
                     }
                     break;
@@ -124,13 +139,13 @@ public class ReceiveItemsHandler(
                     // no weight populated, since a partial weight set
                     // would silently mis-allocate. Both branches treat
                     // qty × weight per line consistently.
-                    var totalWeight = newRecords.Sum(t => (t.line.Part?.WeightEach ?? 0m) * t.rec.QuantityReceived);
+                    var totalWeight = newRecords.Sum(t => (t.line.Part?.WeightEach ?? 0m) * t.baseQty);
                     var allHaveWeight = newRecords.All(t => t.line.Part?.WeightEach is > 0);
                     if (allHaveWeight && totalWeight > 0m)
                     {
-                        foreach (var (_, line, rec) in newRecords)
+                        foreach (var (_, line, rec, baseQty, _) in newRecords)
                         {
-                            var lineWeight = (line.Part?.WeightEach ?? 0m) * rec.QuantityReceived;
+                            var lineWeight = (line.Part?.WeightEach ?? 0m) * baseQty;
                             rec.AllocatedFreight = Math.Round(actualFreight.Value * (lineWeight / totalWeight), 4);
                         }
                     }
@@ -147,7 +162,7 @@ public class ReceiveItemsHandler(
                 default:
                     if (totalExtended > 0m)
                     {
-                        foreach (var (_, line, rec) in newRecords)
+                        foreach (var (_, line, rec, _, _) in newRecords)
                         {
                             var extended = rec.QuantityReceived * line.UnitPrice;
                             rec.AllocatedFreight = Math.Round(actualFreight.Value * (extended / totalExtended), 4);
@@ -157,7 +172,7 @@ public class ReceiveItemsHandler(
             }
         }
 
-        foreach (var (_, _, rec) in newRecords)
+        foreach (var (_, _, rec, _, _) in newRecords)
             await repo.AddReceivingRecordAsync(rec, cancellationToken);
 
         var allReceived = po.Lines.All(l => l.RemainingQuantity <= 0);
@@ -190,26 +205,33 @@ public class ReceiveItemsHandler(
         await repo.SaveChangesAsync(cancellationToken);
 
         // Operational stock-in (P06-2 / PRI-1..3): stock the received goods into a bin so on-hand actually
-        // rises. Per line, find-or-create the active BinContent for (part, location) and increment it, then
-        // record a Receive movement. Location = the line's StorageLocationId, else a default receiving bin.
+        // rises, in the part's base unit (purchase-unit count × ContentQuantity). Per line, find-or-create the
+        // active BinContent for (part, location, lot) so lots never blend, then record a Receive movement.
         // Not gated by CAP-ACCT-FULLGL — this is operational inventory, independent of the GL posting below.
         if (inventory is not null)
         {
-            int? defaultBinId = null;
-            foreach (var (req, line, rec) in newRecords)
+            int? fallbackBinId = null;
+            foreach (var (req, line, rec, baseQty, lot) in newRecords)
             {
                 // A part-less line (service / described material) has nothing to stock:
                 // receipt updates the line quantity, but no bin content or movement exists.
                 if (line.PartId is not int stockPartId)
                     continue;
 
-                var locationId = req.StorageLocationId
-                    ?? (defaultBinId ??= await ResolveDefaultBinAsync(inventory, userId, clock, cancellationToken));
+                int locationId;
+                if (req.StorageLocationId is int requestedId)
+                    locationId = requestedLocations[requestedId].Id;
+                else if (await FindActivePartDefaultBinAsync(inventory, line.Part, cancellationToken) is int partBinId)
+                    locationId = partBinId;
+                else
+                    locationId = fallbackBinId ??= await ResolveFallbackBinAsync(inventory, cancellationToken);
+                rec.StorageLocationId = locationId;
 
-                var existing = await inventory.FindActiveBinContentByPartLocationAsync(stockPartId, locationId, cancellationToken);
+                var existing = await inventory.FindActiveBinContentByPartLocationLotAsync(
+                    stockPartId, locationId, lot, cancellationToken);
                 if (existing is not null)
                 {
-                    existing.Quantity += rec.QuantityReceived;
+                    existing.Quantity += baseQty;
                 }
                 else
                 {
@@ -218,7 +240,8 @@ public class ReceiveItemsHandler(
                         LocationId = locationId,
                         EntityType = "part",
                         EntityId = stockPartId,
-                        Quantity = rec.QuantityReceived,
+                        Quantity = baseQty,
+                        LotNumber = lot,
                         Status = BinContentStatus.Stored,
                         PlacedBy = userId,
                         PlacedAt = clock.UtcNow,
@@ -229,7 +252,8 @@ public class ReceiveItemsHandler(
                 {
                     EntityType = "part",
                     EntityId = stockPartId,
-                    Quantity = rec.QuantityReceived,
+                    Quantity = baseQty,
+                    LotNumber = lot,
                     ToLocationId = locationId,
                     MovedBy = userId,
                     MovedAt = clock.UtcNow,
@@ -254,16 +278,50 @@ public class ReceiveItemsHandler(
     }
 
     /// <summary>
-    /// The bin to stock receipts into when a line doesn't name one: the first active bin, or a freshly
-    /// provisioned "Receiving" bin if the warehouse has none yet (so a first receipt always has somewhere to
-    /// land).
+    /// Loads every bin a line names and rejects the receipt up front when one is missing, inactive or not
+    /// a bin, so nothing is recorded against a location stock can't go into.
     /// </summary>
-    private static async Task<int> ResolveDefaultBinAsync(
-        IInventoryRepository inventory, int userId, IClock clock, CancellationToken ct)
+    private static async Task<Dictionary<int, StorageLocation>> ValidateRequestedBinsAsync(
+        IInventoryRepository inventory, IEnumerable<int> requestedIds, CancellationToken ct)
     {
-        var bins = await inventory.GetBinLocationsAsync(ct);
-        if (bins.Count > 0)
-            return bins[0].Id;
+        var locations = new Dictionary<int, StorageLocation>();
+        foreach (var id in requestedIds.Distinct())
+        {
+            var location = await inventory.FindLocationAsync(id, ct)
+                ?? throw new KeyNotFoundException($"Storage location {id} not found");
+            if (!location.IsActive)
+                throw new InvalidOperationException($"Storage location '{location.Name}' is inactive; choose an active bin.");
+            if (location.LocationType != LocationType.Bin)
+                throw new InvalidOperationException($"Storage location '{location.Name}' is not a bin; receive into a bin.");
+            locations[id] = location;
+        }
+        return locations;
+    }
+
+    /// <summary>
+    /// The part's own default bin when it has one and that location is still active; null otherwise.
+    /// </summary>
+    private static async Task<int?> FindActivePartDefaultBinAsync(
+        IInventoryRepository inventory, Part? part, CancellationToken ct)
+    {
+        if (part?.DefaultBinId is not int defaultBinId)
+            return null;
+        var bin = await inventory.FindLocationAsync(defaultBinId, ct);
+        return bin is { IsActive: true } ? bin.Id : null;
+    }
+
+    /// <summary>
+    /// The bin to stock receipts into when neither the line nor the part names one: the active default
+    /// location, else the first active bin, else a freshly provisioned "Receiving" bin if the warehouse has
+    /// none yet (so a first receipt always has somewhere to land).
+    /// </summary>
+    private static async Task<int> ResolveFallbackBinAsync(IInventoryRepository inventory, CancellationToken ct)
+    {
+        var activeLocations = (await inventory.GetStorageLocationsAsync(ct)).Where(l => l.IsActive).ToList();
+        var fallback = activeLocations.FirstOrDefault(l => l.IsDefault)
+            ?? activeLocations.FirstOrDefault(l => l.LocationType == LocationType.Bin);
+        if (fallback is not null)
+            return fallback.Id;
 
         var receiving = new StorageLocation
         {

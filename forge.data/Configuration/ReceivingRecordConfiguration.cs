@@ -17,6 +17,7 @@ public class ReceivingRecordConfiguration : IEntityTypeConfiguration<ReceivingRe
 
         builder.Property(e => e.ReceivedBy).HasMaxLength(200);
         builder.Property(e => e.Notes).HasMaxLength(1000);
+        builder.Property(e => e.LotNumber).HasMaxLength(100);
         // Phase 3 / WU-23 (F8-broad): decimal(18,4) for UoM-aware fractional qty.
         builder.Property(e => e.QuantityReceived).HasPrecision(18, 4);
 

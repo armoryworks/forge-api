@@ -11,6 +11,7 @@ public class ReceivingRecord : BaseAuditableEntity
     public string? ReceivedBy { get; set; }
     public int? StorageLocationId { get; set; }
     public string? Notes { get; set; }
+    public string? LotNumber { get; set; }
     public ReceivingInspectionStatus InspectionStatus { get; set; } = ReceivingInspectionStatus.NotRequired;
     public int? InspectedById { get; set; }
     public DateTimeOffset? InspectedAt { get; set; }

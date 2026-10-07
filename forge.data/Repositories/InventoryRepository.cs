@@ -117,6 +117,12 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
     public Task<StorageLocation?> FindLocationAsync(int id, CancellationToken ct)
         => db.StorageLocations.FirstOrDefaultAsync(l => l.Id == id && l.DeletedAt == null, ct);
 
+    public Task<List<StorageLocation>> GetStorageLocationsAsync(CancellationToken ct)
+        => db.StorageLocations
+            .Where(l => l.DeletedAt == null)
+            .OrderBy(l => l.SortOrder).ThenBy(l => l.Name)
+            .ToListAsync(ct);
+
     public Task<bool> BarcodeExistsAsync(string barcode, int? excludeId, CancellationToken ct)
     {
         var query = db.StorageLocations.Where(l => l.Barcode == barcode && l.DeletedAt == null);
@@ -187,6 +193,12 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
         => db.BinContents.Include(c => c.Location)
             .FirstOrDefaultAsync(c => c.EntityType == "part" && c.EntityId == partId
                 && c.LocationId == locationId && c.RemovedAt == null, ct);
+
+    public Task<BinContent?> FindActiveBinContentByPartLocationLotAsync(
+        int partId, int locationId, string? lotNumber, CancellationToken ct)
+        => db.BinContents.Include(c => c.Location)
+            .FirstOrDefaultAsync(c => c.EntityType == "part" && c.EntityId == partId
+                && c.LocationId == locationId && c.LotNumber == lotNumber && c.RemovedAt == null, ct);
 
     public async Task AddBinContentAsync(BinContent content, CancellationToken ct)
     {
@@ -350,7 +362,7 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
             r.ReceivedBy,
             r.StorageLocationId,
             r.StorageLocation?.Name,
-            null,
+            r.LotNumber,
             r.Notes,
             r.CreatedAt
         )).ToList();

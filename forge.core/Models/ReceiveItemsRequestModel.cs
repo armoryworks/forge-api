@@ -17,4 +17,5 @@ public record ReceiveLineModel(
     decimal Quantity,
     int? StorageLocationId,
     string? Notes,
-    decimal? ManualFreight = null);
+    decimal? ManualFreight = null,
+    string? LotNumber = null);

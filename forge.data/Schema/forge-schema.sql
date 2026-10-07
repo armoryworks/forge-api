@@ -7374,6 +7374,7 @@ CREATE TABLE public.receiving_records (
     actual_freight numeric(18,4),
     freight_allocation_method integer DEFAULT 0 NOT NULL,
     allocated_freight numeric(18,4),
+    lot_number character varying(100),
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,

@@ -12,6 +12,7 @@ public interface IInventoryRepository
     Task<PagedResponse<StorageLocationFlatResponseModel>> GetBinLocationsPagedAsync(
         string? search, int page, int pageSize, CancellationToken ct);
     Task<StorageLocation?> FindLocationAsync(int id, CancellationToken ct);
+    Task<List<StorageLocation>> GetStorageLocationsAsync(CancellationToken ct);
     Task<bool> BarcodeExistsAsync(string barcode, int? excludeId, CancellationToken ct);
     Task AddLocationAsync(StorageLocation location, CancellationToken ct);
 
@@ -33,6 +34,9 @@ public interface IInventoryRepository
     /// <summary>Active (not removed) bin content for a part at a location, if any —
     /// used by the manual on-hand override to decide create vs adjust.</summary>
     Task<BinContent?> FindActiveBinContentByPartLocationAsync(int partId, int locationId, CancellationToken ct);
+    /// <summary>Active (not removed) bin content for a part at a location holding the given
+    /// lot (null matches only un-lotted content) — used by PO receiving so lots never blend.</summary>
+    Task<BinContent?> FindActiveBinContentByPartLocationLotAsync(int partId, int locationId, string? lotNumber, CancellationToken ct);
     Task AddBinContentAsync(BinContent content, CancellationToken ct);
     Task AddMovementAsync(BinMovement movement, CancellationToken ct);
 

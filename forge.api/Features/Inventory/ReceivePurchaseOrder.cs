@@ -71,6 +71,7 @@ public class ReceivePurchaseOrderHandler(
             ReceivedBy = userName,
             StorageLocationId = data.LocationId,
             Notes = data.Notes,
+            LotNumber = data.LotNumber,
             ReceiptNumber = receiptNumber,
             InspectionStatus = ReceivingInspectionPolicy.InitialStatus(line.Part?.RequiresReceivingInspection == true, capabilities),
         };

@@ -22,6 +22,10 @@ public class ReceiveItemsHandlerTests
     private readonly Mock<Microsoft.AspNetCore.Http.IHttpContextAccessor> _httpContext = new();
     private readonly IClock _clock = new SystemClock();
     private readonly ReceiveItemsHandler _handler;
+    private readonly Mock<IInventoryRepository> _inventory = new();
+    private readonly ReceiveItemsHandler _stockingHandler;
+    private readonly List<BinContent> _addedContents = new();
+    private readonly List<BinMovement> _addedMovements = new();
 
     private readonly List<ReceivingRecord> _addedRecords = new();
 
@@ -38,6 +42,29 @@ public class ReceiveItemsHandlerTests
         _httpContext.Setup(x => x.HttpContext).Returns(ctx);
 
         _handler = new ReceiveItemsHandler(_repo.Object, _clock, _mediator.Object, _httpContext.Object);
+
+        _inventory.Setup(i => i.AddBinContentAsync(It.IsAny<BinContent>(), It.IsAny<CancellationToken>()))
+            .Callback<BinContent, CancellationToken>((c, _) => _addedContents.Add(c))
+            .Returns(Task.CompletedTask);
+        _inventory.Setup(i => i.AddMovementAsync(It.IsAny<BinMovement>(), It.IsAny<CancellationToken>()))
+            .Callback<BinMovement, CancellationToken>((m, _) => _addedMovements.Add(m))
+            .Returns(Task.CompletedTask);
+        _stockingHandler = new ReceiveItemsHandler(
+            _repo.Object, _clock, _mediator.Object, _httpContext.Object, inventory: _inventory.Object);
+    }
+
+    private void GivenLocation(int id, bool isActive = true, LocationType type = LocationType.Bin, bool isDefault = false)
+        => _inventory.Setup(i => i.FindLocationAsync(id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StorageLocation { Id = id, Name = $"Loc {id}", IsActive = isActive, LocationType = type, IsDefault = isDefault });
+
+    private PurchaseOrder GivenStockPo(decimal orderedQty, Part part, PartPurchaseUnit? purchaseUnit = null)
+    {
+        var po = PoWith(estimatedFreight: null, (1, part.Id, qty: orderedQty, unitPrice: 10m));
+        po.Lines.First().Part = part;
+        po.Lines.First().PurchaseUnit = purchaseUnit;
+        po.Lines.First().PurchaseUnitId = purchaseUnit?.Id;
+        _repo.Setup(r => r.FindWithDetailsAsync(po.Id, It.IsAny<CancellationToken>())).ReturnsAsync(po);
+        return po;
     }
 
     private static PurchaseOrder PoWith(decimal? estimatedFreight, params (int lineId, int partId, decimal qty, decimal unitPrice)[] lines)
@@ -214,5 +241,221 @@ public class ReceiveItemsHandlerTests
 
         _capturedRepo.Verify(r => r.AddReceivingRecordAsync(
             It.IsAny<ReceivingRecord>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_PurchaseUnitLine_StocksBaseUnitsAndKeepsOrderUnitsOnLine()
+    {
+        var part = new Part { Id = 10, PartNumber = "BAR-1", DefaultBinId = 7 };
+        var po = GivenStockPo(5m, part, new PartPurchaseUnit { Id = 3, PartId = 10, Label = "12 ft bar", ContentQuantity = 12m });
+        GivenLocation(7);
+
+        await _stockingHandler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 2m, StorageLocationId: null, Notes: null, LotNumber: "HT-4471") }),
+            CancellationToken.None);
+
+        po.Lines.First().ReceivedQuantity.Should().Be(2m);
+        _addedRecords.Single().QuantityReceived.Should().Be(2m);
+        _addedRecords.Single().LotNumber.Should().Be("HT-4471");
+        var content = _addedContents.Single();
+        content.Quantity.Should().Be(24m);
+        content.LocationId.Should().Be(7);
+        content.LotNumber.Should().Be("HT-4471");
+        _addedMovements.Single().Quantity.Should().Be(24m);
+        _addedMovements.Single().LotNumber.Should().Be("HT-4471");
+    }
+
+    [Fact]
+    public async Task Handle_NoRequestedBin_UsesActivePartDefaultBin()
+    {
+        var part = new Part { Id = 10, PartNumber = "P-10", DefaultBinId = 7 };
+        var po = GivenStockPo(5m, part);
+        GivenLocation(7);
+
+        await _stockingHandler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 5m, StorageLocationId: null, Notes: null) }),
+            CancellationToken.None);
+
+        _addedContents.Single().LocationId.Should().Be(7);
+        _addedMovements.Single().ToLocationId.Should().Be(7);
+        _addedRecords.Single().StorageLocationId.Should().Be(7);
+        _inventory.Verify(i => i.GetStorageLocationsAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_RequestedBin_WinsOverPartDefault()
+    {
+        var part = new Part { Id = 10, PartNumber = "P-10", DefaultBinId = 7 };
+        var po = GivenStockPo(5m, part);
+        GivenLocation(7);
+        GivenLocation(9);
+
+        await _stockingHandler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 5m, StorageLocationId: 9, Notes: null) }),
+            CancellationToken.None);
+
+        _addedContents.Single().LocationId.Should().Be(9);
+    }
+
+    [Theory]
+    [InlineData(false, LocationType.Bin)]
+    [InlineData(true, LocationType.Shelf)]
+    public async Task Handle_RequestedLocationInactiveOrNotABin_RejectsBeforeRecording(bool isActive, LocationType type)
+    {
+        var po = GivenStockPo(5m, new Part { Id = 10, PartNumber = "P-10" });
+        GivenLocation(9, isActive, type);
+
+        var act = () => _stockingHandler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 5m, StorageLocationId: 9, Notes: null) }),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        _addedRecords.Should().BeEmpty();
+        _addedContents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_RequestedLocationMissing_ThrowsNotFound()
+    {
+        var po = GivenStockPo(5m, new Part { Id = 10, PartNumber = "P-10" });
+
+        var act = () => _stockingHandler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 5m, StorageLocationId: 404, Notes: null) }),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<KeyNotFoundException>();
+        _addedRecords.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_InactivePartDefaultBin_FallsBackToActiveDefaultLocation()
+    {
+        var po = GivenStockPo(5m, new Part { Id = 10, PartNumber = "P-10", DefaultBinId = 7 });
+        GivenLocation(7, isActive: false);
+        _inventory.Setup(i => i.GetStorageLocationsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<StorageLocation>
+        {
+            new() { Id = 20, Name = "A", LocationType = LocationType.Bin, IsActive = true },
+            new() { Id = 21, Name = "Old main", LocationType = LocationType.Bin, IsActive = false, IsDefault = true },
+            new() { Id = 22, Name = "Main", LocationType = LocationType.Bin, IsActive = true, IsDefault = true },
+        });
+
+        await _stockingHandler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 5m, StorageLocationId: null, Notes: null) }),
+            CancellationToken.None);
+
+        _addedContents.Single().LocationId.Should().Be(22);
+    }
+
+    [Fact]
+    public async Task Handle_NoDefaults_UsesFirstActiveBin()
+    {
+        var po = GivenStockPo(5m, new Part { Id = 10, PartNumber = "P-10" });
+        _inventory.Setup(i => i.GetStorageLocationsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<StorageLocation>
+        {
+            new() { Id = 30, Name = "Area", LocationType = LocationType.Area, IsActive = true },
+            new() { Id = 31, Name = "Retired", LocationType = LocationType.Bin, IsActive = false },
+            new() { Id = 32, Name = "B-1", LocationType = LocationType.Bin, IsActive = true },
+        });
+
+        await _stockingHandler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 5m, StorageLocationId: null, Notes: null) }),
+            CancellationToken.None);
+
+        _addedContents.Single().LocationId.Should().Be(32);
+    }
+
+    [Fact]
+    public async Task Handle_NoActiveBins_ProvisionsReceivingBin()
+    {
+        var po = GivenStockPo(5m, new Part { Id = 10, PartNumber = "P-10" });
+        _inventory.Setup(i => i.GetStorageLocationsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<StorageLocation>
+        {
+            new() { Id = 31, Name = "Retired", LocationType = LocationType.Bin, IsActive = false },
+        });
+        _inventory.Setup(i => i.AddLocationAsync(It.IsAny<StorageLocation>(), It.IsAny<CancellationToken>()))
+            .Callback<StorageLocation, CancellationToken>((l, _) => l.Id = 50)
+            .Returns(Task.CompletedTask);
+
+        await _stockingHandler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 5m, StorageLocationId: null, Notes: null) }),
+            CancellationToken.None);
+
+        _inventory.Verify(i => i.AddLocationAsync(
+            It.Is<StorageLocation>(l => l.Name == "Receiving" && l.LocationType == LocationType.Bin && l.IsActive),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _addedContents.Single().LocationId.Should().Be(50);
+    }
+
+    [Fact]
+    public async Task Handle_DifferentLot_CreatesSeparateContentInsteadOfMerging()
+    {
+        var po = GivenStockPo(10m, new Part { Id = 10, PartNumber = "P-10", DefaultBinId = 7 });
+        GivenLocation(7);
+        var heatA = new BinContent { Id = 1, LocationId = 7, EntityType = "part", EntityId = 10, Quantity = 5m, LotNumber = "HEAT-A" };
+        _inventory.Setup(i => i.FindActiveBinContentByPartLocationLotAsync(10, 7, "HEAT-A", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(heatA);
+
+        await _stockingHandler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 3m, StorageLocationId: null, Notes: null, LotNumber: "HEAT-B") }),
+            CancellationToken.None);
+
+        heatA.Quantity.Should().Be(5m);
+        _addedContents.Single().LotNumber.Should().Be("HEAT-B");
+        _addedContents.Single().Quantity.Should().Be(3m);
+        _inventory.Verify(i => i.FindActiveBinContentByPartLocationAsync(
+            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_SameLot_IncrementsExistingContent()
+    {
+        var po = GivenStockPo(10m, new Part { Id = 10, PartNumber = "P-10", DefaultBinId = 7 });
+        GivenLocation(7);
+        var heatA = new BinContent { Id = 1, LocationId = 7, EntityType = "part", EntityId = 10, Quantity = 5m, LotNumber = "HEAT-A" };
+        _inventory.Setup(i => i.FindActiveBinContentByPartLocationLotAsync(10, 7, "HEAT-A", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(heatA);
+
+        await _stockingHandler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 3m, StorageLocationId: null, Notes: null, LotNumber: " HEAT-A ") }),
+            CancellationToken.None);
+
+        heatA.Quantity.Should().Be(8m);
+        _addedContents.Should().BeEmpty();
+        _addedMovements.Single().LotNumber.Should().Be("HEAT-A");
+    }
+
+    [Fact]
+    public async Task Handle_ByWeight_WeighsBaseUnitsNotPurchaseUnits()
+    {
+        var po = PoWith(estimatedFreight: null,
+            (1, 10, qty: 2m, unitPrice: 10m),
+            (2, 11, qty: 24m, unitPrice: 10m));
+        po.Lines.First().Part = new Part { Id = 10, PartNumber = "BAR", WeightEach = 100m };
+        po.Lines.First().PurchaseUnit = new PartPurchaseUnit { Id = 3, PartId = 10, Label = "12 ft bar", ContentQuantity = 12m };
+        po.Lines.ElementAt(1).Part = new Part { Id = 11, PartNumber = "LOOSE", WeightEach = 100m };
+        _repo.Setup(r => r.FindWithDetailsAsync(po.Id, It.IsAny<CancellationToken>())).ReturnsAsync(po);
+
+        await _handler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel>
+            {
+                new(LineId: 1, Quantity: 2m, StorageLocationId: null, Notes: null),
+                new(LineId: 2, Quantity: 24m, StorageLocationId: null, Notes: null),
+            },
+            ActualFreight: 100m,
+            FreightAllocationMethod: FreightAllocationMethod.ByWeight), CancellationToken.None);
+
+        _addedRecords[0].AllocatedFreight.Should().Be(50m);
+        _addedRecords[1].AllocatedFreight.Should().Be(50m);
     }
 }
