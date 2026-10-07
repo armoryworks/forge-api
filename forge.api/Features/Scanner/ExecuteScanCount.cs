@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Inventory;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -52,16 +53,14 @@ public class ExecuteScanCountHandler(
         if (!locationExists)
             throw new KeyNotFoundException($"Location {data.LocationId} not found");
 
-        // Get current recorded quantity
-        var binContent = await db.BinContents
-            .Where(bc => bc.EntityType == "part"
-                && bc.EntityId == data.PartId
-                && bc.LocationId == data.LocationId
-                && bc.RemovedAt == null)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        var recordedQty = binContent?.Quantity ?? 0;
+        var rows = await ScanBinStock.ActiveRowsAsync(db, data.PartId, data.LocationId, cancellationToken);
+        var recordedQty = rows.Sum(r => r.Quantity);
         var delta = data.ActualCount - recordedQty;
+
+        var reserved = rows.Sum(r => r.ReservedQuantity);
+        if (delta < 0 && data.ActualCount < reserved)
+            throw new InvalidOperationException(
+                $"Cannot count {data.ActualCount}: {reserved} unit(s) here are reserved. Release the reservation first.");
 
         // Create scan action log
         var scanLog = new ScanActionLog
@@ -78,46 +77,41 @@ public class ExecuteScanCountHandler(
 
         if (delta != 0)
         {
-            // Update or create bin content
-            if (binContent != null)
+            var adjustments = new List<(string? LotNumber, decimal Delta)>();
+            if (delta < 0)
             {
-                binContent.Quantity = data.ActualCount;
-                if (data.ActualCount == 0)
-                {
-                    binContent.RemovedAt = now;
-                    binContent.RemovedBy = userId;
-                }
+                foreach (var (row, taken) in BinContentDrawDown.Take(rows, -delta, userId, now))
+                    adjustments.Add((row.LotNumber, -taken));
             }
-            else if (data.ActualCount > 0)
+            else
             {
-                binContent = new BinContent
-                {
-                    LocationId = data.LocationId,
-                    EntityType = "part",
-                    EntityId = data.PartId,
-                    Quantity = data.ActualCount,
-                    PlacedBy = userId,
-                    PlacedAt = now,
-                };
-                db.BinContents.Add(binContent);
+                var target = rows.FirstOrDefault(r => r.LotNumber is null)
+                    ?? rows.OrderByDescending(r => r.PlacedAt).ThenByDescending(r => r.Id).FirstOrDefault();
+                if (target is not null)
+                    target.Quantity += delta;
+                else
+                    await ScanBinStock.AddAsync(db, data.PartId, data.LocationId, null, delta, userId, now, cancellationToken);
+                adjustments.Add((target?.LotNumber, delta));
             }
 
             await db.SaveChangesAsync(cancellationToken);
 
-            // Create adjustment movement
-            var movement = new BinMovement
+            foreach (var (lotNumber, change) in adjustments)
             {
-                EntityType = "part",
-                EntityId = data.PartId,
-                Quantity = Math.Abs(delta),
-                FromLocationId = delta < 0 ? data.LocationId : null,
-                ToLocationId = delta > 0 ? data.LocationId : null,
-                MovedBy = userId,
-                MovedAt = now,
-                Reason = BinMovementReason.ScanCycleCount,
-                ScanActionLogId = scanLog.Id,
-            };
-            db.BinMovements.Add(movement);
+                db.BinMovements.Add(new BinMovement
+                {
+                    EntityType = "part",
+                    EntityId = data.PartId,
+                    Quantity = Math.Abs(change),
+                    LotNumber = lotNumber,
+                    FromLocationId = change < 0 ? data.LocationId : null,
+                    ToLocationId = change > 0 ? data.LocationId : null,
+                    MovedBy = userId,
+                    MovedAt = now,
+                    Reason = BinMovementReason.ScanCycleCount,
+                    ScanActionLogId = scanLog.Id,
+                });
+            }
 
             // If variance exceeds threshold, notify all managers/admins
             if (recordedQty > 0)

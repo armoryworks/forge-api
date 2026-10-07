@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Inventory;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -65,27 +66,17 @@ public class ExecuteScanIssueHandler(
         }
 
         // Validate source has sufficient stock
-        var sourceContent = await db.BinContents
-            .Where(bc => bc.EntityType == "part"
-                && bc.EntityId == data.PartId
-                && bc.LocationId == data.FromLocationId
-                && bc.Quantity > 0
-                && bc.RemovedAt == null)
-            .FirstOrDefaultAsync(cancellationToken)
-            ?? throw new KeyNotFoundException(
+        var sourceRows = await ScanBinStock.ActiveRowsAsync(db, data.PartId, data.FromLocationId, cancellationToken);
+        if (!sourceRows.Any(r => r.Quantity > 0))
+            throw new KeyNotFoundException(
                 $"No stock found for part {part.PartNumber} at source location");
 
-        if (sourceContent.Quantity < data.Quantity)
+        var available = sourceRows.Sum(r => r.Quantity - r.ReservedQuantity);
+        if (available < data.Quantity)
             throw new InvalidOperationException(
-                $"Cannot issue {data.Quantity} — only {sourceContent.Quantity} available");
+                $"Cannot issue {data.Quantity} — only {available} available");
 
-        // Decrement source
-        sourceContent.Quantity -= data.Quantity;
-        if (sourceContent.Quantity == 0)
-        {
-            sourceContent.RemovedAt = now;
-            sourceContent.RemovedBy = userId;
-        }
+        var drawn = BinContentDrawDown.Take(sourceRows, data.Quantity, userId, now);
 
         // Create scan action log
         var scanLog = new ScanActionLog
@@ -102,20 +93,21 @@ public class ExecuteScanIssueHandler(
         db.ScanActionLogs.Add(scanLog);
         await db.SaveChangesAsync(cancellationToken);
 
-        // Create bin movement
-        var movement = new BinMovement
+        foreach (var (row, taken) in drawn)
         {
-            EntityType = "part",
-            EntityId = data.PartId,
-            Quantity = data.Quantity,
-            LotNumber = sourceContent.LotNumber,
-            FromLocationId = data.FromLocationId,
-            MovedBy = userId,
-            MovedAt = now,
-            Reason = BinMovementReason.ScanIssue,
-            ScanActionLogId = scanLog.Id,
-        };
-        db.BinMovements.Add(movement);
+            db.BinMovements.Add(new BinMovement
+            {
+                EntityType = "part",
+                EntityId = data.PartId,
+                Quantity = taken,
+                LotNumber = row.LotNumber,
+                FromLocationId = data.FromLocationId,
+                MovedBy = userId,
+                MovedAt = now,
+                Reason = BinMovementReason.ScanIssue,
+                ScanActionLogId = scanLog.Id,
+            });
+        }
         await db.SaveChangesAsync(cancellationToken);
 
         return scanLog.Id;

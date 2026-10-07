@@ -87,28 +87,7 @@ public class ReverseScanActionHandler(
         }
 
         // Create counter-movements based on action type
-        switch (original.ActionType)
-        {
-            case ScanActionType.Move:
-                await ReverseMoveAsync(original, userId, now, cancellationToken);
-                break;
-            case ScanActionType.CycleCount:
-                // Cycle count reversals restore previous quantity — handled by creating opposite adjustment
-                await ReverseCycleCountAsync(original, userId, now, cancellationToken);
-                break;
-            case ScanActionType.Receive:
-                await ReverseReceiveAsync(original, userId, now, cancellationToken);
-                break;
-            case ScanActionType.Issue:
-                await ReverseIssueAsync(original, userId, now, cancellationToken);
-                break;
-            case ScanActionType.Ship:
-                await ReverseShipAsync(original, userId, now, cancellationToken);
-                break;
-            case ScanActionType.Return:
-                await ReverseReturnAsync(original, userId, now, cancellationToken);
-                break;
-        }
+        await ReverseStockAsync(original, userId, now, cancellationToken);
 
         // Mark original as reversed
         original.IsReversed = true;
@@ -133,181 +112,49 @@ public class ReverseScanActionHandler(
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task ReverseMoveAsync(ScanActionLog original, int userId, DateTimeOffset now, CancellationToken ct)
+    private async Task ReverseStockAsync(ScanActionLog original, int userId, DateTimeOffset now, CancellationToken ct)
     {
-        if (!original.FromLocationId.HasValue || !original.ToLocationId.HasValue || !original.PartId.HasValue)
+        if (!original.PartId.HasValue)
             return;
+        var partId = original.PartId.Value;
 
-        // Move stock back: TO → FROM
-        await AdjustBinContentAsync(original.PartId.Value, original.ToLocationId.Value, -original.Quantity, userId, now, ct);
-        await AdjustBinContentAsync(original.PartId.Value, original.FromLocationId.Value, original.Quantity, userId, now, ct);
-
-        db.BinMovements.Add(new BinMovement
-        {
-            EntityType = "part",
-            EntityId = original.PartId.Value,
-            Quantity = original.Quantity,
-            FromLocationId = original.ToLocationId,
-            ToLocationId = original.FromLocationId,
-            MovedBy = userId,
-            MovedAt = now,
-            Reason = BinMovementReason.Reversal,
-        });
-    }
-
-    private async Task ReverseCycleCountAsync(ScanActionLog original, int userId, DateTimeOffset now, CancellationToken ct)
-    {
-        // Find the original movement to get the delta
-        if (!original.PartId.HasValue || !original.FromLocationId.HasValue)
-            return;
-
-        var originalMovement = await db.BinMovements
+        var recorded = await db.BinMovements.AsNoTracking()
             .Where(bm => bm.ScanActionLogId == original.Id)
-            .FirstOrDefaultAsync(ct);
+            .OrderBy(bm => bm.Id)
+            .Select(bm => new { bm.Id, bm.LotNumber, bm.Quantity, bm.FromLocationId, bm.ToLocationId })
+            .ToListAsync(ct);
+        var movements = recorded
+            .Select(bm => ((int?)bm.Id, bm.LotNumber, bm.Quantity, bm.FromLocationId, bm.ToLocationId))
+            .ToList();
 
-        if (originalMovement == null) return;
-
-        // Reverse the delta
-        var locationId = originalMovement.FromLocationId ?? originalMovement.ToLocationId;
-        if (!locationId.HasValue) return;
-
-        var delta = originalMovement.ToLocationId.HasValue
-            ? -originalMovement.Quantity
-            : originalMovement.Quantity;
-
-        await AdjustBinContentAsync(original.PartId.Value, locationId.Value, delta, userId, now, ct);
-
-        db.BinMovements.Add(new BinMovement
+        if (movements.Count == 0)
         {
-            EntityType = "part",
-            EntityId = original.PartId.Value,
-            Quantity = originalMovement.Quantity,
-            FromLocationId = originalMovement.ToLocationId,
-            ToLocationId = originalMovement.FromLocationId,
-            MovedBy = userId,
-            MovedAt = now,
-            Reason = BinMovementReason.Reversal,
-            ReversedMovementId = originalMovement.Id,
-        });
-    }
-
-    private async Task ReverseReceiveAsync(ScanActionLog original, int userId, DateTimeOffset now, CancellationToken ct)
-    {
-        // Remove stock from destination — does NOT undo PO receiving records
-        if (!original.PartId.HasValue || !original.ToLocationId.HasValue)
-            return;
-
-        await AdjustBinContentAsync(original.PartId.Value, original.ToLocationId.Value, -original.Quantity, userId, now, ct);
-
-        db.BinMovements.Add(new BinMovement
-        {
-            EntityType = "part",
-            EntityId = original.PartId.Value,
-            Quantity = original.Quantity,
-            FromLocationId = original.ToLocationId,
-            MovedBy = userId,
-            MovedAt = now,
-            Reason = BinMovementReason.Reversal,
-        });
-    }
-
-    private async Task ReverseIssueAsync(ScanActionLog original, int userId, DateTimeOffset now, CancellationToken ct)
-    {
-        // Return stock to source location
-        if (!original.PartId.HasValue || !original.FromLocationId.HasValue)
-            return;
-
-        await AdjustBinContentAsync(original.PartId.Value, original.FromLocationId.Value, original.Quantity, userId, now, ct);
-
-        db.BinMovements.Add(new BinMovement
-        {
-            EntityType = "part",
-            EntityId = original.PartId.Value,
-            Quantity = original.Quantity,
-            ToLocationId = original.FromLocationId,
-            MovedBy = userId,
-            MovedAt = now,
-            Reason = BinMovementReason.Reversal,
-        });
-    }
-
-    private async Task ReverseShipAsync(ScanActionLog original, int userId, DateTimeOffset now, CancellationToken ct)
-    {
-        // Return stock to source location
-        if (!original.PartId.HasValue || !original.FromLocationId.HasValue)
-            return;
-
-        await AdjustBinContentAsync(original.PartId.Value, original.FromLocationId.Value, original.Quantity, userId, now, ct);
-
-        db.BinMovements.Add(new BinMovement
-        {
-            EntityType = "part",
-            EntityId = original.PartId.Value,
-            Quantity = original.Quantity,
-            ToLocationId = original.FromLocationId,
-            MovedBy = userId,
-            MovedAt = now,
-            Reason = BinMovementReason.Reversal,
-        });
-    }
-
-    private async Task ReverseReturnAsync(ScanActionLog original, int userId, DateTimeOffset now, CancellationToken ct)
-    {
-        // Remove returned stock from destination
-        if (!original.PartId.HasValue || !original.ToLocationId.HasValue)
-            return;
-
-        await AdjustBinContentAsync(original.PartId.Value, original.ToLocationId.Value, -original.Quantity, userId, now, ct);
-
-        db.BinMovements.Add(new BinMovement
-        {
-            EntityType = "part",
-            EntityId = original.PartId.Value,
-            Quantity = original.Quantity,
-            FromLocationId = original.ToLocationId,
-            MovedBy = userId,
-            MovedAt = now,
-            Reason = BinMovementReason.Reversal,
-        });
-    }
-
-    private async Task AdjustBinContentAsync(int partId, int locationId, decimal delta, int userId, DateTimeOffset now, CancellationToken ct)
-    {
-        var content = await db.BinContents
-            .Where(bc => bc.EntityType == "part"
-                && bc.EntityId == partId
-                && bc.LocationId == locationId
-                && bc.RemovedAt == null)
-            .FirstOrDefaultAsync(ct);
-
-        if (delta > 0)
-        {
-            if (content != null)
-            {
-                content.Quantity += delta;
-            }
-            else
-            {
-                db.BinContents.Add(new BinContent
-                {
-                    LocationId = locationId,
-                    EntityType = "part",
-                    EntityId = partId,
-                    Quantity = delta,
-                    PlacedBy = userId,
-                    PlacedAt = now,
-                });
-            }
+            if (original.ActionType == ScanActionType.CycleCount)
+                return;
+            movements.Add((null, null, original.Quantity, original.FromLocationId, original.ToLocationId));
         }
-        else if (delta < 0 && content != null)
+
+        foreach (var (movementId, lotNumber, movedQuantity, fromLocationId, toLocationId) in movements)
         {
-            content.Quantity += delta; // delta is negative
-            if (content.Quantity <= 0)
+            var quantity = Math.Abs(movedQuantity);
+            if (toLocationId is int to)
+                await ScanBinStock.RemoveAsync(db, partId, to, lotNumber, quantity, userId, now, ct);
+            if (fromLocationId is int from)
+                await ScanBinStock.AddAsync(db, partId, from, lotNumber, quantity, userId, now, ct);
+
+            db.BinMovements.Add(new BinMovement
             {
-                content.Quantity = 0;
-                content.RemovedAt = now;
-                content.RemovedBy = userId;
-            }
+                EntityType = "part",
+                EntityId = partId,
+                Quantity = quantity,
+                LotNumber = lotNumber,
+                FromLocationId = toLocationId,
+                ToLocationId = fromLocationId,
+                MovedBy = userId,
+                MovedAt = now,
+                Reason = BinMovementReason.Reversal,
+                ReversedMovementId = movementId,
+            });
         }
     }
 }
