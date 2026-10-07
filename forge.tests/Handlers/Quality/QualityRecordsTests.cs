@@ -143,6 +143,36 @@ public class QualityRecordsTests(CapabilityTestWebApplicationFactory factory)
     }
 
     [Fact]
+    public async Task A_scan_station_pass_on_a_template_inspection_needs_the_checklist_results()
+    {
+        var template = new QcChecklistTemplate { Name = "Scan station" };
+        template.Items.Add(new QcChecklistItem { Description = "Visual", SortOrder = 1, IsRequired = true });
+        template.Items.Add(new QcChecklistItem { Description = "Fit", SortOrder = 2, IsRequired = true });
+        _db.QcChecklistTemplates.Add(template);
+        await _db.SaveChangesAsync();
+        var accessor = new Mock<IHttpContextAccessor>();
+        accessor.Setup(a => a.HttpContext).Returns(new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "7")], "Test")),
+        });
+        var created = await new CreateQcInspectionHandler(_db, accessor.Object).Handle(
+            new CreateQcInspectionCommand(new CreateQcInspectionRequestModel(null, null, template.Id, null, null)),
+            CancellationToken.None);
+
+        var statusOnly = () => Update(created.Id, "Passed");
+        await statusOnly.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Visual*");
+
+        var attested = created.Results
+            .Select(r => new UpdateQcInspectionResultModel(r.Id, r.ChecklistItemId, r.Description, true, null, null))
+            .ToList();
+        var result = await Update(created.Id, "Passed", attested);
+
+        result.Status.Should().Be("Passed");
+        result.Results.Select(r => r.Id).Should().BeEquivalentTo(created.Results.Select(r => r.Id));
+        result.Results.Should().OnlyContain(r => r.Passed);
+    }
+
+    [Fact]
     public async Task A_second_concurrent_completion_is_refused_and_publishes_nothing()
     {
         var databaseName = $"TestDb_{Guid.NewGuid()}";
