@@ -15,6 +15,7 @@ public class CreateSalesOrderHandlerTests
     private readonly Mock<ICustomerRepository> _customerRepo = new();
     private readonly Mock<IPartRepository> _partRepo = new();
     private readonly Mock<IBarcodeService> _barcodeService = new();
+    private readonly Mock<ICustomerAddressRepository> _addressRepo = new();
     private readonly CreateSalesOrderHandler _handler;
 
     private readonly Faker _faker = new();
@@ -27,9 +28,12 @@ public class CreateSalesOrderHandlerTests
         _partRepo
             .Setup(r => r.FindAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((int id, CancellationToken _) => new Part { Id = id, Status = PartStatus.Active });
+        _addressRepo
+            .Setup(r => r.GetByCustomerAsync(It.IsAny<int>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()))
+            .ReturnsAsync([]);
 
         _handler = new CreateSalesOrderHandler(
-            _orderRepo.Object, _customerRepo.Object, _partRepo.Object, _barcodeService.Object);
+            _orderRepo.Object, _customerRepo.Object, _partRepo.Object, _barcodeService.Object, _addressRepo.Object);
     }
 
     [Fact]

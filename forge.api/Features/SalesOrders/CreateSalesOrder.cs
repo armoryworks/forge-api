@@ -1,4 +1,5 @@
 using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
@@ -47,6 +48,7 @@ public class CreateSalesOrderHandler(
     ICustomerRepository customerRepo,
     IPartRepository partRepo,
     IBarcodeService barcodeService,
+    ICustomerAddressRepository addressRepo,
     // Optional/null-default so isolated unit-test constructions stay valid; DI supplies both.
     ISystemSettingRepository? systemSettings = null,
     IBusinessIdentifierService? identifiers = null)
@@ -64,6 +66,11 @@ public class CreateSalesOrderHandler(
 
         var orderNumber = await ResolveOrderNumberAsync(request, cancellationToken);
 
+        var shippingAddressId = await ResolveAddressIdAsync(
+            request.CustomerId, request.ShippingAddressId, AddressType.Shipping, "shippingAddressId", cancellationToken);
+        var billingAddressId = await ResolveAddressIdAsync(
+            request.CustomerId, request.BillingAddressId, AddressType.Billing, "billingAddressId", cancellationToken);
+
         CreditTerms? creditTerms = request.CreditTerms != null
             ? Enum.Parse<CreditTerms>(request.CreditTerms, true)
             : null;
@@ -73,8 +80,8 @@ public class CreateSalesOrderHandler(
             OrderNumber = orderNumber,
             CustomerId = request.CustomerId,
             QuoteId = request.QuoteId,
-            ShippingAddressId = request.ShippingAddressId,
-            BillingAddressId = request.BillingAddressId,
+            ShippingAddressId = shippingAddressId,
+            BillingAddressId = billingAddressId,
             CreditTerms = creditTerms,
             RequestedDeliveryDate = request.RequestedDeliveryDate,
             CustomerPO = request.CustomerPO,
@@ -139,6 +146,33 @@ public class CreateSalesOrderHandler(
         }
 
         return await repo.GenerateNextOrderNumberAsync(ct);
+    }
+
+    private async Task<int?> ResolveAddressIdAsync(
+        int customerId, int? suppliedId, AddressType addressType, string fieldPath, CancellationToken ct)
+    {
+        if (suppliedId is int id)
+        {
+            var address = await addressRepo.FindAsync(id, ct);
+            if (address is null || address.CustomerId != customerId)
+            {
+                throw new ValidationException(new[]
+                {
+                    new ValidationFailure(fieldPath, $"Address {id} does not belong to this customer.")
+                    {
+                        AttemptedValue = id,
+                    },
+                });
+            }
+            return id;
+        }
+
+        var defaults = (await addressRepo.GetByCustomerAsync(customerId, ct))
+            .Where(a => a.IsActive && a.IsDefault)
+            .ToList();
+        var typeName = addressType.ToString();
+        return (defaults.FirstOrDefault(a => a.AddressType == typeName)
+            ?? defaults.FirstOrDefault(a => a.AddressType == nameof(AddressType.Both)))?.Id;
     }
 
     private async Task<bool> ManualOrderNumbersAllowedAsync(CancellationToken ct)
