@@ -37,4 +37,5 @@ public record RecallAffectedShipmentModel(
     string CustomerName,
     decimal AffectedQuantity,
     DateTimeOffset? ShippedDate,
-    string? TrackingNumber);
+    string? TrackingNumber,
+    bool IsApproximate);

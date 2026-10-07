@@ -12,7 +12,7 @@ namespace Forge.Api.Controllers;
 /// <summary>
 /// CAP-QC-RECALL — lot-based recalls. Initiating a recall walks the lot-consumption genealogy
 /// forward from the recalled lot to every affected produced lot, quarantines matching on-hand,
-/// resolves the customers/shipments that received affected lots (SO-line granularity), and
+/// resolves the customers/shipments that received affected lots (lot-stamped Ship movements), and
 /// stores it as an immutable snapshot.
 /// </summary>
 [ApiController]

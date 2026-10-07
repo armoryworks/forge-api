@@ -128,19 +128,34 @@ public class GetLotTraceabilityHandler(AppDbContext db)
             if (row.JobNumber != null)
                 events.Add(new LotTraceEventModel("Job", row.JobNumber, row.JobTitle ?? string.Empty, row.CreatedAt, row.Quantity));
             if (row.RunNumber != null)
-                events.Add(new LotTraceEventModel("ProductionRun", row.RunNumber, row.RunStatus ?? string.Empty, row.CreatedAt, row.Quantity));
+                events.Add(new LotTraceEventModel("ProductionRun", row.RunNumber, row.RunStatus ?? string.Empty, row.CreatedAt, row.Quantity, row.RunStatus));
             if (row.PoNumber != null)
                 events.Add(new LotTraceEventModel("PurchaseOrder", row.PoNumber, row.VendorName ?? string.Empty, row.CreatedAt, row.Quantity));
         }
         events.AddRange(binRows.Select(b =>
             new LotTraceEventModel("BinLocation", b.Name, string.Empty, b.PlacedAt, b.Quantity)));
         events.AddRange(inspections.Select(i =>
-            new LotTraceEventModel("QcInspection", $"QC #{i.Id}", $"{i.Status} — {i.InspectorName}", i.CreatedAt, null)));
+        {
+            var actor = string.IsNullOrWhiteSpace(i.InspectorName) ? null : i.InspectorName.Trim();
+            var description = actor is null ? i.Status : $"{i.Status} — {actor}";
+            return new LotTraceEventModel("QcInspection", $"QC #{i.Id}", description, i.CreatedAt, null, i.Status, actor);
+        }));
         events.AddRange(consumedLots.Select(c =>
             new LotTraceEventModel("ConsumedInput", c.LotNumber, c.PartNumber, c.CreatedAt, c.Quantity)));
         events.AddRange(producedLots.Select(p =>
             new LotTraceEventModel("ConsumedInto", p.LotNumber, p.PartNumber, p.CreatedAt, p.Quantity)));
         events.Sort((a, b) => a.Date.CompareTo(b.Date));
+
+        var shippedTo = (await LotShipmentResolver.ForLotsAsync(db, [lot.LotNumber], cancellationToken))
+            .GroupBy(r => new { r.ShipmentId, r.CustomerId })
+            .Select(g => new LotTraceShipmentModel(
+                g.Key.ShipmentId,
+                g.First().ShipmentNumber,
+                g.Key.CustomerId,
+                g.First().CustomerName,
+                g.First().ShippedDate,
+                g.Sum(r => r.Quantity)))
+            .ToList();
 
         return new LotTraceabilityResponseModel(
             lot.LotNumber,
@@ -156,6 +171,7 @@ public class GetLotTraceabilityHandler(AppDbContext db)
             lot.SupplierLotNumber,
             events,
             consumedLots,
-            producedLots);
+            producedLots,
+            shippedTo);
     }
 }

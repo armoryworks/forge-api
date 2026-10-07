@@ -1,10 +1,9 @@
 namespace Forge.Core.Entities;
 
 /// <summary>
-/// A shipment (and the customer who received it) that carried an affected lot, resolved via
-/// the lot's job → sales-order-line → shipment-line chain. Granularity is the sales-order
-/// line, not the specific lot — ShipmentLine has no lot linkage — so this identifies the
-/// customer/date/tracking to notify; the exact affected sub-quantity is a best estimate.
+/// A shipment (and the customer who received it) that carried an affected lot, resolved from the
+/// Ship bin movements stamped with that lot; the quantity is net of reversals. Ship movements that
+/// carried no lot fall back to the lot's job → sales-order-line chain, and those rows are approximate.
 /// </summary>
 public class RecallAffectedShipment : BaseAuditableEntity
 {

@@ -17,4 +17,5 @@ public record LotTraceabilityResponseModel(
     // lots that went INTO this lot (backward trace); ProducedLots are the output
     // lots this lot was consumed INTO (forward trace — the recall blast radius).
     List<LotConsumptionEdgeModel> ConsumedLots,
-    List<LotConsumptionEdgeModel> ProducedLots);
+    List<LotConsumptionEdgeModel> ProducedLots,
+    List<LotTraceShipmentModel> ShippedTo);

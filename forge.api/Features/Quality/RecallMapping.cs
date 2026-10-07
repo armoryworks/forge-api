@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Lots;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -13,12 +14,20 @@ internal static class RecallMapping
     {
         var recall = await db.Recalls
             .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(r => r.DeletedAt == null)
             .Include(r => r.InitiatedLot)
             .Include(r => r.AffectedLots).ThenInclude(al => al.Lot).ThenInclude(l => l.Part)
             .Include(r => r.AffectedShipments).ThenInclude(s => s.Shipment)
             .Include(r => r.AffectedShipments).ThenInclude(s => s.Customer)
             .FirstOrDefaultAsync(r => r.Id == recallId, ct)
             ?? throw new KeyNotFoundException($"Recall {recallId} not found.");
+
+        var soLineIds = await InitiateRecallHandler.AffectedSalesOrderLineIdsAsync(
+            db, recall.AffectedLots.Select(al => al.JobId), ct);
+        var approximateShipmentIds = (await LotShipmentResolver.ForUnlottedSalesOrderLinesAsync(db, soLineIds, ct))
+            .Select(r => r.ShipmentId)
+            .ToHashSet();
 
         return new RecallDetailResponseModel(
             recall.Id,
@@ -40,7 +49,8 @@ internal static class RecallMapping
             recall.AffectedShipments
                 .Select(s => new RecallAffectedShipmentModel(
                     s.ShipmentId, s.Shipment.ShipmentNumber, s.CustomerId, s.Customer.Name,
-                    s.AffectedQuantity, s.ShippedDate, s.TrackingNumber))
+                    s.AffectedQuantity, s.ShippedDate, s.TrackingNumber,
+                    approximateShipmentIds.Contains(s.ShipmentId)))
                 .ToList(),
             recall.CreatedAt);
     }

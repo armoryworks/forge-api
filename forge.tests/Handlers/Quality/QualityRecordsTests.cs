@@ -23,8 +23,9 @@ using Forge.Tests.Helpers;
 namespace Forge.Tests.Handlers.Quality;
 
 /// <summary>
-/// Quality records stay trustworthy: a completed inspection is locked, and a lot with
-/// traceability history cannot be deleted.
+/// Quality records stay trustworthy: a completed inspection is locked, a lot with
+/// traceability history cannot be deleted, and the lot trace lists the customers the
+/// lot actually shipped to (from the lot-stamped Ship movements).
 /// </summary>
 [Collection(CapabilityTestCollection.Name)]
 public class QualityRecordsTests(CapabilityTestWebApplicationFactory factory)
@@ -193,6 +194,77 @@ public class QualityRecordsTests(CapabilityTestWebApplicationFactory factory)
         var stored = await _db.LotRecords.IgnoreQueryFilters().AsNoTracking().SingleAsync(l => l.Id == lot.Id);
         stored.DeletedAt.Should().Be(Now);
         _db.ActivityLogs.Should().Contain(a => a.EntityType == "Lot" && a.EntityId == lot.Id && a.Action == "deleted");
+    }
+
+    private async Task<(LotRecord Lot, ShipmentLine Line)> SeedShippedLotAsync()
+    {
+        var part = new Part { PartNumber = "TRACE-SHIP", Name = "Trace ship" };
+        _db.Parts.Add(part);
+        var customer = new Customer { Name = "Downstream Buyer" };
+        _db.Customers.Add(customer);
+        await _db.SaveChangesAsync();
+        var so = new SalesOrder { CustomerId = customer.Id, OrderNumber = "SO-TRACE" };
+        _db.SalesOrders.Add(so);
+        await _db.SaveChangesAsync();
+        var shipment = new Shipment { ShipmentNumber = "SHP-TRACE", SalesOrderId = so.Id, ShippedDate = Now };
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+        var line = new ShipmentLine { ShipmentId = shipment.Id, Quantity = 4 };
+        _db.ShipmentLines.Add(line);
+        var lot = new LotRecord { LotNumber = "LOT-SHIPPED", PartId = part.Id, Quantity = 10 };
+        _db.LotRecords.Add(lot);
+        await _db.SaveChangesAsync();
+        return (lot, line);
+    }
+
+    [Fact]
+    public async Task Trace_lists_the_customers_the_lot_shipped_to_net_of_reversals()
+    {
+        var (lot, line) = await SeedShippedLotAsync();
+        var ship = new BinMovement
+        {
+            EntityType = "ShipmentLine", EntityId = line.Id, Quantity = -4, LotNumber = lot.LotNumber,
+            Reason = BinMovementReason.Ship, MovedAt = Now,
+        };
+        _db.BinMovements.Add(ship);
+        await _db.SaveChangesAsync();
+        _db.BinMovements.Add(new BinMovement
+        {
+            EntityType = "part", EntityId = lot.PartId, Quantity = 1, Reason = BinMovementReason.Reversal,
+            ReversedMovementId = ship.Id, MovedAt = Now,
+        });
+        await _db.SaveChangesAsync();
+
+        var result = await new GetLotTraceabilityHandler(_db)
+            .Handle(new GetLotTraceabilityQuery(lot.LotNumber), CancellationToken.None);
+
+        var shipped = result.ShippedTo.Should().ContainSingle().Subject;
+        shipped.CustomerName.Should().Be("Downstream Buyer");
+        shipped.ShipmentNumber.Should().Be("SHP-TRACE");
+        shipped.ShippedDate.Should().Be(Now);
+        shipped.Quantity.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Trace_sends_inspection_and_run_status_as_codes_with_an_optional_actor()
+    {
+        var (lot, _) = await SeedShippedLotAsync();
+        _db.QcInspections.Add(new QcInspection { LotNumber = lot.LotNumber, InspectorId = 999, Status = "InProgress" });
+        var run = new ProductionRun { JobId = 1, PartId = lot.PartId, RunNumber = "RUN-TRACE", Status = ProductionRunStatus.Completed };
+        _db.ProductionRuns.Add(run);
+        await _db.SaveChangesAsync();
+        lot.ProductionRunId = run.Id;
+        await _db.SaveChangesAsync();
+
+        var result = await new GetLotTraceabilityHandler(_db)
+            .Handle(new GetLotTraceabilityQuery(lot.LotNumber), CancellationToken.None);
+
+        var qc = result.Events.Single(e => e.Type == "QcInspection");
+        qc.StatusCode.Should().Be("InProgress");
+        qc.Actor.Should().BeNull();
+        qc.Description.Should().Be("InProgress");
+        result.Events.Single(e => e.Type == "ProductionRun").StatusCode.Should().Be("Completed");
+        result.ShippedTo.Should().BeEmpty();
     }
 
     private HttpClient Client(string role)

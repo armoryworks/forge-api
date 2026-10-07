@@ -7,8 +7,8 @@ namespace Forge.Core.Entities;
 ///
 /// Initiated on a lot (typically a raw/supplier lot). The initiate handler walks the
 /// <c>lot_consumptions</c> genealogy FORWARD to every produced lot that contains the
-/// recalled material, resolves the shipments/customers that received them (at
-/// sales-order-line granularity), quarantines matching on-hand bin contents, and freezes
+/// recalled material, resolves the shipments/customers that received them (from the
+/// lot-stamped Ship bin movements), quarantines matching on-hand bin contents, and freezes
 /// the result as this snapshot. Mirrors the <see cref="BomRevision"/> parent+children
 /// immutable pattern — only <see cref="Status"/>/<see cref="ResolvedAt"/> change afterward.
 /// </summary>

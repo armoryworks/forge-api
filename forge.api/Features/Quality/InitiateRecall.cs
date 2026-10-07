@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Lots;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -16,8 +17,8 @@ namespace Forge.Api.Features.Quality;
 /// CAP-QC-RECALL — initiates a lot-based recall. Walks the lot_consumptions genealogy FORWARD
 /// from the recalled lot to every downstream produced lot, quarantines matching on-hand bin
 /// contents (Stored → QcHold), resolves the shipments/customers that received affected lots
-/// (via job → sales-order-line → shipment-line, i.e. SO-line granularity), and freezes it all
-/// as an immutable Recall snapshot.
+/// (from the lot-stamped Ship bin movements; the job → sales-order-line chain only for Ship
+/// movements without a lot, flagged approximate), and freezes it all as an immutable Recall snapshot.
 /// </summary>
 public record InitiateRecallCommand(InitiateRecallRequestModel Data) : IRequest<RecallDetailResponseModel>;
 
@@ -40,6 +41,7 @@ public class InitiateRecallHandler(AppDbContext db, IHttpContextAccessor httpCon
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         var rootLot = await db.LotRecords
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(l => l.Id == data.RecalledLotId, cancellationToken)
             ?? throw new KeyNotFoundException($"Lot {data.RecalledLotId} not found.");
 
@@ -48,6 +50,7 @@ public class InitiateRecallHandler(AppDbContext db, IHttpContextAccessor httpCon
         affectedLotIds.Add(rootLot.Id);
 
         var affectedLots = await db.LotRecords
+            .IgnoreQueryFilters()
             .Where(l => affectedLotIds.Contains(l.Id))
             .ToListAsync(cancellationToken);
 
@@ -71,29 +74,12 @@ public class InitiateRecallHandler(AppDbContext db, IHttpContextAccessor httpCon
             .GroupBy(bc => bc.LotNumber!)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
 
-        // 3) Resolve affected shipments/customers: lot → job → sales-order-line → shipment-line.
-        var affectedJobIds = affectedLots
-            .Where(l => l.JobId != null).Select(l => l.JobId!.Value).Distinct().ToList();
-        var soLineIds = await db.Jobs
-            .Where(j => affectedJobIds.Contains(j.Id) && j.SalesOrderLineId != null)
-            .Select(j => j.SalesOrderLineId!.Value)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+        // 3) Resolve affected shipments/customers from lot-stamped Ship movements (SO-line chain only for unlotted ones).
+        var exactShipments = await LotShipmentResolver.ForLotsAsync(db, affectedLotNumbers, cancellationToken);
+        var soLineIds = await AffectedSalesOrderLineIdsAsync(db, affectedLots.Select(l => l.JobId), cancellationToken);
+        var approximateShipments = await LotShipmentResolver.ForUnlottedSalesOrderLinesAsync(db, soLineIds, cancellationToken);
 
-        var shipmentRows = await db.ShipmentLines
-            .Where(sl => sl.SalesOrderLineId != null && soLineIds.Contains(sl.SalesOrderLineId.Value))
-            .Select(sl => new
-            {
-                sl.ShipmentId,
-                sl.Shipment.ShipmentNumber,
-                sl.Shipment.ShippedDate,
-                sl.Shipment.TrackingNumber,
-                sl.Shipment.SalesOrder.CustomerId,
-                sl.Quantity,
-            })
-            .ToListAsync(cancellationToken);
-
-        var shipmentGroups = shipmentRows
+        var shipmentGroups = exactShipments.Concat(approximateShipments)
             .GroupBy(r => new { r.ShipmentId, r.CustomerId })
             .Select(g => new
             {
@@ -148,6 +134,21 @@ public class InitiateRecallHandler(AppDbContext db, IHttpContextAccessor httpCon
         await db.SaveChangesAsync(cancellationToken);
 
         return await RecallMapping.LoadDetailAsync(db, recall.Id, cancellationToken);
+    }
+
+    internal static async Task<List<int>> AffectedSalesOrderLineIdsAsync(
+        AppDbContext db, IEnumerable<int?> jobIds, CancellationToken ct)
+    {
+        var ids = jobIds.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
+        if (ids.Count == 0)
+            return [];
+
+        return await db.Jobs
+            .IgnoreQueryFilters()
+            .Where(j => ids.Contains(j.Id) && j.SalesOrderLineId != null)
+            .Select(j => j.SalesOrderLineId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
     }
 
     /// <summary>BFS over forward edges (ConsumedLotId == node → ProducedLotId) to collect the blast radius.</summary>
