@@ -112,6 +112,17 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("{id:int}/create-missing-jobs")]
+    [Authorize(Roles = "Admin,Manager,PM,Engineer,ProductionWorker,OfficeManager")]
+    [RequiresCapability("CAP-MFG-WO-RELEASE")]
+    public async Task<ActionResult<CreateJobsForSalesOrderLinesResponseModel>> CreateMissingJobs(
+        int id, [FromQuery] int? lineId, CancellationToken ct)
+    {
+        var lineIds = lineId is int single ? new[] { single } : null;
+        var result = await mediator.Send(new CreateJobsForSalesOrderLinesCommand(id, lineIds), ct);
+        return Ok(result);
+    }
+
     // ─── Customer acceptance (production gate; behavior gated by CAP-O2C-SO-ACCEPTANCE) ───
 
     [HttpGet("{id:int}/acceptance")]
