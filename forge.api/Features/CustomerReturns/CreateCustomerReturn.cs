@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.DomainEvents;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -30,7 +31,7 @@ public class CreateCustomerReturnValidator : AbstractValidator<CreateCustomerRet
     }
 }
 
-public class CreateCustomerReturnHandler(AppDbContext db, IMediator mediator, IHttpContextAccessor httpContext)
+public class CreateCustomerReturnHandler(AppDbContext db, IMediator mediator, IHttpContextAccessor httpContext, IJobRepository jobRepo)
     : IRequestHandler<CreateCustomerReturnCommand, CustomerReturnListItemModel>
 {
     public async Task<CustomerReturnListItemModel> Handle(CreateCustomerReturnCommand request, CancellationToken ct)
@@ -73,18 +74,11 @@ public class CreateCustomerReturnHandler(AppDbContext db, IMediator mediator, IH
                 .OrderBy(s => s.SortOrder)
                 .First();
 
-            // Generate next job number
-            var lastJobNumber = await db.Jobs
-                .OrderByDescending(j => j.Id)
-                .Select(j => j.JobNumber)
-                .FirstOrDefaultAsync(ct);
-            var nextJobSeq = 1;
-            if (lastJobNumber != null && lastJobNumber.StartsWith("JOB-") && int.TryParse(lastJobNumber[4..], out var jobSeq))
-                nextJobSeq = jobSeq + 1;
+            var reworkJobNumber = await jobRepo.GenerateNextJobNumberAsync(ct);
 
             reworkJob = new Job
             {
-                JobNumber = $"JOB-{nextJobSeq:D5}",
+                JobNumber = reworkJobNumber,
                 Title = $"[Rework] {originalJob.Title}",
                 Description = $"Rework for RMA {returnNumber}. Reason: {request.Reason}",
                 TrackTypeId = originalJob.TrackTypeId,
@@ -93,6 +87,11 @@ public class CreateCustomerReturnHandler(AppDbContext db, IMediator mediator, IH
                 Priority = JobPriority.High,
                 AssigneeId = originalJob.AssigneeId,
             };
+            reworkJob.ActivityLogs.Add(new JobActivityLog
+            {
+                Action = ActivityAction.Created,
+                Description = $"Rework job {reworkJobNumber} created for RMA {returnNumber}.",
+            });
             db.Jobs.Add(reworkJob);
             await db.SaveChangesAsync(ct);
 

@@ -153,7 +153,6 @@
     "forge.api/Features/Scanner/GetScanLog.cs": 1,
     "forge.api/Features/ScheduledTasks/CreateScheduledTask.cs": 1,
     "forge.api/Features/ScheduledTasks/DeleteScheduledTask.cs": 1,
-    "forge.api/Features/ScheduledTasks/RunScheduledTask.cs": 1,
     "forge.api/Features/Scheduling/DeleteShift.cs": 1,
     "forge.api/Features/Scheduling/DeleteWorkCenter.cs": 1,
     "forge.api/Features/Shipments/BillOfLadingPdfDocument.cs": 1,

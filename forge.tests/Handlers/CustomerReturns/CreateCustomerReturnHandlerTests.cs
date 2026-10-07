@@ -7,6 +7,7 @@ using Moq;
 using Forge.Api.Features.CustomerReturns;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.CustomerReturns;
@@ -15,6 +16,7 @@ public class CreateCustomerReturnHandlerTests
 {
     private readonly Faker _faker = new();
     private readonly Mock<IMediator> _mediator = new();
+    private readonly Mock<IJobRepository> _jobRepo = new();
     private readonly IHttpContextAccessor _httpContext;
 
     public CreateCustomerReturnHandlerTests()
@@ -25,6 +27,7 @@ public class CreateCustomerReturnHandlerTests
         var mock = new Mock<IHttpContextAccessor>();
         mock.Setup(x => x.HttpContext).Returns(httpContext);
         _httpContext = mock.Object;
+        _jobRepo.Setup(r => r.GenerateNextJobNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("J-1042");
     }
 
     private async Task<(Customer customer, Job job, Data.Context.AppDbContext db)> SeedTestDataAsync()
@@ -70,7 +73,7 @@ public class CreateCustomerReturnHandlerTests
         var (customer, job, db) = await SeedTestDataAsync();
         using var _ = db;
 
-        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext);
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object);
         var returnDate = DateTime.UtcNow;
 
         var command = new CreateCustomerReturnCommand(
@@ -99,7 +102,7 @@ public class CreateCustomerReturnHandlerTests
         var (customer, job, db) = await SeedTestDataAsync();
         using var _ = db;
 
-        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext);
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object);
 
         var command = new CreateCustomerReturnCommand(
             customer.Id, job.Id, "Wrong dimensions", null, DateTime.UtcNow, true);
@@ -109,7 +112,7 @@ public class CreateCustomerReturnHandlerTests
 
         // Assert
         result.ReworkJobId.Should().NotBeNull();
-        result.ReworkJobNumber.Should().NotBeNull();
+        result.ReworkJobNumber.Should().Be("J-1042");
         result.Status.Should().Be("ReworkOrdered");
 
         // Verify rework job was created
@@ -119,6 +122,8 @@ public class CreateCustomerReturnHandlerTests
         reworkJob.Priority.Should().Be(JobPriority.High);
         reworkJob.CustomerId.Should().Be(customer.Id);
         reworkJob.TrackTypeId.Should().Be(job.TrackTypeId);
+        (await db.JobActivityLogs.AnyAsync(l => l.JobId == reworkJob.Id && l.Action == ActivityAction.Created))
+            .Should().BeTrue();
 
         // Verify job link was created
         var link = await db.JobLinks.FirstOrDefaultAsync(l =>
@@ -134,7 +139,7 @@ public class CreateCustomerReturnHandlerTests
         var (_, job, db) = await SeedTestDataAsync();
         using var _ = db;
 
-        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext);
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object);
         var nonExistentCustomerId = 9999;
 
         var command = new CreateCustomerReturnCommand(
@@ -155,7 +160,7 @@ public class CreateCustomerReturnHandlerTests
         var (customer, _, db) = await SeedTestDataAsync();
         using var _ = db;
 
-        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext);
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object);
         var nonExistentJobId = 9999;
 
         var command = new CreateCustomerReturnCommand(
@@ -176,7 +181,7 @@ public class CreateCustomerReturnHandlerTests
         var (customer, job, db) = await SeedTestDataAsync();
         using var _ = db;
 
-        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext);
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object);
 
         // Create first return
         var command1 = new CreateCustomerReturnCommand(

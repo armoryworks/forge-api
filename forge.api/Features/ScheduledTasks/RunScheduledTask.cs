@@ -1,13 +1,15 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.ScheduledTasks;
 
 public record RunScheduledTaskCommand(int Id) : IRequest<int>;
 
-public class RunScheduledTaskHandler(AppDbContext db) : IRequestHandler<RunScheduledTaskCommand, int>
+public class RunScheduledTaskHandler(AppDbContext db, IJobRepository jobRepo, IClock clock) : IRequestHandler<RunScheduledTaskCommand, int>
 {
     public async Task<int> Handle(RunScheduledTaskCommand request, CancellationToken ct)
     {
@@ -20,9 +22,7 @@ public class RunScheduledTaskHandler(AppDbContext db) : IRequestHandler<RunSched
         var firstStage = task.TrackType.Stages.OrderBy(s => s.SortOrder).FirstOrDefault()
             ?? throw new InvalidOperationException("Track type has no stages.");
 
-        // Generate job number
-        var jobCount = await db.Jobs.CountAsync(ct);
-        var jobNumber = $"JOB-{(jobCount + 1):D5}";
+        var jobNumber = await jobRepo.GenerateNextJobNumberAsync(ct);
 
         var job = new Job
         {
@@ -35,10 +35,15 @@ public class RunScheduledTaskHandler(AppDbContext db) : IRequestHandler<RunSched
             IsInternal = true,
             InternalProjectTypeId = task.InternalProjectTypeId,
         };
+        job.ActivityLogs.Add(new JobActivityLog
+        {
+            Action = ActivityAction.Created,
+            Description = $"Job {jobNumber} created from scheduled task {task.Name}.",
+        });
 
         db.Jobs.Add(job);
 
-        task.LastRunAt = DateTimeOffset.UtcNow;
+        task.LastRunAt = clock.UtcNow;
         await db.SaveChangesAsync(ct);
 
         return job.Id;
