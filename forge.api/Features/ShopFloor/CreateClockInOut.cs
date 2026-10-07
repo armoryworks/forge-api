@@ -5,6 +5,7 @@ using Forge.Api.Features.TimeTracking;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.ShopFloor;
 
@@ -50,8 +51,14 @@ public class ClockInOutHandler(
 
         StoppedTimerResponseModel? stopped = null;
         if (definition.StatusMapping == "Out")
-            stopped = await mediator.Send(new StopActiveTimerCommand(request.UserId, timestamp), ct);
+            stopped = await mediator.Send(
+                new StopActiveTimerCommand(request.UserId, timestamp, Reason: "clocked out"), ct);
 
+        await db.SaveChangesAsync(ct);
+
+        db.LogActivityAt("clock-event-recorded",
+            ClockEventActivity.Describe(definition, clockEvent.Source, stopped),
+            ("ClockEvent", clockEvent.Id));
         await db.SaveChangesAsync(ct);
 
         return new ClockInOutResponseModel(clockEvent.Id, stopped?.JobNumber);

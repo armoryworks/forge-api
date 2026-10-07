@@ -13,7 +13,7 @@ using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.TimeTracking;
 
-public record StopActiveTimerCommand(int UserId, DateTimeOffset StopAt, string? Notes = null)
+public record StopActiveTimerCommand(int UserId, DateTimeOffset StopAt, string? Notes = null, string? Reason = null)
     : IRequest<StoppedTimerResponseModel?>;
 
 public class StopActiveTimerHandler(
@@ -39,9 +39,10 @@ public class StopActiveTimerHandler(
         if (!string.IsNullOrWhiteSpace(request.Notes))
             active.Notes = request.Notes.Trim();
 
-        db.LogActivityAt("timer-stopped",
-            $"Stopped timer at {active.DurationMinutes} min",
-            ("TimeEntry", active.Id));
+        var description = $"Stopped timer at {active.DurationMinutes} min";
+        if (!string.IsNullOrWhiteSpace(request.Reason))
+            description += $" ({request.Reason})";
+        db.LogActivityAt("timer-stopped", description, ("TimeEntry", active.Id));
 
         await repo.SaveChangesAsync(cancellationToken);
 

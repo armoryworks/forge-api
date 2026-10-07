@@ -1,10 +1,8 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Moq;
 
 using Forge.Api.Features.ShopFloor;
 using Forge.Core.Enums;
-using Forge.Core.Interfaces;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.ShopFloor;
@@ -16,21 +14,7 @@ public class ClockInOutTimerTests
 
     public ClockInOutTimerTests()
     {
-        var types = new Mock<IClockEventTypeService>();
-        var definitions = new List<ClockEventTypeDefinition>
-        {
-            new("ClockIn", "Clock In", "In", "ClockOut", "work", true, true, "login", "#22c55e"),
-            new("ClockOut", "Clock Out", "Out", "ClockIn", "work", false, false, "logout", "#ef4444"),
-            new("BreakStart", "Start Break", "OnBreak", "BreakEnd", "break", true, true, "free_breakfast", "#f59e0b"),
-            new("LunchStart", "Start Lunch", "OnLunch", "LunchEnd", "lunch", true, true, "restaurant", "#f97316"),
-            new("shift_end", "End Shift", "Out", "ClockIn", "work", false, false, "logout", "#ef4444"),
-            new("smoke_break", "Smoke Break", "OnBreak", "ClockIn", "break", true, true, "pause", "#f59e0b"),
-            new("return_from_errand", "Back", "In", null, "work", true, false, "login", "#22c55e"),
-        };
-        types.Setup(t => t.GetByCodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string code, CancellationToken _) => definitions.FirstOrDefault(d => d.Code == code));
-
-        _handler = new ClockInOutHandler(_h.Db, types.Object, _h.Mediator.Object, _h.Clock.Object);
+        _handler = new ClockInOutHandler(_h.Db, _h.ClockEventTypes.Object, _h.Mediator.Object, _h.Clock.Object);
     }
 
     [Fact]
@@ -102,5 +86,36 @@ public class ClockInOutTimerTests
         var clockEvent = await _h.Db.ClockEvents.AsNoTracking().SingleAsync();
         clockEvent.EventType.Should().Be(expected);
         clockEvent.EventTypeCode.Should().Be(code);
+    }
+
+    [Fact]
+    public async Task Handle_ClockOutWithRunningTimer_LogsTheEventAndTheClockOutStop()
+    {
+        var user = await _h.AddUserAsync();
+        var job = await _h.AddJobAsync("JOB-0100");
+        var entry = await _h.AddRunningTimerAsync(user.Id, job.Id, _h.Now.AddMinutes(-90));
+
+        var result = await _handler.Handle(new ClockInOutCommand(user.Id, "ClockOut"), CancellationToken.None);
+
+        var eventLog = await _h.Db.ActivityLogs.AsNoTracking().SingleAsync(a => a.EntityType == "ClockEvent");
+        eventLog.EntityId.Should().Be(result.ClockEventId);
+        eventLog.Action.Should().Be("clock-event-recorded");
+        eventLog.Description.Should().Be("Clock Out via kiosk; stopped timer on JOB-0100");
+        var timerLog = await _h.Db.ActivityLogs.AsNoTracking().SingleAsync(a => a.Action == "timer-stopped");
+        timerLog.EntityId.Should().Be(entry.Id);
+        timerLog.Description.Should().Be("Stopped timer at 90 min (clocked out)");
+    }
+
+    [Fact]
+    public async Task Handle_BreakStart_LogsTheEventOnly()
+    {
+        var user = await _h.AddUserAsync();
+        await _h.AddRunningTimerAsync(user.Id, null, _h.Now.AddMinutes(-30));
+
+        var result = await _handler.Handle(new ClockInOutCommand(user.Id, "BreakStart"), CancellationToken.None);
+
+        var log = await _h.Db.ActivityLogs.AsNoTracking().SingleAsync(a => a.EntityType == "ClockEvent");
+        log.EntityId.Should().Be(result.ClockEventId);
+        log.Description.Should().Be("Start Break via kiosk");
     }
 }
