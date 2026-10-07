@@ -262,14 +262,25 @@ public class UpdateJobHandler(
 
     private async Task<Part> CheckPartChangeAsync(Job job, int newPartId, CancellationToken ct)
     {
-        var workStarted = await db.TimeEntries.AnyAsync(t => t.JobId == job.Id, ct)
-            || await db.ProductionRuns.AnyAsync(r => r.JobId == job.Id, ct);
-        if (workStarted)
+        if (job.CompletedDate.HasValue || job.Disposition.HasValue || job.IsArchived
+            || await HasStartedWorkAsync(job.Id, ct))
             throw new InvalidOperationException(PartLockedMessage);
 
         return await db.Parts.AsNoTracking().FirstOrDefaultAsync(p => p.Id == newPartId, ct)
             ?? throw new KeyNotFoundException($"Part with ID {newPartId} not found.");
     }
+
+    private async Task<bool> HasStartedWorkAsync(int jobId, CancellationToken ct) =>
+        await db.TimeEntries.AnyAsync(t => t.JobId == jobId, ct)
+        || await db.ProductionRuns.AnyAsync(r => r.JobId == jobId, ct)
+        || await db.Jobs.AnyAsync(c => c.ParentJobId == jobId, ct)
+        || await db.MaterialIssues.AnyAsync(m => m.JobId == jobId, ct)
+        || await db.Reservations.AnyAsync(r => r.JobId == jobId, ct)
+        || await db.LotConsumptions.AnyAsync(l => l.JobId == jobId, ct)
+        || await db.LotRecords.AnyAsync(l => l.JobId == jobId, ct)
+        || await db.SerialNumbers.AnyAsync(s => s.JobId == jobId, ct)
+        || await db.PurchaseOrders.AnyAsync(p => p.JobId == jobId, ct)
+        || await db.SubcontractOrders.AnyAsync(s => s.JobId == jobId, ct);
 
     private async Task<JobActivityLog> ChangePartAsync(Job job, Part newPart, int? currentUserId, CancellationToken ct)
     {

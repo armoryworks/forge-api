@@ -259,6 +259,62 @@ public class UpdateJobStartDateAndPartTests
             .Should().Be(UpdateJobHandler.PartLockedMessage);
     }
 
+    [Theory]
+    [InlineData("exploded")]
+    [InlineData("material issue")]
+    [InlineData("reservation")]
+    [InlineData("lot")]
+    [InlineData("serial")]
+    [InlineData("subcontract")]
+    [InlineData("completed")]
+    [InlineData("disposed")]
+    [InlineData("archived")]
+    public async Task The_part_is_locked_once_the_job_has_committed_work(string work)
+    {
+        var job = await SeedJobAsync();
+        switch (work)
+        {
+            case "exploded":
+                _db.Jobs.Add(new Job
+                {
+                    Id = 2, JobNumber = "J-1-1", Title = "Child", TrackTypeId = 1, CurrentStageId = 1,
+                    PartId = 701, ParentJobId = job.Id,
+                });
+                break;
+            case "material issue":
+                _db.MaterialIssues.Add(new MaterialIssue { JobId = job.Id, PartId = 701, Quantity = 2m, IssuedById = 1 });
+                break;
+            case "reservation":
+                _db.Reservations.Add(new Reservation { JobId = job.Id, PartId = 701, BinContentId = 1, Quantity = 2m });
+                break;
+            case "lot":
+                _db.LotRecords.Add(new LotRecord { LotNumber = "L-1", JobId = job.Id, PartId = 700, Quantity = 5m });
+                break;
+            case "serial":
+                _db.SerialNumbers.Add(new SerialNumber { SerialValue = "S-1", JobId = job.Id, PartId = 700 });
+                break;
+            case "subcontract":
+                _db.SubcontractOrders.Add(new SubcontractOrder { JobId = job.Id });
+                break;
+            case "completed":
+                job.CompletedDate = Due;
+                break;
+            case "disposed":
+                job.Disposition = JobDisposition.ShipToCustomer;
+                break;
+            case "archived":
+                job.IsArchived = true;
+                break;
+        }
+        await _db.SaveChangesAsync();
+
+        var act = () => _handler.Handle(Update(partId: 701), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message
+            .Should().Be(UpdateJobHandler.PartLockedMessage);
+        job.PartId.Should().Be(700);
+    }
+
     [Fact]
     public async Task An_unknown_part_is_not_found()
     {
