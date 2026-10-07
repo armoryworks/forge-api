@@ -32,20 +32,20 @@ public class GetBinLocationsHandlerTests
             },
             TotalCount: 1, Page: 2, PageSize: 50);
 
-        _repo.Setup(r => r.GetBinLocationsPagedAsync("a1", 2, 50, It.IsAny<CancellationToken>()))
+        _repo.Setup(r => r.GetBinLocationsPagedAsync("a1", 2, 50, false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expected);
 
         var result = await _handler.Handle(
             new GetBinLocationsQuery("a1", 2, 50), CancellationToken.None);
 
         result.Should().BeSameAs(expected);
-        _repo.Verify(r => r.GetBinLocationsPagedAsync("a1", 2, 50, It.IsAny<CancellationToken>()), Times.Once);
+        _repo.Verify(r => r.GetBinLocationsPagedAsync("a1", 2, 50, false, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task Handle_DefaultsApplyWhenNoArgsProvided()
     {
-        _repo.Setup(r => r.GetBinLocationsPagedAsync(null, 1, 20, It.IsAny<CancellationToken>()))
+        _repo.Setup(r => r.GetBinLocationsPagedAsync(null, 1, 20, false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PagedResponse<StorageLocationFlatResponseModel>(
                 new List<StorageLocationFlatResponseModel>(), 0, 1, 20));
 
@@ -53,6 +53,18 @@ public class GetBinLocationsHandlerTests
 
         result.Page.Should().Be(1);
         result.PageSize.Should().Be(20);
-        _repo.Verify(r => r.GetBinLocationsPagedAsync(null, 1, 20, It.IsAny<CancellationToken>()), Times.Once);
+        _repo.Verify(r => r.GetBinLocationsPagedAsync(null, 1, 20, false, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_PassesActiveOnlyThrough()
+    {
+        _repo.Setup(r => r.GetBinLocationsPagedAsync(null, 1, 20, true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedResponse<StorageLocationFlatResponseModel>(
+                new List<StorageLocationFlatResponseModel>(), 0, 1, 20));
+
+        await _handler.Handle(new GetBinLocationsQuery(ActiveOnly: true), CancellationToken.None);
+
+        _repo.Verify(r => r.GetBinLocationsPagedAsync(null, 1, 20, true, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

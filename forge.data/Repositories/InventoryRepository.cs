@@ -55,7 +55,7 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
     }
 
     public async Task<PagedResponse<StorageLocationFlatResponseModel>> GetBinLocationsPagedAsync(
-        string? search, int page, int pageSize, CancellationToken ct)
+        string? search, int page, int pageSize, bool activeOnly, CancellationToken ct)
     {
         const int defaultPageSize = 20;
         const int maxPageSize = 100;
@@ -76,7 +76,7 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
         var byId = allLocations.ToDictionary(l => l.Id);
 
         var bins = allLocations
-            .Where(l => l.LocationType == LocationType.Bin)
+            .Where(l => l.LocationType == LocationType.Bin && (!activeOnly || l.IsActive))
             .Select(l => new StorageLocationFlatResponseModel(
                 l.Id, l.Name, l.LocationType, l.Barcode, BuildPath(l, byId), l.IsActive))
             .ToList();

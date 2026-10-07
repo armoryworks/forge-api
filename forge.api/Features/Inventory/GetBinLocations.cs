@@ -11,12 +11,14 @@ namespace Forge.Api.Features.Inventory;
 /// shared component.
 ///
 /// Default page size 20, capped at 100. Search filters by bin name +
-/// barcode + path (case insensitive).
+/// barcode + path (case insensitive). ActiveOnly leaves out deactivated
+/// bins, for pickers that put stock somewhere.
 /// </summary>
 public record GetBinLocationsQuery(
     string? Search = null,
     int Page = 1,
-    int PageSize = 20)
+    int PageSize = 20,
+    bool ActiveOnly = false)
     : IRequest<PagedResponse<StorageLocationFlatResponseModel>>;
 
 public class GetBinLocationsHandler(IInventoryRepository repo)
@@ -25,5 +27,5 @@ public class GetBinLocationsHandler(IInventoryRepository repo)
     public Task<PagedResponse<StorageLocationFlatResponseModel>> Handle(
         GetBinLocationsQuery request, CancellationToken cancellationToken)
         => repo.GetBinLocationsPagedAsync(
-            request.Search, request.Page, request.PageSize, cancellationToken);
+            request.Search, request.Page, request.PageSize, request.ActiveOnly, cancellationToken);
 }

@@ -26,9 +26,10 @@ public class InventoryController(IMediator mediator) : ControllerBase
         [FromQuery] string? search,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] bool activeOnly = false,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new GetBinLocationsQuery(search, page, pageSize), ct);
+        var result = await mediator.Send(new GetBinLocationsQuery(search, page, pageSize, activeOnly), ct);
         return Ok(result);
     }
 

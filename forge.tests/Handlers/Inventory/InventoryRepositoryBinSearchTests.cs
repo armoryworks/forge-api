@@ -36,7 +36,7 @@ public class InventoryRepositoryBinSearchTests
     [Fact]
     public async Task GetBinLocationsPagedAsync_NoFilter_ReturnsAllBins()
     {
-        var result = await _repo.GetBinLocationsPagedAsync(null, 1, 20, CancellationToken.None);
+        var result = await _repo.GetBinLocationsPagedAsync(null, 1, 20, false, CancellationToken.None);
 
         result.Items.Should().HaveCount(3);
         result.Items.Select(b => b.Name).Should().BeEquivalentTo(new[] { "BIN-A1", "BIN-A2", "BIN-B1" });
@@ -46,7 +46,7 @@ public class InventoryRepositoryBinSearchTests
     [Fact]
     public async Task GetBinLocationsPagedAsync_SearchByName_FiltersBins()
     {
-        var result = await _repo.GetBinLocationsPagedAsync("A1", 1, 20, CancellationToken.None);
+        var result = await _repo.GetBinLocationsPagedAsync("A1", 1, 20, false, CancellationToken.None);
 
         result.Items.Should().HaveCount(1);
         result.Items[0].Name.Should().Be("BIN-A1");
@@ -55,7 +55,7 @@ public class InventoryRepositoryBinSearchTests
     [Fact]
     public async Task GetBinLocationsPagedAsync_SearchByBarcode_FiltersBins()
     {
-        var result = await _repo.GetBinLocationsPagedAsync("BC-B1", 1, 20, CancellationToken.None);
+        var result = await _repo.GetBinLocationsPagedAsync("BC-B1", 1, 20, false, CancellationToken.None);
 
         result.Items.Should().HaveCount(1);
         result.Items[0].Name.Should().Be("BIN-B1");
@@ -65,7 +65,7 @@ public class InventoryRepositoryBinSearchTests
     public async Task GetBinLocationsPagedAsync_SearchByPath_FiltersBins()
     {
         // "Aisle 2" appears only in BIN-B1's composed path
-        var result = await _repo.GetBinLocationsPagedAsync("Aisle 2", 1, 20, CancellationToken.None);
+        var result = await _repo.GetBinLocationsPagedAsync("Aisle 2", 1, 20, false, CancellationToken.None);
 
         result.Items.Should().HaveCount(1);
         result.Items[0].Name.Should().Be("BIN-B1");
@@ -75,7 +75,7 @@ public class InventoryRepositoryBinSearchTests
     [Fact]
     public async Task GetBinLocationsPagedAsync_PageSize_CapsAtHundred()
     {
-        var result = await _repo.GetBinLocationsPagedAsync(null, 1, 5000, CancellationToken.None);
+        var result = await _repo.GetBinLocationsPagedAsync(null, 1, 5000, false, CancellationToken.None);
 
         result.PageSize.Should().Be(100);
     }
@@ -83,12 +83,27 @@ public class InventoryRepositoryBinSearchTests
     [Fact]
     public async Task GetBinLocationsPagedAsync_RespectsPagination()
     {
-        var page1 = await _repo.GetBinLocationsPagedAsync(null, 1, 2, CancellationToken.None);
-        var page2 = await _repo.GetBinLocationsPagedAsync(null, 2, 2, CancellationToken.None);
+        var page1 = await _repo.GetBinLocationsPagedAsync(null, 1, 2, false, CancellationToken.None);
+        var page2 = await _repo.GetBinLocationsPagedAsync(null, 2, 2, false, CancellationToken.None);
 
         page1.Items.Should().HaveCount(2);
         page2.Items.Should().HaveCount(1);
         page1.TotalCount.Should().Be(3);
         page2.TotalCount.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task GetBinLocationsPagedAsync_ActiveOnly_LeavesOutInactiveBins()
+    {
+        var binA2 = _db.StorageLocations.Single(l => l.Id == 5);
+        binA2.IsActive = false;
+        await _db.SaveChangesAsync();
+
+        var active = await _repo.GetBinLocationsPagedAsync(null, 1, 20, true, CancellationToken.None);
+        var all = await _repo.GetBinLocationsPagedAsync(null, 1, 20, false, CancellationToken.None);
+
+        active.Items.Select(b => b.Name).Should().BeEquivalentTo(new[] { "BIN-A1", "BIN-B1" });
+        active.TotalCount.Should().Be(2);
+        all.TotalCount.Should().Be(3);
     }
 }
