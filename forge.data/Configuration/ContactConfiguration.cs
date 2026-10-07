@@ -14,6 +14,7 @@ public class ContactConfiguration : IEntityTypeConfiguration<Contact>
         builder.Property(e => e.LastName).HasMaxLength(100);
         builder.Property(e => e.Email).HasMaxLength(200);
         builder.Property(e => e.Phone).HasMaxLength(50);
+        builder.Property(e => e.Fax).HasMaxLength(50);
         builder.Property(e => e.Role).HasMaxLength(50);
 
         builder.HasOne(e => e.Customer)

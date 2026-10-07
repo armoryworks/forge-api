@@ -15,6 +15,7 @@ public class Customer : BaseAuditableEntity, IActiveAware
     public string? CustomerNumber { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }
+    public string? Fax { get; set; }
     public bool IsActive { get; set; } = true;
 
     /// <summary>

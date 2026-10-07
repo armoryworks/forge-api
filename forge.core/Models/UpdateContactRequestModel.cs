@@ -6,4 +6,5 @@ public record UpdateContactRequestModel(
     string? Email,
     string? Phone,
     string? Role,
-    bool? IsPrimary);
+    bool? IsPrimary,
+    string? Fax = null);

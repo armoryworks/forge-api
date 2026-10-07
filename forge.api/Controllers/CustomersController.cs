@@ -103,7 +103,8 @@ public class CustomersController(IMediator mediator) : ControllerBase
             DefaultCurrency: request.DefaultCurrency,
             BillingAddress: request.BillingAddress,
             ShippingAddress: request.ShippingAddress,
-            CustomerNumber: request.CustomerNumber));
+            CustomerNumber: request.CustomerNumber,
+            Fax: request.Fax));
         return CreatedAtAction(nameof(GetCustomer), new { id = result.Id }, result);
     }
 
@@ -134,7 +135,8 @@ public class CustomersController(IMediator mediator) : ControllerBase
             IsItarControlled: request.IsItarControlled,
             IsReferenceOk: request.IsReferenceOk,
             ReferenceNotes: request.ReferenceNotes,
-            CustomerNumber: request.CustomerNumber));
+            CustomerNumber: request.CustomerNumber,
+            Fax: request.Fax));
         return NoContent();
     }
 
@@ -155,7 +157,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<ContactResponseModel>> CreateContact(int id, CreateContactRequestModel request)
     {
         var result = await mediator.Send(new CreateContactCommand(
-            id, request.FirstName, request.LastName, request.Email, request.Phone, request.Role, request.IsPrimary));
+            id, request.FirstName, request.LastName, request.Email, request.Phone, request.Role, request.IsPrimary, request.Fax));
         return Created($"/api/v1/customers/{id}/contacts/{result.Id}", result);
     }
 
@@ -164,7 +166,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<ContactResponseModel>> UpdateContact(int id, int contactId, UpdateContactRequestModel request)
     {
         var result = await mediator.Send(new UpdateContactCommand(
-            id, contactId, request.FirstName, request.LastName, request.Email, request.Phone, request.Role, request.IsPrimary));
+            id, contactId, request.FirstName, request.LastName, request.Email, request.Phone, request.Role, request.IsPrimary, request.Fax));
         return Ok(result);
     }
 

@@ -19,4 +19,5 @@ public record UpdateVendorRequestModel(
     string? TaxId = null,
     // User-settable vendor number. Supplying a changed value requires
     // vendors.allow_manual_numbers to be on; validated for uniqueness.
-    string? VendorNumber = null);
+    string? VendorNumber = null,
+    string? Fax = null);

@@ -7,6 +7,7 @@ public class Contact : BaseAuditableEntity
     public string LastName { get; set; } = string.Empty;
     public string? Email { get; set; }
     public string? Phone { get; set; }
+    public string? Fax { get; set; }
     public string? Role { get; set; }
     public bool IsPrimary { get; set; }
 

@@ -21,4 +21,5 @@ public record VendorDetailResponseModel(
     string? ExternalId,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    List<PurchaseOrderListItemModel> PurchaseOrders);
+    List<PurchaseOrderListItemModel> PurchaseOrders,
+    string? Fax = null);

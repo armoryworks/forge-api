@@ -23,4 +23,5 @@ public record CreateCustomerRequestModel(
     string? TaxExemptionId = null,
     // Optional caller-supplied customer number. Honoured only when
     // customers.allow_manual_numbers is on; otherwise auto-generated (CUST-#####).
-    string? CustomerNumber = null);
+    string? CustomerNumber = null,
+    string? Fax = null);

@@ -23,7 +23,8 @@ public record UpdateVendorCommand(
     bool? Is1099 = null,
     string? TaxId = null,
     // User-settable vendor number — see UpdateVendorRequestModel.VendorNumber.
-    string? VendorNumber = null) : IRequest;
+    string? VendorNumber = null,
+    string? Fax = null) : IRequest;
 
 public class UpdateVendorValidator : AbstractValidator<UpdateVendorCommand>
 {
@@ -38,6 +39,7 @@ public class UpdateVendorValidator : AbstractValidator<UpdateVendorCommand>
             .When(x => x.OffTierVariancePct.HasValue)
             .WithMessage("Off-tier variance % must be between 0 and 100.");
         RuleFor(x => x.TaxId).MaximumLength(32).When(x => x.TaxId != null);
+        RuleFor(x => x.Fax).MaximumLength(50).When(x => x.Fax != null);
     }
 }
 
@@ -84,6 +86,7 @@ public class UpdateVendorHandler(
         if (request.ContactName != null) vendor.ContactName = request.ContactName;
         if (request.Email != null) vendor.Email = request.Email;
         if (request.Phone != null) vendor.Phone = request.Phone;
+        if (request.Fax != null) vendor.Fax = request.Fax;
         if (request.Address != null) vendor.Address = request.Address;
         if (request.City != null) vendor.City = request.City;
         if (request.State != null) vendor.State = request.State;

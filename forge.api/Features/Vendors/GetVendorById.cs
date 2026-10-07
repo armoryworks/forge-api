@@ -48,6 +48,7 @@ public class GetVendorByIdHandler(IVendorRepository repo)
                 po.Lines.Sum(l => l.ReceivedQuantity),
                 po.ExpectedDeliveryDate,
                 po.IsBlanket,
-                po.CreatedAt)).ToList());
+                po.CreatedAt)).ToList(),
+            vendor.Fax);
     }
 }

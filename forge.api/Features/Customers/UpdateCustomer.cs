@@ -27,7 +27,8 @@ public record UpdateCustomerCommand(
     bool? IsReferenceOk = null,
     string? ReferenceNotes = null,
     // User-settable customer number — see UpdateCustomerRequestModel.CustomerNumber.
-    string? CustomerNumber = null) : IRequest;
+    string? CustomerNumber = null,
+    string? Fax = null) : IRequest;
 
 public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
 {
@@ -37,6 +38,7 @@ public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
         RuleFor(x => x.CompanyName).MaximumLength(200).When(x => x.CompanyName is not null);
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
         RuleFor(x => x.Phone).MaximumLength(50).When(x => x.Phone is not null);
+        RuleFor(x => x.Fax).MaximumLength(50).When(x => x.Fax is not null);
         RuleFor(x => x.TaxExemptionId).MaximumLength(50).When(x => x.TaxExemptionId is not null);
         RuleFor(x => x.CustomerNumber).NotEmpty().MaximumLength(50).When(x => x.CustomerNumber is not null);
     }
@@ -105,6 +107,11 @@ public class UpdateCustomerHandler(
         {
             customer.Phone = request.Phone;
             changedFields.Add("phone");
+        }
+        if (request.Fax is not null && request.Fax != customer.Fax)
+        {
+            customer.Fax = request.Fax;
+            changedFields.Add("fax");
         }
 
         // Phase 3 H2 / WU-12: stamp/clear DeactivationDate on lifecycle change.

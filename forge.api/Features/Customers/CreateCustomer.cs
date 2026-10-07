@@ -29,7 +29,8 @@ public record CreateCustomerCommand(
     AddressInput? BillingAddress = null,
     AddressInput? ShippingAddress = null,
     // Optional caller-supplied customer number — see CreateCustomerRequestModel.CustomerNumber.
-    string? CustomerNumber = null) : IRequest<CustomerListItemModel>;
+    string? CustomerNumber = null,
+    string? Fax = null) : IRequest<CustomerListItemModel>;
 
 public class CreateCustomerValidator : AbstractValidator<CreateCustomerCommand>
 {
@@ -47,6 +48,7 @@ public class CreateCustomerValidator : AbstractValidator<CreateCustomerCommand>
         RuleFor(x => x.CompanyName).MaximumLength(200);
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
         RuleFor(x => x.Phone).MaximumLength(50);
+        RuleFor(x => x.Fax).MaximumLength(50);
         // Matches the customers.customer_number column (varchar(50)). Uniqueness
         // is checked in the handler since it needs a DB lookup.
         RuleFor(x => x.CustomerNumber).MaximumLength(50).When(x => !string.IsNullOrWhiteSpace(x.CustomerNumber));
@@ -136,6 +138,7 @@ public class CreateCustomerHandler(
             CompanyName = request.CompanyName,
             Email = request.Email,
             Phone = request.Phone,
+            Fax = request.Fax,
             IsTaxExempt = request.IsTaxExempt,
             TaxExemptionId = request.TaxExemptionId,
             // F3 — full-record fields written at create time so the GET-by-id

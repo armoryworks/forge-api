@@ -22,7 +22,8 @@ public record CreateVendorCommand(
     bool Is1099 = false,
     string? TaxId = null,
     // Optional caller-supplied vendor number — see CreateVendorRequestModel.VendorNumber.
-    string? VendorNumber = null) : IRequest<VendorListItemModel>;
+    string? VendorNumber = null,
+    string? Fax = null) : IRequest<VendorListItemModel>;
 
 public class CreateVendorValidator : AbstractValidator<CreateVendorCommand>
 {
@@ -35,6 +36,7 @@ public class CreateVendorValidator : AbstractValidator<CreateVendorCommand>
         RuleFor(x => x.ContactName).MaximumLength(200);
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
         RuleFor(x => x.Phone).MaximumLength(50);
+        RuleFor(x => x.Fax).MaximumLength(50);
         RuleFor(x => x.Address).MaximumLength(500);
         RuleFor(x => x.Notes).MaximumLength(2000);
         RuleFor(x => x.TaxId).MaximumLength(32);
@@ -61,6 +63,7 @@ public class CreateVendorHandler(
             ContactName = request.ContactName,
             Email = request.Email,
             Phone = request.Phone,
+            Fax = request.Fax,
             Address = request.Address,
             City = request.City,
             State = request.State,

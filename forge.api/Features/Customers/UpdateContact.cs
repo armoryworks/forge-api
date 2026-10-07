@@ -15,7 +15,8 @@ public record UpdateContactCommand(
     string? Email,
     string? Phone,
     string? Role,
-    bool? IsPrimary) : IRequest<ContactResponseModel>;
+    bool? IsPrimary,
+    string? Fax = null) : IRequest<ContactResponseModel>;
 
 public class UpdateContactValidator : AbstractValidator<UpdateContactCommand>
 {
@@ -25,6 +26,7 @@ public class UpdateContactValidator : AbstractValidator<UpdateContactCommand>
         RuleFor(x => x.LastName).MaximumLength(100).When(x => x.LastName is not null);
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
         RuleFor(x => x.Phone).MaximumLength(50).When(x => x.Phone is not null);
+        RuleFor(x => x.Fax).MaximumLength(50).When(x => x.Fax is not null);
         RuleFor(x => x.Role).MaximumLength(50).When(x => x.Role is not null);
     }
 }
@@ -59,6 +61,11 @@ public class UpdateContactHandler(AppDbContext db)
             contact.Phone = request.Phone;
             changedFields.Add("phone");
         }
+        if (request.Fax is not null && request.Fax != contact.Fax)
+        {
+            contact.Fax = request.Fax;
+            changedFields.Add("fax");
+        }
         if (request.Role is not null && request.Role != contact.Role)
         {
             contact.Role = request.Role;
@@ -83,6 +90,6 @@ public class UpdateContactHandler(AppDbContext db)
 
         return new ContactResponseModel(
             contact.Id, contact.FirstName, contact.LastName,
-            contact.Email, contact.Phone, contact.Role, contact.IsPrimary);
+            contact.Email, contact.Phone, contact.Role, contact.IsPrimary, contact.Fax);
     }
 }

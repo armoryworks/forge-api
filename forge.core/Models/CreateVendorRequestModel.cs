@@ -17,4 +17,5 @@ public record CreateVendorRequestModel(
     string? TaxId = null,
     // Optional caller-supplied vendor number. Honoured only when
     // vendors.allow_manual_numbers is on; otherwise auto-generated (VEND-#####).
-    string? VendorNumber = null);
+    string? VendorNumber = null,
+    string? Fax = null);

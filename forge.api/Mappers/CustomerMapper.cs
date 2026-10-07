@@ -25,6 +25,7 @@ public static partial class CustomerMapper
     [MapperIgnoreSource(nameof(Customer.CompanyName))]
     [MapperIgnoreSource(nameof(Customer.Email))]
     [MapperIgnoreSource(nameof(Customer.Phone))]
+    [MapperIgnoreSource(nameof(Customer.Fax))]
     [MapperIgnoreSource(nameof(Customer.CreditLimit))]
     [MapperIgnoreSource(nameof(Customer.IsOnCreditHold))]
     [MapperIgnoreSource(nameof(Customer.CreditHoldReason))]

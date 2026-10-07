@@ -18,6 +18,7 @@ public class VendorConfiguration : IEntityTypeConfiguration<Vendor>
         builder.Property(e => e.ContactName).HasMaxLength(200);
         builder.Property(e => e.Email).HasMaxLength(200);
         builder.Property(e => e.Phone).HasMaxLength(50);
+        builder.Property(e => e.Fax).HasMaxLength(50);
         builder.Property(e => e.Address).HasMaxLength(500);
         builder.Property(e => e.City).HasMaxLength(100);
         builder.Property(e => e.State).HasMaxLength(100);
