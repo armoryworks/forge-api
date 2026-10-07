@@ -124,12 +124,6 @@ public class TimeTrackingRepository(AppDbContext db) : ITimeTrackingRepository
             .OrderByDescending(c => c.Timestamp)
             .FirstOrDefaultAsync(ct);
 
-    public async Task AddClockEventAsync(ClockEvent clockEvent, CancellationToken ct)
-    {
-        await db.ClockEvents.AddAsync(clockEvent, ct);
-        await db.SaveChangesAsync(ct);
-    }
-
     public Task SaveChangesAsync(CancellationToken ct)
         => db.SaveChangesAsync(ct);
 

@@ -16,7 +16,6 @@ public interface ITimeTrackingRepository
     // Clock events
     Task<List<ClockEventResponseModel>> GetClockEventsAsync(int? userId, DateOnly? from, DateOnly? to, CancellationToken ct);
     Task<ClockEvent?> GetLastClockEventAsync(int userId, CancellationToken ct);
-    Task AddClockEventAsync(ClockEvent clockEvent, CancellationToken ct);
 
     Task SaveChangesAsync(CancellationToken ct);
 }

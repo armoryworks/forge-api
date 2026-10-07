@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Http;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.TimeTracking;
 
@@ -25,9 +27,10 @@ public class CreateClockEventValidator : AbstractValidator<CreateClockEventComma
 }
 
 public class CreateClockEventHandler(
-    ITimeTrackingRepository repo,
+    AppDbContext db,
     IHttpContextAccessor httpContext,
     IClockEventTypeService clockEventTypeService,
+    IMediator mediator,
     IClock clock) : IRequestHandler<CreateClockEventCommand, ClockEventResponseModel>
 {
     public async Task<ClockEventResponseModel> Handle(CreateClockEventCommand request, CancellationToken cancellationToken)
@@ -48,8 +51,19 @@ public class CreateClockEventHandler(
             Timestamp = clock.UtcNow,
             Source = data.Source?.Trim(),
         };
+        db.ClockEvents.Add(clockEvent);
 
-        await repo.AddClockEventAsync(clockEvent, cancellationToken);
+        StoppedTimerResponseModel? stopped = null;
+        if (definition.StatusMapping == "Out")
+            stopped = await mediator.Send(
+                new StopActiveTimerCommand(userId, clockEvent.Timestamp, Reason: "clocked out"), cancellationToken);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        db.LogActivityAt("clock-event-recorded",
+            ClockEventActivity.Describe(definition, clockEvent.Source, stopped),
+            ("ClockEvent", clockEvent.Id));
+        await db.SaveChangesAsync(cancellationToken);
 
         // Return populated response
         var user = httpContext.HttpContext!.User;
