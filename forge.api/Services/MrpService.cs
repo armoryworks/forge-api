@@ -301,6 +301,9 @@ public class MrpService(
             // back to the Part snapshot.
             var sourcingByPart = await sourcingResolver.ResolveManyAsync(allPartIds.ToList(), cancellationToken);
 
+            var peggedLineBySupply = await AddOpenJobSupplyAsync(
+                mrpRun.Id, partIds, sourcingByPart, supplyRecords, cancellationToken);
+
             // Also load on-hand for child parts
             var childOnHand = await db.BinContents
                 .AsNoTracking()
@@ -361,10 +364,28 @@ public class MrpService(
 
                     var runningOnHand = availableOnHand;
 
+                    var linesAwaitingPeg = partDemands
+                        .Where(d => d.Source == MrpDemandSource.SalesOrder && d.SourceEntityId.HasValue)
+                        .Select(d => d.SourceEntityId!.Value)
+                        .ToHashSet();
+
                     foreach (var demand in partDemands)
                     {
+                        if (demand.Source == MrpDemandSource.SalesOrder && demand.SourceEntityId is int demandLineId)
+                        {
+                            foreach (var supply in partSupplies.Where(s => s.AllocatedQuantity < s.Quantity
+                                && peggedLineBySupply.TryGetValue(s, out var peggedLine) && peggedLine == demandLineId))
+                            {
+                                runningOnHand += supply.Quantity - supply.AllocatedQuantity;
+                                supply.AllocatedQuantity = supply.Quantity;
+                            }
+                            linesAwaitingPeg.Remove(demandLineId);
+                        }
+
                         // Net against scheduled receipts arriving before demand date
-                        foreach (var supply in partSupplies.Where(s => s.AvailableDate <= demand.RequiredDate && s.AllocatedQuantity < s.Quantity))
+                        foreach (var supply in partSupplies.Where(s => s.AvailableDate <= demand.RequiredDate
+                            && s.AllocatedQuantity < s.Quantity
+                            && !(peggedLineBySupply.TryGetValue(s, out var peggedLine) && linesAwaitingPeg.Contains(peggedLine))))
                         {
                             var available = supply.Quantity - supply.AllocatedQuantity;
                             runningOnHand += available;
@@ -650,6 +671,73 @@ public class MrpService(
         }
 
         return results;
+    }
+
+    private async Task<Dictionary<MrpSupply, int>> AddOpenJobSupplyAsync(
+        int mrpRunId,
+        HashSet<int> partIds,
+        IReadOnlyDictionary<int, PartSourcingValues> sourcingByPart,
+        List<MrpSupply> supplyRecords,
+        CancellationToken cancellationToken)
+    {
+        var openJobs = await db.Jobs
+            .AsNoTracking()
+            .Where(j => !j.IsArchived
+                && j.CompletedDate == null
+                && j.Disposition == null
+                && j.PartId != null
+                && partIds.Contains(j.PartId.Value)
+                && !db.ProductionRuns.Any(r => r.JobId == j.Id
+                    && (r.Status == ProductionRunStatus.Planned || r.Status == ProductionRunStatus.InProgress)))
+            .Select(j => new
+            {
+                j.Id,
+                PartId = j.PartId!.Value,
+                j.DueDate,
+                j.SalesOrderLineId,
+                PlannedOrderQuantity = j.MrpPlannedOrder != null ? (decimal?)j.MrpPlannedOrder.Quantity : null,
+                LineQuantity = j.SalesOrderLine != null ? (decimal?)j.SalesOrderLine.Quantity : null,
+                LineShippedQuantity = j.SalesOrderLine != null ? (decimal?)j.SalesOrderLine.ShippedQuantity : null,
+                JobPartQuantity = j.JobParts.Where(jp => jp.PartId == j.PartId).Sum(jp => (decimal?)jp.Quantity),
+                ReceivedQuantity = db.ProductionRuns
+                    .Where(r => r.JobId == j.Id && r.Status == ProductionRunStatus.Completed)
+                    .Sum(r => (int?)r.ReceivedQuantity) ?? 0,
+            })
+            .ToListAsync(cancellationToken);
+
+        var peggedLineBySupply = new Dictionary<MrpSupply, int>(ReferenceEqualityComparer.Instance);
+
+        foreach (var job in openJobs)
+        {
+            decimal quantity;
+            if (job.PlannedOrderQuantity is decimal plannedQuantity)
+                quantity = plannedQuantity - job.ReceivedQuantity;
+            else if (job.LineQuantity is decimal lineQuantity)
+                quantity = Math.Min(lineQuantity - job.ReceivedQuantity, lineQuantity - (job.LineShippedQuantity ?? 0m));
+            else
+                quantity = (job.JobPartQuantity ?? 0m) - job.ReceivedQuantity;
+
+            if (quantity <= 0)
+                continue;
+
+            var leadTime = sourcingByPart.TryGetValue(job.PartId, out var sourcing) ? sourcing.LeadTimeDays : null;
+
+            var supply = new MrpSupply
+            {
+                MrpRunId = mrpRunId,
+                PartId = job.PartId,
+                Source = MrpSupplySource.Job,
+                SourceEntityId = job.Id,
+                Quantity = quantity,
+                AvailableDate = job.DueDate ?? clock.UtcNow.AddDays(leadTime ?? 14),
+            };
+            supplyRecords.Add(supply);
+
+            if (job.SalesOrderLineId is int lineId)
+                peggedLineBySupply[supply] = lineId;
+        }
+
+        return peggedLineBySupply;
     }
 
     private static Dictionary<int, int> ComputeLowLevelCodes(List<BOMLine> bomLines, HashSet<int> allPartIds)

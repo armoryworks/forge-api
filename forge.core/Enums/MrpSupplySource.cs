@@ -6,5 +6,6 @@ public enum MrpSupplySource
     PurchaseOrder,
     PlannedOrder,
     ProductionRun,
-    InTransit
+    InTransit,
+    Job
 }

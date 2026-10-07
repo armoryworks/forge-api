@@ -1,0 +1,268 @@
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+
+using Forge.Api.Services;
+using Forge.Core.Entities;
+using Forge.Core.Enums;
+using Forge.Core.Interfaces;
+using Forge.Core.Models;
+using Forge.Data.Context;
+using Forge.Tests.Helpers;
+
+namespace Forge.Tests.Services;
+
+public class MrpOpenJobSupplyTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 10, 7, 12, 0, 0, TimeSpan.Zero);
+
+    private static MrpService Service(AppDbContext db)
+    {
+        var clock = new Mock<IClock>();
+        clock.Setup(c => c.UtcNow).Returns(Now);
+        return new MrpService(db, clock.Object, new PartSourcingResolver(db), NullLogger<MrpService>.Instance);
+    }
+
+    private static async Task<Part> SeedPartAsync(AppDbContext db)
+    {
+        var part = new Part
+        {
+            PartNumber = "MRP-JOB-01",
+            Description = "Bracket",
+            Status = PartStatus.Active,
+            IsMrpPlanned = true,
+            LotSizingRule = LotSizingRule.LotForLot,
+        };
+        db.Parts.Add(part);
+        await db.SaveChangesAsync();
+        return part;
+    }
+
+    private static async Task<SalesOrderLine> SeedSoLineAsync(AppDbContext db, int partId, decimal quantity, int daysOut)
+    {
+        var customer = new Customer { Name = $"Customer {daysOut}" };
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        var so = new SalesOrder
+        {
+            OrderNumber = $"SO-{daysOut:D3}",
+            CustomerId = customer.Id,
+            Status = SalesOrderStatus.Confirmed,
+            RequestedDeliveryDate = Now.AddDays(daysOut),
+        };
+        db.SalesOrders.Add(so);
+        await db.SaveChangesAsync();
+
+        var line = new SalesOrderLine
+        {
+            SalesOrderId = so.Id,
+            PartId = partId,
+            Description = "Bracket",
+            Quantity = quantity,
+            UnitPrice = 10m,
+        };
+        db.SalesOrderLines.Add(line);
+        await db.SaveChangesAsync();
+        return line;
+    }
+
+    private static Job NewJob(int partId, string number, decimal? jobPartQuantity = null)
+    {
+        var job = new Job
+        {
+            JobNumber = number,
+            Title = number,
+            TrackTypeId = 1,
+            CurrentStageId = 1,
+            PartId = partId,
+        };
+        if (jobPartQuantity is decimal quantity)
+            job.JobParts.Add(new JobPart { PartId = partId, Quantity = quantity });
+        return job;
+    }
+
+    private static Task<List<MrpPlannedOrder>> PlannedOrdersAsync(AppDbContext db, int runId)
+        => db.MrpPlannedOrders.Where(o => o.MrpRunId == runId).ToListAsync();
+
+    private static Task<List<MrpSupply>> JobSuppliesAsync(AppDbContext db, int runId)
+        => db.MrpSupplies.Where(s => s.MrpRunId == runId && s.Source == MrpSupplySource.Job).ToListAsync();
+
+    [Fact]
+    public async Task OpenSoLinkedJob_SatisfiesItsLine_SoNoPlannedOrderIsSuggested()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        var line = await SeedSoLineAsync(db, part.Id, 100, daysOut: 30);
+
+        var job = NewJob(part.Id, "J-1");
+        job.SalesOrderLineId = line.Id;
+        job.DueDate = Now.AddDays(45);
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await PlannedOrdersAsync(db, run.Id)).Should().BeEmpty();
+        var supply = (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle().Subject;
+        supply.SourceEntityId.Should().Be(job.Id);
+        supply.Quantity.Should().Be(100);
+        supply.AvailableDate.Should().Be(Now.AddDays(45));
+    }
+
+    [Fact]
+    public async Task SoLinkedJob_IsPeggedToItsOwnLine_EvenWhenAnEarlierDemandCouldUseIt()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        await SeedSoLineAsync(db, part.Id, 40, daysOut: 10);
+        var linkedLine = await SeedSoLineAsync(db, part.Id, 100, daysOut: 30);
+
+        var job = NewJob(part.Id, "J-2");
+        job.SalesOrderLineId = linkedLine.Id;
+        job.DueDate = Now.AddDays(5);
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        var planned = (await PlannedOrdersAsync(db, run.Id)).Should().ContainSingle().Subject;
+        planned.Quantity.Should().Be(40);
+        planned.DueDate.Should().Be(Now.AddDays(10));
+    }
+
+    [Fact]
+    public async Task SoLinkedJob_CountsOnlyWhatIsStillOwedOnTheLine()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        var line = await SeedSoLineAsync(db, part.Id, 100, daysOut: 30);
+        line.ShippedQuantity = 30;
+
+        var job = NewJob(part.Id, "J-3");
+        job.SalesOrderLineId = line.Id;
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle().Which.Quantity.Should().Be(70);
+        (await PlannedOrdersAsync(db, run.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task JobWithAnActiveProductionRun_IsCountedOnlyThroughTheRun()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        await SeedSoLineAsync(db, part.Id, 100, daysOut: 30);
+
+        var job = NewJob(part.Id, "J-4", jobPartQuantity: 100);
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+        db.ProductionRuns.Add(new ProductionRun
+        {
+            JobId = job.Id,
+            PartId = part.Id,
+            RunNumber = "PR-4",
+            TargetQuantity = 100,
+            Status = ProductionRunStatus.InProgress,
+        });
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Should().BeEmpty();
+        (await db.MrpSupplies.CountAsync(s => s.MrpRunId == run.Id && s.Source == MrpSupplySource.ProductionRun))
+            .Should().Be(1);
+        (await PlannedOrdersAsync(db, run.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ArchivedCompletedAndDisposedJobs_AreNotSupply()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        await SeedSoLineAsync(db, part.Id, 100, daysOut: 30);
+
+        var archived = NewJob(part.Id, "J-5A", jobPartQuantity: 100);
+        archived.IsArchived = true;
+        var completed = NewJob(part.Id, "J-5C", jobPartQuantity: 100);
+        completed.CompletedDate = Now.AddDays(-1);
+        var disposed = NewJob(part.Id, "J-5D", jobPartQuantity: 100);
+        disposed.Disposition = JobDisposition.Scrap;
+        db.Jobs.AddRange(archived, completed, disposed);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Should().BeEmpty();
+        (await PlannedOrdersAsync(db, run.Id)).Should().ContainSingle().Which.Quantity.Should().Be(100);
+    }
+
+    [Fact]
+    public async Task ReceivedOutputOfCompletedRuns_ReducesTheJobSupply()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        await SeedSoLineAsync(db, part.Id, 100, daysOut: 30);
+
+        var job = NewJob(part.Id, "J-6", jobPartQuantity: 100);
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+        db.ProductionRuns.Add(new ProductionRun
+        {
+            JobId = job.Id,
+            PartId = part.Id,
+            RunNumber = "PR-6",
+            TargetQuantity = 60,
+            CompletedQuantity = 60,
+            ReceivedQuantity = 60,
+            Status = ProductionRunStatus.Completed,
+        });
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        var supply = (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle().Subject;
+        supply.Quantity.Should().Be(40);
+        supply.AvailableDate.Should().Be(Now.AddDays(14));
+        (await PlannedOrdersAsync(db, run.Id)).Should().ContainSingle().Which.Quantity.Should().Be(60);
+    }
+
+    [Fact]
+    public async Task JobReleasedFromAPlannedOrder_SuppliesThePlannedQuantity()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db);
+        await SeedSoLineAsync(db, part.Id, 100, daysOut: 30);
+
+        var earlierRun = new MrpRun { RunNumber = "MRP-EARLIER", Status = MrpRunStatus.Completed, PlanningHorizonDays = 90 };
+        db.MrpRuns.Add(earlierRun);
+        await db.SaveChangesAsync();
+        var plannedOrder = new MrpPlannedOrder
+        {
+            MrpRunId = earlierRun.Id,
+            PartId = part.Id,
+            OrderType = MrpOrderType.Manufacture,
+            Status = MrpPlannedOrderStatus.Released,
+            Quantity = 100,
+            StartDate = Now,
+            DueDate = Now.AddDays(30),
+        };
+        db.MrpPlannedOrders.Add(plannedOrder);
+        await db.SaveChangesAsync();
+
+        var job = NewJob(part.Id, "J-7");
+        job.MrpPlannedOrderId = plannedOrder.Id;
+        job.DueDate = plannedOrder.DueDate;
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle().Which.Quantity.Should().Be(100);
+        (await PlannedOrdersAsync(db, run.Id)).Should().BeEmpty();
+    }
+}
