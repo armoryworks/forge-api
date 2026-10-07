@@ -350,14 +350,14 @@ public class ReceiveItemsHandler(
 
     /// <summary>
     /// The bin to stock receipts into when neither the line nor the part names one: the active default
-    /// location, else the first active bin, else a freshly provisioned "Receiving" bin if the warehouse has
-    /// none yet (so a first receipt always has somewhere to land).
+    /// location when it is a bin, else the first active bin, else a freshly provisioned "Receiving" bin if
+    /// the warehouse has none yet (so a first receipt always has somewhere to land).
     /// </summary>
     private static async Task<int> ResolveFallbackBinAsync(IInventoryRepository inventory, CancellationToken ct)
     {
         var activeLocations = (await inventory.GetStorageLocationsAsync(ct)).Where(l => l.IsActive).ToList();
-        var fallback = activeLocations.FirstOrDefault(l => l.IsDefault)
-            ?? activeLocations.FirstOrDefault(l => l.LocationType == LocationType.Bin);
+        var activeBins = activeLocations.Where(l => l.LocationType == LocationType.Bin).ToList();
+        var fallback = activeBins.FirstOrDefault(l => l.IsDefault) ?? activeBins.FirstOrDefault();
         if (fallback is not null)
             return fallback.Id;
 

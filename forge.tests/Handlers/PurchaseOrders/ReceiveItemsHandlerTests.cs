@@ -374,6 +374,24 @@ public class ReceiveItemsHandlerTests
     }
 
     [Fact]
+    public async Task Handle_DefaultLocationIsNotABin_UsesFirstActiveBin()
+    {
+        var po = GivenStockPo(5m, new Part { Id = 10, PartNumber = "P-10" });
+        _inventory.Setup(i => i.GetStorageLocationsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<StorageLocation>
+        {
+            new() { Id = 30, Name = "Warehouse", LocationType = LocationType.Area, IsActive = true, IsDefault = true },
+            new() { Id = 32, Name = "B-1", LocationType = LocationType.Bin, IsActive = true },
+        });
+
+        await _stockingHandler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 5m, StorageLocationId: null, Notes: null) }),
+            CancellationToken.None);
+
+        _addedContents.Single().LocationId.Should().Be(32);
+    }
+
+    [Fact]
     public async Task Handle_NoActiveBins_ProvisionsReceivingBin()
     {
         var po = GivenStockPo(5m, new Part { Id = 10, PartNumber = "P-10" });
