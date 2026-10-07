@@ -1,6 +1,7 @@
 using System.Security.Claims;
 
 using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.DomainEvents;
@@ -10,6 +11,7 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.PurchaseOrders;
 
@@ -26,7 +28,8 @@ public record CreatePurchaseOrderCommand(
     decimal? EstimatedFreight = null,
     string? QuoteCurrency = null,
     // Optional caller-supplied PO number — gated by purchase_orders.allow_manual_numbers.
-    string? PONumber = null) : IRequest<PurchaseOrderListItemModel>;
+    string? PONumber = null,
+    DateTimeOffset? ExpectedDeliveryDate = null) : IRequest<PurchaseOrderListItemModel>;
 
 public class CreatePurchaseOrderValidator : AbstractValidator<CreatePurchaseOrderCommand>
 {
@@ -42,6 +45,8 @@ public class CreatePurchaseOrderValidator : AbstractValidator<CreatePurchaseOrde
                 .NotEmpty()
                 .When(l => l.PartId is null)
                 .WithMessage("Description is required when the line has no part.");
+            line.RuleFor(l => l.Description).MaximumLength(500);
+            line.RuleFor(l => l.Notes).MaximumLength(1000);
             // Phase 3 / WU-10 — Quantity is decimal; allow fractional values
             // (e.g. 0.5 lb of solder), but disallow zero / negative.
             line.RuleFor(l => l.Quantity).GreaterThan(0m);
@@ -66,7 +71,8 @@ public class CreatePurchaseOrderHandler(
     IBusinessIdentifierService identifiers,
     IMediator mediator,
     IHttpContextAccessor httpContextAccessor,
-    AppDbContext db)
+    AppDbContext db,
+    IClock clock)
     : IRequestHandler<CreatePurchaseOrderCommand, PurchaseOrderListItemModel>
 {
     // System setting that gates caller-supplied PO numbers. Stored as "true"/"false".
@@ -80,6 +86,9 @@ public class CreatePurchaseOrderHandler(
         // gap. NotFound preserved as KeyNotFoundException → 404 via middleware.
         ActiveCheck.EnsureActive(vendor, "Vendor", "vendorId", request.VendorId);
 
+        if (request.JobId is int jobId)
+            await EnsureJobOpenAsync(jobId, cancellationToken);
+
         var poNumber = await ResolvePONumberAsync(request, cancellationToken);
 
         // Bought-parts PR2.5 — derive Incoterm/QuoteCurrency defaults from
@@ -88,20 +97,26 @@ public class CreatePurchaseOrderHandler(
         // VendorPart row exists yet (FOB_Origin / USD).
         Incoterm? defaultIncoterm = null;
         string? defaultCurrency = null;
+        DateTimeOffset? defaultExpectedDelivery = null;
         if (request.Lines.Count > 0
             && request.Lines[0].PartId is int firstPartId
-            && (!request.Incoterm.HasValue || string.IsNullOrEmpty(request.QuoteCurrency)))
+            && (!request.Incoterm.HasValue
+                || string.IsNullOrEmpty(request.QuoteCurrency)
+                || !request.ExpectedDeliveryDate.HasValue))
         {
-
             var vp = await db.VendorParts
                 .AsNoTracking()
                 .Where(x => x.VendorId == request.VendorId && x.PartId == firstPartId)
-                .Select(x => new { x.Incoterm, x.Currency })
+                .OrderByDescending(x => x.IsPreferred)
+                .Select(x => new { x.Incoterm, x.Currency, x.LeadTimeDays })
                 .FirstOrDefaultAsync(cancellationToken);
             if (vp != null)
             {
                 defaultIncoterm = vp.Incoterm;
                 defaultCurrency = vp.Currency;
+                if (vp.LeadTimeDays is int leadTimeDays)
+                    defaultExpectedDelivery = new DateTimeOffset(
+                        clock.UtcNow.UtcDateTime.Date.AddDays(leadTimeDays), TimeSpan.Zero);
             }
         }
 
@@ -119,6 +134,7 @@ public class CreatePurchaseOrderHandler(
             Incoterm = request.Incoterm ?? defaultIncoterm ?? Incoterm.FOB_Origin,
             EstimatedFreight = request.EstimatedFreight,
             QuoteCurrency = request.QuoteCurrency ?? defaultCurrency ?? "USD",
+            ExpectedDeliveryDate = request.ExpectedDeliveryDate ?? defaultExpectedDelivery,
             OriginSource = PoOriginSource.Manual,
             OriginUserId = userId > 0 ? userId : null,
         };
@@ -170,6 +186,28 @@ public class CreatePurchaseOrderHandler(
             0, null, po.IsBlanket, po.CreatedAt,
             OriginSource: po.OriginSource.ToString(),
             OriginReference: po.OriginReference);
+    }
+
+    private async Task EnsureJobOpenAsync(int jobId, CancellationToken ct)
+    {
+        var job = await db.Jobs
+            .AsNoTracking()
+            .Where(j => j.Id == jobId)
+            .Select(j => new { j.JobNumber, j.IsArchived })
+            .FirstOrDefaultAsync(ct);
+
+        var message = job switch
+        {
+            null => "That work order no longer exists. Choose another work order.",
+            { IsArchived: true } => $"Work order {job.JobNumber} is archived. Choose an open work order.",
+            _ => null,
+        };
+        if (message is null) return;
+
+        throw new ValidationException(new[]
+        {
+            new ValidationFailure("jobId", message) { AttemptedValue = jobId },
+        });
     }
 
     // Uses a caller-supplied PO number when manual numbers are enabled and one

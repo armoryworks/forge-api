@@ -6,7 +6,8 @@ public record CreatePurchaseOrderRequestModel(
     string? Notes,
     List<CreatePurchaseOrderLineModel> Lines,
     // Optional caller-supplied PO number — gated by purchase_orders.allow_manual_numbers.
-    string? PONumber = null);
+    string? PONumber = null,
+    DateTimeOffset? ExpectedDeliveryDate = null);
 
 // Phase 3 / WU-10 / F8-partial — Quantity is decimal (was int). UoM-aware shops
 // need fractional quantities — material-by-weight, by-time, by-volume.

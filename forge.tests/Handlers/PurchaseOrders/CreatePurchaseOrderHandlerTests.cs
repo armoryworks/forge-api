@@ -29,7 +29,8 @@ public class CreatePurchaseOrderHandlerTests
             Mock.Of<IBusinessIdentifierService>(),
             Mock.Of<MediatR.IMediator>(),
             Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>(),
-            _db);
+            _db,
+            Mock.Of<IClock>());
     }
 
     [Fact]
@@ -317,7 +318,8 @@ public class CreatePurchaseOrderHandlerTests
             Mock.Of<IBusinessIdentifierService>(),
             Mock.Of<MediatR.IMediator>(),
             accessor.Object,
-            _db);
+            _db,
+            Mock.Of<IClock>());
 
         var command = new CreatePurchaseOrderCommand(
             vendorId, null, null,
