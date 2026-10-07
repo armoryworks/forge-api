@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -22,6 +23,7 @@ public record ReceiveProductionRunToStockCommand(int JobId, int RunId, int Recei
 public class ReceiveProductionRunToStockHandler(
     AppDbContext db,
     IClock clock,
+    ICapabilitySnapshotProvider capabilities,
     // Operational FG stock-in (creates/increments BinContent + a Receive movement). Null in mock-based unit
     // tests → no stock movement, run is still stamped received.
     IInventoryRepository? inventory = null,
@@ -30,7 +32,7 @@ public class ReceiveProductionRunToStockHandler(
     IProductionReceiptPostingService? posting = null)
     : IRequestHandler<ReceiveProductionRunToStockCommand, ProductionRunResponseModel>
 {
-    private const string FinishedGoodsBinName = "Finished Goods";
+    public const string MultiLocationCapability = "CAP-INV-MULTILOC";
 
     public async Task<ProductionRunResponseModel> Handle(
         ReceiveProductionRunToStockCommand request, CancellationToken cancellationToken)
@@ -66,10 +68,13 @@ public class ReceiveProductionRunToStockHandler(
 
             // Operational FG stock-in (not CAP-ACCT-FULLGL gated): find-or-create the active BinContent for
             // (part, bin) and increment it, then record a Receive movement.
+            string? binName = null;
             if (inventory is not null)
             {
-                var locationId = await ResolveReceivingBinAsync(
+                var location = await ResolveReceivingBinAsync(
                     inventory, request.LocationId, run.Part.DefaultBinId, cancellationToken);
+                var locationId = location.Id;
+                binName = location.Name;
 
                 var existing = await inventory.FindActiveBinContentByPartLocationAsync(
                     run.PartId, locationId, cancellationToken);
@@ -106,6 +111,17 @@ public class ReceiveProductionRunToStockHandler(
             run.ReceivedQuantity = goodQty;
             run.ReceivedToStockAt = receivedAt;
 
+            db.JobActivityLogs.Add(new JobActivityLog
+            {
+                JobId = run.JobId,
+                UserId = request.ReceivedByUserId,
+                Action = ActivityAction.StatusChanged,
+                Description = binName is null
+                    ? $"Received {goodQty} of {run.Part.PartNumber} from run {run.RunNumber} to stock."
+                    : $"Received {goodQty} of {run.Part.PartNumber} from run {run.RunNumber} into {binName}.",
+                CreatedAt = receivedAt,
+            });
+
             await db.SaveChangesAsync(cancellationToken);
 
             if (posting is not null)
@@ -122,36 +138,27 @@ public class ReceiveProductionRunToStockHandler(
         return await BuildResponseAsync(run, cancellationToken);
     }
 
-    /// <summary>The bin to stock into: the requested bin when it is an active bin, else the part's default bin
-    /// when that is an active bin, else the "Finished Goods" bin, provisioned on first use so a production receipt
-    /// always has somewhere to land. Never an arbitrary first bin.</summary>
-    private async Task<int> ResolveReceivingBinAsync(
+    /// <summary>The bin to stock into: the requested bin when it is an active bin, else (with multi-location
+    /// inventory on) the part's default bin when that is an active bin, else the default location that
+    /// single-location stock screens read and write. Never an arbitrary first bin.</summary>
+    private async Task<StorageLocation> ResolveReceivingBinAsync(
         IInventoryRepository inventory, int? requestedLocationId, int? partDefaultBinId, CancellationToken ct)
     {
-        foreach (var candidate in new[] { requestedLocationId, partDefaultBinId })
+        int?[] candidates = capabilities.IsEnabled(MultiLocationCapability)
+            ? [requestedLocationId, partDefaultBinId]
+            : [requestedLocationId];
+
+        foreach (var candidate in candidates)
         {
-            if (candidate is int id && await IsActiveBinAsync(id, ct))
-                return id;
+            if (candidate is int id && await FindActiveBinAsync(id, ct) is { } bin)
+                return bin;
         }
 
-        var existing = await db.StorageLocations
-            .Where(l => l.DeletedAt == null
-                && l.IsActive
-                && l.LocationType == LocationType.Bin
-                && l.Name == FinishedGoodsBinName)
-            .OrderBy(l => l.Id)
-            .Select(l => (int?)l.Id)
-            .FirstOrDefaultAsync(ct);
-        if (existing is int existingId)
-            return existingId;
-
-        var fg = new StorageLocation { Name = FinishedGoodsBinName, LocationType = LocationType.Bin, IsActive = true };
-        await inventory.AddLocationAsync(fg, ct);
-        return fg.Id;
+        return await inventory.EnsureDefaultLocationAsync(ct);
     }
 
-    private Task<bool> IsActiveBinAsync(int locationId, CancellationToken ct) =>
-        db.StorageLocations.AnyAsync(l => l.Id == locationId
+    private Task<StorageLocation?> FindActiveBinAsync(int locationId, CancellationToken ct) =>
+        db.StorageLocations.FirstOrDefaultAsync(l => l.Id == locationId
             && l.DeletedAt == null
             && l.IsActive
             && l.LocationType == LocationType.Bin, ct);

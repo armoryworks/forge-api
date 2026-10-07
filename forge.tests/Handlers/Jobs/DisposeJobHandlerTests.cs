@@ -454,7 +454,7 @@ public class DisposeJobHandlerTests
         _mediator.Setup(m => m.Send(It.IsAny<GetJobByIdQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(BuildJobDetailResponse(job.Id, job.JobNumber));
         var receive = new ReceiveProductionRunToStockHandler(
-            _dbContext, new SystemClock(), new InventoryRepository(_dbContext), posting: null);
+            _dbContext, new SystemClock(), _capabilities.Object, new InventoryRepository(_dbContext), posting: null);
         _mediator.Setup(m => m.Send(It.IsAny<ReceiveProductionRunToStockCommand>(), It.IsAny<CancellationToken>()))
             .Returns((IRequest<ProductionRunResponseModel> c, CancellationToken ct) =>
                 receive.Handle((ReceiveProductionRunToStockCommand)c, ct));
@@ -484,6 +484,12 @@ public class DisposeJobHandlerTests
 
         var disposed = await _dbContext.Jobs.SingleAsync(j => j.Id == job.Id);
         disposed.Disposition.Should().Be(JobDisposition.AddToInventory);
+
+        var activity = await _dbContext.JobActivityLogs
+            .Where(l => l.JobId == job.Id)
+            .Select(l => l.Description)
+            .ToListAsync();
+        activity.Should().Contain($"Received 500 of 40-1700M from run {run.RunNumber} into A-03.");
     }
 
     private async Task<(Job Job, Part Part, StorageLocation Bin)> ArrangeStockingJob(string jobNumber)
@@ -501,7 +507,7 @@ public class DisposeJobHandlerTests
         _mediator.Setup(m => m.Send(It.IsAny<GetJobByIdQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(BuildJobDetailResponse(job.Id, job.JobNumber));
         var receive = new ReceiveProductionRunToStockHandler(
-            _dbContext, new SystemClock(), new InventoryRepository(_dbContext), posting: null);
+            _dbContext, new SystemClock(), _capabilities.Object, new InventoryRepository(_dbContext), posting: null);
         _mediator.Setup(m => m.Send(It.IsAny<ReceiveProductionRunToStockCommand>(), It.IsAny<CancellationToken>()))
             .Returns((IRequest<ProductionRunResponseModel> c, CancellationToken ct) =>
                 receive.Handle((ReceiveProductionRunToStockCommand)c, ct));
@@ -625,7 +631,7 @@ public class DisposeJobHandlerTests
     }
 
     [Fact]
-    public async Task Handle_AddToInventory_WithoutABin_UsesTheReceiveFallback()
+    public async Task Handle_AddToInventory_WithoutABin_StocksTheDefaultLocation()
     {
         var (job, part, _) = await ArrangeStockingJob("JOB-0062");
 
@@ -634,7 +640,7 @@ public class DisposeJobHandlerTests
         _dbContext.ChangeTracker.Clear();
         var stocked = await _dbContext.BinContents.SingleAsync(b => b.EntityType == "part" && b.EntityId == part.Id);
         var location = await _dbContext.StorageLocations.SingleAsync(l => l.Id == stocked.LocationId);
-        location.Name.Should().Be("Finished Goods");
+        location.IsDefault.Should().BeTrue();
         stocked.Quantity.Should().Be(5m);
     }
 

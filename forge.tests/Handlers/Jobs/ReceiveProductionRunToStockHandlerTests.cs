@@ -1,6 +1,8 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 
+using Forge.Api.Capabilities;
 using Forge.Api.Features.Jobs.ProductionRuns;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -18,12 +20,15 @@ namespace Forge.Tests.Handlers.Jobs;
 public class ReceiveProductionRunToStockHandlerTests : IDisposable
 {
     private readonly AppDbContext _db;
+    private readonly Mock<ICapabilitySnapshotProvider> _capabilities = new();
     private readonly ReceiveProductionRunToStockHandler _handler;
 
     public ReceiveProductionRunToStockHandlerTests()
     {
         _db = TestDbContextFactory.Create();
-        _handler = new ReceiveProductionRunToStockHandler(_db, new SystemClock(), new InventoryRepository(_db), posting: null);
+        _capabilities.Setup(c => c.IsEnabled(ReceiveProductionRunToStockHandler.MultiLocationCapability)).Returns(true);
+        _handler = new ReceiveProductionRunToStockHandler(
+            _db, new SystemClock(), _capabilities.Object, new InventoryRepository(_db), posting: null);
     }
 
     private async Task<ProductionRun> SeedRunAsync(
@@ -113,9 +118,12 @@ public class ReceiveProductionRunToStockHandlerTests : IDisposable
             .Should().Be(1);
     }
 
-    private async Task<StorageLocation> SeedBinAsync(string name, bool isActive = true)
+    private async Task<StorageLocation> SeedBinAsync(string name, bool isActive = true, bool isDefault = false)
     {
-        var bin = new StorageLocation { Name = name, LocationType = LocationType.Bin, IsActive = isActive };
+        var bin = new StorageLocation
+        {
+            Name = name, LocationType = LocationType.Bin, IsActive = isActive, IsDefault = isDefault,
+        };
         _db.StorageLocations.Add(bin);
         await _db.SaveChangesAsync();
         return bin;
@@ -159,29 +167,57 @@ public class ReceiveProductionRunToStockHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task Handle_NoRequestedOrDefaultBin_UsesFinishedGoodsNotTheFirstBin()
+    public async Task Handle_NoRequestedOrDefaultBin_UsesTheDefaultLocationNotTheFirstBin()
     {
         var unrelated = await SeedBinAsync("A-01");
+        var main = await SeedBinAsync("Main", isDefault: true);
         var run = await SeedRunAsync(completedQty: 8);
 
         await _handler.Handle(new ReceiveProductionRunToStockCommand(run.JobId, run.Id, ReceivedByUserId: 1), default);
 
         var locationId = await StockedLocationAsync(run.PartId);
         locationId.Should().NotBe(unrelated.Id);
-        (await _db.StorageLocations.SingleAsync(l => l.Id == locationId)).Name.Should().Be("Finished Goods");
+        locationId.Should().Be(main.Id);
     }
 
     [Fact]
-    public async Task Handle_ExistingFinishedGoodsBin_IsReused()
+    public async Task Handle_NoBinsAtAll_ProvisionsTheDefaultLocation()
     {
-        await SeedBinAsync("A-01");
-        var fg = await SeedBinAsync("Finished Goods");
         var run = await SeedRunAsync(completedQty: 8);
 
         await _handler.Handle(new ReceiveProductionRunToStockCommand(run.JobId, run.Id, ReceivedByUserId: 1), default);
 
-        (await StockedLocationAsync(run.PartId)).Should().Be(fg.Id);
-        (await _db.StorageLocations.CountAsync(l => l.Name == "Finished Goods")).Should().Be(1);
+        var locationId = await StockedLocationAsync(run.PartId);
+        (await _db.StorageLocations.SingleAsync(l => l.Id == locationId)).IsDefault.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_MultiLocationOff_StocksTheDefaultLocationEvenWhenThePartHasADefaultBin()
+    {
+        _capabilities.Setup(c => c.IsEnabled(ReceiveProductionRunToStockHandler.MultiLocationCapability)).Returns(false);
+        var main = await SeedBinAsync("Main", isDefault: true);
+        var partBin = await SeedBinAsync("B-01");
+        var run = await SeedRunAsync(completedQty: 8, defaultBinId: partBin.Id);
+
+        await _handler.Handle(new ReceiveProductionRunToStockCommand(run.JobId, run.Id, ReceivedByUserId: 1), default);
+
+        (await StockedLocationAsync(run.PartId)).Should().Be(main.Id);
+    }
+
+    [Fact]
+    public async Task Handle_LogsTheReceiptOnTheJob()
+    {
+        var bin = await SeedBinAsync("A-03");
+        var run = await SeedRunAsync(completedQty: 8);
+
+        await _handler.Handle(
+            new ReceiveProductionRunToStockCommand(run.JobId, run.Id, ReceivedByUserId: 1, LocationId: bin.Id),
+            default);
+
+        _db.ChangeTracker.Clear();
+        var log = await _db.JobActivityLogs.SingleAsync(l => l.JobId == run.JobId);
+        log.Description.Should().Be($"Received 8 of P-FG-001 from run {run.RunNumber} into A-03.");
+        log.UserId.Should().Be(1);
     }
 
     public void Dispose() => _db.Dispose();
