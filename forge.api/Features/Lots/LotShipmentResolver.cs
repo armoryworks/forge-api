@@ -37,8 +37,30 @@ internal static class LotShipmentResolver
 
         var movements = ShipMovements(db)
             .Where(m => m.LotNumber == null && shipmentLineIds.Contains(m.EntityId));
-        return await ResolveAsync(db, movements, isApproximate: true, ct);
+        var unlotted = await ResolveAsync(db, movements, isApproximate: true, ct);
+        var unrelieved = await UnrelievedLinesAsync(db, shipmentLineIds, ct);
+        return [.. unlotted, .. unrelieved];
     }
+
+    private static Task<List<LotShipmentRow>> UnrelievedLinesAsync(
+        AppDbContext db, List<int> shipmentLineIds, CancellationToken ct) =>
+        db.ShipmentLines
+            .AsNoTracking()
+            .Where(sl => shipmentLineIds.Contains(sl.Id) && sl.Quantity > 0
+                && !db.BinMovements.Any(m => m.Reason == BinMovementReason.Ship
+                    && m.EntityType == ShipmentLineEntityType
+                    && m.EntityId == sl.Id))
+            .Select(sl => new LotShipmentRow(
+                sl.ShipmentId,
+                sl.Shipment.ShipmentNumber,
+                sl.Shipment.ShippedDate,
+                sl.Shipment.TrackingNumber,
+                sl.Shipment.SalesOrder.CustomerId,
+                sl.Shipment.SalesOrder.Customer.Name,
+                null,
+                sl.Quantity,
+                true))
+            .ToListAsync(ct);
 
     private static IQueryable<BinMovement> ShipMovements(AppDbContext db) =>
         db.BinMovements

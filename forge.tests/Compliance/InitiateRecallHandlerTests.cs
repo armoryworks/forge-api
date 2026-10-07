@@ -211,6 +211,25 @@ public sealed class InitiateRecallHandlerTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task A_shipment_that_never_relieved_inventory_is_still_listed_as_approximate()
+    {
+        await using var db = fixture.CreateContext();
+        var part = await SeedPartAsync(db);
+        var shipped = await SeedShipmentAsync(db, "Built To Order Buyer", 10);
+        var job = await SeedJobAsync(db, shipped.SoLine.Id);
+        var produced = await SeedLotAsync(db, part.Id, 10, jobId: job.Id);
+
+        var result = await new InitiateRecallHandler(db, Http()).Handle(Recall(produced.Id), CancellationToken.None);
+
+        result.AffectedShipmentsCount.Should().Be(1);
+        var shp = result.AffectedShipments.Single();
+        shp.CustomerId.Should().Be(shipped.Customer.Id);
+        shp.ShipmentNumber.Should().Be(shipped.Shipment.ShipmentNumber);
+        shp.AffectedQuantity.Should().Be(10);
+        shp.IsApproximate.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Stock_built_lot_lists_the_customers_it_actually_shipped_to()
     {
         await using var db = fixture.CreateContext();

@@ -17,8 +17,9 @@ namespace Forge.Api.Features.Quality;
 /// CAP-QC-RECALL — initiates a lot-based recall. Walks the lot_consumptions genealogy FORWARD
 /// from the recalled lot to every downstream produced lot, quarantines matching on-hand bin
 /// contents (Stored → QcHold), resolves the shipments/customers that received affected lots
-/// (from the lot-stamped Ship bin movements; the job → sales-order-line chain only for Ship
-/// movements without a lot, flagged approximate), and freezes it all as an immutable Recall snapshot.
+/// (from the lot-stamped Ship bin movements; the job → sales-order-line chain, flagged approximate,
+/// for Ship movements without a lot and for shipment lines that never relieved inventory), and
+/// freezes it all as an immutable Recall snapshot.
 /// </summary>
 public record InitiateRecallCommand(InitiateRecallRequestModel Data) : IRequest<RecallDetailResponseModel>;
 
@@ -74,7 +75,7 @@ public class InitiateRecallHandler(AppDbContext db, IHttpContextAccessor httpCon
             .GroupBy(bc => bc.LotNumber!)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
 
-        // 3) Resolve affected shipments/customers from lot-stamped Ship movements (SO-line chain only for unlotted ones).
+        // 3) Resolve affected shipments/customers from lot-stamped Ship movements (SO-line chain for unlotted or unrelieved lines).
         var exactShipments = await LotShipmentResolver.ForLotsAsync(db, affectedLotNumbers, cancellationToken);
         var soLineIds = await AffectedSalesOrderLineIdsAsync(db, affectedLots.Select(l => l.JobId), cancellationToken);
         var approximateShipments = await LotShipmentResolver.ForUnlottedSalesOrderLinesAsync(db, soLineIds, cancellationToken);
