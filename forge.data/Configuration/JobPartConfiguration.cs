@@ -9,7 +9,7 @@ public class JobPartConfiguration : IEntityTypeConfiguration<JobPart>
     public void Configure(EntityTypeBuilder<JobPart> builder)
     {
         builder.HasOne(jp => jp.Job)
-            .WithMany()
+            .WithMany(j => j.JobParts)
             .HasForeignKey(jp => jp.JobId)
             .OnDelete(DeleteBehavior.Cascade);
 
