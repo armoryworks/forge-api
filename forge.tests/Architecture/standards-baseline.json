@@ -102,7 +102,6 @@
     "forge.api/Features/Inventory/UpdateCycleCount.cs": 2,
     "forge.api/Features/Inventory/UseStock.cs": 1,
     "forge.api/Features/Invoices/CreateInvoiceFromJob.cs": 1,
-    "forge.api/Features/Invoices/DeleteInvoice.cs": 1,
     "forge.api/Features/Jobs/CreateMaterialIssue.cs": 2,
     "forge.api/Features/Jobs/ExportJobsCalendar.cs": 1,
     "forge.api/Features/Jobs/GetInternalProjectTypes.cs": 1,
