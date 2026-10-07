@@ -1,4 +1,5 @@
 using FluentAssertions;
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -277,7 +278,23 @@ public class ClonePartTests
     }
 
     [Fact]
-    public async Task Clone_RejectsDuplicatePartNumber_IncludingSoftDeletedParts()
+    public async Task Clone_RejectsPartNumberHeldByLivePart()
+    {
+        var (source, _, _) = await SeedFamilyMemberAsync();
+        await SeedPartAsync("VB-050");
+        EnableManualNumbers();
+
+        var act = () => _handler.Handle(
+            new ClonePartCommand(source.Id, Request(partNumber: "VB-050")), CancellationToken.None);
+
+        var ex = await act.Should().ThrowAsync<ValidationException>();
+        ex.Which.Errors.Should().ContainSingle(e => e.PropertyName == "partNumber"
+            && e.ErrorMessage == "Part number 'VB-050' is already in use.");
+        (await _db.Parts.IgnoreQueryFilters().CountAsync()).Should().Be(4);
+    }
+
+    [Fact]
+    public async Task Clone_RejectsPartNumberHeldByDeletedPart_WithRestoreMessage()
     {
         var (source, _, _) = await SeedFamilyMemberAsync();
         var retired = await SeedPartAsync("VB-050");
@@ -288,7 +305,9 @@ public class ClonePartTests
         var act = () => _handler.Handle(
             new ClonePartCommand(source.Id, Request(partNumber: "VB-050")), CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already in use*");
+        var ex = await act.Should().ThrowAsync<ValidationException>();
+        ex.Which.Errors.Should().ContainSingle(e => e.PropertyName == "partNumber"
+            && e.ErrorMessage == "Part number 'VB-050' belongs to a deleted part. Restore that part or choose another number.");
         (await _db.Parts.IgnoreQueryFilters().CountAsync()).Should().Be(4);
     }
 
@@ -300,7 +319,9 @@ public class ClonePartTests
         var act = () => _handler.Handle(
             new ClonePartCommand(source.Id, Request(partNumber: "VB-075")), CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*not enabled*");
+        var ex = await act.Should().ThrowAsync<ValidationException>();
+        ex.Which.Errors.Should().ContainSingle(e => e.PropertyName == "partNumber"
+            && e.ErrorMessage.Contains("Admin > Settings > Numbering"));
     }
 
     [Fact]

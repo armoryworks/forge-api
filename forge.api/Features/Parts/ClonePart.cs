@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Services;
+using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -46,8 +47,6 @@ public class ClonePartHandler(
     ISender sender,
     ILogger<ClonePartHandler> logger) : IRequestHandler<ClonePartCommand, PartDetailResponseModel>
 {
-    private const string AllowManualPartNumbersKey = "parts.allow_manual_numbers";
-
     public async Task<PartDetailResponseModel> Handle(ClonePartCommand request, CancellationToken cancellationToken)
     {
         var data = request.Data;
@@ -282,12 +281,10 @@ public class ClonePartHandler(
         if (string.IsNullOrWhiteSpace(supplied))
             return await repo.GetNextPartNumberAsync(inventoryClass, ct);
 
-        if (!await ManualPartNumbersAllowedAsync(ct))
-            throw new InvalidOperationException("Manual part numbers are not enabled; leave the part number blank to auto-number.");
+        if (!await PartNumberCheck.ManualNumbersAllowedAsync(systemSettings, ct))
+            throw PartNumberCheck.ManualNumbersOffOnCreate();
 
-        var taken = await db.Parts.IgnoreQueryFilters().AnyAsync(p => p.PartNumber == supplied, ct);
-        if (taken)
-            throw new InvalidOperationException($"Part number '{supplied}' is already in use.");
+        await PartNumberCheck.EnsureAvailableAsync(repo, supplied, null, ct);
 
         return supplied;
     }
@@ -314,11 +311,5 @@ public class ClonePartHandler(
         {
             logger.LogWarning(ex, "Failed to enqueue item sync for Part {PartId} — continuing", part.Id);
         }
-    }
-
-    private async Task<bool> ManualPartNumbersAllowedAsync(CancellationToken ct)
-    {
-        var setting = await systemSettings.FindByKeyAsync(AllowManualPartNumbersKey, ct);
-        return setting is not null && bool.TryParse(setting.Value, out var enabled) && enabled;
     }
 }
