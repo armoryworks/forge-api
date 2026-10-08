@@ -32,7 +32,7 @@ public class CreateMaintenanceJobHandler(AppDbContext db, IJobRepository jobRepo
             .FirstOrDefaultAsync(t => t.Name.Contains("Maintenance"), ct)
             ?? throw new KeyNotFoundException("No Maintenance track type found. Create one in Admin → Track Types.");
 
-        var firstStage = maintenanceTrack.Stages.FirstOrDefault()
+        var firstStage = maintenanceTrack.Stages.Where(s => s.IsActive).OrderBy(s => s.SortOrder).FirstOrDefault()
             ?? throw new KeyNotFoundException("Maintenance track has no stages configured.");
 
         var jobNumber = await jobRepo.GenerateNextJobNumberAsync(ct);

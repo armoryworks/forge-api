@@ -98,7 +98,7 @@ public class ReleasePlannedOrderHandler(
 
             var defaultStage = defaultTrackType != null
                 ? await db.JobStages.AsNoTracking()
-                    .Where(s => s.TrackTypeId == defaultTrackType.Id)
+                    .Where(s => s.TrackTypeId == defaultTrackType.Id && s.IsActive)
                     .OrderBy(s => s.SortOrder)
                     .FirstOrDefaultAsync(cancellationToken)
                 : null;

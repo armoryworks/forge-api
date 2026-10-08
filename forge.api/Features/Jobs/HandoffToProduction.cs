@@ -36,7 +36,7 @@ public class HandoffToProductionHandler(AppDbContext db, IJobRepository jobRepo)
             ?? throw new InvalidOperationException(
                 "No production track is set. Mark one as the default in Admin > Order types.");
 
-        var firstStage = productionTrack.Stages.FirstOrDefault()
+        var firstStage = productionTrack.Stages.Where(s => s.IsActive).OrderBy(s => s.SortOrder).FirstOrDefault()
             ?? throw new InvalidOperationException(
                 $"Order type '{productionTrack.Name}' has no statuses. Add statuses in Admin.");
 

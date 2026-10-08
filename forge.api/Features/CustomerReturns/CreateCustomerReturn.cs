@@ -76,6 +76,7 @@ public class CreateCustomerReturnHandler(
         {
             // Get first stage of the same track type for the rework job
             var firstStage = originalJob.TrackType.Stages
+                .Where(s => s.IsActive)
                 .OrderBy(s => s.SortOrder)
                 .First();
 

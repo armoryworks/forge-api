@@ -86,6 +86,23 @@ public class HandoffToProductionHandlerTests
             .WithMessage("No production track is set.*");
     }
 
+    [Fact]
+    public async Task Handoff_StartsInTheFirstVisibleStatus()
+    {
+        var production = await SeedTrackAsync("Production", "production", isDefault: true);
+        var hidden = await _db.JobStages.SingleAsync(s => s.TrackTypeId == production.Id);
+        hidden.IsActive = false;
+        var confirmed = new JobStage { TrackTypeId = production.Id, Name = "Order Confirmed", Code = "order_confirmed", SortOrder = 2 };
+        _db.JobStages.Add(confirmed);
+        var rnd = await SeedTrackAsync("R&D/Tooling", "rnd", isDefault: false);
+        await _db.SaveChangesAsync();
+        var rdJob = await SeedJobAsync(rnd);
+
+        var prodJobId = await _handler.Handle(new HandoffToProductionCommand(rdJob.Id), CancellationToken.None);
+
+        (await _db.Jobs.SingleAsync(j => j.Id == prodJobId)).CurrentStageId.Should().Be(confirmed.Id);
+    }
+
     private async Task<TrackType> SeedTrackAsync(string name, string code, bool isDefault)
     {
         var track = new TrackType { Name = name, Code = code, IsDefault = isDefault, IsActive = true };

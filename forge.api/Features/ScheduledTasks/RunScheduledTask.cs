@@ -23,7 +23,7 @@ public class RunScheduledTaskHandler(
             .FirstOrDefaultAsync(t => t.Id == request.Id, ct)
             ?? throw new KeyNotFoundException($"Scheduled task {request.Id} not found.");
 
-        var firstStage = task.TrackType.Stages.OrderBy(s => s.SortOrder).FirstOrDefault()
+        var firstStage = task.TrackType.Stages.Where(s => s.IsActive).OrderBy(s => s.SortOrder).FirstOrDefault()
             ?? throw new InvalidOperationException("Track type has no stages.");
 
         var jobNumber = await jobRepo.GenerateNextJobNumberAsync(ct);

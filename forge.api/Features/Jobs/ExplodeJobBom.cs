@@ -60,7 +60,7 @@ public class ExplodeJobBomHandler(
             throw new InvalidOperationException(
                 "This work order has already been exploded. To redo it, mark its sub-jobs as entered in error and release its reserved stock first.");
 
-        var firstStage = parentJob.TrackType.Stages.FirstOrDefault()
+        var firstStage = parentJob.TrackType.Stages.Where(s => s.IsActive).OrderBy(s => s.SortOrder).FirstOrDefault()
             ?? throw new InvalidOperationException(
                 $"Order type '{parentJob.TrackType.Name}' has no statuses. Add statuses in Admin.");
 
