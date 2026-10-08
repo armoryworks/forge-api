@@ -183,6 +183,21 @@ public class ImplementEcoRevisionTests
     }
 
     [Theory]
+    [InlineData("ZZZZZZZZZZ", null)]
+    [InlineData("A", "{\"revision\":\"ABCDEFGHIJK\"}")]
+    public async Task Rejects_a_revision_code_too_long_for_the_part_and_names_the_part(string current, string? newValue)
+    {
+        var part = await SeedPartAsync("PRT-LONG", current);
+        var eco = await SeedEcoAsync(Affects("Part", part.Id, newValue));
+
+        var act = () => _handler.Handle(new ImplementEcoCommand(eco.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*PRT-LONG*");
+        (await _db.PartRevisions.AsNoTracking().AnyAsync()).Should().BeFalse();
+        (await _db.EngineeringChangeOrders.AsNoTracking().SingleAsync()).Status.Should().Be(EcoStatus.Approved);
+    }
+
+    [Theory]
     [InlineData("ABCDEFGHIJ", true)]
     [InlineData("ABCDEFGHIJK", false)]
     public void Revision_code_is_limited_to_the_part_revision_column(string revision, bool valid)

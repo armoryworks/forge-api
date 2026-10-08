@@ -19,6 +19,7 @@ public class ImplementEcoHandler(AppDbContext db, IHttpContextAccessor httpConte
     : IRequestHandler<ImplementEcoCommand>
 {
     private const string PartEntityType = "Part";
+    private const int MaxRevisionLength = 10;
 
     public async Task Handle(ImplementEcoCommand request, CancellationToken cancellationToken)
     {
@@ -86,6 +87,9 @@ public class ImplementEcoHandler(AppDbContext db, IHttpContextAccessor httpConte
                 continue;
 
             var code = requested ?? NextRevisionCode(part.Revision, taken);
+            if (code.Length > MaxRevisionLength)
+                throw new InvalidOperationException(
+                    $"Cannot revise part {part.PartNumber}: revision '{code}' is longer than {MaxRevisionLength} characters");
 
             await mediator.Send(
                 new CreatePartRevisionCommand(partId, code, null, reason, effectiveDate),
