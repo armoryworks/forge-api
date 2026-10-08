@@ -379,12 +379,13 @@ public static partial class SeedData
             {
                 foreach (var spo in pos)
                 {
+                    var poStatus = Enum.Parse<PurchaseOrderStatus>(spo.Status);
                     var po = new PurchaseOrder
                     {
                         PONumber = spo.PoNumber,
                         VendorId = vendorIds[spo.VendorRef],
                         JobId = jobNums[spo.JobRef],
-                        Status = Enum.Parse<PurchaseOrderStatus>(spo.Status),
+                        Status = poStatus,
                         SubmittedDate = D(spo.SubmittedDate),
                         ExpectedDeliveryDate = D(spo.ExpectedDeliveryDate),
                         ReceivedDate = spo.ReceivedDate != null ? D(spo.ReceivedDate) : null,
@@ -398,6 +399,7 @@ public static partial class SeedData
                             PartId = partIds[pl.PartRef!],
                             Description = pl.Description,
                             OrderedQuantity = pl.OrderedQuantity,
+                            ReceivedQuantity = SeededReceivedQuantity(poStatus, pl),
                             UnitPrice = pl.UnitPrice,
                         });
                     }
@@ -577,6 +579,13 @@ public static partial class SeedData
 
     private static DateTimeOffset D(string date) =>
         DateTimeOffset.Parse(date, null, System.Globalization.DateTimeStyles.AssumeUniversal);
+
+    private static decimal SeededReceivedQuantity(PurchaseOrderStatus status, HPOLine line) => status switch
+    {
+        PurchaseOrderStatus.Received or PurchaseOrderStatus.Closed => line.ReceivedQuantity ?? line.OrderedQuantity,
+        PurchaseOrderStatus.PartiallyReceived => line.ReceivedQuantity ?? line.OrderedQuantity / 2,
+        _ => 0m,
+    };
 
     private static T Deserialize<T>(string path, JsonSerializerOptions opts) =>
         JsonSerializer.Deserialize<T>(File.ReadAllText(path), opts)
@@ -798,10 +807,11 @@ public static partial class SeedData
 
     private sealed class HPOLine
     {
-        public string?  PartRef         { get; set; }
-        public string   Description     { get; set; } = "";
-        public int      OrderedQuantity { get; set; }
-        public decimal  UnitPrice       { get; set; }
+        public string?  PartRef          { get; set; }
+        public string   Description      { get; set; } = "";
+        public int      OrderedQuantity  { get; set; }
+        public int?     ReceivedQuantity { get; set; }
+        public decimal  UnitPrice        { get; set; }
     }
 
     private sealed class HLot
