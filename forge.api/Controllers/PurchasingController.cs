@@ -43,6 +43,14 @@ public class PurchasingController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("rfqs/{id:int}/pdf")]
+    public async Task<IActionResult> GetRfqPdf(int id, [FromQuery] int? vendorId, CancellationToken ct)
+    {
+        var pdf = await mediator.Send(new GetRfqPdfQuery(id, vendorId), ct);
+        var fileName = vendorId is int v ? $"rfq-{id}-vendor-{v}.pdf" : $"rfq-{id}.pdf";
+        return File(pdf, "application/pdf", fileName);
+    }
+
     [HttpPut("rfqs/{id:int}")]
     public async Task<IActionResult> UpdateRfq(int id, CreateRfqRequestModel request)
     {

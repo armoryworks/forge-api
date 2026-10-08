@@ -61,6 +61,13 @@ public class QuotesController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{id:int}/duplicate")]
+    public async Task<ActionResult<QuoteDetailResponseModel>> DuplicateQuote(int id)
+    {
+        var result = await mediator.Send(new DuplicateQuoteCommand(id));
+        return CreatedAtAction(nameof(GetQuote), new { id = result.Id }, result);
+    }
+
     [HttpPost("{id:int}/lines")]
     public async Task<ActionResult<QuoteDetailResponseModel>> AddQuoteLine(int id, CreateQuoteLineModel request)
     {
