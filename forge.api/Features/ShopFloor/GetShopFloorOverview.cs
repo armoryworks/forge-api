@@ -10,7 +10,11 @@ namespace Forge.Api.Features.ShopFloor;
 
 public record GetShopFloorOverviewQuery(int? TeamId = null) : IRequest<ShopFloorOverviewResponseModel>;
 
-public class GetShopFloorOverviewHandler(AppDbContext db, IClockEventTypeService clockEventTypeService, IClock clock)
+public class GetShopFloorOverviewHandler(
+    AppDbContext db,
+    IClockEventTypeService clockEventTypeService,
+    IJobOperationService operations,
+    IClock clock)
     : IRequestHandler<GetShopFloorOverviewQuery, ShopFloorOverviewResponseModel>
 {
     public async Task<ShopFloorOverviewResponseModel> Handle(
@@ -154,7 +158,9 @@ public class GetShopFloorOverviewHandler(AppDbContext db, IClockEventTypeService
                 && j.TrackType.Name.Contains("Maintenance")
                 && j.DueDate < dueThroughTodayUtc, cancellationToken);
 
-        var readyToStart = await KioskWork.ReadyToStart(db).CountAsync(cancellationToken);
+        var tracking = await operations.IsTrackingEnabledAsync(cancellationToken);
+        var readyToStart = await (await KioskWork.ReadyToStartAsync(db, request.TeamId, tracking, cancellationToken))
+            .CountAsync(cancellationToken);
 
         return new ShopFloorOverviewResponseModel(
             jobModels, workerModels, completedToday, maintenanceAlerts, readyToStart);

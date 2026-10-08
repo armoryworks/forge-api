@@ -34,7 +34,7 @@ public class GetClockStatusHandlerTests
 
         _clock.Setup(c => c.UtcNow).Returns(new DateTimeOffset(DateTimeOffset.UtcNow.Date, TimeSpan.Zero).AddHours(18));
 
-        _handler = new GetClockStatusHandler(_db, _userManager.Object, _clockEventTypeService.Object, _clock.Object);
+        _handler = new GetClockStatusHandler(_db, _userManager.Object, _clockEventTypeService.Object, Mock.Of<IJobOperationService>(), _clock.Object);
     }
 
     [Fact]

@@ -2,6 +2,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -10,7 +11,7 @@ namespace Forge.Api.Features.ShopFloor;
 public record GetKioskAvailableJobsQuery(int? TeamId, string? Search, int Take = 50)
     : IRequest<List<KioskAvailableJobResponseModel>>;
 
-public class GetKioskAvailableJobsHandler(AppDbContext db)
+public class GetKioskAvailableJobsHandler(AppDbContext db, IJobOperationService operations)
     : IRequestHandler<GetKioskAvailableJobsQuery, List<KioskAvailableJobResponseModel>>
 {
     public const int MaxTake = 200;
@@ -18,7 +19,8 @@ public class GetKioskAvailableJobsHandler(AppDbContext db)
     public async Task<List<KioskAvailableJobResponseModel>> Handle(
         GetKioskAvailableJobsQuery request, CancellationToken ct)
     {
-        var query = KioskWork.ReadyToStart(db).AsNoTracking();
+        var tracking = await operations.IsTrackingEnabledAsync(ct);
+        var query = (await KioskWork.ReadyToStartAsync(db, request.TeamId, tracking, ct)).AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
@@ -41,7 +43,6 @@ public class GetKioskAvailableJobsHandler(AppDbContext db)
                 j.Id,
                 j.JobNumber,
                 j.Title,
-                j.PartId,
                 PartNumber = j.Part != null ? j.Part.PartNumber : null,
                 Quantity = j.JobParts.Where(jp => jp.PartId == j.PartId).Sum(jp => jp.Quantity),
                 j.DueDate,
@@ -50,8 +51,7 @@ public class GetKioskAvailableJobsHandler(AppDbContext db)
             })
             .ToListAsync(ct);
 
-        var nextOperations = await KioskWork.NextOperationsAsync(
-            db, jobs.Select(j => (j.Id, j.PartId)), ct);
+        var nextOperations = await KioskWork.NextOperationsAsync(db, jobs.Select(j => j.Id), tracking, ct);
 
         return jobs.Select(j => new KioskAvailableJobResponseModel(
             j.Id,

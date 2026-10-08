@@ -35,6 +35,7 @@ public class GetClockStatusHandler(
     AppDbContext db,
     UserManager<ApplicationUser> userManager,
     IClockEventTypeService clockEventTypeService,
+    IJobOperationService operations,
     IClock clock)
     : IRequestHandler<GetClockStatusQuery, List<ClockWorkerModel>>
 {
@@ -101,7 +102,6 @@ public class GetClockStatusHandler(
                 j.AssigneeId,
                 j.JobNumber,
                 j.Title,
-                j.PartId,
                 PartNumber = j.Part != null ? j.Part.PartNumber : null,
                 Priority = j.Priority.ToString(),
                 StageName = j.CurrentStage.Name,
@@ -115,8 +115,8 @@ public class GetClockStatusHandler(
             .GroupBy(t => (t.UserId, JobId: t.JobId!.Value))
             .ToDictionary(g => g.Key, g => g.Max(t => t.TimerStart!.Value));
 
-        var nextOperations = await KioskWork.NextOperationsAsync(
-            db, assignedJobs.Select(j => (j.Id, j.PartId)), ct);
+        var tracking = await operations.IsTrackingEnabledAsync(ct);
+        var nextOperations = await KioskWork.NextOperationsAsync(db, assignedJobs.Select(j => j.Id), tracking, ct);
 
         var assignmentsByUser = assignedJobs
             .GroupBy(j => j.AssigneeId!.Value)

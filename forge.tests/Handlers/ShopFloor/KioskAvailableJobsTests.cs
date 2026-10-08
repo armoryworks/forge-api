@@ -20,6 +20,7 @@ public class KioskAvailableJobsTests
     private readonly AppDbContext _db = TestDbContextFactory.Create();
     private readonly Mock<IClock> _clock = new();
     private readonly Mock<IClockEventTypeService> _eventTypes = new();
+    private readonly Mock<IJobOperationService> _operations = new();
     private JobStage _floor = null!;
     private JobStage _office = null!;
 
@@ -124,20 +125,146 @@ public class KioskAvailableJobsTests
     }
 
     [Fact]
-    public async Task Overview_ReadyToStartCount_CountsUnassignedOpenShopFloorJobs()
+    public async Task Overview_ReadyToStartCount_TeamOwningNoWorkCenters_CountsAllUnassignedOpenShopFloorJobs()
     {
         await SeedStagesAsync();
         var worker = await AddUserAsync();
+        var team = await AddTeamAsync("Assembly");
         await AddJobAsync("J-1");
         await AddJobAsync("J-2");
         await AddJobAsync("J-TAKEN", assigneeId: worker.Id);
         await AddJobAsync("J-OFFICE", stage: _office);
         await AddJobAsync("J-ARCHIVED", configure: j => j.IsArchived = true);
 
-        var result = await new GetShopFloorOverviewHandler(_db, _eventTypes.Object, _clock.Object)
-            .Handle(new GetShopFloorOverviewQuery(7), CancellationToken.None);
+        var result = await OverviewHandler().Handle(new GetShopFloorOverviewQuery(team.Id), CancellationToken.None);
 
         result.ReadyToStartCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task TeamOwningWorkCenters_SeesOnlyJobsWhoseNextStepIsAtItsWorkCenters()
+    {
+        await SeedStagesAsync();
+        var (machining, welding) = (await AddTeamAsync("Machining"), await AddTeamAsync("Welding"));
+        var mill = await AddWorkCenterAsync("Mill", machining.Id);
+        var welder = await AddWorkCenterAsync("Welder", welding.Id);
+        var millFirst = await AddPartAsync("PN-MILL");
+        await AddStepAsync(millFirst, 10, "Mill", mill);
+        await AddStepAsync(millFirst, 20, "Weld", welder);
+        var weldFirst = await AddPartAsync("PN-WELD");
+        await AddStepAsync(weldFirst, 10, "Weld", welder);
+        await AddStepAsync(weldFirst, 20, "Mill", mill);
+        await AddJobAsync("J-MILL", partId: millFirst.Id);
+        await AddJobAsync("J-WELD", partId: weldFirst.Id);
+        await AddJobAsync("J-BARE");
+
+        var machiningJobs = await Handler().Handle(
+            new GetKioskAvailableJobsQuery(machining.Id, null), CancellationToken.None);
+        var weldingJobs = await Handler().Handle(
+            new GetKioskAvailableJobsQuery(welding.Id, null), CancellationToken.None);
+        var unscoped = await Handler().Handle(new GetKioskAvailableJobsQuery(null, null), CancellationToken.None);
+        var overview = await OverviewHandler().Handle(
+            new GetShopFloorOverviewQuery(machining.Id), CancellationToken.None);
+
+        machiningJobs.Select(j => j.JobNumber).Should().Equal("J-MILL");
+        weldingJobs.Select(j => j.JobNumber).Should().Equal("J-WELD");
+        unscoped.Select(j => j.JobNumber).Should().BeEquivalentTo("J-MILL", "J-WELD", "J-BARE");
+        overview.ReadyToStartCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task TeamFilter_WithOperationTracking_FollowsTheFirstOpenStep()
+    {
+        await SeedStagesAsync();
+        EnableTracking();
+        var (machining, welding) = (await AddTeamAsync("Machining"), await AddTeamAsync("Welding"));
+        var mill = await AddWorkCenterAsync("Mill", machining.Id);
+        var welder = await AddWorkCenterAsync("Welder", welding.Id);
+        var part = await AddPartAsync("PN-1");
+        var first = await AddStepAsync(part, 10, "Mill", mill);
+        await AddStepAsync(part, 20, "Weld", welder);
+        var job = await AddJobAsync("J-MILLED", partId: part.Id);
+        await AddJobOperationAsync(job, first, JobOperationStatus.Complete);
+
+        var machiningJobs = await Handler().Handle(
+            new GetKioskAvailableJobsQuery(machining.Id, null), CancellationToken.None);
+        var weldingJobs = await Handler().Handle(
+            new GetKioskAvailableJobsQuery(welding.Id, null), CancellationToken.None);
+
+        machiningJobs.Should().BeEmpty();
+        var row = weldingJobs.Should().ContainSingle().Subject;
+        row.NextOperation!.StepNumber.Should().Be(20);
+        row.NextOperation.WorkCenterName.Should().Be("Welder");
+    }
+
+    [Theory]
+    [InlineData(JobOperationStatus.Complete)]
+    [InlineData(JobOperationStatus.Skipped)]
+    public async Task ClockStatus_WithOperationTracking_NextOperationSkipsClosedSteps(JobOperationStatus closed)
+    {
+        await SeedStagesAsync();
+        EnableTracking();
+        var worker = await AddUserAsync();
+        var part = await AddPartAsync("PN-2");
+        var saw = await AddStepAsync(part, 10, "Saw");
+        await AddStepAsync(part, 20, "Drill");
+        var job = await AddJobAsync("J-AT-DRILL", assigneeId: worker.Id, partId: part.Id);
+        await AddJobOperationAsync(job, saw, closed);
+
+        var result = await ClockStatusHandler().Handle(new GetClockStatusQuery(), CancellationToken.None);
+
+        var assignment = result.Single().Assignments.Single();
+        assignment.NextOperation!.StepNumber.Should().Be(20);
+        assignment.NextOperation.Title.Should().Be("Drill");
+    }
+
+    [Fact]
+    public async Task ClockStatus_WithOperationTracking_PrefersAStepInProgress()
+    {
+        await SeedStagesAsync();
+        EnableTracking();
+        var worker = await AddUserAsync();
+        var part = await AddPartAsync("PN-3");
+        await AddStepAsync(part, 10, "Saw");
+        var drill = await AddStepAsync(part, 20, "Drill");
+        var job = await AddJobAsync("J-DRILLING", assigneeId: worker.Id, partId: part.Id);
+        await AddJobOperationAsync(job, drill, JobOperationStatus.InProgress);
+
+        var result = await ClockStatusHandler().Handle(new GetClockStatusQuery(), CancellationToken.None);
+
+        result.Single().Assignments.Single().NextOperation!.Title.Should().Be("Drill");
+    }
+
+    [Fact]
+    public async Task ClockStatus_AllStepsClosed_HasNoNextOperation()
+    {
+        await SeedStagesAsync();
+        EnableTracking();
+        var worker = await AddUserAsync();
+        var part = await AddPartAsync("PN-4");
+        var only = await AddStepAsync(part, 10, "Pack");
+        var job = await AddJobAsync("J-PACKED", assigneeId: worker.Id, partId: part.Id);
+        await AddJobOperationAsync(job, only, JobOperationStatus.Complete);
+
+        var result = await ClockStatusHandler().Handle(new GetClockStatusQuery(), CancellationToken.None);
+
+        result.Single().Assignments.Single().NextOperation.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ClockStatus_WithoutOperationTracking_ReportsTheFirstRoutingStep()
+    {
+        await SeedStagesAsync();
+        var worker = await AddUserAsync();
+        var part = await AddPartAsync("PN-5");
+        var saw = await AddStepAsync(part, 10, "Saw");
+        await AddStepAsync(part, 20, "Drill");
+        var job = await AddJobAsync("J-UNTRACKED", assigneeId: worker.Id, partId: part.Id);
+        await AddJobOperationAsync(job, saw, JobOperationStatus.Complete);
+
+        var result = await ClockStatusHandler().Handle(new GetClockStatusQuery(), CancellationToken.None);
+
+        result.Single().Assignments.Single().NextOperation!.Title.Should().Be("Saw");
     }
 
     [Fact]
@@ -160,10 +287,7 @@ public class KioskAvailableJobsTests
         });
         await _db.SaveChangesAsync();
 
-        var userManager = new Mock<UserManager<ApplicationUser>>(
-            Mock.Of<IUserStore<ApplicationUser>>(), null!, null!, null!, null!, null!, null!, null!, null!);
-        var result = await new GetClockStatusHandler(_db, userManager.Object, _eventTypes.Object, _clock.Object)
-            .Handle(new GetClockStatusQuery(), CancellationToken.None);
+        var result = await ClockStatusHandler().Handle(new GetClockStatusQuery(), CancellationToken.None);
 
         var assignments = result.Single().Assignments;
         var run = assignments.Single(a => a.JobNumber == "J-RUN");
@@ -179,7 +303,63 @@ public class KioskAvailableJobsTests
         idle.NextOperation.Should().BeNull();
     }
 
-    private GetKioskAvailableJobsHandler Handler() => new(_db);
+    private GetKioskAvailableJobsHandler Handler() => new(_db, _operations.Object);
+
+    private GetShopFloorOverviewHandler OverviewHandler() =>
+        new(_db, _eventTypes.Object, _operations.Object, _clock.Object);
+
+    private GetClockStatusHandler ClockStatusHandler()
+    {
+        var userManager = new Mock<UserManager<ApplicationUser>>(
+            Mock.Of<IUserStore<ApplicationUser>>(), null!, null!, null!, null!, null!, null!, null!, null!);
+        return new GetClockStatusHandler(_db, userManager.Object, _eventTypes.Object, _operations.Object, _clock.Object);
+    }
+
+    private void EnableTracking() =>
+        _operations.Setup(o => o.IsTrackingEnabledAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+    private async Task<Team> AddTeamAsync(string name)
+    {
+        var team = new Team { Name = name };
+        _db.Teams.Add(team);
+        await _db.SaveChangesAsync();
+        return team;
+    }
+
+    private async Task<WorkCenter> AddWorkCenterAsync(string name, int? teamId)
+    {
+        var workCenter = new WorkCenter { Name = name, Code = name.ToUpperInvariant(), TeamId = teamId };
+        _db.WorkCenters.Add(workCenter);
+        await _db.SaveChangesAsync();
+        return workCenter;
+    }
+
+    private async Task<Operation> AddStepAsync(Part part, int stepNumber, string title, WorkCenter? workCenter = null)
+    {
+        var operation = new Operation
+        {
+            PartId = part.Id,
+            StepNumber = stepNumber,
+            Title = title,
+            WorkCenterId = workCenter?.Id,
+        };
+        _db.Operations.Add(operation);
+        await _db.SaveChangesAsync();
+        return operation;
+    }
+
+    private async Task AddJobOperationAsync(Job job, Operation operation, JobOperationStatus status)
+    {
+        _db.JobOperations.Add(new JobOperation
+        {
+            JobId = job.Id,
+            OperationId = operation.Id,
+            StepNumber = operation.StepNumber,
+            Title = operation.Title,
+            Status = status,
+        });
+        await _db.SaveChangesAsync();
+    }
 
     private async Task SeedStagesAsync()
     {

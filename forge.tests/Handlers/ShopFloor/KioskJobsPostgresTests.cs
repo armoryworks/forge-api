@@ -10,6 +10,7 @@ using Moq;
 using Forge.Api.Features.ShopFloor;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 using Forge.Tests.Helpers;
@@ -37,13 +38,57 @@ public sealed class KioskJobsPostgresTests(PostgresFixture fixture)
         }
 
         await using var db = fixture.CreateContext();
-        var result = await new GetKioskAvailableJobsHandler(db)
+        var result = await new GetKioskAvailableJobsHandler(db, Mock.Of<IJobOperationService>())
             .Handle(new GetKioskAvailableJobsQuery(null, $"pn-{tag}".ToUpperInvariant()), CancellationToken.None);
 
         var row = result.Should().ContainSingle().Subject;
         row.JobId.Should().Be(jobId);
         row.Quantity.Should().Be(12m);
         row.NextOperation!.Title.Should().Be("Saw");
+    }
+
+    [Fact]
+    public async Task TeamScope_WithOperationTracking_TranslatesAndFollowsTheFirstOpenStep()
+    {
+        var tag = Guid.NewGuid().ToString("N")[..10];
+        int teamId;
+        await using (var seed = fixture.CreateContext())
+        {
+            var (stage, part) = await SeedAsync(seed, tag);
+            var team = new Team { Name = $"Weld {tag}" };
+            seed.Teams.Add(team);
+            await seed.SaveChangesAsync();
+            var welder = new WorkCenter { Name = $"Welder {tag}", Code = $"W-{tag}", TeamId = team.Id };
+            seed.WorkCenters.Add(welder);
+            await seed.SaveChangesAsync();
+            var saw = new Operation { PartId = part.Id, StepNumber = 10, Title = "Saw" };
+            var weld = new Operation { PartId = part.Id, StepNumber = 20, Title = "Weld", WorkCenterId = welder.Id };
+            seed.Operations.AddRange(saw, weld);
+            var sawn = NewJob(stage, $"KT-{tag}-SAWN", part.Id);
+            var fresh = NewJob(stage, $"KT-{tag}-FRESH", part.Id);
+            seed.Jobs.AddRange(sawn, fresh);
+            await seed.SaveChangesAsync();
+            seed.JobOperations.Add(new JobOperation
+            {
+                JobId = sawn.Id,
+                OperationId = saw.Id,
+                StepNumber = saw.StepNumber,
+                Title = saw.Title,
+                Status = JobOperationStatus.Complete,
+            });
+            await seed.SaveChangesAsync();
+            teamId = team.Id;
+        }
+
+        var operations = new Mock<IJobOperationService>();
+        operations.Setup(o => o.IsTrackingEnabledAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        await using var db = fixture.CreateContext();
+        var result = await new GetKioskAvailableJobsHandler(db, operations.Object)
+            .Handle(new GetKioskAvailableJobsQuery(teamId, $"kt-{tag}"), CancellationToken.None);
+
+        var row = result.Should().ContainSingle().Subject;
+        row.JobNumber.Should().Be($"KT-{tag}-SAWN");
+        row.NextOperation!.Title.Should().Be("Weld");
     }
 
     [Fact]

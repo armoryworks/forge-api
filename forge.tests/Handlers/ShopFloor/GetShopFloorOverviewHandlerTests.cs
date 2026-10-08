@@ -59,7 +59,7 @@ public class GetShopFloorOverviewHandlerTests
             new TimeEntry { UserId = user.Id, JobId = newerJob.Id, Date = DateOnly.FromDateTime(_now.UtcDateTime), TimerStart = _now.AddMinutes(-30) });
         await _db.SaveChangesAsync();
 
-        var handler = new GetShopFloorOverviewHandler(_db, _clockEventTypeService.Object, _clock.Object);
+        var handler = new GetShopFloorOverviewHandler(_db, _clockEventTypeService.Object, Mock.Of<IJobOperationService>(), _clock.Object);
 
         var result = await handler.Handle(new GetShopFloorOverviewQuery(), CancellationToken.None);
 

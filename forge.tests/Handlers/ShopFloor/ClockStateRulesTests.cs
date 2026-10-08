@@ -398,11 +398,11 @@ public class ClockStateRulesTests
     {
         var userManager = new Mock<UserManager<ApplicationUser>>(
             Mock.Of<IUserStore<ApplicationUser>>(), null!, null!, null!, null!, null!, null!, null!, null!);
-        return new GetClockStatusHandler(_db, userManager.Object, _eventTypes.Object, _clock.Object);
+        return new GetClockStatusHandler(_db, userManager.Object, _eventTypes.Object, Mock.Of<IJobOperationService>(), _clock.Object);
     }
 
     private GetShopFloorOverviewHandler OverviewHandler()
-        => new(_db, _eventTypes.Object, _clock.Object);
+        => new(_db, _eventTypes.Object, Mock.Of<IJobOperationService>(), _clock.Object);
 
     private async Task AddDefaultCalendarAsync(string timeZone)
     {
