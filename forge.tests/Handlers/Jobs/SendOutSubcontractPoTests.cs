@@ -1,11 +1,13 @@
 using FluentAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 
 using Forge.Api.Features.Jobs;
 using Forge.Api.Features.PurchaseOrders;
+using Forge.Api.Hubs;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -154,6 +156,14 @@ public class SendOutSubcontractPoTests : IDisposable
         (await _db.PurchaseOrders.CountAsync()).Should().Be(0);
     }
 
+    private ReceiveBackSubcontractHandler Receiver() => new(
+        _db,
+        new JobOperationService(_db, Mock.Of<ISettingsService>(), _clock.Object),
+        Mock.Of<ITimerStopService>(),
+        Mock.Of<IHubContext<BoardHub>>(),
+        _mediator.Object,
+        _clock.Object);
+
     [Fact]
     public async Task ReceiveBack_GoodAndScrap_CompletesOrderAndLogsOnJob()
     {
@@ -164,7 +174,7 @@ public class SendOutSubcontractPoTests : IDisposable
             CancellationToken.None);
         _clock.SetupGet(c => c.UtcNow).Returns(Now.AddDays(3));
 
-        var receiver = new ReceiveBackSubcontractHandler(_db, new JobOperationService(_db, Mock.Of<ISettingsService>(), _clock.Object), _clock.Object);
+        var receiver = Receiver();
         var result = await receiver.Handle(
             new ReceiveBackSubcontractCommand(sent.Id,
                 new ReceiveBackRequestModel(8m, null, PassedInspection: true, ScrapQuantity: 2m)),
@@ -189,7 +199,7 @@ public class SendOutSubcontractPoTests : IDisposable
             new SendOutSubcontractCommand(job.Id, operation.Id,
                 new SendOutRequestModel(10m, 0m, null, null, null)),
             CancellationToken.None);
-        var receiver = new ReceiveBackSubcontractHandler(_db, new JobOperationService(_db, Mock.Of<ISettingsService>(), _clock.Object), _clock.Object);
+        var receiver = Receiver();
         await receiver.Handle(
             new ReceiveBackSubcontractCommand(sent.Id, new ReceiveBackRequestModel(10m, null)),
             CancellationToken.None);

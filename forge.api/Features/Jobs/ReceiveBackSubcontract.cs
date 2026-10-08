@@ -1,8 +1,10 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Jobs.Operations;
+using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -28,7 +30,13 @@ public class ReceiveBackSubcontractValidator : AbstractValidator<ReceiveBackSubc
     }
 }
 
-public class ReceiveBackSubcontractHandler(AppDbContext db, IJobOperationService operations, IClock clock)
+public class ReceiveBackSubcontractHandler(
+    AppDbContext db,
+    IJobOperationService operations,
+    ITimerStopService timerStop,
+    IHubContext<BoardHub> boardHub,
+    IMediator mediator,
+    IClock clock)
     : IRequestHandler<ReceiveBackSubcontractCommand, SubcontractOrderResponseModel>
 {
     public async Task<SubcontractOrderResponseModel> Handle(ReceiveBackSubcontractCommand request, CancellationToken ct)
@@ -67,8 +75,9 @@ public class ReceiveBackSubcontractHandler(AppDbContext db, IJobOperationService
             Description = $"Received back {request.Data.ReceivedQuantity:0.####} good, {request.Data.ScrapQuantity:0.####} scrap from {order.Vendor.CompanyName} for Op {order.Operation.StepNumber} {order.Operation.Title}",
         });
 
-        if (request.Data.PassedInspection)
-            await AdvanceOperationAsync(order, request.Data, now, ct);
+        var advance = request.Data.PassedInspection
+            ? await AdvanceOperationAsync(order, request.Data, now, ct)
+            : null;
 
         try
         {
@@ -77,6 +86,13 @@ public class ReceiveBackSubcontractHandler(AppDbContext db, IJobOperationService
         catch (DbUpdateConcurrencyException)
         {
             throw new InvalidOperationException(JobOperationRules.StaleMessage);
+        }
+
+        if (advance is not null)
+        {
+            if (advance.Count > 0)
+                await timerStop.PublishStoppedAsync(advance, ct);
+            await JobOperationRules.BroadcastJobUpdatedAsync(boardHub, mediator, order.Job, ct);
         }
 
         var poNumber = order.PurchaseOrderId.HasValue
@@ -95,27 +111,57 @@ public class ReceiveBackSubcontractHandler(AppDbContext db, IJobOperationService
             order.CreatedAt);
     }
 
-    private async Task AdvanceOperationAsync(
+    private async Task<List<TimeEntry>?> AdvanceOperationAsync(
         SubcontractOrder order, ReceiveBackRequestModel data, DateTimeOffset now, CancellationToken ct)
     {
+        var job = order.Job;
+        if (job.CompletedDate.HasValue || job.IsArchived || job.Disposition.HasValue)
+            return null;
+        if (!await operations.IsTrackingEnabledAsync(ct))
+            return null;
+
         var row = await db.JobOperations
             .FirstOrDefaultAsync(r => r.JobId == order.JobId && r.OperationId == order.OperationId, ct);
         if (row is null || JobOperationRules.IsClosed(row.Status))
-            return;
+            return null;
 
-        var jobQuantity = await operations.GetJobQuantityAsync(order.Job, ct);
+        var jobQuantity = await operations.GetJobQuantityAsync(job, ct);
         var before = JobOperationRules.Describe(row, jobQuantity);
 
-        row.CompletedQuantity += data.ReceivedQuantity;
-        row.ScrapQuantity += data.ScrapQuantity;
+        var remaining = Math.Max(0m, jobQuantity - row.CompletedQuantity - row.ScrapQuantity);
+        var scrapAdded = Math.Min(data.ScrapQuantity, remaining);
+        var goodAdded = Math.Min(data.ReceivedQuantity, remaining - scrapAdded);
+        var notCounted = data.ReceivedQuantity + data.ScrapQuantity - goodAdded - scrapAdded;
+
+        row.CompletedQuantity += goodAdded;
+        row.ScrapQuantity += scrapAdded;
         row.StartedAt ??= now;
 
         var reached = row.CompletedQuantity + row.ScrapQuantity >= jobQuantity;
+        var closed = new List<TimeEntry>();
         if (reached)
         {
             row.Status = JobOperationStatus.Complete;
             row.CompletedAt = now;
             row.CompletedById = db.CurrentUserId;
+
+            var openTimers = await db.TimeEntries
+                .Where(t => t.JobOperationId == row.Id && t.TimerStart != null && t.TimerStop == null)
+                .ToListAsync(ct);
+            if (openTimers.Count > 0)
+            {
+                var actorName = await db.Users
+                    .Where(u => u.Id == db.CurrentUserId)
+                    .Select(u => u.LastName + ", " + u.FirstName)
+                    .FirstOrDefaultAsync(ct) ?? "another user";
+                foreach (var timer in openTimers)
+                {
+                    timerStop.Close(timer, now,
+                        reason: "operation completed",
+                        appendNote: $"stopped: operation completed by {actorName}");
+                    closed.Add(timer);
+                }
+            }
         }
         else
         {
@@ -123,6 +169,9 @@ public class ReceiveBackSubcontractHandler(AppDbContext db, IJobOperationService
         }
 
         var after = JobOperationRules.Describe(row, jobQuantity);
+        var overNote = notCounted > 0m
+            ? $"; {notCounted:0.####} over the job quantity not counted"
+            : string.Empty;
         db.JobActivityLogs.Add(new JobActivityLog
         {
             JobId = order.JobId,
@@ -131,10 +180,12 @@ public class ReceiveBackSubcontractHandler(AppDbContext db, IJobOperationService
             FieldName = "OperationStatus",
             OldValue = before,
             NewValue = after,
-            Description = $"Operation {order.Operation.StepNumber} {order.Operation.Title}: {before} → {after} (received back from {order.Vendor.CompanyName}).",
+            Description = $"Operation {order.Operation.StepNumber} {order.Operation.Title}: {before} → {after} (received back from {order.Vendor.CompanyName}{overNote}).",
             CreatedAt = now,
             OperationId = order.OperationId,
             WorkCenterId = order.Operation.WorkCenterId,
         });
+
+        return closed;
     }
 }
