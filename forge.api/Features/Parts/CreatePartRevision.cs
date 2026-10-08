@@ -5,6 +5,7 @@ using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Parts;
 
@@ -20,7 +21,7 @@ public class CreatePartRevisionCommandValidator : AbstractValidator<CreatePartRe
     public CreatePartRevisionCommandValidator()
     {
         RuleFor(x => x.PartId).GreaterThan(0);
-        RuleFor(x => x.Revision).NotEmpty().MaximumLength(20);
+        RuleFor(x => x.Revision).NotEmpty().MaximumLength(10);
         RuleFor(x => x.ChangeDescription).MaximumLength(500).When(x => x.ChangeDescription is not null);
         RuleFor(x => x.ChangeReason).MaximumLength(500).When(x => x.ChangeReason is not null);
     }
@@ -58,8 +59,18 @@ public class CreatePartRevisionHandler(AppDbContext db, IPartRepository partRepo
 
         db.PartRevisions.Add(revision);
 
+        var previousRevision = part.Revision;
+
         // Update the part's current revision
         part.Revision = request.Revision.Trim();
+
+        var summary = string.IsNullOrWhiteSpace(previousRevision)
+            ? $"Revised to {revision.Revision}"
+            : $"Revised {previousRevision} to {revision.Revision}";
+        db.LogActivityAt(
+            "revised",
+            string.IsNullOrWhiteSpace(revision.ChangeReason) ? summary : $"{summary}: {revision.ChangeReason}",
+            ("Part", part.Id));
 
         await db.SaveChangesAsync(cancellationToken);
 
