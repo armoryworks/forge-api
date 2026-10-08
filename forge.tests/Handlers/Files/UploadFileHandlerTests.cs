@@ -18,7 +18,7 @@ namespace Forge.Tests.Handlers.Files;
 /// missing from its entity-type whitelist while the UI shipped a Documents tab
 /// posting exactly that type — every upload on the tab 400'd (external QA
 /// report). These pin the whitelist, the single/chunked parity, and bucket
-/// routing for the sales-document types.
+/// routing for the sales- and purchasing-document types.
 /// </summary>
 public class UploadFileHandlerTests
 {
@@ -69,7 +69,8 @@ public class UploadFileHandlerTests
     [InlineData("sales-orders")]
     [InlineData("customers")]
     [InlineData("quotes")]
-    public void Validator_accepts_sales_document_entity_types(string entityType)
+    [InlineData("purchase-orders")]
+    public void Validator_accepts_sales_and_purchasing_document_entity_types(string entityType)
     {
         var result = new UploadFileCommandValidator()
             .Validate(new UploadFileCommand(entityType, 3, PngFile()));
@@ -105,6 +106,7 @@ public class UploadFileHandlerTests
     [InlineData("sales-orders", "forge-job-files")]
     [InlineData("customers", "forge-job-files")]
     [InlineData("quotes", "forge-job-files")]
+    [InlineData("purchase-orders", "forge-job-files")]
     [InlineData("expenses", "forge-receipts")]
     [InlineData("employee-docs", "forge-employee-docs")]
     public void Buckets_route_per_entity_type(string entityType, string expectedBucket)
@@ -128,5 +130,22 @@ public class UploadFileHandlerTests
             It.IsAny<CancellationToken>()), Times.Once);
 
         result.Id.Should().Be(42);
+    }
+
+    [Fact]
+    public async Task Handle_accepts_a_purchase_order_attachment_into_the_job_files_bucket()
+    {
+        var command = new UploadFileCommand("purchase-orders", 23, PngFile());
+        new UploadFileCommandValidator().Validate(command).IsValid.Should().BeTrue();
+
+        await _handler.Handle(command, CancellationToken.None);
+
+        _storage.Verify(s => s.UploadAsync(
+            "forge-job-files",
+            It.Is<string>(k => k.StartsWith("purchase-orders/23/")),
+            It.IsAny<Stream>(), "image/png", It.IsAny<CancellationToken>()), Times.Once);
+        _fileRepo.Verify(r => r.AddAsync(It.Is<FileAttachment>(a =>
+            a.EntityType == "purchase-orders" && a.EntityId == 23 && a.BucketName == "forge-job-files"),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 }

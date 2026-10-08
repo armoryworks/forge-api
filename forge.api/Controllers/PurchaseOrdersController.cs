@@ -90,7 +90,10 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
             request.VendorId, request.JobId, request.Notes, request.Lines,
             request.Incoterm, request.EstimatedFreight, request.QuoteCurrency,
             PONumber: request.PONumber,
-            ExpectedDeliveryDate: request.ExpectedDeliveryDate));
+            ExpectedDeliveryDate: request.ExpectedDeliveryDate,
+            VendorContactId: request.VendorContactId,
+            VendorAddressId: request.VendorAddressId,
+            ShipToLocationId: request.ShipToLocationId));
         return CreatedAtAction(nameof(GetPurchaseOrder), new { id = result.Id }, result);
     }
 
@@ -98,7 +101,12 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
     [IfMatch(typeof(PurchaseOrder))]
     public async Task<IActionResult> UpdatePurchaseOrder(int id, UpdatePurchaseOrderRequestModel request)
     {
-        await mediator.Send(new UpdatePurchaseOrderCommand(id, request.Notes, request.ExpectedDeliveryDate, PONumber: request.PONumber));
+        await mediator.Send(new UpdatePurchaseOrderCommand(
+            id, request.Notes, request.ExpectedDeliveryDate,
+            PONumber: request.PONumber,
+            VendorContactId: request.VendorContactId,
+            VendorAddressId: request.VendorAddressId,
+            ShipToLocationId: request.ShipToLocationId));
         return NoContent();
     }
 
