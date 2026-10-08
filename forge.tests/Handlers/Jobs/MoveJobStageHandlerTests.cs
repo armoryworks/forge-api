@@ -334,6 +334,24 @@ public class MoveJobStageHandlerTests
     }
 
     [Fact]
+    public async Task Handle_MoveIntoHiddenStage_ThrowsAndLeavesJobInPlace()
+    {
+        var job = new Job { Id = 1, JobNumber = "JOB-0001", TrackTypeId = 1, CurrentStageId = 7 };
+        _jobRepo.Setup(r => r.FindAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(job);
+        var stages = ProductionTailStages(1);
+        stages.Single(s => s.Id == 8).IsActive = false;
+        SetupStages(1, stages);
+
+        var act = () => _handler.Handle(new MoveJobStageCommand(1, 8), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage(MoveJobStageHandler.HiddenStageMessage);
+        job.CurrentStageId.Should().Be(7);
+        _actRepo.Verify(r => r.AddAsync(It.IsAny<JobActivityLog>(), It.IsAny<CancellationToken>()), Times.Never);
+        _jobRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Handle_CreatesActivityLogWithStageNames()
     {
         // Arrange

@@ -96,7 +96,7 @@ public class BulkMoveJobStageHandler(
 
     /// <summary>
     /// Per-job move validation — full parity with MoveJobStageHandler: track
-    /// type, irreversible backward guard, mandatory-skip guard, and the F-JQ1
+    /// type, hidden target status, irreversible backward guard, mandatory-skip guard, and the F-JQ1
     /// NCR/QC gate on final-stage entry. Returns the error message for the
     /// per-item failure list, or null when the move is allowed.
     /// </summary>
@@ -109,6 +109,9 @@ public class BulkMoveJobStageHandler(
     {
         if (job.TrackTypeId != targetStage.TrackTypeId)
             return $"Job {job.JobNumber} belongs to a different track type.";
+
+        if (!targetStage.IsActive)
+            return $"Job {job.JobNumber}: {MoveJobStageHandler.HiddenStageMessage}";
 
         var currentStage = job.CurrentStage;
 

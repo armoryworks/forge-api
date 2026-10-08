@@ -33,6 +33,8 @@ public class MoveJobStageHandler(
     IClock clock,
     ILogger<MoveJobStageHandler> logger) : IRequestHandler<MoveJobStageCommand, JobDetailResponseModel>
 {
+    public const string HiddenStageMessage = "That status is hidden for this order type.";
+
     public async Task<JobDetailResponseModel> Handle(MoveJobStageCommand request, CancellationToken cancellationToken)
     {
         var job = await jobRepo.FindAsync(request.JobId, cancellationToken)
@@ -44,6 +46,9 @@ public class MoveJobStageHandler(
         if (targetStage.TrackTypeId != job.TrackTypeId)
             throw new InvalidOperationException(
                 $"Stage {request.StageId} does not belong to track type {job.TrackTypeId}.");
+
+        if (!targetStage.IsActive)
+            throw new InvalidOperationException(HiddenStageMessage);
 
         var previousStage = await trackRepo.FindStageAsync(job.CurrentStageId, cancellationToken);
         var previousStageName = previousStage?.Name;

@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.SignalR;
 using Moq;
 
+using Forge.Api.Features.Jobs;
 using Forge.Api.Features.Jobs.Bulk;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
@@ -14,8 +15,8 @@ namespace Forge.Tests.Handlers.Jobs;
 
 /// <summary>
 /// Parity coverage for the bulk stage move: the bulk path must enforce the
-/// same guards as the single-card MoveJobStageHandler — track type,
-/// irreversible backward, mandatory-skip, and the F-JQ1 NCR/QC final-stage
+/// same guards as the single-card MoveJobStageHandler — track type, hidden
+/// target status, irreversible backward, mandatory-skip, and the F-JQ1 NCR/QC final-stage
 /// gate — with per-job partial-success reporting.
 /// </summary>
 public class BulkMoveJobStageHandlerTests
@@ -85,6 +86,26 @@ public class BulkMoveJobStageHandlerTests
         result.FailureCount.Should().Be(1);
         result.Errors.Single().Message.Should().Contain("different track type");
         job.CurrentStageId.Should().Be(20);
+    }
+
+    [Fact]
+    public async Task Handle_MoveIntoHiddenStage_ReportsEachJobAndMovesNone()
+    {
+        var stages = ProductionTailStages(1);
+        stages.Single(s => s.Id == 8).IsActive = false;
+        var first = JobAt(1, stages, stageId: 7);
+        var second = JobAt(2, stages, stageId: 7);
+        Setup(stages, 8, first, second);
+
+        var result = await _handler.Handle(new BulkMoveJobStageCommand([1, 2], 8), CancellationToken.None);
+
+        result.SuccessCount.Should().Be(0);
+        result.Errors.Select(e => e.Message).Should().BeEquivalentTo(
+            $"Job JOB-0001: {MoveJobStageHandler.HiddenStageMessage}",
+            $"Job JOB-0002: {MoveJobStageHandler.HiddenStageMessage}");
+        first.CurrentStageId.Should().Be(7);
+        second.CurrentStageId.Should().Be(7);
+        _actRepo.Verify(r => r.AddAsync(It.IsAny<JobActivityLog>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
