@@ -18,9 +18,11 @@ namespace Forge.Api.Features.VendorParts;
 /// Best-effort batch — one bad row doesn't abort the rest.
 ///
 /// IsApproved / IsPreferred / IsManufacturer / Currency are NOT carried by the
-/// import: new rows default to approved, non-preferred, non-manufacturer, USD;
-/// updates leave those fields untouched (they're managed on the part's Sources
-/// tab and the vendor-part edit dialog).
+/// import: new rows default to approved, non-manufacturer, USD, and are
+/// preferred only when the part already names this vendor as its preferred
+/// vendor and has no other preferred source, so the part and its sources stay
+/// in sync; updates leave those fields untouched (they're managed on the
+/// part's Sources tab and the vendor-part edit dialog).
 /// </summary>
 public record ApplyVendorPartImportCommand(
     int VendorId,
@@ -59,6 +61,26 @@ public class ApplyVendorPartImportHandler(AppDbContext db)
                 .ToListAsync(ct);
             foreach (var vp in candidates)
                 updateTargets[vp.PartId] = vp;
+        }
+
+        var addPartIds = classified
+            .Where(r => r.Action == BulkImportRowAction.Add && r.PartId.HasValue)
+            .Select(r => r.PartId!.Value)
+            .Distinct()
+            .ToList();
+
+        var inheritsPreference = new HashSet<int>();
+        if (addPartIds.Count > 0)
+        {
+            var namingThisVendor = await db.Parts
+                .Where(p => addPartIds.Contains(p.Id) && p.PreferredVendorId == request.VendorId)
+                .Select(p => p.Id)
+                .ToListAsync(ct);
+            var withPreferredSource = await db.VendorParts
+                .Where(vp => addPartIds.Contains(vp.PartId) && vp.IsPreferred)
+                .Select(vp => vp.PartId)
+                .ToListAsync(ct);
+            inheritsPreference = namingThisVendor.Except(withPreferredSource).ToHashSet();
         }
 
         var addedRows = new List<(int LineNumber, int PartId, string? PartName, VendorPart Entity)>();
@@ -103,7 +125,7 @@ public class ApplyVendorPartImportHandler(AppDbContext db)
                             VendorId = request.VendorId,
                             PartId = pidA,
                             IsApproved = true,
-                            IsPreferred = false,
+                            IsPreferred = inheritsPreference.Remove(pidA),
                             IsManufacturer = false,
                             Currency = "USD",
                         };

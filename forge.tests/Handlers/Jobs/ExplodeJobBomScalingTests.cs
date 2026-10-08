@@ -8,6 +8,7 @@ using Moq;
 using Forge.Api.Features.Jobs;
 using Forge.Api.Hubs;
 using Forge.Api.Middleware;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -38,7 +39,7 @@ public class ExplodeJobBomScalingTests
         _jobRepo.Setup(r => r.GetMaxBoardPositionAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
 
-        _handler = new ExplodeJobBomHandler(_db, _jobRepo.Object, Mock.Of<IBarcodeService>(), hub.Object);
+        _handler = new ExplodeJobBomHandler(_db, _jobRepo.Object, Mock.Of<IBarcodeService>(), hub.Object, new PartSourcingResolver(_db));
     }
 
     [Fact]

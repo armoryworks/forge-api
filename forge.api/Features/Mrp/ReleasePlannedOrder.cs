@@ -20,7 +20,8 @@ public class ReleasePlannedOrderHandler(
     IJobRepository jobRepo,
     IBusinessIdentifierService identifiers,
     IVendorCostResolver vendorCostResolver,
-    ICurrencyService currencyService)
+    ICurrencyService currencyService,
+    IPartSourcingResolver sourcingResolver)
     : IRequestHandler<ReleasePlannedOrderCommand, ReleasePlannedOrderResult>
 {
     public async Task<ReleasePlannedOrderResult> Handle(ReleasePlannedOrderCommand request, CancellationToken cancellationToken)
@@ -43,7 +44,8 @@ public class ReleasePlannedOrderHandler(
 
         if (order.OrderType == MrpOrderType.Purchase)
         {
-            var vendorId = order.Part?.PreferredVendorId;
+            var sourcing = await sourcingResolver.ResolveAsync(order.PartId, cancellationToken);
+            var vendorId = sourcing.PreferredVendorId;
             if (!vendorId.HasValue)
                 throw new InvalidOperationException($"Part {order.Part?.PartNumber} has no preferred vendor. Assign one before releasing as a purchase order.");
 

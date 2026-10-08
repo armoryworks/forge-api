@@ -10,10 +10,12 @@ namespace Forge.Tests.Services;
 /// <summary>
 /// Pillar 3 — coverage for the IPartSourcingResolver implementation.
 /// Vendor-specific terms (lead time / MOQ / pack size) live exclusively
-/// on the preferred VendorPart row; the per-column Part-snapshot fallback
-/// was retired alongside the OEM-on-VendorPart move. When no preferred
-/// VendorPart exists for a part the resolver returns null for every
-/// vendor-specific value and consumers apply their own defaults.
+/// on VendorPart rows; the per-column Part-snapshot fallback was retired
+/// alongside the OEM-on-VendorPart move. The preferred VendorPart wins;
+/// without one, the part's PreferredVendorId names the vendor and that
+/// vendor's VendorPart supplies the terms. With neither, the resolver
+/// returns null for every vendor-specific value and consumers apply their
+/// own defaults.
 /// </summary>
 public class PartSourcingResolverTests
 {
@@ -205,6 +207,58 @@ public class PartSourcingResolverTests
         result[nonPref.Id].MinOrderQty.Should().BeNull();
         result[nonPref.Id].PackSize.Should().BeNull();
         result[nonPref.Id].ResolvedFromVendorPart.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ResolveAsync_NoPreferredVendorPart_FallsBackToThePartsPreferredVendorAndItsTerms()
+    {
+        using var db = TestDbContextFactory.Create();
+        var named = new Vendor { CompanyName = "Named Vendor" };
+        var other = new Vendor { CompanyName = "Unflagged Other" };
+        db.Vendors.AddRange(named, other);
+        var part = NewPart("FALLBACK-001");
+        db.Parts.Add(part);
+        await db.SaveChangesAsync();
+
+        part.PreferredVendorId = named.Id;
+        db.VendorParts.AddRange(
+            new VendorPart { VendorId = named.Id, PartId = part.Id, IsPreferred = false, LeadTimeDays = 6, PackSize = 10m },
+            new VendorPart { VendorId = other.Id, PartId = part.Id, IsPreferred = false, LeadTimeDays = 99 });
+        await db.SaveChangesAsync();
+
+        var result = await new PartSourcingResolver(db).ResolveAsync(part.Id, CancellationToken.None);
+
+        result.PreferredVendorId.Should().Be(named.Id);
+        result.LeadTimeDays.Should().Be(6);
+        result.PackSize.Should().Be(10m);
+        result.ResolvedFromVendorPart.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ResolveManyAsync_PreferredVendorPartWinsOverThePartsPreferredVendor()
+    {
+        using var db = TestDbContextFactory.Create();
+        var named = new Vendor { CompanyName = "Named On Part" };
+        var flagged = new Vendor { CompanyName = "Flagged Source" };
+        db.Vendors.AddRange(named, flagged);
+        var mismatched = NewPart("MISMATCH-001");
+        var vendorOnly = NewPart("VENDOR-ONLY-001");
+        db.Parts.AddRange(mismatched, vendorOnly);
+        await db.SaveChangesAsync();
+
+        mismatched.PreferredVendorId = named.Id;
+        vendorOnly.PreferredVendorId = named.Id;
+        db.VendorParts.Add(new VendorPart { VendorId = flagged.Id, PartId = mismatched.Id, IsPreferred = true, LeadTimeDays = 2 });
+        await db.SaveChangesAsync();
+
+        var result = await new PartSourcingResolver(db).ResolveManyAsync(
+            new[] { mismatched.Id, vendorOnly.Id }, CancellationToken.None);
+
+        result[mismatched.Id].PreferredVendorId.Should().Be(flagged.Id);
+        result[mismatched.Id].LeadTimeDays.Should().Be(2);
+        result[vendorOnly.Id].PreferredVendorId.Should().Be(named.Id);
+        result[vendorOnly.Id].LeadTimeDays.Should().BeNull();
+        result[vendorOnly.Id].ResolvedFromVendorPart.Should().BeFalse();
     }
 
     [Fact]

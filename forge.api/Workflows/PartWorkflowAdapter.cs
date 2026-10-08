@@ -4,6 +4,7 @@ using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.VendorParts;
 using Forge.Api.Validation;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -247,7 +248,7 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemS
         // the user enters them in the Vendor Parts step. The Sourcing
         // step only writes preferredVendorId.
         if (TryReadInt(fields, "preferredVendorId", out var prefVendorId))
-            part.PreferredVendorId = prefVendorId;
+            await PreferredVendorSync.SetPartPreferredVendorAsync(db, part, prefVendorId, ct);
 
         // Inventory cluster (every non-Phantom combo)
         if (TryReadDecimal(fields, "minStockThreshold", out var minStock))

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 using Forge.Api.Features.Mrp;
+using Forge.Api.Features.VendorParts;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -31,7 +32,8 @@ public sealed class ReleasePlannedOrderTests(PostgresFixture fixture)
             new JobRepository(db, clock),
             identifiers ?? new BusinessIdentifierService(db, clock),
             new VendorCostResolver(db),
-            Mock.Of<ICurrencyService>(c => c.GetBaseCurrencyAsync(It.IsAny<CancellationToken>()) == Task.FromResult("USD")));
+            Mock.Of<ICurrencyService>(c => c.GetBaseCurrencyAsync(It.IsAny<CancellationToken>()) == Task.FromResult("USD")),
+            new PartSourcingResolver(db));
     }
 
     private static MrpService Mrp(AppDbContext db, DateTimeOffset now)
@@ -139,7 +141,7 @@ public sealed class ReleasePlannedOrderTests(PostgresFixture fixture)
         var otherVendor = new Vendor { CompanyName = Unique("MRP-OTHER") };
         db.Vendors.Add(otherVendor);
         await db.SaveChangesAsync();
-        await SeedTierAsync(db, otherVendor.Id, partId, 1.10m);
+        await SeedTierAsync(db, otherVendor.Id, partId, 1.10m, isPreferred: false);
         db.PartPrices.Add(new PartPrice { PartId = partId, UnitPrice = 4.75m, EffectiveFrom = DateTimeOffset.UtcNow.AddDays(-1) });
         await db.SaveChangesAsync();
     }
@@ -153,7 +155,7 @@ public sealed class ReleasePlannedOrderTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task ReleasePurchase_UsesThePoVendorsOwnTier_EvenWhenAnotherVendorIsPreferred()
+    public async Task ReleasePurchase_UsesThePoVendorsOwnTier_EvenWhenAnotherVendorIsCheaper()
     {
         int plannedOrderId;
         await using (var seed = fixture.CreateContext())
@@ -168,6 +170,43 @@ public sealed class ReleasePlannedOrderTests(PostgresFixture fixture)
 
         po.QuoteCurrency.Should().Be("CAD");
         po.Lines.Should().ContainSingle().Which.UnitPrice.Should().Be(3.20m);
+    }
+
+    [Fact]
+    public async Task ReleasePurchase_AfterVendorBIsMadePreferredOnTheSourcesTab_BuysFromB()
+    {
+        int plannedOrderId;
+        int vendorBId;
+        int partId;
+        int sourceBId;
+        await using (var seed = fixture.CreateContext())
+        {
+            var (vendorA, part) = await SeedBoughtPartAsync(seed);
+            await SeedTierAsync(seed, vendorA.Id, part.Id, 2.00m);
+            var vendorB = new Vendor { CompanyName = Unique("MRP-VENDB") };
+            seed.Vendors.Add(vendorB);
+            await seed.SaveChangesAsync();
+            sourceBId = (await SeedTierAsync(seed, vendorB.Id, part.Id, 2.75m, isPreferred: false)).Id;
+            vendorBId = vendorB.Id;
+            partId = part.Id;
+            plannedOrderId = (await SeedPlannedPurchaseAsync(seed, part.Id, 6)).Id;
+        }
+
+        await using (var edit = fixture.CreateContext())
+        {
+            await new UpdateVendorPartHandler(edit).Handle(
+                new UpdateVendorPartCommand(sourceBId, new UpdateVendorPartRequestModel(
+                    null, null, null, null, null, null, null, null,
+                    IsApproved: true, IsPreferred: true, null, null, null)),
+                CancellationToken.None);
+        }
+
+        var po = await ReleaseAndLoadPoAsync(plannedOrderId);
+
+        po.VendorId.Should().Be(vendorBId);
+        po.Lines.Should().ContainSingle().Which.UnitPrice.Should().Be(2.75m);
+        await using var verify = fixture.CreateContext();
+        (await verify.Parts.SingleAsync(p => p.Id == partId)).PreferredVendorId.Should().Be(vendorBId);
     }
 
     [Fact]

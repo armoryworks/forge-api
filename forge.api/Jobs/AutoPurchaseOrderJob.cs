@@ -113,10 +113,8 @@ public class AutoPurchaseOrderJob(
             .GroupBy(b => b.ParentPartId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        // Pillar 3 — bulk-resolve effective sourcing values for every child
-        // part referenced by these Buy BOM lines. Reads come from the
-        // preferred VendorPart row (Part snapshot columns were dropped post-
-        // OEM-on-VendorPart move; vendor-specific terms only live there now).
+        // Pillar 3 — bulk-resolve the preferred vendor and its sourcing terms
+        // for every child part referenced by these Buy BOM lines.
         var bomChildPartIds = buyBomLines.Select(b => b.ChildPartId).Distinct().ToList();
         var sourcingByChildPart = await sourcingResolver.ResolveManyAsync(bomChildPartIds, ct);
 
@@ -205,10 +203,10 @@ public class AutoPurchaseOrderJob(
         var existingPendingSet = existingPendingPartIds.ToHashSet();
 
         // 9. Load preferred vendors for parts that need them
-        var partsNeedingVendor = demandByChildPart.Values
-            .Select(d => d.ChildPart)
-            .Where(p => p.PreferredVendorId.HasValue)
-            .Select(p => p.PreferredVendorId!.Value)
+        var partsNeedingVendor = demandByChildPart.Keys
+            .Select(id => sourcingByChildPart.TryGetValue(id, out var s) ? s.PreferredVendorId : null)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
             .Distinct()
             .ToList();
 
@@ -274,7 +272,7 @@ public class AutoPurchaseOrderJob(
                 orderQty = (int)Math.Ceiling(effectiveMinOrderQty.Value);
 
             // Determine vendor (prefer BOM line vendor, then part preferred vendor)
-            var vendorId = demand.BomLine.VendorId ?? part.PreferredVendorId;
+            var vendorId = demand.BomLine.VendorId ?? sourcing?.PreferredVendorId;
             if (!vendorId.HasValue || !vendorMap.ContainsKey(vendorId.Value))
             {
                 logger.LogWarning("[AutoPO] Part {PartId} ({PartNumber}) has no valid vendor — skipping",

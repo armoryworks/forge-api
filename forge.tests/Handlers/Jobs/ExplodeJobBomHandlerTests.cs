@@ -5,6 +5,7 @@ using Moq;
 
 using Forge.Api.Features.Jobs;
 using Forge.Api.Hubs;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -30,7 +31,8 @@ public class ExplodeJobBomHandlerTests
         var clients = new Mock<IHubClients>();
         clients.Setup(c => c.Group(It.IsAny<string>())).Returns(_boardGroup.Object);
         _boardHub.SetupGet(h => h.Clients).Returns(clients.Object);
-        _handler = new ExplodeJobBomHandler(_dbContext, _jobRepo.Object, _barcodes.Object, _boardHub.Object);
+        _handler = new ExplodeJobBomHandler(
+            _dbContext, _jobRepo.Object, _barcodes.Object, _boardHub.Object, new PartSourcingResolver(_dbContext));
     }
 
     [Fact]
@@ -91,6 +93,42 @@ public class ExplodeJobBomHandlerTests
             BarcodeEntityType.Job, It.IsAny<int>(), childJobNumber, It.IsAny<CancellationToken>()), Times.Once);
         _boardGroup.Verify(p => p.SendCoreAsync(
             "jobCreated", It.IsAny<object[]>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_BuyBomLine_TakesVendorAndLeadTimeFromTheSourcingResolver()
+    {
+        var (_, _, parentPart, parentJob) = await SeedBaseEntitiesAsync();
+        parentJob.DueDate = new DateTimeOffset(2026, 11, 30, 0, 0, 0, TimeSpan.Zero);
+
+        var vendorA = new Vendor { CompanyName = "Vendor A" };
+        var vendorB = new Vendor { CompanyName = "Vendor B" };
+        _dbContext.Vendors.AddRange(vendorA, vendorB);
+        var buyPart = new Part { PartNumber = "BUY-RES-001", Description = "Resolved Component" };
+        _dbContext.Parts.Add(buyPart);
+        await _dbContext.SaveChangesAsync();
+
+        buyPart.PreferredVendorId = vendorA.Id;
+        _dbContext.VendorParts.AddRange(
+            new VendorPart { VendorId = vendorA.Id, PartId = buyPart.Id, IsPreferred = false, LeadTimeDays = 3 },
+            new VendorPart { VendorId = vendorB.Id, PartId = buyPart.Id, IsPreferred = true, LeadTimeDays = 12 });
+        _dbContext.BOMLines.Add(new BOMLine
+        {
+            ParentPartId = parentPart.Id,
+            ChildPartId = buyPart.Id,
+            Quantity = 2,
+            SourceType = BOMSourceType.Buy,
+            SortOrder = 1,
+        });
+        await _dbContext.SaveChangesAsync();
+
+        var result = await _handler.Handle(new ExplodeJobBomCommand(parentJob.Id), CancellationToken.None);
+
+        var buy = result.BuyItems.Should().ContainSingle().Subject;
+        buy.PreferredVendorId.Should().Be(vendorB.Id);
+        buy.PreferredVendorName.Should().Be("Vendor B");
+        buy.LeadTimeDays.Should().Be(12);
+        buy.NeedByDate.Should().Be(parentJob.DueDate.Value.AddDays(-12));
     }
 
     [Fact]

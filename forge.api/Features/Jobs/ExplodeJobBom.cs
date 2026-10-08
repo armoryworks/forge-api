@@ -26,7 +26,8 @@ public class ExplodeJobBomHandler(
     AppDbContext db,
     IJobRepository jobRepo,
     IBarcodeService barcodeService,
-    IHubContext<BoardHub> boardHub) : IRequestHandler<ExplodeJobBomCommand, BomExplosionResponseModel>
+    IHubContext<BoardHub> boardHub,
+    IPartSourcingResolver sourcingResolver) : IRequestHandler<ExplodeJobBomCommand, BomExplosionResponseModel>
 {
     private const string AutoReserveNotePrefix = "Auto-reserved via BOM explosion for job";
 
@@ -69,6 +70,21 @@ public class ExplodeJobBomHandler(
             .SumAsync(jp => jp.Quantity, ct);
         if (buildQty <= 0)
             buildQty = 1;
+
+        var buyPartIds = bomLines
+            .Where(l => l.SourceType == BOMSourceType.Buy)
+            .Select(l => l.ChildPart.Id)
+            .Distinct()
+            .ToList();
+        var sourcingByPart = await sourcingResolver.ResolveManyAsync(buyPartIds, ct);
+        var buyVendorIds = sourcingByPart.Values
+            .Where(v => v.PreferredVendorId.HasValue)
+            .Select(v => v.PreferredVendorId!.Value)
+            .Distinct()
+            .ToList();
+        var vendorNames = await db.Vendors
+            .Where(v => buyVendorIds.Contains(v.Id))
+            .ToDictionaryAsync(v => v.Id, v => v.CompanyName, ct);
 
         var newChildJobs = new List<(Job Job, Part Part, decimal Quantity)>();
         var buyItems = new List<BomExplosionBuyItemModel>();
@@ -138,16 +154,21 @@ public class ExplodeJobBomHandler(
                 }
 
                 case BOMSourceType.Buy:
+                {
+                    var sourcing = sourcingByPart[childPart.Id];
+                    var vendorId = sourcing.PreferredVendorId;
+                    var leadTimeDays = bomLine.LeadTimeDays ?? sourcing.LeadTimeDays;
                     buyItems.Add(new BomExplosionBuyItemModel(
                         childPart.Id,
                         childPart.PartNumber,
                         childPart.Description ?? childPart.Name,
                         required,
-                        childPart.PreferredVendorId,
-                        childPart.PreferredVendor?.CompanyName,
-                        bomLine.LeadTimeDays,
-                        parentJob.DueDate?.AddDays(-(bomLine.LeadTimeDays ?? 0))));
+                        vendorId,
+                        vendorId is int id ? vendorNames.GetValueOrDefault(id) : null,
+                        leadTimeDays,
+                        parentJob.DueDate?.AddDays(-(leadTimeDays ?? 0))));
                     break;
+                }
 
                 case BOMSourceType.Stock:
                 {
@@ -274,8 +295,6 @@ public class ExplodeJobBomHandler(
         {
             var entries = await db.Set<BomRevisionLine>()
                 .Include(e => e.Part)
-                    .ThenInclude(p => p.PreferredVendor)
-                .Include(e => e.Part)
                     .ThenInclude(p => p.StockUom)
                 .Where(e => e.BomRevisionId == revisionId)
                 .OrderBy(e => e.SortOrder)
@@ -305,8 +324,6 @@ public class ExplodeJobBomHandler(
         }
 
         var lines = await db.BOMLines
-            .Include(b => b.ChildPart)
-                .ThenInclude(cp => cp.PreferredVendor)
             .Include(b => b.ChildPart)
                 .ThenInclude(cp => cp.StockUom)
             .Include(b => b.Uom)

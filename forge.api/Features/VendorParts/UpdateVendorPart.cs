@@ -11,7 +11,9 @@ namespace Forge.Api.Features.VendorParts;
 /// <summary>
 /// Pillar 3 — Update sourcing metadata on an existing VendorPart. VendorId /
 /// PartId are immutable post-create. Sets the at-most-one-preferred-per-Part
-/// invariant identically to <see cref="CreateVendorPartHandler"/>.
+/// invariant identically to <see cref="CreateVendorPartHandler"/>, and
+/// un-preferring the Part's current preferred source clears the Part's
+/// PreferredVendorId.
 /// </summary>
 public record UpdateVendorPartCommand(int Id, UpdateVendorPartRequestModel Body)
     : IRequest<VendorPartResponseModel>;
@@ -166,21 +168,12 @@ public class UpdateVendorPartHandler(AppDbContext db)
             changedFields.Add("isApproved");
         }
 
-        // Preferred-flip guard — only when transitioning false → true do we
-        // need to clear siblings; otherwise leave the rest of the AVL alone.
-        var preferredFlipped = body.IsPreferred != vp.IsPreferred;
-        if (body.IsPreferred && !vp.IsPreferred)
+        if (body.IsPreferred != vp.IsPreferred)
         {
-            var siblings = await db.VendorParts
-                .Where(other => other.PartId == vp.PartId
-                    && other.Id != vp.Id
-                    && other.IsPreferred)
-                .ToListAsync(ct);
-            foreach (var sib in siblings)
-                sib.IsPreferred = false;
+            vp.IsPreferred = body.IsPreferred;
+            changedFields.Add("isPreferred");
+            await PreferredVendorSync.ApplyVendorPartPreferenceAsync(db, vp, ct);
         }
-        vp.IsPreferred = body.IsPreferred;
-        if (preferredFlipped) changedFields.Add("isPreferred");
 
         // Indexing-points rule: a VendorPart row sits between Part and
         // Vendor — log on both. Rollup rule: one row per request, summarizing

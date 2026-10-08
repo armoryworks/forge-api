@@ -15,8 +15,9 @@ namespace Forge.Api.Features.VendorParts;
 ///  - Vendor + Part both exist (KeyNotFoundException → 404 otherwise).
 ///  - (VendorId, PartId) uniqueness — duplicate POST → 409.
 ///  - At-most-one-preferred-per-Part — if IsPreferred=true is requested, any
-///    other VendorPart for the same Part has its IsPreferred cleared in the
-///    same SaveChanges.
+///    other VendorPart for the same Part has its IsPreferred cleared and the
+///    Part's PreferredVendorId is set to this vendor in the same SaveChanges
+///    (<see cref="PreferredVendorSync"/>).
 /// </summary>
 public record CreateVendorPartCommand(CreateVendorPartRequestModel Body)
     : IRequest<VendorPartResponseModel>;
@@ -105,16 +106,8 @@ public class CreateVendorPartHandler(AppDbContext db)
                 : body.Currency.Trim().ToUpperInvariant(),
         };
 
-        // At-most-one-preferred-per-Part — atomically clear preferred on any
-        // sibling VendorPart for the same Part before inserting the new row.
         if (body.IsPreferred)
-        {
-            var siblings = await db.VendorParts
-                .Where(other => other.PartId == body.PartId && other.IsPreferred)
-                .ToListAsync(ct);
-            foreach (var sib in siblings)
-                sib.IsPreferred = false;
-        }
+            await PreferredVendorSync.ApplyVendorPartPreferenceAsync(db, vp, ct);
 
         db.VendorParts.Add(vp);
         await db.SaveChangesAsync(ct);

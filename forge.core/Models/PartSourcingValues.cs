@@ -9,8 +9,8 @@ namespace Forge.Core.Models;
 /// </summary>
 /// <param name="PartId">The part being resolved.</param>
 /// <param name="PreferredVendorId">
-/// Vendor id of the preferred VendorPart row, or <c>null</c> when no
-/// preferred VendorPart exists (fully snapshot-driven).
+/// Vendor id of the preferred VendorPart row; when no VendorPart is flagged
+/// preferred, the part's own <c>PreferredVendorId</c>; otherwise <c>null</c>.
 /// </param>
 /// <param name="LeadTimeDays">Effective lead time in days.</param>
 /// <param name="MinOrderQty">Effective minimum order quantity.</param>

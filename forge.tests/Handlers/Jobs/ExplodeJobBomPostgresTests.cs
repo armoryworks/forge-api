@@ -5,6 +5,7 @@ using Moq;
 
 using Forge.Api.Features.Jobs;
 using Forge.Api.Hubs;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -74,7 +75,8 @@ public sealed class ExplodeJobBomPostgresTests(PostgresFixture fixture)
         hub.SetupGet(h => h.Clients).Returns(clients.Object);
 
         var handler = new ExplodeJobBomHandler(
-            db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBarcodeService>(), hub.Object);
+            db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBarcodeService>(), hub.Object,
+                new PartSourcingResolver(db));
 
         // Before the fix this threw DbUpdateException (FK violation on job_links).
         var result = await handler.Handle(new ExplodeJobBomCommand(parentJobId), CancellationToken.None);
@@ -154,7 +156,8 @@ public sealed class ExplodeJobBomPostgresTests(PostgresFixture fixture)
             var hub = new Mock<IHubContext<BoardHub>>();
             hub.SetupGet(h => h.Clients).Returns(clients.Object);
             var handler = new ExplodeJobBomHandler(
-                db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBarcodeService>(), hub.Object);
+                db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBarcodeService>(), hub.Object,
+                new PartSourcingResolver(db));
             try
             {
                 await handler.Handle(new ExplodeJobBomCommand(parentJobId), CancellationToken.None);
@@ -245,7 +248,8 @@ public sealed class ExplodeJobBomPostgresTests(PostgresFixture fixture)
             var hub = new Mock<IHubContext<BoardHub>>();
             hub.SetupGet(h => h.Clients).Returns(clients.Object);
             var handler = new ExplodeJobBomHandler(
-                db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBarcodeService>(), hub.Object);
+                db, new JobRepository(db, new Forge.Integrations.SystemClock()), Mock.Of<IBarcodeService>(), hub.Object,
+                new PartSourcingResolver(db));
             try
             {
                 await handler.Handle(new ExplodeJobBomCommand(parentJobId), CancellationToken.None);

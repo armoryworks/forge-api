@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Forge.Api.Features.VendorParts;
 using Forge.Api.Validation;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -88,7 +89,9 @@ public class UpdatePartHandler(
         if (data.TraceabilityType.HasValue) part.TraceabilityType = data.TraceabilityType.Value;
         if (data.AbcClass.HasValue) part.AbcClass = data.AbcClass.Value;
         if (data.ToolingAssetId.HasValue) part.ToolingAssetId = data.ToolingAssetId.Value == 0 ? null : data.ToolingAssetId.Value;
-        if (data.PreferredVendorId.HasValue) part.PreferredVendorId = data.PreferredVendorId.Value == 0 ? null : data.PreferredVendorId.Value;
+        if (data.PreferredVendorId.HasValue)
+            await PreferredVendorSync.SetPartPreferredVendorAsync(
+                db, part, data.PreferredVendorId.Value == 0 ? null : data.PreferredVendorId.Value, cancellationToken);
         if (data.MinStockThreshold.HasValue) part.MinStockThreshold = data.MinStockThreshold.Value == 0 ? null : data.MinStockThreshold.Value;
         if (data.ReorderPoint.HasValue) part.ReorderPoint = data.ReorderPoint.Value == 0 ? null : data.ReorderPoint.Value;
         if (data.ReorderQuantity.HasValue) part.ReorderQuantity = data.ReorderQuantity.Value == 0 ? null : data.ReorderQuantity.Value;
