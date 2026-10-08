@@ -63,6 +63,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<JobStage> JobStages => Set<JobStage>();
     public DbSet<Job> Jobs => Set<Job>();
     public DbSet<JobSubtask> JobSubtasks => Set<JobSubtask>();
+    public DbSet<JobOperation> JobOperations => Set<JobOperation>();
     public DbSet<JobLink> JobLinks => Set<JobLink>();
     public DbSet<JobActivityLog> JobActivityLogs => Set<JobActivityLog>();
     public DbSet<Customer> Customers => Set<Customer>();

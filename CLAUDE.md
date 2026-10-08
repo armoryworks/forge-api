@@ -282,6 +282,7 @@ review that delta before allowing it; a dev volume is disposable, a shared one m
 ```
 BaseEntity (Id, CreatedAt, UpdatedAt, DeletedAt, DeletedBy)
 ├── Job (+ Disposition, DispositionNotes, DisposedAt, ParentJobId, PartId), TrackType, JobStage, JobSubtask, JobActivityLog, JobLink
+├── JobOperation (per-job routing-step progress, created on first touch; TimeEntry.JobOperationId marks an operation timer)
 ├── Customer, Contact
 ├── Part (+ ToolingAssetId FK), BOMEntry (+ LeadTimeDays), Operation, OperationMaterial
 ├── StorageLocation, BinContent, BinMovement
@@ -318,7 +319,7 @@ BaseEntity (Id, CreatedAt, UpdatedAt, DeletedAt, DeletedBy)
 ```
 
 ### Enums (in `forge.core/Enums/`)
-`JobPriority`, `JobLinkType`, `JobDisposition`, `ActivityAction`, `PartType` (legacy — being decomposed into `ProcurementSource` × `InventoryClass` × `ItemKindId`), `ProcurementSource` (Make, Buy, Subcontract, Phantom), `InventoryClass` (Raw, Component, Subassembly, FinishedGood, Consumable, Tool), `TraceabilityType` (None, Lot, Serial — replaces legacy `IsSerialTracked` boolean), `AbcClass` (A, B, C), `PartStatus` (Draft, Prototype, Active, Obsolete), `BOMSourceType` (Make, Buy, Stock), `LocationType`, `BinContentStatus`, `BinMovementReason`, `LeadStatus`, `ExpenseStatus`, `AssetType`, `AssetStatus`, `ClockEventType`, `SyncStatus`, `AccountingDocumentType`, `PlanningCycleStatus`, `PurchaseOrderStatus`, `SalesOrderStatus`, `QuoteType` (Estimate, Quote), `QuoteStatus` (Draft, Sent, Accepted, Declined, Expired, ConvertedToQuote, ConvertedToOrder), `ShipmentStatus`, `InvoiceStatus`, `PaymentMethod`, `CreditTerms`, `AddressType`, `EventType` (Meeting, Training, Safety, Other), `AttendeeStatus` (Invited, Accepted, Declined, Attended), `InteractionType` (Call, Email, Meeting, Note), `EdiFormat`, `EdiTransportMethod`, `EdiDirection`, `EdiTransactionStatus`, `MfaDeviceType`, `EstimateLineResolutionAction` (Keep, Eliminate, ReplaceWithPart — #24 estimate→quote convert lump-sum resolutions)
+`JobPriority`, `JobLinkType`, `JobDisposition`, `ActivityAction`, `PartType` (legacy — being decomposed into `ProcurementSource` × `InventoryClass` × `ItemKindId`), `ProcurementSource` (Make, Buy, Subcontract, Phantom), `InventoryClass` (Raw, Component, Subassembly, FinishedGood, Consumable, Tool), `TraceabilityType` (None, Lot, Serial — replaces legacy `IsSerialTracked` boolean), `AbcClass` (A, B, C), `PartStatus` (Draft, Prototype, Active, Obsolete), `BOMSourceType` (Make, Buy, Stock), `LocationType`, `BinContentStatus`, `BinMovementReason`, `LeadStatus`, `ExpenseStatus`, `AssetType`, `AssetStatus`, `ClockEventType`, `SyncStatus`, `AccountingDocumentType`, `PlanningCycleStatus`, `PurchaseOrderStatus`, `SalesOrderStatus`, `QuoteType` (Estimate, Quote), `QuoteStatus` (Draft, Sent, Accepted, Declined, Expired, ConvertedToQuote, ConvertedToOrder), `ShipmentStatus`, `InvoiceStatus`, `PaymentMethod`, `CreditTerms`, `AddressType`, `EventType` (Meeting, Training, Safety, Other), `AttendeeStatus` (Invited, Accepted, Declined, Attended), `InteractionType` (Call, Email, Meeting, Note), `EdiFormat`, `EdiTransportMethod`, `EdiDirection`, `EdiTransactionStatus`, `MfaDeviceType`, `EstimateLineResolutionAction` (Keep, Eliminate, ReplaceWithPart — #24 estimate→quote convert lump-sum resolutions), `JobOperationStatus` (NotStarted, InProgress, Complete, Skipped)
 
 ---
 

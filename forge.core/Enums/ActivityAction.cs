@@ -14,5 +14,10 @@ public enum ActivityAction
     Restored,
     StatusChanged,
     BomExploded,
-    HandedOff
+    HandedOff,
+    OperationStarted,
+    OperationProgress,
+    OperationCompleted,
+    OperationReopened,
+    OperationSkipped
 }

@@ -24,6 +24,12 @@ public class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
         builder.HasIndex(t => t.JobId);
         builder.HasIndex(t => t.OperationId);
         builder.HasIndex(t => t.WorkCenterId);
+        builder.HasIndex(t => t.JobOperationId)
+            .HasFilter("(job_operation_id IS NOT NULL)");
+        builder.HasIndex(t => new { t.UserId, t.JobOperationId })
+            .IsUnique()
+            .HasFilter("((job_operation_id IS NOT NULL) AND (timer_start IS NOT NULL) AND (timer_stop IS NULL) AND (deleted_at IS NULL))")
+            .HasDatabaseName("ux_time_entries_open_job_operation");
 
         builder.Property(t => t.LaborCost).HasPrecision(18, 4);
         builder.Property(t => t.BurdenCost).HasPrecision(18, 4);

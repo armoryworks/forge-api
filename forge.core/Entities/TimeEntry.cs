@@ -19,6 +19,7 @@ public class TimeEntry : BaseAuditableEntity
     // Operation-level tracking
     public int? OperationId { get; set; }
     public TimeEntryType EntryType { get; set; } = TimeEntryType.Run;
+    public int? JobOperationId { get; set; }
 
     // Frozen at write time: denormalized from Operation.WorkCenterId at
     // timer-stop. Reporting filters time by work center without joining
