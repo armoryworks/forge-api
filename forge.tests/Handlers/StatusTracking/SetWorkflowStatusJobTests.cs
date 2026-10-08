@@ -76,6 +76,22 @@ public class SetWorkflowStatusJobTests
     }
 
     [Fact]
+    public async Task JobActivityDescriptions_NameTheJobNumber()
+    {
+        var job = await SeedJobAsync(isArchived: false);
+
+        await _handler.Handle(Command(job.Id, "job_status_in_progress"), CancellationToken.None);
+        await _handler.Handle(Command(job.Id, SetWorkflowStatusHandler.JobArchivedStatusCode), CancellationToken.None);
+
+        _db.JobActivityLogs.Select(l => l.Description).Should().BeEquivalentTo(
+        [
+            $"Set {job.JobNumber} status to job_status_in_progress.",
+            $"Changed {job.JobNumber} status from job_status_in_progress to {SetWorkflowStatusHandler.JobArchivedStatusCode}.",
+            $"Archived {job.JobNumber} (workflow status).",
+        ]);
+    }
+
+    [Fact]
     public async Task SettingArchived_WithoutAJobRole_IsForbiddenAndLeavesTheJobOnTheBoard()
     {
         SignInAs("Procurement");

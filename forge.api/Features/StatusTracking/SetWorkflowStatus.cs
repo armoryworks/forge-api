@@ -119,6 +119,11 @@ public class SetWorkflowStatusHandler(
 
         if (isJob)
         {
+            var jobNumber = archiveToggledJob?.JobNumber ?? await db.Jobs
+                .Where(j => j.Id == request.EntityId)
+                .Select(j => j.JobNumber)
+                .FirstOrDefaultAsync(cancellationToken);
+
             await activityRepo.AddAsync(new JobActivityLog
             {
                 JobId = request.EntityId,
@@ -127,7 +132,9 @@ public class SetWorkflowStatusHandler(
                 FieldName = "WorkflowStatus",
                 OldValue = previousLabel,
                 NewValue = label,
-                Description = description,
+                Description = string.IsNullOrEmpty(jobNumber)
+                    ? description
+                    : JobStatusDescription(jobNumber, previousLabel, label),
                 WorkCenterId = workCenterId,
                 OperationId = operationId,
             }, cancellationToken);
@@ -220,7 +227,14 @@ public class SetWorkflowStatusHandler(
             UserId = userId,
             Action = job.IsArchived ? ActivityAction.Archived : ActivityAction.Restored,
             FieldName = WorkflowStatusField,
-            Description = job.IsArchived ? "Archived (workflow status)." : "Unarchived (workflow status).",
+            Description = job.IsArchived
+                ? $"Archived {job.JobNumber} (workflow status)."
+                : $"Unarchived {job.JobNumber} (workflow status).",
         }, cancellationToken);
     }
+
+    private static string JobStatusDescription(string jobNumber, string? previousLabel, string label) =>
+        previousLabel is not null
+            ? $"Changed {jobNumber} status from {previousLabel} to {label}."
+            : $"Set {jobNumber} status to {label}.";
 }

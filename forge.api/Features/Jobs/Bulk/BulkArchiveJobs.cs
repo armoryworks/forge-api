@@ -35,7 +35,7 @@ public class BulkArchiveJobsHandler(
             {
                 JobId = job.Id,
                 Action = ActivityAction.Archived,
-                Description = "Archived (bulk).",
+                Description = $"Archived {job.JobNumber} (bulk).",
             }, ct);
 
             successCount++;
