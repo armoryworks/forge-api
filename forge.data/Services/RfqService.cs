@@ -6,7 +6,7 @@ using Forge.Data.Context;
 
 namespace Forge.Data.Services;
 
-public class RfqService(AppDbContext db, IClock clock) : IRfqService
+public class RfqService(AppDbContext db, IClock clock, IPurchaseOrderRepository purchaseOrders) : IRfqService
 {
     public async Task<string> GenerateRfqNumberAsync(CancellationToken ct)
     {
@@ -90,28 +90,12 @@ public class RfqService(AppDbContext db, IClock clock) : IRfqService
                 other.ResponseStatus = RfqResponseStatus.NotAwarded;
         }
 
-        // Generate PO number
-        var datePrefix = now.ToString("yyyyMMdd");
-        var poPrefix = $"PO-{datePrefix}-";
-        var lastPo = await db.PurchaseOrders
-            .AsNoTracking()
-            .Where(p => p.PONumber.StartsWith(poPrefix))
-            .OrderByDescending(p => p.PONumber)
-            .Select(p => p.PONumber)
-            .FirstOrDefaultAsync(ct);
-
-        var seq = 1;
-        if (lastPo is not null)
-        {
-            var lastSeq = lastPo[poPrefix.Length..];
-            if (int.TryParse(lastSeq, out var parsed))
-                seq = parsed + 1;
-        }
+        var poNumber = await purchaseOrders.GenerateNextPONumberAsync(ct);
 
         // Create PO from RFQ data
         var po = new PurchaseOrder
         {
-            PONumber = $"{poPrefix}{seq:D3}",
+            PONumber = poNumber,
             VendorId = response.VendorId,
             Status = PurchaseOrderStatus.Draft,
             Notes = $"Generated from {rfq.RfqNumber}",

@@ -82,19 +82,9 @@ public class VendorBillRepository(AppDbContext db) : IVendorBillRepository
             .Include(b => b.PaymentApplications)
             .FirstOrDefaultAsync(b => b.Id == id, ct);
 
-    public async Task<string> GenerateNextBillNumberAsync(CancellationToken ct)
-    {
-        var last = await db.VendorBills
-            .IgnoreQueryFilters()
-            .OrderByDescending(b => b.Id)
-            .Select(b => b.BillNumber)
-            .FirstOrDefaultAsync(ct);
-
-        if (last != null && last.StartsWith("BILL-") && int.TryParse(last[5..], out var lastNum))
-            return $"BILL-{lastNum + 1:D5}";
-
-        return "BILL-00001";
-    }
+    public Task<string> GenerateNextBillNumberAsync(CancellationToken ct)
+        => DocumentNumberSequence.NextAsync(
+            db.VendorBills.IgnoreQueryFilters().Select(b => b.BillNumber), "BILL", ct);
 
     public async Task AddAsync(VendorBill bill, CancellationToken ct) => await db.VendorBills.AddAsync(bill, ct);
 

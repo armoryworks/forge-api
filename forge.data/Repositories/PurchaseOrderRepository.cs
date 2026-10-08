@@ -194,19 +194,9 @@ public class PurchaseOrderRepository(AppDbContext db) : IPurchaseOrderRepository
             .FirstOrDefaultAsync(l => l.Id == lineId, ct);
     }
 
-    public async Task<string> GenerateNextPONumberAsync(CancellationToken ct)
-    {
-        var lastPo = await db.PurchaseOrders
-            .IgnoreQueryFilters()
-            .OrderByDescending(po => po.Id)
-            .Select(po => po.PONumber)
-            .FirstOrDefaultAsync(ct);
-
-        if (lastPo != null && lastPo.StartsWith("PO-") && int.TryParse(lastPo[3..], out var lastNum))
-            return $"PO-{lastNum + 1:D5}";
-
-        return "PO-00001";
-    }
+    public Task<string> GenerateNextPONumberAsync(CancellationToken ct)
+        => DocumentNumberSequence.NextAsync(
+            db.PurchaseOrders.IgnoreQueryFilters().Select(po => po.PONumber), "PO", ct);
 
     public async Task AddAsync(PurchaseOrder po, CancellationToken ct)
     {

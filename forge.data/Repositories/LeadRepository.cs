@@ -85,25 +85,14 @@ public class LeadRepository(AppDbContext db) : ILeadRepository
     public Task<Lead?> FindAsync(int id, CancellationToken ct)
         => db.Leads.FirstOrDefaultAsync(l => l.Id == id, ct);
 
-    public async Task<string> GenerateNextLeadNumberAsync(CancellationToken ct)
-    {
-        // Take the newest row carrying a LEAD- number and increment its suffix.
-        // IgnoreQueryFilters so a soft-deleted lead's number is still counted —
-        // the partial unique index covers all rows, so reusing a suffix would 23505.
-        const string token = "LEAD-";
-
-        var last = await db.Leads
-            .IgnoreQueryFilters()
-            .Where(l => l.LeadNumber != null && l.LeadNumber.StartsWith(token))
-            .OrderByDescending(l => l.Id)
-            .Select(l => l.LeadNumber)
-            .FirstOrDefaultAsync(ct);
-
-        if (last != null && int.TryParse(last[token.Length..], out var lastNum))
-            return $"{token}{lastNum + 1:D5}";
-
-        return $"{token}00001";
-    }
+    public Task<string> GenerateNextLeadNumberAsync(CancellationToken ct)
+        => DocumentNumberSequence.NextAsync(
+            db.Leads
+                .IgnoreQueryFilters()
+                .Where(l => l.LeadNumber != null)
+                .Select(l => l.LeadNumber!),
+            "LEAD",
+            ct);
 
     public Task<bool> LeadNumberExistsAsync(string number, int? excludeId, CancellationToken ct)
     {

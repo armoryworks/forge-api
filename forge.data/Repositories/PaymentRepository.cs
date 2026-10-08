@@ -115,19 +115,9 @@ public class PaymentRepository(AppDbContext db) : IPaymentRepository
             .FirstOrDefaultAsync(p => p.Id == id, ct);
     }
 
-    public async Task<string> GenerateNextPaymentNumberAsync(CancellationToken ct)
-    {
-        var last = await db.Payments
-            .IgnoreQueryFilters()
-            .OrderByDescending(p => p.Id)
-            .Select(p => p.PaymentNumber)
-            .FirstOrDefaultAsync(ct);
-
-        if (last != null && last.StartsWith("PMT-") && int.TryParse(last[4..], out var lastNum))
-            return $"PMT-{lastNum + 1:D5}";
-
-        return "PMT-00001";
-    }
+    public Task<string> GenerateNextPaymentNumberAsync(CancellationToken ct)
+        => DocumentNumberSequence.NextAsync(
+            db.Payments.IgnoreQueryFilters().Select(p => p.PaymentNumber), "PMT", ct);
 
     public Task<bool> PaymentNumberExistsAsync(string number, int? excludeId, CancellationToken ct)
     {

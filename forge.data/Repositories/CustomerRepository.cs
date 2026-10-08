@@ -129,25 +129,14 @@ public class CustomerRepository(AppDbContext db) : ICustomerRepository
         return await db.Customers.FirstOrDefaultAsync(c => c.Id == id, ct);
     }
 
-    public async Task<string> GenerateNextCustomerNumberAsync(CancellationToken ct)
-    {
-        // Take the newest row carrying a CUST- number and increment its suffix.
-        // IgnoreQueryFilters so a soft-deleted customer's number is still counted —
-        // the partial unique index covers all rows, so reusing a suffix would 23505.
-        const string token = "CUST-";
-
-        var last = await db.Customers
-            .IgnoreQueryFilters()
-            .Where(c => c.CustomerNumber != null && c.CustomerNumber.StartsWith(token))
-            .OrderByDescending(c => c.Id)
-            .Select(c => c.CustomerNumber)
-            .FirstOrDefaultAsync(ct);
-
-        if (last != null && int.TryParse(last[token.Length..], out var lastNum))
-            return $"{token}{lastNum + 1:D5}";
-
-        return $"{token}00001";
-    }
+    public Task<string> GenerateNextCustomerNumberAsync(CancellationToken ct)
+        => DocumentNumberSequence.NextAsync(
+            db.Customers
+                .IgnoreQueryFilters()
+                .Where(c => c.CustomerNumber != null)
+                .Select(c => c.CustomerNumber!),
+            "CUST",
+            ct);
 
     public Task<bool> CustomerNumberExistsAsync(string number, int? excludeId, CancellationToken ct)
     {

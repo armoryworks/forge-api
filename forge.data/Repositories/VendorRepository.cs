@@ -118,25 +118,14 @@ public class VendorRepository(AppDbContext db) : IVendorRepository
         return await db.Vendors.FirstOrDefaultAsync(v => v.Id == id, ct);
     }
 
-    public async Task<string> GenerateNextVendorNumberAsync(CancellationToken ct)
-    {
-        // Take the newest row carrying a VEND- number and increment its suffix.
-        // IgnoreQueryFilters so a soft-deleted vendor's number is still counted —
-        // the partial unique index covers all rows, so reusing a suffix would 23505.
-        const string token = "VEND-";
-
-        var last = await db.Vendors
-            .IgnoreQueryFilters()
-            .Where(v => v.VendorNumber != null && v.VendorNumber.StartsWith(token))
-            .OrderByDescending(v => v.Id)
-            .Select(v => v.VendorNumber)
-            .FirstOrDefaultAsync(ct);
-
-        if (last != null && int.TryParse(last[token.Length..], out var lastNum))
-            return $"{token}{lastNum + 1:D5}";
-
-        return $"{token}00001";
-    }
+    public Task<string> GenerateNextVendorNumberAsync(CancellationToken ct)
+        => DocumentNumberSequence.NextAsync(
+            db.Vendors
+                .IgnoreQueryFilters()
+                .Where(v => v.VendorNumber != null)
+                .Select(v => v.VendorNumber!),
+            "VEND",
+            ct);
 
     public Task<bool> VendorNumberExistsAsync(string number, int? excludeId, CancellationToken ct)
     {

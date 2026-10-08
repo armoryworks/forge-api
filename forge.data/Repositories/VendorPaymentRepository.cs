@@ -61,19 +61,9 @@ public class VendorPaymentRepository(AppDbContext db) : IVendorPaymentRepository
             .Include(p => p.Applications).ThenInclude(a => a.VendorBill)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
 
-    public async Task<string> GenerateNextVendorPaymentNumberAsync(CancellationToken ct)
-    {
-        var last = await db.VendorPayments
-            .IgnoreQueryFilters()
-            .OrderByDescending(p => p.Id)
-            .Select(p => p.PaymentNumber)
-            .FirstOrDefaultAsync(ct);
-
-        if (last != null && last.StartsWith("VPMT-") && int.TryParse(last[5..], out var lastNum))
-            return $"VPMT-{lastNum + 1:D5}";
-
-        return "VPMT-00001";
-    }
+    public Task<string> GenerateNextVendorPaymentNumberAsync(CancellationToken ct)
+        => DocumentNumberSequence.NextAsync(
+            db.VendorPayments.IgnoreQueryFilters().Select(p => p.PaymentNumber), "VPMT", ct);
 
     public async Task AddAsync(VendorPayment payment, CancellationToken ct) => await db.VendorPayments.AddAsync(payment, ct);
 

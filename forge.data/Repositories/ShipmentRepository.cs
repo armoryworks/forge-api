@@ -70,19 +70,9 @@ public class ShipmentRepository(AppDbContext db) : IShipmentRepository
             .FirstOrDefaultAsync(s => s.Id == id, ct);
     }
 
-    public async Task<string> GenerateNextShipmentNumberAsync(CancellationToken ct)
-    {
-        var last = await db.Shipments
-            .IgnoreQueryFilters()
-            .OrderByDescending(s => s.Id)
-            .Select(s => s.ShipmentNumber)
-            .FirstOrDefaultAsync(ct);
-
-        if (last != null && last.StartsWith("SH-") && int.TryParse(last[3..], out var lastNum))
-            return $"SH-{lastNum + 1:D5}";
-
-        return "SH-00001";
-    }
+    public Task<string> GenerateNextShipmentNumberAsync(CancellationToken ct)
+        => DocumentNumberSequence.NextAsync(
+            db.Shipments.IgnoreQueryFilters().Select(s => s.ShipmentNumber), "SH", ct);
 
     public async Task AddAsync(Shipment shipment, CancellationToken ct)
     {
