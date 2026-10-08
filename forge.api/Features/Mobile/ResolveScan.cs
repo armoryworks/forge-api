@@ -220,9 +220,15 @@ public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
     {
         var po = await db.PurchaseOrders.AsNoTracking()
             .Where(p => p.Id == id)
-            .Select(p => new { p.PONumber, Vendor = p.Vendor.CompanyName })
-            .FirstAsync(ct);
-        return new("purchaseOrder", id, code, po.PONumber, po.Vendor);
+            .Select(p => new { p.PONumber, p.VendorId })
+            .FirstOrDefaultAsync(ct);
+        if (po is null) return Unknown(code);
+
+        var vendor = await db.Vendors.AsNoTracking().IgnoreQueryFilters()
+            .Where(v => v.Id == po.VendorId)
+            .Select(v => v.CompanyName)
+            .FirstOrDefaultAsync(ct);
+        return new("purchaseOrder", id, code, po.PONumber, vendor);
     }
 
     private async Task<ScanResolveResponseModel> BadgeAsync(int id, string code, CancellationToken ct)

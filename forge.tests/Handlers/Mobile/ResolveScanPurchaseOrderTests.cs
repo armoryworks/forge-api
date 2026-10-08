@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 
 using Forge.Api.Features.Mobile;
@@ -110,5 +111,30 @@ public sealed class ResolveScanPurchaseOrderTests(PostgresFixture fixture)
         var result = await ResolveAsync($"PO-%{n}");
 
         result.Kind.Should().Be("unknown");
+    }
+
+    [Fact]
+    public async Task A_po_whose_vendor_was_deleted_still_resolves_by_barcode_and_number()
+    {
+        var number = $"PO-{UniqueNumber()}";
+        var ids = await SeedPurchaseOrdersAsync(number);
+        await using (var db = fixture.CreateContext())
+        {
+            var vendorId = await db.PurchaseOrders.Where(p => p.Id == ids[0]).Select(p => p.VendorId).SingleAsync();
+            var vendor = await db.Vendors.SingleAsync(v => v.Id == vendorId);
+            vendor.DeletedAt = new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero);
+            await db.SaveChangesAsync();
+        }
+
+        var typed = await ResolveAsync(number);
+        _barcodes.Setup(b => b.FindByValueAsync(number, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Barcode { Value = number, EntityType = BarcodeEntityType.PurchaseOrder, PurchaseOrderId = ids[0] });
+        var scanned = await ResolveAsync(number);
+
+        scanned.Kind.Should().Be("purchaseOrder");
+        scanned.Id.Should().Be(ids[0]);
+        scanned.Subtitle.Should().Be("Steel Supply");
+        typed.Kind.Should().Be("purchaseOrder");
+        typed.Id.Should().Be(ids[0]);
     }
 }
