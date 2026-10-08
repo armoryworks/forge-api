@@ -106,6 +106,46 @@ public class CreateMaterialSpecTests
     }
 
     [Fact]
+    public async Task Duplicate_of_a_retired_material_says_it_is_retired()
+    {
+        var aluminum = await SeedAsync(Group, "aluminum", "Aluminum", 1);
+        var retired = await SeedAsync(Group, "aluminum-2024-t3", "2024-T3", 1, aluminum.Id);
+        retired.IsActive = false;
+        await _db.SaveChangesAsync();
+
+        var act = () => Send("2024-T3", aluminum.Id);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("That material already exists but is retired: Aluminum / 2024-T3. Ask an admin to reactivate it.");
+        (await _db.ReferenceData.CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Long_category_and_label_produce_a_code_that_fits_the_column()
+    {
+        var result = await Send(new string('b', 200), newCategory: new string('a', 200));
+
+        var category = await _db.ReferenceData.SingleAsync(r => r.Id == result.ParentId);
+        category.Code.Length.Should().BeLessThanOrEqualTo(50);
+        result.Code.Length.Should().BeLessThanOrEqualTo(50);
+        result.Code.Should().NotEndWith("-");
+    }
+
+    [Fact]
+    public async Task Long_labels_sharing_a_truncated_prefix_get_distinct_codes_within_the_column()
+    {
+        var steel = await SeedAsync(Group, "stainless-steel", "Stainless Steel", 1);
+
+        var first = await Send("17-4 PH Condition H1150 per AMS 5643, bar stock", steel.Id);
+        var second = await Send("17-4 PH Condition H1150 per AMS 5643, plate stock", steel.Id);
+
+        first.Code.Length.Should().BeLessThanOrEqualTo(50);
+        second.Code.Length.Should().BeLessThanOrEqualTo(50);
+        second.Code.Should().NotBe(first.Code);
+        second.Code.Should().StartWith(first.Code);
+    }
+
+    [Fact]
     public async Task Same_label_under_a_different_parent_gets_a_unique_code()
     {
         var aluminum = await SeedAsync(Group, "aluminum", "Aluminum", 1);

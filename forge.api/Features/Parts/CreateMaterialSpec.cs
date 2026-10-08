@@ -35,7 +35,7 @@ public class CreateMaterialSpecHandler(AppDbContext db)
 {
     public const string GroupCode = "part.material_spec";
 
-    private const int MaxCodeBaseLength = 90;
+    private const int MaxCodeBaseLength = 44;
 
     public async Task<ReferenceDataResponseModel> Handle(CreateMaterialSpecCommand request, CancellationToken ct)
     {
@@ -55,10 +55,9 @@ public class CreateMaterialSpecHandler(AppDbContext db)
         }
 
         if (categoryLabel is not null)
-            await EnsureUniqueAsync(null, categoryLabel, $"That category already exists: {categoryLabel}.", ct);
+            await EnsureUniqueAsync(null, categoryLabel, "category", categoryLabel, ct);
         else
-            await EnsureUniqueAsync(parent?.Id, label,
-                $"That material already exists: {DisplayName(parent?.Label, label)}.", ct);
+            await EnsureUniqueAsync(parent?.Id, label, "material", DisplayName(parent?.Label, label), ct);
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
@@ -74,13 +73,20 @@ public class CreateMaterialSpecHandler(AppDbContext db)
             entry.EffectiveFrom, entry.EffectiveTo, entry.Metadata, entry.ParentId);
     }
 
-    private async Task EnsureUniqueAsync(int? parentId, string label, string message, CancellationToken ct)
+    private async Task EnsureUniqueAsync(
+        int? parentId, string label, string noun, string displayName, CancellationToken ct)
     {
         var lowered = label.ToLowerInvariant();
-        var exists = await db.ReferenceData.AnyAsync(
-            r => r.GroupCode == GroupCode && r.ParentId == parentId && r.Label.ToLower() == lowered, ct);
-        if (exists)
-            throw new InvalidOperationException(message);
+        var existingActive = await db.ReferenceData
+            .Where(r => r.GroupCode == GroupCode && r.ParentId == parentId && r.Label.ToLower() == lowered)
+            .Select(r => (bool?)r.IsActive)
+            .OrderByDescending(a => a)
+            .FirstOrDefaultAsync(ct);
+        if (existingActive is true)
+            throw new InvalidOperationException($"That {noun} already exists: {displayName}.");
+        if (existingActive is false)
+            throw new InvalidOperationException(
+                $"That {noun} already exists but is retired: {displayName}. Ask an admin to reactivate it.");
     }
 
     private async Task<ReferenceDataEntity> AddRowAsync(
