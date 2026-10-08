@@ -18,4 +18,7 @@ public record LotTraceabilityResponseModel(
     // lots this lot was consumed INTO (forward trace — the recall blast radius).
     List<LotConsumptionEdgeModel> ConsumedLots,
     List<LotConsumptionEdgeModel> ProducedLots,
-    List<LotTraceShipmentModel> ShippedTo);
+    List<LotTraceShipmentModel> ShippedTo,
+    List<LotTraceReceiptModel> ReceivedFrom,
+    List<LotTraceNcrModel> NonConformances,
+    LotTraceJobModel? ProducingJob);

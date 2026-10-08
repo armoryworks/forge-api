@@ -1,11 +1,13 @@
 namespace Forge.Core.Models;
 
-public record LotTraceInspectionModel(
+public record PartQualityInspectionModel(
     int Id,
     string Status,
+    string? TemplateName,
+    string? JobNumber,
+    string? LotNumber,
     string InspectorName,
     DateTimeOffset CreatedAt,
-    string? TemplateName,
     DateTimeOffset? CompletedAt,
     int PassedCount,
     int FailedCount);

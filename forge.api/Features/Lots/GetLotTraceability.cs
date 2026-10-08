@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -61,16 +62,66 @@ public class GetLotTraceabilityHandler(AppDbContext db)
                 (int)bc.Quantity))
             .ToListAsync(cancellationToken);
 
-        // Find QC inspections for this lot
+        var receivedFrom = await db.ReceivingRecords
+            .AsNoTracking()
+            .Where(r => r.LotNumber == lot.LotNumber
+                && (r.PurchaseOrderLine.PartId == null || r.PurchaseOrderLine.PartId == lot.PartId))
+            .OrderBy(r => r.CreatedAt)
+            .Select(r => new LotTraceReceiptModel(
+                r.Id,
+                r.ReceiptNumber,
+                r.PurchaseOrderLine.PurchaseOrderId,
+                r.PurchaseOrderLine.PurchaseOrder.PONumber,
+                r.PurchaseOrderLine.PurchaseOrder.VendorId,
+                r.PurchaseOrderLine.PurchaseOrder.Vendor.CompanyName,
+                r.CreatedAt,
+                r.QuantityReceived,
+                r.InspectionStatus.ToString()))
+            .ToListAsync(cancellationToken);
+
+        var receiptInspectionIds = await db.ReceivingRecords
+            .AsNoTracking()
+            .Where(r => r.LotNumber == lot.LotNumber && r.QcInspectionId != null)
+            .Select(r => r.QcInspectionId!.Value)
+            .ToListAsync(cancellationToken);
+
         var inspections = await db.QcInspections
             .AsNoTracking()
-            .Where(i => i.LotNumber == request.LotNumber)
+            .Where(i => receiptInspectionIds.Contains(i.Id)
+                || (i.LotNumber == lot.LotNumber
+                    && (i.ProductionRunId != null
+                        ? i.ProductionRun!.PartId == lot.PartId
+                        : i.Job != null && i.Job.PartId != null
+                            ? i.Job.PartId == lot.PartId
+                            : i.Template == null || i.Template.PartId == null || i.Template.PartId == lot.PartId)))
+            .OrderBy(i => i.CreatedAt)
             .Select(i => new LotTraceInspectionModel(
                 i.Id,
                 i.Status,
                 db.Users.Where(u => u.Id == i.InspectorId).Select(u => u.FirstName + " " + u.LastName).FirstOrDefault() ?? "",
-                i.CreatedAt))
+                i.CreatedAt,
+                i.Template != null ? i.Template.Name : null,
+                i.CompletedAt,
+                i.Results.Count(r => r.Passed),
+                i.Results.Count(r => !r.Passed)))
             .ToListAsync(cancellationToken);
+
+        var nonConformances = await db.NonConformances
+            .AsNoTracking()
+            .Where(n => n.LotNumber == lot.LotNumber && n.PartId == lot.PartId)
+            .OrderBy(n => n.DetectedAt)
+            .Select(n => new LotTraceNcrModel(
+                n.Id,
+                n.NcrNumber,
+                n.Type.ToString(),
+                n.Status.ToString(),
+                n.DetectedAt,
+                n.Description,
+                n.AffectedQuantity,
+                n.DispositionCode.HasValue ? n.DispositionCode.Value.ToString() : null))
+            .ToListAsync(cancellationToken);
+
+        var producingJob = await ResolveProducingJobAsync(lot, cancellationToken);
 
         // Flattened, date-ordered timeline — the shape the lot detail panel
         // actually renders. The categorized lists above stay for the quality
@@ -172,6 +223,35 @@ public class GetLotTraceabilityHandler(AppDbContext db)
             events,
             consumedLots,
             producedLots,
-            shippedTo);
+            shippedTo,
+            receivedFrom,
+            nonConformances,
+            producingJob);
+    }
+
+    private async Task<LotTraceJobModel?> ResolveProducingJobAsync(LotRecord lot, CancellationToken ct)
+    {
+        int? jobId = lot.JobId;
+        if (jobId is null && lot.ProductionRunId is int runId)
+        {
+            jobId = await db.ProductionRuns
+                .AsNoTracking()
+                .Where(r => r.Id == runId)
+                .Select(r => (int?)r.JobId)
+                .FirstOrDefaultAsync(ct);
+        }
+        jobId ??= await db.LotConsumptions
+            .AsNoTracking()
+            .Where(c => c.ProducedLotId == lot.Id && c.JobId != null)
+            .OrderBy(c => c.CreatedAt)
+            .Select(c => c.JobId)
+            .FirstOrDefaultAsync(ct);
+
+        if (jobId is null) return null;
+        return await db.Jobs
+            .AsNoTracking()
+            .Where(j => j.Id == jobId)
+            .Select(j => new LotTraceJobModel(j.Id, j.JobNumber, j.Title))
+            .FirstOrDefaultAsync(ct);
     }
 }
