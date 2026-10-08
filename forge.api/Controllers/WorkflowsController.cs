@@ -56,6 +56,17 @@ public class WorkflowsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Keep what was typed on a run whose entity does not exist yet.</summary>
+    [HttpPut("{runId:int}/draft")]
+    public async Task<ActionResult<WorkflowRunResponseModel>> SaveDraft(
+        int runId,
+        [FromBody] SaveWorkflowDraftRequestModel body,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new SaveWorkflowDraftCommand(runId, body), ct);
+        return Ok(result);
+    }
+
     /// <summary>Jump to a different (current or earlier-completed) step.</summary>
     [HttpPatch("{runId:int}/jump")]
     public async Task<ActionResult<WorkflowRunResponseModel>> Jump(

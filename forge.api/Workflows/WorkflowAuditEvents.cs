@@ -15,6 +15,7 @@ public static class WorkflowAuditEvents
     public const string Completed = "WorkflowCompleted";
     public const string Abandoned = "WorkflowAbandoned";
     public const string ModeToggled = "WorkflowModeToggled";
+    public const string DraftSaved = "WorkflowDraftSaved";
 
     // Entity-level promotion (delegated by workflow Mark Complete; also
     // invoked directly from a detail page).

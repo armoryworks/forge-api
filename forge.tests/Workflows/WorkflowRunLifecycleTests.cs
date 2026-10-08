@@ -289,6 +289,92 @@ public class WorkflowRunLifecycleTests(CapabilityTestWebApplicationFactory facto
     }
 
     [Fact]
+    public async Task SaveDraft_KeepsTypedText_AndLeavesForkPicksAlone()
+    {
+        var client = AuthenticatedClient();
+        var run = await StartRunAsync(client, """{"procurementSource":"Make"}""");
+
+        var resp = await client.PutAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/draft",
+            new SaveWorkflowDraftRequestModel(JsonDocument.Parse(
+                """{"partNumber":"BRK-100","name":"Mounting bracket","description":""}""").RootElement));
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var updated = (await resp.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
+        updated.EntityId.Should().BeNull();
+        updated.DraftPayload!["procurementSource"]!.GetValue<string>().Should().Be("Make");
+        updated.DraftPayload!["typed"]!["partNumber"]!.GetValue<string>().Should().Be("BRK-100");
+        updated.DraftPayload!["typed"]!["name"]!.GetValue<string>().Should().Be("Mounting bracket");
+
+        resp = await client.PutAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/draft",
+            new SaveWorkflowDraftRequestModel(JsonDocument.Parse("""{"name":"Bracket"}""").RootElement));
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        updated = (await resp.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
+        updated.DraftPayload!["typed"]!["partNumber"].Should().BeNull("a later save replaces the typed text rather than merging into it");
+        updated.DraftPayload!["typed"]!["name"]!.GetValue<string>().Should().Be("Bracket");
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var audit = await db.AuditLogEntries
+            .Where(a => a.EntityType == "WorkflowRun" && a.EntityId == run.Id && a.Action == "WorkflowDraftSaved")
+            .CountAsync();
+        audit.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task SaveDraft_TypedText_DoesNotFeedMaterialization()
+    {
+        var client = AuthenticatedClient();
+        var run = await StartRunAsync(client, "{}");
+        await client.PutAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/draft",
+            new SaveWorkflowDraftRequestModel(JsonDocument.Parse("""{"name":"Typed only"}""").RootElement));
+
+        var noName = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/step",
+            new PatchWorkflowStepRequestModel("basics", JsonDocument.Parse("{}").RootElement));
+        noName.StatusCode.Should().Be(HttpStatusCode.BadRequest, "typed draft text is a label, not a step value");
+
+        var resp = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/step",
+            new PatchWorkflowStepRequestModel("basics", JsonDocument.Parse("""{"name":"Saved name"}""").RootElement));
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var updated = (await resp.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var part = await db.Parts.FirstAsync(p => p.Id == updated.EntityId!.Value);
+        part.Name.Should().Be("Saved name");
+    }
+
+    [Fact]
+    public async Task SaveDraft_AfterMaterialization_Returns409()
+    {
+        var client = AuthenticatedClient();
+        var run = await StartRunAsync(client, "{}");
+        await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/step",
+            new PatchWorkflowStepRequestModel("basics", JsonDocument.Parse("""{"name":"Materialized draft"}""").RootElement));
+
+        var resp = await client.PutAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/draft",
+            new SaveWorkflowDraftRequestModel(JsonDocument.Parse("""{"name":"Too late"}""").RootElement));
+        resp.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task SaveDraft_RejectsNonObjectFields()
+    {
+        var client = AuthenticatedClient();
+        var run = await StartRunAsync(client, "{}");
+
+        var resp = await client.PutAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/draft",
+            new SaveWorkflowDraftRequestModel(JsonDocument.Parse("""["not","an","object"]""").RootElement));
+        resp.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task Mode_Toggle_PersistsChange()
     {
         var client = AuthenticatedClient();

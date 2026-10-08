@@ -16,10 +16,10 @@ public class GetEntityCompletenessBatchTests
 
     public GetEntityCompletenessBatchTests()
     {
-        _handler = new GetEntityCompletenessBatchHandler(
+        _handler = new GetEntityCompletenessBatchHandler(new EntityCompletenessEvaluator(
             _db,
             new StubCapabilitySnapshotProvider("CAP-MD-PARTS"),
-            new PredicateEvaluator());
+            new PredicateEvaluator()));
     }
 
     private async Task<Part> SeedPartAsync(string partNumber, string? description)

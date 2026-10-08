@@ -601,6 +601,7 @@ try
     builder.Services.AddSingleton<Forge.Api.Workflows.IPredicateCustomFunctionRegistry,
                                   Forge.Api.Workflows.EmptyPredicateCustomFunctionRegistry>();
     builder.Services.AddSingleton<Forge.Api.Workflows.PredicateEvaluator>();
+    builder.Services.AddScoped<Forge.Api.Features.EntityCompleteness.EntityCompletenessEvaluator>();
     builder.Services.AddScoped<Forge.Api.Workflows.IWorkflowSubstrateSeeder,
                                Forge.Api.Workflows.WorkflowSubstrateSeeder>();
     builder.Services.AddScoped<Forge.Api.Workflows.IEntityReadinessService,
