@@ -179,6 +179,26 @@ public class BulkMoveJobStageHandlerTests
     }
 
     [Fact]
+    public async Task Handle_MoveToFinalStageAfterPassedReinspection_MovesJob()
+    {
+        var stages = ProductionTailStages(1);
+        var job = JobAt(1, stages, stageId: 9);
+        Setup(stages, 10, job);
+
+        var completedAt = new DateTimeOffset(2026, 3, 1, 8, 0, 0, TimeSpan.Zero);
+        _db.QcInspections.AddRange(
+            new QcInspection { JobId = 1, Status = "Failed", CompletedAt = completedAt },
+            new QcInspection { JobId = 1, Status = "Passed", CompletedAt = completedAt.AddHours(1) });
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new BulkMoveJobStageCommand([1], 10), CancellationToken.None);
+
+        result.SuccessCount.Should().Be(1);
+        result.Errors.Should().BeEmpty();
+        job.CurrentStageId.Should().Be(10);
+    }
+
+    [Fact]
     public async Task Handle_MixedBatch_MovesValidJobsAndReportsInvalidOnes()
     {
         var stages = ProductionTailStages(1);
