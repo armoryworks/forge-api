@@ -9,11 +9,13 @@ using Forge.Api.Capabilities;
 namespace Forge.Api.Controllers;
 
 /// <summary>
-/// Per-entity completeness lookup driving the
+/// Per-entity and batch completeness lookup driving the
 /// <c>&lt;app-entity-completeness-chip&gt;</c> +
-/// <c>&lt;app-entity-completeness-badge&gt;</c> in the UI. Returns a list
-/// of every currently-enabled capability that has requirements declared
-/// for the entity type, with a per-capability ok/missing breakdown.
+/// <c>&lt;app-entity-completeness-badge&gt;</c> in the UI. For each entity,
+/// returns a list of every currently-enabled capability that has
+/// requirements declared for the entity type, with a per-capability
+/// ok/missing breakdown. The batch route answers for up to 200 ids in one
+/// call so list pages do not issue a request per row.
 ///
 /// Read-only and not capability-gated — the chip is foundational UX that
 /// surfaces status of OTHER capabilities; gating the chip endpoint itself
