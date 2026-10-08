@@ -72,7 +72,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             var envelope = new
             {
                 status = StatusCodes.Status409Conflict,
-                title = "Readiness validators not satisfied",
+                title = "Finish the required steps first",
                 detail = ex.Message,
                 type = "about:blank",
                 code = "workflow-readiness-missing",

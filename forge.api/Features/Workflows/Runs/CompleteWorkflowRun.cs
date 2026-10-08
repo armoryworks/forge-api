@@ -95,7 +95,7 @@ public class CompleteWorkflowRunHandler(
             }).ToList();
             throw new WorkflowMissingValidatorsException(
                 payloadAll,
-                $"Cannot complete workflow {run.Id} — entity has not been created yet.");
+                WorkflowReadinessMessage.FinishBefore(run.EntityType, "Active", payloadAll.Select(m => m.ValidatorId)));
         }
 
         var missing = await readiness.GetMissingValidatorsAsync(run.EntityType, run.EntityId.Value, ct);
@@ -114,7 +114,7 @@ public class CompleteWorkflowRunHandler(
             }).ToList();
             throw new WorkflowMissingValidatorsException(
                 payload,
-                $"Cannot complete workflow {run.Id} — readiness validators not satisfied.");
+                WorkflowReadinessMessage.FinishBefore(run.EntityType, "Active", payload.Select(m => m.ValidatorId)));
         }
 
         if (!_promoters.TryGetValue(run.EntityType, out var promoter))

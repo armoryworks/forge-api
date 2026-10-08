@@ -100,7 +100,7 @@ public class PromotePartStatusHandler(
             }).ToList();
             throw new WorkflowMissingValidatorsException(
                 payload,
-                $"Cannot promote Part {request.PartId} to {request.Body.TargetStatus} — readiness validators not satisfied.");
+                WorkflowReadinessMessage.FinishBefore(EntityType, request.Body.TargetStatus, payload.Select(m => m.ValidatorId)));
         }
 
         if (!_promoters.TryGetValue(EntityType, out var promoter))
