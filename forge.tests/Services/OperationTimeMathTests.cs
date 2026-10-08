@@ -123,4 +123,63 @@ public class OperationTimeMathTests
 
         OperationTimeMath.EntryMinutes(start, null, 0, start.AddMinutes(-5)).Should().Be(0m);
     }
+
+    [Theory]
+    [InlineData(2026, 10, 8, 5)]
+    [InlineData(2026, 10, 12, 3)]
+    public void MakeLeadTimeDays_CountsShopDaysOnTheWorkingCalendar(int year, int month, int day, int expected)
+    {
+        var routing = new[] { new Operation { RunMinutesEach = 24m } };
+
+        OperationTimeMath.MakeLeadTimeDays(routing, 60m, ShopCalendar.MondayToFriday, new DateOnly(year, month, day))
+            .Should().Be(expected);
+    }
+
+    [Fact]
+    public void MakeLeadTimeDays_SkipsHolidays()
+    {
+        var routing = new[] { new Operation { RunMinutesEach = 24m } };
+        var calendar = new ShopCalendar(WorkCenterCapacity.MondayToFridayMask, new HashSet<DateOnly> { new(2026, 10, 13) });
+
+        OperationTimeMath.MakeLeadTimeDays(routing, 60m, calendar, new DateOnly(2026, 10, 12)).Should().Be(4);
+    }
+
+    [Fact]
+    public void MakeLeadTimeDays_FollowsTheCalendarsWorkingDays()
+    {
+        var routing = new[] { new Operation { RunMinutesEach = 24m } };
+        var mondayToSaturday = new ShopCalendar(126, new HashSet<DateOnly>());
+
+        OperationTimeMath.MakeLeadTimeDays(routing, 60m, mondayToSaturday, new DateOnly(2026, 10, 8)).Should().Be(4);
+    }
+
+    [Fact]
+    public void MakeLeadTimeDays_AddsSubcontractTurnTimeInsteadOfItsRunTime()
+    {
+        var routing = new[]
+        {
+            new Operation { StepNumber = 10, RunMinutesEach = 8m },
+            new Operation { StepNumber = 20, IsSubcontract = true, RunMinutesEach = 30m, SubcontractTurnTimeDays = 2.5m },
+            new Operation { StepNumber = 30, IsSubcontract = true },
+        };
+
+        OperationTimeMath.MakeLeadTimeDays(routing, 60m, ShopCalendar.MondayToFriday, new DateOnly(2026, 10, 12))
+            .Should().Be(4);
+    }
+
+    [Fact]
+    public void MakeLeadTimeDaysBefore_CountsShopDaysBackOverTheWeekend()
+    {
+        var routing = new[] { new Operation { RunMinutesEach = 24m } };
+
+        OperationTimeMath.MakeLeadTimeDaysBefore(routing, 60m, ShopCalendar.MondayToFriday, new DateOnly(2026, 10, 12))
+            .Should().Be(5);
+    }
+
+    [Fact]
+    public void MakeLeadTimeDays_IsSevenWithoutARouting()
+    {
+        OperationTimeMath.MakeLeadTimeDays([], 60m, ShopCalendar.MondayToFriday, new DateOnly(2026, 10, 8))
+            .Should().Be(7);
+    }
 }

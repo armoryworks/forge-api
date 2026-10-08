@@ -463,6 +463,51 @@ public class MrpOpenJobSupplyTests
     }
 
     [Fact]
+    public async Task SoTrackingJobForABoughtPartWithABomAndAVendor_IsNotSupply_SoThePurchaseIsPlanned()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db, ProcurementSource.Buy);
+        var component = await SeedComponentAsync(db, part.Id, perUnit: 2);
+        var vendor = new Vendor { CompanyName = "Assembly Vendor" };
+        db.Vendors.Add(vendor);
+        await db.SaveChangesAsync();
+        part.PreferredVendorId = vendor.Id;
+        var line = await SeedSoLineAsync(db, part.Id, 100, daysOut: 30);
+
+        var trackingJob = NewJob(part.Id, "J-15B", jobPartQuantity: 100);
+        trackingJob.SalesOrderLineId = line.Id;
+        db.Jobs.Add(trackingJob);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Should().BeEmpty();
+        var planned = (await PlannedOrdersForPartAsync(db, run.Id, part.Id)).Should().ContainSingle().Subject;
+        planned.OrderType.Should().Be(MrpOrderType.Purchase);
+        planned.Quantity.Should().Be(100);
+        (await PlannedOrdersForPartAsync(db, run.Id, component.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task JobForABoughtPartWithARoutingAndNoVendor_IsSupply()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db, ProcurementSource.Buy);
+        db.Operations.Add(new Operation { PartId = part.Id, StepNumber = 10, Title = "Machine", RunMinutesEach = 5m });
+        var line = await SeedSoLineAsync(db, part.Id, 100, daysOut: 30);
+
+        var job = NewJob(part.Id, "J-15C", jobPartQuantity: 100);
+        job.SalesOrderLineId = line.Id;
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var run = await Service(db).ExecuteRunAsync(new MrpRunOptions());
+
+        (await JobSuppliesAsync(db, run.Id)).Should().ContainSingle().Which.Quantity.Should().Be(100);
+        (await PlannedOrdersForPartAsync(db, run.Id, part.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task OpenJob_PlansItsComponents_ButNotItsParent()
     {
         using var db = TestDbContextFactory.Create();

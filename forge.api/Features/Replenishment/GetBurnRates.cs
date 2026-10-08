@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -40,7 +41,7 @@ public class GetBurnRatesHandler(AppDbContext db, IPartSourcingResolver sourcing
         var partIds = parts.Select(p => p.Id).ToList();
 
         // Pillar 3 — resolve effective sourcing values for every part in the
-        // result set. The needs-reorder decision uses the resolved lead time.
+        // result set. Needs-reorder for bought parts uses the resolved lead time.
         var sourcingByPart = await sourcingResolver.ResolveManyAsync(partIds, cancellationToken);
 
         // On-hand stock per part
@@ -92,15 +93,22 @@ public class GetBurnRatesHandler(AppDbContext db, IPartSourcingResolver sourcing
             })
             .ToListAsync(cancellationToken);
 
-        var incomingMap = incomingRaw
+        var poSupplyMap = incomingRaw
             .GroupBy(x => x.PartId)
             .ToDictionary(
                 g => g.Key,
-                g => new
-                {
-                    TotalQty = g.Sum(x => x.RemainingQty),
-                    EarliestDate = g.Min(x => x.ExpectedDate),
-                });
+                g => (Quantity: g.Sum(x => x.RemainingQty), EarliestDue: g.Min(x => x.ExpectedDate)));
+
+        var makePartIds = parts
+            .Where(p => p.ProcurementSource == ProcurementSource.Make)
+            .Select(p => p.Id)
+            .ToList();
+        var jobSupplyMap = await ReplenishmentPlanning.LoadOpenJobSupplyAsync(db, makePartIds, cancellationToken);
+        var routingByPart = await ReplenishmentPlanning.LoadRoutingsAsync(db, makePartIds, cancellationToken);
+        var calendar = makePartIds.Count == 0
+            ? ShopCalendar.MondayToFriday
+            : await ShopCalendar.LoadDefaultAsync(db, cancellationToken);
+        var today = ShopCalendar.DateOf(now);
 
         var results = new List<BurnRateResponseModel>();
 
@@ -111,9 +119,11 @@ public class GetBurnRatesHandler(AppDbContext db, IPartSourcingResolver sourcing
             var reserved = stock?.Reserved ?? 0m;
             var available = onHand - reserved;
 
-            var incoming = incomingMap.TryGetValue(part.Id, out var inc) ? inc : null;
-            var incomingQty = incoming?.TotalQty ?? 0m;
-            var earliestArrival = incoming?.EarliestDate;
+            var isMake = part.ProcurementSource == ProcurementSource.Make;
+            var supplyMap = isMake ? jobSupplyMap : poSupplyMap;
+            var (incomingQty, earliestArrival) = supplyMap.TryGetValue(part.Id, out var supply)
+                ? supply
+                : (0m, null);
 
             var partMovements = rawMovements.Where(m => m.EntityId == part.Id).ToList();
 
@@ -134,9 +144,14 @@ public class GetBurnRatesHandler(AppDbContext db, IPartSourcingResolver sourcing
                 projectedStockout = now.AddDays((double)daysRemaining.Value);
             }
 
-            var effectiveLeadTime = sourcingByPart.TryGetValue(part.Id, out var sv)
-                ? sv.LeadTimeDays
-                : null;
+            int? effectiveLeadTime = isMake
+                ? ReplenishmentPlanning.PlanMake(
+                    part,
+                    routingByPart.TryGetValue(part.Id, out var ops) ? ops : [],
+                    bestBurnRate ?? 0m,
+                    calendar,
+                    today).LeadTimeDays
+                : sourcingByPart.TryGetValue(part.Id, out var sv) ? sv.LeadTimeDays : null;
             var needsReorder = DetermineNeedsReorder(part, effectiveLeadTime, available, incomingQty, bestBurnRate);
 
             if (request.NeedsReorderOnly && !needsReorder)

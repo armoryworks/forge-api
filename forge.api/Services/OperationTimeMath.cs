@@ -51,13 +51,25 @@ public static class OperationTimeMath
         return quantity > 0m ? quantity : 1m;
     }
 
-    public static int MakeLeadTimeDays(IEnumerable<Operation> operations, decimal quantity)
+    public static int MakeLeadTimeDays(
+        IEnumerable<Operation> operations, decimal quantity, ShopCalendar calendar, DateOnly start) =>
+        MakeLeadTimeDays(operations, quantity, shopDays => calendar.CalendarDaysAfter(start, shopDays));
+
+    public static int MakeLeadTimeDaysBefore(
+        IEnumerable<Operation> operations, decimal quantity, ShopCalendar calendar, DateOnly due) =>
+        MakeLeadTimeDays(operations, quantity, shopDays => calendar.CalendarDaysBefore(due, shopDays));
+
+    private static int MakeLeadTimeDays(
+        IEnumerable<Operation> operations, decimal quantity, Func<int, int> shopDaysToCalendarDays)
     {
         var ops = operations.ToList();
         if (ops.Count == 0)
             return 7;
 
-        var minutes = ops.Sum(op => PlannedMinutes(op, quantity));
-        return Math.Max(1, (int)Math.Ceiling(minutes / 480m));
+        var shopMinutes = ops.Where(op => !op.IsSubcontract).Sum(op => PlannedMinutes(op, quantity));
+        var shopDays = (int)Math.Ceiling(shopMinutes / 480m);
+        var turnDays = ops.Where(op => op.IsSubcontract).Sum(op => op.SubcontractTurnTimeDays ?? 0m);
+        var calendarDays = shopDaysToCalendarDays(shopDays) + (int)Math.Ceiling(turnDays);
+        return Math.Max(1, calendarDays);
     }
 }

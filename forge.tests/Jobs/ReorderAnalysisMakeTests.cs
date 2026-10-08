@@ -17,6 +17,7 @@ namespace Forge.Tests.Jobs;
 public class ReorderAnalysisMakeTests
 {
     private static readonly DateTimeOffset FixedNow = new(2026, 4, 30, 12, 0, 0, TimeSpan.Zero);
+    private static readonly ShopCalendar EveryDay = new(0x7F, new HashSet<DateOnly>());
 
     private sealed class FixedClock : Forge.Core.Interfaces.IClock
     {
@@ -207,8 +208,8 @@ public class ReorderAnalysisMakeTests
         task.TriggerType.Should().Be(FollowUpTriggerType.ReorderSuggested);
         task.Status.Should().Be(FollowUpStatus.Open);
         task.Description.Should().Contain("Available 10").And.Contain("reorder point 50")
-            .And.Contain("daily use 5").And.Contain("lead time 2 day(s)");
-        task.DueDate.Should().Be(FixedNow);
+            .And.Contain("daily use 5").And.Contain("lead time 4 day(s)");
+        task.DueDate.Should().Be(new DateTimeOffset(2026, 4, 30, 0, 0, 0, TimeSpan.Zero));
 
         var notified = await _db.Notifications.Select(n => n.UserId).ToListAsync();
         notified.Should().Equal(assignee.Id);
@@ -230,7 +231,7 @@ public class ReorderAnalysisMakeTests
         var suggestion = await _db.ReorderSuggestions.SingleAsync(s => s.PartId == part.Id);
         var task = await _db.FollowUpTasks.SingleAsync();
         suggestion.ProjectedStockoutDate.Should().Be(FixedNow.AddDays(20));
-        task.DueDate.Should().Be(FixedNow.AddDays(18));
+        task.DueDate.Should().Be(FixedNow.AddDays(16));
     }
 
     [Fact]
@@ -300,12 +301,14 @@ public class ReorderAnalysisMakeTests
     {
         var op = new Operation { RunMinutesEach = 48m };
 
-        OperationTimeMath.MakeLeadTimeDays([op], quantity).Should().Be(expected);
+        OperationTimeMath.MakeLeadTimeDays([op], quantity, EveryDay, DateOnly.FromDateTime(FixedNow.UtcDateTime))
+            .Should().Be(expected);
     }
 
     [Fact]
     public void MakeLeadTimeDays_is_seven_without_a_routing()
     {
-        OperationTimeMath.MakeLeadTimeDays([], 50m).Should().Be(7);
+        OperationTimeMath.MakeLeadTimeDays([], 50m, EveryDay, DateOnly.FromDateTime(FixedNow.UtcDateTime))
+            .Should().Be(7);
     }
 }

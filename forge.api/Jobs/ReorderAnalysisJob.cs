@@ -9,6 +9,7 @@ using Forge.Data.Context;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Replenishment;
+using Forge.Api.Services;
 
 namespace Forge.Api.Jobs;
 
@@ -53,6 +54,8 @@ public class ReorderAnalysisJob(
 
         var now = clock.UtcNow;
         var cutoff90 = now.AddDays(-90);
+        var calendar = await ShopCalendar.LoadDefaultAsync(db, ct);
+        var today = ShopCalendar.DateOf(now);
 
         logger.LogInformation("[ReorderAnalysis] Starting daily reorder analysis at {Time}", now);
 
@@ -173,7 +176,7 @@ public class ReorderAnalysisJob(
 
             (int LeadTimeDays, decimal Quantity) PlanMake(Part part, decimal burnRate) =>
                 ReplenishmentPlanning.PlanMake(
-                    part, routingByPart.TryGetValue(part.Id, out var ops) ? ops : [], burnRate);
+                    part, routingByPart.TryGetValue(part.Id, out var ops) ? ops : [], burnRate, calendar, today);
 
             // Expire pending suggestions where stock has recovered (for this chunk's parts)
             var chunkPendingSuggestions = pendingSuggestions

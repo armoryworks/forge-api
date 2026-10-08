@@ -324,6 +324,8 @@ public class MrpService(
                     RunMinutesLot = o.RunMinutesLot,
                     RunMinutesEach = o.RunMinutesEach,
                     EstimatedMs = o.EstimatedMs,
+                    IsSubcontract = o.IsSubcontract,
+                    SubcontractTurnTimeDays = o.SubcontractTurnTimeDays,
                 })
                 .ToListAsync(cancellationToken))
                 .GroupBy(o => o.PartId)
@@ -336,6 +338,9 @@ public class MrpService(
                 .Distinct()
                 .ToListAsync(cancellationToken))
                 .ToHashSet();
+            vendorSourcedPartIds.UnionWith(allParts.Values.Where(p => p.PreferredVendorId is not null).Select(p => p.Id));
+
+            var calendar = await ShopCalendar.LoadDefaultAsync(db, cancellationToken);
 
             // Group BOM by parent
             var bomByParent = bomLines
@@ -343,7 +348,9 @@ public class MrpService(
                 .ToDictionary(g => g.Key, g => g.ToList());
 
             var (peggedLineBySupply, jobNumberById) = await AddOpenJobSupplyAsync(
-                new OpenJobPlanningContext(mrpRun.Id, partIds, openJobs, pinnedComponentsByRevision, bomByParent, lowLevelCodes, sourcingByPart),
+                new OpenJobPlanningContext(
+                    mrpRun.Id, partIds, openJobs, pinnedComponentsByRevision, bomByParent, lowLevelCodes, sourcingByPart,
+                    routingByPart.Keys.ToHashSet(), vendorSourcedPartIds),
                 supplyRecords, demandRecords, exceptions, cancellationToken);
 
             // Also load on-hand for child parts
@@ -401,7 +408,7 @@ public class MrpService(
                     var orderType = PlannedOrderType(
                         part?.ProcurementSource,
                         routing is not null,
-                        part?.PreferredVendorId is not null || vendorSourcedPartIds.Contains(partId),
+                        vendorSourcedPartIds.Contains(partId),
                         bomByParent.ContainsKey(partId));
                     var lotRule = part?.LotSizingRule ?? LotSizingRule.LotForLot;
 
@@ -461,7 +468,8 @@ public class MrpService(
                                 part?.OrderMultiple);
 
                             var leadTime = orderType == MrpOrderType.Manufacture && timedRouting is not null
-                                ? OperationTimeMath.MakeLeadTimeDays(timedRouting, orderQty)
+                                ? OperationTimeMath.MakeLeadTimeDaysBefore(
+                                    timedRouting, orderQty, calendar, ShopCalendar.DateOf(demand.RequiredDate))
                                 : resolvedLeadTime ?? 14;
 
                             // Lead-time offset
@@ -985,9 +993,13 @@ public class MrpService(
     }
 
     private static bool IsMadeInHouse(OpenJobRow job, OpenJobPlanningContext context)
-        => job.ProcurementSource == ProcurementSource.Make
-            || context.BomByParent.ContainsKey(job.PartId)
-            || (job.BomRevisionIdAtRelease is int revisionId && context.PinnedComponentsByRevision.ContainsKey(revisionId));
+        => PlannedOrderType(
+            job.ProcurementSource,
+            context.RoutedPartIds.Contains(job.PartId),
+            context.VendorSourcedPartIds.Contains(job.PartId),
+            context.BomByParent.ContainsKey(job.PartId)
+                || (job.BomRevisionIdAtRelease is int revisionId && context.PinnedComponentsByRevision.ContainsKey(revisionId)))
+            == MrpOrderType.Manufacture;
 
     private static IEnumerable<JobComponentRow> ComponentsFor(OpenJobRow job, OpenJobPlanningContext context)
     {
@@ -1082,5 +1094,7 @@ public class MrpService(
         Dictionary<int, List<JobComponentRow>> PinnedComponentsByRevision,
         Dictionary<int, List<BOMLine>> BomByParent,
         Dictionary<int, int> LowLevelCodes,
-        IReadOnlyDictionary<int, PartSourcingValues> SourcingByPart);
+        IReadOnlyDictionary<int, PartSourcingValues> SourcingByPart,
+        IReadOnlySet<int> RoutedPartIds,
+        IReadOnlySet<int> VendorSourcedPartIds);
 }

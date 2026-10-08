@@ -19,10 +19,9 @@ public record BurnRateResponseModel(
     decimal? ReorderPoint,
     decimal? ReorderQuantity,
     /// <summary>
-    /// Effective lead time as resolved from the preferred VendorPart row, or
-    /// null if the part has no preferred VendorPart configured. Vendor-
-    /// specific now — Part-level snapshot was retired with the OEM-on-
-    /// VendorPart move.
+    /// Effective vendor or routing lead time: for Make parts, the routing's
+    /// make lead time in calendar days; otherwise the preferred VendorPart
+    /// row's lead time, or null if the part has no preferred VendorPart.
     /// </summary>
     int? LeadTimeDays,
     int? SafetyStockDays,

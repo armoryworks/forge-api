@@ -69,7 +69,9 @@ public class ApproveSuggestionHandler(
         var routing = await db.Operations
             .Where(o => o.PartId == suggestion.PartId)
             .ToListAsync(ct);
-        var leadTimeDays = OperationTimeMath.MakeLeadTimeDays(routing, suggestion.SuggestedQuantity);
+        var calendar = await ShopCalendar.LoadDefaultAsync(db, ct);
+        var leadTimeDays = OperationTimeMath.MakeLeadTimeDays(
+            routing, suggestion.SuggestedQuantity, calendar, ShopCalendar.DateOf(now));
 
         var job = await mediator.Send(new CreateJobCommand(
             Title: $"{suggestion.Part.PartNumber} x {suggestion.SuggestedQuantity.ToString("0.####", CultureInfo.InvariantCulture)}",

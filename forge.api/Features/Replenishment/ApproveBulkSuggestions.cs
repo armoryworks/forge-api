@@ -17,7 +17,13 @@ namespace Forge.Api.Features.Replenishment;
 
 public record ApproveBulkSuggestionsCommand(List<int> SuggestionIds, int UserId) : IRequest<BulkApproveResult>;
 
-public record BulkApproveResult(int ApprovedCount, int SkippedCount, List<int> CreatedPoIds, List<int> CreatedJobIds);
+public record BulkApproveResult(
+    int ApprovedCount,
+    int SkippedCount,
+    List<int> CreatedPoIds,
+    List<int> CreatedJobIds,
+    List<string> CreatedPoNumbers,
+    List<string> CreatedJobNumbers);
 
 public class ApproveBulkSuggestionsHandler(
     AppDbContext db,
@@ -41,6 +47,8 @@ public class ApproveBulkSuggestionsHandler(
         var skippedCount = request.SuggestionIds.Count - suggestions.Count;
         var createdPoIds = new List<int>();
         var createdJobIds = new List<int>();
+        var createdPoNumbers = new List<string>();
+        var createdJobNumbers = new List<string>();
         var approvedIds = new List<int>();
         var now = clock.UtcNow;
 
@@ -63,11 +71,13 @@ public class ApproveBulkSuggestionsHandler(
                 var track = resolvedTrack.Value.Track;
                 var makePartIds = makeSuggestions.Select(s => s.PartId).Distinct().ToList();
                 var routingByPart = await ReplenishmentPlanning.LoadRoutingsAsync(db, makePartIds, cancellationToken);
+                var calendar = await ShopCalendar.LoadDefaultAsync(db, cancellationToken);
 
                 foreach (var s in makeSuggestions)
                 {
                     var routing = routingByPart.TryGetValue(s.PartId, out var ops) ? ops : [];
-                    var leadTimeDays = OperationTimeMath.MakeLeadTimeDays(routing, s.SuggestedQuantity);
+                    var leadTimeDays = OperationTimeMath.MakeLeadTimeDays(
+                        routing, s.SuggestedQuantity, calendar, ShopCalendar.DateOf(now));
 
                     var job = await mediator.Send(new CreateJobCommand(
                         Title: $"{s.Part.PartNumber} x {s.SuggestedQuantity.ToString("0.####", CultureInfo.InvariantCulture)}",
@@ -81,6 +91,7 @@ public class ApproveBulkSuggestionsHandler(
                         Quantity: s.SuggestedQuantity), cancellationToken);
 
                     createdJobIds.Add(job.Id);
+                    createdJobNumbers.Add(job.JobNumber);
                     s.ResultingJobId = job.Id;
                     Approve(s);
                 }
@@ -155,6 +166,7 @@ public class ApproveBulkSuggestionsHandler(
                 ("PurchaseOrder", po.Id));
 
             createdPoIds.Add(po.Id);
+            createdPoNumbers.Add(po.PONumber);
 
             foreach (var s in vendorGroup)
             {
@@ -170,7 +182,8 @@ public class ApproveBulkSuggestionsHandler(
         await db.SaveChangesAsync(cancellationToken);
         await tx.CommitAsync(cancellationToken);
 
-        return new BulkApproveResult(approvedCount, skippedCount, createdPoIds, createdJobIds);
+        return new BulkApproveResult(
+            approvedCount, skippedCount, createdPoIds, createdJobIds, createdPoNumbers, createdJobNumbers);
 
         void Approve(ReorderSuggestion s)
         {

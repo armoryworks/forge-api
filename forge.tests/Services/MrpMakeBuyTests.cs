@@ -16,7 +16,9 @@ namespace Forge.Tests.Services;
 public class MrpMakeBuyTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 7, 12, 0, 0, TimeSpan.Zero);
-    private const int NineStepMakeDaysAt500 = 6;
+    private const int NineStepMakeShopDaysAt500 = 6;
+    private const int NineStepMakeCalendarDaysBeforeDue = 9;
+    private const int NineStepMakeCalendarDaysBeforeMaterials = 10;
 
     private static IClock Clock()
     {
@@ -126,7 +128,10 @@ public class MrpMakeBuyTests
             .Select(step => new Operation { StepNumber = step, SetupMinutes = 30m, RunMinutesEach = 0.5m })
             .ToList();
 
-        OperationTimeMath.MakeLeadTimeDays(routing, 500m).Should().Be(NineStepMakeDaysAt500);
+        var everyDay = new ShopCalendar(0x7F, new HashSet<DateOnly>());
+
+        OperationTimeMath.MakeLeadTimeDays(routing, 500m, everyDay, ShopCalendar.DateOf(Now))
+            .Should().Be(NineStepMakeShopDaysAt500);
     }
 
     [Fact]
@@ -175,7 +180,7 @@ public class MrpMakeBuyTests
 
         var order = await PlannedOrderAsync(db, run, part.Id);
         order.OrderType.Should().Be(MrpOrderType.Manufacture);
-        order.StartDate.Should().Be(order.DueDate.AddDays(-NineStepMakeDaysAt500));
+        order.StartDate.Should().Be(order.DueDate.AddDays(-NineStepMakeCalendarDaysBeforeDue));
     }
 
     [Fact]
@@ -228,7 +233,7 @@ public class MrpMakeBuyTests
         order.OrderType.Should().Be(MrpOrderType.Manufacture);
         order.Quantity.Should().Be(500);
         order.DueDate.Should().Be(Now.AddDays(60));
-        order.StartDate.Should().Be(Now.AddDays(60 - NineStepMakeDaysAt500));
+        order.StartDate.Should().Be(Now.AddDays(60 - NineStepMakeCalendarDaysBeforeDue));
     }
 
     [Fact]
@@ -263,7 +268,7 @@ public class MrpMakeBuyTests
         var service = new BackwardSchedulingService(db, Clock(), new PartSourcingResolver(db));
         var schedule = await service.CalculateSchedule(line.Id, CancellationToken.None);
 
-        (schedule.MaterialsNeededBy - schedule.PoOrderBy).TotalDays.Should().Be(NineStepMakeDaysAt500);
+        (schedule.MaterialsNeededBy - schedule.PoOrderBy).TotalDays.Should().Be(NineStepMakeCalendarDaysBeforeMaterials);
     }
 
     [Fact]
@@ -344,6 +349,6 @@ public class MrpMakeBuyTests
         var service = new BackwardSchedulingService(db, Clock(), new PartSourcingResolver(db));
         var schedule = await service.CalculateSchedule(line.Id, CancellationToken.None);
 
-        (schedule.MaterialsNeededBy - schedule.PoOrderBy).TotalDays.Should().Be(NineStepMakeDaysAt500);
+        (schedule.MaterialsNeededBy - schedule.PoOrderBy).TotalDays.Should().Be(NineStepMakeCalendarDaysBeforeMaterials);
     }
 }

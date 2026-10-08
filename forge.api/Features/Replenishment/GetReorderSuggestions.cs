@@ -11,7 +11,7 @@ namespace Forge.Api.Features.Replenishment;
 
 public record GetReorderSuggestionsQuery(ReorderSuggestionStatus? Status, int? Id = null) : IRequest<List<ReorderSuggestionResponseModel>>;
 
-public class GetReorderSuggestionsHandler(AppDbContext db, IPartSourcingResolver sourcingResolver)
+public class GetReorderSuggestionsHandler(AppDbContext db, IPartSourcingResolver sourcingResolver, IClock clock)
     : IRequestHandler<GetReorderSuggestionsQuery, List<ReorderSuggestionResponseModel>>
 {
     public async Task<List<ReorderSuggestionResponseModel>> Handle(
@@ -62,6 +62,10 @@ public class GetReorderSuggestionsHandler(AppDbContext db, IPartSourcingResolver
             .ToList();
 
         var routingByPart = await ReplenishmentPlanning.LoadRoutingsAsync(db, makePartIds, cancellationToken);
+        var calendar = makePartIds.Count == 0
+            ? ShopCalendar.MondayToFriday
+            : await ShopCalendar.LoadDefaultAsync(db, cancellationToken);
+        var today = ShopCalendar.DateOf(clock.UtcNow);
 
         var sourcingByPart = buyPartIds.Count == 0
             ? new Dictionary<int, PartSourcingValues>()
@@ -72,7 +76,7 @@ public class GetReorderSuggestionsHandler(AppDbContext db, IPartSourcingResolver
             var isMake = s.Part.ProcurementSource == ProcurementSource.Make;
             int? leadTimeDays = isMake
                 ? OperationTimeMath.MakeLeadTimeDays(
-                    routingByPart.TryGetValue(s.PartId, out var ops) ? ops : [], s.SuggestedQuantity)
+                    routingByPart.TryGetValue(s.PartId, out var ops) ? ops : [], s.SuggestedQuantity, calendar, today)
                 : sourcingByPart.TryGetValue(s.PartId, out var sv) ? sv.LeadTimeDays : null;
 
             return new ReorderSuggestionResponseModel(

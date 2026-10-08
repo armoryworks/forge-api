@@ -39,7 +39,8 @@ public class BackwardSchedulingService(
         var materialsNeededBy = productionStartBy;
 
         var maxLeadTimeDays = await CalculateMaxLeadTimeDaysAsync(
-            soLine.PartId, soLine.RemainingQuantity > 0m ? soLine.RemainingQuantity : soLine.Quantity, ct);
+            soLine.PartId, soLine.RemainingQuantity > 0m ? soLine.RemainingQuantity : soLine.Quantity,
+            ShopCalendar.DateOf(materialsNeededBy), ct);
         var poOrderBy = materialsNeededBy.AddDays(-maxLeadTimeDays);
 
         return new BackwardSchedule(
@@ -94,7 +95,8 @@ public class BackwardSchedulingService(
         return Math.Max(days, DefaultProductionDays);
     }
 
-    private async Task<int> CalculateMaxLeadTimeDaysAsync(int? partId, decimal orderQuantity, CancellationToken ct)
+    private async Task<int> CalculateMaxLeadTimeDaysAsync(
+        int? partId, decimal orderQuantity, DateOnly materialsNeededBy, CancellationToken ct)
     {
         if (!partId.HasValue)
             return DefaultLeadTimeDays;
@@ -131,6 +133,8 @@ public class BackwardSchedulingService(
                 RunMinutesLot = o.RunMinutesLot,
                 RunMinutesEach = o.RunMinutesEach,
                 EstimatedMs = o.EstimatedMs,
+                IsSubcontract = o.IsSubcontract,
+                SubcontractTurnTimeDays = o.SubcontractTurnTimeDays,
             })
             .ToListAsync(ct))
             .GroupBy(o => o.PartId)
@@ -174,13 +178,18 @@ public class BackwardSchedulingService(
             fallback = await sourcingResolver.ResolveManyAsync(fallbackPartIds, ct);
         }
 
+        var calendar = makeChildIds.Count == 0
+            ? ShopCalendar.MondayToFriday
+            : await ShopCalendar.LoadDefaultAsync(db, ct);
+
         var max = 0;
         var sawAny = false;
         foreach (var entry in leadEntries)
         {
             int? lead = entry.LeadTimeDays
                 ?? (makeChildIds.Contains(entry.ChildPartId)
-                    ? OperationTimeMath.MakeLeadTimeDays(routingByChild[entry.ChildPartId], orderQuantity * entry.Quantity)
+                    ? OperationTimeMath.MakeLeadTimeDaysBefore(
+                        routingByChild[entry.ChildPartId], orderQuantity * entry.Quantity, calendar, materialsNeededBy)
                     : fallback != null && fallback.TryGetValue(entry.ChildPartId, out var v)
                         ? v.LeadTimeDays
                         : null);

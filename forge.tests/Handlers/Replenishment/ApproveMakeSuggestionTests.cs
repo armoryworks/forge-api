@@ -60,7 +60,7 @@ public class ApproveMakeSuggestionTests
             Mock.Of<ISystemSettingRepository>(),
             Mock.Of<IBusinessIdentifierService>(),
             StubCapabilitySnapshotProvider.Off);
-        var getSuggestions = new GetReorderSuggestionsHandler(_db, new PartSourcingResolver(_db));
+        var getSuggestions = new GetReorderSuggestionsHandler(_db, new PartSourcingResolver(_db), new FixedClock());
 
         _mediator.Setup(m => m.Send(It.IsAny<CreateJobCommand>(), It.IsAny<CancellationToken>()))
             .Returns<CreateJobCommand, CancellationToken>((cmd, ct) => createJob.Handle(cmd, ct));
@@ -70,8 +70,8 @@ public class ApproveMakeSuggestionTests
             .Returns<GetJobByIdQuery, CancellationToken>((q, _) => Task.FromResult(JobDetail(q.Id)));
     }
 
-    private static JobDetailResponseModel JobDetail(int id) => new(
-        id, "J", "Test", null, 1, "Production",
+    private JobDetailResponseModel JobDetail(int id) => new(
+        id, _db.Jobs.Find(id)?.JobNumber ?? "J", "Test", null, 1, "Production",
         1, "Confirmed", "#94a3b8", null, null, null, null,
         "Normal", null, null, null, null, null, false, 1, 0, null,
         null, null, null, null, null, null, null, null, null, null, 0,
@@ -147,7 +147,7 @@ public class ApproveMakeSuggestionTests
         job.Title.Should().Be("MAKE-200 x 100");
         job.PartId.Should().Be(suggestion.PartId);
         job.Priority.Should().Be(JobPriority.Normal);
-        job.DueDate.Should().Be(FixedNow.AddDays(10));
+        job.DueDate.Should().Be(FixedNow.AddDays(14));
         job.JobParts.Should().ContainSingle()
             .Which.Should().Match<JobPart>(jp => jp.PartId == suggestion.PartId && jp.Quantity == 100m);
 
@@ -160,7 +160,7 @@ public class ApproveMakeSuggestionTests
         result.SupplyType.Should().Be("Make");
         result.ResultingJobId.Should().Be(job.Id);
         result.ResultingJobNumber.Should().Be(job.JobNumber);
-        result.LeadTimeDays.Should().Be(10);
+        result.LeadTimeDays.Should().Be(14);
 
         var task = await TaskFor(suggestion.Id);
         task.Status.Should().Be(FollowUpStatus.Completed);
@@ -232,6 +232,10 @@ public class ApproveMakeSuggestionTests
 
         var po = await _db.PurchaseOrders.Include(p => p.Lines).SingleAsync();
         po.Lines.Should().HaveCount(2);
+        result.CreatedPoNumbers.Should().Equal(po.PONumber);
+        result.CreatedJobNumbers.Should().Equal(
+            result.CreatedJobIds.Select(id => jobs.Single(j => j.Id == id).JobNumber));
+        result.CreatedJobNumbers.Should().OnlyContain(n => n.StartsWith("J-"));
         buyA.ResultingPurchaseOrderId.Should().Be(po.Id);
         buyB.ResultingPurchaseOrderId.Should().Be(po.Id);
         noVendor.Status.Should().Be(ReorderSuggestionStatus.Pending);

@@ -20,11 +20,12 @@ public static class ReplenishmentPlanning
     }
 
     public static (int LeadTimeDays, decimal Quantity) PlanMake(
-        Part part, IReadOnlyCollection<Operation> routing, decimal burnRate)
+        Part part, IReadOnlyCollection<Operation> routing, decimal burnRate, ShopCalendar calendar, DateOnly start)
     {
         var basis = part.ReorderQuantity is > 0 ? part.ReorderQuantity.Value : 1m;
-        var quantity = SuggestQuantity(part, burnRate, OperationTimeMath.MakeLeadTimeDays(routing, basis));
-        return (OperationTimeMath.MakeLeadTimeDays(routing, quantity), quantity);
+        var quantity = SuggestQuantity(
+            part, burnRate, OperationTimeMath.MakeLeadTimeDays(routing, basis, calendar, start));
+        return (OperationTimeMath.MakeLeadTimeDays(routing, quantity, calendar, start), quantity);
     }
 
     public static async Task<Dictionary<int, List<Operation>>> LoadRoutingsAsync(
