@@ -22,6 +22,11 @@ public class JobOperationsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<JobOperationsResponseModel>> GetOperations(int jobId, CancellationToken ct)
         => Ok(await mediator.Send(new GetJobOperationsQuery(jobId), ct));
 
+    [HttpGet("jobs/{jobId:int}/operations/{operationId:int}/events")]
+    public async Task<ActionResult<IReadOnlyList<JobOperationEventResponseModel>>> GetEvents(
+        int jobId, int operationId, CancellationToken ct)
+        => Ok(await mediator.Send(new GetJobOperationEventsQuery(jobId, operationId), ct));
+
     [HttpPost("jobs/{jobId:int}/operations/{operationId:int}/timer/start")]
     public async Task<ActionResult<JobOperationTimerResponseModel>> StartTimer(
         int jobId, int operationId, [FromBody] StartJobOperationTimerRequestModel? request, CancellationToken ct)

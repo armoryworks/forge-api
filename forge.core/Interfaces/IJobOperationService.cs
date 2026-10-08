@@ -13,6 +13,9 @@ public interface IJobOperationService
 
     Task<JobOperation> EnsureRowAsync(Job job, Operation operation, CancellationToken ct);
 
+    void ApplyProgress(JobOperation row, decimal completed, decimal scrap, decimal rework,
+        string? reasonCode, int userId, DateTimeOffset occurredAt);
+
     Task<JobOperationsResponseModel> BuildAsync(int jobId, CancellationToken ct);
 
     Task<IReadOnlyDictionary<int, JobOperationSummaryResponseModel>> SummarizeAsync(

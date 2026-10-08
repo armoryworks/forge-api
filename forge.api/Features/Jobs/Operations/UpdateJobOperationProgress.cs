@@ -24,10 +24,12 @@ public class UpdateJobOperationProgressValidator : AbstractValidator<UpdateJobOp
     public UpdateJobOperationProgressValidator()
     {
         RuleFor(x => x.Data)
-            .Must(d => d.CompletedQuantity.HasValue || d.ScrapQuantity.HasValue || d.Status.HasValue)
-            .WithMessage("Send a completed quantity, a scrap quantity or a status.");
+            .Must(d => d.CompletedQuantity.HasValue || d.ScrapQuantity.HasValue || d.ReworkQuantity.HasValue || d.Status.HasValue)
+            .WithMessage("Send a completed quantity, a scrap quantity, a rework quantity or a status.");
         RuleFor(x => x.Data.CompletedQuantity).GreaterThanOrEqualTo(0m).When(x => x.Data.CompletedQuantity.HasValue);
         RuleFor(x => x.Data.ScrapQuantity).GreaterThanOrEqualTo(0m).When(x => x.Data.ScrapQuantity.HasValue);
+        RuleFor(x => x.Data.ReworkQuantity).GreaterThanOrEqualTo(0m).When(x => x.Data.ReworkQuantity.HasValue);
+        RuleFor(x => x.Data.ReasonCode).MaximumLength(50);
         RuleFor(x => x.Data.Status).IsInEnum().When(x => x.Data.Status.HasValue);
     }
 }
@@ -65,6 +67,7 @@ public class UpdateJobOperationProgressHandler(
 
         var scrap = data.ScrapQuantity ?? row.ScrapQuantity;
         var completed = data.CompletedQuantity ?? row.CompletedQuantity;
+        var rework = data.ReworkQuantity ?? 0m;
         var closeTimers = false;
         ActivityAction action;
 
@@ -123,8 +126,7 @@ public class UpdateJobOperationProgressHandler(
                     $"Completed ({completed:0.##}) plus scrap ({scrap:0.##}) is more than the job quantity ({jobQuantity:0.##})."),
             ]);
 
-        row.CompletedQuantity = completed;
-        row.ScrapQuantity = scrap;
+        operations.ApplyProgress(row, completed, scrap, rework, data.ReasonCode, userId, now);
 
         var closed = new List<TimeEntry>();
         if (closeTimers && openTimers.Count > 0)
@@ -144,6 +146,8 @@ public class UpdateJobOperationProgressHandler(
         }
 
         var after = JobOperationRules.Describe(row, jobQuantity);
+        var reworkNote = rework > 0m ? $" {rework:0.##} sent to rework." : string.Empty;
+        var reasonNote = string.IsNullOrWhiteSpace(data.ReasonCode) ? string.Empty : $" Reason: {data.ReasonCode.Trim()}.";
         db.JobActivityLogs.Add(new JobActivityLog
         {
             JobId = job.Id,
@@ -152,7 +156,7 @@ public class UpdateJobOperationProgressHandler(
             FieldName = "OperationStatus",
             OldValue = before,
             NewValue = after,
-            Description = $"Operation {operation.StepNumber} {operation.Title}: {before} → {after}.",
+            Description = $"Operation {operation.StepNumber} {operation.Title}: {before} → {after}.{reworkNote}{reasonNote}",
             CreatedAt = now,
             OperationId = operation.Id,
             WorkCenterId = operation.WorkCenterId,

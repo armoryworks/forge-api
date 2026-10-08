@@ -6,4 +6,6 @@ public record UpdateJobOperationProgressRequestModel(
     decimal? CompletedQuantity,
     decimal? ScrapQuantity,
     JobOperationStatus? Status,
-    uint? ExpectedVersion = null);
+    uint? ExpectedVersion = null,
+    decimal? ReworkQuantity = null,
+    string? ReasonCode = null);

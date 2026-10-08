@@ -175,6 +175,84 @@ public class UpdateJobOperationProgressHandlerTests
         validator.Validate(new UpdateJobOperationProgressCommand(1, 1, new(-1m, null, null))).IsValid.Should().BeFalse();
         validator.Validate(new UpdateJobOperationProgressCommand(1, 1, new(null, -1m, null))).IsValid.Should().BeFalse();
         validator.Validate(new UpdateJobOperationProgressCommand(1, 1, new(3m, 0m, null))).IsValid.Should().BeTrue();
+        validator.Validate(new UpdateJobOperationProgressCommand(1, 1, new(null, null, null, ReworkQuantity: 2m))).IsValid.Should().BeTrue();
+        validator.Validate(new UpdateJobOperationProgressCommand(1, 1, new(null, null, null, ReworkQuantity: -1m))).IsValid.Should().BeFalse();
+        validator.Validate(new UpdateJobOperationProgressCommand(1, 1, new(1m, null, null, ReasonCode: new string('X', 51)))).IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Quantities_AppendAGoodAndAScrapEventForTheChangeOnly()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
+        var user = await _h.Timers.AddUserAsync();
+        await PatchAsync(user.Id, job.Id, routing[0].Id, new(10m, null, null));
+
+        await PatchAsync(user.Id, job.Id, routing[0].Id, new(15m, 2m, null, ReasonCode: " BURR "));
+
+        var events = await _h.Timers.Db.JobOperationEvents.AsNoTracking().OrderBy(e => e.Id).ToListAsync();
+        events.Select(e => (e.Kind, e.Quantity, e.ReasonCode)).Should().Equal(
+            (JobOperationEventKind.Good, 10m, (string?)null),
+            (JobOperationEventKind.Good, 5m, "BURR"),
+            (JobOperationEventKind.Scrap, 2m, "BURR"));
+        events.Should().OnlyContain(e => e.UserId == user.Id && e.OccurredAt == _h.Timers.Now);
+    }
+
+    [Fact]
+    public async Task Rework_IsRecordedAsAnEventWithoutTouchingTheGoodOrScrapCounts()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
+        var user = await _h.Timers.AddUserAsync();
+
+        var result = await PatchAsync(user.Id, job.Id, routing[0].Id, new(null, null, null, ReworkQuantity: 3m, ReasonCode: "OVERSIZE"));
+
+        result.Operation.CompletedQuantity.Should().Be(0m);
+        result.Operation.ScrapQuantity.Should().Be(0m);
+        var evt = await _h.Timers.Db.JobOperationEvents.AsNoTracking().SingleAsync();
+        evt.Kind.Should().Be(JobOperationEventKind.Rework);
+        evt.Quantity.Should().Be(3m);
+        evt.ReasonCode.Should().Be("OVERSIZE");
+        var log = await _h.Timers.Db.JobActivityLogs.AsNoTracking().SingleAsync();
+        log.Description.Should().EndWith("3 sent to rework. Reason: OVERSIZE.");
+    }
+
+    [Fact]
+    public async Task CompleteAndReset_RecordTheFilledAndTheReversedQuantities()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
+        var user = await _h.Timers.AddUserAsync();
+
+        await PatchAsync(user.Id, job.Id, routing[0].Id, new(null, 1m, JobOperationStatus.Complete));
+        await PatchAsync(user.Id, job.Id, routing[0].Id, new(null, null, JobOperationStatus.NotStarted));
+
+        var events = await _h.Timers.Db.JobOperationEvents.AsNoTracking().OrderBy(e => e.Id).ToListAsync();
+        events.Select(e => (e.Kind, e.Quantity)).Should().Equal(
+            (JobOperationEventKind.Good, 39m),
+            (JobOperationEventKind.Scrap, 1m),
+            (JobOperationEventKind.Good, -39m),
+            (JobOperationEventKind.Scrap, -1m));
+    }
+
+    [Fact]
+    public async Task StatusOnlyChange_AppendsNoEvent()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
+        var user = await _h.Timers.AddUserAsync();
+
+        await PatchAsync(user.Id, job.Id, routing[0].Id, new(null, null, JobOperationStatus.Skipped));
+
+        (await _h.Timers.Db.JobOperationEvents.AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RejectedQuantity_AppendsNoEvent()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
+        var user = await _h.Timers.AddUserAsync();
+
+        var act = () => PatchAsync(user.Id, job.Id, routing[0].Id, new(39m, 2m, null, ReworkQuantity: 1m));
+
+        await act.Should().ThrowAsync<ValidationException>();
+        (await _h.Timers.Db.JobOperationEvents.AnyAsync()).Should().BeFalse();
     }
 
     [Fact]

@@ -73,6 +73,35 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
         }
     }
 
+    public void ApplyProgress(JobOperation row, decimal completed, decimal scrap, decimal rework,
+        string? reasonCode, int userId, DateTimeOffset occurredAt)
+    {
+        var code = string.IsNullOrWhiteSpace(reasonCode) ? null : reasonCode.Trim();
+        var changes = new[]
+        {
+            (Kind: JobOperationEventKind.Good, Quantity: completed - row.CompletedQuantity),
+            (Kind: JobOperationEventKind.Scrap, Quantity: scrap - row.ScrapQuantity),
+            (Kind: JobOperationEventKind.Rework, Quantity: rework),
+        };
+
+        foreach (var (kind, quantity) in changes.Where(c => c.Quantity != 0m))
+        {
+            db.JobOperationEvents.Add(new JobOperationEvent
+            {
+                JobOperationId = row.Id,
+                Kind = kind,
+                Quantity = quantity,
+                ReasonCode = code,
+                UserId = userId,
+                OccurredAt = occurredAt,
+                CreatedAt = clock.UtcNow,
+            });
+        }
+
+        row.CompletedQuantity = completed;
+        row.ScrapQuantity = scrap;
+    }
+
     public async Task<JobOperationsResponseModel> BuildAsync(int jobId, CancellationToken ct)
     {
         var job = await db.Jobs
