@@ -20,13 +20,13 @@ public class ReviewPriceOverrideHandlerTests
         _handler = new ReviewPriceOverrideHandler(_mediator.Object, _ai.Object);
     }
 
-    private void SetupVariance(decimal? tierPrice, decimal? variancePct, bool isOffTier)
+    private void SetupVariance(decimal? tierPrice, decimal? variancePct, bool isOffTier, bool hasTier = true)
     {
         _mediator.Setup(m => m.Send(It.IsAny<CheckTierVarianceQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CheckTierVarianceResponseModel(5m, new List<CheckTierVarianceResultModel>
             {
                 new(PartId: 3, Quantity: 10, UnitPrice: 9m, VendorPartId: 1,
-                    TierPrice: tierPrice, Currency: "USD", VariancePct: variancePct, IsOffTier: isOffTier),
+                    TierPrice: tierPrice, Currency: "USD", VariancePct: variancePct, IsOffTier: isOffTier, HasTier: hasTier),
             }));
     }
 
@@ -48,6 +48,18 @@ public class ReviewPriceOverrideHandlerTests
         result.Assessment.Should().NotBeNullOrWhiteSpace();
         result.SuggestedJustification.Should().Contain("rush buy");
         _ai.Verify(a => a.GenerateTextAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<double?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task NoTierOnFile_isStillReviewedAsOffTier()
+    {
+        SetupVariance(tierPrice: null, variancePct: null, isOffTier: false, hasTier: false);
+        _ai.Setup(a => a.IsAvailableAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        var result = await _handler.Handle(Query(), CancellationToken.None);
+
+        result.RiskLevel.Should().Be("Medium");
+        result.IsOffTier.Should().BeTrue();
     }
 
     [Fact]

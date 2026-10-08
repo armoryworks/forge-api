@@ -46,7 +46,7 @@ public class ReviewPriceOverrideHandler(IMediator mediator, IAiService ai)
         var line = variance.Lines.Count > 0 ? variance.Lines[0] : null;
         var tierPrice = line?.TierPrice;
         var variancePct = line?.VariancePct;
-        var isOffTier = line?.IsOffTier ?? true;
+        var isOffTier = line is null || !line.HasTier || line.IsOffTier;
 
         var riskLevel = !isOffTier ? "Low"
             : variancePct is decimal v && v > 25m ? "High"

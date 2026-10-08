@@ -28,7 +28,7 @@ public class CheckTierVarianceHandlerTests
     }
 
     [Fact]
-    public async Task Handle_NoVendorPartForLine_FlagsOffTier()
+    public async Task Handle_NoVendorPartForLine_IsNotOffTierAndHasNoTier()
     {
         var db = TestDbContextFactory.Create();
         db.Vendors.Add(new Vendor { Id = 1, CompanyName = "Acme", OffTierVariancePct = null });
@@ -41,9 +41,54 @@ public class CheckTierVarianceHandlerTests
 
         result.ThresholdPct.Should().Be(5m);
         result.Lines.Should().HaveCount(1);
-        result.Lines[0].IsOffTier.Should().BeTrue();
+        result.Lines[0].IsOffTier.Should().BeFalse();
+        result.Lines[0].HasTier.Should().BeFalse();
         result.Lines[0].TierPrice.Should().BeNull();
         result.Lines[0].VendorPartId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_VendorPartWithoutTiers_IsNotOffTierAndHasNoTier()
+    {
+        var db = TestDbContextFactory.Create();
+        db.Vendors.Add(new Vendor { Id = 1, CompanyName = "Acme" });
+        db.VendorParts.Add(new VendorPart { Id = 100, VendorId = 1, PartId = 99, Currency = "USD" });
+        await db.SaveChangesAsync();
+
+        var handler = new CheckTierVarianceHandler(db, _settingRepo.Object, _clock);
+        var result = await handler.Handle(
+            new CheckTierVarianceQuery(1, [new(PartId: 99, Quantity: 5m, UnitPrice: 12m)]),
+            CancellationToken.None);
+
+        result.Lines[0].IsOffTier.Should().BeFalse();
+        result.Lines[0].HasTier.Should().BeFalse();
+        result.Lines[0].VendorPartId.Should().Be(100);
+        result.Lines[0].TierPrice.Should().BeNull();
+        result.Lines[0].Currency.Should().Be("USD");
+    }
+
+    [Fact]
+    public async Task Handle_OnlyExpiredTiers_IsNotOffTierAndHasNoTier()
+    {
+        var db = TestDbContextFactory.Create();
+        db.Vendors.Add(new Vendor { Id = 1, CompanyName = "Acme" });
+        var vp = new VendorPart { Id = 100, VendorId = 1, PartId = 99, Currency = "USD" };
+        vp.PriceTiers.Add(new VendorPartPriceTier
+        {
+            VendorPartId = 100, MinQuantity = 1m, UnitPrice = 10m, Currency = "USD",
+            EffectiveFrom = DateTimeOffset.UtcNow.AddDays(-30),
+            EffectiveTo = DateTimeOffset.UtcNow.AddDays(-1),
+        });
+        db.VendorParts.Add(vp);
+        await db.SaveChangesAsync();
+
+        var handler = new CheckTierVarianceHandler(db, _settingRepo.Object, _clock);
+        var result = await handler.Handle(
+            new CheckTierVarianceQuery(1, [new(PartId: 99, Quantity: 5m, UnitPrice: 25m)]),
+            CancellationToken.None);
+
+        result.Lines[0].IsOffTier.Should().BeFalse();
+        result.Lines[0].HasTier.Should().BeFalse();
     }
 
     [Fact]
@@ -67,6 +112,7 @@ public class CheckTierVarianceHandlerTests
             CancellationToken.None);
 
         result.Lines[0].IsOffTier.Should().BeFalse();
+        result.Lines[0].HasTier.Should().BeTrue();
         result.Lines[0].TierPrice.Should().Be(10m);
         result.Lines[0].VariancePct.Should().BeApproximately(3m, 0.01m);
     }
@@ -92,6 +138,7 @@ public class CheckTierVarianceHandlerTests
             CancellationToken.None);
 
         result.Lines[0].IsOffTier.Should().BeTrue();
+        result.Lines[0].HasTier.Should().BeTrue();
         result.Lines[0].VariancePct.Should().BeApproximately(15m, 0.01m);
     }
 

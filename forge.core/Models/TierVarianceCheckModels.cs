@@ -28,10 +28,10 @@ public record CheckTierVarianceLineModel(
 
 /// <summary>
 /// Response: one row per request line, plus the threshold used so the
-/// UI can format its variance display consistently. <c>TierPrice</c> is
-/// null when no VendorPart row exists for (vendor, part) — variance is
-/// nominally infinite there, but the UI treats "no tier" as "off-tier"
-/// and offers an Update Tiers action that creates the first tier.
+/// UI can format its variance display consistently. <c>HasTier</c> is
+/// false when no VendorPart row or no effective tier matches the line; such
+/// lines are not off-tier, and the UI offers to save the entered price for
+/// the vendor instead of a variance warning.
 /// </summary>
 public record CheckTierVarianceResponseModel(
     decimal ThresholdPct,
@@ -45,4 +45,5 @@ public record CheckTierVarianceResultModel(
     decimal? TierPrice,
     string? Currency,
     decimal? VariancePct,
-    bool IsOffTier);
+    bool IsOffTier,
+    bool HasTier = true);

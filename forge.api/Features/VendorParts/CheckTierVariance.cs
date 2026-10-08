@@ -13,6 +13,9 @@ namespace Forge.Api.Features.VendorParts;
 /// effective <see cref="Forge.Core.Entities.VendorPartPriceTier"/>,
 /// computes the absolute variance against the entered <c>UnitPrice</c>,
 /// and flags lines where the variance exceeds the configured threshold.
+/// Lines with no VendorPart row or no matching tier are never off-tier; they
+/// come back with <c>HasTier = false</c> so the dialog can offer to save the
+/// entered price for the vendor instead.
 /// </summary>
 public record CheckTierVarianceQuery(int VendorId, List<CheckTierVarianceLineModel> Lines)
     : IRequest<CheckTierVarianceResponseModel>;
@@ -77,7 +80,8 @@ public class CheckTierVarianceHandler(
             decimal? tierPrice = null;
             string? currency = null;
             decimal? variancePct = null;
-            bool isOffTier;
+            var isOffTier = false;
+            var hasTier = false;
 
             if (vpByPartId.TryGetValue(line.PartId, out var vp))
             {
@@ -93,6 +97,7 @@ public class CheckTierVarianceHandler(
                     t.PurchaseUnitId == line.PurchaseUnitId && t.MinQuantity <= line.Quantity);
                 if (tier != null)
                 {
+                    hasTier = true;
                     tierPrice = tier.UnitPrice;
                     currency = tier.Currency;
                     if (tier.UnitPrice > 0m)
@@ -107,17 +112,6 @@ public class CheckTierVarianceHandler(
                         isOffTier = line.UnitPrice != 0m;
                     }
                 }
-                else
-                {
-                    // VendorPart exists but no effective tier — treat as off-tier
-                    // so the prompt offers Update Tiers (creates the first tier).
-                    isOffTier = true;
-                }
-            }
-            else
-            {
-                // No VendorPart row yet for (vendor, part) — same disposition.
-                isOffTier = true;
             }
 
             resultLines.Add(new CheckTierVarianceResultModel(
@@ -128,7 +122,8 @@ public class CheckTierVarianceHandler(
                 TierPrice: tierPrice,
                 Currency: currency,
                 VariancePct: variancePct,
-                IsOffTier: isOffTier));
+                IsOffTier: isOffTier,
+                HasTier: hasTier));
         }
 
         return new CheckTierVarianceResponseModel(thresholdPct, resultLines);
