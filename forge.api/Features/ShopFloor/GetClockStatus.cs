@@ -47,7 +47,7 @@ public class GetClockStatusHandler(
 
         var usersQuery = db.Users.Where(u => u.IsActive);
         if (request.TeamId.HasValue)
-            usersQuery = usersQuery.Where(u => u.TeamId == request.TeamId.Value || u.TeamId == null);
+            usersQuery = usersQuery.Where(u => u.TeamId == request.TeamId.Value && !u.IsNonEmployee);
 
         var users = await usersQuery
             .Select(u => new { u.Id, Name = (u.FirstName + " " + u.LastName).Trim(), u.Email, u.Initials, u.AvatarColor })
@@ -101,6 +101,8 @@ public class GetClockStatusHandler(
                 j.AssigneeId,
                 j.JobNumber,
                 j.Title,
+                j.PartId,
+                PartNumber = j.Part != null ? j.Part.PartNumber : null,
                 Priority = j.Priority.ToString(),
                 StageName = j.CurrentStage.Name,
                 StageColor = j.CurrentStage.Color ?? "#94a3b8",
@@ -108,30 +110,34 @@ public class GetClockStatusHandler(
             })
             .ToListAsync(ct);
 
+        var timerStartByUserJob = activeTimers
+            .Where(t => t.JobId.HasValue && t.TimerStart.HasValue)
+            .GroupBy(t => (t.UserId, JobId: t.JobId!.Value))
+            .ToDictionary(g => g.Key, g => g.Max(t => t.TimerStart!.Value));
+
+        var nextOperations = await KioskWork.NextOperationsAsync(
+            db, assignedJobs.Select(j => (j.Id, j.PartId)), ct);
+
         var assignmentsByUser = assignedJobs
             .GroupBy(j => j.AssigneeId!.Value)
             .ToDictionary(
                 g => g.Key,
-                g => g.Select(j => new WorkerAssignmentModel(
-                    j.Id,
-                    j.JobNumber,
-                    j.Title,
-                    j.Priority,
-                    j.StageName,
-                    j.StageColor,
-                    ClockStateRules.IsOverdue(j.DueDate, shopToday),
-                    false)).ToList());
-
-        // Mark active timer jobs
-        foreach (var timer in activeTimers)
-        {
-            if (timer.JobId.HasValue && assignmentsByUser.TryGetValue(timer.UserId, out var list))
-            {
-                var idx = list.FindIndex(a => a.JobId == timer.JobId.Value);
-                if (idx >= 0)
-                    list[idx] = list[idx] with { HasActiveTimer = true };
-            }
-        }
+                g => g.Select(j =>
+                {
+                    var hasTimer = timerStartByUserJob.TryGetValue((g.Key, j.Id), out var timerStartedAt);
+                    return new WorkerAssignmentModel(
+                        j.Id,
+                        j.JobNumber,
+                        j.Title,
+                        j.Priority,
+                        j.StageName,
+                        j.StageColor,
+                        ClockStateRules.IsOverdue(j.DueDate, shopToday),
+                        hasTimer,
+                        hasTimer ? timerStartedAt : null,
+                        j.PartNumber,
+                        nextOperations.GetValueOrDefault(j.Id));
+                }).ToList());
 
         // Load clock event type definitions from reference data
         var eventTypeDefs = await clockEventTypeService.GetAllAsync(ct);

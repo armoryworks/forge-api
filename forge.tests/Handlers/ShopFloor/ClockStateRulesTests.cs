@@ -300,16 +300,52 @@ public class ClockStateRulesTests
     }
 
     [Fact]
-    public async Task Kiosk_TeamFilter_IncludesUsersWithoutTeam()
+    public async Task Kiosk_TeamFilter_ListsOnlyActiveEmployeeMembers()
     {
         var onTeam = await AddUserAsync("On", "Team", teamId: 7);
-        var noTeam = await AddUserAsync("No", "Team");
+        await AddUserAsync("No", "Team");
+        await AddUserAsync("Other", "Team", teamId: 8);
+        var contractor = await AddUserAsync("Non", "Employee", teamId: 7);
+        contractor.IsNonEmployee = true;
+        var former = await AddUserAsync("Left", "Company", teamId: 7);
+        former.IsActive = false;
+        await _db.SaveChangesAsync();
+        _clock.Setup(c => c.UtcNow).Returns(SevenPmMountainOct7);
+
+        var result = await KioskHandler().Handle(new GetClockStatusQuery(7), CancellationToken.None);
+
+        result.Select(w => w.UserId).Should().Equal(onTeam.Id);
+    }
+
+    [Fact]
+    public async Task Kiosk_TeamWithNoMembers_ReturnsNoWorkers()
+    {
+        await AddUserAsync("No", "Team");
         await AddUserAsync("Other", "Team", teamId: 8);
         _clock.Setup(c => c.UtcNow).Returns(SevenPmMountainOct7);
 
         var result = await KioskHandler().Handle(new GetClockStatusQuery(7), CancellationToken.None);
 
-        result.Select(w => w.UserId).Should().BeEquivalentTo([onTeam.Id, noTeam.Id]);
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Overview_TeamFilter_ListsOnlyActiveEmployeeMembers()
+    {
+        var onTeam = await AddUserAsync("On", "Team", teamId: 7);
+        var noTeam = await AddUserAsync("No", "Team");
+        var contractor = await AddUserAsync("Non", "Employee", teamId: 7);
+        contractor.IsNonEmployee = true;
+        var former = await AddUserAsync("Left", "Company", teamId: 7);
+        former.IsActive = false;
+        await _db.SaveChangesAsync();
+        foreach (var user in new[] { onTeam, noTeam, contractor, former })
+            await AddEventAsync(user.Id, ClockEventType.ClockIn, FourPmMountainOct7);
+        _clock.Setup(c => c.UtcNow).Returns(SevenPmMountainOct7);
+
+        var result = await OverviewHandler().Handle(new GetShopFloorOverviewQuery(7), CancellationToken.None);
+
+        result.Workers.Select(w => w.UserId).Should().Equal(onTeam.Id);
     }
 
     [Fact]

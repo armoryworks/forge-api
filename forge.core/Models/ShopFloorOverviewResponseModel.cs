@@ -4,4 +4,5 @@ public record ShopFloorOverviewResponseModel(
     List<ShopFloorJobResponseModel> ActiveJobs,
     List<ShopFloorWorkerResponseModel> Workers,
     int CompletedToday,
-    int MaintenanceAlerts);
+    int MaintenanceAlerts,
+    int ReadyToStartCount);

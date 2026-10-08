@@ -90,6 +90,24 @@ public class ShopFloorController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<JobStatusResponseModel>> GetJobStatus(int id)
         => Ok(await mediator.Send(new GetJobStatusQuery(id)));
 
+    [AllowAnonymous]
+    [KioskTerminalAuth]
+    [HttpGet("jobs/available")]
+    public async Task<ActionResult<List<KioskAvailableJobResponseModel>>> GetAvailableJobs(
+        [FromQuery] int? teamId = null, [FromQuery] string? search = null, [FromQuery] int take = 50)
+        => Ok(await mediator.Send(new GetKioskAvailableJobsQuery(teamId, search, take)));
+
+    [HttpPost("jobs/{id:int}/claim")]
+    public async Task<IActionResult> ClaimJob(int id)
+    {
+        var callerClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(callerClaim, out var callerId))
+            return Unauthorized();
+
+        await mediator.Send(new ClaimKioskJobCommand(id, callerId));
+        return NoContent();
+    }
+
     [HttpPost("jobs/{id:int}/advance")]
     public async Task<ActionResult<JobAdvanceResponseModel>> AdvanceJob(int id)
         => Ok(await mediator.Send(new AdvanceShopFloorJobCommand(id)));

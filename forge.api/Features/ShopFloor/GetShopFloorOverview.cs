@@ -101,7 +101,8 @@ public class GetShopFloorOverviewHandler(AppDbContext db, IClockEventTypeService
             var clockedInUsersQuery = db.Users
                 .Where(u => clockedInUserIds.Contains(u.Id));
             if (request.TeamId.HasValue)
-                clockedInUsersQuery = clockedInUsersQuery.Where(u => u.TeamId == request.TeamId.Value || u.TeamId == null);
+                clockedInUsersQuery = clockedInUsersQuery.Where(u =>
+                    u.TeamId == request.TeamId.Value && u.IsActive && !u.IsNonEmployee);
 
             var clockedInUsers = await clockedInUsersQuery
                 .Select(u => new
@@ -153,7 +154,10 @@ public class GetShopFloorOverviewHandler(AppDbContext db, IClockEventTypeService
                 && j.TrackType.Name.Contains("Maintenance")
                 && j.DueDate < dueThroughTodayUtc, cancellationToken);
 
-        return new ShopFloorOverviewResponseModel(jobModels, workerModels, completedToday, maintenanceAlerts);
+        var readyToStart = await KioskWork.ReadyToStart(db).CountAsync(cancellationToken);
+
+        return new ShopFloorOverviewResponseModel(
+            jobModels, workerModels, completedToday, maintenanceAlerts, readyToStart);
     }
 
     private static string FormatDuration(TimeSpan duration)
