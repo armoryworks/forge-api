@@ -20,19 +20,29 @@ namespace Forge.Api.Controllers;
 /// would create a chicken-and-egg.
 /// </summary>
 [ApiController]
-[Route("api/v1/entities/{entityType}/{entityId:int}/completeness")]
+[Route("api/v1/entities/{entityType}")]
 [Authorize]
 // cross-entity read (the completeness chip renders on every entity); the requirement catalog it reads is admin-owned
 [CapabilityBootstrap]
 public class EntityCompletenessController(IMediator mediator) : ControllerBase
 {
-    [HttpGet]
+    [HttpGet("{entityId:int}/completeness")]
     public async Task<ActionResult<EntityCompletenessResponseModel>> Get(
         string entityType,
         int entityId,
         CancellationToken ct)
     {
         var result = await mediator.Send(new GetEntityCompletenessQuery(entityType, entityId), ct);
+        return Ok(result);
+    }
+
+    [HttpGet("completeness")]
+    public async Task<ActionResult<IReadOnlyList<EntityCompletenessResponseModel>>> GetBatch(
+        string entityType,
+        [FromQuery] string? ids,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetEntityCompletenessBatchQuery(entityType, ids), ct);
         return Ok(result);
     }
 }
