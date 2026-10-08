@@ -21,7 +21,7 @@ public class GetJobsOperationSummaryTests
 
     private async Task<JobListResponseModel> GetAsync(Job job)
     {
-        _repo.Setup(r => r.GetPagedJobsAsync(It.IsAny<JobListQuery>(), It.IsAny<CancellationToken>()))
+        _repo.Setup(r => r.GetPagedJobsAsync(It.IsAny<JobListQuery>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PagedResponse<JobListResponseModel>([ListItem(job)], 1, 1, 200));
         var page = await new GetJobsHandler(_repo.Object, _h.Operations)
             .Handle(new GetJobsQuery(new JobListQuery()), CancellationToken.None);

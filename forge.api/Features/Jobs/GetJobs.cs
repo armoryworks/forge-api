@@ -21,8 +21,9 @@ public class GetJobsHandler(IJobRepository repo, IJobOperationService operations
     public async Task<PagedResponse<JobListResponseModel>> Handle(
         GetJobsQuery request, CancellationToken cancellationToken)
     {
-        var page = await repo.GetPagedJobsAsync(request.Query, cancellationToken);
-        if (page.Items.Count == 0 || !await operations.IsTrackingEnabledAsync(cancellationToken))
+        var tracking = await operations.IsTrackingEnabledAsync(cancellationToken);
+        var page = await repo.GetPagedJobsAsync(request.Query, tracking, cancellationToken);
+        if (page.Items.Count == 0 || !tracking)
             return page;
 
         var summaries = await operations.SummarizeAsync(page.Items.Select(j => j.Id).ToList(), cancellationToken);

@@ -15,4 +15,6 @@ public record WorkCenterResponseModel(
     string? AssetName,
     int? CompanyLocationId,
     string? LocationName,
-    int SortOrder);
+    int SortOrder,
+    int? TeamId,
+    string? TeamName);

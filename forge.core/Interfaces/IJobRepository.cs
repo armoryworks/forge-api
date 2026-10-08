@@ -16,8 +16,11 @@ public interface IJobRepository
     /// Paged list per the Phase 3 F7-broad / WU-22 standard contract. Returns
     /// the slice + the total matching count for pagination UI. Specialised
     /// list endpoints (kanban, calendar) remain on the legacy unpaged path.
+    /// <paramref name="operationTracking"/> decides how <see cref="JobListQuery.TeamId"/>
+    /// reads a job's current operation: from its job operations when on, from
+    /// its part routing when off.
     /// </summary>
-    Task<PagedResponse<JobListResponseModel>> GetPagedJobsAsync(JobListQuery query, CancellationToken ct);
+    Task<PagedResponse<JobListResponseModel>> GetPagedJobsAsync(JobListQuery query, bool operationTracking, CancellationToken ct);
 
     Task<JobDetailResponseModel?> GetDetailAsync(int id, CancellationToken ct);
     Task<Job?> FindAsync(int id, CancellationToken ct);

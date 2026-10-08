@@ -58,7 +58,7 @@ public sealed class JobRepositoryBoardSortTests(PostgresFixture fixture)
         await db.SaveChangesAsync();
 
         var repo = new JobRepository(db, new FixedClock(DateTimeOffset.UtcNow));
-        var page = await repo.GetPagedJobsAsync(BoardQuery(track.Id), CancellationToken.None);
+        var page = await repo.GetPagedJobsAsync(BoardQuery(track.Id), false, CancellationToken.None);
 
         page.Items.Select(j => j.Title).Should().Equal("first-1", "first-2a", "first-2b", "second-1");
         page.Items.Select(j => j.BoardPosition).Should().Equal(1, 2, 2, 1);
@@ -104,7 +104,7 @@ public sealed class JobRepositoryBoardSortTests(PostgresFixture fixture)
         await db.SaveChangesAsync();
 
         var repo = new JobRepository(db, new FixedClock(DateTimeOffset.UtcNow));
-        var page = await repo.GetPagedJobsAsync(BoardQuery(track.Id), CancellationToken.None);
+        var page = await repo.GetPagedJobsAsync(BoardQuery(track.Id), false, CancellationToken.None);
 
         var byTitle = page.Items.ToDictionary(j => j.Title);
         byTitle["from-line"].PartNumber.Should().Be(part.PartNumber);
@@ -132,7 +132,7 @@ public sealed class JobRepositoryBoardSortTests(PostgresFixture fixture)
         await db.SaveChangesAsync();
 
         var repo = new JobRepository(db, new FixedClock(DateTimeOffset.Parse(now)));
-        var page = await repo.GetPagedJobsAsync(BoardQuery(track.Id), CancellationToken.None);
+        var page = await repo.GetPagedJobsAsync(BoardQuery(track.Id), false, CancellationToken.None);
         var legacy = await repo.GetJobsAsync(track.Id, null, null, false, null, CancellationToken.None);
 
         page.Items.Single().IsOverdue.Should().Be(expected);
@@ -152,7 +152,7 @@ public sealed class JobRepositoryBoardSortTests(PostgresFixture fixture)
         await db.SaveChangesAsync();
 
         var repo = new JobRepository(db, new FixedClock(DateTimeOffset.Parse("2026-10-09T00:00:00Z")));
-        var page = await repo.GetPagedJobsAsync(BoardQuery(track.Id), CancellationToken.None);
+        var page = await repo.GetPagedJobsAsync(BoardQuery(track.Id), false, CancellationToken.None);
 
         page.Items.Single().IsOverdue.Should().BeFalse();
     }

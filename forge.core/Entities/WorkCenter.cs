@@ -17,9 +17,11 @@ public class WorkCenter : BaseAuditableEntity
     public decimal? IdealCycleTimeSeconds { get; set; }
     public bool IsActive { get; set; } = true;
     public int SortOrder { get; set; }
+    public int? TeamId { get; set; }
 
     public CompanyLocation? Location { get; set; }
     public Asset? Asset { get; set; }
+    public Team? Team { get; set; }
     public ICollection<WorkCenterShift> Shifts { get; set; } = [];
     public ICollection<WorkCenterCalendar> CalendarOverrides { get; set; } = [];
     public ICollection<Operation> Operations { get; set; } = [];

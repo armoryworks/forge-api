@@ -5,6 +5,7 @@ using MediatR;
 using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Scheduling;
 
@@ -19,7 +20,8 @@ public record CreateWorkCenterCommand(
     decimal BurdenRatePerHour,
     int? AssetId,
     int? CompanyLocationId,
-    int SortOrder) : IRequest<WorkCenterResponseModel>;
+    int SortOrder,
+    int? TeamId = null) : IRequest<WorkCenterResponseModel>;
 
 public class CreateWorkCenterValidator : AbstractValidator<CreateWorkCenterCommand>
 {
@@ -37,6 +39,8 @@ public class CreateWorkCenterHandler(AppDbContext db) : IRequestHandler<CreateWo
 {
     public async Task<WorkCenterResponseModel> Handle(CreateWorkCenterCommand request, CancellationToken cancellationToken)
     {
+        var teamName = await WorkCenterTeamGuard.ResolveTeamNameAsync(db, request.TeamId, cancellationToken);
+
         var wc = new WorkCenter
         {
             Name = request.Name,
@@ -50,9 +54,15 @@ public class CreateWorkCenterHandler(AppDbContext db) : IRequestHandler<CreateWo
             AssetId = request.AssetId,
             CompanyLocationId = request.CompanyLocationId,
             SortOrder = request.SortOrder,
+            TeamId = request.TeamId,
         };
 
         db.WorkCenters.Add(wc);
+        await db.SaveChangesAsync(cancellationToken);
+
+        db.LogActivityAt("created",
+            teamName is null ? $"Created work center {wc.Code}" : $"Created work center {wc.Code} owned by {teamName}",
+            ("WorkCenter", wc.Id));
         await db.SaveChangesAsync(cancellationToken);
 
         return new WorkCenterResponseModel(
@@ -60,6 +70,7 @@ public class CreateWorkCenterHandler(AppDbContext db) : IRequestHandler<CreateWo
             wc.DailyCapacityHours, wc.EfficiencyPercent,
             wc.NumberOfMachines, wc.LaborCostPerHour,
             wc.BurdenRatePerHour, wc.IsActive,
-            wc.AssetId, null, wc.CompanyLocationId, null, wc.SortOrder);
+            wc.AssetId, null, wc.CompanyLocationId, null, wc.SortOrder,
+            wc.TeamId, teamName);
     }
 }

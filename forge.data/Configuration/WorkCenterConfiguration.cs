@@ -23,6 +23,7 @@ public class WorkCenterConfiguration : IEntityTypeConfiguration<WorkCenter>
         builder.HasIndex(e => e.Code).IsUnique();
         builder.HasIndex(e => e.CompanyLocationId);
         builder.HasIndex(e => e.AssetId);
+        builder.HasIndex(e => e.TeamId).HasFilter("team_id IS NOT NULL");
 
         builder.HasOne(e => e.Location)
             .WithMany()
@@ -32,6 +33,11 @@ public class WorkCenterConfiguration : IEntityTypeConfiguration<WorkCenter>
         builder.HasOne(e => e.Asset)
             .WithMany()
             .HasForeignKey(e => e.AssetId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(e => e.Team)
+            .WithMany()
+            .HasForeignKey(e => e.TeamId)
             .OnDelete(DeleteBehavior.SetNull);
     }
 }

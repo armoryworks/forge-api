@@ -10268,6 +10268,7 @@ CREATE TABLE public.work_centers (
     ideal_cycle_time_seconds numeric(10,2),
     is_active boolean NOT NULL,
     sort_order integer NOT NULL,
+    team_id integer,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,
@@ -12122,6 +12123,9 @@ ALTER TABLE ONLY public.work_centers
 
 ALTER TABLE ONLY public.work_centers
     ADD CONSTRAINT fk_work_centers_company_locations_company_location_id FOREIGN KEY (company_location_id) REFERENCES public.company_locations(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.work_centers
+    ADD CONSTRAINT fk_work_centers_teams_team_id FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE SET NULL;
 
 ALTER TABLE ONLY public.workflow_run_entities
     ADD CONSTRAINT fk_workflow_run_entities_workflow_runs_run_id FOREIGN KEY (run_id) REFERENCES public.workflow_runs(id) ON DELETE CASCADE;
@@ -14046,6 +14050,8 @@ CREATE INDEX ix_work_centers_asset_id ON public.work_centers USING btree (asset_
 CREATE UNIQUE INDEX ix_work_centers_code ON public.work_centers USING btree (code);
 
 CREATE INDEX ix_work_centers_company_location_id ON public.work_centers USING btree (company_location_id);
+
+CREATE INDEX ix_work_centers_team_id ON public.work_centers USING btree (team_id) WHERE (team_id IS NOT NULL);
 
 CREATE UNIQUE INDEX ix_workflow_definitions_definition_id ON public.workflow_definitions USING btree (definition_id);
 

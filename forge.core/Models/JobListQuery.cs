@@ -22,6 +22,9 @@ public record JobListQuery : PagedQuery
     /// <summary>Restrict to a specific customer.</summary>
     public int? CustomerId { get; init; }
 
+    /// <summary>Restrict to jobs whose current open operation runs at a work center owned by this team.</summary>
+    public int? TeamId { get; init; }
+
     /// <summary>Show archived jobs (default false).</summary>
     public bool IsArchived { get; init; }
 }

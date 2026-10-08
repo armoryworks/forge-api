@@ -17,6 +17,7 @@ public class GetWorkCentersHandler(AppDbContext db) : IRequestHandler<GetWorkCen
             .AsNoTracking()
             .Include(w => w.Asset)
             .Include(w => w.Location)
+            .Include(w => w.Team)
             .OrderBy(w => w.SortOrder)
             .ThenBy(w => w.Name)
             .Select(w => new WorkCenterResponseModel(
@@ -26,7 +27,8 @@ public class GetWorkCentersHandler(AppDbContext db) : IRequestHandler<GetWorkCen
                 w.BurdenRatePerHour, w.IsActive,
                 w.AssetId, w.Asset != null ? w.Asset.Name : null,
                 w.CompanyLocationId, w.Location != null ? w.Location.Name : null,
-                w.SortOrder))
+                w.SortOrder,
+                w.TeamId, w.Team != null ? w.Team.Name : null))
             .ToListAsync(cancellationToken);
     }
 }

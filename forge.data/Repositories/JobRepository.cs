@@ -1,5 +1,8 @@
+using System.Linq.Expressions;
+
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -55,7 +58,7 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
     }
 
     public async Task<PagedResponse<JobListResponseModel>> GetPagedJobsAsync(
-        JobListQuery query, CancellationToken ct)
+        JobListQuery query, bool operationTracking, CancellationToken ct)
     {
         // Phase 3 F7-broad / WU-22 — standardised paged-list contract for the
         // jobs table and, with sort=board, the board.
@@ -90,6 +93,9 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
 
         if (query.DateTo.HasValue)
             q = q.Where(j => j.CreatedAt <= query.DateTo.Value);
+
+        if (query.TeamId is int teamId)
+            q = q.Where(operationTracking ? CurrentOperationAtTeam(teamId) : RoutingVisitsTeam(teamId));
 
         // — Count BEFORE paging —
         var totalCount = await q.CountAsync(ct);
@@ -135,6 +141,35 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
             totalCount,
             query.EffectivePage,
             query.EffectivePageSize);
+    }
+
+    private Expression<Func<Job, bool>> RoutingVisitsTeam(int teamId) =>
+        j => db.Operations.Any(o => o.PartId == j.PartId
+            && o.WorkCenter != null && o.WorkCenter.TeamId == teamId);
+
+    private Expression<Func<Job, bool>> CurrentOperationAtTeam(int teamId)
+    {
+        const JobOperationStatus complete = JobOperationStatus.Complete;
+        const JobOperationStatus skipped = JobOperationStatus.Skipped;
+        const JobOperationStatus inProgress = JobOperationStatus.InProgress;
+
+        return j => db.Operations.Any(o => o.PartId == j.PartId
+            && o.WorkCenter != null && o.WorkCenter.TeamId == teamId
+            && !db.JobOperations.Any(r => r.JobId == j.Id && r.OperationId == o.Id
+                && (r.Status == complete || r.Status == skipped))
+            && (db.JobOperations.Any(r => r.JobId == j.Id && r.OperationId == o.Id && r.Status == inProgress)
+                || db.TimeEntries.Any(t => t.JobId == j.Id && t.OperationId == o.Id
+                    && t.TimerStart != null && t.TimerStop == null)
+                || (!db.Operations.Any(p => p.PartId == j.PartId
+                        && !db.JobOperations.Any(r => r.JobId == j.Id && r.OperationId == p.Id
+                            && (r.Status == complete || r.Status == skipped))
+                        && (db.JobOperations.Any(r => r.JobId == j.Id && r.OperationId == p.Id && r.Status == inProgress)
+                            || db.TimeEntries.Any(t => t.JobId == j.Id && t.OperationId == p.Id
+                                && t.TimerStart != null && t.TimerStop == null)))
+                    && !db.Operations.Any(p => p.PartId == j.PartId
+                        && (p.StepNumber < o.StepNumber || (p.StepNumber == o.StepNumber && p.Id < o.Id))
+                        && !db.JobOperations.Any(r => r.JobId == j.Id && r.OperationId == p.Id
+                            && (r.Status == complete || r.Status == skipped))))));
     }
 
     private async Task<List<JobListResponseModel>> ToListModelsAsync(List<Job> jobs, CancellationToken ct)
