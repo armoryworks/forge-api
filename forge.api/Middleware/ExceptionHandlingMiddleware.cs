@@ -174,6 +174,22 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             });
             await context.Response.WriteAsync(json);
         }
+        catch (Features.Mobile.ConfirmationRequiredException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Confirmation required",
+                Detail = ex.Message,
+                Type = "about:blank",
+            };
+            problem.Extensions["code"] = Features.Mobile.ConfirmationRequiredException.Code;
+
+            await context.Response.WriteAsJsonAsync(problem);
+        }
         catch (UnauthorizedAccessException ex)
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;

@@ -37,13 +37,13 @@ public class MobileController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<JobStatusResponseModel>> JobStatus(int id)
         => Ok(await mediator.Send(new GetJobStatusQuery(id)));
 
-    public record AdvanceRequestModel(string? ScanCode);
+    public record AdvanceRequestModel(string? ScanCode, bool Confirmed = false);
 
     [HttpPost("jobs/{id:int}/advance")]
     [RequiresCapability("CAP-MOBILE-JOBS")]
     public async Task<ActionResult<JobAdvanceResponseModel>> Advance(
         int id, [FromBody] AdvanceRequestModel request)
-        => Ok(await mediator.Send(new AdvanceJobCommand(id, DeviceKey(), request.ScanCode)));
+        => Ok(await mediator.Send(new AdvanceJobCommand(id, DeviceKey(), request.ScanCode, request.Confirmed)));
 
     [HttpGet("lookup")]
     [RequiresCapability("CAP-MOBILE-LOOKUP")]

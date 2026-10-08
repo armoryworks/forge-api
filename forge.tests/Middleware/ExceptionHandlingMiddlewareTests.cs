@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 
+using Forge.Api.Features.Mobile;
 using Forge.Api.Middleware;
 
 namespace Forge.Tests.Middleware;
@@ -126,6 +127,16 @@ public sealed class ExceptionHandlingMiddlewareTests
         body.GetProperty("title").GetString().Should().Be("Action not allowed");
         body.GetProperty("detail").GetString().Should().Be("Cannot delete order with active shipments");
         body.GetProperty("code").GetString().Should().Be("business-rule");
+    }
+
+    [Fact]
+    public async Task Confirmation_required_is_a_400_with_the_confirm_required_code()
+    {
+        var (status, body) = await Run(new ConfirmationRequiredException("Moving JOB-0007 to Invoiced/Sent can't be undone."));
+
+        status.Should().Be(StatusCodes.Status400BadRequest);
+        body.GetProperty("code").GetString().Should().Be("confirm-required");
+        body.GetProperty("detail").GetString().Should().Be("Moving JOB-0007 to Invoiced/Sent can't be undone.");
     }
 
     [Fact]

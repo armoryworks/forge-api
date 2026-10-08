@@ -1,3 +1,4 @@
+using Forge.Core.Enums;
 using Forge.Core.Models;
 
 namespace Forge.Api.Features.Mobile;
@@ -28,6 +29,8 @@ public record JobStatusResponseModel(
     List<ActivityResponseModel> RecentActivity)
 {
     public bool NextStageIsShopFloor { get; init; }
+    public bool NextStageIsIrreversible { get; init; }
+    public AccountingDocumentType? NextStageAccountingDocument { get; init; }
 }
 
 /// <summary>Result of advancing a job; PreviousStageId is what undo moves back to.</summary>
