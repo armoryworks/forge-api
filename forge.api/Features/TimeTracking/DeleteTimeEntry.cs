@@ -3,14 +3,17 @@ using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 
+using Forge.Api.Features.ShopFloor;
 using Forge.Api.Middleware;
 using Forge.Core.Interfaces;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.TimeTracking;
 
 public sealed record DeleteTimeEntryCommand(int Id) : IRequest;
 
-public sealed class DeleteTimeEntryHandler(ITimeTrackingRepository repo, IHttpContextAccessor http)
+public sealed class DeleteTimeEntryHandler(
+    ITimeTrackingRepository repo, IHttpContextAccessor http, AppDbContext db, IClock clock)
     : IRequestHandler<DeleteTimeEntryCommand>
 {
     public async Task Handle(DeleteTimeEntryCommand request, CancellationToken cancellationToken)
@@ -28,10 +31,13 @@ public sealed class DeleteTimeEntryHandler(ITimeTrackingRepository repo, IHttpCo
         if (entry.IsLocked)
             throw new InvalidOperationException("Locked time entries cannot be deleted.");
 
-        if (entry.Date < DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime))
+        var now = clock.UtcNow;
+        var shopToday = DateOnly.FromDateTime(ClockStateRules.LocalToday(
+            await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), now));
+        if (entry.Date < shopToday)
             throw new InvalidOperationException("Time entries from previous days cannot be deleted.");
 
-        entry.DeletedAt = DateTimeOffset.UtcNow;
+        entry.DeletedAt = now;
         await repo.SaveChangesAsync(cancellationToken);
     }
 }

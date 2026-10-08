@@ -1,7 +1,9 @@
 using FluentValidation;
 using MediatR;
+using Forge.Api.Features.ShopFloor;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.TimeTracking;
 
@@ -18,7 +20,7 @@ public class UpdateTimeEntryCommandValidator : AbstractValidator<UpdateTimeEntry
     }
 }
 
-public class UpdateTimeEntryHandler(ITimeTrackingRepository repo) : IRequestHandler<UpdateTimeEntryCommand, TimeEntryResponseModel>
+public class UpdateTimeEntryHandler(ITimeTrackingRepository repo, AppDbContext db, IClock clock) : IRequestHandler<UpdateTimeEntryCommand, TimeEntryResponseModel>
 {
     public async Task<TimeEntryResponseModel> Handle(UpdateTimeEntryCommand request, CancellationToken cancellationToken)
     {
@@ -28,7 +30,9 @@ public class UpdateTimeEntryHandler(ITimeTrackingRepository repo) : IRequestHand
         if (entry.IsLocked)
             throw new InvalidOperationException("This time entry is locked and cannot be edited.");
 
-        if (entry.Date < DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime))
+        var shopToday = DateOnly.FromDateTime(ClockStateRules.LocalToday(
+            await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), clock.UtcNow));
+        if (entry.Date < shopToday)
             throw new InvalidOperationException("Time entries from previous days cannot be edited.");
 
         var data = request.Data;

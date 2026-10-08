@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.ShopFloor;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -83,7 +84,8 @@ public class ResumeStoppedTimerHandler(
             {
                 UserId = request.UserId,
                 JobId = stopped.JobId,
-                Date = DateOnly.FromDateTime(request.StoppedAt.UtcDateTime),
+                Date = DateOnly.FromDateTime(ClockStateRules.LocalToday(
+                    await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), request.StoppedAt)),
                 DurationMinutes = 0,
                 Category = stopped.Category,
                 TimerStart = request.StoppedAt,
