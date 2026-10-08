@@ -9,4 +9,5 @@ public record PartRevisionResponseModel(
     DateTimeOffset EffectiveDate,
     bool IsCurrent,
     int FileCount,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? CreatedByName);

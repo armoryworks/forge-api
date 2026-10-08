@@ -8,6 +8,7 @@ public class PartRevision : BaseAuditableEntity
     public string? ChangeReason { get; set; }
     public DateTimeOffset EffectiveDate { get; set; }
     public bool IsCurrent { get; set; }
+    public int? CreatedBy { get; set; }
 
     public Part Part { get; set; } = null!;
     public ICollection<FileAttachment> Files { get; set; } = new List<FileAttachment>();

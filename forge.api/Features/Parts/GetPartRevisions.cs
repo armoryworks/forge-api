@@ -11,10 +11,11 @@ public class GetPartRevisionsHandler(AppDbContext db) : IRequestHandler<GetPartR
 {
     public async Task<List<PartRevisionResponseModel>> Handle(GetPartRevisionsQuery request, CancellationToken cancellationToken)
     {
-        return await db.PartRevisions
+        var revisions = await db.PartRevisions
             .Where(r => r.PartId == request.PartId)
             .OrderByDescending(r => r.EffectiveDate)
-            .Select(r => new PartRevisionResponseModel(
+            .Select(r => new
+            {
                 r.Id,
                 r.PartId,
                 r.Revision,
@@ -22,8 +23,36 @@ public class GetPartRevisionsHandler(AppDbContext db) : IRequestHandler<GetPartR
                 r.ChangeReason,
                 r.EffectiveDate,
                 r.IsCurrent,
-                r.Files.Count,
-                r.CreatedAt))
+                FileCount = r.Files.Count,
+                r.CreatedAt,
+                r.CreatedBy,
+            })
             .ToListAsync(cancellationToken);
+
+        var userIds = revisions
+            .Where(r => r.CreatedBy.HasValue)
+            .Select(r => r.CreatedBy!.Value)
+            .Distinct()
+            .ToList();
+
+        var userNames = userIds.Count > 0
+            ? (await db.Users
+                .Where(u => userIds.Contains(u.Id))
+                .ToListAsync(cancellationToken))
+                .ToDictionary(u => u.Id, u => u.GetDisplayName())
+            : new Dictionary<int, string>();
+
+        return revisions.Select(r => new PartRevisionResponseModel(
+            r.Id,
+            r.PartId,
+            r.Revision,
+            r.ChangeDescription,
+            r.ChangeReason,
+            r.EffectiveDate,
+            r.IsCurrent,
+            r.FileCount,
+            r.CreatedAt,
+            r.CreatedBy.HasValue && userNames.TryGetValue(r.CreatedBy.Value, out var name) ? name : null))
+            .ToList();
     }
 }

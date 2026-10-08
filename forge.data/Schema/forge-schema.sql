@@ -6120,6 +6120,7 @@ CREATE TABLE public.part_revisions (
     change_reason character varying(500),
     effective_date timestamp with time zone NOT NULL,
     is_current boolean NOT NULL,
+    created_by integer,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,
@@ -11462,6 +11463,9 @@ ALTER TABLE ONLY public.part_purchase_units
 ALTER TABLE ONLY public.part_revisions
     ADD CONSTRAINT fk_part_revisions_parts_part_id FOREIGN KEY (part_id) REFERENCES public.parts(id) ON DELETE CASCADE;
 
+ALTER TABLE ONLY public.part_revisions
+    ADD CONSTRAINT fk_part_revisions__asp_net_users_created_by FOREIGN KEY (created_by) REFERENCES public.asp_net_users(id) ON DELETE SET NULL;
+
 ALTER TABLE ONLY public.part_safety_data_sheets
     ADD CONSTRAINT fk_part_safety_data_sheets__parts_part_id FOREIGN KEY (part_id) REFERENCES public.parts(id) ON DELETE CASCADE;
 
@@ -13366,6 +13370,8 @@ CREATE INDEX ix_part_prices_part_id_effective_to ON public.part_prices USING btr
 CREATE INDEX ix_part_purchase_units_content_uom_id ON public.part_purchase_units USING btree (content_uom_id);
 
 CREATE INDEX ix_part_purchase_units_part_id ON public.part_purchase_units USING btree (part_id);
+
+CREATE INDEX ix_part_revisions_created_by ON public.part_revisions USING btree (created_by);
 
 CREATE INDEX ix_part_revisions_part_id ON public.part_revisions USING btree (part_id);
 

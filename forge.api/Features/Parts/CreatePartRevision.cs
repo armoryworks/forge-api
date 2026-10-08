@@ -1,5 +1,8 @@
+using System.Security.Claims;
+
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
@@ -27,7 +30,10 @@ public class CreatePartRevisionCommandValidator : AbstractValidator<CreatePartRe
     }
 }
 
-public class CreatePartRevisionHandler(AppDbContext db, IPartRepository partRepo)
+public class CreatePartRevisionHandler(
+    AppDbContext db,
+    IPartRepository partRepo,
+    IHttpContextAccessor? httpContextAccessor = null)
     : IRequestHandler<CreatePartRevisionCommand, PartRevisionResponseModel>
 {
     public async Task<PartRevisionResponseModel> Handle(CreatePartRevisionCommand request, CancellationToken cancellationToken)
@@ -47,6 +53,11 @@ public class CreatePartRevisionHandler(AppDbContext db, IPartRepository partRepo
         foreach (var rev in existingRevisions)
             rev.IsCurrent = false;
 
+        var creator = int.TryParse(
+            httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid)
+            ? await db.Users.FirstOrDefaultAsync(u => u.Id == uid, cancellationToken)
+            : null;
+
         var revision = new PartRevision
         {
             PartId = request.PartId,
@@ -55,6 +66,7 @@ public class CreatePartRevisionHandler(AppDbContext db, IPartRepository partRepo
             ChangeReason = request.ChangeReason?.Trim(),
             EffectiveDate = request.EffectiveDate,
             IsCurrent = true,
+            CreatedBy = creator?.Id,
         };
 
         db.PartRevisions.Add(revision);
@@ -83,6 +95,7 @@ public class CreatePartRevisionHandler(AppDbContext db, IPartRepository partRepo
             revision.EffectiveDate,
             revision.IsCurrent,
             0,
-            revision.CreatedAt);
+            revision.CreatedAt,
+            creator?.GetDisplayName());
     }
 }

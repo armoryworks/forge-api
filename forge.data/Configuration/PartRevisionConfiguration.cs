@@ -21,5 +21,10 @@ public class PartRevisionConfiguration : IEntityTypeConfiguration<PartRevision>
             .WithMany()
             .HasForeignKey(e => e.PartId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<Forge.Data.Context.ApplicationUser>()
+            .WithMany()
+            .HasForeignKey(e => e.CreatedBy)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
