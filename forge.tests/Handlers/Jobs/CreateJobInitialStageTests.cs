@@ -155,6 +155,76 @@ public class CreateJobInitialStageTests
         _created.Should().BeNull();
     }
 
+    private async Task SetDocumentStagesAsync(params string[] codes)
+    {
+        foreach (var stage in _production.Stages)
+            stage.AccountingDocumentType = stage.Code switch
+            {
+                "quoted" when codes.Contains("quoted") => AccountingDocumentType.Estimate,
+                "order_confirmed" when codes.Contains("order_confirmed") => AccountingDocumentType.SalesOrder,
+                "materials_ordered" when codes.Contains("materials_ordered") => AccountingDocumentType.PurchaseOrder,
+                _ => stage.AccountingDocumentType,
+            };
+        await _db.SaveChangesAsync();
+    }
+
+    [Theory]
+    [InlineData("quoted")]
+    [InlineData("order_confirmed")]
+    [InlineData("materials_ordered")]
+    public async Task A_status_at_or_past_the_first_accounting_status_is_rejected(string code)
+    {
+        await SeedTracksAsync();
+        await SetDocumentStagesAsync("quoted", "order_confirmed", "materials_ordered");
+
+        var act = () => _handler.Handle(Command(StageId(_production, code)), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>())
+            .Which.Errors.Should().ContainSingle(e =>
+                e.PropertyName == nameof(CreateJobCommand.InitialStageId)
+                && e.ErrorMessage.Contains("accounting document"));
+        _created.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task A_status_before_the_first_accounting_status_is_accepted()
+    {
+        await SeedTracksAsync();
+        await SetDocumentStagesAsync("materials_ordered");
+
+        await _handler.Handle(Command(StageId(_production, "order_confirmed")), CancellationToken.None);
+
+        _created!.CurrentStageId.Should().Be(StageId(_production, "order_confirmed"));
+    }
+
+    [Fact]
+    public async Task A_hidden_accounting_status_does_not_limit_the_start()
+    {
+        await SeedTracksAsync();
+        await SetDocumentStagesAsync("quoted");
+        _production.Stages.Single(s => s.Code == "quoted").IsActive = false;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(Command(StageId(_production, "materials_ordered")), CancellationToken.None);
+
+        _created!.CurrentStageId.Should().Be(StageId(_production, "materials_ordered"));
+    }
+
+    [Fact]
+    public async Task A_sales_order_line_job_may_still_start_in_order_confirmed_but_no_later()
+    {
+        await SeedTracksAsync();
+        await SetDocumentStagesAsync("quoted", "order_confirmed", "materials_ordered");
+        var lineId = await SeedConfirmedLineAsync();
+
+        var tooLate = () => _handler.Handle(
+            Command(StageId(_production, "materials_ordered"), lineId), CancellationToken.None);
+        await tooLate.Should().ThrowAsync<ValidationException>();
+
+        await _handler.Handle(Command(StageId(_production, "order_confirmed"), lineId), CancellationToken.None);
+        _created!.CurrentStageId.Should().Be(StageId(_production, "order_confirmed"));
+    }
+
     [Fact]
     public async Task The_final_status_is_rejected_on_an_order_type_without_required_statuses()
     {
