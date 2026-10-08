@@ -26,4 +26,8 @@ public record ReorderSuggestionResponseModel(
     string? DismissedByName,
     DateTimeOffset? DismissedAt,
     string? Notes,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string SupplyType,
+    int? ResultingJobId,
+    string? ResultingJobNumber,
+    int? LeadTimeDays);

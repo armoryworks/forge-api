@@ -10,7 +10,7 @@ namespace Forge.Api.Features.Replenishment;
 
 public record GetBurnRatesQuery(string? Search, bool NeedsReorderOnly) : IRequest<List<BurnRateResponseModel>>;
 
-public class GetBurnRatesHandler(AppDbContext db, IPartSourcingResolver sourcingResolver)
+public class GetBurnRatesHandler(AppDbContext db, IPartSourcingResolver sourcingResolver, IClock clock)
     : IRequestHandler<GetBurnRatesQuery, List<BurnRateResponseModel>>
 {
     private static readonly BinMovementReason[] ConsumptionReasons =
@@ -21,7 +21,7 @@ public class GetBurnRatesHandler(AppDbContext db, IPartSourcingResolver sourcing
     public async Task<List<BurnRateResponseModel>> Handle(
         GetBurnRatesQuery request, CancellationToken cancellationToken)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.UtcNow;
         var cutoff90 = now.AddDays(-90);
 
         var partsQuery = db.Parts

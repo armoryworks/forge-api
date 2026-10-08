@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
@@ -6,12 +8,14 @@ using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Replenishment;
 
 namespace Forge.Api.Jobs;
 
 /// <summary>
-/// Daily Hangfire job — analyzes raw material burn rates, creates reorder suggestions
-/// for parts that fall below their reorder thresholds, and notifies purchasing users.
+/// Daily Hangfire job — analyzes part burn rates, creates buy or make reorder suggestions
+/// for parts that fall below their reorder thresholds, gives the replenishment assignee a
+/// follow-up task per suggestion, and notifies the assignee or purchasing users.
 /// </summary>
 public class ReorderAnalysisJob(
     AppDbContext db,
@@ -21,6 +25,7 @@ public class ReorderAnalysisJob(
     ICapabilitySnapshotProvider capabilities)
 {
     private const int ChunkSize = 500;
+    private const int DefaultBuyLeadTimeDays = 14;
 
     private static readonly BinMovementReason[] ConsumptionReasons =
         [BinMovementReason.Pick, BinMovementReason.Ship];
@@ -32,6 +37,10 @@ public class ReorderAnalysisJob(
         PurchaseOrderStatus.Acknowledged,
         PurchaseOrderStatus.PartiallyReceived,
     ];
+
+    private sealed record Supply(decimal Quantity, DateTimeOffset? Earliest);
+
+    private sealed record NewSuggestion(ReorderSuggestion Suggestion, Part Part, int LeadTimeDays, bool IsMake);
 
     public async Task RunAnalysisAsync(CancellationToken ct = default)
     {
@@ -70,7 +79,7 @@ public class ReorderAnalysisJob(
             .Select(s => s.PartId)
             .ToHashSet();
 
-        var newSuggestions = new List<ReorderSuggestion>();
+        var newSuggestions = new List<NewSuggestion>();
         var processedChunks = 0;
 
         while (processedChunks * ChunkSize < totalPartCount)
@@ -88,6 +97,10 @@ public class ReorderAnalysisJob(
                 break;
 
             var partIds = parts.Select(p => p.Id).ToList();
+            var makePartIds = parts
+                .Where(p => p.ProcurementSource == ProcurementSource.Make)
+                .Select(p => p.Id)
+                .ToList();
 
             // Bulk-resolve effective sourcing values for this chunk. Reads
             // come from the preferred VendorPart row only — the Part-level
@@ -138,64 +151,87 @@ public class ReorderAnalysisJob(
                 })
                 .ToListAsync(ct);
 
-            var incomingMap = incomingRaw
+            var poSupplyMap = incomingRaw
                 .GroupBy(x => x.PartId)
                 .ToDictionary(
                     g => g.Key,
-                    g => new
-                    {
-                        TotalQty = g.Sum(x => x.RemainingQty),
-                        EarliestDate = g.Min(x => x.ExpectedDeliveryDate),
-                    });
+                    g => new Supply(g.Sum(x => x.RemainingQty), g.Min(x => x.ExpectedDeliveryDate)));
+
+            var jobSupplyMap = (await ReplenishmentPlanning.LoadOpenJobSupplyAsync(db, makePartIds, ct))
+                .ToDictionary(kv => kv.Key, kv => new Supply(kv.Value.Quantity, kv.Value.EarliestDue));
+
+            var routingByPart = await ReplenishmentPlanning.LoadRoutingsAsync(db, makePartIds, ct);
+
+            Supply SupplyFor(Part part)
+            {
+                var map = part.ProcurementSource == ProcurementSource.Make ? jobSupplyMap : poSupplyMap;
+                return map.TryGetValue(part.Id, out var supply) ? supply : new Supply(0m, null);
+            }
+
+            int? BuyLeadTime(Part part) =>
+                sourcingByPart.TryGetValue(part.Id, out var sv) ? sv.LeadTimeDays : null;
+
+            (int LeadTimeDays, decimal Quantity) PlanMake(Part part, decimal burnRate) =>
+                ReplenishmentPlanning.PlanMake(
+                    part, routingByPart.TryGetValue(part.Id, out var ops) ? ops : [], burnRate);
 
             // Expire pending suggestions where stock has recovered (for this chunk's parts)
             var chunkPendingSuggestions = pendingSuggestions
                 .Where(s => partIds.Contains(s.PartId))
                 .ToList();
 
-            var expiredCount = 0;
+            var expiredIds = new List<int>();
             foreach (var pending in chunkPendingSuggestions)
             {
-                var stock = stockMap.TryGetValue(pending.PartId, out var s) ? s : null;
-                var available = (stock?.OnHand ?? 0m) - (stock?.Reserved ?? 0m);
-                var incoming = incomingMap.TryGetValue(pending.PartId, out var inc) ? inc : null;
-                var incomingQty = incoming?.TotalQty ?? 0m;
-
                 var part = parts.FirstOrDefault(p => p.Id == pending.PartId);
                 if (part == null) continue;
 
-                var effectiveLeadTime = sourcingByPart.TryGetValue(part.Id, out var sv)
-                    ? sv.LeadTimeDays
-                    : null;
+                var stock = stockMap.TryGetValue(pending.PartId, out var s) ? s : null;
+                var available = (stock?.OnHand ?? 0m) - (stock?.Reserved ?? 0m);
+                var incomingQty = SupplyFor(part).Quantity;
 
-                if (!NeedsReorder(part, effectiveLeadTime, available, incomingQty, pending.BurnRateDailyAvg))
+                var stillNeeded = part.ProcurementSource switch
+                {
+                    ProcurementSource.Phantom => false,
+                    ProcurementSource.Make => NeedsReorder(
+                        part, PlanMake(part, pending.BurnRateDailyAvg).LeadTimeDays,
+                        available, incomingQty, pending.BurnRateDailyAvg),
+                    _ => NeedsReorder(part, BuyLeadTime(part), available, incomingQty, pending.BurnRateDailyAvg),
+                };
+
+                if (!stillNeeded)
                 {
                     pending.Status = ReorderSuggestionStatus.Expired;
-                    expiredCount++;
+                    expiredIds.Add(pending.Id);
                 }
             }
 
-            if (expiredCount > 0)
+            if (expiredIds.Count > 0)
             {
+                await ReplenishmentAssignee.CloseTasksAsync(db, expiredIds, FollowUpStatus.Dismissed, now, ct);
                 await db.SaveChangesAsync(ct);
                 logger.LogInformation("[ReorderAnalysis] Expired {Count} resolved suggestion(s) in chunk {Chunk}",
-                    expiredCount, processedChunks + 1);
+                    expiredIds.Count, processedChunks + 1);
             }
 
             // Analyze each part for new suggestions
             foreach (var part in parts)
             {
+                if (part.ProcurementSource == ProcurementSource.Phantom)
+                    continue;
+
                 if (existingPendingPartIds.Contains(part.Id))
                     continue;
+
+                var isMake = part.ProcurementSource == ProcurementSource.Make;
 
                 var stock = stockMap.TryGetValue(part.Id, out var s) ? s : null;
                 var onHand = stock?.OnHand ?? 0m;
                 var reserved = stock?.Reserved ?? 0m;
                 var available = onHand - reserved;
 
-                var incoming = incomingMap.TryGetValue(part.Id, out var inc) ? inc : null;
-                var incomingQty = incoming?.TotalQty ?? 0m;
-                var earliestArrival = incoming?.EarliestDate;
+                var supply = SupplyFor(part);
+                var incomingQty = supply.Quantity;
 
                 // O(1) lookup instead of O(n) filter per part
                 var partMovements = movementsByPart.TryGetValue(part.Id, out var pm)
@@ -209,12 +245,22 @@ public class ReorderAnalysisJob(
                 var bestBurnRate = burnRate90 ?? burnRate60 ?? burnRate30 ?? 0m;
                 var windowDays = burnRate90.HasValue ? 90 : burnRate60.HasValue ? 60 : burnRate30.HasValue ? 30 : 0;
 
-                var effectiveLeadTime = sourcingByPart.TryGetValue(part.Id, out var sv)
-                    ? sv.LeadTimeDays
-                    : null;
-
-                if (!NeedsReorder(part, effectiveLeadTime, available, incomingQty, bestBurnRate))
-                    continue;
+                int leadTimeDays;
+                decimal suggestedQty;
+                if (isMake)
+                {
+                    (leadTimeDays, suggestedQty) = PlanMake(part, bestBurnRate);
+                    if (!NeedsReorder(part, leadTimeDays, available, incomingQty, bestBurnRate))
+                        continue;
+                }
+                else
+                {
+                    var effectiveLeadTime = BuyLeadTime(part);
+                    if (!NeedsReorder(part, effectiveLeadTime, available, incomingQty, bestBurnRate))
+                        continue;
+                    leadTimeDays = effectiveLeadTime ?? DefaultBuyLeadTimeDays;
+                    suggestedQty = ReplenishmentPlanning.SuggestQuantity(part, bestBurnRate, leadTimeDays);
+                }
 
                 int? daysRemaining = null;
                 DateTimeOffset? projectedStockout = null;
@@ -227,37 +273,24 @@ public class ReorderAnalysisJob(
                     projectedStockout = now.AddDays(days);
                 }
 
-                // Suggested quantity: cover lead time + safety stock + reorder qty preference
-                decimal suggestedQty;
-                if (part.ReorderQuantity.HasValue && part.ReorderQuantity.Value > 0)
-                {
-                    suggestedQty = part.ReorderQuantity.Value;
-                }
-                else if (bestBurnRate > 0)
-                {
-                    var coverDays = (effectiveLeadTime ?? 14) + (part.SafetyStockDays ?? 14);
-                    suggestedQty = bestBurnRate * coverDays;
-                }
-                else
-                {
-                    // No burn rate — suggest minimum threshold amount
-                    suggestedQty = part.MinStockThreshold ?? 10m;
-                }
-
-                newSuggestions.Add(new ReorderSuggestion
-                {
-                    PartId = part.Id,
-                    VendorId = part.PreferredVendorId,
-                    CurrentStock = onHand,
-                    AvailableStock = available,
-                    BurnRateDailyAvg = bestBurnRate,
-                    BurnRateWindowDays = windowDays,
-                    DaysOfStockRemaining = daysRemaining,
-                    ProjectedStockoutDate = projectedStockout,
-                    IncomingPoQuantity = incomingQty,
-                    EarliestPoArrival = earliestArrival,
-                    SuggestedQuantity = Math.Ceiling(suggestedQty),
-                });
+                newSuggestions.Add(new NewSuggestion(
+                    new ReorderSuggestion
+                    {
+                        PartId = part.Id,
+                        VendorId = isMake ? null : part.PreferredVendorId,
+                        CurrentStock = onHand,
+                        AvailableStock = available,
+                        BurnRateDailyAvg = bestBurnRate,
+                        BurnRateWindowDays = windowDays,
+                        DaysOfStockRemaining = daysRemaining,
+                        ProjectedStockoutDate = projectedStockout,
+                        IncomingPoQuantity = incomingQty,
+                        EarliestPoArrival = supply.Earliest,
+                        SuggestedQuantity = suggestedQty,
+                    },
+                    part,
+                    leadTimeDays,
+                    isMake));
             }
 
             processedChunks++;
@@ -269,19 +302,24 @@ public class ReorderAnalysisJob(
             return;
         }
 
-        db.ReorderSuggestions.AddRange(newSuggestions);
+        db.ReorderSuggestions.AddRange(newSuggestions.Select(n => n.Suggestion));
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation(
             "[ReorderAnalysis] Created {Count} new reorder suggestion(s)", newSuggestions.Count);
 
-        // Notify purchasing users (Admin + Manager roles)
-        var notifyUserIds = await db.UserRoles
-            .Join(db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, r.Name })
-            .Where(x => x.Name == "Admin" || x.Name == "Manager")
-            .Select(x => x.UserId)
-            .Distinct()
-            .ToListAsync(ct);
+        var assigneeId = await ReplenishmentAssignee.ResolveActiveAsync(db, ct);
+        if (assigneeId is int taskOwnerId)
+            await AddFollowUpTasksAsync(newSuggestions, taskOwnerId, now, ct);
+
+        List<int> notifyUserIds = assigneeId is int onlyAssignee
+            ? [onlyAssignee]
+            : await db.UserRoles
+                .Join(db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, r.Name })
+                .Where(x => x.Name == "Admin" || x.Name == "Manager")
+                .Select(x => x.UserId)
+                .Distinct()
+                .ToListAsync(ct);
 
         foreach (var userId in notifyUserIds)
         {
@@ -291,7 +329,7 @@ public class ReorderAnalysisJob(
                 Severity = "warning",
                 Source = "inventory",
                 Title = "Reorder Suggestions Ready",
-                Message = $"{newSuggestions.Count} part(s) need replenishment. Review and approve purchase orders.",
+                Message = $"{newSuggestions.Count} part(s) need replenishment. Review and approve purchase orders or work orders.",
                 EntityType = "reorder_suggestions",
                 UserId = userId,
             });
@@ -301,6 +339,54 @@ public class ReorderAnalysisJob(
         logger.LogInformation(
             "[ReorderAnalysis] Notified {Count} user(s)", notifyUserIds.Count);
     }
+
+    private async Task AddFollowUpTasksAsync(
+        List<NewSuggestion> created, int assigneeId, DateTimeOffset now, CancellationToken ct)
+    {
+        var suggestionIds = created.Select(n => n.Suggestion.Id).ToList();
+        var alreadyTasked = (await db.FollowUpTasks
+            .Where(t => t.SourceEntityType == ReplenishmentAssignee.TaskSourceEntityType
+                && suggestionIds.Contains(t.SourceEntityId)
+                && t.Status == FollowUpStatus.Open)
+            .Select(t => t.SourceEntityId)
+            .ToListAsync(ct))
+            .ToHashSet();
+
+        var today = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
+
+        foreach (var (suggestion, part, leadTimeDays, isMake) in created)
+        {
+            if (alreadyTasked.Contains(suggestion.Id))
+                continue;
+
+            var quantity = FormatQuantity(suggestion.SuggestedQuantity);
+            var dueDate = suggestion.ProjectedStockoutDate is DateTimeOffset stockout
+                ? stockout.AddDays(-leadTimeDays)
+                : today;
+            if (dueDate < today)
+                dueDate = today;
+
+            db.FollowUpTasks.Add(new FollowUpTask
+            {
+                Title = isMake
+                    ? $"Make {quantity} x {part.PartNumber}"
+                    : $"Order {quantity} x {part.PartNumber}",
+                Description =
+                    $"Available {FormatQuantity(suggestion.AvailableStock)}, " +
+                    $"reorder point {(part.ReorderPoint is decimal rp ? FormatQuantity(rp) : "not set")}, " +
+                    $"daily use {suggestion.BurnRateDailyAvg.ToString("0.##", CultureInfo.InvariantCulture)}, " +
+                    $"lead time {leadTimeDays} day(s).",
+                AssignedToUserId = assigneeId,
+                DueDate = dueDate,
+                SourceEntityType = ReplenishmentAssignee.TaskSourceEntityType,
+                SourceEntityId = suggestion.Id,
+                TriggerType = FollowUpTriggerType.ReorderSuggested,
+            });
+        }
+    }
+
+    private static string FormatQuantity(decimal value) =>
+        value.ToString("0.####", CultureInfo.InvariantCulture);
 
     private static decimal? CalcBurnRate(
         List<(decimal Quantity, DateTimeOffset MovedAt)> movements, DateTimeOffset now, int windowDays)
@@ -321,7 +407,7 @@ public class ReorderAnalysisJob(
 
         if (burnRate > 0)
         {
-            var coverDays = (effectiveLeadTimeDays ?? 14) + (part.SafetyStockDays ?? 7);
+            var coverDays = (effectiveLeadTimeDays ?? DefaultBuyLeadTimeDays) + (part.SafetyStockDays ?? 7);
             return (available + incomingQty) < burnRate * coverDays;
         }
 

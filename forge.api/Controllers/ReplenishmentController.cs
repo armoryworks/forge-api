@@ -67,6 +67,21 @@ public class ReplenishmentController(IMediator mediator) : ControllerBase
         await mediator.Send(new DismissSuggestionCommand(id, GetUserId(), request.Reason), ct);
         return NoContent();
     }
+
+    [HttpGet("settings")]
+    public async Task<ActionResult<ReplenishmentSettingsResponseModel>> GetSettings(CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetReplenishmentSettingsQuery(), ct);
+        return Ok(result);
+    }
+
+    [HttpPut("settings")]
+    public async Task<ActionResult<ReplenishmentSettingsResponseModel>> UpdateSettings(
+        [FromBody] UpdateReplenishmentSettingsRequestModel request, CancellationToken ct)
+    {
+        var result = await mediator.Send(new UpdateReplenishmentSettingsCommand(request.AssigneeUserId), ct);
+        return Ok(result);
+    }
 }
 
 public record ApproveBulkRequest(List<int> SuggestionIds);

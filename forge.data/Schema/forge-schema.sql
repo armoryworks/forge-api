@@ -7612,6 +7612,7 @@ CREATE TABLE public.reorder_suggestions (
     approved_by_user_id integer,
     approved_at timestamp with time zone,
     resulting_purchase_order_id integer,
+    resulting_job_id integer,
     dismissed_by_user_id integer,
     dismissed_at timestamp with time zone,
     dismiss_reason character varying(500),
@@ -11701,6 +11702,9 @@ ALTER TABLE ONLY public.reorder_suggestions
 ALTER TABLE ONLY public.reorder_suggestions
     ADD CONSTRAINT "fk_reorder_suggestions_purchase_orders_resulting_purchase_orde~" FOREIGN KEY (resulting_purchase_order_id) REFERENCES public.purchase_orders(id) ON DELETE SET NULL;
 
+ALTER TABLE ONLY public.reorder_suggestions
+    ADD CONSTRAINT fk_reorder_suggestions_jobs_resulting_job_id FOREIGN KEY (resulting_job_id) REFERENCES public.jobs(id) ON DELETE SET NULL;
+
 ALTER TABLE ONLY public.report_schedules
     ADD CONSTRAINT fk_report_schedules__saved_reports_saved_report_id FOREIGN KEY (saved_report_id) REFERENCES public.saved_reports(id) ON DELETE CASCADE;
 
@@ -13552,6 +13556,8 @@ CREATE INDEX ix_regulatory_sources_is_active ON public.regulatory_sources USING 
 CREATE INDEX ix_reorder_suggestions_part_id ON public.reorder_suggestions USING btree (part_id);
 
 CREATE INDEX ix_reorder_suggestions_part_id_status ON public.reorder_suggestions USING btree (part_id, status);
+
+CREATE INDEX ix_reorder_suggestions_resulting_job_id ON public.reorder_suggestions USING btree (resulting_job_id);
 
 CREATE INDEX ix_reorder_suggestions_resulting_purchase_order_id ON public.reorder_suggestions USING btree (resulting_purchase_order_id);
 

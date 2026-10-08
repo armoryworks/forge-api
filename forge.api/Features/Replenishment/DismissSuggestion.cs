@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Replenishment;
@@ -19,7 +20,7 @@ public class DismissSuggestionValidator : AbstractValidator<DismissSuggestionCom
     }
 }
 
-public class DismissSuggestionHandler(AppDbContext db)
+public class DismissSuggestionHandler(AppDbContext db, IClock clock)
     : IRequestHandler<DismissSuggestionCommand>
 {
     public async Task Handle(DismissSuggestionCommand request, CancellationToken cancellationToken)
@@ -31,10 +32,14 @@ public class DismissSuggestionHandler(AppDbContext db)
         if (suggestion.Status != ReorderSuggestionStatus.Pending)
             throw new InvalidOperationException($"Suggestion is already {suggestion.Status}");
 
+        var now = clock.UtcNow;
         suggestion.Status = ReorderSuggestionStatus.Dismissed;
         suggestion.DismissedByUserId = request.UserId;
-        suggestion.DismissedAt = DateTimeOffset.UtcNow;
+        suggestion.DismissedAt = now;
         suggestion.DismissReason = request.Reason;
+
+        await ReplenishmentAssignee.CloseTasksAsync(
+            db, [suggestion.Id], FollowUpStatus.Dismissed, now, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
     }

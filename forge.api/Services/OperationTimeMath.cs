@@ -50,4 +50,14 @@ public static class OperationTimeMath
             .Sum(jp => jp.Quantity);
         return quantity > 0m ? quantity : 1m;
     }
+
+    public static int MakeLeadTimeDays(IEnumerable<Operation> operations, decimal quantity)
+    {
+        var ops = operations.ToList();
+        if (ops.Count == 0)
+            return 7;
+
+        var minutes = ops.Sum(op => PlannedMinutes(op, quantity));
+        return Math.Max(1, (int)Math.Ceiling(minutes / 480m));
+    }
 }

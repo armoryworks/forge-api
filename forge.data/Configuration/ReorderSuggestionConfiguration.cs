@@ -20,6 +20,7 @@ public class ReorderSuggestionConfiguration : IEntityTypeConfiguration<ReorderSu
         builder.HasIndex(e => e.VendorId);
         builder.HasIndex(e => e.Status);
         builder.HasIndex(e => new { e.PartId, e.Status });
+        builder.HasIndex(e => e.ResultingJobId);
 
         builder.HasOne(e => e.Part)
             .WithMany()
@@ -34,6 +35,11 @@ public class ReorderSuggestionConfiguration : IEntityTypeConfiguration<ReorderSu
         builder.HasOne(e => e.ResultingPurchaseOrder)
             .WithMany()
             .HasForeignKey(e => e.ResultingPurchaseOrderId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(e => e.ResultingJob)
+            .WithMany()
+            .HasForeignKey(e => e.ResultingJobId)
             .OnDelete(DeleteBehavior.SetNull);
     }
 }

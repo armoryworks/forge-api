@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Features.FollowUpTasks;
 using Forge.Core.Enums;
+using Forge.Core.Models;
 using Forge.Api.Capabilities;
 
 namespace Forge.Api.Controllers;

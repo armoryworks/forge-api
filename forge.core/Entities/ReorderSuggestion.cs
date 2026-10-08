@@ -37,6 +37,8 @@ public class ReorderSuggestion : BaseAuditableEntity
     public DateTimeOffset? ApprovedAt { get; set; }
     public int? ResultingPurchaseOrderId { get; set; }
     public PurchaseOrder? ResultingPurchaseOrder { get; set; }
+    public int? ResultingJobId { get; set; }
+    public Job? ResultingJob { get; set; }
 
     // Dismissal
     public int? DismissedByUserId { get; set; }
