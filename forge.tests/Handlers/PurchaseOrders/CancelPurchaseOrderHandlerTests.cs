@@ -5,6 +5,7 @@ using Forge.Api.Features.PurchaseOrders;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
+using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.PurchaseOrders;
 
@@ -18,7 +19,7 @@ public class CancelPurchaseOrderHandlerTests
 
     public CancelPurchaseOrderHandlerTests()
     {
-        _handler = new CancelPurchaseOrderHandler(_repo.Object);
+        _handler = new CancelPurchaseOrderHandler(_repo.Object, TestDbContextFactory.Create());
     }
 
     private PurchaseOrder PoInStatus(PurchaseOrderStatus status) => new() { Id = 1, Status = status };

@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Http;
 
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
+using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.PurchaseOrders;
 
@@ -14,7 +16,9 @@ public class SubmitPurchaseOrderHandler(
     IPurchaseOrderRepository repo,
     IApprovalService approvalService,
     ICurrencyService currencyService,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    IClock clock,
+    AppDbContext db)
     : IRequestHandler<SubmitPurchaseOrderCommand>
 {
     public async Task Handle(SubmitPurchaseOrderCommand request, CancellationToken cancellationToken)
@@ -49,7 +53,9 @@ public class SubmitPurchaseOrderHandler(
         }
 
         po.Status = PurchaseOrderStatus.Submitted;
-        po.SubmittedDate = DateTimeOffset.UtcNow;
+        po.SubmittedDate = clock.UtcNow;
+
+        db.LogActivityAt("submitted", "Submitted to vendor", ("PurchaseOrder", po.Id));
 
         await repo.SaveChangesAsync(cancellationToken);
 

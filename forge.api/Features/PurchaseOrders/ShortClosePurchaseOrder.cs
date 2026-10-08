@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Http;
 using Forge.Api.Features.DomainEvents;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
+using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.PurchaseOrders;
 
@@ -19,7 +21,9 @@ public record ShortClosePurchaseOrderCommand(int Id, string Reason) : IRequest<i
 public class ShortClosePurchaseOrderHandler(
     IPurchaseOrderRepository repo,
     IMediator mediator,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    IClock clock,
+    AppDbContext db)
     : IRequestHandler<ShortClosePurchaseOrderCommand, int>
 {
     public async Task<int> Handle(ShortClosePurchaseOrderCommand request, CancellationToken cancellationToken)
@@ -59,7 +63,12 @@ public class ShortClosePurchaseOrderHandler(
 
         po.Status = PurchaseOrderStatus.Closed;
         po.ShortCloseReason = request.Reason.Trim();
-        po.ShortClosedAt = DateTimeOffset.UtcNow;
+        po.ShortClosedAt = clock.UtcNow;
+
+        db.LogActivityAt(
+            "short-closed",
+            $"Short-closed, {totalCancelled:0.####} unreceived cancelled: {po.ShortCloseReason}",
+            ("PurchaseOrder", po.Id));
 
         await repo.SaveChangesAsync(cancellationToken);
 

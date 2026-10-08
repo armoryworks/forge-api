@@ -1,12 +1,14 @@
 using MediatR;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
+using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.PurchaseOrders;
 
 public record CancelPurchaseOrderCommand(int Id) : IRequest;
 
-public class CancelPurchaseOrderHandler(IPurchaseOrderRepository repo)
+public class CancelPurchaseOrderHandler(IPurchaseOrderRepository repo, AppDbContext db)
     : IRequestHandler<CancelPurchaseOrderCommand>
 {
     public async Task Handle(CancelPurchaseOrderCommand request, CancellationToken cancellationToken)
@@ -20,7 +22,9 @@ public class CancelPurchaseOrderHandler(IPurchaseOrderRepository repo)
             throw new InvalidOperationException(
                 $"Cannot cancel a purchase order in status {po.Status}. Allowed: Draft, Submitted, Acknowledged.");
 
+        var previousStatus = po.Status;
         po.Status = PurchaseOrderStatus.Cancelled;
+        db.LogActivityAt("cancelled", $"Cancelled (was {previousStatus})", ("PurchaseOrder", po.Id));
         await repo.SaveChangesAsync(cancellationToken);
     }
 }
