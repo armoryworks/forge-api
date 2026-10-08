@@ -46,7 +46,7 @@ public sealed class JobRepositoryBoardFilterTests(PostgresFixture fixture)
         new() { TrackTypeId = trackTypeId, Sort = "board", PageSize = 200 };
 
     private static Task<PagedResponse<JobListResponseModel>> PageAsync(AppDbContext db, JobListQuery query) =>
-        new JobRepository(db, new FixedClock(Now)).GetPagedJobsAsync(query, CancellationToken.None);
+        new JobRepository(db, new FixedClock(Now)).GetPagedJobsAsync(query, operationTracking: false, CancellationToken.None);
 
     [Fact]
     public async Task Active_only_drops_completed_and_disposed_jobs()

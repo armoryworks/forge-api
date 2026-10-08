@@ -13,6 +13,7 @@ using Forge.Api.Features.Mrp;
 using Forge.Api.Features.SalesOrders;
 using Forge.Api.Features.SalesOrders.Acceptance;
 using Forge.Api.Hubs;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -173,7 +174,8 @@ public class PartRevisionStampTests
         jobRepo.Setup(r => r.GenerateNextJobNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("J-700");
         var handler = new ReleasePlannedOrderHandler(
             _db, Mock.Of<IBarcodeService>(), Mock.Of<IPurchaseOrderRepository>(), jobRepo.Object,
-            Mock.Of<IBusinessIdentifierService>(), Mock.Of<IVendorCostResolver>(), Mock.Of<ICurrencyService>());
+            Mock.Of<IBusinessIdentifierService>(), Mock.Of<IVendorCostResolver>(), Mock.Of<ICurrencyService>(),
+            new PartSourcingResolver(_db));
 
         var result = await handler.Handle(new ReleasePlannedOrderCommand(1), CancellationToken.None);
 
@@ -196,7 +198,7 @@ public class PartRevisionStampTests
         jobRepo.Setup(r => r.AddAsync(It.IsAny<Job>(), It.IsAny<CancellationToken>()))
             .Callback<Job, CancellationToken>((job, _) => children.Add(job))
             .Returns(Task.CompletedTask);
-        var handler = new ExplodeJobBomHandler(_db, jobRepo.Object, Mock.Of<IBarcodeService>(), BoardHub());
+        var handler = new ExplodeJobBomHandler(_db, jobRepo.Object, Mock.Of<IBarcodeService>(), BoardHub(), new PartSourcingResolver(_db));
 
         await handler.Handle(new ExplodeJobBomCommand(parent.Id), CancellationToken.None);
 
