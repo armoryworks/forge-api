@@ -66,6 +66,12 @@ public class UpdateTrackTypeHandler(
 
         await EnsureCanHideAsync(hidden, ct);
 
+        var changedFields = new List<string>();
+        if (trackType.Name != request.Name) changedFields.Add("name");
+        if (trackType.Code != request.Code) changedFields.Add("code");
+        if (trackType.Description != request.Description) changedFields.Add("description");
+        if (StagesEdited(trackType, request)) changedFields.Add("stages");
+
         trackType.Name = request.Name;
         trackType.Code = request.Code;
         trackType.Description = request.Description;
@@ -100,8 +106,11 @@ public class UpdateTrackTypeHandler(
             }
         }
 
-        var (action, description) = DescribeChange(trackType.Name, hidden, shown);
-        db.LogActivityAt(action, description, ("TrackType", trackType.Id));
+        if (hidden.Count > 0 || shown.Count > 0 || changedFields.Count > 0)
+        {
+            var (action, description) = DescribeChange(hidden, shown, changedFields);
+            db.LogActivityAt(action, description, ("TrackType", trackType.Id));
+        }
 
         await repo.SaveChangesAsync(ct);
         return (await repo.GetByIdAsync(trackType.Id, ct))!;
@@ -125,17 +134,30 @@ public class UpdateTrackTypeHandler(
         }
     }
 
-    private static (string Action, string Description) DescribeChange(
-        string trackTypeName, List<JobStage> hidden, List<JobStage> shown)
-    {
-        if (hidden.Count == 0 && shown.Count == 0)
-            return ("updated", $"Updated order type {trackTypeName}.");
+    private static bool StagesEdited(TrackType trackType, UpdateTrackTypeCommand request) =>
+        request.Stages.Any(r =>
+        {
+            var existing = trackType.Stages.FirstOrDefault(s => s.Code == r.Code);
+            return existing is null
+                || existing.Name != r.Name
+                || existing.SortOrder != r.SortOrder
+                || existing.Color != r.Color
+                || existing.WIPLimit != r.WIPLimit
+                || existing.IsIrreversible != r.IsIrreversible;
+        });
 
+    private static (string Action, string Description) DescribeChange(
+        List<JobStage> hidden, List<JobStage> shown, List<string> changedFields)
+    {
         var parts = new List<string>();
         if (hidden.Count > 0)
             parts.Add($"Hid {string.Join(", ", hidden.OrderBy(s => s.SortOrder).Select(s => s.Name))}");
         if (shown.Count > 0)
             parts.Add($"Showed {string.Join(", ", shown.OrderBy(s => s.SortOrder).Select(s => s.Name))}");
-        return ("stage-visibility-changed", $"{string.Join("; ", parts)}.");
+        if (changedFields.Count > 0)
+            parts.Add($"Updated {string.Join(", ", changedFields)}");
+
+        var action = hidden.Count > 0 || shown.Count > 0 ? "stage-visibility-changed" : "updated";
+        return (action, $"{string.Join("; ", parts)}.");
     }
 }

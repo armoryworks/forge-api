@@ -69,8 +69,13 @@ public class CreateJobInitialStageTests
         _production.Stages.Add(new JobStage { Name = "Quoted", Code = "quoted", SortOrder = 2 });
         _production.Stages.Add(new JobStage { Name = "Order Confirmed", Code = "order_confirmed", SortOrder = 3 });
         _production.Stages.Add(new JobStage { Name = "Materials Ordered", Code = "materials_ordered", SortOrder = 4 });
+        _production.Stages.Add(new JobStage { Name = "Shipped", Code = "shipped", SortOrder = 5, IsMandatory = true });
+        _production.Stages.Add(new JobStage { Name = "Invoiced/Sent", Code = "invoiced_sent", SortOrder = 6, IsMandatory = true });
+        _production.Stages.Add(new JobStage { Name = "Payment Received", Code = "payment_received", SortOrder = 7 });
         _other = new TrackType { Name = "Maintenance", Code = "maintenance", SortOrder = 2 };
         _other.Stages.Add(new JobStage { Name = "Requested", Code = "requested", SortOrder = 1 });
+        _other.Stages.Add(new JobStage { Name = "In Progress", Code = "in_progress", SortOrder = 2 });
+        _other.Stages.Add(new JobStage { Name = "Complete", Code = "complete", SortOrder = 3 });
         _db.TrackTypes.AddRange(_production, _other);
         await _db.SaveChangesAsync();
     }
@@ -133,6 +138,36 @@ public class CreateJobInitialStageTests
         (await act.Should().ThrowAsync<ValidationException>())
             .Which.Errors.Should().ContainSingle(e => e.PropertyName == nameof(CreateJobCommand.InitialStageId));
         _created.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("shipped")]
+    [InlineData("invoiced_sent")]
+    [InlineData("payment_received")]
+    public async Task A_status_at_or_past_the_first_required_status_is_rejected(string code)
+    {
+        await SeedTracksAsync();
+
+        var act = () => _handler.Handle(Command(StageId(_production, code)), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>())
+            .Which.Errors.Should().ContainSingle(e => e.PropertyName == nameof(CreateJobCommand.InitialStageId));
+        _created.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task The_final_status_is_rejected_on_an_order_type_without_required_statuses()
+    {
+        await SeedTracksAsync();
+        var command = Command(StageId(_other, "complete")) with { TrackTypeId = _other.Id };
+
+        var act = () => _handler.Handle(command, CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>())
+            .Which.Errors.Should().ContainSingle(e => e.PropertyName == nameof(CreateJobCommand.InitialStageId));
+
+        await _handler.Handle(Command(StageId(_other, "in_progress")) with { TrackTypeId = _other.Id }, CancellationToken.None);
+        _created!.CurrentStageId.Should().Be(StageId(_other, "in_progress"));
     }
 
     [Fact]

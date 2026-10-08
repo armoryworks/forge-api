@@ -154,4 +154,32 @@ public class UpdateTrackTypeHideStageTests
         rows[0].Description.Should().Be("Hid Quote Requested, Quoted.");
         rows[1].Description.Should().Be("Showed Quoted.");
     }
+
+    [Fact]
+    public async Task One_activity_row_rolls_up_a_rename_with_a_hidden_status()
+    {
+        await SeedAsync();
+
+        await _handler.Handle(Command("quoted") with { Name = "Made to order" }, CancellationToken.None);
+
+        var rows = await _db.ActivityLogs.AsNoTracking()
+            .Where(a => a.EntityType == "TrackType" && a.EntityId == _track.Id
+                && (a.Action == "updated" || a.Action == "stage-visibility-changed"))
+            .ToListAsync();
+        rows.Should().ContainSingle()
+            .Which.Description.Should().Be("Hid Quoted; Updated name.");
+    }
+
+    [Fact]
+    public async Task A_save_that_changes_nothing_writes_no_activity_row()
+    {
+        await SeedAsync();
+
+        await _handler.Handle(Command(), CancellationToken.None);
+
+        (await _db.ActivityLogs.AsNoTracking()
+            .CountAsync(a => a.EntityType == "TrackType" && a.EntityId == _track.Id
+                && (a.Action == "updated" || a.Action == "stage-visibility-changed")))
+            .Should().Be(0);
+    }
 }

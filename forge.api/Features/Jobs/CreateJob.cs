@@ -72,6 +72,8 @@ public class CreateJobHandler(
     private const string AllowManualJobNumbersKey = "jobs.allow_manual_numbers";
     private const string OrderConfirmedStageCode = "order_confirmed";
     private const string InitialStageNotOnTrackMessage = "Pick a visible status of this order type.";
+    private const string InitialStageTooLateMessage =
+        "A new work order can't start in a required or final status. Pick an earlier status.";
 
     public async Task<JobDetailResponseModel> Handle(CreateJobCommand request, CancellationToken cancellationToken)
     {
@@ -225,6 +227,12 @@ public class CreateJobHandler(
                 throw new ValidationException(
                     [new FluentValidation.Results.ValidationFailure(
                         nameof(CreateJobCommand.InitialStageId), InitialStageNotOnTrackMessage)]);
+
+            var activeStages = await trackRepo.GetStagesByTrackTypeAsync(request.TrackTypeId, ct);
+            if (!IsStartable(chosen, activeStages))
+                throw new ValidationException(
+                    [new FluentValidation.Results.ValidationFailure(
+                        nameof(CreateJobCommand.InitialStageId), InitialStageTooLateMessage)]);
             return chosen;
         }
 
@@ -240,6 +248,19 @@ public class CreateJobHandler(
 
         return await trackRepo.FindFirstActiveStageAsync(request.TrackTypeId, ct)
             ?? throw new KeyNotFoundException($"No active stages found for TrackType {request.TrackTypeId}.");
+    }
+
+    private static bool IsStartable(JobStage chosen, IReadOnlyCollection<JobStage> activeStages)
+    {
+        var ordered = activeStages.OrderBy(s => s.SortOrder).ToList();
+        if (ordered.Count == 0 || ordered[0].Id == chosen.Id)
+            return true;
+
+        var firstMandatory = ordered.FirstOrDefault(s => s.IsMandatory);
+        if (firstMandatory is not null && chosen.SortOrder >= firstMandatory.SortOrder)
+            return false;
+
+        return ordered[^1].Id != chosen.Id;
     }
 
     // Uses a caller-supplied job number when manual numbers are enabled and one
