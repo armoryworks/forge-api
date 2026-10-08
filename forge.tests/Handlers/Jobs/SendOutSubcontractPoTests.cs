@@ -6,10 +6,12 @@ using Moq;
 
 using Forge.Api.Features.Jobs;
 using Forge.Api.Features.PurchaseOrders;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Settings;
 using Forge.Data.Context;
 using Forge.Data.Repositories;
 using Forge.Tests.Helpers;
@@ -162,7 +164,7 @@ public class SendOutSubcontractPoTests : IDisposable
             CancellationToken.None);
         _clock.SetupGet(c => c.UtcNow).Returns(Now.AddDays(3));
 
-        var receiver = new ReceiveBackSubcontractHandler(_db, _clock.Object);
+        var receiver = new ReceiveBackSubcontractHandler(_db, new JobOperationService(_db, Mock.Of<ISettingsService>(), _clock.Object), _clock.Object);
         var result = await receiver.Handle(
             new ReceiveBackSubcontractCommand(sent.Id,
                 new ReceiveBackRequestModel(8m, null, PassedInspection: true, ScrapQuantity: 2m)),
@@ -187,7 +189,7 @@ public class SendOutSubcontractPoTests : IDisposable
             new SendOutSubcontractCommand(job.Id, operation.Id,
                 new SendOutRequestModel(10m, 0m, null, null, null)),
             CancellationToken.None);
-        var receiver = new ReceiveBackSubcontractHandler(_db, _clock.Object);
+        var receiver = new ReceiveBackSubcontractHandler(_db, new JobOperationService(_db, Mock.Of<ISettingsService>(), _clock.Object), _clock.Object);
         await receiver.Handle(
             new ReceiveBackSubcontractCommand(sent.Id, new ReceiveBackRequestModel(10m, null)),
             CancellationToken.None);

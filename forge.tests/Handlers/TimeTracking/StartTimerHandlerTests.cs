@@ -73,6 +73,24 @@ public class StartTimerHandlerTests
     }
 
     [Fact]
+    public async Task Handle_RefusedWhileATimerRuns_WritesNoRowAndLeavesTheRunningTimerOpen()
+    {
+        var userId = await SignInAsync();
+        var job = await _h.AddJobAsync("JOB-0011");
+        var running = await _h.AddRunningTimerAsync(userId, job.Id, _h.Now);
+
+        var act = () => _handler.Handle(
+            new StartTimerCommand(new StartTimerRequestModel(job.Id, null, null)), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        var rows = await _h.Db.TimeEntries.AsNoTracking().ToListAsync();
+        rows.Should().ContainSingle().Which.Id.Should().Be(running.Id);
+        rows[0].TimerStop.Should().BeNull();
+        (await _h.Db.ActivityLogs.AnyAsync(a => a.Action == "timer-started" || a.Action == "timer-stopped")).Should().BeFalse();
+        _h.Mediator.Verify(m => m.Send(It.IsAny<StopActiveTimerCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Handle_ActiveTimerWithoutJob_ThrowsAlreadyRunning()
     {
         var userId = await SignInAsync();

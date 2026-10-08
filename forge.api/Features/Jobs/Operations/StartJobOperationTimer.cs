@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Npgsql;
 
+using Forge.Api.Features.ShopFloor;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -93,7 +94,8 @@ public class StartJobOperationTimerHandler(
             JobOperationId = row.Id,
             EntryType = request.Data.EntryType,
             Category = "Production",
-            Date = DateOnly.FromDateTime(now.UtcDateTime),
+            Date = DateOnly.FromDateTime(ClockStateRules.LocalToday(
+                await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), now)),
             DurationMinutes = 0,
             TimerStart = now,
             IsManual = false,

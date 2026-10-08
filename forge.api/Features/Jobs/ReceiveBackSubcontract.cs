@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Jobs.Operations;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -27,7 +28,7 @@ public class ReceiveBackSubcontractValidator : AbstractValidator<ReceiveBackSubc
     }
 }
 
-public class ReceiveBackSubcontractHandler(AppDbContext db, IClock clock)
+public class ReceiveBackSubcontractHandler(AppDbContext db, IJobOperationService operations, IClock clock)
     : IRequestHandler<ReceiveBackSubcontractCommand, SubcontractOrderResponseModel>
 {
     public async Task<SubcontractOrderResponseModel> Handle(ReceiveBackSubcontractCommand request, CancellationToken ct)
@@ -42,8 +43,9 @@ public class ReceiveBackSubcontractHandler(AppDbContext db, IClock clock)
         if (order.ReceivedAt.HasValue || order.Status is SubcontractStatus.Complete or SubcontractStatus.Rejected)
             throw new InvalidOperationException("This subcontract order has already been received back.");
 
+        var now = clock.UtcNow;
         var previousStatus = order.Status;
-        order.ReceivedAt = clock.UtcNow;
+        order.ReceivedAt = now;
         order.ReceivedById = db.CurrentUserId;
         order.ReceivedQuantity = request.Data.ReceivedQuantity;
         order.ReturnTrackingNumber = request.Data.ReturnTrackingNumber?.Trim();
@@ -61,10 +63,21 @@ public class ReceiveBackSubcontractHandler(AppDbContext db, IClock clock)
             OldValue = previousStatus.ToString(),
             NewValue = order.Status.ToString(),
             OperationId = order.OperationId,
+            CreatedAt = now,
             Description = $"Received back {request.Data.ReceivedQuantity:0.####} good, {request.Data.ScrapQuantity:0.####} scrap from {order.Vendor.CompanyName} for Op {order.Operation.StepNumber} {order.Operation.Title}",
         });
 
-        await db.SaveChangesAsync(ct);
+        if (request.Data.PassedInspection)
+            await AdvanceOperationAsync(order, request.Data, now, ct);
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new InvalidOperationException(JobOperationRules.StaleMessage);
+        }
 
         var poNumber = order.PurchaseOrderId.HasValue
             ? await db.PurchaseOrders.Where(p => p.Id == order.PurchaseOrderId).Select(p => p.PONumber).FirstOrDefaultAsync(ct)
@@ -80,5 +93,48 @@ public class ReceiveBackSubcontractHandler(AppDbContext db, IClock clock)
             order.ReceivedQuantity, order.Status.ToString(),
             order.ShippingTrackingNumber, order.ReturnTrackingNumber, order.Notes,
             order.CreatedAt);
+    }
+
+    private async Task AdvanceOperationAsync(
+        SubcontractOrder order, ReceiveBackRequestModel data, DateTimeOffset now, CancellationToken ct)
+    {
+        var row = await db.JobOperations
+            .FirstOrDefaultAsync(r => r.JobId == order.JobId && r.OperationId == order.OperationId, ct);
+        if (row is null || JobOperationRules.IsClosed(row.Status))
+            return;
+
+        var jobQuantity = await operations.GetJobQuantityAsync(order.Job, ct);
+        var before = JobOperationRules.Describe(row, jobQuantity);
+
+        row.CompletedQuantity += data.ReceivedQuantity;
+        row.ScrapQuantity += data.ScrapQuantity;
+        row.StartedAt ??= now;
+
+        var reached = row.CompletedQuantity + row.ScrapQuantity >= jobQuantity;
+        if (reached)
+        {
+            row.Status = JobOperationStatus.Complete;
+            row.CompletedAt = now;
+            row.CompletedById = db.CurrentUserId;
+        }
+        else
+        {
+            row.Status = JobOperationStatus.InProgress;
+        }
+
+        var after = JobOperationRules.Describe(row, jobQuantity);
+        db.JobActivityLogs.Add(new JobActivityLog
+        {
+            JobId = order.JobId,
+            UserId = db.CurrentUserId,
+            Action = reached ? ActivityAction.OperationCompleted : ActivityAction.OperationProgress,
+            FieldName = "OperationStatus",
+            OldValue = before,
+            NewValue = after,
+            Description = $"Operation {order.Operation.StepNumber} {order.Operation.Title}: {before} → {after} (received back from {order.Vendor.CompanyName}).",
+            CreatedAt = now,
+            OperationId = order.OperationId,
+            WorkCenterId = order.Operation.WorkCenterId,
+        });
     }
 }

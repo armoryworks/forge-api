@@ -115,6 +115,33 @@ public class JobOperationTimerHandlerTests
     }
 
     [Fact]
+    public async Task Start_RefusedForAClosedStepOrJob_WritesNoTimeEntry()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(10m);
+        _h.Timers.Db.JobOperations.Add(new JobOperation
+        {
+            JobId = job.Id, OperationId = routing[0].Id, StepNumber = 10, Title = "Saw", Status = JobOperationStatus.Skipped,
+        });
+        await _h.Timers.Db.SaveChangesAsync();
+        var user = await _h.Timers.AddUserAsync();
+
+        var closedStep = () => StartAsync(user.Id, job.Id, routing[0].Id);
+        await closedStep.Should().ThrowAsync<InvalidOperationException>().WithMessage(JobOperationRules.ReopenFirstMessage);
+
+        job.IsArchived = true;
+        await _h.Timers.Db.SaveChangesAsync();
+        var closedJob = () => StartAsync(user.Id, job.Id, routing[1].Id);
+        await closedJob.Should().ThrowAsync<InvalidOperationException>().WithMessage("*closed*");
+
+        _h.TrackingEnabled = false;
+        var trackingOff = () => StartAsync(user.Id, job.Id, routing[2].Id);
+        await trackingOff.Should().ThrowAsync<InvalidOperationException>().WithMessage(JobOperationRules.TrackingOffMessage);
+
+        (await _h.Timers.Db.TimeEntries.AnyAsync()).Should().BeFalse();
+        (await _h.Timers.Db.ActivityLogs.AnyAsync(a => a.Action == "timer-started")).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Start_TrackingOff_IsRefusedButStopStillWorks()
     {
         var (job, routing) = await _h.AddJobWithRoutingAsync(10m);
