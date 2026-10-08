@@ -5,9 +5,9 @@ namespace Forge.Api.Services;
 
 public static class MakeOrBuy
 {
-    public static bool PlansAsMake(ProcurementSource source, bool hasRouting, bool hasVendorSource) =>
+    public static bool PlansAsMake(ProcurementSource source, bool hasRoutingOrBom, bool hasVendorSource) =>
         source == ProcurementSource.Make
-        || (source == ProcurementSource.Buy && hasRouting && !hasVendorSource);
+        || (source == ProcurementSource.Buy && hasRoutingOrBom && !hasVendorSource);
 
     public static bool HasTimeStandards(IEnumerable<Operation> routing) =>
         routing.Any(op => OperationTimeMath.PlannedMinutes(op, 1m) > 0m);

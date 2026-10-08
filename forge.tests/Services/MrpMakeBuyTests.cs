@@ -179,6 +179,26 @@ public class MrpMakeBuyTests
     }
 
     [Fact]
+    public async Task BuyPart_WithBomAndNoRoutingOrVendor_PlansManufacture_AndExplodesTheBom()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db, "MB-BUY-BOM-NOVENDOR", ProcurementSource.Buy);
+        var component = await SeedPartAsync(db, "MB-BUY-BOM-NOVENDOR-COMP", ProcurementSource.Buy);
+        db.BOMLines.Add(new BOMLine { ParentPartId = part.Id, ChildPartId = component.Id, Quantity = 2, SortOrder = 1 });
+        await db.SaveChangesAsync();
+        await SeedSoLineAsync(db, part.Id, 20, daysOut: 60);
+
+        var run = await Mrp(db).ExecuteRunAsync(new MrpRunOptions(PartIds: [part.Id, component.Id]));
+
+        var order = await PlannedOrderAsync(db, run, part.Id);
+        order.OrderType.Should().Be(MrpOrderType.Manufacture);
+        order.StartDate.Should().Be(order.DueDate.AddDays(-14));
+        var componentOrder = await PlannedOrderAsync(db, run, component.Id);
+        componentOrder.OrderType.Should().Be(MrpOrderType.Purchase);
+        componentOrder.Quantity.Should().Be(40m);
+    }
+
+    [Fact]
     public async Task SubcontractPart_WithBom_PlansPurchase()
     {
         using var db = TestDbContextFactory.Create();

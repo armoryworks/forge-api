@@ -107,8 +107,6 @@ public class BackwardSchedulingService(
                 b.Quantity,
                 b.SourceType,
                 b.LeadTimeDays,
-                b.ChildPart.ProcurementSource,
-                b.ChildPart.PreferredVendorId,
             })
             .ToListAsync(ct);
 
@@ -117,14 +115,29 @@ public class BackwardSchedulingService(
 
         var childPartIds = childEntries.Select(e => e.ChildPartId).Distinct().ToList();
 
+        var childParts = await db.Parts
+            .AsNoTracking()
+            .Where(p => childPartIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.ProcurementSource, p.PreferredVendorId })
+            .ToDictionaryAsync(p => p.Id, ct);
+
         var routingByChild = (await db.Operations
             .AsNoTracking()
             .Where(o => childPartIds.Contains(o.PartId))
+            .Select(o => new Operation
+            {
+                PartId = o.PartId,
+                SetupMinutes = o.SetupMinutes,
+                RunMinutesLot = o.RunMinutesLot,
+                RunMinutesEach = o.RunMinutesEach,
+                EstimatedMs = o.EstimatedMs,
+            })
             .ToListAsync(ct))
             .GroupBy(o => o.PartId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
         var vendorSourcedChildIds = (await db.VendorParts
+            .AsNoTracking()
             .Where(vp => childPartIds.Contains(vp.PartId))
             .Select(vp => vp.PartId)
             .Distinct()
@@ -132,12 +145,13 @@ public class BackwardSchedulingService(
             .ToHashSet();
 
         var makeChildIds = childEntries
-            .Where(e => routingByChild.TryGetValue(e.ChildPartId, out var routing)
+            .Where(e => childParts.TryGetValue(e.ChildPartId, out var child)
+                && routingByChild.TryGetValue(e.ChildPartId, out var routing)
                 && MakeOrBuy.HasTimeStandards(routing)
                 && MakeOrBuy.PlansAsMake(
-                    e.ProcurementSource,
-                    hasRouting: true,
-                    e.PreferredVendorId.HasValue || vendorSourcedChildIds.Contains(e.ChildPartId)))
+                    child.ProcurementSource,
+                    hasRoutingOrBom: true,
+                    child.PreferredVendorId.HasValue || vendorSourcedChildIds.Contains(e.ChildPartId)))
             .Select(e => e.ChildPartId)
             .ToHashSet();
 

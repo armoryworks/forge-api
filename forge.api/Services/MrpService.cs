@@ -317,6 +317,14 @@ public class MrpService(
             var routingByPart = (await db.Operations
                 .AsNoTracking()
                 .Where(o => allPartIds.Contains(o.PartId))
+                .Select(o => new Operation
+                {
+                    PartId = o.PartId,
+                    SetupMinutes = o.SetupMinutes,
+                    RunMinutesLot = o.RunMinutesLot,
+                    RunMinutesEach = o.RunMinutesEach,
+                    EstimatedMs = o.EstimatedMs,
+                })
                 .ToListAsync(cancellationToken))
                 .GroupBy(o => o.PartId)
                 .ToDictionary(g => g.Key, g => g.ToList());
@@ -971,7 +979,7 @@ public class MrpService(
         ProcurementSource? source, bool hasRouting, bool hasVendorSource, bool hasBom)
     {
         var makes = source is ProcurementSource known && known != ProcurementSource.Phantom
-            ? MakeOrBuy.PlansAsMake(known, hasRouting, hasVendorSource)
+            ? MakeOrBuy.PlansAsMake(known, hasRouting || hasBom, hasVendorSource)
             : hasBom;
         return makes ? MrpOrderType.Manufacture : MrpOrderType.Purchase;
     }
