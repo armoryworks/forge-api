@@ -12,6 +12,8 @@ public record GetJobStatusQuery(int JobId) : IRequest<JobStatusResponseModel>;
 /// <summary>
 /// The phone's job card: identity, where it is, where it goes next (and
 /// where it came from, for undo), and the last three timeline entries.
+/// Next and previous skip statuses hidden for the job's order type, so a
+/// scan never aims at a column the board doesn't show.
 /// The next status's accounting document is reported only when moving
 /// there will queue one: an external accounting provider is active and the
 /// job's customer is linked to it.
@@ -25,7 +27,7 @@ public class GetJobStatusHandler(
         var job = await mediator.Send(new GetJobByIdQuery(request.JobId), ct);
 
         var stages = await db.JobStages.AsNoTracking()
-            .Where(s => s.TrackTypeId == job.TrackTypeId)
+            .Where(s => s.TrackTypeId == job.TrackTypeId && (s.IsActive || s.Id == job.CurrentStageId))
             .OrderBy(s => s.SortOrder)
             .Select(s => new { s.Id, s.Name, s.IsShopFloor, s.IsIrreversible, s.AccountingDocumentType })
             .ToListAsync(ct);

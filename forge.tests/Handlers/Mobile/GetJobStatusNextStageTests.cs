@@ -92,6 +92,48 @@ public class GetJobStatusNextStageTests
         status.NextStageAccountingDocument.Should().BeNull();
     }
 
+    [Fact]
+    public async Task Skips_a_hidden_next_status_and_reports_the_next_visible_one()
+    {
+        var stages = await SeedTrackAsync();
+        await ConnectAccountingAsync("quickbooks", "QB-42");
+        stages[1].IsActive = false;
+        await _db.SaveChangesAsync();
+
+        var status = await StatusAtAsync(stages[0].Id, stages[0].TrackTypeId);
+
+        status.NextStageId.Should().Be(stages[2].Id);
+        status.NextStageName.Should().Be("Invoiced/Sent");
+        status.NextStageIsIrreversible.Should().BeTrue();
+        status.NextStageAccountingDocument.Should().Be(AccountingDocumentType.Invoice);
+    }
+
+    [Fact]
+    public async Task Skips_a_hidden_previous_status()
+    {
+        var stages = await SeedTrackAsync();
+        stages[1].IsActive = false;
+        await _db.SaveChangesAsync();
+
+        var status = await StatusAtAsync(stages[2].Id, stages[2].TrackTypeId);
+
+        status.PreviousStageId.Should().Be(stages[0].Id);
+        status.PreviousStageName.Should().Be("QC/Review");
+    }
+
+    [Fact]
+    public async Task A_job_sitting_in_a_hidden_status_still_gets_its_neighbours()
+    {
+        var stages = await SeedTrackAsync();
+        stages[1].IsActive = false;
+        await _db.SaveChangesAsync();
+
+        var status = await StatusAtAsync(stages[1].Id, stages[1].TrackTypeId);
+
+        status.PreviousStageId.Should().Be(stages[0].Id);
+        status.NextStageId.Should().Be(stages[2].Id);
+    }
+
     [Theory]
     [InlineData("local", "QB-42")]
     [InlineData("quickbooks", null)]
