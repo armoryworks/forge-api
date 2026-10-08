@@ -12,6 +12,7 @@ using Forge.Api.Features.Jobs;
 using Forge.Api.Features.Mobile;
 using Forge.Api.Features.Quality;
 using Forge.Api.Features.Scanner;
+using Forge.Api.Features.Shipments;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -111,6 +112,39 @@ public class NcrLotHoldTests : IDisposable
         => (await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == binContentId)).Status;
 
     private static string HoldMessage(NcrResponseModel ncr) => $"Lot {HeldLot} is on quality hold (NCR {ncr.NcrNumber}).";
+
+    private async Task<Shipment> ShipmentAsync(Part part, decimal quantity, string number)
+    {
+        var customer = new Customer { Name = $"Design partner {number}" };
+        _db.Customers.Add(customer);
+        await _db.SaveChangesAsync();
+        var order = new SalesOrder
+        {
+            OrderNumber = $"SO-{number}",
+            CustomerId = customer.Id,
+            Status = SalesOrderStatus.Confirmed,
+            Lines = [new SalesOrderLine { PartId = part.Id, Description = part.Name, Quantity = quantity, UnitPrice = 10, LineNumber = 1 }],
+        };
+        _db.SalesOrders.Add(order);
+        await _db.SaveChangesAsync();
+        var shipment = new Shipment
+        {
+            ShipmentNumber = $"SH-{number}",
+            SalesOrderId = order.Id,
+            Status = ShipmentStatus.Pending,
+            Lines = [new ShipmentLine { SalesOrderLineId = order.Lines.First().Id, Quantity = quantity }],
+        };
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+        return shipment;
+    }
+
+    private ShipShipmentHandler ShipHandler() => new(
+        new ShipmentRepository(_db),
+        new InventoryReliefService(_db, NullLogger<InventoryReliefService>.Instance),
+        _accessor,
+        NullLogger<ShipShipmentHandler>.Instance,
+        _db);
 
     private async Task<Job> JobAsync()
     {
@@ -369,39 +403,78 @@ public class NcrLotHoldTests : IDisposable
         await SeedAsync();
         var held = await StockAsync(_binA, HeldLot, 10, daysAgo: 5);
         var ncr = await RaiseNcrAsync();
-        var customer = new Customer { Name = "Design partner" };
-        _db.Customers.Add(customer);
-        await _db.SaveChangesAsync();
-        var order = new SalesOrder
-        {
-            OrderNumber = "SO-900",
-            CustomerId = customer.Id,
-            Status = SalesOrderStatus.Confirmed,
-            Lines = [new SalesOrderLine { PartId = _part.Id, Description = "Bracket", Quantity = 5, UnitPrice = 10, LineNumber = 1 }],
-        };
-        _db.SalesOrders.Add(order);
-        await _db.SaveChangesAsync();
-        var shipment = new Shipment
-        {
-            ShipmentNumber = "SH-900",
-            SalesOrderId = order.Id,
-            Status = ShipmentStatus.Pending,
-            Lines = [new ShipmentLine { SalesOrderLineId = order.Lines.First().Id, Quantity = 5 }],
-        };
-        _db.Shipments.Add(shipment);
-        await _db.SaveChangesAsync();
+        var shipment = await ShipmentAsync(_part, 5, "900");
         var relief = new InventoryReliefService(_db, NullLogger<InventoryReliefService>.Instance);
         async Task<Shipment> Loaded() => await _db.Shipments
             .Include(s => s.Lines).ThenInclude(l => l.SalesOrderLine)
             .SingleAsync(s => s.Id == shipment.Id);
 
         var refused = async () => await relief.RelieveShipmentAsync(await Loaded(), UserId, CancellationToken.None);
-        await refused.Should().ThrowAsync<InvalidOperationException>().WithMessage(HoldMessage(ncr));
+        await refused.Should().ThrowAsync<QualityHoldException>().WithMessage(HoldMessage(ncr));
 
         var other = await StockAsync(_binB, OtherLot, 6, daysAgo: 1);
         await relief.RelieveShipmentAsync(await Loaded(), UserId, CancellationToken.None);
 
         (await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == held.Id)).Quantity.Should().Be(10);
         (await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == other.Id)).Quantity.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ShipShipment_OfOnlyHeldStock_IsRefusedAndStaysPending()
+    {
+        await SeedAsync();
+        var held = await StockAsync(_binA, HeldLot, 10);
+        var ncr = await RaiseNcrAsync();
+        var shipment = await ShipmentAsync(_part, 5, "910");
+
+        var act = () => ShipHandler().Handle(new ShipShipmentCommand(shipment.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<QualityHoldException>().WithMessage(HoldMessage(ncr));
+        (await _db.Shipments.AsNoTracking().SingleAsync(s => s.Id == shipment.Id)).Status
+            .Should().Be(ShipmentStatus.Pending);
+        (await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == held.Id)).Quantity.Should().Be(10);
+    }
+
+    [Fact]
+    public async Task ShipShipment_WithAPlainShortfall_StillShipsAsABackorder()
+    {
+        await SeedAsync();
+        await StockAsync(_binA, OtherLot, 2);
+        var shipment = await ShipmentAsync(_part, 5, "920");
+
+        await ShipHandler().Handle(new ShipShipmentCommand(shipment.Id), CancellationToken.None);
+
+        (await _db.Shipments.AsNoTracking().SingleAsync(s => s.Id == shipment.Id)).Status
+            .Should().Be(ShipmentStatus.Shipped);
+    }
+
+    [Fact]
+    public async Task UseStock_ReportsTheShortfall_WhenHeldStockCouldNotCoverItEither()
+    {
+        await SeedAsync();
+        await StockAsync(_binA, HeldLot, 3, daysAgo: 5);
+        await StockAsync(_binA, OtherLot, 4, daysAgo: 1);
+        await RaiseNcrAsync();
+        var handler = new UseStockHandler(new InventoryRepository(_db), _accessor, _clock);
+
+        var act = () => handler.Handle(
+            new UseStockCommand(new UseStockRequestModel(_part.Id, _binA.Id, 20, null, null)), CancellationToken.None);
+
+        var thrown = await act.Should().ThrowAsync<InvalidOperationException>();
+        thrown.Which.Should().NotBeOfType<QualityHoldException>();
+        thrown.Which.Message.Should().StartWith("Cannot use 20: only 4 available");
+    }
+
+    [Fact]
+    public async Task Create_WhenOnlyEmptyRowsMatch_StillSavesTheHold()
+    {
+        await SeedAsync();
+        var empty = await StockAsync(_binA, HeldLot, 0);
+
+        var ncr = await RaiseNcrAsync();
+
+        (await StatusOf(empty.Id)).Should().Be(BinContentStatus.QcHold);
+        (await _db.ActivityLogs.AsNoTracking()
+            .AnyAsync(a => a.Action == "quality-hold-placed" && a.EntityId == ncr.Id)).Should().BeTrue();
     }
 }

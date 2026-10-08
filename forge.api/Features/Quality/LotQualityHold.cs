@@ -22,18 +22,18 @@ public static class LotQualityHold
         _ => $"Lot {lotNumber} is on quality hold (NCR {ncrNumber}).",
     };
 
-    public static async Task<InvalidOperationException> RefusalAsync(
+    public static async Task<QualityHoldException> RefusalAsync(
         AppDbContext db, int partId, string? lotNumber, CancellationToken ct)
         => new(Message(lotNumber, await db.FindQualityHoldNcrNumberAsync(partId, lotNumber, ct)));
 
-    public static async Task<decimal> PlaceAsync(AppDbContext db, NonConformance ncr, CancellationToken ct)
+    public static async Task<bool> PlaceAsync(AppDbContext db, NonConformance ncr, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(ncr.LotNumber))
-            return 0;
+            return false;
 
         var rows = await LotRows(db, ncr, BinContentStatus.Stored).ToListAsync(ct);
         if (rows.Count == 0)
-            return 0;
+            return false;
 
         foreach (var row in rows)
             row.Status = BinContentStatus.QcHold;
@@ -41,7 +41,7 @@ public static class LotQualityHold
         var quantity = rows.Sum(r => r.Quantity);
         await LogAsync(db, ncr, "quality-hold-placed",
             $"Lot {ncr.LotNumber} put on quality hold: {quantity:0.####} held by {ncr.NcrNumber}", ct);
-        return quantity;
+        return true;
     }
 
     public static async Task<decimal> ReleaseAsync(AppDbContext db, NonConformance ncr, CancellationToken ct)

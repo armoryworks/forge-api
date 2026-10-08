@@ -40,7 +40,7 @@ public class TransferStockHandler(
             ?? throw new KeyNotFoundException($"Bin content {data.SourceBinContentId} not found");
 
         if (source.Status == BinContentStatus.QcHold)
-            throw new InvalidOperationException(LotQualityHold.Message(source.LotNumber,
+            throw new QualityHoldException(LotQualityHold.Message(source.LotNumber,
                 await repo.FindQualityHoldNcrNumberAsync(source.EntityId, source.LotNumber, cancellationToken)));
 
         if (source.Quantity < data.Quantity)

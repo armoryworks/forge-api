@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Quality;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -80,7 +81,7 @@ public class ShipShipmentHandler(
             {
                 await relief.RelieveShipmentAsync(shipment, userId, cancellationToken);
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidOperationException ex) when (ex is not QualityHoldException)
             {
                 logger?.LogWarning(ex,
                     "Inventory relief shortfall shipping shipment {ShipmentId}; shipping anyway (backorder).",

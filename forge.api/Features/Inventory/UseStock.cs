@@ -69,15 +69,16 @@ public class UseStockHandler(
                 "No stock of this part is on hand to use. Receive stock before using it.");
 
         var rows = allRows.Where(r => r.Status != BinContentStatus.QcHold).ToList();
-        var held = allRows.FirstOrDefault(r => r.Status == BinContentStatus.QcHold && r.Quantity > 0);
+        var heldRows = allRows.Where(r => r.Status == BinContentStatus.QcHold && r.Quantity > 0).ToList();
 
         // S-RI1: reserved units are spoken for, so only the free balance can be used.
         var onHand = rows.Sum(r => r.Quantity);
         var reserved = rows.Sum(r => r.ReservedQuantity);
         var available = onHand - reserved;
-        if (data.Quantity > available && held is not null)
-            throw new InvalidOperationException(LotQualityHold.Message(held.LotNumber,
-                await repo.FindQualityHoldNcrNumberAsync(data.PartId, held.LotNumber, cancellationToken)));
+        if (data.Quantity > available && heldRows.Count > 0
+            && available + heldRows.Sum(r => r.Quantity) >= data.Quantity)
+            throw new QualityHoldException(LotQualityHold.Message(heldRows[0].LotNumber,
+                await repo.FindQualityHoldNcrNumberAsync(data.PartId, heldRows[0].LotNumber, cancellationToken)));
         if (data.Quantity > available)
             throw new InvalidOperationException(
                 $"Cannot use {data.Quantity}: only {available} available " +

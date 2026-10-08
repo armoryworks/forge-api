@@ -39,9 +39,10 @@ public static class ScanBinStock
     {
         var rows = await ActiveRowsAsync(db, partId, locationId, ct);
         var drawable = rows.Where(bc => bc.Status != BinContentStatus.QcHold).ToList();
-        var held = rows.FirstOrDefault(bc => bc.Status == BinContentStatus.QcHold && bc.Quantity > 0);
-        if (held is not null && drawable.Sum(bc => bc.Quantity - bc.ReservedQuantity) < quantity)
-            throw await LotQualityHold.RefusalAsync(db, partId, held.LotNumber, ct);
+        var held = rows.Where(bc => bc.Status == BinContentStatus.QcHold && bc.Quantity > 0).ToList();
+        var free = drawable.Sum(bc => bc.Quantity - bc.ReservedQuantity);
+        if (held.Count > 0 && free < quantity && free + held.Sum(bc => bc.Quantity) >= quantity)
+            throw await LotQualityHold.RefusalAsync(db, partId, held[0].LotNumber, ct);
         return drawable;
     }
 

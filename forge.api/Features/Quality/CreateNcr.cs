@@ -77,11 +77,19 @@ public class CreateNcrHandler(
             ncr.ContainmentAt = clock.UtcNow;
         }
 
-        db.NonConformances.Add(ncr);
-        await db.SaveChangesAsync(cancellationToken);
-
-        if (await LotQualityHold.PlaceAsync(db, ncr, cancellationToken) > 0)
+        await using (var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null)
+        {
+            db.NonConformances.Add(ncr);
             await db.SaveChangesAsync(cancellationToken);
+
+            if (await LotQualityHold.PlaceAsync(db, ncr, cancellationToken))
+                await db.SaveChangesAsync(cancellationToken);
+
+            if (tx is not null)
+                await tx.CommitAsync(cancellationToken);
+        }
 
         var userName = await db.Users
             .Where(u => u.Id == userId)

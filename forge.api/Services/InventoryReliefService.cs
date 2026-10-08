@@ -82,9 +82,9 @@ public class InventoryReliefService(AppDbContext db, ILogger<InventoryReliefServ
                           && bc.RemovedAt == null
                           && bc.Quantity > 0)
                 .OrderBy(bc => bc.PlacedAt)
-                .FirstOrDefaultAsync(ct);
-            if (held is not null)
-                throw await LotQualityHold.RefusalAsync(db, partId, held.LotNumber, ct);
+                .ToListAsync(ct);
+            if (held.Count > 0 && totalAvailable + held.Sum(bc => bc.Quantity) >= remaining)
+                throw await LotQualityHold.RefusalAsync(db, partId, held[0].LotNumber, ct);
         }
 
         if (totalAvailable < remaining)
