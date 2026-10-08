@@ -62,6 +62,15 @@ public class MrpMakeBuyTests
         await db.SaveChangesAsync();
     }
 
+    private static async Task SeedUntimedRoutingAsync(AppDbContext db, int partId)
+    {
+        for (var step = 1; step <= 3; step++)
+        {
+            db.Operations.Add(new Operation { PartId = partId, StepNumber = step * 10, Title = $"Step {step}" });
+        }
+        await db.SaveChangesAsync();
+    }
+
     private static async Task SeedPreferredVendorAsync(AppDbContext db, int partId, int leadTimeDays)
     {
         var vendor = new Vendor { CompanyName = $"Vendor {partId}" };
@@ -230,6 +239,87 @@ public class MrpMakeBuyTests
             });
         await db.SaveChangesAsync();
         var line = await SeedSoLineAsync(db, parent.Id, 250, daysOut: 90);
+
+        var service = new BackwardSchedulingService(db, Clock(), new PartSourcingResolver(db));
+        var schedule = await service.CalculateSchedule(line.Id, CancellationToken.None);
+
+        (schedule.MaterialsNeededBy - schedule.PoOrderBy).TotalDays.Should().Be(NineStepMakeDaysAt500);
+    }
+
+    [Fact]
+    public async Task MakePart_WithUntimedRouting_KeepsTheFourteenDayFallback()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db, "MB-MAKE-UNTIMED", ProcurementSource.Make);
+        await SeedUntimedRoutingAsync(db, part.Id);
+        await SeedSoLineAsync(db, part.Id, 500, daysOut: 60);
+
+        var run = await Mrp(db).ExecuteRunAsync(new MrpRunOptions(PartIds: [part.Id]));
+
+        var order = await PlannedOrderAsync(db, run, part.Id);
+        order.OrderType.Should().Be(MrpOrderType.Manufacture);
+        order.StartDate.Should().Be(order.DueDate.AddDays(-14));
+    }
+
+    [Fact]
+    public async Task MakePart_WithUntimedRoutingAndVendor_KeepsTheVendorLeadTime()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = await SeedPartAsync(db, "MB-MAKE-UNTIMED-VND", ProcurementSource.Make);
+        await SeedUntimedRoutingAsync(db, part.Id);
+        await SeedPreferredVendorAsync(db, part.Id, leadTimeDays: 10);
+        await SeedSoLineAsync(db, part.Id, 500, daysOut: 60);
+
+        var run = await Mrp(db).ExecuteRunAsync(new MrpRunOptions(PartIds: [part.Id]));
+
+        var order = await PlannedOrderAsync(db, run, part.Id);
+        order.OrderType.Should().Be(MrpOrderType.Manufacture);
+        order.StartDate.Should().Be(order.DueDate.AddDays(-10));
+    }
+
+    [Fact]
+    public async Task BackwardSchedule_MakeChildWithUntimedRouting_KeepsTheDefaultLeadTime()
+    {
+        using var db = TestDbContextFactory.Create();
+        var parent = await SeedPartAsync(db, "MB-BS-UT-PARENT", ProcurementSource.Make);
+        var madeChild = await SeedPartAsync(db, "MB-BS-UT-MADE", ProcurementSource.Make);
+        await SeedUntimedRoutingAsync(db, madeChild.Id);
+        db.BOMLines.Add(new BOMLine
+        {
+            ParentPartId = parent.Id,
+            ChildPartId = madeChild.Id,
+            Quantity = 1,
+            SourceType = BOMSourceType.Make,
+            SortOrder = 1,
+        });
+        await db.SaveChangesAsync();
+        var line = await SeedSoLineAsync(db, parent.Id, 250, daysOut: 90);
+
+        var service = new BackwardSchedulingService(db, Clock(), new PartSourcingResolver(db));
+        var schedule = await service.CalculateSchedule(line.Id, CancellationToken.None);
+
+        (schedule.MaterialsNeededBy - schedule.PoOrderBy).TotalDays.Should().Be(7);
+    }
+
+    [Fact]
+    public async Task BackwardSchedule_MakeChild_PlansTheRemainingQuantity()
+    {
+        using var db = TestDbContextFactory.Create();
+        var parent = await SeedPartAsync(db, "MB-BS-REM-PARENT", ProcurementSource.Make);
+        var madeChild = await SeedPartAsync(db, "MB-BS-REM-MADE", ProcurementSource.Make);
+        await SeedNineStepRoutingAsync(db, madeChild.Id);
+        db.BOMLines.Add(new BOMLine
+        {
+            ParentPartId = parent.Id,
+            ChildPartId = madeChild.Id,
+            Quantity = 1,
+            SourceType = BOMSourceType.Make,
+            SortOrder = 1,
+        });
+        await db.SaveChangesAsync();
+        var line = await SeedSoLineAsync(db, parent.Id, 1000, daysOut: 90);
+        line.ShippedQuantity = 500;
+        await db.SaveChangesAsync();
 
         var service = new BackwardSchedulingService(db, Clock(), new PartSourcingResolver(db));
         var schedule = await service.CalculateSchedule(line.Id, CancellationToken.None);

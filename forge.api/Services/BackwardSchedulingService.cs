@@ -38,7 +38,8 @@ public class BackwardSchedulingService(
         var productionStartBy = productionCompleteBy.AddDays(-productionDays);
         var materialsNeededBy = productionStartBy;
 
-        var maxLeadTimeDays = await CalculateMaxLeadTimeDaysAsync(soLine.PartId, soLine.Quantity, ct);
+        var maxLeadTimeDays = await CalculateMaxLeadTimeDaysAsync(
+            soLine.PartId, soLine.RemainingQuantity > 0m ? soLine.RemainingQuantity : soLine.Quantity, ct);
         var poOrderBy = materialsNeededBy.AddDays(-maxLeadTimeDays);
 
         return new BackwardSchedule(
@@ -131,7 +132,8 @@ public class BackwardSchedulingService(
             .ToHashSet();
 
         var makeChildIds = childEntries
-            .Where(e => routingByChild.ContainsKey(e.ChildPartId)
+            .Where(e => routingByChild.TryGetValue(e.ChildPartId, out var routing)
+                && MakeOrBuy.HasTimeStandards(routing)
                 && MakeOrBuy.PlansAsMake(
                     e.ProcurementSource,
                     hasRouting: true,

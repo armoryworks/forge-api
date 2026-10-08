@@ -384,11 +384,12 @@ public class MrpService(
 
                     var part = allParts.GetValueOrDefault(partId);
                     // Purchase lead time comes from the preferred VendorPart row, make lead time
-                    // from the routing; default 14 days when the part has neither.
+                    // from a routing with time standards; default 14 days when the part has neither.
                     var resolvedLeadTime = sourcingByPart.TryGetValue(partId, out var sv)
                         ? sv.LeadTimeDays
                         : null;
                     var routing = routingByPart.GetValueOrDefault(partId);
+                    var timedRouting = routing is not null && MakeOrBuy.HasTimeStandards(routing) ? routing : null;
                     var orderType = PlannedOrderType(
                         part?.ProcurementSource,
                         routing is not null,
@@ -451,8 +452,8 @@ public class MrpService(
                                 part?.MinimumOrderQuantity,
                                 part?.OrderMultiple);
 
-                            var leadTime = orderType == MrpOrderType.Manufacture && routing is not null
-                                ? OperationTimeMath.MakeLeadTimeDays(routing, orderQty)
+                            var leadTime = orderType == MrpOrderType.Manufacture && timedRouting is not null
+                                ? OperationTimeMath.MakeLeadTimeDays(timedRouting, orderQty)
                                 : resolvedLeadTime ?? 14;
 
                             // Lead-time offset
