@@ -108,6 +108,10 @@ public class NcrLotHoldTests : IDisposable
     private Task CloseAsync(int ncrId)
         => new CloseNcrHandler(_db).Handle(new CloseNcrCommand(ncrId, new CloseNcrRequestModel()), CancellationToken.None);
 
+    private Task ReopenAsync(int ncrId)
+        => new ReopenNcrHandler(_db).Handle(
+            new ReopenNcrCommand(ncrId, new ReopenNcrRequestModel { Reason = "Scrap tag missing" }), CancellationToken.None);
+
     private async Task<BinContentStatus> StatusOf(int binContentId)
         => (await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == binContentId)).Status;
 
@@ -223,6 +227,44 @@ public class NcrLotHoldTests : IDisposable
         (await StatusOf(row.Id)).Should().Be(BinContentStatus.QcHold);
 
         await CloseAsync(ncr.Id);
+        (await StatusOf(row.Id)).Should().Be(BinContentStatus.Stored);
+    }
+
+    [Fact]
+    public async Task Reopen_AfterCloseReleasedTheHold_PutsTheLotBackOnHold()
+    {
+        await SeedAsync();
+        var row = await StockAsync(_binA, HeldLot, 10);
+        var ncr = await RaiseNcrAsync();
+        await DispositionAsync(ncr.Id, NcrDispositionCode.Scrap);
+        await CloseAsync(ncr.Id);
+        (await StatusOf(row.Id)).Should().Be(BinContentStatus.Stored);
+
+        await ReopenAsync(ncr.Id);
+
+        (await StatusOf(row.Id)).Should().Be(BinContentStatus.QcHold);
+        var logs = await _db.ActivityLogs.AsNoTracking().Where(a => a.Action == "quality-hold-placed").ToListAsync();
+        logs.Select(a => (a.EntityType, a.EntityId)).Should().BeEquivalentTo(new[]
+        {
+            ("NonConformance", ncr.Id), ("Lot", _heldLotRecord.Id),
+            ("NonConformance", ncr.Id), ("Lot", _heldLotRecord.Id),
+        });
+        var transfer = () => new TransferStockHandler(new InventoryRepository(_db), _accessor, _clock).Handle(
+            new TransferStockCommand(new TransferStockRequestModel(row.Id, _binB.Id, 1, null)), CancellationToken.None);
+        await transfer.Should().ThrowAsync<InvalidOperationException>().WithMessage(HoldMessage(ncr));
+    }
+
+    [Fact]
+    public async Task Reopen_OfAUseAsIsNcr_LeavesTheLotReleased()
+    {
+        await SeedAsync();
+        var row = await StockAsync(_binA, HeldLot, 10);
+        var ncr = await RaiseNcrAsync();
+        await DispositionAsync(ncr.Id, NcrDispositionCode.UseAsIs);
+        await CloseAsync(ncr.Id);
+
+        await ReopenAsync(ncr.Id);
+
         (await StatusOf(row.Id)).Should().Be(BinContentStatus.Stored);
     }
 

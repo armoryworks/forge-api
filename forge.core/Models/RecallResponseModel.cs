@@ -12,6 +12,7 @@ public record RecallResponseModel(
     RecallStatus Status,
     int AffectedLotsCount,
     int AffectedShipmentsCount,
+    int AffectedCustomersCount,
     decimal TotalQuarantinedQuantity,
     DateTimeOffset? ResolvedAt,
     DateTimeOffset CreatedAt);

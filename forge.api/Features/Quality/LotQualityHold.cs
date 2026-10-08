@@ -10,7 +10,8 @@ namespace Forge.Api.Features.Quality;
 /// <summary>
 /// The lot quality hold an NCR places on stock. Raising an NCR on a part and lot moves that lot's Stored part
 /// contents to QcHold; a Use As Is or Rework disposition, or closing the NCR, moves them back to Stored unless
-/// another NCR still holds the lot or an active recall covers it. Stock-out paths refuse held stock with
+/// another NCR still holds the lot or an active recall covers it. Reopening a closed NCR whose disposition kept
+/// the hold places it again. Stock-out paths refuse held stock with
 /// <see cref="Message"/>. Every hold and release is logged on the NCR and, when a lot record exists, the lot.
 /// </summary>
 public static class LotQualityHold

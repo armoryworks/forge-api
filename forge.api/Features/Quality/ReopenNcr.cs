@@ -41,6 +41,9 @@ public class ReopenNcrHandler(AppDbContext db) : IRequestHandler<ReopenNcrComman
             $"Reopened {ncr.NcrNumber}: {command.Request.Reason.Trim()}",
             ("NonConformance", ncr.Id));
 
+        if (ncr.DispositionCode is not (NcrDispositionCode.UseAsIs or NcrDispositionCode.Rework))
+            await LotQualityHold.PlaceAsync(db, ncr, cancellationToken);
+
         await db.SaveChangesAsync(cancellationToken);
     }
 }

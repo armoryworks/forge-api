@@ -68,11 +68,15 @@ public sealed class InitiateRecallHandlerTests(PostgresFixture fixture)
 
     private static async Task<ShippedLine> SeedShipmentAsync(AppDbContext db, string customerName, decimal qty)
     {
-        var suffix = Guid.NewGuid().ToString("N")[..8];
         var customer = new Customer { Name = customerName };
         db.Customers.Add(customer);
         await db.SaveChangesAsync();
+        return await SeedShipmentAsync(db, customer, qty);
+    }
 
+    private static async Task<ShippedLine> SeedShipmentAsync(AppDbContext db, Customer customer, decimal qty)
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
         var so = new SalesOrder { CustomerId = customer.Id, OrderNumber = $"SO-{suffix}" };
         db.SalesOrders.Add(so);
         await db.SaveChangesAsync();
@@ -267,6 +271,27 @@ public sealed class InitiateRecallHandlerTests(PostgresFixture fixture)
         result.AffectedShipments.Select(s => (s.CustomerName, s.AffectedQuantity))
             .Should().BeEquivalentTo(new[] { ("Stock Buyer One", 8m), ("Stock Buyer Two", 3m) });
         result.AffectedShipments.Should().OnlyContain(s => !s.IsApproximate);
+    }
+
+    [Fact]
+    public async Task Recall_list_counts_each_affected_customer_once()
+    {
+        await using var db = fixture.CreateContext();
+        var part = await SeedPartAsync(db);
+        var lot = await SeedLotAsync(db, part.Id, 30);
+        var first = await SeedShipmentAsync(db, "Repeat Buyer", 4);
+        var second = await SeedShipmentAsync(db, first.Customer, 3);
+        var third = await SeedShipmentAsync(db, "One Time Buyer", 2);
+        await ShipAsync(db, first.Line, lot.LotNumber, 4);
+        await ShipAsync(db, second.Line, lot.LotNumber, 3);
+        await ShipAsync(db, third.Line, lot.LotNumber, 2);
+        var initiated = await new InitiateRecallHandler(db, Http()).Handle(Recall(lot.Id), CancellationToken.None);
+
+        var recalls = await new GetRecallsHandler(db).Handle(new GetRecallsQuery(null), CancellationToken.None);
+
+        var row = recalls.Should().ContainSingle(r => r.Id == initiated.Id).Subject;
+        row.AffectedShipmentsCount.Should().Be(3);
+        row.AffectedCustomersCount.Should().Be(2);
     }
 
     [Fact]

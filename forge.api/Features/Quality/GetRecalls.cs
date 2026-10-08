@@ -28,6 +28,7 @@ public class GetRecallsHandler(AppDbContext db) : IRequestHandler<GetRecallsQuer
                 r.Status,
                 r.AffectedLotsCount,
                 r.AffectedShipmentsCount,
+                r.AffectedShipments.Select(s => s.CustomerId).Distinct().Count(),
                 r.TotalQuarantinedQuantity,
                 r.ResolvedAt,
                 r.CreatedAt))
