@@ -282,7 +282,9 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
                             b.Quantity, b.ReservedQuantity, b.Quantity - b.ReservedQuantity,
                             b.Status, b.LotNumber,
                             lot?.Id, lot?.ExpirationDate, lot?.SupplierLotNumber);
-                    }).ToList());
+                    }).ToList(),
+                    p.MinStockThreshold,
+                    p.ReorderPoint);
             }).ToList();
     }
 

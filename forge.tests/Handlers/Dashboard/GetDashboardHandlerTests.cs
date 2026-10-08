@@ -12,6 +12,12 @@ namespace Forge.Tests.Handlers.Dashboard;
 public class GetDashboardHandlerTests
 {
     private readonly Mock<IDashboardRepository> _repo = new();
+    private readonly Mock<IClock> _clock = new();
+
+    public GetDashboardHandlerTests()
+    {
+        _clock.Setup(c => c.UtcNow).Returns(DateTimeOffset.UtcNow);
+    }
 
     [Fact]
     public async Task Handle_NoProductionTrack_ReturnsEmptyDashboard()
@@ -21,7 +27,7 @@ public class GetDashboardHandlerTests
         _repo.Setup(r => r.GetDashboardDataAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DashboardDataSet(null, [], new Dictionary<int, ApplicationUserInfo>(), []));
 
-        var handler = new GetDashboardHandler(_repo.Object, db);
+        var handler = new GetDashboardHandler(_repo.Object, db, _clock.Object);
         var query = new GetDashboardQuery();
 
         // Act
@@ -62,7 +68,7 @@ public class GetDashboardHandlerTests
         _repo.Setup(r => r.GetDashboardDataAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DashboardDataSet(trackType, jobs, new Dictionary<int, ApplicationUserInfo>(), []));
 
-        var handler = new GetDashboardHandler(_repo.Object, db);
+        var handler = new GetDashboardHandler(_repo.Object, db, _clock.Object);
 
         // Act
         var result = await handler.Handle(new GetDashboardQuery(), CancellationToken.None);
@@ -99,7 +105,7 @@ public class GetDashboardHandlerTests
         _repo.Setup(r => r.GetDashboardDataAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DashboardDataSet(trackType, jobs, users, []));
 
-        var handler = new GetDashboardHandler(_repo.Object, db);
+        var handler = new GetDashboardHandler(_repo.Object, db, _clock.Object);
 
         // Act
         var result = await handler.Handle(new GetDashboardQuery(), CancellationToken.None);
@@ -108,6 +114,40 @@ public class GetDashboardHandlerTests
         result.Team.Should().HaveCount(2);
         result.Team.First().TaskCount.Should().Be(2);
         result.Team.First().Initials.Should().Be("DH");
+    }
+
+    [Fact]
+    public async Task Handle_ActivityNamesTheFullActorAndTheJobNumber()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        var stage = new JobStage { Id = 1, Name = "Active", Code = "ACT", SortOrder = 1, Color = "#3b82f6", IsActive = true };
+        var trackType = new TrackType { Id = 1, Name = "Production", Code = "PROD", IsDefault = true, Stages = [stage] };
+        var job = new Job { Id = 1, Title = "Job A", JobNumber = "JOB-0042", CurrentStage = stage, CurrentStageId = 1, TrackTypeId = 1 };
+
+        var users = new Dictionary<int, ApplicationUserInfo>
+        {
+            [10] = new(10, "JD", "Jane", "Doe", "#ef4444"),
+        };
+
+        var activity = new List<JobActivityLog>
+        {
+            new() { Id = 1, JobId = 1, Job = job, UserId = 10, Action = ActivityAction.StageMoved, Description = "moved the job to Active", CreatedAt = DateTimeOffset.UtcNow },
+            new() { Id = 2, JobId = 1, Job = job, UserId = null, Action = ActivityAction.Created, Description = "created the job", CreatedAt = DateTimeOffset.UtcNow },
+        };
+
+        _repo.Setup(r => r.GetDashboardDataAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DashboardDataSet(trackType, [job], users, activity));
+
+        var handler = new GetDashboardHandler(_repo.Object, db, _clock.Object);
+
+        var result = await handler.Handle(new GetDashboardQuery(), CancellationToken.None);
+
+        result.Activity.Should().HaveCount(2);
+        result.Activity[0].ActorName.Should().Be("Jane Doe");
+        result.Activity[0].RecordNumber.Should().Be("JOB-0042");
+        result.Activity[0].Text.Should().Be("moved the job to Active");
+        result.Activity[1].ActorName.Should().Be("System");
     }
 
     [Fact]
@@ -131,7 +171,7 @@ public class GetDashboardHandlerTests
         _repo.Setup(r => r.GetDashboardDataAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DashboardDataSet(null, [], new Dictionary<int, ApplicationUserInfo>(), []));
 
-        var handler = new GetDashboardHandler(_repo.Object, db);
+        var handler = new GetDashboardHandler(_repo.Object, db, _clock.Object);
 
         var result = await handler.Handle(new GetDashboardQuery(), CancellationToken.None);
 

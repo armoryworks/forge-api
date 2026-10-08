@@ -7,4 +7,6 @@ public record InventoryPartSummaryResponseModel(
     decimal OnHand,
     decimal Reserved,
     decimal Available,
-    List<BinStockResponseModel> BinLocations);
+    List<BinStockResponseModel> BinLocations,
+    decimal? MinStockThreshold = null,
+    decimal? ReorderPoint = null);

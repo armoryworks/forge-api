@@ -5,4 +5,5 @@ public record MarginSummaryResponseModel(
     decimal TotalCost,
     decimal TotalMargin,
     decimal AverageMarginPercentage,
-    int JobCount);
+    int JobCount,
+    int CostedJobCount);

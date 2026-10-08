@@ -2,6 +2,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -9,7 +10,7 @@ namespace Forge.Api.Features.Dashboard;
 
 public record GetMarginSummaryQuery : IRequest<MarginSummaryResponseModel>;
 
-public class GetMarginSummaryHandler(AppDbContext db)
+public class GetMarginSummaryHandler(AppDbContext db, IClock clock)
     : IRequestHandler<GetMarginSummaryQuery, MarginSummaryResponseModel>
 {
     private const decimal DefaultLaborRate = 75.00m;
@@ -17,7 +18,7 @@ public class GetMarginSummaryHandler(AppDbContext db)
     public async Task<MarginSummaryResponseModel> Handle(GetMarginSummaryQuery request, CancellationToken ct)
     {
         var laborRate = await GetLaborRateAsync(ct);
-        var cutoff = DateTimeOffset.UtcNow.AddDays(-30);
+        var cutoff = clock.UtcNow.AddDays(-30);
 
         var jobs = await db.Jobs
             .Include(j => j.SalesOrderLine)
@@ -31,7 +32,7 @@ public class GetMarginSummaryHandler(AppDbContext db)
             .ToListAsync(ct);
 
         if (jobs.Count == 0)
-            return new MarginSummaryResponseModel(0, 0, 0, 0, 0);
+            return new MarginSummaryResponseModel(0, 0, 0, 0, 0, 0);
 
         var jobIds = jobs.Select(j => j.Id).ToList();
 
@@ -50,6 +51,7 @@ public class GetMarginSummaryHandler(AppDbContext db)
         var totalRevenue = 0m;
         var totalCost = 0m;
         var marginPercentages = new List<decimal>();
+        var costedJobCount = 0;
 
         foreach (var job in jobs)
         {
@@ -72,7 +74,10 @@ public class GetMarginSummaryHandler(AppDbContext db)
             totalRevenue += revenue;
             totalCost += jobCost;
 
-            if (revenue > 0)
+            if (jobCost > 0)
+                costedJobCount++;
+
+            if (revenue > 0 && jobCost > 0)
                 marginPercentages.Add((revenue - jobCost) / revenue * 100);
         }
 
@@ -81,7 +86,7 @@ public class GetMarginSummaryHandler(AppDbContext db)
             ? Math.Round(marginPercentages.Average(), 1)
             : 0m;
 
-        return new MarginSummaryResponseModel(totalRevenue, totalCost, totalMargin, avgMargin, jobs.Count);
+        return new MarginSummaryResponseModel(totalRevenue, totalCost, totalMargin, avgMargin, jobs.Count, costedJobCount);
     }
 
     private async Task<decimal> GetLaborRateAsync(CancellationToken ct)

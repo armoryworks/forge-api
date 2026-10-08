@@ -9,11 +9,11 @@ namespace Forge.Api.Features.Dashboard;
 
 public record GetDashboardQuery : IRequest<DashboardResponseModel>;
 
-public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db) : IRequestHandler<GetDashboardQuery, DashboardResponseModel>
+public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db, IClock clock) : IRequestHandler<GetDashboardQuery, DashboardResponseModel>
 {
     public async Task<DashboardResponseModel> Handle(GetDashboardQuery request, CancellationToken cancellationToken)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.UtcNow;
         var today = now.Date;
 
         var data = await repo.GetDashboardDataAsync(cancellationToken);
@@ -97,15 +97,16 @@ public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db) : I
         var activity = data.RecentActivity.Select(a =>
         {
             var (icon, iconColor) = GetActivityIcon(a.Action);
-            var userName = a.UserId.HasValue && data.Users.TryGetValue(a.UserId.Value, out var user)
-                ? user.FirstName
-                : "System";
+            var fullName = a.UserId.HasValue && data.Users.TryGetValue(a.UserId.Value, out var user)
+                ? $"{user.FirstName} {user.LastName}".Trim()
+                : string.Empty;
+            var actorName = string.IsNullOrEmpty(fullName) ? "System" : fullName;
             var cleanDescription = System.Text.RegularExpressions.Regex.Replace(
                 a.Description, @"@\[([^\]]+)\]\(user:\d+\)", "@$1");
-            var text = $"{userName} {cleanDescription}";
             var time = FormatRelativeTime(a.CreatedAt, now);
+            var recordNumber = string.IsNullOrEmpty(a.Job?.JobNumber) ? null : a.Job.JobNumber;
 
-            return new ActivityEntryResponseModel(icon, iconColor, text, time);
+            return new ActivityEntryResponseModel(icon, iconColor, cleanDescription, time, actorName, recordNumber);
         }).ToList();
 
         // Deadlines - jobs due in next 14 days
