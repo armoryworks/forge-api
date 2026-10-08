@@ -4,6 +4,7 @@ using Forge.Api.Features.Vendors;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
+using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Vendors;
 
@@ -22,7 +23,7 @@ public class UpdateVendorNumberTests
             .ReturnsAsync(new BusinessIdentifier());
 
         _handler = new UpdateVendorHandler(
-            _vendorRepo.Object, _settings.Object, _identifiers.Object, Mock.Of<IClock>());
+            _vendorRepo.Object, _settings.Object, _identifiers.Object, TestDbContextFactory.Create(), Mock.Of<IClock>());
     }
 
     private void AllowManualNumbers(bool allowed) =>

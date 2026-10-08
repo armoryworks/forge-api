@@ -40,7 +40,7 @@ public class CustomerAddressesController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new CreateCustomerAddressCommand(
             customerId, request.Label, request.AddressType, request.Line1,
             request.Line2, request.City, request.State, request.PostalCode,
-            request.Country, request.IsDefault));
+            request.Country, request.IsDefault, request.ContactName, request.Phone));
         return CreatedAtAction(nameof(GetAddresses), new { customerId }, result);
     }
 
@@ -50,7 +50,7 @@ public class CustomerAddressesController(IMediator mediator) : ControllerBase
         await mediator.Send(new UpdateCustomerAddressCommand(
             id, request.Label, request.AddressType, request.Line1,
             request.Line2, request.City, request.State, request.PostalCode,
-            request.Country, request.IsDefault));
+            request.Country, request.IsDefault, request.ContactName, request.Phone));
         return NoContent();
     }
 

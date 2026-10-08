@@ -157,7 +157,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<ContactResponseModel>> CreateContact(int id, CreateContactRequestModel request)
     {
         var result = await mediator.Send(new CreateContactCommand(
-            id, request.FirstName, request.LastName, request.Email, request.Phone, request.Role, request.IsPrimary, request.Fax));
+            id, request.FirstName, request.LastName, request.Email, request.Phone, request.Role, request.IsPrimary, request.Fax, request.Mobile));
         return Created($"/api/v1/customers/{id}/contacts/{result.Id}", result);
     }
 
@@ -166,7 +166,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<ContactResponseModel>> UpdateContact(int id, int contactId, UpdateContactRequestModel request)
     {
         var result = await mediator.Send(new UpdateContactCommand(
-            id, contactId, request.FirstName, request.LastName, request.Email, request.Phone, request.Role, request.IsPrimary, request.Fax));
+            id, contactId, request.FirstName, request.LastName, request.Email, request.Phone, request.Role, request.IsPrimary, request.Fax, request.Mobile));
         return Ok(result);
     }
 

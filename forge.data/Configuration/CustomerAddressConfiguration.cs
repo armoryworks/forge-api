@@ -17,6 +17,8 @@ public class CustomerAddressConfiguration : IEntityTypeConfiguration<CustomerAdd
         builder.Property(e => e.State).HasMaxLength(50);
         builder.Property(e => e.PostalCode).HasMaxLength(20);
         builder.Property(e => e.Country).HasMaxLength(10);
+        builder.Property(e => e.ContactName).HasMaxLength(200);
+        builder.Property(e => e.Phone).HasMaxLength(50);
 
         builder.HasIndex(e => e.CustomerId);
 

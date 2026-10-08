@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Forge.Api.Workflows;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -18,7 +19,9 @@ public record UpdateCustomerAddressCommand(
     string State,
     string PostalCode,
     string Country,
-    bool IsDefault) : IRequest;
+    bool IsDefault,
+    string? ContactName = null,
+    string? Phone = null) : IRequest;
 
 public class UpdateCustomerAddressValidator : AbstractValidator<UpdateCustomerAddressCommand>
 {
@@ -33,6 +36,8 @@ public class UpdateCustomerAddressValidator : AbstractValidator<UpdateCustomerAd
         RuleFor(x => x.State).NotEmpty().MaximumLength(100);
         RuleFor(x => x.PostalCode).NotEmpty().MaximumLength(20);
         RuleFor(x => x.Country).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.ContactName).MaximumLength(200).When(x => x.ContactName is not null);
+        RuleFor(x => x.Phone).MaximumLength(50).When(x => x.Phone is not null);
     }
 }
 
@@ -55,6 +60,8 @@ public class UpdateCustomerAddressHandler(ICustomerAddressRepository repo, AppDb
         if (request.State != address.State) { address.State = request.State; changedFields.Add("state"); }
         if (request.PostalCode != address.PostalCode) { address.PostalCode = request.PostalCode; changedFields.Add("postalCode"); }
         if (request.Country != address.Country) { address.Country = request.Country; changedFields.Add("country"); }
+        if (request.ContactName.NullIfEmpty() != address.ContactName) { address.ContactName = request.ContactName.NullIfEmpty(); changedFields.Add("contactName"); }
+        if (request.Phone.NullIfEmpty() != address.Phone) { address.Phone = request.Phone.NullIfEmpty(); changedFields.Add("phone"); }
         if (request.IsDefault != address.IsDefault)
         {
             address.IsDefault = request.IsDefault;

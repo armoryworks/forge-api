@@ -26,7 +26,9 @@ public class CustomerAddressRepository(AppDbContext db) : ICustomerAddressReposi
                 a.PostalCode,
                 a.Country,
                 a.IsDefault,
-                a.IsActive))
+                a.IsActive,
+                a.ContactName,
+                a.Phone))
             .ToListAsync(ct);
     }
 

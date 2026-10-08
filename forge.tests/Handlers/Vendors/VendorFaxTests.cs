@@ -4,6 +4,7 @@ using Moq;
 using Forge.Api.Features.Vendors;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
+using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Vendors;
 
@@ -30,7 +31,8 @@ public class VendorFaxTests
         var vendor = new Vendor { Id = 1, CompanyName = "Acme", Fax = "555-0100" };
         _vendorRepo.Setup(r => r.FindAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(vendor);
         var handler = new UpdateVendorHandler(
-            _vendorRepo.Object, Mock.Of<ISystemSettingRepository>(), Mock.Of<IBusinessIdentifierService>(), Mock.Of<IClock>());
+            _vendorRepo.Object, Mock.Of<ISystemSettingRepository>(), Mock.Of<IBusinessIdentifierService>(),
+            TestDbContextFactory.Create(), Mock.Of<IClock>());
 
         await handler.Handle(
             new UpdateVendorCommand(1, null, null, null, null, null, null, null, null, null, null, null, null, null),

@@ -142,7 +142,8 @@ public class ShipmentsController(IMediator mediator) : ControllerBase
         var shipment = await mediator.Send(new GetShipmentByIdQuery(id));
         var result = await mediator.Send(new CreateCustomerAddressCommand(
             shipment.CustomerId, request.Label, request.AddressType, request.Line1, request.Line2,
-            request.City, request.State, request.PostalCode, request.Country, request.IsDefault));
+            request.City, request.State, request.PostalCode, request.Country, request.IsDefault,
+            request.ContactName, request.Phone));
         return Ok(result);
     }
 

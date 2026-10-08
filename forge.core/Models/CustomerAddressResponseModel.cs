@@ -11,4 +11,6 @@ public record CustomerAddressResponseModel(
     string PostalCode,
     string Country,
     bool IsDefault,
-    bool IsActive = true);
+    bool IsActive = true,
+    string? ContactName = null,
+    string? Phone = null);

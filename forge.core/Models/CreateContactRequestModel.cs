@@ -7,4 +7,5 @@ public record CreateContactRequestModel(
     string? Phone,
     string? Role,
     bool IsPrimary,
-    string? Fax = null);
+    string? Fax = null,
+    string? Mobile = null);

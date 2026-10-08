@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Workflows;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -98,19 +99,19 @@ public class UpdateCustomerHandler(
             customer.CompanyName = request.CompanyName;
             changedFields.Add("companyName");
         }
-        if (request.Email is not null && request.Email != customer.Email)
+        if (request.Email is not null && request.Email.NullIfEmpty() != customer.Email)
         {
-            customer.Email = request.Email;
+            customer.Email = request.Email.NullIfEmpty();
             changedFields.Add("email");
         }
-        if (request.Phone is not null && request.Phone != customer.Phone)
+        if (request.Phone is not null && request.Phone.NullIfEmpty() != customer.Phone)
         {
-            customer.Phone = request.Phone;
+            customer.Phone = request.Phone.NullIfEmpty();
             changedFields.Add("phone");
         }
-        if (request.Fax is not null && request.Fax != customer.Fax)
+        if (request.Fax is not null && request.Fax.NullIfEmpty() != customer.Fax)
         {
-            customer.Fax = request.Fax;
+            customer.Fax = request.Fax.NullIfEmpty();
             changedFields.Add("fax");
         }
 

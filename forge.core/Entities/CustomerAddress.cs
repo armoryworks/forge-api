@@ -13,6 +13,8 @@ public class CustomerAddress : BaseAuditableEntity
     public string State { get; set; } = string.Empty;
     public string PostalCode { get; set; } = string.Empty;
     public string Country { get; set; } = "US";
+    public string? ContactName { get; set; }
+    public string? Phone { get; set; }
     public bool IsDefault { get; set; }
 
     /// <summary>

@@ -34,7 +34,7 @@ public class GetCustomerByIdHandler(ICustomerRepository repo)
                 .OrderByDescending(c => c.IsPrimary)
                 .ThenBy(c => c.LastName)
                 .Select(c => new ContactResponseModel(
-                    c.Id, c.FirstName, c.LastName, c.Email, c.Phone, c.Role, c.IsPrimary, c.Fax))
+                    c.Id, c.FirstName, c.LastName, c.Email, c.Phone, c.Role, c.IsPrimary, c.Fax, c.Mobile))
                 .ToList(),
             customer.Jobs
                 .OrderByDescending(j => j.CreatedAt)

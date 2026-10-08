@@ -1,7 +1,10 @@
 using FluentValidation;
 using MediatR;
+using Forge.Api.Workflows;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
+using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Vendors;
 
@@ -47,6 +50,7 @@ public class UpdateVendorHandler(
     IVendorRepository repo,
     ISystemSettingRepository systemSettings,
     IBusinessIdentifierService identifiers,
+    AppDbContext db,
     IClock clock)
     : IRequestHandler<UpdateVendorCommand>
 {
@@ -58,10 +62,11 @@ public class UpdateVendorHandler(
         var vendor = await repo.FindAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Vendor {request.Id} not found");
 
+        var changedFields = new List<string>();
+
         // User-settable vendor number — only when manual numbers are enabled, and only after a
         // uniqueness check that excludes this vendor. The DB partial-unique index is the final
-        // backstop. (UpdateVendorHandler carries no activity log today, so the change is recorded
-        // in the identifier registry only.)
+        // backstop.
         if (request.VendorNumber is not null)
         {
             var newNumber = request.VendorNumber.Trim();
@@ -79,26 +84,90 @@ public class UpdateVendorHandler(
                     await identifiers.IssueAsync(BusinessEntityType.Vendor, vendor.Id, vendor.VendorNumber, cancellationToken);
                 await identifiers.RenameAsync(BusinessEntityType.Vendor, vendor.Id, newNumber, cancellationToken);
                 vendor.VendorNumber = newNumber;
+                changedFields.Add("vendorNumber");
             }
         }
 
-        if (request.CompanyName != null) vendor.CompanyName = request.CompanyName;
-        if (request.ContactName != null) vendor.ContactName = request.ContactName;
-        if (request.Email != null) vendor.Email = request.Email;
-        if (request.Phone != null) vendor.Phone = request.Phone;
-        if (request.Fax != null) vendor.Fax = request.Fax;
-        if (request.Address != null) vendor.Address = request.Address;
-        if (request.City != null) vendor.City = request.City;
-        if (request.State != null) vendor.State = request.State;
-        if (request.ZipCode != null) vendor.ZipCode = request.ZipCode;
-        if (request.Country != null) vendor.Country = request.Country;
-        if (request.PaymentTerms != null) vendor.PaymentTerms = request.PaymentTerms;
-        if (request.Notes != null) vendor.Notes = request.Notes;
+        if (request.CompanyName != null && request.CompanyName != vendor.CompanyName)
+        {
+            vendor.CompanyName = request.CompanyName;
+            changedFields.Add("companyName");
+        }
+        if (request.ContactName != null && request.ContactName != vendor.ContactName)
+        {
+            vendor.ContactName = request.ContactName;
+            changedFields.Add("contactName");
+        }
+        if (request.Email != null && request.Email.NullIfEmpty() != vendor.Email)
+        {
+            vendor.Email = request.Email.NullIfEmpty();
+            changedFields.Add("email");
+        }
+        if (request.Phone != null && request.Phone.NullIfEmpty() != vendor.Phone)
+        {
+            vendor.Phone = request.Phone.NullIfEmpty();
+            changedFields.Add("phone");
+        }
+        if (request.Fax != null && request.Fax.NullIfEmpty() != vendor.Fax)
+        {
+            vendor.Fax = request.Fax.NullIfEmpty();
+            changedFields.Add("fax");
+        }
+        if (request.Address != null && request.Address != vendor.Address)
+        {
+            vendor.Address = request.Address;
+            changedFields.Add("address");
+        }
+        if (request.City != null && request.City != vendor.City)
+        {
+            vendor.City = request.City;
+            changedFields.Add("city");
+        }
+        if (request.State != null && request.State != vendor.State)
+        {
+            vendor.State = request.State;
+            changedFields.Add("state");
+        }
+        if (request.ZipCode != null && request.ZipCode != vendor.ZipCode)
+        {
+            vendor.ZipCode = request.ZipCode;
+            changedFields.Add("zipCode");
+        }
+        if (request.Country != null && request.Country != vendor.Country)
+        {
+            vendor.Country = request.Country;
+            changedFields.Add("country");
+        }
+        if (request.PaymentTerms != null && request.PaymentTerms != vendor.PaymentTerms)
+        {
+            vendor.PaymentTerms = request.PaymentTerms;
+            changedFields.Add("paymentTerms");
+        }
+        if (request.Notes != null && request.Notes != vendor.Notes)
+        {
+            vendor.Notes = request.Notes;
+            changedFields.Add("notes");
+        }
         // V9: off-tier variance % round-trips (was silently dropped — request model omitted it).
-        if (request.OffTierVariancePct.HasValue) vendor.OffTierVariancePct = request.OffTierVariancePct;
-        if (request.Is1099.HasValue) vendor.Is1099 = request.Is1099.Value;
+        if (request.OffTierVariancePct.HasValue && request.OffTierVariancePct != vendor.OffTierVariancePct)
+        {
+            vendor.OffTierVariancePct = request.OffTierVariancePct;
+            changedFields.Add("offTierVariancePct");
+        }
+        if (request.Is1099.HasValue && request.Is1099.Value != vendor.Is1099)
+        {
+            vendor.Is1099 = request.Is1099.Value;
+            changedFields.Add("is1099");
+        }
         if (request.TaxId != null)
-            vendor.TaxId = string.IsNullOrWhiteSpace(request.TaxId) ? null : request.TaxId.Trim();
+        {
+            var taxId = string.IsNullOrWhiteSpace(request.TaxId) ? null : request.TaxId.Trim();
+            if (taxId != vendor.TaxId)
+            {
+                vendor.TaxId = taxId;
+                changedFields.Add("taxId");
+            }
+        }
 
         // Phase 3 H2 / WU-12: stamp DeactivationDate when transitioning
         // active → inactive; clear it on reactivation. Drives the lifecycle
@@ -107,6 +176,15 @@ public class UpdateVendorHandler(
         {
             vendor.IsActive = request.IsActive.Value;
             vendor.DeactivationDate = vendor.IsActive ? null : clock.UtcNow;
+            changedFields.Add(vendor.IsActive ? "reactivated" : "deactivated");
+        }
+
+        if (changedFields.Count > 0)
+        {
+            db.LogActivityAt(
+                "updated",
+                $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}",
+                ("Vendor", vendor.Id));
         }
 
         await repo.SaveChangesAsync(cancellationToken);

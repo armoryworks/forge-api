@@ -9,4 +9,6 @@ public record CreateCustomerAddressRequestModel(
     string State,
     string PostalCode,
     string Country,
-    bool IsDefault);
+    bool IsDefault,
+    string? ContactName = null,
+    string? Phone = null);

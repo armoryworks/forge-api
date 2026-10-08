@@ -17,7 +17,8 @@ public record CreateContactCommand(
     string? Phone,
     string? Role,
     bool IsPrimary,
-    string? Fax = null) : IRequest<ContactResponseModel>;
+    string? Fax = null,
+    string? Mobile = null) : IRequest<ContactResponseModel>;
 
 public class CreateContactValidator : AbstractValidator<CreateContactCommand>
 {
@@ -27,6 +28,7 @@ public class CreateContactValidator : AbstractValidator<CreateContactCommand>
         RuleFor(x => x.LastName).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
         RuleFor(x => x.Phone).MaximumLength(50);
+        RuleFor(x => x.Mobile).MaximumLength(50);
         RuleFor(x => x.Fax).MaximumLength(50);
         RuleFor(x => x.Role).MaximumLength(50);
     }
@@ -47,6 +49,7 @@ public class CreateContactHandler(ICustomerRepository repo, AppDbContext db)
             LastName = request.LastName,
             Email = request.Email,
             Phone = request.Phone,
+            Mobile = request.Mobile,
             Fax = request.Fax,
             Role = request.Role,
             IsPrimary = request.IsPrimary,
@@ -82,6 +85,6 @@ public class CreateContactHandler(ICustomerRepository repo, AppDbContext db)
 
         return new ContactResponseModel(
             contact.Id, contact.FirstName, contact.LastName,
-            contact.Email, contact.Phone, contact.Role, contact.IsPrimary, contact.Fax);
+            contact.Email, contact.Phone, contact.Role, contact.IsPrimary, contact.Fax, contact.Mobile);
     }
 }

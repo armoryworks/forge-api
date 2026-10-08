@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Forge.Api.Workflows;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -19,7 +20,9 @@ public record CreateCustomerAddressCommand(
     string State,
     string PostalCode,
     string Country,
-    bool IsDefault) : IRequest<CustomerAddressResponseModel>;
+    bool IsDefault,
+    string? ContactName = null,
+    string? Phone = null) : IRequest<CustomerAddressResponseModel>;
 
 public class CreateCustomerAddressValidator : AbstractValidator<CreateCustomerAddressCommand>
 {
@@ -32,6 +35,8 @@ public class CreateCustomerAddressValidator : AbstractValidator<CreateCustomerAd
         RuleFor(x => x.State).NotEmpty().MaximumLength(50);
         RuleFor(x => x.PostalCode).NotEmpty().MaximumLength(20);
         RuleFor(x => x.Country).NotEmpty().MaximumLength(10);
+        RuleFor(x => x.ContactName).MaximumLength(200);
+        RuleFor(x => x.Phone).MaximumLength(50);
     }
 }
 
@@ -59,6 +64,8 @@ public class CreateCustomerAddressHandler(
             State = request.State,
             PostalCode = request.PostalCode,
             Country = request.Country,
+            ContactName = request.ContactName.NullIfEmpty(),
+            Phone = request.Phone.NullIfEmpty(),
             IsDefault = request.IsDefault,
         };
 
@@ -81,6 +88,7 @@ public class CreateCustomerAddressHandler(
         return new CustomerAddressResponseModel(
             address.Id, address.Label, address.AddressType.ToString(),
             address.Line1, address.Line2, address.City, address.State,
-            address.PostalCode, address.Country, address.IsDefault);
+            address.PostalCode, address.Country, address.IsDefault,
+            address.IsActive, address.ContactName, address.Phone);
     }
 }

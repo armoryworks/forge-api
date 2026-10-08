@@ -8,4 +8,5 @@ public record ContactResponseModel(
     string? Phone,
     string? Role,
     bool IsPrimary,
-    string? Fax = null);
+    string? Fax = null,
+    string? Mobile = null);
