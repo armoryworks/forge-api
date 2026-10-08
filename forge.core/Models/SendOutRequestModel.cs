@@ -6,4 +6,4 @@ public record SendOutRequestModel(
     DateTimeOffset? ExpectedReturnDate,
     string? ShippingTrackingNumber,
     string? Notes,
-    bool CreatePurchaseOrder = true);
+    bool CreatePurchaseOrder = false);

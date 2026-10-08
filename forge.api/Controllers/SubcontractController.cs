@@ -36,6 +36,13 @@ public class SubcontractController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("jobs/{jobId:int}/subcontract-operations")]
+    public async Task<ActionResult<List<SubcontractOperationResponseModel>>> GetSubcontractOperations(int jobId)
+    {
+        var result = await mediator.Send(new GetJobSubcontractOperationsQuery(jobId));
+        return Ok(result);
+    }
+
     [HttpGet("shop-floor/pending-subcontracts")]
     public async Task<ActionResult<List<PendingSubcontractResponseModel>>> GetPendingSubcontracts()
     {

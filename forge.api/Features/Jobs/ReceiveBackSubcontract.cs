@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -15,11 +16,18 @@ public class ReceiveBackSubcontractValidator : AbstractValidator<ReceiveBackSubc
 {
     public ReceiveBackSubcontractValidator()
     {
-        RuleFor(x => x.Data.ReceivedQuantity).GreaterThan(0);
+        RuleFor(x => x.Data.ReceivedQuantity).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Data.ScrapQuantity).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Data.ReceivedQuantity + x.Data.ScrapQuantity)
+            .GreaterThan(0)
+            .WithName("ReceivedQuantity")
+            .WithMessage("Enter a good or scrap quantity.");
+        RuleFor(x => x.Data.ReturnTrackingNumber).MaximumLength(200);
+        RuleFor(x => x.Data.Notes).MaximumLength(2000);
     }
 }
 
-public class ReceiveBackSubcontractHandler(AppDbContext db)
+public class ReceiveBackSubcontractHandler(AppDbContext db, IClock clock)
     : IRequestHandler<ReceiveBackSubcontractCommand, SubcontractOrderResponseModel>
 {
     public async Task<SubcontractOrderResponseModel> Handle(ReceiveBackSubcontractCommand request, CancellationToken ct)
@@ -31,13 +39,30 @@ public class ReceiveBackSubcontractHandler(AppDbContext db)
             .FirstOrDefaultAsync(o => o.Id == request.SubcontractOrderId, ct)
             ?? throw new KeyNotFoundException($"SubcontractOrder {request.SubcontractOrderId} not found.");
 
-        order.ReceivedAt = DateTimeOffset.UtcNow;
+        if (order.ReceivedAt.HasValue || order.Status is SubcontractStatus.Complete or SubcontractStatus.Rejected)
+            throw new InvalidOperationException("This subcontract order has already been received back.");
+
+        var previousStatus = order.Status;
+        order.ReceivedAt = clock.UtcNow;
+        order.ReceivedById = db.CurrentUserId;
         order.ReceivedQuantity = request.Data.ReceivedQuantity;
         order.ReturnTrackingNumber = request.Data.ReturnTrackingNumber?.Trim();
         order.Notes = request.Data.Notes?.Trim() ?? order.Notes;
         order.Status = request.Data.PassedInspection
             ? SubcontractStatus.Complete
             : SubcontractStatus.Rejected;
+
+        db.JobActivityLogs.Add(new JobActivityLog
+        {
+            JobId = order.JobId,
+            UserId = db.CurrentUserId,
+            Action = ActivityAction.StatusChanged,
+            FieldName = "Subcontract",
+            OldValue = previousStatus.ToString(),
+            NewValue = order.Status.ToString(),
+            OperationId = order.OperationId,
+            Description = $"Received back {request.Data.ReceivedQuantity:0.####} good, {request.Data.ScrapQuantity:0.####} scrap from {order.Vendor.CompanyName} for Op {order.Operation.StepNumber} {order.Operation.Title}",
+        });
 
         await db.SaveChangesAsync(ct);
 
