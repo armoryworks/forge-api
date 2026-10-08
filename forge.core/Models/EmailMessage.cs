@@ -5,4 +5,5 @@ public record EmailMessage(
     string Subject,
     string HtmlBody,
     string? PlainTextBody = null,
-    List<EmailAttachment>? Attachments = null);
+    List<EmailAttachment>? Attachments = null,
+    List<string>? Cc = null);

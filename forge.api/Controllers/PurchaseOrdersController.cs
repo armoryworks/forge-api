@@ -53,6 +53,28 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
         return File(pdf, "application/pdf", $"purchase-order-{id}.pdf");
     }
 
+    [HttpPost("{id:int}/email")]
+    public async Task<IActionResult> SendPurchaseOrderEmail(int id, SendPurchaseOrderEmailRequestModel request, CancellationToken ct)
+    {
+        await mediator.Send(new SendPurchaseOrderEmailCommand(id, request.To, request.Cc, request.Message), ct);
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/lines")]
+    public async Task<ActionResult<PurchaseOrderDetailResponseModel>> AddPurchaseOrderLine(
+        int id, AddPurchaseOrderLineRequestModel request)
+    {
+        var result = await mediator.Send(new AddPurchaseOrderLineCommand(id, request));
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:int}/lines/{lineId:int}")]
+    public async Task<ActionResult<PurchaseOrderDetailResponseModel>> DeletePurchaseOrderLine(int id, int lineId)
+    {
+        var result = await mediator.Send(new DeletePurchaseOrderLineCommand(id, lineId));
+        return Ok(result);
+    }
+
     [HttpPut("{id:int}/lines/{lineId:int}")]
     public async Task<ActionResult<PurchaseOrderDetailResponseModel>> UpdatePurchaseOrderLine(
         int id, int lineId, UpdateOrderLineRequestModel request)
@@ -101,7 +123,8 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
             id,
             request.Lines,
             request.ActualFreight,
-            request.FreightAllocationMethod));
+            request.FreightAllocationMethod,
+            request.PackingSlipNumber));
         return NoContent();
     }
 

@@ -7,8 +7,17 @@ namespace Forge.Tests.Handlers.PurchaseOrders;
 
 public class ReceiveItemsValidatorTests
 {
-    private static ReceiveItemsCommand Command(string? lot = null, string? notes = null)
-        => new(1, [new ReceiveLineModel(LineId: 1, Quantity: 1m, StorageLocationId: null, Notes: notes, LotNumber: lot)]);
+    private static ReceiveItemsCommand Command(string? lot = null, string? notes = null, string? packingSlip = null)
+        => new(1, [new ReceiveLineModel(LineId: 1, Quantity: 1m, StorageLocationId: null, Notes: notes, LotNumber: lot)],
+            PackingSlipNumber: packingSlip);
+
+    [Fact]
+    public void PackingSlipOfOneHundredCharacters_AfterTrimming_IsValid()
+        => new ReceiveItemsValidator().Validate(Command(packingSlip: $" {new string('p', 100)} ")).IsValid.Should().BeTrue();
+
+    [Fact]
+    public void PackingSlipOverOneHundredCharacters_IsRejected()
+        => new ReceiveItemsValidator().Validate(Command(packingSlip: new string('p', 101))).IsValid.Should().BeFalse();
 
     [Fact]
     public void LotOfOneHundredCharacters_AfterTrimming_IsValid()

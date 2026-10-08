@@ -519,4 +519,42 @@ public class ReceiveItemsHandlerTests
         row.Action.Should().Be("items-received");
         row.Description.Should().StartWith("Received 2 lines on receipt R-").And.EndWith("(lot HEAT-A)");
     }
+
+    [Fact]
+    public async Task Handle_PackingSlip_IsStampedOnEveryRecordAndNamedInTheActivityRow()
+    {
+        var po = PoWith(estimatedFreight: null, (1, 10, qty: 5m, unitPrice: 10m), (2, 11, qty: 5m, unitPrice: 10m));
+        _repo.Setup(r => r.FindWithDetailsAsync(po.Id, It.IsAny<CancellationToken>())).ReturnsAsync(po);
+        using var db = Forge.Tests.Helpers.TestDbContextFactory.Create();
+        var handler = new ReceiveItemsHandler(_repo.Object, _clock, _mediator.Object, _httpContext.Object, db);
+
+        await handler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel>
+            {
+                new(LineId: 1, Quantity: 2m, StorageLocationId: null, Notes: null),
+                new(LineId: 2, Quantity: 1m, StorageLocationId: null, Notes: null),
+            },
+            PackingSlipNumber: "  PS-4471  "), CancellationToken.None);
+
+        _addedRecords.Should().HaveCount(2).And.OnlyContain(r => r.PackingSlipNumber == "PS-4471");
+        db.ActivityLogs.Local.Should().ContainSingle().Which.Description
+            .Should().StartWith("Received 2 lines on receipt R-").And.EndWith(", packing slip PS-4471");
+    }
+
+    [Fact]
+    public async Task Handle_SubmittedPurchaseOrder_CanBeReceivedWithoutAPackingSlip()
+    {
+        var po = PoWith(estimatedFreight: null, (1, 10, qty: 5m, unitPrice: 10m));
+        po.Status = PurchaseOrderStatus.Submitted;
+        _repo.Setup(r => r.FindWithDetailsAsync(po.Id, It.IsAny<CancellationToken>())).ReturnsAsync(po);
+
+        await _handler.Handle(new ReceiveItemsCommand(
+            po.Id,
+            new List<ReceiveLineModel> { new(LineId: 1, Quantity: 5m, StorageLocationId: null, Notes: null) }),
+            CancellationToken.None);
+
+        po.Status.Should().Be(PurchaseOrderStatus.Received);
+        _addedRecords.Should().ContainSingle().Which.PackingSlipNumber.Should().BeNull();
+    }
 }

@@ -7422,6 +7422,7 @@ CREATE TABLE public.receiving_records (
     freight_allocation_method integer DEFAULT 0 NOT NULL,
     allocated_freight numeric(18,4),
     lot_number character varying(100),
+    packing_slip_number character varying(100),
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,

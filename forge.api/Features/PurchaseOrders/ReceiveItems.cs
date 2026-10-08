@@ -20,12 +20,16 @@ public record ReceiveItemsCommand(
     int PurchaseOrderId,
     List<ReceiveLineModel> Lines,
     decimal? ActualFreight = null,
-    FreightAllocationMethod FreightAllocationMethod = FreightAllocationMethod.ByExtendedValue) : IRequest;
+    FreightAllocationMethod FreightAllocationMethod = FreightAllocationMethod.ByExtendedValue,
+    string? PackingSlipNumber = null) : IRequest;
 
 public class ReceiveItemsValidator : AbstractValidator<ReceiveItemsCommand>
 {
     public ReceiveItemsValidator()
     {
+        RuleFor(x => x.PackingSlipNumber)
+            .Must(slip => slip is null || slip.Trim().Length <= 100)
+            .WithMessage("Packing slip number must be 100 characters or fewer.");
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
             line.RuleFor(l => l.LotNumber)
@@ -75,6 +79,7 @@ public class ReceiveItemsHandler(
         // value either way).
         var receiptNumber = $"R-{clock.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}";
         var actualFreight = request.ActualFreight ?? po.EstimatedFreight;
+        var packingSlip = string.IsNullOrWhiteSpace(request.PackingSlipNumber) ? null : request.PackingSlipNumber.Trim();
 
         // Pre-compute per-line allocation. ByExtendedValue / ByQuantity
         // need the totals, so we collect first then divvy up. Manual reads
@@ -109,6 +114,7 @@ public class ReceiveItemsHandler(
                 StorageLocationId = receiveItem.StorageLocationId,
                 Notes = receiveItem.Notes,
                 LotNumber = lot,
+                PackingSlipNumber = packingSlip,
                 ReceiptNumber = receiptNumber,
                 InspectionStatus = ReceivingInspectionPolicy.InitialStatus(line.Part?.RequiresReceivingInspection == true, capabilities),
                 ActualFreight = actualFreight,
@@ -220,7 +226,7 @@ public class ReceiveItemsHandler(
 
         db?.LogActivityAt(
             "items-received",
-            DescribeReceipt(receiptNumber, newRecords.Select(t => t.lot)),
+            DescribeReceipt(receiptNumber, packingSlip, newRecords.Select(t => t.lot)),
             ("PurchaseOrder", po.Id));
 
         await repo.SaveChangesAsync(cancellationToken);
@@ -299,13 +305,15 @@ public class ReceiveItemsHandler(
     }
 
     /// <summary>
-    /// The PO activity line for a receipt: how many lines came in under which receipt number, plus the lots
-    /// when any were captured.
+    /// The PO activity line for a receipt: how many lines came in under which receipt number, the vendor's
+    /// packing slip when one was recorded, plus the lots when any were captured.
     /// </summary>
-    private static string DescribeReceipt(string receiptNumber, IEnumerable<string?> lots)
+    private static string DescribeReceipt(string receiptNumber, string? packingSlip, IEnumerable<string?> lots)
     {
         var lotList = lots.ToList();
         var description = $"Received {lotList.Count} line{(lotList.Count == 1 ? "" : "s")} on receipt {receiptNumber}";
+        if (packingSlip is not null)
+            description += $", packing slip {packingSlip}";
         var distinctLots = lotList.OfType<string>().Distinct(StringComparer.Ordinal).ToList();
         if (distinctLots.Count == 0)
             return description;

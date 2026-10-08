@@ -26,6 +26,8 @@ public class SmtpEmailService(ISettingsService settings, ILogger<SmtpEmailServic
         var mime = new MimeMessage();
         mime.From.Add(new MailboxAddress(s.FromName, s.FromAddress));
         mime.To.Add(MailboxAddress.Parse(message.To));
+        foreach (var cc in message.Cc ?? [])
+            mime.Cc.Add(MailboxAddress.Parse(cc));
         mime.Subject = message.Subject;
 
         var builder = new BodyBuilder { HtmlBody = message.HtmlBody };
