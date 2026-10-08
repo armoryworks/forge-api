@@ -121,6 +121,14 @@ public class AdminController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("track-types/{id:int}/stages")]
+    [CapabilityBootstrap]
+    public async Task<ActionResult<List<TrackTypeStageAdminResponseModel>>> GetTrackTypeStages(int id)
+    {
+        var result = await mediator.Send(new GetTrackTypeStagesQuery(id));
+        return Ok(result);
+    }
+
     [HttpPost("track-types")]
     [CapabilityBootstrap]
     public async Task<ActionResult<TrackTypeResponseModel>> CreateTrackType(CreateTrackTypeCommand command)

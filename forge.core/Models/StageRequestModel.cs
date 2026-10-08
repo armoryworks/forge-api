@@ -6,4 +6,5 @@ public record StageRequestModel(
     int SortOrder,
     string Color,
     int? WIPLimit,
-    bool IsIrreversible);
+    bool IsIrreversible,
+    bool IsActive = true);

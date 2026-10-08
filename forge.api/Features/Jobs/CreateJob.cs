@@ -28,7 +28,8 @@ public record CreateJobCommand(
     int? SalesOrderLineId = null,
     // Optional caller-supplied job number — gated by jobs.allow_manual_numbers.
     string? JobNumber = null,
-    decimal? Quantity = null) : IRequest<JobDetailResponseModel>;
+    decimal? Quantity = null,
+    int? InitialStageId = null) : IRequest<JobDetailResponseModel>;
 
 public class CreateJobCommandValidator : AbstractValidator<CreateJobCommand>
 {
@@ -69,6 +70,8 @@ public class CreateJobHandler(
 {
     // System setting that gates caller-supplied job numbers. Stored as "true"/"false".
     private const string AllowManualJobNumbersKey = "jobs.allow_manual_numbers";
+    private const string OrderConfirmedStageCode = "order_confirmed";
+    private const string InitialStageNotOnTrackMessage = "Pick a visible status of this order type.";
 
     public async Task<JobDetailResponseModel> Handle(CreateJobCommand request, CancellationToken cancellationToken)
     {
@@ -111,8 +114,7 @@ public class CreateJobHandler(
                         nameof(CreateJobCommand.PartId), CreateJobCommandValidator.QuantityNeedsPartMessage)]);
         }
 
-        var firstStage = await trackRepo.FindFirstActiveStageAsync(request.TrackTypeId, cancellationToken)
-            ?? throw new KeyNotFoundException($"No active stages found for TrackType {request.TrackTypeId}.");
+        var firstStage = await ResolveInitialStageAsync(request, cancellationToken);
 
         var jobNumber = await ResolveJobNumberAsync(request, cancellationToken);
         var maxPosition = await jobRepo.GetMaxBoardPositionAsync(firstStage.Id, cancellationToken);
@@ -212,6 +214,32 @@ public class CreateJobHandler(
             entityType: "Job", entityId: job.Id, tokenContext, cancellationToken);
 
         return result;
+    }
+
+    private async Task<JobStage> ResolveInitialStageAsync(CreateJobCommand request, CancellationToken ct)
+    {
+        if (request.InitialStageId is int initialStageId)
+        {
+            var chosen = await trackRepo.FindStageAsync(initialStageId, ct);
+            if (chosen is null || chosen.TrackTypeId != request.TrackTypeId || !chosen.IsActive)
+                throw new ValidationException(
+                    [new FluentValidation.Results.ValidationFailure(
+                        nameof(CreateJobCommand.InitialStageId), InitialStageNotOnTrackMessage)]);
+            return chosen;
+        }
+
+        if (request.SalesOrderLineId is not null)
+        {
+            var orderConfirmed = await db.JobStages
+                .Where(s => s.TrackTypeId == request.TrackTypeId && s.IsActive && s.Code == OrderConfirmedStageCode)
+                .OrderBy(s => s.SortOrder)
+                .FirstOrDefaultAsync(ct);
+            if (orderConfirmed is not null)
+                return orderConfirmed;
+        }
+
+        return await trackRepo.FindFirstActiveStageAsync(request.TrackTypeId, ct)
+            ?? throw new KeyNotFoundException($"No active stages found for TrackType {request.TrackTypeId}.");
     }
 
     // Uses a caller-supplied job number when manual numbers are enabled and one
