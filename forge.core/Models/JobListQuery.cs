@@ -4,9 +4,10 @@ namespace Forge.Core.Models;
 /// Query parameters for <c>GET /api/v1/jobs</c>. Phase 3 F7-broad / WU-22 —
 /// extends the standard <see cref="PagedQuery"/> with job-specific filters.
 ///
-/// The kanban board (<c>/api/v1/kanban-cards</c>) and calendar export remain
-/// on their existing specialised query semantics — this query only governs
-/// the table-view list of jobs.
+/// Governs the jobs table and, with <c>sort=board</c>, the kanban board. The
+/// calendar export remains on its own specialised query semantics.
+/// <see cref="PagedQuery.Q"/> matches job number, title, part number and
+/// customer name.
 /// </summary>
 public record JobListQuery : PagedQuery
 {
@@ -27,4 +28,13 @@ public record JobListQuery : PagedQuery
 
     /// <summary>Show archived jobs (default false).</summary>
     public bool IsArchived { get; init; }
+
+    /// <summary>Restrict to jobs that are neither completed nor disposed.</summary>
+    public bool ActiveOnly { get; init; }
+
+    /// <summary>Restrict to open jobs whose due date falls before today (UTC).</summary>
+    public bool OverdueOnly { get; init; }
+
+    /// <summary>Restrict to jobs with an active hold.</summary>
+    public bool OnHoldOnly { get; init; }
 }

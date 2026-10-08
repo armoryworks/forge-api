@@ -85,8 +85,26 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
             var term = query.Q.Trim().ToLower();
             q = q.Where(j =>
                 j.Title.ToLower().Contains(term) ||
-                j.JobNumber.ToLower().Contains(term));
+                j.JobNumber.ToLower().Contains(term) ||
+                (j.Part != null && j.Part.PartNumber.ToLower().Contains(term)) ||
+                (j.Customer != null && j.Customer.Name.ToLower().Contains(term)));
         }
+
+        if (query.ActiveOnly)
+            q = q.Where(j => j.CompletedDate == null && j.Disposition == null);
+
+        if (query.OverdueOnly)
+        {
+            var startOfToday = new DateTimeOffset(clock.UtcNow.UtcDateTime.Date, TimeSpan.Zero);
+            q = q.Where(j => j.DueDate != null && j.DueDate < startOfToday && j.CompletedDate == null);
+        }
+
+        if (query.OnHoldOnly)
+            q = q.Where(j => db.StatusEntries.Any(se =>
+                se.EntityType == "Job" &&
+                se.EntityId == j.Id &&
+                se.Category == "hold" &&
+                se.EndedAt == null));
 
         if (query.DateFrom.HasValue)
             q = q.Where(j => j.CreatedAt >= query.DateFrom.Value);
