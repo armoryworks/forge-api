@@ -43,6 +43,7 @@ public class GetLotRecordsHandler(AppDbContext db)
                 l.PartId,
                 l.Part.PartNumber,
                 l.Part.Description,
+                l.PartRevision,
                 l.JobId,
                 l.Job != null ? l.Job.JobNumber : null,
                 l.ProductionRunId,

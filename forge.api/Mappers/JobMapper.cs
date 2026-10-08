@@ -59,6 +59,7 @@ public static partial class JobMapper
             CoverPhotoUrl: null,
             RowVersion: job.Version,
             SalesOrderId: job.SalesOrderLine?.SalesOrderId,
-            SalesOrderNumber: job.SalesOrderLine?.SalesOrder?.OrderNumber);
+            SalesOrderNumber: job.SalesOrderLine?.SalesOrder?.OrderNumber,
+            PartRevision: job.PartRevision);
     }
 }

@@ -212,6 +212,7 @@ public class GetLotTraceabilityHandler(AppDbContext db)
             lot.LotNumber,
             lot.Part.PartNumber,
             lot.Part.Description,
+            lot.PartRevision,
             jobs,
             productionRuns,
             purchaseOrders,

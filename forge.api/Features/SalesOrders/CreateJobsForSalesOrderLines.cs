@@ -110,10 +110,10 @@ public class CreateJobsForSalesOrderLinesHandler(
                 toCreate.Add(line);
         }
 
-        var bomRevisionByPart = await db.Parts.AsNoTracking()
+        var revisionsByPart = await db.Parts.AsNoTracking()
             .Where(p => partIds.Contains(p.Id))
-            .Select(p => new { p.Id, p.CurrentBomRevisionId })
-            .ToDictionaryAsync(p => p.Id, p => p.CurrentBomRevisionId, cancellationToken);
+            .Select(p => new { p.Id, p.CurrentBomRevisionId, p.Revision })
+            .ToDictionaryAsync(p => p.Id, cancellationToken);
 
         var boardPosition = await jobRepo.GetMaxBoardPositionAsync(startStage.Id, cancellationToken);
         var created = new List<Job>();
@@ -132,7 +132,8 @@ public class CreateJobsForSalesOrderLinesHandler(
                 CurrentStageId = startStage.Id,
                 SalesOrderLineId = line.Id,
                 PartId = partId,
-                BomRevisionIdAtRelease = bomRevisionByPart.GetValueOrDefault(partId),
+                BomRevisionIdAtRelease = revisionsByPart.GetValueOrDefault(partId)?.CurrentBomRevisionId,
+                PartRevision = revisionsByPart.GetValueOrDefault(partId)?.Revision,
                 CustomerId = so.CustomerId,
                 Priority = JobPriority.Normal,
                 DueDate = so.RequestedDeliveryDate,

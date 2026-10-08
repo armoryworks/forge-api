@@ -144,11 +144,12 @@ public class CreateJobHandler(
         // before the row is even saved (single SaveChanges).
         if (partId is int pinPartId)
         {
-            var currentRevId = await db.Parts
+            var pin = await db.Parts
                 .Where(p => p.Id == pinPartId)
-                .Select(p => p.CurrentBomRevisionId)
+                .Select(p => new { p.CurrentBomRevisionId, p.Revision })
                 .FirstOrDefaultAsync(cancellationToken);
-            job.BomRevisionIdAtRelease = currentRevId;
+            job.BomRevisionIdAtRelease = pin?.CurrentBomRevisionId;
+            job.PartRevision = pin?.Revision;
         }
 
         if (partId is int jobPartId)

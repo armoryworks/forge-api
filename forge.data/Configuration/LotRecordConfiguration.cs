@@ -12,6 +12,7 @@ public class LotRecordConfiguration : IEntityTypeConfiguration<LotRecord>
         builder.Ignore(e => e.IsDeleted);
 
         builder.Property(e => e.LotNumber).HasMaxLength(100);
+        builder.Property(e => e.PartRevision).HasMaxLength(10);
         builder.Property(e => e.SupplierLotNumber).HasMaxLength(100);
         builder.Property(e => e.Notes).HasMaxLength(2000);
         // Phase 3 / WU-23 (F8-broad): decimal(18,4) for UoM-aware fractional qty.

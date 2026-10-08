@@ -4,6 +4,7 @@ public class LotRecord : BaseAuditableEntity
 {
     public string LotNumber { get; set; } = string.Empty;
     public int PartId { get; set; }
+    public string? PartRevision { get; set; }
     public int? JobId { get; set; }
     public int? ProductionRunId { get; set; }
     public int? PurchaseOrderLineId { get; set; }

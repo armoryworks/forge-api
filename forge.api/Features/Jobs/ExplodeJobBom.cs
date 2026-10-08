@@ -111,6 +111,7 @@ public class ExplodeJobBomHandler(
                         CustomerId = parentJob.CustomerId,
                         BoardPosition = maxPos + 1,
                         PartId = childPart.Id,
+                        PartRevision = childPart.Revision,
                         ParentJobId = parentJob.Id,
                         Priority = parentJob.Priority,
                         DueDate = parentJob.DueDate,

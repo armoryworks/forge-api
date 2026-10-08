@@ -32,6 +32,7 @@ public class Job : BaseAuditableEntity, IConcurrencyVersioned
     // with a part that has a current BOM revision.
     public int? BomRevisionIdAtRelease { get; set; }
     public BomRevision? BomRevisionAtRelease { get; set; }
+    public string? PartRevision { get; set; }
 
     // Accounting integration
     public string? ExternalId { get; set; }

@@ -307,6 +307,7 @@ public class UpdateJobHandler(
 
         job.PartId = newPart.Id;
         job.BomRevisionIdAtRelease = newPart.CurrentBomRevisionId;
+        job.PartRevision = newPart.Revision;
 
         return new JobActivityLog
         {

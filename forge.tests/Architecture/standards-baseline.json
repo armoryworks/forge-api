@@ -108,7 +108,6 @@
     "forge.api/Features/Jobs/ReturnMaterialIssue.cs": 2,
     "forge.api/Features/Jobs/Subtasks/UpdateSubtask.cs": 1,
     "forge.api/Features/LeadSources/LeadSourceHandlers.cs": 1,
-    "forge.api/Features/Lots/CreateLotRecord.cs": 1,
     "forge.api/Features/Onboarding/BypassOnboarding.cs": 1,
     "forge.api/Features/Onboarding/SaveOnboardingData.cs": 2,
     "forge.api/Features/Onboarding/SignOnboardingForm.cs": 2,

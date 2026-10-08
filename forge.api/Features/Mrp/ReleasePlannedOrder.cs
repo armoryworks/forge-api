@@ -118,6 +118,7 @@ public class ReleasePlannedOrderHandler(
                 CurrentStageId = defaultStage.Id,
                 BoardPosition = maxPosition + 1,
                 PartId = order.PartId,
+                PartRevision = order.Part?.Revision,
                 StartDate = order.StartDate,
                 DueDate = order.DueDate,
                 MrpPlannedOrderId = order.Id,

@@ -6,6 +6,7 @@ public record LotRecordResponseModel(
     int PartId,
     string PartNumber,
     string? PartDescription,
+    string? PartRevision,
     int? JobId,
     string? JobNumber,
     int? ProductionRunId,

@@ -43,4 +43,5 @@ public record JobDetailResponseModel(
     uint RowVersion = 0,
     // Back-link to the originating sales order (via the job's SO-line link).
     int? SalesOrderId = null,
-    string? SalesOrderNumber = null);
+    string? SalesOrderNumber = null,
+    string? PartRevision = null);

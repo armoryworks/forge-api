@@ -25,7 +25,7 @@ public class CreateLotRecordCommandValidator : AbstractValidator<CreateLotRecord
     }
 }
 
-public class CreateLotRecordHandler(AppDbContext db, IBarcodeService barcodeService)
+public class CreateLotRecordHandler(AppDbContext db, IBarcodeService barcodeService, IClock clock)
     : IRequestHandler<CreateLotRecordCommand, LotRecordResponseModel>
 {
     public async Task<LotRecordResponseModel> Handle(
@@ -41,6 +41,7 @@ public class CreateLotRecordHandler(AppDbContext db, IBarcodeService barcodeServ
         {
             LotNumber = lotNumber,
             PartId = data.PartId,
+            PartRevision = await ResolvePartRevisionAsync(data.PartId, data.JobId, cancellationToken),
             JobId = data.JobId,
             ProductionRunId = data.ProductionRunId,
             PurchaseOrderLineId = data.PurchaseOrderLineId,
@@ -69,6 +70,7 @@ public class CreateLotRecordHandler(AppDbContext db, IBarcodeService barcodeServ
                 l.PartId,
                 l.Part.PartNumber,
                 l.Part.Description,
+                l.PartRevision,
                 l.JobId,
                 l.Job != null ? l.Job.JobNumber : null,
                 l.ProductionRunId,
@@ -81,9 +83,27 @@ public class CreateLotRecordHandler(AppDbContext db, IBarcodeService barcodeServ
             .FirstAsync(cancellationToken);
     }
 
+    private async Task<string?> ResolvePartRevisionAsync(int partId, int? jobId, CancellationToken cancellationToken)
+    {
+        if (jobId.HasValue)
+        {
+            var jobRevision = await db.Jobs
+                .Where(j => j.Id == jobId.Value && j.PartId == partId)
+                .Select(j => j.PartRevision)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (jobRevision is not null)
+                return jobRevision;
+        }
+
+        return await db.Parts
+            .Where(p => p.Id == partId)
+            .Select(p => p.Revision)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     private async Task<string> GenerateLotNumber(CancellationToken cancellationToken)
     {
-        var datePrefix = $"LOT-{DateTimeOffset.UtcNow:yyyyMMdd}";
+        var datePrefix = $"LOT-{clock.UtcNow:yyyyMMdd}";
         var todayCount = await db.LotRecords
             .CountAsync(l => l.LotNumber.StartsWith(datePrefix), cancellationToken);
         return $"{datePrefix}-{(todayCount + 1):D3}";

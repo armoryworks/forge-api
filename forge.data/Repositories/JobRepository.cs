@@ -343,7 +343,8 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
             job.CoverPhotoFileId.HasValue ? $"/api/v1/files/{job.CoverPhotoFileId}" : null,
             job.Version,
             job.SalesOrderLine?.SalesOrderId,
-            job.SalesOrderLine?.SalesOrder?.OrderNumber);
+            job.SalesOrderLine?.SalesOrder?.OrderNumber,
+            job.PartRevision);
     }
 
     public async Task<Job?> FindAsync(int id, CancellationToken ct)

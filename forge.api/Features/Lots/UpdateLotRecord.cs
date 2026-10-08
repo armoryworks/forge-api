@@ -45,6 +45,7 @@ public class UpdateLotRecordHandler(AppDbContext db) : IRequestHandler<UpdateLot
                 l.PartId,
                 l.Part.PartNumber,
                 l.Part.Description,
+                l.PartRevision,
                 l.JobId,
                 l.Job != null ? l.Job.JobNumber : null,
                 l.ProductionRunId,

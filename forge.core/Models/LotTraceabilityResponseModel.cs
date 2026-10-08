@@ -4,6 +4,7 @@ public record LotTraceabilityResponseModel(
     string LotNumber,
     string PartNumber,
     string? PartDescription,
+    string? PartRevision,
     List<LotTraceJobModel> Jobs,
     List<LotTraceProductionRunModel> ProductionRuns,
     List<LotTracePurchaseOrderModel> PurchaseOrders,

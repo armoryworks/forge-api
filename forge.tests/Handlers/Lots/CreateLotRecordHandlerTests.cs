@@ -6,6 +6,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Integrations;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Lots;
@@ -21,7 +22,7 @@ public class CreateLotRecordHandlerTests
         db.Parts.Add(part);
         await db.SaveChangesAsync();
 
-        var handler = new CreateLotRecordHandler(db, Mock.Of<IBarcodeService>());
+        var handler = new CreateLotRecordHandler(db, Mock.Of<IBarcodeService>(), new SystemClock());
         var data = new CreateLotRecordRequestModel(
             "LOT-CUSTOM-001", part.Id, null, null, null, 500, null, "SUP-123", "Test notes");
         var command = new CreateLotRecordCommand(data);
@@ -47,7 +48,7 @@ public class CreateLotRecordHandlerTests
         db.Parts.Add(part);
         await db.SaveChangesAsync();
 
-        var handler = new CreateLotRecordHandler(db, Mock.Of<IBarcodeService>());
+        var handler = new CreateLotRecordHandler(db, Mock.Of<IBarcodeService>(), new SystemClock());
         var data = new CreateLotRecordRequestModel(
             null, part.Id, null, null, null, 100, null, null, null);
         var command = new CreateLotRecordCommand(data);
@@ -79,7 +80,7 @@ public class CreateLotRecordHandlerTests
         await db.SaveChangesAsync();
 
         var expiration = DateTimeOffset.UtcNow.AddYears(1);
-        var handler = new CreateLotRecordHandler(db, Mock.Of<IBarcodeService>());
+        var handler = new CreateLotRecordHandler(db, Mock.Of<IBarcodeService>(), new SystemClock());
         var data = new CreateLotRecordRequestModel(
             "LOT-FK-001", part.Id, job.Id, null, null, 250, expiration, null, null);
         var command = new CreateLotRecordCommand(data);
@@ -104,7 +105,7 @@ public class CreateLotRecordHandlerTests
         await db.SaveChangesAsync();
 
         var barcodes = new Mock<IBarcodeService>();
-        var handler = new CreateLotRecordHandler(db, barcodes.Object);
+        var handler = new CreateLotRecordHandler(db, barcodes.Object, new SystemClock());
         var command = new CreateLotRecordCommand(new CreateLotRecordRequestModel(
             "LOT-BC-001", part.Id, null, null, null, 10, null, null, null));
 

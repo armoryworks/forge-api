@@ -32,6 +32,7 @@ public class JobConfiguration : IEntityTypeConfiguration<Job>
         builder.Property(e => e.ExternalId).HasMaxLength(100);
         builder.Property(e => e.ExternalRef).HasMaxLength(100);
         builder.Property(e => e.Provider).HasMaxLength(50);
+        builder.Property(e => e.PartRevision).HasMaxLength(10);
         builder.Property(e => e.DispositionNotes).HasMaxLength(2000);
         builder.Property(e => e.CustomFieldValues).HasColumnType("jsonb");
 
