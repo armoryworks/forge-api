@@ -102,8 +102,8 @@ public class GetLotTraceabilityHandler(AppDbContext db)
                 i.CreatedAt,
                 i.Template != null ? i.Template.Name : null,
                 i.CompletedAt,
-                i.Results.Count(r => r.Passed),
-                i.Results.Count(r => !r.Passed)))
+                i.Results.Count(r => r.Passed == true),
+                i.Results.Count(r => r.Passed == false)))
             .ToListAsync(cancellationToken);
 
         var nonConformances = await db.NonConformances

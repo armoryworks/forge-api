@@ -72,6 +72,24 @@ public class GetPartQualitySummaryTests
     }
 
     [Fact]
+    public async Task An_unchecked_result_counts_as_neither_passed_nor_failed()
+    {
+        var part = await SeedPartAsync(12, "QS-UNCHECKED");
+        _db.LotRecords.Add(new LotRecord { Id = 22, LotNumber = "QS-LOT-2", PartId = part.Id, Quantity = 5m });
+        _db.QcInspections.Add(new QcInspection { Id = 32, LotNumber = "QS-LOT-2", Status = "InProgress", InspectorId = 1 });
+        _db.QcInspectionResults.AddRange(
+            new QcInspectionResult { InspectionId = 32, Description = "Bore", Passed = true },
+            new QcInspectionResult { InspectionId = 32, Description = "Finish", Passed = false },
+            new QcInspectionResult { InspectionId = 32, Description = "Thread" });
+        await _db.SaveChangesAsync();
+
+        var inspection = (await SummaryAsync(part.Id)).RecentInspections.Should().ContainSingle().Subject;
+
+        inspection.PassedCount.Should().Be(1);
+        inspection.FailedCount.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Inspections_are_matched_by_template_job_run_and_receipt_and_capped_at_ten()
     {
         var part = await SeedPartAsync(12, "QS-MULTI");

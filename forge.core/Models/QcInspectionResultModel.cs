@@ -6,6 +6,6 @@ public record QcInspectionResultModel(
     string Description,
     string? Specification,
     bool IsRequired,
-    bool Passed,
+    bool? Passed,
     string? MeasuredValue,
     string? Notes);

@@ -93,7 +93,6 @@ public class CreateQcInspectionHandler(AppDbContext db, IHttpContextAccessor htt
                 Description = item.Description,
                 Specification = item.Specification,
                 IsRequired = item.IsRequired,
-                Passed = false,
             }).ToList();
         }
 

@@ -64,6 +64,8 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
             changedFields.Add("results");
 
         var completing = data.Status is "Passed" or "Failed";
+        if (completing)
+            EnsureRequiredItemsChecked(inspection);
         if (data.Status == "Passed")
             EnsureRequiredItemsPassed(inspection);
 
@@ -171,10 +173,23 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
         return changed;
     }
 
+    private static void EnsureRequiredItemsChecked(QcInspection inspection)
+    {
+        var notChecked = inspection.Results
+            .Where(r => r.IsRequired && r.Passed is null)
+            .OrderBy(r => r.Id)
+            .Select(r => r.Description)
+            .ToList();
+
+        if (notChecked.Count > 0)
+            throw new InvalidOperationException(
+                $"Inspection {inspection.Id} cannot be completed: required checklist items have not been checked ({string.Join(", ", notChecked)}).");
+    }
+
     private static void EnsureRequiredItemsPassed(QcInspection inspection)
     {
         var failed = inspection.Results
-            .Where(r => r.IsRequired && !r.Passed)
+            .Where(r => r.IsRequired && r.Passed == false)
             .OrderBy(r => r.Id)
             .Select(r => r.Description)
             .ToList();

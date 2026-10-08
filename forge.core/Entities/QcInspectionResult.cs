@@ -7,7 +7,7 @@ public class QcInspectionResult : BaseEntity
     public string Description { get; set; } = string.Empty;
     public string? Specification { get; set; }
     public bool IsRequired { get; set; } = true;
-    public bool Passed { get; set; }
+    public bool? Passed { get; set; }
     public string? MeasuredValue { get; set; }
     public string? Notes { get; set; }
 

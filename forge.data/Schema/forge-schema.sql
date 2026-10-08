@@ -7154,7 +7154,7 @@ CREATE TABLE public.qc_inspection_results (
     description character varying(200) NOT NULL,
     specification character varying(500),
     is_required boolean DEFAULT true NOT NULL,
-    passed boolean NOT NULL,
+    passed boolean,
     measured_value character varying(200),
     notes character varying(500)
 );

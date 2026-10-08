@@ -118,6 +118,24 @@ public class GetLotTraceabilitySourcesTests
     }
 
     [Fact]
+    public async Task An_unchecked_result_counts_as_neither_passed_nor_failed()
+    {
+        var part = await SeedPartAsync(105, "BRACKET");
+        _db.LotRecords.Add(new LotRecord { Id = 204, LotNumber = "LOT-UNCHECKED-1", PartId = part.Id, Quantity = 5m });
+        _db.QcInspections.Add(new QcInspection { Id = 504, LotNumber = "LOT-UNCHECKED-1", Status = "InProgress", InspectorId = 1 });
+        _db.QcInspectionResults.AddRange(
+            new QcInspectionResult { InspectionId = 504, Description = "Thickness", Passed = true },
+            new QcInspectionResult { InspectionId = 504, Description = "Flatness" },
+            new QcInspectionResult { InspectionId = 504, Description = "Finish" });
+        await _db.SaveChangesAsync();
+
+        var inspection = (await TraceAsync("LOT-UNCHECKED-1")).Inspections.Should().ContainSingle().Subject;
+
+        inspection.PassedCount.Should().Be(1);
+        inspection.FailedCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Non_conformances_raised_for_the_lot_are_listed()
     {
         var part = await SeedPartAsync(104, "SHAFT");

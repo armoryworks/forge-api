@@ -43,8 +43,8 @@ public class GetPartQualitySummaryHandler(AppDbContext db)
                 db.Users.Where(u => u.Id == i.InspectorId).Select(u => u.FirstName + " " + u.LastName).FirstOrDefault() ?? "",
                 i.CreatedAt,
                 i.CompletedAt,
-                i.Results.Count(r => r.Passed),
-                i.Results.Count(r => !r.Passed)))
+                i.Results.Count(r => r.Passed == true),
+                i.Results.Count(r => r.Passed == false)))
             .ToListAsync(cancellationToken);
 
         var openNcrs = await db.NonConformances

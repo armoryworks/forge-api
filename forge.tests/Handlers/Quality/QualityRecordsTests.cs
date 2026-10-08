@@ -72,6 +72,11 @@ public class QualityRecordsTests(CapabilityTestWebApplicationFactory factory)
             .Select((r, i) => new UpdateQcInspectionResultModel(r.Id, r.ChecklistItemId, r.Description, passed[i], null, null))
             .ToList();
 
+    private static List<UpdateQcInspectionResultModel> CheckedResults(QcInspection inspection, params bool?[] passed) =>
+        inspection.Results.OrderBy(r => r.Id)
+            .Select((r, i) => new UpdateQcInspectionResultModel(r.Id, r.ChecklistItemId, r.Description, passed[i], null, null))
+            .ToList();
+
     private Task<QcInspectionResponseModel> Update(int id, string? status, List<UpdateQcInspectionResultModel>? results = null, string? notes = null) =>
         InspectionHandler().Handle(
             new UpdateQcInspectionCommand(id, new UpdateQcInspectionRequestModel(status, notes, results)),
@@ -140,6 +145,47 @@ public class QualityRecordsTests(CapabilityTestWebApplicationFactory factory)
     }
 
     [Fact]
+    public async Task A_result_reads_not_checked_until_recorded_and_can_be_cleared()
+    {
+        var inspection = await SeedInspectionAsync();
+
+        var untouched = await QcInspectionMapping.LoadResponseAsync(_db, inspection.Id, CancellationToken.None);
+        var recorded = await Update(inspection.Id, null, CheckedResults(inspection, false, null));
+        var cleared = await Update(inspection.Id, null, CheckedResults(inspection, null, null));
+
+        untouched.Results.Should().OnlyContain(r => r.Passed == null);
+        recorded.Results.Select(r => r.Passed).Should().Equal(false, null);
+        cleared.Results.Should().OnlyContain(r => r.Passed == null);
+    }
+
+    [Theory]
+    [InlineData("Passed")]
+    [InlineData("Failed")]
+    public async Task Completing_with_an_unchecked_required_item_is_refused(string status)
+    {
+        var inspection = await SeedInspectionAsync(jobId: 42);
+
+        var act = () => Update(inspection.Id, status, CheckedResults(inspection, true, null));
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*not been checked (Finish)*");
+        var stored = await _db.QcInspections.AsNoTracking().SingleAsync(i => i.Id == inspection.Id);
+        stored.Status.Should().Be("InProgress");
+        stored.CompletedAt.Should().BeNull();
+        _mediator.Verify(m => m.Publish(It.IsAny<QcInspectionFailedEvent>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Completing_is_allowed_when_only_an_optional_item_is_unchecked()
+    {
+        var inspection = await SeedInspectionAsync(optionalSecondItem: true);
+
+        var result = await Update(inspection.Id, "Passed", CheckedResults(inspection, true, null));
+
+        result.Status.Should().Be("Passed");
+        result.Results.Single(r => r.Description == "Finish").Passed.Should().BeNull();
+    }
+
+    [Fact]
     public async Task A_completed_inspection_rejects_further_updates()
     {
         var inspection = await SeedInspectionAsync();
@@ -185,6 +231,7 @@ public class QualityRecordsTests(CapabilityTestWebApplicationFactory factory)
             new CreateQcInspectionCommand(new CreateQcInspectionRequestModel(null, null, template.Id, null, null)),
             CancellationToken.None);
 
+        created.Results.Should().HaveCount(2).And.OnlyContain(r => r.Passed == null);
         var statusOnly = () => Update(created.Id, "Passed");
         await statusOnly.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Visual*");
 
@@ -195,7 +242,7 @@ public class QualityRecordsTests(CapabilityTestWebApplicationFactory factory)
 
         result.Status.Should().Be("Passed");
         result.Results.Select(r => r.Id).Should().BeEquivalentTo(created.Results.Select(r => r.Id));
-        result.Results.Should().OnlyContain(r => r.Passed);
+        result.Results.Should().OnlyContain(r => r.Passed == true);
     }
 
     [Fact]

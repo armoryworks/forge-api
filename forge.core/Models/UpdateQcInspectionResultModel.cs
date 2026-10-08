@@ -4,6 +4,6 @@ public record UpdateQcInspectionResultModel(
     int? Id,
     int? ChecklistItemId,
     string Description,
-    bool Passed,
+    bool? Passed,
     string? MeasuredValue,
     string? Notes);
