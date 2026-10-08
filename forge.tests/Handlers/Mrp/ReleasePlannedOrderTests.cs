@@ -223,6 +223,7 @@ public sealed class ReleasePlannedOrderTests(PostgresFixture fixture)
                 PartNumber = Unique("MRP-MAKE"),
                 Description = "Made assembly",
                 Status = PartStatus.Active,
+                ProcurementSource = ProcurementSource.Make,
                 IsMrpPlanned = true,
                 LotSizingRule = LotSizingRule.LotForLot,
             };

@@ -38,7 +38,7 @@ public class BackwardSchedulingService(
         var productionStartBy = productionCompleteBy.AddDays(-productionDays);
         var materialsNeededBy = productionStartBy;
 
-        var maxLeadTimeDays = await CalculateMaxLeadTimeDaysAsync(soLine.PartId, ct);
+        var maxLeadTimeDays = await CalculateMaxLeadTimeDaysAsync(soLine.PartId, soLine.Quantity, ct);
         var poOrderBy = materialsNeededBy.AddDays(-maxLeadTimeDays);
 
         return new BackwardSchedule(
@@ -93,29 +93,61 @@ public class BackwardSchedulingService(
         return Math.Max(days, DefaultProductionDays);
     }
 
-    private async Task<int> CalculateMaxLeadTimeDaysAsync(int? partId, CancellationToken ct)
+    private async Task<int> CalculateMaxLeadTimeDaysAsync(int? partId, decimal orderQuantity, CancellationToken ct)
     {
         if (!partId.HasValue)
             return DefaultLeadTimeDays;
 
-        // Pull every Buy BOM line — including rows with a null per-line
-        // LeadTimeDays. The legacy implementation filtered the nulls out at
-        // the SQL level which silently dropped any child part whose buy
-        // lead-time was tracked on the part snapshot or the preferred
-        // VendorPart row instead of the BOM line.
-        var buyEntries = await db.BOMLines
-            .Where(b => b.ParentPartId == partId.Value && b.SourceType == BOMSourceType.Buy)
-            .Select(b => new { b.ChildPartId, b.LeadTimeDays })
+        var childEntries = await db.BOMLines
+            .Where(b => b.ParentPartId == partId.Value && b.SourceType != BOMSourceType.Stock)
+            .Select(b => new
+            {
+                b.ChildPartId,
+                b.Quantity,
+                b.SourceType,
+                b.LeadTimeDays,
+                b.ChildPart.ProcurementSource,
+                b.ChildPart.PreferredVendorId,
+            })
             .ToListAsync(ct);
 
-        if (buyEntries.Count == 0)
+        if (childEntries.Count == 0)
             return DefaultLeadTimeDays;
 
-        // Resolve the snapshot/vendor lead time for any rows whose per-line
+        var childPartIds = childEntries.Select(e => e.ChildPartId).Distinct().ToList();
+
+        var routingByChild = (await db.Operations
+            .AsNoTracking()
+            .Where(o => childPartIds.Contains(o.PartId))
+            .ToListAsync(ct))
+            .GroupBy(o => o.PartId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var vendorSourcedChildIds = (await db.VendorParts
+            .Where(vp => childPartIds.Contains(vp.PartId))
+            .Select(vp => vp.PartId)
+            .Distinct()
+            .ToListAsync(ct))
+            .ToHashSet();
+
+        var makeChildIds = childEntries
+            .Where(e => routingByChild.ContainsKey(e.ChildPartId)
+                && MakeOrBuy.PlansAsMake(
+                    e.ProcurementSource,
+                    hasRouting: true,
+                    e.PreferredVendorId.HasValue || vendorSourcedChildIds.Contains(e.ChildPartId)))
+            .Select(e => e.ChildPartId)
+            .ToHashSet();
+
+        var leadEntries = childEntries
+            .Where(e => makeChildIds.Contains(e.ChildPartId) || e.SourceType == BOMSourceType.Buy)
+            .ToList();
+
+        // Resolve the snapshot/vendor lead time for any bought rows whose per-line
         // LeadTimeDays is null. Bulk-resolve in a single round trip and look
         // up by child id in the loop.
-        var fallbackPartIds = buyEntries
-            .Where(e => !e.LeadTimeDays.HasValue)
+        var fallbackPartIds = leadEntries
+            .Where(e => !e.LeadTimeDays.HasValue && !makeChildIds.Contains(e.ChildPartId))
             .Select(e => e.ChildPartId)
             .Distinct()
             .ToList();
@@ -128,12 +160,14 @@ public class BackwardSchedulingService(
 
         var max = 0;
         var sawAny = false;
-        foreach (var entry in buyEntries)
+        foreach (var entry in leadEntries)
         {
             int? lead = entry.LeadTimeDays
-                ?? (fallback != null && fallback.TryGetValue(entry.ChildPartId, out var v)
-                    ? v.LeadTimeDays
-                    : null);
+                ?? (makeChildIds.Contains(entry.ChildPartId)
+                    ? OperationTimeMath.MakeLeadTimeDays(routingByChild[entry.ChildPartId], orderQuantity * entry.Quantity)
+                    : fallback != null && fallback.TryGetValue(entry.ChildPartId, out var v)
+                        ? v.LeadTimeDays
+                        : null);
 
             if (!lead.HasValue) continue;
             sawAny = true;

@@ -303,6 +303,8 @@ public class MrpService(
                     p.MinimumOrderQuantity,
                     p.OrderMultiple,
                     p.SafetyStockDays,
+                    p.ProcurementSource,
+                    p.PreferredVendorId,
                 })
                 .ToDictionaryAsync(p => p.Id, cancellationToken);
 
@@ -311,6 +313,21 @@ public class MrpService(
             // from the preferred VendorPart row when configured, falling
             // back to the Part snapshot.
             var sourcingByPart = await sourcingResolver.ResolveManyAsync(allPartIds.ToList(), cancellationToken);
+
+            var routingByPart = (await db.Operations
+                .AsNoTracking()
+                .Where(o => allPartIds.Contains(o.PartId))
+                .ToListAsync(cancellationToken))
+                .GroupBy(o => o.PartId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var vendorSourcedPartIds = (await db.VendorParts
+                .AsNoTracking()
+                .Where(vp => allPartIds.Contains(vp.PartId))
+                .Select(vp => vp.PartId)
+                .Distinct()
+                .ToListAsync(cancellationToken))
+                .ToHashSet();
 
             // Group BOM by parent
             var bomByParent = bomLines
@@ -366,12 +383,17 @@ public class MrpService(
                         : [];
 
                     var part = allParts.GetValueOrDefault(partId);
-                    // Lead time comes from the preferred VendorPart row;
-                    // default 14 days when no preferred VendorPart is set.
+                    // Purchase lead time comes from the preferred VendorPart row, make lead time
+                    // from the routing; default 14 days when the part has neither.
                     var resolvedLeadTime = sourcingByPart.TryGetValue(partId, out var sv)
                         ? sv.LeadTimeDays
                         : null;
-                    var leadTime = resolvedLeadTime ?? 14;
+                    var routing = routingByPart.GetValueOrDefault(partId);
+                    var orderType = PlannedOrderType(
+                        part?.ProcurementSource,
+                        routing is not null,
+                        part?.PreferredVendorId is not null || vendorSourcedPartIds.Contains(partId),
+                        bomByParent.ContainsKey(partId));
                     var lotRule = part?.LotSizingRule ?? LotSizingRule.LotForLot;
 
                     var runningOnHand = availableOnHand;
@@ -429,10 +451,9 @@ public class MrpService(
                                 part?.MinimumOrderQuantity,
                                 part?.OrderMultiple);
 
-                            // Determine order type based on BOM
-                            var orderType = bomByParent.ContainsKey(partId)
-                                ? MrpOrderType.Manufacture
-                                : MrpOrderType.Purchase;
+                            var leadTime = orderType == MrpOrderType.Manufacture && routing is not null
+                                ? OperationTimeMath.MakeLeadTimeDays(routing, orderQty)
+                                : resolvedLeadTime ?? 14;
 
                             // Lead-time offset
                             var dueDate = demand.RequiredDate;
@@ -943,6 +964,15 @@ public class MrpService(
                 });
             }
         }
+    }
+
+    private static MrpOrderType PlannedOrderType(
+        ProcurementSource? source, bool hasRouting, bool hasVendorSource, bool hasBom)
+    {
+        var makes = source is ProcurementSource known && known != ProcurementSource.Phantom
+            ? MakeOrBuy.PlansAsMake(known, hasRouting, hasVendorSource)
+            : hasBom;
+        return makes ? MrpOrderType.Manufacture : MrpOrderType.Purchase;
     }
 
     private static bool IsMadeInHouse(OpenJobRow job, OpenJobPlanningContext context)
