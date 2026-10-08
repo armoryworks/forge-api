@@ -50,7 +50,7 @@ public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
                 BarcodeEntityType.Lot => await LotAsync(barcode.LotRecordId!.Value, code, ct),
                 BarcodeEntityType.User => await BadgeAsync(barcode.UserId!.Value, code, ct),
                 BarcodeEntityType.SalesOrder => new("salesOrder", barcode.SalesOrderId, code, code, null),
-                BarcodeEntityType.PurchaseOrder => new("purchaseOrder", barcode.PurchaseOrderId, code, code, null),
+                BarcodeEntityType.PurchaseOrder => await PurchaseOrderAsync(barcode.PurchaseOrderId!.Value, code, ct),
                 BarcodeEntityType.Asset => new("asset", barcode.AssetId, code, code, null),
                 _ => Unknown(code),
             };
@@ -96,7 +96,31 @@ public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
             if (id is not null) return await BadgeAsync(id.Value, code, ct);
         }
 
+        var purchaseOrderId = await FindPurchaseOrderAsync(code, upper, ct);
+        if (purchaseOrderId is not null) return await PurchaseOrderAsync(purchaseOrderId.Value, code, ct);
+
         return Unknown(code);
+    }
+
+    private async Task<int?> FindPurchaseOrderAsync(string code, string upper, CancellationToken ct)
+    {
+        var pattern = EscapeLike(code);
+        var unprefixed = upper.StartsWith("PO-", StringComparison.Ordinal) ? EscapeLike(code[3..]) : null;
+        if (unprefixed is { Length: 0 }) return null;
+
+        var candidates = await db.PurchaseOrders.AsNoTracking()
+            .Where(p => EF.Functions.ILike(p.PONumber, pattern, LikeEscape)
+                || (unprefixed != null && EF.Functions.ILike(p.PONumber, unprefixed, LikeEscape)))
+            .Select(p => new { p.Id, Value = p.PONumber })
+            .Take(10)
+            .ToListAsync(ct);
+
+        var exact = candidates
+            .Where(c => string.Equals(c.Value, code, StringComparison.OrdinalIgnoreCase))
+            .Select(c => c.Id)
+            .ToList();
+        if (exact.Count > 0) return exact.Count == 1 ? exact[0] : null;
+        return candidates.Count == 1 ? candidates[0].Id : null;
     }
 
     private async Task<int?> FindJobAsync(string code, CancellationToken ct)
@@ -190,6 +214,15 @@ public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
         var lot = await db.LotRecords.AsNoTracking()
             .Where(l => l.Id == id).Select(l => l.LotNumber).FirstAsync(ct);
         return new("lot", id, code, lot, null);
+    }
+
+    private async Task<ScanResolveResponseModel> PurchaseOrderAsync(int id, string code, CancellationToken ct)
+    {
+        var po = await db.PurchaseOrders.AsNoTracking()
+            .Where(p => p.Id == id)
+            .Select(p => new { p.PONumber, Vendor = p.Vendor.CompanyName })
+            .FirstAsync(ct);
+        return new("purchaseOrder", id, code, po.PONumber, po.Vendor);
     }
 
     private async Task<ScanResolveResponseModel> BadgeAsync(int id, string code, CancellationToken ct)
