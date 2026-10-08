@@ -220,9 +220,12 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<List<InventoryPartSummaryResponseModel>> GetPartInventorySummaryAsync(string? search, CancellationToken ct)
+    public async Task<List<InventoryPartSummaryResponseModel>> GetPartInventorySummaryAsync(string? search, PartStatus? status, CancellationToken ct)
     {
         var query = db.Parts.AsQueryable();
+
+        if (status.HasValue)
+            query = query.Where(p => p.Status == status.Value);
 
         if (!string.IsNullOrWhiteSpace(search))
         {

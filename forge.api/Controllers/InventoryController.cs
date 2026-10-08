@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Inventory;
+using Forge.Core.Enums;
 using Forge.Core.Models;
 
 namespace Forge.Api.Controllers;
@@ -63,9 +64,9 @@ public class InventoryController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("parts")]
-    public async Task<ActionResult<List<InventoryPartSummaryResponseModel>>> GetPartInventory([FromQuery] string? search)
+    public async Task<ActionResult<List<InventoryPartSummaryResponseModel>>> GetPartInventory([FromQuery] string? search, [FromQuery] PartStatus? status)
     {
-        var result = await mediator.Send(new GetPartInventoryQuery(search));
+        var result = await mediator.Send(new GetPartInventoryQuery(search, status));
         return Ok(result);
     }
 

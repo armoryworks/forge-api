@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Data.Repositories;
 using Forge.Tests.Helpers;
 
@@ -16,7 +17,7 @@ public class InventoryRepositoryPartSummaryTests
             new Part { Id = 2, PartNumber = "P-2", Name = "Untracked" });
         await db.SaveChangesAsync();
 
-        var result = await new InventoryRepository(db).GetPartInventorySummaryAsync(null, CancellationToken.None);
+        var result = await new InventoryRepository(db).GetPartInventorySummaryAsync(null, null, CancellationToken.None);
 
         var tracked = result.Single(p => p.PartId == 1);
         tracked.MinStockThreshold.Should().Be(10m);
@@ -25,5 +26,24 @@ public class InventoryRepositoryPartSummaryTests
         var untracked = result.Single(p => p.PartId == 2);
         untracked.MinStockThreshold.Should().BeNull();
         untracked.ReorderPoint.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetPartInventorySummaryAsync_WithStatus_ReturnsOnlyPartsInThatStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.Parts.AddRange(
+            new Part { Id = 1, PartNumber = "P-1", Name = "Live", Status = PartStatus.Active },
+            new Part { Id = 2, PartNumber = "P-2", Name = "In flight", Status = PartStatus.Draft },
+            new Part { Id = 3, PartNumber = "P-3", Name = "Retired", Status = PartStatus.Obsolete },
+            new Part { Id = 4, PartNumber = "P-4", Name = "Trial", Status = PartStatus.Prototype });
+        await db.SaveChangesAsync();
+        var repo = new InventoryRepository(db);
+
+        var active = await repo.GetPartInventorySummaryAsync(null, PartStatus.Active, CancellationToken.None);
+        var all = await repo.GetPartInventorySummaryAsync(null, null, CancellationToken.None);
+
+        active.Select(p => p.PartId).Should().Equal(1);
+        all.Should().HaveCount(4);
     }
 }

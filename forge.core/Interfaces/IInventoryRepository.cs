@@ -44,7 +44,7 @@ public interface IInventoryRepository
     Task AddMovementAsync(BinMovement movement, CancellationToken ct);
 
     // Inventory summary
-    Task<List<InventoryPartSummaryResponseModel>> GetPartInventorySummaryAsync(string? search, CancellationToken ct);
+    Task<List<InventoryPartSummaryResponseModel>> GetPartInventorySummaryAsync(string? search, PartStatus? status, CancellationToken ct);
 
     // Movement history
     Task<List<BinMovementResponseModel>> GetMovementsAsync(int? locationId, string? entityType, int? entityId, int take, CancellationToken ct);
