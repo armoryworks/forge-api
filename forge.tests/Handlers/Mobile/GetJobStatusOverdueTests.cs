@@ -29,7 +29,8 @@ public class GetJobStatusOverdueTests
         var clock = new Mock<IClock>();
         clock.Setup(c => c.UtcNow).Returns(Now);
 
-        var handler = new GetJobStatusHandler(TestDbContextFactory.Create(), mediator.Object, clock.Object);
+        var handler = new GetJobStatusHandler(
+            TestDbContextFactory.Create(), mediator.Object, clock.Object, Mock.Of<IAccountingProviderFactory>());
         var status = await handler.Handle(new GetJobStatusQuery(1), CancellationToken.None);
         return status.IsOverdue;
     }

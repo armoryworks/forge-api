@@ -12,8 +12,12 @@ public record GetJobStatusQuery(int JobId) : IRequest<JobStatusResponseModel>;
 /// <summary>
 /// The phone's job card: identity, where it is, where it goes next (and
 /// where it came from, for undo), and the last three timeline entries.
+/// The next status's accounting document is reported only when moving
+/// there will queue one: an external accounting provider is active and the
+/// job's customer is linked to it.
 /// </summary>
-public class GetJobStatusHandler(AppDbContext db, IMediator mediator, IClock clock)
+public class GetJobStatusHandler(
+    AppDbContext db, IMediator mediator, IClock clock, IAccountingProviderFactory accountingProviders)
     : IRequestHandler<GetJobStatusQuery, JobStatusResponseModel>
 {
     public async Task<JobStatusResponseModel> Handle(GetJobStatusQuery request, CancellationToken ct)
@@ -35,6 +39,11 @@ public class GetJobStatusHandler(AppDbContext db, IMediator mediator, IClock clo
             .Take(3)
             .ToList();
 
+        var accountingDocument = next?.AccountingDocumentType is not null
+            && await QueuesAccountingDocumentAsync(job.CustomerId, ct)
+                ? next.AccountingDocumentType
+                : null;
+
         var startOfToday = new DateTimeOffset(clock.UtcNow.UtcDateTime.Date, TimeSpan.Zero);
         return new JobStatusResponseModel(
             job.Id, job.JobNumber, job.Title, job.CustomerName,
@@ -45,7 +54,18 @@ public class GetJobStatusHandler(AppDbContext db, IMediator mediator, IClock clo
         {
             NextStageIsShopFloor = next?.IsShopFloor ?? false,
             NextStageIsIrreversible = next?.IsIrreversible ?? false,
-            NextStageAccountingDocument = next?.AccountingDocumentType,
+            NextStageAccountingDocument = accountingDocument,
         };
+    }
+
+    private async Task<bool> QueuesAccountingDocumentAsync(int? customerId, CancellationToken ct)
+    {
+        if (customerId is null) return false;
+
+        var providerId = await accountingProviders.GetActiveProviderIdAsync(ct);
+        if (providerId is null or "local") return false;
+
+        return await db.Customers.AsNoTracking()
+            .AnyAsync(c => c.Id == customerId && c.ExternalId != null && c.ExternalId != "", ct);
     }
 }

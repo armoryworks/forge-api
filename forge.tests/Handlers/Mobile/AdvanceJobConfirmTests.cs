@@ -51,7 +51,7 @@ public class AdvanceJobConfirmTests
         var act = () => _handler.Handle(new AdvanceJobCommand(7, "device-1", null), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConfirmationRequiredException>()
-            .WithMessage("Moving JOB-0007 to Invoiced/Sent can't be undone and creates an invoice. Confirm to continue.");
+            .WithMessage("Moving JOB-0007 to Invoiced/Sent can't be undone and queues an invoice for your accounting system. Confirm to continue.");
         VerifyMoved(Times.Never());
     }
 
@@ -69,14 +69,14 @@ public class AdvanceJobConfirmTests
     }
 
     [Fact]
-    public async Task A_status_that_only_creates_an_accounting_document_needs_confirming()
+    public async Task A_status_that_only_queues_an_accounting_document_needs_confirming()
     {
         NextStageIs("Order Confirmed", false, AccountingDocumentType.SalesOrder);
 
         var act = () => _handler.Handle(new AdvanceJobCommand(7, "device-1", null), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConfirmationRequiredException>()
-            .WithMessage("Moving JOB-0007 to Order Confirmed creates a sales order. Confirm to continue.");
+            .WithMessage("Moving JOB-0007 to Order Confirmed queues a sales order for your accounting system. Confirm to continue.");
         VerifyMoved(Times.Never());
     }
 
@@ -127,5 +127,29 @@ public class AdvanceJobConfirmTests
 
         second.Collapsed.Should().BeTrue();
         VerifyMoved(Times.Once());
+    }
+
+    [Fact]
+    public async Task A_confirmation_for_the_stage_that_is_still_next_moves_the_job()
+    {
+        NextStageIs("Invoiced/Sent", true, AccountingDocumentType.Invoice);
+
+        await _handler.Handle(
+            new AdvanceJobCommand(7, "device-1", null, Confirmed: true, ConfirmedStageId: 9), CancellationToken.None);
+
+        VerifyMoved(Times.Once());
+    }
+
+    [Fact]
+    public async Task A_confirmation_for_a_stage_that_is_no_longer_next_is_asked_again()
+    {
+        NextStageIs("Payment Received", true, AccountingDocumentType.Payment);
+
+        var act = () => _handler.Handle(
+            new AdvanceJobCommand(7, "device-1", null, Confirmed: true, ConfirmedStageId: 8), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConfirmationRequiredException>()
+            .WithMessage("Moving JOB-0007 to Payment Received can't be undone and queues a payment for your accounting system. Confirm to continue.");
+        VerifyMoved(Times.Never());
     }
 }
