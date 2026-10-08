@@ -118,4 +118,23 @@ public class ClockInOutTimerTests
         log.EntityId.Should().Be(result.ClockEventId);
         log.Description.Should().Be("Start Break via kiosk");
     }
+
+    [Fact]
+    public async Task Handle_ClockOut_StopsOperationTimersTooAndReportsTheJobTimer()
+    {
+        var user = await _h.AddUserAsync();
+        var job = await _h.AddJobAsync("JOB-0110");
+        var general = await _h.AddRunningTimerAsync(user.Id, job.Id, _h.Now.AddMinutes(-60));
+        var first = await _h.AddRunningOperationTimerAsync(
+            user.Id, await _h.AddJobOperationAsync(job.Id, 20), _h.Now.AddMinutes(-30));
+        var second = await _h.AddRunningOperationTimerAsync(
+            user.Id, await _h.AddJobOperationAsync(job.Id, 30), _h.Now.AddMinutes(-10));
+
+        var result = await _handler.Handle(new ClockInOutCommand(user.Id, "ClockOut"), CancellationToken.None);
+
+        result.StoppedJobNumber.Should().Be("JOB-0110");
+        var ids = new[] { general.Id, first.Id, second.Id };
+        var saved = await _h.Db.TimeEntries.AsNoTracking().Where(t => ids.Contains(t.Id)).ToListAsync();
+        saved.Should().OnlyContain(t => t.TimerStop == _h.Now);
+    }
 }

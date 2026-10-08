@@ -185,4 +185,51 @@ public class StartTimerHandlerTests
         log.EntityType.Should().Be("TimeEntry");
         log.EntityId.Should().Be(result.Id);
     }
+
+    [Fact]
+    public async Task Handle_OnlyOperationTimersRunning_StartsAJobLevelTimer()
+    {
+        var userId = await SignInAsync();
+        var job = await _h.AddJobAsync("JOB-0201");
+        var step = await _h.AddJobOperationAsync(job.Id, 20);
+        var operationTimer = await _h.AddRunningOperationTimerAsync(userId, step, _h.Now.AddMinutes(-15));
+
+        var result = await _handler.Handle(
+            new StartTimerCommand(new StartTimerRequestModel(job.Id, "Production", null)), CancellationToken.None);
+
+        result.JobOperationId.Should().BeNull();
+        (await _h.Db.TimeEntries.CountAsync(t => t.TimerStop == null)).Should().Be(2);
+        (await _h.Db.TimeEntries.AsNoTracking().SingleAsync(t => t.Id == operationTimer.Id)).TimerStop.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_GeneralTimerRunningAlongsideOperationTimers_StillRefuses()
+    {
+        var userId = await SignInAsync();
+        var job = await _h.AddJobAsync("JOB-0202");
+        await _h.AddRunningOperationTimerAsync(userId, await _h.AddJobOperationAsync(job.Id, 20), _h.Now.AddMinutes(-15));
+        await _h.AddRunningTimerAsync(userId, job.Id, _h.Now.AddMinutes(-5));
+
+        var act = () => _handler.Handle(
+            new StartTimerCommand(new StartTimerRequestModel(job.Id, null, null)), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*JOB-0202*");
+    }
+
+    [Fact]
+    public async Task Handle_SwitchFromActive_StopsOnlyTheGeneralTimer()
+    {
+        var userId = await SignInAsync();
+        var job = await _h.AddJobAsync("JOB-0203");
+        var operationTimer = await _h.AddRunningOperationTimerAsync(
+            userId, await _h.AddJobOperationAsync(job.Id, 20), _h.Now.AddMinutes(-15));
+        var general = await _h.AddRunningTimerAsync(userId, job.Id, _h.Now.AddMinutes(-5));
+
+        await _handler.Handle(
+            new StartTimerCommand(new StartTimerRequestModel(job.Id, null, null, SwitchFromActive: true)),
+            CancellationToken.None);
+
+        (await _h.Db.TimeEntries.AsNoTracking().SingleAsync(t => t.Id == general.Id)).TimerStop.Should().Be(_h.Now);
+        (await _h.Db.TimeEntries.AsNoTracking().SingleAsync(t => t.Id == operationTimer.Id)).TimerStop.Should().BeNull();
+    }
 }

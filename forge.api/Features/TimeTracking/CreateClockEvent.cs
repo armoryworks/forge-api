@@ -56,7 +56,7 @@ public class CreateClockEventHandler(
         StoppedTimerResponseModel? stopped = null;
         if (definition.StatusMapping == "Out")
             stopped = await mediator.Send(
-                new StopActiveTimerCommand(userId, clockEvent.Timestamp, Reason: "clocked out"), cancellationToken);
+                new StopActiveTimerCommand(userId, clockEvent.Timestamp, Reason: "clocked out", IncludeOperationTimers: true), cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

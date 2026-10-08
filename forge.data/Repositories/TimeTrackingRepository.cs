@@ -40,7 +40,7 @@ public class TimeTrackingRepository(AppDbContext db) : ITimeTrackingRepository
 
     public async Task<TimeEntryResponseModel?> GetTimeEntryByIdAsync(int id, CancellationToken ct)
     {
-        var entry = await db.TimeEntries.Include(t => t.Job)
+        var entry = await db.TimeEntries.Include(t => t.Job).Include(t => t.Operation)
             .FirstOrDefaultAsync(t => t.Id == id, ct);
 
         if (entry is null) return null;
@@ -56,8 +56,35 @@ public class TimeTrackingRepository(AppDbContext db) : ITimeTrackingRepository
         => db.TimeEntries.FirstOrDefaultAsync(t => t.Id == id, ct);
 
     public Task<TimeEntry?> GetActiveTimerAsync(int userId, CancellationToken ct)
-        => db.TimeEntries.FirstOrDefaultAsync(t =>
-            t.UserId == userId && t.TimerStart != null && t.TimerStop == null, ct);
+        => db.TimeEntries
+            .Where(t => t.UserId == userId && t.TimerStart != null && t.TimerStop == null && t.JobOperationId == null)
+            .OrderByDescending(t => t.TimerStart)
+            .FirstOrDefaultAsync(ct);
+
+    public Task<List<TimeEntry>> GetOpenTimersAsync(int userId, CancellationToken ct)
+        => db.TimeEntries
+            .Include(t => t.Job)
+            .Include(t => t.Operation)
+            .Where(t => t.UserId == userId && t.TimerStart != null && t.TimerStop == null)
+            .OrderByDescending(t => t.TimerStart)
+            .ToListAsync(ct);
+
+    public async Task<List<TimeEntryResponseModel>> GetOpenTimerResponsesAsync(int userId, CancellationToken ct)
+    {
+        var entries = await db.TimeEntries
+            .AsNoTracking()
+            .Include(t => t.Job)
+            .Include(t => t.Operation)
+            .Where(t => t.UserId == userId && t.TimerStart != null && t.TimerStop == null)
+            .OrderByDescending(t => t.TimerStart)
+            .ToListAsync(ct);
+
+        var users = await db.Users
+            .Where(u => u.Id == userId)
+            .ToDictionaryAsync(u => u.Id, ct);
+
+        return entries.Select(t => ToTimeEntryResponse(t, users)).ToList();
+    }
 
     public async Task AddTimeEntryAsync(TimeEntry entry, CancellationToken ct)
     {
@@ -148,6 +175,9 @@ public class TimeTrackingRepository(AppDbContext db) : ITimeTrackingRepository
             IsLocked = t.IsLocked,
             CreatedAt = t.CreatedAt,
             OperationId = t.OperationId,
+            JobOperationId = t.JobOperationId,
+            OperationStepNumber = t.Operation?.StepNumber,
+            OperationTitle = t.Operation?.Title,
             EntryType = t.EntryType.ToString(),
             LaborCost = t.LaborCost,
             BurdenCost = t.BurdenCost,

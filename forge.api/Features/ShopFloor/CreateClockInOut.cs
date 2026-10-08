@@ -52,7 +52,7 @@ public class ClockInOutHandler(
         StoppedTimerResponseModel? stopped = null;
         if (definition.StatusMapping == "Out")
             stopped = await mediator.Send(
-                new StopActiveTimerCommand(request.UserId, timestamp, Reason: "clocked out"), ct);
+                new StopActiveTimerCommand(request.UserId, timestamp, Reason: "clocked out", IncludeOperationTimers: true), ct);
 
         await db.SaveChangesAsync(ct);
 

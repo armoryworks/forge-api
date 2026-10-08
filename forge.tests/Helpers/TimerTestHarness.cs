@@ -9,6 +9,7 @@ using Moq;
 
 using Forge.Api.Features.TimeTracking;
 using Forge.Api.Hubs;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -19,8 +20,8 @@ using Forge.Data.Repositories;
 namespace Forge.Tests.Helpers;
 
 /// <summary>
-/// Real <see cref="StopActiveTimerHandler"/> and
-/// <see cref="ResumeStoppedTimerHandler"/> over an InMemory context, with a
+/// Real <see cref="StopActiveTimerHandler"/> (over a real <see cref="TimerStopService"/>)
+/// and <see cref="ResumeStoppedTimerHandler"/> over an InMemory context, with a
 /// connected accounting provider and a linked employee so the QuickBooks
 /// enqueue is reachable (each enqueue also lands a real sync-queue row), a
 /// mediator mock that routes both commands to them, and the seeded clock
@@ -89,7 +90,9 @@ public sealed class TimerTestHarness
         return accessor.Object;
     }
 
-    public StopActiveTimerHandler StopActiveTimerHandler()
+    public StopActiveTimerHandler StopActiveTimerHandler() => new(Repo, TimerStopService());
+
+    public TimerStopService TimerStopService()
     {
         var accounting = new Mock<IAccountingService>();
         accounting.Setup(a => a.GetSyncStatusAsync(It.IsAny<CancellationToken>()))
@@ -102,9 +105,9 @@ public sealed class TimerTestHarness
             Mock.Of<IUserStore<ApplicationUser>>(),
             null!, null!, null!, null!, null!, null!, null!, null!);
         userManager.Setup(u => u.FindByIdAsync(It.IsAny<string>()))
-            .ReturnsAsync((string id) => new ApplicationUser { Id = int.Parse(id), AccountingEmployeeId = "EMP-1" });
+            .ReturnsAsync((string id) => new ApplicationUser { Id = int.Parse(id), AccountingEmployeeId = $"EMP-{id}" });
 
-        return new StopActiveTimerHandler(
+        return new TimerStopService(
             Repo,
             Db,
             TimerHub.Object,
@@ -113,7 +116,7 @@ public sealed class TimerTestHarness
             userManager.Object,
             Jobs,
             Mock.Of<ICustomerRepository>(),
-            Mock.Of<ILogger<StopActiveTimerHandler>>());
+            Mock.Of<ILogger<TimerStopService>>());
     }
 
     public async Task<ApplicationUser> AddUserAsync()
@@ -147,12 +150,33 @@ public sealed class TimerTestHarness
         return job;
     }
 
-    public async Task<TimeEntry> AddRunningTimerAsync(int userId, int? jobId, DateTimeOffset start)
+    public async Task<JobOperation> AddJobOperationAsync(int jobId, int stepNumber)
+    {
+        var row = new JobOperation
+        {
+            JobId = jobId,
+            OperationId = 1000 + stepNumber,
+            StepNumber = stepNumber,
+            Title = $"Step {stepNumber}",
+            Status = JobOperationStatus.InProgress,
+        };
+        Db.JobOperations.Add(row);
+        await Db.SaveChangesAsync();
+        return row;
+    }
+
+    public Task<TimeEntry> AddRunningOperationTimerAsync(int userId, JobOperation row, DateTimeOffset start)
+        => AddRunningTimerAsync(userId, row.JobId, start, row.OperationId, row.Id);
+
+    public async Task<TimeEntry> AddRunningTimerAsync(
+        int userId, int? jobId, DateTimeOffset start, int? operationId = null, int? jobOperationId = null)
     {
         var entry = new TimeEntry
         {
             UserId = userId,
             JobId = jobId,
+            OperationId = operationId,
+            JobOperationId = jobOperationId,
             Date = DateOnly.FromDateTime(start.UtcDateTime),
             TimerStart = start,
             DurationMinutes = 0,

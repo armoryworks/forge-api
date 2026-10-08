@@ -91,4 +91,24 @@ public class UndoClockPunchTimerTests
         saved.TimerStop.Should().BeNull();
         (await _h.Db.ActivityLogs.AnyAsync(a => a.Action == "timer-resumed")).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task Handle_UndoneClockOut_ResumesEveryTimerItStopped()
+    {
+        var user = await _h.AddUserAsync();
+        var job = await _h.AddJobAsync("JOB-0210");
+        var general = await _h.AddRunningTimerAsync(user.Id, job.Id, _h.Now.AddMinutes(-60));
+        var operationTimer = await _h.AddRunningOperationTimerAsync(
+            user.Id, await _h.AddJobOperationAsync(job.Id, 20), _h.Now.AddMinutes(-30));
+        var punch = await _punch.Handle(new ClockInOutCommand(user.Id, "ClockOut"), CancellationToken.None);
+
+        _h.Now = _h.Now.AddSeconds(20);
+        await UndoHandler(user.Id).Handle(new UndoClockPunchCommand(punch.ClockEventId), CancellationToken.None);
+
+        var saved = await _h.Db.TimeEntries.AsNoTracking().OrderBy(t => t.Id).ToListAsync();
+        saved.Select(t => t.Id).Should().Equal(general.Id, operationTimer.Id);
+        saved.Should().OnlyContain(t => t.TimerStop == null && t.DurationMinutes == 0);
+        _h.UserGroup.Verify(g => g.SendCoreAsync(
+            "timerStarted", It.IsAny<object?[]>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
 }

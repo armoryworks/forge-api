@@ -11,6 +11,8 @@ public interface ITimeTrackingRepository
     Task<TimeEntryResponseModel?> GetTimeEntryByIdAsync(int id, CancellationToken ct);
     Task<TimeEntry?> FindTimeEntryAsync(int id, CancellationToken ct);
     Task<TimeEntry?> GetActiveTimerAsync(int userId, CancellationToken ct);
+    Task<List<TimeEntry>> GetOpenTimersAsync(int userId, CancellationToken ct);
+    Task<List<TimeEntryResponseModel>> GetOpenTimerResponsesAsync(int userId, CancellationToken ct);
     Task AddTimeEntryAsync(TimeEntry entry, CancellationToken ct);
 
     // Clock events

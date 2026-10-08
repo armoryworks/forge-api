@@ -17,6 +17,9 @@ public record TimeEntryResponseModel
     public bool IsLocked { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
     public int? OperationId { get; init; }
+    public int? JobOperationId { get; init; }
+    public int? OperationStepNumber { get; init; }
+    public string? OperationTitle { get; init; }
     public string? EntryType { get; init; }
     public decimal LaborCost { get; init; }
     public decimal BurdenCost { get; init; }
