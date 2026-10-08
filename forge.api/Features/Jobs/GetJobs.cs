@@ -15,10 +15,33 @@ namespace Forge.Api.Features.Jobs;
 /// </summary>
 public record GetJobsQuery(JobListQuery Query) : IRequest<PagedResponse<JobListResponseModel>>;
 
-public class GetJobsHandler(IJobRepository repo)
+public class GetJobsHandler(IJobRepository repo, IJobOperationService operations)
     : IRequestHandler<GetJobsQuery, PagedResponse<JobListResponseModel>>
 {
-    public Task<PagedResponse<JobListResponseModel>> Handle(
+    public async Task<PagedResponse<JobListResponseModel>> Handle(
         GetJobsQuery request, CancellationToken cancellationToken)
-        => repo.GetPagedJobsAsync(request.Query, cancellationToken);
+    {
+        var page = await repo.GetPagedJobsAsync(request.Query, cancellationToken);
+        if (page.Items.Count == 0 || !await operations.IsTrackingEnabledAsync(cancellationToken))
+            return page;
+
+        var summaries = await operations.SummarizeAsync(page.Items.Select(j => j.Id).ToList(), cancellationToken);
+        if (summaries.Count == 0)
+            return page;
+
+        var items = page.Items
+            .Select(item => summaries.TryGetValue(item.Id, out var summary)
+                ? item with
+                {
+                    OperationsTotal = summary.OperationsTotal,
+                    OperationsComplete = summary.OperationsComplete,
+                    InProgressSteps = summary.InProgressSteps,
+                    RunningTimerCount = summary.RunningTimerCount,
+                    EstimatedRemainingMinutes = summary.EstimatedRemainingMinutes,
+                }
+                : item)
+            .ToList();
+
+        return page with { Items = items };
+    }
 }

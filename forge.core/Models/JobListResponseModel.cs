@@ -29,4 +29,9 @@ public record JobListResponseModel(
     string? SalesOrderNumber = null,
     int BoardPosition = 0,
     string? PartNumber = null,
-    decimal? Quantity = null);
+    decimal? Quantity = null,
+    int? OperationsTotal = null,
+    int? OperationsComplete = null,
+    IReadOnlyList<int>? InProgressSteps = null,
+    int? RunningTimerCount = null,
+    decimal? EstimatedRemainingMinutes = null);

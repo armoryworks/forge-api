@@ -310,6 +310,7 @@ try
     builder.Services.AddScoped<ITimeTrackingRepository, TimeTrackingRepository>();
     builder.Services.AddScoped<IWorkCenterContext, WorkCenterContext>();
     builder.Services.AddScoped<ITimerStopService, TimerStopService>();
+    builder.Services.AddScoped<IJobOperationService, JobOperationService>();
     builder.Services.AddScoped<IUserPreferenceRepository, UserPreferenceRepository>();
     builder.Services.AddScoped<IFileRepository, FileRepository>();
     builder.Services.AddScoped<IJobLinkRepository, JobLinkRepository>();
