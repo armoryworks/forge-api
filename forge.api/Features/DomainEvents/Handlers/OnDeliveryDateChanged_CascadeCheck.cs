@@ -59,7 +59,7 @@ public class OnDeliveryDateChanged_CascadeCheck(
 
         db.FollowUpTasks.Add(new FollowUpTask
         {
-            Title = $"Delivery at risk for SO-{soLine.SalesOrder.OrderNumber} line {soLine.LineNumber}",
+            Title = $"Delivery at risk for {soLine.SalesOrder.OrderNumber} line {soLine.LineNumber}",
             Description = $"Delivery date moved from {notification.OldDate:MM/dd/yyyy} to {notification.NewDate:MM/dd/yyyy}. {atRiskJobs.Count} job(s) have due dates after the new delivery date and may need rescheduling.",
             AssignedToUserId = assigneeId,
             DueDate = clock.UtcNow,

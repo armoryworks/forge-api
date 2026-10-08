@@ -91,7 +91,8 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
                     j.AssigneeId.HasValue && assigneeNames.TryGetValue(j.AssigneeId.Value, out var name) ? name : null,
                     j.Priority.ToString(),
                     j.DueDate,
-                    j.IsArchived)).ToList()
+                    j.IsArchived,
+                    j.CompletedDate != null || j.Disposition != null || j.IsArchived)).ToList()
             )).ToList(),
             so.Shipments.Select(s => new SalesOrderShipmentModel(
                 s.Id,

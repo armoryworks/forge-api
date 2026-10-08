@@ -8,4 +8,5 @@ public record SalesOrderLineJobModel(
     string? AssigneeName,
     string? Priority,
     DateTimeOffset? DueDate,
-    bool IsArchived);
+    bool IsArchived,
+    bool IsComplete);

@@ -44,7 +44,8 @@ public class ConvertEstimateToQuoteHandler(
     IQuoteRepository quoteRepo,
     IPartRepository partRepo,
     // AUDIT-19-S1 pattern: optional/null-default so isolated unit-test constructions stay valid; DI supplies it.
-    Forge.Api.Services.CustomerPriceResolver? priceResolver = null)
+    Forge.Api.Services.CustomerPriceResolver? priceResolver = null,
+    Forge.Api.Services.TaxOverrideGuard? taxGuard = null)
     : IRequestHandler<ConvertEstimateToQuoteCommand, QuoteListItemModel>
 {
     public async Task<QuoteListItemModel> Handle(ConvertEstimateToQuoteCommand request, CancellationToken ct)
@@ -67,6 +68,10 @@ public class ConvertEstimateToQuoteHandler(
         if (orphan != -1)
             throw new KeyNotFoundException($"Estimate line {orphan} not found on estimate {estimate.Id}.");
 
+        var taxRate = taxGuard is not null
+            ? await taxGuard.GetDefaultRateAsync(estimate.CustomerId, ct)
+            : 0m;
+
         var quoteNumber = await quoteRepo.GenerateNextQuoteNumberAsync(ct);
         var quote = new Quote
         {
@@ -76,7 +81,7 @@ public class ConvertEstimateToQuoteHandler(
             Status = QuoteStatus.Draft,
             Notes = estimate.Description ?? estimate.Notes,
             ExpirationDate = estimate.ExpirationDate,
-            TaxRate = 0,
+            TaxRate = taxRate,
             SourceEstimateId = estimate.Id,
         };
 

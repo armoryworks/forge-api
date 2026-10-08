@@ -55,7 +55,7 @@ public class OnShipmentDelivered_Notify(
         {
             db.FollowUpTasks.Add(new FollowUpTask
             {
-                Title = $"Shipment delivered — SO-{so.OrderNumber}",
+                Title = $"Shipment delivered — {so.OrderNumber}",
                 Description = $"Shipment {shipment.ShipmentNumber} for {customerName} has been delivered. Follow up on satisfaction and invoicing.",
                 AssignedToUserId = assignedUserId,
                 DueDate = clock.UtcNow.AddDays(2),
@@ -73,7 +73,7 @@ public class OnShipmentDelivered_Notify(
                 Severity = "info",
                 Source = "shipments",
                 Title = "Shipment Delivered",
-                Message = $"Shipment {shipment.ShipmentNumber} for SO-{so.OrderNumber} ({customerName}) has been delivered.",
+                Message = $"Shipment {shipment.ShipmentNumber} for {so.OrderNumber} ({customerName}) has been delivered.",
                 EntityType = "Shipment",
                 EntityId = shipment.Id,
             };

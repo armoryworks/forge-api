@@ -7,6 +7,8 @@ namespace Forge.Core.Models;
 /// default and surfaces them only when the "show already-assigned" override is on.
 /// <see cref="RemainingQuantity"/> is the line quantity less what open jobs still in progress
 /// cover and the larger of what has shipped and what completed open jobs made, never below zero.
+/// It is null when the line's unit differs from the part's stock unit, since a job is not
+/// defaulted from a quantity in another unit.
 /// </summary>
 public record AssignableSalesOrderLineModel(
     int Id,
@@ -18,5 +20,5 @@ public record AssignableSalesOrderLineModel(
     string Description,
     decimal Quantity,
     int AssignedJobCount,
-    decimal RemainingQuantity,
+    decimal? RemainingQuantity,
     DateTimeOffset? RequestedDeliveryDate);

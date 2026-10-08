@@ -59,7 +59,7 @@ public class OnSalesOrderConfirmed_CreateFollowUps(
             var now = clock.UtcNow;
             db.FollowUpTasks.Add(new FollowUpTask
             {
-                Title = $"Create jobs for SO-{so.OrderNumber}",
+                Title = $"Create jobs for {so.OrderNumber}",
                 Description = $"{linesWithoutJobs.Count} line(s) in Sales Order {so.OrderNumber} need production jobs created.",
                 AssignedToUserId = assigneeId,
                 DueDate = now.AddDays(1),

@@ -85,7 +85,7 @@ public class OnJobStageChanged_CheckShipReady(
 
         db.FollowUpTasks.Add(new FollowUpTask
         {
-            Title = $"SO line ready to ship — SO-{soLine.SalesOrder.OrderNumber}",
+            Title = $"SO line ready to ship — {soLine.SalesOrder.OrderNumber}",
             Description = $"All production jobs for line {soLine.LineNumber} are complete. Ready to create shipment.",
             AssignedToUserId = primaryAssigneeId,
             DueDate = clock.UtcNow.AddDays(1),
@@ -105,7 +105,7 @@ public class OnJobStageChanged_CheckShipReady(
                 Severity = "info",
                 Source = "sales_orders",
                 Title = "Ready to Ship",
-                Message = $"All jobs for SO-{soLine.SalesOrder.OrderNumber} line {soLine.LineNumber} are complete. Ready to create shipment.",
+                Message = $"All jobs for {soLine.SalesOrder.OrderNumber} line {soLine.LineNumber} are complete. Ready to create shipment.",
                 EntityType = "SalesOrder",
                 EntityId = soLine.SalesOrderId,
                 SenderId = notification.UserId,

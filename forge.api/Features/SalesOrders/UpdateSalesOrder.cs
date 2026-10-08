@@ -47,7 +47,8 @@ public class UpdateSalesOrderHandler(
     IBusinessIdentifierService identifiers,
     AppDbContext db,
     IMediator mediator,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    Forge.Api.Services.TaxOverrideGuard? taxGuard = null)
     : IRequestHandler<UpdateSalesOrderCommand>
 {
     // System setting that gates caller-supplied order numbers (shared with CreateSalesOrder).
@@ -96,7 +97,16 @@ public class UpdateSalesOrderHandler(
         if (request.RequestedDeliveryDate.HasValue) order.RequestedDeliveryDate = request.RequestedDeliveryDate;
         if (request.CustomerPO != null) order.CustomerPO = request.CustomerPO;
         if (request.Notes != null) order.Notes = request.Notes;
-        if (request.TaxRate.HasValue) order.TaxRate = request.TaxRate.Value;
+        if (request.TaxRate.HasValue)
+        {
+            if (taxGuard is not null && decimal.Round(request.TaxRate.Value, 6) != decimal.Round(order.TaxRate, 6))
+            {
+                var defaultRate = await taxGuard.GetDefaultRateAsync(order.CustomerId, cancellationToken);
+                await taxGuard.EnsureCanOverrideAsync(
+                    order.CustomerId, request.TaxRate.Value, defaultRate, cancellationToken);
+            }
+            order.TaxRate = request.TaxRate.Value;
+        }
 
         if (orderNumberChanged)
             db.LogActivityAt("updated", $"Order number changed to {order.OrderNumber}", ("SalesOrder", order.Id));

@@ -51,7 +51,8 @@ public class CreateSalesOrderHandler(
     ICustomerAddressRepository addressRepo,
     // Optional/null-default so isolated unit-test constructions stay valid; DI supplies both.
     ISystemSettingRepository? systemSettings = null,
-    IBusinessIdentifierService? identifiers = null)
+    IBusinessIdentifierService? identifiers = null,
+    Forge.Api.Services.TaxOverrideGuard? taxGuard = null)
     : IRequestHandler<CreateSalesOrderCommand, SalesOrderListItemModel>
 {
     // System setting that gates caller-supplied order numbers. Stored as "true"/"false".
@@ -63,6 +64,13 @@ public class CreateSalesOrderHandler(
         // Phase 3 H2 / WU-12: customer-active check mirrors the vendor → PO
         // gate that Phase 1 found missing.
         ActiveCheck.EnsureActive(customer, "Customer", "customerId", request.CustomerId);
+
+        if (taxGuard is not null)
+        {
+            var defaultRate = await taxGuard.GetDefaultRateAsync(request.CustomerId, cancellationToken);
+            await taxGuard.EnsureCanOverrideAsync(
+                request.CustomerId, request.TaxRate, defaultRate, cancellationToken);
+        }
 
         var orderNumber = await ResolveOrderNumberAsync(request, cancellationToken);
 

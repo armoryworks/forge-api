@@ -8,21 +8,12 @@ using Forge.Core.Models;
 namespace Forge.Api.Controllers;
 
 /// <summary>
-/// SalesOrders list/read surface — Phase 3 F1 partial / WU-18.
+/// SalesOrders list/read surface under <c>/api/v1/sales-orders</c>: the paged
+/// list and the by-id row, both over the SalesOrder entity, one row per order.
 ///
-/// The SalesOrders list endpoint is a query-side projection over Jobs (the
-/// canonical transactional entity). A "sales order" is a Job at "Order
-/// Confirmed" stage or downstream (materials_ordered, materials_received,
-/// in_production, qc_review, shipped, invoiced_sent, payment_received).
-///
-/// Mutations (POST/PUT/PATCH/DELETE) and the existing detail/schedule/documents/
-/// invoices endpoints continue to live on the legacy <c>/api/v1/orders</c>
-/// surface — see <see cref="SalesOrdersController"/>. This controller is
-/// read-only and exposes only the list + by-id projections that Phase 1 found
-/// missing under the <c>/sales-orders</c> route.
-///
-/// Full unification (dropping the SalesOrder entity, migrating references) is
-/// a future architectural pass (F1-broad).
+/// Mutations (POST/PUT/PATCH/DELETE) and the detail/schedule/documents/invoices
+/// endpoints live on the <c>/api/v1/orders</c> surface; see
+/// <see cref="SalesOrdersController"/>. This controller is read-only.
 /// </summary>
 [ApiController]
 [Route("api/v1/sales-orders")]
@@ -31,7 +22,7 @@ namespace Forge.Api.Controllers;
 public class SalesOrdersListController(IMediator mediator) : ControllerBase
 {
     /// <summary>
-    /// Paged Job-projected sales-order list. Standard WU-17 envelope:
+    /// Paged sales-order list. Standard WU-17 envelope:
     /// <c>{ items, totalCount, page, pageSize }</c>.
     /// </summary>
     [HttpGet]
@@ -44,13 +35,11 @@ public class SalesOrdersListController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
-    /// Single Job-as-SO projection. Returns 404 if the Job id does not exist or
-    /// is not at an SO-stage (order_confirmed and downstream).
+    /// Single sales order in the list-row shape. Returns 404 if the SalesOrder
+    /// id does not exist.
     ///
     /// For the full SalesOrder detail (with lines, shipments, returns, tax),
-    /// callers should use <c>GET /api/v1/orders/{id}</c> against the legacy
-    /// SalesOrder entity. This endpoint exists for parity with the list shape
-    /// and to satisfy the Phase 1 gap.
+    /// callers should use <c>GET /api/v1/orders/{id}</c>.
     /// </summary>
     [HttpGet("{id:int}")]
     public async Task<ActionResult<SalesOrderListItemModel>> GetSalesOrder(

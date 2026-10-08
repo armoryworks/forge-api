@@ -201,4 +201,29 @@ public class GetAssignableSalesOrderLinesHandlerTests
 
         result.Single(r => r.Id == line.Id).RemainingQuantity.Should().Be(0m);
     }
+
+    [Theory]
+    [InlineData(4, 3, null)]
+    [InlineData(3, 3, 25.0)]
+    [InlineData(null, 3, 25.0)]
+    public async Task Handle_RemainingQuantityIsNullWhenTheLineUnitDiffersFromTheStockUnit(
+        int? lineUomId, int stockUomId, double? expected)
+    {
+        var part = new Part { PartNumber = "P-UOM", Name = "Sheet", StockUomId = stockUomId };
+        _db.Parts.Add(part);
+        var so = new SalesOrder { OrderNumber = "SO-500", CustomerId = 1, Status = SalesOrderStatus.Confirmed };
+        _db.SalesOrders.Add(so);
+        await _db.SaveChangesAsync();
+        var line = new SalesOrderLine
+        {
+            SalesOrderId = so.Id, PartId = part.Id, UomId = lineUomId, Description = "Sheet",
+            Quantity = 25m, UnitPrice = 1m, LineNumber = 1,
+        };
+        _db.SalesOrderLines.Add(line);
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new GetAssignableSalesOrderLinesQuery(true, null), CancellationToken.None);
+
+        result.Single(r => r.Id == line.Id).RemainingQuantity.Should().Be((decimal?)expected);
+    }
 }

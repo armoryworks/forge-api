@@ -64,6 +64,8 @@ public class GetAssignableSalesOrderLinesHandler(AppDbContext db, ISalesOrderAcc
                 l.Description,
                 l.Quantity,
                 l.ShippedQuantity,
+                l.UomId,
+                PartStockUomId = l.Part != null ? l.Part.StockUomId : null,
                 AssignedJobCount = l.Jobs.Count(j => !j.IsArchived && j.Disposition == null),
                 OnJobsInProgress = l.Jobs
                     .Where(j => !j.IsArchived && j.Disposition == null && j.CompletedDate == null)
@@ -89,7 +91,9 @@ public class GetAssignableSalesOrderLinesHandler(AppDbContext db, ISalesOrderAcc
                 r.Description,
                 r.Quantity,
                 r.AssignedJobCount,
-                SalesOrderLineDefaultQuantity.Remaining(r.Quantity, r.ShippedQuantity, r.OnJobsInProgress, r.OnCompletedJobs),
+                r.UomId.HasValue && r.PartStockUomId.HasValue && r.UomId != r.PartStockUomId
+                    ? null
+                    : SalesOrderLineDefaultQuantity.Remaining(r.Quantity, r.ShippedQuantity, r.OnJobsInProgress, r.OnCompletedJobs),
                 r.RequestedDeliveryDate))
             .ToList();
     }
