@@ -28,7 +28,8 @@ public record DiscoveryRecommendationResponseModel(
     string Rationale,
     IReadOnlyList<DiscoveryRecommendationFactorResponseModel> Factors,
     IReadOnlyList<DiscoveryAlternativeResponseModel> Alternatives,
-    IReadOnlyList<CapabilityDeltaResponseModel> CapabilityDeltas);
+    IReadOnlyList<CapabilityDeltaResponseModel> CapabilityDeltas,
+    IReadOnlyList<DiscoveryCapabilityAdjustmentResponseModel> CapabilityAdjustments);
 
 public record DiscoveryRecommendationFactorResponseModel(string QuestionId, string Description);
 
@@ -91,6 +92,7 @@ public class PreviewDiscoveryRecommendationHandler(ICapabilitySnapshotProvider s
                 .ToList(),
             CapabilityDeltas: deltas
                 .Select(d => new CapabilityDeltaResponseModel(d.Code, d.Name, d.CurrentlyEnabled, d.WillBeEnabled))
-                .ToList()));
+                .ToList(),
+            CapabilityAdjustments: DiscoveryCapabilityAdjustmentResponseModel.From(recommendation.Adjustments)));
     }
 }

@@ -27,7 +27,7 @@ public record DiscoveryQuestionResponseModel(
     string? Branch,
     string? InternalNote);
 
-public record DiscoveryChoiceResponseModel(string Value, string Label);
+public record DiscoveryChoiceResponseModel(string Value, string Label, bool Exclusive);
 
 public class GetDiscoveryQuestionsHandler
     : IRequestHandler<GetDiscoveryQuestionsQuery, DiscoveryQuestionsResponseModel>
@@ -47,7 +47,7 @@ public class GetDiscoveryQuestionsHandler
                 WhyAsking: q.WhyAsking,
                 Choices: q.Choices is null
                     ? null
-                    : q.Choices.Select(c => new DiscoveryChoiceResponseModel(c.Value, c.Label)).ToList(),
+                    : q.Choices.Select(c => new DiscoveryChoiceResponseModel(c.Value, c.Label, c.Exclusive)).ToList(),
                 Branch: q.Branch,
                 InternalNote: request.ConsultantMode ? q.InternalNote : null))
             .ToList();

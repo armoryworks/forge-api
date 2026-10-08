@@ -11,7 +11,7 @@ namespace Forge.Api.Capabilities.Discovery;
 ///   • 4 Branch B (mid)
 ///   • 4 Branch C (large)
 ///   • 2 override (Q-V1, Q-V2)
-///   • 6 diagnostic (Q-D1..Q-D6)
+///   • 8 diagnostic (Q-D1..Q-D8)
 ///   • 1 exit ramp (Q-X1)
 ///
 /// Plus consultant-mode deepdive questions (per 4C decision #6: 6-8 per
@@ -37,7 +37,10 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.Opening,
         Type: DiscoveryQuestionType.SingleChoice,
         Text: "What does your business primarily sell — physical products you make or resell, time and services your team delivers, or both?",
-        WhyAsking: "This is the biggest fork in the road. A consulting firm or agency needs a fundamentally different setup than a manufacturer or distributor. If you sell time you should never be asked about BOMs, routings, or shop floor; if you do both, you need the union.",
+        WhyAsking: "This is the biggest fork in the road. A consulting firm or agency needs a very different setup from a manufacturer or distributor. If you sell your time, we won't ask you about bills of materials or the shop floor; if you do both, you get the tools for both.",
+        InternalNote: "Top-of-funnel split (Pro Services rollout D4). Services short-circuits to PRESET-08, both to PRESET-09; " +
+                      "products falls through to the manufacturing questions. A services business never needs BOMs, routings " +
+                      "or shop floor; a business that does both needs the union of the two capability sets.",
         Choices:
         [
             new("products", "We sell physical products"),
@@ -70,20 +73,19 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.Opening,
         Type: DiscoveryQuestionType.FreeText,
         Text: "Walk me through what happens from when a customer asks for a price to when you get paid. Who touches it along the way?",
-        WhyAsking: "This open-ended prompt surfaces role separation, workflow shape, and the rhythm of the business in a way no checkbox can.");
+        WhyAsking: "In your own words, this tells us who does what and how work moves through your business better than any checkbox can.",
+        InternalNote: "Open-ended prompt that surfaces role separation, workflow shape and the rhythm of the business. Quoted in the rationale, never parsed.");
 
     private static readonly DiscoveryQuestion QO3 = new(
         Id: "Q-O3",
         Stage: DiscoveryStage.Opening,
         Category: DiscoveryCategory.Opening,
         Type: DiscoveryQuestionType.MultiChoice,
-        Text: "What does your business actually do? Check every line that applies — the more accurate this is, the better the preset.",
-        WhyAsking: "Many businesses are a mix — a manufacturer that also resells partner products, an engineering firm that ships physical parts, a distributor with a consulting arm. Checking everything that applies sets you up for all of it, not just the first thing you mentioned.",
-        InternalNote: "Q-S1 is the top-of-funnel fast-path; this is the finer reality check. Many businesses are a " +
-                   "combination — a manufacturer that also resells partner products, an engineering firm that ships " +
-                   "physical parts, a distributor with a consulting arm. Checking Services alongside one of the " +
-                   "product options routes you to the Hybrid preset (Pro Services overlay + manufacturing stack). " +
-                   "Services-only routes to Pro Services even if Q-S1 said Products.",
+        Text: "You told us what you mainly sell. To fine-tune that, check every line below that describes your business.",
+        WhyAsking: "Many businesses are a mix — a manufacturer that also resells partner products, an engineering firm that ships physical parts, a distributor with a consulting arm. Checking everything that applies sets you up for all of it, not just the main thing you sell.",
+        InternalNote: "Refines Q-S1: the top-of-funnel answer is the fast path, this is the finer reality check. " +
+                   "Services checked alongside make or resell falls through to the manufacturing flow, with services " +
+                   "sold as line items. Services-only routes to Pro Services even if Q-S1 said Products.",
         Choices:
         [
             new("services", "We deliver professional services — consulting, agency work, engineering hours; any business model where we're selling our time and expertise"),
@@ -97,16 +99,18 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.Opening,
         Type: DiscoveryQuestionType.MultiChoice,
         Text: "Are you in a regulated industry, or do you carry quality certifications? Check every box that applies — many businesses serve multiple regulated markets (e.g. medical AND aerospace, or food AND pharma).",
-        WhyAsking: "Regulation is orthogonal to size — a small shop with FDA QSR or AS9100 obligations has the same compliance overhead as a large one. ANY certification selected here recommends the Regulated Manufacturer preset regardless of headcount. Capturing all applicable certs (not just the first one) lets the install pre-populate compliance documents and audit trails for each.",
+        WhyAsking: "A small shop with FDA or AS9100 obligations carries the same compliance load as a large one, so any certification you check here points to the Regulated Manufacturer setup whatever your size. Checking every one that applies lets us prepare the records each of them needs.",
+        InternalNote: "Regulation is orthogonal to size: any cert recommends PRESET-05 regardless of headcount. \"No\" is exclusive " +
+                      "and is ignored when sent with a cert. Capturing all certs lets the install pre-populate compliance documents and audit trails for each.",
         Choices:
         [
-            new("no", "No, none of these apply"),
+            new("no", "No, none of these apply", Exclusive: true),
             new("medical", "Medical devices (ISO 13485, FDA QSR)"),
             new("aerospace", "Aerospace (AS9100)"),
             new("automotive", "Automotive (IATF 16949)"),
             new("food", "Food (FSMA, GMP)"),
             new("pharma", "Pharma (cGMP)"),
-            new("other", "Something else (specify in the audit-walkthrough free-text below)"),
+            new("other", "Something else"),
         ]);
 
     private static readonly DiscoveryQuestion QO5 = new(
@@ -115,7 +119,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.Opening,
         Type: DiscoveryQuestionType.SingleChoice,
         Text: "How many physical locations do you operate from — counting production sites, warehouses, and any combination?",
-        WhyAsking: "Multi-site is a load-bearing distinction at mid-and-large headcount. Two or more sites with regular inter-site transfers lands on Multi-Site Operation.",
+        WhyAsking: "Working from two or more sites, especially if you move stock between them, needs location tracking that a single-site business can skip.",
+        InternalNote: "Multi-site is load-bearing at mid-and-large headcount. Two or more sites with regular inter-site transfers lands on PRESET-06.",
         Choices:
         [
             new("1", "1 location"),
@@ -171,7 +176,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.BranchSpecific,
         Type: DiscoveryQuestionType.SingleChoice,
         Text: "When you make something, does it go through one machine or step from start to finish, or does it move through several different machines or stations?",
-        WhyAsking: "Single-step shops should disable multi-op routing surfaces to avoid noise. This question removes that noise without forcing the user to know the term \"routing.\"",
+        WhyAsking: "It tells us whether your work needs step-by-step instructions across machines, or whether a simple one-step job is enough.",
+        InternalNote: "Single-step shops should disable multi-op routing surfaces to avoid noise, without the user having to know the term \"routing.\"",
         Branch: "A",
         Choices:
         [
@@ -186,7 +192,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.BranchSpecific,
         Type: DiscoveryQuestionType.SingleChoice,
         Text: "Are most of your sales orders shipped from your warehouse, or sometimes shipped directly from your supplier to your customer without going through you?",
-        WhyAsking: "Catches drop-ship and back-to-back patterns. Asked only when you said you resell or do both.",
+        WhyAsking: "It tells us whether you need to track orders your supplier ships straight to your customer.",
+        InternalNote: "Catches drop-ship and back-to-back patterns. Asked only when the user resells or does both.",
         Branch: "A",
         Choices:
         [
@@ -203,7 +210,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.BranchSpecific,
         Type: DiscoveryQuestionType.SingleChoice,
         Text: "After a job ships and is invoiced, do you compare what it actually cost you to make against what you quoted — and act on the difference?",
-        WhyAsking: "Splits Growing Job Shop from Production Manufacturer. Job-cost variance review signals the shop has the data discipline for formal control surfaces.",
+        WhyAsking: "Shops that compare actual job costs with their quotes are usually ready for tighter cost tracking.",
+        InternalNote: "Splits Growing Job Shop from Production Manufacturer. Job-cost variance review signals the shop has the data discipline for formal control surfaces.",
         Branch: "B",
         Choices:
         [
@@ -218,7 +226,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.BranchSpecific,
         Type: DiscoveryQuestionType.SingleChoice,
         Text: "Beyond a final visual look, do you do incoming, in-process, or first-article inspection — and do you formally write up nonconformances when something is wrong?",
-        WhyAsking: "The ISO 9001 baseline question — inspection plus NCR plus CAPA. Shops doing it land on Production Manufacturer at minimum.",
+        WhyAsking: "Formal inspections and written-up problems call for a setup with built-in quality records.",
+        InternalNote: "The ISO 9001 baseline question — inspection plus NCR plus CAPA. Shops doing it land on Production Manufacturer at minimum.",
         Branch: "B",
         Choices:
         [
@@ -234,7 +243,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.BranchSpecific,
         Type: DiscoveryQuestionType.YesNo,
         Text: "For purchase orders above a certain dollar amount, do you have a formal approval step — somebody other than the buyer signs off — or does the buyer just place the order?",
-        WhyAsking: "Approval workflow is a strong Production Manufacturer signal. At Growing Job Shop scale, the buyer is often the owner; at PM scale, the buyer is not the owner and approvals matter.",
+        WhyAsking: "When someone other than the buyer signs off on larger orders, a built-in approval step keeps that sign-off on record.",
+        InternalNote: "Approval workflow is a strong Production Manufacturer signal. At Growing Job Shop scale, the buyer is often the owner; at PM scale, the buyer is not the owner and approvals matter.",
         Branch: "B");
 
     private static readonly DiscoveryQuestion QB4 = new(
@@ -243,7 +253,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.BranchSpecific,
         Type: DiscoveryQuestionType.YesNo,
         Text: "Do you send work out to other shops for finishing — heat treat, plating, painting, coating, anodizing — and need to track that round-trip?",
-        WhyAsking: "Subcontract is universal in real machine shops at mid-scale. Asking explicitly captures the parameter.",
+        WhyAsking: "Sending work out for finishing means keeping track of parts while they are away and when they are due back.",
+        InternalNote: "Subcontract is universal in real machine shops at mid-scale. Asking explicitly captures the parameter.",
         Branch: "B");
 
     // ── Branch C (large, 200+ or 2+ sites) ────────────────────────────────
@@ -254,7 +265,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.BranchSpecific,
         Type: DiscoveryQuestionType.SingleChoice,
         Text: "How often do you move inventory between your locations — every day, every week, monthly, or rarely?",
-        WhyAsking: "Splits Multi-Site (frequent inter-site transfers) from a single-site Production Manufacturer.",
+        WhyAsking: "Frequent moves between sites call for transfer tracking between locations; rare moves can be handled more simply.",
+        InternalNote: "Splits Multi-Site (frequent inter-site transfers) from a single-site Production Manufacturer.",
         Branch: "C",
         Choices:
         [
@@ -308,7 +320,10 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.Override,
         Type: DiscoveryQuestionType.FreeText,
         Text: "What's the worst thing a regulator or your biggest customer could ask you to prove — about a product, a process, a person's training — and how confident are you that you could prove it today?",
-        WhyAsking: "The override probe. Catches lot-trace pressure, gage calibration audits, customer-mandated traceability — situations where the size-based default placement is wrong.");
+        WhyAsking: "Some businesses have to prove more than their size would suggest. Your answer helps us decide whether you need stronger record-keeping from day one.",
+        InternalNote: "The override probe. Catches lot-trace pressure, gage calibration audits, customer-mandated traceability — " +
+                      "situations where the size-based default placement is wrong. Asks the same thing as Q-O6, so the wizard " +
+                      "hides it once Q-O6 is answered and the engine reads Q-O6 when this is blank.");
 
     private static readonly DiscoveryQuestion QV2 = new(
         Id: "Q-V2",
@@ -329,7 +344,9 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.Diagnostic,
         Type: DiscoveryQuestionType.MultiChoice,
         Text: "How do you track parts for traceability? Check whichever applies — leave both unchecked if you don't track either.",
-        WhyAsking: "Lot vs serial aren't a graded scale — they're independent axes. Many shops track lots (for raw-material recall) AND serials (for finished-goods warranty). Disambiguates the Regulated Manufacturer baseline; ANY traceability axis counts as a soft regulation signal.",
+        WhyAsking: "Many shops track lot numbers for raw-material recalls, serial numbers for warranty, or both. Either one tells us you need traceability records.",
+        InternalNote: "Lot vs serial aren't a graded scale — they're independent axes. Disambiguates the Regulated Manufacturer " +
+                      "baseline; ANY traceability axis counts as a soft regulation signal.",
         Choices:
         [
             new("lots", "We track by lot number (raw-material batches, paint lots, etc.)"),
@@ -342,7 +359,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.Diagnostic,
         Type: DiscoveryQuestionType.YesNo,
         Text: "Do you handle hazardous materials, chemicals, or anything that needs SDS sheets, special handling, or regulated transportation?",
-        WhyAsking: "Catches industrial-supply, paint, chemical, and food-safety scenarios. Drives the hazmat capability.");
+        WhyAsking: "Hazardous materials need safety data sheets and special handling, so it helps to know up front.",
+        InternalNote: "Catches industrial-supply, paint, chemical, and food-safety scenarios. Drives the hazmat capability.");
 
     private static readonly DiscoveryQuestion QD3 = new(
         Id: "Q-D3",
@@ -366,7 +384,9 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.Diagnostic,
         Type: DiscoveryQuestionType.MultiChoice,
         Text: "Tell us about your shop floor / warehouse access patterns. Check what applies — leave unchecked for the defaults (everyone has email, single schedule).",
-        WhyAsking: "Kiosk auth vs personal logins, and shift-scheduling vs single-schedule, are independent axes. Either combination is realistic — email logins on multi-shift, or kiosks on single-shift. Multi-choice captures the truth instead of cramming four real states into one option list.",
+        WhyAsking: "Workers who share a terminal sign in with a badge or PIN instead of their own login, and multiple shifts need shift schedules. If nobody shares a terminal, we leave kiosk sign-in off.",
+        InternalNote: "Kiosk auth vs personal logins, and shift-scheduling vs single-schedule, are independent axes. Without the " +
+                      "kiosk answer the engine switches CAP-IDEN-AUTH-KIOSK and CAP-EXT-SHOPFLOOR-KIOSK off after the preset.",
         Choices:
         [
             new("kiosk", "Shop-floor / warehouse workers share a terminal or kiosk (no individual email logins)"),
@@ -383,7 +403,7 @@ public static class DiscoveryQuestionCatalog
         InternalNote: "Integration capabilities (webhooks, BI export, API keys, chat) are off by default in everything below PRESET-07. Asking once captures all four.",
         Choices:
         [
-            new("none", "No IT team / not interested"),
+            new("none", "No IT team / not interested", Exclusive: true),
             new("bi", "BI export / dashboarding (PowerBI, Tableau)"),
             new("chat", "Slack / Teams / Discord notifications"),
             new("api", "Outbound webhooks or API integrations"),
@@ -395,7 +415,8 @@ public static class DiscoveryQuestionCatalog
         Category: DiscoveryCategory.Diagnostic,
         Type: DiscoveryQuestionType.SingleChoice,
         Text: "Do you make the same things over and over — repeat parts you have a quote and a routing for — or is most of what you do custom each time, with new quotes and new processes?",
-        WhyAsking: "Splits lean / repetitive customizations from job-shop customizations within Production Manufacturer.",
+        WhyAsking: "Repeat work and one-off custom work need different setups for quoting and planning.",
+        InternalNote: "Splits lean / repetitive customizations from job-shop customizations within Production Manufacturer.",
         Choices:
         [
             new("repeat", "Mostly repeat"),
@@ -410,6 +431,24 @@ public static class DiscoveryQuestionCatalog
         Type: DiscoveryQuestionType.YesNo,
         Text: "Do you want to handle employee hiring paperwork and payroll in this system \u2014 W-4, I-9, state withholding, pay stubs? Answer no if your accountant, PEO, or payroll provider already does this.",
         WhyAsking: "Most shops already run payroll somewhere else, and this is the one area where saying yes means asking staff for a Social Security number, dependents and bank details. Answering no keeps those screens off the install entirely rather than leaving them switched on and unused.");
+
+    private static readonly DiscoveryQuestion QD8 = new(
+        Id: "Q-D8",
+        Stage: DiscoveryStage.Diagnostic,
+        Category: DiscoveryCategory.Diagnostic,
+        Type: DiscoveryQuestionType.MultiChoice,
+        Text: "Do you already use your own numbers for any of these? Check each one where you want to keep typing in your existing numbers.",
+        WhyAsking: "If people already know your part, customer or order numbers, you can keep using them. Anything you leave unchecked is numbered for you automatically.",
+        InternalNote: "Not read by the engine. After apply the wizard turns on <value>.allow_manual_numbers for each checked value.",
+        Choices:
+        [
+            new("parts", "Parts"),
+            new("jobs", "Work orders"),
+            new("customers", "Customers"),
+            new("vendors", "Vendors"),
+            new("purchase_orders", "Purchase orders"),
+            new("sales_orders", "Sales orders"),
+        ]);
 
     // ── Exit ramp (Q-X1) ──────────────────────────────────────────────────
 
@@ -564,7 +603,7 @@ public static class DiscoveryQuestionCatalog
         QB1, QB2, QB3, QB4,
         QC1, QC2, QC3, QC4,
         QV1, QV2,
-        QD1, QD2, QD3, QD4, QD5, QD6, QD7,
+        QD1, QD2, QD3, QD4, QD5, QD6, QD7, QD8,
         QX1,
         // Consultant deepdive — surfaced only when mode = consultant.
         QA5_DD, QA6_DD, QA7_DD, QA8_DD,
@@ -573,13 +612,13 @@ public static class DiscoveryQuestionCatalog
     };
 
     /// <summary>
-    /// Self-serve catalog count: 29 = 1 top-of-funnel (Q-S1, Pro Services D4) +
-    /// 6 opening + 4 Branch A + 4 Branch B + 4 Branch C + 2 override + 7 diagnostic
+    /// Self-serve catalog count: 30 = 1 top-of-funnel (Q-S1, Pro Services D4) +
+    /// 6 opening + 4 Branch A + 4 Branch B + 4 Branch C + 2 override + 8 diagnostic
     /// + 1 exit. A given user typically answers far fewer because only one branch's
     /// questions apply AND Q-S1 = "services" / "both" short-circuits the entire
-    /// manufacturing tree. The catalog ships all 29.
+    /// manufacturing tree. The catalog ships all 30.
     /// </summary>
-    public const int SelfServeCount = 29;
+    public const int SelfServeCount = 30;
 
     /// <summary>Per-user count after branch routing — what the 4C design calls "22 questions." For Q-S1 = products this is still 22; for services/both, it's effectively 1.</summary>
     public const int PerUserAnsweredCount = 22;

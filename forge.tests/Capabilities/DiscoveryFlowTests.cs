@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -76,13 +77,13 @@ public class DiscoveryFlowTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<QuestionsResponseRow>();
         Assert.NotNull(result);
-        // The catalog ships 29 self-serve questions: 1 top-of-funnel (Q-S1,
+        // The catalog ships 30 self-serve questions: 1 top-of-funnel (Q-S1,
         // Pro Services rollout D4) + 6 opening + 4 per branch × 3 + 2 override
-        // + 7 diagnostic + 1 exit. A given user typically answers fewer because
+        // + 8 diagnostic + 1 exit. A given user typically answers fewer because
         // only one branch applies AND Q-S1 = "services" / "both" short-circuits
         // the entire mfg tree — the wizard filters at render time.
-        Assert.Equal(29, result!.Questions.Count);
-        Assert.Equal(29, result.SelfServeCount);
+        Assert.Equal(30, result!.Questions.Count);
+        Assert.Equal(30, result.SelfServeCount);
 
         // Verify the opening / branch / override / diagnostic / exit categories
         // are all present.
@@ -700,6 +701,201 @@ public class DiscoveryFlowTests
         Assert.Equal("PRESET-06", rec.PresetId);
     }
 
+    [Fact]
+    public async Task Questions_Mark_The_None_Answers_As_Exclusive()
+    {
+        var client = AuthenticatedClient();
+        var result = await client.GetFromJsonAsync<QuestionsResponseRow>("/api/v1/discovery/questions");
+
+        var qo4 = result!.Questions.Single(q => q.Id == "Q-O4").Choices!;
+        var qd5 = result.Questions.Single(q => q.Id == "Q-D5").Choices!;
+        Assert.Equal(["no"], qo4.Where(c => c.Exclusive).Select(c => c.Value));
+        Assert.Equal(["none"], qd5.Where(c => c.Exclusive).Select(c => c.Value));
+        Assert.Contains(qo4, c => c.Value == "other" && c.Label == "Something else");
+    }
+
+    [Fact]
+    public void Exclusive_Answer_Is_Ignored_When_Sent_With_Other_Answers()
+    {
+        var answers = new DiscoveryAnswerSet(
+        [
+            new DiscoveryAnswer("Q-O4", "no,medical"),
+            new DiscoveryAnswer("Q-D5", "none, bi,chat"),
+        ]);
+
+        Assert.True(answers.Regulated);
+        Assert.Equal(["medical"], answers.Regulations);
+        Assert.Equal(["bi", "chat"], answers.Selections("Q-D5"));
+    }
+
+    [Fact]
+    public void Exclusive_Answer_On_Its_Own_Is_Kept()
+    {
+        var answers = new DiscoveryAnswerSet(
+        [
+            new DiscoveryAnswer("Q-O4", "no"),
+            new DiscoveryAnswer("Q-D5", "none"),
+        ]);
+
+        Assert.False(answers.Regulated);
+        Assert.Equal(["none"], answers.Selections("Q-D5"));
+    }
+
+    [Fact]
+    public void Engine_Recommends_TwoPersonShop_When_One_Person_Does_Everything_At_3_To_10()
+    {
+        var answers = new DiscoveryAnswerSet(
+        [
+            new DiscoveryAnswer("Q-O1", "3-10"),
+            new DiscoveryAnswer("Q-O3", "make"),
+            new DiscoveryAnswer("Q-O5", "1"),
+            new DiscoveryAnswer("Q-A2", "same-person"),
+        ]);
+
+        var rec = DiscoveryRecommendationEngine.Recommend(answers);
+
+        Assert.Equal("PRESET-01", rec.PresetId);
+        Assert.Contains(rec.Factors, f => f.QuestionId == "Q-A2");
+    }
+
+    [Fact]
+    public void Engine_Keeps_GrowingJobShop_For_Split_Roles_At_3_To_10()
+    {
+        var answers = new DiscoveryAnswerSet(
+        [
+            new DiscoveryAnswer("Q-O1", "3-10"),
+            new DiscoveryAnswer("Q-O3", "make"),
+            new DiscoveryAnswer("Q-O5", "1"),
+            new DiscoveryAnswer("Q-A2", "split-roles"),
+        ]);
+
+        Assert.Equal("PRESET-02", DiscoveryRecommendationEngine.Recommend(answers).PresetId);
+    }
+
+    [Fact]
+    public void Engine_Factors_Read_In_Words()
+    {
+        var answers = new DiscoveryAnswerSet(
+        [
+            new DiscoveryAnswer("Q-O1", "26-50"),
+            new DiscoveryAnswer("Q-O3", "make,resell"),
+            new DiscoveryAnswer("Q-O5", "1"),
+            new DiscoveryAnswer("Q-B1", "formal"),
+            new DiscoveryAnswer("Q-D1", "lots"),
+        ]);
+
+        var rec = DiscoveryRecommendationEngine.Recommend(answers);
+
+        Assert.All(rec.Factors, f => Assert.DoesNotMatch(@"\b(Q-[A-Z]\d|PRESET-|CAP-)|→|: ", f.Description));
+        Assert.Contains(rec.Factors, f => f.Description == "26–50 people work in the business");
+    }
+
+    [Fact]
+    public void Engine_Switches_Kiosk_Off_When_Nobody_Shares_A_Terminal()
+    {
+        var answers = new DiscoveryAnswerSet(
+        [
+            new DiscoveryAnswer("Q-O1", "26-50"),
+            new DiscoveryAnswer("Q-O3", "make"),
+            new DiscoveryAnswer("Q-D4", "shifts"),
+        ]);
+
+        var rec = DiscoveryRecommendationEngine.Recommend(answers);
+
+        Assert.Equal(
+            ["CAP-IDEN-AUTH-KIOSK", "CAP-EXT-SHOPFLOOR-KIOSK"],
+            rec.Adjustments.Select(a => a.Code));
+        Assert.All(rec.Adjustments, a =>
+        {
+            Assert.False(a.Enabled);
+            Assert.False(string.IsNullOrWhiteSpace(a.Reason));
+        });
+    }
+
+    [Fact]
+    public void Engine_Switches_Kiosk_Off_When_QD4_Is_Unanswered()
+    {
+        var answers = new DiscoveryAnswerSet(
+        [
+            new DiscoveryAnswer("Q-O1", "26-50"),
+            new DiscoveryAnswer("Q-O3", "make"),
+        ]);
+
+        Assert.Equal(2, DiscoveryRecommendationEngine.Recommend(answers).Adjustments.Count);
+    }
+
+    [Fact]
+    public void Engine_Leaves_Kiosk_Alone_When_Workers_Share_A_Terminal()
+    {
+        var answers = new DiscoveryAnswerSet(
+        [
+            new DiscoveryAnswer("Q-O1", "26-50"),
+            new DiscoveryAnswer("Q-O3", "make"),
+            new DiscoveryAnswer("Q-D4", "kiosk,shifts"),
+        ]);
+
+        Assert.Empty(DiscoveryRecommendationEngine.Recommend(answers).Adjustments);
+    }
+
+    [Fact]
+    public async Task Preview_Returns_The_Kiosk_Adjustments()
+    {
+        var client = AuthenticatedClient();
+        var body = new
+        {
+            answers = new[]
+            {
+                new { questionId = "Q-O1", value = "26-50" },
+                new { questionId = "Q-O3", value = "make" },
+                new { questionId = "Q-D4", value = "shifts" },
+            },
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/discovery/preview", body);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<RecommendationResponseRow>();
+        Assert.Contains(result!.CapabilityAdjustments,
+            a => a.Code == "CAP-IDEN-AUTH-KIOSK" && !a.Enabled && a.Name != a.Code);
+    }
+
+    [Fact]
+    public void Engine_Reads_The_Audit_Answer_When_The_Worst_Case_Question_Is_Skipped()
+    {
+        const string audit = "Our biggest customer requires lot trace on every shipment and audits us yearly on our processes.";
+        var answers = new DiscoveryAnswerSet(
+        [
+            new DiscoveryAnswer("Q-O1", "11-25"),
+            new DiscoveryAnswer("Q-O3", "make"),
+            new DiscoveryAnswer("Q-O4", "no"),
+            new DiscoveryAnswer("Q-O5", "1"),
+            new DiscoveryAnswer("Q-O6", audit),
+            new DiscoveryAnswer("Q-D1", "lots"),
+        ]);
+
+        var rec = DiscoveryRecommendationEngine.Recommend(answers);
+
+        Assert.Equal("PRESET-05", rec.PresetId);
+        Assert.Single(Regex.Matches(rec.Rationale, Regex.Escape(audit)));
+    }
+
+    [Fact]
+    public void Engine_Quotes_The_Copied_Audit_Answer_Once()
+    {
+        const string audit = "Our biggest customer requires lot trace on every shipment and audits us yearly on our processes.";
+        var answers = new DiscoveryAnswerSet(
+        [
+            new DiscoveryAnswer("Q-O1", "11-25"),
+            new DiscoveryAnswer("Q-O3", "make"),
+            new DiscoveryAnswer("Q-O6", audit),
+            new DiscoveryAnswer("Q-V1", audit),
+        ]);
+
+        var rec = DiscoveryRecommendationEngine.Recommend(answers);
+
+        Assert.Single(Regex.Matches(rec.Rationale, Regex.Escape(audit)));
+    }
+
     // ─── Helper response shapes ────────────────────────────────────────────
 
     private record QuestionsResponseRow(
@@ -708,7 +904,9 @@ public class DiscoveryFlowTests
         int ConsultantDeepdiveCount,
         List<QuestionRow> Questions);
 
-    private record QuestionRow(string Id, string Stage, string Category, string Type, string Text);
+    private record QuestionRow(string Id, string Stage, string Category, string Type, string Text, List<ChoiceRow>? Choices);
+
+    private record ChoiceRow(string Value, string Label, bool Exclusive);
 
     private record RecommendationResponseRow(
         string PresetId,
@@ -719,9 +917,11 @@ public class DiscoveryFlowTests
         string Rationale,
         List<FactorRow> Factors,
         List<AlternativeRow> Alternatives,
-        List<DeltaRow> CapabilityDeltas);
+        List<DeltaRow> CapabilityDeltas,
+        List<AdjustmentRow> CapabilityAdjustments);
 
     private record FactorRow(string QuestionId, string Description);
     private record AlternativeRow(string PresetId, string PresetName, string DistinguishingRationale);
     private record DeltaRow(string Code, string Name, bool CurrentlyEnabled, bool WillBeEnabled);
+    private record AdjustmentRow(string Code, string Name, bool Enabled, string Reason);
 }

@@ -24,8 +24,12 @@ public record DiscoveryQuestion(
     bool VisibleInConsultant = true,
     string? InternalNote = null);
 
-/// <summary>Single multiple-choice / radio option for a discovery question.</summary>
-public record DiscoveryChoice(string Value, string Label);
+/// <summary>
+/// Single multiple-choice / radio option for a discovery question. An
+/// <see cref="Exclusive"/> option (e.g. "none of these apply") cannot be
+/// combined with the question's other options.
+/// </summary>
+public record DiscoveryChoice(string Value, string Label, bool Exclusive = false);
 
 /// <summary>
 /// Stage = the macro section of the wizard.

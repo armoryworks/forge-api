@@ -31,13 +31,17 @@ public class DiscoveryPlainLanguageTests
     }
 
     [Theory]
+    [InlineData("Q-S1")]
     [InlineData("Q-O3")]
     [InlineData("Q-A2")]
     [InlineData("Q-C2")]
     [InlineData("Q-C3")]
     [InlineData("Q-C4")]
+    [InlineData("Q-V1")]
     [InlineData("Q-V2")]
+    [InlineData("Q-D1")]
     [InlineData("Q-D3")]
+    [InlineData("Q-D4")]
     [InlineData("Q-D5")]
     public void RoutingDetail_isKeptAsAnInternalNote(string questionId)
     {
@@ -45,6 +49,15 @@ public class DiscoveryPlainLanguageTests
 
         q.InternalNote.Should().NotBeNullOrWhiteSpace();
         q.WhyAsking.Should().NotBe(q.InternalNote);
+    }
+
+    [Theory]
+    [MemberData(nameof(SelfServeQuestionIds))]
+    public void SelfServeHelp_readsForAShopOwner(string questionId)
+    {
+        var q = DiscoveryQuestionCatalog.ForMode(consultantMode: false).Single(x => x.Id == questionId);
+
+        q.WhyAsking.Should().NotContainAny("independent axes", "the union", "override probe", "orthogonal", "Splits ");
     }
 
     [Fact]

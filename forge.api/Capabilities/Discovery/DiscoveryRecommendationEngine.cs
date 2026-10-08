@@ -17,6 +17,8 @@ namespace Forge.Api.Capabilities.Discovery;
 ///   4. Compute confidence indicator.
 ///   5. Build rationale paragraph.
 ///   6. Surface alternatives if confidence below threshold.
+///   7. List capability adjustments the answers call for on top of the
+///      preset (no shared terminal in Q-D4 → kiosk sign-in stays off).
 ///
 /// 4C decision #10 (50-100 + 2 sites → PRESET-06) is enforced via branch
 /// routing rule 3: sites &gt;= 2 routes to Branch C regardless of headcount.
@@ -52,8 +54,9 @@ public static class DiscoveryRecommendationEngine
                 Confidence: 1.0,
                 ConfidenceLabel: "high",
                 Rationale: "You chose to skip discovery and configure capabilities manually. Custom is the empty starting point — toggle each capability you want.",
-                Factors: [new DiscoveryRecommendationFactor("Q-X1", "Skip discovery requested")],
-                Alternatives: []);
+                Factors: [new DiscoveryRecommendationFactor("Q-X1", "You chose to set up capabilities yourself")],
+                Alternatives: [],
+                Adjustments: []);
         }
 
         // ── Step 0.5: Pro Services rollout D4 — Q-S1 short-circuit ──────
@@ -61,6 +64,7 @@ public static class DiscoveryRecommendationEngine
         // route directly to PRESET-08 / PRESET-09 without traversing the
         // manufacturing-flavored 22-question tree. Products (or unanswered)
         // falls through to existing logic for backward compatibility.
+        var adjustments = BuildAdjustments(answers);
         var businessType = answers.BusinessType;
         if (businessType == "services")
         {
@@ -73,7 +77,7 @@ public static class DiscoveryRecommendationEngine
                            "retainers, and deliverable tracking — without the manufacturing capabilities a " +
                            "service shop never uses. You can review the capability changes and the terminology " +
                            "bundle before applying anything.",
-                Factors: [new DiscoveryRecommendationFactor("Q-S1", "Services-only business → Pro Services")],
+                Factors: [new DiscoveryRecommendationFactor("Q-S1", "You sell time and professional services")],
                 Alternatives:
                 [
                     new DiscoveryAlternative(
@@ -84,7 +88,8 @@ public static class DiscoveryRecommendationEngine
                         PresetId: "PRESET-CUSTOM",
                         PresetName: "Custom",
                         DistinguishingRationale: "Skip the preset and configure each capability directly."),
-                ]);
+                ],
+                Adjustments: adjustments);
         }
         if (businessType == "both")
         {
@@ -96,7 +101,7 @@ public static class DiscoveryRecommendationEngine
                            "carries the full manufacturing stack AND the Pro Services overlay (agile task types — " +
                            "Epic / Project / Story / Bug / Spike — billable hours, deliverables) in one install. " +
                            "Terminology renames Job → Task, Customer → Client, Work Center → Consultant universally.",
-                Factors: [new DiscoveryRecommendationFactor("Q-S1", "Make-and-service business → Hybrid")],
+                Factors: [new DiscoveryRecommendationFactor("Q-S1", "You sell both physical products and services")],
                 Alternatives:
                 [
                     new DiscoveryAlternative(
@@ -107,7 +112,8 @@ public static class DiscoveryRecommendationEngine
                         PresetId: "PRESET-04",
                         PresetName: "Production Manufacturer",
                         DistinguishingRationale: "If the services arm is small enough to skip, Production Manufacturer alone is lighter."),
-                ]);
+                ],
+                Adjustments: adjustments);
         }
 
         // ── Step 0.6: Q-O3 services-only → PRESET-08 ────────────────────
@@ -134,7 +140,7 @@ public static class DiscoveryRecommendationEngine
                            "Pro Services is the right starting point. Task-based work organization (Epic / " +
                            "Project / Story / Bug / Spike), billable hours, retainers, and deliverable tracking " +
                            "— without the manufacturing capabilities a service shop never uses.",
-                Factors: [new DiscoveryRecommendationFactor("Q-O3", "Services only (no make/resell) → Pro Services")],
+                Factors: [new DiscoveryRecommendationFactor("Q-O3", "You only deliver services, without making or reselling products")],
                 Alternatives:
                 [
                     new DiscoveryAlternative(
@@ -145,16 +151,17 @@ public static class DiscoveryRecommendationEngine
                         PresetId: "PRESET-CUSTOM",
                         PresetName: "Custom",
                         DistinguishingRationale: "Skip the preset and configure each capability directly."),
-                ]);
+                ],
+                Adjustments: adjustments);
         }
 
         // ── Step 1: Compute base candidate ──────────────────────────────
         var headcount = answers.HeadcountBucket;
         var mode = answers.Mode;
         var sites = answers.Sites;
-        factors.Add(new DiscoveryRecommendationFactor("Q-O1", $"Headcount bucket: {headcount}"));
-        factors.Add(new DiscoveryRecommendationFactor("Q-O3", $"Mode: {mode}"));
-        factors.Add(new DiscoveryRecommendationFactor("Q-O5", $"Sites: {sites}"));
+        factors.Add(new DiscoveryRecommendationFactor("Q-O1", DescribeHeadcount(answers.Get("Q-O1"))));
+        factors.Add(new DiscoveryRecommendationFactor("Q-O3", DescribeMode(mode)));
+        factors.Add(new DiscoveryRecommendationFactor("Q-O5", DescribeSites(sites)));
 
         var branch = RouteBranch(headcount, sites);
         var baseCandidate = ChooseBaseCandidate(branch, headcount, mode, sites, answers, factors);
@@ -164,7 +171,7 @@ public static class DiscoveryRecommendationEngine
         if (answers.Regulated)
         {
             regulationOverride = true;
-            factors.Add(new DiscoveryRecommendationFactor("Q-O4", "Regulated industry — overrides size-based placement"));
+            factors.Add(new DiscoveryRecommendationFactor("Q-O4", "You work in a regulated industry, which matters more than your size"));
         }
 
         // Soft override: count discrete regulation signals from Q-V1 + Q-D1.
@@ -175,7 +182,7 @@ public static class DiscoveryRecommendationEngine
         {
             regulationOverride = true;
             factors.Add(new DiscoveryRecommendationFactor("Q-V1",
-                $"Audit / customer-pressure signals ({softSignalCount}) suggest regulated placement"));
+                "Your traceability and audit answers point to a regulated setup"));
         }
 
         var candidate = regulationOverride ? "PRESET-05" : baseCandidate;
@@ -183,7 +190,7 @@ public static class DiscoveryRecommendationEngine
         // ── Step 3: Free-text capture for rationale (verbatim, not parsed) ──
         var walkthrough = answers.Get("Q-O2");
         var auditProbe = answers.Get("Q-O6");
-        var worstCase = answers.Get("Q-V1");
+        var worstCase = WorstCaseAnswer(answers);
         var unusual = answers.Get("Q-V2");
 
         // ── Step 4: Confidence ──────────────────────────────────────────
@@ -207,7 +214,8 @@ public static class DiscoveryRecommendationEngine
             ConfidenceLabel: confidenceLabel,
             Rationale: rationale,
             Factors: factors,
-            Alternatives: alternatives);
+            Alternatives: alternatives,
+            Adjustments: adjustments);
     }
 
     /// <summary>
@@ -240,13 +248,13 @@ public static class DiscoveryRecommendationEngine
         // Distribution overrides production presets within any size branch
         if (mode == "distribution")
         {
-            factors.Add(new DiscoveryRecommendationFactor("Q-O3", "Resell-only mode → Distribution preset"));
+            factors.Add(new DiscoveryRecommendationFactor("Q-O3", "You only resell products, so a distribution setup fits"));
             return "PRESET-03";
         }
 
         return branch switch
         {
-            "A" => ChooseBranchAPreset(headcount, mode, answers, factors),
+            "A" => ChooseBranchAPreset(mode, answers, factors),
             "B" => ChooseBranchBPreset(answers, factors),
             "C" => ChooseBranchCPreset(headcount, sites, answers, factors),
             _ => "PRESET-02",
@@ -254,23 +262,23 @@ public static class DiscoveryRecommendationEngine
     }
 
     private static string ChooseBranchAPreset(
-        string headcount, string mode,
+        string mode,
         DiscoveryAnswerSet answers, List<DiscoveryRecommendationFactor> factors)
     {
         // 4C §Step 1 — Branch A:
-        //   Two-Person if headcount <= 3 (i.e. "small") AND Q-A2 = same-person
+        //   Two-Person if 1-10 people AND Q-A2 = same-person
         //   else Growing Job Shop
         var qa2 = answers.Get("Q-A2");
-        if (headcount == "small" && qa2 == "same-person")
+        if (answers.Get("Q-O1") is "1-2" or "3-10" && qa2 == "same-person")
         {
-            factors.Add(new DiscoveryRecommendationFactor("Q-A2", "Same-person operations → Two-Person Shop"));
+            factors.Add(new DiscoveryRecommendationFactor("Q-A2", "One person quotes, schedules and runs the work"));
             return "PRESET-01";
         }
 
         if (qa2 == "dedicated")
         {
             factors.Add(new DiscoveryRecommendationFactor("Q-A2",
-                "Dedicated production lead — consider Production Manufacturer at boundary"));
+                "You have a dedicated production lead, so Production Manufacturer is worth a look as you grow"));
         }
 
         return "PRESET-02";
@@ -287,9 +295,9 @@ public static class DiscoveryRecommendationEngine
         if (qb1 == "formal" || qb2 == "formal-ncr" || qb2 == "capa-loop")
         {
             if (qb1 == "formal")
-                factors.Add(new DiscoveryRecommendationFactor("Q-B1", "Formal variance review → Production Manufacturer"));
+                factors.Add(new DiscoveryRecommendationFactor("Q-B1", "You review job costs against quotes and act on the difference"));
             if (qb2 == "formal-ncr" || qb2 == "capa-loop")
-                factors.Add(new DiscoveryRecommendationFactor("Q-B2", "Formal inspection + NCR/CAPA → Production Manufacturer"));
+                factors.Add(new DiscoveryRecommendationFactor("Q-B2", "You run formal inspections and write up nonconformances"));
             return "PRESET-04";
         }
         return "PRESET-02";
@@ -313,13 +321,13 @@ public static class DiscoveryRecommendationEngine
         {
             if (qc1 is "daily" or "weekly")
             {
-                factors.Add(new DiscoveryRecommendationFactor("Q-C1", "Frequent inter-site transfers → Multi-Site"));
+                factors.Add(new DiscoveryRecommendationFactor("Q-C1", "You move stock between sites every day or week"));
                 return "PRESET-06";
             }
 
             // Multi-site without strong transfer cadence — still recommend
             // Multi-Site (per 4C decision #10 the 2-site marker dominates)
-            factors.Add(new DiscoveryRecommendationFactor("Q-O5", "Multi-site presence → Multi-Site Operation"));
+            factors.Add(new DiscoveryRecommendationFactor("Q-O5", "You run more than one site"));
             return "PRESET-06";
         }
 
@@ -329,11 +337,11 @@ public static class DiscoveryRecommendationEngine
             || string.Equals(qc4, "yes", StringComparison.OrdinalIgnoreCase)))
         {
             if (qc2 == "cto-eto")
-                factors.Add(new DiscoveryRecommendationFactor("Q-C2", "Configure-to-order → Enterprise"));
+                factors.Add(new DiscoveryRecommendationFactor("Q-C2", "Customers configure products to order"));
             if (string.Equals(qc3, "yes", StringComparison.OrdinalIgnoreCase))
-                factors.Add(new DiscoveryRecommendationFactor("Q-C3", "EDI integration → Enterprise"));
+                factors.Add(new DiscoveryRecommendationFactor("Q-C3", "Major customers exchange orders and shipping notices electronically"));
             if (string.Equals(qc4, "yes", StringComparison.OrdinalIgnoreCase))
-                factors.Add(new DiscoveryRecommendationFactor("Q-C4", "Multi-currency → Enterprise"));
+                factors.Add(new DiscoveryRecommendationFactor("Q-C4", "You work in more than one currency"));
             return "PRESET-07";
         }
 
@@ -342,8 +350,9 @@ public static class DiscoveryRecommendationEngine
 
     /// <summary>
     /// Per 4C §Q-V1 §Capability impact. Counts soft regulation signals from
-    /// Q-V1 (worst-case) and Q-D1 (lot/serial). 2+ signals → regulation
-    /// override even when Q-O4 = no.
+    /// Q-V1 (worst-case, falling back to the Q-O6 audit answer when Q-V1 is
+    /// blank) and Q-D1 (lot/serial). 2+ signals → regulation override even
+    /// when Q-O4 = no.
     /// </summary>
     private static int CountSoftRegulationSignals(
         DiscoveryAnswerSet answers, List<DiscoveryRecommendationFactor> factors)
@@ -362,14 +371,14 @@ public static class DiscoveryRecommendationEngine
         {
             count++;
             factors.Add(new DiscoveryRecommendationFactor("Q-D1",
-                $"Lot/serial tracking ({qd1}) — traceability signal"));
+                "You track lot or serial numbers, which calls for traceability records"));
         }
 
         // Q-V1 free text: 4C decision #1 says don't parse, BUT a non-empty
         // worst-case answer that mentions regulator-grade pressure is itself
         // a soft signal. Per 4F Phase-F decision D5 we don't NLP this; we
         // simply note when a non-empty answer exists for the rationale.
-        var qv1 = answers.Get("Q-V1");
+        var qv1 = WorstCaseAnswer(answers);
         if (!string.IsNullOrWhiteSpace(qv1))
         {
             // Length-based heuristic — a substantive answer (>= 40 chars)
@@ -378,7 +387,7 @@ public static class DiscoveryRecommendationEngine
             {
                 count++;
                 factors.Add(new DiscoveryRecommendationFactor("Q-V1",
-                    "Substantial worst-case audit description provided"));
+                    "You described what an auditor or customer could ask you to prove"));
             }
         }
 
@@ -407,7 +416,7 @@ public static class DiscoveryRecommendationEngine
         {
             contradictions++;
             factors.Add(new DiscoveryRecommendationFactor("Q-D1",
-                "Regulated but no lot/serial tracking — confidence flagged"));
+                "You are regulated but don't track lots or serials, so this is less certain"));
         }
 
         // Q-V2 free text non-empty → unusual described
@@ -467,7 +476,8 @@ public static class DiscoveryRecommendationEngine
               .Append(auditProbe.Trim())
               .Append("\".");
         }
-        if (!string.IsNullOrWhiteSpace(worstCase))
+        if (!string.IsNullOrWhiteSpace(worstCase)
+            && !string.Equals(worstCase.Trim(), auditProbe?.Trim(), StringComparison.Ordinal))
         {
             sb.Append(" Worst-case scenario you flagged: \"")
               .Append(worstCase.Trim())
@@ -484,6 +494,51 @@ public static class DiscoveryRecommendationEngine
 
         return sb.ToString();
     }
+
+    private static string? WorstCaseAnswer(DiscoveryAnswerSet answers)
+    {
+        var qv1 = answers.Get("Q-V1");
+        return string.IsNullOrWhiteSpace(qv1) ? answers.Get("Q-O6") : qv1;
+    }
+
+    private static IReadOnlyList<DiscoveryCapabilityAdjustment> BuildAdjustments(DiscoveryAnswerSet answers)
+    {
+        if (answers.Selections("Q-D4").Contains("kiosk", StringComparer.OrdinalIgnoreCase))
+            return [];
+
+        return
+        [
+            new DiscoveryCapabilityAdjustment("CAP-IDEN-AUTH-KIOSK", false,
+                "You didn't say workers share a terminal, so badge and PIN sign-in stays off."),
+            new DiscoveryCapabilityAdjustment("CAP-EXT-SHOPFLOOR-KIOSK", false,
+                "You didn't say workers share a terminal, so the shared shop-floor screens stay off."),
+        ];
+    }
+
+    private static string DescribeHeadcount(string? raw) => raw switch
+    {
+        "1-2" => "1–2 people work in the business",
+        "3-10" => "3–10 people work in the business",
+        "11-25" => "11–25 people work in the business",
+        "26-50" => "26–50 people work in the business",
+        "51-200" => "51–200 people work in the business",
+        "200+" => "More than 200 people work in the business",
+        _ => "Business size not given, so we assumed a small to mid-size shop",
+    };
+
+    private static string DescribeMode(string mode) => mode switch
+    {
+        "distribution" => "You resell products you buy from suppliers",
+        "hybrid" => "You make products and also resell others",
+        _ => "You make your own products",
+    };
+
+    private static string DescribeSites(string sites) => sites switch
+    {
+        "dual" => "You work from two locations",
+        "multi" => "You work from three or more locations",
+        _ => "You work from one location",
+    };
 
     private static IReadOnlyList<DiscoveryAlternative> FindAlternatives(
         string candidate, string baseCandidate, bool regulationOverride,

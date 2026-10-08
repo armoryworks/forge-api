@@ -45,6 +45,33 @@ public class DiscoveryAnswerSet
 
     public bool IsAnswered(string id) => _byId.ContainsKey(id);
 
+    /// <summary>
+    /// The comma-joined values of a multi-choice answer, trimmed and with
+    /// blanks dropped. A choice marked <see cref="DiscoveryChoice.Exclusive"/>
+    /// in <see cref="DiscoveryQuestionCatalog"/> is ignored when it arrives
+    /// together with other choices, so "none of these" never contradicts a
+    /// real selection.
+    /// </summary>
+    public IReadOnlyList<string> Selections(string id)
+    {
+        var raw = Get(id);
+        if (string.IsNullOrWhiteSpace(raw)) return [];
+
+        var tokens = raw.Split(',')
+            .Select(t => t.Trim())
+            .Where(t => t.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (tokens.Count < 2) return tokens;
+
+        var exclusive = (DiscoveryQuestionCatalog.FindById(id)?.Choices ?? [])
+            .Where(c => c.Exclusive)
+            .Select(c => c.Value)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var kept = tokens.Where(t => !exclusive.Contains(t)).ToList();
+        return kept.Count > 0 ? kept : tokens;
+    }
+
     /// <summary>Q-O1 → headcount-bucket variable. Returns "small" / "small-mid" / "mid" / "large".</summary>
     public string HeadcountBucket
     {
@@ -132,9 +159,9 @@ public class DiscoveryAnswerSet
     /// (medical / aerospace / automotive / food / pharma / other). The
     /// explicit "no, none of these apply" answer (or unanswered) → false.
     ///
-    /// Multi-choice contract: comma-joined values. A user who picks both
-    /// "no" and a cert (contradictory input) is treated as regulated —
-    /// any cert wins over "no" because under-recommending the Regulated
+    /// Multi-choice contract: comma-joined values. "no" is an exclusive
+    /// choice, so a user who sends both "no" and a cert is treated as
+    /// regulated — the cert wins because under-recommending the Regulated
     /// preset is the worse failure mode than over-recommending it.
     /// </summary>
     public bool Regulated => Regulations.Count > 0;
@@ -148,21 +175,9 @@ public class DiscoveryAnswerSet
     /// </summary>
     public IReadOnlyList<string> Regulations
     {
-        get
-        {
-            var raw = Get("Q-O4");
-            if (string.IsNullOrEmpty(raw)) return Array.Empty<string>();
-
-            var list = new List<string>();
-            foreach (var token in raw.Split(','))
-            {
-                var t = token.Trim();
-                if (t.Length == 0) continue;
-                if (string.Equals(t, "no", StringComparison.OrdinalIgnoreCase)) continue;
-                list.Add(t);
-            }
-            return list;
-        }
+        get => Selections("Q-O4")
+            .Where(t => !string.Equals(t, "no", StringComparison.OrdinalIgnoreCase))
+            .ToList();
     }
 
     /// <summary>Q-O5 → sites variable. "single" / "dual" / "multi".</summary>

@@ -166,6 +166,7 @@ public class ApplyDiscoveryRecommendationHandler(
             Alternatives: [],
             CapabilityDeltas: freshDeltas
                 .Select(d => new CapabilityDeltaResponseModel(d.Code, d.Name, d.CurrentlyEnabled, d.WillBeEnabled))
-                .ToList());
+                .ToList(),
+            CapabilityAdjustments: DiscoveryCapabilityAdjustmentResponseModel.From(recommendation.Adjustments));
     }
 }
