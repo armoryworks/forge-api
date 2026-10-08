@@ -66,7 +66,8 @@ public class ExecuteScanIssueHandler(
         }
 
         // Validate source has sufficient stock
-        var sourceRows = await ScanBinStock.ActiveRowsAsync(db, data.PartId, data.FromLocationId, cancellationToken);
+        var sourceRows = await ScanBinStock.DrawableRowsAsync(
+            db, data.PartId, data.FromLocationId, data.Quantity, cancellationToken);
         if (!sourceRows.Any(r => r.Quantity > 0))
             throw new KeyNotFoundException(
                 $"No stock found for part {part.PartNumber} at source location");

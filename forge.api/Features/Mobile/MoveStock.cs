@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Inventory;
+using Forge.Api.Features.Quality;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -52,8 +53,16 @@ public class MoveStockHandler(AppDbContext db, IMediator mediator)
         if (!string.IsNullOrWhiteSpace(request.LotNumber))
             candidates = candidates.Where(b => b.LotNumber == request.LotNumber);
 
-        var source = await candidates.OrderByDescending(b => b.Quantity).FirstOrDefaultAsync(ct)
-            ?? throw new InvalidOperationException("Not enough of that part in the from-bin.");
+        var source = await candidates.Where(b => b.Status != BinContentStatus.QcHold)
+            .OrderByDescending(b => b.Quantity).FirstOrDefaultAsync(ct);
+        if (source is null)
+        {
+            var held = await candidates.Where(b => b.Status == BinContentStatus.QcHold)
+                .OrderByDescending(b => b.Quantity).FirstOrDefaultAsync(ct);
+            throw held is null
+                ? new InvalidOperationException("Not enough of that part in the from-bin.")
+                : await LotQualityHold.RefusalAsync(db, request.PartId, held.LotNumber, ct);
+        }
 
         if (request.Quantity != Math.Floor(request.Quantity))
             throw new InvalidOperationException("Enter a whole number.");

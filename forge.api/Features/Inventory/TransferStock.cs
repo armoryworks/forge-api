@@ -4,6 +4,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 
+using Forge.Api.Features.Quality;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -25,16 +26,22 @@ public class TransferStockCommandValidator : AbstractValidator<TransferStockComm
 
 public class TransferStockHandler(
     IInventoryRepository repo,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    IClock clock)
     : IRequestHandler<TransferStockCommand>
 {
     public async Task Handle(TransferStockCommand request, CancellationToken cancellationToken)
     {
         var data = request.Data;
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var now = clock.UtcNow;
 
         var source = await repo.FindBinContentWithLocationAsync(data.SourceBinContentId, cancellationToken)
             ?? throw new KeyNotFoundException($"Bin content {data.SourceBinContentId} not found");
+
+        if (source.Status == BinContentStatus.QcHold)
+            throw new InvalidOperationException(LotQualityHold.Message(source.LotNumber,
+                await repo.FindQualityHoldNcrNumberAsync(source.EntityId, source.LotNumber, cancellationToken)));
 
         if (source.Quantity < data.Quantity)
             throw new InvalidOperationException(
@@ -53,7 +60,7 @@ public class TransferStockHandler(
         source.Quantity -= data.Quantity;
         if (source.Quantity == 0)
         {
-            source.RemovedAt = DateTimeOffset.UtcNow;
+            source.RemovedAt = now;
             source.RemovedBy = userId;
         }
 
@@ -68,7 +75,7 @@ public class TransferStockHandler(
             JobId = source.JobId,
             Status = source.Status,
             PlacedBy = userId,
-            PlacedAt = DateTimeOffset.UtcNow,
+            PlacedAt = now,
             Notes = data.Notes,
         };
 
@@ -84,7 +91,7 @@ public class TransferStockHandler(
             FromLocationId = source.LocationId,
             ToLocationId = data.DestinationLocationId,
             MovedBy = userId,
-            MovedAt = DateTimeOffset.UtcNow,
+            MovedAt = now,
             Reason = BinMovementReason.Transfer,
         };
 

@@ -4,6 +4,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 
+using Forge.Api.Features.Quality;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -62,15 +63,21 @@ public class UseStockHandler(
             locationId = (await repo.EnsureDefaultLocationAsync(cancellationToken)).Id;
         }
 
-        var rows = await repo.GetActiveBinContentsByPartLocationAsync(data.PartId, locationId, cancellationToken);
-        if (rows.Count == 0)
+        var allRows = await repo.GetActiveBinContentsByPartLocationAsync(data.PartId, locationId, cancellationToken);
+        if (allRows.Count == 0)
             throw new InvalidOperationException(
                 "No stock of this part is on hand to use. Receive stock before using it.");
+
+        var rows = allRows.Where(r => r.Status != BinContentStatus.QcHold).ToList();
+        var held = allRows.FirstOrDefault(r => r.Status == BinContentStatus.QcHold && r.Quantity > 0);
 
         // S-RI1: reserved units are spoken for, so only the free balance can be used.
         var onHand = rows.Sum(r => r.Quantity);
         var reserved = rows.Sum(r => r.ReservedQuantity);
         var available = onHand - reserved;
+        if (data.Quantity > available && held is not null)
+            throw new InvalidOperationException(LotQualityHold.Message(held.LotNumber,
+                await repo.FindQualityHoldNcrNumberAsync(data.PartId, held.LotNumber, cancellationToken)));
         if (data.Quantity > available)
             throw new InvalidOperationException(
                 $"Cannot use {data.Quantity}: only {available} available " +

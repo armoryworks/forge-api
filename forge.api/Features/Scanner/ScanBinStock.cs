@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Quality;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Scanner;
@@ -10,7 +12,8 @@ namespace Forge.Api.Features.Scanner;
 /// active row per lot plus an un-lotted row, so the scanner treats the location as one total: draws come
 /// from un-lotted content first, then the oldest lots, and stock put back lands on the row for its lot.
 /// A reversal's removal starts with the row for the lot it undoes and does not protect reserved units,
-/// because it takes back stock that an earlier scan put there.
+/// because it takes back stock that an earlier scan put there. Issues and moves draw only stock that is not on
+/// quality hold.
 /// </summary>
 public static class ScanBinStock
 {
@@ -29,6 +32,17 @@ public static class ScanBinStock
             .ThenBy(bc => bc.PlacedAt)
             .ThenBy(bc => bc.Id)
             .ToList();
+    }
+
+    public static async Task<List<BinContent>> DrawableRowsAsync(
+        AppDbContext db, int partId, int locationId, decimal quantity, CancellationToken ct)
+    {
+        var rows = await ActiveRowsAsync(db, partId, locationId, ct);
+        var drawable = rows.Where(bc => bc.Status != BinContentStatus.QcHold).ToList();
+        var held = rows.FirstOrDefault(bc => bc.Status == BinContentStatus.QcHold && bc.Quantity > 0);
+        if (held is not null && drawable.Sum(bc => bc.Quantity - bc.ReservedQuantity) < quantity)
+            throw await LotQualityHold.RefusalAsync(db, partId, held.LotNumber, ct);
+        return drawable;
     }
 
     public static async Task<BinContent> AddAsync(

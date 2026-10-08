@@ -5743,6 +5743,7 @@ CREATE TABLE public.non_conformances (
     capa_id integer,
     customer_id integer,
     vendor_id integer,
+    part_revision character varying(10),
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,

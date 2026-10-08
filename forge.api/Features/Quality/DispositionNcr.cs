@@ -61,6 +61,9 @@ public class DispositionNcrHandler(
             $"Dispositioned as {command.Request.Code}",
             ("NonConformance", ncr.Id));
 
+        if (command.Request.Code is NcrDispositionCode.UseAsIs or NcrDispositionCode.Rework)
+            await LotQualityHold.ReleaseAsync(db, ncr, cancellationToken);
+
         await db.SaveChangesAsync(cancellationToken);
     }
 }

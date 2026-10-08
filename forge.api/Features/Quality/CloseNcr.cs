@@ -39,6 +39,8 @@ public class CloseNcrHandler(AppDbContext db) : IRequestHandler<CloseNcrCommand>
             string.IsNullOrEmpty(notes) ? $"Closed {ncr.NcrNumber}" : $"Closed {ncr.NcrNumber}: {notes}",
             ("NonConformance", ncr.Id));
 
+        await LotQualityHold.ReleaseAsync(db, ncr, cancellationToken);
+
         await db.SaveChangesAsync(cancellationToken);
     }
 }

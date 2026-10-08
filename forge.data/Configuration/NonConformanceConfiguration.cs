@@ -11,6 +11,7 @@ public class NonConformanceConfiguration : IEntityTypeConfiguration<NonConforman
     {
         builder.Property(e => e.NcrNumber).HasMaxLength(20);
         builder.Property(e => e.Description).HasMaxLength(4000);
+        builder.Property(e => e.PartRevision).HasMaxLength(10);
         builder.Property(e => e.LotNumber).HasMaxLength(100);
         builder.Property(e => e.ContainmentActions).HasMaxLength(4000);
         builder.Property(e => e.DispositionNotes).HasMaxLength(4000);

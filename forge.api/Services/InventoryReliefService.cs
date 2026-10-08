@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Quality;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
@@ -72,6 +73,20 @@ public class InventoryReliefService(AppDbContext db, ILogger<InventoryReliefServ
             .ToListAsync(ct);
 
         var totalAvailable = bins.Sum(b => b.Quantity);
+        if (totalAvailable < remaining)
+        {
+            var held = await db.BinContents
+                .Where(bc => bc.EntityType == "part"
+                          && bc.EntityId == partId
+                          && bc.Status == BinContentStatus.QcHold
+                          && bc.RemovedAt == null
+                          && bc.Quantity > 0)
+                .OrderBy(bc => bc.PlacedAt)
+                .FirstOrDefaultAsync(ct);
+            if (held is not null)
+                throw await LotQualityHold.RefusalAsync(db, partId, held.LotNumber, ct);
+        }
+
         if (totalAvailable < remaining)
             throw new InvalidOperationException(
                 $"Insufficient stock for part {partId} on ShipmentLine {line.Id}. " +

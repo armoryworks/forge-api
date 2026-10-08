@@ -4,6 +4,7 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Data.Repositories;
 
@@ -203,6 +204,9 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
         => db.BinContents.Include(c => c.Location)
             .FirstOrDefaultAsync(c => c.EntityType == "part" && c.EntityId == partId
                 && c.LocationId == locationId && c.LotNumber == lotNumber && c.RemovedAt == null, ct);
+
+    public Task<string?> FindQualityHoldNcrNumberAsync(int partId, string? lotNumber, CancellationToken ct)
+        => db.FindQualityHoldNcrNumberAsync(partId, lotNumber, ct);
 
     public async Task AddBinContentAsync(BinContent content, CancellationToken ct)
     {

@@ -52,6 +52,7 @@ public class CreateNcrHandler(
             NcrNumber = ncrNumber,
             Type = req.Type,
             PartId = req.PartId,
+            PartRevision = part.Revision,
             JobId = req.JobId,
             ProductionRunId = req.ProductionRunId,
             LotNumber = req.LotNumber,
@@ -78,6 +79,9 @@ public class CreateNcrHandler(
 
         db.NonConformances.Add(ncr);
         await db.SaveChangesAsync(cancellationToken);
+
+        if (await LotQualityHold.PlaceAsync(db, ncr, cancellationToken) > 0)
+            await db.SaveChangesAsync(cancellationToken);
 
         var userName = await db.Users
             .Where(u => u.Id == userId)

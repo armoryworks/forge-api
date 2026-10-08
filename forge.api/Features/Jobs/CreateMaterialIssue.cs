@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.Quality;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -63,6 +64,9 @@ public class CreateMaterialIssueHandler(
             var bin = await db.BinContents.FindAsync([request.BinContentId.Value], cancellationToken)
                 ?? throw new KeyNotFoundException($"BinContent {request.BinContentId} not found");
 
+            if (request.IssueType == MaterialIssueType.Issue && bin.Status == BinContentStatus.QcHold)
+                throw await LotQualityHold.RefusalAsync(db, request.PartId, bin.LotNumber, cancellationToken);
+
             // Decrement bin quantity for Issue, increment for Return
             if (request.IssueType == MaterialIssueType.Issue || request.IssueType == MaterialIssueType.Scrap)
             {
@@ -86,6 +90,20 @@ public class CreateMaterialIssueHandler(
                 MovedBy = request.IssuedById,
                 MovedAt = DateTimeOffset.UtcNow,
             });
+        }
+        else if (request.IssueType == MaterialIssueType.Issue && !string.IsNullOrWhiteSpace(request.LotNumber))
+        {
+            var lotRows = db.BinContents.Where(bc => bc.EntityType == "part"
+                && bc.EntityId == request.PartId
+                && bc.LotNumber == request.LotNumber
+                && bc.RemovedAt == null
+                && bc.Quantity > 0);
+            if (request.StorageLocationId is int locationId)
+                lotRows = lotRows.Where(bc => bc.LocationId == locationId);
+
+            if (await lotRows.AnyAsync(bc => bc.Status == BinContentStatus.QcHold, cancellationToken)
+                && !await lotRows.AnyAsync(bc => bc.Status != BinContentStatus.QcHold, cancellationToken))
+                throw await LotQualityHold.RefusalAsync(db, request.PartId, request.LotNumber, cancellationToken);
         }
 
         var issue = new MaterialIssue

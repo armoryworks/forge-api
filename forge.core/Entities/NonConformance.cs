@@ -7,6 +7,7 @@ public class NonConformance : BaseAuditableEntity
     public string NcrNumber { get; set; } = string.Empty;
     public NcrType Type { get; set; }
     public int PartId { get; set; }
+    public string? PartRevision { get; set; }
     public int? JobId { get; set; }
     public int? ProductionRunId { get; set; }
     public string? LotNumber { get; set; }

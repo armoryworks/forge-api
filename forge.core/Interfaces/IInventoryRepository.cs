@@ -37,6 +37,9 @@ public interface IInventoryRepository
     /// <summary>Active (not removed) bin content for a part at a location holding the given
     /// lot (null matches only un-lotted content) — used by PO receiving so lots never blend.</summary>
     Task<BinContent?> FindActiveBinContentByPartLocationLotAsync(int partId, int locationId, string? lotNumber, CancellationToken ct);
+    /// <summary>The number of the newest NCR still holding the part's lot on quality hold, or null when
+    /// none does — names the NCR when a stock-out is refused for held stock.</summary>
+    Task<string?> FindQualityHoldNcrNumberAsync(int partId, string? lotNumber, CancellationToken ct);
     Task AddBinContentAsync(BinContent content, CancellationToken ct);
     Task AddMovementAsync(BinMovement movement, CancellationToken ct);
 
