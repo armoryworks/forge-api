@@ -61,7 +61,7 @@ public class QualityRecordsTests(CapabilityTestWebApplicationFactory factory)
 
         var inspection = new QcInspection { TemplateId = template.Id, InspectorId = 7, JobId = jobId, Status = "InProgress" };
         foreach (var item in template.Items)
-            inspection.Results.Add(new QcInspectionResult { ChecklistItemId = item.Id, Description = item.Description });
+            inspection.Results.Add(new QcInspectionResult { ChecklistItemId = item.Id, Description = item.Description, IsRequired = item.IsRequired });
         _db.QcInspections.Add(inspection);
         await _db.SaveChangesAsync();
         return inspection;

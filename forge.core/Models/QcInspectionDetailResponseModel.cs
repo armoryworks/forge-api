@@ -1,14 +1,17 @@
 namespace Forge.Core.Models;
 
-public record QcInspectionResponseModel(
+public record QcInspectionDetailResponseModel(
     int Id,
     int? JobId,
     string? JobNumber,
+    string? JobTitle,
     int? ProductionRunId,
+    string? ProductionRunNumber,
     int? TemplateId,
     string? TemplateName,
     int? PartId,
     string? PartNumber,
+    string? PartName,
     int InspectorId,
     string InspectorName,
     string? LotNumber,
@@ -16,4 +19,5 @@ public record QcInspectionResponseModel(
     string? Notes,
     DateTimeOffset? CompletedAt,
     List<QcInspectionResultModel> Results,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);

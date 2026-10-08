@@ -5,6 +5,8 @@ public class QcInspectionResult : BaseEntity
     public int InspectionId { get; set; }
     public int? ChecklistItemId { get; set; }
     public string Description { get; set; } = string.Empty;
+    public string? Specification { get; set; }
+    public bool IsRequired { get; set; } = true;
     public bool Passed { get; set; }
     public string? MeasuredValue { get; set; }
     public string? Notes { get; set; }

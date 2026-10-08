@@ -5,4 +5,5 @@ public record CreateQcInspectionRequestModel(
     int? ProductionRunId,
     int? TemplateId,
     string? LotNumber,
-    string? Notes);
+    string? Notes,
+    int? PartId = null);

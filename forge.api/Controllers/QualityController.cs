@@ -32,13 +32,38 @@ public class QualityController(IMediator mediator) : ControllerBase
         return Created($"/api/v1/quality/templates/{result.Id}", result);
     }
 
+    [HttpPut("templates/{id:int}")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<ActionResult<QcTemplateResponseModel>> UpdateTemplate(
+        int id, [FromBody] UpdateQcTemplateRequestModel request)
+    {
+        var result = await mediator.Send(new UpdateQcTemplateCommand(id, request));
+        return Ok(result);
+    }
+
+    [HttpDelete("templates/{id:int}")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> DeleteTemplate(int id)
+    {
+        await mediator.Send(new DeleteQcTemplateCommand(id));
+        return NoContent();
+    }
+
     [HttpGet("inspections")]
     public async Task<ActionResult<List<QcInspectionResponseModel>>> GetInspections(
         [FromQuery] int? jobId,
         [FromQuery] string? status,
-        [FromQuery] string? lotNumber)
+        [FromQuery] string? lotNumber,
+        [FromQuery] string? search)
     {
-        var result = await mediator.Send(new GetQcInspectionsQuery(jobId, status, lotNumber));
+        var result = await mediator.Send(new GetQcInspectionsQuery(jobId, status, lotNumber, search));
+        return Ok(result);
+    }
+
+    [HttpGet("inspections/{id:int}")]
+    public async Task<ActionResult<QcInspectionDetailResponseModel>> GetInspectionById(int id)
+    {
+        var result = await mediator.Send(new GetQcInspectionByIdQuery(id));
         return Ok(result);
     }
 

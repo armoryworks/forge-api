@@ -1,6 +1,7 @@
 using System.Security.Claims;
 
 using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Quality;
 
@@ -31,30 +33,66 @@ public class CreateQcInspectionHandler(AppDbContext db, IHttpContextAccessor htt
         var data = request.Data;
         var userId = int.Parse(httpContextAccessor.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+        var jobId = PositiveOrNull(data.JobId);
+        var productionRunId = PositiveOrNull(data.ProductionRunId);
+        var templateId = PositiveOrNull(data.TemplateId);
+        var partId = PositiveOrNull(data.PartId);
+
+        var failures = new List<ValidationFailure>();
+
+        if (jobId is int job)
+        {
+            var jobPart = await db.Jobs
+                .AsNoTracking()
+                .Where(j => j.Id == job)
+                .Select(j => new { j.PartId })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (jobPart is null)
+                failures.Add(new ValidationFailure("jobId", "Pick a work order that exists.") { AttemptedValue = job });
+            else
+                partId ??= jobPart.PartId;
+        }
+
+        if (productionRunId is int run && !await db.ProductionRuns.AnyAsync(r => r.Id == run, cancellationToken))
+            failures.Add(new ValidationFailure("productionRunId", "Pick a production run that exists.") { AttemptedValue = run });
+
+        if (templateId is int template
+            && !await db.QcChecklistTemplates.AnyAsync(t => t.Id == template && t.IsActive, cancellationToken))
+            failures.Add(new ValidationFailure("templateId", "Pick a checklist template that exists.") { AttemptedValue = template });
+
+        if (PositiveOrNull(data.PartId) is int part && !await db.Parts.AnyAsync(p => p.Id == part, cancellationToken))
+            failures.Add(new ValidationFailure("partId", "Pick a part that exists.") { AttemptedValue = part });
+
+        if (failures.Count > 0)
+            throw new ValidationException(failures);
+
         var inspection = new QcInspection
         {
-            JobId = data.JobId,
-            ProductionRunId = data.ProductionRunId,
-            TemplateId = data.TemplateId,
+            JobId = jobId,
+            ProductionRunId = productionRunId,
+            TemplateId = templateId,
+            PartId = partId,
             InspectorId = userId,
             LotNumber = data.LotNumber?.Trim(),
             Status = "InProgress",
             Notes = data.Notes?.Trim(),
         };
 
-        // If a template is specified, pre-populate results from template items
-        if (data.TemplateId.HasValue)
+        if (templateId.HasValue)
         {
             var templateItems = await db.QcChecklistItems
                 .AsNoTracking()
-                .Where(i => i.TemplateId == data.TemplateId.Value)
+                .Where(i => i.TemplateId == templateId.Value)
                 .OrderBy(i => i.SortOrder)
+                .ThenBy(i => i.Id)
                 .ToListAsync(cancellationToken);
 
             inspection.Results = templateItems.Select(item => new QcInspectionResult
             {
                 ChecklistItemId = item.Id,
                 Description = item.Description,
+                Specification = item.Specification,
+                IsRequired = item.IsRequired,
                 Passed = false,
             }).ToList();
         }
@@ -62,39 +100,14 @@ public class CreateQcInspectionHandler(AppDbContext db, IHttpContextAccessor htt
         db.QcInspections.Add(inspection);
         await db.SaveChangesAsync(cancellationToken);
 
-        return await GetInspectionResponse(inspection.Id, cancellationToken);
+        var points = new List<(string, int)> { ("QcInspection", inspection.Id) };
+        if (inspection.JobId is int loggedJobId)
+            points.Add(("Job", loggedJobId));
+        db.LogActivityAt("inspection-started", $"Inspection QC #{inspection.Id} started", [.. points]);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return await QcInspectionMapping.LoadResponseAsync(db, inspection.Id, cancellationToken);
     }
 
-    private async Task<QcInspectionResponseModel> GetInspectionResponse(int id, CancellationToken cancellationToken)
-    {
-        return await db.QcInspections
-            .AsNoTracking()
-            .Include(i => i.Results)
-            .Include(i => i.Job)
-            .Include(i => i.Template)
-            .Where(i => i.Id == id)
-            .Select(i => new QcInspectionResponseModel(
-                i.Id,
-                i.JobId,
-                i.Job != null ? i.Job.JobNumber : null,
-                i.ProductionRunId,
-                i.TemplateId,
-                i.Template != null ? i.Template.Name : null,
-                i.InspectorId,
-                db.Users.Where(u => u.Id == i.InspectorId).Select(u => u.FirstName + " " + u.LastName).FirstOrDefault() ?? "",
-                i.LotNumber,
-                i.Status,
-                i.Notes,
-                i.CompletedAt,
-                i.Results.Select(r => new QcInspectionResultModel(
-                    r.Id,
-                    r.ChecklistItemId,
-                    r.Description,
-                    r.Passed,
-                    r.MeasuredValue,
-                    r.Notes
-                )).ToList(),
-                i.CreatedAt))
-            .FirstAsync(cancellationToken);
-    }
+    private static int? PositiveOrNull(int? id) => id is > 0 ? id : null;
 }

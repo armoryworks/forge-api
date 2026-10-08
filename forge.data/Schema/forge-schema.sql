@@ -7149,6 +7149,8 @@ CREATE TABLE public.qc_inspection_results (
     inspection_id integer NOT NULL,
     checklist_item_id integer,
     description character varying(200) NOT NULL,
+    specification character varying(500),
+    is_required boolean DEFAULT true NOT NULL,
     passed boolean NOT NULL,
     measured_value character varying(200),
     notes character varying(500)
@@ -7171,6 +7173,7 @@ CREATE TABLE public.qc_inspections (
     job_id integer,
     production_run_id integer,
     template_id integer,
+    part_id integer,
     inspector_id integer NOT NULL,
     lot_number character varying(100),
     status character varying(50) NOT NULL,
@@ -11687,6 +11690,9 @@ ALTER TABLE ONLY public.qc_inspections
     ADD CONSTRAINT fk_qc_inspections_jobs_job_id FOREIGN KEY (job_id) REFERENCES public.jobs(id) ON DELETE RESTRICT;
 
 ALTER TABLE ONLY public.qc_inspections
+    ADD CONSTRAINT fk_qc_inspections_parts_part_id FOREIGN KEY (part_id) REFERENCES public.parts(id) ON DELETE RESTRICT;
+
+ALTER TABLE ONLY public.qc_inspections
     ADD CONSTRAINT fk_qc_inspections_production_runs_production_run_id FOREIGN KEY (production_run_id) REFERENCES public.production_runs(id) ON DELETE RESTRICT;
 
 ALTER TABLE ONLY public.qc_inspections
@@ -13571,6 +13577,8 @@ CREATE INDEX ix_qc_inspection_results_inspection_id ON public.qc_inspection_resu
 CREATE INDEX ix_qc_inspections_inspector_id ON public.qc_inspections USING btree (inspector_id);
 
 CREATE INDEX ix_qc_inspections_job_id ON public.qc_inspections USING btree (job_id);
+
+CREATE INDEX ix_qc_inspections_part_id ON public.qc_inspections USING btree (part_id);
 
 CREATE INDEX ix_qc_inspections_production_run_id ON public.qc_inspections USING btree (production_run_id);
 

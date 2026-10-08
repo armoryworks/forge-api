@@ -65,7 +65,7 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
 
         var completing = data.Status is "Passed" or "Failed";
         if (data.Status == "Passed")
-            await EnsureRequiredItemsPassedAsync(inspection, cancellationToken);
+            EnsureRequiredItemsPassed(inspection);
 
         if (data.Status is not null && data.Status != inspection.Status)
         {
@@ -104,35 +104,7 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
             await mediator.Publish(new QcInspectionFailedEvent(inspection.Id, inspection.JobId.Value, userId), cancellationToken);
         }
 
-        return await db.QcInspections
-            .AsNoTracking()
-            .Include(i => i.Results)
-            .Include(i => i.Job)
-            .Include(i => i.Template)
-            .Where(i => i.Id == inspection.Id)
-            .Select(i => new QcInspectionResponseModel(
-                i.Id,
-                i.JobId,
-                i.Job != null ? i.Job.JobNumber : null,
-                i.ProductionRunId,
-                i.TemplateId,
-                i.Template != null ? i.Template.Name : null,
-                i.InspectorId,
-                db.Users.Where(u => u.Id == i.InspectorId).Select(u => u.FirstName + " " + u.LastName).FirstOrDefault() ?? "",
-                i.LotNumber,
-                i.Status,
-                i.Notes,
-                i.CompletedAt,
-                i.Results.Select(r => new QcInspectionResultModel(
-                    r.Id,
-                    r.ChecklistItemId,
-                    r.Description,
-                    r.Passed,
-                    r.MeasuredValue,
-                    r.Notes
-                )).ToList(),
-                i.CreatedAt))
-            .FirstAsync(cancellationToken);
+        return await QcInspectionMapping.LoadResponseAsync(db, inspection.Id, cancellationToken);
     }
 
     private bool ApplyResults(QcInspection inspection, List<UpdateQcInspectionResultModel> incoming)
@@ -145,6 +117,18 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
                 new ValidationFailure(
                     nameof(UpdateQcInspectionRequestModel.Results),
                     $"Inspection {inspection.Id} has no result {string.Join(", ", unknown)}."),
+            ]);
+
+        var removedRequired = inspection.Results
+            .Where(r => r.IsRequired && !keptIds.Contains(r.Id))
+            .Select(r => r.Description)
+            .ToList();
+        if (removedRequired.Count > 0)
+            throw new ValidationException(
+            [
+                new ValidationFailure(
+                    nameof(UpdateQcInspectionRequestModel.Results),
+                    $"Required checklist items cannot be removed ({string.Join(", ", removedRequired)})."),
             ]);
 
         var changed = false;
@@ -160,7 +144,12 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
             var row = model.Id is int id ? inspection.Results.First(r => r.Id == id) : null;
             if (row is null)
             {
-                row = new QcInspectionResult { InspectionId = inspection.Id, ChecklistItemId = model.ChecklistItemId };
+                row = new QcInspectionResult
+                {
+                    InspectionId = inspection.Id,
+                    ChecklistItemId = model.ChecklistItemId,
+                    IsRequired = false,
+                };
                 inspection.Results.Add(row);
                 changed = true;
             }
@@ -182,21 +171,12 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
         return changed;
     }
 
-    private async Task EnsureRequiredItemsPassedAsync(QcInspection inspection, CancellationToken cancellationToken)
+    private static void EnsureRequiredItemsPassed(QcInspection inspection)
     {
-        if (inspection.TemplateId is not int templateId)
-            return;
-
-        var requiredItems = await db.QcChecklistItems
-            .AsNoTracking()
-            .Where(i => i.TemplateId == templateId && i.IsRequired)
-            .OrderBy(i => i.SortOrder)
-            .Select(i => new { i.Id, i.Description })
-            .ToListAsync(cancellationToken);
-
-        var failed = requiredItems
-            .Where(item => !inspection.Results.Any(r => r.ChecklistItemId == item.Id && r.Passed))
-            .Select(item => item.Description)
+        var failed = inspection.Results
+            .Where(r => r.IsRequired && !r.Passed)
+            .OrderBy(r => r.Id)
+            .Select(r => r.Description)
             .ToList();
 
         if (failed.Count > 0)

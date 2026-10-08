@@ -1,10 +1,10 @@
 using FluentValidation;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Quality;
 
@@ -51,27 +51,12 @@ public class CreateQcTemplateHandler(AppDbContext db)
         db.QcChecklistTemplates.Add(template);
         await db.SaveChangesAsync(cancellationToken);
 
-        var created = await db.QcChecklistTemplates
-            .AsNoTracking()
-            .Include(t => t.Items)
-            .Include(t => t.Part)
-            .Where(t => t.Id == template.Id)
-            .Select(t => new QcTemplateResponseModel(
-                t.Id,
-                t.Name,
-                t.Description,
-                t.PartId,
-                t.Part != null ? t.Part.PartNumber : null,
-                t.IsActive,
-                t.Items.OrderBy(i => i.SortOrder).Select(i => new QcTemplateItemModel(
-                    i.Id,
-                    i.Description,
-                    i.Specification,
-                    i.SortOrder,
-                    i.IsRequired
-                )).ToList()))
-            .FirstAsync(cancellationToken);
+        db.LogActivityAt(
+            "created",
+            $"Created checklist template {template.Name} with {template.Items.Count} item{(template.Items.Count == 1 ? "" : "s")}",
+            ("QcTemplate", template.Id));
+        await db.SaveChangesAsync(cancellationToken);
 
-        return created;
+        return await QcTemplateMapping.LoadResponseAsync(db, template.Id, cancellationToken);
     }
 }

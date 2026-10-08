@@ -6,7 +6,8 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.Quality;
 
-public record GetQcInspectionsQuery(int? JobId, string? Status, string? LotNumber) : IRequest<List<QcInspectionResponseModel>>;
+public record GetQcInspectionsQuery(int? JobId, string? Status, string? LotNumber, string? Search)
+    : IRequest<List<QcInspectionResponseModel>>;
 
 public class GetQcInspectionsHandler(AppDbContext db)
     : IRequestHandler<GetQcInspectionsQuery, List<QcInspectionResponseModel>>
@@ -18,57 +19,35 @@ public class GetQcInspectionsHandler(AppDbContext db)
             .AsNoTracking()
             .Include(i => i.Results)
             .Include(i => i.Job)
-            .Include(i => i.Template)
+            .Include(i => i.Part)
             .AsQueryable();
 
         if (request.JobId.HasValue)
             query = query.Where(i => i.JobId == request.JobId.Value);
 
-        if (!string.IsNullOrWhiteSpace(request.Status))
-            query = query.Where(i => i.Status == request.Status);
+        var statuses = (request.Status ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+        if (statuses.Count > 0)
+            query = query.Where(i => statuses.Contains(i.Status));
 
         if (!string.IsNullOrWhiteSpace(request.LotNumber))
             query = query.Where(i => i.LotNumber != null && i.LotNumber.Contains(request.LotNumber));
 
-        // Pre-load inspector names to avoid N+1 subquery inside Select projection
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var term = request.Search.Trim().ToLower();
+            query = query.Where(i =>
+                (i.LotNumber != null && i.LotNumber.ToLower().Contains(term))
+                || (i.Job != null && i.Job.JobNumber.ToLower().Contains(term))
+                || (i.Part != null && i.Part.PartNumber.ToLower().Contains(term))
+                || (i.PartId == null && i.Job != null && i.Job.Part != null && i.Job.Part.PartNumber.ToLower().Contains(term)));
+        }
+
         var inspections = await query
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        var inspectorIds = inspections
-            .Select(i => i.InspectorId)
-            .Distinct()
-            .ToList();
-
-        var inspectorNames = inspectorIds.Count > 0
-            ? await db.Users
-                .Where(u => inspectorIds.Contains(u.Id))
-                .Select(u => new { u.Id, Name = u.FirstName + " " + u.LastName })
-                .ToDictionaryAsync(u => u.Id, u => u.Name, cancellationToken)
-            : new Dictionary<int, string>();
-
-        return inspections.Select(i => new QcInspectionResponseModel(
-            i.Id,
-            i.JobId,
-            i.Job != null ? i.Job.JobNumber : null,
-            i.ProductionRunId,
-            i.TemplateId,
-            i.Template != null ? i.Template.Name : null,
-            i.InspectorId,
-            inspectorNames.TryGetValue(i.InspectorId, out var name) ? name : "",
-            i.LotNumber,
-            i.Status,
-            i.Notes,
-            i.CompletedAt,
-            i.Results.Select(r => new QcInspectionResultModel(
-                r.Id,
-                r.ChecklistItemId,
-                r.Description,
-                r.Passed,
-                r.MeasuredValue,
-                r.Notes
-            )).ToList(),
-            i.CreatedAt))
-        .ToList();
+        return await QcInspectionMapping.ToResponseModelsAsync(db, inspections, cancellationToken);
     }
 }

@@ -18,6 +18,7 @@ public class QcInspectionConfiguration : IEntityTypeConfiguration<QcInspection>
         builder.HasIndex(e => e.JobId);
         builder.HasIndex(e => e.ProductionRunId);
         builder.HasIndex(e => e.TemplateId);
+        builder.HasIndex(e => e.PartId);
         builder.HasIndex(e => e.InspectorId);
 
         builder.HasOne(e => e.Job)
@@ -33,6 +34,11 @@ public class QcInspectionConfiguration : IEntityTypeConfiguration<QcInspection>
         builder.HasOne(e => e.Template)
             .WithMany()
             .HasForeignKey(e => e.TemplateId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(e => e.Part)
+            .WithMany()
+            .HasForeignKey(e => e.PartId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(e => e.Results)
