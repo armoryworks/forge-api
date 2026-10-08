@@ -19,5 +19,6 @@ public enum ActivityAction
     OperationProgress,
     OperationCompleted,
     OperationReopened,
-    OperationSkipped
+    OperationSkipped,
+    AndonRaised
 }

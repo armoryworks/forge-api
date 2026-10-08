@@ -6,5 +6,6 @@ public enum AndonAlertType
     Quality,
     Material,
     Maintenance,
-    Safety
+    Safety,
+    Stoppage
 }
