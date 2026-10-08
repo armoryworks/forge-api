@@ -30,7 +30,7 @@
          OpenAPI docs), which -warnaserror escalates to a build error. 2.7.5 is the
          first patched 2.x. Forge only generates OpenAPI docs, so the vuln surface
          doesn't apply — this pin just clears the NuGet audit gate. -->
-    <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+    <PackageReference Include="Microsoft.OpenApi" Version="3.10.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
