@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Mobile;
 using Forge.Api.Middleware;
+using Forge.Core.Models;
 
 namespace Forge.Api.Controllers;
 
@@ -36,6 +37,11 @@ public class MobileController(IMediator mediator) : ControllerBase
     [RequiresCapability("CAP-MOBILE-JOBS")]
     public async Task<ActionResult<JobStatusResponseModel>> JobStatus(int id)
         => Ok(await mediator.Send(new GetJobStatusQuery(id)));
+
+    [HttpGet("jobs/mine")]
+    [RequiresCapability("CAP-MOBILE-JOBS")]
+    public async Task<ActionResult<List<MyJobResponseModel>>> MyJobs()
+        => Ok(await mediator.Send(new GetMyJobsQuery()));
 
     public record AdvanceRequestModel(string? ScanCode, bool Confirmed = false);
 
