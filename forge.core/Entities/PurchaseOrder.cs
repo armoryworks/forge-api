@@ -47,6 +47,10 @@ public class PurchaseOrder : BaseAuditableEntity, IConcurrencyVersioned
     [MaxLength(200)]
     public string? OriginReference { get; set; }
 
+    public int? VendorContactId { get; set; }
+    public int? VendorAddressId { get; set; }
+    public int? ShipToLocationId { get; set; }
+
     // ─── Bought-parts effort PR2 — landed cost foundation ──────────────
     /// <summary>
     /// Commercial term governing this PO's freight + insurance + duty
@@ -89,6 +93,9 @@ public class PurchaseOrder : BaseAuditableEntity, IConcurrencyVersioned
 
     public Vendor Vendor { get; set; } = null!;
     public Job? Job { get; set; }
+    public VendorContact? VendorContact { get; set; }
+    public VendorAddress? VendorAddress { get; set; }
+    public CompanyLocation? ShipToLocation { get; set; }
     public ICollection<PurchaseOrderLine> Lines { get; set; } = [];
     public ICollection<PurchaseOrderRelease> Releases { get; set; } = [];
 }

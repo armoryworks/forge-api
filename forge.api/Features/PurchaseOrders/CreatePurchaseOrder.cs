@@ -29,7 +29,10 @@ public record CreatePurchaseOrderCommand(
     string? QuoteCurrency = null,
     // Optional caller-supplied PO number — gated by purchase_orders.allow_manual_numbers.
     string? PONumber = null,
-    DateTimeOffset? ExpectedDeliveryDate = null) : IRequest<PurchaseOrderListItemModel>;
+    DateTimeOffset? ExpectedDeliveryDate = null,
+    int? VendorContactId = null,
+    int? VendorAddressId = null,
+    int? ShipToLocationId = null) : IRequest<PurchaseOrderListItemModel>;
 
 public class CreatePurchaseOrderValidator : AbstractValidator<CreatePurchaseOrderCommand>
 {
@@ -59,6 +62,9 @@ public class CreatePurchaseOrderValidator : AbstractValidator<CreatePurchaseOrde
             .Length(3)
             .When(x => !string.IsNullOrEmpty(x.QuoteCurrency))
             .WithMessage("QuoteCurrency must be a 3-letter ISO-4217 code");
+        RuleFor(x => x.VendorContactId).GreaterThan(0).When(x => x.VendorContactId.HasValue);
+        RuleFor(x => x.VendorAddressId).GreaterThan(0).When(x => x.VendorAddressId.HasValue);
+        RuleFor(x => x.ShipToLocationId).GreaterThan(0).When(x => x.ShipToLocationId.HasValue);
     }
 }
 
@@ -88,6 +94,16 @@ public class CreatePurchaseOrderHandler(
 
         if (request.JobId is int jobId)
             await EnsureJobOpenAsync(jobId, cancellationToken);
+
+        var failures = new List<ValidationFailure>();
+        var contact = await PurchaseOrderParties.ResolveContactAsync(
+            db, request.VendorId, request.VendorContactId, failures, cancellationToken);
+        var address = await PurchaseOrderParties.ResolveAddressAsync(
+            db, request.VendorId, request.VendorAddressId, failures, cancellationToken);
+        var shipTo = await PurchaseOrderParties.ResolveShipToAsync(
+            db, request.ShipToLocationId, failures, cancellationToken);
+        if (failures.Count > 0)
+            throw new ValidationException(failures);
 
         var poNumber = await ResolvePONumberAsync(request, cancellationToken);
 
@@ -136,6 +152,9 @@ public class CreatePurchaseOrderHandler(
             ExpectedDeliveryDate = request.ExpectedDeliveryDate ?? defaultExpectedDelivery,
             OriginSource = PoOriginSource.Manual,
             OriginUserId = userId > 0 ? userId : null,
+            VendorContactId = contact?.Id,
+            VendorAddressId = address?.Id,
+            ShipToLocationId = shipTo?.Id,
         };
 
         for (var i = 0; i < request.Lines.Count; i++)
@@ -173,9 +192,17 @@ public class CreatePurchaseOrderHandler(
         // Record the number in the identifier registry (history + resolution).
         await identifiers.IssueAsync(BusinessEntityType.PurchaseOrder, po.Id, po.PONumber, cancellationToken);
 
+        var picks = new List<string>();
+        if (contact is not null)
+            picks.Add($"attn {PurchaseOrderParties.ContactName(contact)}");
+        if (address is not null)
+            picks.Add($"order from {address.Label}");
+        if (shipTo is not null)
+            picks.Add($"ship to {shipTo.Name}");
+        var pickSummary = picks.Count > 0 ? $" ({string.Join(", ", picks)})" : string.Empty;
         db.LogActivityAt(
             "created",
-            $"Created purchase order {po.PONumber} for {vendor!.CompanyName} with {po.Lines.Count} line(s)",
+            $"Created purchase order {po.PONumber} for {vendor!.CompanyName} with {po.Lines.Count} line(s){pickSummary}",
             ("PurchaseOrder", po.Id));
         await db.SaveChangesAsync(cancellationToken);
 

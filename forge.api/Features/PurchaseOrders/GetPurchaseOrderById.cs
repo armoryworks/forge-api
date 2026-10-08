@@ -42,6 +42,16 @@ public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo, AppDbCon
             po.Lines.Where(l => l.Part?.DefaultBinId is not null).Select(l => l.Part!.DefaultBinId!.Value),
             cancellationToken);
 
+        var contact = po.VendorContactId is int contactId
+            ? await db.VendorContacts.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contactId, cancellationToken)
+            : null;
+        var address = po.VendorAddressId is int addressId
+            ? await db.VendorAddresses.AsNoTracking().FirstOrDefaultAsync(a => a.Id == addressId, cancellationToken)
+            : null;
+        var shipTo = po.ShipToLocationId is int shipToId
+            ? await db.CompanyLocations.AsNoTracking().FirstOrDefaultAsync(l => l.Id == shipToId, cancellationToken)
+            : null;
+
         return new PurchaseOrderDetailResponseModel(
             po.Id,
             po.PONumber,
@@ -96,7 +106,19 @@ public class GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repo, AppDbCon
             VendorMinimumOrderAmount: po.Vendor.MinOrderAmount,
             OriginSource: po.OriginSource.ToString(),
             OriginUserName: originUserName,
-            OriginReference: po.OriginReference);
+            OriginReference: po.OriginReference,
+            VendorContactId: contact?.Id,
+            VendorContactName: contact is null ? null : PurchaseOrderParties.ContactName(contact),
+            VendorContactEmail: contact?.Email,
+            VendorContactPhone: contact?.Phone,
+            VendorContactFax: contact?.Fax,
+            VendorAddressId: address?.Id,
+            VendorAddressType: address?.AddressType.ToString(),
+            VendorAddressLabel: address?.Label,
+            VendorAddressText: address is null ? null : PurchaseOrderParties.OneLine(address),
+            ShipToLocationId: shipTo?.Id,
+            ShipToLocationName: shipTo?.Name,
+            ShipToAddressText: shipTo is null ? null : PurchaseOrderParties.OneLine(shipTo));
     }
 
     private async Task<Dictionary<int, string>> ResolveReceivableBinPathsAsync(

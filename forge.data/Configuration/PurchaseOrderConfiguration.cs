@@ -41,6 +41,9 @@ public class PurchaseOrderConfiguration : IEntityTypeConfiguration<PurchaseOrder
         builder.HasIndex(e => e.VendorId);
         builder.HasIndex(e => e.JobId);
         builder.HasIndex(e => e.Status);
+        builder.HasIndex(e => e.VendorContactId);
+        builder.HasIndex(e => e.VendorAddressId);
+        builder.HasIndex(e => e.ShipToLocationId);
 
         builder.HasOne(e => e.Vendor)
             .WithMany(v => v.PurchaseOrders)
@@ -50,6 +53,21 @@ public class PurchaseOrderConfiguration : IEntityTypeConfiguration<PurchaseOrder
         builder.HasOne(e => e.Job)
             .WithMany(j => j.PurchaseOrders)
             .HasForeignKey(e => e.JobId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(e => e.VendorContact)
+            .WithMany()
+            .HasForeignKey(e => e.VendorContactId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(e => e.VendorAddress)
+            .WithMany()
+            .HasForeignKey(e => e.VendorAddressId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(e => e.ShipToLocation)
+            .WithMany()
+            .HasForeignKey(e => e.ShipToLocationId)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(e => e.Lines)

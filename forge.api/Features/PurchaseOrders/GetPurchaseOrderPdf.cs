@@ -25,6 +25,9 @@ public class GetPurchaseOrderPdfHandler(AppDbContext db) : IRequestHandler<GetPu
         var po = await db.PurchaseOrders
             .AsNoTracking()
             .Include(p => p.Vendor)
+            .Include(p => p.VendorContact)
+            .Include(p => p.VendorAddress)
+            .Include(p => p.ShipToLocation)
             .Include(p => p.Lines).ThenInclude(l => l.Part!).ThenInclude(p => p.StockUom)
             .Include(p => p.Lines).ThenInclude(l => l.Uom)
             .Include(p => p.Lines).ThenInclude(l => l.PurchaseUnit)
@@ -48,7 +51,7 @@ public class GetPurchaseOrderPdfHandler(AppDbContext db) : IRequestHandler<GetPu
             .Where(s => CompanyKeys.Contains(s.Key))
             .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
 
-        var shipTo = await db.CompanyLocations
+        var companyLocation = await db.CompanyLocations
             .AsNoTracking()
             .Where(l => l.IsActive)
             .OrderByDescending(l => l.IsDefault)
@@ -61,7 +64,8 @@ public class GetPurchaseOrderPdfHandler(AppDbContext db) : IRequestHandler<GetPu
             Setting(settings, "company.name") ?? Setting(settings, "company_name"),
             Setting(settings, "company.phone"),
             Setting(settings, "company.email"),
-            shipTo);
+            po.ShipToLocation ?? companyLocation,
+            companyLocation);
     }
 
     private static string? Setting(Dictionary<string, string> settings, string key) =>

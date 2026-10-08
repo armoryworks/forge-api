@@ -7078,6 +7078,9 @@ CREATE TABLE public.purchase_orders (
     origin_source character varying(30) DEFAULT 'Manual'::character varying NOT NULL,
     origin_user_id integer,
     origin_reference character varying(200),
+    vendor_contact_id integer,
+    vendor_address_id integer,
+    ship_to_location_id integer,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,
@@ -11659,6 +11662,15 @@ ALTER TABLE ONLY public.purchase_orders
 ALTER TABLE ONLY public.purchase_orders
     ADD CONSTRAINT fk_purchase_orders__asp_net_users_origin_user_id FOREIGN KEY (origin_user_id) REFERENCES public.asp_net_users(id) ON DELETE SET NULL;
 
+ALTER TABLE ONLY public.purchase_orders
+    ADD CONSTRAINT fk_purchase_orders_company_locations_ship_to_location_id FOREIGN KEY (ship_to_location_id) REFERENCES public.company_locations(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.purchase_orders
+    ADD CONSTRAINT fk_purchase_orders_vendor_contacts_vendor_contact_id FOREIGN KEY (vendor_contact_id) REFERENCES public.vendor_contacts(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.purchase_orders
+    ADD CONSTRAINT fk_purchase_orders_vendor_addresses_vendor_address_id FOREIGN KEY (vendor_address_id) REFERENCES public.vendor_addresses(id) ON DELETE SET NULL;
+
 ALTER TABLE ONLY public.qc_checklist_items
     ADD CONSTRAINT fk_qc_checklist_items__qc_checklist_templates_template_id FOREIGN KEY (template_id) REFERENCES public.qc_checklist_templates(id) ON DELETE CASCADE;
 
@@ -13538,7 +13550,13 @@ CREATE INDEX ix_purchase_orders_origin_user_id ON public.purchase_orders USING b
 
 CREATE UNIQUE INDEX ix_purchase_orders_ponumber ON public.purchase_orders USING btree (ponumber);
 
+CREATE INDEX ix_purchase_orders_ship_to_location_id ON public.purchase_orders USING btree (ship_to_location_id);
+
 CREATE INDEX ix_purchase_orders_status ON public.purchase_orders USING btree (status);
+
+CREATE INDEX ix_purchase_orders_vendor_address_id ON public.purchase_orders USING btree (vendor_address_id);
+
+CREATE INDEX ix_purchase_orders_vendor_contact_id ON public.purchase_orders USING btree (vendor_contact_id);
 
 CREATE INDEX ix_purchase_orders_vendor_id ON public.purchase_orders USING btree (vendor_id);
 

@@ -19,6 +19,7 @@ public class PurchaseOrderPdfDocument : IDocument
     private readonly string? _companyPhone;
     private readonly string? _companyEmail;
     private readonly CompanyLocation? _shipTo;
+    private readonly CompanyLocation? _companyLocation;
 
     public PurchaseOrderPdfDocument(
         PurchaseOrder po,
@@ -26,7 +27,8 @@ public class PurchaseOrderPdfDocument : IDocument
         string? companyName,
         string? companyPhone,
         string? companyEmail,
-        CompanyLocation? shipTo)
+        CompanyLocation? shipTo,
+        CompanyLocation? companyLocation = null)
     {
         _po = po;
         _vendorPartNumbers = vendorPartNumbers;
@@ -34,9 +36,33 @@ public class PurchaseOrderPdfDocument : IDocument
         _companyPhone = companyPhone;
         _companyEmail = companyEmail;
         _shipTo = shipTo;
+        _companyLocation = companyLocation ?? shipTo;
     }
 
     public bool IsDraft => _po.Status == PurchaseOrderStatus.Draft;
+
+    public CompanyLocation? ShipTo => _shipTo;
+
+    public IReadOnlyList<string> VendorAddressLines()
+    {
+        if (_po.VendorAddress is { } address)
+            return NonBlank(address.Line1, address.Line2, CityLine(address.City, address.State, address.PostalCode), address.Country);
+
+        var vendor = _po.Vendor;
+        return NonBlank(vendor.Address, CityLine(vendor.City, vendor.State, vendor.ZipCode), vendor.Country);
+    }
+
+    public IReadOnlyList<string> VendorContactLines()
+    {
+        var vendor = _po.Vendor;
+        var contact = _po.VendorContact;
+        var name = contact is null ? vendor.ContactName : PurchaseOrderParties.ContactName(contact);
+        return NonBlank(
+            Labelled("Attn", name),
+            Labelled("Phone", FirstNonBlank(contact?.Phone, vendor.Phone)),
+            Labelled("Fax", FirstNonBlank(contact?.Fax, vendor.Fax)),
+            Labelled("Email", FirstNonBlank(contact?.Email, vendor.Email)));
+    }
 
     public static string UomFor(PurchaseOrderLine line) =>
         line.PurchaseUnit?.Label
@@ -91,14 +117,14 @@ public class PurchaseOrderPdfDocument : IDocument
                 {
                     if (!string.IsNullOrWhiteSpace(_companyName))
                         left.Item().Text(_companyName).Bold().FontSize(16);
-                    if (_shipTo is not null)
+                    if (_companyLocation is not null)
                     {
-                        left.Item().Text(_shipTo.Line1).FontSize(9);
-                        if (!string.IsNullOrWhiteSpace(_shipTo.Line2))
-                            left.Item().Text(_shipTo.Line2).FontSize(9);
-                        left.Item().Text(CityLine(_shipTo.City, _shipTo.State, _shipTo.PostalCode)).FontSize(9);
+                        left.Item().Text(_companyLocation.Line1).FontSize(9);
+                        if (!string.IsNullOrWhiteSpace(_companyLocation.Line2))
+                            left.Item().Text(_companyLocation.Line2).FontSize(9);
+                        left.Item().Text(CityLine(_companyLocation.City, _companyLocation.State, _companyLocation.PostalCode)).FontSize(9);
                     }
-                    var phone = string.IsNullOrWhiteSpace(_companyPhone) ? _shipTo?.Phone : _companyPhone;
+                    var phone = string.IsNullOrWhiteSpace(_companyPhone) ? _companyLocation?.Phone : _companyPhone;
                     if (!string.IsNullOrWhiteSpace(phone))
                         left.Item().Text($"Phone: {phone}").FontSize(9);
                     if (!string.IsNullOrWhiteSpace(_companyEmail))
@@ -136,24 +162,15 @@ public class PurchaseOrderPdfDocument : IDocument
 
     private void ComposeVendorBlock(IContainer container)
     {
-        var vendor = _po.Vendor;
         container.Border(0.75f).BorderColor(Colors.Black).Padding(6).Column(block =>
         {
             block.Item().Text("VENDOR").SemiBold().FontSize(8);
-            block.Item().Text(vendor.CompanyName).Bold();
-            if (!string.IsNullOrWhiteSpace(vendor.Address))
-                block.Item().Text(vendor.Address).FontSize(9);
-            var cityLine = CityLine(vendor.City, vendor.State, vendor.ZipCode);
-            if (!string.IsNullOrWhiteSpace(cityLine))
-                block.Item().Text(cityLine).FontSize(9);
-            if (!string.IsNullOrWhiteSpace(vendor.Country))
-                block.Item().Text(vendor.Country).FontSize(9);
-            if (!string.IsNullOrWhiteSpace(vendor.ContactName))
-                block.Item().PaddingTop(3).Text($"Attn: {vendor.ContactName}").FontSize(9);
-            if (!string.IsNullOrWhiteSpace(vendor.Phone))
-                block.Item().Text($"Phone: {vendor.Phone}").FontSize(9);
-            if (!string.IsNullOrWhiteSpace(vendor.Email))
-                block.Item().Text($"Email: {vendor.Email}").FontSize(9);
+            block.Item().Text(_po.Vendor.CompanyName).Bold();
+            foreach (var line in VendorAddressLines())
+                block.Item().Text(line).FontSize(9);
+            var contactLines = VendorContactLines();
+            for (var i = 0; i < contactLines.Count; i++)
+                block.Item().PaddingTop(i == 0 ? 3 : 0).Text(contactLines[i]).FontSize(9);
         });
     }
 
@@ -312,6 +329,15 @@ public class PurchaseOrderPdfDocument : IDocument
             }
         });
     }
+
+    private static IReadOnlyList<string> NonBlank(params string?[] values) =>
+        values.Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v!).ToList();
+
+    private static string? FirstNonBlank(params string?[] values) =>
+        values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+
+    private static string? Labelled(string label, string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : $"{label}: {value}";
 
     private static string CityLine(string? city, string? state, string? postalCode)
     {

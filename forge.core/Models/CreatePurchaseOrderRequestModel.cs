@@ -12,7 +12,10 @@ public record CreatePurchaseOrderRequestModel(
     DateTimeOffset? ExpectedDeliveryDate = null,
     Incoterm? Incoterm = null,
     decimal? EstimatedFreight = null,
-    string? QuoteCurrency = null);
+    string? QuoteCurrency = null,
+    int? VendorContactId = null,
+    int? VendorAddressId = null,
+    int? ShipToLocationId = null);
 
 // Phase 3 / WU-10 / F8-partial — Quantity is decimal (was int). UoM-aware shops
 // need fractional quantities — material-by-weight, by-time, by-volume.

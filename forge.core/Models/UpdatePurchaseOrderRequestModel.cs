@@ -5,4 +5,7 @@ public record UpdatePurchaseOrderRequestModel(
     DateTimeOffset? ExpectedDeliveryDate,
     // Optional caller-supplied PO number — editable in Draft only, gated by
     // purchase_orders.allow_manual_numbers.
-    string? PONumber = null);
+    string? PONumber = null,
+    int? VendorContactId = null,
+    int? VendorAddressId = null,
+    int? ShipToLocationId = null);

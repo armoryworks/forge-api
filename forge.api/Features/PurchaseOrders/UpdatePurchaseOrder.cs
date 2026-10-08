@@ -1,6 +1,7 @@
 using System.Globalization;
 
 using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -24,7 +25,10 @@ public record UpdatePurchaseOrderCommand(
     decimal? EstimatedFreight = null,
     string? QuoteCurrency = null,
     decimal? FxRate = null,
-    string? FxRateSource = null) : IRequest;
+    string? FxRateSource = null,
+    int? VendorContactId = null,
+    int? VendorAddressId = null,
+    int? ShipToLocationId = null) : IRequest;
 
 public class UpdatePurchaseOrderValidator : AbstractValidator<UpdatePurchaseOrderCommand>
 {
@@ -45,6 +49,9 @@ public class UpdatePurchaseOrderValidator : AbstractValidator<UpdatePurchaseOrde
         RuleFor(x => x.FxRateSource)
             .MaximumLength(200)
             .When(x => !string.IsNullOrEmpty(x.FxRateSource));
+        RuleFor(x => x.VendorContactId).GreaterThan(0).When(x => x.VendorContactId.HasValue);
+        RuleFor(x => x.VendorAddressId).GreaterThan(0).When(x => x.VendorAddressId.HasValue);
+        RuleFor(x => x.ShipToLocationId).GreaterThan(0).When(x => x.ShipToLocationId.HasValue);
     }
 }
 
@@ -73,6 +80,10 @@ public class UpdatePurchaseOrderHandler(
             || !string.IsNullOrEmpty(request.QuoteCurrency)
             || request.FxRate.HasValue
             || !string.IsNullOrEmpty(request.FxRateSource);
+        var contactChanged = request.VendorContactId.HasValue && request.VendorContactId != po.VendorContactId;
+        var addressChanged = request.VendorAddressId.HasValue && request.VendorAddressId != po.VendorAddressId;
+        var shipToChanged = request.ShipToLocationId.HasValue && request.ShipToLocationId != po.ShipToLocationId;
+        var partiesChanged = contactChanged || addressChanged || shipToChanged;
 
         if (po.Status != PurchaseOrderStatus.Draft && po.Status != PurchaseOrderStatus.Submitted)
         {
@@ -82,7 +93,7 @@ public class UpdatePurchaseOrderHandler(
             var poNumberChanged = !string.IsNullOrWhiteSpace(request.PONumber)
                 && !string.Equals(request.PONumber.Trim(), po.PONumber, StringComparison.Ordinal);
             var notesChanged = request.Notes is not null && request.Notes != po.Notes;
-            if (poNumberChanged || notesChanged || landedCostFieldsTouched)
+            if (poNumberChanged || notesChanged || landedCostFieldsTouched || partiesChanged)
                 throw new InvalidOperationException(
                     "Once a purchase order is acknowledged, only its expected delivery date can be changed.");
         }
@@ -163,11 +174,52 @@ public class UpdatePurchaseOrderHandler(
             }
         }
 
+        var picks = new List<string>();
+        if (partiesChanged)
+        {
+            if (po.Status != PurchaseOrderStatus.Draft)
+                throw new InvalidOperationException(
+                    "The vendor contact, order-from address and ship-to location can only be changed while the PO is in Draft.");
+
+            var failures = new List<ValidationFailure>();
+            var contact = contactChanged
+                ? await PurchaseOrderParties.ResolveContactAsync(db, po.VendorId, request.VendorContactId, failures, cancellationToken)
+                : null;
+            var address = addressChanged
+                ? await PurchaseOrderParties.ResolveAddressAsync(db, po.VendorId, request.VendorAddressId, failures, cancellationToken)
+                : null;
+            var shipTo = shipToChanged
+                ? await PurchaseOrderParties.ResolveShipToAsync(db, request.ShipToLocationId, failures, cancellationToken)
+                : null;
+            if (failures.Count > 0)
+                throw new ValidationException(failures);
+
+            if (contact is not null)
+            {
+                po.VendorContactId = contact.Id;
+                changedFields.Add("vendorContact");
+                picks.Add($"attn {PurchaseOrderParties.ContactName(contact)}");
+            }
+            if (address is not null)
+            {
+                po.VendorAddressId = address.Id;
+                changedFields.Add("vendorAddress");
+                picks.Add($"order from {address.Label}");
+            }
+            if (shipTo is not null)
+            {
+                po.ShipToLocationId = shipTo.Id;
+                changedFields.Add("shipToLocation");
+                picks.Add($"ship to {shipTo.Name}");
+            }
+        }
+
         if (changedFields.Count > 0)
         {
+            var pickSummary = picks.Count > 0 ? $" ({string.Join(", ", picks)})" : string.Empty;
             var description = changedFields.Count == 1 && expectedDateChange is not null
                 ? expectedDateChange
-                : $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}";
+                : $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}{pickSummary}";
             db.LogActivityAt("updated", description, ("PurchaseOrder", po.Id));
         }
 

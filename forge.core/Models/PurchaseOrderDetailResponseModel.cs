@@ -40,4 +40,16 @@ public record PurchaseOrderDetailResponseModel(
     // the free-text origin reference (suggestion id, RFQ number, provider).
     string OriginSource = "Manual",
     string? OriginUserName = null,
-    string? OriginReference = null);
+    string? OriginReference = null,
+    int? VendorContactId = null,
+    string? VendorContactName = null,
+    string? VendorContactEmail = null,
+    string? VendorContactPhone = null,
+    string? VendorContactFax = null,
+    int? VendorAddressId = null,
+    string? VendorAddressType = null,
+    string? VendorAddressLabel = null,
+    string? VendorAddressText = null,
+    int? ShipToLocationId = null,
+    string? ShipToLocationName = null,
+    string? ShipToAddressText = null);
