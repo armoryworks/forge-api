@@ -42,10 +42,13 @@ public class GetPartInventorySummaryHandler(AppDbContext db)
 
         var binLocations = binContents
             .Select(bc => new PartBinLocationResponseModel(
+                bc.Id,
                 BuildPath(bc.Location, locById),
                 bc.Quantity,
                 bc.ReservedQuantity,
-                bc.Quantity - bc.ReservedQuantity))
+                bc.Quantity - bc.ReservedQuantity,
+                bc.LotNumber,
+                bc.Status))
             .ToList();
 
         return new PartInventorySummaryResponseModel(totalQuantity, totalReserved, totalAvailable, binLocations);
