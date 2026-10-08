@@ -2,6 +2,7 @@ using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
+using Forge.Api.Features.ShopFloor;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
@@ -49,7 +50,8 @@ public class StartTimerHandler(
         {
             UserId = userId,
             JobId = request.Data.JobId,
-            Date = DateOnly.FromDateTime(now.UtcDateTime),
+            Date = DateOnly.FromDateTime(ClockStateRules.LocalToday(
+                await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), now)),
             DurationMinutes = 0,
             Category = request.Data.Category?.Trim(),
             Notes = request.Data.Notes?.Trim(),
