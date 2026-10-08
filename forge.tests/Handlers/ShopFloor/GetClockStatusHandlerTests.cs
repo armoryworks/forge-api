@@ -192,4 +192,51 @@ public class GetClockStatusHandlerTests
         worker.Status.Should().Be("On Break");
         worker.IsClockedIn.Should().BeTrue(); // CountsAsActive = true
     }
+    [Fact]
+    public async Task Handle_UserWithTwoOpenTimers_ShowsTheNewestWithoutThrowing()
+    {
+        var user = new ApplicationUser
+        {
+            FirstName = "Ana",
+            LastName = "Lopez",
+            UserName = "ana@example.com",
+            Email = "ana@example.com",
+            Initials = "AL",
+            AvatarColor = "#3b82f6",
+            IsActive = true,
+        };
+        _db.Users.Add(user);
+        var olderJob = new Job { JobNumber = "J-OLD", Title = "Older job", TrackTypeId = 1, CurrentStageId = 1 };
+        var newerJob = new Job { JobNumber = "J-NEW", Title = "Newer job", TrackTypeId = 1, CurrentStageId = 1 };
+        _db.Jobs.AddRange(olderJob, newerJob);
+        await _db.SaveChangesAsync();
+
+        var todayNoon = new DateTimeOffset(DateTimeOffset.UtcNow.Date, TimeSpan.Zero).AddHours(12);
+        _db.ClockEvents.Add(new ClockEvent
+        {
+            UserId = user.Id,
+            EventType = ClockEventType.ClockIn,
+            EventTypeCode = "clock_in",
+            Timestamp = todayNoon.AddHours(-3),
+            Source = "kiosk",
+        });
+        _db.TimeEntries.AddRange(
+            new TimeEntry { UserId = user.Id, JobId = olderJob.Id, Date = DateOnly.FromDateTime(todayNoon.UtcDateTime), TimerStart = todayNoon.AddHours(-2) },
+            new TimeEntry { UserId = user.Id, JobId = newerJob.Id, Date = DateOnly.FromDateTime(todayNoon.UtcDateTime), TimerStart = todayNoon.AddHours(-1) });
+        await _db.SaveChangesAsync();
+
+        _userManager.Setup(m => m.FindByIdAsync(user.Id.ToString())).ReturnsAsync(user);
+        _userManager.Setup(m => m.GetRolesAsync(user)).ReturnsAsync(new List<string> { "ProductionWorker" });
+        _clockEventTypeService.Setup(s => s.GetAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ClockEventTypeDefinition>
+            {
+                new("clock_in", "Clock In", "In", "clock_out", "work", true, false, "login", "#22c55e"),
+            });
+
+        var result = await _handler.Handle(new GetClockStatusQuery(), CancellationToken.None);
+
+        result.Should().ContainSingle();
+        result[0].CurrentJobNumber.Should().Be("J-NEW");
+        result[0].StatusSince.Should().Be(todayNoon.AddHours(-1));
+    }
 }

@@ -80,7 +80,9 @@ public class GetClockStatusHandler(
             .Where(t => t.TimerStart != null && t.TimerStop == null)
             .ToListAsync(ct);
 
-        var timersByUser = activeTimers.ToDictionary(t => t.UserId);
+        var timersByUser = activeTimers
+            .GroupBy(t => t.UserId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(t => t.TimerStart).First());
 
         // Load assigned jobs in shop-floor stages only (physical work, not admin/office stages)
         var assignedJobs = await db.Jobs

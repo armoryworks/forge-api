@@ -119,7 +119,9 @@ public class GetShopFloorOverviewHandler(AppDbContext db, IClockEventTypeService
                 .Where(t => clockedInUserIds.Contains(t.UserId) && t.TimerStart != null && t.TimerStop == null)
                 .ToListAsync(cancellationToken);
 
-            var timersByUser = activeTimers.ToDictionary(t => t.UserId);
+            var timersByUser = activeTimers
+                .GroupBy(t => t.UserId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(t => t.TimerStart).First());
 
             foreach (var user in clockedInUsers)
             {
