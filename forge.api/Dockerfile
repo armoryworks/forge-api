@@ -41,6 +41,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
+ARG APP_VERSION=dev
+ARG GIT_COMMIT=
+ENV APP_VERSION=$APP_VERSION \
+    GIT_COMMIT=$GIT_COMMIT
+
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 WORKDIR /app
 COPY --from=build /app/publish .

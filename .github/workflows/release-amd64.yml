@@ -154,6 +154,16 @@ jobs:
           echo "minor=${major}.${minor}" >> "$GITHUB_OUTPUT"
           echo "Computed image version: ${version} (base=${base}, distance=${distance})"
 
+      - name: Resolve app version
+        id: appver
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ steps.version.outputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -183,6 +193,9 @@ jobs:
         with:
           context: .
           file: ./forge.api/Dockerfile
+          build-args: |
+            APP_VERSION=${{ steps.appver.outputs.version }}
+            GIT_COMMIT=${{ github.sha }}
           push: true
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
