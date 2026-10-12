@@ -296,6 +296,23 @@ public static partial class SeedData
             Log.Information("Seeded currency reference data (7 entries)");
         }
 
+        if (!await db.ReferenceData.AnyAsync(r => r.GroupCode == "operation_reason"))
+        {
+            db.ReferenceData.AddRange(
+                new ReferenceData { IsSeedData = true, GroupCode = "operation_reason", Code = "dimension", Label = "Out of tolerance", SortOrder = 1 },
+                new ReferenceData { IsSeedData = true, GroupCode = "operation_reason", Code = "finish", Label = "Surface finish", SortOrder = 2 },
+                new ReferenceData { IsSeedData = true, GroupCode = "operation_reason", Code = "material", Label = "Material defect", SortOrder = 3 },
+                new ReferenceData { IsSeedData = true, GroupCode = "operation_reason", Code = "tooling", Label = "Tool wear or breakage", SortOrder = 4 },
+                new ReferenceData { IsSeedData = true, GroupCode = "operation_reason", Code = "setup", Label = "Setup error", SortOrder = 5 },
+                new ReferenceData { IsSeedData = true, GroupCode = "operation_reason", Code = "program", Label = "Program error", SortOrder = 6 },
+                new ReferenceData { IsSeedData = true, GroupCode = "operation_reason", Code = "handling", Label = "Handling damage", SortOrder = 7 },
+                new ReferenceData { IsSeedData = true, GroupCode = "operation_reason", Code = "operator", Label = "Operator error", SortOrder = 8 },
+                new ReferenceData { IsSeedData = true, GroupCode = "operation_reason", Code = "other", Label = "Other", SortOrder = 9 }
+            );
+            await db.SaveChangesAsync();
+            Log.Information("Seeded operation reason reference data (9 entries)");
+        }
+
         // Base/functional currency (Currency entity). Required by Invoice.CurrencyId
         // and Book.FunctionalCurrencyId. Seeded here (essential, always-on) so a clean
         // standalone install — SEED_DEMO_DATA=false, GL never enabled — can still
