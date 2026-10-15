@@ -13,11 +13,11 @@ public static class ShopFloorSettings
 
     public static IReadOnlyList<SettingDescriptor> Descriptors =>
     [
-        new(OperationTrackingKey, Group, "Operation tracking on phone and terminal", SettingDataType.Boolean,
-            Description: "When on, scanning a job offers its routing operations: operators start and stop a "
-                + "timer per operation (several can run at once), record quantities done and scrap, and mark "
-                + "operations complete. Board cards show operation progress and estimated time left. Off "
-                + "(default) = job-level timers only, as before.",
+        new(OperationTrackingKey, Group, "Operation tracking (per-step status and timers)", SettingDataType.Boolean,
+            Description: "When on, each job shows its routing operations on the desktop job card, phone and "
+                + "terminal: operators start and stop a timer per operation (several can run at once), record "
+                + "quantities done and scrap, and mark operations complete or skipped. Board cards show "
+                + "operation progress and estimated time left. Off (default) = job-level timers only, as before.",
             DefaultValue: "false",
             SortOrder: 100),
     ];
