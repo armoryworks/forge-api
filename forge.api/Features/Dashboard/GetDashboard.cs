@@ -45,9 +45,10 @@ public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db, ICl
             .ToList();
 
         var totalStages = stages.Count;
+        var openJobs = data.Jobs.Where(j => j.CompletedDate == null && j.Disposition == null).ToList();
 
         // Build task list
-        var tasks = data.Jobs.Select((job, index) =>
+        var tasks = openJobs.Select((job, index) =>
         {
             var stage = job.CurrentStage;
             var stageIndex = stages.FindIndex(s => s.Id == stage.Id);
@@ -67,7 +68,7 @@ public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db, ICl
         }).ToList();
 
         // Stage counts
-        var jobsByStage = data.Jobs.GroupBy(j => j.CurrentStageId).ToDictionary(g => g.Key, g => g.Count());
+        var jobsByStage = openJobs.GroupBy(j => j.CurrentStageId).ToDictionary(g => g.Key, g => g.Count());
         var maxJobsPerStage = jobsByStage.Values.DefaultIfEmpty(0).Max();
         var stageCounts = stages.Select(s => new StageCountResponseModel(
             s.Name,
@@ -77,7 +78,7 @@ public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db, ICl
         )).ToList();
 
         // Team members
-        var teamMembers = data.Jobs
+        var teamMembers = openJobs
             .Where(j => j.AssigneeId.HasValue)
             .GroupBy(j => j.AssigneeId!.Value)
             .Select(g =>
@@ -111,7 +112,7 @@ public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db, ICl
 
         // Deadlines - jobs due in next 14 days
         var deadlineCutoff = today.AddDays(14);
-        var deadlines = data.Jobs
+        var deadlines = openJobs
             .Where(j => j.DueDate.HasValue && j.DueDate.Value.Date <= deadlineCutoff)
             .OrderBy(j => j.DueDate)
             .Select(j => new DeadlineEntryResponseModel(
@@ -122,8 +123,8 @@ public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db, ICl
             .ToList();
 
         // KPIs
-        var activeCount = data.Jobs.Count;
-        var overdueCount = data.Jobs.Count(j => j.DueDate.HasValue && j.DueDate.Value.Date < today);
+        var activeCount = openJobs.Count;
+        var overdueCount = openJobs.Count(j => j.DueDate.HasValue && j.DueDate.Value.Date < today);
 
         // Completed this week (ISO week: Monday to Sunday)
         var startOfWeek = today.AddDays(-(int)today.DayOfWeek + (int)DayOfWeek.Monday);

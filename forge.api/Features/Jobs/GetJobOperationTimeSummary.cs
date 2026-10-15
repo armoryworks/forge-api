@@ -21,6 +21,7 @@ public class GetJobOperationTimeSummaryHandler(AppDbContext db)
             .Include(j => j.Part)
             .ThenInclude(p => p!.Operations)
             .Include(j => j.JobParts)
+            .Include(j => j.SalesOrderLine)
             .FirstOrDefaultAsync(j => j.Id == request.JobId, cancellationToken)
             ?? throw new KeyNotFoundException($"Job {request.JobId} not found");
 

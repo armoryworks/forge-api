@@ -107,6 +107,7 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
         var job = await db.Jobs
             .AsNoTracking()
             .Include(j => j.JobParts)
+            .Include(j => j.SalesOrderLine)
             .Include(j => j.Part)
                 .ThenInclude(p => p!.Operations)
                     .ThenInclude(o => o.WorkCenter)
@@ -249,6 +250,7 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
                 PartId = j.PartId!.Value,
                 j.CompletedDate,
                 Quantity = j.JobParts.Where(jp => jp.PartId == j.PartId).Sum(jp => jp.Quantity),
+                LineQuantity = j.SalesOrderLine != null ? j.SalesOrderLine.Quantity : (decimal?)null,
             })
             .ToListAsync(ct);
         if (jobs.Count == 0)
@@ -283,7 +285,7 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
             if (routing.Count == 0)
                 continue;
 
-            var quantity = job.Quantity > 0m ? job.Quantity : 1m;
+            var quantity = OperationTimeMath.JobBuildQuantity(job.Quantity, job.LineQuantity);
             var rows = rowsByJob[job.Id]
                 .GroupBy(r => r.OperationId!.Value)
                 .ToDictionary(g => g.Key, g => g.First());

@@ -48,8 +48,13 @@ public static class OperationTimeMath
         var quantity = job.JobParts
             .Where(jp => jp.PartId == job.PartId)
             .Sum(jp => jp.Quantity);
-        return quantity > 0m ? quantity : 1m;
+        return JobBuildQuantity(quantity, job.SalesOrderLine?.Quantity);
     }
+
+    public static decimal JobBuildQuantity(decimal jobPartQuantity, decimal? salesOrderLineQuantity) =>
+        jobPartQuantity > 0m ? jobPartQuantity
+        : salesOrderLineQuantity > 0m ? salesOrderLineQuantity.Value
+        : 1m;
 
     public static int MakeLeadTimeDays(
         IEnumerable<Operation> operations, decimal quantity, ShopCalendar calendar, DateOnly start) =>

@@ -81,6 +81,39 @@ public class GetDashboardHandlerTests
     }
 
     [Fact]
+    public async Task Handle_CompletedAndDisposedJobs_AreNotOpenWork()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        var stage = new JobStage { Id = 1, Name = "In Production", Code = "PROD", SortOrder = 1, Color = "#3b82f6", IsActive = true };
+        var trackType = new TrackType { Id = 1, Name = "Production", Code = "PROD", IsDefault = true, Stages = [stage] };
+        var yesterday = DateTimeOffset.UtcNow.AddDays(-1);
+
+        var jobs = new List<Job>
+        {
+            new() { Id = 1, Title = "Open", JobNumber = "JOB-001", CurrentStage = stage, CurrentStageId = 1, TrackTypeId = 1, AssigneeId = 7, DueDate = yesterday },
+            new() { Id = 2, Title = "Done", JobNumber = "JOB-002", CurrentStage = stage, CurrentStageId = 1, TrackTypeId = 1, AssigneeId = 7, DueDate = yesterday,
+                    CompletedDate = DateTimeOffset.UtcNow },
+            new() { Id = 3, Title = "Scrapped", JobNumber = "JOB-003", CurrentStage = stage, CurrentStageId = 1, TrackTypeId = 1, AssigneeId = 7, DueDate = yesterday,
+                    Disposition = JobDisposition.Scrap },
+        };
+
+        _repo.Setup(r => r.GetDashboardDataAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DashboardDataSet(trackType, jobs, new Dictionary<int, ApplicationUserInfo>(), []));
+
+        var handler = new GetDashboardHandler(_repo.Object, db, _clock.Object);
+
+        var result = await handler.Handle(new GetDashboardQuery(), CancellationToken.None);
+
+        result.Kpis.ActiveCount.Should().Be(1);
+        result.Kpis.OverdueCount.Should().Be(1);
+        result.Tasks.Should().ContainSingle(t => t.JobNumber == "JOB-001");
+        result.Deadlines.Should().ContainSingle(d => d.JobNumber == "JOB-001");
+        result.Stages.Single().Count.Should().Be(1);
+        result.Team.Single().TaskCount.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Handle_WithAssignedJobs_ReturnsTeamMembers()
     {
         // Arrange

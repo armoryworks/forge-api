@@ -263,7 +263,7 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
                 assignee?.AvatarColor,
                 j.Priority.ToString(),
                 j.DueDate,
-                j.DueDate.HasValue && j.DueDate.Value.UtcDateTime.Date < today && j.CompletedDate == null,
+                j.DueDate.HasValue && j.DueDate.Value.UtcDateTime.Date < today && j.CompletedDate == null && j.Disposition == null,
                 j.Customer?.Name,
                 billingStatus,
                 j.Disposition?.ToString(),

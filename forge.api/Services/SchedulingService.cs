@@ -48,6 +48,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                 .Include(j => j.Part)
                     .ThenInclude(p => p!.Operations.Where(o => o.DeletedAt == null))
                 .Include(j => j.JobParts)
+                .Include(j => j.SalesOrderLine)
                 .Where(j => j.DeletedAt == null
                     && !j.IsArchived
                     && j.CompletedDate == null

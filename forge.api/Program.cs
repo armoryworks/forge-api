@@ -283,7 +283,11 @@ try
     builder.Services.AddAuthorization();
 
     // SignalR
-    builder.Services.AddSignalR();
+    builder.Services.AddSignalR(options =>
+    {
+        options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+        options.ClientTimeoutInterval = TimeSpan.FromSeconds(120);
+    });
 
     // Repositories
     builder.Services.AddScoped<IJobRepository, JobRepository>();
