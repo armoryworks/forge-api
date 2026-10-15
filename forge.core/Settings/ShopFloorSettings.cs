@@ -17,8 +17,8 @@ public static class ShopFloorSettings
             Description: "When on, each job shows its routing operations on the desktop job card, phone and "
                 + "terminal: operators start and stop a timer per operation (several can run at once), record "
                 + "quantities done and scrap, and mark operations complete or skipped. Board cards show "
-                + "operation progress and estimated time left. Off (default) = job-level timers only, as before.",
-            DefaultValue: "false",
+                + "operation progress and estimated time left. Off = job-level timers only.",
+            DefaultValue: "true",
             SortOrder: 100),
     ];
 }
