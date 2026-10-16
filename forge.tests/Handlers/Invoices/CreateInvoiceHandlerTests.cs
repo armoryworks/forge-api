@@ -77,6 +77,21 @@ public class CreateInvoiceHandlerTests
     }
 
     [Fact]
+    public async Task Handle_TaxExemptCustomer_BillsNoSalesTax()
+    {
+        var customer = new Customer { Id = 42, Name = "Exempt Reseller", IsTaxExempt = true, TaxExemptionId = "RS-1" };
+        _customerRepo.Setup(r => r.FindAsync(customer.Id, It.IsAny<CancellationToken>())).ReturnsAsync(customer);
+        _invoiceRepo.Setup(r => r.GenerateNextInvoiceNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("INV-0042");
+
+        var result = await _handler.Handle(new CreateInvoiceCommand(
+            customer.Id, null, null, DateTime.UtcNow, DateTime.UtcNow.AddDays(30), null, 0.0775m, null,
+            [new CreateInvoiceLineModel(null, "Bracket", 2, 100m)]), CancellationToken.None);
+
+        result.Total.Should().Be(200m);
+        _invoiceRepo.Verify(r => r.AddAsync(It.Is<Invoice>(i => i.TaxRate == 0m), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Handle_WritesCreatedActivityOnTheInvoice()
     {
         var (customer, _, _) = await SeedOrderAsync();
