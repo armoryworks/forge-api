@@ -48,6 +48,7 @@ public class LeadRepository(AppDbContext db) : ILeadRepository
             var term = search.Trim().ToLower();
             query = query.Where(l =>
                 l.CompanyName.ToLower().Contains(term) ||
+                (l.LeadNumber != null && l.LeadNumber.ToLower().Contains(term)) ||
                 (l.ContactName != null && l.ContactName.ToLower().Contains(term)) ||
                 (l.Email != null && l.Email.ToLower().Contains(term)));
         }
@@ -157,7 +158,19 @@ public class LeadRepository(AppDbContext db) : ILeadRepository
             lastActivity, engagementCount, isStale,
             // Intake-relay round-trip fields: the relay verifies its stamped
             // idempotency key and the resolved source attribution on read-back.
+            CampaignId: l.CampaignId,
+            OutreachState: l.OutreachState,
             LeadSourceId: l.LeadSourceId,
+            IcpScore: l.IcpScore,
+            AssignedToUserId: l.AssignedToUserId,
+            AccountId: l.AccountId,
+            CapabilityFit: l.CapabilityFit,
+            NdaState: l.NdaState,
+            NdaSignedAt: l.NdaSignedAt,
+            NdaExpiresAt: l.NdaExpiresAt,
+            ExportControl: l.ExportControl,
+            SecondaryOwnerUserId: l.SecondaryOwnerUserId,
+            PartClassCode: l.PartClassCode,
             ExternalId: l.ExternalId,
             LeadNumber: l.LeadNumber);
     }

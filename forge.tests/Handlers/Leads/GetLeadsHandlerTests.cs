@@ -95,4 +95,41 @@ public class GetLeadsHandlerTests
 
         result.Should().BeEmpty("both filters apply — the lead exists but is not in the requested status");
     }
+
+    [Fact]
+    public async Task Handle_Search_MatchesLeadNumber()
+    {
+        _db.Leads.AddRange(
+            new Lead { Id = 1, CompanyName = "Acme Corp", LeadNumber = "LEAD-00001", CreatedBy = 1 },
+            new Lead { Id = 2, CompanyName = "Globex", LeadNumber = "LEAD-00002", CreatedBy = 1 });
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(
+            new GetLeadsQuery(null, "lead-00002"), CancellationToken.None);
+
+        result.Should().ContainSingle();
+        result[0].Id.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Handle_ListRowsCarryClassificationFields()
+    {
+        _db.Leads.Add(new Lead
+        {
+            Id = 1, CompanyName = "Acme Corp", CreatedBy = 1,
+            CapabilityFit = CapabilityFitStatus.Fits,
+            NdaState = NdaState.Requested,
+            ExportControl = ExportControlClearance.Pending,
+            OutreachState = OutreachState.CallbackScheduled,
+        });
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new GetLeadsQuery(null, null), CancellationToken.None);
+
+        result.Should().ContainSingle();
+        result[0].CapabilityFit.Should().Be(CapabilityFitStatus.Fits);
+        result[0].NdaState.Should().Be(NdaState.Requested);
+        result[0].ExportControl.Should().Be(ExportControlClearance.Pending);
+        result[0].OutreachState.Should().Be(OutreachState.CallbackScheduled);
+    }
 }
