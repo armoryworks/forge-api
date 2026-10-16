@@ -9,4 +9,6 @@ public record QuoteLineResponseModel(
     decimal UnitPrice,
     decimal LineTotal,
     int LineNumber,
-    string? Notes);
+    string? Notes,
+    QuoteLineCostBreakdownModel? CostBreakdown = null,
+    decimal? EffectiveMargin = null);
