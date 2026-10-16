@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Jobs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -28,7 +29,8 @@ public class ReverseScanActionCommandValidator : AbstractValidator<ReverseScanAc
 public class ReverseScanActionHandler(
     AppDbContext db,
     IClock clock,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    IMediator mediator)
     : IRequestHandler<ReverseScanActionCommand>
 {
     public async Task Handle(ReverseScanActionCommand request, CancellationToken cancellationToken)
@@ -87,7 +89,10 @@ public class ReverseScanActionHandler(
         }
 
         // Create counter-movements based on action type
+        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+
         await ReverseStockAsync(original, userId, now, cancellationToken);
+        await ReturnScannedIssuesAsync(original, userId, cancellationToken);
 
         // Mark original as reversed
         original.IsReversed = true;
@@ -110,6 +115,23 @@ public class ReverseScanActionHandler(
         // Update original with reverse reference
         original.ReversedByLogId = reversalLog.Id;
         await db.SaveChangesAsync(cancellationToken);
+        await tx.CommitAsync(cancellationToken);
+    }
+
+    private async Task ReturnScannedIssuesAsync(ScanActionLog original, int userId, CancellationToken ct)
+    {
+        if (original.ActionType != ScanActionType.Issue || original.RelatedEntityId is not int jobId)
+            return;
+
+        var note = ScanIssueNote.For(original.Id);
+        var issueIds = await db.MaterialIssues.AsNoTracking()
+            .Where(mi => mi.JobId == jobId && mi.IssueType == MaterialIssueType.Issue && mi.Notes == note)
+            .OrderBy(mi => mi.Id)
+            .Select(mi => mi.Id)
+            .ToListAsync(ct);
+
+        foreach (var issueId in issueIds)
+            await mediator.Send(new ReturnMaterialIssueCommand(jobId, issueId, userId), ct);
     }
 
     private async Task ReverseStockAsync(ScanActionLog original, int userId, DateTimeOffset now, CancellationToken ct)

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Scanner;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -83,7 +84,7 @@ public class ScannerLotStockTests : IDisposable
             .ToListAsync();
 
     private Task ReverseAsync(int scanLogId)
-        => new ReverseScanActionHandler(_db, _clock, _accessor).Handle(
+        => new ReverseScanActionHandler(_db, _clock, _accessor, MaterialIssueMediator.For(_db)).Handle(
             new ReverseScanActionCommand(new ScanReversalRequestModel(scanLogId, Pin)), CancellationToken.None);
 
     [Fact]
@@ -135,7 +136,7 @@ public class ScannerLotStockTests : IDisposable
         var (partId, binId, _) = await SeedAsync(unlotted: 5m, lotted: 10m);
         var jobId = await SeedJobAsync();
 
-        await new ExecuteScanIssueHandler(_db, _clock, _accessor).Handle(
+        await new ExecuteScanIssueHandler(_db, _clock, _accessor, MaterialIssueMediator.For(_db)).Handle(
             new ExecuteScanIssueCommand(new ScanIssueRequestModel(partId, jobId, 12m, binId)), CancellationToken.None);
 
         _db.ChangeTracker.Clear();
@@ -152,7 +153,7 @@ public class ScannerLotStockTests : IDisposable
         var (partId, binId, _) = await SeedAsync(unlotted: 5m, lotted: 10m, lottedReserved: 4m);
         var jobId = await SeedJobAsync();
 
-        var act = () => new ExecuteScanIssueHandler(_db, _clock, _accessor).Handle(
+        var act = () => new ExecuteScanIssueHandler(_db, _clock, _accessor, MaterialIssueMediator.For(_db)).Handle(
             new ExecuteScanIssueCommand(new ScanIssueRequestModel(partId, jobId, 12m, binId)), CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>();
@@ -211,7 +212,7 @@ public class ScannerLotStockTests : IDisposable
     {
         var (partId, binId, _) = await SeedAsync(unlotted: 5m, lotted: 10m);
         var jobId = await SeedJobAsync();
-        var logId = await new ExecuteScanIssueHandler(_db, _clock, _accessor).Handle(
+        var logId = await new ExecuteScanIssueHandler(_db, _clock, _accessor, MaterialIssueMediator.For(_db)).Handle(
             new ExecuteScanIssueCommand(new ScanIssueRequestModel(partId, jobId, 12m, binId)), CancellationToken.None);
         _db.ChangeTracker.Clear();
 
@@ -244,6 +245,70 @@ public class ScannerLotStockTests : IDisposable
         var rows = await ActiveAsync(partId, binId);
         rows.Single(r => r.LotNumber == "HEAT-A").Quantity.Should().Be(10m);
         rows.Where(r => r.LotNumber == null).Sum(r => r.Quantity).Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task Issue_RecordsAMaterialIssuePerLotAgainstTheJob_AndPostsEachOne()
+    {
+        var (partId, binId, _) = await SeedAsync(unlotted: 5m, lotted: 10m);
+        var jobId = await SeedJobAsync();
+        var posting = new Mock<IMaterialIssuePostingService>();
+
+        var logId = await new ExecuteScanIssueHandler(_db, _clock, _accessor, MaterialIssueMediator.For(_db, posting.Object)).Handle(
+            new ExecuteScanIssueCommand(new ScanIssueRequestModel(partId, jobId, 12m, binId)), CancellationToken.None);
+
+        _db.ChangeTracker.Clear();
+        var issues = await _db.MaterialIssues.AsNoTracking().OrderBy(mi => mi.Id).ToListAsync();
+        issues.Select(mi => (mi.JobId, mi.PartId, mi.LotNumber, mi.Quantity, mi.IssueType, mi.StorageLocationId, mi.IssuedById))
+            .Should().Equal(
+                (jobId, partId, (string?)null, 5m, MaterialIssueType.Issue, (int?)binId, UserId),
+                (jobId, partId, "HEAT-A", 7m, MaterialIssueType.Issue, (int?)binId, UserId));
+        issues.Should().OnlyContain(mi => mi.Notes == ScanIssueNote.For(logId) && mi.BinContentId == null);
+        (await ActiveAsync(partId, binId)).Should().ContainSingle().Which.Quantity.Should().Be(3m);
+        foreach (var issue in issues)
+            posting.Verify(p => p.PostMaterialIssueAsync(issue.Id, It.IsAny<DateOnly>(), UserId, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ReverseIssue_ReturnsTheMaterialIssuesItRecorded_AndPostsTheReturns()
+    {
+        var (partId, binId, _) = await SeedAsync(unlotted: 5m, lotted: 10m);
+        var jobId = await SeedJobAsync();
+        var posting = new Mock<IMaterialIssuePostingService>();
+        var logId = await new ExecuteScanIssueHandler(_db, _clock, _accessor, MaterialIssueMediator.For(_db, posting.Object)).Handle(
+            new ExecuteScanIssueCommand(new ScanIssueRequestModel(partId, jobId, 12m, binId)), CancellationToken.None);
+        _db.ChangeTracker.Clear();
+
+        await new ReverseScanActionHandler(_db, _clock, _accessor, MaterialIssueMediator.For(_db, posting.Object)).Handle(
+            new ReverseScanActionCommand(new ScanReversalRequestModel(logId, Pin)), CancellationToken.None);
+
+        _db.ChangeTracker.Clear();
+        var returns = await _db.MaterialIssues.AsNoTracking()
+            .Where(mi => mi.IssueType == MaterialIssueType.Return).OrderBy(mi => mi.Id).ToListAsync();
+        returns.Select(mi => (mi.JobId, mi.LotNumber, mi.Quantity)).Should().Equal(
+            (jobId, (string?)null, 5m), (jobId, "HEAT-A", 7m));
+        foreach (var ret in returns)
+            posting.Verify(p => p.PostMaterialIssueAsync(ret.Id, It.IsAny<DateOnly>(), UserId, It.IsAny<CancellationToken>()), Times.Once);
+        var rows = await ActiveAsync(partId, binId);
+        rows.Single(r => r.LotNumber == null).Quantity.Should().Be(5m);
+        rows.Single(r => r.LotNumber == "HEAT-A").Quantity.Should().Be(10m);
+    }
+
+    [Fact]
+    public async Task ReverseIssue_RecordedBeforeScannerIssuesWereCosted_ReturnsNoMaterial()
+    {
+        var (partId, binId, _) = await SeedAsync(unlotted: 5m, lotted: 10m);
+        var jobId = await SeedJobAsync();
+        var logId = await new ExecuteScanIssueHandler(_db, _clock, _accessor, MaterialIssueMediator.For(_db)).Handle(
+            new ExecuteScanIssueCommand(new ScanIssueRequestModel(partId, jobId, 3m, binId)), CancellationToken.None);
+        _db.MaterialIssues.RemoveRange(_db.MaterialIssues);
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        await ReverseAsync(logId);
+
+        (await _db.MaterialIssues.AnyAsync()).Should().BeFalse();
+        (await ActiveAsync(partId, binId)).Sum(r => r.Quantity).Should().Be(15m);
     }
 
     public void Dispose() => _db.Dispose();
