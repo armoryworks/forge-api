@@ -24,14 +24,14 @@ public class PaymentSchedulesController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<PaymentScheduleResponseModel>> GetForQuote(int quoteId)
     {
         var result = await mediator.Send(new GetPaymentScheduleQuery(quoteId, null));
-        return result is null ? NotFound() : Ok(result);
+        return result is null ? NoContent() : Ok(result);
     }
 
     [HttpGet("orders/{salesOrderId:int}/payment-schedule")]
     public async Task<ActionResult<PaymentScheduleResponseModel>> GetForOrder(int salesOrderId)
     {
         var result = await mediator.Send(new GetPaymentScheduleQuery(null, salesOrderId));
-        return result is null ? NotFound() : Ok(result);
+        return result is null ? NoContent() : Ok(result);
     }
 
     [HttpPut("quotes/{quoteId:int}/payment-schedule")]
