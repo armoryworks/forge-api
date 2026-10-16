@@ -561,6 +561,83 @@ public class WorkflowRunLifecycleTests(CapabilityTestWebApplicationFactory facto
     }
 
     [Fact]
+    public async Task PromoteStatus_WithoutRun_MakeFinishedGood_IsNotHeldToBuySideGates()
+    {
+        var client = AuthenticatedClient();
+        int partId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var component = new Part
+            {
+                PartNumber = $"TC-{Guid.NewGuid():N}"[..16],
+                Name = "Bracket",
+                ProcurementSource = ProcurementSource.Buy,
+                InventoryClass = InventoryClass.Component,
+                Status = PartStatus.Active,
+            };
+            var finishedGood = new Part
+            {
+                PartNumber = $"FG-{Guid.NewGuid():N}"[..16],
+                Name = "Assembled widget",
+                ProcurementSource = ProcurementSource.Make,
+                InventoryClass = InventoryClass.FinishedGood,
+                Status = PartStatus.Draft,
+                ManualCostOverride = 40m,
+            };
+            db.Parts.AddRange(component, finishedGood);
+            await db.SaveChangesAsync();
+            db.BOMLines.Add(new BOMLine { ParentPartId = finishedGood.Id, ChildPartId = component.Id, Quantity = 2 });
+            db.Operations.Add(new Operation { PartId = finishedGood.Id, StepNumber = 10, Title = "Assemble" });
+            await db.SaveChangesAsync();
+            partId = finishedGood.Id;
+        }
+
+        var resp = await client.PostAsJsonAsync(
+            $"/api/v1/parts/{partId}/promote-status",
+            new PromoteEntityStatusRequestModel("Active"));
+
+        resp.StatusCode.Should().Be(HttpStatusCode.OK,
+            "a Make finished good has no preferred vendor and its definition does not gate on stock UoM");
+    }
+
+    [Fact]
+    public async Task PromoteStatus_WithoutRun_BuyPart_StillRequiresSourcing()
+    {
+        var client = AuthenticatedClient();
+        int partId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var part = new Part
+            {
+                PartNumber = $"RM-{Guid.NewGuid():N}"[..16],
+                Name = "Bar stock",
+                ProcurementSource = ProcurementSource.Buy,
+                InventoryClass = InventoryClass.Raw,
+                Status = PartStatus.Draft,
+                ManualCostOverride = 3m,
+            };
+            db.Parts.Add(part);
+            await db.SaveChangesAsync();
+            partId = part.Id;
+        }
+
+        var resp = await client.PostAsJsonAsync(
+            $"/api/v1/parts/{partId}/promote-status",
+            new PromoteEntityStatusRequestModel("Active"));
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+        var missingIds = doc.RootElement.GetProperty("missing")
+            .EnumerateArray()
+            .Select(m => m.GetProperty("validatorId").GetString())
+            .ToList();
+        missingIds.Should().Contain("hasSourcing");
+        missingIds.Should().NotContain(["hasBom", "hasRouting"], "the buy-raw definition gates on neither");
+    }
+
+    [Fact]
     public async Task Complete_Express_EnforcesOnlyBasicsGate_DefersRest()
     {
         // Contextual gating: in EXPRESS mode completion enforces only the
