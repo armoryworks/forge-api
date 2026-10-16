@@ -56,6 +56,23 @@ public class GetEntityHistoryDisplayTests
     }
 
     [Fact]
+    public async Task ConvertedCustomerAndCreditHoldBy_ResolveToNames()
+    {
+        await SeedUserAsync(4, "Casey", "Thompson", "CT");
+        var customer = new Customer { Name = "Granite Peak", CompanyName = "Granite Peak Fabrication" };
+        _db.Customers.Add(customer);
+        await _db.SaveChangesAsync();
+        await SeedFieldChangeAsync("ConvertedCustomerId", "", customer.Id.ToString());
+        await SeedFieldChangeAsync("CreditHoldById", "4", "", offsetSeconds: 1);
+
+        var result = await _handler.Handle(new GetEntityHistoryQuery("Job", JobId), CancellationToken.None);
+
+        result.Select(r => r.Description).Should().BeEquivalentTo(
+            ["Credit Hold By: Casey Thompson → (none)", "Converted Customer: (none) → Granite Peak Fabrication"],
+            options => options.WithStrictOrdering());
+    }
+
+    [Fact]
     public async Task UnknownIdField_IsLabelledInWordsAndKeepsItsRawValue()
     {
         await SeedFieldChangeAsync("SalesOrderLineId", "7", "");

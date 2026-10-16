@@ -424,4 +424,46 @@ public class CreateShipmentHandlerTests
 
         saved!.ShippingAddressId.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Handle_MasterDataCarrierOnly_StampsTheCarrierName()
+    {
+        await using var db = TestDbContextFactory.Create();
+        db.Carriers.Add(new Carrier { Id = 5, Name = "Old Dominion", IsActive = true });
+        await db.SaveChangesAsync();
+
+        var order = CreateConfirmedOrder(1, 10, 20);
+        _orderRepo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        _shipmentRepo.Setup(r => r.GenerateNextShipmentNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("SHP-0001");
+        Shipment? saved = null;
+        _shipmentRepo.Setup(r => r.AddAsync(It.IsAny<Shipment>(), It.IsAny<CancellationToken>()))
+            .Callback<Shipment, CancellationToken>((s, _) => saved = s);
+        var handler = new CreateShipmentHandler(_shipmentRepo.Object, _orderRepo.Object, _mediator.Object, _httpContext.Object, db: db);
+
+        var result = await handler.Handle(new CreateShipmentCommand(
+            1, null, null, null, null, null, null,
+            [new CreateShipmentLineModel(10, 5, null)], CarrierId: 5), CancellationToken.None);
+
+        saved!.CarrierId.Should().Be(5);
+        saved.Carrier.Should().Be("Old Dominion");
+        result.Carrier.Should().Be("Old Dominion");
+    }
+
+    [Fact]
+    public async Task Handle_InactiveCarrier_IsRefused()
+    {
+        await using var db = TestDbContextFactory.Create();
+        db.Carriers.Add(new Carrier { Id = 6, Name = "Retired Freight", IsActive = false });
+        await db.SaveChangesAsync();
+
+        var order = CreateConfirmedOrder(1, 10, 20);
+        _orderRepo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        var handler = new CreateShipmentHandler(_shipmentRepo.Object, _orderRepo.Object, _mediator.Object, _httpContext.Object, db: db);
+
+        var act = () => handler.Handle(new CreateShipmentCommand(
+            1, null, null, null, null, null, null,
+            [new CreateShipmentLineModel(10, 5, null)], CarrierId: 6), CancellationToken.None);
+
+        await act.Should().ThrowAsync<KeyNotFoundException>();
+    }
 }

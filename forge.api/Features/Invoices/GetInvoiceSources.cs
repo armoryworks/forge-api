@@ -37,7 +37,20 @@ public class GetInvoiceSourcesHandler(AppDbContext db)
                 && !db.Invoices.Any(i => i.ShipmentId == s.Id))
             .OrderByDescending(s => s.ShippedDate ?? s.CreatedAt)
             .Select(s => new InvoiceSourceShipmentResponseModel(
-                s.Id, s.ShipmentNumber, s.SalesOrderId, s.SalesOrder.OrderNumber, s.ShippedDate))
+                s.Id, s.ShipmentNumber, s.SalesOrderId, s.SalesOrder.OrderNumber, s.ShippedDate,
+                s.Lines
+                    .OrderBy(l => l.SalesOrderLine != null ? l.SalesOrderLine.LineNumber : int.MaxValue)
+                    .ThenBy(l => l.Id)
+                    .Select(l => new InvoiceSourceShipmentLineResponseModel(
+                        l.PartId ?? (l.SalesOrderLine != null ? l.SalesOrderLine.PartId : null),
+                        l.Part != null ? l.Part.PartNumber
+                            : l.SalesOrderLine != null && l.SalesOrderLine.Part != null ? l.SalesOrderLine.Part.PartNumber
+                            : null,
+                        l.Description ?? (l.SalesOrderLine != null ? l.SalesOrderLine.Description : null)
+                            ?? (l.Part != null ? l.Part.Name : string.Empty),
+                        l.Quantity,
+                        l.SalesOrderLine != null ? l.SalesOrderLine.UnitPrice : 0m))
+                    .ToList()))
             .ToListAsync(cancellationToken);
 
         var fullyInvoiced = await FullyInvoicedSalesOrderIdsAsync(

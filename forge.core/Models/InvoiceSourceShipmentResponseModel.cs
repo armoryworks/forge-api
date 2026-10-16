@@ -5,4 +5,5 @@ public record InvoiceSourceShipmentResponseModel(
     string ShipmentNumber,
     int SalesOrderId,
     string SalesOrderNumber,
-    DateTimeOffset? ShippedDate);
+    DateTimeOffset? ShippedDate,
+    List<InvoiceSourceShipmentLineResponseModel> Lines);

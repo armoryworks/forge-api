@@ -69,10 +69,11 @@ public class PromotePartStatusHandler(
         // gates AND build a validator-id → first-required-step map so the 409
         // envelope can name the step the user still needs to finish.
         var firstBlockingStep = new Dictionary<string, WorkflowStepDefinition>(StringComparer.OrdinalIgnoreCase);
-        if (run is not null)
+        var definitionId = run?.DefinitionId ?? await ComboDefinitionIdAsync(request.PartId, ct);
+        if (definitionId is not null)
         {
             var def = await db.WorkflowDefinitions.AsNoTracking()
-                .FirstOrDefaultAsync(d => d.DefinitionId == run.DefinitionId, ct);
+                .FirstOrDefaultAsync(d => d.DefinitionId == definitionId, ct);
             if (def is not null)
             {
                 var requiredSteps = WorkflowStepHelper.ParseSteps(def.StepsJson)
@@ -148,5 +149,16 @@ public class PromotePartStatusHandler(
 
         return (await repo.GetDetailAsync(request.PartId, ct))
             ?? throw new KeyNotFoundException($"Part id {request.PartId} not found after promotion.");
+    }
+
+    private async Task<string?> ComboDefinitionIdAsync(int partId, CancellationToken ct)
+    {
+        var combo = await db.Parts.AsNoTracking()
+            .Where(p => p.Id == partId)
+            .Select(p => new { p.ProcurementSource, p.InventoryClass })
+            .FirstOrDefaultAsync(ct);
+        return combo is null
+            ? null
+            : $"part-{combo.ProcurementSource.ToString().ToLowerInvariant()}-{combo.InventoryClass.ToString().ToLowerInvariant()}-v1";
     }
 }

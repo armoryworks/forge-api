@@ -24,7 +24,7 @@ public class GetShipmentByIdHandler(IShipmentRepository repo)
             shipment.SalesOrder.CustomerId,
             shipment.ShippingAddressId,
             shipment.Status.ToString(),
-            shipment.Carrier,
+            shipment.Carrier ?? shipment.AssignedCarrier?.Name,
             shipment.CarrierId,
             shipment.AssignedCarrier != null && shipment.AssignedCarrier.IntegrationKind == CarrierIntegrationKind.Api,
             shipment.TrackingNumber,

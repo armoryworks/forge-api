@@ -30,6 +30,25 @@ public class GetEntityHistoryHandler(AppDbContext db)
         ["PartId"] = "Part",
         ["CurrentBomRevisionId"] = "BOM Revision",
         ["TrackTypeId"] = "Order Type",
+        ["ConvertedCustomerId"] = "Converted Customer",
+        ["CreditHoldById"] = "Credit Hold By",
+        ["AssignedToUserId"] = "Assigned To",
+        ["SecondaryOwnerUserId"] = "Secondary Owner",
+    };
+
+    private static readonly Dictionary<string, string> ReferenceSources = new(StringComparer.Ordinal)
+    {
+        ["AssigneeId"] = "AssigneeId",
+        ["CreditHoldById"] = "AssigneeId",
+        ["AssignedToUserId"] = "AssigneeId",
+        ["SecondaryOwnerUserId"] = "AssigneeId",
+        ["CurrentStageId"] = "CurrentStageId",
+        ["CustomerId"] = "CustomerId",
+        ["ConvertedCustomerId"] = "CustomerId",
+        ["VendorId"] = "VendorId",
+        ["PartId"] = "PartId",
+        ["CurrentBomRevisionId"] = "CurrentBomRevisionId",
+        ["TrackTypeId"] = "TrackTypeId",
     };
 
     public async Task<List<ActivityResponseModel>> Handle(GetEntityHistoryQuery request, CancellationToken ct)
@@ -83,8 +102,8 @@ public class GetEntityHistoryHandler(AppDbContext db)
         List<ActivityLog> logs, CancellationToken ct)
     {
         var idsByField = logs
-            .Where(l => l.Action == FieldChangedAction && l.FieldName is not null && FieldLabels.ContainsKey(l.FieldName))
-            .GroupBy(l => l.FieldName!)
+            .Where(l => l.Action == FieldChangedAction && l.FieldName is not null && ReferenceSources.ContainsKey(l.FieldName))
+            .GroupBy(l => ReferenceSources[l.FieldName!])
             .ToDictionary(
                 g => g.Key,
                 g => g.SelectMany(l => new[] { ParseId(l.OldValue), ParseId(l.NewValue) })
@@ -152,7 +171,8 @@ public class GetEntityHistoryHandler(AppDbContext db)
         if (string.IsNullOrWhiteSpace(value))
             return EmptyValue;
 
-        if (references.TryGetValue(field, out var names)
+        if (ReferenceSources.TryGetValue(field, out var source)
+            && references.TryGetValue(source, out var names)
             && ParseId(value) is int id
             && names.TryGetValue(id, out var name))
             return name;
