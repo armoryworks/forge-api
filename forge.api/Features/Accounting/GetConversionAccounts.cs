@@ -2,13 +2,16 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Core.Enums.Accounting;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Accounting;
 
 /// <summary>
-/// §7A conversion read: the book's active postable accounts — control accounts included, since opening
-/// balances land on AR, AP and inventory too — for the opening-journal line picker. Reachable under
+/// §7A conversion read: the book's active postable accounts that the opening journal can post without a
+/// sub-ledger party — inventory control accounts included, AR/AP-style control accounts left out (their
+/// opening open items carry a customer or vendor and load through the opening-balances import) — for the
+/// opening-journal line picker. Reachable under
 /// <c>CAP-ACCT-MIGRATION</c> because the regular chart-of-accounts read needs the GL view, which is
 /// normally still off at cutover.
 /// </summary>
@@ -22,7 +25,8 @@ public class GetConversionAccountsHandler(AppDbContext db)
     {
         var rows = await db.GlAccounts
             .AsNoTracking()
-            .Where(a => a.BookId == request.BookId && a.IsActive && a.IsPostable)
+            .Where(a => a.BookId == request.BookId && a.IsActive && a.IsPostable
+                && (!a.IsControlAccount || a.ControlType == ControlAccountType.Inventory))
             .OrderBy(a => a.AccountNumber)
             .Select(a => new
             {

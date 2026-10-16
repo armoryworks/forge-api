@@ -20,7 +20,8 @@ public class ConversionReadsTests
             new Book { Id = 2, Code = "OLD", Name = "Retired book", FunctionalCurrencyId = 3, IsActive = false });
         db.GlAccounts.AddRange(
             new GlAccount { Id = 1, BookId = 1, AccountNumber = "10100", Name = "Cash", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
-            new GlAccount { Id = 2, BookId = 1, AccountNumber = "11000", Name = "Accounts receivable", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsPostable = true, IsControlAccount = true, IsActive = true },
+            new GlAccount { Id = 2, BookId = 1, AccountNumber = "11000", Name = "Accounts receivable", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsPostable = true, IsControlAccount = true, ControlType = ControlAccountType.AR, IsActive = true },
+            new GlAccount { Id = 6, BookId = 1, AccountNumber = "13100", Name = "Raw materials", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsPostable = true, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsActive = true },
             new GlAccount { Id = 3, BookId = 1, AccountNumber = "10000", Name = "Current assets", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsPostable = false, IsActive = true },
             new GlAccount { Id = 4, BookId = 1, AccountNumber = "19999", Name = "Closed account", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = false },
             new GlAccount { Id = 5, BookId = 2, AccountNumber = "10100", Name = "Other book cash", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true });
@@ -36,14 +37,14 @@ public class ConversionReadsTests
     }
 
     [Fact]
-    public async Task Accounts_listPostableAccountsOfTheBook_includingControlAccounts()
+    public async Task Accounts_listPartylessPostableAccounts_keepingInventoryControlButNotReceivables()
     {
         await using var db = SeededDb();
 
         var accounts = await new GetConversionAccountsHandler(db).Handle(new GetConversionAccountsQuery(1), default);
 
-        accounts.Select(a => a.AccountNumber).Should().Equal("10100", "11000");
-        accounts.Single(a => a.AccountNumber == "11000").IsControlAccount.Should().BeTrue();
+        accounts.Select(a => a.AccountNumber).Should().Equal("10100", "13100");
+        accounts.Single(a => a.AccountNumber == "13100").IsControlAccount.Should().BeTrue();
     }
 
     [Fact]

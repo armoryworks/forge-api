@@ -38,7 +38,7 @@ public class AccountingConversionController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<ConversionStatusModel>> GetStatus([FromQuery] int? bookId, CancellationToken ct)
         => Ok(await mediator.Send(new GetConversionStatusQuery(bookId), ct));
 
-    /// <summary>The book's postable accounts (control accounts included) for the opening-journal lines.</summary>
+    /// <summary>The book's accounts the opening journal can post without a sub-ledger party (inventory control included).</summary>
     [HttpGet("accounts")]
     public async Task<ActionResult<IReadOnlyList<GlAccountModel>>> GetAccounts([FromQuery] int bookId, CancellationToken ct)
         => Ok(await mediator.Send(new GetConversionAccountsQuery(bookId), ct));
