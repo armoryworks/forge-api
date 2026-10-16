@@ -50,6 +50,8 @@ public class MoveJobStageHandler(
         if (!targetStage.IsActive)
             throw new InvalidOperationException(HiddenStageMessage);
 
+        BillingStageGate.EnsureMayEnter(targetStage, httpContext.HttpContext?.User);
+
         var previousStage = await trackRepo.FindStageAsync(job.CurrentStageId, cancellationToken);
         var previousStageName = previousStage?.Name;
         var previousStageId = job.CurrentStageId;
