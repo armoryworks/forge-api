@@ -11,7 +11,6 @@
     "forge.api/Features/Admin/ManageScanIdentifiers.cs": 1,
     "forge.api/Features/Admin/ResetUserPin.cs": 1,
     "forge.api/Features/Admin/RoleTemplates.cs": 1,
-    "forge.api/Features/Admin/SendSetupInvite.cs": 1,
     "forge.api/Features/Admin/UpdateAdminUser.cs": 2,
     "forge.api/Features/AiAssistants/DeleteAiAssistant.cs": 1,
     "forge.api/Features/Announcements/AcknowledgeAnnouncement.cs": 1,

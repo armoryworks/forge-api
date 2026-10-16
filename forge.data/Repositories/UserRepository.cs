@@ -10,7 +10,7 @@ public class UserRepository(AppDbContext db) : IUserRepository
 {
     public Task<List<UserResponseModel>> GetAllActiveAsync(
         Func<EmployeeProfile?, string?, bool> canBeAssignedJobs, CancellationToken ct)
-        => ProjectAsync(db.Users.Where(u => u.IsActive), canBeAssignedJobs, ct);
+        => ProjectAsync(db.Users.Where(u => u.IsActive).WithoutServiceAccounts(db), canBeAssignedJobs, ct);
 
     public Task<List<UserResponseModel>> FindByNamesAsync(
         IEnumerable<string> names, Func<EmployeeProfile?, string?, bool> canBeAssignedJobs, CancellationToken ct)
@@ -18,6 +18,7 @@ public class UserRepository(AppDbContext db) : IUserRepository
         var nameList = names.Select(n => n.ToLower()).ToList();
         var users = db.Users
             .Where(u => u.IsActive)
+            .WithoutServiceAccounts(db)
             .Where(u => nameList.Contains(u.FirstName!.ToLower())
                      || nameList.Contains((u.FirstName + " " + u.LastName).Trim().ToLower().Replace(" ", "")));
         return ProjectAsync(users, canBeAssignedJobs, ct);

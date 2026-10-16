@@ -191,9 +191,16 @@ try
                 var userManager = context.HttpContext.RequestServices
                     .GetRequiredService<UserManager<ApplicationUser>>();
                 var userId = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                if (userId == null || await userManager.FindByIdAsync(userId) == null)
+                var user = userId == null ? null : await userManager.FindByIdAsync(userId);
+                if (user == null)
                 {
                     context.Fail("User no longer exists.");
+                    return;
+                }
+
+                if (!user.IsActive)
+                {
+                    context.Fail("User is no longer active.");
                 }
             }
         };

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.EmployeeProfile;
 using Forge.Api.Services;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -38,7 +39,8 @@ public class UpdateAdminUserHandler(
     UserManager<ApplicationUser> userManager,
     AppDbContext db,
     ISystemAuditWriter auditWriter,
-    ICapabilitySnapshotProvider capabilities)
+    ICapabilitySnapshotProvider capabilities,
+    ISessionStore sessionStore)
     : IRequestHandler<UpdateAdminUserCommand, AdminUserResponseModel>
 {
     public async Task<AdminUserResponseModel> Handle(UpdateAdminUserCommand request, CancellationToken cancellationToken)
@@ -52,6 +54,7 @@ public class UpdateAdminUserHandler(
         if (request.LastName is not null) user.LastName = request.LastName;
         if (request.Initials is not null) user.Initials = request.Initials;
         if (request.AvatarColor is not null) user.AvatarColor = request.AvatarColor;
+        var deactivating = request.IsActive == false && user.IsActive;
         if (request.IsActive.HasValue) user.IsActive = request.IsActive.Value;
 
         // Email correction (typo fix). Email is the login identity — UserName is
@@ -81,6 +84,9 @@ public class UpdateAdminUserHandler(
             var errors = string.Join("; ", result.Errors.Select(e => e.Description));
             throw new InvalidOperationException($"Failed to update user: {errors}");
         }
+
+        if (deactivating)
+            await sessionStore.RevokeAllUserSessionsAsync(user.Id, cancellationToken);
 
         if (request.Roles is not null)
         {
@@ -173,9 +179,10 @@ public class UpdateAdminUserHandler(
             ("Employee Handbook", profile?.HandbookAcknowledgedAt is not null),
         };
 
-        var treatAsComplete = !hrOn || profile?.OnboardingBypassedAt is not null;
+        var isServiceAccount = ServiceAccounts.IsServiceAccount(roles);
+        var treatAsComplete = !hrOn || isServiceAccount || profile?.OnboardingBypassedAt is not null;
         var completedCount = treatAsComplete ? complianceItems.Length : complianceItems.Count(i => i.IsComplete);
-        var canBeAssigned = EmployeeComplianceRules.CanBeAssignedJobs(profile, stateCategory, hrOn);
+        var canBeAssigned = !isServiceAccount && EmployeeComplianceRules.CanBeAssignedJobs(profile, stateCategory, hrOn);
         var missingItems = treatAsComplete
             ? Array.Empty<string>()
             : complianceItems.Where(i => !i.IsComplete).Select(i => i.Label).ToArray();
@@ -201,6 +208,7 @@ public class UpdateAdminUserHandler(
             user.WorkLocationId,
             user.WorkLocation?.Name,
             null, // I9Status — computed in Batch F (I9StatusComputer)
-            user.IsNonEmployee);
+            user.IsNonEmployee,
+            isServiceAccount);
     }
 }

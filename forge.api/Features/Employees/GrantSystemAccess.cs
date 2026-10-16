@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text.Json;
 
 using FluentValidation;
@@ -8,6 +7,7 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Admin;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -92,15 +92,9 @@ public class GrantSystemAccessHandler(
         await barcodeService.CreateBarcodeAsync(
             BarcodeEntityType.User, user.Id, $"{user.Id:D6}", ct);
 
-        // Setup-token generation — mirrors CreateAdminUser
-        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-        var bytes = RandomNumberGenerator.GetBytes(8);
-        var code = new char[8];
-        for (var i = 0; i < 8; i++)
-            code[i] = chars[bytes[i] % chars.Length];
-        var token = $"{new string(code, 0, 4)}-{new string(code, 4, 4)}";
+        var token = SetupTokenCode.Generate();
 
-        user.SetupToken = token;
+        user.SetupToken = CreateAdminUserHandler.HashSetupToken(token);
         user.SetupTokenExpiresAt = DateTimeOffset.UtcNow.AddDays(7);
         user.UpdatedAt = DateTimeOffset.UtcNow;
         await userManager.UpdateAsync(user);

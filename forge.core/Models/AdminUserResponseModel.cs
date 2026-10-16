@@ -23,4 +23,5 @@ public record AdminUserResponseModel(
     int? WorkLocationId,
     string? WorkLocationName,
     I9ComplianceStatus? I9Status,
-    bool IsNonEmployee);
+    bool IsNonEmployee,
+    bool IsServiceAccount = false);

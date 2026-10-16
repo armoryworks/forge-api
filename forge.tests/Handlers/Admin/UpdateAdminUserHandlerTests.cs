@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Moq;
 using Forge.Api.Features.Admin;
 using Forge.Api.Services;
+using Forge.Core.Interfaces;
 using Forge.Data.Context;
 using Forge.Tests.Helpers;
 
@@ -12,6 +13,7 @@ public class UpdateAdminUserHandlerTests
 {
     private readonly Mock<UserManager<ApplicationUser>> _userManagerMock;
     private readonly Mock<ISystemAuditWriter> _auditWriterMock;
+    private readonly Mock<ISessionStore> _sessionStoreMock = new();
     private readonly AppDbContext _db;
     private readonly UpdateAdminUserHandler _handler;
 
@@ -32,7 +34,8 @@ public class UpdateAdminUserHandlerTests
             .ReturnsAsync(true);
 
         _handler = new UpdateAdminUserHandler(
-            _userManagerMock.Object, _db, _auditWriterMock.Object, new StubCapabilitySnapshotProvider("CAP-HR-HIRE"));
+            _userManagerMock.Object, _db, _auditWriterMock.Object, new StubCapabilitySnapshotProvider("CAP-HR-HIRE"),
+            _sessionStoreMock.Object);
     }
 
     private ApplicationUser SeedUser(int id, string email)
@@ -101,5 +104,52 @@ public class UpdateAdminUserHandlerTests
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*already in use*");
         _userManagerMock.Verify(x => x.UpdateAsync(It.IsAny<ApplicationUser>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_Deactivating_RevokesAllSessionsOfThatUser()
+    {
+        var user = SeedUser(7, "pm@example.com");
+
+        await _handler.Handle(
+            new UpdateAdminUserCommand(7, null, null, null, null, false, null),
+            CancellationToken.None);
+
+        user.IsActive.Should().BeFalse();
+        _sessionStoreMock.Verify(x => x.RevokeAllUserSessionsAsync(7, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_AlreadyInactiveOrStayingActive_DoesNotRevokeSessions()
+    {
+        var inactive = SeedUser(8, "gone@example.com");
+        inactive.IsActive = false;
+        _db.SaveChanges();
+        SeedUser(9, "here@example.com");
+
+        await _handler.Handle(
+            new UpdateAdminUserCommand(8, null, null, null, null, false, null),
+            CancellationToken.None);
+        await _handler.Handle(
+            new UpdateAdminUserCommand(9, "Renamed", null, null, null, true, null),
+            CancellationToken.None);
+
+        _sessionStoreMock.Verify(x => x.RevokeAllUserSessionsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_ServiceAccount_IsFlagged_AndNeverAssignable()
+    {
+        var user = SeedUser(10, "lead-intake-system@forge.local");
+        _userManagerMock.Setup(x => x.GetRolesAsync(user)).ReturnsAsync(new List<string> { "LeadIntake" });
+        _userManagerMock.Setup(x => x.HasPasswordAsync(user)).ReturnsAsync(false);
+
+        var result = await _handler.Handle(
+            new UpdateAdminUserCommand(10, null, null, null, null, null, null),
+            CancellationToken.None);
+
+        result.IsServiceAccount.Should().BeTrue();
+        result.CanBeAssignedJobs.Should().BeFalse();
+        result.MissingComplianceItems.Should().BeEmpty();
     }
 }

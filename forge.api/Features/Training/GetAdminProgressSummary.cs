@@ -19,6 +19,7 @@ public class GetAdminProgressSummaryHandler(AppDbContext db, UserManager<Applica
         var users = await db.Users
             .AsNoTracking()
             .Where(u => u.IsActive)
+            .WithoutServiceAccounts(db)
             .OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
             .ToListAsync(ct);
 

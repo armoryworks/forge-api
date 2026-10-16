@@ -46,7 +46,7 @@ public class GetClockStatusHandler(
         var dayStartUtc = ClockStateRules.DayStartUtc(shopTimeZone, now);
         var shopToday = ClockStateRules.LocalToday(shopTimeZone, now);
 
-        var usersQuery = db.Users.Where(u => u.IsActive);
+        var usersQuery = db.Users.Where(u => u.IsActive).WithoutServiceAccounts(db);
         if (request.TeamId.HasValue)
             usersQuery = usersQuery.Where(u => u.TeamId == request.TeamId.Value && !u.IsNonEmployee);
 
