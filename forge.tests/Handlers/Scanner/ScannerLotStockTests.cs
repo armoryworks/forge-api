@@ -2,11 +2,11 @@ using System.Security.Claims;
 
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.Auth;
 using Forge.Api.Features.Scanner;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -62,7 +62,7 @@ public class ScannerLotStockTests : IDisposable
         _db.Users.Add(new ApplicationUser
         {
             Id = UserId, UserName = "scanner", Email = "scanner@forge.local", FirstName = "Scan", LastName = "Ner",
-            PinHash = new PasswordHasher<object>().HashPassword(null!, Pin),
+            PinHash = SetPinHandler.HashPin(Pin),
         });
         await _db.SaveChangesAsync();
         _db.ChangeTracker.Clear();
@@ -309,6 +309,24 @@ public class ScannerLotStockTests : IDisposable
 
         (await _db.MaterialIssues.AnyAsync()).Should().BeFalse();
         (await ActiveAsync(partId, binId)).Sum(r => r.Quantity).Should().Be(15m);
+    }
+
+    [Fact]
+    public async Task Reverse_WithAWrongPin_IsRefusedAndLeavesStockAlone()
+    {
+        var (partId, binId, _) = await SeedAsync(unlotted: 5m, lotted: 10m);
+        var jobId = await SeedJobAsync();
+        var logId = await new ExecuteScanIssueHandler(_db, _clock, _accessor, MaterialIssueMediator.For(_db)).Handle(
+            new ExecuteScanIssueCommand(new ScanIssueRequestModel(partId, jobId, 3m, binId)), CancellationToken.None);
+        _db.ChangeTracker.Clear();
+
+        var act = () => new ReverseScanActionHandler(_db, _clock, _accessor, MaterialIssueMediator.For(_db)).Handle(
+            new ReverseScanActionCommand(new ScanReversalRequestModel(logId, "1357")), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        _db.ChangeTracker.Clear();
+        (await ActiveAsync(partId, binId)).Sum(r => r.Quantity).Should().Be(12m);
+        (await _db.ScanActionLogs.AsNoTracking().SingleAsync(l => l.Id == logId)).IsReversed.Should().BeFalse();
     }
 
     public void Dispose() => _db.Dispose();

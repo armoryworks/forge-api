@@ -3,9 +3,9 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Auth;
 using Forge.Api.Features.Jobs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -64,11 +64,7 @@ public class ReverseScanActionHandler(
 
         // Check current user's PIN
         if (!string.IsNullOrEmpty(currentUser.PinHash))
-        {
-            var hasher = new PasswordHasher<object>();
-            var result = hasher.VerifyHashedPassword(null!, currentUser.PinHash, data.Pin);
-            pinValid = result is PasswordVerificationResult.Success or PasswordVerificationResult.SuccessRehashNeeded;
-        }
+            pinValid = SetPinHandler.VerifyPin(data.Pin, currentUser.PinHash);
 
         // If current user's PIN doesn't match and they're not the original user, check if they're a manager/admin
         if (!pinValid)
