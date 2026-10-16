@@ -20,17 +20,6 @@ namespace Forge.Api.Controllers;
 // Admin surface is bootstrap-exempt ACTION-BY-ACTION (not class-level, which would override the MFA/audit-log gates below): an admin must never be able to lock themselves out of user/role/reference-data/branding administration. Same posture as AdminSettingsController.
 public class AdminController(IMediator mediator) : ControllerBase
 {
-    // ── Roles ──
-
-    [HttpGet("roles")]
-    [CapabilityBootstrap]
-    [Authorize(Roles = "Admin,Manager")]
-    public async Task<ActionResult<List<RoleItem>>> GetRoles()
-    {
-        var result = await mediator.Send(new GetRolesQuery());
-        return Ok(result);
-    }
-
     // ── Users ──
 
     [HttpGet("users")]

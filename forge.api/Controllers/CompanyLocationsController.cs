@@ -9,7 +9,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/company-locations")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,Manager,OfficeManager")]
 [RequiresCapability("CAP-MD-LOCATIONS")]
 public class CompanyLocationsController(IMediator mediator) : ControllerBase
 {
@@ -28,6 +28,7 @@ public class CompanyLocationsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<CompanyLocationResponseModel>> Create(CompanyLocationRequestModel request)
     {
         var result = await mediator.Send(new CreateCompanyLocationCommand(
@@ -38,6 +39,7 @@ public class CompanyLocationsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<CompanyLocationResponseModel>> Update(int id, CompanyLocationRequestModel request)
     {
         var result = await mediator.Send(new UpdateCompanyLocationCommand(
@@ -48,6 +50,7 @@ public class CompanyLocationsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
         await mediator.Send(new DeleteCompanyLocationCommand(id));
@@ -55,6 +58,7 @@ public class CompanyLocationsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/set-default")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> SetDefault(int id)
     {
         await mediator.Send(new SetDefaultCompanyLocationCommand(id));

@@ -46,13 +46,6 @@ public class CustomersController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("dropdown")]
-    public async Task<ActionResult<List<CustomerResponseModel>>> GetCustomerDropdown()
-    {
-        var result = await mediator.Send(new GetCustomersQuery());
-        return Ok(result);
-    }
-
     // ── C3: customer segments (saved named filters). Literal routes declared before
     //    {id:int} so "segments" is never bound as a customer id. ──
 

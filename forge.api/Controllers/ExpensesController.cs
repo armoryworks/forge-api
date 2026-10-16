@@ -79,7 +79,6 @@ public class ExpensesController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("settings")]
-    [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<ExpenseSettingsResponse>> GetSettings()
     {
         var result = await mediator.Send(new GetExpenseSettingsQuery());
