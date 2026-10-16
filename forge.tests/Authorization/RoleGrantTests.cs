@@ -208,6 +208,16 @@ public sealed class RoleGrantTests
     }
 
     [Theory]
+    [InlineData("POST", "api/v1/parts/{partId:int}/purchase-units")]
+    [InlineData("PUT", "api/v1/parts/{partId:int}/purchase-units/{id:int}")]
+    [InlineData("DELETE", "api/v1/parts/{partId:int}/purchase-units/{id:int}")]
+    public void Part_purchase_units_are_still_maintained_by_the_part_master_roles(string verb, string template)
+    {
+        EffectiveRoles(Single(verb, template)).Should().BeEquivalentTo(
+            ["Admin", "Manager", "Engineer", "OfficeManager"], $"{verb} {template}");
+    }
+
+    [Theory]
     [InlineData("POST", "api/v1/jobs")]
     [InlineData("GET", "api/v1/jobs/{id:int}")]
     public void The_job_list_grant_does_not_open_the_rest_of_the_job_surface_to_procurement(string verb, string template)
