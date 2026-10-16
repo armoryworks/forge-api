@@ -176,6 +176,11 @@ public static partial class SeedData
         var rchavez = await EnsureUserAsync(userManager, "rchavez@forge.local",
             "R.", "Chavez", "RC", "#4f46e5", seedPassword, "Manager");
 
+        await EnsureUserAsync(userManager, "controller@forge.local",
+            "C.", "Ortiz", "CO", "#1e40af", seedPassword, "Controller");
+        await EnsureUserAsync(userManager, "buyer@forge.local",
+            "B.", "Price", "BP", "#92400e", seedPassword, "Procurement");
+
         await db.SaveChangesAsync();
 
         // ── 5. Customers ──────────────────────────────────────────────────
@@ -777,6 +782,8 @@ public static partial class SeedData
             // of how the account was originally created (setup wizard vs. seed).
             await userManager.RemovePasswordAsync(existing);
             await userManager.AddPasswordAsync(existing, password);
+            if ((await userManager.GetRolesAsync(existing)).Count == 0)
+                await userManager.AddToRoleAsync(existing, role);
             return existing;
         }
 
