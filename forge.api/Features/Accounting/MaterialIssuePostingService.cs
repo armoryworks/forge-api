@@ -164,7 +164,7 @@ public sealed class MaterialIssuePostingService(
             ],
         };
 
-        var entry = await postingEngine.PostAsync(request, issuedByUserId, ct);
+        var entry = await postingEngine.PostAsSystemAsync(request, issuedByUserId, ct);
         await TryAuditAsync(issue, entry, amount, issuedByUserId, ct);
     }
 

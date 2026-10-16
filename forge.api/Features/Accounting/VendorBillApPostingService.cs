@@ -132,7 +132,7 @@ public sealed class VendorBillApPostingService(
 
         // Reverse in the original entry's period (clean same-period correction). When period close lands
         // (Phase 3), a closed-period reversal becomes a policy choice the engine already guards.
-        await postingEngine.ReverseAsync(
+        await postingEngine.ReverseAsSystemAsync(
             entry.Id, entry.EntryDate, $"Vendor bill {vendorBillId} voided", reversedByUserId, ct);
     }
 
@@ -254,7 +254,7 @@ public sealed class VendorBillApPostingService(
             Lines = lines,
         };
 
-        var entry = await postingEngine.PostAsync(request, approvedByUserId, ct);
+        var entry = await postingEngine.PostAsSystemAsync(request, approvedByUserId, ct);
 
         await TryAuditAsync(bill, entry, total, approvedByUserId, ct);
     }

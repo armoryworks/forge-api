@@ -163,7 +163,7 @@ public sealed class PaymentCashPostingService(
         // Reverse on the VOID date (today) — the original period may differ; the engine guards closed
         // periods. ReverseAsync flips the WHOLE entry, including any realized-FX plug lines.
         var reversalDate = DateOnly.FromDateTime((clock?.UtcNow ?? DateTimeOffset.UtcNow).UtcDateTime);
-        await postingEngine.ReverseAsync(
+        await postingEngine.ReverseAsSystemAsync(
             entry.Id, reversalDate, $"Payment {paymentId} voided: {reason}", reversedByUserId, ct);
     }
 
@@ -367,7 +367,7 @@ public sealed class PaymentCashPostingService(
         // ── Post inline on the shared context. The engine validates, assigns the
         // EntryNumber, maintains LedgerBalance, and calls SaveChangesAsync so the
         // write participates in the operational command's transaction (§2, §5.2).
-        var entry = await postingEngine.PostAsync(request, createdByUserId, ct);
+        var entry = await postingEngine.PostAsSystemAsync(request, createdByUserId, ct);
 
         // ── Audit (§5.8): actor + before/after + reason on post. Best-effort —
         // an audit hiccup must not unwind a successful, committed posting.

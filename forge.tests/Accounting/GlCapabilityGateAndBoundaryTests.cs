@@ -196,4 +196,92 @@ public class GlCapabilityGateAndBoundaryTests
         var entry = await engine.PostAsync(BalancedRequest(), postedByUserId: 7);
         entry.Status.Should().Be(JournalEntryStatus.Posted);
     }
+
+    private static PostingRequest SubledgerRequest(string key) => new()
+    {
+        BookId = BookId,
+        EntryDate = new DateOnly(2026, 1, 15),
+        Source = JournalSource.AR,
+        SourceType = "Invoice",
+        SourceId = 1,
+        IdempotencyKey = key,
+        CurrencyId = UsdId,
+        Memo = "test",
+        Lines =
+        [
+            new PostingLine { GlAccountId = CashId, Debit = 100m },
+            new PostingLine { GlAccountId = RevenueId, Credit = 100m },
+        ],
+    };
+
+    [Theory]
+    [InlineData("OfficeManager")]
+    [InlineData("Procurement")]
+    [InlineData("ProductionWorker")]
+    [InlineData("Admin")]
+    public async Task SubledgerPosting_ByBusinessRoleWithoutPostJournalEntry_PostsAsSystem(string role)
+    {
+        using var db = await SeedAsync();
+        var engine = new ForgeGlPostingEngine(
+            db, new AccountDeterminationResolver(db), new FakeAllocator(), new SystemClock(),
+            AuthorizerForRoles(7, role));
+
+        var entry = await engine.PostAsSystemAsync(SubledgerRequest("AR:Invoice:1:FINALIZE"), actingUserId: 7);
+
+        entry.Status.Should().Be(JournalEntryStatus.Posted);
+        entry.PostedBy.Should().Be(7);
+        GlSystemPostingScope.IsActive.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SubledgerPosting_RefusesManualJournal()
+    {
+        using var db = await SeedAsync();
+        var engine = new ForgeGlPostingEngine(
+            db, new AccountDeterminationResolver(db), new FakeAllocator(), new SystemClock(),
+            AuthorizerForRoles(7, "Controller"));
+
+        var act = async () => await engine.PostAsSystemAsync(BalancedRequest(), actingUserId: 7);
+
+        await act.Should().ThrowAsync<ArgumentException>();
+        (await db.JournalEntries.IgnoreQueryFilters().CountAsync()).Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("OfficeManager")]
+    [InlineData("Procurement")]
+    [InlineData("Admin")]
+    public async Task ManualJournal_AfterSubledgerPosting_StillRequiresPostJournalEntry(string role)
+    {
+        using var db = await SeedAsync();
+        var engine = new ForgeGlPostingEngine(
+            db, new AccountDeterminationResolver(db), new FakeAllocator(), new SystemClock(),
+            AuthorizerForRoles(7, role));
+        await engine.PostAsSystemAsync(SubledgerRequest("AR:Invoice:1:FINALIZE"), actingUserId: 7);
+
+        var act = async () => await engine.PostAsync(BalancedRequest(), postedByUserId: 7);
+
+        (await act.Should().ThrowAsync<GlAuthorizationException>())
+            .Which.RequiredCapability.Should().Be(GlCapability.PostJournalEntry);
+    }
+
+    [Fact]
+    public async Task SubledgerReversal_ByBusinessRole_ReversesAsSystem_WhileManualReversalIsDenied()
+    {
+        using var db = await SeedAsync();
+        var engine = new ForgeGlPostingEngine(
+            db, new AccountDeterminationResolver(db), new FakeAllocator(), new SystemClock(),
+            AuthorizerForRoles(7, "OfficeManager"));
+        var first = await engine.PostAsSystemAsync(SubledgerRequest("AR:Payment:1:CASH"), actingUserId: 7);
+        var second = await engine.PostAsSystemAsync(SubledgerRequest("AR:Payment:2:CASH"), actingUserId: 7);
+
+        var manual = async () => await engine.ReverseAsync(second.Id, new DateOnly(2026, 1, 20), "manual", 7);
+        (await manual.Should().ThrowAsync<GlAuthorizationException>())
+            .Which.RequiredCapability.Should().Be(GlCapability.ReverseJournalEntry);
+
+        var reversal = await engine.ReverseAsSystemAsync(first.Id, new DateOnly(2026, 1, 20), "voided", actingUserId: 7);
+
+        reversal.Status.Should().Be(JournalEntryStatus.Posted);
+        reversal.ReversalOfEntryId.Should().Be(first.Id);
+    }
 }

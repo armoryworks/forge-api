@@ -213,7 +213,7 @@ public sealed class InvoiceArPostingService(
             IdempotencyKey = $"{JournalSource.AR}:Invoice:{invoice.Id}:REVENUE_RECLASS",
             Lines = lines,
         };
-        await postingEngine.PostAsync(request, deliveredByUserId, ct);
+        await postingEngine.PostAsSystemAsync(request, deliveredByUserId, ct);
 
         // COGS / finished-goods relief that waited for this same delivery trigger (STAGE B).
         // Its own :COGS idempotency key makes this safe if it somehow already posted.
@@ -398,7 +398,7 @@ public sealed class InvoiceArPostingService(
         // ── Post inline on the shared context. The engine validates, assigns the
         // EntryNumber, maintains LedgerBalance, and calls SaveChangesAsync so the
         // write participates in the operational command's transaction (§2, §5.2).
-        var entry = await postingEngine.PostAsync(request, finalizedByUserId, ct);
+        var entry = await postingEngine.PostAsSystemAsync(request, finalizedByUserId, ct);
 
         // ── Audit (§5.8): actor + before/after + reason on post. Best-effort —
         // an audit hiccup must not unwind a successful, committed posting.
@@ -533,7 +533,7 @@ public sealed class InvoiceArPostingService(
             Lines = lines,
         };
 
-        var entry = await postingEngine.PostAsync(request, userId, ct);
+        var entry = await postingEngine.PostAsSystemAsync(request, userId, ct);
         await TryAuditCogsAsync(invoice, entry, totalCogs, userId, ct);
     }
 

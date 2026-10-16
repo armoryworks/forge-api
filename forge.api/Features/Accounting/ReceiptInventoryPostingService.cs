@@ -222,7 +222,7 @@ public sealed class ReceiptInventoryPostingService(
             Lines = lines,
         };
 
-        var entry = await postingEngine.PostAsync(request, userId, ct);
+        var entry = await postingEngine.PostAsSystemAsync(request, userId, ct);
 
         // STAGE E: feed the perpetual valuation store at landed cost (joins this transaction). No-op when the
         // valuation service isn't wired (isolated unit tests).

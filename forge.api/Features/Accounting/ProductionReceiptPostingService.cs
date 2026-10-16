@@ -137,7 +137,7 @@ public sealed class ProductionReceiptPostingService(
             ],
         };
 
-        var entry = await postingEngine.PostAsync(request, receivedByUserId, ct);
+        var entry = await postingEngine.PostAsSystemAsync(request, receivedByUserId, ct);
 
         // Feed the perpetual FG valuation store at standard cost (joins this transaction).
         if (valuation is not null)
