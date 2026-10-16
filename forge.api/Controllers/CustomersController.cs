@@ -89,6 +89,11 @@ public class CustomersController(IMediator mediator) : ControllerBase
     [HttpPost]
     public async Task<ActionResult<CustomerListItemModel>> CreateCustomer(CreateCustomerRequestModel request)
     {
+        var setsCommercialTerms = request.IsTaxExempt || !string.IsNullOrWhiteSpace(request.TaxExemptionId)
+            || request.CreditLimit.HasValue;
+        if (setsCommercialTerms && !CommercialTermsRoles.Any(User.IsInRole))
+            return Forbid();
+
         // Phase 3 F3 — pass through the new full-record fields. The first four
         // positional args preserve the original signature for compile parity
         // across callers; everything past that is named.

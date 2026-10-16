@@ -66,4 +66,25 @@ public class UpdateCustomerCommercialTermsRoleTests
 
         result.Should().BeOfType<NoContentResult>();
     }
+
+    [Fact]
+    public async Task Pm_cannot_create_a_customer_with_credit_or_tax_terms()
+    {
+        var result = await ControllerFor("PM").CreateCustomer(
+            new CreateCustomerRequestModel("Acme", null, null, null, CreditLimit: 25_000m));
+
+        result.Result.Should().BeOfType<ForbidResult>();
+        _mediator.Verify(m => m.Send(It.IsAny<CreateCustomerCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Pm_can_create_a_customer_with_default_terms()
+    {
+        _mediator.Setup(m => m.Send(It.IsAny<CreateCustomerCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CustomerListItemModel(7, "Acme", null, null, null, null, true, 0, 0, DateTimeOffset.UtcNow));
+
+        var result = await ControllerFor("PM").CreateCustomer(new CreateCustomerRequestModel("Acme", null, null, null));
+
+        result.Result.Should().BeOfType<CreatedAtActionResult>();
+    }
 }
