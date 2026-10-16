@@ -70,7 +70,9 @@ public partial class UpdateTerminologyHandler(
             var changed = changedKeys.Contains(term.SingularKey) || changedKeys.Contains(term.PluralKey);
             var retry = (requested.ContainsKey(term.SingularKey) || requested.ContainsKey(term.PluralKey))
                 && !HasSpanishText(rows, term);
-            if (!changed && !retry)
+            var spanishTyped = SpanishKeys(term)[..2]
+                .Any(key => changedKeys.Contains(key) && rows[key].Label.Length > 0);
+            if (!changed && !retry && !spanishTyped)
                 continue;
             if (!await TranslateTermAsync(term, rows, cancellationToken))
                 untranslated.Add(term.Id);
@@ -111,7 +113,10 @@ public partial class UpdateTerminologyHandler(
     {
         var spanish = SpanishKeys(term);
         if (spanish[..2].Any(key => rows.TryGetValue(key, out var row) && IsAdminSpanish(row)))
+        {
+            ClearMachineRows(rows, spanish);
             return true;
+        }
         var adminGender = rows.TryGetValue(spanish[2], out var genderRow) && IsAdminSpanish(genderRow);
 
         var englishOne = ActiveLabel(rows, term.SingularKey);

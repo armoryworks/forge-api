@@ -180,6 +180,19 @@ public class UpdateTerminologyHandlerTests
     }
 
     [Fact]
+    public async Task Handle_AdminTypesSpanishOverMachineRows_DropsTheRestOfTheMachineSpanish()
+    {
+        Translates("Work Order", "la orden de trabajo");
+        Translates("Work Orders", "las órdenes de trabajo");
+        await _handler.Handle(Command(("entity_job", "Work Order"), ("label_jobs", "Work Orders")), CancellationToken.None);
+
+        var result = await _handler.Handle(Command(("entity_job:es", "Encargo")), CancellationToken.None);
+
+        result.Entries.Where(e => e.Key.EndsWith(":es") && e.Key.Contains("job")).Should()
+            .ContainSingle().Which.Should().Be(new TerminologyEntryResponseModel("entity_job:es", "Encargo"));
+    }
+
+    [Fact]
     public async Task Handle_SpanishInTheSameSave_WinsOverTranslation()
     {
         Translates("Work Order", "la orden de trabajo");
