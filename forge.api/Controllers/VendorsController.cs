@@ -9,7 +9,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/vendors")]
-[Authorize(Roles = "Admin,Manager,OfficeManager")]
+[Authorize(Roles = "Admin,Manager,OfficeManager,Procurement")]
 [RequiresCapability("CAP-MD-VENDORS")]
 public class VendorsController(IMediator mediator) : ControllerBase
 {
@@ -36,13 +36,6 @@ public class VendorsController(IMediator mediator) : ControllerBase
             ? query with { Q = legacySearch }
             : query;
         var result = await mediator.Send(new GetVendorsQuery(effective), ct);
-        return Ok(result);
-    }
-
-    [HttpGet("dropdown")]
-    public async Task<ActionResult<List<VendorResponseModel>>> GetVendorDropdown()
-    {
-        var result = await mediator.Send(new GetVendorDropdownQuery());
         return Ok(result);
     }
 

@@ -20,8 +20,8 @@ public class GetCustomerPoDocumentHandlerTests
         var order = await SeedOrderWithDocumentAsync(db);
         var handler = new GetCustomerPoDocumentHandler(db);
 
-        var result = await handler.Handle(
-            new GetCustomerPoDocumentQuery(order.Id), CancellationToken.None);
+        var result = (await handler.Handle(
+            new GetCustomerPoDocumentQuery(order.Id), CancellationToken.None))!;
 
         result.DocumentNumber.Should().Be("CPO-00001");
         result.OrderNumber.Should().Be("SO-77001");
@@ -42,16 +42,16 @@ public class GetCustomerPoDocumentHandlerTests
         var order = await SeedOrderWithDocumentAsync(db);
         var handler = new GetCustomerPoDocumentHandler(db);
 
-        var before = await handler.Handle(
-            new GetCustomerPoDocumentQuery(order.Id), CancellationToken.None);
+        var before = (await handler.Handle(
+            new GetCustomerPoDocumentQuery(order.Id), CancellationToken.None))!;
 
         // Edit the SO after the document was generated: bump a line quantity.
         var line = db.SalesOrderLines.First(l => l.SalesOrderId == order.Id && l.LineNumber == 1);
         line.Quantity = 40; // was 10 @ 25 → +750 on the subtotal
         await db.SaveChangesAsync();
 
-        var after = await handler.Handle(
-            new GetCustomerPoDocumentQuery(order.Id), CancellationToken.None);
+        var after = (await handler.Handle(
+            new GetCustomerPoDocumentQuery(order.Id), CancellationToken.None))!;
 
         after.DocumentNumber.Should().Be(before.DocumentNumber, "the identity is fixed");
         after.Lines.Single(l => l.LineNumber == 1).Quantity.Should().Be(40);
@@ -61,16 +61,15 @@ public class GetCustomerPoDocumentHandlerTests
     }
 
     [Fact]
-    public async Task Get_NoDocumentForOrder_ThrowsKeyNotFound()
+    public async Task Get_NoDocumentForOrder_ReturnsNull()
     {
         using var db = TestDbContextFactory.Create();
         var handler = new GetCustomerPoDocumentHandler(db);
 
-        var act = () => handler.Handle(
+        var result = await handler.Handle(
             new GetCustomerPoDocumentQuery(4242), CancellationToken.None);
 
-        await act.Should().ThrowAsync<KeyNotFoundException>()
-            .WithMessage("*4242*");
+        result.Should().BeNull();
     }
 
     private static async Task<SalesOrder> SeedOrderWithDocumentAsync(AppDbContext db)

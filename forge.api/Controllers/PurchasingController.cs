@@ -10,7 +10,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/purchasing")]
-[Authorize(Roles = "Admin,Manager,OfficeManager")]
+[Authorize(Roles = "Admin,Manager,OfficeManager,Procurement")]
 [RequiresCapability("CAP-P2P-RFQ")]
 public class PurchasingController(IMediator mediator) : ControllerBase
 {

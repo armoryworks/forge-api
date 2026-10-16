@@ -23,7 +23,7 @@ public class CustomerPoDocumentsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<CustomerPoDocumentResponseModel>> GetCustomerPoDocument(int salesOrderId)
     {
         var result = await mediator.Send(new GetCustomerPoDocumentQuery(salesOrderId));
-        return Ok(result);
+        return result is null ? NoContent() : Ok(result);
     }
 
     [HttpGet("pdf")]

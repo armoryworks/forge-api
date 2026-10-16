@@ -8,19 +8,19 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.CustomerPoDocuments;
 
-public record GetCustomerPoDocumentQuery(int SalesOrderId) : IRequest<CustomerPoDocumentResponseModel>;
+public record GetCustomerPoDocumentQuery(int SalesOrderId) : IRequest<CustomerPoDocumentResponseModel?>;
 
 /// <summary>
 /// S4a — live view of the internal customer-PO document. Only the identity
 /// fields come from the CustomerPoDocument row; the header, customer block,
 /// lines, and totals are read from the CURRENT sales order every time, so
 /// the document always reflects downstream SO edits (dynamic view, not a
-/// snapshot).
+/// snapshot). Null when the order has no customer-PO document yet.
 /// </summary>
 public class GetCustomerPoDocumentHandler(AppDbContext db)
-    : IRequestHandler<GetCustomerPoDocumentQuery, CustomerPoDocumentResponseModel>
+    : IRequestHandler<GetCustomerPoDocumentQuery, CustomerPoDocumentResponseModel?>
 {
-    public async Task<CustomerPoDocumentResponseModel> Handle(
+    public async Task<CustomerPoDocumentResponseModel?> Handle(
         GetCustomerPoDocumentQuery request, CancellationToken ct)
     {
         var document = await db.CustomerPoDocuments
@@ -30,9 +30,9 @@ public class GetCustomerPoDocumentHandler(AppDbContext db)
             .Include(d => d.SalesOrder).ThenInclude(so => so.Lines).ThenInclude(l => l.Part)
             .Include(d => d.SalesOrder).ThenInclude(so => so.ShippingAddress)
             .Include(d => d.SalesOrder).ThenInclude(so => so.BillingAddress)
-            .FirstOrDefaultAsync(d => d.SalesOrderId == request.SalesOrderId, ct)
-            ?? throw new KeyNotFoundException(
-                $"No customer PO document exists for sales order {request.SalesOrderId}");
+            .FirstOrDefaultAsync(d => d.SalesOrderId == request.SalesOrderId, ct);
+        if (document is null)
+            return null;
 
         var order = document.SalesOrder;
 

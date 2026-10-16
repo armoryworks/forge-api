@@ -17,7 +17,7 @@ namespace Forge.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/vendor-parts")]
-[Authorize(Roles = "Admin,Manager,Engineer,OfficeManager")]
+[Authorize(Roles = "Admin,Manager,Engineer,OfficeManager,Procurement")]
 [RequiresCapability("CAP-MD-VENDORS")]
 public class VendorPartsController(IMediator mediator) : ControllerBase
 {

@@ -9,7 +9,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/company-locations")]
-[Authorize(Roles = "Admin,Manager,OfficeManager")]
+[Authorize(Roles = "Admin,Manager,OfficeManager,Procurement")]
 [RequiresCapability("CAP-MD-LOCATIONS")]
 public class CompanyLocationsController(IMediator mediator) : ControllerBase
 {

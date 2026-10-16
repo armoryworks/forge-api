@@ -15,7 +15,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/auto-po")]
-[Authorize(Roles = "Admin,Manager,OfficeManager")]
+[Authorize(Roles = "Admin,Manager,OfficeManager,Procurement")]
 [RequiresCapability("CAP-P2P-AUTOPO")]
 public class AutoPoController(IMediator mediator) : ControllerBase
 {
