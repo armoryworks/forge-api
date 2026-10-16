@@ -63,4 +63,48 @@ public class GetSalesOrderByIdLineJobTests
             [4] = true,
         });
     }
+
+    [Fact]
+    public async Task Lines_report_NeedsJob_using_the_same_rule_as_job_creation()
+    {
+        var customer = new Customer { Id = 4, Name = "Mixed Co" };
+        _db.Customers.Add(customer);
+        Part AddPart(int id, ProcurementSource source, bool routed)
+        {
+            var part = new Part { Id = id, PartNumber = $"P-{id}", Name = $"P-{id}", ProcurementSource = source };
+            _db.Parts.Add(part);
+            if (routed)
+                _db.Operations.Add(new Operation { PartId = id, StepNumber = 10, Title = "Mill" });
+            return part;
+        }
+
+        var make = AddPart(201, ProcurementSource.Make, routed: false);
+        var buy = AddPart(202, ProcurementSource.Buy, routed: false);
+        var routedBuy = AddPart(203, ProcurementSource.Buy, routed: true);
+        var so = new SalesOrder
+        {
+            Id = 80, OrderNumber = "SO-00080", CustomerId = customer.Id, Customer = customer,
+            Status = SalesOrderStatus.Confirmed,
+        };
+        so.Lines.Add(new SalesOrderLine { Id = 81, PartId = make.Id, Part = make, Description = "Make", Quantity = 1m, UnitPrice = 1m, LineNumber = 1 });
+        so.Lines.Add(new SalesOrderLine { Id = 82, PartId = buy.Id, Part = buy, Description = "Buy", Quantity = 1m, UnitPrice = 1m, LineNumber = 2 });
+        so.Lines.Add(new SalesOrderLine { Id = 83, PartId = routedBuy.Id, Part = routedBuy, Description = "Routed buy", Quantity = 1m, UnitPrice = 1m, LineNumber = 3 });
+        so.Lines.Add(new SalesOrderLine { Id = 84, Description = "Freight", Quantity = 1m, UnitPrice = 1m, LineNumber = 4 });
+        _db.SalesOrders.Add(so);
+        await _db.SaveChangesAsync();
+
+        var userManager = new Mock<UserManager<ApplicationUser>>(
+            Mock.Of<IUserStore<ApplicationUser>>(), null!, null!, null!, null!, null!, null!, null!, null!);
+        var handler = new GetSalesOrderByIdHandler(new SalesOrderRepository(_db), _db, userManager.Object);
+
+        var result = await handler.Handle(new GetSalesOrderByIdQuery(so.Id), CancellationToken.None);
+
+        result.Lines.ToDictionary(l => l.Id, l => l.NeedsJob).Should().BeEquivalentTo(new Dictionary<int, bool>
+        {
+            [81] = true,
+            [82] = false,
+            [83] = true,
+            [84] = false,
+        });
+    }
 }
