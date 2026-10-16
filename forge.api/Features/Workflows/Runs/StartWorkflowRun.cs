@@ -2,8 +2,10 @@ using System.Text.Json;
 
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Middleware;
 using Forge.Api.Services;
 using Forge.Api.Workflows;
 using Forge.Core.Entities;
@@ -26,7 +28,8 @@ namespace Forge.Api.Features.Workflows.Runs;
 /// entity up front (EntityId + primary junction row), so the steps read and
 /// write the saved record and readiness gates evaluate against it. Starting a
 /// bound run is idempotent: an active run for the same entity + definition is
-/// returned instead of opening a second one.
+/// returned instead of opening a second one. Binding requires the roles of the
+/// entity's own update endpoint (<see cref="WorkflowEntityEditAccess"/>).
 /// </para>
 /// </summary>
 public record StartWorkflowRunCommand(StartWorkflowRunRequestModel Body)
@@ -51,7 +54,8 @@ public class StartWorkflowRunHandler(
     AppDbContext db,
     ISystemAuditWriter auditWriter,
     IClock clock,
-    IEnumerable<IEntityReadinessLoader> loaders) : IRequestHandler<StartWorkflowRunCommand, WorkflowRunResponseModel>
+    IEnumerable<IEntityReadinessLoader> loaders,
+    IHttpContextAccessor httpContextAccessor) : IRequestHandler<StartWorkflowRunCommand, WorkflowRunResponseModel>
 {
     public async Task<WorkflowRunResponseModel> Handle(StartWorkflowRunCommand request, CancellationToken ct)
     {
@@ -68,6 +72,9 @@ public class StartWorkflowRunHandler(
 
         if (body.EntityId is int boundId)
         {
+            if (!WorkflowEntityEditAccess.CanEdit(httpContextAccessor.HttpContext?.User, def.EntityType))
+                throw new ForbiddenException(
+                    $"Your role cannot edit an existing {def.EntityType}, so it cannot walk a guided workflow over one.");
             var loader = loaders.FirstOrDefault(l =>
                 string.Equals(l.EntityType, def.EntityType, StringComparison.OrdinalIgnoreCase))
                 ?? throw new InvalidOperationException(
