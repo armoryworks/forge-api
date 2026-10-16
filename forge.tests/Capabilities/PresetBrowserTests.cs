@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using Forge.Api.Capabilities;
+using Forge.Core.Models;
 using Forge.Data.Context;
 
 namespace Forge.Tests.Capabilities;
@@ -339,6 +340,10 @@ public class PresetBrowserTests
         Assert.Equal("Engagement", jobRename!.Label);
         Assert.Equal("PRESET-08", jobRename.SourcePresetId);
 
+        var jobPlural = await db.TerminologyEntries
+            .FirstOrDefaultAsync(t => t.Key == "label_jobs");
+        Assert.Equal("Engagements", jobPlural?.Label);
+
         var customerRename = await db.TerminologyEntries
             .FirstOrDefaultAsync(t => t.Key == "entity_customer");
         Assert.Equal("Customer", customerRename?.Label);
@@ -429,6 +434,29 @@ public class PresetBrowserTests
             Assert.Equal("WorkOrder", jobLabel.Label); // not "Engagement"
             Assert.True(jobLabel.IsAdminEdited);
         }
+    }
+
+    [Fact]
+    public async Task ApplyPreset08_Keeps_A_Term_The_Admin_Cleared()
+    {
+        var client = AuthenticatedClient();
+        await client.PostAsJsonAsync("/api/v1/presets/PRESET-08/apply", new { reason = "seed engagement terms" });
+
+        var clear = await client.PutAsJsonAsync("/api/v1/terminology",
+            new { entries = new[] { new { key = "entity_planning_cycle", label = "" }, new { key = "label_planning_cycles", label = "" } } });
+        Assert.Equal(HttpStatusCode.OK, clear.StatusCode);
+
+        await client.PostAsJsonAsync("/api/v1/presets/PRESET-01/apply", new { reason = "switch away" });
+        await client.PostAsJsonAsync("/api/v1/presets/PRESET-08/apply", new { reason = "re-apply after clearing" });
+
+        var terms = await client.GetFromJsonAsync<List<TerminologyEntryResponseModel>>("/api/v1/terminology");
+        Assert.DoesNotContain(terms!, t => t.Key is "entity_planning_cycle" or "label_planning_cycles");
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var tombstone = await db.TerminologyEntries.FirstAsync(t => t.Key == "entity_planning_cycle");
+        Assert.Equal(string.Empty, tombstone.Label);
+        Assert.True(tombstone.IsAdminEdited);
     }
 
     // ─── Custom preview ────────────────────────────────────────────────────

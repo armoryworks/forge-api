@@ -334,8 +334,10 @@ public static class PresetCatalog
                 ["status_in_production"] = "In Progress",
                 ["status_shipped"] = "Done",
                 ["action_start_production"] = "Start Work",
-                ["label_jobs"] = "Tasks",
-                ["label_customers"] = "Clients",
+                ["label_jobs"] = "Engagements",
+                ["label_customers"] = "Customers",
+                ["label_work_centers"] = "Consultants",
+                ["label_planning_cycles"] = "Sprints",
             }),
         // ── Reference data (10 service-shop groups) ──
         ReferenceDataBundle: new ReferenceDataBundle(
