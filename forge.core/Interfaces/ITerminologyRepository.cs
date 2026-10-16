@@ -8,5 +8,6 @@ public interface ITerminologyRepository
     Task<List<TerminologyEntryResponseModel>> GetAllAsync(CancellationToken ct);
     Task<TerminologyEntry?> FindByKeyAsync(string key, CancellationToken ct);
     Task AddAsync(TerminologyEntry entry, CancellationToken ct);
+    void Remove(TerminologyEntry entry);
     Task SaveChangesAsync(CancellationToken ct);
 }

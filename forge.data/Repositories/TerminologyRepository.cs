@@ -27,6 +27,11 @@ public class TerminologyRepository(AppDbContext db) : ITerminologyRepository
         await db.TerminologyEntries.AddAsync(entry, ct);
     }
 
+    public void Remove(TerminologyEntry entry)
+    {
+        db.TerminologyEntries.Remove(entry);
+    }
+
     public async Task SaveChangesAsync(CancellationToken ct)
     {
         await db.SaveChangesAsync(ct);
