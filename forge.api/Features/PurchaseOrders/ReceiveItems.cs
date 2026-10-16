@@ -30,8 +30,12 @@ public class ReceiveItemsValidator : AbstractValidator<ReceiveItemsCommand>
         RuleFor(x => x.PackingSlipNumber)
             .Must(slip => slip is null || slip.Trim().Length <= 100)
             .WithMessage("Packing slip number must be 100 characters or fewer.");
+        RuleFor(x => x.Lines)
+            .NotEmpty().WithMessage("Choose at least one line to receive.");
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
+            line.RuleFor(l => l.Quantity)
+                .GreaterThan(0m).WithMessage("Receive quantity must be positive.");
             line.RuleFor(l => l.LotNumber)
                 .Must(lot => lot is null || lot.Trim().Length <= 100)
                 .WithMessage("Lot / heat number must be 100 characters or fewer.");
