@@ -105,9 +105,10 @@ public class GetAdminUsersHandler(
                 ("handbook", "Employee Handbook", profile?.HandbookAcknowledgedAt is not null),
             };
 
-            var treatAsComplete = !hrOn || profile?.OnboardingBypassedAt is not null;
+            var isServiceAccount = ServiceAccounts.IsServiceAccount(roles);
+            var treatAsComplete = !hrOn || isServiceAccount || profile?.OnboardingBypassedAt is not null;
             var completedCount = treatAsComplete ? complianceItems.Length : complianceItems.Count(i => i.IsComplete);
-            var canBeAssigned = EmployeeComplianceRules.CanBeAssignedJobs(profile, stateCategory, hrOn);
+            var canBeAssigned = !isServiceAccount && EmployeeComplianceRules.CanBeAssignedJobs(profile, stateCategory, hrOn);
             var missingItems = treatAsComplete ? Array.Empty<string>() : complianceItems.Where(i => !i.IsComplete).Select(i => i.Label).ToArray();
 
             i9Submissions.TryGetValue(user.Id, out var i9Submission);
@@ -134,7 +135,8 @@ public class GetAdminUsersHandler(
                 user.WorkLocationId,
                 user.WorkLocation?.Name,
                 i9Status,
-                user.IsNonEmployee));
+                user.IsNonEmployee,
+                isServiceAccount));
         }
 
         return result;

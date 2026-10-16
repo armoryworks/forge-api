@@ -41,7 +41,7 @@ public static partial class SeedData
     /// can exclude these non-human accounts from people-facing lists without
     /// hard-coding the literal.
     /// </summary>
-    public const string LeadIntakeRoleName = "LeadIntake";
+    public const string LeadIntakeRoleName = ServiceAccounts.LeadIntakeRole;
 
     public static async Task SeedLeadIntakeBootstrapAsync(IServiceProvider services)
     {

@@ -136,4 +136,20 @@ public class UpdateAdminUserHandlerTests
 
         _sessionStoreMock.Verify(x => x.RevokeAllUserSessionsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task Handle_ServiceAccount_IsFlagged_AndNeverAssignable()
+    {
+        var user = SeedUser(10, "lead-intake-system@forge.local");
+        _userManagerMock.Setup(x => x.GetRolesAsync(user)).ReturnsAsync(new List<string> { "LeadIntake" });
+        _userManagerMock.Setup(x => x.HasPasswordAsync(user)).ReturnsAsync(false);
+
+        var result = await _handler.Handle(
+            new UpdateAdminUserCommand(10, null, null, null, null, null, null),
+            CancellationToken.None);
+
+        result.IsServiceAccount.Should().BeTrue();
+        result.CanBeAssignedJobs.Should().BeFalse();
+        result.MissingComplianceItems.Should().BeEmpty();
+    }
 }

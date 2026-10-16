@@ -11,6 +11,9 @@ public static class AssigneeComplianceCheck
     public static async Task EnsureCanBeAssigned(
         AppDbContext db, ICapabilitySnapshotProvider capabilities, int userId, CancellationToken ct)
     {
+        if (await db.Users.Where(u => u.Id == userId).OnlyServiceAccounts(db).AnyAsync(ct))
+            throw new InvalidOperationException("Service accounts cannot be assigned to jobs.");
+
         if (!EmployeeComplianceRules.IsHrTrackingOn(capabilities)) return;
 
         var isNonEmployee = await db.Users
