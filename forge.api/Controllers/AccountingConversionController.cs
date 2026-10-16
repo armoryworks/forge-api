@@ -31,6 +31,19 @@ public class AccountingConversionController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(command, ct));
 
     /// <summary>
+    /// The cutover state of a book (first active book when none is given): its functional currency,
+    /// whether the opening journal is posted, and whether CAP-ACCT-FULLGL is already on.
+    /// </summary>
+    [HttpGet("status")]
+    public async Task<ActionResult<ConversionStatusModel>> GetStatus([FromQuery] int? bookId, CancellationToken ct)
+        => Ok(await mediator.Send(new GetConversionStatusQuery(bookId), ct));
+
+    /// <summary>The book's postable accounts (control accounts included) for the opening-journal lines.</summary>
+    [HttpGet("accounts")]
+    public async Task<ActionResult<IReadOnlyList<GlAccountModel>>> GetAccounts([FromQuery] int bookId, CancellationToken ct)
+        => Ok(await mediator.Send(new GetConversionAccountsQuery(bookId), ct));
+
+    /// <summary>
     /// §7A go-live tie-out: the native trial balance, readable while FULLGL is still OFF, so the
     /// operator can prove native opening TB == legacy closing TB before flipping the capability.
     /// </summary>
