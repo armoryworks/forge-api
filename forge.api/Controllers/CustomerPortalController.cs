@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.CustomerPortal;
+using Forge.Api.Features.Terminology;
 using Forge.Core.Models;
 
 namespace Forge.Api.Controllers;
@@ -16,8 +17,12 @@ namespace Forge.Api.Controllers;
 /// <see cref="CapabilityBootstrapAttribute"/>-equivalent — they route
 /// through the gate via <see cref="RequiresCapabilityAttribute"/> on the
 /// controller, but anonymous portal sign-in must be reachable when the
-/// capability is enabled. The /me/* endpoints require an authenticated
-/// portal session JWT (`portal_session=true` claim).
+/// capability is enabled. `terminology` is anonymous too, like the brand
+/// settings read: it returns only the renames of the fixed term catalog (no
+/// other terminology rows) so the portal, login page included, shows the
+/// same terms as the employee app. The /me/*
+/// endpoints require an authenticated portal session JWT
+/// (`portal_session=true` claim).
 /// </summary>
 [ApiController]
 [Route("api/v1/portal")]
@@ -43,6 +48,14 @@ public class CustomerPortalController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<PortalSessionResponseModel>> Exchange([FromBody] ExchangeRequest request)
     {
         var result = await mediator.Send(new ExchangeMagicLinkCommand(request.Token));
+        return Ok(result);
+    }
+
+    [HttpGet("terminology")]
+    [AllowAnonymous]
+    public async Task<ActionResult<List<TerminologyEntryResponseModel>>> Terminology()
+    {
+        var result = await mediator.Send(new GetPortalTerminologyQuery());
         return Ok(result);
     }
 

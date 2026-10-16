@@ -12,7 +12,23 @@ namespace Forge.Core.Entities;
 /// </summary>
 public class TerminologyEntry : BaseAuditableEntity
 {
+    /// <summary>
+    /// <see cref="SourcePresetId"/> value for a Spanish (or other non-English)
+    /// row the Terminology save machine-translated from the admin's English
+    /// rename. Such rows are re-translated when the English term changes;
+    /// rows without it that carry <see cref="IsAdminEdited"/> were typed by
+    /// the admin and are never overwritten by machine translation.
+    /// </summary>
+    public const string MachineTranslationSource = "machine-translation";
+
     public string Key { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The override text. Empty marks an admin-cleared term (a tombstone):
+    /// reads skip it so the default term shows, while the row and its
+    /// <see cref="IsAdminEdited"/> flag keep a re-applied preset from
+    /// bringing the cleared rename back.
+    /// </summary>
     public string Label { get; set; } = string.Empty;
 
     /// <summary>

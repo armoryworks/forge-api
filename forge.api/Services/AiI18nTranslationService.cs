@@ -50,7 +50,7 @@ public class AiI18nTranslationService(IAiService aiService, ILogger<AiI18nTransl
 
             return Sanitize(raw);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             logger.LogWarning(ex, "i18n translation failed ({Source} → {Target}).",
                 sourceLanguageCode, targetLanguageCode);

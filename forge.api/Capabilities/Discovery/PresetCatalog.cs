@@ -334,8 +334,10 @@ public static class PresetCatalog
                 ["status_in_production"] = "In Progress",
                 ["status_shipped"] = "Done",
                 ["action_start_production"] = "Start Work",
-                ["label_jobs"] = "Tasks",
-                ["label_customers"] = "Clients",
+                ["label_jobs"] = "Engagements",
+                ["label_customers"] = "Customers",
+                ["label_work_centers"] = "Consultants",
+                ["label_planning_cycles"] = "Sprints",
             }),
         // ── Reference data (10 service-shop groups) ──
         ReferenceDataBundle: new ReferenceDataBundle(
@@ -558,7 +560,7 @@ public static class PresetCatalog
                 "CAP-PS-PROJECT-COST", "CAP-PS-UTILIZATION", "CAP-PS-RETAINER",
             ]),
         // ── Same terminology overlay as PRESET-08 (per user — Hybrid carries
-        // full Project/Client/Consultant renames even where manufacturing
+        // full Engagement/Consultant/Sprint renames even where manufacturing
         // surfaces would otherwise read with the original vocabulary). ──
         TerminologyBundle: Preset08_ProServices.TerminologyBundle,
         // ── Same reference-data seed as PRESET-08 — manufacturing groups

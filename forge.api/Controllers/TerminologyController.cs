@@ -23,7 +23,7 @@ public class TerminologyController(IMediator mediator) : ControllerBase
 
     [HttpPut]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<List<TerminologyEntryResponseModel>>> UpdateTerminology(
+    public async Task<ActionResult<UpdateTerminologyResponseModel>> UpdateTerminology(
         UpdateTerminologyCommand command)
     {
         var result = await mediator.Send(command);
