@@ -32,7 +32,7 @@ public class ShipmentRepository(AppDbContext db) : IShipmentRepository
                 s.SalesOrder.OrderNumber,
                 s.SalesOrder.Customer.Name,
                 s.Status.ToString(),
-                s.Carrier,
+                s.Carrier ?? (s.AssignedCarrier != null ? s.AssignedCarrier.Name : null),
                 s.TrackingNumber,
                 s.ShippedDate,
                 s.CreatedAt))

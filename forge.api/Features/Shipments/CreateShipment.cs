@@ -74,9 +74,15 @@ public class CreateShipmentHandler(
             throw new InvalidOperationException(
                 $"{heldCustomer.Name} is on credit hold: {heldCustomer.CreditHoldReason ?? "no reason recorded"}. Release the hold before shipping.");
 
-        if (request.CarrierId is int carrierId && db is not null
-            && !await db.Carriers.AnyAsync(c => c.Id == carrierId && c.IsActive, cancellationToken))
-            throw new KeyNotFoundException($"Carrier {carrierId} not found or inactive");
+        string? carrierName = null;
+        if (request.CarrierId is int carrierId && db is not null)
+        {
+            carrierName = await db.Carriers
+                .Where(c => c.Id == carrierId && c.IsActive)
+                .Select(c => c.Name)
+                .FirstOrDefaultAsync(cancellationToken)
+                ?? throw new KeyNotFoundException($"Carrier {carrierId} not found or inactive");
+        }
 
         var shipmentNumber = await ResolveShipmentNumberAsync(request, cancellationToken);
         var shippingAddressId = request.ShippingAddressId
@@ -88,7 +94,7 @@ public class CreateShipmentHandler(
             ShipmentNumber = shipmentNumber,
             SalesOrderId = request.SalesOrderId,
             ShippingAddressId = shippingAddressId,
-            Carrier = request.Carrier,
+            Carrier = string.IsNullOrWhiteSpace(request.Carrier) ? carrierName : request.Carrier,
             CarrierId = request.CarrierId,
             TrackingNumber = request.TrackingNumber,
             ShippingCost = request.ShippingCost,
