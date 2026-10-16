@@ -9,9 +9,11 @@ using Forge.Api.Capabilities;
 namespace Forge.Api.Controllers;
 
 /// <summary>
-/// Workflow Pattern Phase 3 — Workflow run lifecycle endpoints. All
-/// authenticated callers can manage their own runs; admin gating only
-/// applies to definition / validator authoring.
+/// Workflow Pattern Phase 3 — Workflow run lifecycle endpoints. Callers
+/// manage their own runs while they hold the entity's create (unbound) or
+/// edit (bound) roles; a caller who may edit the entity type can also open
+/// another user's run (<see cref="Forge.Api.Workflows.WorkflowEntityEditAccess"/>).
+/// Admin gating only applies to definition / validator authoring.
 /// </summary>
 [ApiController]
 [Route("api/v1/workflows")]

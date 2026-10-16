@@ -29,7 +29,8 @@ namespace Forge.Api.Features.Workflows.Runs;
 /// write the saved record and readiness gates evaluate against it. Starting a
 /// bound run is idempotent: an active run for the same entity + definition is
 /// returned instead of opening a second one. Binding requires the roles of the
-/// entity's own update endpoint (<see cref="WorkflowEntityEditAccess"/>).
+/// entity's own update endpoint, and an unbound run the roles of its create
+/// endpoint (<see cref="WorkflowEntityEditAccess"/>).
 /// </para>
 /// </summary>
 public record StartWorkflowRunCommand(StartWorkflowRunRequestModel Body)
@@ -91,6 +92,11 @@ public class StartWorkflowRunHandler(
                 .FirstOrDefaultAsync(ct);
             if (existing is not null)
                 return existing.ToResponse();
+        }
+        else if (!WorkflowEntityEditAccess.CanCreate(httpContextAccessor.HttpContext?.User, def.EntityType))
+        {
+            throw new ForbiddenException(
+                $"Your role cannot create a {def.EntityType}, so it cannot start a guided workflow for a new one.");
         }
 
         // Compute first step from the definition's StepsJson.

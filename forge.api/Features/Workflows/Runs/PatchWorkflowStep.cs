@@ -2,6 +2,7 @@ using System.Text.Json;
 
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Services;
@@ -46,7 +47,8 @@ public class PatchWorkflowStepHandler(
     IEnumerable<IWorkflowFieldApplier> appliers,
     IEntityReadinessService readiness,
     ISystemAuditWriter auditWriter,
-    IClock clock) : IRequestHandler<PatchWorkflowStepCommand, WorkflowRunResponseModel>
+    IClock clock,
+    IHttpContextAccessor httpContextAccessor) : IRequestHandler<PatchWorkflowStepCommand, WorkflowRunResponseModel>
 {
     private readonly Dictionary<string, IWorkflowEntityCreator> _creators =
         creators.ToDictionary(c => c.EntityType, StringComparer.OrdinalIgnoreCase);
@@ -57,6 +59,7 @@ public class PatchWorkflowStepHandler(
     {
         var run = await db.WorkflowRuns.FirstOrDefaultAsync(r => r.Id == request.RunId, ct)
             ?? throw new KeyNotFoundException($"Workflow run id {request.RunId} not found.");
+        WorkflowEntityEditAccess.EnsureCanAccessRun(httpContextAccessor.HttpContext?.User, db.CurrentUserId, run);
         if (run.CompletedAt is not null || run.AbandonedAt is not null)
             throw new InvalidOperationException("Workflow run is no longer active.");
 

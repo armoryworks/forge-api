@@ -939,6 +939,242 @@ public class WorkflowRunLifecycleTests(CapabilityTestWebApplicationFactory facto
         (await response.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!.EntityId.Should().Be(vendorId);
     }
 
+    [Theory]
+    [InlineData("Vendor", "vendor-guided-v1", "ProductionWorker")]
+    [InlineData("Vendor", "vendor-guided-v1", "Engineer")]
+    [InlineData("Customer", "customer-guided-v1", "ProductionWorker")]
+    [InlineData("Part", "part-make-subassembly-v1", "Procurement")]
+    public async Task Start_Unbound_RefusesARoleThatCannotCreateTheEntity(string entityType, string definitionId, string role)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var before = await db.WorkflowRuns.CountAsync();
+
+        var body = new StartWorkflowRunRequestModel(entityType, definitionId, "guided", null);
+        var response = await AuthenticatedClient(role).PostAsJsonAsync("/api/v1/workflows", body);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await db.WorkflowRuns.CountAsync()).Should().Be(before);
+    }
+
+    [Theory]
+    [InlineData("Vendor", "vendor-guided-v1")]
+    [InlineData("Part", "part-make-subassembly-v1")]
+    [InlineData("Customer", "customer-guided-v1")]
+    public async Task Start_Unbound_LetsAnOfficeManagerStartTheEntity(string entityType, string definitionId)
+    {
+        var body = new StartWorkflowRunRequestModel(entityType, definitionId, "guided", null);
+        var response = await AuthenticatedClient("OfficeManager").PostAsJsonAsync("/api/v1/workflows", body);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task RunById_RefusesAnotherUserWithoutVendorEditRoles()
+    {
+        var runId = await SeedVendorRunAsync(startedByUserId: 424242);
+        var client = AuthenticatedClient("Engineer");
+
+        (await client.GetAsync($"/api/v1/workflows/{runId}")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        var patch = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{runId}/step",
+            new PatchWorkflowStepRequestModel("identity", Json($$"""{"companyName":"Hijacked {{Guid.NewGuid():N}}"}""")));
+        patch.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        foreach (var call in new Func<Task<HttpResponseMessage>>[]
+        {
+            () => client.PutAsJsonAsync($"/api/v1/workflows/{runId}/draft", new SaveWorkflowDraftRequestModel(Json("""{"companyName":"x"}"""))),
+            () => client.PatchAsJsonAsync($"/api/v1/workflows/{runId}/jump", new JumpWorkflowRequestModel("identity")),
+            () => client.PatchAsJsonAsync($"/api/v1/workflows/{runId}/mode", new SetWorkflowModeRequestModel("express")),
+            () => client.PostAsync($"/api/v1/workflows/{runId}/complete", null),
+            () => client.PostAsJsonAsync($"/api/v1/workflows/{runId}/abandon", new AbandonWorkflowRequestModel("user")),
+        })
+        {
+            (await call()).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var run = await db.WorkflowRuns.AsNoTracking().FirstAsync(r => r.Id == runId);
+        run.EntityId.Should().BeNull();
+        run.Mode.Should().Be("guided");
+        run.AbandonedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RunById_RefusesTheStarter_OnceTheirRoleCannotEditTheVendor()
+    {
+        var runId = await SeedVendorRunAsync(startedByUserId: 1);
+
+        var response = await AuthenticatedClient("Engineer").GetAsync($"/api/v1/workflows/{runId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task RunById_LetsTheStarterDriveTheirOwnRun()
+    {
+        var client = AuthenticatedClient("OfficeManager");
+        var start = await client.PostAsJsonAsync(
+            "/api/v1/workflows", new StartWorkflowRunRequestModel("Vendor", "vendor-guided-v1", "guided", null));
+        var run = (await start.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
+
+        (await client.GetAsync($"/api/v1/workflows/{run.Id}")).StatusCode.Should().Be(HttpStatusCode.OK);
+        var patch = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/step",
+            new PatchWorkflowStepRequestModel("identity", Json($$"""{"companyName":"Own Vendor {{Guid.NewGuid():N}}"}""")));
+        patch.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await patch.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!.EntityId.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task RunById_LetsAManagerTakeOverAnotherUsersRun()
+    {
+        var runId = await SeedVendorRunAsync(startedByUserId: 424242);
+        var client = AuthenticatedClient("Manager");
+
+        (await client.GetAsync($"/api/v1/workflows/{runId}")).StatusCode.Should().Be(HttpStatusCode.OK);
+        var patch = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{runId}/step",
+            new PatchWorkflowStepRequestModel("identity", Json($$"""{"companyName":"Taken Over {{Guid.NewGuid():N}}"}""")));
+        patch.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task ListActive_LeavesOutAnotherUsersRuns()
+    {
+        var runId = await SeedVendorRunAsync(startedByUserId: 424242);
+
+        var rows = await AuthenticatedClient("Manager").GetFromJsonAsync<List<WorkflowRunResponseModel>>("/api/v1/workflows/active");
+
+        rows!.Should().NotContain(r => r.Id == runId);
+    }
+
+    [Fact]
+    public async Task CustomerCreditStep_RefusesAPm_SettingACreditLimit()
+    {
+        var client = AuthenticatedClient("PM");
+        var (runId, customerId) = await StartCustomerAsync(client);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{runId}/step",
+            new PatchWorkflowStepRequestModel("creditAndTax", Json("""{"creditLimit":5000}""")));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        (await db.Customers.AsNoTracking().FirstAsync(c => c.Id == customerId)).CreditLimit.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("""{"isTaxExempt":true,"taxExemptionId":"EX-1"}""")]
+    [InlineData("""{"taxExemptionId":"EX-2"}""")]
+    public async Task CustomerCreditStep_RefusesAPm_SettingATaxExemption(string fields)
+    {
+        var client = AuthenticatedClient("PM");
+        var (runId, _) = await StartCustomerAsync(client);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{runId}/step", new PatchWorkflowStepRequestModel("creditAndTax", Json(fields)));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task CustomerCreditStep_LetsAnOfficeManagerSetACreditLimit()
+    {
+        var client = AuthenticatedClient("OfficeManager");
+        var (runId, customerId) = await StartCustomerAsync(client);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{runId}/step",
+            new PatchWorkflowStepRequestModel("creditAndTax", Json("""{"creditLimit":5000}""")));
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        (await db.Customers.AsNoTracking().FirstAsync(c => c.Id == customerId)).CreditLimit.Should().Be(5000m);
+    }
+
+    [Fact]
+    public async Task CustomerWorkflow_LetsAPmEditTheName_AndSubmitTheUntouchedCreditStep()
+    {
+        var client = AuthenticatedClient("PM");
+        var (runId, customerId) = await StartCustomerAsync(client);
+        var renamed = $"Renamed {Guid.NewGuid():N}";
+
+        var identity = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{runId}/step",
+            new PatchWorkflowStepRequestModel("identity", Json($$"""{"name":"{{renamed}}"}""")));
+        var credit = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{runId}/step",
+            new PatchWorkflowStepRequestModel("creditAndTax", Json(
+                """{"creditLimit":null,"defaultCurrency":"USD","isTaxExempt":false,"taxExemptionId":null}""")));
+
+        identity.StatusCode.Should().Be(HttpStatusCode.OK);
+        credit.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var customer = await db.Customers.AsNoTracking().FirstAsync(c => c.Id == customerId);
+        customer.Name.Should().Be(renamed);
+        customer.DefaultCurrency.Should().Be("USD");
+    }
+
+    [Fact]
+    public async Task CustomerWorkflow_RefusesAPm_MaterializingWithACreditLimit_AndCreatesNoCustomer()
+    {
+        var client = AuthenticatedClient("PM");
+        var name = $"Express Credit {Guid.NewGuid():N}";
+        var start = await client.PostAsJsonAsync("/api/v1/workflows", new StartWorkflowRunRequestModel(
+            "Customer", "customer-guided-v1", "express", Json("""{"creditLimit":9000}""")));
+        start.StatusCode.Should().Be(HttpStatusCode.Created);
+        var run = (await start.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/step",
+            new PatchWorkflowStepRequestModel("identity", Json($$"""{"name":"{{name}}"}""")));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        (await db.Customers.IgnoreQueryFilters().AnyAsync(c => c.Name == name)).Should().BeFalse();
+    }
+
+    private static JsonElement Json(string json) => JsonDocument.Parse(json).RootElement;
+
+    private async Task<int> SeedVendorRunAsync(int startedByUserId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var now = DateTimeOffset.UtcNow;
+        var run = new WorkflowRun
+        {
+            EntityType = "Vendor",
+            DefinitionId = "vendor-guided-v1",
+            CurrentStepId = "identity",
+            Mode = "guided",
+            StartedAt = now,
+            StartedByUserId = startedByUserId,
+            LastActivityAt = now,
+        };
+        db.WorkflowRuns.Add(run);
+        await db.SaveChangesAsync();
+        return run.Id;
+    }
+
+    private static async Task<(int RunId, int CustomerId)> StartCustomerAsync(HttpClient client)
+    {
+        var start = await client.PostAsJsonAsync(
+            "/api/v1/workflows", new StartWorkflowRunRequestModel("Customer", "customer-guided-v1", "guided", null));
+        start.EnsureSuccessStatusCode();
+        var run = (await start.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
+        var identity = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/step",
+            new PatchWorkflowStepRequestModel("identity", Json($$"""{"name":"Terms Customer {{Guid.NewGuid():N}}"}""")));
+        identity.EnsureSuccessStatusCode();
+        var updated = (await identity.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
+        return (run.Id, updated.EntityId!.Value);
+    }
+
     private async Task<WorkflowRunResponseModel> StartRunAsync(HttpClient client, string initialJson)
     {
         var initial = JsonDocument.Parse(initialJson).RootElement;

@@ -1,4 +1,7 @@
+using System.Security.Claims;
+
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Moq;
 
 using Forge.Api.Features.Workflows.Runs;
@@ -48,7 +51,14 @@ public class CompleteWorkflowRunMessageTests
             _readiness.Object,
             [],
             Mock.Of<ISystemAuditWriter>(),
-            new SystemClock());
+            new SystemClock(),
+            new HttpContextAccessor
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Role, "Admin")], "test")),
+                },
+            });
     }
 
     private void SeedRun(int? entityId)
