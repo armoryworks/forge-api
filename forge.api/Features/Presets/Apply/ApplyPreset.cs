@@ -2,12 +2,15 @@ using System.Text.Json;
 
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.SignalR;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Capabilities.Discovery;
 using Forge.Api.Features.Capabilities.BulkToggle;
 using Forge.Api.Features.Presets.Apply.Layers;
 using Forge.Api.Features.Presets.Models;
+using Forge.Api.Features.Terminology;
+using Forge.Api.Hubs;
 using Forge.Api.Services;
 using Forge.Data.Context;
 
@@ -52,7 +55,9 @@ public class ApplyPresetHandler(
     AppDbContext db,
     ICapabilitySnapshotProvider snapshots,
     IMediator mediator,
-    ISystemAuditWriter auditWriter)
+    ISystemAuditWriter auditWriter,
+    TerminologySpanishTranslator spanish,
+    IHubContext<NotificationHub> notificationHub)
     : IRequestHandler<ApplyPresetCommand, PresetApplyResultResponseModel>
 {
     public async Task<PresetApplyResultResponseModel> Handle(
@@ -118,9 +123,11 @@ public class ApplyPresetHandler(
         var layerResults = new List<LayerApplyResult>();
         if (!preset.IsCustom)
         {
+            LayerApplyResult? terminologyResult = null;
             if (preset.TerminologyBundle is { } tb)
             {
-                layerResults.Add(await TerminologyBundleApplier.ApplyAsync(tb, db, preset.Id, cancellationToken));
+                terminologyResult = await TerminologyBundleApplier.ApplyAsync(tb, db, preset.Id, cancellationToken);
+                layerResults.Add(terminologyResult);
             }
             if (preset.ReferenceDataBundle is { } rdb)
             {
@@ -149,6 +156,12 @@ public class ApplyPresetHandler(
             if (layerResults.Count > 0 && layerResults.Any(r => r.TouchedCount > 0))
             {
                 await db.SaveChangesAsync(cancellationToken);
+            }
+
+            if (terminologyResult is { TouchedCount: > 0 })
+            {
+                await spanish.TranslateChangedTermsAsync([.. preset.TerminologyBundle!.Labels.Keys], cancellationToken);
+                await notificationHub.Clients.All.SendAsync("terminologyChanged", new { }, cancellationToken);
             }
         }
 

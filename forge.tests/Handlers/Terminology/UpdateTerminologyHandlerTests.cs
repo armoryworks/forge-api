@@ -30,7 +30,7 @@ public class UpdateTerminologyHandlerTests
         clients.Setup(c => c.All).Returns(_allClients.Object);
         var hub = new Mock<IHubContext<NotificationHub>>();
         hub.Setup(h => h.Clients).Returns(clients.Object);
-        _handler = new UpdateTerminologyHandler(_db, new TerminologyRepository(_db), _translator.Object, hub.Object);
+        _handler = new UpdateTerminologyHandler(_db, new TerminologyRepository(_db), new TerminologySpanishTranslator(_db, _translator.Object), hub.Object);
     }
 
     private static UpdateTerminologyCommand Command(params (string Key, string Label)[] entries) =>

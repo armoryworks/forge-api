@@ -31,6 +31,7 @@ using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
 using Forge.Api.Features.AutoPo;
+using Forge.Api.Features.Terminology;
 using Forge.Api.Jobs;
 using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -327,6 +328,7 @@ try
     builder.Services.AddScoped<IJobLinkRepository, JobLinkRepository>();
     builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
     builder.Services.AddScoped<ITerminologyRepository, TerminologyRepository>();
+    builder.Services.AddScoped<TerminologySpanishTranslator>();
     builder.Services.AddScoped<II18nTranslationService, AiI18nTranslationService>();
     builder.Services.AddScoped<IReportRepository, ReportRepository>();
     builder.Services.AddScoped<ISankeyReportRepository, SankeyReportRepository>();
