@@ -17,11 +17,12 @@ namespace Forge.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/recalls")]
-[Authorize(Roles = "Admin,Manager")]
+[Authorize(Roles = "Admin,Manager,Engineer")]
 [RequiresCapability("CAP-QC-RECALL")]
 public class RecallsController(IMediator mediator) : ControllerBase
 {
     [HttpPost]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<RecallDetailResponseModel>> Initiate(
         [FromBody] InitiateRecallRequestModel request)
     {
@@ -30,7 +31,6 @@ public class RecallsController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin,Manager,Engineer")]
     public async Task<ActionResult<List<RecallResponseModel>>> List([FromQuery] RecallStatus? status)
     {
         var result = await mediator.Send(new GetRecallsQuery(status));
@@ -38,7 +38,6 @@ public class RecallsController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    [Authorize(Roles = "Admin,Manager,Engineer")]
     public async Task<ActionResult<RecallDetailResponseModel>> Detail(int id)
     {
         var result = await mediator.Send(new GetRecallDetailQuery(id));
@@ -46,6 +45,7 @@ public class RecallsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/resolve")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<RecallDetailResponseModel>> Resolve(
         int id, [FromBody] ResolveRecallRequestModel request)
     {

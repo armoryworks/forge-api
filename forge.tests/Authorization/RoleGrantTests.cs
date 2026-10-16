@@ -117,6 +117,19 @@ public sealed class RoleGrantTests
     }
 
     [Fact]
+    public void Recalls_are_readable_by_engineers_and_raised_or_resolved_by_managers()
+    {
+        EffectiveRoles(Single("GET", "api/v1/recalls"))
+            .Should().BeEquivalentTo(["Admin", "Manager", "Engineer"]);
+        EffectiveRoles(Single("GET", "api/v1/recalls/{id:int}"))
+            .Should().BeEquivalentTo(["Admin", "Manager", "Engineer"]);
+        EffectiveRoles(Single("POST", "api/v1/recalls"))
+            .Should().BeEquivalentTo(["Admin", "Manager"]);
+        EffectiveRoles(Single("POST", "api/v1/recalls/{id:int}/resolve"))
+            .Should().BeEquivalentTo(["Admin", "Manager"]);
+    }
+
+    [Fact]
     public void Gl_reads_stay_controller_only()
     {
         EffectiveRoles(Single("GET", "api/v1/accounting/pnl")).Should().BeEquivalentTo(["Controller"]);
