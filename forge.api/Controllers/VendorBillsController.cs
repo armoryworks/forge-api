@@ -22,17 +22,6 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-P2P-BILL")]
 public class VendorBillsController(IMediator mediator) : ControllerBase
 {
-    [HttpGet]
-    public async Task<ActionResult<List<VendorBillListItemModel>>> GetVendorBills(
-        [FromQuery] int? vendorId,
-        [FromQuery] VendorBillStatus? status,
-        CancellationToken ct)
-        => Ok(await mediator.Send(new GetVendorBillsQuery(vendorId, status), ct));
-
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<VendorBillDetailModel>> GetVendorBill(int id)
-        => Ok(await mediator.Send(new GetVendorBillByIdQuery(id)));
-
     [HttpPost]
     public async Task<ActionResult<VendorBillListItemModel>> CreateVendorBill(CreateVendorBillRequestModel request)
     {
@@ -40,7 +29,7 @@ public class VendorBillsController(IMediator mediator) : ControllerBase
             request.VendorId, request.VendorInvoiceNumber, request.PurchaseOrderId,
             request.BillDate, request.DueDate, request.TaxAmount, request.Notes, request.Lines,
             CurrencyId: request.CurrencyId, FxRate: request.FxRate));
-        return CreatedAtAction(nameof(GetVendorBill), new { id = result.Id }, result);
+        return CreatedAtAction(nameof(VendorBillReadsController.GetVendorBill), "VendorBillReads", new { id = result.Id }, result);
     }
 
     [HttpPost("{id:int}/approve")]

@@ -220,6 +220,7 @@ public class VendorContactsTests
     public void Controllers_share_the_vendor_roles_and_capability_gate(Type controller)
     {
         controller.GetCustomAttribute<RequiresCapabilityAttribute>()!.Capability.Should().Be("CAP-MD-VENDORS");
-        controller.GetCustomAttribute<AuthorizeAttribute>()!.Roles.Should().Be("Admin,Manager,OfficeManager");
+        controller.GetCustomAttribute<AuthorizeAttribute>()!.Roles.Should().Be("Admin,Manager,OfficeManager,Procurement")
+            .And.Be(typeof(VendorsController).GetCustomAttribute<AuthorizeAttribute>()!.Roles);
     }
 }

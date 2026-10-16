@@ -9,7 +9,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/vendors/{vendorId:int}/addresses")]
-[Authorize(Roles = "Admin,Manager,OfficeManager")]
+[Authorize(Roles = "Admin,Manager,OfficeManager,Procurement")]
 [RequiresCapability("CAP-MD-VENDORS")]
 public class VendorAddressesController(IMediator mediator) : ControllerBase
 {

@@ -21,23 +21,13 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-P2P-PAY")]
 public class VendorPaymentsController(IMediator mediator) : ControllerBase
 {
-    [HttpGet]
-    public async Task<ActionResult<List<VendorPaymentListItemModel>>> GetVendorPayments(
-        [FromQuery] int? vendorId,
-        CancellationToken ct)
-        => Ok(await mediator.Send(new GetVendorPaymentsQuery(vendorId), ct));
-
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<VendorPaymentDetailModel>> GetVendorPayment(int id)
-        => Ok(await mediator.Send(new GetVendorPaymentByIdQuery(id)));
-
     [HttpPost]
     public async Task<ActionResult<VendorPaymentListItemModel>> CreateVendorPayment(CreateVendorPaymentRequestModel request)
     {
         var result = await mediator.Send(new CreateVendorPaymentCommand(
             request.VendorId, request.Method, request.Amount, request.PaymentDate,
             request.ReferenceNumber, request.Notes, request.Applications));
-        return CreatedAtAction(nameof(GetVendorPayment), new { id = result.Id }, result);
+        return CreatedAtAction(nameof(VendorPaymentReadsController.GetVendorPayment), "VendorPaymentReads", new { id = result.Id }, result);
     }
 
     /// <summary>

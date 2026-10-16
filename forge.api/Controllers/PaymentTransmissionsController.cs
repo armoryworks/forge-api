@@ -20,13 +20,6 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-P2P-PAY")]
 public class PaymentTransmissionsController(IMediator mediator) : ControllerBase
 {
-    [HttpGet]
-    public async Task<ActionResult<List<PaymentTransmissionListItemModel>>> GetPaymentTransmissions(
-        [FromQuery] PaymentTransmissionStatus? status,
-        [FromQuery] string? sourceType,
-        CancellationToken ct)
-        => Ok(await mediator.Send(new GetPaymentTransmissionsQuery(status, sourceType), ct));
-
     [HttpPost("{id:int}/retry")]
     public async Task<ActionResult<PaymentTransmissionListItemModel>> RetryPaymentTransmission(
         int id, CancellationToken ct)

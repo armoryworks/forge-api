@@ -100,9 +100,9 @@ public sealed class RoleGrantTests
     public void Company_locations_are_readable_by_purchase_order_roles_and_writable_by_admin_only()
     {
         EffectiveRoles(Single("GET", "api/v1/company-locations"))
-            .Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager"]);
+            .Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager", "Procurement"]);
         EffectiveRoles(Single("GET", "api/v1/company-locations/{id:int}"))
-            .Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager"]);
+            .Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager", "Procurement"]);
 
         foreach (var (verb, template) in new[]
         {
@@ -154,5 +154,116 @@ public sealed class RoleGrantTests
     public void Job_cost_summary_is_readable_by_the_controller_and_not_by_production_workers(string role, bool admitted)
     {
         EffectiveRoles(Single("GET", "api/v1/jobs/{id:int}/cost-summary")).Contains(role).Should().Be(admitted);
+    }
+
+    [Theory]
+    [InlineData("GET", "api/v1/vendors")]
+    [InlineData("GET", "api/v1/vendors/{id:int}")]
+    [InlineData("POST", "api/v1/vendors")]
+    [InlineData("PUT", "api/v1/vendors/{id:int}")]
+    [InlineData("GET", "api/v1/vendors/{vendorId:int}/contacts")]
+    [InlineData("POST", "api/v1/vendors/{vendorId:int}/contacts")]
+    [InlineData("GET", "api/v1/vendors/{vendorId:int}/addresses")]
+    [InlineData("POST", "api/v1/vendors/{vendorId:int}/addresses")]
+    [InlineData("POST", "api/v1/vendor-parts")]
+    [InlineData("GET", "api/v1/purchasing/rfqs")]
+    [InlineData("POST", "api/v1/purchasing/rfqs")]
+    [InlineData("POST", "api/v1/purchasing/rfqs/{id:int}/send")]
+    [InlineData("POST", "api/v1/purchasing/rfqs/{id:int}/award/{responseId:int}")]
+    [InlineData("GET", "api/v1/purchase-orders")]
+    [InlineData("GET", "api/v1/purchase-orders/{id:int}")]
+    [InlineData("POST", "api/v1/purchase-orders")]
+    [InlineData("POST", "api/v1/purchase-orders/{id:int}/submit")]
+    [InlineData("POST", "api/v1/purchase-orders/{id:int}/receive")]
+    [InlineData("POST", "api/v1/purchase-orders/{id:int}/short-close")]
+    [InlineData("GET", "api/v1/purchase-orders/calendar")]
+    [InlineData("GET", "api/v1/auto-po/suggestions")]
+    [InlineData("POST", "api/v1/auto-po/suggestions/{id:int}/convert")]
+    [InlineData("GET", "api/v1/jobs")]
+    [InlineData("GET", "api/v1/parts")]
+    [InlineData("GET", "api/v1/parts/{partId:int}/purchase-units")]
+    [InlineData("GET", "api/v1/company-locations")]
+    public void Procurement_runs_purchasing(string verb, string template)
+    {
+        EffectiveRoles(Single(verb, template)).Should().Contain("Procurement", $"{verb} {template}");
+    }
+
+    [Theory]
+    [InlineData("POST", "api/v1/auto-po/run")]
+    [InlineData("GET", "api/v1/auto-po/settings")]
+    [InlineData("POST", "api/v1/purchase-orders/backfill-origins")]
+    [InlineData("POST", "api/v1/company-locations")]
+    public void Purchasing_administration_stays_with_admin(string verb, string template)
+    {
+        EffectiveRoles(Single(verb, template)).Should().BeEquivalentTo(["Admin"], $"{verb} {template}");
+    }
+
+    [Theory]
+    [InlineData("POST", "api/v1/parts")]
+    [InlineData("PATCH", "api/v1/parts/{id:int}")]
+    [InlineData("GET", "api/v1/parts/{id:int}")]
+    public void The_parts_list_grant_does_not_open_the_rest_of_the_parts_surface_to_procurement(string verb, string template)
+    {
+        EffectiveRoles(Single(verb, template)).Should().NotContain("Procurement", $"{verb} {template}");
+    }
+
+    [Theory]
+    [InlineData("POST", "api/v1/jobs")]
+    [InlineData("GET", "api/v1/jobs/{id:int}")]
+    public void The_job_list_grant_does_not_open_the_rest_of_the_job_surface_to_procurement(string verb, string template)
+    {
+        EffectiveRoles(Single(verb, template)).Should().NotContain("Procurement", $"{verb} {template}");
+    }
+
+    [Fact]
+    public void The_job_list_keeps_every_role_that_read_it_before()
+    {
+        EffectiveRoles(Single("GET", "api/v1/jobs")).Should().BeEquivalentTo(
+            ["Admin", "Manager", "PM", "Engineer", "ProductionWorker", "OfficeManager", "Procurement"]);
+    }
+
+    [Fact]
+    public void The_parts_list_keeps_every_role_that_read_it_before()
+    {
+        EffectiveRoles(Single("GET", "api/v1/parts")).Should().BeEquivalentTo(
+            ["Admin", "Manager", "Engineer", "ProductionWorker", "PM", "OfficeManager", "Procurement"]);
+    }
+
+    [Fact]
+    public void Vendor_bills_are_read_by_procurement_and_the_controller_and_written_by_ap_roles()
+    {
+        foreach (var template in new[] { "api/v1/vendor-bills", "api/v1/vendor-bills/{id:int}" })
+        {
+            EffectiveRoles(Single("GET", template)).Should().BeEquivalentTo(
+                ["Admin", "Manager", "OfficeManager", "Procurement", "Controller"], template);
+        }
+
+        foreach (var template in new[] { "api/v1/vendor-bills", "api/v1/vendor-bills/{id:int}/approve", "api/v1/vendor-bills/{id:int}/void" })
+        {
+            EffectiveRoles(Single("POST", template)).Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager"], template);
+        }
+    }
+
+    [Fact]
+    public void Vendor_payments_and_transmissions_are_read_by_the_controller_and_written_by_ap_roles()
+    {
+        foreach (var template in new[] { "api/v1/vendor-payments", "api/v1/vendor-payments/{id:int}", "api/v1/payment-transmissions" })
+        {
+            EffectiveRoles(Single("GET", template)).Should().BeEquivalentTo(
+                ["Admin", "Manager", "OfficeManager", "Controller"], template);
+        }
+
+        foreach (var template in new[] { "api/v1/vendor-payments", "api/v1/vendor-payments/{id:int}/void", "api/v1/payment-transmissions/{id:int}/retry" })
+        {
+            EffectiveRoles(Single("POST", template)).Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager"], template);
+        }
+    }
+
+    [Fact]
+    public void The_vendor_dropdown_serves_the_payables_filter_for_the_controller()
+    {
+        EffectiveRoles(Single("GET", "api/v1/vendors/dropdown")).Should().BeEquivalentTo(
+            ["Admin", "Manager", "OfficeManager", "Procurement", "Controller"]);
+        EffectiveRoles(Single("GET", "api/v1/vendors")).Should().NotContain("Controller");
     }
 }
