@@ -2,7 +2,11 @@ using System.Text.Json;
 
 using FluentValidation;
 using FluentValidation.Results;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+
+using Forge.Api.Controllers;
+using Forge.Api.Middleware;
 
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -40,7 +44,8 @@ public class CustomerWorkflowAdapter(
     AppDbContext db,
     ICustomerRepository customerRepo,
     ISystemSettingRepository systemSettings,
-    IBusinessIdentifierService identifiers)
+    IBusinessIdentifierService identifiers,
+    IHttpContextAccessor httpContextAccessor)
     : IWorkflowEntityCreator, IWorkflowFieldApplier, IWorkflowEntityPromoter
 {
     // System setting that gates caller-supplied customer numbers (shared with
@@ -81,6 +86,8 @@ public class CustomerWorkflowAdapter(
             TaxExemptionId = ReadStringOrDefault(initialData, "taxExemptionId")?.Trim().NullIfEmpty(),
             IsActive = true,
         };
+        if (customer.CreditLimit is not null || customer.IsTaxExempt || customer.TaxExemptionId is not null)
+            EnsureMaySetCommercialTerms();
         db.Customers.Add(customer);
         await db.SaveChangesAsync(ct);
 
@@ -125,6 +132,9 @@ public class CustomerWorkflowAdapter(
         var customer = await db.Customers.FirstOrDefaultAsync(c => c.Id == entityId, ct)
             ?? throw new KeyNotFoundException($"Customer id {entityId} not found.");
 
+        if (ChangesCommercialTerms(customer, fields))
+            EnsureMaySetCommercialTerms();
+
         // Identity step — user-settable customer number. Only when manual
         // numbers are enabled, only on an actual change, and only after a
         // uniqueness check that excludes this customer. Keeps the identifier
@@ -168,6 +178,24 @@ public class CustomerWorkflowAdapter(
             customer.TaxExemptionId = taxExemptionId?.Trim().NullIfEmpty();
 
         await db.SaveChangesAsync(ct);
+    }
+
+    private static bool ChangesCommercialTerms(Customer customer, JsonElement fields)
+    {
+        if (TryReadDecimal(fields, "creditLimit", out var creditLimit) && creditLimit != customer.CreditLimit)
+            return true;
+        if (TryReadBool(fields, "isTaxExempt", out var isTaxExempt) && isTaxExempt.HasValue
+            && isTaxExempt.Value != customer.IsTaxExempt)
+            return true;
+        return TryReadString(fields, "taxExemptionId", out var taxExemptionId)
+            && !string.Equals(taxExemptionId?.Trim().NullIfEmpty(), customer.TaxExemptionId, StringComparison.Ordinal);
+    }
+
+    private void EnsureMaySetCommercialTerms()
+    {
+        var user = httpContextAccessor.HttpContext?.User;
+        if (user is null || !CustomersController.CommercialTermsRoles.Any(user.IsInRole))
+            throw new ForbiddenException("Your role cannot set a customer's credit limit or tax exemption.");
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using System.Text.Json;
 
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Services;
@@ -26,7 +27,8 @@ public class CompleteWorkflowRunHandler(
     IEntityReadinessService readiness,
     IEnumerable<IWorkflowEntityPromoter> promoters,
     ISystemAuditWriter auditWriter,
-    IClock clock) : IRequestHandler<CompleteWorkflowRunCommand, WorkflowRunResponseModel>
+    IClock clock,
+    IHttpContextAccessor httpContextAccessor) : IRequestHandler<CompleteWorkflowRunCommand, WorkflowRunResponseModel>
 {
     private readonly Dictionary<string, IWorkflowEntityPromoter> _promoters =
         promoters.ToDictionary(p => p.EntityType, StringComparer.OrdinalIgnoreCase);
@@ -35,6 +37,7 @@ public class CompleteWorkflowRunHandler(
     {
         var run = await db.WorkflowRuns.FirstOrDefaultAsync(r => r.Id == request.RunId, ct)
             ?? throw new KeyNotFoundException($"Workflow run id {request.RunId} not found.");
+        WorkflowEntityEditAccess.EnsureCanAccessRun(httpContextAccessor.HttpContext?.User, db.CurrentUserId, run);
         if (run.CompletedAt is not null) return run.ToResponse(); // idempotent
         if (run.AbandonedAt is not null)
             throw new InvalidOperationException("Cannot complete an abandoned run.");

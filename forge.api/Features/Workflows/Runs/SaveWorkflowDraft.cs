@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Services;
@@ -47,12 +48,14 @@ public class SaveWorkflowDraftValidator : AbstractValidator<SaveWorkflowDraftCom
 public class SaveWorkflowDraftHandler(
     AppDbContext db,
     ISystemAuditWriter auditWriter,
-    IClock clock) : IRequestHandler<SaveWorkflowDraftCommand, WorkflowRunResponseModel>
+    IClock clock,
+    IHttpContextAccessor httpContextAccessor) : IRequestHandler<SaveWorkflowDraftCommand, WorkflowRunResponseModel>
 {
     public async Task<WorkflowRunResponseModel> Handle(SaveWorkflowDraftCommand request, CancellationToken ct)
     {
         var run = await db.WorkflowRuns.FirstOrDefaultAsync(r => r.Id == request.RunId, ct)
             ?? throw new KeyNotFoundException($"Workflow run id {request.RunId} not found.");
+        WorkflowEntityEditAccess.EnsureCanAccessRun(httpContextAccessor.HttpContext?.User, db.CurrentUserId, run);
         if (run.CompletedAt is not null || run.AbandonedAt is not null)
             throw new InvalidOperationException("Workflow run is no longer active.");
         if (run.EntityId is not null)

@@ -18,7 +18,10 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-MD-CUSTOMERS")]
 public class CustomersController(IMediator mediator) : ControllerBase
 {
-    private static readonly string[] CommercialTermsRoles = ["Admin", "Manager", "OfficeManager"];
+    /// <summary>
+    /// Roles that may set a customer's commercial terms (tax exemption and credit limit).
+    /// </summary>
+    public static IReadOnlyList<string> CommercialTermsRoles { get; } = ["Admin", "Manager", "OfficeManager"];
 
     /// <summary>
     /// Phase 3 F7-partial / WU-17 — standardised paged-list contract.
