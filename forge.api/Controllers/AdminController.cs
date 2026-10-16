@@ -64,22 +64,12 @@ public class AdminController(IMediator mediator) : ControllerBase
     // (user assignment is direct multi-role); a bundle is what a SystemApiKey
     // scopes its emitted role claims to. CRUD only — no user-assignment surface.
 
-    [HttpGet("role-templates")]
-    [CapabilityBootstrap]
-    [Authorize(Roles = "Admin,Manager")]
-    public async Task<ActionResult<List<RoleTemplateResponseModel>>> GetRoleTemplates(
-        [FromQuery] bool includeDeactivated = false)
-    {
-        var result = await mediator.Send(new GetRoleTemplatesQuery(includeDeactivated));
-        return Ok(result);
-    }
-
     [HttpPost("role-templates")]
     [CapabilityBootstrap]
     public async Task<ActionResult<RoleTemplateResponseModel>> CreateRoleTemplate(CreateRoleTemplateCommand command)
     {
         var result = await mediator.Send(command);
-        return CreatedAtAction(nameof(GetRoleTemplates), new { id = result.Id }, result);
+        return CreatedAtAction(nameof(AdminRolesController.GetRoleTemplates), "AdminRoles", new { id = result.Id }, result);
     }
 
     [HttpPut("role-templates/{id:int}")]
@@ -493,13 +483,6 @@ public class AdminController(IMediator mediator) : ControllerBase
     }
 
     // ── Shift Assignments ──
-
-    [HttpGet("shift-assignments")]
-    [CapabilityBootstrap]
-    [Authorize(Roles = "Admin,Manager")]
-    public async Task<ActionResult<List<ShiftAssignmentResponseModel>>> GetShiftAssignments(
-        [FromQuery] int? userId, CancellationToken ct)
-        => Ok(await mediator.Send(new GetShiftAssignmentsQuery(userId), ct));
 
     [HttpPost("shift-assignments")]
     [CapabilityBootstrap]

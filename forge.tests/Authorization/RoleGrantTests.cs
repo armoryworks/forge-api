@@ -134,4 +134,25 @@ public sealed class RoleGrantTests
     {
         EffectiveRoles(Single("GET", "api/v1/accounting/pnl")).Should().BeEquivalentTo(["Controller"]);
     }
+
+    [Theory]
+    [InlineData("Admin", true)]
+    [InlineData("Manager", true)]
+    [InlineData("OfficeManager", false)]
+    public void Role_templates_and_shift_assignments_are_readable_by_managers(string role, bool admitted)
+    {
+        EffectiveRoles(Single("GET", "api/v1/admin/role-templates")).Contains(role).Should().Be(admitted);
+        EffectiveRoles(Single("GET", "api/v1/admin/shift-assignments")).Contains(role).Should().Be(admitted);
+        EffectiveRoles(Single("POST", "api/v1/admin/role-templates")).Should().BeEquivalentTo(["Admin"]);
+        EffectiveRoles(Single("POST", "api/v1/admin/shift-assignments")).Should().BeEquivalentTo(["Admin"]);
+    }
+
+    [Theory]
+    [InlineData("Controller", true)]
+    [InlineData("PM", true)]
+    [InlineData("ProductionWorker", false)]
+    public void Job_cost_summary_is_readable_by_the_controller_and_not_by_production_workers(string role, bool admitted)
+    {
+        EffectiveRoles(Single("GET", "api/v1/jobs/{id:int}/cost-summary")).Contains(role).Should().Be(admitted);
+    }
 }
