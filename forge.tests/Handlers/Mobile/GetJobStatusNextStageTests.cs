@@ -159,4 +159,35 @@ public class GetJobStatusNextStageTests
         status.NextStageName.Should().Be("Shipped");
         status.NextStageAccountingDocument.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Flags_a_billing_next_status_even_without_an_accounting_provider()
+    {
+        var stages = await SeedTrackAsync();
+
+        var fromQc = await StatusAtAsync(stages[0].Id, stages[0].TrackTypeId);
+
+        fromQc.NextStageName.Should().Be("Shipped");
+        fromQc.NextStageAccountingDocument.Should().BeNull();
+        fromQc.NextStageIsBilling.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Does_not_flag_a_production_next_status_as_billing()
+    {
+        var track = new TrackType { Name = "Production", Code = "production", IsActive = true };
+        _db.TrackTypes.Add(track);
+        await _db.SaveChangesAsync();
+        var stages = new List<JobStage>
+        {
+            new() { TrackTypeId = track.Id, Name = "In Production", Code = "in_production", SortOrder = 1, IsShopFloor = true },
+            new() { TrackTypeId = track.Id, Name = "QC/Review", Code = "qc", SortOrder = 2, IsShopFloor = true },
+        };
+        _db.JobStages.AddRange(stages);
+        await _db.SaveChangesAsync();
+
+        var status = await StatusAtAsync(stages[0].Id, track.Id);
+
+        status.NextStageIsBilling.Should().BeFalse();
+    }
 }

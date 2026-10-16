@@ -1,6 +1,8 @@
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -9,9 +11,11 @@ namespace Forge.Api.Features.Scanner;
 
 public record GetScanContextQuery(string PartIdentifier) : IRequest<ScanContextResponseModel>;
 
-public class GetScanContextHandler(AppDbContext db)
+public class GetScanContextHandler(AppDbContext db, IHttpContextAccessor httpContext)
     : IRequestHandler<GetScanContextQuery, ScanContextResponseModel>
 {
+    private static readonly string[] ShipRoles = ["Admin", "Manager", "OfficeManager"];
+
     public async Task<ScanContextResponseModel> Handle(
         GetScanContextQuery request, CancellationToken cancellationToken)
     {
@@ -113,64 +117,110 @@ public class GetScanContextHandler(AppDbContext db)
         // Count — always available
         actions.Add(new ScanAvailableAction("Count", true, null, null));
 
-        // Receive — available if there are open PO lines for this part
         var openPoLines = await db.PurchaseOrderLines
             .AsNoTracking()
-            .Include(pol => pol.PurchaseOrder)
             .Where(pol => pol.PartId == part.Id
                 && pol.ReceivedQuantity < pol.OrderedQuantity
                 && pol.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
                 && pol.PurchaseOrder.Status != PurchaseOrderStatus.Closed)
-            .Select(pol => new
-            {
+            .OrderBy(pol => pol.PurchaseOrder.PONumber)
+            .Select(pol => new ScanReceiveContextLine(
                 pol.Id,
                 pol.PurchaseOrder.PONumber,
                 pol.OrderedQuantity,
                 pol.ReceivedQuantity,
-                Remaining = pol.OrderedQuantity - pol.ReceivedQuantity,
-            })
+                pol.OrderedQuantity - pol.ReceivedQuantity))
             .ToListAsync(cancellationToken);
 
         actions.Add(new ScanAvailableAction(
             "Receive",
             openPoLines.Count > 0,
             openPoLines.Count > 0 ? null : "No open purchase order lines",
-            openPoLines.Count > 0 ? openPoLines : null));
+            openPoLines.Count > 0 ? new ScanReceiveContext(openPoLines) : null));
 
-        // Ship — available if there are open shipment lines for this part
         var openShipmentLines = await db.ShipmentLines
             .AsNoTracking()
-            .Include(sl => sl.Shipment)
             .Where(sl => sl.PartId == part.Id
-                && sl.Shipment.Status != ShipmentStatus.Delivered
-                && sl.Shipment.Status != ShipmentStatus.Cancelled)
-            .Select(sl => new
-            {
+                && (sl.Shipment.Status == ShipmentStatus.Pending || sl.Shipment.Status == ShipmentStatus.Packed))
+            .OrderBy(sl => sl.Shipment.ShipmentNumber)
+            .Select(sl => new ScanShipContextLine(
                 sl.Id,
-                sl.Shipment.TrackingNumber,
-                sl.Quantity,
-            })
+                sl.ShipmentId,
+                sl.Shipment.ShipmentNumber,
+                sl.Shipment.SalesOrder.OrderNumber,
+                sl.Quantity))
             .ToListAsync(cancellationToken);
+
+        var user = httpContext.HttpContext?.User;
+        var mayShip = ShipRoles.Any(role => user?.IsInRole(role) == true);
+        string? shipDisabledReason = openShipmentLines.Count == 0 ? "No open shipment lines"
+            : totalStock <= 0 ? "No stock available to ship"
+            : !mayShip ? "Your role cannot ship"
+            : null;
 
         actions.Add(new ScanAvailableAction(
             "Ship",
-            openShipmentLines.Count > 0 && totalStock > 0,
-            openShipmentLines.Count > 0
-                ? (totalStock > 0 ? null : "No stock available to ship")
-                : "No open shipment lines",
-            openShipmentLines.Count > 0 ? openShipmentLines : null));
+            shipDisabledReason is null,
+            shipDisabledReason,
+            openShipmentLines.Count > 0 ? new ScanShipContext(openShipmentLines) : null));
 
-        // Issue — available if active jobs use this part in BOM
-        var activeJobs = await db.BOMLines
+        var bomUses = await db.BOMLines
             .AsNoTracking()
             .Where(bom => bom.ChildPartId == part.Id)
             .Join(
                 db.Jobs.Where(j => !j.IsArchived && j.CompletedDate == null),
                 bom => bom.ParentPartId,
                 j => j.PartId,
-                (bom, j) => new { j.Id, j.JobNumber, j.Title })
-            .Distinct()
+                (bom, j) => new { j.Id, j.JobNumber, j.Title, j.PartId, PerUnit = bom.Quantity })
             .ToListAsync(cancellationToken);
+
+        var jobIds = bomUses.Select(u => u.Id).Distinct().ToList();
+
+        var buildQuantities = await db.Set<JobPart>()
+            .AsNoTracking()
+            .Where(jp => jobIds.Contains(jp.JobId))
+            .Join(db.Jobs, jp => jp.JobId, j => j.Id, (jp, j) => new { jp.JobId, jp.PartId, jp.Quantity, JobPartId = j.PartId })
+            .Where(x => x.PartId == x.JobPartId)
+            .GroupBy(x => x.JobId)
+            .Select(g => new { JobId = g.Key, Quantity = g.Sum(x => x.Quantity) })
+            .ToDictionaryAsync(x => x.JobId, x => x.Quantity, cancellationToken);
+
+        var materialIssued = await db.MaterialIssues
+            .AsNoTracking()
+            .Where(mi => mi.PartId == part.Id && jobIds.Contains(mi.JobId) && mi.IssueType != MaterialIssueType.Scrap)
+            .GroupBy(mi => mi.JobId)
+            .Select(g => new
+            {
+                JobId = g.Key,
+                Net = g.Sum(mi => mi.IssueType == MaterialIssueType.Return ? -mi.Quantity : mi.Quantity),
+            })
+            .ToDictionaryAsync(x => x.JobId, x => x.Net, cancellationToken);
+
+        var scanIssued = await db.ScanActionLogs
+            .AsNoTracking()
+            .Where(log => log.ActionType == ScanActionType.Issue
+                && log.PartId == part.Id
+                && log.RelatedEntityType == "Job"
+                && log.RelatedEntityId != null
+                && jobIds.Contains(log.RelatedEntityId.Value)
+                && !log.IsReversed)
+            .GroupBy(log => log.RelatedEntityId!.Value)
+            .Select(g => new { JobId = g.Key, Quantity = g.Sum(log => log.Quantity) })
+            .ToDictionaryAsync(x => x.JobId, x => x.Quantity, cancellationToken);
+
+        var activeJobs = bomUses
+            .GroupBy(u => u.Id)
+            .Select(g =>
+            {
+                var first = g.First();
+                var buildQuantity = buildQuantities.TryGetValue(first.Id, out var built) && built > 0 ? built : 1m;
+                var required = g.Sum(u => u.PerUnit) * buildQuantity;
+                var issued = materialIssued.GetValueOrDefault(first.Id) + scanIssued.GetValueOrDefault(first.Id);
+                return new ScanIssueContextJob(
+                    first.Id, first.JobNumber, first.Title, required, issued, Math.Max(required - issued, 0));
+            })
+            .OrderBy(j => j.JobNumber)
+            .ToList();
 
         actions.Add(new ScanAvailableAction(
             "Issue",
@@ -178,25 +228,20 @@ public class GetScanContextHandler(AppDbContext db)
             activeJobs.Count > 0
                 ? (totalStock > 0 ? null : "No stock available to issue")
                 : "No active jobs require this part",
-            activeJobs.Count > 0 ? activeJobs : null));
+            activeJobs.Count > 0 ? new ScanIssueContext(activeJobs) : null));
 
-        // Inspect — available if QC templates exist for this part
-        var hasQcTemplate = await db.QcChecklistTemplates
+        var qcTemplateId = await db.QcChecklistTemplates
             .AsNoTracking()
-            .AnyAsync(t => t.PartId == part.Id, cancellationToken);
+            .Where(t => t.PartId == part.Id && t.IsActive)
+            .OrderBy(t => t.Id)
+            .Select(t => (int?)t.Id)
+            .FirstOrDefaultAsync(cancellationToken);
 
         actions.Add(new ScanAvailableAction(
             "Inspect",
-            hasQcTemplate,
-            hasQcTemplate ? null : "No QC template configured for this part",
-            null));
-
-        // Return — always available if stock exists
-        actions.Add(new ScanAvailableAction(
-            "Return",
-            totalStock > 0,
-            totalStock > 0 ? null : "No stock available to return",
-            null));
+            qcTemplateId.HasValue,
+            qcTemplateId.HasValue ? null : "No QC template configured for this part",
+            qcTemplateId.HasValue ? new ScanInspectContext(qcTemplateId.Value) : null));
 
         return new ScanContextResponseModel(
             part.Id,

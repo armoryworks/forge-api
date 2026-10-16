@@ -30,6 +30,7 @@ public record JobStatusResponseModel(
 {
     public bool NextStageIsShopFloor { get; init; }
     public bool NextStageIsIrreversible { get; init; }
+    public bool NextStageIsBilling { get; init; }
     public AccountingDocumentType? NextStageAccountingDocument { get; init; }
 }
 

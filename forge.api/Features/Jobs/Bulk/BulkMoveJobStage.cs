@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
 
 using Forge.Api.Features.Quality;
@@ -19,12 +20,15 @@ public class BulkMoveJobStageHandler(
     IActivityLogRepository actRepo,
     IWorkCenterContext workCenterContext,
     AppDbContext db,
-    IHubContext<BoardHub> boardHub) : IRequestHandler<BulkMoveJobStageCommand, BulkOperationResponseModel>
+    IHubContext<BoardHub> boardHub,
+    IHttpContextAccessor httpContext) : IRequestHandler<BulkMoveJobStageCommand, BulkOperationResponseModel>
 {
     public async Task<BulkOperationResponseModel> Handle(BulkMoveJobStageCommand request, CancellationToken ct)
     {
         var targetStage = await trackRepo.FindStageAsync(request.StageId, ct)
             ?? throw new KeyNotFoundException($"Stage with ID {request.StageId} not found.");
+
+        BillingStageGate.EnsureMayEnter(targetStage, httpContext.HttpContext?.User);
 
         var jobs = await jobRepo.FindMultipleAsync(request.JobIds, ct);
         var errors = new List<BulkOperationError>();

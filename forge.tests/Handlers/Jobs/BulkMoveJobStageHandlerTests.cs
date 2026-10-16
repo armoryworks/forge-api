@@ -40,7 +40,8 @@ public class BulkMoveJobStageHandlerTests
             _actRepo.Object,
             Mock.Of<IWorkCenterContext>(),
             _db,
-            boardHub.Object);
+            boardHub.Object,
+            Mock.Of<Microsoft.AspNetCore.Http.IHttpContextAccessor>());
     }
 
     /// <summary>Production-track tail: QC(7) → Shipped(8, mandatory) → Invoiced/Sent(9, mandatory, irreversible) → Payment Received(10, irreversible).</summary>

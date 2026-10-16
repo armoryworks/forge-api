@@ -56,6 +56,7 @@ public class GetJobStatusHandler(
         {
             NextStageIsShopFloor = next?.IsShopFloor ?? false,
             NextStageIsIrreversible = next?.IsIrreversible ?? false,
+            NextStageIsBilling = BillingStageGate.IsBillingStage(next?.AccountingDocumentType),
             NextStageAccountingDocument = accountingDocument,
         };
     }
