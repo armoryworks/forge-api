@@ -20,17 +20,12 @@ public class SendSetupInviteHandler(
         var user = await userManager.FindByIdAsync(request.UserId.ToString())
             ?? throw new KeyNotFoundException($"User {request.UserId} not found");
 
-        // Generate setup token if none exists
-        if (string.IsNullOrEmpty(user.SetupToken) || user.SetupTokenExpiresAt < DateTimeOffset.UtcNow)
-        {
-            var tokenResult = await mediator.Send(new GenerateSetupTokenCommand(request.UserId), cancellationToken);
-            user.SetupToken = tokenResult.Token;
-        }
+        var tokenResult = await mediator.Send(new GenerateSetupTokenCommand(request.UserId), cancellationToken);
 
         var companySetting = await settings.FindByKeyAsync("company_name", cancellationToken);
         var companyName = companySetting?.Value ?? "QB Engineer";
 
-        var setupUrl = $"{request.BaseUrl.TrimEnd('/')}/setup/{user.SetupToken}";
+        var setupUrl = $"{request.BaseUrl.TrimEnd('/')}/setup/{Uri.EscapeDataString(tokenResult.Token)}";
 
         var html = EmailTemplateBuilder.BuildNotificationEmail(
             companyName,
@@ -40,7 +35,7 @@ public class SendSetupInviteHandler(
             $"<a href=\"{setupUrl}\" style=\"display:inline-block;padding:12px 24px;background:#1e293b;color:white;text-decoration:none;font-weight:600;\">Complete Setup</a><br><br>" +
             $"This link expires in 7 days. If the button doesn't work, copy and paste this URL:<br>{setupUrl}");
 
-        var operationKey = $"setup-invite:{user.Id}:{user.SetupToken}";
+        var operationKey = $"setup-invite:{user.Id}:{CreateAdminUserHandler.HashSetupToken(tokenResult.Token)}";
         await outbox.EnqueueEmailAsync(
             operationKey,
             new EmailMessage(

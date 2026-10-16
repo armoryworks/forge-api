@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text.Json;
 
 using FluentValidation;
@@ -86,12 +85,7 @@ public class CreateAdminUserHandler(
         // Generate short setup code (XXXX-XXXX) — easy to read aloud or write down.
         // The plaintext token is returned to the caller (admin) once and never stored;
         // only its SHA-256 hash is persisted so a DB breach cannot impersonate enrollees.
-        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I to avoid confusion
-        var bytes = RandomNumberGenerator.GetBytes(8);
-        var code = new char[8];
-        for (var i = 0; i < 8; i++)
-            code[i] = chars[bytes[i] % chars.Length];
-        var token = $"{new string(code, 0, 4)}-{new string(code, 4, 4)}";
+        var token = SetupTokenCode.Generate();
 
         user.SetupToken = HashSetupToken(token); // F-035: store hash, not plaintext
         user.SetupTokenExpiresAt = DateTimeOffset.UtcNow.AddDays(7);

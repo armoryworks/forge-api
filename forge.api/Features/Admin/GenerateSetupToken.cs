@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Forge.Data.Context;
@@ -18,15 +16,9 @@ public class GenerateSetupTokenHandler(
         var user = await userManager.FindByIdAsync(request.UserId.ToString())
             ?? throw new KeyNotFoundException($"User {request.UserId} not found");
 
-        // Short alphanumeric code (8 chars, grouped as XXXX-XXXX) — easy to read aloud or write down
-        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I to avoid confusion
-        var bytes = RandomNumberGenerator.GetBytes(8);
-        var code = new char[8];
-        for (var i = 0; i < 8; i++)
-            code[i] = chars[bytes[i] % chars.Length];
-        var token = $"{new string(code, 0, 4)}-{new string(code, 4, 4)}";
+        var token = SetupTokenCode.Generate();
 
-        user.SetupToken = token;
+        user.SetupToken = CreateAdminUserHandler.HashSetupToken(token);
         user.SetupTokenExpiresAt = DateTimeOffset.UtcNow.AddDays(7);
         user.UpdatedAt = DateTimeOffset.UtcNow;
 
