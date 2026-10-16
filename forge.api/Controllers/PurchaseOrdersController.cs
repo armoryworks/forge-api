@@ -93,7 +93,9 @@ public class PurchaseOrdersController(IMediator mediator) : ControllerBase
             ExpectedDeliveryDate: request.ExpectedDeliveryDate,
             VendorContactId: request.VendorContactId,
             VendorAddressId: request.VendorAddressId,
-            ShipToLocationId: request.ShipToLocationId));
+            ShipToLocationId: request.ShipToLocationId,
+            IsBlanket: request.IsBlanket,
+            BlanketExpirationDate: request.BlanketExpirationDate));
         return CreatedAtAction(nameof(GetPurchaseOrder), new { id = result.Id }, result);
     }
 

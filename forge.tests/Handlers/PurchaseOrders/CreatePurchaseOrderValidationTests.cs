@@ -103,6 +103,29 @@ public class CreatePurchaseOrderValidationTests
     }
 
     [Fact]
+    public void Validator_ExpirationOnANonBlanketOrder_IsInvalid()
+    {
+        var command = new CreatePurchaseOrderCommand(
+            VendorId, null, null,
+            [new CreatePurchaseOrderLineModel(PartId, null, 1, 5m, null)],
+            BlanketExpirationDate: Now.AddMonths(6));
+
+        _validator.Validate(command).Errors.Should().Contain(e => e.PropertyName == "BlanketExpirationDate");
+    }
+
+    [Fact]
+    public void Validator_BlanketOrderWithExpiration_IsValid()
+    {
+        var command = new CreatePurchaseOrderCommand(
+            VendorId, null, null,
+            [new CreatePurchaseOrderLineModel(PartId, null, 1, 5m, null)],
+            IsBlanket: true,
+            BlanketExpirationDate: Now.AddMonths(6));
+
+        _validator.Validate(command).IsValid.Should().BeTrue();
+    }
+
+    [Fact]
     public void Validator_PartlessLineWithoutDescription_IsInvalid()
     {
         var command = new CreatePurchaseOrderCommand(
