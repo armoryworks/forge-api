@@ -130,6 +130,52 @@ public class ModuleCatalogTests
     }
 
     [Fact]
+    public void AllModules_leaveNoDefaultOnCapabilityOff()
+    {
+        var set = ModuleCatalog.EnabledCapabilitiesFor(ModuleCatalog.All.Select(m => m.Id));
+
+        CapabilityCatalog.All.Where(c => c.IsDefaultOn).Select(c => c.Code)
+            .Should().OnlyContain(code => set.Contains(code),
+                "selecting every module must not switch off a capability the catalog ships on");
+    }
+
+    [Fact]
+    public void Sales_turnsOnLeadsAndCreditLimits()
+    {
+        var set = ModuleCatalog.EnabledCapabilitiesFor(new[] { "sales" });
+
+        set.Should().Contain("CAP-O2C-LEAD");
+        set.Should().Contain("CAP-O2C-CREDIT-LIMITS");
+        set.Should().Contain("CAP-O2C-CHANNELS", "sales channels are default-on and only need sales orders");
+    }
+
+    [Fact]
+    public void UnownedDefaults_joinOnlyWhenTheirPrerequisitesAreAlreadyOn()
+    {
+        var inventoryOnly = ModuleCatalog.EnabledCapabilitiesFor(new[] { "inventory" });
+
+        inventoryOnly.Should().Contain("CAP-ADMIN-I18N");
+        inventoryOnly.Should().NotContain("CAP-O2C-CHANNELS", "it would need sales orders");
+        inventoryOnly.Should().NotContain("CAP-RPT-OPERATIONAL", "it would need customer and vendor masters");
+
+        var jobShop = ModuleCatalog.EnabledCapabilitiesFor(
+            ModuleCatalog.Bundles.Single(b => b.Id == "job-shop").ModuleIds);
+        jobShop.Should().Contain("CAP-RPT-OPERATIONAL");
+    }
+
+    [Fact]
+    public void UnownedDefaultOn_listsOnlyDefaultOnCodesOutsideEveryModule()
+    {
+        var owned = ModuleCatalog.All.SelectMany(m => m.Capabilities).Concat(ModuleCatalog.Foundations).ToHashSet();
+        var defaultOn = CapabilityCatalog.All.Where(c => c.IsDefaultOn).Select(c => c.Code).ToHashSet();
+
+        ModuleCatalog.UnownedDefaultOn.Should().NotBeEmpty();
+        ModuleCatalog.UnownedDefaultOn.Should().OnlyContain(code => defaultOn.Contains(code) && !owned.Contains(code));
+        ModuleCatalog.UnownedDefaultOn.Should().NotContain("CAP-MD-PARTS",
+            "parts is a prerequisite of inventory and production, so those modules own it");
+    }
+
+    [Fact]
     public void DefaultSelection_staysInventoryOnly()
     {
         ModuleCatalog.All.Where(m => m.DefaultSelected).Select(m => m.Id)
