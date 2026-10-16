@@ -19,9 +19,11 @@ public record ModuleDefinition(
 /// <summary>
 /// The modules offered by the first-run picker, plus the always-on foundation set
 /// (the "basic items are always required" from the onboarding design). A picker
-/// selection resolves to: Foundations ∪ (selected modules) ∪ dependency closure.
-/// Everything else is turned off, which is what makes a single-module install
-/// (e.g. Inventory only) genuinely cordoned without being a walled garden.
+/// selection resolves to: Foundations ∪ (selected modules) ∪ dependency closure,
+/// plus the default-on capabilities no module or foundation owns, whenever their
+/// prerequisites are already in that set. Everything else is turned off, which is
+/// what makes a single-module install (e.g. Inventory only) genuinely cordoned
+/// without being a walled garden.
 /// </summary>
 public static class ModuleCatalog
 {
@@ -71,9 +73,9 @@ public static class ModuleCatalog
 
         new("sales", "Sales and quoting",
             "Quote customers and turn won quotes into sales orders and jobs.",
-            "Turns on customer records, contacts, and addresses.",
+            "Turns on customer records, contacts, addresses, leads, and credit limits.",
             new[] { "CAP-MD-CUSTOMERS", "CAP-MD-CUSTOMER-CONTACTS", "CAP-MD-CUSTOMER-ADDRESSES",
-                    "CAP-O2C-QUOTE", "CAP-O2C-SO" }),
+                    "CAP-O2C-LEAD", "CAP-O2C-CREDIT-LIMITS", "CAP-O2C-QUOTE", "CAP-O2C-SO" }),
 
         new("production", "Production",
             "Run jobs or build products through your routings and work centers, track time on the floor, and see every job on the board.",
@@ -119,9 +121,18 @@ public static class ModuleCatalog
         All.FirstOrDefault(m => string.Equals(m.Id, id, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
+    /// Default-on catalog capabilities that neither Foundations nor any module
+    /// (including its prerequisite closure) owns — cross-cutting conveniences such
+    /// as UI label overrides, sales channels or operational reports.
+    /// </summary>
+    public static IReadOnlyList<string> UnownedDefaultOn { get; } = BuildUnownedDefaultOn();
+
+    /// <summary>
     /// Resolves the full set of capability codes to enable for the chosen modules:
     /// Foundations ∪ the selected modules' headline capabilities, then expanded so
-    /// every prerequisite (per the dependency graph) is included. Unknown module
+    /// every prerequisite (per the dependency graph) is included, then joined by
+    /// each <see cref="UnownedDefaultOn"/> capability whose prerequisites are all
+    /// already present (so it never drags an unselected module in). Unknown module
     /// ids are ignored. The result is dependency-complete, so applying it as the
     /// enabled set passes the capability gate's validation.
     /// </summary>
@@ -134,12 +145,44 @@ public static class ModuleCatalog
             if (module is null) continue;
             foreach (var cap in module.Capabilities) target.Add(cap);
         }
-        return ExpandToDependencyClosure(target);
+        var closed = ExpandToDependencyClosure(target);
+        return AddSatisfiedUnownedDefaults(closed);
+    }
+
+    private static IReadOnlyList<string> BuildUnownedDefaultOn()
+    {
+        var owned = new HashSet<string>(Foundations, StringComparer.Ordinal);
+        foreach (var module in All)
+            foreach (var cap in module.Capabilities) owned.Add(cap);
+        owned = new HashSet<string>(ExpandToDependencyClosure(owned), StringComparer.Ordinal);
+        return CapabilityCatalog.All
+            .Where(c => c.IsDefaultOn && !owned.Contains(c.Code))
+            .Select(c => c.Code)
+            .ToList();
+    }
+
+    private static HashSet<string> AddSatisfiedUnownedDefaults(HashSet<string> target)
+    {
+        var changed = true;
+        while (changed)
+        {
+            changed = false;
+            foreach (var code in UnownedDefaultOn)
+            {
+                if (target.Contains(code)) continue;
+                var prerequisitesMet = CapabilityCatalogRelations.Dependencies
+                    .Where(edge => edge.From == code)
+                    .All(edge => target.Contains(edge.To));
+                if (prerequisitesMet && target.Add(code))
+                    changed = true;
+            }
+        }
+        return target;
     }
 
     // Pull in every prerequisite transitively: if X is enabled and X requires Y,
     // Y must be enabled too. Walks the dependency edges to a fixpoint.
-    private static IReadOnlySet<string> ExpandToDependencyClosure(HashSet<string> seed)
+    private static HashSet<string> ExpandToDependencyClosure(HashSet<string> seed)
     {
         var changed = true;
         while (changed)

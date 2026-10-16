@@ -6,4 +6,5 @@ public record CreateCustomerReturnRequestModel(
     string Reason,
     string? Notes,
     DateTimeOffset ReturnDate,
-    bool CreateReworkJob);
+    bool CreateReworkJob,
+    decimal? Quantity = null);

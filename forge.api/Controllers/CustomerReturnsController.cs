@@ -36,7 +36,7 @@ public class CustomerReturnsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new CreateCustomerReturnCommand(
             request.CustomerId, request.OriginalJobId, request.Reason,
-            request.Notes, request.ReturnDate, request.CreateReworkJob));
+            request.Notes, request.ReturnDate, request.CreateReworkJob, request.Quantity));
         return CreatedAtAction(nameof(GetReturn), new { id = result.Id }, result);
     }
 

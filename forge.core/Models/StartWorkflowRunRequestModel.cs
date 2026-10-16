@@ -8,10 +8,12 @@ namespace Forge.Core.Models;
 /// single SaveChanges. <see cref="InitialEntityData"/> is an opaque jsonb
 /// payload of fields applied at create time — Phase 3 wires the Part variant
 /// (description, partType, material, …) and other entity types follow the
-/// same shape.
+/// same shape. <see cref="EntityId"/> binds the run to an entity that already
+/// exists (a guided walk over a saved record); materialization is then skipped.
 /// </summary>
 public record StartWorkflowRunRequestModel(
     string EntityType,
     string DefinitionId,
     string? Mode,
-    JsonElement? InitialEntityData);
+    JsonElement? InitialEntityData,
+    int? EntityId = null);

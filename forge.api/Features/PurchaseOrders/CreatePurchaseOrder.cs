@@ -32,7 +32,9 @@ public record CreatePurchaseOrderCommand(
     DateTimeOffset? ExpectedDeliveryDate = null,
     int? VendorContactId = null,
     int? VendorAddressId = null,
-    int? ShipToLocationId = null) : IRequest<PurchaseOrderListItemModel>;
+    int? ShipToLocationId = null,
+    bool IsBlanket = false,
+    DateTimeOffset? BlanketExpirationDate = null) : IRequest<PurchaseOrderListItemModel>;
 
 public class CreatePurchaseOrderValidator : AbstractValidator<CreatePurchaseOrderCommand>
 {
@@ -65,6 +67,10 @@ public class CreatePurchaseOrderValidator : AbstractValidator<CreatePurchaseOrde
         RuleFor(x => x.VendorContactId).GreaterThan(0).When(x => x.VendorContactId.HasValue);
         RuleFor(x => x.VendorAddressId).GreaterThan(0).When(x => x.VendorAddressId.HasValue);
         RuleFor(x => x.ShipToLocationId).GreaterThan(0).When(x => x.ShipToLocationId.HasValue);
+        RuleFor(x => x.BlanketExpirationDate)
+            .Null()
+            .When(x => !x.IsBlanket)
+            .WithMessage("An expiration date applies only to a blanket purchase order.");
     }
 }
 
@@ -155,6 +161,8 @@ public class CreatePurchaseOrderHandler(
             VendorContactId = contact?.Id,
             VendorAddressId = address?.Id,
             ShipToLocationId = shipTo?.Id,
+            IsBlanket = request.IsBlanket,
+            BlanketExpirationDate = request.IsBlanket ? request.BlanketExpirationDate : null,
         };
 
         for (var i = 0; i < request.Lines.Count; i++)
@@ -181,6 +189,12 @@ public class CreatePurchaseOrderHandler(
                 PurchaseUnitId = line.PurchaseUnitId,
                 ManualOverrideReason = line.ManualOverrideReason,
             });
+        }
+
+        if (po.IsBlanket)
+        {
+            po.BlanketTotalQuantity = po.Lines.Sum(l => l.OrderedQuantity);
+            po.BlanketReleasedQuantity = 0m;
         }
 
         await poRepo.AddAsync(po, cancellationToken);

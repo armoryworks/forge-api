@@ -18,7 +18,8 @@ public record CreateCustomerReturnCommand(
     string Reason,
     string? Notes,
     DateTimeOffset ReturnDate,
-    bool CreateReworkJob) : IRequest<CustomerReturnListItemModel>;
+    bool CreateReworkJob,
+    decimal? Quantity = null) : IRequest<CustomerReturnListItemModel>;
 
 public class CreateCustomerReturnValidator : AbstractValidator<CreateCustomerReturnCommand>
 {
@@ -28,6 +29,7 @@ public class CreateCustomerReturnValidator : AbstractValidator<CreateCustomerRet
         RuleFor(x => x.OriginalJobId).GreaterThan(0);
         RuleFor(x => x.Reason).NotEmpty().MaximumLength(1000);
         RuleFor(x => x.Notes).MaximumLength(2000);
+        RuleFor(x => x.Quantity).GreaterThan(0m).When(x => x.Quantity.HasValue);
     }
 }
 
@@ -68,6 +70,7 @@ public class CreateCustomerReturnHandler(
             Reason = request.Reason,
             Notes = request.Notes,
             ReturnDate = request.ReturnDate,
+            Quantity = request.Quantity,
             Status = CustomerReturnStatus.Received,
         };
 

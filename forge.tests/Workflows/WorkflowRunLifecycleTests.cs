@@ -814,6 +814,131 @@ public class WorkflowRunLifecycleTests(CapabilityTestWebApplicationFactory facto
         }
     }
 
+    [Fact]
+    public async Task Start_WithEntityId_BindsTheExistingEntity_AndAllowsForwardJumps()
+    {
+        var client = AuthenticatedClient();
+        int vendorId;
+        using (var seedScope = factory.Services.CreateScope())
+        {
+            var seedDb = seedScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var vendor = new Vendor { CompanyName = $"Bound Vendor {Guid.NewGuid():N}", IsActive = true };
+            seedDb.Set<Vendor>().Add(vendor);
+            await seedDb.SaveChangesAsync();
+            vendorId = vendor.Id;
+        }
+
+        var body = new StartWorkflowRunRequestModel("Vendor", "vendor-guided-v1", "guided", null, vendorId);
+        var response = await client.PostAsJsonAsync("/api/v1/workflows", body);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var run = (await response.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
+        run.EntityId.Should().Be(vendorId);
+        run.CurrentStepId.Should().Be("identity");
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var junction = await db.WorkflowRunEntities.Where(j => j.RunId == run.Id).ToListAsync();
+            junction.Should().ContainSingle();
+            junction[0].EntityId.Should().Be(vendorId);
+            junction[0].Role.Should().Be("primary");
+        }
+
+        var jump = await client.PatchAsJsonAsync(
+            $"/api/v1/workflows/{run.Id}/jump", new JumpWorkflowRequestModel("terms"));
+        jump.StatusCode.Should().Be(HttpStatusCode.OK,
+            "the bound vendor already has its identity, so the identity gate passes");
+        (await jump.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!.CurrentStepId.Should().Be("terms");
+    }
+
+    [Fact]
+    public async Task Start_WithEntityId_ReusesTheActiveRun_InsteadOfOpeningAnother()
+    {
+        var client = AuthenticatedClient();
+        int vendorId;
+        using (var seedScope = factory.Services.CreateScope())
+        {
+            var seedDb = seedScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var vendor = new Vendor { CompanyName = $"Reuse Vendor {Guid.NewGuid():N}", IsActive = true };
+            seedDb.Set<Vendor>().Add(vendor);
+            await seedDb.SaveChangesAsync();
+            vendorId = vendor.Id;
+        }
+
+        var body = new StartWorkflowRunRequestModel("Vendor", "vendor-guided-v1", "guided", null, vendorId);
+        var first = (await (await client.PostAsJsonAsync("/api/v1/workflows", body))
+            .Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
+        var second = (await (await client.PostAsJsonAsync("/api/v1/workflows", body))
+            .Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
+
+        second.Id.Should().Be(first.Id);
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        (await db.WorkflowRuns.CountAsync(r => r.EntityType == "Vendor" && r.EntityId == vendorId))
+            .Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Start_WithUnknownEntityId_Returns404_AndCreatesNoRun()
+    {
+        var client = AuthenticatedClient();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var before = await db.WorkflowRuns.CountAsync();
+
+        var body = new StartWorkflowRunRequestModel("Vendor", "vendor-guided-v1", "guided", null, 987654);
+        var response = await client.PostAsJsonAsync("/api/v1/workflows", body);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await db.WorkflowRuns.CountAsync()).Should().Be(before);
+    }
+
+    [Theory]
+    [InlineData("ProductionWorker")]
+    [InlineData("Engineer")]
+    [InlineData("PM")]
+    public async Task Start_WithEntityId_RefusesARoleThatCannotEditTheVendor(string role)
+    {
+        int vendorId;
+        using (var seedScope = factory.Services.CreateScope())
+        {
+            var seedDb = seedScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var vendor = new Vendor { CompanyName = $"Guarded Vendor {Guid.NewGuid():N}", IsActive = true };
+            seedDb.Set<Vendor>().Add(vendor);
+            await seedDb.SaveChangesAsync();
+            vendorId = vendor.Id;
+        }
+
+        var body = new StartWorkflowRunRequestModel("Vendor", "vendor-guided-v1", "guided", null, vendorId);
+        var response = await AuthenticatedClient(role).PostAsJsonAsync("/api/v1/workflows", body);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        (await db.WorkflowRuns.CountAsync(r => r.EntityType == "Vendor" && r.EntityId == vendorId))
+            .Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Start_WithEntityId_LetsAVendorEditorBindTheVendor()
+    {
+        int vendorId;
+        using (var seedScope = factory.Services.CreateScope())
+        {
+            var seedDb = seedScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var vendor = new Vendor { CompanyName = $"Office Vendor {Guid.NewGuid():N}", IsActive = true };
+            seedDb.Set<Vendor>().Add(vendor);
+            await seedDb.SaveChangesAsync();
+            vendorId = vendor.Id;
+        }
+
+        var body = new StartWorkflowRunRequestModel("Vendor", "vendor-guided-v1", "guided", null, vendorId);
+        var response = await AuthenticatedClient("OfficeManager").PostAsJsonAsync("/api/v1/workflows", body);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        (await response.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!.EntityId.Should().Be(vendorId);
+    }
+
     private async Task<WorkflowRunResponseModel> StartRunAsync(HttpClient client, string initialJson)
     {
         var initial = JsonDocument.Parse(initialJson).RootElement;

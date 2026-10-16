@@ -76,6 +76,55 @@ public class CreatePurchaseOrderHandlerTests
     }
 
     [Fact]
+    public async Task Handle_BlanketOrder_MarksItBlanketWithTheOrderedTotal()
+    {
+        var vendor = new Vendor { Id = 7, CompanyName = "Blanket Vendor" };
+        var part = new Part { Id = 8, PartNumber = "P-008", Description = "Bar stock" };
+        var expires = new DateTimeOffset(2027, 6, 30, 0, 0, 0, TimeSpan.Zero);
+        _vendorRepo.Setup(r => r.FindAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync(vendor);
+        _poRepo.Setup(r => r.GenerateNextPONumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("PO-0042");
+        _partRepo.Setup(r => r.FindAsync(8, It.IsAny<CancellationToken>())).ReturnsAsync(part);
+        PurchaseOrder? saved = null;
+        _poRepo.Setup(r => r.AddAsync(It.IsAny<PurchaseOrder>(), It.IsAny<CancellationToken>()))
+            .Callback<PurchaseOrder, CancellationToken>((po, _) => saved = po);
+
+        var command = new CreatePurchaseOrderCommand(
+            7, null, null,
+            [new CreatePurchaseOrderLineModel(8, null, 400, 2m, null), new CreatePurchaseOrderLineModel(8, null, 100, 2m, null)],
+            IsBlanket: true,
+            BlanketExpirationDate: expires);
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsBlanket.Should().BeTrue();
+        saved.Should().NotBeNull();
+        saved!.IsBlanket.Should().BeTrue();
+        saved.BlanketTotalQuantity.Should().Be(500);
+        saved.BlanketReleasedQuantity.Should().Be(0);
+        saved.BlanketExpirationDate.Should().Be(expires);
+    }
+
+    [Fact]
+    public async Task Handle_StandardOrder_StaysNonBlanket()
+    {
+        var vendor = new Vendor { Id = 9, CompanyName = "Standard Vendor" };
+        var part = new Part { Id = 10, PartNumber = "P-010", Description = "Bolt" };
+        _vendorRepo.Setup(r => r.FindAsync(9, It.IsAny<CancellationToken>())).ReturnsAsync(vendor);
+        _poRepo.Setup(r => r.GenerateNextPONumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("PO-0043");
+        _partRepo.Setup(r => r.FindAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync(part);
+        PurchaseOrder? saved = null;
+        _poRepo.Setup(r => r.AddAsync(It.IsAny<PurchaseOrder>(), It.IsAny<CancellationToken>()))
+            .Callback<PurchaseOrder, CancellationToken>((po, _) => saved = po);
+
+        await _handler.Handle(new CreatePurchaseOrderCommand(
+            9, null, null, [new CreatePurchaseOrderLineModel(10, null, 5, 1m, null)]), CancellationToken.None);
+
+        saved!.IsBlanket.Should().BeFalse();
+        saved.BlanketTotalQuantity.Should().BeNull();
+        saved.BlanketExpirationDate.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Handle_VendorNotFound_ThrowsKeyNotFoundException()
     {
         // Arrange
