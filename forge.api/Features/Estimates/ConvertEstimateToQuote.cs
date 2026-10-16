@@ -79,7 +79,7 @@ public class ConvertEstimateToQuoteHandler(
             QuoteNumber = quoteNumber,
             CustomerId = estimate.CustomerId,
             Status = QuoteStatus.Draft,
-            Notes = estimate.Description ?? estimate.Notes,
+            Notes = estimate.Notes,
             ExpirationDate = estimate.ExpirationDate,
             TaxRate = taxRate,
             SourceEstimateId = estimate.Id,

@@ -267,4 +267,18 @@ public class ConvertEstimateToQuoteHandlerTests
         invalid.IsValid.Should().BeFalse();
         valid.IsValid.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Handle_CarriesEstimateNotesIntoQuoteNotes_NotTheDescription()
+    {
+        var (_, estimate) = await SeedEstimateAsync(
+            new QuoteLine { PartId = null, Description = "Lump sum", Quantity = 1m, UnitPrice = 100m, LineNumber = 1 });
+        estimate.Description = "Machine 40 brackets per drawing rev B";
+        estimate.Notes = "Customer wants anodize quoted separately";
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new ConvertEstimateToQuoteCommand(estimate.Id), CancellationToken.None);
+
+        _db.Quotes.First(q => q.Id == result.Id).Notes.Should().Be("Customer wants anodize quoted separately");
+    }
 }
