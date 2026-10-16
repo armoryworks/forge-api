@@ -107,8 +107,9 @@ public partial class UpdateTerminologyHandler(
         TerminologyTerm term, Dictionary<string, TerminologyEntry> rows, CancellationToken ct)
     {
         var spanish = SpanishKeys(term);
-        if (spanish.Any(key => rows.TryGetValue(key, out var row) && IsAdminSpanish(row)))
+        if (spanish[..2].Any(key => rows.TryGetValue(key, out var row) && IsAdminSpanish(row)))
             return true;
+        var adminGender = rows.TryGetValue(spanish[2], out var genderRow) && IsAdminSpanish(genderRow);
 
         var englishOne = ActiveLabel(rows, term.SingularKey);
         var englishOther = ActiveLabel(rows, term.PluralKey);
@@ -128,7 +129,8 @@ public partial class UpdateTerminologyHandler(
 
         WriteMachineValue(rows, spanish[0], one?.Text);
         WriteMachineValue(rows, spanish[1], other?.Text);
-        WriteMachineValue(rows, spanish[2], one?.Gender ?? other?.Gender);
+        if (!adminGender)
+            WriteMachineValue(rows, spanish[2], one?.Gender ?? other?.Gender);
         return true;
     }
 

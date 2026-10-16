@@ -169,6 +169,17 @@ public class UpdateTerminologyHandlerTests
     }
 
     [Fact]
+    public async Task Handle_AdminGenderOnly_StillTranslatesTheTextAndKeepsTheGender()
+    {
+        Translates("Work Order", "el orden de trabajo");
+
+        var result = await _handler.Handle(Command(("entity_job", "Work Order"), ("gender_job:es", "f")), CancellationToken.None);
+
+        result.Entries.Should().Contain(e => e.Key == "entity_job:es" && e.Label == "Orden de trabajo" && e.IsMachineTranslated);
+        result.Entries.Should().Contain(e => e.Key == "gender_job:es" && e.Label == "f" && !e.IsMachineTranslated);
+    }
+
+    [Fact]
     public async Task Handle_SpanishInTheSameSave_WinsOverTranslation()
     {
         Translates("Work Order", "la orden de trabajo");

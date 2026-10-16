@@ -18,8 +18,9 @@ namespace Forge.Api.Controllers;
 /// through the gate via <see cref="RequiresCapabilityAttribute"/> on the
 /// controller, but anonymous portal sign-in must be reachable when the
 /// capability is enabled. `terminology` is anonymous too, like the brand
-/// settings read: it returns only the install's term renames so the portal,
-/// login page included, shows the same terms as the employee app. The /me/*
+/// settings read: it returns only the renames of the fixed term catalog (no
+/// other terminology rows) so the portal, login page included, shows the
+/// same terms as the employee app. The /me/*
 /// endpoints require an authenticated portal session JWT
 /// (`portal_session=true` claim).
 /// </summary>
@@ -54,7 +55,7 @@ public class CustomerPortalController(IMediator mediator) : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<List<TerminologyEntryResponseModel>>> Terminology()
     {
-        var result = await mediator.Send(new GetTerminologyQuery());
+        var result = await mediator.Send(new GetPortalTerminologyQuery());
         return Ok(result);
     }
 

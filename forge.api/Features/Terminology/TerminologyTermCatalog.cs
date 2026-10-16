@@ -19,4 +19,14 @@ public static class TerminologyTermCatalog
         new("asset", "assets"),
         new("planning_cycle", "planning_cycles"),
     ];
+
+    private static readonly HashSet<string> TermKeys = All
+        .SelectMany(t => new[] { t.SingularKey, t.PluralKey, t.GenderKey })
+        .ToHashSet(StringComparer.Ordinal);
+
+    public static bool IsTermKey(string key)
+    {
+        var separator = key.IndexOf(':');
+        return TermKeys.Contains(separator < 0 ? key : key[..separator]);
+    }
 }
