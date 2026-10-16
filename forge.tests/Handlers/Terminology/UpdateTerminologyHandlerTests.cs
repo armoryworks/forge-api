@@ -256,7 +256,33 @@ public class UpdateTerminologyHandlerTests
     [Fact]
     public async Task Handle_UnchangedEnglish_DoesNotRetranslate()
     {
+        await SeedAsync(
+            new TerminologyEntry { Key = "entity_job", Label = "Work Order", IsAdminEdited = true },
+            new TerminologyEntry { Key = "entity_job:es", Label = "Orden de trabajo", IsAdminEdited = true, SourcePresetId = TerminologyEntry.MachineTranslationSource });
+
+        await _handler.Handle(Command(("entity_job", "Work Order")), CancellationToken.None);
+
+        _translator.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task Handle_UnchangedEnglishWithoutSpanish_RetriesTheTranslation()
+    {
         await SeedAsync(new TerminologyEntry { Key = "entity_job", Label = "Work Order", IsAdminEdited = true });
+        Translates("Work Order", "la orden de trabajo");
+
+        var result = await _handler.Handle(Command(("entity_job", "Work Order")), CancellationToken.None);
+
+        result.UntranslatedTerms.Should().BeEmpty();
+        result.Entries.Should().Contain(e => e.Key == "entity_job:es" && e.Label == "Orden de trabajo" && e.IsMachineTranslated);
+    }
+
+    [Fact]
+    public async Task Handle_UnchangedEnglishWithAdminClearedSpanish_DoesNotRetranslate()
+    {
+        await SeedAsync(
+            new TerminologyEntry { Key = "entity_job", Label = "Work Order", IsAdminEdited = true },
+            new TerminologyEntry { Key = "entity_job:es", Label = "", IsAdminEdited = true });
 
         await _handler.Handle(Command(("entity_job", "Work Order")), CancellationToken.None);
 

@@ -67,7 +67,10 @@ public partial class UpdateTerminologyHandler(
         var untranslated = new List<string>();
         foreach (var term in TerminologyTermCatalog.All)
         {
-            if (!changedKeys.Contains(term.SingularKey) && !changedKeys.Contains(term.PluralKey))
+            var changed = changedKeys.Contains(term.SingularKey) || changedKeys.Contains(term.PluralKey);
+            var retry = (requested.ContainsKey(term.SingularKey) || requested.ContainsKey(term.PluralKey))
+                && !HasSpanishText(rows, term);
+            if (!changed && !retry)
                 continue;
             if (!await TranslateTermAsync(term, rows, cancellationToken))
                 untranslated.Add(term.Id);
@@ -195,6 +198,10 @@ public partial class UpdateTerminologyHandler(
 
     private static string? ActiveLabel(Dictionary<string, TerminologyEntry> rows, string key) =>
         rows.TryGetValue(key, out var row) && row.Label.Length > 0 ? row.Label : null;
+
+    private static bool HasSpanishText(Dictionary<string, TerminologyEntry> rows, TerminologyTerm term) =>
+        SpanishKeys(term)[..2].Any(key => rows.TryGetValue(key, out var row)
+            && (row.Label.Length > 0 || row.SourcePresetId != TerminologyEntry.MachineTranslationSource));
 
     private static bool IsAdminSpanish(TerminologyEntry row) =>
         row.Label.Length > 0 && row.IsAdminEdited && row.SourcePresetId != TerminologyEntry.MachineTranslationSource;
