@@ -75,6 +75,9 @@ public class GetCustomerSummaryHandler(AppDbContext db)
             customer.IsAutomotive,
             customer.IsItarControlled,
             customer.IsReferenceOk,
-            customer.ReferenceNotes);
+            customer.ReferenceNotes,
+            customer.CreditLimit,
+            customer.IsTaxExempt,
+            customer.TaxExemptionId);
     }
 }

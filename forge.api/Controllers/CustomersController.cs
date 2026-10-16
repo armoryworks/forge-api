@@ -18,6 +18,8 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-MD-CUSTOMERS")]
 public class CustomersController(IMediator mediator) : ControllerBase
 {
+    private static readonly string[] CommercialTermsRoles = ["Admin", "Manager", "OfficeManager"];
+
     /// <summary>
     /// Phase 3 F7-partial / WU-17 — standardised paged-list contract.
     ///
@@ -120,6 +122,11 @@ public class CustomersController(IMediator mediator) : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateCustomer(int id, UpdateCustomerRequestModel request)
     {
+        var changesCommercialTerms = request.IsTaxExempt.HasValue || request.TaxExemptionId is not null
+            || request.CreditLimit.HasValue || request.ClearCreditLimit == true;
+        if (changesCommercialTerms && !CommercialTermsRoles.Any(User.IsInRole))
+            return Forbid();
+
         await mediator.Send(new UpdateCustomerCommand(
             id, request.Name, request.CompanyName, request.Email, request.Phone, request.IsActive,
             IsFdaRegulated: request.IsFdaRegulated,
@@ -129,7 +136,11 @@ public class CustomersController(IMediator mediator) : ControllerBase
             IsReferenceOk: request.IsReferenceOk,
             ReferenceNotes: request.ReferenceNotes,
             CustomerNumber: request.CustomerNumber,
-            Fax: request.Fax));
+            Fax: request.Fax,
+            IsTaxExempt: request.IsTaxExempt,
+            TaxExemptionId: request.TaxExemptionId,
+            CreditLimit: request.CreditLimit,
+            ClearCreditLimit: request.ClearCreditLimit));
         return NoContent();
     }
 

@@ -29,7 +29,9 @@ public record UpdateCustomerCommand(
     string? ReferenceNotes = null,
     // User-settable customer number — see UpdateCustomerRequestModel.CustomerNumber.
     string? CustomerNumber = null,
-    string? Fax = null) : IRequest;
+    string? Fax = null,
+    decimal? CreditLimit = null,
+    bool? ClearCreditLimit = null) : IRequest;
 
 public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
 {
@@ -41,6 +43,14 @@ public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
         RuleFor(x => x.Phone).MaximumLength(50).When(x => x.Phone is not null);
         RuleFor(x => x.Fax).MaximumLength(50).When(x => x.Fax is not null);
         RuleFor(x => x.TaxExemptionId).MaximumLength(50).When(x => x.TaxExemptionId is not null);
+        RuleFor(x => x.CreditLimit)
+            .InclusiveBetween(0m, 1_000_000_000m)
+            .When(x => x.CreditLimit.HasValue)
+            .WithMessage("Credit limit must be between 0 and 1,000,000,000.");
+        RuleFor(x => x.CreditLimit)
+            .Null()
+            .When(x => x.ClearCreditLimit == true)
+            .WithMessage("Send either a credit limit or ClearCreditLimit, not both.");
         RuleFor(x => x.CustomerNumber).NotEmpty().MaximumLength(50).When(x => x.CustomerNumber is not null);
     }
 }
@@ -145,10 +155,24 @@ public class UpdateCustomerHandler(
             customer.IsTaxExempt = request.IsTaxExempt.Value;
             changedFields.Add("isTaxExempt");
         }
-        if (request.TaxExemptionId is not null && request.TaxExemptionId != customer.TaxExemptionId)
+        if (request.TaxExemptionId is not null && request.TaxExemptionId.NullIfEmpty() != customer.TaxExemptionId)
         {
-            customer.TaxExemptionId = request.TaxExemptionId;
+            customer.TaxExemptionId = request.TaxExemptionId.NullIfEmpty();
             changedFields.Add("taxExemptionId");
+        }
+        var touchesTaxExemption = request.IsTaxExempt.HasValue || request.TaxExemptionId is not null;
+        if (touchesTaxExemption && customer.IsTaxExempt && string.IsNullOrWhiteSpace(customer.TaxExemptionId))
+            throw new InvalidOperationException("Tax-exempt customers require an exemption ID on file.");
+
+        if (request.ClearCreditLimit == true && customer.CreditLimit is not null)
+        {
+            customer.CreditLimit = null;
+            changedFields.Add("creditLimit");
+        }
+        else if (request.CreditLimit is decimal creditLimit && creditLimit != customer.CreditLimit)
+        {
+            customer.CreditLimit = creditLimit;
+            changedFields.Add("creditLimit");
         }
 
         // Phase 1r / Batch 15 — regulated-industry flags. Each is independent

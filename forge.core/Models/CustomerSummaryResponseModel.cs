@@ -28,4 +28,7 @@ public record CustomerSummaryResponseModel(
     bool IsAutomotive = false,
     bool IsItarControlled = false,
     bool IsReferenceOk = false,
-    string? ReferenceNotes = null);
+    string? ReferenceNotes = null,
+    decimal? CreditLimit = null,
+    bool IsTaxExempt = false,
+    string? TaxExemptionId = null);

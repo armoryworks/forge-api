@@ -18,4 +18,8 @@ public record UpdateCustomerRequestModel(
     // User-settable customer number. Supplying a changed value requires
     // customers.allow_manual_numbers to be on; validated for uniqueness.
     string? CustomerNumber = null,
-    string? Fax = null);
+    string? Fax = null,
+    bool? IsTaxExempt = null,
+    string? TaxExemptionId = null,
+    decimal? CreditLimit = null,
+    bool? ClearCreditLimit = null);
