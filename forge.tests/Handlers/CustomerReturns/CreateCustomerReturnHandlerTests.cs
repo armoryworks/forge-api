@@ -69,6 +69,29 @@ public class CreateCustomerReturnHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WithQuantity_StoresTheReturnedQuantity()
+    {
+        var (customer, job, db) = await SeedTestDataAsync();
+        using var _ = db;
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object, _identifiers.Object);
+
+        var result = await handler.Handle(new CreateCustomerReturnCommand(
+            customer.Id, job.Id, "Wrong size", null, DateTime.UtcNow, false, 3.5m), CancellationToken.None);
+
+        var saved = await db.CustomerReturns.SingleAsync(r => r.Id == result.Id);
+        saved.Quantity.Should().Be(3.5m);
+    }
+
+    [Fact]
+    public void Validator_ZeroQuantity_IsInvalid()
+    {
+        var result = new CreateCustomerReturnValidator().Validate(new CreateCustomerReturnCommand(
+            1, 1, "Wrong size", null, DateTime.UtcNow, false, 0m));
+
+        result.Errors.Should().Contain(e => e.PropertyName == "Quantity");
+    }
+
+    [Fact]
     public async Task Handle_ValidCommand_CreatesReturnWithRmaNumber()
     {
         // Arrange
