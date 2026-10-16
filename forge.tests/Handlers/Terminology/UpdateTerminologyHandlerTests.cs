@@ -246,6 +246,20 @@ public class UpdateTerminologyHandlerTests
     }
 
     [Fact]
+    public async Task Handle_TranslatorFails_StopsCallingItForTheRestOfTheSave()
+    {
+        Translates("Work Order", null);
+
+        var result = await _handler.Handle(
+            Command(("entity_job", "Work Order"), ("entity_customer", "Client"), ("entity_quote", "Proposal")),
+            CancellationToken.None);
+
+        result.UntranslatedTerms.Should().BeEquivalentTo("job", "customer", "quote");
+        result.Entries.Should().Contain(e => e.Key == "entity_quote" && e.Label == "Proposal");
+        _translator.Verify(t => t.TranslateLabelAsync(It.IsAny<string>(), "en", "es", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Handle_EnglishCleared_ClearsItsMachineSpanish()
     {
         Translates("Work Order", "la orden de trabajo");

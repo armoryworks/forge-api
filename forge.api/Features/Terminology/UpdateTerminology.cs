@@ -42,6 +42,7 @@ public partial class UpdateTerminologyHandler(
     private const string SourceLanguage = "en";
     private const string TargetLanguage = "es";
     private static readonly CultureInfo TargetCulture = CultureInfo.GetCultureInfo(TargetLanguage);
+    private bool _translatorUnavailable;
 
     public async Task<UpdateTerminologyResponseModel> Handle(
         UpdateTerminologyCommand request, CancellationToken cancellationToken)
@@ -144,9 +145,14 @@ public partial class UpdateTerminologyHandler(
 
     private async Task<TranslatedNoun?> TranslateNounAsync(string english, CancellationToken ct)
     {
+        if (_translatorUnavailable)
+            return null;
         var translated = await translator.TranslateLabelAsync($"the {english}", SourceLanguage, TargetLanguage, ct);
         if (string.IsNullOrWhiteSpace(translated))
+        {
+            _translatorUnavailable = true;
             return null;
+        }
 
         var text = translated.Trim().TrimEnd('.').Trim();
         string? gender = null;
