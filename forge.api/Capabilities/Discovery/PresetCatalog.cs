@@ -560,7 +560,7 @@ public static class PresetCatalog
                 "CAP-PS-PROJECT-COST", "CAP-PS-UTILIZATION", "CAP-PS-RETAINER",
             ]),
         // ── Same terminology overlay as PRESET-08 (per user — Hybrid carries
-        // full Project/Client/Consultant renames even where manufacturing
+        // full Engagement/Consultant/Sprint renames even where manufacturing
         // surfaces would otherwise read with the original vocabulary). ──
         TerminologyBundle: Preset08_ProServices.TerminologyBundle,
         // ── Same reference-data seed as PRESET-08 — manufacturing groups
