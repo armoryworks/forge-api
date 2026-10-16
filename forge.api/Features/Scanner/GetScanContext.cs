@@ -196,7 +196,7 @@ public class GetScanContextHandler(AppDbContext db, IHttpContextAccessor httpCon
             })
             .ToDictionaryAsync(x => x.JobId, x => x.Net, cancellationToken);
 
-        var scanIssued = await db.ScanActionLogs
+        var scanLogs = await db.ScanActionLogs
             .AsNoTracking()
             .Where(log => log.ActionType == ScanActionType.Issue
                 && log.PartId == part.Id
@@ -204,9 +204,19 @@ public class GetScanContextHandler(AppDbContext db, IHttpContextAccessor httpCon
                 && log.RelatedEntityId != null
                 && jobIds.Contains(log.RelatedEntityId.Value)
                 && !log.IsReversed)
-            .GroupBy(log => log.RelatedEntityId!.Value)
-            .Select(g => new { JobId = g.Key, Quantity = g.Sum(log => log.Quantity) })
-            .ToDictionaryAsync(x => x.JobId, x => x.Quantity, cancellationToken);
+            .Select(log => new { log.Id, JobId = log.RelatedEntityId!.Value, log.Quantity })
+            .ToListAsync(cancellationToken);
+        var scanNotes = scanLogs.Select(log => ScanIssueNote.For(log.Id)).ToList();
+        var recordedScanNotes = (await db.MaterialIssues
+            .AsNoTracking()
+            .Where(mi => mi.Notes != null && scanNotes.Contains(mi.Notes))
+            .Select(mi => mi.Notes!)
+            .ToListAsync(cancellationToken))
+            .ToHashSet();
+        var scanIssued = scanLogs
+            .Where(log => !recordedScanNotes.Contains(ScanIssueNote.For(log.Id)))
+            .GroupBy(log => log.JobId)
+            .ToDictionary(g => g.Key, g => g.Sum(log => log.Quantity));
 
         var activeJobs = bomUses
             .GroupBy(u => u.Id)

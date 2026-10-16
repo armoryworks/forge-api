@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 
 using Forge.Api.Features.Scanner;
@@ -129,6 +130,27 @@ public class GetScanContextContractTests : IDisposable
         job.GetProperty("jobNumber").GetString().Should().Be("J-1");
         job.GetProperty("title").GetString().Should().Be("Bracket run");
         job.GetProperty("requiredQuantity").GetDecimal().Should().Be(10);
+        job.GetProperty("issuedQuantity").GetDecimal().Should().Be(3);
+        job.GetProperty("remainingQuantity").GetDecimal().Should().Be(7);
+    }
+
+    [Fact]
+    public async Task IssueContext_CountsAScanIssueOnceWhenItAlsoRecordedMaterialIssues()
+    {
+        await SeedAsync();
+        var log = await _db.ScanActionLogs.SingleAsync();
+        var raw = await _db.Parts.SingleAsync(p => p.PartNumber == "RM-100");
+        _db.MaterialIssues.Add(new MaterialIssue
+        {
+            JobId = log.RelatedEntityId!.Value, PartId = raw.Id, Quantity = 3, IssueType = MaterialIssueType.Issue,
+            IssuedById = 7, IssuedAt = DateTimeOffset.UtcNow, Notes = ScanIssueNote.For(log.Id),
+        });
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var issue = Action(await ContextJsonAsync(Caller("ProductionWorker")), "Issue");
+
+        var job = issue.GetProperty("context").GetProperty("jobs").EnumerateArray().Single();
         job.GetProperty("issuedQuantity").GetDecimal().Should().Be(3);
         job.GetProperty("remainingQuantity").GetDecimal().Should().Be(7);
     }
