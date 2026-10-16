@@ -21,6 +21,13 @@ namespace Forge.Api.Features.Workflows.Runs;
 /// supplied by the client is held in <see cref="WorkflowRun.DraftPayload"/>.
 /// This avoids creating placeholder ("(Draft)") rows for workflows that the
 /// user might abandon before filling in the basics.
+/// <para>
+/// When the body carries an <c>EntityId</c> the run is bound to that existing
+/// entity up front (EntityId + primary junction row), so the steps read and
+/// write the saved record and readiness gates evaluate against it. Starting a
+/// bound run is idempotent: an active run for the same entity + definition is
+/// returned instead of opening a second one.
+/// </para>
 /// </summary>
 public record StartWorkflowRunCommand(StartWorkflowRunRequestModel Body)
     : IRequest<WorkflowRunResponseModel>;
@@ -34,13 +41,17 @@ public class StartWorkflowRunValidator : AbstractValidator<StartWorkflowRunComma
         RuleFor(x => x.Body.Mode)
             .Must(m => m is null || m == "express" || m == "guided")
             .WithMessage("mode must be 'express' or 'guided' when supplied.");
+        RuleFor(x => x.Body.EntityId)
+            .GreaterThan(0)
+            .When(x => x.Body.EntityId.HasValue);
     }
 }
 
 public class StartWorkflowRunHandler(
     AppDbContext db,
     ISystemAuditWriter auditWriter,
-    IClock clock) : IRequestHandler<StartWorkflowRunCommand, WorkflowRunResponseModel>
+    IClock clock,
+    IEnumerable<IEntityReadinessLoader> loaders) : IRequestHandler<StartWorkflowRunCommand, WorkflowRunResponseModel>
 {
     public async Task<WorkflowRunResponseModel> Handle(StartWorkflowRunCommand request, CancellationToken ct)
     {
@@ -54,6 +65,26 @@ public class StartWorkflowRunHandler(
         if (!string.Equals(def.EntityType, body.EntityType, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException(
                 $"Definition '{def.DefinitionId}' targets entity type '{def.EntityType}', not '{body.EntityType}'.");
+
+        if (body.EntityId is int boundId)
+        {
+            var loader = loaders.FirstOrDefault(l =>
+                string.Equals(l.EntityType, def.EntityType, StringComparison.OrdinalIgnoreCase))
+                ?? throw new InvalidOperationException(
+                    $"Entity type '{def.EntityType}' cannot be bound to a workflow run.");
+            _ = await loader.LoadAsync(boundId, ct)
+                ?? throw new KeyNotFoundException($"{def.EntityType} id {boundId} not found.");
+
+            var existing = await db.WorkflowRuns
+                .AsNoTracking()
+                .Where(r => r.EntityType == body.EntityType && r.EntityId == boundId
+                    && r.DefinitionId == def.DefinitionId
+                    && r.CompletedAt == null && r.AbandonedAt == null)
+                .OrderByDescending(r => r.LastActivityAt)
+                .FirstOrDefaultAsync(ct);
+            if (existing is not null)
+                return existing.ToResponse();
+        }
 
         // Compute first step from the definition's StepsJson.
         var firstStepId = ReadFirstStepId(def.StepsJson);
@@ -70,8 +101,8 @@ public class StartWorkflowRunHandler(
         var run = new WorkflowRun
         {
             EntityType = body.EntityType,
-            EntityId = null,
-            DraftPayload = draftPayload,
+            EntityId = body.EntityId,
+            DraftPayload = body.EntityId is null ? draftPayload : null,
             DefinitionId = body.DefinitionId,
             CurrentStepId = firstStepId,
             Mode = mode,
@@ -80,8 +111,16 @@ public class StartWorkflowRunHandler(
             LastActivityAt = now,
         };
         db.WorkflowRuns.Add(run);
-        // No junction row inserted yet — WorkflowRunEntity carries a non-null
-        // EntityId in its composite PK, so we wait until materialization.
+        if (body.EntityId is int entityId)
+        {
+            db.WorkflowRunEntities.Add(new WorkflowRunEntity
+            {
+                Run = run,
+                EntityType = body.EntityType,
+                EntityId = entityId,
+                Role = "primary",
+            });
+        }
 
         await db.SaveChangesAsync(ct);
 
