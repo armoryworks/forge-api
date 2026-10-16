@@ -1078,6 +1078,7 @@ try
     if (integrationMode.IsMock("ai"))
     {
         builder.Services.AddSingleton<IAiService, MockAiService>();
+        builder.Services.AddScoped<II18nTranslationService, MockI18nTranslationService>();
     }
     else
     {
