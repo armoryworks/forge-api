@@ -400,6 +400,15 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new RevalueFxCommand(body.BookId, body.CurrencyId, body.NewRate, body.AsOf), ct));
 
     /// <summary>
+    /// Jobs with an open GL WIP balance and no production-cost close yet — the worklist the close action runs
+    /// against at period end.
+    /// </summary>
+    [RequiresCapability("CAP-ACCT-FULLGL")]
+    [HttpGet("jobs/production-cost-close-candidates")]
+    public async Task<ActionResult<IReadOnlyList<JobCostCloseCandidateModel>>> GetJobCostCloseCandidates(CancellationToken ct)
+        => Ok(await mediator.Send(new GetJobCostCloseCandidatesQuery(), ct));
+
+    /// <summary>
     /// Close a job's production cost (STAGE E completion): absorb the job's actual labor + overhead into WIP
     /// and sweep the remaining WIP balance to PRODUCTION_VARIANCE. Idempotent; run after the job's production
     /// receipts.
