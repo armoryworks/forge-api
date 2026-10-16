@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Inventory;
+using Forge.Api.Features.Jobs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -30,7 +31,8 @@ public class ExecuteScanIssueCommandValidator : AbstractValidator<ExecuteScanIss
 public class ExecuteScanIssueHandler(
     AppDbContext db,
     IClock clock,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    IMediator mediator)
     : IRequestHandler<ExecuteScanIssueCommand, int>
 {
     public async Task<int> Handle(ExecuteScanIssueCommand request, CancellationToken cancellationToken)
@@ -77,6 +79,8 @@ public class ExecuteScanIssueHandler(
             throw new InvalidOperationException(
                 $"Cannot issue {data.Quantity} — only {available} available");
 
+        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+
         var drawn = BinContentDrawDown.Take(sourceRows, data.Quantity, userId, now);
 
         // Create scan action log
@@ -111,6 +115,16 @@ public class ExecuteScanIssueHandler(
         }
         await db.SaveChangesAsync(cancellationToken);
 
+        foreach (var lot in drawn.GroupBy(d => d.Row.LotNumber))
+        {
+            await mediator.Send(new CreateMaterialIssueCommand(
+                data.JobId, data.PartId, OperationId: null, lot.Sum(d => d.Taken),
+                BinContentId: null, StorageLocationId: data.FromLocationId, LotNumber: lot.Key,
+                MaterialIssueType.Issue, ScanIssueNote.For(scanLog.Id), userId,
+                StockDrawnByCaller: true), cancellationToken);
+        }
+
+        await tx.CommitAsync(cancellationToken);
         return scanLog.Id;
     }
 }

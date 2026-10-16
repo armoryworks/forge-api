@@ -64,8 +64,9 @@ public sealed class InventoryValuationService(AppDbContext db) : IInventoryValua
             .Where(v => v.BookId == bookId && v.OnHandQuantity != 0m)
             .Join(db.Set<Forge.Core.Entities.Part>().IgnoreQueryFilters(),
                 v => v.PartId, p => p.Id,
-                (v, p) => new InventoryValuationModel(v.PartId, p.PartNumber, v.OnHandQuantity, v.AverageUnitCost, v.TotalValue))
-            .OrderBy(m => m.PartNumber)
+                (v, p) => new { v.PartId, p.PartNumber, v.OnHandQuantity, v.AverageUnitCost, v.TotalValue })
+            .OrderBy(r => r.PartNumber)
+            .Select(r => new InventoryValuationModel(r.PartId, r.PartNumber, r.OnHandQuantity, r.AverageUnitCost, r.TotalValue))
             .ToListAsync(ct);
     }
 

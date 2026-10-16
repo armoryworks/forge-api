@@ -21,7 +21,8 @@ public record CreateMaterialIssueCommand(
     string? LotNumber,
     MaterialIssueType IssueType,
     string? Notes,
-    int IssuedById) : IRequest<MaterialIssueResponseModel>;
+    int IssuedById,
+    bool StockDrawnByCaller = false) : IRequest<MaterialIssueResponseModel>;
 
 public class CreateMaterialIssueValidator : AbstractValidator<CreateMaterialIssueCommand>
 {
@@ -59,7 +60,7 @@ public class CreateMaterialIssueHandler(
             .Select(pol => pol.UnitPrice)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (request.BinContentId.HasValue)
+        if (!request.StockDrawnByCaller && request.BinContentId.HasValue)
         {
             var bin = await db.BinContents.FindAsync([request.BinContentId.Value], cancellationToken)
                 ?? throw new KeyNotFoundException($"BinContent {request.BinContentId} not found");
@@ -91,7 +92,8 @@ public class CreateMaterialIssueHandler(
                 MovedAt = DateTimeOffset.UtcNow,
             });
         }
-        else if (request.IssueType == MaterialIssueType.Issue && !string.IsNullOrWhiteSpace(request.LotNumber))
+        else if (!request.StockDrawnByCaller
+            && request.IssueType == MaterialIssueType.Issue && !string.IsNullOrWhiteSpace(request.LotNumber))
         {
             var lotRows = db.BinContents.Where(bc => bc.EntityType == "part"
                 && bc.EntityId == request.PartId
@@ -128,7 +130,7 @@ public class CreateMaterialIssueHandler(
         // back) together — the locked inline model. The engine's SaveChanges joins this transaction; a posting
         // failure (FULLGL on) unwinds the issue too. On Npgsql this is a real transaction; the in-memory test
         // provider treats it as an ignored no-op. tx is opened only when posting is wired.
-        await using var tx = posting is not null
+        await using var tx = posting is not null && db.Database.CurrentTransaction is null
             ? await db.Database.BeginTransactionAsync(cancellationToken)
             : null;
 

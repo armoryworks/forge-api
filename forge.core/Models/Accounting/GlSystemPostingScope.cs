@@ -5,7 +5,9 @@ namespace Forge.Core.Models.Accounting;
 /// jobs). The SoD boundary fail-safe-denies any GL mutation with no authenticated principal — correct for
 /// HTTP requests, but Hangfire jobs (e.g. the payment-transmission settlement entry) legitimately post with
 /// no principal at all. A job wraps its engine call in <c>using var _ = GlSystemPostingScope.Enter();</c>;
-/// the authorizer then authorizes it as the system principal (and logs it as such).
+/// the authorizer then authorizes it as the system principal (and logs it as such). Sub-ledger postings caused
+/// by a business action enter the same scope through <c>SubledgerPosting</c>, authorized by the action's own
+/// role check (owner decision 2026-10-16); manual journal entries never do.
 /// <para>
 /// Scope is <see cref="AsyncLocal{T}"/>-bound: it cannot leak across requests, only flows down the awaited
 /// call chain that explicitly entered it, and is reset on dispose. Human-driven flows are untouched — they

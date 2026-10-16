@@ -146,7 +146,7 @@ public sealed class VendorPaymentCashPostingService(
         // Reverse on the VOID date (today) — the original period may differ; the engine guards closed
         // periods. ReverseAsync flips the WHOLE entry, including any realized-FX plug lines.
         var reversalDate = DateOnly.FromDateTime((clock?.UtcNow ?? DateTimeOffset.UtcNow).UtcDateTime);
-        await postingEngine.ReverseAsync(
+        await postingEngine.ReverseAsSystemAsync(
             entry.Id, reversalDate, $"Vendor payment {vendorPaymentId} voided: {reason}", reversedByUserId, ct);
     }
 
@@ -330,7 +330,7 @@ public sealed class VendorPaymentCashPostingService(
             Lines = lines,
         };
 
-        var entry = await postingEngine.PostAsync(request, createdByUserId, ct);
+        var entry = await postingEngine.PostAsSystemAsync(request, createdByUserId, ct);
 
         await TryAuditAsync(payment, entry, amount, payment.AppliedAmount, unapplied, createdByUserId, ct);
     }

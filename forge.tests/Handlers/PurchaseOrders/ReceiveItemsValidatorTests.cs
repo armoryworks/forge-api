@@ -34,4 +34,16 @@ public class ReceiveItemsValidatorTests
     [Fact]
     public void LineWithoutLotOrNotes_IsValid()
         => new ReceiveItemsValidator().Validate(Command()).IsValid.Should().BeTrue();
+
+    [Fact]
+    public void EmptyLines_AreRejected()
+        => new ReceiveItemsValidator().Validate(new ReceiveItemsCommand(1, [])).IsValid.Should().BeFalse();
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void NonPositiveLineQuantity_IsRejected(int quantity)
+        => new ReceiveItemsValidator()
+            .Validate(new ReceiveItemsCommand(1, [new ReceiveLineModel(LineId: 1, Quantity: quantity, StorageLocationId: null, Notes: null)]))
+            .IsValid.Should().BeFalse();
 }

@@ -33,7 +33,7 @@ public sealed class GlBoundaryAuthorizer(
         if (GlSystemPostingScope.IsActive)
         {
             logger.LogInformation(
-                "[GL-SOD] System-scope posting authorized for {Capability} (background job, no user principal).",
+                "[GL-SOD] System-scope posting authorized for {Capability} (background job or sub-ledger business action).",
                 capability);
             return;
         }

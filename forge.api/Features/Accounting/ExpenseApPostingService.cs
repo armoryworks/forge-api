@@ -219,7 +219,7 @@ public sealed class ExpenseApPostingService(
         // ── Post inline on the shared context. The engine validates, assigns the
         // EntryNumber, maintains LedgerBalance, and calls SaveChangesAsync so the
         // write participates in the operational command's transaction (§2, §5.2).
-        var entry = await postingEngine.PostAsync(request, approvedByUserId, ct);
+        var entry = await postingEngine.PostAsSystemAsync(request, approvedByUserId, ct);
 
         // ── Audit (§5.8): actor + before/after + reason on post. Best-effort —
         // an audit hiccup must not unwind a successful, committed posting.

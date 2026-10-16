@@ -413,7 +413,7 @@ public class NcrLotHoldTests : IDisposable
         await StockAsync(_binA, HeldLot, 10);
         var ncr = await RaiseNcrAsync();
 
-        var act = () => new ExecuteScanIssueHandler(_db, _clock, _accessor).Handle(
+        var act = () => new ExecuteScanIssueHandler(_db, _clock, _accessor, MaterialIssueMediator.For(_db)).Handle(
             new ExecuteScanIssueCommand(new ScanIssueRequestModel(_part.Id, job.Id, 2, _binA.Id)), CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage(HoldMessage(ncr));

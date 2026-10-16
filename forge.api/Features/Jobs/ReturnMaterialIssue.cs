@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Accounting;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -11,7 +12,7 @@ namespace Forge.Api.Features.Jobs;
 public record ReturnMaterialIssueCommand(int JobId, int IssueId, int ReturnedById)
     : IRequest<MaterialIssueResponseModel>;
 
-public class ReturnMaterialIssueHandler(AppDbContext db)
+public class ReturnMaterialIssueHandler(AppDbContext db, IMaterialIssuePostingService? posting = null)
     : IRequestHandler<ReturnMaterialIssueCommand, MaterialIssueResponseModel>
 {
     public async Task<MaterialIssueResponseModel> Handle(
@@ -73,7 +74,20 @@ public class ReturnMaterialIssueHandler(AppDbContext db)
             }
         }
 
+        await using var tx = posting is not null && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         await db.SaveChangesAsync(cancellationToken);
+
+        if (posting is not null)
+        {
+            var entryDate = DateOnly.FromDateTime(returnIssue.IssuedAt.UtcDateTime);
+            await posting.PostMaterialIssueAsync(returnIssue.Id, entryDate, request.ReturnedById, cancellationToken);
+        }
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
 
         return new MaterialIssueResponseModel
         {
