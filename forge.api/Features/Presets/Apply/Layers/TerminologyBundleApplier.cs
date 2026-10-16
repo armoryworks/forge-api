@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities.Discovery.Bundles;
+using Forge.Api.Features.Terminology;
 using Forge.Core.Entities;
 using Forge.Data.Context;
 
@@ -15,7 +16,10 @@ namespace Forge.Api.Features.Presets.Apply.Layers;
 /// <para><b>Conflict semantics:</b></para>
 /// <list type="bullet">
 ///   <item><c>SkipAdminEdited</c> (default): rows with <c>IsAdminEdited=true</c>
-///   are left untouched even if the bundle would otherwise rewrite them.</item>
+///   are left untouched even if the bundle would otherwise rewrite them. An
+///   admin-cleared row (empty label) counts as edited, so a cleared term stays
+///   cleared. A catalog term's singular and plural keys move together: when
+///   the admin edited either one, the bundle writes neither.</item>
 ///   <item><c>Overwrite</c>: every key from the bundle is written, regardless
 ///   of admin-edit flag. Use for first-time apply / migration.</item>
 ///   <item><c>Prompt</c>: behaves like <c>SkipAdminEdited</c> but every
@@ -35,7 +39,10 @@ public static class TerminologyBundleApplier
     {
         // Pull the current rows for the keys the bundle touches. One query
         // by-keys-list avoids loading the whole table.
-        var keys = bundle.Labels.Keys.ToList();
+        var keys = bundle.Labels.Keys
+            .SelectMany(PairedKeys)
+            .Distinct()
+            .ToList();
         var existing = await db.TerminologyEntries
             .Where(e => keys.Contains(e.Key))
             .ToDictionaryAsync(e => e.Key, e => e, cancellationToken);
@@ -47,26 +54,26 @@ public static class TerminologyBundleApplier
 
         foreach (var (key, label) in bundle.Labels)
         {
+            var isProtected = PairedKeys(key)
+                .Any(k => existing.TryGetValue(k, out var edited) && edited.IsAdminEdited);
+            var policySkip = bundle.ConflictPolicy switch
+            {
+                TerminologyConflictPolicy.Overwrite => false,
+                TerminologyConflictPolicy.SkipAdminEdited => isProtected,
+                TerminologyConflictPolicy.Prompt => isProtected,
+                _ => isProtected
+            };
+
+            if (policySkip)
+            {
+                skipped++;
+                if (bundle.ConflictPolicy == TerminologyConflictPolicy.Prompt)
+                    conflicted++;
+                continue;
+            }
+
             if (existing.TryGetValue(key, out var row))
             {
-                // Existing row — apply conflict policy.
-                var isProtected = row.IsAdminEdited;
-                var policySkip = bundle.ConflictPolicy switch
-                {
-                    TerminologyConflictPolicy.Overwrite => false,
-                    TerminologyConflictPolicy.SkipAdminEdited => isProtected,
-                    TerminologyConflictPolicy.Prompt => isProtected,
-                    _ => isProtected
-                };
-
-                if (policySkip)
-                {
-                    skipped++;
-                    if (bundle.ConflictPolicy == TerminologyConflictPolicy.Prompt)
-                        conflicted++;
-                    continue;
-                }
-
                 if (row.Label == label && row.SourcePresetId == presetId)
                 {
                     // Already at target state; no work to do.
@@ -98,5 +105,11 @@ public static class TerminologyBundleApplier
             UpdatedCount: updated,
             SkippedCount: skipped,
             ConflictedCount: conflicted);
+    }
+
+    private static IEnumerable<string> PairedKeys(string key)
+    {
+        var term = TerminologyTermCatalog.All.FirstOrDefault(t => t.SingularKey == key || t.PluralKey == key);
+        return term is null ? [key] : [term.SingularKey, term.PluralKey];
     }
 }

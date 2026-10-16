@@ -99,11 +99,10 @@ public class UpdateTerminologyHandlerTests
         var applied = await TerminologyBundleApplier.ApplyAsync(bundle, _db, "PRESET-08", CancellationToken.None);
         await _db.SaveChangesAsync();
 
-        applied.SkippedCount.Should().Be(1);
+        applied.SkippedCount.Should().Be(2);
         Row("entity_job").Label.Should().BeEmpty();
         var read = await new TerminologyRepository(_db).GetAllAsync(CancellationToken.None);
-        read.Should().NotContain(e => e.Key == "entity_job");
-        read.Should().Contain(e => e.Key == "label_jobs" && e.Label == "Engagements");
+        read.Should().NotContain(e => e.Key == "entity_job" || e.Key == "label_jobs");
     }
 
     [Fact]

@@ -72,6 +72,46 @@ public class PresetBundleApplierTests
     }
 
     [Fact]
+    public async Task Terminology_SkipAdminEdited_Leaves_Cleared_Rows_Cleared()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.TerminologyEntries.Add(new TerminologyEntry { Key = "entity_planning_cycle", Label = "", IsAdminEdited = true });
+        await db.SaveChangesAsync();
+
+        var bundle = new TerminologyBundle(new Dictionary<string, string> { ["entity_planning_cycle"] = "Sprint" });
+
+        var result = await TerminologyBundleApplier.ApplyAsync(bundle, db, TestPresetId, CancellationToken.None);
+        await db.SaveChangesAsync();
+
+        Assert.Equal(1, result.SkippedCount);
+        Assert.Equal(string.Empty, (await db.TerminologyEntries.SingleAsync()).Label);
+    }
+
+    [Fact]
+    public async Task Terminology_SkipAdminEdited_Keeps_A_Terms_Singular_And_Plural_Together()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.TerminologyEntries.Add(new TerminologyEntry { Key = "entity_job", Label = "Work Order", IsAdminEdited = true });
+        await db.SaveChangesAsync();
+
+        var bundle = new TerminologyBundle(new Dictionary<string, string>
+        {
+            ["entity_job"] = "Engagement",
+            ["label_jobs"] = "Engagements",
+            ["entity_work_center"] = "Consultant",
+            ["label_work_centers"] = "Consultants",
+        });
+
+        var result = await TerminologyBundleApplier.ApplyAsync(bundle, db, TestPresetId, CancellationToken.None);
+        await db.SaveChangesAsync();
+
+        Assert.Equal(2, result.SkippedCount);
+        Assert.Equal(2, result.AddedCount);
+        var keys = await db.TerminologyEntries.Select(e => e.Key).OrderBy(k => k).ToListAsync();
+        Assert.Equal(["entity_job", "entity_work_center", "label_work_centers"], keys);
+    }
+
+    [Fact]
     public async Task Terminology_Overwrite_Rewrites_Even_Edited_Rows()
     {
         using var db = TestDbContextFactory.Create();
