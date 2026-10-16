@@ -49,6 +49,14 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
+        var partIds = so.Lines.Where(l => l.PartId.HasValue).Select(l => l.PartId!.Value).Distinct().ToList();
+        var routedPartIds = (await db.Operations
+            .Where(o => partIds.Contains(o.PartId))
+            .Select(o => o.PartId)
+            .Distinct()
+            .ToListAsync(cancellationToken))
+            .ToHashSet();
+
         var subtotal = so.Lines.Sum(l => l.Quantity * l.UnitPrice);
 
         return new SalesOrderDetailResponseModel(
@@ -92,7 +100,8 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
                     j.Priority.ToString(),
                     j.DueDate,
                     j.IsArchived,
-                    j.CompletedDate != null || j.Disposition != null || j.IsArchived)).ToList()
+                    j.CompletedDate != null || j.Disposition != null || j.IsArchived)).ToList(),
+                CreateJobsForSalesOrderLinesHandler.SkipReason(l, routedPartIds) is null
             )).ToList(),
             so.Shipments.Select(s => new SalesOrderShipmentModel(
                 s.Id,

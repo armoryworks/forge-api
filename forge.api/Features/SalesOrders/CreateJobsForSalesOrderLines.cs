@@ -196,7 +196,7 @@ public class CreateJobsForSalesOrderLinesHandler(
         return new CreateJobsForSalesOrderLinesResponseModel(created.Count, skipped);
     }
 
-    private static string? SkipReason(SalesOrderLine line, HashSet<int> routedPartIds)
+    internal static string? SkipReason(SalesOrderLine line, HashSet<int> routedPartIds)
     {
         if (line.PartId is not int partId || line.Part is null)
             return "No part on this line";

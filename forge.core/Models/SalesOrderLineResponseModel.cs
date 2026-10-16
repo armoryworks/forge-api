@@ -14,4 +14,5 @@ public record SalesOrderLineResponseModel(
     decimal RemainingQuantity,
     bool IsFullyShipped,
     string? Notes,
-    List<SalesOrderLineJobModel> Jobs);
+    List<SalesOrderLineJobModel> Jobs,
+    bool NeedsJob);
