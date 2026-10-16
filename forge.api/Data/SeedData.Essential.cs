@@ -313,6 +313,19 @@ public static partial class SeedData
             Log.Information("Seeded operation reason reference data (9 entries)");
         }
 
+        if (!await db.ReferenceData.IgnoreQueryFilters().AnyAsync(r => r.GroupCode == "mobile_note_presets"))
+        {
+            db.ReferenceData.AddRange(
+                new ReferenceData { IsSeedData = true, GroupCode = "mobile_note_presets", Code = "waiting_material", Label = "Waiting on material", SortOrder = 1 },
+                new ReferenceData { IsSeedData = true, GroupCode = "mobile_note_presets", Code = "machine_down", Label = "Machine down", SortOrder = 2 },
+                new ReferenceData { IsSeedData = true, GroupCode = "mobile_note_presets", Code = "setup_complete", Label = "Setup complete", SortOrder = 3 },
+                new ReferenceData { IsSeedData = true, GroupCode = "mobile_note_presets", Code = "first_article_ok", Label = "First article passed", SortOrder = 4 },
+                new ReferenceData { IsSeedData = true, GroupCode = "mobile_note_presets", Code = "needs_review", Label = "Needs supervisor review", SortOrder = 5 }
+            );
+            await db.SaveChangesAsync();
+            Log.Information("Seeded mobile note preset reference data (5 entries)");
+        }
+
         // Base/functional currency (Currency entity). Required by Invoice.CurrencyId
         // and Book.FunctionalCurrencyId. Seeded here (essential, always-on) so a clean
         // standalone install — SEED_DEMO_DATA=false, GL never enabled — can still
