@@ -130,4 +130,36 @@ public class GetInvoiceSourcesHandlerTests
         result.SalesOrders.Should().HaveCount(GetInvoiceSourcesHandler.MaxResults);
         result.Shipments.Should().HaveCount(GetInvoiceSourcesHandler.MaxResults);
     }
+
+    [Fact]
+    public async Task Shipment_carries_its_lines_priced_from_the_order()
+    {
+        var customer = new Customer { Name = "Acme" };
+        var part = new Part { PartNumber = "FG-00001", Name = "Widget" };
+        _db.Customers.Add(customer);
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+
+        var order = await SeedOrderAsync(customer, "SO-1");
+        var orderLine = new SalesOrderLine
+        {
+            SalesOrderId = order.Id, PartId = part.Id, Description = "Widget, anodized",
+            Quantity = 10m, UnitPrice = 42.5m, LineNumber = 1,
+        };
+        _db.SalesOrderLines.Add(orderLine);
+        await _db.SaveChangesAsync();
+        var shipment = new Shipment { ShipmentNumber = "SHP-1", SalesOrderId = order.Id, Status = ShipmentStatus.Shipped };
+        shipment.Lines.Add(new ShipmentLine { SalesOrderLineId = orderLine.Id, PartId = part.Id, Quantity = 4m });
+        _db.Shipments.Add(shipment);
+        await _db.SaveChangesAsync();
+
+        var result = await new GetInvoiceSourcesHandler(_db).Handle(new GetInvoiceSourcesQuery(customer.Id), CancellationToken.None);
+
+        var line = result.Shipments.Single().Lines.Should().ContainSingle().Subject;
+        line.PartId.Should().Be(part.Id);
+        line.PartNumber.Should().Be("FG-00001");
+        line.Description.Should().Be("Widget, anodized");
+        line.Quantity.Should().Be(4m);
+        line.UnitPrice.Should().Be(42.5m);
+    }
 }
