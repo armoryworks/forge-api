@@ -879,6 +879,48 @@ public class WorkflowRunLifecycleTests(CapabilityTestWebApplicationFactory facto
     }
 
     [Fact]
+    public async Task Start_WithEntityId_ReopensTheCompletedRun_InsteadOfInsertingASecondRow()
+    {
+        var client = AuthenticatedClient();
+        int vendorId;
+        using (var seedScope = factory.Services.CreateScope())
+        {
+            var seedDb = seedScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var vendor = new Vendor { CompanyName = $"Reopen Vendor {Guid.NewGuid():N}", IsActive = true };
+            seedDb.Set<Vendor>().Add(vendor);
+            await seedDb.SaveChangesAsync();
+            vendorId = vendor.Id;
+        }
+
+        var body = new StartWorkflowRunRequestModel("Vendor", "vendor-guided-v1", "guided", null, vendorId);
+        var first = (await (await client.PostAsJsonAsync("/api/v1/workflows", body))
+            .Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var row = await db.WorkflowRuns.SingleAsync(r => r.Id == first.Id);
+            row.CurrentStepId = "review";
+            row.CompletedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync();
+        }
+
+        var response = await client.PostAsJsonAsync("/api/v1/workflows", body);
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+        var reopened = (await response.Content.ReadFromJsonAsync<WorkflowRunResponseModel>())!;
+        reopened.Id.Should().Be(first.Id);
+        reopened.CurrentStepId.Should().Be("identity");
+        reopened.CompletedAt.Should().BeNull();
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            (await db.WorkflowRuns.CountAsync(r => r.EntityType == "Vendor" && r.EntityId == vendorId))
+                .Should().Be(1);
+            (await db.WorkflowRunEntities.CountAsync(j => j.RunId == first.Id)).Should().Be(1);
+        }
+    }
+
+    [Fact]
     public async Task Start_WithUnknownEntityId_Returns404_AndCreatesNoRun()
     {
         var client = AuthenticatedClient();

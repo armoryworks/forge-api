@@ -28,7 +28,9 @@ namespace Forge.Api.Features.Workflows.Runs;
 /// entity up front (EntityId + primary junction row), so the steps read and
 /// write the saved record and readiness gates evaluate against it. Starting a
 /// bound run is idempotent: an active run for the same entity + definition is
-/// returned instead of opening a second one. Binding requires the roles of the
+/// returned instead of opening a second one, and a completed or abandoned run
+/// for the entity is reopened at the first step, since an entity holds a
+/// single run row. Binding requires the roles of the
 /// entity's own update endpoint, and an unbound run the roles of its create
 /// endpoint (<see cref="WorkflowEntityEditAccess"/>).
 /// </para>
@@ -84,14 +86,9 @@ public class StartWorkflowRunHandler(
                 ?? throw new KeyNotFoundException($"{def.EntityType} id {boundId} not found.");
 
             var existing = await db.WorkflowRuns
-                .AsNoTracking()
-                .Where(r => r.EntityType == body.EntityType && r.EntityId == boundId
-                    && r.DefinitionId == def.DefinitionId
-                    && r.CompletedAt == null && r.AbandonedAt == null)
-                .OrderByDescending(r => r.LastActivityAt)
-                .FirstOrDefaultAsync(ct);
+                .FirstOrDefaultAsync(r => r.EntityType == body.EntityType && r.EntityId == boundId, ct);
             if (existing is not null)
-                return existing.ToResponse();
+                return await ReuseBoundRunAsync(existing, def, body.Mode, ct);
         }
         else if (!WorkflowEntityEditAccess.CanCreate(httpContextAccessor.HttpContext?.User, def.EntityType))
         {
@@ -136,8 +133,55 @@ public class StartWorkflowRunHandler(
         }
 
         await db.SaveChangesAsync(ct);
+        await WriteStartedAuditAsync(run, ct);
 
-        await auditWriter.WriteAsync(
+        return run.ToResponse();
+    }
+
+    private async Task<WorkflowRunResponseModel> ReuseBoundRunAsync(
+        WorkflowRun run, WorkflowDefinition def, string? requestedMode, CancellationToken ct)
+    {
+        var active = run.CompletedAt == null && run.AbandonedAt == null;
+        if (active)
+        {
+            if (run.DefinitionId == def.DefinitionId)
+                return run.ToResponse();
+            throw new InvalidOperationException(
+                $"{run.EntityType} id {run.EntityId} already has an open '{run.DefinitionId}' workflow. Finish or abandon it first.");
+        }
+
+        var now = clock.UtcNow;
+        run.DefinitionId = def.DefinitionId;
+        run.CurrentStepId = ReadFirstStepId(def.StepsJson);
+        run.Mode = requestedMode ?? def.DefaultMode;
+        run.DraftPayload = null;
+        run.CompletedAt = null;
+        run.AbandonedAt = null;
+        run.AbandonedReason = null;
+        run.StartedAt = now;
+        run.StartedByUserId = db.CurrentUserId ?? 0;
+        run.LastActivityAt = now;
+
+        var hasPrimary = await db.WorkflowRunEntities.AnyAsync(e => e.RunId == run.Id
+            && e.EntityType == run.EntityType && e.EntityId == run.EntityId, ct);
+        if (!hasPrimary)
+        {
+            db.WorkflowRunEntities.Add(new WorkflowRunEntity
+            {
+                RunId = run.Id,
+                EntityType = run.EntityType,
+                EntityId = run.EntityId!.Value,
+                Role = "primary",
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
+        await WriteStartedAuditAsync(run, ct);
+        return run.ToResponse();
+    }
+
+    private Task WriteStartedAuditAsync(WorkflowRun run, CancellationToken ct) =>
+        auditWriter.WriteAsync(
             action: WorkflowAuditEvents.Started,
             userId: db.CurrentUserId ?? 0,
             entityType: WorkflowAuditEvents.EntityType,
@@ -152,9 +196,6 @@ public class StartWorkflowRunHandler(
                 currentStepId = run.CurrentStepId,
             }),
             ct: ct);
-
-        return run.ToResponse();
-    }
 
     private static string? ReadFirstStepId(string stepsJson)
     {
