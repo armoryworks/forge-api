@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Hubs;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -65,11 +66,13 @@ public class ExplodeJobBomHandler(
             ?? throw new InvalidOperationException(
                 $"Order type '{parentJob.TrackType.Name}' has no statuses. Add statuses in Admin.");
 
-        var buildQty = await db.Set<JobPart>()
-            .Where(jp => jp.JobId == parentJob.Id && jp.PartId == parentJob.PartId.Value)
-            .SumAsync(jp => jp.Quantity, ct);
-        if (buildQty <= 0)
-            buildQty = 1;
+        var buildQty = OperationTimeMath.JobBuildQuantity(
+            await db.Set<JobPart>()
+                .Where(jp => jp.JobId == parentJob.Id && jp.PartId == parentJob.PartId.Value)
+                .SumAsync(jp => jp.Quantity, ct),
+            parentJob.SalesOrderLineId is int lineId
+                ? await db.SalesOrderLines.Where(l => l.Id == lineId).Select(l => (decimal?)l.Quantity).FirstOrDefaultAsync(ct)
+                : null);
 
         var buyPartIds = bomLines
             .Where(l => l.SourceType == BOMSourceType.Buy)

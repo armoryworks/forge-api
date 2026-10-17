@@ -1,7 +1,16 @@
-using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
+using FluentAssertions;
+using MediatR;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Moq;
+
+using Forge.Api.Features.Jobs;
 using Forge.Api.Features.Jobs.Parts;
+using Forge.Api.Hubs;
+using Forge.Api.Middleware;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
@@ -12,12 +21,27 @@ namespace Forge.Tests.Handlers.Jobs;
 public class UpdateJobPartHandlerTests
 {
     private readonly AppDbContext _db = TestDbContextFactory.Create();
+    private readonly Mock<IClientProxy> _proxy = new();
+    private readonly DefaultHttpContext _http = new();
     private readonly UpdateJobPartHandler _handler;
 
     public UpdateJobPartHandlerTests()
     {
-        _handler = new UpdateJobPartHandler(_db);
+        var clients = new Mock<IHubClients>();
+        clients.Setup(c => c.Group(It.IsAny<string>())).Returns(_proxy.Object);
+        var boardHub = new Mock<IHubContext<BoardHub>>();
+        boardHub.Setup(h => h.Clients).Returns(clients.Object);
+        SignInAs("Manager");
+
+        _handler = new UpdateJobPartHandler(
+            _db,
+            new HttpContextAccessor { HttpContext = _http },
+            boardHub.Object,
+            Mock.Of<IMediator>());
     }
+
+    private void SignInAs(string role) =>
+        _http.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Role, role)], "test"));
 
     private async Task<Job> SeedAsync()
     {
@@ -68,5 +92,51 @@ public class UpdateJobPartHandlerTests
         await _handler.Handle(new UpdateJobPartCommand(1, 10, 1m, "Rush"), CancellationToken.None);
 
         (await _db.JobActivityLogs.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Changing_the_build_quantity_tells_the_board()
+    {
+        await SeedAsync();
+
+        await _handler.Handle(new UpdateJobPartCommand(1, 10, 300m, null), CancellationToken.None);
+
+        _proxy.Verify(p => p.SendCoreAsync("jobUpdated", It.IsAny<object?[]>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task Only_a_supervisor_can_change_the_build_quantity()
+    {
+        await SeedAsync();
+        SignInAs("ProductionWorker");
+
+        var act = () => _handler.Handle(new UpdateJobPartCommand(1, 10, 300m, null), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ForbiddenException>();
+        (await _db.JobParts.SingleAsync(jp => jp.Id == 10)).Quantity.Should().Be(1m);
+    }
+
+    [Fact]
+    public async Task Any_job_role_can_still_change_another_parts_quantity()
+    {
+        await SeedAsync();
+        SignInAs("ProductionWorker");
+
+        await _handler.Handle(new UpdateJobPartCommand(1, 11, 5m, null), CancellationToken.None);
+
+        (await _db.JobParts.SingleAsync(jp => jp.Id == 11)).Quantity.Should().Be(5m);
+    }
+
+    [Fact]
+    public async Task A_finished_job_keeps_its_build_quantity()
+    {
+        var job = await SeedAsync();
+        job.CompletedDate = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync();
+
+        var act = () => _handler.Handle(new UpdateJobPartCommand(1, 10, 300m, null), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message
+            .Should().Be(UpdateJobHandler.QuantityLockedMessage);
     }
 }

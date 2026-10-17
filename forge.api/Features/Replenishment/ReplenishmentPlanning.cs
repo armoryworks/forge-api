@@ -49,6 +49,7 @@ public static class ReplenishmentPlanning
 
         var openJobs = await db.Jobs
             .Include(j => j.JobParts)
+            .Include(j => j.SalesOrderLine)
             .Where(j => j.PartId != null
                 && partIds.Contains(j.PartId.Value)
                 && !j.IsArchived

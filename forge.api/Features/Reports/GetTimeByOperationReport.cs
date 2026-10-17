@@ -58,6 +58,7 @@ public class GetTimeByOperationReportHandler(AppDbContext db)
         var jobQuantities = await db.Jobs
             .AsNoTracking()
             .Include(j => j.JobParts)
+            .Include(j => j.SalesOrderLine)
             .Where(j => jobIds.Contains(j.Id))
             .ToDictionaryAsync(j => j.Id, OperationTimeMath.JobBuildQuantity, cancellationToken);
 

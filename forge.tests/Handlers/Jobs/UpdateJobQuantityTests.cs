@@ -173,6 +173,48 @@ public class UpdateJobQuantityTests
         (await _db.JobParts.SingleAsync(jp => jp.JobId == 1)).Quantity.Should().Be(40m);
     }
 
+    [Fact]
+    public async Task An_exploded_job_keeps_its_quantity()
+    {
+        await SeedJobAsync();
+        _db.Jobs.Add(new Job { Id = 2, JobNumber = "J-2", Title = "Sub", TrackTypeId = 1, CurrentStageId = 1, ParentJobId = 1 });
+        await _db.SaveChangesAsync();
+
+        var act = () => _handler.Handle(Update(300m), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message
+            .Should().Be(UpdateJobHandler.QuantityExplodedMessage);
+        (await _db.JobParts.SingleAsync(jp => jp.JobId == 1)).Quantity.Should().Be(1m);
+    }
+
+    [Fact]
+    public async Task Sub_jobs_entered_in_error_do_not_lock_the_quantity()
+    {
+        await SeedJobAsync();
+        _db.Jobs.Add(new Job
+        {
+            Id = 2, JobNumber = "J-2", Title = "Sub", TrackTypeId = 1, CurrentStageId = 1, ParentJobId = 1,
+            Disposition = JobDisposition.EnteredInError,
+        });
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(Update(300m), CancellationToken.None);
+
+        (await _db.JobParts.SingleAsync(jp => jp.JobId == 1)).Quantity.Should().Be(300m);
+    }
+
+    [Fact]
+    public async Task Resending_the_current_quantity_on_a_finished_job_is_not_refused()
+    {
+        var job = await SeedJobAsync(quantity: 300m);
+        job.CompletedDate = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(Update(300m), CancellationToken.None);
+
+        _logged.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(-3)]

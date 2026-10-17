@@ -65,6 +65,8 @@ public class UpdateJobHandler(
     public const string StartAfterDueMessage = "The start date must be on or before the due date.";
     public const string PartLockedMessage = "The part can't be changed after work has started.";
     public const string QuantityLockedMessage = "The quantity can't be changed on a finished work order.";
+    public const string QuantityExplodedMessage =
+        "The quantity can't be changed after the BOM has been exploded. Mark its sub-jobs as entered in error first.";
 
     public static bool StartsAfterDue(DateTimeOffset? start, DateTimeOffset? due) =>
         start.HasValue && due.HasValue && start.Value.UtcDateTime.Date > due.Value.UtcDateTime.Date;
@@ -92,7 +94,7 @@ public class UpdateJobHandler(
             : null;
 
         if (request.Quantity.HasValue)
-            CheckQuantityChange(job, newPart);
+            await CheckQuantityChangeAsync(job, newPart, request.Quantity.Value, cancellationToken);
 
         // User-settable job number — only while the job is still open (not disposed),
         // manual numbers enabled, and unique (excluding this job). The DB sequence is
@@ -301,12 +303,20 @@ public class UpdateJobHandler(
             : null;
 
         var jobParts = await db.JobParts.Where(jp => jp.JobId == job.Id).ToListAsync(ct);
-        if (jobParts.All(jp => jp.PartId != newPart.Id))
+        var carried = jobParts.FirstOrDefault(jp => jp.PartId == job.PartId);
+        var existing = jobParts.FirstOrDefault(jp => jp.PartId == newPart.Id);
+        var lineQuantity = job.SalesOrderLineId is int lineId
+            ? await SalesOrderLineDefaultQuantity.ComputeAsync(db, lineId, newPart.Id, job.Id, ct)
+            : null;
+        if (existing is not null)
         {
-            var carried = jobParts.FirstOrDefault(jp => jp.PartId == job.PartId);
-            var lineQuantity = job.SalesOrderLineId is int lineId
-                ? await SalesOrderLineDefaultQuantity.ComputeAsync(db, lineId, newPart.Id, job.Id, ct)
-                : null;
+            if (existing.Quantity <= 1m)
+                existing.Quantity = CarriedQuantity(carried?.Quantity ?? existing.Quantity, lineQuantity);
+            if (carried is not null)
+                db.JobParts.Remove(carried);
+        }
+        else
+        {
             if (carried is not null)
             {
                 carried.PartId = newPart.Id;
@@ -338,13 +348,25 @@ public class UpdateJobHandler(
     private static decimal CarriedQuantity(decimal carried, decimal? lineQuantity) =>
         carried > 1m ? carried : lineQuantity ?? carried;
 
-    private static void CheckQuantityChange(Job job, Part? newPart)
+    private async Task CheckQuantityChangeAsync(Job job, Part? newPart, decimal quantity, CancellationToken ct)
     {
         if (job.PartId is null && newPart is null)
             throw new ValidationException(
                 [new ValidationFailure(nameof(UpdateJobCommand.Quantity), CreateJobCommandValidator.QuantityNeedsPartMessage)]);
+        if (newPart is null
+            && await db.JobParts.AnyAsync(jp => jp.JobId == job.Id && jp.PartId == job.PartId && jp.Quantity == quantity, ct))
+            return;
+        await EnsureQuantityEditableAsync(db, job, ct);
+    }
+
+    public static async Task EnsureQuantityEditableAsync(AppDbContext db, Job job, CancellationToken ct)
+    {
         if (job.CompletedDate.HasValue || job.Disposition.HasValue || job.IsArchived)
             throw new InvalidOperationException(QuantityLockedMessage);
+        if (await db.Jobs.AnyAsync(c => c.ParentJobId == job.Id
+                && c.DeletedAt == null
+                && c.Disposition != JobDisposition.EnteredInError, ct))
+            throw new InvalidOperationException(QuantityExplodedMessage);
     }
 
     private async Task<JobActivityLog?> SetQuantityAsync(Job job, decimal quantity, int? currentUserId, CancellationToken ct)

@@ -1,6 +1,13 @@
+using System.Globalization;
+
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.Jobs.Operations;
+using Forge.Api.Hubs;
+using Forge.Api.Middleware;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -25,29 +32,47 @@ public class UpdateJobPartValidator : AbstractValidator<UpdateJobPartCommand>
     }
 }
 
-public class UpdateJobPartHandler(AppDbContext db) : IRequestHandler<UpdateJobPartCommand, JobPartResponseModel>
+public class UpdateJobPartHandler(
+    AppDbContext db,
+    IHttpContextAccessor httpContext,
+    IHubContext<BoardHub> boardHub,
+    IMediator mediator) : IRequestHandler<UpdateJobPartCommand, JobPartResponseModel>
 {
+    public const string QuantityRoleMessage = "Only an admin or a manager can change the work order quantity.";
+
     public async Task<JobPartResponseModel> Handle(UpdateJobPartCommand request, CancellationToken cancellationToken)
     {
         var jobPart = await db.JobParts
             .Include(jp => jp.Part)
+            .Include(jp => jp.Job)
             .FirstOrDefaultAsync(jp => jp.Id == request.JobPartId && jp.JobId == request.JobId, cancellationToken)
             ?? throw new KeyNotFoundException($"Job part with ID {request.JobPartId} not found.");
 
+        var job = jobPart.Job;
+        var changesBuildQuantity = jobPart.Quantity != request.Quantity && job.PartId == jobPart.PartId;
+        if (changesBuildQuantity)
+        {
+            var user = httpContext.HttpContext?.User;
+            if (user?.IsInRole("Admin") != true && user?.IsInRole("Manager") != true)
+                throw new ForbiddenException(QuantityRoleMessage);
+            await UpdateJobHandler.EnsureQuantityEditableAsync(db, job, cancellationToken);
+        }
+
         if (jobPart.Quantity != request.Quantity)
         {
-            var isBuildPart = await db.Jobs.AnyAsync(j => j.Id == request.JobId && j.PartId == jobPart.PartId, cancellationToken);
+            var oldText = jobPart.Quantity.ToString("0.####", CultureInfo.InvariantCulture);
+            var newText = request.Quantity.ToString("0.####", CultureInfo.InvariantCulture);
             db.JobActivityLogs.Add(new JobActivityLog
             {
                 JobId = request.JobId,
                 UserId = db.CurrentUserId,
                 Action = ActivityAction.FieldChanged,
-                FieldName = isBuildPart ? "Quantity" : null,
-                OldValue = isBuildPart ? $"{jobPart.Quantity:0.####}" : null,
-                NewValue = isBuildPart ? $"{request.Quantity:0.####}" : null,
-                Description = isBuildPart
-                    ? $"Quantity changed from {jobPart.Quantity:0.####} to {request.Quantity:0.####}."
-                    : $"Part {jobPart.Part.PartNumber} quantity changed from {jobPart.Quantity:0.####} to {request.Quantity:0.####}.",
+                FieldName = changesBuildQuantity ? "Quantity" : null,
+                OldValue = changesBuildQuantity ? oldText : null,
+                NewValue = changesBuildQuantity ? newText : null,
+                Description = changesBuildQuantity
+                    ? $"Quantity changed from {oldText} to {newText}."
+                    : $"Part {jobPart.Part.PartNumber} quantity changed from {oldText} to {newText}.",
             });
         }
 
@@ -55,6 +80,9 @@ public class UpdateJobPartHandler(AppDbContext db) : IRequestHandler<UpdateJobPa
         jobPart.Notes = request.Notes;
 
         await db.SaveChangesAsync(cancellationToken);
+
+        if (changesBuildQuantity)
+            await JobOperationRules.BroadcastJobUpdatedAsync(boardHub, mediator, job, cancellationToken);
 
         return new JobPartResponseModel(
             jobPart.Id,

@@ -93,6 +93,30 @@ public class ExplodeJobBomScalingTests
     }
 
     [Fact]
+    public async Task Explode_WithoutAJobPart_OnASalesOrderLine_BuildsTheLinesQuantity()
+    {
+        var (parentPart, parentJob) = await SeedParentAsync(buildQty: null);
+        var so = new SalesOrder { OrderNumber = "SO-1", CustomerId = 42, Status = SalesOrderStatus.Confirmed };
+        _db.SalesOrders.Add(so);
+        await _db.SaveChangesAsync();
+        var line = new SalesOrderLine
+        {
+            SalesOrderId = so.Id, PartId = parentPart.Id, Description = "Assembly",
+            Quantity = 300m, UnitPrice = 3m, LineNumber = 1,
+        };
+        _db.SalesOrderLines.Add(line);
+        await _db.SaveChangesAsync();
+        parentJob.SalesOrderLineId = line.Id;
+        var makePart = await SeedPartAsync("MK-3", uom: null);
+        _db.BOMLines.Add(new BOMLine { ParentPartId = parentPart.Id, ChildPartId = makePart.Id, Quantity = 2m, SourceType = BOMSourceType.Make, SortOrder = 1 });
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new ExplodeJobBomCommand(parentJob.Id), CancellationToken.None);
+
+        result.CreatedJobs.Single().Quantity.Should().Be(600m);
+    }
+
+    [Fact]
     public async Task Explode_RoundsUpOnlyForEachUnits()
     {
         var (parentPart, parentJob) = await SeedParentAsync(buildQty: 3m);
