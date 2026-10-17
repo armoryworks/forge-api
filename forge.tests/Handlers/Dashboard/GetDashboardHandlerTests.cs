@@ -114,6 +114,35 @@ public class GetDashboardHandlerTests
     }
 
     [Fact]
+    public async Task Handle_DeadlineDatesShowTheYearOnlyOutsideTheCurrentYear()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        var stage = new JobStage { Id = 1, Name = "In Production", Code = "PROD", SortOrder = 1, Color = "#3b82f6", IsActive = true };
+        var trackType = new TrackType { Id = 1, Name = "Production", Code = "PROD", IsDefault = true, Stages = [stage] };
+        var now = new DateTimeOffset(2026, 10, 16, 12, 0, 0, TimeSpan.Zero);
+        var lastYear = new DateTimeOffset(2025, 3, 20, 12, 0, 0, TimeSpan.Zero);
+        var thisYear = new DateTimeOffset(2026, 10, 20, 12, 0, 0, TimeSpan.Zero);
+        _clock.Setup(c => c.UtcNow).Returns(now);
+
+        var jobs = new List<Job>
+        {
+            new() { Id = 1, Title = "Old", JobNumber = "JOB-001", CurrentStage = stage, CurrentStageId = 1, TrackTypeId = 1, DueDate = lastYear },
+            new() { Id = 2, Title = "Soon", JobNumber = "JOB-002", CurrentStage = stage, CurrentStageId = 1, TrackTypeId = 1, DueDate = thisYear },
+        };
+
+        _repo.Setup(r => r.GetDashboardDataAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DashboardDataSet(trackType, jobs, new Dictionary<int, ApplicationUserInfo>(), []));
+
+        var handler = new GetDashboardHandler(_repo.Object, db, _clock.Object);
+
+        var result = await handler.Handle(new GetDashboardQuery(), CancellationToken.None);
+
+        result.Deadlines.Single(d => d.JobNumber == "JOB-001").Date.Should().Be(lastYear.ToString("MMM d, yyyy"));
+        result.Deadlines.Single(d => d.JobNumber == "JOB-002").Date.Should().Be(thisYear.ToString("MMM d"));
+    }
+
+    [Fact]
     public async Task Handle_WithAssignedJobs_ReturnsTeamMembers()
     {
         // Arrange

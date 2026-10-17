@@ -116,7 +116,7 @@ public class GetDashboardHandler(IDashboardRepository repo, AppDbContext db, ICl
             .Where(j => j.DueDate.HasValue && j.DueDate.Value.Date <= deadlineCutoff)
             .OrderBy(j => j.DueDate)
             .Select(j => new DeadlineEntryResponseModel(
-                j.DueDate!.Value.ToString("MMM d"),
+                j.DueDate!.Value.ToString(j.DueDate.Value.Year == today.Year ? "MMM d" : "MMM d, yyyy"),
                 j.JobNumber,
                 j.Title,
                 j.DueDate.Value.Date < today))
