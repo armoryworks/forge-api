@@ -74,6 +74,11 @@ public class LeadsController(IMediator mediator) : ControllerBase
     [Authorize(Roles = "Admin,Manager,PM")] // intake clients excluded
     public async Task<ActionResult<ConvertLeadResponseModel>> ConvertLead(int id, [FromBody] ConvertLeadRequestModel request)
     {
+        var setsCommercialTerms = request.IsTaxExempt == true || !string.IsNullOrWhiteSpace(request.TaxExemptionId)
+            || request.CreditLimit.HasValue;
+        if (setsCommercialTerms && !CustomersController.CommercialTermsRoles.Any(User.IsInRole))
+            return Forbid();
+
         var result = await mediator.Send(new ConvertLeadCommand(id, request));
         return Ok(result);
     }

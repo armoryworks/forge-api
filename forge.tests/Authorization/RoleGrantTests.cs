@@ -276,4 +276,19 @@ public sealed class RoleGrantTests
             ["Admin", "Manager", "OfficeManager", "Procurement", "Controller"]);
         EffectiveRoles(Single("GET", "api/v1/vendors")).Should().NotContain("Controller");
     }
+
+    [Fact]
+    public void Customer_credit_status_and_holds_are_limited_to_the_commercial_terms_roles()
+    {
+        foreach (var (verb, template) in new[]
+                 {
+                     ("GET", "api/v1/customers/{id:int}/credit-status"),
+                     ("POST", "api/v1/customers/{id:int}/credit-hold"),
+                     ("POST", "api/v1/customers/{id:int}/credit-release"),
+                     ("GET", "api/v1/customers/credit-risk-report"),
+                 })
+        {
+            EffectiveRoles(Single(verb, template)).Should().BeEquivalentTo(CustomersController.CommercialTermsRoles, template);
+        }
+    }
 }

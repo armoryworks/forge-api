@@ -83,7 +83,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<CustomerDetailResponseModel>> GetCustomer(int id)
     {
         var result = await mediator.Send(new GetCustomerByIdQuery(id));
-        return Ok(result);
+        return Ok(CommercialTermsRoles.Any(User.IsInRole) ? result : result with { CreditLimit = null });
     }
 
     [HttpPost]
@@ -327,7 +327,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<CustomerSummaryResponseModel>> GetSummary(int id, CancellationToken ct = default)
     {
         var result = await mediator.Send(new GetCustomerSummaryQuery(id), ct);
-        return Ok(result);
+        return Ok(CommercialTermsRoles.Any(User.IsInRole) ? result : result with { CreditLimit = null });
     }
 
     // ─── Credit Management ───
@@ -336,6 +336,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     // place/release-hold actions would be noise.
 
     [HttpGet("{id:int}/credit-status")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager")]
     [RequiresCapability("CAP-O2C-CREDIT-LIMITS")]
     public async Task<ActionResult<CreditStatusResponseModel>> GetCreditStatus(int id, CancellationToken ct = default)
     {
@@ -344,6 +345,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/credit-hold")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager")]
     [RequiresCapability("CAP-O2C-CREDIT-LIMITS")]
     public async Task<IActionResult> PlaceCreditHold(int id, [FromBody] PlaceCreditHoldRequestModel request)
     {
@@ -352,6 +354,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/credit-release")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager")]
     [RequiresCapability("CAP-O2C-CREDIT-LIMITS")]
     public async Task<IActionResult> ReleaseCreditHold(int id)
     {
@@ -360,6 +363,7 @@ public class CustomersController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("credit-risk-report")]
+    [Authorize(Roles = "Admin,Manager,OfficeManager")]
     [RequiresCapability("CAP-O2C-CREDIT-LIMITS")]
     public async Task<ActionResult<List<CreditStatusResponseModel>>> GetCreditRiskReport(CancellationToken ct = default)
     {

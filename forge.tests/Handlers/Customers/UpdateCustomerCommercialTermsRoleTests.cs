@@ -8,6 +8,7 @@ using Moq;
 
 using Forge.Api.Controllers;
 using Forge.Api.Features.Customers;
+using Forge.Api.Features.Leads;
 using Forge.Core.Models;
 
 namespace Forge.Tests.Handlers.Customers;
@@ -86,5 +87,50 @@ public class UpdateCustomerCommercialTermsRoleTests
         var result = await ControllerFor("PM").CreateCustomer(new CreateCustomerRequestModel("Acme", null, null, null));
 
         result.Result.Should().BeOfType<CreatedAtActionResult>();
+    }
+
+    private static CustomerDetailResponseModel DetailWithCreditLimit() =>
+        new(1, "Acme", null, null, null, true, false, null, null, null, null,
+            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, [], [], CreditLimit: 25_000m);
+
+    [Theory]
+    [InlineData("PM", null)]
+    [InlineData("Engineer", null)]
+    [InlineData("OfficeManager", 25_000)]
+    public async Task Customer_detail_shows_the_credit_limit_only_to_commercial_roles(string role, int? expected)
+    {
+        _mediator.Setup(m => m.Send(It.IsAny<GetCustomerByIdQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetailWithCreditLimit());
+
+        var result = await ControllerFor(role).GetCustomer(1);
+
+        var detail = result.Result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeOfType<CustomerDetailResponseModel>().Which;
+        detail.CreditLimit.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("PM", null)]
+    [InlineData("Manager", 25_000)]
+    public async Task Customer_summary_shows_the_credit_limit_only_to_commercial_roles(string role, int? expected)
+    {
+        _mediator.Setup(m => m.Send(It.IsAny<GetCustomerSummaryQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CustomerSummaryResponseModel(1, "Acme", null, null, null, null, true, null, null, null,
+                DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, 0, 0, 0, 0, 0, 0m, 0m, CreditLimit: 25_000m));
+
+        var result = await ControllerFor(role).GetSummary(1);
+
+        var summary = result.Result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeOfType<CustomerSummaryResponseModel>().Which;
+        summary.CreditLimit.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task Pm_cannot_set_credit_or_tax_terms_while_converting_a_lead()
+    {
+        var leads = new LeadsController(_mediator.Object) { ControllerContext = ControllerFor("PM").ControllerContext };
+
+        var result = await leads.ConvertLead(1, new ConvertLeadRequestModel(false, CreditLimit: 10_000m));
+
+        result.Result.Should().BeOfType<ForbidResult>();
+        _mediator.Verify(m => m.Send(It.IsAny<ConvertLeadCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }
