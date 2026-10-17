@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -33,7 +34,7 @@ public class CreateEcoHandler(AppDbContext db, IHttpContextAccessor httpContext,
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         // Generate ECO number
-        var today = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
+        var today = DateOnly.FromDateTime(ClockStateRules.LocalToday(await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), clock.UtcNow));
         var prefix = $"ECO-{today:yyyyMMdd}-";
         var lastNumber = await db.EngineeringChangeOrders
             .AsNoTracking()

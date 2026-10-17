@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -39,7 +40,7 @@ public class CreateProductionRunHandler(AppDbContext db) : IRequestHandler<Creat
         var part = await db.Parts.FindAsync([request.PartId], cancellationToken)
             ?? throw new KeyNotFoundException($"Part with ID {request.PartId} not found.");
 
-        var datePrefix = DateTimeOffset.UtcNow.ToString("yyyyMMdd");
+        var datePrefix = ClockStateRules.LocalToday(await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), DateTimeOffset.UtcNow).ToString("yyyyMMdd");
         var todayCount = await db.ProductionRuns
             .Where(pr => pr.RunNumber.StartsWith($"RUN-{datePrefix}-"))
             .CountAsync(cancellationToken);

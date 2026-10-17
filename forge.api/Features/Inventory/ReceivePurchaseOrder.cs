@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -64,7 +65,10 @@ public class ReceivePurchaseOrderHandler(
 
         // Same receipt-number scheme as ReceiveItems: it keys the GRNI accrual JE (idempotency +
         // the D.3 line-level reconciliation sweep resolves records by it). No freight on this path.
-        var receiptNumber = $"R-{clock.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}";
+        var receiptDate = db is null
+            ? clock.UtcNow.UtcDateTime.Date
+            : ClockStateRules.LocalToday(await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), clock.UtcNow);
+        var receiptNumber = $"R-{receiptDate:yyyyMMdd}-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}";
         var lot = string.IsNullOrWhiteSpace(data.LotNumber) ? null : data.LotNumber.Trim();
 
         // Create receiving record

@@ -7,6 +7,7 @@ using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.Inventory;
+using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -81,7 +82,10 @@ public class ReceiveItemsHandler(
         // EstimatedFreight; the buyer "matches estimate" with one click
         // (the variance check is a UI concern; we record the captured
         // value either way).
-        var receiptNumber = $"R-{clock.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}";
+        var receiptDate = db is null
+            ? clock.UtcNow.UtcDateTime.Date
+            : ClockStateRules.LocalToday(await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), clock.UtcNow);
+        var receiptNumber = $"R-{receiptDate:yyyyMMdd}-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}";
         var actualFreight = request.ActualFreight ?? po.EstimatedFreight;
         var packingSlip = string.IsNullOrWhiteSpace(request.PackingSlipNumber) ? null : request.PackingSlipNumber.Trim();
 
