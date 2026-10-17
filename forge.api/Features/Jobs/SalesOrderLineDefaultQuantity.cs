@@ -14,18 +14,17 @@ public static class SalesOrderLineDefaultQuantity
     {
         var line = await db.SalesOrderLines
             .Where(l => l.Id == salesOrderLineId)
-            .Select(l => new
-            {
-                l.PartId,
-                l.UomId,
-                PartStockUomId = l.Part != null ? l.Part.StockUomId : null,
-                l.Quantity,
-                l.ShippedQuantity,
-            })
+            .Select(l => new { l.PartId, l.UomId, l.Quantity, l.ShippedQuantity })
             .FirstAsync(ct);
 
-        if (line.PartId != partId
-            || (line.UomId.HasValue && line.PartStockUomId.HasValue && line.UomId != line.PartStockUomId))
+        if (line.PartId is not null && line.PartId != partId)
+            return null;
+
+        var partStockUomId = await db.Parts
+            .Where(p => p.Id == partId)
+            .Select(p => p.StockUomId)
+            .FirstOrDefaultAsync(ct);
+        if (line.UomId.HasValue && partStockUomId.HasValue && line.UomId != partStockUomId)
             return null;
 
         var onOpenJobs = await db.Jobs

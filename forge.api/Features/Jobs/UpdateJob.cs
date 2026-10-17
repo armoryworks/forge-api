@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using FluentValidation;
 using FluentValidation.Results;
 using MediatR;
@@ -29,7 +31,8 @@ public record UpdateJobCommand(
     // disposed, gated by jobs.allow_manual_numbers.
     string? JobNumber = null,
     DateTimeOffset? StartDate = null,
-    int? PartId = null) : IRequest<JobDetailResponseModel>;
+    int? PartId = null,
+    decimal? Quantity = null) : IRequest<JobDetailResponseModel>;
 
 public class UpdateJobCommandValidator : AbstractValidator<UpdateJobCommand>
 {
@@ -41,6 +44,7 @@ public class UpdateJobCommandValidator : AbstractValidator<UpdateJobCommand>
         RuleFor(x => x.StartDate)
             .Must((cmd, start) => !UpdateJobHandler.StartsAfterDue(start, cmd.DueDate))
             .WithMessage(UpdateJobHandler.StartAfterDueMessage);
+        RuleFor(x => x.Quantity).GreaterThan(0).When(x => x.Quantity is not null);
     }
 }
 
@@ -60,6 +64,7 @@ public class UpdateJobHandler(
 
     public const string StartAfterDueMessage = "The start date must be on or before the due date.";
     public const string PartLockedMessage = "The part can't be changed after work has started.";
+    public const string QuantityLockedMessage = "The quantity can't be changed on a finished work order.";
 
     public static bool StartsAfterDue(DateTimeOffset? start, DateTimeOffset? due) =>
         start.HasValue && due.HasValue && start.Value.UtcDateTime.Date > due.Value.UtcDateTime.Date;
@@ -85,6 +90,9 @@ public class UpdateJobHandler(
         var newPart = request.PartId.HasValue && request.PartId.Value != job.PartId
             ? await CheckPartChangeAsync(job, request.PartId.Value, cancellationToken)
             : null;
+
+        if (request.Quantity.HasValue)
+            CheckQuantityChange(job, newPart);
 
         // User-settable job number — only while the job is still open (not disposed),
         // manual numbers enabled, and unique (excluding this job). The DB sequence is
@@ -221,6 +229,10 @@ public class UpdateJobHandler(
         if (newPart is not null)
             changes.Add(await ChangePartAsync(job, newPart, currentUserId, cancellationToken));
 
+        if (request.Quantity.HasValue
+            && await SetQuantityAsync(job, request.Quantity.Value, currentUserId, cancellationToken) is { } quantityLog)
+            changes.Add(quantityLog);
+
         if (request.IterationCount.HasValue && request.IterationCount.Value != job.IterationCount)
         {
             changes.Add(new JobActivityLog
@@ -292,16 +304,20 @@ public class UpdateJobHandler(
         if (jobParts.All(jp => jp.PartId != newPart.Id))
         {
             var carried = jobParts.FirstOrDefault(jp => jp.PartId == job.PartId);
+            var lineQuantity = job.SalesOrderLineId is int lineId
+                ? await SalesOrderLineDefaultQuantity.ComputeAsync(db, lineId, newPart.Id, job.Id, ct)
+                : null;
             if (carried is not null)
+            {
                 carried.PartId = newPart.Id;
+                carried.Quantity = CarriedQuantity(carried.Quantity, lineQuantity);
+            }
             else
                 db.JobParts.Add(new JobPart
                 {
                     JobId = job.Id,
                     PartId = newPart.Id,
-                    Quantity = job.SalesOrderLineId is int lineId
-                        ? await SalesOrderLineDefaultQuantity.ComputeAsync(db, lineId, newPart.Id, job.Id, ct) ?? 1m
-                        : 1m,
+                    Quantity = lineQuantity ?? 1m,
                 });
         }
 
@@ -316,6 +332,43 @@ public class UpdateJobHandler(
             Description = oldPartNumber is null
                 ? $"Part set to {newPart.PartNumber}."
                 : $"Part changed from {oldPartNumber} to {newPart.PartNumber}.",
+        };
+    }
+
+    private static decimal CarriedQuantity(decimal carried, decimal? lineQuantity) =>
+        carried > 1m ? carried : lineQuantity ?? carried;
+
+    private static void CheckQuantityChange(Job job, Part? newPart)
+    {
+        if (job.PartId is null && newPart is null)
+            throw new ValidationException(
+                [new ValidationFailure(nameof(UpdateJobCommand.Quantity), CreateJobCommandValidator.QuantityNeedsPartMessage)]);
+        if (job.CompletedDate.HasValue || job.Disposition.HasValue || job.IsArchived)
+            throw new InvalidOperationException(QuantityLockedMessage);
+    }
+
+    private async Task<JobActivityLog?> SetQuantityAsync(Job job, decimal quantity, int? currentUserId, CancellationToken ct)
+    {
+        await db.JobParts.Where(jp => jp.JobId == job.Id).LoadAsync(ct);
+        var buildPart = db.JobParts.Local.FirstOrDefault(jp => jp.JobId == job.Id && jp.PartId == job.PartId);
+        var oldQuantity = buildPart?.Quantity;
+        if (oldQuantity == quantity)
+            return null;
+
+        if (buildPart is null)
+            db.JobParts.Add(new JobPart { JobId = job.Id, PartId = job.PartId!.Value, Quantity = quantity });
+        else
+            buildPart.Quantity = quantity;
+
+        var oldText = oldQuantity?.ToString("0.####", CultureInfo.InvariantCulture);
+        var newText = quantity.ToString("0.####", CultureInfo.InvariantCulture);
+        return new JobActivityLog
+        {
+            JobId = job.Id, UserId = currentUserId, Action = ActivityAction.FieldChanged,
+            FieldName = "Quantity", OldValue = oldText, NewValue = newText,
+            Description = oldText is null
+                ? $"Quantity set to {newText}."
+                : $"Quantity changed from {oldText} to {newText}.",
         };
     }
 

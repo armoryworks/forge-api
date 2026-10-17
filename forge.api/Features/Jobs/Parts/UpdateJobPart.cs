@@ -1,6 +1,8 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -31,6 +33,23 @@ public class UpdateJobPartHandler(AppDbContext db) : IRequestHandler<UpdateJobPa
             .Include(jp => jp.Part)
             .FirstOrDefaultAsync(jp => jp.Id == request.JobPartId && jp.JobId == request.JobId, cancellationToken)
             ?? throw new KeyNotFoundException($"Job part with ID {request.JobPartId} not found.");
+
+        if (jobPart.Quantity != request.Quantity)
+        {
+            var isBuildPart = await db.Jobs.AnyAsync(j => j.Id == request.JobId && j.PartId == jobPart.PartId, cancellationToken);
+            db.JobActivityLogs.Add(new JobActivityLog
+            {
+                JobId = request.JobId,
+                UserId = db.CurrentUserId,
+                Action = ActivityAction.FieldChanged,
+                FieldName = isBuildPart ? "Quantity" : null,
+                OldValue = isBuildPart ? $"{jobPart.Quantity:0.####}" : null,
+                NewValue = isBuildPart ? $"{request.Quantity:0.####}" : null,
+                Description = isBuildPart
+                    ? $"Quantity changed from {jobPart.Quantity:0.####} to {request.Quantity:0.####}."
+                    : $"Part {jobPart.Part.PartNumber} quantity changed from {jobPart.Quantity:0.####} to {request.Quantity:0.####}.",
+            });
+        }
 
         jobPart.Quantity = request.Quantity;
         jobPart.Notes = request.Notes;

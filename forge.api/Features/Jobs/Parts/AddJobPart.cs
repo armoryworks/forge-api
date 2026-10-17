@@ -1,3 +1,4 @@
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
@@ -10,8 +11,16 @@ namespace Forge.Api.Features.Jobs.Parts;
 public record AddJobPartCommand(
     int JobId,
     int PartId,
-    decimal Quantity = 1,
+    decimal? Quantity = null,
     string? Notes = null) : IRequest<JobPartResponseModel>;
+
+public class AddJobPartValidator : AbstractValidator<AddJobPartCommand>
+{
+    public AddJobPartValidator()
+    {
+        RuleFor(x => x.Quantity).GreaterThan(0).When(x => x.Quantity is not null);
+    }
+}
 
 public class AddJobPartHandler(AppDbContext db) : IRequestHandler<AddJobPartCommand, JobPartResponseModel>
 {
@@ -29,17 +38,22 @@ public class AddJobPartHandler(AppDbContext db) : IRequestHandler<AddJobPartComm
         if (exists)
             throw new InvalidOperationException("This part is already linked to this job.");
 
+        var setsJobPart = job.PartId is null;
+        var quantity = request.Quantity
+            ?? (setsJobPart && job.SalesOrderLineId is int lineId
+                ? await SalesOrderLineDefaultQuantity.ComputeAsync(db, lineId, part.Id, job.Id, cancellationToken)
+                : null)
+            ?? 1m;
+
         var jobPart = new JobPart
         {
             JobId = request.JobId,
             PartId = request.PartId,
-            Quantity = request.Quantity,
+            Quantity = quantity,
             Notes = request.Notes,
         };
 
         db.JobParts.Add(jobPart);
-
-        var setsJobPart = job.PartId is null;
         if (setsJobPart)
         {
             job.PartId = part.Id;
@@ -55,8 +69,8 @@ public class AddJobPartHandler(AppDbContext db) : IRequestHandler<AddJobPartComm
             FieldName = setsJobPart ? "Part" : null,
             NewValue = setsJobPart ? part.PartNumber : null,
             Description = setsJobPart
-                ? $"Part set to {part.PartNumber} (qty {request.Quantity:0.####})."
-                : $"Part {part.PartNumber} added (qty {request.Quantity:0.####}).",
+                ? $"Part set to {part.PartNumber} (qty {quantity:0.####})."
+                : $"Part {part.PartNumber} added (qty {quantity:0.####}).",
         });
         await db.SaveChangesAsync(cancellationToken);
 

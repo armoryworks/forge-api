@@ -232,7 +232,9 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
                         ? (decimal?)j.JobParts.Where(jp => jp.PartId == j.PartId).Sum(jp => jp.Quantity)
                         : j.SalesOrderLineId != null
                             ? j.SalesOrderLine!.Quantity
-                            : null,
+                            : j.PartId != null
+                                ? 1m
+                                : null,
                 })
                 .ToDictionaryAsync(x => x.Id, ct)
             : [];
@@ -299,6 +301,10 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
 
         if (job is null) return null;
 
+        var buildQuantity = await db.JobParts
+            .Where(jp => jp.JobId == id && jp.PartId == job.PartId)
+            .SumAsync(jp => (decimal?)jp.Quantity, ct);
+
         ApplicationUser? assignee = null;
         if (job.AssigneeId.HasValue)
             assignee = await db.Users.FirstOrDefaultAsync(u => u.Id == job.AssigneeId.Value, ct);
@@ -344,7 +350,11 @@ public class JobRepository(AppDbContext db, IClock clock) : IJobRepository
             job.Version,
             job.SalesOrderLine?.SalesOrderId,
             job.SalesOrderLine?.SalesOrder?.OrderNumber,
-            job.PartRevision);
+            job.PartRevision,
+            buildQuantity > 0m ? buildQuantity
+                : job.SalesOrderLine?.Quantity > 0m ? job.SalesOrderLine.Quantity
+                : job.PartId.HasValue ? 1m
+                : null);
     }
 
     public async Task<Job?> FindAsync(int id, CancellationToken ct)

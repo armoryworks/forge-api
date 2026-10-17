@@ -75,14 +75,14 @@ public class UpdateJobStartDateAndPartTests
         DateTimeOffset? start = null, int? partId = null, DateTimeOffset? due = null, string? jobNumber = null) =>
         new(1, null, null, null, null, null, due, null, null, JobNumber: jobNumber, StartDate: start, PartId: partId);
 
-    private async Task<SalesOrderLine> SeedLineAsync(decimal quantity, decimal shipped)
+    private async Task<SalesOrderLine> SeedLineAsync(decimal quantity, decimal shipped, int? partId = 700)
     {
         var so = new SalesOrder { OrderNumber = "SO-1", CustomerId = 42, Status = SalesOrderStatus.Confirmed };
         _db.SalesOrders.Add(so);
         await _db.SaveChangesAsync();
         var line = new SalesOrderLine
         {
-            SalesOrderId = so.Id, PartId = 700, Description = "Clutch weights",
+            SalesOrderId = so.Id, PartId = partId, Description = "Clutch weights",
             Quantity = quantity, ShippedQuantity = shipped, UnitPrice = 3m, LineNumber = 1,
         };
         _db.SalesOrderLines.Add(line);
@@ -324,6 +324,75 @@ public class UpdateJobStartDateAndPartTests
         await _db.SaveChangesAsync();
 
         await _handler.Handle(Update(partId: 701), CancellationToken.None);
+
+        (await _db.JobParts.SingleAsync(jp => jp.JobId == 1)).Quantity.Should().Be(1m);
+    }
+
+    [Fact]
+    public async Task A_part_change_onto_the_lines_part_replaces_a_carried_quantity_of_one_with_the_lines()
+    {
+        var line = await SeedLineAsync(quantity: 300m, shipped: 0m);
+        var job = await SeedJobAsync(partId: 701, quantity: 1m);
+        job.SalesOrderLineId = line.Id;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(Update(partId: 700), CancellationToken.None);
+
+        var jobPart = await _db.JobParts.SingleAsync(jp => jp.JobId == 1);
+        jobPart.PartId.Should().Be(700);
+        jobPart.Quantity.Should().Be(300m);
+    }
+
+    [Fact]
+    public async Task A_part_change_on_a_line_linked_job_keeps_a_carried_quantity_above_one()
+    {
+        var line = await SeedLineAsync(quantity: 300m, shipped: 0m);
+        var job = await SeedJobAsync(partId: 701, quantity: 120m);
+        job.SalesOrderLineId = line.Id;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(Update(partId: 700), CancellationToken.None);
+
+        (await _db.JobParts.SingleAsync(jp => jp.JobId == 1)).Quantity.Should().Be(120m);
+    }
+
+    [Fact]
+    public async Task A_carried_quantity_of_one_stays_when_the_line_offers_no_default()
+    {
+        var line = await SeedLineAsync(quantity: 300m, shipped: 0m);
+        var job = await SeedJobAsync(partId: 700, quantity: 1m);
+        job.SalesOrderLineId = line.Id;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(Update(partId: 701), CancellationToken.None);
+
+        (await _db.JobParts.SingleAsync(jp => jp.JobId == 1)).Quantity.Should().Be(1m);
+    }
+
+    [Fact]
+    public async Task A_job_on_a_line_without_a_part_given_a_part_takes_the_lines_quantity()
+    {
+        var line = await SeedLineAsync(quantity: 300m, shipped: 0m, partId: null);
+        var job = await SeedJobAsync(partId: null);
+        job.SalesOrderLineId = line.Id;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(Update(partId: 701), CancellationToken.None);
+
+        (await _db.JobParts.SingleAsync(jp => jp.JobId == 1)).Quantity.Should().Be(300m);
+    }
+
+    [Fact]
+    public async Task A_line_without_a_part_sold_in_other_units_offers_no_default()
+    {
+        _db.Parts.Add(new Part { Id = 702, PartNumber = "40-1900M", Description = "Bushing", StockUomId = 1 });
+        var line = await SeedLineAsync(quantity: 300m, shipped: 0m, partId: null);
+        line.UomId = 2;
+        var job = await SeedJobAsync(partId: null);
+        job.SalesOrderLineId = line.Id;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(Update(partId: 702), CancellationToken.None);
 
         (await _db.JobParts.SingleAsync(jp => jp.JobId == 1)).Quantity.Should().Be(1m);
     }
