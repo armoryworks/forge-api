@@ -1,3 +1,7 @@
+using System.Text.RegularExpressions;
+
+using Microsoft.Net.Http.Headers;
+
 using Forge.Core.Models;
 
 namespace Forge.Api.Features.Files;
@@ -21,6 +25,50 @@ public static class FileEntityTypes
         "sales-orders", "customers", "quotes", "purchase-orders",
         "lots",
     ];
+
+    public static readonly HashSet<string> BlockedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".exe", ".dll", ".com", ".scr", ".pif", ".cpl", ".msi", ".msp", ".msc", ".sys", ".drv",
+        ".bat", ".cmd", ".ps1", ".psm1", ".psd1", ".vbs", ".vbe", ".js", ".jse", ".mjs", ".wsf", ".wsh",
+        ".hta", ".jar", ".lnk", ".reg", ".inf", ".scf", ".url", ".appx", ".msix", ".apk", ".app",
+        ".sh", ".bash", ".csh", ".ksh", ".command", ".run", ".bin", ".elf", ".so", ".dylib",
+        ".html", ".htm", ".xhtml", ".shtml", ".mht", ".mhtml", ".svgz", ".php", ".asp", ".aspx", ".jsp",
+    };
+
+    private static readonly Dictionary<string, HashSet<string>> AllowedExtensions = new()
+    {
+        ["identity-docs"] = new(StringComparer.OrdinalIgnoreCase) { ".pdf", ".jpg", ".jpeg", ".png" },
+        ["pay-stubs"] = new(StringComparer.OrdinalIgnoreCase) { ".pdf" },
+        ["tax-documents"] = new(StringComparer.OrdinalIgnoreCase) { ".pdf" },
+    };
+
+    public const long MaxUploadBytes = 100L * 1024 * 1024;
+
+    public static bool IsAllowedFileName(string entityType, string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName)) return false;
+        var extension = Path.GetExtension(fileName.Trim().TrimEnd('.', ' '));
+        if (BlockedExtensions.Contains(extension)) return false;
+        return !AllowedExtensions.TryGetValue(entityType, out var allowed) || allowed.Contains(extension);
+    }
+
+    public static string DisplayName(string fileName)
+    {
+        var name = Path.GetFileName(fileName.Replace('\\', '/')).Trim();
+        return name.Length == 0 ? "file" : name;
+    }
+
+    public static string ObjectKeyName(string fileName)
+    {
+        var name = Regex.Replace(DisplayName(fileName), "[^A-Za-z0-9._-]", "_").Trim('.');
+        if (name.Length > 100) name = name[^100..];
+        return name.Length == 0 ? "file" : name;
+    }
+
+    public static string NormalizeContentType(string? contentType)
+        => MediaTypeHeaderValue.TryParse(contentType, out var parsed) && parsed.MediaType.HasValue
+            ? parsed.MediaType.Value!.ToLowerInvariant()
+            : "application/octet-stream";
 
     public static string ResolveBucket(string entityType, MinioOptions opts) => entityType switch
     {
