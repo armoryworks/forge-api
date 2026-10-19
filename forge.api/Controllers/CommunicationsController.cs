@@ -176,7 +176,7 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
     ///
     /// Authentication is per-request via the X-Twilio-Signature HMAC
     /// header, NOT JWT — Twilio doesn't carry a user identity. Therefore
-    /// AllowAnonymous + signature verification handles auth.
+    /// AllowAnonymous + <see cref="TwilioWebhookGate"/> handles auth.
     /// </summary>
     [HttpPost("webhook/twilio")]
     [RequiresCapability("CAP-EXT-VOIP-SYNC")]
@@ -185,6 +185,7 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
     public async Task<ActionResult<CommunicationMatchResult>> TwilioWebhook(
         [FromForm] IFormCollection form,
         [FromServices] ITwilioSignatureVerifier verifier,
+        [FromServices] Forge.Core.Settings.ISettingsService settings,
         [FromServices] Microsoft.Extensions.Logging.ILogger<CommunicationsController> log,
         CancellationToken ct)
     {
@@ -194,16 +195,17 @@ public class CommunicationsController(IMediator mediator, ICapabilitySnapshotPro
         }
 
         var fields = form.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToString());
-        var fullUrl = $"{Request.Scheme}://{Request.Host}{Request.Path}{Request.QueryString}";
+        var requestUrl = $"{Request.Scheme}://{Request.Host}{Request.Path}{Request.QueryString}";
         var signature = Request.Headers["X-Twilio-Signature"].ToString();
 
-        var configured = await verifier.IsConfiguredAsync(ct);
-        if (configured && !await verifier.VerifyAsync(fullUrl, fields, signature, ct))
+        var rejected = await TwilioWebhookGate.RejectReasonAsync(
+            settings, verifier, requestUrl, Request.QueryString.Value ?? string.Empty, fields, signature, ct);
+        if (rejected is not null)
         {
             log.LogWarning(
-                "Twilio webhook signature verification FAILED for CallSid={CallSid}",
-                fields.GetValueOrDefault("CallSid", "?"));
-            return Unauthorized(new { error = "twilio-signature-mismatch" });
+                "Twilio webhook rejected ({Reason}) for CallSid={CallSid}",
+                rejected, fields.GetValueOrDefault("CallSid", "?"));
+            return Unauthorized(new { error = rejected });
         }
 
         var result = await mediator.Send(new IngestTwilioWebhookCommand(fields), ct);

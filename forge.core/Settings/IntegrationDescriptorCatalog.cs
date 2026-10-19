@@ -91,6 +91,7 @@ public static class IntegrationDescriptorCatalog
                 TwilioSettings.KeyAccountSid,
                 TwilioSettings.KeyAuthToken,
                 TwilioSettings.KeyRequireSignature,
+                TwilioSettings.KeyWebhookUrl,
             ],
             IsConfiguredCheckKey: TwilioSettings.KeyAuthToken,
             LogoUrl: "https://logo.clearbit.com/twilio.com",
@@ -98,7 +99,7 @@ public static class IntegrationDescriptorCatalog
             [
                 "Sign up at twilio.com — free trial includes a sandbox phone number.",
                 "From the Twilio Console, copy your Account SID + Auth Token. These appear on the dashboard right after login.",
-                "Configure the Voice Status Callback URL on your phone number(s): Phone Numbers → Manage → click number → A Call Comes In: Webhook → set to https://your-domain/api/v1/communications/webhook/twilio.",
+                "Configure the Voice Status Callback URL on your phone number(s): Phone Numbers → Manage → click number → A Call Comes In: Webhook → set to https://your-domain/api/v1/communications/webhook/twilio, and enter the same URL as Webhook URL here.",
                 "Enable Require Signature once you've verified production webhooks are reaching you correctly.",
             ],
             SignupUrl: "https://www.twilio.com/try-twilio",

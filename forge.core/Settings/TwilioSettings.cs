@@ -8,6 +8,7 @@ public static class TwilioSettings
     public const string KeyAccountSid = "twilio.account-sid";
     public const string KeyAuthToken = "twilio.auth-token";
     public const string KeyRequireSignature = "twilio.require-signature";
+    public const string KeyWebhookUrl = "twilio.webhook-url";
 
     public static IReadOnlyList<SettingDescriptor> Descriptors =>
     [
@@ -42,9 +43,17 @@ public static class TwilioSettings
             Key: KeyRequireSignature,
             Group: Group,
             DisplayName: "Require Signature",
-            Description: "When ON, webhooks with missing/invalid X-Twilio-Signature are rejected with 401. Recommended for production.",
+            Description: "When ON, webhooks are rejected with 401 unless an Auth Token is set and X-Twilio-Signature verifies. With no Auth Token, unsigned webhooks are only accepted in Mock mode with this OFF.",
             DataType: SettingDataType.Boolean,
             DefaultValue: "false",
             SortOrder: 20),
+
+        new(
+            Key: KeyWebhookUrl,
+            Group: Group,
+            DisplayName: "Webhook URL",
+            Description: "The exact Voice Status Callback URL set in Twilio, e.g. https://erp.example.com/api/v1/communications/webhook/twilio. Signatures are checked against it. Set it when Forge sits behind a proxy or tunnel; blank rebuilds the URL from the request.",
+            DataType: SettingDataType.String,
+            SortOrder: 21),
     ];
 }
