@@ -27,6 +27,7 @@ public class GetShipmentByIdHandler(IShipmentRepository repo)
             shipment.Carrier ?? shipment.AssignedCarrier?.Name,
             shipment.CarrierId,
             shipment.AssignedCarrier != null && shipment.AssignedCarrier.IntegrationKind == CarrierIntegrationKind.Api,
+            shipment.AssignedCarrier?.RequiresScanToShip ?? false,
             shipment.TrackingNumber,
             shipment.ScanCode,
             shipment.ShippedDate,

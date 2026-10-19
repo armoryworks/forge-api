@@ -24,7 +24,8 @@ public class GetCarriersHandler(AppDbContext db) : IRequestHandler<GetCarriersQu
                 c.IntegrationServiceId, c.RequiresScanToShip, c.IsActive, c.SortOrder,
                 c.CredentialClientId != null && c.CredentialSecret != null,
                 c.CredentialClientId,
-                c.CredentialEnvironment))
+                c.CredentialEnvironment,
+                c.Notes))
             .ToListAsync(cancellationToken);
     }
 }

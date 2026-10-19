@@ -67,6 +67,7 @@ public class CreateCarrierHandler(AppDbContext db) : IRequestHandler<CreateCarri
         return new CarrierListItemModel(
             carrier.Id, carrier.Name, carrier.Code, carrier.Scac,
             carrier.IntegrationKind.ToString(), carrier.DeliveryUpdateMode.ToString(),
-            carrier.IntegrationServiceId, carrier.RequiresScanToShip, carrier.IsActive, carrier.SortOrder);
+            carrier.IntegrationServiceId, carrier.RequiresScanToShip, carrier.IsActive, carrier.SortOrder,
+            Notes: carrier.Notes);
     }
 }

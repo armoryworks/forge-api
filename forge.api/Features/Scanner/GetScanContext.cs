@@ -148,7 +148,8 @@ public class GetScanContextHandler(AppDbContext db, IHttpContextAccessor httpCon
                 sl.ShipmentId,
                 sl.Shipment.ShipmentNumber,
                 sl.Shipment.SalesOrder.OrderNumber,
-                sl.Quantity))
+                sl.Quantity,
+                sl.Shipment.AssignedCarrier != null && sl.Shipment.AssignedCarrier.RequiresScanToShip))
             .ToListAsync(cancellationToken);
 
         var user = httpContext.HttpContext?.User;

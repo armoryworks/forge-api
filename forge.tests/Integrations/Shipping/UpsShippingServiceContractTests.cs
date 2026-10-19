@@ -107,6 +107,7 @@ public class UpsShippingServiceContractTests
         label.TrackingNumber.Should().Be("1Z12345E0291980793");
         label.LabelUrl.Should().StartWith("data:image/png;base64,");
         label.CarrierName.Should().Be("UPS");
+        label.LabelBytes.Should().Equal(Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUg=="));
     }
 
     [Fact]

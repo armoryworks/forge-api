@@ -5,4 +5,5 @@ public record ScanShipContextLine(
     int ShipmentId,
     string ShipmentNumber,
     string? SalesOrderNumber,
-    decimal RequiredQuantity);
+    decimal RequiredQuantity,
+    bool RequiresScanToShip);

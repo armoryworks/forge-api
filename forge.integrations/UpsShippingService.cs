@@ -115,7 +115,7 @@ public class UpsShippingService(
             .GetString()!;
 
         logger.LogInformation("[UPS] CreateLabel — tracking {Tracking}", tracking);
-        return new ShippingLabel(tracking, $"data:image/png;base64,{labelData}", "UPS");
+        return new ShippingLabel(tracking, $"data:image/png;base64,{labelData}", "UPS", DecodeLabel(labelData));
     }
 
     public async Task<ShipmentTracking?> GetTrackingAsync(string trackingNumber, CancellationToken ct)
@@ -311,6 +311,18 @@ public class UpsShippingService(
                 },
             },
         };
+    }
+
+    private static byte[]? DecodeLabel(string base64)
+    {
+        try
+        {
+            return Convert.FromBase64String(base64);
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
     }
 
     private static object MapAddress(ShippingAddress a) => new
