@@ -122,6 +122,26 @@ public class TrainingProgressIntegrityTests
     }
 
     [Fact]
+    public async Task NonPooledQuiz_WithNoSession_IsScoredForAUser()
+    {
+        _db.TrainingProgress.Should().BeEmpty();
+
+        var result = await Submit(QuizId, isAdmin: false, ("q1", "a"), ("q2", "d"));
+
+        result.Score.Should().Be(50);
+        result.Questions.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task DuplicateAnswers_ForOneQuestion_UseTheLastAnswer()
+    {
+        var result = await Submit(QuizId, isAdmin: false, ("q1", "b"), ("q2", "c"), ("q1", "a"));
+
+        result.Score.Should().Be(100);
+        result.Passed.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task PooledQuiz_ScoresOnlyTheSessionQuestions()
     {
         _db.TrainingProgress.Add(new TrainingProgress

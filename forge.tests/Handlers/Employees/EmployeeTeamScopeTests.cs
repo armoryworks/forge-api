@@ -34,7 +34,9 @@ public class EmployeeTeamScopeTests
             User(TeamlessManagerId, null),
             User(Teammate, 7),
             User(Outsider, 8));
-        _db.EmployeeProfiles.Add(new EmployeeProfile { Id = 40, UserId = null, FirstName = "No", LastName = "Login" });
+        _db.EmployeeProfiles.AddRange(
+            new EmployeeProfile { Id = 40, UserId = null, FirstName = "No", LastName = "Login" },
+            new EmployeeProfile { Id = 41, UserId = Outsider, FirstName = "Linked", LastName = "Outsider" });
         _db.SaveChanges();
     }
 
@@ -86,5 +88,22 @@ public class EmployeeTeamScopeTests
             .Should().BeNull();
         (await _detail.Handle(new GetEmployeeDetailQuery(40, EmployeeKinds.Profile, AdminId, true), CancellationToken.None))
             .Should().NotBeNull();
+    }
+
+    [Theory]
+    [InlineData(EmployeeKinds.Profile)]
+    [InlineData(null)]
+    public async Task Detail_ByLinkedProfileId_OfAnOutsider_IsNotFound(string? kind)
+    {
+        (await _detail.Handle(new GetEmployeeDetailQuery(41, kind, TeamManagerId, false), CancellationToken.None))
+            .Should().BeNull();
+        (await _detail.Handle(new GetEmployeeDetailQuery(41, kind, AdminId, true), CancellationToken.None))
+            !.UserId.Should().Be(Outsider);
+    }
+
+    [Fact]
+    public async Task SubResources_AreUserKeyed_SoAProfileIdCannotReachAnOutsider()
+    {
+        (await CanView(41, TeamManagerId, false)).Should().BeFalse();
     }
 }

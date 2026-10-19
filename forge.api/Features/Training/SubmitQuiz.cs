@@ -38,7 +38,9 @@ public class SubmitQuizHandler(AppDbContext db) : IRequestHandler<SubmitQuizComm
             ? content.Questions.Where(q => sessionIds.Contains(q.Id)).ToList()
             : content.Questions;
 
-        var answerMap = request.Answers.ToDictionary(a => a.QuestionId, a => a.OptionId);
+        var answerMap = request.Answers
+            .GroupBy(a => a.QuestionId)
+            .ToDictionary(g => g.Key, g => g.Last().OptionId);
 
         var correctCount = 0;
         var scoredQuestions = new List<QuizScoredQuestionModel>();
