@@ -1,0 +1,176 @@
+{
+  "mirrored": [
+    {
+      "prefix": "accounting/cash-flow",
+      "capability": "CAP-RPT-FINANCIALS"
+    },
+    {
+      "prefix": "accounting/pay-runs",
+      "capability": "CAP-PAYROLL-RUN"
+    },
+    {
+      "prefix": "customer-returns/channel",
+      "capability": "CAP-O2C-RETAIL"
+    },
+    {
+      "prefix": "customers/portal-access",
+      "capability": "CAP-EXT-CUSTOMER-PORTAL"
+    },
+    {
+      "prefix": "inventory/inspect",
+      "capability": "CAP-QC-INSPECTION"
+    },
+    {
+      "prefix": "inventory/pending-inspection",
+      "capability": "CAP-QC-INSPECTION"
+    },
+    {
+      "prefix": "inventory/set-on-hand",
+      "capability": "CAP-INV-ADJUST"
+    },
+    {
+      "prefix": "inventory/uom",
+      "capability": "CAP-MD-UOM"
+    },
+    {
+      "prefix": "inventory/uom/conversions",
+      "capability": "CAP-MD-UOM"
+    },
+    {
+      "prefix": "inventory/uom/convert",
+      "capability": "CAP-MD-UOM"
+    },
+    {
+      "prefix": "purchase-orders/price-variance-review",
+      "capability": "CAP-EXT-AI-ASSISTANT"
+    },
+    {
+      "prefix": "quality/ecos",
+      "capability": "CAP-MD-ECO"
+    },
+    {
+      "prefix": "quality/gages",
+      "capability": "CAP-QC-GAGE"
+    },
+    {
+      "prefix": "quality/gages/due",
+      "capability": "CAP-QC-GAGE"
+    },
+    {
+      "prefix": "reports/win-loss-by-class",
+      "capability": "CAP-O2C-LEAD"
+    }
+  ],
+  "notMirrored": [
+    {
+      "prefix": "accounting/accounts",
+      "capability": "CAP-ACCT-FULLGL",
+      "reason": "Ledger write action on a prefix whose read actions stay on CAP-ACCT-GL-VIEW. Turning CAP-ACCT-FULLGL on turns GL-VIEW on on every toggle path, so the UI's GL-VIEW gate never blocks it while posting is on; mirroring it would block the read-only view of a deactivated ledger."
+    },
+    {
+      "prefix": "accounting/balance-sheet",
+      "capability": "CAP-RPT-FINANCIALS",
+      "reason": "The handler's request also requires CAP-ACCT-GL-VIEW (MediatR gate), so the UI's GL-VIEW gate matches the server."
+    },
+    {
+      "prefix": "accounting/bank-reconciliations",
+      "capability": "CAP-ACCT-FULLGL",
+      "reason": "Ledger write action on a prefix whose read actions stay on CAP-ACCT-GL-VIEW. Turning CAP-ACCT-FULLGL on turns GL-VIEW on on every toggle path, so the UI's GL-VIEW gate never blocks it while posting is on; mirroring it would block the read-only view of a deactivated ledger."
+    },
+    {
+      "prefix": "accounting/budget-vs-actual",
+      "capability": "CAP-ACCT-FULLGL",
+      "reason": "Ledger write action on a prefix whose read actions stay on CAP-ACCT-GL-VIEW. Turning CAP-ACCT-FULLGL on turns GL-VIEW on on every toggle path, so the UI's GL-VIEW gate never blocks it while posting is on; mirroring it would block the read-only view of a deactivated ledger."
+    },
+    {
+      "prefix": "accounting/budgets",
+      "capability": "CAP-ACCT-FULLGL",
+      "reason": "Ledger write action on a prefix whose read actions stay on CAP-ACCT-GL-VIEW. Turning CAP-ACCT-FULLGL on turns GL-VIEW on on every toggle path, so the UI's GL-VIEW gate never blocks it while posting is on; mirroring it would block the read-only view of a deactivated ledger."
+    },
+    {
+      "prefix": "accounting/depreciation/run",
+      "capability": "CAP-ACCT-DEPRECIATION",
+      "reason": "Depends on CAP-ACCT-FULLGL, which turns CAP-ACCT-GL-VIEW on, so the UI's GL-VIEW gate never blocks it while it is on."
+    },
+    {
+      "prefix": "accounting/fixed-assets",
+      "capability": "CAP-ACCT-DEPRECIATION",
+      "reason": "Depends on CAP-ACCT-FULLGL, which turns CAP-ACCT-GL-VIEW on, so the UI's GL-VIEW gate never blocks it while it is on."
+    },
+    {
+      "prefix": "accounting/fx-revaluation",
+      "capability": "CAP-ACCT-FXREVAL",
+      "reason": "Depends on CAP-ACCT-FULLGL, which turns CAP-ACCT-GL-VIEW on, so the UI's GL-VIEW gate never blocks it while it is on."
+    },
+    {
+      "prefix": "accounting/jobs",
+      "capability": "CAP-ACCT-FULLGL",
+      "reason": "Ledger write action on a prefix whose read actions stay on CAP-ACCT-GL-VIEW. Turning CAP-ACCT-FULLGL on turns GL-VIEW on on every toggle path, so the UI's GL-VIEW gate never blocks it while posting is on; mirroring it would block the read-only view of a deactivated ledger."
+    },
+    {
+      "prefix": "accounting/jobs/production-cost-close-candidates",
+      "capability": "CAP-ACCT-FULLGL",
+      "reason": "Ledger write action on a prefix whose read actions stay on CAP-ACCT-GL-VIEW. Turning CAP-ACCT-FULLGL on turns GL-VIEW on on every toggle path, so the UI's GL-VIEW gate never blocks it while posting is on; mirroring it would block the read-only view of a deactivated ledger."
+    },
+    {
+      "prefix": "accounting/journal-entries",
+      "capability": "CAP-ACCT-FULLGL",
+      "reason": "Ledger write action on a prefix whose read actions stay on CAP-ACCT-GL-VIEW. Turning CAP-ACCT-FULLGL on turns GL-VIEW on on every toggle path, so the UI's GL-VIEW gate never blocks it while posting is on; mirroring it would block the read-only view of a deactivated ledger."
+    },
+    {
+      "prefix": "accounting/journal-templates",
+      "capability": "CAP-ACCT-FULLGL",
+      "reason": "Ledger write action on a prefix whose read actions stay on CAP-ACCT-GL-VIEW. Turning CAP-ACCT-FULLGL on turns GL-VIEW on on every toggle path, so the UI's GL-VIEW gate never blocks it while posting is on; mirroring it would block the read-only view of a deactivated ledger."
+    },
+    {
+      "prefix": "accounting/opening-balances",
+      "capability": "CAP-ACCT-FULLGL",
+      "reason": "Ledger write action on a prefix whose read actions stay on CAP-ACCT-GL-VIEW. Turning CAP-ACCT-FULLGL on turns GL-VIEW on on every toggle path, so the UI's GL-VIEW gate never blocks it while posting is on; mirroring it would block the read-only view of a deactivated ledger."
+    },
+    {
+      "prefix": "accounting/overhead/close",
+      "capability": "CAP-ACCT-FULLGL",
+      "reason": "Ledger write action on a prefix whose read actions stay on CAP-ACCT-GL-VIEW. Turning CAP-ACCT-FULLGL on turns GL-VIEW on on every toggle path, so the UI's GL-VIEW gate never blocks it while posting is on; mirroring it would block the read-only view of a deactivated ledger."
+    },
+    {
+      "prefix": "accounting/overhead/record",
+      "capability": "CAP-ACCT-FULLGL",
+      "reason": "Ledger write action on a prefix whose read actions stay on CAP-ACCT-GL-VIEW. Turning CAP-ACCT-FULLGL on turns GL-VIEW on on every toggle path, so the UI's GL-VIEW gate never blocks it while posting is on; mirroring it would block the read-only view of a deactivated ledger."
+    },
+    {
+      "prefix": "accounting/payroll/runs/import",
+      "capability": "CAP-ACCT-FULLGL",
+      "reason": "Ledger write action on a prefix whose read actions stay on CAP-ACCT-GL-VIEW. Turning CAP-ACCT-FULLGL on turns GL-VIEW on on every toggle path, so the UI's GL-VIEW gate never blocks it while posting is on; mirroring it would block the read-only view of a deactivated ledger."
+    },
+    {
+      "prefix": "accounting/periods",
+      "capability": "CAP-ACCT-FULLGL",
+      "reason": "Ledger write action on a prefix whose read actions stay on CAP-ACCT-GL-VIEW. Turning CAP-ACCT-FULLGL on turns GL-VIEW on on every toggle path, so the UI's GL-VIEW gate never blocks it while posting is on; mirroring it would block the read-only view of a deactivated ledger."
+    },
+    {
+      "prefix": "accounting/pnl",
+      "capability": "CAP-RPT-FINANCIALS",
+      "reason": "The handler's request also requires CAP-ACCT-GL-VIEW (MediatR gate), so the UI's GL-VIEW gate matches the server."
+    },
+    {
+      "prefix": "accounting/years",
+      "capability": "CAP-ACCT-FULLGL",
+      "reason": "Ledger write action on a prefix whose read actions stay on CAP-ACCT-GL-VIEW. Turning CAP-ACCT-FULLGL on turns GL-VIEW on on every toggle path, so the UI's GL-VIEW gate never blocks it while posting is on; mirroring it would block the read-only view of a deactivated ledger."
+    },
+    {
+      "prefix": "admin/ecommerce/channels",
+      "capability": "CAP-O2C-SETTLEMENT",
+      "reason": "No UI registry entry covers admin/ecommerce, so the browser never blocks it."
+    },
+    {
+      "prefix": "orders",
+      "capability": "CAP-MFG-WO-RELEASE",
+      "reason": "No UI registry entry covers the orders prefix, so the browser never blocks it."
+    },
+    {
+      "prefix": "parts",
+      "capability": "CAP-P2P-PO",
+      "reason": "The distinguishing segment follows the part id (parts/{id}/purchase-history, parts/{id}/landed-cost), so no prefix entry can single it out; it is only reached from a part's page, which needs CAP-MD-PARTS."
+    }
+  ]
+}
