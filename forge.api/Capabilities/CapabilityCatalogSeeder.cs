@@ -11,7 +11,8 @@ namespace Forge.Api.Capabilities;
 ///   • New IDs (not yet in DB) are INSERTed with Enabled = IsDefaultOn.
 ///   • Existing rows: only metadata (Name, Description, Area, IsDefaultOn,
 ///     RequiresRoles) is refreshed. Enabled is NEVER overwritten — admin
-///     state is operator-owned.
+///     state is operator-owned — except that a capability the catalog marks
+///     not available (not built yet) is turned off, since it does nothing.
 ///
 /// Runs at startup after EF migrations and before the snapshot is hydrated.
 /// </summary>
@@ -84,6 +85,20 @@ public class CapabilityCatalogSeeder(AppDbContext db, ILogger<CapabilityCatalogS
                 logger.LogInformation("[CAPABILITY-SEED] Backfilled CAP-ACCT-GL-VIEW on (FULLGL already enabled).");
             }
 
+            var unavailable = CapabilityCatalog.UnavailableCodes.ToArray();
+            var unavailableOn = await db.Capabilities
+                .Where(c => c.Enabled && unavailable.Contains(c.Code))
+                .ToListAsync(ct);
+            if (unavailableOn.Count > 0)
+            {
+                foreach (var row in unavailableOn)
+                    row.Enabled = false;
+                await db.SaveChangesAsync(ct);
+                logger.LogInformation(
+                    "[CAPABILITY-SEED] Turned off {Count} capability(ies) that are not built yet: {Codes}",
+                    unavailableOn.Count, string.Join(", ", unavailableOn.Select(c => c.Code)));
+            }
+
             // Opt-in override: SEED_ENABLE_CAPABILITIES is an explicit,
             // comma-separated list of capability codes to force-enable after the
             // catalog seed. Used by the e2e / demo stack to exercise
@@ -105,6 +120,12 @@ public class CapabilityCatalogSeeder(AppDbContext db, ILogger<CapabilityCatalogS
                     {
                         logger.LogWarning(
                             "[CAPABILITY-SEED] SEED_ENABLE_CAPABILITIES lists unknown code '{Code}' — skipped.", code);
+                        continue;
+                    }
+                    if (!CapabilityCatalog.IsAvailable(code))
+                    {
+                        logger.LogWarning(
+                            "[CAPABILITY-SEED] SEED_ENABLE_CAPABILITIES lists '{Code}', which is not built yet — skipped.", code);
                         continue;
                     }
                     if (!row.Enabled) { row.Enabled = true; forced++; }

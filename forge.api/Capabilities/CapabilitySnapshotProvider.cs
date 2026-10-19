@@ -25,7 +25,8 @@ public class CapabilitySnapshotProvider(IServiceScopeFactory scopeFactory, ICloc
             .Select(c => new { c.Code, c.Enabled })
             .ToListAsync(ct);
 
-        var dict = rows.ToDictionary(r => r.Code, r => r.Enabled, StringComparer.Ordinal);
+        var dict = rows.ToDictionary(
+            r => r.Code, r => r.Enabled && CapabilityCatalog.IsAvailable(r.Code), StringComparer.Ordinal);
         var snap = new CapabilitySnapshot(dict, clock.UtcNow);
         Volatile.Write(ref _current, snap);
     }

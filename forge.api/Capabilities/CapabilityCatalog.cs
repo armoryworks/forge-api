@@ -134,7 +134,7 @@ public static class CapabilityCatalog
         new("CAP-QC-SPC", "QC", @"Statistical process control", @"Control charts (Xbar/R, p, np, c) on measurement characteristics, out-of-control event detection.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-QC-GAGE", "QC", @"Gage / measurement device calibration", @"Track measurement equipment calibration cycles, due dates, calibration records.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-QC-RECALL", "QC", @"Recall / lot trace", @"Forward and backward trace from raw lot to finished product (and vice versa); recall notification list as immutable snapshot; quarantine affected on-hand.", IsDefaultOn: false, RequiresRoles: null),
-        new("CAP-QC-COA", "QC", @"Certificate of analysis (lot)", @"Generate CoA documents for shipped lots (chemicals, food, materials).", IsDefaultOn: false, RequiresRoles: null),
+        new("CAP-QC-COA", "QC", @"Certificate of analysis (lot)", @"Not built yet, so it cannot be turned on. Planned: generate certificate of analysis documents for shipped lots (chemicals, food, materials).", IsDefaultOn: false, RequiresRoles: null, IsAvailable: false),
         new("CAP-QC-COMPLIANCE-FORMS", "QC", @"Compliance form pipeline (W-4, I-9, state withholding)", @"Auto-extract PDF form definitions, fill from employee data, render and sign. HR-side compliance.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-MAINT-PM", "MAINT", @"Preventive maintenance scheduling", @"Time-based or usage-based PM schedules per asset, generating PM WOs, with overdue alerts.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-MAINT-BREAKDOWN", "MAINT", @"Breakdown / corrective WO", @"Reactive maintenance WO when an asset breaks down. Distinct lifecycle from PM.", IsDefaultOn: false, RequiresRoles: null),
@@ -240,4 +240,9 @@ public static class CapabilityCatalog
         new("CAP-MOBILE-STOCK", "MOBILE", @"Mobile app: Move Stock", @"The phone's Move Stock screen: part → from-bin → to-bin → quantity, lot-aware, with a reverse-move undo. Needs Mobile app device enrollment turned on.", IsDefaultOn: false, RequiresRoles: null),
         new("CAP-MOBILE-LOOKUP", "MOBILE", @"Mobile app: Lookup", @"The phone's Lookup screen: one search field over jobs, parts, customers and bins with the same action sheet a scan gives. Needs Mobile app device enrollment turned on.", IsDefaultOn: false, RequiresRoles: null),
     };
+
+    public static IReadOnlySet<string> UnavailableCodes { get; } =
+        All.Where(c => !c.IsAvailable).Select(c => c.Code).ToHashSet(StringComparer.Ordinal);
+
+    public static bool IsAvailable(string code) => !UnavailableCodes.Contains(code);
 }

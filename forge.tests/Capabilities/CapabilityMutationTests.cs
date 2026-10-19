@@ -361,6 +361,50 @@ public class CapabilityMutationTests
         Assert.False(after.Enabled);
     }
 
+    [Fact]
+    public async Task Toggle_Enable_Of_A_Capability_Not_Built_Yet_Returns_409()
+    {
+        var client = AuthenticatedClient();
+
+        var response = await client.PutAsJsonAsync(
+            "/api/v1/capabilities/CAP-QC-COA/enabled", new { enabled = true });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var err = doc.RootElement.GetProperty("errors")[0];
+        Assert.Equal("capability-not-available", err.GetProperty("code").GetString());
+        Assert.Equal("CAP-QC-COA", err.GetProperty("capability").GetString());
+
+        var entry = await GetEntry(client, "CAP-QC-COA");
+        Assert.False(entry.Enabled);
+        Assert.False(entry.IsAvailable);
+        Assert.True((await GetEntry(client, "CAP-EXT-CHAT")).IsAvailable);
+    }
+
+    [Fact]
+    public async Task Bulk_Toggle_Enable_Of_A_Capability_Not_Built_Yet_Is_A_Violation()
+    {
+        var client = AuthenticatedClient();
+        var body = new
+        {
+            items = new[]
+            {
+                new { id = "CAP-EXT-CHAT", enabled = true },
+                new { id = "CAP-QC-COA", enabled = true },
+            },
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/capabilities/bulk-toggle", body);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var violations = doc.RootElement.GetProperty("errors")[0].GetProperty("violations").EnumerateArray().ToList();
+        Assert.Contains(violations, v => v.GetProperty("code").GetString() == "capability-not-available"
+            && v.GetProperty("capability").GetString() == "CAP-QC-COA");
+        Assert.False((await GetEntry(client, "CAP-EXT-CHAT")).Enabled);
+        Assert.False((await GetEntry(client, "CAP-QC-COA")).Enabled);
+    }
+
     // ─── Audit content ──────────────────────────────────────────────────────
 
     [Fact]
@@ -431,5 +475,6 @@ public class CapabilityMutationTests
         [property: JsonPropertyName("enabled")] bool Enabled,
         [property: JsonPropertyName("version")] uint Version,
         [property: JsonPropertyName("eTag")] string ETag,
-        [property: JsonPropertyName("configETag")] string? ConfigETag);
+        [property: JsonPropertyName("configETag")] string? ConfigETag,
+        [property: JsonPropertyName("isAvailable")] bool IsAvailable);
 }
