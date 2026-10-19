@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -171,6 +172,16 @@ public class UpdateLeadHandler(
         {
             lead.AccountId = data.AccountId;
             changedFields.Add(lead.AccountId.HasValue ? $"accountId: {lead.AccountId}" : "accountId: cleared");
+        }
+
+        if (data.AssignedToUserId.HasValue)
+        {
+            var owner = await LeadOwner.ResolveAsync(db, data.AssignedToUserId.Value, cancellationToken);
+            if (owner.UserId != lead.AssignedToUserId)
+            {
+                lead.AssignedToUserId = owner.UserId;
+                changedFields.Add(owner.UserId.HasValue ? $"owner: {owner.Name}" : "owner: cleared");
+            }
         }
 
         if (changedFields.Count > 0)

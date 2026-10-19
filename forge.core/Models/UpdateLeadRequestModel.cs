@@ -31,4 +31,5 @@ public record UpdateLeadRequestModel(
     int? AccountId = null,
     // User-settable lead number. Supplying a changed value requires
     // leads.allow_manual_numbers to be on; validated for uniqueness.
-    string? LeadNumber = null);
+    string? LeadNumber = null,
+    int? AssignedToUserId = null);

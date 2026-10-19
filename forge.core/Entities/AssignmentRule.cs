@@ -3,10 +3,10 @@ using Forge.Core.Enums;
 namespace Forge.Core.Entities;
 
 /// <summary>
-/// Phase 1r / Batch 11 — admin-configured lead-assignment rules. The
-/// bulk-intake handler runs through active rules in <see cref="Priority"/>
-/// order; first match wins. When no rule matches, the lead falls
-/// through to whichever rep pulls it from the queue.
+/// Phase 1r / Batch 11 — admin-configured lead-assignment rules, intended to
+/// run in <see cref="Priority"/> order with the first match winning. Not yet
+/// evaluated: nothing applies these rules today, so leads are assigned by
+/// hand (the lead owner field or bulk assign) or pulled from the queue.
 ///
 /// Rule kinds:
 ///   • RoundRobin — rotates among a configured set of rep ids

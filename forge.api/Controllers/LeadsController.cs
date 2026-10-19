@@ -70,6 +70,19 @@ public class LeadsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Assign the selected leads to one rep, or unassign them with <c>assignedToUserId: 0</c>.
+    /// Changes only the owner.
+    /// </summary>
+    [HttpPost("bulk-assign-owner")]
+    [Authorize(Roles = "Admin,Manager,PM")]
+    public async Task<ActionResult<BulkAssignLeadOwnerResponseModel>> BulkAssignOwner(
+        [FromBody] BulkAssignLeadOwnerRequestModel request, CancellationToken ct)
+    {
+        var updated = await mediator.Send(new AssignLeadsOwnerCommand(request.LeadIds, request.AssignedToUserId), ct);
+        return Ok(new BulkAssignLeadOwnerResponseModel(updated));
+    }
+
     [HttpPost("{id:int}/convert")]
     [Authorize(Roles = "Admin,Manager,PM")] // intake clients excluded
     public async Task<ActionResult<ConvertLeadResponseModel>> ConvertLead(int id, [FromBody] ConvertLeadRequestModel request)
