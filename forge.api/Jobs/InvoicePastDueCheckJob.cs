@@ -11,7 +11,9 @@ namespace Forge.Api.Jobs;
 
 /// <summary>
 /// Daily Hangfire job — finds invoices past due at 30/60/90 day intervals
-/// and publishes InvoicePastDueEvent for each.
+/// and publishes InvoicePastDueEvent for each, every run, for the highest bucket
+/// reached. A missed run therefore never skips a bucket; the follow-up handler
+/// creates one task per invoice and bucket.
 /// </summary>
 public class InvoicePastDueCheckJob(
     AppDbContext db,
@@ -26,7 +28,7 @@ public class InvoicePastDueCheckJob(
         var now = clock.UtcNow;
 
         var overdueInvoices = await db.Invoices
-            .Where(i => i.Status != InvoiceStatus.Paid && i.Status != InvoiceStatus.Voided)
+            .Where(i => i.Status != InvoiceStatus.Draft && i.Status != InvoiceStatus.Paid && i.Status != InvoiceStatus.Voided)
             .Where(i => i.DueDate < now)
             .Select(i => new { i.Id, i.CustomerId, i.DueDate, i.InvoiceNumber })
             .AsNoTracking()
@@ -44,10 +46,6 @@ public class InvoicePastDueCheckJob(
                 .FirstOrDefault();
 
             if (bucket == 0) continue;
-
-            // Only publish at bucket boundaries (within 1 day of crossing)
-            var daysSinceBucket = daysOverdue - bucket;
-            if (daysSinceBucket > 1) continue;
 
             logger.LogInformation(
                 "Invoice {InvoiceNumber} is {Days} days overdue (bucket: {Bucket})",

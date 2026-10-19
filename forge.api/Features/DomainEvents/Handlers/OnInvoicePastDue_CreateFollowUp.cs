@@ -2,6 +2,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Invoices;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -19,6 +20,8 @@ public class OnInvoicePastDue_CreateFollowUp(
     {
         var invoice = await db.Invoices
             .Include(i => i.Customer)
+            .Include(i => i.Lines)
+            .Include(i => i.PaymentApplications)
             .AsNoTracking()
             .FirstOrDefaultAsync(i => i.Id == notification.InvoiceId, ct);
 
@@ -33,43 +36,40 @@ public class OnInvoicePastDue_CreateFollowUp(
             _ => $"{notification.DaysOverdue} days",
         };
 
-        // Check if a follow-up already exists for this invoice at this interval
-        var intervalKey = notification.DaysOverdue switch
-        {
-            >= 90 => "90",
-            >= 60 => "60",
-            >= 30 => "30",
-            _ => notification.DaysOverdue.ToString(),
-        };
+        var title = $"Invoice {invoice.InvoiceNumber} past due — {bucketLabel}";
 
         var existingFollowUp = await db.FollowUpTasks
             .AnyAsync(f =>
                 f.SourceEntityType == "Invoice" &&
                 f.SourceEntityId == notification.InvoiceId &&
                 f.TriggerType == FollowUpTriggerType.InvoicePastDue &&
-                f.Title.Contains(intervalKey), ct);
+                f.Title == title, ct);
 
         if (existingFollowUp)
         {
-            logger.LogDebug("Follow-up already exists for invoice {InvoiceId} at {Interval} days", notification.InvoiceId, intervalKey);
+            logger.LogDebug("Follow-up already exists for invoice {InvoiceId} at {Bucket}", notification.InvoiceId, bucketLabel);
             return;
         }
 
         // Assign to Office Manager
         var assigneeId = await db.UserRoles
             .Join(db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, r.Name })
-            .Where(x => x.Name == "OfficeManager" || x.Name == "Admin")
+            .Join(db.Users, x => x.UserId, u => u.Id, (x, u) => new { x.UserId, x.Name, u.IsActive })
+            .Where(x => x.IsActive && (x.Name == "OfficeManager" || x.Name == "Admin"))
+            .OrderBy(x => x.Name == "OfficeManager" ? 0 : 1)
+            .ThenBy(x => x.UserId)
             .Select(x => x.UserId)
             .FirstOrDefaultAsync(ct);
 
         if (assigneeId == 0) return;
 
         var customerName = invoice.Customer?.Name ?? "Unknown";
+        var balance = InvoiceMoneyText.Format(invoice.BalanceDue, await InvoiceMoneyText.CurrencyAsync(db, invoice.CurrencyId, ct));
 
         db.FollowUpTasks.Add(new FollowUpTask
         {
-            Title = $"Invoice {invoice.InvoiceNumber} past due — {bucketLabel}",
-            Description = $"Invoice {invoice.InvoiceNumber} for {customerName} is {bucketLabel} overdue. Balance due: {invoice.BalanceDue:C}.",
+            Title = title,
+            Description = $"Invoice {invoice.InvoiceNumber} for {customerName} is {bucketLabel} overdue. Balance due: {balance}.",
             AssignedToUserId = assigneeId,
             DueDate = clock.UtcNow,
             SourceEntityType = "Invoice",
