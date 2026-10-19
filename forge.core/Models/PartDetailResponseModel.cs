@@ -93,4 +93,5 @@ public record PartDetailResponseModel(
     string EffectivePriceCurrency = "USD",
     string EffectivePriceSource = "Default",
     // Licensed GS1 GTIN (CAP-MD-GS1). Null = internal identity only.
-    string? Gtin = null);
+    string? Gtin = null,
+    PartStandardCostModel? StandardCost = null);

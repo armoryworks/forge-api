@@ -104,6 +104,7 @@ public static partial class PartMapper
             EffectivePrice: resolvedPrice?.UnitPrice ?? 0m,
             EffectivePriceCurrency: resolvedPrice?.Currency ?? "USD",
             EffectivePriceSource: (resolvedPrice?.Source ?? PartPriceSource.Default).ToString(),
-            Gtin: part.Gtin);
+            Gtin: part.Gtin,
+            StandardCost: PartStandardCostModel.From(part));
     }
 }

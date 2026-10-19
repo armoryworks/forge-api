@@ -215,6 +215,7 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
             .Include(p => p.StockUom)
             .Include(p => p.PurchaseUom)
             .Include(p => p.SalesUom)
+            .Include(p => p.CurrentCostCalculation).ThenInclude(c => c!.Inputs)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
 
         if (part is null)
@@ -332,7 +333,8 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
             part.InspectionSkipAfterN,
             resolved.UnitPrice,
             resolved.Currency,
-            resolved.Source.ToString());
+            resolved.Source.ToString(),
+            StandardCost: PartStandardCostModel.From(part));
     }
 
     public Task<Part?> FindAsync(int id, CancellationToken ct)
