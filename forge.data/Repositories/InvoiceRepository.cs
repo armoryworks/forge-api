@@ -100,7 +100,8 @@ public class InvoiceRepository(AppDbContext db) : IInvoiceRepository
                 i.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) + Math.Round(i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) * i.TaxRate, 2),
                 i.PaymentApplications.Sum(pa => pa.Amount),
                 i.Lines.Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) + Math.Round(i.Lines.Where(l => l.TaxCode != InvoiceLine.NonTaxableCode).Sum(l => Math.Round(l.Quantity * l.UnitPrice, 2)) * i.TaxRate, 2) - i.PaymentApplications.Sum(pa => pa.Amount),
-                i.CreatedAt))
+                i.CreatedAt,
+                db.Currencies.Where(c => c.Id == i.CurrencyId).Select(c => c.Code).FirstOrDefault()))
             .ToListAsync(ct);
 
         return new PagedResponse<InvoiceListItemModel>(
@@ -117,7 +118,7 @@ public class InvoiceRepository(AppDbContext db) : IInvoiceRepository
 
     public async Task<Invoice?> FindWithDetailsAsync(int id, CancellationToken ct)
     {
-        return await db.Invoices
+        var invoice = await db.Invoices
             .Include(i => i.Customer)
             .Include(i => i.SalesOrder)
             .Include(i => i.Shipment)
@@ -126,6 +127,9 @@ public class InvoiceRepository(AppDbContext db) : IInvoiceRepository
             .Include(i => i.PaymentApplications)
                 .ThenInclude(pa => pa.Payment)
             .FirstOrDefaultAsync(i => i.Id == id, ct);
+        if (invoice is not null)
+            await db.Entry(invoice).Reference(i => i.Currency).LoadAsync(ct);
+        return invoice;
     }
 
     public Task<string> GenerateNextInvoiceNumberAsync(CancellationToken ct)

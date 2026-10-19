@@ -2,6 +2,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 
 namespace Forge.Api.Features.Invoices;
@@ -10,11 +11,13 @@ public class InvoicePdfDocument : IDocument
 {
     private readonly Invoice _invoice;
     private readonly string? _companyName;
+    private readonly MoneyFormatter _money;
 
-    public InvoicePdfDocument(Invoice invoice, string? companyName)
+    public InvoicePdfDocument(Invoice invoice, string? companyName, MoneyFormatter? money = null)
     {
         _invoice = invoice;
         _companyName = companyName;
+        _money = money ?? MoneyFormat.For(null, "USD");
     }
 
     public void Compose(IDocumentContainer container)
@@ -24,7 +27,7 @@ public class InvoicePdfDocument : IDocument
             page.Size(PageSizes.Letter);
             page.MarginHorizontal(50);
             page.MarginVertical(40);
-            page.DefaultTextStyle(x => x.FontSize(10));
+            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10));
 
             page.Header().Element(ComposeHeader);
             page.Content().Element(ComposeContent);
@@ -47,7 +50,7 @@ public class InvoicePdfDocument : IDocument
                 row.RelativeItem().AlignRight().Column(right =>
                 {
                     right.Item().Text("INVOICE").Bold().FontSize(24).FontColor(Colors.Blue.Darken2);
-                    right.Item().Text($"#{_invoice.InvoiceNumber}").FontSize(12);
+                    right.Item().Text(_invoice.InvoiceNumber).FontSize(12);
                 });
             });
 
@@ -117,9 +120,9 @@ public class InvoicePdfDocument : IDocument
                     table.Cell().Background(bg).Padding(5).Text(line.LineNumber.ToString());
                     table.Cell().Background(bg).Padding(5).Text(line.Description);
                     table.Cell().Background(bg).Padding(5).Text(line.Part?.PartNumber ?? "—");
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.Quantity.ToString());
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.UnitPrice.ToString("C"));
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.LineTotal.ToString("C"));
+                    table.Cell().Background(bg).Padding(5).AlignRight().Text(MoneyFormat.Quantity(line.Quantity));
+                    table.Cell().Background(bg).Padding(5).AlignRight().Text(_money.Format(line.UnitPrice));
+                    table.Cell().Background(bg).Padding(5).AlignRight().Text(_money.Format(line.LineTotal));
                 }
             });
 
@@ -128,15 +131,15 @@ public class InvoicePdfDocument : IDocument
                 totals.Item().Row(row =>
                 {
                     row.RelativeItem().Text("Subtotal:").SemiBold();
-                    row.ConstantItem(100).AlignRight().Text(_invoice.Subtotal.ToString("C"));
+                    row.ConstantItem(100).AlignRight().Text(_money.Format(_invoice.Subtotal));
                 });
 
                 if (_invoice.TaxRate > 0)
                 {
                     totals.Item().Row(row =>
                     {
-                        row.RelativeItem().Text($"Tax ({_invoice.TaxRate:P0}):").SemiBold();
-                        row.ConstantItem(100).AlignRight().Text(_invoice.TaxAmount.ToString("C"));
+                        row.RelativeItem().Text($"Tax ({MoneyFormat.Percent(_invoice.TaxRate)}):").SemiBold();
+                        row.ConstantItem(100).AlignRight().Text(_money.Format(_invoice.TaxAmount));
                     });
                 }
 
@@ -145,7 +148,7 @@ public class InvoicePdfDocument : IDocument
                 totals.Item().PaddingTop(4).Row(row =>
                 {
                     row.RelativeItem().Text("Total:").Bold().FontSize(12);
-                    row.ConstantItem(100).AlignRight().Text(_invoice.Total.ToString("C")).Bold().FontSize(12);
+                    row.ConstantItem(100).AlignRight().Text(_money.Format(_invoice.Total)).Bold().FontSize(12);
                 });
 
                 if (_invoice.AmountPaid > 0)
@@ -153,13 +156,13 @@ public class InvoicePdfDocument : IDocument
                     totals.Item().Row(row =>
                     {
                         row.RelativeItem().Text("Paid:").FontColor(Colors.Green.Darken2);
-                        row.ConstantItem(100).AlignRight().Text($"({_invoice.AmountPaid:C})").FontColor(Colors.Green.Darken2);
+                        row.ConstantItem(100).AlignRight().Text($"({_money.Format(_invoice.AmountPaid)})").FontColor(Colors.Green.Darken2);
                     });
 
                     totals.Item().PaddingTop(4).Row(row =>
                     {
                         row.RelativeItem().Text("Balance Due:").Bold().FontSize(12);
-                        row.ConstantItem(100).AlignRight().Text(_invoice.BalanceDue.ToString("C")).Bold().FontSize(12);
+                        row.ConstantItem(100).AlignRight().Text(_money.Format(_invoice.BalanceDue)).Bold().FontSize(12);
                     });
                 }
             });

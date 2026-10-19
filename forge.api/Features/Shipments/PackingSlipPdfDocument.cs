@@ -25,7 +25,7 @@ public class PackingSlipPdfDocument : IDocument
             page.Size(PageSizes.Letter);
             page.MarginHorizontal(50);
             page.MarginVertical(40);
-            page.DefaultTextStyle(x => x.FontSize(10));
+            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10));
 
             page.Header().Element(ComposeHeader);
             page.Content().Element(ComposeContent);

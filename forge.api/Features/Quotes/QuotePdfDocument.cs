@@ -2,6 +2,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Models;
 
@@ -19,15 +20,15 @@ public class QuotePdfDocument : IDocument
     private readonly Quote _quote;
     private readonly string? _companyName;
     private readonly IReadOnlyList<CompiledTermsSection> _termsSections;
-    private readonly IFormatProvider? _money;
+    private readonly MoneyFormatter _money;
 
     public QuotePdfDocument(
-        Quote quote, string? companyName, IReadOnlyList<CompiledTermsSection> termsSections, IFormatProvider? money = null)
+        Quote quote, string? companyName, IReadOnlyList<CompiledTermsSection> termsSections, MoneyFormatter? money = null)
     {
         _quote = quote;
         _companyName = companyName;
         _termsSections = termsSections;
-        _money = money;
+        _money = money ?? MoneyFormat.For(null, "USD");
     }
 
     public void Compose(IDocumentContainer container)
@@ -37,7 +38,7 @@ public class QuotePdfDocument : IDocument
             page.Size(PageSizes.Letter);
             page.MarginHorizontal(50);
             page.MarginVertical(40);
-            page.DefaultTextStyle(x => x.FontSize(10));
+            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10));
 
             page.Header().Element(ComposeHeader);
             page.Content().Element(ComposeContent);
@@ -60,7 +61,7 @@ public class QuotePdfDocument : IDocument
                 row.RelativeItem().AlignRight().Column(right =>
                 {
                     right.Item().Text("QUOTE").Bold().FontSize(24).FontColor(Colors.Blue.Darken2);
-                    right.Item().Text($"#{_quote.QuoteNumber ?? _quote.Id.ToString()}").FontSize(12);
+                    right.Item().Text(_quote.QuoteNumber ?? _quote.Id.ToString()).FontSize(12);
                 });
             });
 
@@ -129,9 +130,9 @@ public class QuotePdfDocument : IDocument
                     table.Cell().Background(bg).Padding(5).Text(line.LineNumber.ToString());
                     table.Cell().Background(bg).Padding(5).Text(line.Description);
                     table.Cell().Background(bg).Padding(5).Text(line.Part?.PartNumber ?? "—");
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.Quantity.ToString("0.####"));
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.UnitPrice.ToString("C", _money));
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.LineTotal.ToString("C", _money));
+                    table.Cell().Background(bg).Padding(5).AlignRight().Text(MoneyFormat.Quantity(line.Quantity));
+                    table.Cell().Background(bg).Padding(5).AlignRight().Text(_money.Format(line.UnitPrice));
+                    table.Cell().Background(bg).Padding(5).AlignRight().Text(_money.Format(line.LineTotal));
                 }
             });
 
@@ -140,15 +141,15 @@ public class QuotePdfDocument : IDocument
                 totals.Item().Row(row =>
                 {
                     row.RelativeItem().Text("Subtotal:").SemiBold();
-                    row.ConstantItem(100).AlignRight().Text(_quote.Subtotal.ToString("C", _money));
+                    row.ConstantItem(100).AlignRight().Text(_money.Format(_quote.Subtotal));
                 });
 
                 if (_quote.TaxRate > 0)
                 {
                     totals.Item().Row(row =>
                     {
-                        row.RelativeItem().Text($"Tax ({_quote.TaxRate:P0}):").SemiBold();
-                        row.ConstantItem(100).AlignRight().Text(_quote.TaxAmount.ToString("C", _money));
+                        row.RelativeItem().Text($"Tax ({MoneyFormat.Percent(_quote.TaxRate)}):").SemiBold();
+                        row.ConstantItem(100).AlignRight().Text(_money.Format(_quote.TaxAmount));
                     });
                 }
 
@@ -157,7 +158,7 @@ public class QuotePdfDocument : IDocument
                 totals.Item().PaddingTop(4).Row(row =>
                 {
                     row.RelativeItem().Text("Total:").Bold().FontSize(12);
-                    row.ConstantItem(100).AlignRight().Text(_quote.Total.ToString("C", _money)).Bold().FontSize(12);
+                    row.ConstantItem(100).AlignRight().Text(_money.Format(_quote.Total)).Bold().FontSize(12);
                 });
             });
 

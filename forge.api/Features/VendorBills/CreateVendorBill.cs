@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -142,9 +143,10 @@ public class CreateVendorBillHandler(
         await repo.SaveChangesAsync(cancellationToken);
 
         // Activity (transactional entity → log on the bill): after the first save so the id is assigned.
+        var money = await MoneyFormat.ForCurrencyIdAsync(db, bill.CurrencyId, cancellationToken);
         db.LogActivityAt(
             "created",
-            $"Bill {bill.BillNumber} created for {vendor.CompanyName} — {bill.Total:C}"
+            $"Bill {bill.BillNumber} created for {vendor.CompanyName} — {money.Format(bill.Total)}"
             + (bill.PurchaseOrderId is int poId ? $" (PO {poId})" : string.Empty),
             ("VendorBill", bill.Id));
         await db.SaveChangesAsync(cancellationToken);

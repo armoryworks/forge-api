@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
+using Forge.Api.Services;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -127,9 +128,10 @@ public class VoidVendorPaymentHandler(
                     ? VendorBillStatus.PartiallyPaid
                     : VendorBillStatus.Approved;
 
+            var money = await MoneyFormat.ForCurrencyIdAsync(db, bill.CurrencyId, cancellationToken);
             db.LogActivityAt(
                 "payment-voided",
-                $"Payment {payment.PaymentNumber} voided — balance {bill.BalanceDue:C} restored",
+                $"Payment {payment.PaymentNumber} voided — balance {money.Format(bill.BalanceDue)} restored",
                 ("VendorBill", bill.Id));
         }
 

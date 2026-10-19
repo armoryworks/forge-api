@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Invoices;
+using Forge.Api.Services;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
@@ -43,7 +44,7 @@ public class OnInvoiceOverdue_NotifyCollections(
         if (userIds.Count == 0)
             userIds = await RecipientsAsync("Admin", ct);
 
-        var balance = InvoiceMoneyText.Format(invoice.BalanceDue, await InvoiceMoneyText.CurrencyAsync(db, invoice.CurrencyId, ct));
+        var balance = (await MoneyFormat.ForCurrencyIdAsync(db, invoice.CurrencyId, ct)).Format(invoice.BalanceDue);
         foreach (var userId in userIds)
         {
             db.Notifications.Add(new Notification

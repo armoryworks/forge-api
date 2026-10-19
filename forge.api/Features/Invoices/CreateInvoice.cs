@@ -289,10 +289,14 @@ public class CreateInvoiceHandler(
         if (publisher is not null)
             await publisher.Publish(new InvoiceCreatedEvent(invoice.Id, invoice.InvoiceNumber, invoice.CustomerId, total), cancellationToken);
 
+        var currencyCode = await db.Currencies.AsNoTracking()
+            .Where(c => c.Id == invoice.CurrencyId)
+            .Select(c => c.Code)
+            .FirstOrDefaultAsync(cancellationToken);
         return new InvoiceListItemModel(
             invoice.Id, invoice.InvoiceNumber, invoice.CustomerId, customer.Name,
             invoice.Status.ToString(), invoice.InvoiceDate, invoice.DueDate,
-            total, 0, total, invoice.CreatedAt);
+            total, 0, total, invoice.CreatedAt, currencyCode);
     }
 
     private static string Qty(decimal quantity) => quantity.ToString("0.####", CultureInfo.InvariantCulture);

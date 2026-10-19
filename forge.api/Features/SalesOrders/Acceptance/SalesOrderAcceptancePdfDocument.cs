@@ -2,6 +2,8 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
+using Forge.Api.Services;
+
 namespace Forge.Api.Features.SalesOrders.Acceptance;
 
 /// <summary>
@@ -11,8 +13,11 @@ namespace Forge.Api.Features.SalesOrders.Acceptance;
 /// </summary>
 public class SalesOrderAcceptancePdfDocument(
     string companyName, string orderNumber, string customerName, string? termsText,
-    IReadOnlyList<SalesOrderAcceptancePdfDocument.Line> lines) : IDocument
+    IReadOnlyList<SalesOrderAcceptancePdfDocument.Line> lines,
+    MoneyFormatter? money = null) : IDocument
 {
+    private readonly MoneyFormatter _money = money ?? MoneyFormat.For(null, "USD");
+
     public record Line(string Description, decimal Quantity, decimal UnitPrice);
 
     public void Compose(IDocumentContainer container)
@@ -22,7 +27,7 @@ public class SalesOrderAcceptancePdfDocument(
             page.Size(PageSizes.Letter);
             page.MarginHorizontal(50);
             page.MarginVertical(40);
-            page.DefaultTextStyle(x => x.FontSize(10));
+            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(10));
 
             page.Header().Column(col =>
             {
@@ -49,12 +54,12 @@ public class SalesOrderAcceptancePdfDocument(
                         var amount = l.Quantity * l.UnitPrice;
                         total += amount;
                         table.Cell().Text(l.Description);
-                        table.Cell().AlignRight().Text(l.Quantity.ToString("0.####"));
-                        table.Cell().AlignRight().Text(l.UnitPrice.ToString("C"));
-                        table.Cell().AlignRight().Text(amount.ToString("C"));
+                        table.Cell().AlignRight().Text(MoneyFormat.Quantity(l.Quantity));
+                        table.Cell().AlignRight().Text(_money.Format(l.UnitPrice));
+                        table.Cell().AlignRight().Text(_money.Format(amount));
                     }
                     table.Cell().ColumnSpan(3).AlignRight().PaddingTop(6).Text("Total").SemiBold();
-                    table.Cell().AlignRight().PaddingTop(6).Text(total.ToString("C")).SemiBold();
+                    table.Cell().AlignRight().PaddingTop(6).Text(_money.Format(total)).SemiBold();
                 });
 
                 if (!string.IsNullOrWhiteSpace(termsText))

@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Jobs;
+using Forge.Api.Services;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -69,11 +70,14 @@ public class RetryPaymentTransmissionHandler(
         transmission.NextAttemptAt = null;
         // LastError intentionally kept — visible in triage until the next attempt overwrites it.
 
+        var money = transmission.SourceType == "VendorPayment"
+            ? await MoneyFormat.ForVendorPaymentAsync(db, transmission.SourceId, cancellationToken)
+            : await MoneyFormat.ForBaseCurrencyAsync(db, cancellationToken);
         db.LogActivityAt(
             Forge.Api.Features.VendorPayments.WireAttestationState.RetriedActivityAction,
             awaitsWireAttestation
-                ? $"Wire returned to manual attestation — {transmission.Amount:C}"
-                : $"Bank transmission manually re-queued — {transmission.Amount:C} via {transmission.Method}",
+                ? $"Wire returned to manual attestation — {money.Format(transmission.Amount)}"
+                : $"Bank transmission manually re-queued — {money.Format(transmission.Amount)} via {transmission.Method}",
             (transmission.SourceType, transmission.SourceId));
         await db.SaveChangesAsync(cancellationToken);
 

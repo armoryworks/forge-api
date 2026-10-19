@@ -2,6 +2,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
+using Forge.Api.Services;
 using Forge.Core.Models;
 
 namespace Forge.Api.Features.Reports;
@@ -26,7 +27,7 @@ public class ReportPdfDocument : IDocument
             page.Size(PageSizes.Letter.Landscape());
             page.MarginHorizontal(30);
             page.MarginVertical(30);
-            page.DefaultTextStyle(x => x.FontSize(8));
+            page.DefaultTextStyle(x => x.WithScriptFallbacks().FontSize(8));
 
             page.Header().Element(ComposeHeader);
             page.Content().Element(ComposeContent);
