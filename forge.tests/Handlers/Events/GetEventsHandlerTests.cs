@@ -69,6 +69,21 @@ public class GetEventsHandlerTests
     }
 
     [Fact]
+    public async Task Handle_FlagsSystemGeneratedEvents()
+    {
+        var user = await SeedUser();
+        var generated = await SeedEvent(user.Id, "Job Due: J-4 - Bracket run", EventType.Other, DateTimeOffset.UtcNow.AddDays(1));
+        generated.IsSystemGenerated = true;
+        await _db.SaveChangesAsync();
+        await SeedEvent(user.Id, "Job fair", EventType.Meeting, DateTimeOffset.UtcNow.AddDays(2));
+
+        var result = await _handler.Handle(new GetEventsQuery(null, null, null), CancellationToken.None);
+
+        result.Single(e => e.Id == generated.Id).IsSystemGenerated.Should().BeTrue();
+        result.Single(e => e.Title == "Job fair").IsSystemGenerated.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Handle_FiltersbyEventType()
     {
         var user = await SeedUser();

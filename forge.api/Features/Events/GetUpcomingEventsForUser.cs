@@ -51,6 +51,7 @@ public class GetUpcomingEventsForUserHandler(AppDbContext db)
                 userNames.GetValueOrDefault(a.UserId, ""),
                 a.Status.ToString(), a.RespondedAt)).ToList(),
             evt.CreatedAt, evt.EventTypeId, evt.CalendarEventType?.SuperGroupId,
-            evt.Status.ToString(), evt.OwnerUserId, evt.IsBlocking, evt.AcknowledgedAt)).ToList();
+            evt.Status.ToString(), evt.OwnerUserId, evt.IsBlocking, evt.AcknowledgedAt,
+            IsSystemGenerated: evt.IsSystemGenerated)).ToList();
     }
 }
