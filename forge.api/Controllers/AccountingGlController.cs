@@ -58,8 +58,7 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
                 request.CurrencyId,
                 request.Memo,
                 request.AllowSoftClosedOverride,
-                request.Lines,
-                request.ApprovedByUserId),
+                request.Lines),
             ct);
 
         return CreatedAtAction(
@@ -70,8 +69,7 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
 
     /// <summary>
     /// Maker-checker async work-list (§5.7): the manual JEs awaiting a second approver
-    /// (<c>PendingApproval</c>) for a book — what the create endpoint routes an over-threshold entry to when no
-    /// distinct approver was supplied up-front.
+    /// (<c>PendingApproval</c>) for a book — what the create endpoint routes every over-threshold entry to.
     /// </summary>
     [HttpGet("journal-entries/pending")]
     public async Task<ActionResult<IReadOnlyList<ManualJournalEntryResult>>> GetPendingJournalEntries(
@@ -695,5 +693,4 @@ public record CreateManualJournalEntryRequest(
     int CurrencyId,
     string? Memo,
     bool AllowSoftClosedOverride,
-    IReadOnlyList<CreateManualJournalLineModel> Lines,
-    int? ApprovedByUserId = null);
+    IReadOnlyList<CreateManualJournalLineModel> Lines);
