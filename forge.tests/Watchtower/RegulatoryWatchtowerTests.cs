@@ -40,14 +40,31 @@ public sealed class RegulatoryWatchtowerTests(PostgresFixture fixture)
 
         var items = new List<RegulatoryFeedItem> { new("New OSHA rule", "https://x/1", null) };
 
-        (await new RegulatoryPoller(db, new FakeFeedClient(items), new SystemClock()).PollActiveAsync()).Should().Be(1);
+        (await new RegulatoryPoller(db, new FakeFeedClient(items), new SystemClock()).PollActiveAsync())
+            .Should().Be(new RegulatoryPollResult(1, 1));
 
         await using var db2 = fixture.CreateContext();
-        (await new RegulatoryPoller(db2, new FakeFeedClient(items), new SystemClock()).PollActiveAsync())
+        (await new RegulatoryPoller(db2, new FakeFeedClient(items), new SystemClock()).PollActiveAsync()).Created
             .Should().Be(0, "the same item is not proposed twice");
 
         await using var verify = fixture.CreateContext();
         (await verify.RegulatoryChangeProposals.CountAsync(p => p.Status == RegulatoryProposalStatus.Pending)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Poller_reports_when_no_source_is_active()
+    {
+        await using var db = fixture.CreateContext();
+        await db.RegulatoryChangeProposals.ExecuteDeleteAsync();
+        await db.RegulatorySources.ExecuteDeleteAsync();
+
+        db.RegulatorySources.Add(new RegulatorySource { Name = "Federal Register", Url = "https://x", FeedType = RegulatoryFeedType.Api, IsActive = false });
+        await db.SaveChangesAsync();
+
+        var items = new List<RegulatoryFeedItem> { new("New OSHA rule", "https://x/1", null) };
+
+        (await new RegulatoryPoller(db, new FakeFeedClient(items), new SystemClock()).PollActiveAsync())
+            .Should().Be(new RegulatoryPollResult(0, 0));
     }
 
     [Fact]

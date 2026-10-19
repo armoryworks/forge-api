@@ -10,8 +10,11 @@ namespace Forge.Api.Services;
 /// <summary>regulatory-watchtower: polls active sources and creates Pending proposals.</summary>
 public interface IRegulatoryPoller
 {
-    Task<int> PollActiveAsync(CancellationToken ct = default);
+    Task<RegulatoryPollResult> PollActiveAsync(CancellationToken ct = default);
 }
+
+/// <summary>regulatory-watchtower: how many sources were active and how many new proposals a poll created.</summary>
+public sealed record RegulatoryPollResult(int ActiveSources, int Created);
 
 /// <summary>
 /// regulatory-watchtower. Polls every active source via <see cref="IRegulatoryFeedClient"/> and
@@ -20,7 +23,7 @@ public interface IRegulatoryPoller
 /// </summary>
 public sealed class RegulatoryPoller(AppDbContext db, IRegulatoryFeedClient client, IClock clock) : IRegulatoryPoller
 {
-    public async Task<int> PollActiveAsync(CancellationToken ct = default)
+    public async Task<RegulatoryPollResult> PollActiveAsync(CancellationToken ct = default)
     {
         var sources = await db.RegulatorySources.Where(s => s.IsActive).ToListAsync(ct);
         var created = 0;
@@ -49,6 +52,6 @@ public sealed class RegulatoryPoller(AppDbContext db, IRegulatoryFeedClient clie
         }
 
         await db.SaveChangesAsync(ct);
-        return created;
+        return new RegulatoryPollResult(sources.Count, created);
     }
 }
