@@ -43,13 +43,13 @@ public class ImapEmailSyncProviderTests
         msg.Date = new DateTimeOffset(2026, 5, 9, 10, 0, 0, TimeSpan.Zero);
         var uid = new UniqueId(1234, 56);
 
-        var comm = ImapEmailSyncProvider.TranslateMimeMessage(msg, uid, "rep@us.test");
+        var comm = ImapEmailSyncProvider.TranslateMimeMessage(msg, uid, "rep@us.test", 3);
 
         comm.Direction.Should().Be(CommunicationDirection.Inbound);
         comm.From.Should().Be("customer@example.com");
         comm.To.Should().BeEquivalentTo(new[] { "rep@us.test" });
         comm.Subject.Should().Be("Pricing question");
-        comm.ExternalId.Should().Be("imap-1234-56");
+        comm.ExternalId.Should().Be("imap-3-1234-56");
         comm.OccurredAt.Should().Be(msg.Date);
         comm.Kind.Should().Be(CommunicationKind.Email);
     }
@@ -68,7 +68,7 @@ public class ImapEmailSyncProviderTests
         msg.Date = DateTimeOffset.UtcNow;
         var uid = new UniqueId(1234, 99);
 
-        var comm = ImapEmailSyncProvider.TranslateMimeMessage(msg, uid, "rep@us.test");
+        var comm = ImapEmailSyncProvider.TranslateMimeMessage(msg, uid, "rep@us.test", 3);
 
         comm.Direction.Should().Be(CommunicationDirection.Outbound);
         comm.From.Should().Be("rep@us.test");
@@ -90,7 +90,7 @@ public class ImapEmailSyncProviderTests
         msg.Cc.Add(new MailboxAddress("C", "c@biz.com"));
         var uid = new UniqueId(1234, 100);
 
-        var comm = ImapEmailSyncProvider.TranslateMimeMessage(msg, uid, "rep@us.test");
+        var comm = ImapEmailSyncProvider.TranslateMimeMessage(msg, uid, "rep@us.test", 3);
 
         comm.To.Should().BeEquivalentTo(new[] { "a@biz.com", "b@biz.com", "c@biz.com" });
     }
@@ -106,7 +106,7 @@ public class ImapEmailSyncProviderTests
             body: new TextPart("plain") { Text = bigBody });
         var uid = new UniqueId(1234, 1);
 
-        var comm = ImapEmailSyncProvider.TranslateMimeMessage(msg, uid, "y@test.com");
+        var comm = ImapEmailSyncProvider.TranslateMimeMessage(msg, uid, "y@test.com", 3);
 
         comm.Body!.Length.Should().Be(2000);
     }
@@ -121,7 +121,7 @@ public class ImapEmailSyncProviderTests
             body: new TextPart("plain") { Text = string.Empty });
         var uid = new UniqueId(1234, 1);
 
-        var comm = ImapEmailSyncProvider.TranslateMimeMessage(msg, uid, "y@test.com");
+        var comm = ImapEmailSyncProvider.TranslateMimeMessage(msg, uid, "y@test.com", 3);
 
         comm.Subject.Should().NotBeNull();
         comm.Body.Should().BeNull();

@@ -189,7 +189,7 @@ public class ImapEmailSyncProvider(
                 var msg = await folder.FetchMessageAsync(uid, ct);
                 if (msg is null) continue;
 
-                var comm = TranslateMimeMessage(msg, uid, config.Username);
+                var comm = TranslateMimeMessage(msg, uid, config.Username, connectionId);
                 if (await TryIngestAsEvidenceAsync(msg, comm, ct))
                 {
                     matched++;
@@ -343,8 +343,11 @@ public class ImapEmailSyncProvider(
     /// <see cref="InboundCommunication"/> envelope. The user's own mailbox
     /// address (<paramref name="ownerAddress"/>) is used to determine
     /// inbound vs outbound — if the user is in From, this was sent by them.
+    /// The external id carries <paramref name="connectionId"/> because UIDs and
+    /// UIDVALIDITY are only unique within one mailbox, and the id is the
+    /// (Channel, ExternalId) idempotency key across every connected mailbox.
     /// </summary>
-    internal static InboundCommunication TranslateMimeMessage(MimeMessage msg, UniqueId uid, string ownerAddress)
+    internal static InboundCommunication TranslateMimeMessage(MimeMessage msg, UniqueId uid, string ownerAddress, int connectionId)
     {
         var fromAddr = ExtractFirstAddress(msg.From) ?? string.Empty;
         var toAddrs = msg.To.Mailboxes.Select(m => m.Address).ToList();
@@ -358,7 +361,7 @@ public class ImapEmailSyncProvider(
             ProviderId: "imap",
             Kind: CommunicationKind.Email,
             Direction: direction,
-            ExternalId: $"imap-{uid.Validity}-{uid.Id}",
+            ExternalId: $"imap-{connectionId}-{uid.Validity}-{uid.Id}",
             From: fromAddr,
             To: [..toAddrs, ..ccAddrs],
             OccurredAt: msg.Date == default ? DateTimeOffset.UtcNow : msg.Date,

@@ -108,7 +108,7 @@ public class ImapEmailSyncEvidenceTests
         matched.Should().Be(1);
         var stored = _db.Communications.ToList();
         stored.Should().ContainSingle();
-        stored[0].ExternalId.Should().Be($"imap-{Validity}-11");
+        stored[0].ExternalId.Should().Be($"imap-{connectionId}-{Validity}-11");
         stored[0].ContactId.Should().NotBeNull();
         var artifacts = _db.CommunicationArtifacts.Where(a => a.CommunicationId == stored[0].Id).ToList();
         artifacts.Count(a => a.Kind == CommunicationArtifactKind.Attachment).Should().Be(1);
@@ -118,15 +118,36 @@ public class ImapEmailSyncEvidenceTests
     }
 
     [Fact]
+    public async Task The_same_uid_in_two_mailboxes_is_stored_once_per_mailbox()
+    {
+        var customer = new Customer { Name = "Brindle", IsActive = true };
+        _db.Customers.Add(customer);
+        await _db.SaveChangesAsync();
+        _db.Contacts.Add(new Contact { CustomerId = customer.Id, FirstName = "Nadia", LastName = "Buyer", Email = "nadia@brindle.test" });
+        await _db.SaveChangesAsync();
+        var first = await SeedConnectionAsync();
+        var second = await SeedConnectionAsync();
+
+        await Provider(new Dictionary<uint, MimeMessage> { [11] = Message("nadia@brindle.test", "RFQ to rep one") })
+            .SyncRecentAsync(first, CancellationToken.None);
+        var matched = await Provider(new Dictionary<uint, MimeMessage> { [11] = Message("nadia@brindle.test", "RFQ to rep two") })
+            .SyncRecentAsync(second, CancellationToken.None);
+
+        matched.Should().Be(1);
+        _db.Communications.Select(c => c.Subject).ToList()
+            .Should().BeEquivalentTo(new[] { "RFQ to rep one", "RFQ to rep two" });
+    }
+
+    [Fact]
     public void BuildInboundEmail_keeps_the_raw_message_and_decoded_attachments()
     {
         var pdf = Encoding.ASCII.GetBytes("%PDF-1.4 rfq");
         var msg = Message("nadia@brindle.test", "RFQ SA-210", pdf);
-        var comm = ImapEmailSyncProvider.TranslateMimeMessage(msg, new UniqueId(Validity, 11), "sales@ourshop.test");
+        var comm = ImapEmailSyncProvider.TranslateMimeMessage(msg, new UniqueId(Validity, 11), "sales@ourshop.test", 4);
 
         var email = ImapEmailSyncProvider.BuildInboundEmail(msg, comm);
 
-        email.ExternalId.Should().Be($"imap-{Validity}-11");
+        email.ExternalId.Should().Be($"imap-4-{Validity}-11");
         email.Attachments.Should().ContainSingle();
         email.Attachments[0].Filename.Should().Be("rfq-210.pdf");
         email.Attachments[0].ContentType.Should().Be("application/pdf");
