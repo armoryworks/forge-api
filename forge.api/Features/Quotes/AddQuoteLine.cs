@@ -58,7 +58,7 @@ public class AddQuoteLineHandler(
         // customer's price list so price lists are a live pricing input. An explicit price is kept.
         var unitPrice = request.Data.UnitPrice;
         if (unitPrice == 0m && priceResolver is not null && request.Data.PartId is int && request.Data.PartId.Value > 0)
-            unitPrice = await priceResolver.ResolveUnitPriceAsync(quote.CustomerId, request.Data.PartId.Value, cancellationToken)
+            unitPrice = await priceResolver.ResolveUnitPriceAsync(quote.CustomerId, request.Data.PartId.Value, request.Data.Quantity, cancellationToken)
                         ?? unitPrice;
 
         quote.Lines.Add(new QuoteLine

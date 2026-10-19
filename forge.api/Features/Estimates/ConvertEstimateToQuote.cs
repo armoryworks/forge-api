@@ -117,7 +117,7 @@ public class ConvertEstimateToQuoteHandler(
                 // price-list price (AUDIT-19-S1), falling back to the line's amount.
                 unitPrice = resolution.UnitPrice
                     ?? (priceResolver is not null
-                        ? await priceResolver.ResolveUnitPriceAsync(estimate.CustomerId, replacementPartId, ct) ?? line.UnitPrice
+                        ? await priceResolver.ResolveUnitPriceAsync(estimate.CustomerId, replacementPartId, line.Quantity, ct) ?? line.UnitPrice
                         : line.UnitPrice);
                 replaced++;
             }

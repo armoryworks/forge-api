@@ -35,12 +35,13 @@ public class QuotesController(IMediator mediator) : ControllerBase
 
     /// <summary>
     /// AUDIT-19-S1: the customer-specific price-list unit price for a part (null if none). Line
-    /// dialogs call this on part-select to pre-fill the price (forge-ui#26).
+    /// dialogs call this on part-select to pre-fill the price (forge-ui#26); <paramref name="quantity"/>
+    /// picks the quantity break, and without it the lowest break applies.
     /// </summary>
     [HttpGet("resolve-price")]
     public async Task<ActionResult<decimal?>> ResolvePrice(
-        [FromQuery] int customerId, [FromQuery] int partId, CancellationToken ct)
-        => Ok(await mediator.Send(new ResolvePartPriceQuery(customerId, partId), ct));
+        [FromQuery] int customerId, [FromQuery] int partId, [FromQuery] decimal? quantity, CancellationToken ct)
+        => Ok(await mediator.Send(new ResolvePartPriceQuery(customerId, partId, quantity), ct));
 
     [HttpPost]
     public async Task<ActionResult<QuoteListItemModel>> CreateQuote(CreateQuoteRequestModel request)

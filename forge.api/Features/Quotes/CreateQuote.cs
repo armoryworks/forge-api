@@ -101,7 +101,7 @@ public class CreateQuoteHandler(
             // AUDIT-19-S1: resolve an unset (0) catalog-part price from the customer's price list.
             var unitPrice = line.UnitPrice;
             if (unitPrice == 0m && priceResolver is not null && line.PartId is int pricePartId && pricePartId > 0)
-                unitPrice = await priceResolver.ResolveUnitPriceAsync(request.CustomerId, pricePartId, cancellationToken)
+                unitPrice = await priceResolver.ResolveUnitPriceAsync(request.CustomerId, pricePartId, line.Quantity, cancellationToken)
                             ?? unitPrice;
 
             quote.Lines.Add(new QuoteLine
