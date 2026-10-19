@@ -32,6 +32,7 @@ public static class BankingSettings
     public const string SftpPasswordKey = "banking.sftp.password";
     public const string SftpUploadDirKey = "banking.sftp.upload-dir";
     public const string SftpReturnsDirKey = "banking.sftp.returns-dir";
+    public const string SftpHostKeyFingerprintKey = "banking.sftp.host-key-fingerprint";
     public const string WireManualAttestationKey = "banking.wire.manual-attestation";
 
     public static IReadOnlyList<SettingDescriptor> Descriptors =>
@@ -123,12 +124,19 @@ public static class BankingSettings
             DefaultValue: "/inbound", SortOrder: 119),
         new(SftpReturnsDirKey, Group, "Bank SFTP — Returns Directory", SettingDataType.String,
             DefaultValue: "/outbound", SortOrder: 120),
+        new(SftpHostKeyFingerprintKey, Group, "Bank SFTP — Host Key Fingerprint", SettingDataType.String,
+            Description: "The bank server's SHA256 host key fingerprint, as `ssh-keygen -lf` prints it "
+                + "(SHA256:…). Required: the sftp channel refuses to connect to a server whose key does not "
+                + "match. Confirm the value with the bank before pasting it; a refused connection reports "
+                + "the fingerprint the server presented.",
+            ValidationPattern: @"^\s*(SHA256:)?[A-Za-z0-9+/]{43}=?\s*$",
+            SortOrder: 121),
         new(WireManualAttestationKey, Group, "Wires — Manual Attestation", SettingDataType.Boolean,
-            Description: "On: wire payments wait as Queued until a SECOND user attests the wire was "
+            Description: "On: wire payments wait for attestation until a SECOND user attests the wire was "
                 + "entered at the bank portal (no fake auto-success). Off (default): the development "
                 + "mock channel processes them. Production installs should turn this ON until a real "
                 + "bank wire API exists.",
             DefaultValue: "false",
-            SortOrder: 121),
+            SortOrder: 122),
     ];
 }
