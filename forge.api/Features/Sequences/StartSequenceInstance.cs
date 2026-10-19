@@ -1,3 +1,4 @@
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,15 +34,26 @@ public class StartSequenceInstanceHandler(AppDbContext db, ISequenceEvaluationSe
         if (def is null) throw new KeyNotFoundException("No matching sequence definition.");
         if (def.Status != SequenceDefinitionStatus.Published)
             throw new InvalidOperationException($"Definition {def.Code} v{def.Version} is {def.Status}; only published definitions can start.");
-        if (def.SubjectEntityType is not null && !string.IsNullOrEmpty(m.SubjectEntityType) && def.SubjectEntityType != m.SubjectEntityType)
+        var definitionSubjectType = SequenceSubjectTypes.Normalize(def.SubjectEntityType);
+        var subjectType = SequenceSubjectTypes.Normalize(m.SubjectEntityType);
+        if (definitionSubjectType is not null && subjectType is not null
+            && !string.Equals(definitionSubjectType, subjectType, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException($"Definition {def.Code} runs against {def.SubjectEntityType}, not {m.SubjectEntityType}.");
+        subjectType ??= definitionSubjectType;
+        if (subjectType is not null && m.SubjectEntityId is null)
+            throw new ValidationException($"Definition {def.Code} runs against a {subjectType}; choose which one.");
+        if (subjectType is null && m.SubjectEntityId is not null)
+            throw new ValidationException("A subject id needs a subject type.");
+        if (SequenceSubjectTypes.IsJob(subjectType)
+            && !await db.Jobs.AnyAsync(j => j.Id == m.SubjectEntityId, cancellationToken))
+            throw new KeyNotFoundException($"Job {m.SubjectEntityId} not found.");
 
         var now = clock.UtcNow;
         var instance = new SequenceInstance
         {
             DefinitionId = def.Id,
             Definition = def,
-            SubjectEntityType = string.IsNullOrWhiteSpace(m.SubjectEntityType) ? null : m.SubjectEntityType,
+            SubjectEntityType = subjectType,
             SubjectEntityId = m.SubjectEntityId,
             Status = SequenceInstanceStatus.Running,
             StartedAt = now,

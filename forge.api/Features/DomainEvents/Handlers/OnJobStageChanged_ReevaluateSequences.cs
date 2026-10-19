@@ -14,7 +14,7 @@ public class OnJobStageChanged_ReevaluateSequences(AppDbContext db, IMediator me
     {
         var ids = await db.SequenceInstances
             .Where(i => i.Status == SequenceInstanceStatus.Running && i.DeletedAt == null
-                        && i.SubjectEntityType == "Job" && i.SubjectEntityId == notification.JobId)
+                        && i.SubjectEntityType!.ToLower() == "job" && i.SubjectEntityId == notification.JobId)
             .Select(i => i.Id).ToListAsync(cancellationToken);
         foreach (var id in ids)
             await mediator.Send(new ReevaluateSequenceCommand(id, notification.UserId), cancellationToken);

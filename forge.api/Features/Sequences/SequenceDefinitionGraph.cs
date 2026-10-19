@@ -1,5 +1,6 @@
 using Forge.Core.Entities;
 using Forge.Core.Models;
+using Forge.Core.Sequences;
 
 namespace Forge.Api.Features.Sequences;
 
@@ -10,7 +11,7 @@ public static class SequenceDefinitionGraph
     {
         def.Name = m.Name.Trim();
         def.Description = string.IsNullOrWhiteSpace(m.Description) ? null : m.Description.Trim();
-        def.SubjectEntityType = string.IsNullOrWhiteSpace(m.SubjectEntityType) ? null : m.SubjectEntityType.Trim();
+        def.SubjectEntityType = SequenceSubjectTypes.Normalize(m.SubjectEntityType);
         def.AutoStartOnSubjectCreate = m.AutoStartOnSubjectCreate && def.SubjectEntityType is not null;
 
         def.Steps.Clear();

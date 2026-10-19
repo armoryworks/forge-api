@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.Sequences;
 using Forge.Core.Enums;
 using Forge.Core.Models;
+using Forge.Core.Sequences;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.DomainEvents.Handlers;
@@ -19,20 +20,20 @@ public class OnJobCreated_StartSequences(AppDbContext db, IMediator mediator) : 
     {
         var defs = await db.SequenceDefinitions
             .Where(d => d.DeletedAt == null && d.Status == SequenceDefinitionStatus.Published
-                        && d.SubjectEntityType == "Job" && d.AutoStartOnSubjectCreate)
+                        && d.SubjectEntityType!.ToLower() == "job" && d.AutoStartOnSubjectCreate)
             .OrderByDescending(d => d.Version)
             .ToListAsync(cancellationToken);
         if (defs.Count == 0) return;
 
         var running = await db.SequenceInstances
-            .Where(i => i.SubjectEntityType == "Job" && i.SubjectEntityId == notification.JobId && i.Status == SequenceInstanceStatus.Running)
+            .Where(i => i.SubjectEntityType!.ToLower() == "job" && i.SubjectEntityId == notification.JobId && i.Status == SequenceInstanceStatus.Running)
             .Select(i => i.Definition!.Code).ToListAsync(cancellationToken);
 
         foreach (var def in defs.GroupBy(d => d.Code).Select(g => g.First()))
         {
             if (running.Contains(def.Code)) continue;
             await mediator.Send(new StartSequenceInstanceCommand(
-                new StartSequenceRequestModel(def.Id, null, "Job", notification.JobId), notification.UserId), cancellationToken);
+                new StartSequenceRequestModel(def.Id, null, SequenceSubjectTypes.Job, notification.JobId), notification.UserId), cancellationToken);
         }
     }
 }
