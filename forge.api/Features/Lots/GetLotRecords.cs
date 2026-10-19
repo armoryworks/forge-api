@@ -11,6 +11,8 @@ public record GetLotRecordsQuery(int? PartId, int? JobId, string? Search) : IReq
 public class GetLotRecordsHandler(AppDbContext db)
     : IRequestHandler<GetLotRecordsQuery, List<LotRecordResponseModel>>
 {
+    private const string LikeEscape = "\\";
+
     public async Task<List<LotRecordResponseModel>> Handle(
         GetLotRecordsQuery request, CancellationToken cancellationToken)
     {
@@ -28,11 +30,13 @@ public class GetLotRecordsHandler(AppDbContext db)
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
-            var search = request.Search.Trim();
+            var pattern = $"%{EscapeLike(request.Search.Trim())}%";
             query = query.Where(l =>
-                l.LotNumber.Contains(search) ||
-                l.SupplierLotNumber != null && l.SupplierLotNumber.Contains(search) ||
-                l.Part.PartNumber.Contains(search));
+                EF.Functions.ILike(l.LotNumber, pattern, LikeEscape) ||
+                l.SupplierLotNumber != null && EF.Functions.ILike(l.SupplierLotNumber, pattern, LikeEscape) ||
+                EF.Functions.ILike(l.Part.PartNumber, pattern, LikeEscape) ||
+                l.Part.Description != null && EF.Functions.ILike(l.Part.Description, pattern, LikeEscape) ||
+                EF.Functions.ILike(l.Part.Name, pattern, LikeEscape));
         }
 
         return await query
@@ -55,4 +59,7 @@ public class GetLotRecordsHandler(AppDbContext db)
                 l.CreatedAt))
             .ToListAsync(cancellationToken);
     }
+
+    private static string EscapeLike(string value) =>
+        value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 }
