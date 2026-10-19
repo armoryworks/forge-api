@@ -509,6 +509,13 @@ public class AccountingGlController(IMediator mediator) : ControllerBase
         [FromBody] RunDepreciationRequest body, CancellationToken ct)
         => Ok(await mediator.Send(new RunDepreciationCommand(body.BookId, body.PeriodMonth), ct));
 
+    /// <summary>Phase-4 — dispose of a fixed asset: catch-up depreciation, then the gain/loss journal.</summary>
+    [HttpPost("fixed-assets/{id:int}/dispose")]
+    [RequiresCapability("CAP-ACCT-DEPRECIATION")]
+    public async Task<ActionResult<FixedAssetDisposalResult>> DisposeFixedAsset(
+        int id, [FromBody] DisposeFixedAssetModel model, CancellationToken ct)
+        => Ok(await mediator.Send(new DisposeFixedAssetCommand(id, model), ct));
+
     // ─────────────────────────── Phase-2 STAGE E inventory valuation ───────────────────────────
 
     /// <summary>STAGE E — the perpetual inventory valuation (on-hand qty, avg cost, value) per part.</summary>

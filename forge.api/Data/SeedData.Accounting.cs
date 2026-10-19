@@ -33,6 +33,10 @@ public static partial class SeedData
         // get it backfilled. No-op on fresh installs and already-patched ones.
         await EnsureCashInTransitAsync(db);
         await EnsureDeterminationAccountsAsync(db);
+        await EnsureKeyedAccountAsync(db, "FIXED_ASSETS", "15000", "Machinery & Equipment",
+            AccountType.Asset, NormalBalance.Debit, [AccountType.Asset]);
+        await EnsureKeyedAccountAsync(db, "GAIN_LOSS_ON_DISPOSAL", "91000", "Gain/Loss on Asset Disposal",
+            AccountType.Income, NormalBalance.Credit, [AccountType.Income, AccountType.Expense]);
 
         // AR-002/AP-001 open-item sub-ledger backfill — runs on EVERY boot, before
         // the run-once guard, so installs that posted AR/AP journals before the
@@ -123,6 +127,7 @@ public static partial class SeedData
             // residual balance is the over/under-applied overhead (the spending + volume variance) at period end.
             ("13400", "Manufacturing Overhead Control", AccountType.Asset,  NormalBalance.Debit,  false, null,                         "OVERHEAD_CONTROL"),
             ("19900", "FX Revaluation Adjustment",   AccountType.Asset,     NormalBalance.Debit,  false, null,                         "FX_REVALUATION"),
+            ("15000", "Machinery & Equipment",       AccountType.Asset,     NormalBalance.Debit,  false, null,                         "FIXED_ASSETS"),
 
             // ── Liabilities (2xxxx) ─────────────────────────────────────────
             ("20000", "Accounts Payable",            AccountType.Liability, NormalBalance.Credit, true,  ControlAccountType.AP,        "AP_CONTROL"),
@@ -179,6 +184,7 @@ public static partial class SeedData
             // ── Other income / expense (9xxxx) ──────────────────────────────
             ("90000", "Foreign Exchange Gain",       AccountType.Income,    NormalBalance.Credit, false, null,                         "FX_GAIN"),
             ("90100", "Foreign Exchange Loss",       AccountType.Expense,   NormalBalance.Debit,  false, null,                         "FX_LOSS"),
+            ("91000", "Gain/Loss on Asset Disposal", AccountType.Income,    NormalBalance.Credit, false, null,                         "GAIN_LOSS_ON_DISPOSAL"),
         };
 
         var accountsByKey = new Dictionary<string, GlAccount>(StringComparer.Ordinal);
@@ -700,6 +706,75 @@ public static partial class SeedData
             Log.Information(
                 "Backfilled GL account {Number} 'Cash in Transit' + {Key} determination rule for Book '{Book}' (additive chart patch for pre-seeded installs).",
                 AccountNumber, Key, book.Code);
+        }
+    }
+
+    /// <summary>
+    /// Additive chart patch for a determination key added after installs were seeded: gives every active book
+    /// without the key the account <paramref name="accountNumber"/>, reusing an existing account with that number
+    /// only when its type is one of <paramref name="reusableTypes"/>. When the number is taken by an account of
+    /// another type the book is left without the key (logged), so postings ask for an account instead of hitting
+    /// the wrong one. No-op on fresh installs (the run-once seed writes the account) and on patched books.
+    /// </summary>
+    internal static async Task EnsureKeyedAccountAsync(
+        AppDbContext db,
+        string key,
+        string accountNumber,
+        string name,
+        AccountType type,
+        NormalBalance normalBalance,
+        IReadOnlyCollection<AccountType> reusableTypes)
+    {
+        var books = await db.Books.Where(b => b.IsActive).ToListAsync();
+        if (books.Count == 0)
+            return;
+
+        var bookIdsWithRule = await db.AccountDeterminationRules
+            .Where(r => r.Key == key)
+            .Select(r => r.BookId)
+            .ToListAsync();
+
+        foreach (var book in books.Where(b => !bookIdsWithRule.Contains(b.Id)))
+        {
+            var account = await db.GlAccounts
+                .FirstOrDefaultAsync(a => a.BookId == book.Id && a.AccountNumber == accountNumber);
+            if (account is not null && !reusableTypes.Contains(account.AccountType))
+            {
+                Log.Warning(
+                    "GL account {Number} in Book '{Book}' is a {Type} account, so the {Key} determination rule was not added; choose the account when posting.",
+                    accountNumber, book.Code, account.AccountType, key);
+                continue;
+            }
+
+            if (account is null)
+            {
+                account = new GlAccount
+                {
+                    BookId = book.Id,
+                    AccountNumber = accountNumber,
+                    Name = name,
+                    AccountType = type,
+                    NormalBalance = normalBalance,
+                    IsControlAccount = false,
+                    ControlType = null,
+                    IsPostable = true,
+                    IsActive = true,
+                };
+                db.GlAccounts.Add(account);
+                await db.SaveChangesAsync();
+            }
+
+            db.AccountDeterminationRules.Add(new AccountDeterminationRule
+            {
+                BookId = book.Id,
+                Key = key,
+                GlAccountId = account.Id,
+            });
+            await db.SaveChangesAsync();
+
+            Log.Information(
+                "Backfilled GL account {Number} '{Name}' + {Key} determination rule for Book '{Book}' (additive chart patch for pre-seeded installs).",
+                account.AccountNumber, account.Name, key, book.Code);
         }
     }
 }

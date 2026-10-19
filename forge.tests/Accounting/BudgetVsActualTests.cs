@@ -223,4 +223,104 @@ public class BudgetVsActualTests
         var rows = await new ListBudgetsHandler(db).Handle(new ListBudgetsQuery(BookId, 2026), CancellationToken.None);
         rows.Where(r => r.GlAccountId == RentExpenseId).Should().HaveCount(2);
     }
+
+    private static async Task UseMonthlyPeriodsAsync(AppDbContext db)
+    {
+        db.Set<FiscalPeriod>().Remove(await db.Set<FiscalPeriod>().SingleAsync(p => p.Id == OpenPeriodId));
+        for (var m = 1; m <= 12; m++)
+        {
+            var start = new DateOnly(2026, m, 1);
+            db.Set<FiscalPeriod>().Add(new FiscalPeriod
+            {
+                Id = OpenPeriodId + m, FiscalYearId = FiscalYearId, PeriodNumber = m, Name = $"P{m:D2}",
+                StartDate = start, EndDate = start.AddMonths(1).AddDays(-1), Status = FiscalPeriodStatus.Open,
+            });
+        }
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task MonthScope_AnnualOnly_SpreadsEvenly()
+    {
+        using var db = await SeedAsync();
+        await UseMonthlyPeriodsAsync(db);
+        await PostAsync(db, RentExpenseId, CashId, 4_000m, new DateOnly(2026, 10, 5), "Expense");
+        await UpsertBudgetAsync(db, RentExpenseId, null, 60_000m);
+
+        var result = await BudgetVsActualAsync(db, month: 10);
+
+        var rent = result.Lines.Single(l => l.GlAccountId == RentExpenseId);
+        rent.BudgetAmount.Should().Be(5_000m);
+        rent.ActualAmount.Should().Be(4_000m);
+        rent.Variance.Should().Be(-1_000m);
+    }
+
+    [Fact]
+    public async Task MonthScope_AnnualSpread_PutsTheRemainderOnTheLastPeriod()
+    {
+        using var db = await SeedAsync();
+        await UseMonthlyPeriodsAsync(db);
+        await UpsertBudgetAsync(db, SuppliesExpenseId, null, 1_000m);
+
+        var months = new List<decimal>();
+        for (var m = 1; m <= 12; m++)
+            months.Add((await BudgetVsActualAsync(db, month: m)).Lines.Single(l => l.GlAccountId == SuppliesExpenseId).BudgetAmount);
+
+        months.Take(11).Should().OnlyContain(b => b == 83.33m);
+        months[11].Should().Be(83.37m);
+        months.Sum().Should().Be(1_000m);
+    }
+
+    [Fact]
+    public async Task MonthScope_ExplicitMonthRowsWin_AndTheResidualSpreadsOverTheRest()
+    {
+        using var db = await SeedAsync();
+        await UseMonthlyPeriodsAsync(db);
+        await UpsertBudgetAsync(db, RentExpenseId, null, 12_000m);
+        await UpsertBudgetAsync(db, RentExpenseId, 12, 3_200m);
+        await UpsertBudgetAsync(db, RentExpenseId, 1, 600m);
+
+        var months = new List<decimal>();
+        for (var m = 1; m <= 12; m++)
+            months.Add((await BudgetVsActualAsync(db, month: m)).Lines.Single(l => l.GlAccountId == RentExpenseId).BudgetAmount);
+
+        months[0].Should().Be(600m);
+        months[11].Should().Be(3_200m);
+        months.Skip(1).Take(10).Should().OnlyContain(b => b == 820m);
+        months.Sum().Should().Be(12_000m);
+        (await BudgetVsActualAsync(db)).Lines.Single(l => l.GlAccountId == RentExpenseId).BudgetAmount.Should().Be(12_000m);
+    }
+
+    [Fact]
+    public async Task MonthScope_MonthlyRowsOnly_OtherMonthsHaveNoBudget()
+    {
+        using var db = await SeedAsync();
+        await UseMonthlyPeriodsAsync(db);
+        await UpsertBudgetAsync(db, RentExpenseId, 2, 350m);
+
+        var march = await BudgetVsActualAsync(db, month: 3);
+
+        march.Lines.Should().NotContain(l => l.GlAccountId == RentExpenseId);
+    }
+
+    [Fact]
+    public async Task YearScope_MonthlyRowsOnly_SumsThem()
+    {
+        using var db = await SeedAsync();
+        await UpsertBudgetAsync(db, RentExpenseId, 1, 100m);
+        await UpsertBudgetAsync(db, RentExpenseId, 2, 150m);
+
+        var result = await BudgetVsActualAsync(db);
+
+        result.Lines.Single(l => l.GlAccountId == RentExpenseId).BudgetAmount.Should().Be(250m);
+    }
+
+    [Fact]
+    public void ResolveBudget_SpreadsOverThePeriodCount_AndNotPastIt()
+    {
+        GetBudgetVsActualHandler.ResolveBudget(1_200m, new Dictionary<int, decimal>(), month: 7, periodCount: 12)
+            .Should().Be(100m);
+        GetBudgetVsActualHandler.ResolveBudget(1_200m, new Dictionary<int, decimal>(), month: 13, periodCount: 12)
+            .Should().BeNull();
+    }
 }

@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Jobs.ProductionRuns;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
@@ -32,6 +33,7 @@ public class DisposeJobCommandValidator : AbstractValidator<DisposeJobCommand>
             .Must(q => q % 1 == 0).WithMessage("Good quantity must be a whole number.")
             .When(x => x.Data.GoodQuantity.HasValue);
         RuleFor(x => x.Data.LocationId).GreaterThan(0).When(x => x.Data.LocationId.HasValue);
+        RuleFor(x => x.Data.AssetGlAccountId).GreaterThan(0).When(x => x.Data.AssetGlAccountId.HasValue);
     }
 }
 
@@ -42,7 +44,8 @@ public class DisposeJobHandler(
     IHubContext<BoardHub> boardHub,
     IClock clock,
     ICapabilitySnapshotProvider capabilities,
-    AppDbContext db) : IRequestHandler<DisposeJobCommand, JobDetailResponseModel>
+    AppDbContext db,
+    IProductionVariancePostingService jobCostPosting) : IRequestHandler<DisposeJobCommand, JobDetailResponseModel>
 {
     public const string ProductionHistoryMessage =
         "This work order has production history (lots, material, or received stock). Reverse those first.";
@@ -125,22 +128,7 @@ public class DisposeJobHandler(
 
         if (disposition == JobDisposition.CapitalizeAsAsset)
         {
-            // Find first associated part (if any) for SourcePartId
-            var jobPart = await db.JobParts
-                .Where(jp => jp.JobId == job.Id)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            var asset = new Asset
-            {
-                Name = job.Title,
-                AssetType = AssetType.Tooling,
-                Status = AssetStatus.Active,
-                Notes = $"Capitalized from job {job.JobNumber}",
-                SourceJobId = job.Id,
-                SourcePartId = jobPart?.PartId,
-            };
-
-            await assetRepo.AddAsync(asset, cancellationToken);
+            await CapitalizeAsync(job, request, cancellationToken);
         }
         else if (stockPlan is not null)
         {
@@ -155,6 +143,51 @@ public class DisposeJobHandler(
             .SendAsync("boardUpdated", new { reason = "dispose" }, cancellationToken);
 
         return await mediator.Send(new GetJobByIdQuery(job.Id), cancellationToken);
+    }
+
+    private async Task CapitalizeAsync(Job job, DisposeJobCommand request, CancellationToken ct)
+    {
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(ct)
+            : null;
+
+        // Find first associated part (if any) for SourcePartId
+        var jobPart = await db.JobParts
+            .Where(jp => jp.JobId == job.Id)
+            .FirstOrDefaultAsync(ct);
+
+        var capitalization = await jobCostPosting.CapitalizeJobCostAsync(
+            job.Id,
+            request.Data.AssetGlAccountId,
+            DateOnly.FromDateTime(clock.UtcNow.UtcDateTime),
+            request.UserId,
+            ct);
+
+        if (capitalization.Capitalized > 0m)
+        {
+            job.ActivityLogs.Add(new JobActivityLog
+            {
+                UserId = request.UserId,
+                Action = ActivityAction.StatusChanged,
+                Description = $"Capitalized {capitalization.Capitalized:N2} of work in process from job {job.JobNumber} as a fixed asset.",
+            });
+        }
+
+        var asset = new Asset
+        {
+            Name = job.Title,
+            AssetType = AssetType.Tooling,
+            Status = AssetStatus.Active,
+            Notes = $"Capitalized from job {job.JobNumber}",
+            SourceJobId = job.Id,
+            SourcePartId = jobPart?.PartId,
+            AcquisitionCost = capitalization.Capitalized > 0m ? capitalization.Capitalized : null,
+        };
+
+        await assetRepo.AddAsync(asset, ct);
+
+        if (tx is not null)
+            await tx.CommitAsync(ct);
     }
 
     private sealed record StockPlan(int PartId, int TopUpQuantity);

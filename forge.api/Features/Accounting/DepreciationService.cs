@@ -1,3 +1,5 @@
+using FluentValidation;
+using FluentValidation.Results;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -6,6 +8,7 @@ using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Accounting;
 
@@ -13,6 +16,12 @@ namespace Forge.Api.Features.Accounting;
 public sealed class DepreciationService(
     AppDbContext db, IPostingEngine postingEngine, ILogger<DepreciationService>? logger = null) : IDepreciationService
 {
+    public const string KeyGainLossOnDisposal = "GAIN_LOSS_ON_DISPOSAL";
+    public const string DisposalSourceType = "FixedAssetDisposal";
+
+    private static readonly AccountType[] ProceedsAccountTypes = [AccountType.Asset];
+    private static readonly AccountType[] GainLossAccountTypes = [AccountType.Income, AccountType.Expense];
+
     public async Task<FixedAssetModel> CreateAssetAsync(CreateFixedAssetModel model, CancellationToken ct = default)
     {
         if (model.UsefulLifeMonths <= 0)
@@ -25,10 +34,13 @@ public sealed class DepreciationService(
             if (model.UsefulLifeUnits is not > 0)
                 throw new InvalidOperationException(
                     "Units-of-production depreciation requires a positive useful life in units (total expected shots).");
-            if (model.LinkedAssetId is not int linkedAssetId)
+            if (model.LinkedAssetId is null)
                 throw new InvalidOperationException(
                     "Units-of-production depreciation requires a linked operational asset supplying the shot count.");
+        }
 
+        if (model.LinkedAssetId is int linkedAssetId)
+        {
             var linked = await db.Assets.AsNoTracking()
                 .Where(a => a.Id == linkedAssetId)
                 .Select(a => new { a.IsCustomerOwned })
@@ -52,7 +64,7 @@ public sealed class DepreciationService(
             UsefulLifeMonths = model.UsefulLifeMonths,
             Method = model.Method,
             UsefulLifeUnits = model.Method == DepreciationMethod.UnitsOfProduction ? model.UsefulLifeUnits : null,
-            LinkedAssetId = model.Method == DepreciationMethod.UnitsOfProduction ? model.LinkedAssetId : null,
+            LinkedAssetId = model.LinkedAssetId,
             Status = FixedAssetStatus.Active,
             AssetGlAccountId = model.AssetGlAccountId,
             AccumulatedDepreciationGlAccountId = model.AccumulatedDepreciationGlAccountId,
@@ -140,7 +152,7 @@ public sealed class DepreciationService(
             }
             else
             {
-                amount = asset.MonthlyStraightLine;
+                amount = TimeBasedCharge(asset, accumulated, asset.DepreciationEntries.Count);
             }
 
             amount = Math.Min(amount, remaining);
@@ -183,7 +195,199 @@ public sealed class DepreciationService(
         return new DepreciationRunResult(bookId, month, count, total);
     }
 
+    public async Task<FixedAssetDisposalResult> DisposeAssetAsync(
+        int fixedAssetId, DisposeFixedAssetModel model, int disposedByUserId, CancellationToken ct = default)
+    {
+        var asset = await db.FixedAssets
+            .Include(a => a.DepreciationEntries)
+            .Include(a => a.LinkedAsset)
+            .FirstOrDefaultAsync(a => a.Id == fixedAssetId, ct)
+            ?? throw new KeyNotFoundException($"Fixed asset {fixedAssetId} not found.");
+
+        if (asset.Status == FixedAssetStatus.Disposed)
+            throw new InvalidOperationException($"Fixed asset {asset.Name} has already been disposed.");
+        if (model.DisposalDate < asset.InServiceDate)
+            throw Invalid(nameof(model.DisposalDate), "The disposal date cannot be before the asset's in-service date.");
+        if (model.Proceeds < 0m)
+            throw Invalid(nameof(model.Proceeds), "Proceeds cannot be negative.");
+
+        var disposalMonth = new DateOnly(model.DisposalDate.Year, model.DisposalDate.Month, 1);
+        var laterMonth = asset.DepreciationEntries
+            .Where(d => d.PeriodMonth > disposalMonth)
+            .OrderBy(d => d.PeriodMonth)
+            .Select(d => (DateOnly?)d.PeriodMonth)
+            .FirstOrDefault();
+        if (laterMonth is DateOnly posted)
+            throw new InvalidOperationException(
+                $"Depreciation is already posted for {posted:yyyy-MM}, after the disposal date. Dispose on or after that month.");
+
+        var proceedsAccount = model.Proceeds > 0m
+            ? await PostableGlAccountLookup.ResolveAsync(db, asset.BookId, model.ProceedsGlAccountId, null,
+                nameof(model.ProceedsGlAccountId), ProceedsAccountTypes, ct)
+                ?? throw Invalid(nameof(model.ProceedsGlAccountId), "Choose the account that received the sale proceeds.")
+            : null;
+        var gainLossAccount = await PostableGlAccountLookup.ResolveAsync(db, asset.BookId, model.GainLossGlAccountId,
+            KeyGainLossOnDisposal, nameof(model.GainLossGlAccountId), GainLossAccountTypes, ct);
+
+        var currencyId = await db.Books.AsNoTracking()
+            .Where(b => b.Id == asset.BookId).Select(b => (int?)b.FunctionalCurrencyId).FirstOrDefaultAsync(ct)
+            ?? throw new PostingException("NO_POSTING_BOOK", $"Book {asset.BookId} not found for the disposal.");
+
+        var catchUp = await PostCatchUpDepreciationAsync(asset, disposalMonth, model.DisposalDate, currencyId, disposedByUserId, ct);
+
+        var accumulated = asset.DepreciationEntries.Sum(d => d.Amount);
+        var netBookValue = asset.Cost - accumulated;
+        var gainLoss = model.Proceeds - netBookValue;
+
+        if (gainLoss != 0m && gainLossAccount is null)
+            throw Invalid(nameof(model.GainLossGlAccountId),
+                "Choose the income or expense account for the gain or loss on this disposal.");
+
+        var lines = new List<PostingLine>();
+        if (accumulated > 0m)
+            lines.Add(new PostingLine { GlAccountId = asset.AccumulatedDepreciationGlAccountId, Debit = accumulated, Description = "Accumulated depreciation written off" });
+        if (proceedsAccount is not null)
+            lines.Add(new PostingLine { GlAccountId = proceedsAccount.Id, Debit = model.Proceeds, Description = "Disposal proceeds" });
+        if (asset.Cost > 0m)
+            lines.Add(new PostingLine { GlAccountId = asset.AssetGlAccountId, Credit = asset.Cost, Description = "Asset cost written off" });
+        if (gainLoss > 0m)
+            lines.Add(new PostingLine { GlAccountId = gainLossAccount!.Id, Credit = gainLoss, Description = "Gain on disposal" });
+        else if (gainLoss < 0m)
+            lines.Add(new PostingLine { GlAccountId = gainLossAccount!.Id, Debit = -gainLoss, Description = "Loss on disposal" });
+
+        long? journalEntryId = null;
+        if (lines.Count > 0)
+        {
+            var entry = await postingEngine.PostAsync(new PostingRequest
+            {
+                BookId = asset.BookId,
+                EntryDate = model.DisposalDate,
+                Source = JournalSource.Depreciation,
+                SourceType = DisposalSourceType,
+                SourceId = asset.Id,
+                CurrencyId = currencyId,
+                Memo = string.IsNullOrWhiteSpace(model.Memo) ? $"Disposal — {asset.Name}" : model.Memo.Trim(),
+                IdempotencyKey = $"{JournalSource.Depreciation}:Asset:{asset.Id}:DISPOSAL",
+                Lines = lines,
+            }, disposedByUserId, ct);
+            journalEntryId = entry.Id;
+        }
+
+        asset.Status = FixedAssetStatus.Disposed;
+
+        var description = $"Disposed of fixed asset {asset.Name} on {model.DisposalDate:MM/dd/yyyy}: proceeds "
+            + $"{model.Proceeds:N2}, book value {netBookValue:N2}, {(gainLoss >= 0m ? "gain" : "loss")} {Math.Abs(gainLoss):N2}";
+        if (asset.LinkedAssetId is int linkedAssetId)
+            db.LogActivityAt("disposed", description, ("FixedAsset", asset.Id), ("Asset", linkedAssetId));
+        else
+            db.LogActivityAt("disposed", description, ("FixedAsset", asset.Id));
+
+        await db.SaveChangesAsync(ct);
+
+        return new FixedAssetDisposalResult(
+            Map(asset, accumulated), journalEntryId, catchUp, netBookValue, model.Proceeds, gainLoss);
+    }
+
+    private async Task<decimal> PostCatchUpDepreciationAsync(
+        FixedAsset asset, DateOnly disposalMonth, DateOnly entryDate, int currencyId, int userId, CancellationToken ct)
+    {
+        var (amount, periodMonth, units) = CatchUpCharge(asset, disposalMonth);
+        if (amount <= 0m || periodMonth is not DateOnly month)
+            return 0m;
+
+        var entry = await postingEngine.PostAsync(new PostingRequest
+        {
+            BookId = asset.BookId,
+            EntryDate = entryDate,
+            Source = JournalSource.Depreciation,
+            SourceType = "Depreciation",
+            SourceId = asset.Id,
+            CurrencyId = currencyId,
+            Memo = $"Depreciation catch-up to disposal — {asset.Name}",
+            IdempotencyKey = $"{JournalSource.Depreciation}:Asset:{asset.Id}:CATCHUP",
+            Lines =
+            [
+                new PostingLine { GlAccountId = asset.DepreciationExpenseGlAccountId, Debit = amount, Description = "Depreciation expense" },
+                new PostingLine { GlAccountId = asset.AccumulatedDepreciationGlAccountId, Credit = amount, Description = "Accumulated depreciation" },
+            ],
+        }, userId, ct);
+
+        asset.DepreciationEntries.Add(new DepreciationEntry
+        {
+            FixedAssetId = asset.Id, PeriodMonth = month, Amount = amount, JournalEntryId = entry.Id,
+        });
+        asset.LastDepreciatedUnits += units;
+        return amount;
+    }
+
+    private static (decimal Amount, DateOnly? PeriodMonth, decimal Units) CatchUpCharge(FixedAsset asset, DateOnly disposalMonth)
+    {
+        var accumulated = asset.DepreciationEntries.Sum(d => d.Amount);
+        var remaining = asset.DepreciableBase - accumulated;
+        if (remaining <= 0m)
+            return (0m, null, 0m);
+
+        var postedMonths = asset.DepreciationEntries.Select(d => d.PeriodMonth).ToHashSet();
+
+        if (asset.Method == DepreciationMethod.UnitsOfProduction)
+        {
+            if (postedMonths.Contains(disposalMonth) || asset.LinkedAsset is null
+                || asset.LinkedAsset.DeletedAt is not null || asset.UsefulLifeUnits is not > 0)
+                return (0m, null, 0m);
+
+            var units = Math.Max(0m, asset.LinkedAsset.CurrentShotCount - asset.LastDepreciatedUnits);
+            var amount = Math.Min(Math.Round(asset.DepreciableBase * units / asset.UsefulLifeUnits.Value, 2), remaining);
+            return amount > 0m ? (amount, disposalMonth, units) : (0m, null, 0m);
+        }
+
+        var amounts = asset.DepreciationEntries.ToDictionary(d => d.PeriodMonth, d => d.Amount);
+        var running = 0m;
+        var catchUp = 0m;
+        var periods = 0;
+        DateOnly? lastMonth = null;
+        for (var month = new DateOnly(asset.InServiceDate.Year, asset.InServiceDate.Month, 1);
+             month < disposalMonth;
+             month = month.AddMonths(1))
+        {
+            if (amounts.TryGetValue(month, out var posted))
+            {
+                running += posted;
+                periods++;
+                continue;
+            }
+
+            var charge = TimeBasedCharge(asset, running, periods);
+            periods++;
+            if (charge <= 0m)
+                continue;
+
+            running += charge;
+            catchUp += charge;
+            lastMonth = month;
+        }
+
+        catchUp = Math.Min(catchUp, remaining);
+        return catchUp > 0m ? (catchUp, lastMonth, 0m) : (0m, null, 0m);
+    }
+
+    private static decimal TimeBasedCharge(FixedAsset asset, decimal accumulated, int periodsPosted)
+    {
+        var remaining = asset.DepreciableBase - accumulated;
+        if (remaining <= 0m)
+            return 0m;
+
+        return asset.Method == DepreciationMethod.DecliningBalance
+            ? asset.DecliningBalanceCharge(accumulated, periodsPosted)
+            : Math.Min(asset.MonthlyStraightLine, remaining);
+    }
+
+    private static ValidationException Invalid(string property, string message) =>
+        new([new ValidationFailure(property, message)]);
+
     private static FixedAssetModel Map(FixedAsset a, decimal accumulated) => new(
         a.Id, a.BookId, a.Name, a.AssetTag, a.Cost, a.SalvageValue, a.InServiceDate, a.UsefulLifeMonths,
-        a.MonthlyStraightLine, accumulated, a.Cost - accumulated, a.Status);
+        a.Method == DepreciationMethod.DecliningBalance
+            ? a.DecliningBalanceCharge(accumulated, a.DepreciationEntries.Count)
+            : a.MonthlyStraightLine,
+        accumulated, a.Cost - accumulated, a.Status, a.Method, a.LinkedAssetId, a.UsefulLifeUnits);
 }
