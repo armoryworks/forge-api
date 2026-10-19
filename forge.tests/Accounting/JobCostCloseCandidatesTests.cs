@@ -62,6 +62,7 @@ public class JobCostCloseCandidatesTests
         result.Select(r => r.JobNumber).Should().Equal("J-0011", "J-0012");
         result[0].WipBalance.Should().Be(50m);
         result[1].WipBalance.Should().Be(80m);
+        result.Select(r => r.IsComplete).Should().Equal(true, false);
     }
 
     [Fact]
