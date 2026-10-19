@@ -1,5 +1,8 @@
+using System.Text.Json;
+
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
@@ -13,7 +16,8 @@ public sealed class FiscalPeriodCloseService(
     AppDbContext db,
     IClock clock,
     IPostingEngine postingEngine,
-    IPeriodCloseChecklistService? checklist = null)
+    IPeriodCloseChecklistService? checklist = null,
+    ISystemAuditWriter? auditWriter = null)
     : IFiscalPeriodCloseService
 {
     // Legal transitions. HardClosed is terminal (a hard-closed period is reopened only by an explicit
@@ -63,6 +67,7 @@ public sealed class FiscalPeriodCloseService(
             }
         }
 
+        var from = period.Status;
         period.Status = target;
 
         // Close-transition audit: a close (→ SoftClosed/HardClosed) stamps ClosedBy/At; a reopen (→ Open)
@@ -78,9 +83,13 @@ public sealed class FiscalPeriodCloseService(
             period.ClosedAt = clock.UtcNow;
             // Auto-reversing accruals/prepaids (§12): reverse entries flagged AutoReverseNextPeriod into the
             // next period so the accrual doesn't linger. Idempotent (already-reversed entries are skipped).
-            await ReverseAccrualsAsync(period, actorUserId, ct);
+            await ReverseAccrualsAsync(db, postingEngine, period, actorUserId, ct);
         }
 
+        if (auditWriter is not null)
+            await auditWriter.WriteAsync(
+                PeriodAuditAction(target), actorUserId, nameof(FiscalPeriod), period.Id,
+                PeriodAuditDetails(period, from, target), ct);
         await db.SaveChangesAsync(ct); // Version token guards a concurrent status change
 
         return new FiscalPeriodModel(
@@ -94,7 +103,8 @@ public sealed class FiscalPeriodCloseService(
     /// no-op. Requires a period to cover the reversal date — fails the close loudly if the next period isn't
     /// set up yet, rather than silently stranding the accrual.
     /// </summary>
-    private async Task ReverseAccrualsAsync(FiscalPeriod period, int actorUserId, CancellationToken ct)
+    internal static async Task ReverseAccrualsAsync(
+        AppDbContext db, IPostingEngine postingEngine, FiscalPeriod period, int actorUserId, CancellationToken ct)
     {
         var accrualIds = await db.Set<JournalEntry>()
             .Where(e => e.FiscalPeriodId == period.Id
@@ -131,4 +141,23 @@ public sealed class FiscalPeriodCloseService(
             await postingEngine.ReverseAsync(
                 id, reversalDate, $"Auto-reversal of accrual ({period.Name} close)", actorUserId, ct);
     }
+
+    /// <summary>The audit-log action for a period status transition.</summary>
+    internal static string PeriodAuditAction(FiscalPeriodStatus target) => target switch
+    {
+        FiscalPeriodStatus.Open => "FiscalPeriodReopened",
+        FiscalPeriodStatus.SoftClosed => "FiscalPeriodSoftClosed",
+        _ => "FiscalPeriodHardClosed",
+    };
+
+    /// <summary>The audit-log details (JSON) for a period status transition.</summary>
+    internal static string PeriodAuditDetails(FiscalPeriod period, FiscalPeriodStatus from, FiscalPeriodStatus to)
+        => JsonSerializer.Serialize(new
+        {
+            periodId = period.Id,
+            fiscalYearId = period.FiscalYearId,
+            period = period.Name,
+            from = from.ToString(),
+            to = to.ToString(),
+        });
 }

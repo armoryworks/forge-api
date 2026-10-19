@@ -32,6 +32,7 @@ public static partial class SeedData
         // below returns, so installs seeded before the patched account existed
         // get it backfilled. No-op on fresh installs and already-patched ones.
         await EnsureCashInTransitAsync(db);
+        await EnsureDeterminationAccountsAsync(db);
 
         // AR-002/AP-001 open-item sub-ledger backfill — runs on EVERY boot, before
         // the run-once guard, so installs that posted AR/AP journals before the
@@ -46,6 +47,9 @@ public static partial class SeedData
         // exists), so they become payable/agable and the AP reconciliation ties.
         // Idempotent per expense: skipped once a bill references it.
         await EnsureExpenseBillsBackfilledAsync(db);
+        await Forge.Api.Features.Accounting.ConversionOpenItems.EnsureAllAsync(db);
+        await Forge.Api.Features.Accounting.FiscalCalendar.EnsureCoverageAsync(
+            db, DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(1));
 
         // Run-once guard: if any Book exists the GL foundation is already seeded.
         if (await db.Books.AnyAsync())
@@ -118,6 +122,7 @@ public static partial class SeedData
             // Standard costing: actual overhead accumulates here (Dr) and is relieved as applied (Cr); the
             // residual balance is the over/under-applied overhead (the spending + volume variance) at period end.
             ("13400", "Manufacturing Overhead Control", AccountType.Asset,  NormalBalance.Debit,  false, null,                         "OVERHEAD_CONTROL"),
+            ("19900", "FX Revaluation Adjustment",   AccountType.Asset,     NormalBalance.Debit,  false, null,                         "FX_REVALUATION"),
 
             // ── Liabilities (2xxxx) ─────────────────────────────────────────
             ("20000", "Accounts Payable",            AccountType.Liability, NormalBalance.Credit, true,  ControlAccountType.AP,        "AP_CONTROL"),
@@ -130,6 +135,9 @@ public static partial class SeedData
             ("25000", "Refunds Payable",             AccountType.Liability, NormalBalance.Credit, false, null,                         "REFUNDS_PAYABLE"),
             ("26000", "Accrued Expenses",            AccountType.Liability, NormalBalance.Credit, false, null,                         "ACCRUED_EXPENSE"),
             ("26100", "Accrued Wages",               AccountType.Liability, NormalBalance.Credit, false, null,                         "ACCRUED_WAGES"),
+            ("26200", "Employee Taxes Withheld",     AccountType.Liability, NormalBalance.Credit, false, null,                         "EMPLOYEE_TAX_PAYABLE"),
+            ("26300", "Employer Payroll Taxes Payable", AccountType.Liability, NormalBalance.Credit, false, null,                      "EMPLOYER_TAX_PAYABLE"),
+            ("26400", "Net Pay Payable",             AccountType.Liability, NormalBalance.Credit, false, null,                         "NET_PAY_PAYABLE"),
 
             // ── Equity (3xxxx) ──────────────────────────────────────────────
             ("30000", "Retained Earnings",           AccountType.Equity,    NormalBalance.Credit, false, null,                         "RETAINED_EARNINGS"),
@@ -165,6 +173,8 @@ public static partial class SeedData
             // determination is deferred (§12); Phase 1 routes all expense
             // categories to this single operating-expense account.
             ("60000", "General & Administrative",    AccountType.Expense,   NormalBalance.Debit,  false, null,                         "OPERATING_EXPENSE"),
+            ("66000", "Wages",                       AccountType.Expense,   NormalBalance.Debit,  false, null,                         "WAGE_EXPENSE"),
+            ("66100", "Employer Payroll Tax",        AccountType.Expense,   NormalBalance.Debit,  false, null,                         "EMPLOYER_PAYROLL_TAX_EXPENSE"),
 
             // ── Other income / expense (9xxxx) ──────────────────────────────
             ("90000", "Foreign Exchange Gain",       AccountType.Income,    NormalBalance.Credit, false, null,                         "FX_GAIN"),
@@ -327,9 +337,7 @@ public static partial class SeedData
                 foreach (var invoice in invoices)
                 {
                     // Mirror InvoiceArPostingService: posted total = subtotal + non-exempt tax.
-                    var subtotal = invoice.Lines.Sum(l => l.LineTotal);
-                    var taxAmount = invoice.Customer.IsTaxExempt ? 0m : subtotal * invoice.TaxRate;
-                    var arTotal = subtotal + taxAmount;
+                    var arTotal = Forge.Api.Features.Accounting.InvoiceArPostingService.ComputePostedAmounts(invoice).ArTotal;
                     if (arTotal <= 0m)
                         continue; // the posting skipped degenerate totals; mirror it defensively
 
@@ -570,6 +578,77 @@ public static partial class SeedData
         Log.Information(
             "Backfilled {Count} promoted vendor bills (+ open items) from legacy expense AP originations.",
             created);
+    }
+
+    internal static readonly (string Key, string Number, string Name, AccountType Type, NormalBalance Normal)[] PatchedDeterminationAccounts =
+    [
+        ("FX_REVALUATION", "19900", "FX Revaluation Adjustment", AccountType.Asset, NormalBalance.Debit),
+        ("EMPLOYEE_TAX_PAYABLE", "26200", "Employee Taxes Withheld", AccountType.Liability, NormalBalance.Credit),
+        ("EMPLOYER_TAX_PAYABLE", "26300", "Employer Payroll Taxes Payable", AccountType.Liability, NormalBalance.Credit),
+        ("NET_PAY_PAYABLE", "26400", "Net Pay Payable", AccountType.Liability, NormalBalance.Credit),
+        ("WAGE_EXPENSE", "66000", "Wages", AccountType.Expense, NormalBalance.Debit),
+        ("EMPLOYER_PAYROLL_TAX_EXPENSE", "66100", "Employer Payroll Tax", AccountType.Expense, NormalBalance.Debit),
+    ];
+
+    internal static async Task EnsureDeterminationAccountsAsync(AppDbContext db)
+    {
+        var books = await db.Books
+            .Where(b => b.IsActive && b.Code != Forge.Api.Features.Accounting.Training.TrainingSandboxService.BookCode)
+            .ToListAsync();
+        if (books.Count == 0)
+            return;
+
+        var keys = PatchedDeterminationAccounts.Select(d => d.Key).ToList();
+        var mapped = await db.AccountDeterminationRules
+            .Where(r => keys.Contains(r.Key))
+            .Select(r => new { r.BookId, r.Key })
+            .ToListAsync();
+
+        foreach (var book in books)
+        {
+            foreach (var d in PatchedDeterminationAccounts)
+            {
+                if (mapped.Any(m => m.BookId == book.Id && m.Key == d.Key))
+                    continue;
+
+                var taken = await db.GlAccounts.IgnoreQueryFilters()
+                    .AnyAsync(a => a.BookId == book.Id && a.AccountNumber == d.Number);
+                if (taken)
+                {
+                    Log.Warning(
+                        "GL account {Number} already exists in Book '{Book}', so the {Key} determination rule was not created. Map {Key} to an account before using the features that post to it.",
+                        d.Number, book.Code, d.Key, d.Key);
+                    continue;
+                }
+
+                var account = new GlAccount
+                {
+                    BookId = book.Id,
+                    AccountNumber = d.Number,
+                    Name = d.Name,
+                    AccountType = d.Type,
+                    NormalBalance = d.Normal,
+                    IsControlAccount = false,
+                    ControlType = null,
+                    IsPostable = true,
+                    IsActive = true,
+                };
+                db.GlAccounts.Add(account);
+                await db.SaveChangesAsync();
+
+                db.AccountDeterminationRules.Add(new AccountDeterminationRule
+                {
+                    BookId = book.Id,
+                    Key = d.Key,
+                    GlAccountId = account.Id,
+                });
+                await db.SaveChangesAsync();
+
+                Log.Information(
+                    "Backfilled GL account {Number} '{Name}' + {Key} determination rule for Book '{Book}'.",
+                    d.Number, d.Name, d.Key, book.Code);
+            }
+        }
     }
 
     internal static async Task EnsureCashInTransitAsync(AppDbContext db)

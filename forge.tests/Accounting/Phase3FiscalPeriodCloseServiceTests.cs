@@ -365,4 +365,41 @@ public class Phase3FiscalPeriodCloseServiceTests
 
         date.Should().Be(new DateOnly(2026, 2, 1)); // Jan closed → catch up into Feb (next open period start)
     }
+
+    private static FiscalPeriodCloseService AuditedService(AppDbContext db)
+        => new(db, new SystemClock(), Engine(db), null,
+            new Forge.Api.Services.SystemAuditWriter(db, new Microsoft.AspNetCore.Http.HttpContextAccessor(), new SystemClock()));
+
+    [Fact]
+    public async Task EveryTransition_WritesAnAuditLogEntry_SoCloseReopenCloseHistoryIsKept()
+    {
+        using var db = await SeedAsync();
+        var svc = AuditedService(db);
+
+        await svc.TransitionAsync(PeriodId, FiscalPeriodStatus.SoftClosed, actorUserId: 7);
+        await svc.TransitionAsync(PeriodId, FiscalPeriodStatus.Open, actorUserId: 8);
+        await svc.TransitionAsync(PeriodId, FiscalPeriodStatus.SoftClosed, actorUserId: 9);
+
+        var rows = await db.AuditLogEntries
+            .Where(a => a.EntityType == nameof(FiscalPeriod) && a.EntityId == PeriodId)
+            .OrderBy(a => a.Id)
+            .ToListAsync();
+        rows.Select(r => (r.Action, r.UserId)).Should().Equal(
+            ("FiscalPeriodSoftClosed", 7), ("FiscalPeriodReopened", 8), ("FiscalPeriodSoftClosed", 9));
+        rows[1].Details.Should().Contain("\"from\":\"SoftClosed\"").And.Contain("\"to\":\"Open\"");
+        (await db.FiscalPeriods.SingleAsync(p => p.Id == PeriodId)).Status.Should().Be(FiscalPeriodStatus.SoftClosed);
+    }
+
+    [Fact]
+    public async Task RefusedTransition_WritesNoAuditLogEntry()
+    {
+        using var db = await SeedAsync();
+        var svc = new FiscalPeriodCloseService(db, new SystemClock(), Engine(db), new FakeChecklist(pass: false),
+            new Forge.Api.Services.SystemAuditWriter(db, new Microsoft.AspNetCore.Http.HttpContextAccessor(), new SystemClock()));
+
+        var act = async () => await svc.TransitionAsync(PeriodId, FiscalPeriodStatus.HardClosed, actorUserId: 7);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        (await db.AuditLogEntries.CountAsync(a => a.EntityType == nameof(FiscalPeriod))).Should().Be(0);
+    }
 }

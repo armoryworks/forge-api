@@ -1,5 +1,8 @@
+using System.Text.Json;
+
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Services;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
@@ -9,7 +12,12 @@ using Forge.Data.Context;
 namespace Forge.Api.Features.Accounting;
 
 /// <inheritdoc />
-public sealed class YearEndCloseService(AppDbContext db, IPostingEngine postingEngine, IClock clock)
+public sealed class YearEndCloseService(
+    AppDbContext db,
+    IPostingEngine postingEngine,
+    IClock clock,
+    IPeriodCloseChecklistService? checklist = null,
+    ISystemAuditWriter? auditWriter = null)
     : IYearEndCloseService
 {
     private const string KeyRetainedEarnings = "RETAINED_EARNINGS";
@@ -35,6 +43,26 @@ public sealed class YearEndCloseService(AppDbContext db, IPostingEngine postingE
             ?? throw new PostingException(
                 "NO_RETAINED_EARNINGS",
                 "Year-end close needs a RETAINED_EARNINGS account-determination rule, but none is seeded.");
+
+        if (checklist is not null)
+        {
+            var result = await checklist.EvaluateAsync(year.BookId, year.EndDate, ct);
+            if (!result.AllPassed)
+            {
+                var failures = string.Join("; ", result.Items.Where(i => !i.Passed).Select(i => $"{i.Label}: {i.Detail}"));
+                throw new InvalidOperationException(
+                    $"Cannot close fiscal year {year.Name}: pre-close checklist as of {year.EndDate:yyyy-MM-dd} not satisfied — {failures}.");
+            }
+        }
+
+        await FiscalCalendar.EnsureFollowingYearAsync(db, year, ct);
+
+        var periods = await db.FiscalPeriods
+            .Where(p => p.FiscalYearId == year.Id)
+            .OrderBy(p => p.StartDate)
+            .ToListAsync(ct);
+        foreach (var period in periods.Where(p => p.Status != FiscalPeriodStatus.HardClosed))
+            await FiscalPeriodCloseService.ReverseAccrualsAsync(db, postingEngine, period, closedByUserId, ct);
 
         // Per-P&L-account net debit (Σ Debit − Credit) over the year, excluding any prior closing entry
         // (idempotency would block a re-post anyway, but this keeps the math clean). Aggregate in memory so
@@ -99,9 +127,10 @@ public sealed class YearEndCloseService(AppDbContext db, IPostingEngine postingE
         // Lock the year: hard-close every period, mark the year Closed. (Posting happened first, while the
         // final period was still postable.)
         var now = clock.UtcNow;
-        var periods = await db.FiscalPeriods.Where(p => p.FiscalYearId == year.Id).ToListAsync(ct);
-        foreach (var period in periods)
+        var transitions = new List<(FiscalPeriod Period, FiscalPeriodStatus From)>();
+        foreach (var period in periods.Where(p => p.Status != FiscalPeriodStatus.HardClosed))
         {
+            transitions.Add((period, period.Status));
             period.Status = FiscalPeriodStatus.HardClosed;
             period.ClosedByUserId = closedByUserId;
             period.ClosedAt = now;
@@ -109,6 +138,25 @@ public sealed class YearEndCloseService(AppDbContext db, IPostingEngine postingE
         year.Status = FiscalYearStatus.Closed;
         year.ClosedByUserId = closedByUserId;
         year.ClosedAt = now;
+
+        if (auditWriter is not null)
+        {
+            foreach (var (period, from) in transitions)
+                await auditWriter.WriteAsync(
+                    FiscalPeriodCloseService.PeriodAuditAction(FiscalPeriodStatus.HardClosed), closedByUserId,
+                    nameof(FiscalPeriod), period.Id,
+                    FiscalPeriodCloseService.PeriodAuditDetails(period, from, FiscalPeriodStatus.HardClosed), ct);
+            await auditWriter.WriteAsync(
+                "FiscalYearClosed", closedByUserId, nameof(FiscalYear), year.Id,
+                JsonSerializer.Serialize(new
+                {
+                    fiscalYearId = year.Id,
+                    year = year.Name,
+                    closingEntryId = entryId,
+                    netIncome,
+                    periodsHardClosed = transitions.Count,
+                }), ct);
+        }
         await db.SaveChangesAsync(ct);
 
         return new YearEndCloseResult(year.Id, entryId, netIncome, reAccountId, periods.Count);

@@ -32,7 +32,8 @@ incumbent" by one reconciled month.
    (material-only, zero labor/overhead) make every job close swing to variance.
    - Open decision to ratify per install: **BOMLine vs BomRevision authority** for costing.
 3. **Fiscal calendar.** Verify the seeded FiscalYear/periods match the client's year (calendar vs
-   fiscal). Adjust before any posting.
+   fiscal). Adjust before any posting. Forge adds the following year (twelve monthly periods) on its
+   own a month before the latest year ends, and when a year is closed.
 4. **Capability + role prep.** Assign the `Controller` role; confirm SoD pairs exist (two people
    minimum for: journal maker/checker over threshold, bank-account change/approve, batch
    create/release).
@@ -46,10 +47,13 @@ incumbent" by one reconciled month.
 2. From the incumbent, export the trial balance as of that date.
 3. Post the §7A conversion journal (`Source = Conversion`) — one balanced entry loading every
    account's opening balance. Control accounts need their party detail:
-   - **AR:** one open item per unpaid customer invoice (re-key the open invoices in Forge so the
-     sub-ledger ties to the control opening balance).
-   - **AP:** one open item per unpaid vendor bill (same — enter as standalone vendor bills dated
-     with their original document dates so aging is honest).
+   - **AR:** one AR-control debit line per unpaid customer invoice, with the customer as the party.
+     Forge creates a Sent invoice and its open item for each line, so the aging ties to the control
+     opening balance and the invoice can take payments. Give each line its `documentNumber`,
+     `documentDate` and `dueDate` so the aging is honest. Do **not** also re-key these invoices.
+   - **AP:** one AP-control credit line per unpaid vendor bill, with the vendor as the party. Forge
+     creates an Approved vendor bill and its open item for each (`documentNumber` is the vendor's
+     invoice number). Do not re-key them either.
    - **Inventory:** load the valuation store per part at standard; the GL inventory control must
      equal Σ store values.
 4. **Tie-out:** Forge trial balance as of conversion date == incumbent trial balance, line by

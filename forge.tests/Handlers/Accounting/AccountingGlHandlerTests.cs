@@ -162,36 +162,27 @@ public class AccountingGlHandlerTests
     }
 
     [Fact]
-    public async Task CreateManualJournalEntry_OverThreshold_WithDistinctApprover_PostsWithApprovedBy()
+    public void CreateManualJournalEntry_TakesNoClientSuppliedApprover()
     {
-        using var db = await SeedAsync();
-        var book = await db.Books.SingleAsync(b => b.Id == BookId);
-        book.MakerCheckerThreshold = 1000m;
-        await db.SaveChangesAsync();
-        var handler = new CreateManualJournalEntryHandler(CreateEngine(db), HttpAccessorFor(PostingUserId), db);
-
-        var command = BalancedCommand(5000m) with { ApprovedByUserId = PostingUserId + 1 };
-        var result = await handler.Handle(command, CancellationToken.None);
-
-        result.Status.Should().Be(JournalEntryStatus.Posted.ToString());
-        (await db.JournalEntries.IgnoreQueryFilters().SingleAsync(e => e.Id == result.Id))
-            .ApprovedBy.Should().Be(PostingUserId + 1);
+        typeof(CreateManualJournalEntryCommand).GetProperty("ApprovedByUserId").Should().BeNull(
+            "the second approver is a server-authenticated principal on the approve endpoint, never a body field");
+        typeof(Forge.Api.Controllers.CreateManualJournalEntryRequest).GetProperty("ApprovedByUserId").Should().BeNull();
     }
 
     [Fact]
-    public async Task CreateManualJournalEntry_OverThreshold_ApproverSameAsPoster_RoutesToPendingApproval()
+    public void CreateManualJournalEntryRequest_WithLegacyApproverField_StillDeserializes()
     {
-        using var db = await SeedAsync();
-        var book = await db.Books.SingleAsync(b => b.Id == BookId);
-        book.MakerCheckerThreshold = 1000m;
-        await db.SaveChangesAsync();
-        var handler = new CreateManualJournalEntryHandler(CreateEngine(db), HttpAccessorFor(PostingUserId), db);
+        const string body = """
+            {"bookId":1,"entryDate":"2026-01-15","currencyId":1,"memo":"m","allowSoftClosedOverride":false,
+             "lines":[{"glAccountId":100,"debit":5000,"credit":0},{"glAccountId":101,"debit":0,"credit":5000}],
+             "approvedByUserId":43}
+            """;
 
-        // The poster naming themself as approver is not a valid second approver → routed to PendingApproval.
-        var command = BalancedCommand(5000m) with { ApprovedByUserId = PostingUserId };
-        var result = await handler.Handle(command, CancellationToken.None);
+        var request = System.Text.Json.JsonSerializer.Deserialize<Forge.Api.Controllers.CreateManualJournalEntryRequest>(
+            body, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
 
-        result.Status.Should().Be(JournalEntryStatus.PendingApproval.ToString());
+        request.Should().NotBeNull();
+        request!.Lines.Should().HaveCount(2);
     }
 
     [Fact]
@@ -206,6 +197,8 @@ public class AccountingGlHandlerTests
         var result = await handler.Handle(BalancedCommand(250m), CancellationToken.None); // under 1000
 
         result.Status.Should().Be(JournalEntryStatus.Posted.ToString());
+        (await db.JournalEntries.IgnoreQueryFilters().SingleAsync(e => e.Id == result.Id))
+            .ApprovedBy.Should().BeNull("an under-threshold manual post has no second approver to record");
     }
 
     [Fact]

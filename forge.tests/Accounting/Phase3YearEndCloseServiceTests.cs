@@ -209,4 +209,108 @@ public class Phase3YearEndCloseServiceTests
         bs.Equity.Single(e => e.GlAccountId == ReId).Amount.Should().Be(400m);
         bs.CurrentYearEarnings.Should().Be(0m);
     }
+
+    private sealed class FakeChecklist(bool pass) : IPeriodCloseChecklistService
+    {
+        public DateOnly? EvaluatedAsOf { get; private set; }
+
+        public Task<CloseChecklistResult> EvaluateAsync(int bookId, DateOnly asOf, CancellationToken ct = default)
+        {
+            EvaluatedAsOf = asOf;
+            return Task.FromResult(new CloseChecklistResult(bookId, asOf,
+                [new CloseChecklistItem("AR_TIES", "AR aging ties to control", pass, pass ? "Reconciled" : "Difference 186499.99")]));
+        }
+    }
+
+    [Fact]
+    public async Task Close_ChecklistFails_IsRefused_AndNothingIsLocked()
+    {
+        using var db = await SeedAsync();
+        await SeedActivityAsync(db);
+        var checklist = new FakeChecklist(pass: false);
+        var svc = new YearEndCloseService(db, Engine(db), new SystemClock(), checklist);
+
+        var act = async () => await svc.CloseYearAsync(FiscalYearId, closedByUserId: 7);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*AR aging ties to control: Difference 186499.99*");
+        checklist.EvaluatedAsOf.Should().Be(YearEnd, "the year is judged by its final period, as of the year end");
+        (await db.FiscalYears.SingleAsync(y => y.Id == FiscalYearId)).Status.Should().Be(FiscalYearStatus.Open);
+        (await db.FiscalPeriods.SingleAsync(p => p.Id == PeriodId)).Status.Should().Be(FiscalPeriodStatus.Open);
+        (await db.JournalEntries.IgnoreQueryFilters().AnyAsync(e => e.SourceType == "YearEndClose")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Close_ChecklistPasses_Closes()
+    {
+        using var db = await SeedAsync();
+        await SeedActivityAsync(db);
+
+        await new YearEndCloseService(db, Engine(db), new SystemClock(), new FakeChecklist(pass: true))
+            .CloseYearAsync(FiscalYearId, closedByUserId: 7);
+
+        (await db.FiscalYears.SingleAsync(y => y.Id == FiscalYearId)).Status.Should().Be(FiscalYearStatus.Closed);
+    }
+
+    [Fact]
+    public async Task Close_CreatesTheFollowingYear_SoPostingContinues()
+    {
+        using var db = await SeedAsync();
+        await SeedActivityAsync(db);
+
+        await Service(db).CloseYearAsync(FiscalYearId, closedByUserId: 7);
+
+        var next = await db.FiscalYears.Include(y => y.Periods).SingleAsync(y => y.StartDate == new DateOnly(2027, 1, 1));
+        next.EndDate.Should().Be(new DateOnly(2027, 12, 31));
+        next.Status.Should().Be(FiscalYearStatus.Open);
+        next.Periods.Should().HaveCount(12).And.OnlyContain(p => p.Status == FiscalPeriodStatus.Open);
+
+        var posted = await Engine(db).PostAsync(new PostingRequest
+        {
+            BookId = BookId, EntryDate = new DateOnly(2027, 1, 5), Source = JournalSource.Manual, CurrencyId = UsdId,
+            Lines =
+            [
+                new PostingLine { AccountKey = "CASH", Debit = 10m, Description = "dr" },
+                new PostingLine { AccountKey = "SALES_REVENUE", Credit = 10m, Description = "cr" },
+            ],
+        }, 7);
+        posted.FiscalYearId.Should().Be(next.Id);
+    }
+
+    [Fact]
+    public async Task Close_ReversesTheFinalPeriodsAccrualsIntoTheNextYear()
+    {
+        using var db = await SeedAsync();
+        await SeedActivityAsync(db);
+        var accrual = await Engine(db).PostAsync(new PostingRequest
+        {
+            BookId = BookId, EntryDate = YearEnd, Source = JournalSource.Manual, CurrencyId = UsdId,
+            IdempotencyKey = "test:accrual", AutoReverseNextPeriod = true,
+            Lines =
+            [
+                new PostingLine { AccountKey = "OPERATING_EXPENSE", Debit = 50m, Description = "accrued" },
+                new PostingLine { AccountKey = "CASH", Credit = 50m, Description = "accrued" },
+            ],
+        }, 7);
+
+        var result = await Service(db).CloseYearAsync(FiscalYearId, closedByUserId: 7);
+
+        var reversal = await db.JournalEntries.IgnoreQueryFilters().SingleAsync(e => e.ReversalOfEntryId == accrual.Id);
+        reversal.EntryDate.Should().Be(new DateOnly(2027, 1, 1));
+        result.NetIncome.Should().Be(350m, "the accrual is a 2026 expense; its reversal lands in 2027");
+    }
+
+    [Fact]
+    public async Task Close_WritesAuditEntries_ForEachPeriodAndTheYear()
+    {
+        using var db = await SeedAsync();
+        await SeedActivityAsync(db);
+        var audit = new Forge.Api.Services.SystemAuditWriter(db, new Microsoft.AspNetCore.Http.HttpContextAccessor(), new SystemClock());
+
+        await new YearEndCloseService(db, Engine(db), new SystemClock(), null, audit).CloseYearAsync(FiscalYearId, closedByUserId: 7);
+
+        var rows = await db.AuditLogEntries.OrderBy(a => a.Id).ToListAsync();
+        rows.Select(r => (r.Action, r.EntityType, r.EntityId, r.UserId)).Should().Equal(
+            ("FiscalPeriodHardClosed", nameof(FiscalPeriod), PeriodId, 7),
+            ("FiscalYearClosed", nameof(FiscalYear), FiscalYearId, 7));
+    }
 }
