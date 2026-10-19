@@ -48,7 +48,8 @@ public class GetVendorByIdHandler(IVendorRepository repo)
                 po.Lines.Sum(l => l.ReceivedQuantity),
                 po.ExpectedDeliveryDate,
                 po.IsBlanket,
-                po.CreatedAt)).ToList(),
+                po.CreatedAt,
+                LinesFullyReceived: po.Lines.Count(l => l.ReceivedQuantity + l.CancelledShortCloseQuantity >= l.OrderedQuantity))).ToList(),
             vendor.Fax);
     }
 }

@@ -29,4 +29,5 @@ public record PurchaseOrderListItemModel(
     // free-text origin reference (suggestion id, RFQ number, provider name).
     string OriginSource = "Manual",
     string? OriginUserName = null,
-    string? OriginReference = null);
+    string? OriginReference = null,
+    int LinesFullyReceived = 0);
