@@ -296,6 +296,31 @@ public sealed class DoubleSubmitSerializationTests(PostgresFixture fixture)
         budgets.Single(b => b.Id == olderId).BudgetAmount.Should().Be(100m);
     }
 
+    [Fact]
+    public async Task OverheadPool_double_submit_creates_one_per_cost_center()
+    {
+        int centerId;
+        await using (var seed = fixture.CreateContext())
+        {
+            var cc = new CostingCostCenter { Code = $"OP{Guid.NewGuid():N}"[..12], Name = "Mold", Type = CostCenterType.Production, IsInventoriable = true };
+            seed.CostingCostCenters.Add(cc);
+            await seed.SaveChangesAsync();
+            centerId = cc.Id;
+        }
+
+        var command = new CreateOverheadPoolCommand(centerId, null, "PWR", "Power", OverheadBehavior.Variable, null, OverheadDriver.MachineHour);
+        await using var a = fixture.CreateContext();
+        await using var b = fixture.CreateContext();
+
+        var results = await Task.WhenAll(
+            Outcome(new CreateOverheadPoolHandler(a).Handle(command, CancellationToken.None)),
+            Outcome(new CreateOverheadPoolHandler(b).Handle(command with { Code = " PWR " }, CancellationToken.None)));
+
+        results.Count(ok => ok).Should().Be(1);
+        await using var verify = fixture.CreateContext();
+        (await verify.OverheadCostPools.CountAsync(p => p.CostingCostCenterId == centerId && p.Code == "PWR")).Should().Be(1);
+    }
+
     private static DateTime UniqueYearStart() =>
         new(3000 + Random.Shared.Next(0, 6000), 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
