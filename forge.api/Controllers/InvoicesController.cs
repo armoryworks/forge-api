@@ -81,6 +81,7 @@ public class InvoicesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id:int}/number")]
+    [IfMatch(typeof(Invoice))]
     public async Task<IActionResult> RenameInvoiceNumber(int id, RenameInvoiceNumberRequestModel request)
     {
         await mediator.Send(new RenameInvoiceNumberCommand(id, request.InvoiceNumber));

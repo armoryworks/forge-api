@@ -24,4 +24,5 @@ public record InvoiceDetailResponseModel(
     List<InvoiceLineResponseModel> Lines,
     List<PaymentApplicationResponseModel> PaymentApplications,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    uint RowVersion = 0);
