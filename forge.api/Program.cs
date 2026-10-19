@@ -660,6 +660,7 @@ try
         sp => sp.GetRequiredService<Forge.Api.Workflows.CustomerWorkflowAdapter>());
     builder.Services.AddScoped<IClockEventTypeService, ClockEventTypeService>();
     builder.Services.AddScoped<IUserIntegrationService, UserIntegrationService>();
+    builder.Services.AddScoped<UserIntegrationConnectionTester>();
     builder.Services.AddScoped<IMrpService, MrpService>();
     builder.Services.AddScoped<IKanbanReplenishmentService, KanbanReplenishmentService>();
     builder.Services.AddScoped<IPartSourcingResolver, PartSourcingResolver>();

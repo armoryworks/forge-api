@@ -29,14 +29,8 @@ public class UserIntegrationService(
         new("smtp", "messaging", "Email (Personal SMTP)", "basic", "Route notifications to a personal email", "email"),
 
         // Cloud Storage
-        new("google_drive", "storage", "Google Drive", "oauth2", "Sync files to Google Drive", "cloud"),
-        new("onedrive", "storage", "Microsoft OneDrive", "oauth2", "Sync files to OneDrive", "cloud"),
-        new("dropbox", "storage", "Dropbox", "oauth2", "Sync files to Dropbox", "cloud"),
         new("icloud_drive", "storage", "Apple iCloud Drive", "app_password", "Sync files to iCloud Drive", "cloud"),
         new("s3", "storage", "S3-Compatible (MinIO, AWS, Wasabi)", "access_key", "Sync files to S3-compatible storage", "cloud"),
-
-        // Other
-        new("github", "other", "GitHub", "oauth2", "Log issues to a GitHub repository", "bug_report"),
     ];
 
     public async Task<List<UserIntegrationSummary>> GetUserIntegrationsAsync(int userId, CancellationToken ct = default)

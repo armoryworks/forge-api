@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Forge.Core.Interfaces;
 using Forge.Api.Capabilities;
+using Forge.Api.Services;
 
 namespace Forge.Api.Controllers;
 
@@ -13,7 +14,9 @@ namespace Forge.Api.Controllers;
 [Authorize]
 // the per-user credential store behind several integrations; each consuming feature is gated by its own EXT capability — gating the store would strand them all
 [CapabilityBootstrap]
-public class UserIntegrationsController(IUserIntegrationService integrationService) : ControllerBase
+public class UserIntegrationsController(
+    IUserIntegrationService integrationService,
+    UserIntegrationConnectionTester connectionTester) : ControllerBase
 {
     private int GetUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
@@ -87,8 +90,8 @@ public class UserIntegrationsController(IUserIntegrationService integrationServi
     [HttpPost("{id:int}/test")]
     public async Task<IActionResult> TestConnection(int id, CancellationToken ct)
     {
-        var success = await integrationService.TestConnectionAsync(GetUserId(), id, ct);
-        return Ok(new { success });
+        var result = await connectionTester.TestAsync(GetUserId(), id, ct);
+        return Ok(new { success = result.Success, contacted = result.Contacted });
     }
 
     [HttpGet("providers")]
