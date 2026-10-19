@@ -36,12 +36,13 @@ public class QuotesController(IMediator mediator, IConfiguration config) : Contr
 
     /// <summary>
     /// AUDIT-19-S1: the customer-specific price-list unit price for a part (null if none). Line
-    /// dialogs call this on part-select to pre-fill the price (forge-ui#26).
+    /// dialogs call this on part-select to pre-fill the price (forge-ui#26); <paramref name="quantity"/>
+    /// picks the quantity break, and without it the lowest break applies.
     /// </summary>
     [HttpGet("resolve-price")]
     public async Task<ActionResult<decimal?>> ResolvePrice(
-        [FromQuery] int customerId, [FromQuery] int partId, CancellationToken ct)
-        => Ok(await mediator.Send(new ResolvePartPriceQuery(customerId, partId), ct));
+        [FromQuery] int customerId, [FromQuery] int partId, [FromQuery] decimal? quantity, CancellationToken ct)
+        => Ok(await mediator.Send(new ResolvePartPriceQuery(customerId, partId, quantity), ct));
 
     [HttpPost]
     public async Task<ActionResult<QuoteListItemModel>> CreateQuote(CreateQuoteRequestModel request)
@@ -66,6 +67,17 @@ public class QuotesController(IMediator mediator, IConfiguration config) : Contr
     public async Task<ActionResult<QuoteDetailResponseModel>> DuplicateQuote(int id)
     {
         var result = await mediator.Send(new DuplicateQuoteCommand(id));
+        return CreatedAtAction(nameof(GetQuote), new { id = result.Id }, result);
+    }
+
+    /// <summary>
+    /// Start the next revision of a Sent, Declined or Expired quote: a new Draft numbered after it,
+    /// with the source marked Superseded so it can no longer be accepted.
+    /// </summary>
+    [HttpPost("{id:int}/revise")]
+    public async Task<ActionResult<QuoteDetailResponseModel>> ReviseQuote(int id)
+    {
+        var result = await mediator.Send(new DuplicateQuoteCommand(id, AsRevision: true));
         return CreatedAtAction(nameof(GetQuote), new { id = result.Id }, result);
     }
 

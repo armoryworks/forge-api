@@ -8,5 +8,6 @@ public enum QuoteStatus
     Declined,
     Expired,
     ConvertedToQuote,
-    ConvertedToOrder
+    ConvertedToOrder,
+    Superseded
 }

@@ -17,9 +17,11 @@ namespace Forge.Api.Controllers;
 /// it emitted went nowhere. That is why the bridge has never logged a call.</para>
 ///
 /// <para>Twilio has its own webhook (<c>IngestTwilioWebhook</c>) because its
-/// payload shape and signature scheme are entirely different. Both converge on
-/// the same <see cref="IngestVoiceCallCommand"/>, so a call logged through
-/// Asterisk and one logged through Twilio are the same kind of record.</para>
+/// payload shape and signature scheme are entirely different. It goes through
+/// the communication matcher rather than <see cref="IngestVoiceCallCommand"/>,
+/// but both store a Voice communication keyed by the provider's call id, so a
+/// call logged through Asterisk and one logged through Twilio are the same kind
+/// of record.</para>
 /// </summary>
 [ApiController]
 [Route("api/v1/voice")]

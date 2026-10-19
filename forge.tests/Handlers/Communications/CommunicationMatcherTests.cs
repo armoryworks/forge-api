@@ -271,4 +271,77 @@ public class CommunicationMatcherTests
         // don't currently produce Communication rows.
         _db.Communications.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task MatchAndLog_VoiceCall_IsStoredAsVoiceWithTheCallSid_AndAReplayWritesNothing()
+    {
+        var customer = new Customer { Name = "Brindle" };
+        _db.Customers.Add(customer);
+        await _db.SaveChangesAsync();
+        var contact = new Contact { CustomerId = customer.Id, FirstName = "Nadia", LastName = "Buyer", Phone = "(801) 555-0123" };
+        _db.Contacts.Add(contact);
+        await _db.SaveChangesAsync();
+
+        var call = new InboundCommunication(
+            ProviderId: "twilio",
+            Kind: CommunicationKind.Voice,
+            Direction: CommunicationDirection.Inbound,
+            ExternalId: "CA-replay-1",
+            From: "+18015550123",
+            To: new[] { "+18015550140" },
+            OccurredAt: DateTimeOffset.UtcNow,
+            Subject: "Call completed (5 min)",
+            Body: null,
+            DurationMinutes: 5,
+            RecordingUrl: null);
+
+        var first = await _matcher.MatchAndLogAsync(call, CancellationToken.None);
+        var replay = await _matcher.MatchAndLogAsync(call, CancellationToken.None);
+
+        var row = _db.Communications.Single();
+        row.Channel.Should().Be(CommunicationChannel.Voice);
+        row.Flow.Should().Be(CommunicationFlow.Inbound);
+        row.ExternalId.Should().Be("CA-replay-1");
+        row.HandledByUserId.Should().BeNull();
+        row.PartyType.Should().Be(CommunicationPartyType.Contact);
+        row.PartyId.Should().Be(contact.Id);
+        first.InteractionIds.Should().Equal(row.Id);
+        first.AlreadyIngested.Should().BeFalse();
+        replay.AlreadyIngested.Should().BeTrue();
+        replay.InteractionIds.Should().Equal(row.Id);
+    }
+
+    [Fact]
+    public async Task MatchAndLog_OutboundToTwoContacts_PutsTheExternalIdOnOneRowOnly()
+    {
+        var customer = new Customer { Name = "Globex" };
+        _db.Customers.Add(customer);
+        await _db.SaveChangesAsync();
+        _db.Contacts.AddRange(
+            new Contact { CustomerId = customer.Id, FirstName = "A", LastName = "One", Email = "a@globex.com" },
+            new Contact { CustomerId = customer.Id, FirstName = "B", LastName = "Two", Email = "b@globex.com" });
+        await _db.SaveChangesAsync();
+
+        var mail = new InboundCommunication(
+            ProviderId: "imap",
+            Kind: CommunicationKind.Email,
+            Direction: CommunicationDirection.Outbound,
+            ExternalId: "imap-9-1",
+            From: "rep@tenant.com",
+            To: new[] { "a@globex.com", "b@globex.com" },
+            OccurredAt: DateTimeOffset.UtcNow,
+            Subject: "Revised quote",
+            Body: "Body",
+            DurationMinutes: null,
+            RecordingUrl: null);
+
+        var result = await _matcher.MatchAndLogAsync(mail, CancellationToken.None);
+
+        var rows = _db.Communications.ToList();
+        rows.Should().HaveCount(2);
+        rows.Should().OnlyContain(r => r.Channel == CommunicationChannel.Email && r.Flow == CommunicationFlow.Outbound);
+        rows.Count(r => r.ExternalId == "imap-9-1").Should().Be(1);
+        rows.Count(r => r.ExternalId == null).Should().Be(1);
+        result.InteractionIds.Should().BeEquivalentTo(rows.Select(r => r.Id));
+    }
 }

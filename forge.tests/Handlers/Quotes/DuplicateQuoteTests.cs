@@ -167,4 +167,72 @@ public class DuplicateQuoteTests
 
         await act.Should().ThrowAsync<KeyNotFoundException>().WithMessage("*404*");
     }
+
+    [Fact]
+    public async Task Revise_numbers_the_copy_after_the_source_and_supersedes_the_source()
+    {
+        await SeedAsync(QuoteStatus.Sent);
+
+        var result = await Handler().Handle(new DuplicateQuoteCommand(5, AsRevision: true), CancellationToken.None);
+
+        result.QuoteNumber.Should().Be("QT-00005-R1");
+        result.Status.Should().Be(nameof(QuoteStatus.Draft));
+        result.CustomerPO.Should().Be("CPO-77");
+        result.Lines.Should().HaveCount(2);
+        var source = await _repo.FindAsync(5, CancellationToken.None);
+        source!.Status.Should().Be(QuoteStatus.Superseded);
+        _db.ActivityLogs.Should().Contain(a => a.EntityId == 5 && a.Action == "superseded" && a.Description.Contains("QT-00005-R1"));
+        _db.ActivityLogs.Should().Contain(a => a.EntityId == result.Id && a.Description == "Created (revision of QT-00005)");
+    }
+
+    [Fact]
+    public async Task Revising_a_revision_bumps_the_revision_number()
+    {
+        await SeedAsync(QuoteStatus.Sent);
+        var first = await Handler().Handle(new DuplicateQuoteCommand(5, AsRevision: true), CancellationToken.None);
+        var firstQuote = await _repo.FindAsync(first.Id, CancellationToken.None);
+        firstQuote!.Status = QuoteStatus.Sent;
+        await _db.SaveChangesAsync();
+
+        var second = await Handler().Handle(new DuplicateQuoteCommand(first.Id, AsRevision: true), CancellationToken.None);
+
+        second.QuoteNumber.Should().Be("QT-00005-R2");
+    }
+
+    [Theory]
+    [InlineData(QuoteStatus.Draft)]
+    [InlineData(QuoteStatus.Accepted)]
+    [InlineData(QuoteStatus.Superseded)]
+    public async Task Revise_refuses_a_quote_that_is_not_out_with_the_customer(QuoteStatus status)
+    {
+        await SeedAsync(status);
+
+        var act = () => Handler().Handle(new DuplicateQuoteCommand(5, AsRevision: true), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        _db.Quotes.Count().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_superseded_quote_cannot_be_accepted()
+    {
+        await SeedAsync(QuoteStatus.Sent);
+        await Handler().Handle(new DuplicateQuoteCommand(5, AsRevision: true), CancellationToken.None);
+
+        var act = () => new AcceptQuoteHandler(_repo).Handle(new AcceptQuoteCommand(5), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task The_portal_lists_the_revision_and_not_the_superseded_quote()
+    {
+        await SeedAsync(QuoteStatus.Sent);
+        var revision = await Handler().Handle(new DuplicateQuoteCommand(5, AsRevision: true), CancellationToken.None);
+
+        var portal = await new Forge.Api.Features.CustomerPortal.GetPortalQuotesHandler(_db)
+            .Handle(new Forge.Api.Features.CustomerPortal.GetPortalQuotesQuery(2), CancellationToken.None);
+
+        portal.Select(q => q.Id).Should().Equal(revision.Id);
+    }
 }

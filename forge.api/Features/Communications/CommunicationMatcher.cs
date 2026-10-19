@@ -33,6 +33,12 @@ namespace Forge.Api.Features.Communications;
 /// addresses one by one and creating one Communication per matched
 /// recipient (so a salesperson CC'ing two leads on the same email
 /// produces two interaction rows).
+///
+/// Idempotency: the first Communication row of a delivery carries the
+/// provider's ExternalId with its Channel, so a re-delivered webhook or a
+/// re-polled message with the same (Channel, ExternalId) is reported as
+/// <see cref="CommunicationMatchResult.AlreadyIngested"/> and writes nothing.
+/// Only that first row carries the id because the pair is unique.
 /// </summary>
 public class CommunicationMatcher(AppDbContext db) : ICommunicationMatcher
 {
@@ -50,7 +56,18 @@ public class CommunicationMatcher(AppDbContext db) : ICommunicationMatcher
             return new CommunicationMatchResult(false, [], comm.ExternalId, "no-candidates");
         }
 
-        var createdIds = new List<int>();
+        var channel = ChannelFor(comm.Kind);
+        if (!string.IsNullOrEmpty(comm.ExternalId))
+        {
+            var existingId = await db.Communications.AsNoTracking()
+                .Where(c => c.Channel == channel && c.ExternalId == comm.ExternalId)
+                .Select(c => (int?)c.Id)
+                .FirstOrDefaultAsync(ct);
+            if (existingId is int id)
+                return new CommunicationMatchResult(true, [id], comm.ExternalId, null, AlreadyIngested: true);
+        }
+
+        var created = new List<Communication>();
         var matchCount = 0;
 
         foreach (var address in candidates)
@@ -59,8 +76,8 @@ public class CommunicationMatcher(AppDbContext db) : ICommunicationMatcher
             if (match is null) continue;
 
             matchCount++;
-            var interactionId = await LogInteractionAsync(comm, address, match, ct);
-            if (interactionId.HasValue) createdIds.Add(interactionId.Value);
+            var interaction = await LogInteractionAsync(comm, match, carriesExternalId: created.Count == 0, ct);
+            if (interaction is not null) created.Add(interaction);
         }
 
         if (matchCount == 0)
@@ -72,8 +89,11 @@ public class CommunicationMatcher(AppDbContext db) : ICommunicationMatcher
         // yet — leads don't have a Contact entity), so a successful match may
         // produce zero entries in createdIds. Matched is true regardless.
         await db.SaveChangesAsync(ct);
-        return new CommunicationMatchResult(true, createdIds, comm.ExternalId, null);
+        return new CommunicationMatchResult(true, created.Select(c => c.Id).ToList(), comm.ExternalId, null);
     }
+
+    private static CommunicationChannel ChannelFor(CommunicationKind kind)
+        => kind == CommunicationKind.Email ? CommunicationChannel.Email : CommunicationChannel.Voice;
 
     /// <summary>
     /// Normalize an email or phone for comparison. Email → lowercase + trim.
@@ -147,7 +167,8 @@ public class CommunicationMatcher(AppDbContext db) : ICommunicationMatcher
         return null;
     }
 
-    private async Task<int?> LogInteractionAsync(InboundCommunication comm, string address, MatchTarget target, CancellationToken ct)
+    private async Task<Communication?> LogInteractionAsync(
+        InboundCommunication comm, MatchTarget target, bool carriesExternalId, CancellationToken ct)
     {
         // Communication requires a ContactId. For lead-side matches we
         // don't have a Contact yet (leads have a single inline contactName,
@@ -187,16 +208,17 @@ public class CommunicationMatcher(AppDbContext db) : ICommunicationMatcher
 
         if (target.ContactId.HasValue && target.CustomerId.HasValue)
         {
-            // Auto-logged interactions belong to "system" — no human user
-            // recorded them. Use the AppDbContext.CurrentUserId if a request
-            // is in flight (webhook-receiver path); fall back to a
-            // sentinel "system" user id zero which the controller display
-            // logic shows as "(automated)".
-            var userId = db.CurrentUserId ?? 0;
             var interaction = new Communication
             {
                 ContactId = target.ContactId.Value,
-                HandledByUserId = userId,
+                PartyType = CommunicationPartyType.Contact,
+                PartyId = target.ContactId.Value,
+                MatchConfidence = CommunicationMatchConfidence.Exact,
+                Channel = ChannelFor(comm.Kind),
+                Flow = comm.Direction == CommunicationDirection.Inbound ? CommunicationFlow.Inbound : CommunicationFlow.Outbound,
+                ExternalId = carriesExternalId && !string.IsNullOrEmpty(comm.ExternalId) ? comm.ExternalId : null,
+                FromAddress = TrimTo(comm.From?.Trim(), 320),
+                HandledByUserId = db.CurrentUserId,
                 Type = comm.Kind == CommunicationKind.Email ? InteractionType.Email : InteractionType.Call,
                 Subject = TrimToSubject(comm.Subject ?? comm.Body ?? "(auto-logged)"),
                 Body = comm.Body,
@@ -213,17 +235,14 @@ public class CommunicationMatcher(AppDbContext db) : ICommunicationMatcher
                 ("Customer", target.CustomerId.Value),
                 ("Contact", target.ContactId.Value));
 
-            // Return the not-yet-persisted entity's ref so the caller can
-            // capture the id after SaveChanges. We use a placeholder of -1
-            // here and rely on the matcher's outer SaveChanges flushing all
-            // pending interactions in one go; the caller then re-reads the
-            // id off the entity. (Simpler: just return 0 and let the caller
-            // not depend on the id for now — it's telemetry.)
-            return 0;
+            return interaction;
         }
 
         return null;
     }
+
+    private static string? TrimTo(string? s, int max)
+        => string.IsNullOrEmpty(s) ? null : s.Length <= max ? s : s[..max];
 
     private static string TrimToSubject(string s) => s.Length <= 200 ? s : s[..200];
     private static string TrimToPreview(string s) => s.Length <= 80 ? s : string.Concat(s.AsSpan(0, 77), "...");

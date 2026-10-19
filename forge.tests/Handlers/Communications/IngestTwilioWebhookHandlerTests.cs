@@ -185,6 +185,69 @@ public class IngestTwilioWebhookHandlerTests
         (await verifier.VerifyAsync(url, fields, null, CancellationToken.None)).Should().BeFalse();
     }
 
+    [Fact]
+    public async Task WebhookGate_RejectsUnsignedPosts_WhenNoAuthTokenAndNotMock()
+    {
+        var settings = new StubSettingsService();
+        var verifier = new TwilioSignatureVerifier(settings);
+
+        (await TwilioWebhookGate.RejectReasonAsync(settings, verifier, "https://x.com/hook", "",
+                new Dictionary<string, string>(), null, CancellationToken.None))
+            .Should().Be(TwilioWebhookGate.SignatureNotConfigured);
+    }
+
+    [Fact]
+    public async Task WebhookGate_AcceptsUnsignedPosts_OnlyInMockModeWithoutRequireSignature()
+    {
+        var mock = new StubSettingsService(new() { [TwilioSettings.KeyMode] = IntegrationModeChoices.Mock });
+        (await TwilioWebhookGate.RejectReasonAsync(mock, new TwilioSignatureVerifier(mock), "https://x.com/hook", "",
+                new Dictionary<string, string>(), null, CancellationToken.None))
+            .Should().BeNull();
+
+        var required = new StubSettingsService(new()
+        {
+            [TwilioSettings.KeyMode] = IntegrationModeChoices.Mock,
+            [TwilioSettings.KeyRequireSignature] = "true",
+        });
+        (await TwilioWebhookGate.RejectReasonAsync(required, new TwilioSignatureVerifier(required), "https://x.com/hook", "",
+                new Dictionary<string, string>(), null, CancellationToken.None))
+            .Should().Be(TwilioWebhookGate.SignatureNotConfigured);
+    }
+
+    [Fact]
+    public async Task WebhookGate_VerifiesAgainstTheConfiguredWebhookUrl()
+    {
+        const string token = "12345";
+        const string publicUrl = "https://erp.example.com/api/v1/communications/webhook/twilio";
+        var fields = new Dictionary<string, string> { ["CallSid"] = "CA-gate", ["CallStatus"] = "completed" };
+        var signature = TwilioSignatureVerifier.ComputeSignature(publicUrl, fields, token);
+        var settings = new StubSettingsService(new()
+        {
+            [TwilioSettings.KeyAuthToken] = token,
+            [TwilioSettings.KeyWebhookUrl] = publicUrl,
+        });
+        const string proxiedUrl = "http://localhost/api/v1/communications/webhook/twilio";
+
+        (await TwilioWebhookGate.RejectReasonAsync(settings, new TwilioSignatureVerifier(settings), proxiedUrl, "",
+                fields, signature, CancellationToken.None))
+            .Should().BeNull();
+        (await TwilioWebhookGate.RejectReasonAsync(settings, new TwilioSignatureVerifier(settings), proxiedUrl, "",
+                fields, "bm90LWEtc2lnbmF0dXJl", CancellationToken.None))
+            .Should().Be(TwilioWebhookGate.SignatureMismatch);
+    }
+
+    [Fact]
+    public async Task WebhookGate_FallsBackToTheRequestUrl_WhenNoWebhookUrlIsSet()
+    {
+        var settings = new StubSettingsService();
+
+        (await TwilioWebhookGate.SignedUrlAsync(settings, "https://a.example/hook?x=1", "?x=1", CancellationToken.None))
+            .Should().Be("https://a.example/hook?x=1");
+        await settings.SetAsync(TwilioSettings.KeyWebhookUrl, "https://b.example/hook");
+        (await TwilioWebhookGate.SignedUrlAsync(settings, "https://a.example/hook?x=1", "?x=1", CancellationToken.None))
+            .Should().Be("https://b.example/hook?x=1");
+    }
+
     /// <summary>Phase 1m — minimal in-memory <see cref="ISettingsService"/>
     /// for the verifier tests.</summary>
     private sealed class StubSettingsService(Dictionary<string, string?>? bag = null) : Forge.Core.Settings.ISettingsService

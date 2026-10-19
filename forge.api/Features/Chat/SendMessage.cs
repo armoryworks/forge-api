@@ -67,7 +67,7 @@ public class SendMessageHandler(AppDbContext db, IHubContext<ChatHub> chatHub)
             senderName,
             sender.Initials ?? "??",
             sender.AvatarColor ?? "#94a3b8",
-            message.RecipientId,
+            request.RecipientId,
             message.Content,
             false,
             message.CreatedAt,
@@ -81,7 +81,7 @@ public class SendMessageHandler(AppDbContext db, IHubContext<ChatHub> chatHub)
                 senderName,
                 sender.Initials ?? "??",
                 sender.AvatarColor ?? "#94a3b8",
-                message.RecipientId,
+                request.RecipientId,
                 message.Content,
                 message.CreatedAt), ct);
 

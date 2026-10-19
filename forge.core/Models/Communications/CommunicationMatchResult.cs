@@ -23,4 +23,8 @@ public sealed record CommunicationMatchResult(
 
     /// <summary>Why the match failed when <c>Matched</c> is false. Free-form
     /// for now; will narrow to an enum once the triage UX firms up.</summary>
-    string? UnmatchedReason = null);
+    string? UnmatchedReason = null,
+
+    /// <summary>True when a communication with this channel + external id
+    /// was already stored, so nothing new was written.</summary>
+    bool AlreadyIngested = false);

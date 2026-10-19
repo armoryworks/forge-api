@@ -62,7 +62,8 @@ public class GetQuoteByIdHandler(IQuoteRepository repo, IStandardCostResolver? c
                 EffectiveMarginFor(l, unitCosts))).ToList(),
             quote.CreatedAt,
             quote.UpdatedAt,
-            quote.CustomerPO);
+            quote.CustomerPO,
+            RowVersion: quote.Version);
     }
 
     private static QuoteLineCostBreakdownModel? CostBreakdownFor(

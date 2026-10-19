@@ -43,7 +43,6 @@ public class SendChatRoomMessageHandler(AppDbContext db, IHubContext<ChatHub> ch
         var message = new ChatMessage
         {
             SenderId = request.SenderId,
-            RecipientId = 0, // Room messages have no single recipient
             ChatRoomId = request.RoomId,
             Content = request.Content,
             FileAttachmentId = request.FileAttachmentId,

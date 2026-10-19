@@ -19,12 +19,15 @@ public class QuotePdfDocument : IDocument
     private readonly Quote _quote;
     private readonly string? _companyName;
     private readonly IReadOnlyList<CompiledTermsSection> _termsSections;
+    private readonly IFormatProvider? _money;
 
-    public QuotePdfDocument(Quote quote, string? companyName, IReadOnlyList<CompiledTermsSection> termsSections)
+    public QuotePdfDocument(
+        Quote quote, string? companyName, IReadOnlyList<CompiledTermsSection> termsSections, IFormatProvider? money = null)
     {
         _quote = quote;
         _companyName = companyName;
         _termsSections = termsSections;
+        _money = money;
     }
 
     public void Compose(IDocumentContainer container)
@@ -127,8 +130,8 @@ public class QuotePdfDocument : IDocument
                     table.Cell().Background(bg).Padding(5).Text(line.Description);
                     table.Cell().Background(bg).Padding(5).Text(line.Part?.PartNumber ?? "—");
                     table.Cell().Background(bg).Padding(5).AlignRight().Text(line.Quantity.ToString("0.####"));
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.UnitPrice.ToString("C"));
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.LineTotal.ToString("C"));
+                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.UnitPrice.ToString("C", _money));
+                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.LineTotal.ToString("C", _money));
                 }
             });
 
@@ -137,7 +140,7 @@ public class QuotePdfDocument : IDocument
                 totals.Item().Row(row =>
                 {
                     row.RelativeItem().Text("Subtotal:").SemiBold();
-                    row.ConstantItem(100).AlignRight().Text(_quote.Subtotal.ToString("C"));
+                    row.ConstantItem(100).AlignRight().Text(_quote.Subtotal.ToString("C", _money));
                 });
 
                 if (_quote.TaxRate > 0)
@@ -145,7 +148,7 @@ public class QuotePdfDocument : IDocument
                     totals.Item().Row(row =>
                     {
                         row.RelativeItem().Text($"Tax ({_quote.TaxRate:P0}):").SemiBold();
-                        row.ConstantItem(100).AlignRight().Text(_quote.TaxAmount.ToString("C"));
+                        row.ConstantItem(100).AlignRight().Text(_quote.TaxAmount.ToString("C", _money));
                     });
                 }
 
@@ -154,7 +157,7 @@ public class QuotePdfDocument : IDocument
                 totals.Item().PaddingTop(4).Row(row =>
                 {
                     row.RelativeItem().Text("Total:").Bold().FontSize(12);
-                    row.ConstantItem(100).AlignRight().Text(_quote.Total.ToString("C")).Bold().FontSize(12);
+                    row.ConstantItem(100).AlignRight().Text(_quote.Total.ToString("C", _money)).Bold().FontSize(12);
                 });
             });
 

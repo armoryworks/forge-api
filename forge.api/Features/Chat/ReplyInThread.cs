@@ -27,14 +27,19 @@ public class ReplyInThreadHandler(AppDbContext db, IHubContext<ChatHub> chatHub)
     {
         var parent = await db.ChatMessages.FindAsync([request.ParentMessageId], ct)
             ?? throw new KeyNotFoundException($"Message {request.ParentMessageId} not found");
+        await ChatMessageAccess.EnsureVisibleAsync(db, parent, request.SenderId, ct);
 
         var sender = await db.Users.FindAsync([request.SenderId], ct)
             ?? throw new KeyNotFoundException($"User {request.SenderId} not found");
 
+        int? dmRecipientId = parent.ChatRoomId.HasValue
+            ? null
+            : parent.SenderId == request.SenderId ? parent.RecipientId : parent.SenderId;
+
         var reply = new ChatMessage
         {
             SenderId = request.SenderId,
-            RecipientId = parent.RecipientId,
+            RecipientId = dmRecipientId,
             ChatRoomId = parent.ChatRoomId,
             Content = request.Content,
             ParentMessageId = request.ParentMessageId,
@@ -66,7 +71,7 @@ public class ReplyInThreadHandler(AppDbContext db, IHubContext<ChatHub> chatHub)
             senderName,
             sender.Initials ?? "??",
             sender.AvatarColor ?? "#94a3b8",
-            reply.RecipientId,
+            reply.RecipientId ?? 0,
             reply.Content,
             false,
             reply.CreatedAt,
@@ -92,7 +97,7 @@ public class ReplyInThreadHandler(AppDbContext db, IHubContext<ChatHub> chatHub)
                         message = new ChatMessageEvent(
                             reply.Id, reply.SenderId, senderName,
                             sender.Initials ?? "??", sender.AvatarColor ?? "#94a3b8",
-                            reply.RecipientId, reply.Content, reply.CreatedAt,
+                            0, reply.Content, reply.CreatedAt,
                             reply.ParentMessageId, 0),
                     }, ct);
             }
@@ -100,7 +105,7 @@ public class ReplyInThreadHandler(AppDbContext db, IHubContext<ChatHub> chatHub)
         else
         {
             // DM thread reply — notify the other participant
-            var recipientId = parent.SenderId == request.SenderId ? parent.RecipientId : parent.SenderId;
+            var recipientId = dmRecipientId ?? 0;
             await chatHub.Clients.Group($"user:{recipientId}")
                 .SendAsync("messageReceived", new ChatMessageEvent(
                     reply.Id, reply.SenderId, senderName,

@@ -3,6 +3,7 @@ using System.Text.Json;
 using MailKit;
 using MailKit.Net.Imap;
 using MailKit.Search;
+using MediatR;
 using MimeKit;
 
 using Microsoft.AspNetCore.DataProtection;
@@ -39,10 +40,18 @@ namespace Forge.Api.Features.Communications;
 ///   broken connection doesn't starve the rest of the install.
 /// - Connection is opened + disposed per tick — IMAP IDLE long-poll is a
 ///   future optimization once we have a long-running connection layer.
+///
+/// Evidence: an inbound message whose sender resolves to a party (a contact,
+/// or an enabled ingest rule) goes through <see cref="IngestInboundEmailCommand"/>
+/// so its raw .eml and attachments are stored and hashed. Everything else —
+/// unmatched senders, lead mail, outbound mail — stays on the matcher, which
+/// keeps only the envelope for matched recipients and never stores raw mail.
 /// </summary>
 public class ImapEmailSyncProvider(
     AppDbContext db,
     ICommunicationMatcher matcher,
+    IPartyResolver partyResolver,
+    IMediator mediator,
     IDataProtectionProvider dataProtection,
     IImapClientFactory clientFactory,
     IImapOAuthService oauthService,
@@ -180,9 +189,16 @@ public class ImapEmailSyncProvider(
                 var msg = await folder.FetchMessageAsync(uid, ct);
                 if (msg is null) continue;
 
-                var comm = TranslateMimeMessage(msg, uid, config.Username);
-                var result = await matcher.MatchAndLogAsync(comm, ct);
-                if (result.Matched) matched++;
+                var comm = TranslateMimeMessage(msg, uid, config.Username, connectionId);
+                if (await TryIngestAsEvidenceAsync(msg, comm, ct))
+                {
+                    matched++;
+                }
+                else
+                {
+                    var result = await matcher.MatchAndLogAsync(comm, ct);
+                    if (result.Matched) matched++;
+                }
                 if (uid.Id > highestUid) highestUid = uid.Id;
             }
 
@@ -207,6 +223,53 @@ public class ImapEmailSyncProvider(
 
     public Task IngestWebhookEventAsync(string rawPayload, CancellationToken ct)
         => Task.CompletedTask; // IMAP is polling-only.
+
+    private async Task<bool> TryIngestAsEvidenceAsync(MimeMessage msg, InboundCommunication comm, CancellationToken ct)
+    {
+        if (comm.Direction != CommunicationDirection.Inbound)
+            return false;
+
+        var resolution = await partyResolver.ResolveAsync(comm.From, CommunicationChannel.Email, ct);
+        if (resolution.Confidence == CommunicationMatchConfidence.Unmatched)
+            return false;
+
+        await mediator.Send(new IngestInboundEmailCommand(BuildInboundEmail(msg, comm)), ct);
+        return true;
+    }
+
+    /// <summary>
+    /// The evidence form of a fetched message: the raw RFC 5322 bytes exactly
+    /// as received, every attachment decoded, and the thread id taken from the
+    /// first References entry, else In-Reply-To, else the Message-ID.
+    /// </summary>
+    internal static InboundEmail BuildInboundEmail(MimeMessage msg, InboundCommunication comm)
+    {
+        using var raw = new MemoryStream();
+        msg.WriteTo(raw);
+
+        var attachments = new List<InboundEmailAttachment>();
+        foreach (var part in msg.Attachments.OfType<MimePart>())
+        {
+            if (part.Content is null) continue;
+            using var content = new MemoryStream();
+            part.Content.DecodeTo(content);
+            attachments.Add(new InboundEmailAttachment(
+                part.FileName ?? "attachment", part.ContentType.MimeType, content.ToArray()));
+        }
+
+        var threadId = msg.References.FirstOrDefault() ?? msg.InReplyTo ?? msg.MessageId;
+
+        return new InboundEmail(
+            comm.ExternalId,
+            comm.From,
+            comm.To,
+            msg.Subject,
+            msg.TextBody ?? msg.HtmlBody,
+            comm.OccurredAt,
+            raw.ToArray(),
+            attachments,
+            string.IsNullOrWhiteSpace(threadId) ? null : threadId);
+    }
 
     /// <summary>
     /// Phase 1k.2 — refresh the OAuth access token if it's within the
@@ -280,8 +343,11 @@ public class ImapEmailSyncProvider(
     /// <see cref="InboundCommunication"/> envelope. The user's own mailbox
     /// address (<paramref name="ownerAddress"/>) is used to determine
     /// inbound vs outbound — if the user is in From, this was sent by them.
+    /// The external id carries <paramref name="connectionId"/> because UIDs and
+    /// UIDVALIDITY are only unique within one mailbox, and the id is the
+    /// (Channel, ExternalId) idempotency key across every connected mailbox.
     /// </summary>
-    internal static InboundCommunication TranslateMimeMessage(MimeMessage msg, UniqueId uid, string ownerAddress)
+    internal static InboundCommunication TranslateMimeMessage(MimeMessage msg, UniqueId uid, string ownerAddress, int connectionId)
     {
         var fromAddr = ExtractFirstAddress(msg.From) ?? string.Empty;
         var toAddrs = msg.To.Mailboxes.Select(m => m.Address).ToList();
@@ -295,7 +361,7 @@ public class ImapEmailSyncProvider(
             ProviderId: "imap",
             Kind: CommunicationKind.Email,
             Direction: direction,
-            ExternalId: $"imap-{uid.Validity}-{uid.Id}",
+            ExternalId: $"imap-{connectionId}-{uid.Validity}-{uid.Id}",
             From: fromAddr,
             To: [..toAddrs, ..ccAddrs],
             OccurredAt: msg.Date == default ? DateTimeOffset.UtcNow : msg.Date,

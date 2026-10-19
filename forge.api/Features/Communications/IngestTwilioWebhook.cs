@@ -25,13 +25,13 @@ namespace Forge.Api.Features.Communications;
 ///
 /// We only act on the terminal-state callback ("completed", "no-answer",
 /// "canceled", "failed") so the activity log doesn't get one row per
-/// state transition. The matcher dedupes on (ExternalId), so duplicate
-/// webhooks from Twilio re-trying are safe.
+/// state transition. The matcher dedupes on (Channel, ExternalId), so
+/// duplicate webhooks from Twilio re-trying are safe.
 ///
-/// Signature verification (X-Twilio-Signature) is enforced when the
-/// auth-token is configured (TwilioOptions:AuthToken in appsettings).
-/// In dev mode the signature check is skipped so curl-driven smoke tests
-/// don't require a live Twilio account.
+/// Signature verification (X-Twilio-Signature) happens before this handler
+/// runs, in <see cref="TwilioWebhookGate"/>: required whenever the auth token
+/// is set, and unsigned posts are only accepted in Mock mode with
+/// require-signature off.
 /// </summary>
 public record IngestTwilioWebhookCommand(IReadOnlyDictionary<string, string> FormFields)
     : IRequest<CommunicationMatchResult>;
