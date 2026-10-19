@@ -20,7 +20,7 @@ public class GetPayStubPdfHandler(AppDbContext db)
             ?? throw new KeyNotFoundException($"PayStub {request.Id} not found");
 
         if (!request.IsAdmin && stub.UserId != request.RequestingUserId)
-            throw new UnauthorizedAccessException("You do not have access to this pay stub.");
+            throw new KeyNotFoundException($"PayStub {request.Id} not found");
 
         return stub.FileAttachmentId;
     }
