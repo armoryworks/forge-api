@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Auth;
 using Forge.Api.Features.Jobs;
 using Forge.Core.Entities;
@@ -30,7 +31,8 @@ public class ReverseScanActionHandler(
     AppDbContext db,
     IClock clock,
     IHttpContextAccessor httpContext,
-    IMediator mediator)
+    IMediator mediator,
+    IInventoryAdjustmentPostingService? posting = null)
     : IRequestHandler<ReverseScanActionCommand>
 {
     public async Task Handle(ReverseScanActionCommand request, CancellationToken cancellationToken)
@@ -87,7 +89,7 @@ public class ReverseScanActionHandler(
         // Create counter-movements based on action type
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
 
-        await ReverseStockAsync(original, userId, now, cancellationToken);
+        var stockChange = await ReverseStockAsync(original, userId, now, cancellationToken);
         await ReturnScannedIssuesAsync(original, userId, cancellationToken);
 
         // Mark original as reversed
@@ -111,6 +113,12 @@ public class ReverseScanActionHandler(
         // Update original with reverse reference
         original.ReversedByLogId = reversalLog.Id;
         await db.SaveChangesAsync(cancellationToken);
+
+        if (posting is not null && original.ActionType == ScanActionType.CycleCount && stockChange != 0m)
+            await posting.PostAdjustmentAsync(new InventoryAdjustmentPosting(
+                "ScanCountReversal", original.Id, original.PartId!.Value, stockChange,
+                DateOnly.FromDateTime(now.UtcDateTime), userId, $"scanner count {original.Id} reversed"), cancellationToken);
+
         await tx.CommitAsync(cancellationToken);
     }
 
@@ -130,10 +138,10 @@ public class ReverseScanActionHandler(
             await mediator.Send(new ReturnMaterialIssueCommand(jobId, issueId, userId), ct);
     }
 
-    private async Task ReverseStockAsync(ScanActionLog original, int userId, DateTimeOffset now, CancellationToken ct)
+    private async Task<decimal> ReverseStockAsync(ScanActionLog original, int userId, DateTimeOffset now, CancellationToken ct)
     {
         if (!original.PartId.HasValue)
-            return;
+            return 0m;
         var partId = original.PartId.Value;
 
         var recorded = await db.BinMovements.AsNoTracking()
@@ -148,17 +156,24 @@ public class ReverseScanActionHandler(
         if (movements.Count == 0)
         {
             if (original.ActionType == ScanActionType.CycleCount)
-                return;
+                return 0m;
             movements.Add((null, null, original.Quantity, original.FromLocationId, original.ToLocationId));
         }
 
+        var change = 0m;
         foreach (var (movementId, lotNumber, movedQuantity, fromLocationId, toLocationId) in movements)
         {
             var quantity = Math.Abs(movedQuantity);
             if (toLocationId is int to)
+            {
                 await ScanBinStock.RemoveAsync(db, partId, to, lotNumber, quantity, userId, now, ct);
+                change -= quantity;
+            }
             if (fromLocationId is int from)
+            {
                 await ScanBinStock.AddAsync(db, partId, from, lotNumber, quantity, userId, now, ct);
+                change += quantity;
+            }
 
             db.BinMovements.Add(new BinMovement
             {
@@ -174,5 +189,7 @@ public class ReverseScanActionHandler(
                 ReversedMovementId = movementId,
             });
         }
+
+        return change;
     }
 }

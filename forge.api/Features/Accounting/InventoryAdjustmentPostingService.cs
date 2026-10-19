@@ -12,8 +12,8 @@ using Serilog;
 namespace Forge.Api.Features.Accounting;
 
 /// <summary>
-/// One stock quantity correction to post: an approved cycle-count variance, a scanner count, or a shortage
-/// found when an inter-plant transfer is received. <see cref="QuantityChange"/> is signed: negative for a
+/// One stock quantity correction to post: an approved cycle-count variance, a scanner count or its reversal, or
+/// a shortage found when an inter-plant transfer is received. <see cref="QuantityChange"/> is signed: negative for a
 /// shortage, positive for an overage. <see cref="SourceType"/> and <see cref="SourceId"/> name the record the
 /// change came from and make the posting idempotent.
 /// </summary>
