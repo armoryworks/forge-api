@@ -207,7 +207,7 @@ public class JobsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<ProductionRunResponseModel>> CreateProductionRun(
         int id, CreateProductionRunRequestModel request)
     {
-        var command = new CreateProductionRunCommand(id, request.PartId, request.TargetQuantity, request.OperatorId, request.Notes);
+        var command = new CreateProductionRunCommand(id, request.PartId, request.TargetQuantity, request.OperatorId, request.Notes, request.WorkCenterId);
         var result = await mediator.Send(command);
         return CreatedAtAction(nameof(GetProductionRuns), new { id }, result);
     }

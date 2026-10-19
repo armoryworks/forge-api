@@ -16,7 +16,8 @@ public record CreateCompanyLocationCommand(
     string PostalCode,
     string Country,
     string? Phone,
-    bool IsActive) : IRequest<CompanyLocationResponseModel>;
+    bool IsActive,
+    int? WorkingCalendarId = null) : IRequest<CompanyLocationResponseModel>;
 
 public class CreateCompanyLocationValidator : AbstractValidator<CreateCompanyLocationCommand>
 {
@@ -38,6 +39,7 @@ public class CreateCompanyLocationHandler(AppDbContext db)
         CreateCompanyLocationCommand request, CancellationToken ct)
     {
         var hasAny = await db.CompanyLocations.AnyAsync(ct);
+        await LocationCalendarRules.EnsureAssignableAsync(db, request.WorkingCalendarId, null, ct);
 
         var location = new CompanyLocation
         {
@@ -51,6 +53,7 @@ public class CreateCompanyLocationHandler(AppDbContext db)
             Phone = request.Phone?.Trim(),
             IsDefault = !hasAny, // First location is always default
             IsActive = request.IsActive,
+            WorkingCalendarId = request.WorkingCalendarId,
         };
 
         db.CompanyLocations.Add(location);
@@ -60,6 +63,6 @@ public class CreateCompanyLocationHandler(AppDbContext db)
             location.Id, location.Name, location.Line1, location.Line2,
             location.City, location.State, location.PostalCode, location.Country,
             location.Phone, location.IsDefault, location.IsActive,
-            location.CreatedAt, location.UpdatedAt);
+            location.CreatedAt, location.UpdatedAt, location.WorkingCalendarId);
     }
 }

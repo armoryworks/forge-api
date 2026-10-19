@@ -21,7 +21,8 @@ public record CreateWorkCenterCommand(
     int? AssetId,
     int? CompanyLocationId,
     int SortOrder,
-    int? TeamId = null) : IRequest<WorkCenterResponseModel>;
+    int? TeamId = null,
+    decimal? IdealCycleTimeSeconds = null) : IRequest<WorkCenterResponseModel>;
 
 public class CreateWorkCenterValidator : AbstractValidator<CreateWorkCenterCommand>
 {
@@ -32,6 +33,7 @@ public class CreateWorkCenterValidator : AbstractValidator<CreateWorkCenterComma
         RuleFor(x => x.DailyCapacityHours).GreaterThan(0);
         RuleFor(x => x.EfficiencyPercent).InclusiveBetween(1, 200);
         RuleFor(x => x.NumberOfMachines).GreaterThan(0);
+        RuleFor(x => x.IdealCycleTimeSeconds).GreaterThan(0).When(x => x.IdealCycleTimeSeconds.HasValue);
     }
 }
 
@@ -55,6 +57,7 @@ public class CreateWorkCenterHandler(AppDbContext db) : IRequestHandler<CreateWo
             CompanyLocationId = request.CompanyLocationId,
             SortOrder = request.SortOrder,
             TeamId = request.TeamId,
+            IdealCycleTimeSeconds = request.IdealCycleTimeSeconds,
         };
 
         db.WorkCenters.Add(wc);
@@ -71,6 +74,6 @@ public class CreateWorkCenterHandler(AppDbContext db) : IRequestHandler<CreateWo
             wc.NumberOfMachines, wc.LaborCostPerHour,
             wc.BurdenRatePerHour, wc.IsActive,
             wc.AssetId, null, wc.CompanyLocationId, null, wc.SortOrder,
-            wc.TeamId, teamName);
+            wc.TeamId, teamName, wc.IdealCycleTimeSeconds);
     }
 }

@@ -170,6 +170,20 @@ public class MrpController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("master-schedules/{id:int}/complete")]
+    public async Task<ActionResult<MasterScheduleResponseModel>> CompleteMasterSchedule(int id)
+    {
+        var result = await mediator.Send(new CompleteMasterScheduleCommand(id));
+        return Ok(result);
+    }
+
+    [HttpPost("master-schedules/{id:int}/cancel")]
+    public async Task<ActionResult<MasterScheduleResponseModel>> CancelMasterSchedule(int id)
+    {
+        var result = await mediator.Send(new CancelMasterScheduleCommand(id));
+        return Ok(result);
+    }
+
     [HttpGet("master-schedules/{id:int}/vs-actual")]
     public async Task<ActionResult<List<MpsVsActualResponseModel>>> GetMpsVsActual(int id)
     {

@@ -3,6 +3,7 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
@@ -22,7 +23,12 @@ public class CreateAndonAlertValidator : AbstractValidator<CreateAndonAlertComma
     }
 }
 
-public class CreateAndonAlertHandler(AppDbContext db, IClock clock, IHttpContextAccessor httpContextAccessor, IMediator mediator)
+public class CreateAndonAlertHandler(
+    AppDbContext db,
+    IClock clock,
+    IHttpContextAccessor httpContextAccessor,
+    IMediator mediator,
+    ILogger<CreateAndonAlertHandler> logger)
     : IRequestHandler<CreateAndonAlertCommand, AndonAlertResponseModel>
 {
     public async Task<AndonAlertResponseModel> Handle(
@@ -41,6 +47,7 @@ public class CreateAndonAlertHandler(AppDbContext db, IClock clock, IHttpContext
         };
 
         db.AndonAlerts.Add(alert);
+        await AndonDowntime.OpenAsync(db, alert, logger, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
         var result = await mediator.Send(new GetAndonAlertsQuery(null, null), cancellationToken);

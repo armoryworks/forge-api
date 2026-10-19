@@ -29,7 +29,7 @@ public class ForecastService(AppDbContext db, IClock clock) : IForecastService
             ?? throw new KeyNotFoundException($"Part {partId} not found.");
 
         // Gather historical demand from SO lines, grouped by month
-        var historyStart = clock.UtcNow.AddMonths(-historicalPeriods);
+        var historyStart = new DateTimeOffset(clock.UtcNow.Year, clock.UtcNow.Month, 1, 0, 0, 0, TimeSpan.Zero).AddMonths(-historicalPeriods);
         var historicalData = await db.SalesOrderLines
             .AsNoTracking()
             .Include(l => l.SalesOrder)

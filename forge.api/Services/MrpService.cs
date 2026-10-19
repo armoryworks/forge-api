@@ -69,6 +69,8 @@ public class MrpService(
 
             if (parts.Count == 0)
             {
+                if (!options.IsSimulation)
+                    await SupersedePriorPlannedOrdersAsync(mrpRun.Id, options.PartIds is { Count: > 0 } ? options.PartIds.ToHashSet() : null, cancellationToken);
                 mrpRun.Status = MrpRunStatus.Completed;
                 mrpRun.CompletedAt = clock.UtcNow;
                 await db.SaveChangesAsync(cancellationToken);
@@ -96,10 +98,12 @@ public class MrpService(
                 .ToListAsync(cancellationToken);
 
             // Step 2b: Gather MPS demand (active master schedule lines)
+            var periodCutoff = clock.UtcNow.AddDays(-1);
             var mpsDemand = await db.MasterScheduleLines
                 .AsNoTracking()
                 .Include(l => l.MasterSchedule)
                 .Where(l => l.MasterSchedule!.Status == MasterScheduleStatus.Active
+                    && l.MasterSchedule.PeriodEnd >= periodCutoff
                     && l.DueDate <= horizonEnd
                     && partIds.Contains(l.PartId))
                 .Select(l => new
@@ -110,6 +114,10 @@ public class MrpService(
                     RequiredDate = l.DueDate,
                 })
                 .ToListAsync(cancellationToken);
+
+            var netMpsByLine = MpsConsumption.NetQuantities(
+                mpsDemand.Select(m => (m.Id, m.PartId, m.Quantity, m.RequiredDate)),
+                soDemand.Select(so => (so.PartId, so.Quantity, so.RequiredDate)));
 
             // Step 3: Gather existing supply
             // 3a: On-hand inventory (BinContents aggregated by part)
@@ -165,6 +173,7 @@ public class MrpService(
                 .AsNoTracking()
                 .Where(po => po.IsFirmed
                     && po.Status == MrpPlannedOrderStatus.Firmed
+                    && !po.MrpRun.IsSimulation
                     && partIds.Contains(po.PartId))
                 .Select(po => new
                 {
@@ -225,13 +234,17 @@ public class MrpService(
             // Add MPS demand records
             foreach (var mps in mpsDemand)
             {
+                var netMpsQuantity = netMpsByLine.GetValueOrDefault(mps.Id, mps.Quantity);
+                if (netMpsQuantity <= 0)
+                    continue;
+
                 demandRecords.Add(new MrpDemand
                 {
                     MrpRunId = mrpRun.Id,
                     PartId = mps.PartId,
                     Source = MrpDemandSource.MasterSchedule,
                     SourceEntityId = mps.Id,
-                    Quantity = mps.Quantity,
+                    Quantity = netMpsQuantity,
                     RequiredDate = mps.RequiredDate,
                     IsDependent = false,
                     BomLevel = 0,
@@ -588,6 +601,9 @@ public class MrpService(
                 }
             }
 
+            if (!options.IsSimulation)
+                await SupersedePriorPlannedOrdersAsync(mrpRun.Id, options.PartIds is { Count: > 0 } ? allPartIds : null, cancellationToken);
+
             // Persist all records
             if (demandRecords.Count > 0) db.MrpDemands.AddRange(demandRecords);
             if (supplyRecords.Count > 0) db.MrpSupplies.AddRange(supplyRecords);
@@ -619,6 +635,24 @@ public class MrpService(
 
             throw;
         }
+    }
+
+    private async Task SupersedePriorPlannedOrdersAsync(int currentRunId, IReadOnlySet<int>? partScope, CancellationToken cancellationToken)
+    {
+        var query = db.MrpPlannedOrders
+            .Where(po => po.MrpRunId != currentRunId
+                && po.Status == MrpPlannedOrderStatus.Planned
+                && !po.IsFirmed
+                && !po.MrpRun.IsSimulation);
+
+        if (partScope is not null)
+        {
+            var scopedPartIds = partScope.ToList();
+            query = query.Where(po => scopedPartIds.Contains(po.PartId));
+        }
+
+        foreach (var superseded in await query.ToListAsync(cancellationToken))
+            superseded.Status = MrpPlannedOrderStatus.Cancelled;
     }
 
     public async Task<MrpPartPlanResponseModel> GetPartPlanAsync(int mrpRunId, int partId, CancellationToken cancellationToken = default)

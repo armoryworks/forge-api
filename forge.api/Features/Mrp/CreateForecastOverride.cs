@@ -41,20 +41,20 @@ public class CreateForecastOverrideHandler(AppDbContext db)
         if (forecast.Status == ForecastStatus.Applied || forecast.Status == ForecastStatus.Expired)
             throw new InvalidOperationException($"Cannot override a forecast with status '{forecast.Status}'.");
 
-        // Find original quantity for this period from forecast data
-        decimal originalQuantity = 0;
-        if (!string.IsNullOrEmpty(forecast.ForecastDataJson))
-        {
-            var buckets = System.Text.Json.JsonSerializer.Deserialize<List<ForecastBucketModel>>(forecast.ForecastDataJson);
-            var matchingBucket = buckets?.FirstOrDefault(b => b.PeriodStart == request.PeriodStart);
-            originalQuantity = matchingBucket?.ForecastedQuantity ?? 0;
-        }
+        var buckets = string.IsNullOrEmpty(forecast.ForecastDataJson)
+            ? null
+            : System.Text.Json.JsonSerializer.Deserialize<List<ForecastBucketModel>>(forecast.ForecastDataJson);
+        var matchingBucket = buckets?.FirstOrDefault(b => ForecastPeriod.SameDate(b.PeriodStart, request.PeriodStart))
+            ?? throw new InvalidOperationException($"The forecast has no period starting {request.PeriodStart.UtcDateTime:MM/dd/yyyy}.");
+
+        if (!ForecastPeriod.IsForecast(matchingBucket, forecast.ForecastStartDate))
+            throw new InvalidOperationException("Only forecast periods can be overridden; history periods are actual demand.");
 
         var forecastOverride = new ForecastOverride
         {
             DemandForecastId = request.ForecastId,
-            PeriodStart = request.PeriodStart,
-            OriginalQuantity = originalQuantity,
+            PeriodStart = matchingBucket.PeriodStart,
+            OriginalQuantity = matchingBucket.ForecastedQuantity,
             OverrideQuantity = request.OverrideQuantity,
             Reason = request.Reason,
             OverriddenByUserId = request.OverriddenByUserId,

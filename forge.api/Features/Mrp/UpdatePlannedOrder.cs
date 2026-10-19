@@ -27,6 +27,9 @@ public class UpdatePlannedOrderHandler(AppDbContext db)
             .FirstOrDefaultAsync(po => po.Id == request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Planned order {request.Id} not found.");
 
+        if (await db.MrpRuns.AnyAsync(r => r.Id == order.MrpRunId && r.IsSimulation, cancellationToken))
+            throw new InvalidOperationException("A simulation's planned orders are for review only; run MRP for real to plan this order.");
+
         if (request.IsFirmed.HasValue)
         {
             order.IsFirmed = request.IsFirmed.Value;

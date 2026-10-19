@@ -309,4 +309,29 @@ public sealed class RoleGrantTests
                 .Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager", "Engineer"], $"{verb} {template}");
         }
     }
+
+    [Fact]
+    public void Working_calendars_are_readable_by_managers_and_changed_only_by_admins()
+    {
+        foreach (var template in new[] { "api/v1/working-calendars", "api/v1/working-calendars/{id:int}" })
+        {
+            EffectiveRoles(Single("GET", template)).Should().BeEquivalentTo(["Admin", "Manager"], template);
+        }
+
+        foreach (var (verb, template) in new[]
+                 {
+                     ("POST", "api/v1/working-calendars"),
+                     ("PUT", "api/v1/working-calendars/{id:int}"),
+                     ("DELETE", "api/v1/working-calendars/{id:int}"),
+                     ("POST", "api/v1/working-calendars/{id:int}/set-default"),
+                     ("POST", "api/v1/working-calendars/{id:int}/holidays"),
+                     ("DELETE", "api/v1/working-calendars/{id:int}/holidays/{holidayId:int}"),
+                     ("POST", "api/v1/working-calendars/{id:int}/shifts"),
+                     ("PUT", "api/v1/working-calendars/{id:int}/shifts/{shiftId:int}"),
+                     ("DELETE", "api/v1/working-calendars/{id:int}/shifts/{shiftId:int}"),
+                 })
+        {
+            EffectiveRoles(Single(verb, template)).Should().BeEquivalentTo(["Admin"], template);
+        }
+    }
 }

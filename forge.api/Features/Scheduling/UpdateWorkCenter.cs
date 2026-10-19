@@ -1,3 +1,5 @@
+using FluentValidation;
+
 using MediatR;
 
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +24,16 @@ public record UpdateWorkCenterCommand(
     int? AssetId,
     int? CompanyLocationId,
     int SortOrder,
-    int? TeamId = null) : IRequest<WorkCenterResponseModel>;
+    int? TeamId = null,
+    decimal? IdealCycleTimeSeconds = null) : IRequest<WorkCenterResponseModel>;
+
+public class UpdateWorkCenterValidator : AbstractValidator<UpdateWorkCenterCommand>
+{
+    public UpdateWorkCenterValidator()
+    {
+        RuleFor(x => x.IdealCycleTimeSeconds).GreaterThan(0).When(x => x.IdealCycleTimeSeconds.HasValue);
+    }
+}
 
 public class UpdateWorkCenterHandler(AppDbContext db) : IRequestHandler<UpdateWorkCenterCommand, WorkCenterResponseModel>
 {
@@ -49,6 +60,7 @@ public class UpdateWorkCenterHandler(AppDbContext db) : IRequestHandler<UpdateWo
         if (request.CompanyLocationId != wc.CompanyLocationId) { wc.CompanyLocationId = request.CompanyLocationId; changedFields.Add("companyLocationId"); }
         if (request.SortOrder != wc.SortOrder) { wc.SortOrder = request.SortOrder; changedFields.Add("sortOrder"); }
         if (request.TeamId != wc.TeamId) { wc.TeamId = request.TeamId; changedFields.Add("teamId"); }
+        if (request.IdealCycleTimeSeconds != wc.IdealCycleTimeSeconds) { wc.IdealCycleTimeSeconds = request.IdealCycleTimeSeconds; changedFields.Add("idealCycleTimeSeconds"); }
 
         if (changedFields.Count > 0)
         {
@@ -66,6 +78,6 @@ public class UpdateWorkCenterHandler(AppDbContext db) : IRequestHandler<UpdateWo
             wc.NumberOfMachines, wc.LaborCostPerHour,
             wc.BurdenRatePerHour, wc.IsActive,
             wc.AssetId, null, wc.CompanyLocationId, null, wc.SortOrder,
-            wc.TeamId, teamName);
+            wc.TeamId, teamName, wc.IdealCycleTimeSeconds);
     }
 }

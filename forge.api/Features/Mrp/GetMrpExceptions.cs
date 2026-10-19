@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -19,7 +20,19 @@ public class GetMrpExceptionsHandler(AppDbContext db)
             .AsQueryable();
 
         if (request.MrpRunId.HasValue)
+        {
             query = query.Where(e => e.MrpRunId == request.MrpRunId.Value);
+        }
+        else
+        {
+            var latestRealRunId = await db.MrpRuns
+                .AsNoTracking()
+                .Where(r => !r.IsSimulation && r.Status == MrpRunStatus.Completed)
+                .OrderByDescending(r => r.Id)
+                .Select(r => (int?)r.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+            query = query.Where(e => e.MrpRunId == latestRealRunId);
+        }
 
         if (request.UnresolvedOnly == true)
             query = query.Where(e => !e.IsResolved);

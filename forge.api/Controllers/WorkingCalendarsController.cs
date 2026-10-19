@@ -19,7 +19,7 @@ namespace Forge.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/working-calendars")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,Manager")]
 [RequiresCapability("CAP-MD-CALENDARS")]
 public class WorkingCalendarsController(IMediator mediator) : ControllerBase
 {
@@ -38,6 +38,7 @@ public class WorkingCalendarsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<WorkingCalendarResponseModel>> Create(WorkingCalendarRequestModel request)
     {
         var result = await mediator.Send(new CreateWorkingCalendarCommand(
@@ -46,6 +47,7 @@ public class WorkingCalendarsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<WorkingCalendarResponseModel>> Update(int id, WorkingCalendarRequestModel request)
     {
         var result = await mediator.Send(new UpdateWorkingCalendarCommand(
@@ -54,6 +56,7 @@ public class WorkingCalendarsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
         await mediator.Send(new DeleteWorkingCalendarCommand(id));
@@ -61,6 +64,7 @@ public class WorkingCalendarsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/set-default")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> SetDefault(int id)
     {
         await mediator.Send(new SetDefaultWorkingCalendarCommand(id));
@@ -68,6 +72,7 @@ public class WorkingCalendarsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:int}/holidays")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<HolidayResponseModel>> AddHoliday(int id, HolidayRequestModel request)
     {
         var result = await mediator.Send(new AddHolidayCommand(
@@ -76,6 +81,7 @@ public class WorkingCalendarsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}/holidays/{holidayId:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteHoliday(int id, int holidayId)
     {
         await mediator.Send(new DeleteHolidayCommand(id, holidayId));
@@ -88,6 +94,7 @@ public class WorkingCalendarsController(IMediator mediator) : ControllerBase
     // the response embeds the shifts list + computed weekly capacity.
 
     [HttpPost("{id:int}/shifts")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<CalendarShiftResponseModel>> AddShift(
         int id, CalendarShiftRequestModel request)
     {
@@ -96,6 +103,7 @@ public class WorkingCalendarsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}/shifts/{shiftId:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<CalendarShiftResponseModel>> UpdateShift(
         int id, int shiftId, CalendarShiftRequestModel request)
     {
@@ -104,6 +112,7 @@ public class WorkingCalendarsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}/shifts/{shiftId:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteShift(int id, int shiftId)
     {
         await mediator.Send(new DeleteCalendarShiftCommand(id, shiftId));

@@ -9,4 +9,5 @@ public record CompanyLocationRequestModel(
     string PostalCode,
     string Country,
     string? Phone,
-    bool IsActive);
+    bool IsActive,
+    int? WorkingCalendarId = null);

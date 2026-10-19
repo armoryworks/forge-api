@@ -39,7 +39,7 @@ public class WorkCentersController(IMediator mediator) : ControllerBase
             request.DailyCapacityHours, request.EfficiencyPercent,
             request.NumberOfMachines, request.LaborCostPerHour,
             request.BurdenRatePerHour, request.AssetId,
-            request.CompanyLocationId, request.SortOrder, request.TeamId));
+            request.CompanyLocationId, request.SortOrder, request.TeamId, request.IdealCycleTimeSeconds));
         return CreatedAtAction(nameof(GetAll), new { id = result.Id }, result);
     }
 
@@ -52,7 +52,7 @@ public class WorkCentersController(IMediator mediator) : ControllerBase
             request.DailyCapacityHours, request.EfficiencyPercent,
             request.NumberOfMachines, request.LaborCostPerHour,
             request.BurdenRatePerHour, request.IsActive,
-            request.AssetId, request.CompanyLocationId, request.SortOrder, request.TeamId));
+            request.AssetId, request.CompanyLocationId, request.SortOrder, request.TeamId, request.IdealCycleTimeSeconds));
         return Ok(result);
     }
 
@@ -77,7 +77,8 @@ public record CreateWorkCenterRequest(
     int? AssetId,
     int? CompanyLocationId,
     int SortOrder,
-    int? TeamId = null);
+    int? TeamId = null,
+    decimal? IdealCycleTimeSeconds = null);
 
 public record UpdateWorkCenterRequest(
     string Name,
@@ -92,4 +93,5 @@ public record UpdateWorkCenterRequest(
     int? AssetId,
     int? CompanyLocationId,
     int SortOrder,
-    int? TeamId = null);
+    int? TeamId = null,
+    decimal? IdealCycleTimeSeconds = null);

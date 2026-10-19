@@ -21,6 +21,8 @@ public class GetPlannedOrdersHandler(AppDbContext db)
 
         if (request.MrpRunId.HasValue)
             query = query.Where(po => po.MrpRunId == request.MrpRunId.Value);
+        else
+            query = query.Where(po => !po.MrpRun.IsSimulation);
 
         if (request.Status.HasValue)
             query = query.Where(po => po.Status == request.Status.Value);

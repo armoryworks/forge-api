@@ -13,16 +13,12 @@ public class OeeService(AppDbContext db) : IOeeService
     public async Task<OeeCalculationModel> CalculateOeeAsync(
         int workCenterId, DateOnly from, DateOnly to, CancellationToken ct)
     {
-        var workCenter = await db.WorkCenters
-            .AsNoTracking()
-            .FirstOrDefaultAsync(w => w.Id == workCenterId, ct)
-            ?? throw new KeyNotFoundException($"WorkCenter {workCenterId} not found");
+        var (workCenter, capacity) = await LoadWithCapacityAsync(workCenterId, ct);
 
-        var fromOffset = new DateTimeOffset(from.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
-        var toOffset = new DateTimeOffset(to.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        var fromOffset = capacity.MidnightUtc(from);
+        var toOffset = capacity.MidnightUtc(to.AddDays(1));
 
-        // Scheduled minutes: calendar overrides or default daily capacity
-        var scheduledMinutes = await GetScheduledMinutesAsync(workCenterId, from, to, workCenter.DailyCapacityHours, ct);
+        var scheduledMinutes = ScheduledMinutes(capacity, from, to);
 
         // Downtime
         var downtimeLogs = await db.DowntimeLogs
@@ -37,7 +33,7 @@ public class OeeService(AppDbContext db) : IOeeService
         var runs = await db.ProductionRuns
             .AsNoTracking()
             .Where(r => r.WorkCenterId == workCenterId
-                     && r.StartedAt >= fromOffset && r.StartedAt < toOffset
+                     && (r.StartedAt ?? r.CompletedAt) >= fromOffset && (r.StartedAt ?? r.CompletedAt) < toOffset
                      && r.Status != ProductionRunStatus.Planned)
             .ToListAsync(ct);
 
@@ -57,13 +53,7 @@ public class OeeService(AppDbContext db) : IOeeService
         var availability = availableTime > 0 ? Math.Min(1m, (availableTime - unplannedDowntimeMinutes) / availableTime) : 0m;
         if (availability < 0) availability = 0;
 
-        var idealCycleTimeSeconds = workCenter.IdealCycleTimeSeconds ?? 0m;
-        var performance = 0m;
-        if (runTimeMinutes > 0 && idealCycleTimeSeconds > 0)
-        {
-            var idealRunMinutes = totalQuantity * idealCycleTimeSeconds / 60m;
-            performance = Math.Min(1m, idealRunMinutes / runTimeMinutes);
-        }
+        var performance = Performance(runs, workCenter.IdealCycleTimeSeconds);
 
         var quality = totalQuantity > 0 ? goodQuantity / totalQuantity : 0m;
 
@@ -130,8 +120,9 @@ public class OeeService(AppDbContext db) : IOeeService
     public async Task<SixBigLossesModel> GetSixBigLossesAsync(
         int workCenterId, DateOnly from, DateOnly to, CancellationToken ct)
     {
-        var fromOffset = new DateTimeOffset(from.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
-        var toOffset = new DateTimeOffset(to.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        var (_, capacity) = await LoadWithCapacityAsync(workCenterId, ct);
+        var fromOffset = capacity.MidnightUtc(from);
+        var toOffset = capacity.MidnightUtc(to.AddDays(1));
 
         var downtimeLogs = await db.DowntimeLogs
             .AsNoTracking()
@@ -160,24 +151,43 @@ public class OeeService(AppDbContext db) : IOeeService
         return result;
     }
 
-    private async Task<decimal> GetScheduledMinutesAsync(
-        int workCenterId, DateOnly from, DateOnly to, decimal defaultDailyHours, CancellationToken ct)
+    private async Task<(WorkCenter WorkCenter, WorkCenterCapacity Capacity)> LoadWithCapacityAsync(int workCenterId, CancellationToken ct)
     {
-        var calendarOverrides = await db.Set<WorkCenterCalendar>()
+        var workCenter = await db.WorkCenters
             .AsNoTracking()
-            .Where(c => c.WorkCenterId == workCenterId && c.Date >= from && c.Date <= to)
-            .ToDictionaryAsync(c => c.Date, c => c.AvailableHours, ct);
+            .WithCapacityData()
+            .FirstOrDefaultAsync(w => w.Id == workCenterId, ct)
+            ?? throw new KeyNotFoundException($"WorkCenter {workCenterId} not found");
 
+        var capacity = (await WorkCenterCapacityLookup.BuildAsync(db, [workCenter], ct))[workCenter.Id];
+        return (workCenter, capacity);
+    }
+
+    private static decimal ScheduledMinutes(WorkCenterCapacity capacity, DateOnly from, DateOnly to)
+    {
         var totalMinutes = 0m;
         for (var date = from; date <= to; date = date.AddDays(1))
-        {
-            var hours = calendarOverrides.TryGetValue(date, out var overrideHours)
-                ? overrideHours
-                : defaultDailyHours;
-            totalMinutes += hours * 60m;
-        }
+            totalMinutes += capacity.HoursOn(date) * 60m;
 
         return totalMinutes;
+    }
+
+    private static decimal Performance(IEnumerable<ProductionRun> runs, decimal? workCenterIdealCycleSeconds)
+    {
+        var idealMinutes = 0m;
+        var timedMinutes = 0m;
+        foreach (var run in runs)
+        {
+            var idealSeconds = run.IdealCycleTimeSeconds ?? workCenterIdealCycleSeconds;
+            if (run.RunTimeMinutes is not > 0 || idealSeconds is not > 0)
+                continue;
+
+            var processed = (decimal)run.CompletedQuantity + run.ScrapQuantity + run.ReworkQuantity;
+            idealMinutes += processed * idealSeconds.Value / 60m;
+            timedMinutes += run.RunTimeMinutes.Value;
+        }
+
+        return timedMinutes > 0 ? Math.Min(1m, idealMinutes / timedMinutes) : 0m;
     }
 
     private static List<(DateOnly Start, DateOnly End)> GeneratePeriods(
