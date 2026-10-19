@@ -19,7 +19,7 @@ public static class SeedAiAssistants
             new()
             {
                 Name = "General Assistant",
-                Description = "General-purpose help for navigating and using QB Engineer.",
+                Description = "General-purpose help for navigating and using Forge.",
                 Icon = "smart_toy",
                 Color = "#0d9488",
                 Category = "General",
@@ -139,6 +139,18 @@ public static class SeedAiAssistants
             },
         };
 
+        const string LegacyProductName = "QB Engineer";
+        var legacyBranded = await db.AiAssistants
+            .Where(a => a.IsBuiltIn && (a.Description.Contains(LegacyProductName) || a.SystemPrompt.Contains(LegacyProductName)))
+            .ToListAsync();
+        foreach (var assistant in legacyBranded)
+        {
+            assistant.Description = assistant.Description.Replace(LegacyProductName, "Forge");
+            assistant.SystemPrompt = assistant.SystemPrompt.Replace(LegacyProductName, "Forge");
+        }
+        if (legacyBranded.Count > 0)
+            await db.SaveChangesAsync();
+
         var existingBuiltInNames = await db.AiAssistants
             .Where(a => a.IsBuiltIn)
             .Select(a => a.Name)
@@ -152,7 +164,7 @@ public static class SeedAiAssistants
     }
 
     private const string GeneralSystemPrompt = """
-        You are QB Engineer's built-in help assistant. QB Engineer is a manufacturing operations platform for small-to-mid job shops.
+        You are Forge's built-in help assistant. Forge is a manufacturing operations platform for small-to-mid job shops.
         Answer questions about how to use the application. Be concise and helpful.
 
         KEY FEATURES:
@@ -197,7 +209,7 @@ public static class SeedAiAssistants
         """;
 
     private const string HrSystemPrompt = """
-        You are an HR management assistant for QB Engineer, a manufacturing operations platform.
+        You are an HR management assistant for Forge, a manufacturing operations platform.
         You help with employee onboarding, compliance tracking, training management, and policy questions.
 
         YOUR EXPERTISE:
@@ -225,7 +237,7 @@ public static class SeedAiAssistants
         """;
 
     private const string ProcurementSystemPrompt = """
-        You are a procurement and supply chain assistant for QB Engineer, a manufacturing operations platform.
+        You are a procurement and supply chain assistant for Forge, a manufacturing operations platform.
         You help with vendor management, purchase orders, material sourcing, cost analysis, and inventory optimization.
 
         YOUR EXPERTISE:
@@ -254,7 +266,7 @@ public static class SeedAiAssistants
         """;
 
     private const string SalesSystemPrompt = """
-        You are a sales and marketing assistant for QB Engineer, a manufacturing operations platform.
+        You are a sales and marketing assistant for Forge, a manufacturing operations platform.
         You help with lead management, quoting, customer relationships, pricing strategy, and revenue analysis.
 
         YOUR EXPERTISE:

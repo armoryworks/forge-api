@@ -3,12 +3,14 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pgvector;
 
+using Forge.Api.Capabilities;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Ai;
 
+[RequiresCapability("CAP-EXT-AI-ASSISTANT")]
 public record IndexDocumentCommand(string EntityType, int EntityId) : IRequest<int>;
 
 public class IndexDocumentValidator : AbstractValidator<IndexDocumentCommand>
@@ -25,6 +27,7 @@ public class IndexDocumentHandler(
     IAiService aiService,
     IEmbeddingRepository embeddingRepo,
     IStorageService storage,
+    IPdfTextExtractor pdfText,
     ILogger<IndexDocumentHandler> logger) : IRequestHandler<IndexDocumentCommand, int>
 {
     private const int ChunkSize = 500;
@@ -34,6 +37,7 @@ public class IndexDocumentHandler(
     // Guard rails for pulling attachment bodies into the RAG index.
     private const long MaxExtractBytes = 2 * 1024 * 1024; // 2 MB — don't stream huge files in for embedding
     private const int MaxExtractChars = 50_000;           // cap the text fed to the chunker
+    private const long MaxPdfExtractBytes = 10 * 1024 * 1024;
 
     public async Task<int> Handle(IndexDocumentCommand request, CancellationToken ct)
     {
@@ -150,18 +154,29 @@ public class IndexDocumentHandler(
             fields.Add(("FileName", file.FileName));
 
         // Index the body of text-like attachments so their content is searchable, not just
-        // the filename. Binary types (images, office docs, generic PDFs) are skipped here —
-        // PDFs have their own dedicated form-extraction pipeline.
-        if (IsTextExtractable(file.ContentType, file.FileName)
-            && file.Size is > 0 and <= MaxExtractBytes
+        // the filename.
+        var isPdf = IsPdf(file.ContentType, file.FileName);
+        if ((isPdf || IsTextExtractable(file.ContentType, file.FileName))
+            && file.Size is > 0
+            && file.Size <= (isPdf ? MaxPdfExtractBytes : MaxExtractBytes)
             && !string.IsNullOrWhiteSpace(file.BucketName)
             && !string.IsNullOrWhiteSpace(file.ObjectKey))
         {
             try
             {
                 await using var stream = await storage.DownloadAsync(file.BucketName, file.ObjectKey, ct);
-                using var reader = new StreamReader(stream);
-                var content = await reader.ReadToEndAsync(ct);
+                string content;
+                if (isPdf)
+                {
+                    using var buffer = new MemoryStream();
+                    await stream.CopyToAsync(buffer, ct);
+                    content = pdfText.ExtractText(buffer.ToArray(), MaxExtractChars);
+                }
+                else
+                {
+                    using var reader = new StreamReader(stream);
+                    content = await reader.ReadToEndAsync(ct);
+                }
                 if (!string.IsNullOrWhiteSpace(content))
                 {
                     if (content.Length > MaxExtractChars)
@@ -177,6 +192,10 @@ public class IndexDocumentHandler(
 
         return fields;
     }
+
+    private static bool IsPdf(string? contentType, string fileName) =>
+        string.Equals(contentType, "application/pdf", StringComparison.OrdinalIgnoreCase)
+        || Path.GetExtension(fileName).Equals(".pdf", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsTextExtractable(string? contentType, string fileName)
     {

@@ -26,7 +26,7 @@ public class AiSearchSuggestHandler(
     public async Task<List<AiSearchSuggestion>> Handle(AiSearchSuggestCommand request, CancellationToken ct)
     {
         var prompt = $"""
-            You are a search assistant for a manufacturing operations app called QB Engineer.
+            You are a search assistant for a manufacturing operations app called Forge.
             The app has these pages (use these exact URL paths):
             - /backlog — Job backlog list (searchable by job number, title, customer)
             - /kanban — Kanban board (visual job workflow)

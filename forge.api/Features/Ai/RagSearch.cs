@@ -97,7 +97,7 @@ public class RagSearchHandler(
                 }
 
                 var prompt = $"""
-                    You are a helpful assistant for a manufacturing operations platform called QB Engineer.
+                    You are a helpful assistant for a manufacturing operations platform called Forge.
                     Use the following context to answer the user's question. If the context doesn't contain
                     relevant information, say so. Be concise and factual.
 

@@ -159,7 +159,7 @@ public class AiHelpChatHandler(
     // ─── Role-specific system contexts ───────────────────────────────────────
 
     private const string GeneralSystemContext = """
-        You are QB Engineer's built-in help assistant. QB Engineer is a manufacturing operations platform for small-to-mid job shops.
+        You are Forge's built-in help assistant. Forge is a manufacturing operations platform for small-to-mid job shops.
         The user is already logged in with an established account. Never suggest creating an account or contacting external support.
         Answer questions about how to use the application. Be concise and direct. Never use conditional phrasing like "if you are a manager" — answer for the user in front of you.
 
@@ -198,7 +198,7 @@ public class AiHelpChatHandler(
         """;
 
     private const string EngineerSystemContext = """
-        You are QB Engineer's help assistant. You are speaking with an Engineer.
+        You are Forge's help assistant. You are speaking with an Engineer.
         The user is already logged in. Never suggest creating an account, contacting external support, or going to the Admin panel — that is not their area.
         Be direct and practical — give quick, actionable answers. Never use conditional phrasing like "if you are an engineer" — speak to them directly.
 
@@ -232,7 +232,7 @@ public class AiHelpChatHandler(
         """;
 
     private const string PmSystemContext = """
-        You are QB Engineer's help assistant. You are speaking with a Project Manager (PM).
+        You are Forge's help assistant. You are speaking with a Project Manager (PM).
         The user is already logged in. Never suggest creating an account or contacting external support.
         Focus on planning, scheduling, priorities, and throughput. Be direct — speak to them specifically, never use conditional phrasing like "if you are a PM".
 
@@ -266,7 +266,7 @@ public class AiHelpChatHandler(
         """;
 
     private const string ManagerSystemContext = """
-        You are QB Engineer's help assistant. You are speaking with a Manager.
+        You are Forge's help assistant. You are speaking with a Manager.
         The user is already logged in. Never suggest creating an account or contacting external support.
         Be comprehensive — cover both operational detail and high-level context. Speak directly; never use conditional phrasing like "if you are a manager".
 
@@ -313,7 +313,7 @@ public class AiHelpChatHandler(
         """;
 
     private const string OfficeManagerSystemContext = """
-        You are QB Engineer's help assistant. You are speaking with an Office Manager.
+        You are Forge's help assistant. You are speaking with an Office Manager.
         The user is already logged in. Never suggest creating an account or contacting external support.
         Be practical and detail-oriented. Speak directly; never use conditional phrasing like "if you are an office manager".
 
@@ -350,7 +350,7 @@ public class AiHelpChatHandler(
         """;
 
     private const string ProductionWorkerSystemContext = """
-        You are QB Engineer's help assistant. You are speaking with a Production Worker.
+        You are Forge's help assistant. You are speaking with a Production Worker.
         The user is already logged in. Never suggest creating an account, going to the Admin panel, or contacting external support.
         Keep answers short and practical — focus only on their daily tasks. Speak directly; never use conditional phrasing.
 
@@ -375,7 +375,7 @@ public class AiHelpChatHandler(
         """;
 
     private const string AdminSystemContext = """
-        You are QB Engineer's help assistant. You are speaking with an Administrator.
+        You are Forge's help assistant. You are speaking with an Administrator.
         The user is already logged in. There is no external support — you are the support.
         Be thorough and technically precise. Speak directly; never use conditional phrasing like "if you are an admin".
 

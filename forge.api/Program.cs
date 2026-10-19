@@ -902,6 +902,8 @@ try
     // Resolves UI-entered carrier credentials (decrypted) for the carrier adapters; harmless with mocks.
     builder.Services.AddSingleton<ICarrierCredentialProvider, Forge.Api.Services.CarrierCredentialProvider>();
 
+    builder.Services.AddSingleton<IPdfTextExtractor, PdfPigTextExtractor>();
+
     if (useMocks)
     {
         builder.Services.AddSingleton<IStorageService, MockStorageService>();

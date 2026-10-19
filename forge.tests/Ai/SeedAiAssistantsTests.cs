@@ -64,4 +64,45 @@ public class SeedAiAssistantsTests
 
         (await db.AiAssistants.CountAsync(a => a.IsBuiltIn)).Should().Be(5);
     }
+
+    [Fact]
+    public async Task Fresh_seed_never_names_the_legacy_product()
+    {
+        await using var db = TestDbContextFactory.Create();
+
+        await SeedAiAssistants.EnsureSeededAsync(db);
+
+        var builtIns = await db.AiAssistants.Where(a => a.IsBuiltIn).ToListAsync();
+        builtIns.Should().OnlyContain(a => !a.Description.Contains("QB Engineer") && !a.SystemPrompt.Contains("QB Engineer"));
+        builtIns.Single(a => a.Name == "General Assistant").Description.Should().Contain("Forge");
+    }
+
+    [Fact]
+    public async Task Existing_built_ins_are_rebranded_and_custom_assistants_are_left_alone()
+    {
+        await using var db = TestDbContextFactory.Create();
+        db.AiAssistants.AddRange(
+            new AiAssistant
+            {
+                Name = "General Assistant", IsBuiltIn = true,
+                Description = "General-purpose help for navigating and using QB Engineer.",
+                SystemPrompt = "You are QB Engineer's built-in help assistant. Our shop runs two shifts.",
+            },
+            new AiAssistant
+            {
+                Name = "Shop Notes", IsBuiltIn = false,
+                Description = "Notes about QB Engineer migration",
+                SystemPrompt = "Answer about the QB Engineer import.",
+            });
+        await db.SaveChangesAsync();
+
+        await SeedAiAssistants.EnsureSeededAsync(db);
+
+        var general = await db.AiAssistants.SingleAsync(a => a.Name == "General Assistant");
+        general.Description.Should().Be("General-purpose help for navigating and using Forge.");
+        general.SystemPrompt.Should().Be("You are Forge's built-in help assistant. Our shop runs two shifts.", "admin edits to the rest of the prompt survive");
+        var custom = await db.AiAssistants.SingleAsync(a => a.Name == "Shop Notes");
+        custom.Description.Should().Contain("QB Engineer");
+        custom.SystemPrompt.Should().Contain("QB Engineer");
+    }
 }

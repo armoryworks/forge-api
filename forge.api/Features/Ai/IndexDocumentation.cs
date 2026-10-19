@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.Extensions.Options;
 using Pgvector;
 
+using Forge.Api.Capabilities;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -11,6 +12,7 @@ using Forge.Core.Models;
 
 namespace Forge.Api.Features.Ai;
 
+[RequiresCapability("CAP-EXT-AI-ASSISTANT")]
 public record IndexDocumentationCommand : IRequest<int>;
 
 public class IndexDocumentationHandler(
