@@ -43,7 +43,10 @@ public class AdjustStockHandler(
                 $"Cannot adjust this bin to {data.NewQuantity}: {content.ReservedQuantity} unit(s) are reserved. " +
                 "Release the reservation first.");
 
-        var delta = data.NewQuantity - (int)content.Quantity;
+        var delta = data.NewQuantity - content.Quantity;
+        if (delta == 0)
+            throw new InvalidOperationException(
+                "The new quantity equals the quantity on hand; there is nothing to adjust.");
 
         content.Quantity = data.NewQuantity;
 
