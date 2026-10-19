@@ -29,13 +29,16 @@ public partial class DeployAgentClient(HttpClient http, IConfiguration config, I
     ];
 
     private static readonly DeployStateModel Unavailable = new(false, null, [], null);
+    private static readonly TimeSpan DefaultStateBudget = TimeSpan.FromSeconds(8);
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(config["Deploy:AgentUrl"]);
 
     public async Task<DeployStateModel> GetStateAsync(CancellationToken ct)
     {
         if (!IsConfigured) return Unavailable;
-        var root = await GetJsonAsync("state", ct);
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        budget.CancelAfter(StateBudget());
+        var root = await GetJsonAsync("state", budget.Token);
         if (root is null) return Unavailable;
 
         var state = root.Value.TryGetProperty("state", out var s) ? s : default;
@@ -51,7 +54,7 @@ public partial class DeployAgentClient(HttpClient http, IConfiguration config, I
             .ToList();
 
         var running = root.Value.TryGetProperty("running", out var r) && r.ValueKind == JsonValueKind.Object
-            ? await GetCurrentJobAsync(ct)
+            ? await GetCurrentJobAsync(budget.Token)
             : null;
 
         return new DeployStateModel(true, Str(root.Value, "agentVersion"), tiers, running);
@@ -205,6 +208,11 @@ public partial class DeployAgentClient(HttpClient http, IConfiguration config, I
 
     private static DateTimeOffset? Date(JsonElement e, string obj, string prop) =>
         DateTimeOffset.TryParse(Str(e, obj, prop), out var d) ? d : null;
+
+    private TimeSpan StateBudget() =>
+        double.TryParse(config["Deploy:StateTimeoutSeconds"], System.Globalization.CultureInfo.InvariantCulture, out var seconds) && seconds > 0
+            ? TimeSpan.FromSeconds(seconds)
+            : DefaultStateBudget;
 
     private async Task<JsonElement?> GetJsonAsync(string path, CancellationToken ct)
     {
