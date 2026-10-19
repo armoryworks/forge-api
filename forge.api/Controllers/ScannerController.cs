@@ -16,6 +16,8 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-MFG-SHOPFLOOR")]
 public class ScannerController(IMediator mediator) : ControllerBase
 {
+    private const string StockRoles = "Admin,Manager,OfficeManager,Engineer,ProductionWorker";
+
     public record ResolveCodeRequestModel(string Code);
 
     [HttpPost("resolve")]
@@ -23,6 +25,7 @@ public class ScannerController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new ResolveScanQuery(request.Code)));
 
     [HttpGet("context/{partIdentifier}")]
+    [Authorize(Roles = StockRoles)]
     public async Task<ActionResult<ScanContextResponseModel>> GetContext(string partIdentifier)
     {
         var result = await mediator.Send(new GetScanContextQuery(partIdentifier));
@@ -30,6 +33,7 @@ public class ScannerController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("move")]
+    [Authorize(Roles = StockRoles)]
     public async Task<ActionResult<int>> Move([FromBody] ScanMoveRequestModel request)
     {
         var result = await mediator.Send(new ExecuteScanMoveCommand(request));
@@ -37,6 +41,7 @@ public class ScannerController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("count")]
+    [Authorize(Roles = StockRoles)]
     public async Task<ActionResult<int>> Count([FromBody] ScanCountRequestModel request)
     {
         var result = await mediator.Send(new ExecuteScanCountCommand(request));
@@ -44,6 +49,7 @@ public class ScannerController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("receive")]
+    [Authorize(Roles = StockRoles)]
     public async Task<ActionResult<int>> Receive([FromBody] ScanReceiveRequestModel request)
     {
         var result = await mediator.Send(new ExecuteScanReceiveCommand(request));
@@ -51,6 +57,7 @@ public class ScannerController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("issue")]
+    [Authorize(Roles = StockRoles)]
     public async Task<ActionResult<int>> Issue([FromBody] ScanIssueRequestModel request)
     {
         var result = await mediator.Send(new ExecuteScanIssueCommand(request));
@@ -58,6 +65,7 @@ public class ScannerController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("reverse")]
+    [Authorize(Roles = StockRoles)]
     public async Task<IActionResult> Reverse([FromBody] ScanReversalRequestModel request)
     {
         await mediator.Send(new ReverseScanActionCommand(request));

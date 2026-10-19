@@ -25,6 +25,8 @@ public class MobileController(IMediator mediator) : ControllerBase
 {
     public const string DeviceHeader = "X-Device-Uuid";
 
+    private const string StockRoles = "Admin,Manager,OfficeManager,Engineer,ProductionWorker";
+
     public record ScanResolveRequestModel(string Code);
 
     [HttpPost("scan/resolve")]
@@ -75,6 +77,7 @@ public class MobileController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new UndoClockPunchCommand(eventId)));
 
     [HttpGet("stock/on-hand")]
+    [Authorize(Roles = StockRoles)]
     [RequiresCapability("CAP-MOBILE-STOCK")]
     public async Task<ActionResult<OnHandResponseModel>> OnHand([FromQuery] int partId, [FromQuery] int locationId)
         => Ok(await mediator.Send(new GetOnHandQuery(partId, locationId)));
@@ -82,6 +85,7 @@ public class MobileController(IMediator mediator) : ControllerBase
     public record MoveStockRequestModel(int PartId, int FromLocationId, int ToLocationId, decimal Quantity, string? LotNumber);
 
     [HttpPost("stock/move")]
+    [Authorize(Roles = StockRoles)]
     [RequiresCapability("CAP-MOBILE-STOCK")]
     public async Task<ActionResult<StockMoveResponseModel>> MoveStock([FromBody] MoveStockRequestModel request)
         => Ok(await mediator.Send(new MoveStockCommand(

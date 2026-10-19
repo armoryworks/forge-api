@@ -35,6 +35,7 @@ public class TrackTypesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}/custom-fields")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<List<CustomFieldDefinitionModel>>> UpdateCustomFieldDefinitions(
         int id, UpdateCustomFieldDefinitionsCommand command)
     {

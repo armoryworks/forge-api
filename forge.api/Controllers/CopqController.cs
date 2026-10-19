@@ -10,7 +10,7 @@ namespace Forge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/reports/copq")]
-[Authorize]
+[Authorize(Roles = "Admin,Manager,OfficeManager,PM")]
 [RequiresCapability("CAP-RPT-OPERATIONAL")]
 public class CopqController(IMediator mediator) : ControllerBase
 {

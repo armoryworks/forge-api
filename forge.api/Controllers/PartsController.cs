@@ -123,6 +123,7 @@ public class PartsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin,Manager,Engineer")]
     public async Task<IActionResult> DeletePart(int id)
     {
         await mediator.Send(new DeletePartCommand(id));
