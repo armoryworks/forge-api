@@ -100,8 +100,8 @@ public class ExternalIdTokenValidator(IOptionsMonitor<SsoOptions> sso) : IExtern
 
         // Google sets email_verified; refuse unverified emails because email
         // is the fallback link in SsoCallback when no GoogleId exists yet.
-        var emailVerified = result.ClaimsIdentity.FindFirst("email_verified")?.Value;
-        if (!string.Equals(emailVerified, "true", StringComparison.OrdinalIgnoreCase))
+        var emailVerified = result.ClaimsIdentity.FindFirst(SsoEmailVerification.ClaimType)?.Value;
+        if (!SsoEmailVerification.IsTrusted("google", emailVerified))
             throw new AuthenticationException("id_token email is not verified by Google.");
 
         var hostedDomain = result.ClaimsIdentity.FindFirst("hd")?.Value;
@@ -195,9 +195,8 @@ public class ExternalIdTokenValidator(IOptionsMonitor<SsoOptions> sso) : IExtern
             ?? throw new AuthenticationException("Microsoft id_token missing 'email' / 'preferred_username' claim.");
         // Microsoft AAD organizational accounts are pre-verified at provisioning
         // and don't emit `email_verified`; respect it only if present.
-        var emailVerified = result.ClaimsIdentity.FindFirst("email_verified")?.Value;
-        if (emailVerified is not null
-            && !string.Equals(emailVerified, "true", StringComparison.OrdinalIgnoreCase))
+        var emailVerified = result.ClaimsIdentity.FindFirst(SsoEmailVerification.ClaimType)?.Value;
+        if (!SsoEmailVerification.IsTrusted("microsoft", emailVerified))
             throw new AuthenticationException("Microsoft id_token email is not verified.");
 
         return new ExternalIdTokenClaims(subject, email, HostedDomain: null);
@@ -239,9 +238,8 @@ public class ExternalIdTokenValidator(IOptionsMonitor<SsoOptions> sso) : IExtern
         var email = result.ClaimsIdentity.FindFirst("email")?.Value
             ?? throw new AuthenticationException("OIDC id_token missing 'email' claim.");
         // OIDC: respect email_verified if present, accept otherwise.
-        var emailVerified = result.ClaimsIdentity.FindFirst("email_verified")?.Value;
-        if (emailVerified is not null
-            && !string.Equals(emailVerified, "true", StringComparison.OrdinalIgnoreCase))
+        var emailVerified = result.ClaimsIdentity.FindFirst(SsoEmailVerification.ClaimType)?.Value;
+        if (!SsoEmailVerification.IsTrusted("oidc", emailVerified))
             throw new AuthenticationException("OIDC id_token email is not verified.");
 
         return new ExternalIdTokenClaims(subject, email, HostedDomain: null);

@@ -281,6 +281,8 @@ try
             options.ClientId = ssoOptions.Google.ClientId;
             options.ClientSecret = ssoOptions.Google.ClientSecret;
             options.SignInScheme = "SsoExternalCookie";
+            Microsoft.AspNetCore.Authentication.ClaimActionCollectionMapExtensions.MapJsonKey(
+                options.ClaimActions, SsoEmailVerification.ClaimType, SsoEmailVerification.ClaimType);
         });
         Log.Information("SSO: Google authentication enabled");
     }
