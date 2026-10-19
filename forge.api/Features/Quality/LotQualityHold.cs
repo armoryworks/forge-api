@@ -10,9 +10,12 @@ namespace Forge.Api.Features.Quality;
 /// <summary>
 /// The lot quality hold an NCR places on stock. Raising an NCR on a part and lot moves that lot's Stored part
 /// contents to QcHold; a Use As Is or Rework disposition, or closing the NCR, moves them back to Stored unless
-/// another NCR still holds the lot or an active recall covers it. Reopening a closed NCR whose disposition kept
-/// the hold places it again. Stock-out paths refuse held stock with
-/// <see cref="Message"/>. Every hold and release is logged on the NCR and, when a lot record exists, the lot.
+/// another NCR still holds the lot or an active recall covers it. A Scrap disposition draws the scrapped
+/// quantity out of the held contents (<see cref="ScrapHeldAsync"/>), so closing releases only what was not
+/// scrapped; a Return To Vendor disposition keeps the hold through close, because the stock is going back to the
+/// vendor. Reopening a closed NCR whose disposition kept the hold places it again on whatever of the lot is still
+/// stored. Stock-out paths refuse held stock with <see cref="Message"/>. Every hold, release and scrap is logged
+/// on the NCR and, when a lot record exists, the lot.
 /// </summary>
 public static class LotQualityHold
 {
@@ -65,6 +68,63 @@ public static class LotQualityHold
         await LogAsync(db, ncr, "quality-hold-released",
             $"Lot {ncr.LotNumber} released from quality hold: {quantity:0.####} released by {ncr.NcrNumber}", ct);
         return quantity;
+    }
+
+    public static async Task<decimal> ScrapHeldAsync(
+        AppDbContext db, NonConformance ncr, int userId, DateTimeOffset at, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(ncr.LotNumber))
+        {
+            db.LogActivityAt("quality-scrap",
+                $"{ncr.NcrNumber} has no lot, so no held stock was found to scrap; nothing was removed from inventory",
+                ("NonConformance", ncr.Id));
+            return 0;
+        }
+
+        var rows = await LotRows(db, ncr, BinContentStatus.QcHold)
+            .OrderBy(r => r.PlacedAt).ThenBy(r => r.Id)
+            .ToListAsync(ct);
+        var available = rows.Sum(r => r.Quantity - r.ReservedQuantity);
+        var target = ncr.DefectiveQuantity is > 0 ? ncr.DefectiveQuantity.Value
+            : ncr.AffectedQuantity > 0 ? ncr.AffectedQuantity
+            : available;
+
+        var remaining = Math.Min(target, available);
+        var scrapped = 0m;
+        foreach (var row in rows)
+        {
+            if (remaining <= 0)
+                break;
+            var take = Math.Min(remaining, row.Quantity - row.ReservedQuantity);
+            if (take <= 0)
+                continue;
+
+            row.Quantity -= take;
+            if (row.Quantity == 0)
+            {
+                row.RemovedAt = at;
+                row.RemovedBy = userId;
+            }
+            db.BinMovements.Add(new BinMovement
+            {
+                EntityType = "part",
+                EntityId = ncr.PartId,
+                Quantity = take,
+                LotNumber = ncr.LotNumber,
+                FromLocationId = row.LocationId,
+                MovedBy = userId,
+                MovedAt = at,
+                Reason = BinMovementReason.Adjustment,
+                Notes = $"Scrapped by {ncr.NcrNumber}",
+            });
+            remaining -= take;
+            scrapped += take;
+        }
+
+        await LogAsync(db, ncr, "quality-scrap", scrapped > 0
+            ? $"Lot {ncr.LotNumber} scrapped: {scrapped:0.####} removed from inventory by {ncr.NcrNumber}"
+            : $"Lot {ncr.LotNumber} has no held stock to scrap; nothing was removed from inventory by {ncr.NcrNumber}", ct);
+        return scrapped;
     }
 
     private static IQueryable<BinContent> LotRows(AppDbContext db, NonConformance ncr, BinContentStatus status)
