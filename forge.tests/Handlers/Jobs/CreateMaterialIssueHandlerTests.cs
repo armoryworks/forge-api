@@ -151,6 +151,25 @@ public class CreateMaterialIssueHandlerTests : IDisposable
     }
 
     [Fact]
+    public async Task Handle_ReturnToABinRowDrawnEmpty_PutsTheStockBackOnHand()
+    {
+        var (job, part) = await SeedAsync();
+        var bin = await BinAsync();
+        var row = await StockAsync(part, bin, 0m, "L-1");
+        row.RemovedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync();
+
+        await _handler.Handle(
+            Command(job, part, 4m) with { BinContentId = row.Id, IssueType = MaterialIssueType.Return },
+            CancellationToken.None);
+
+        (await OnHandAsync(part, bin)).Should().Be(4m);
+        var issue = await _db.MaterialIssues.AsNoTracking().SingleAsync();
+        issue.LotNumber.Should().Be("L-1");
+        issue.BinContentId.Should().NotBe(row.Id);
+    }
+
+    [Fact]
     public async Task Handle_BinOfAnotherPart_IsRefused()
     {
         var (job, part) = await SeedAsync();

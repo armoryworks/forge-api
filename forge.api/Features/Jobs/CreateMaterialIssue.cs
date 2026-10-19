@@ -142,6 +142,8 @@ public class CreateMaterialIssueHandler(
             ?? throw new KeyNotFoundException($"BinContent {binContentId} not found");
         if (bin.EntityType != "part" || bin.EntityId != request.PartId)
             throw new InvalidOperationException($"BinContent {binContentId} does not hold part {request.PartId}.");
+        if (request.IssueType == MaterialIssueType.Return && bin.RemovedAt is not null)
+            return [await RestoreAsync(request, bin.LocationId, bin.LotNumber ?? request.LotNumber, now, ct)];
 
         if (request.IssueType == MaterialIssueType.Issue && bin.Status == BinContentStatus.QcHold)
             throw await LotQualityHold.RefusalAsync(db, request.PartId, bin.LotNumber, ct);
@@ -199,15 +201,7 @@ public class CreateMaterialIssueHandler(
             throw new InvalidOperationException("Choose the bin or location the material comes from.");
 
         if (request.IssueType == MaterialIssueType.Return)
-        {
-            var restored = await ScanBinStock.AddAsync(
-                db, request.PartId, locationId, lotNumber, request.Quantity, request.IssuedById, now, ct);
-            if (restored.Status == BinContentStatus.Stored
-                && await LotQualityHold.IsHeldAsync(db, request.PartId, lotNumber, ct))
-                restored.Status = BinContentStatus.QcHold;
-            AddMovement(request, lotNumber, request.Quantity, locationId, now);
-            return [new StockDraw(lotNumber, request.Quantity, null, restored)];
-        }
+            return [await RestoreAsync(request, locationId, lotNumber, now, ct)];
 
         var rows = (await ScanBinStock.ActiveRowsAsync(db, request.PartId, locationId, ct))
             .Where(bc => lotNumber is null || bc.LotNumber == lotNumber)
@@ -236,6 +230,18 @@ public class CreateMaterialIssueHandler(
             .GroupBy(d => d.Row.LotNumber)
             .Select(g => new StockDraw(g.Key, g.Sum(d => d.Taken), null, g.Count() == 1 ? g.First().Row : null))
             .ToList();
+    }
+
+    private async Task<StockDraw> RestoreAsync(
+        CreateMaterialIssueCommand request, int locationId, string? lotNumber, DateTimeOffset now, CancellationToken ct)
+    {
+        var restored = await ScanBinStock.AddAsync(
+            db, request.PartId, locationId, lotNumber, request.Quantity, request.IssuedById, now, ct);
+        if (restored.Status == BinContentStatus.Stored
+            && await LotQualityHold.IsHeldAsync(db, request.PartId, lotNumber, ct))
+            restored.Status = BinContentStatus.QcHold;
+        AddMovement(request, lotNumber, request.Quantity, locationId, now);
+        return new StockDraw(lotNumber, request.Quantity, null, restored);
     }
 
     private async Task<List<BinContent>> IssuableAsync(
