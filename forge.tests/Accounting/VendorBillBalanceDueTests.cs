@@ -23,7 +23,8 @@ public class VendorBillBalanceDueTests
     {
         var bill = SubCentBill();
 
-        bill.Total.Should().Be(0.5751m);
+        bill.Subtotal.Should().Be(0.5001m);
+        bill.Total.Should().Be(0.58m);
         bill.BalanceDue.Should().Be(0.58m);
     }
 

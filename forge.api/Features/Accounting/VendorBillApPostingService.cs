@@ -160,7 +160,7 @@ public sealed class VendorBillApPostingService(
                 "NO_POSTING_BOOK",
                 "CAP-ACCT-FULLGL is enabled but no active accounting Book is seeded to post the vendor bill into.");
 
-        var total = Money.Round(bill.Total);
+        var total = bill.Total;
         if (total <= 0m)
         {
             Log.Information(
@@ -173,7 +173,7 @@ public sealed class VendorBillApPostingService(
         var entryDate = DateOnly.FromDateTime(bill.BillDate.UtcDateTime);
 
         var lines = new List<PostingLine>(bill.Lines.Count + 3);
-        var roundingDifference = total - bill.Total;
+        var tax = Money.Round(bill.TaxAmount);
 
         // Debit side splits on whether the bill is matched to a purchase order (3-way match, STAGE D):
         //   • Standalone bill → Dr each line's resolved expense/asset account for the line total.
@@ -181,17 +181,17 @@ public sealed class VendorBillApPostingService(
         //     the bill-vs-PO price difference to PPV. This is the third leg of the 3-way match (PO ↔ receipt
         //     ↔ bill); the receipt already debited inventory & credited GRNI (STAGE C).
         if (bill.PurchaseOrderId is not null)
-            BuildPoMatchedDebits(bill, lines, roundingDifference);
+            BuildPoMatchedDebits(bill, lines, total - tax - bill.Subtotal);
         else
-            BuildStandaloneDebits(bill, lines, bill.TaxAmount > 0m ? 0m : roundingDifference);
+            BuildStandaloneDebits(bill, lines, total - tax);
 
         // Dr purchase tax (expensed) when the vendor charged tax.
-        if (bill.TaxAmount > 0m)
+        if (tax > 0m)
         {
             lines.Add(new PostingLine
             {
                 AccountKey = KeyPurchaseTaxExpense,
-                Debit = bill.TaxAmount + (bill.PurchaseOrderId is null ? roundingDifference : 0m),
+                Debit = tax,
                 Description = $"Purchase tax — bill {bill.BillNumber}",
             });
         }
@@ -261,18 +261,28 @@ public sealed class VendorBillApPostingService(
     }
 
     /// <summary>
-    /// Standalone (non-PO) bill: Dr each line's expense/asset account for the line total — the line's explicit
-    /// GL account when one was chosen, else its determination key. <paramref name="roundingDifference"/> (rounded
-    /// total − raw total, when there is no tax line to carry it) goes on the largest line so the debits equal
-    /// the cent AP credit.
+    /// Standalone (non-PO) bill: Dr each line's expense/asset account for the line total rounded to the cent —
+    /// the line's explicit GL account when one was chosen, else its determination key. The cents left between
+    /// <paramref name="linesTotal"/> (the rounded bill total less the rounded tax) and the Σ of the rounded lines
+    /// go on the largest line, as the AR posting does, so the debits equal the AP credit exactly.
     /// </summary>
-    private static void BuildStandaloneDebits(VendorBill bill, List<PostingLine> lines, decimal roundingDifference)
+    private static void BuildStandaloneDebits(VendorBill bill, List<PostingLine> lines, decimal linesTotal)
     {
         var ordered = bill.Lines.OrderBy(l => l.LineNumber).ToList();
-        var largest = ordered.MaxBy(l => l.LineTotal);
-        foreach (var l in ordered)
+        var amounts = ordered.Select(l => Money.Round(l.LineTotal)).ToArray();
+        var residual = linesTotal - amounts.Sum();
+        if (residual != 0m && amounts.Length > 0)
         {
-            var amount = l.LineTotal + (ReferenceEquals(l, largest) ? roundingDifference : 0m);
+            var largest = 0;
+            for (var i = 1; i < amounts.Length; i++)
+                if (amounts[i] > amounts[largest]) largest = i;
+            amounts[largest] += residual;
+        }
+
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            var l = ordered[i];
+            var amount = amounts[i];
             if (amount <= 0m)
                 continue; // skip degenerate/zero lines rather than emit a 0-amount posting line
             lines.Add(new PostingLine
@@ -291,9 +301,9 @@ public sealed class VendorBillApPostingService(
     /// unit price (clearing the accrual the receipt credited), and accumulate the bill-vs-PO price difference
     /// (<c>LineTotal − grniClear</c>) into a single net <b>PPV</b> line — Dr when unfavorable (billed &gt; PO),
     /// Cr when favorable. The debit side therefore equals Σ line totals (Σ grniClear + net PPV), so adding tax
-    /// and crediting AP for <c>Total</c> balances by construction. AP is credited the total rounded to the cent,
-    /// so <paramref name="roundingDifference"/> (rounded total − raw total) also lands in PPV; GRNI still clears
-    /// exactly the raw amount the receipt accrued.
+    /// and crediting AP for <c>Total</c> balances by construction. <c>Total</c> and the tax are rounded to the
+    /// cent, so <paramref name="roundingDifference"/> (rounded total − rounded tax − raw line totals) also lands
+    /// in PPV; GRNI still clears exactly the raw amount the receipt accrued.
     ///
     /// <para>A line may only clear GRNI it has actually received-but-not-yet-billed: if the billed quantity
     /// exceeds the PO line's <c>UnbilledReceivedQuantity</c>, posting throws <c>GRNI_INSUFFICIENT</c> rather

@@ -65,7 +65,13 @@ public class VendorBill : BaseAuditableEntity, IConcurrencyVersioned
     public DateTimeOffset? LastSyncedAt { get; set; }
 
     public decimal Subtotal => Lines.Sum(l => l.LineTotal);
-    public decimal Total => Subtotal + TaxAmount;
+
+    /// <summary>
+    /// The payable, rounded to the cent (half away from zero): exactly what the AP posting credits and the AP
+    /// open item carries. Never projected server-side, so the rounding can live on the property itself.
+    /// </summary>
+    public decimal Total => Money.Round(Subtotal + TaxAmount);
+
     public decimal AmountPaid => PaymentApplications.Sum(pa => pa.Amount);
 
     /// <summary>

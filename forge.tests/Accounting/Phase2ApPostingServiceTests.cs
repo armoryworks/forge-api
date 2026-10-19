@@ -921,7 +921,7 @@ public class Phase2ApPostingServiceTests
     }
 
     [Fact]
-    public async Task Bill_SubCentTotalWithTax_CreditsApAtTheCentAndPutsTheDifferenceOnTax()
+    public async Task Bill_SubCentTotalWithTax_PostsEveryLineAndTheTaxAtTheCent()
     {
         using var db = await SeedAsync();
         var vendorId = await AddVendorAsync(db);
@@ -931,8 +931,8 @@ public class Phase2ApPostingServiceTests
 
         var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
         entry.Lines.Single(l => l.GlAccountId == ApControlId).Credit.Should().Be(0.58m);
-        entry.Lines.Single(l => l.Description == "Line 1").Debit.Should().Be(0.5001m);
-        entry.Lines.Single(l => l.Description!.StartsWith("Purchase tax")).Debit.Should().Be(0.0799m);
+        entry.Lines.Single(l => l.Description == "Line 1").Debit.Should().Be(0.50m);
+        entry.Lines.Single(l => l.Description!.StartsWith("Purchase tax")).Debit.Should().Be(0.08m);
         entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
 
         var openItem = await db.ApOpenItems.SingleAsync();
@@ -942,7 +942,7 @@ public class Phase2ApPostingServiceTests
     }
 
     [Fact]
-    public async Task Bill_SubCentTotalWithoutTax_PutsTheDifferenceOnTheLargestLine()
+    public async Task Bill_SubCentLines_RoundEachLineToTheCent()
     {
         using var db = await SeedAsync();
         var vendorId = await AddVendorAsync(db);
@@ -952,9 +952,27 @@ public class Phase2ApPostingServiceTests
 
         var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
         entry.Lines.Single(l => l.GlAccountId == ApControlId).Credit.Should().Be(1.12m);
-        entry.Lines.Single(l => l.Description == "Line 1").Debit.Should().Be(0.1234m);
-        entry.Lines.Single(l => l.Description == "Line 2").Debit.Should().Be(0.9966m);
+        entry.Lines.Single(l => l.Description == "Line 1").Debit.Should().Be(0.12m);
+        entry.Lines.Single(l => l.Description == "Line 2").Debit.Should().Be(1.00m);
         entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+    }
+
+    [Fact]
+    public async Task Bill_RoundedLinesShortOfTheTotal_PutTheCentOnTheLargestLine()
+    {
+        using var db = await SeedAsync();
+        var vendorId = await AddVendorAsync(db);
+        var bill = await AddSubCentBillAsync(db, vendorId, 0m, (1m, 0.3333m), (1m, 0.3333m), (2m, 0.1667m));
+
+        await BillService(db, fullGlOn: true).PostVendorBillApprovedAsync(bill.Id, approvedByUserId: 7);
+
+        var entry = await db.JournalEntries.Include(e => e.Lines).SingleAsync();
+        entry.Lines.Single(l => l.GlAccountId == ApControlId).Credit.Should().Be(1.00m);
+        entry.Lines.Single(l => l.Description == "Line 1").Debit.Should().Be(0.34m);
+        entry.Lines.Single(l => l.Description == "Line 2").Debit.Should().Be(0.33m);
+        entry.Lines.Single(l => l.Description == "Line 3").Debit.Should().Be(0.33m);
+        entry.Lines.Sum(l => l.Debit).Should().Be(entry.Lines.Sum(l => l.Credit));
+        (await db.ApOpenItems.SingleAsync()).OriginalTxnAmount.Should().Be(1.00m);
     }
 
     [Fact]
