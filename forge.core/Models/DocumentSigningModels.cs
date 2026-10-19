@@ -1,6 +1,6 @@
 namespace Forge.Core.Models;
 
-public record DocumentSigningSubmission(int SubmissionId, string SubmitUrl);
+public record DocumentSigningSubmission(int SubmissionId, string SubmitUrl, int SubmitterId = 0);
 
 public record DocumentSigningSubmissionStatus(string Status, DateTimeOffset? CompletedAt);
 
@@ -21,9 +21,14 @@ public record SequentialSubmitter(int Order, string Email, string Name, string R
 /// Embed URLs per submitter (key = Order, value = (SubmitterId, EmbedUrl)).
 /// Present the Order=1 URL to the employee immediately; subsequent URLs are provided after preceding signers complete.
 /// </param>
+/// <param name="SubmissionId">
+/// The DocuSeal submission all the submitters belong to. This, not a submitter id, is what
+/// webhooks and <c>/api/submissions/{id}</c> identify.
+/// </param>
 public record DocumentSigningMultiSubmission(
     int DocuSealTemplateId,
-    IReadOnlyDictionary<int, SubmitterResult> SubmittersByOrder);
+    IReadOnlyDictionary<int, SubmitterResult> SubmittersByOrder,
+    int SubmissionId);
 
 /// <summary>Per-submitter result from a multi-submission creation.</summary>
 public record SubmitterResult(int SubmitterId, string EmbedUrl);

@@ -122,7 +122,7 @@ public class SignOnboardingFormHandler(
                 throw new InvalidOperationException("DocuSeal returned no embed URL.");
 
             var submission = await UpsertSubmissionAsync(
-                request.UserId, template.Id, formDataJson, s1.SubmitterId, s1.EmbedUrl, isI9, ct);
+                request.UserId, template.Id, formDataJson, multiSub.SubmissionId, s1.EmbedUrl, isI9, ct);
 
             filledAttachment.EntityId = submission.Id;
             await db.SaveChangesAsync(ct);
@@ -138,7 +138,7 @@ public class SignOnboardingFormHandler(
                 throw new InvalidOperationException("Mock DocuSeal returned no submitter.");
 
             var mockSubmission = await UpsertSubmissionAsync(
-                request.UserId, template.Id, string.Empty, mockS1.SubmitterId, mockS1.EmbedUrl, isI9, ct);
+                request.UserId, template.Id, string.Empty, multiSub.SubmissionId, mockS1.EmbedUrl, isI9, ct);
 
             return new SignOnboardingFormResultModel(mockS1.EmbedUrl, mockSubmission.Id, IsMock: true);
         }
@@ -152,7 +152,7 @@ public class SignOnboardingFormHandler(
 
     private async Task<ComplianceFormSubmission> UpsertSubmissionAsync(
         int userId, int templateId, string formDataJson,
-        int docuSealSubmitterId, string embedUrl, bool isI9,
+        int docuSealSubmissionId, string embedUrl, bool isI9,
         CancellationToken ct)
     {
         var submission = await db.ComplianceFormSubmissions
@@ -173,7 +173,7 @@ public class SignOnboardingFormHandler(
         // JSON and the insert/update fails with 22P02 (reported 2026-05-10 from
         // the mock-DocuSeal path which passes string.Empty).
         submission.FormDataJson = string.IsNullOrWhiteSpace(formDataJson) ? "{}" : formDataJson;
-        submission.DocuSealSubmissionId = docuSealSubmitterId;
+        submission.DocuSealSubmissionId = docuSealSubmissionId;
         submission.DocuSealSubmitUrl = embedUrl;
         submission.Status = ComplianceSubmissionStatus.Pending;
 

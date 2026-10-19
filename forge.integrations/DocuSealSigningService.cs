@@ -115,7 +115,8 @@ public class DocuSealSigningService(
         var submission = results?.FirstOrDefault()
             ?? throw new InvalidOperationException("DocuSeal returned no submission");
 
-        return new DocumentSigningSubmission(submission.Id, RewriteEmbedUrl(submission.EmbedSrc, publicBaseUrl));
+        return new DocumentSigningSubmission(
+            SubmissionIdOf(submission), RewriteEmbedUrl(submission.EmbedSrc, publicBaseUrl), submission.Id);
     }
 
     public async Task<DocumentSigningMultiSubmission> CreateSubmissionFromPdfAsync(
@@ -166,7 +167,10 @@ public class DocuSealSigningService(
             byOrder[order] = new SubmitterResult(results[i].Id, RewriteEmbedUrl(results[i].EmbedSrc, publicBaseUrl));
         }
 
-        return new DocumentSigningMultiSubmission(templateId, byOrder);
+        var submissionId = results.Count > 0
+            ? SubmissionIdOf(results[0])
+            : throw new InvalidOperationException("DocuSeal returned no submitters");
+        return new DocumentSigningMultiSubmission(templateId, byOrder, submissionId);
     }
 
     public async Task<byte[]> GetSignedPdfAsync(int submissionId, CancellationToken ct)
@@ -293,9 +297,13 @@ public class DocuSealSigningService(
         public string Role { get; set; } = string.Empty;
     }
 
+    private static int SubmissionIdOf(DocuSealSubmissionResponse submitter)
+        => submitter.SubmissionId > 0 ? submitter.SubmissionId : submitter.Id;
+
     private sealed class DocuSealSubmissionResponse
     {
         public int Id { get; set; }
+        public int SubmissionId { get; set; }
         public string EmbedSrc { get; set; } = string.Empty;
     }
 

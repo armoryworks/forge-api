@@ -15,4 +15,5 @@ public record EmployeeListItemResponseModel(
     string? JobTitle,
     string? Department,
     DateTimeOffset? StartDate,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    bool HasLogin = true);

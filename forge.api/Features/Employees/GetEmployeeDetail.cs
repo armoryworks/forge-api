@@ -7,7 +7,7 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.Employees;
 
-public record GetEmployeeDetailQuery(int EmployeeId) : IRequest<EmployeeDetailResponseModel?>;
+public record GetEmployeeDetailQuery(int EmployeeId, string? Kind = null) : IRequest<EmployeeDetailResponseModel?>;
 
 public class GetEmployeeDetailHandler(AppDbContext db, UserManager<ApplicationUser> userManager)
     : IRequestHandler<GetEmployeeDetailQuery, EmployeeDetailResponseModel?>
@@ -28,17 +28,25 @@ public class GetEmployeeDetailHandler(AppDbContext db, UserManager<ApplicationUs
         //      callers continue to work after the Employee is promoted.
         //   4. Else 404.
 
-        var userlessProfile = await db.EmployeeProfiles
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == request.EmployeeId && p.UserId == null && p.DeletedAt == null, ct);
+        var kind = request.Kind?.Trim().ToLowerInvariant();
+        var byProfile = kind is null or EmployeeKinds.Profile;
+        var byUser = kind is null or EmployeeKinds.User;
+
+        var userlessProfile = byProfile
+            ? await db.EmployeeProfiles
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == request.EmployeeId && p.UserId == null && p.DeletedAt == null, ct)
+            : null;
 
         if (userlessProfile is not null)
             return ProjectUserlessProfile(userlessProfile);
 
-        var user = await db.Users
-            .Include(u => u.WorkLocation)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == request.EmployeeId, ct);
+        var user = byUser
+            ? await db.Users
+                .Include(u => u.WorkLocation)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == request.EmployeeId, ct)
+            : null;
 
         if (user is not null)
         {
@@ -47,6 +55,9 @@ public class GetEmployeeDetailHandler(AppDbContext db, UserManager<ApplicationUs
                 .FirstOrDefaultAsync(p => p.UserId == user.Id, ct);
             return await ProjectFromUser(user, profile, ct);
         }
+
+        if (!byProfile)
+            return null;
 
         // Linked EmployeeProfile lookup (id was a profile id, not a user id)
         var linkedProfile = await db.EmployeeProfiles
@@ -194,6 +205,7 @@ public class GetEmployeeDetailHandler(AppDbContext db, UserManager<ApplicationUs
             profile.EmergencyContactPhone,
             profile.EmergencyContactRelationship,
             complianceItems.Count(c => c),
-            complianceItems.Length);
+            complianceItems.Length,
+            HasLogin: false);
     }
 }

@@ -1,7 +1,4 @@
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 
 using MediatR;
 
@@ -12,6 +9,7 @@ using Microsoft.Extensions.Options;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.ComplianceForms;
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 
 namespace Forge.Api.Controllers;
@@ -23,6 +21,7 @@ namespace Forge.Api.Controllers;
 public class ComplianceFormsController(
     IMediator mediator,
     IOptions<DocuSealOptions> docuSealOptions,
+    IClock clock,
     ILogger<ComplianceFormsController> logger) : ControllerBase
 {
     private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -254,42 +253,23 @@ public class ComplianceFormsController(
             return Unauthorized();
         }
 
-        var expected = Convert.ToHexString(
-            HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(body)));
-        var provided = sigHeader.ToString().Trim();
-        if (provided.StartsWith("sha256=", StringComparison.OrdinalIgnoreCase))
-            provided = provided["sha256=".Length..];
-
-        var expectedBytes = Encoding.ASCII.GetBytes(expected);
-        var providedBytes = Encoding.ASCII.GetBytes(provided);
-        if (expectedBytes.Length != providedBytes.Length
-            || !CryptographicOperations.FixedTimeEquals(expectedBytes, providedBytes))
+        if (!DocuSealWebhookSignature.IsValid(secret, body, sigHeader.ToString(), clock.UtcNow))
         {
-            logger.LogWarning("DocuSeal webhook rejected: signature mismatch");
+            logger.LogWarning("DocuSeal webhook rejected: signature mismatch or stale timestamp");
             return Unauthorized();
         }
 
-        var payload = JsonDocument.Parse(body);
-
-        var eventType = payload.RootElement.GetProperty("event_type").GetString();
-        var isSubmitterEvent = eventType == "submitter.completed";
-        if (eventType != "form.completed" && !isSubmitterEvent)
+        var webhookEvent = DocuSealWebhookEvent.Parse(body);
+        if (webhookEvent is null)
             return Ok();
 
-        var data = payload.RootElement.GetProperty("data");
-        // submitter.completed: data is the submitter object; submission id is nested under data.submission_id
-        // form.completed: data is the submission object; id is data.id
-        var submissionId = isSubmitterEvent
-            ? data.GetProperty("submission_id").GetInt32()
-            : data.GetProperty("id").GetInt32();
-        var status = data.TryGetProperty("status", out var statusProp)
-            ? statusProp.GetString() ?? "completed"
-            : "completed";
-        DateTimeOffset? completedAt = data.TryGetProperty("completed_at", out var completedProp)
-            ? completedProp.GetDateTime()
-            : DateTimeOffset.UtcNow;
-
-        await mediator.Send(new HandleDocuSealWebhookCommand(submissionId, status, completedAt, isSubmitterEvent), ct);
+        await mediator.Send(new HandleDocuSealWebhookCommand(
+            webhookEvent.SubmissionId,
+            webhookEvent.Status,
+            webhookEvent.CompletedAt,
+            webhookEvent.IsSubmitterEvent,
+            webhookEvent.SubmitterId,
+            webhookEvent.AllSigned), ct);
         return Ok();
     }
 
