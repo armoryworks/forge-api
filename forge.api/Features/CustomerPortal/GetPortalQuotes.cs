@@ -36,7 +36,7 @@ public class GetPortalQuotesHandler(AppDbContext db, IClock clock)
                 : q.Status).ToString(),
             QuoteDate: q.SentDate ?? q.CreatedAt,
             ExpiresAt: q.ExpirationDate,
-            Total: q.EstimatedAmount ?? q.Total,
+            Total: q.EstimatedAmount ?? q.RoundedTotal,
             CurrencyCode: currencyCode)).ToList(), totalCount);
     }
 }

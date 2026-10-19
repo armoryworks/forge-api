@@ -3,6 +3,7 @@ using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Models.Accounting;
 using Forge.Data.Context;
 
 namespace Forge.Data.Repositories;
@@ -24,19 +25,33 @@ public class QuoteRepository(AppDbContext db) : IQuoteRepository
         if (status.HasValue)
             query = query.Where(q => q.Status == status.Value);
 
-        return await query
+        var rows = await query
             .OrderByDescending(q => q.CreatedAt)
-            .Select(q => new QuoteListItemModel(
+            .Select(q => new
+            {
                 q.Id,
-                q.QuoteNumber ?? string.Empty,
+                QuoteNumber = q.QuoteNumber ?? string.Empty,
                 q.CustomerId,
-                q.Customer.Name,
-                q.Status.ToString(),
-                q.Lines.Count,
-                q.Lines.Sum(l => l.Quantity * l.UnitPrice) * (1 + q.TaxRate),
+                CustomerName = q.Customer.Name,
+                q.Status,
+                LineCount = q.Lines.Count,
+                Subtotal = q.Lines.Sum(l => l.Quantity * l.UnitPrice),
+                q.TaxRate,
                 q.ExpirationDate,
-                q.CreatedAt))
+                q.CreatedAt,
+            })
             .ToListAsync(ct);
+
+        return rows.Select(r => new QuoteListItemModel(
+            r.Id,
+            r.QuoteNumber,
+            r.CustomerId,
+            r.CustomerName,
+            r.Status.ToString(),
+            r.LineCount,
+            Money.Round(r.Subtotal + r.Subtotal * r.TaxRate),
+            r.ExpirationDate,
+            r.CreatedAt)).ToList();
     }
 
     public async Task<Quote?> FindAsync(int id, CancellationToken ct)

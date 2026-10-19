@@ -34,8 +34,8 @@ public class CreateQuoteValidator : AbstractValidator<CreateQuoteCommand>
         {
             line.RuleFor(l => l.Description).NotEmpty();
             // Phase 3 / WU-23 (F8-broad): decimal quantity supports fractional UoM.
-            line.RuleFor(l => l.Quantity).GreaterThan(0m);
-            line.RuleFor(l => l.UnitPrice).GreaterThanOrEqualTo(0);
+            line.RuleFor(l => l.Quantity).GreaterThan(0m).UnitScale();
+            line.RuleFor(l => l.UnitPrice).GreaterThanOrEqualTo(0).UnitScale();
         });
     }
 }
@@ -122,11 +122,9 @@ public class CreateQuoteHandler(
         if (identifiers is not null)
             await identifiers.IssueAsync(BusinessEntityType.Quote, quote.Id, quote.QuoteNumber!, cancellationToken);
 
-        var total = quote.Lines.Sum(l => l.Quantity * l.UnitPrice);
-
         return new QuoteListItemModel(
             quote.Id, quote.QuoteNumber, quote.CustomerId, customer.Name,
-            quote.Status.ToString(), quote.Lines.Count, total,
+            quote.Status.ToString(), quote.Lines.Count, quote.RoundedSubtotal,
             quote.ExpirationDate, quote.CreatedAt);
     }
 

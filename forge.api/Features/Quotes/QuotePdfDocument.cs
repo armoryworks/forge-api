@@ -131,7 +131,7 @@ public class QuotePdfDocument : IDocument
                     table.Cell().Background(bg).Padding(5).Text(line.Part?.PartNumber ?? "—");
                     table.Cell().Background(bg).Padding(5).AlignRight().Text(line.Quantity.ToString("0.####"));
                     table.Cell().Background(bg).Padding(5).AlignRight().Text(line.UnitPrice.ToString("C", _money));
-                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.LineTotal.ToString("C", _money));
+                    table.Cell().Background(bg).Padding(5).AlignRight().Text(line.RoundedLineTotal.ToString("C", _money));
                 }
             });
 
@@ -140,7 +140,7 @@ public class QuotePdfDocument : IDocument
                 totals.Item().Row(row =>
                 {
                     row.RelativeItem().Text("Subtotal:").SemiBold();
-                    row.ConstantItem(100).AlignRight().Text(_quote.Subtotal.ToString("C", _money));
+                    row.ConstantItem(100).AlignRight().Text(_quote.RoundedSubtotal.ToString("C", _money));
                 });
 
                 if (_quote.TaxRate > 0)
@@ -148,7 +148,7 @@ public class QuotePdfDocument : IDocument
                     totals.Item().Row(row =>
                     {
                         row.RelativeItem().Text($"Tax ({_quote.TaxRate:P0}):").SemiBold();
-                        row.ConstantItem(100).AlignRight().Text(_quote.TaxAmount.ToString("C", _money));
+                        row.ConstantItem(100).AlignRight().Text(_quote.RoundedTaxAmount.ToString("C", _money));
                     });
                 }
 
@@ -157,7 +157,7 @@ public class QuotePdfDocument : IDocument
                 totals.Item().PaddingTop(4).Row(row =>
                 {
                     row.RelativeItem().Text("Total:").Bold().FontSize(12);
-                    row.ConstantItem(100).AlignRight().Text(_quote.Total.ToString("C", _money)).Bold().FontSize(12);
+                    row.ConstantItem(100).AlignRight().Text(_quote.RoundedTotal.ToString("C", _money)).Bold().FontSize(12);
                 });
             });
 

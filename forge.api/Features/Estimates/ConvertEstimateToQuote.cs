@@ -34,6 +34,7 @@ public class ConvertEstimateToQuoteValidator : AbstractValidator<ConvertEstimate
                 .When(r => r.PartId.HasValue);
             resolution.RuleFor(r => r.UnitPrice!.Value)
                 .GreaterThanOrEqualTo(0)
+                .UnitScale()
                 .When(r => r.UnitPrice.HasValue);
         });
     }
@@ -170,8 +171,6 @@ public class ConvertEstimateToQuoteHandler(
             ("Quote", estimate.Id), ("Quote", quote.Id));
         await db.SaveChangesAsync(ct);
 
-        var total = quote.Lines.Sum(l => l.Quantity * l.UnitPrice);
-
         return new QuoteListItemModel(
             quote.Id,
             quote.QuoteNumber!,
@@ -179,7 +178,7 @@ public class ConvertEstimateToQuoteHandler(
             estimate.Customer.Name,
             quote.Status.ToString(),
             quote.Lines.Count,
-            total,
+            quote.RoundedSubtotal,
             quote.ExpirationDate,
             quote.CreatedAt);
     }

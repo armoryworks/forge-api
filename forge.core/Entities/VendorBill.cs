@@ -1,4 +1,5 @@
 using Forge.Core.Enums;
+using Forge.Core.Models.Accounting;
 
 namespace Forge.Core.Entities;
 
@@ -66,7 +67,11 @@ public class VendorBill : BaseAuditableEntity, IConcurrencyVersioned
     public decimal Subtotal => Lines.Sum(l => l.LineTotal);
     public decimal Total => Subtotal + TaxAmount;
     public decimal AmountPaid => PaymentApplications.Sum(pa => pa.Amount);
-    public decimal BalanceDue => Total - AmountPaid;
+    /// <summary>
+    /// What is still owed, quantized to the cent (the AP mirror of <see cref="Invoice.BalanceDue"/>). The raw
+    /// difference is rounded, not the total alone, so a legacy bill paid at its raw sub-cent total reads 0.
+    /// </summary>
+    public decimal BalanceDue => Money.Round(Total - AmountPaid);
 
     public Vendor Vendor { get; set; } = null!;
     public Currency Currency { get; set; } = null!;

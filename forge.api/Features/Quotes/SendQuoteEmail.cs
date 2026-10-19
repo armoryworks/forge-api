@@ -187,10 +187,10 @@ public class SendQuoteEmailHandler(
               .Append($"<td>{WebUtility.HtmlEncode(line.Description)}</td>")
               .Append($"<td style=\"text-align:right;\">{line.Quantity:0.####}</td>")
               .Append($"<td style=\"text-align:right;\">{line.UnitPrice.ToString("C", money)}</td>")
-              .Append($"<td style=\"text-align:right;\">{line.LineTotal.ToString("C", money)}</td></tr>");
+              .Append($"<td style=\"text-align:right;\">{line.RoundedLineTotal.ToString("C", money)}</td></tr>");
         }
         sb.Append($"<tr><td colspan=\"3\" style=\"text-align:right;\"><strong>Total:</strong></td>")
-          .Append($"<td style=\"text-align:right;\"><strong>{quote.Total.ToString("C", money)}</strong></td></tr>");
+          .Append($"<td style=\"text-align:right;\"><strong>{quote.RoundedTotal.ToString("C", money)}</strong></td></tr>");
         sb.Append("</table>");
 
         if (quote.ExpirationDate.HasValue)

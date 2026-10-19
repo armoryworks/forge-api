@@ -122,4 +122,39 @@ public class EstimateLineCrudHandlerTests
         est.EstimatedAmount.Should().Be(0m);
         db.ActivityLogs.Local.Should().ContainSingle(a => a.Action == "line-removed");
     }
+
+    [Fact]
+    public async Task AddLine_SubCentLineSum_RoundsEstimatedAmountToTheCent()
+    {
+        using var db = SeedEstimate();
+        var handler = new AddEstimateLineHandler(db, _partRepo.Object, _mediator.Object);
+
+        await handler.Handle(new AddEstimateLineCommand(1, new CreateQuoteLineModel(null, "Thirds", 3, 0.3333m, null)), default);
+
+        Reload(db).EstimatedAmount.Should().Be(1.00m);
+    }
+
+    [Fact]
+    public async Task UpdateLine_SubCentLineSum_RoundsEstimatedAmountToTheCent()
+    {
+        using var db = SeedEstimate(null, new QuoteLine { Id = 1, LineNumber = 1, Description = "Initial", Quantity = 1, UnitPrice = 100m });
+        var handler = new UpdateEstimateLineHandler(db, _mediator.Object);
+
+        await handler.Handle(new UpdateEstimateLineCommand(1, 1, new UpdateOrderLineRequestModel("Halves", 0.5m, 19.999m, null)), default);
+
+        Reload(db).EstimatedAmount.Should().Be(10.00m);
+    }
+
+    [Fact]
+    public async Task DeleteLine_SubCentRemainder_RoundsEstimatedAmountToTheCent()
+    {
+        using var db = SeedEstimate(null,
+            new QuoteLine { Id = 1, LineNumber = 1, Description = "Keep", Quantity = 3, UnitPrice = 0.125m },
+            new QuoteLine { Id = 2, LineNumber = 2, Description = "Drop", Quantity = 1, UnitPrice = 10m });
+        var handler = new DeleteEstimateLineHandler(db, _mediator.Object);
+
+        await handler.Handle(new DeleteEstimateLineCommand(1, 2), default);
+
+        Reload(db).EstimatedAmount.Should().Be(0.38m);
+    }
 }

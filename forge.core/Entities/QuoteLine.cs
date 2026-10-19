@@ -1,3 +1,5 @@
+using Forge.Core.Models.Accounting;
+
 namespace Forge.Core.Entities;
 
 public class QuoteLine : BaseEntity
@@ -12,6 +14,9 @@ public class QuoteLine : BaseEntity
     public string? Notes { get; set; }
 
     public decimal LineTotal => Quantity * UnitPrice;
+
+    /// <summary>The line total rounded to the cent, as shown and sent to the customer.</summary>
+    public decimal RoundedLineTotal => Money.Round(LineTotal);
 
     public Quote Quote { get; set; } = null!;
     public Part? Part { get; set; }
