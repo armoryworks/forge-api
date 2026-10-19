@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Accounting;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Capabilities.Validate;
@@ -54,7 +55,8 @@ public class ValidateCapabilityChangesValidator : AbstractValidator<ValidateCapa
 
 public class ValidateCapabilityChangesHandler(
     AppDbContext db,
-    ICapabilitySnapshotProvider snapshots)
+    ICapabilitySnapshotProvider snapshots,
+    IFullGlCapabilityGuard glGuard)
     : IRequestHandler<ValidateCapabilityChangesCommand, ValidateCapabilityChangesResponseModel>
 {
     public async Task<ValidateCapabilityChangesResponseModel> Handle(
@@ -137,6 +139,16 @@ public class ValidateCapabilityChangesHandler(
                         Dependents: dependents));
                 }
             }
+        }
+
+        var current = new Dictionary<string, bool>(snapshots.Current.EnabledByCode, StringComparer.Ordinal);
+        foreach (var row in rows) current[row.Code] = row.Enabled;
+        foreach (var gl in await glGuard.EvaluateAsync(current, candidate, cancellationToken))
+        {
+            violations.Add(new CapabilityValidationViolation(
+                Code: gl.Code,
+                Capability: gl.Capability,
+                Message: gl.Message));
         }
 
         return new ValidateCapabilityChangesResponseModel(

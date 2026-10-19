@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Capabilities.Descriptor;
 using Forge.Api.Hubs;
 using Forge.Api.Services;
@@ -57,9 +58,12 @@ public class BulkToggleCapabilitiesHandler(
     AppDbContext db,
     ICapabilitySnapshotProvider snapshots,
     ISystemAuditWriter auditWriter,
-    IHubContext<NotificationHub> notificationHub)
+    IHubContext<NotificationHub> notificationHub,
+    IFullGlCapabilityGuard glGuard)
     : IRequestHandler<BulkToggleCapabilitiesCommand, IReadOnlyList<CapabilityDescriptorEntry>>
 {
+    private const string FullGlCapability = "CAP-ACCT-FULLGL";
+
     public async Task<IReadOnlyList<CapabilityDescriptorEntry>> Handle(
         BulkToggleCapabilitiesCommand request,
         CancellationToken cancellationToken)
@@ -114,6 +118,8 @@ public class BulkToggleCapabilitiesHandler(
         //    A and disabling A's dependent B in the same bulk is OK because
         //    the post-apply world has neither A's missing dep nor B's
         //    enabled dependent.
+        var current = new Dictionary<string, bool>(snapshots.Current.EnabledByCode, StringComparer.Ordinal);
+        foreach (var row in rows) current[row.Code] = row.Enabled;
         var candidate = new Dictionary<string, bool>(snapshots.Current.EnabledByCode, StringComparer.Ordinal);
         foreach (var item in request.Items) candidate[item.Id] = item.Enabled;
 
@@ -167,6 +173,17 @@ public class BulkToggleCapabilitiesHandler(
             }
         }
 
+        foreach (var gl in await glGuard.EvaluateAsync(current, candidate, cancellationToken))
+        {
+            violations.Add(new
+            {
+                code = gl.Code,
+                capability = gl.Capability,
+                bookId = gl.BookId,
+                message = gl.Message,
+            });
+        }
+
         if (violations.Count > 0)
         {
             throw new CapabilityMutationException(
@@ -192,6 +209,19 @@ public class BulkToggleCapabilitiesHandler(
             changedItems.Add((row, fromState, toState, request.Reason));
         }
         await db.SaveChangesAsync(cancellationToken);
+
+        if (changedItems.Any(c => c.Row.Code == FullGlCapability && c.To))
+        {
+            var view = await glGuard.EnableGlViewAsync(cancellationToken);
+            if (view is not null)
+            {
+                var explicitIndex = changedItems.FindIndex(c => c.Row.Code == view.Code);
+                var viewFrom = explicitIndex >= 0 && changedItems[explicitIndex].From;
+                if (explicitIndex >= 0) changedItems.RemoveAt(explicitIndex);
+                if (!viewFrom) changedItems.Add((view, false, true, request.Reason));
+                if (!ids.Contains(view.Code)) ids.Add(view.Code);
+            }
+        }
 
         await snapshots.RefreshAsync(cancellationToken);
 

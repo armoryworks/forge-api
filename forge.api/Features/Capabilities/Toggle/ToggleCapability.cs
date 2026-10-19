@@ -55,12 +55,11 @@ public class ToggleCapabilityHandler(
     ICapabilitySnapshotProvider snapshots,
     ISystemAuditWriter auditWriter,
     IHubContext<NotificationHub> notificationHub,
-    IGlCapabilityGate glGate)
+    IFullGlCapabilityGuard glGuard)
     : IRequestHandler<ToggleCapabilityCommand, CapabilityDescriptorEntry>
 {
     /// <summary>The one capability with a domain hard-gate beyond the dependency graph (§5.5/§7A).</summary>
     private const string FullGlCapability = "CAP-ACCT-FULLGL";
-    private const string GlViewCapability = "CAP-ACCT-GL-VIEW";
 
     public async Task<CapabilityDescriptorEntry> Handle(
         ToggleCapabilityCommand request,
@@ -134,36 +133,6 @@ public class ToggleCapabilityHandler(
                             ["conflicts"] = conflicts,
                         });
                 }
-
-                // §5.5 / §7A opening-balances hard-gate (wired 2026-07-07; the gate logic itself
-                // shipped dark in Phase 0): CAP-ACCT-FULLGL cannot be enabled while any active
-                // book lacks its posted Conversion opening journal. Installs with no Book yet
-                // pass trivially — there is no ledger to protect.
-                if (request.Code == FullGlCapability)
-                {
-                    var activeBookIds = await db.Books
-                        .AsNoTracking()
-                        .Where(b => b.IsActive)
-                        .Select(b => b.Id)
-                        .ToListAsync(cancellationToken);
-
-                    foreach (var bookId in activeBookIds)
-                    {
-                        var eligibility = await glGate.EvaluateAsync(bookId, cancellationToken);
-                        if (!eligibility.CanEnable)
-                        {
-                            throw new CapabilityMutationException(
-                                StatusCodes.Status409Conflict,
-                                "capability-gl-opening-balances",
-                                eligibility.Reason ?? $"Book {bookId} has not passed the opening-balances gate.",
-                                new Dictionary<string, object?>
-                                {
-                                    ["capability"] = request.Code,
-                                    ["bookId"] = bookId,
-                                });
-                        }
-                    }
-                }
             }
             else
             {
@@ -181,43 +150,29 @@ public class ToggleCapabilityHandler(
                             ["dependents"] = dependents,
                         });
                 }
+            }
 
-                // Deactivation guard (fullgl-deactivation §3.5): once a book is live
-                // (opening balances loaded), CAP-ACCT-FULLGL must NOT be turned off by a
-                // raw capability toggle. Stopping posting mid-period silently desyncs the
-                // sub-ledgers from the general ledger (a half-posted period), which is the
-                // one failure mode the ledger design must make impossible. Turning the
-                // ledger off is a governed, dated cutover (close & tie out the period, then
-                // deactivate with a successor system) — not a capability flip. Books with no
-                // loaded opening balances have no ledger history to protect and stay toggle-able.
-                if (request.Code == FullGlCapability)
-                {
-                    var activeBookIds = await db.Books
-                        .AsNoTracking()
-                        .Where(b => b.IsActive)
-                        .Select(b => b.Id)
-                        .ToListAsync(cancellationToken);
-
-                    foreach (var bookId in activeBookIds)
+            var before = new Dictionary<string, bool>(currentEnabled, StringComparer.Ordinal)
+            {
+                [request.Code] = fromState,
+            };
+            var candidate = new Dictionary<string, bool>(currentEnabled, StringComparer.Ordinal)
+            {
+                [request.Code] = toState,
+            };
+            var glViolations = await glGuard.EvaluateAsync(before, candidate, cancellationToken);
+            if (glViolations.Count > 0)
+            {
+                var first = glViolations[0];
+                throw new CapabilityMutationException(
+                    StatusCodes.Status409Conflict,
+                    first.Code,
+                    first.Message,
+                    new Dictionary<string, object?>
                     {
-                        if (await glGate.AreOpeningBalancesLoadedAsync(bookId, cancellationToken))
-                        {
-                            throw new CapabilityMutationException(
-                                StatusCodes.Status409Conflict,
-                                "capability-gl-live-ledger",
-                                $"CAP-ACCT-FULLGL cannot be turned off for book {bookId} by toggling the " +
-                                "capability: the ledger is live (opening balances are loaded), so stopping " +
-                                "posting mid-period would desync the sub-ledgers from the general ledger. Turn " +
-                                "the ledger off through the governed deactivation cutover (close and tie out the " +
-                                "period, then deactivate with a successor system).",
-                                new Dictionary<string, object?>
-                                {
-                                    ["capability"] = request.Code,
-                                    ["bookId"] = bookId,
-                                });
-                        }
-                    }
-                }
+                        ["capability"] = first.Capability,
+                        ["bookId"] = first.BookId,
+                    });
             }
         }
 
@@ -227,30 +182,9 @@ public class ToggleCapabilityHandler(
         row.Enabled = toState;
         await db.SaveChangesAsync(cancellationToken);
 
-        // Cascade: enabling CAP-ACCT-FULLGL also enables the read-only view surface
-        // CAP-ACCT-GL-VIEW (you can't post without being able to view). GL-VIEW is
-        // deliberately NOT turned off when FULLGL is disabled, so a deactivated ledger
-        // stays viewable and reportable read-only for audit/tax (fullgl-deactivation §3.1).
         if (request.Code == FullGlCapability && toState)
         {
-            var view = await db.Capabilities.FirstOrDefaultAsync(c => c.Code == GlViewCapability, cancellationToken);
-            if (view is null)
-            {
-                db.Capabilities.Add(new Capability
-                {
-                    Code = GlViewCapability,
-                    Area = "ACCT",
-                    Name = "General-ledger read-only view",
-                    Description = "Read-only access to the ledger, statements and exports. Auto-enabled with full GL.",
-                    Enabled = true,
-                });
-                await db.SaveChangesAsync(cancellationToken);
-            }
-            else if (!view.Enabled)
-            {
-                view.Enabled = true;
-                await db.SaveChangesAsync(cancellationToken);
-            }
+            await glGuard.EnableGlViewAsync(cancellationToken);
         }
 
         // 4. Refresh the snapshot so the very next request reflects the new

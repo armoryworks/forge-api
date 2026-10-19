@@ -2,6 +2,7 @@ using MediatR;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Capabilities.Discovery;
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Presets.Models;
 
 namespace Forge.Api.Features.Presets.Preview;
@@ -20,16 +21,18 @@ namespace Forge.Api.Features.Presets.Preview;
 public record PreviewPresetApplyQuery(string PresetId)
     : IRequest<PresetApplyPreviewResponseModel?>;
 
-public class PreviewPresetApplyHandler(ICapabilitySnapshotProvider snapshots)
+public class PreviewPresetApplyHandler(
+    ICapabilitySnapshotProvider snapshots,
+    IFullGlCapabilityGuard glGuard)
     : IRequestHandler<PreviewPresetApplyQuery, PresetApplyPreviewResponseModel?>
 {
-    public Task<PresetApplyPreviewResponseModel?> Handle(
+    public async Task<PresetApplyPreviewResponseModel?> Handle(
         PreviewPresetApplyQuery request,
         CancellationToken cancellationToken)
     {
         var preset = PresetCatalog.FindById(request.PresetId);
         if (preset is null)
-            return Task.FromResult<PresetApplyPreviewResponseModel?>(null);
+            return null;
 
         var snapshot = snapshots.Current;
         var current = snapshot.EnabledByCode;
@@ -40,6 +43,7 @@ public class PreviewPresetApplyHandler(ICapabilitySnapshotProvider snapshots)
                 CapabilityCatalog.All.Where(c => c.IsDefaultOn).Select(c => c.Code),
                 StringComparer.Ordinal)
             : new HashSet<string>(preset.EnabledCapabilities, StringComparer.Ordinal);
+        PresetCapabilityHolds.Apply(targetSet, current, await glGuard.IsLedgerLiveAsync(current, cancellationToken));
 
         // Compute deltas (changing rows only).
         var deltas = new List<PresetCapabilityDeltaResponseModel>();
@@ -111,13 +115,24 @@ public class PreviewPresetApplyHandler(ICapabilitySnapshotProvider snapshots)
             }
         }
 
-        return Task.FromResult<PresetApplyPreviewResponseModel?>(new PresetApplyPreviewResponseModel(
+        foreach (var gl in await glGuard.EvaluateAsync(current, candidate, cancellationToken))
+        {
+            violations.Add(new PresetApplyViolationResponseModel(
+                Code: gl.Code,
+                Capability: gl.Capability,
+                Message: gl.Message,
+                Missing: null,
+                Conflicts: null,
+                Dependents: null));
+        }
+
+        return new PresetApplyPreviewResponseModel(
             PresetId: preset.Id,
             PresetName: preset.Name,
             IsCustom: preset.IsCustom,
             DeltaCount: deltas.Count,
             Deltas: deltas,
             Valid: violations.Count == 0,
-            Violations: violations));
+            Violations: violations);
     }
 }

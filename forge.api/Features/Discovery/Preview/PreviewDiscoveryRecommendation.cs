@@ -3,6 +3,7 @@ using MediatR;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Capabilities.Discovery;
+using Forge.Api.Features.Accounting;
 
 namespace Forge.Api.Features.Discovery.Preview;
 
@@ -58,10 +59,12 @@ public class PreviewDiscoveryRecommendationValidator
     }
 }
 
-public class PreviewDiscoveryRecommendationHandler(ICapabilitySnapshotProvider snapshots)
+public class PreviewDiscoveryRecommendationHandler(
+    ICapabilitySnapshotProvider snapshots,
+    IFullGlCapabilityGuard glGuard)
     : IRequestHandler<PreviewDiscoveryRecommendationCommand, DiscoveryRecommendationResponseModel>
 {
-    public Task<DiscoveryRecommendationResponseModel> Handle(
+    public async Task<DiscoveryRecommendationResponseModel> Handle(
         PreviewDiscoveryRecommendationCommand request,
         CancellationToken cancellationToken)
     {
@@ -74,10 +77,14 @@ public class PreviewDiscoveryRecommendationHandler(ICapabilitySnapshotProvider s
             ?? throw new InvalidOperationException(
                 $"Recommendation produced unknown preset {recommendation.PresetId}");
 
+        var current = snapshots.Current.EnabledByCode;
         var deltas = DiscoveryRecommendationEngine.ComputeDeltas(
-            recommendation.PresetId, snapshots.Current.EnabledByCode, answerSet);
+            recommendation.PresetId,
+            current,
+            answerSet,
+            await glGuard.IsLedgerLiveAsync(current, cancellationToken));
 
-        return Task.FromResult(new DiscoveryRecommendationResponseModel(
+        return new DiscoveryRecommendationResponseModel(
             PresetId: recommendation.PresetId,
             PresetName: preset.Name,
             PresetDescription: preset.ShortDescription,
@@ -93,6 +100,6 @@ public class PreviewDiscoveryRecommendationHandler(ICapabilitySnapshotProvider s
             CapabilityDeltas: deltas
                 .Select(d => new CapabilityDeltaResponseModel(d.Code, d.Name, d.CurrentlyEnabled, d.WillBeEnabled))
                 .ToList(),
-            CapabilityAdjustments: DiscoveryCapabilityAdjustmentResponseModel.From(recommendation.Adjustments)));
+            CapabilityAdjustments: DiscoveryCapabilityAdjustmentResponseModel.From(recommendation.Adjustments));
     }
 }

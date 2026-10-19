@@ -626,7 +626,8 @@ public static class DiscoveryRecommendationEngine
     public static IReadOnlyList<CapabilityDelta> ComputeDeltas(
         string presetId,
         IReadOnlyDictionary<string, bool> currentState,
-        DiscoveryAnswerSet? answers = null)
+        DiscoveryAnswerSet? answers = null,
+        bool ledgerLive = false)
     {
         var preset = PresetCatalog.FindById(presetId)
             ?? throw new ArgumentException($"Unknown preset id: {presetId}", nameof(presetId));
@@ -641,6 +642,7 @@ public static class DiscoveryRecommendationEngine
             : new HashSet<string>(preset.EnabledCapabilities, StringComparer.Ordinal);
 
         ApplyDiagnosticOverrides(targetSet, answers);
+        PresetCapabilityHolds.Apply(targetSet, currentState, ledgerLive);
 
         var deltas = new List<CapabilityDelta>();
 

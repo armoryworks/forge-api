@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Presets.Models;
 
 namespace Forge.Api.Features.Presets.Custom;
@@ -37,10 +38,12 @@ public class PreviewCustomPresetValidator : AbstractValidator<PreviewCustomPrese
     }
 }
 
-public class PreviewCustomPresetHandler(ICapabilitySnapshotProvider snapshots)
+public class PreviewCustomPresetHandler(
+    ICapabilitySnapshotProvider snapshots,
+    IFullGlCapabilityGuard glGuard)
     : IRequestHandler<PreviewCustomPresetCommand, PresetCustomPreviewResponseModel>
 {
-    public Task<PresetCustomPreviewResponseModel> Handle(
+    public async Task<PresetCustomPreviewResponseModel> Handle(
         PreviewCustomPresetCommand request,
         CancellationToken cancellationToken)
     {
@@ -55,6 +58,13 @@ public class PreviewCustomPresetHandler(ICapabilitySnapshotProvider snapshots)
             if (ov.Enabled) targetSet.Add(ov.Code);
             else targetSet.Remove(ov.Code);
         }
+
+        var current = snapshots.Current.EnabledByCode;
+        PresetCapabilityHolds.Apply(
+            targetSet,
+            current,
+            await glGuard.IsLedgerLiveAsync(current, cancellationToken),
+            request.CapabilityOverrides.Select(o => o.Code).ToList());
 
         // 3. Build the capability rows (every catalog entry, tagged in/out
         //    of the resolved set).
@@ -71,8 +81,6 @@ public class PreviewCustomPresetHandler(ICapabilitySnapshotProvider snapshots)
             .ToList();
 
         // 4. Delta vs current install state.
-        var snapshot = snapshots.Current;
-        var current = snapshot.EnabledByCode;
         var delta = new List<PresetCapabilityDeltaResponseModel>();
         foreach (var def in CapabilityCatalog.All)
         {
@@ -139,11 +147,22 @@ public class PreviewCustomPresetHandler(ICapabilitySnapshotProvider snapshots)
             }
         }
 
-        return Task.FromResult(new PresetCustomPreviewResponseModel(
+        foreach (var gl in await glGuard.EvaluateAsync(current, candidate, cancellationToken))
+        {
+            violations.Add(new PresetApplyViolationResponseModel(
+                Code: gl.Code,
+                Capability: gl.Capability,
+                Message: gl.Message,
+                Missing: null,
+                Conflicts: null,
+                Dependents: null));
+        }
+
+        return new PresetCustomPreviewResponseModel(
             CapabilityCount: targetSet.Count,
             Capabilities: capabilities,
             DeltaVsCurrentInstall: delta,
             Valid: violations.Count == 0,
-            Violations: violations));
+            Violations: violations);
     }
 }

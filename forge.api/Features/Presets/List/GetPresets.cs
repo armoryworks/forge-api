@@ -2,6 +2,7 @@ using MediatR;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Capabilities.Discovery;
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Presets.Models;
 
 namespace Forge.Api.Features.Presets.List;
@@ -18,14 +19,17 @@ namespace Forge.Api.Features.Presets.List;
 /// </summary>
 public record GetPresetsQuery() : IRequest<IReadOnlyList<PresetSummaryResponseModel>>;
 
-public class GetPresetsHandler(ICapabilitySnapshotProvider snapshots)
+public class GetPresetsHandler(
+    ICapabilitySnapshotProvider snapshots,
+    IFullGlCapabilityGuard glGuard)
     : IRequestHandler<GetPresetsQuery, IReadOnlyList<PresetSummaryResponseModel>>
 {
-    public Task<IReadOnlyList<PresetSummaryResponseModel>> Handle(
+    public async Task<IReadOnlyList<PresetSummaryResponseModel>> Handle(
         GetPresetsQuery request,
         CancellationToken cancellationToken)
     {
         var snapshot = snapshots.Current;
+        var ledgerLive = await glGuard.IsLedgerLiveAsync(snapshot.EnabledByCode, cancellationToken);
         var summaries = PresetCatalog.All
             .Select(preset =>
             {
@@ -39,12 +43,12 @@ public class GetPresetsHandler(ICapabilitySnapshotProvider snapshots)
                     TargetProfile: preset.TargetProfile,
                     CapabilityCount: capabilityCount,
                     IsCustom: preset.IsCustom,
-                    IsActive: !preset.IsCustom && PresetStateComparer.MatchesCurrent(preset, snapshot.EnabledByCode),
+                    IsActive: !preset.IsCustom && PresetStateComparer.MatchesCurrent(preset, snapshot.EnabledByCode, ledgerLive),
                     RecommendedFor: PresetMetadata.GetRecommendedForTags(preset.Id));
             })
             .ToList();
 
-        return Task.FromResult<IReadOnlyList<PresetSummaryResponseModel>>(summaries);
+        return summaries;
     }
 }
 
@@ -58,9 +62,11 @@ internal static class PresetStateComparer
 {
     public static bool MatchesCurrent(
         PresetDefinition preset,
-        IReadOnlyDictionary<string, bool> currentState)
+        IReadOnlyDictionary<string, bool> currentState,
+        bool ledgerLive)
     {
         var presetSet = new HashSet<string>(preset.EnabledCapabilities, StringComparer.Ordinal);
+        PresetCapabilityHolds.Apply(presetSet, currentState, ledgerLive);
         foreach (var def in CapabilityCatalog.All)
         {
             var currentlyEnabled = currentState.TryGetValue(def.Code, out var v) && v;

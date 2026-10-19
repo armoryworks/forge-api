@@ -2,6 +2,7 @@ using MediatR;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Capabilities.Discovery;
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Presets.List;
 using Forge.Api.Features.Presets.Models;
 
@@ -21,15 +22,17 @@ namespace Forge.Api.Features.Presets.Detail;
 public record GetPresetDetailQuery(string PresetId)
     : IRequest<PresetDetailResponseModel?>;
 
-public class GetPresetDetailHandler(ICapabilitySnapshotProvider snapshots)
+public class GetPresetDetailHandler(
+    ICapabilitySnapshotProvider snapshots,
+    IFullGlCapabilityGuard glGuard)
     : IRequestHandler<GetPresetDetailQuery, PresetDetailResponseModel?>
 {
-    public Task<PresetDetailResponseModel?> Handle(
+    public async Task<PresetDetailResponseModel?> Handle(
         GetPresetDetailQuery request,
         CancellationToken cancellationToken)
     {
         var preset = PresetCatalog.FindById(request.PresetId);
-        if (preset is null) return Task.FromResult<PresetDetailResponseModel?>(null);
+        if (preset is null) return null;
 
         // Resolve the preset's effective capability set. Custom inherits
         // catalog defaults at apply time.
@@ -63,13 +66,16 @@ public class GetPresetDetailHandler(ICapabilitySnapshotProvider snapshots)
 
         // Delta vs current install: capabilities where (in preset) != (currently enabled).
         var snapshot = snapshots.Current;
+        var ledgerLive = await glGuard.IsLedgerLiveAsync(snapshot.EnabledByCode, cancellationToken);
+        var applySet = new HashSet<string>(effectiveSet, StringComparer.Ordinal);
+        PresetCapabilityHolds.Apply(applySet, snapshot.EnabledByCode, ledgerLive);
         var deltaVsInstall = CapabilityCatalog.All
             .OrderBy(c => c.Area, StringComparer.Ordinal)
             .ThenBy(c => c.Code, StringComparer.Ordinal)
             .Select(c =>
             {
                 var currentlyEnabled = snapshot.EnabledByCode.TryGetValue(c.Code, out var v) && v;
-                var willBeEnabled = effectiveSet.Contains(c.Code);
+                var willBeEnabled = applySet.Contains(c.Code);
                 return (Capability: c, currentlyEnabled, willBeEnabled);
             })
             .Where(t => t.currentlyEnabled != t.willBeEnabled)
@@ -90,12 +96,12 @@ public class GetPresetDetailHandler(ICapabilitySnapshotProvider snapshots)
             TargetProfile: preset.TargetProfile,
             CapabilityCount: capabilityCount,
             IsCustom: preset.IsCustom,
-            IsActive: !preset.IsCustom && PresetStateComparer.MatchesCurrent(preset, snapshot.EnabledByCode),
+            IsActive: !preset.IsCustom && PresetStateComparer.MatchesCurrent(preset, snapshot.EnabledByCode, ledgerLive),
             RecommendedFor: PresetMetadata.GetRecommendedForTags(preset.Id),
             Capabilities: capabilities,
             DeltaVsCatalogDefaults: deltaVsCatalog,
             DeltaVsCurrentInstall: deltaVsInstall);
 
-        return Task.FromResult<PresetDetailResponseModel?>(detail);
+        return detail;
     }
 }
