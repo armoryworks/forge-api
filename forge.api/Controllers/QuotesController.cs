@@ -69,6 +69,17 @@ public class QuotesController(IMediator mediator) : ControllerBase
         return CreatedAtAction(nameof(GetQuote), new { id = result.Id }, result);
     }
 
+    /// <summary>
+    /// Start the next revision of a Sent, Declined or Expired quote: a new Draft numbered after it,
+    /// with the source marked Superseded so it can no longer be accepted.
+    /// </summary>
+    [HttpPost("{id:int}/revise")]
+    public async Task<ActionResult<QuoteDetailResponseModel>> ReviseQuote(int id)
+    {
+        var result = await mediator.Send(new DuplicateQuoteCommand(id, AsRevision: true));
+        return CreatedAtAction(nameof(GetQuote), new { id = result.Id }, result);
+    }
+
     [HttpPost("{id:int}/lines")]
     public async Task<ActionResult<QuoteDetailResponseModel>> AddQuoteLine(int id, CreateQuoteLineModel request)
     {

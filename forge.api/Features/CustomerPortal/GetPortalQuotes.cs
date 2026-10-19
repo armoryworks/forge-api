@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -15,7 +16,7 @@ public class GetPortalQuotesHandler(AppDbContext db)
     {
         var quotes = await db.Quotes.AsNoTracking()
             .Include(q => q.Lines)
-            .Where(q => q.CustomerId == request.CustomerId)
+            .Where(q => q.CustomerId == request.CustomerId && q.Status != QuoteStatus.Superseded)
             .OrderByDescending(q => q.CreatedAt)
             .Take(200)
             .ToListAsync(ct);

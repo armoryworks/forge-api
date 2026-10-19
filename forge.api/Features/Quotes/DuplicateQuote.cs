@@ -13,7 +13,14 @@ using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Quotes;
 
-public record DuplicateQuoteCommand(int Id) : IRequest<QuoteDetailResponseModel>;
+/// <summary>
+/// Copy a quote into a new Draft. With <paramref name="AsRevision"/> the copy is the next revision of
+/// a Sent, Declined or Expired quote: it is numbered after the source (<c>Q-1001-R1</c>, then
+/// <c>-R2</c>; the next sequence number when that does not fit or is taken), keeps the customer PO,
+/// and the source becomes <see cref="QuoteStatus.Superseded"/> so only the latest revision can be
+/// accepted. Both quotes record the link in their activity history.
+/// </summary>
+public record DuplicateQuoteCommand(int Id, bool AsRevision = false) : IRequest<QuoteDetailResponseModel>;
 
 public class DuplicateQuoteValidator : AbstractValidator<DuplicateQuoteCommand>
 {
@@ -40,6 +47,9 @@ public class DuplicateQuoteHandler(
             .FirstOrDefaultAsync(q => q.Id == request.Id && q.Type == QuoteType.Quote, cancellationToken)
             ?? throw new KeyNotFoundException($"Quote {request.Id} not found");
 
+        if (request.AsRevision && !RevisableStatuses.Contains(source.Status))
+            throw new InvalidOperationException("Only Sent, Declined or Expired quotes can be revised.");
+
         ActiveCheck.EnsureActive(source.Customer, "Customer", "customerId", source.CustomerId);
 
         var lines = source.Lines.OrderBy(l => l.LineNumber).ToList();
@@ -58,12 +68,16 @@ public class DuplicateQuoteHandler(
         {
             Type = QuoteType.Quote,
             Status = QuoteStatus.Draft,
-            QuoteNumber = await repo.GenerateNextQuoteNumberAsync(cancellationToken),
+            QuoteNumber = request.AsRevision
+                ? await RevisionNumberAsync(source.QuoteNumber, cancellationToken)
+                : await repo.GenerateNextQuoteNumberAsync(cancellationToken),
             CustomerId = source.CustomerId,
             ShippingAddressId = source.ShippingAddressId,
             Notes = source.Notes,
             TaxRate = source.TaxRate,
             TaxDocumentId = taxDocumentId,
+            CustomerPO = request.AsRevision ? source.CustomerPO : null,
+            SourceEstimateId = request.AsRevision ? source.SourceEstimateId : null,
         };
 
         var lineNumber = 1;
@@ -82,13 +96,48 @@ public class DuplicateQuoteHandler(
 
         db.Quotes.Add(copy);
         await CopyPaymentScheduleAsync(source.Id, copy, cancellationToken);
+
+        if (request.AsRevision)
+        {
+            var superseded = await db.Quotes.FirstAsync(q => q.Id == source.Id, cancellationToken);
+            superseded.Status = QuoteStatus.Superseded;
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
-        db.LogActivityAt("created", $"Created (duplicated from {source.QuoteNumber})", ("Quote", copy.Id));
+        if (request.AsRevision)
+        {
+            db.LogActivityAt("created", $"Created (revision of {source.QuoteNumber})", ("Quote", copy.Id));
+            db.LogActivityAt("superseded", $"Superseded by revision {copy.QuoteNumber}", ("Quote", source.Id));
+        }
+        else
+        {
+            db.LogActivityAt("created", $"Created (duplicated from {source.QuoteNumber})", ("Quote", copy.Id));
+        }
         await identifiers.IssueAsync(BusinessEntityType.Quote, copy.Id, copy.QuoteNumber!, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
         return await mediator.Send(new GetQuoteByIdQuery(copy.Id), cancellationToken);
+    }
+
+    private static readonly QuoteStatus[] RevisableStatuses = [QuoteStatus.Sent, QuoteStatus.Declined, QuoteStatus.Expired];
+    private const int QuoteNumberMaxLength = 20;
+
+    private async Task<string> RevisionNumberAsync(string? sourceNumber, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(sourceNumber))
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(sourceNumber, @"^(?<base>.+?)-R(?<rev>\d+)$");
+            var baseNumber = match.Success ? match.Groups["base"].Value : sourceNumber;
+            var revision = match.Success && int.TryParse(match.Groups["rev"].Value, out var r) ? r + 1 : 1;
+            var candidate = $"{baseNumber}-R{revision}";
+
+            var taken = await db.Quotes.IgnoreQueryFilters().AnyAsync(q => q.QuoteNumber == candidate, ct);
+            if (candidate.Length <= QuoteNumberMaxLength && !taken)
+                return candidate;
+        }
+
+        return await repo.GenerateNextQuoteNumberAsync(ct);
     }
 
     private async Task CopyPaymentScheduleAsync(int sourceQuoteId, Quote copy, CancellationToken ct)
