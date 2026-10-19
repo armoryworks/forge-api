@@ -40,7 +40,8 @@ public class UpdateAdminUserHandler(
     AppDbContext db,
     ISystemAuditWriter auditWriter,
     ICapabilitySnapshotProvider capabilities,
-    ISessionStore sessionStore)
+    UserDeactivation deactivation,
+    IClock clock)
     : IRequestHandler<UpdateAdminUserCommand, AdminUserResponseModel>
 {
     public async Task<AdminUserResponseModel> Handle(UpdateAdminUserCommand request, CancellationToken cancellationToken)
@@ -55,6 +56,10 @@ public class UpdateAdminUserHandler(
         if (request.Initials is not null) user.Initials = request.Initials;
         if (request.AvatarColor is not null) user.AvatarColor = request.AvatarColor;
         var deactivating = request.IsActive == false && user.IsActive;
+        var droppingAdmin = request.Roles is not null
+            && !request.Roles.Contains(UserDeactivation.AdminRole, StringComparer.Ordinal);
+        if (deactivating || droppingAdmin)
+            await UserDeactivation.EnsureNotLastActiveAdminAsync(db, user.Id, cancellationToken);
         if (request.IsActive.HasValue) user.IsActive = request.IsActive.Value;
 
         // Email correction (typo fix). Email is the login identity — UserName is
@@ -76,7 +81,7 @@ public class UpdateAdminUserHandler(
             user.UserName = request.Email;
         }
 
-        user.UpdatedAt = DateTimeOffset.UtcNow;
+        user.UpdatedAt = clock.UtcNow;
 
         var result = await userManager.UpdateAsync(user);
         if (!result.Succeeded)
@@ -85,8 +90,9 @@ public class UpdateAdminUserHandler(
             throw new InvalidOperationException($"Failed to update user: {errors}");
         }
 
+        UserDeactivationResult? deactivated = null;
         if (deactivating)
-            await sessionStore.RevokeAllUserSessionsAsync(user.Id, cancellationToken);
+            deactivated = await deactivation.ApplyAsync(user.Id, cancellationToken);
 
         if (request.Roles is not null)
         {
@@ -145,6 +151,7 @@ public class UpdateAdminUserHandler(
                 db.CurrentUserId ?? 0,
                 entityType: "ApplicationUser",
                 entityId: user.Id,
+                details: deactivated is null ? null : System.Text.Json.JsonSerializer.Serialize(deactivated),
                 ct: cancellationToken);
         }
 
@@ -152,7 +159,7 @@ public class UpdateAdminUserHandler(
         var hasPassword = await userManager.HasPasswordAsync(user);
         var hasPendingToken = user.SetupToken != null
             && user.SetupTokenExpiresAt.HasValue
-            && user.SetupTokenExpiresAt.Value > DateTimeOffset.UtcNow;
+            && user.SetupTokenExpiresAt.Value > clock.UtcNow;
         var userScans = await db.Set<Forge.Core.Entities.UserScanIdentifier>()
             .Where(s => s.UserId == user.Id && s.IsActive && s.DeletedAt == null)
             .Select(s => s.IdentifierType)

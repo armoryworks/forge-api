@@ -30,6 +30,7 @@ using System.Threading.RateLimiting;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
+using Forge.Api.Features.Admin;
 using Forge.Api.Features.AutoPo;
 using Forge.Api.Features.Terminology;
 using Forge.Api.Jobs;
@@ -322,6 +323,7 @@ try
     builder.Services.AddScoped<ITimeTrackingRepository, TimeTrackingRepository>();
     builder.Services.AddScoped<IWorkCenterContext, WorkCenterContext>();
     builder.Services.AddScoped<ITimerStopService, TimerStopService>();
+    builder.Services.AddScoped<UserDeactivation>();
     builder.Services.AddScoped<IJobOperationService, JobOperationService>();
     builder.Services.AddScoped<IUserPreferenceRepository, UserPreferenceRepository>();
     builder.Services.AddScoped<IFileRepository, FileRepository>();

@@ -5,7 +5,9 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Admin;
 using Forge.Api.Services;
+using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Employees;
@@ -21,7 +23,9 @@ public class RevokeSystemAccessHandler(
     AppDbContext db,
     UserManager<ApplicationUser> userManager,
     ISystemAuditWriter audit,
-    IHttpContextAccessor httpContext)
+    IHttpContextAccessor httpContext,
+    UserDeactivation deactivation,
+    IClock clock)
     : IRequestHandler<RevokeSystemAccessCommand, bool>
 {
     public async Task<bool> Handle(RevokeSystemAccessCommand request, CancellationToken ct)
@@ -37,6 +41,10 @@ public class RevokeSystemAccessHandler(
         // Capture identity from User before unlink (so the Employee continues
         // to display a name even with no User account).
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == formerUserId, ct);
+        var deactivating = user is { IsActive: true };
+        if (deactivating)
+            await UserDeactivation.EnsureNotLastActiveAdminAsync(db, formerUserId, ct);
+
         if (user is not null)
         {
             if (string.IsNullOrEmpty(profile.FirstName)) profile.FirstName = user.FirstName;
@@ -44,12 +52,16 @@ public class RevokeSystemAccessHandler(
             if (string.IsNullOrEmpty(profile.WorkEmail)) profile.WorkEmail = user.Email;
 
             user.IsActive = false;
-            user.UpdatedAt = DateTimeOffset.UtcNow;
+            user.UpdatedAt = clock.UtcNow;
             await userManager.UpdateAsync(user);
         }
 
         profile.UserId = null;
         await db.SaveChangesAsync(ct);
+
+        UserDeactivationResult? deactivated = null;
+        if (deactivating)
+            deactivated = await deactivation.ApplyAsync(formerUserId, ct);
 
         var actorId = TryGetActorId(httpContext);
         await audit.WriteAsync(
@@ -57,7 +69,7 @@ public class RevokeSystemAccessHandler(
             actorId,
             entityType: "EmployeeProfile",
             entityId: profile.Id,
-            details: JsonSerializer.Serialize(new { formerUserId }),
+            details: JsonSerializer.Serialize(new { formerUserId, deactivated }),
             ct: ct);
 
         return true;
