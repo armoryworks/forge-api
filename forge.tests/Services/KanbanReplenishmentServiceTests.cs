@@ -56,6 +56,19 @@ public class KanbanReplenishmentServiceTests
     }
 
     [Fact]
+    public async Task CreateCard_AfterASoftDeletedCard_DoesNotReuseItsNumber()
+    {
+        var (service, db, partId, workCenterId) = Make();
+        var deleted = await service.CreateCardAsync(Request(partId, workCenterId), default);
+        deleted.DeletedAt = Now;
+        await db.SaveChangesAsync();
+
+        var next = await service.CreateCardAsync(Request(partId, workCenterId), default);
+
+        next.CardNumber.Should().NotBe(deleted.CardNumber);
+    }
+
+    [Fact]
     public async Task CreateCard_UnknownPart_Throws()
     {
         var (service, _, _, workCenterId) = Make();

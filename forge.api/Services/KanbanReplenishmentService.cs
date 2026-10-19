@@ -39,7 +39,7 @@ public class KanbanReplenishmentService(
         };
         db.KanbanCards.Add(card);
 
-        var next = (await db.KanbanCards.MaxAsync(c => (int?)c.Id, ct) ?? 0) + 1;
+        var next = (await db.KanbanCards.IgnoreQueryFilters().MaxAsync(c => (int?)c.Id, ct) ?? 0) + 1;
         for (var attempt = 1; ; attempt++)
         {
             card.CardNumber = $"KB-{next:D4}";

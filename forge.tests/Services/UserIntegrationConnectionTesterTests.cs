@@ -19,6 +19,10 @@ public class UserIntegrationConnectionTesterTests
         _store.Setup(s => s.GetByIdAsync(UserId, IntegrationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new UserIntegration { Id = IntegrationId, UserId = UserId, ProviderId = providerId });
 
+    private void WebhookIs(string url) =>
+        _store.Setup(s => s.GetDecryptedCredentialsAsync(UserId, IntegrationId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync($"{{\"webhook_url\":\"{url}\"}}");
+
     private static Mock<IMessagingIntegrationService> Messaging(string providerId, bool result)
     {
         var m = new Mock<IMessagingIntegrationService>();
@@ -31,6 +35,7 @@ public class UserIntegrationConnectionTesterTests
     public async Task Test_MessagingProvider_CallsTheProviderAndRecordsFailure()
     {
         StoreHas("slack");
+        WebhookIs("https://hooks.slack.com/services/T0/B0/x");
         var slack = Messaging("slack", result: false);
         var tester = new UserIntegrationConnectionTester(_store.Object, [Messaging("teams", true).Object, slack.Object], []);
 
@@ -40,6 +45,44 @@ public class UserIntegrationConnectionTesterTests
         slack.Verify(s => s.TestConnectionAsync(UserId, IntegrationId, It.IsAny<CancellationToken>()), Times.Once);
         _store.Verify(s => s.TestConnectionAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
         _store.Verify(s => s.UpdateSyncStatusAsync(IntegrationId, null, It.Is<string?>(e => e != null), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("slack", "http://hooks.slack.com/services/T0/B0/x")]
+    [InlineData("slack", "https://forge-db:5432/")]
+    [InlineData("slack", "https://hooks.slack.com.attacker.example/x")]
+    [InlineData("discord", "https://169.254.169.254/latest/meta-data")]
+    [InlineData("teams", "https://localhost/hook")]
+    [InlineData("google_chat", "not a url")]
+    public async Task Test_WebhookOutsideTheProvidersHosts_IsNotContacted(string providerId, string url)
+    {
+        StoreHas(providerId);
+        WebhookIs(url);
+        var messaging = Messaging(providerId, result: true);
+        var tester = new UserIntegrationConnectionTester(_store.Object, [messaging.Object], []);
+
+        var result = await tester.TestAsync(UserId, IntegrationId);
+
+        result.Should().Be(new UserIntegrationTestResult(Success: false, Contacted: false));
+        messaging.Verify(s => s.TestConnectionAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+        _store.Verify(s => s.UpdateSyncStatusAsync(IntegrationId, null, It.Is<string?>(e => e != null), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("discord", "https://discord.com/api/webhooks/1/abc")]
+    [InlineData("google_chat", "https://chat.googleapis.com/v1/spaces/AAA/messages?key=k")]
+    [InlineData("teams", "https://contoso.webhook.office.com/webhookb2/abc")]
+    [InlineData("teams", "https://prod-01.westus.logic.azure.com/workflows/abc")]
+    public async Task Test_WebhookOnTheProvidersHost_IsContacted(string providerId, string url)
+    {
+        StoreHas(providerId);
+        WebhookIs(url);
+        var messaging = Messaging(providerId, result: true);
+        var tester = new UserIntegrationConnectionTester(_store.Object, [messaging.Object], []);
+
+        var result = await tester.TestAsync(UserId, IntegrationId);
+
+        result.Should().Be(new UserIntegrationTestResult(Success: true, Contacted: true));
     }
 
     [Fact]
