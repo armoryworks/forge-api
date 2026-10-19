@@ -1,5 +1,6 @@
 using MediatR;
 
+using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -20,15 +21,11 @@ public class UpdateShiftHandler(AppDbContext db) : IRequestHandler<UpdateShiftCo
         var shift = await db.Shifts.FindAsync([request.Id], cancellationToken)
             ?? throw new KeyNotFoundException($"Shift {request.Id} not found.");
 
-        var duration = request.EndTime > request.StartTime
-            ? request.EndTime.ToTimeSpan() - request.StartTime.ToTimeSpan()
-            : TimeSpan.FromHours(24) - request.StartTime.ToTimeSpan() + request.EndTime.ToTimeSpan();
-
         shift.Name = request.Name;
         shift.StartTime = request.StartTime;
         shift.EndTime = request.EndTime;
         shift.BreakMinutes = request.BreakMinutes;
-        shift.NetHours = (decimal)duration.TotalHours - (request.BreakMinutes / 60m);
+        shift.NetHours = ShiftHours.Net(request.StartTime, request.EndTime, request.BreakMinutes);
         shift.IsActive = request.IsActive;
 
         await db.SaveChangesAsync(cancellationToken);

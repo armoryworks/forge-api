@@ -49,6 +49,7 @@ public class AddCalendarShiftHandler(AppDbContext db)
             StartTime = b.StartTime,
             EndTime = b.EndTime,
             PremiumMultiplier = b.PremiumMultiplier == 0m ? 1.00m : b.PremiumMultiplier,
+            NetHours = ShiftHours.Net(b.StartTime, b.EndTime, 0),
             CapacityHours = b.CapacityHours,
             IsActive = b.IsActive,
         };
@@ -60,17 +61,7 @@ public class AddCalendarShiftHandler(AppDbContext db)
             shift.Id, shift.WorkingCalendarId!.Value, shift.Name,
             shift.DaysOfWeekMask ?? 0, shift.StartTime, shift.EndTime,
             shift.PremiumMultiplier, shift.CapacityHours,
-            EffectiveCapacityHours(shift.CapacityHours, shift.NetHours, shift.StartTime, shift.EndTime),
+            ShiftHours.EffectiveCapacity(shift),
             shift.IsActive);
-    }
-
-    private static decimal EffectiveCapacityHours(decimal capacityHours, decimal netHours, TimeOnly start, TimeOnly end)
-    {
-        if (capacityHours > 0) return capacityHours;
-        if (netHours > 0) return netHours;
-        var span = end <= start
-            ? (TimeSpan.FromHours(24) - (start - TimeOnly.MinValue) + (end - TimeOnly.MinValue))
-            : (end - start);
-        return (decimal)span.TotalHours;
     }
 }

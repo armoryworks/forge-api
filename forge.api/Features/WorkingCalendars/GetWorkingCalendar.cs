@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Interfaces;
+using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -32,7 +33,7 @@ public class GetWorkingCalendarHandler(AppDbContext db, IShiftService shiftServi
                 s.EndTime,
                 s.PremiumMultiplier,
                 s.CapacityHours,
-                EffectiveCapacityHours(s.CapacityHours, s.NetHours, s.StartTime, s.EndTime),
+                ShiftHours.EffectiveCapacity(s),
                 s.IsActive))
             .ToList();
 
@@ -43,15 +44,5 @@ public class GetWorkingCalendarHandler(AppDbContext db, IShiftService shiftServi
             c.CreatedAt, c.UpdatedAt,
             shifts,
             weeklyCapacity);
-    }
-
-    private static decimal EffectiveCapacityHours(decimal capacityHours, decimal netHours, TimeOnly start, TimeOnly end)
-    {
-        if (capacityHours > 0) return capacityHours;
-        if (netHours > 0) return netHours;
-        var span = end <= start
-            ? (TimeSpan.FromHours(24) - (start - TimeOnly.MinValue) + (end - TimeOnly.MinValue))
-            : (end - start);
-        return (decimal)span.TotalHours;
     }
 }

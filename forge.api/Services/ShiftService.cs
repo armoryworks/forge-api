@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
@@ -30,13 +31,7 @@ public class ShiftService(AppDbContext db) : IShiftService
             var occurrencesPerWeek = CountBits(s.DaysOfWeekMask ?? 0);
             if (occurrencesPerWeek == 0) continue;
 
-            // Hours per occurrence: explicit CapacityHours wins; fall back to
-            // NetHours; final fallback to wall-clock duration.
-            var hoursPerOccurrence = s.CapacityHours > 0
-                ? s.CapacityHours
-                : s.NetHours > 0
-                    ? s.NetHours
-                    : WallClockHours(s.StartTime, s.EndTime);
+            var hoursPerOccurrence = ShiftHours.EffectiveCapacity(s.CapacityHours, s.NetHours, s.StartTime, s.EndTime);
             total += hoursPerOccurrence * occurrencesPerWeek;
         }
         return total;
@@ -106,13 +101,5 @@ public class ShiftService(AppDbContext db) : IShiftService
             n >>= 1;
         }
         return count;
-    }
-
-    private static decimal WallClockHours(TimeOnly start, TimeOnly end)
-    {
-        var span = end <= start
-            ? (TimeSpan.FromHours(24) - (start - TimeOnly.MinValue) + (end - TimeOnly.MinValue))
-            : (end - start);
-        return (decimal)span.TotalHours;
     }
 }

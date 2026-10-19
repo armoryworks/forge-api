@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Core.Entities;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -44,6 +45,7 @@ public class UpdateCalendarShiftHandler(AppDbContext db)
         shift.DaysOfWeekMask = b.DaysOfWeekMask;
         shift.StartTime = b.StartTime;
         shift.EndTime = b.EndTime;
+        shift.NetHours = ShiftHours.Net(b.StartTime, b.EndTime, shift.BreakMinutes);
         shift.PremiumMultiplier = b.PremiumMultiplier == 0m ? 1.00m : b.PremiumMultiplier;
         shift.CapacityHours = b.CapacityHours;
         shift.IsActive = b.IsActive;
@@ -54,17 +56,7 @@ public class UpdateCalendarShiftHandler(AppDbContext db)
             shift.Id, shift.WorkingCalendarId.Value, shift.Name,
             shift.DaysOfWeekMask ?? 0, shift.StartTime, shift.EndTime,
             shift.PremiumMultiplier, shift.CapacityHours,
-            EffectiveCapacityHours(shift.CapacityHours, shift.NetHours, shift.StartTime, shift.EndTime),
+            ShiftHours.EffectiveCapacity(shift),
             shift.IsActive);
-    }
-
-    private static decimal EffectiveCapacityHours(decimal capacityHours, decimal netHours, TimeOnly start, TimeOnly end)
-    {
-        if (capacityHours > 0) return capacityHours;
-        if (netHours > 0) return netHours;
-        var span = end <= start
-            ? (TimeSpan.FromHours(24) - (start - TimeOnly.MinValue) + (end - TimeOnly.MinValue))
-            : (end - start);
-        return (decimal)span.TotalHours;
     }
 }
