@@ -52,4 +52,29 @@ public class JobsAuthzRemediationTests
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden,
             "disposing a job (which can create an Asset) must require Admin/Manager");
     }
+
+    [Theory]
+    [InlineData("assign")]
+    [InlineData("priority")]
+    [InlineData("archive")]
+    public async Task Production_worker_cannot_run_supervisory_bulk_job_actions(string action)
+    {
+        var response = await AuthClient("ProductionWorker").PatchAsync(
+            $"/api/v1/jobs/bulk/{action}",
+            new StringContent("{}", System.Text.Encoding.UTF8, "application/json"));
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden,
+            "bulk assign, priority and archive are supervisory, the same as PUT /jobs/{id}");
+    }
+
+    [Theory]
+    [InlineData("assign")]
+    [InlineData("priority")]
+    [InlineData("archive")]
+    public async Task Manager_can_reach_supervisory_bulk_job_actions(string action)
+    {
+        var response = await AuthClient("Manager").PatchAsync(
+            $"/api/v1/jobs/bulk/{action}",
+            new StringContent("{}", System.Text.Encoding.UTF8, "application/json"));
+        response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
+    }
 }
