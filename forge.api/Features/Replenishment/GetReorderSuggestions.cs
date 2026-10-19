@@ -107,7 +107,9 @@ public class GetReorderSuggestionsHandler(AppDbContext db, IPartSourcingResolver
                 isMake ? "Make" : "Buy",
                 s.ResultingJobId,
                 s.ResultingJob?.JobNumber,
-                leadTimeDays);
+                leadTimeDays,
+                s.Part.ReorderPoint,
+                s.Part.ReorderQuantity);
         }).ToList();
     }
 }

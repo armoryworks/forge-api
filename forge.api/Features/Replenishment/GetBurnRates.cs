@@ -48,7 +48,8 @@ public class GetBurnRatesHandler(AppDbContext db, IPartSourcingResolver sourcing
         var stockByPart = await db.BinContents
             .Where(bc => bc.EntityType == "part"
                 && partIds.Contains(bc.EntityId)
-                && bc.RemovedAt == null)
+                && bc.RemovedAt == null
+                && bc.Status != BinContentStatus.QcHold)
             .GroupBy(bc => bc.EntityId)
             .Select(g => new
             {

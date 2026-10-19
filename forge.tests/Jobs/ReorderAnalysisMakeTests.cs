@@ -158,6 +158,23 @@ public class ReorderAnalysisMakeTests
     }
 
     [Fact]
+    public async Task Stock_held_for_inspection_does_not_hide_a_reorder()
+    {
+        var part = await SeedMakePartAsync("MAKE-QCHOLD", reorderPoint: 50m, stock: 10m);
+        _db.BinContents.Add(new BinContent
+        {
+            EntityType = "part", EntityId = part.Id, Quantity = 330m, LocationId = 1, Status = BinContentStatus.QcHold,
+        });
+        await _db.SaveChangesAsync();
+
+        await NewJob().RunAnalysisAsync();
+
+        var suggestion = await _db.ReorderSuggestions.SingleAsync(s => s.PartId == part.Id);
+        suggestion.CurrentStock.Should().Be(10m);
+        suggestion.AvailableStock.Should().Be(10m);
+    }
+
+    [Fact]
     public async Task Make_part_without_routing_uses_a_seven_day_lead_time()
     {
         var part = await SeedMakePartAsync("MAKE-NOROUTE", runMinutesEach: 0m);
