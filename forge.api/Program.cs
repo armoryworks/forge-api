@@ -1841,6 +1841,7 @@ try
     app.UseMiddleware<Forge.Api.Middleware.SharedDeviceMiddleware>();
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseMiddleware<Forge.Api.Middleware.MfaEnrollmentGateMiddleware>();
     app.UseMiddleware<Forge.Api.Middleware.IdempotencyMiddleware>();
 
     // Phase 4 Phase-A — capability gating. Runs after UseRouting so the

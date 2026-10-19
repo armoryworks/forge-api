@@ -30,6 +30,24 @@ public static class MfaRolePolicy
         }
     }
 
+    public static async Task<IReadOnlyList<string>> GetEffectiveRequiredRolesAsync(AppDbContext db, CancellationToken ct)
+        => await GetRequiredRolesAsync(db, ct) ?? await LegacyRequiredRolesAsync(db, ct);
+
+    public static async Task<IReadOnlyList<string>> LegacyRequiredRolesAsync(AppDbContext db, CancellationToken ct)
+    {
+        var holders = await db.UserRoles
+            .Join(db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, Role = r.Name! })
+            .Join(db.Users, x => x.UserId, u => u.Id, (x, u) => new { x.Role, u.MfaEnforcedByPolicy })
+            .ToListAsync(ct);
+
+        return holders
+            .GroupBy(h => h.Role, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.All(h => h.MfaEnforcedByPolicy))
+            .Select(g => g.Key)
+            .OrderBy(r => r, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     public static async Task SetRequiredRolesAsync(AppDbContext db, IEnumerable<string> roles, CancellationToken ct)
     {
         var normalized = roles

@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 
+using Forge.Api.Middleware;
 using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -28,7 +29,8 @@ public class CompleteSetupHandler(
     ITokenService tokenService,
     ISessionStore sessionStore,
     IHttpContextAccessor httpContext,
-    IRoleClaimsExpander roleClaimsExpander) : IRequestHandler<CompleteSetupCommand, LoginResponse>
+    IRoleClaimsExpander roleClaimsExpander,
+    AppDbContext db) : IRequestHandler<CompleteSetupCommand, LoginResponse>
 {
     public async Task<LoginResponse> Handle(CompleteSetupCommand request, CancellationToken cancellationToken)
     {
@@ -68,9 +70,11 @@ public class CompleteSetupHandler(
         // Generate JWT and return login response
         // WU-06 / C1 — RoleTemplate expansion at setup completion.
         var roles = await roleClaimsExpander.GetEffectiveRolesAsync(user, cancellationToken);
+        var enrollmentRequired = await MfaEnrollmentGateMiddleware.IsRequiredAsync(db, user, cancellationToken);
         var result = tokenService.GenerateToken(
             user.Id, user.Email!, user.FirstName, user.LastName,
-            user.Initials, user.AvatarColor, roles);
+            user.Initials, user.AvatarColor, roles,
+            extraClaims: MfaEnrollmentGateMiddleware.ExtraClaims(enrollmentRequired));
 
         await sessionStore.CreateSessionAsync(user.Id, result.Jti, result.ExpiresAt,
             "setup",
@@ -83,6 +87,7 @@ public class CompleteSetupHandler(
             result.ExpiresAt,
             new AuthUserResponseModel(
                 user.Id, user.Email!, user.FirstName, user.LastName,
-                user.Initials, user.AvatarColor, roles.ToArray(), false));
+                user.Initials, user.AvatarColor, roles.ToArray(), false),
+            MfaEnrollmentRequired: enrollmentRequired);
     }
 }

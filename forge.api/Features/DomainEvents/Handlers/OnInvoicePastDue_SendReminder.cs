@@ -15,7 +15,8 @@ namespace Forge.Api.Features.DomainEvents.Handlers;
 public class OnInvoicePastDue_SendReminder(
     AppDbContext db,
     ICapabilitySnapshotProvider capabilities,
-    IIntegrationOutboxService outbox)
+    IIntegrationOutboxService outbox,
+    IClock clock)
     : INotificationHandler<InvoicePastDueEvent>
 {
     public async Task Handle(InvoicePastDueEvent notification, CancellationToken ct)
@@ -24,6 +25,6 @@ public class OnInvoicePastDue_SendReminder(
             return;
 
         await InvoiceDunning.EnqueueReminderAsync(
-            db, outbox, notification.InvoiceId, InvoiceDunning.BucketFor(notification.DaysOverdue), ct);
+            db, outbox, notification.InvoiceId, InvoiceDunning.BucketFor(notification.DaysOverdue), clock.UtcNow, ct);
     }
 }

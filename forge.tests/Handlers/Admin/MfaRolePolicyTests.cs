@@ -106,6 +106,43 @@ public class MfaRolePolicyTests : IDisposable
     }
 
     [Fact]
+    public async Task InstallWithoutAStoredPolicy_ShowsTheRolesItsFlagsWereSetFor()
+    {
+        var admin = await SeedUserAsync("admin@forge.test", "Admin");
+        var adminAndIt = await SeedUserAsync("it.admin@forge.test", "Admin", "IT Admin");
+        var itOnly = await SeedUserAsync("it@forge.test", "IT Admin");
+        var controller = await SeedUserAsync("controller@forge.test", "Controller");
+        await SeedUserAsync("worker@forge.test", "ProductionWorker");
+        foreach (var user in new[] { admin, adminAndIt, controller })
+            user.MfaEnforcedByPolicy = true;
+        await _db.SaveChangesAsync();
+
+        var policy = await new GetMfaPolicyHandler(_db).Handle(new GetMfaPolicyQuery(), CancellationToken.None);
+
+        policy.RequiredRoles.Should().Equal("Admin", "Controller");
+        (await MfaRolePolicy.IsEnforcedAsync(_db, itOnly, CancellationToken.None)).Should().BeFalse();
+        (await MfaRolePolicy.IsEnforcedAsync(_db, adminAndIt, CancellationToken.None)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SavingTheShownLegacyPolicy_KeepsEveryFlaggedUserEnforced()
+    {
+        var admin = await SeedUserAsync("admin@forge.test", "Admin");
+        var controller = await SeedUserAsync("controller@forge.test", "Controller", "OfficeManager");
+        var office = await SeedUserAsync("office@forge.test", "OfficeManager");
+        admin.MfaEnforcedByPolicy = true;
+        controller.MfaEnforcedByPolicy = true;
+        await _db.SaveChangesAsync();
+
+        var shown = await new GetMfaPolicyHandler(_db).Handle(new GetMfaPolicyQuery(), CancellationToken.None);
+        await SetHandler().Handle(new SetMfaPolicyCommand(shown.RequiredRoles), CancellationToken.None);
+
+        (await MfaRolePolicy.IsEnforcedAsync(_db, admin, CancellationToken.None)).Should().BeTrue();
+        (await MfaRolePolicy.IsEnforcedAsync(_db, controller, CancellationToken.None)).Should().BeTrue();
+        (await MfaRolePolicy.IsEnforcedAsync(_db, office, CancellationToken.None)).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task EnforcedUser_CannotDisableMfa()
     {
         var user = await SeedUserAsync("admin@forge.test", "Admin");

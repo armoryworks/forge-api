@@ -24,6 +24,7 @@ namespace Forge.Tests.Handlers.DomainEvents;
 /// <summary>
 /// CAP-O2C-COLLECTIONS: the Overdue flip rings the bell and queues the first reminder; the 30/60/90 buckets
 /// each queue one reminder keyed <c>invoice-dunning:{id}:{bucket}</c>; with the capability off nothing happens.
+/// A bucket reached more than the catch-up window ago, and a conversion opening-balance document, get no reminder.
 /// </summary>
 public class InvoiceCollectionsTests : IDisposable
 {
@@ -34,10 +35,12 @@ public class InvoiceCollectionsTests : IDisposable
     private readonly Mock<IClientProxy> _proxy = new();
     private readonly List<string> _keys = [];
     private readonly Mock<IIntegrationOutboxService> _outbox = new();
+    private readonly Mock<IClock> _clock = new();
 
     public InvoiceCollectionsTests()
     {
         QuestPDF.Settings.License = LicenseType.Community;
+        _clock.SetupGet(c => c.UtcNow).Returns(Now);
         var clients = new Mock<IHubClients>();
         clients.Setup(c => c.Group(It.IsAny<string>())).Returns(_proxy.Object);
         _hub.SetupGet(h => h.Clients).Returns(clients.Object);
@@ -67,7 +70,7 @@ public class InvoiceCollectionsTests : IDisposable
         public Task RefreshAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
 
-    private async Task<Invoice> SeedAsync(InvoiceStatus status = InvoiceStatus.Sent)
+    private async Task<Invoice> SeedAsync(InvoiceStatus status = InvoiceStatus.Sent, int daysOverdue = 1, string? provider = null)
     {
         _db.SystemSettings.Add(new SystemSetting { Key = "company.name", Value = "Harbor Gear Works" });
         _db.Set<Currency>().Add(new Currency { Id = 1, Code = "USD", Name = "US Dollar", Symbol = "$" });
@@ -80,7 +83,7 @@ public class InvoiceCollectionsTests : IDisposable
         var invoice = new Invoice
         {
             InvoiceNumber = "INV-6100", CustomerId = customer.Id, CurrencyId = 1, Status = status,
-            InvoiceDate = Now.AddDays(-40), DueDate = Now.AddDays(-10),
+            InvoiceDate = Now.AddDays(-30 - daysOverdue), DueDate = Now.AddDays(-daysOverdue), Provider = provider,
             Lines = { new InvoiceLine { LineNumber = 1, Description = "Bracket", Quantity = 2, UnitPrice = 50m } },
         };
         _db.Invoices.Add(invoice);
@@ -89,7 +92,7 @@ public class InvoiceCollectionsTests : IDisposable
     }
 
     private OnInvoiceOverdue_NotifyCollections OverdueHandler(bool on)
-        => new(_db, new FakeCapabilities(on), _outbox.Object, _hub.Object, NullLogger<OnInvoiceOverdue_NotifyCollections>.Instance);
+        => new(_db, new FakeCapabilities(on), _outbox.Object, _hub.Object, NullLogger<OnInvoiceOverdue_NotifyCollections>.Instance, _clock.Object);
 
     [Fact]
     public async Task OverdueFlip_RingsTheBell_AndQueuesTheFirstReminder()
@@ -113,7 +116,7 @@ public class InvoiceCollectionsTests : IDisposable
         var invoice = await SeedAsync(InvoiceStatus.Overdue);
 
         await OverdueHandler(on: false).Handle(new InvoiceOverdueEvent(invoice.Id, invoice.CustomerId), CancellationToken.None);
-        await new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(false), _outbox.Object)
+        await new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(false), _outbox.Object, _clock.Object)
             .Handle(new InvoicePastDueEvent(invoice.Id, invoice.CustomerId, 31), CancellationToken.None);
 
         (await _db.Notifications.AnyAsync()).Should().BeFalse();
@@ -123,11 +126,14 @@ public class InvoiceCollectionsTests : IDisposable
     [Fact]
     public async Task BucketReminders_AreOnePerBucket()
     {
-        var invoice = await SeedAsync(InvoiceStatus.Overdue);
-        var handler = new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(true), _outbox.Object);
+        var invoice = await SeedAsync(InvoiceStatus.Overdue, daysOverdue: 0);
+        var handler = new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(true), _outbox.Object, _clock.Object);
 
         foreach (var days in new[] { 30, 31, 45, 60, 75, 95, 96 })
+        {
+            _clock.SetupGet(c => c.UtcNow).Returns(Now.AddDays(days));
             await handler.Handle(new InvoicePastDueEvent(invoice.Id, invoice.CustomerId, days), CancellationToken.None);
+        }
 
         _keys.Should().Equal(
             $"invoice-dunning:{invoice.Id}:30",
@@ -136,11 +142,45 @@ public class InvoiceCollectionsTests : IDisposable
     }
 
     [Fact]
+    public async Task BucketReachedLongAgo_GetsNoReminder()
+    {
+        var invoice = await SeedAsync(InvoiceStatus.Overdue, daysOverdue: 200);
+        var handler = new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(true), _outbox.Object, _clock.Object);
+
+        await handler.Handle(new InvoicePastDueEvent(invoice.Id, invoice.CustomerId, 200), CancellationToken.None);
+
+        _keys.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task OverdueFlipLongPastTheDueDate_RingsTheBell_ButSendsNoReminder()
+    {
+        var invoice = await SeedAsync(InvoiceStatus.Overdue, daysOverdue: 19);
+
+        await OverdueHandler(on: true).Handle(new InvoiceOverdueEvent(invoice.Id, invoice.CustomerId), CancellationToken.None);
+
+        (await _db.Notifications.CountAsync()).Should().Be(1);
+        _keys.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ConversionOpeningBalance_GetsNoReminder()
+    {
+        var invoice = await SeedAsync(InvoiceStatus.Overdue, daysOverdue: 1, provider: "Conversion");
+        var handler = new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(true), _outbox.Object, _clock.Object);
+
+        await OverdueHandler(on: true).Handle(new InvoiceOverdueEvent(invoice.Id, invoice.CustomerId), CancellationToken.None);
+        await handler.Handle(new InvoicePastDueEvent(invoice.Id, invoice.CustomerId, 31), CancellationToken.None);
+
+        _keys.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task PaidInvoice_GetsNoReminder()
     {
         var invoice = await SeedAsync(InvoiceStatus.Paid);
 
-        await new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(true), _outbox.Object)
+        await new OnInvoicePastDue_SendReminder(_db, new FakeCapabilities(true), _outbox.Object, _clock.Object)
             .Handle(new InvoicePastDueEvent(invoice.Id, invoice.CustomerId, 31), CancellationToken.None);
 
         _keys.Should().BeEmpty();
