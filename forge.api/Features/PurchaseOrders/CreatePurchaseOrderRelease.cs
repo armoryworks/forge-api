@@ -37,6 +37,12 @@ public class CreatePurchaseOrderReleaseHandler(AppDbContext db) : IRequestHandle
             .FirstOrDefaultAsync(l => l.Id == request.Request.PurchaseOrderLineId && l.PurchaseOrderId == request.PurchaseOrderId, cancellationToken)
             ?? throw new KeyNotFoundException($"PO line {request.Request.PurchaseOrderLineId} not found on this PO");
 
+        var releasedAfter = (po.BlanketReleasedQuantity ?? 0) + request.Request.Quantity;
+        if (po.BlanketTotalQuantity is decimal total && releasedAfter > total)
+            throw new InvalidOperationException(
+                $"Release quantity {request.Request.Quantity:0.####} exceeds the blanket remaining "
+                + $"{total - (po.BlanketReleasedQuantity ?? 0):0.####} of {total:0.####}.");
+
         var nextRelease = po.Releases.Any() ? po.Releases.Max(r => r.ReleaseNumber) + 1 : 1;
 
         var release = new PurchaseOrderRelease
@@ -52,7 +58,7 @@ public class CreatePurchaseOrderReleaseHandler(AppDbContext db) : IRequestHandle
         db.PurchaseOrderReleases.Add(release);
 
         // Update blanket released quantity
-        po.BlanketReleasedQuantity = (po.BlanketReleasedQuantity ?? 0) + request.Request.Quantity;
+        po.BlanketReleasedQuantity = releasedAfter;
 
         await db.SaveChangesAsync(cancellationToken);
 
