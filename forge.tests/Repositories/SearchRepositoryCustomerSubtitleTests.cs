@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Entities;
 using Forge.Data.Repositories;
@@ -42,5 +43,16 @@ public sealed class SearchRepositoryCustomerSubtitleTests(PostgresFixture fixtur
 
         results.Should().ContainSingle(r => r.EntityType == "Customer" && r.Title == name)
             .Which.Subtitle.Should().Be(company);
+    }
+
+    [Fact]
+    public async Task Search_leaves_the_context_usable_for_later_queries()
+    {
+        await using var db = fixture.CreateContext();
+
+        await new SearchRepository(db).SearchAsync("anything", 5, CancellationToken.None);
+        var act = () => db.Customers.CountAsync();
+
+        await act.Should().NotThrowAsync();
     }
 }

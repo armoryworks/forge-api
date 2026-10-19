@@ -52,24 +52,30 @@ public class SearchRepository(AppDbContext db) : ISearchRepository
              ORDER BY updated_at DESC LIMIT @per)
             """;
 
-        await using var connection = db.Database.GetDbConnection();
-        await connection.OpenAsync(ct);
-
-        await using var command = connection.CreateCommand();
-        command.CommandText = sql;
-        command.Parameters.Add(new NpgsqlParameter("pattern", $"%{term}%"));
-        command.Parameters.Add(new NpgsqlParameter("per", perEntity));
-
-        await using var reader = await command.ExecuteReaderAsync(ct);
-        while (await reader.ReadAsync(ct))
+        await db.Database.OpenConnectionAsync(ct);
+        try
         {
-            results.Add(new SearchResultModel(
-                reader.GetString(0),
-                reader.GetInt32(1),
-                reader.GetString(2),
-                reader.IsDBNull(3) ? null : reader.GetString(3),
-                reader.GetString(4),
-                reader.GetString(5)));
+            var connection = db.Database.GetDbConnection();
+            await using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            command.Parameters.Add(new NpgsqlParameter("pattern", $"%{term}%"));
+            command.Parameters.Add(new NpgsqlParameter("per", perEntity));
+
+            await using var reader = await command.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                results.Add(new SearchResultModel(
+                    reader.GetString(0),
+                    reader.GetInt32(1),
+                    reader.GetString(2),
+                    reader.IsDBNull(3) ? null : reader.GetString(3),
+                    reader.GetString(4),
+                    reader.GetString(5)));
+            }
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
         }
 
         return results.Take(limit).ToList();
