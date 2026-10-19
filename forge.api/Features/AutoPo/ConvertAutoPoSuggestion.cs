@@ -45,7 +45,7 @@ public class ConvertAutoPoSuggestionHandler(
         po.Lines.Add(new PurchaseOrderLine
         {
             PartId = suggestion.PartId,
-            Description = suggestion.Part.Description ?? suggestion.Part.Name,
+            Description = PurchaseOrderLine.ClipDescription(suggestion.Part.Description ?? suggestion.Part.Name),
             OrderedQuantity = suggestion.SuggestedQty,
             UnitPrice = 0, // To be filled by purchasing
         });

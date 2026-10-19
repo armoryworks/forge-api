@@ -41,7 +41,7 @@ public class PurchaseOrderGenerator(
             po.Lines.Add(new PurchaseOrderLine
             {
                 PartId = line.PartId,
-                Description = line.Description,
+                Description = PurchaseOrderLine.ClipDescription(line.Description),
                 OrderedQuantity = line.Quantity,
                 UnitPrice = line.UnitPrice,
             });

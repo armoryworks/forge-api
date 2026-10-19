@@ -108,8 +108,8 @@ public class RfqService(AppDbContext db, IClock clock, IPurchaseOrderRepository 
         po.Lines.Add(new PurchaseOrderLine
         {
             PartId = rfq.PartId,
-            Description = rfq.Part.Description ?? rfq.Part.Name,
-            OrderedQuantity = (int)rfq.Quantity,
+            Description = PurchaseOrderLine.ClipDescription(rfq.Part.Description ?? rfq.Part.Name),
+            OrderedQuantity = rfq.Quantity,
             UnitPrice = response.UnitPrice ?? 0m,
         });
 

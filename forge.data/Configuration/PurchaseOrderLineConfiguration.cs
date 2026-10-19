@@ -11,7 +11,7 @@ public class PurchaseOrderLineConfiguration : IEntityTypeConfiguration<PurchaseO
         builder.Ignore(e => e.RemainingQuantity);
         builder.Ignore(e => e.UnreceivedQuantity);
 
-        builder.Property(e => e.Description).HasMaxLength(500);
+        builder.Property(e => e.Description).HasMaxLength(PurchaseOrderLine.DescriptionMaxLength);
         builder.Property(e => e.Notes).HasMaxLength(1000);
         builder.Property(e => e.ManualOverrideReason).HasMaxLength(500);
         // Phase 3 / WU-10 / F8-partial — quantity + price are decimal(18,4).

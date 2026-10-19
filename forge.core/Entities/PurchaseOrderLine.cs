@@ -2,6 +2,13 @@ namespace Forge.Core.Entities;
 
 public class PurchaseOrderLine : BaseEntity
 {
+    public const int DescriptionMaxLength = 500;
+
+    public static string ClipDescription(string? text) =>
+        text is null ? string.Empty
+        : text.Length <= DescriptionMaxLength ? text
+        : text[..DescriptionMaxLength];
+
     public int PurchaseOrderId { get; set; }
     // Nullable since the construction/pro-services enablement (2026-08-17): a PO line may be a
     // service or described material with no Part row. The capability graph already removed the
