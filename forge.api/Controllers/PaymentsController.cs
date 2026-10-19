@@ -57,9 +57,17 @@ public class PaymentsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [IfMatch(typeof(Payment))]
     public async Task<ActionResult<PaymentListItemModel>> UpdatePayment(int id, UpdatePaymentRequestModel request)
     {
         var result = await mediator.Send(new UpdatePaymentCommand(id, request));
+        return Ok(result);
+    }
+
+    [HttpPost("{id:int}/applications")]
+    public async Task<ActionResult<PaymentListItemModel>> ApplyPayment(int id, ApplyPaymentRequestModel request)
+    {
+        var result = await mediator.Send(new ApplyPaymentCommand(id, request.Applications));
         return Ok(result);
     }
 

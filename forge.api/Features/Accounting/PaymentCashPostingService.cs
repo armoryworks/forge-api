@@ -64,6 +64,15 @@ public interface IPaymentCashPostingService
     /// </summary>
     Task ReversePaymentCreatedAsync(
         int paymentId, string reason, int reversedByUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Posts the application of previously unapplied cash to invoices (Dr CUSTOMER_DEPOSITS / Cr AR_CONTROL,
+    /// plus any realized-FX plug), one entry per application, and relieves each invoice's AR open item. A
+    /// no-op while CAP-ACCT-FULLGL is off or when the payment's cash receipt was never posted (recorded
+    /// while the capability was off). Idempotent per application.
+    /// </summary>
+    Task PostPaymentApplicationsAsync(
+        int paymentId, IReadOnlyCollection<int> applicationIds, int appliedByUserId, CancellationToken ct = default);
 }
 
 /// <inheritdoc />
@@ -120,8 +129,31 @@ public sealed class PaymentCashPostingService(
         if (book is null)
             return; // No GL configured — nothing was ever posted for this payment.
 
-        // The cash-receipt origination entry, located by its idempotency key (§5.2 key shape). Skip when
-        // absent (payment recorded while FULLGL was off) or already reversed.
+        var payment = await db.Set<Payment>().IgnoreQueryFilters()
+            .Include(p => p.Applications)
+            .FirstOrDefaultAsync(p => p.Id == paymentId, ct);
+        var applications = payment?.Applications.ToList() ?? [];
+
+        var reversalDate = Today();
+
+        var separatelyPosted = new HashSet<int>();
+        foreach (var app in applications)
+        {
+            var applyKey = ApplicationIdempotencyKey(app.Id);
+            var applyEntry = await db.JournalEntries.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(e => e.BookId == book.Id && e.IdempotencyKey == applyKey, ct);
+            if (applyEntry is null)
+                continue;
+
+            separatelyPosted.Add(app.Id);
+            if (applyEntry.Status != JournalEntryStatus.Posted || applyEntry.ReversedByEntryId is not null)
+                continue;
+
+            await RestoreOpenItemAsync(app, ct);
+            await postingEngine.ReverseAsSystemAsync(
+                applyEntry.Id, reversalDate, $"Payment {paymentId} voided: {reason}", reversedByUserId, ct);
+        }
+
         var idempotencyKey = $"{JournalSource.AR}:Payment:{paymentId}:PAYMENT";
         var entry = await db.JournalEntries.IgnoreQueryFilters()
             .FirstOrDefaultAsync(e => e.BookId == book.Id && e.IdempotencyKey == idempotencyKey, ct);
@@ -129,42 +161,146 @@ public sealed class PaymentCashPostingService(
         if (entry is null || entry.Status != JournalEntryStatus.Posted || entry.ReversedByEntryId is not null)
             return;
 
-        // ── AR open items (AR-002): restore each applied invoice's item by the same booking-rate
-        // relief the origination applied (the reversal un-relieves AR_CONTROL by exactly that
-        // amount). Floored at zero; status recomputed. Staged BEFORE ReverseAsync so the engine's
-        // SaveChangesAsync flushes the restore atomically with the reversal entry — and the
-        // re-reversal guard above (ReversedByEntryId) makes the decrement run-once.
-        var payment = await db.Set<Payment>().IgnoreQueryFilters()
-            .Include(p => p.Applications)
-            .FirstOrDefaultAsync(p => p.Id == paymentId, ct);
-        if (payment is not null)
-        {
-            foreach (var app in payment.Applications)
-            {
-                var openItem = await db.ArOpenItems.IgnoreQueryFilters()
-                    .FirstOrDefaultAsync(i => i.SourceType == "Invoice" && i.SourceId == app.InvoiceId, ct);
-                if (openItem is null)
-                    continue; // legacy document (pre-open-item) — the backfill owns reconstruction
+        foreach (var app in applications.Where(a => !separatelyPosted.Contains(a.Id)))
+            await RestoreOpenItemAsync(app, ct);
 
-                var bookingRate = await db.Set<Invoice>().IgnoreQueryFilters()
-                    .Where(i => i.Id == app.InvoiceId)
-                    .Select(i => (decimal?)i.FxRate)
-                    .FirstOrDefaultAsync(ct) ?? 1m;
-
-                openItem.AppliedTxnAmount = Math.Max(0m, openItem.AppliedTxnAmount - app.Amount);
-                openItem.AppliedFunctionalAmount = Math.Max(
-                    0m,
-                    openItem.AppliedFunctionalAmount
-                        - Math.Round(app.Amount * bookingRate, 2, MidpointRounding.AwayFromZero));
-                openItem.RecomputeStatus();
-            }
-        }
-
-        // Reverse on the VOID date (today) — the original period may differ; the engine guards closed
-        // periods. ReverseAsync flips the WHOLE entry, including any realized-FX plug lines.
-        var reversalDate = DateOnly.FromDateTime((clock?.UtcNow ?? DateTimeOffset.UtcNow).UtcDateTime);
         await postingEngine.ReverseAsSystemAsync(
             entry.Id, reversalDate, $"Payment {paymentId} voided: {reason}", reversedByUserId, ct);
+    }
+
+    public async Task PostPaymentApplicationsAsync(
+        int paymentId, IReadOnlyCollection<int> applicationIds, int appliedByUserId, CancellationToken ct = default)
+    {
+        if (!capabilities.IsEnabled(FullGlCapability) || applicationIds.Count == 0)
+            return;
+
+        var book = await db.Books.AsNoTracking()
+            .Where(b => b.IsActive)
+            .OrderBy(b => b.Id)
+            .FirstOrDefaultAsync(ct);
+        if (book is null)
+            return;
+
+        var originationKey = $"{JournalSource.AR}:Payment:{paymentId}:PAYMENT";
+        var originated = await db.JournalEntries.IgnoreQueryFilters()
+            .AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == originationKey
+                           && e.Status == JournalEntryStatus.Posted && e.ReversedByEntryId == null, ct);
+        if (!originated)
+            return;
+
+        var payment = await db.Set<Payment>()
+            .Include(p => p.Applications)
+            .FirstOrDefaultAsync(p => p.Id == paymentId, ct);
+        if (payment is null)
+            return;
+
+        var entryDate = Today();
+
+        foreach (var app in payment.Applications.Where(a => applicationIds.Contains(a.Id)))
+        {
+            var key = ApplicationIdempotencyKey(app.Id);
+            if (await db.JournalEntries.IgnoreQueryFilters()
+                    .AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == key, ct))
+                continue;
+
+            var invoice = await db.Set<Invoice>()
+                .Where(i => i.Id == app.InvoiceId)
+                .Select(i => new { i.FxRate, i.InvoiceNumber })
+                .FirstOrDefaultAsync(ct);
+            var bookingRate = invoice?.FxRate ?? 1m;
+
+            var arRelief = Math.Round(app.Amount * bookingRate, 2, MidpointRounding.AwayFromZero);
+            var depositRelief = Math.Round(app.Amount * app.SettlementFxRate, 2, MidpointRounding.AwayFromZero);
+
+            var openItem = await db.ArOpenItems.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(i => i.SourceType == "Invoice" && i.SourceId == app.InvoiceId, ct);
+            if (openItem is null)
+            {
+                Log.Warning(
+                    "AR open item missing for invoice {InvoiceId} while applying payment {PaymentId}; "
+                    + "skipped (legacy document — the open-item backfill owns reconstruction).",
+                    app.InvoiceId, payment.Id);
+            }
+            else
+            {
+                openItem.AppliedTxnAmount += app.Amount;
+                openItem.AppliedFunctionalAmount += arRelief;
+                openItem.RecomputeStatus();
+            }
+
+            var invoiceLabel = invoice?.InvoiceNumber ?? app.InvoiceId.ToString(CultureInfo.InvariantCulture);
+            var lines = new List<PostingLine>(3)
+            {
+                new()
+                {
+                    AccountKey = KeyCustomerDeposits,
+                    Debit = depositRelief,
+                    Description = $"Customer deposit applied — payment {payment.PaymentNumber} to {invoiceLabel}",
+                },
+                new()
+                {
+                    AccountKey = KeyArControl,
+                    PartyType = SubledgerPartyType.Customer,
+                    PartyId = payment.CustomerId,
+                    Credit = arRelief,
+                    Description = $"AR settlement — payment {payment.PaymentNumber} to {invoiceLabel}",
+                },
+            };
+
+            var fxPlug = arRelief - depositRelief;
+            if (fxPlug > 0m)
+                lines.Add(new PostingLine
+                {
+                    AccountKey = KeyFxLoss,
+                    Debit = fxPlug,
+                    Description = $"Realized FX loss — payment {payment.PaymentNumber}",
+                });
+            else if (fxPlug < 0m)
+                lines.Add(new PostingLine
+                {
+                    AccountKey = KeyFxGain,
+                    Credit = -fxPlug,
+                    Description = $"Realized FX gain — payment {payment.PaymentNumber}",
+                });
+
+            await postingEngine.PostAsSystemAsync(new PostingRequest
+            {
+                BookId = book.Id,
+                EntryDate = entryDate,
+                Source = JournalSource.AR,
+                SourceType = "Payment",
+                SourceId = payment.Id,
+                CurrencyId = book.FunctionalCurrencyId,
+                Memo = $"Apply customer deposit — payment {payment.PaymentNumber} to invoice {invoiceLabel}",
+                IdempotencyKey = key,
+                Lines = lines,
+            }, appliedByUserId, ct);
+        }
+    }
+
+    private DateOnly Today() => DateOnly.FromDateTime((clock?.UtcNow ?? DateTimeOffset.UtcNow).UtcDateTime);
+
+    private static string ApplicationIdempotencyKey(int applicationId)
+        => $"{JournalSource.AR}:PaymentApplication:{applicationId}:APPLY";
+
+    private async Task RestoreOpenItemAsync(PaymentApplication app, CancellationToken ct)
+    {
+        var openItem = await db.ArOpenItems.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(i => i.SourceType == "Invoice" && i.SourceId == app.InvoiceId, ct);
+        if (openItem is null)
+            return;
+
+        var bookingRate = await db.Set<Invoice>().IgnoreQueryFilters()
+            .Where(i => i.Id == app.InvoiceId)
+            .Select(i => (decimal?)i.FxRate)
+            .FirstOrDefaultAsync(ct) ?? 1m;
+
+        openItem.AppliedTxnAmount = Math.Max(0m, openItem.AppliedTxnAmount - app.Amount);
+        openItem.AppliedFunctionalAmount = Math.Max(
+            0m,
+            openItem.AppliedFunctionalAmount
+                - Math.Round(app.Amount * bookingRate, 2, MidpointRounding.AwayFromZero));
+        openItem.RecomputeStatus();
     }
 
     private async Task PostCoreAsync(int paymentId, int createdByUserId, CancellationToken ct)
