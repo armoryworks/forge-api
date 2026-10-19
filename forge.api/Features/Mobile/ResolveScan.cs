@@ -24,7 +24,8 @@ public class ResolveScanValidator : AbstractValidator<ResolveScanQuery>
 /// Turns a scanned value into an entity. Exact barcodes-table lookup first
 /// (internal, GS1, manual codes and the collision suffix all live there),
 /// then the natural-identifier fallback per docs labels.md, then the number
-/// exactly as printed (work order, part, lot or badge) when only one record
+/// exactly as printed (work order, part, lot, or a badge from the employee
+/// barcode or an active scan identifier) when only one record
 /// carries it. Unknown or ambiguous codes resolve to kind "unknown" — the app
 /// buzzes, never navigates.
 /// </summary>
@@ -128,6 +129,15 @@ public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
             .Select(u => new { u.Id, Value = u.EmployeeBarcode! })
             .Take(10)
             .ToListAsync(ct);
+        var scanIdentifiers = await db.UserScanIdentifiers.AsNoTracking()
+            .Where(x => x.IsActive && EF.Functions.ILike(x.IdentifierValue, pattern, LikeEscape))
+            .Select(x => new { Id = x.UserId, Value = x.IdentifierValue })
+            .Take(10)
+            .ToListAsync(ct);
+        badges = badges.Concat(scanIdentifiers)
+            .GroupBy(b => b.Id)
+            .Select(g => g.First())
+            .ToList();
 
         var hits = new[]
             {

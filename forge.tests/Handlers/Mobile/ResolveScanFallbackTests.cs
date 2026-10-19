@@ -299,4 +299,31 @@ public sealed class ResolveScanFallbackTests(PostgresFixture fixture)
 
         result.Kind.Should().Be("unknown");
     }
+
+    [Fact]
+    public async Task Badge_held_as_a_scan_identifier_resolves_as_printed()
+    {
+        var badge = $"QF-SCAN-{UniqueNumber()}";
+        int userId;
+        await using (var db = fixture.CreateContext())
+        {
+            var user = new ApplicationUser
+            {
+                UserName = $"scan-{Guid.NewGuid():N}",
+                Email = $"scan-{Guid.NewGuid():N}@example.test",
+                FirstName = "Cy",
+                LastName = "Kiosk",
+            };
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+            db.UserScanIdentifiers.Add(new UserScanIdentifier { UserId = user.Id, IdentifierType = "barcode", IdentifierValue = badge });
+            await db.SaveChangesAsync();
+            userId = user.Id;
+        }
+
+        var result = await ResolveAsync(badge);
+
+        result.Kind.Should().Be("badge");
+        result.Id.Should().Be(userId);
+    }
 }
