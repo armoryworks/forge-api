@@ -22,6 +22,9 @@ public record PartListQuery : PagedQuery
     /// <summary>Pillar 1 axis filter — Make / Buy / Subcontract / Phantom.</summary>
     public ProcurementSource? ProcurementSource { get; init; }
 
+    /// <summary>Purchasable alias — <c>true</c> keeps Buy and Subcontract parts; <c>false</c> keeps Make and Phantom parts.</summary>
+    public bool? Purchasable { get; init; }
+
     /// <summary>Pillar 1 axis filter — Raw / Component / Subassembly / FinishedGood / Consumable / Tool.</summary>
     public InventoryClass? InventoryClass { get; init; }
 

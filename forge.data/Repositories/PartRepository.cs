@@ -74,6 +74,12 @@ public class PartRepository(AppDbContext db, IPartPricingResolver pricingResolve
 
         if (query.ProcurementSource.HasValue)
             q = q.Where(p => p.ProcurementSource == query.ProcurementSource.Value);
+        if (query.Purchasable.HasValue)
+        {
+            q = query.Purchasable.Value
+                ? q.Where(p => p.ProcurementSource == ProcurementSource.Buy || p.ProcurementSource == ProcurementSource.Subcontract)
+                : q.Where(p => p.ProcurementSource != ProcurementSource.Buy && p.ProcurementSource != ProcurementSource.Subcontract);
+        }
         if (query.InventoryClass.HasValue)
             q = q.Where(p => p.InventoryClass == query.InventoryClass.Value);
 
