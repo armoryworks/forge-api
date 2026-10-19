@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
+using Forge.Api.Authorization;
 using Forge.Api.Hubs;
 using Forge.Core.Entities.Accounting;
 
@@ -132,7 +133,7 @@ public sealed class GlChangeBroadcastInterceptor(IHubContext<AccountingHub> hub)
     {
         try
         {
-            await hub.Clients.All.SendAsync("accountingChanged", new { changedAt = DateTimeOffset.UtcNow });
+            await hub.Clients.Group(AccountingRoles.Group).SendAsync("accountingChanged", new { changedAt = DateTimeOffset.UtcNow });
         }
         catch
         {
