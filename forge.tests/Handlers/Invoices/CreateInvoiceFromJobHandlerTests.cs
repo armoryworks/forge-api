@@ -1,11 +1,13 @@
-using Bogus;
 using FluentAssertions;
+using MediatR;
 using Moq;
 
 using Forge.Api.Features.Invoices;
+using Forge.Api.Features.SalesTax;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
+using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Tests.Helpers;
 
@@ -13,241 +15,176 @@ namespace Forge.Tests.Handlers.Invoices;
 
 public class CreateInvoiceFromJobHandlerTests
 {
-    private readonly Mock<IInvoiceRepository> _invoiceRepo = new();
-    private readonly AppDbContext _dbContext;
-    private readonly CreateInvoiceFromJobHandler _handler;
+    private static readonly DateTimeOffset Now = new(2026, 10, 17, 14, 0, 0, TimeSpan.Zero);
 
-    private readonly Faker _faker = new();
+    private readonly AppDbContext _db = TestDbContextFactory.Create();
+    private readonly Mock<IMediator> _mediator = new();
+    private readonly CreateInvoiceFromJobHandler _handler;
+    private CreateInvoiceCommand? _sent;
 
     public CreateInvoiceFromJobHandlerTests()
     {
-        _dbContext = TestDbContextFactory.Create();
-        _handler = new CreateInvoiceFromJobHandler(_dbContext, _invoiceRepo.Object);
+        var clock = new Mock<IClock>();
+        clock.Setup(c => c.UtcNow).Returns(Now);
+        _mediator
+            .Setup(m => m.Send(It.IsAny<CreateInvoiceCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<InvoiceListItemModel>, CancellationToken>((cmd, _) => _sent = (CreateInvoiceCommand)cmd)
+            .ReturnsAsync(new InvoiceListItemModel(9, "INV-00009", 1, "Acme", "Draft", Now, Now, 0m, 0m, 0m, Now));
+        _handler = new CreateInvoiceFromJobHandler(_db, _mediator.Object, clock.Object);
     }
 
-    [Fact]
-    public async Task Handle_CompletedJobWithCustomer_CreatesInvoice()
+    private async Task<Customer> AddCustomerAsync()
     {
-        // Arrange
-        var customerName = _faker.Company.CompanyName();
-        var customer = new Customer { Name = customerName };
-        _dbContext.Set<Customer>().Add(customer);
-        await _dbContext.SaveChangesAsync();
+        var customer = new Customer { Name = "Acme" };
+        _db.Customers.Add(customer);
+        await _db.SaveChangesAsync();
+        return customer;
+    }
 
+    private async Task<Job> AddJobAsync(int? customerId, Action<Job>? configure = null)
+    {
         var job = new Job
         {
-            JobNumber = $"JOB-{_faker.Random.Int(1000, 9999)}",
-            Title = _faker.Commerce.ProductName(),
-            Description = _faker.Lorem.Sentence(),
+            JobNumber = "J-13",
+            Title = "Mold T112",
+            Description = "Tooling build",
             TrackTypeId = 1,
             CurrentStageId = 1,
-            CustomerId = customer.Id,
-            CompletedDate = DateTime.UtcNow.AddDays(-1),
+            CustomerId = customerId,
+            CompletedDate = Now.AddDays(-1),
         };
-        _dbContext.Jobs.Add(job);
-        await _dbContext.SaveChangesAsync();
+        configure?.Invoke(job);
+        _db.Jobs.Add(job);
+        await _db.SaveChangesAsync();
+        return job;
+    }
 
-        var invoiceNumber = $"INV-{_faker.Random.Int(1000, 9999)}";
-        _invoiceRepo.Setup(r => r.GenerateNextInvoiceNumberAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(invoiceNumber);
-
-        var command = new CreateInvoiceFromJobCommand(job.Id);
-
-        // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-        result.InvoiceNumber.Should().Be(invoiceNumber);
-        result.CustomerId.Should().Be(customer.Id);
-        result.CustomerName.Should().Be(customerName);
-        result.Status.Should().Be(InvoiceStatus.Draft.ToString());
-
-        _invoiceRepo.Verify(r => r.AddAsync(It.Is<Invoice>(i =>
-            i.InvoiceNumber == invoiceNumber &&
-            i.CustomerId == customer.Id &&
-            i.Lines.Count == 1 &&
-            i.Lines.First().Quantity == 1 &&
-            i.Lines.First().UnitPrice == 0
-        ), It.IsAny<CancellationToken>()), Times.Once);
-
-        _invoiceRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    private async Task<SalesOrderLine> AddOrderLineAsync(int customerId, int? partId, decimal quantity, decimal unitPrice)
+    {
+        var order = new SalesOrder { OrderNumber = "SO-0042", CustomerId = customerId, Status = SalesOrderStatus.Confirmed, TaxRate = 0.0725m };
+        var line = new SalesOrderLine { PartId = partId, Description = "NRE tooling", Quantity = quantity, UnitPrice = unitPrice, LineNumber = 1 };
+        order.Lines.Add(line);
+        _db.SalesOrders.Add(order);
+        await _db.SaveChangesAsync();
+        return line;
     }
 
     [Fact]
-    public async Task Handle_JobNotFound_ThrowsKeyNotFoundException()
+    public async Task Job_linked_to_an_order_line_invoices_that_line_at_its_price_and_the_order_tax_rate()
     {
-        // Arrange
-        var command = new CreateInvoiceFromJobCommand(999);
+        var customer = await AddCustomerAsync();
+        var part = new Part { PartNumber = "NRE-T112", Name = "Tooling NRE", InventoryClass = InventoryClass.Service };
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+        var line = await AddOrderLineAsync(customer.Id, part.Id, 1m, 6800m);
+        var job = await AddJobAsync(customer.Id, j => { j.SalesOrderLineId = line.Id; j.PartId = part.Id; });
 
-        // Act
-        var act = () => _handler.Handle(command, CancellationToken.None);
+        var result = await _handler.Handle(new CreateInvoiceFromJobCommand(job.Id), CancellationToken.None);
 
-        // Assert
-        await act.Should().ThrowAsync<KeyNotFoundException>()
-            .WithMessage("*999*not found*");
+        result.InvoiceNumber.Should().Be("INV-00009");
+        _sent.Should().NotBeNull();
+        _sent!.SalesOrderId.Should().Be(line.SalesOrderId);
+        _sent.TaxRate.Should().Be(0.0725m);
+        _sent.InvoiceDate.Should().Be(Now);
+        _sent.DueDate.Should().Be(Now.AddDays(30));
+        _sent.Lines.Should().ContainSingle().Which.Should().Be(
+            new CreateInvoiceLineModel(part.Id, "J-13 — Mold T112: Tooling build", 1m, 6800m));
     }
 
     [Fact]
-    public async Task Handle_JobNotCompleted_ThrowsInvalidOperationException()
+    public async Task Already_invoiced_quantity_is_left_off()
     {
-        // Arrange
-        var customer = new Customer { Name = "Test Customer" };
-        _dbContext.Set<Customer>().Add(customer);
-        await _dbContext.SaveChangesAsync();
+        var customer = await AddCustomerAsync();
+        var part = new Part { PartNumber = "FG-1", Name = "Widget" };
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+        var line = await AddOrderLineAsync(customer.Id, part.Id, 10m, 25m);
+        var invoice = new Invoice { InvoiceNumber = "INV-1", CustomerId = customer.Id, SalesOrderId = line.SalesOrderId };
+        invoice.Lines.Add(new InvoiceLine { PartId = part.Id, Description = "Widget", Quantity = 4m, UnitPrice = 25m, LineNumber = 1 });
+        _db.Invoices.Add(invoice);
+        await _db.SaveChangesAsync();
+        var job = await AddJobAsync(customer.Id, j => j.SalesOrderLineId = line.Id);
 
-        var job = new Job
-        {
-            JobNumber = "JOB-0001",
-            Title = "Incomplete Job",
-            TrackTypeId = 1,
-            CurrentStageId = 1,
-            CustomerId = customer.Id,
-            CompletedDate = null, // Not completed
-        };
-        _dbContext.Jobs.Add(job);
-        await _dbContext.SaveChangesAsync();
+        await _handler.Handle(new CreateInvoiceFromJobCommand(job.Id), CancellationToken.None);
 
-        var command = new CreateInvoiceFromJobCommand(job.Id);
-
-        // Act
-        var act = () => _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*not completed*");
+        _sent!.Lines.Single().Quantity.Should().Be(6m);
     }
 
     [Fact]
-    public async Task Handle_JobWithoutCustomer_ThrowsInvalidOperationException()
+    public async Task Fully_invoiced_order_line_is_refused()
     {
-        // Arrange
-        var job = new Job
-        {
-            JobNumber = "JOB-0002",
-            Title = "No Customer Job",
-            TrackTypeId = 1,
-            CurrentStageId = 1,
-            CustomerId = null,
-            CompletedDate = DateTime.UtcNow.AddDays(-1),
-        };
-        _dbContext.Jobs.Add(job);
-        await _dbContext.SaveChangesAsync();
+        var customer = await AddCustomerAsync();
+        var part = new Part { PartNumber = "FG-2", Name = "Widget" };
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+        var line = await AddOrderLineAsync(customer.Id, part.Id, 2m, 25m);
+        var invoice = new Invoice { InvoiceNumber = "INV-2", CustomerId = customer.Id, SalesOrderId = line.SalesOrderId };
+        invoice.Lines.Add(new InvoiceLine { PartId = part.Id, Description = "Widget", Quantity = 2m, UnitPrice = 25m, LineNumber = 1 });
+        _db.Invoices.Add(invoice);
+        await _db.SaveChangesAsync();
+        var job = await AddJobAsync(customer.Id, j => j.SalesOrderLineId = line.Id);
 
-        var command = new CreateInvoiceFromJobCommand(job.Id);
+        var act = () => _handler.Handle(new CreateInvoiceFromJobCommand(job.Id), CancellationToken.None);
 
-        // Act
-        var act = () => _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*without a customer*");
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already invoiced in full*");
+        _sent.Should().BeNull();
     }
 
     [Fact]
-    public async Task Handle_InvoiceLineDescriptionIncludesJobNumber()
+    public async Task Standalone_job_uses_its_quoted_price_and_the_customer_tax_rate()
     {
-        // Arrange
-        var customer = new Customer { Name = "Acme Corp" };
-        _dbContext.Set<Customer>().Add(customer);
-        await _dbContext.SaveChangesAsync();
+        var customer = await AddCustomerAsync();
+        var job = await AddJobAsync(customer.Id, j => j.QuotedPrice = 1500m);
+        _mediator
+            .Setup(m => m.Send(It.IsAny<GetTaxRateForCustomerQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SalesTaxRateResponseModel(5, "Utah County", "UT-UTCO", "UT", 0.0725m, Now, null, true, true, null, false, null));
 
-        var job = new Job
-        {
-            JobNumber = "JOB-0042",
-            Title = "Widget Assembly",
-            Description = "Custom widget build",
-            TrackTypeId = 1,
-            CurrentStageId = 1,
-            CustomerId = customer.Id,
-            CompletedDate = DateTime.UtcNow.AddDays(-1),
-        };
-        _dbContext.Jobs.Add(job);
-        await _dbContext.SaveChangesAsync();
+        await _handler.Handle(new CreateInvoiceFromJobCommand(job.Id), CancellationToken.None);
 
-        _invoiceRepo.Setup(r => r.GenerateNextInvoiceNumberAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync("INV-0001");
-
-        var command = new CreateInvoiceFromJobCommand(job.Id);
-
-        // Act
-        await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        _invoiceRepo.Verify(r => r.AddAsync(It.Is<Invoice>(i =>
-            i.Lines.First().Description!.Contains("JOB-0042") &&
-            i.Lines.First().Description!.Contains("Widget Assembly") &&
-            i.Lines.First().Description!.Contains("Custom widget build")
-        ), It.IsAny<CancellationToken>()), Times.Once);
+        _sent!.SalesOrderId.Should().BeNull();
+        _sent.CustomerId.Should().Be(customer.Id);
+        _sent.TaxRate.Should().Be(0.0725m);
+        _sent.Lines.Should().ContainSingle().Which.UnitPrice.Should().Be(1500m);
     }
 
     [Fact]
-    public async Task Handle_DueDateIs30DaysFromInvoiceDate()
+    public async Task Job_with_no_price_is_refused_instead_of_drafted_at_zero()
     {
-        // Arrange
-        var customer = new Customer { Name = "Test Co" };
-        _dbContext.Set<Customer>().Add(customer);
-        await _dbContext.SaveChangesAsync();
+        var customer = await AddCustomerAsync();
+        var job = await AddJobAsync(customer.Id);
 
-        var job = new Job
-        {
-            JobNumber = "JOB-0003",
-            Title = "Test Job",
-            TrackTypeId = 1,
-            CurrentStageId = 1,
-            CustomerId = customer.Id,
-            CompletedDate = DateTime.UtcNow.AddDays(-2),
-        };
-        _dbContext.Jobs.Add(job);
-        await _dbContext.SaveChangesAsync();
+        var act = () => _handler.Handle(new CreateInvoiceFromJobCommand(job.Id), CancellationToken.None);
 
-        _invoiceRepo.Setup(r => r.GenerateNextInvoiceNumberAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync("INV-0002");
-
-        var command = new CreateInvoiceFromJobCommand(job.Id);
-
-        // Act
-        await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        _invoiceRepo.Verify(r => r.AddAsync(It.Is<Invoice>(i =>
-            (i.DueDate - i.InvoiceDate).Days == 30
-        ), It.IsAny<CancellationToken>()), Times.Once);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*J-13 has no price*");
+        _sent.Should().BeNull();
     }
 
     [Fact]
-    public async Task Handle_NotesIncludeJobNumberAndTitle()
+    public async Task Job_not_found_is_404()
     {
-        // Arrange
-        var customer = new Customer { Name = "Test Co" };
-        _dbContext.Set<Customer>().Add(customer);
-        await _dbContext.SaveChangesAsync();
+        var act = () => _handler.Handle(new CreateInvoiceFromJobCommand(999), CancellationToken.None);
 
-        var job = new Job
-        {
-            JobNumber = "JOB-0099",
-            Title = "Special Order",
-            TrackTypeId = 1,
-            CurrentStageId = 1,
-            CustomerId = customer.Id,
-            CompletedDate = DateTime.UtcNow.AddDays(-1),
-        };
-        _dbContext.Jobs.Add(job);
-        await _dbContext.SaveChangesAsync();
+        await act.Should().ThrowAsync<KeyNotFoundException>().WithMessage("*999*not found*");
+    }
 
-        _invoiceRepo.Setup(r => r.GenerateNextInvoiceNumberAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync("INV-0003");
+    [Fact]
+    public async Task Open_job_is_refused()
+    {
+        var customer = await AddCustomerAsync();
+        var job = await AddJobAsync(customer.Id, j => { j.CompletedDate = null; j.QuotedPrice = 100m; });
 
-        var command = new CreateInvoiceFromJobCommand(job.Id);
+        var act = () => _handler.Handle(new CreateInvoiceFromJobCommand(job.Id), CancellationToken.None);
 
-        // Act
-        await _handler.Handle(command, CancellationToken.None);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*not completed*");
+    }
 
-        // Assert
-        _invoiceRepo.Verify(r => r.AddAsync(It.Is<Invoice>(i =>
-            i.Notes != null &&
-            i.Notes.Contains("JOB-0099") &&
-            i.Notes.Contains("Special Order")
-        ), It.IsAny<CancellationToken>()), Times.Once);
+    [Fact]
+    public async Task Job_without_customer_is_refused()
+    {
+        var job = await AddJobAsync(null, j => j.QuotedPrice = 100m);
+
+        var act = () => _handler.Handle(new CreateInvoiceFromJobCommand(job.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*without a customer*");
     }
 }
