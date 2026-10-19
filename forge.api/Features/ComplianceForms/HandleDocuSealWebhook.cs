@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Forge.Core.Entities;
@@ -15,37 +16,62 @@ public record HandleDocuSealWebhookCommand(
     string Status,
     DateTimeOffset? CompletedAt,
     /// <summary>
-    /// true = individual submitter completed (I-9 Section 1 by employee).
-    /// false = all submitters completed (form.completed — final signed PDF ready).
+    /// true = one submitter finished (form.completed, or the older submitter.completed).
+    /// false = a submission-level event (submission.completed, or a form.completed without a nested submission).
     /// </summary>
-    bool IsSubmitterEvent = false) : IRequest;
+    bool IsSubmitterEvent = false,
+    /// <summary>The DocuSeal submitter id, when the event names one.</summary>
+    int? SubmitterId = null,
+    /// <summary>true when every submitter has signed, so the final signed PDF is ready.</summary>
+    bool AllSigned = false) : IRequest;
 
 public class HandleDocuSealWebhookHandler(
     AppDbContext db,
     IDocumentSigningService signingService,
     IStorageService storageService,
     IOptions<MinioOptions> minioOptions,
-    IMediator mediator)
+    IMediator mediator,
+    IClock clock,
+    ILogger<HandleDocuSealWebhookHandler> logger)
     : IRequestHandler<HandleDocuSealWebhookCommand>
 {
     public async Task Handle(HandleDocuSealWebhookCommand request, CancellationToken ct)
     {
         var submission = await db.ComplianceFormSubmissions
             .Include(s => s.Template)
-            .FirstOrDefaultAsync(s => s.DocuSealSubmissionId == request.SubmissionId, ct)
-            ?? throw new KeyNotFoundException(
-                $"Submission with DocuSeal ID {request.SubmissionId} not found.");
+            .FirstOrDefaultAsync(s => s.DocuSealSubmissionId == request.SubmissionId, ct);
 
-        // ── I-9 Section 1 submitter event (employee signed, employer has not yet) ──────
-        if (request.IsSubmitterEvent
-            && submission.Template.FormType == Forge.Core.Enums.ComplianceFormType.I9
-            && submission.I9Section1SignedAt is null)
+        if (submission is null && request.SubmitterId is int submitterId && submitterId != request.SubmissionId)
         {
-            submission.I9Section1SignedAt = request.CompletedAt ?? DateTimeOffset.UtcNow;
-            submission.Status = ComplianceSubmissionStatus.Opened;
-            // Section 2 overdue deadline was set when submission was created — preserve it
-            await db.SaveChangesAsync(ct);
+            submission = await db.ComplianceFormSubmissions
+                .Include(s => s.Template)
+                .FirstOrDefaultAsync(s => s.DocuSealSubmissionId == submitterId, ct);
+            if (submission is not null)
+                submission.DocuSealSubmissionId = request.SubmissionId;
+        }
+
+        if (submission is null)
+        {
+            logger.LogInformation(
+                "DocuSeal webhook for submission {SubmissionId} matches no compliance submission; ignored",
+                request.SubmissionId);
             return;
+        }
+
+        var isI9 = submission.Template.FormType == Forge.Core.Enums.ComplianceFormType.I9;
+        var signedAt = request.CompletedAt ?? clock.UtcNow;
+        var finished = request.Status == "completed"
+            && (request.AllSigned || !request.IsSubmitterEvent || !isI9 || submission.I9Section1SignedAt is not null);
+
+        if (isI9 && request.Status == "completed" && submission.I9Section1SignedAt is null)
+        {
+            submission.I9Section1SignedAt = signedAt;
+            if (!finished)
+            {
+                submission.Status = ComplianceSubmissionStatus.Opened;
+                await db.SaveChangesAsync(ct);
+                return;
+            }
         }
 
         if (request.Status != "completed")
@@ -61,11 +87,12 @@ public class HandleDocuSealWebhookHandler(
             return;
         }
 
+        if (submission.Status == ComplianceSubmissionStatus.Completed && submission.SignedPdfFileId is not null)
+            return;
+
         // ── I-9 Section 2: all submitters signed — capture Section 2 timestamp ──────────
-        if (submission.Template.FormType == Forge.Core.Enums.ComplianceFormType.I9)
-        {
-            submission.I9Section2SignedAt = request.CompletedAt ?? DateTimeOffset.UtcNow;
-        }
+        if (isI9 && submission.I9Section2SignedAt is null)
+            submission.I9Section2SignedAt = signedAt;
 
         // Download signed PDF from DocuSeal
         var signedPdfBytes = await signingService.GetSignedPdfAsync(request.SubmissionId, ct);
@@ -96,7 +123,7 @@ public class HandleDocuSealWebhookHandler(
 
         // Update submission
         submission.Status = ComplianceSubmissionStatus.Completed;
-        submission.SignedAt = request.CompletedAt ?? DateTimeOffset.UtcNow;
+        submission.SignedAt = signedAt;
         submission.SignedPdfFileId = fileAttachment.Id;
 
         await db.SaveChangesAsync(ct);

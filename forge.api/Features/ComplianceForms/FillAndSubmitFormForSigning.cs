@@ -142,7 +142,7 @@ public class FillAndSubmitFormForSigningHandler(
         }
 
         submission.FormDataJson = request.FormDataJson;
-        submission.DocuSealSubmissionId = order1Result.SubmitterId;
+        submission.DocuSealSubmissionId = multiSubmission.SubmissionId;
         submission.DocuSealSubmitUrl = order1Result.EmbedUrl;
         submission.FilledPdfFileId = filledAttachment.Id;
         submission.Status = ComplianceSubmissionStatus.Pending;

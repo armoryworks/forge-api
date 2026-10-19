@@ -112,7 +112,7 @@ public class SubmitOnboardingHandler(
                     };
                     db.ComplianceFormSubmissions.Add(mockSubmission);
                 }
-                mockSubmission.DocuSealSubmissionId = s1.SubmitterId;
+                mockSubmission.DocuSealSubmissionId = multiSub.SubmissionId;
                 mockSubmission.DocuSealSubmitUrl = s1.EmbedUrl;
                 mockSubmission.Status = ComplianceSubmissionStatus.Pending;
                 await db.SaveChangesAsync(ct);

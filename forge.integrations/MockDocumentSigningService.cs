@@ -46,6 +46,7 @@ public class MockDocumentSigningService : IDocumentSigningService
         CancellationToken ct)
     {
         var templateId = Interlocked.Increment(ref _nextTemplateId);
+        var submissionId = Interlocked.Increment(ref _nextSubmissionId);
         var byOrder = new Dictionary<int, SubmitterResult>();
         foreach (var submitter in submitters.OrderBy(s => s.Order))
         {
@@ -57,7 +58,7 @@ public class MockDocumentSigningService : IDocumentSigningService
             "[MockDocuSeal] CreateSubmissionFromPdf: '{Name}' ({Size} bytes), {Count} submitters → template {TemplateId}",
             templateName, pdfBytes.Length, submitters.Count, templateId);
 
-        return Task.FromResult(new DocumentSigningMultiSubmission(templateId, byOrder));
+        return Task.FromResult(new DocumentSigningMultiSubmission(templateId, byOrder, submissionId));
     }
 
     public Task<byte[]> GetSignedPdfAsync(int submissionId, CancellationToken ct)

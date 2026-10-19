@@ -54,7 +54,6 @@
     "forge.api/Features/ComplianceForms/GetComplianceTemplate.cs": 1,
     "forge.api/Features/ComplianceForms/GetI9Pending.cs": 1,
     "forge.api/Features/ComplianceForms/GetMyStateFormDefinition.cs": 1,
-    "forge.api/Features/ComplianceForms/HandleDocuSealWebhook.cs": 3,
     "forge.api/Features/ComplianceForms/I9StatusComputer.cs": 1,
     "forge.api/Features/ComplianceForms/SubmitFormData.cs": 2,
     "forge.api/Features/ComplianceForms/SyncAllComplianceTemplates.cs": 2,
