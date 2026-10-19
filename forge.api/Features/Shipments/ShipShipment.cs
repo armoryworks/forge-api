@@ -60,11 +60,18 @@ public class ShipShipmentHandler(
                     "This shipment uses an integrated carrier — create the shipping label (which assigns the " +
                     "tracking number) before marking it shipped.");
 
-            if ((carrier?.RequiresScanToShip ?? false)
-                && (string.IsNullOrWhiteSpace(request.ScanCode)
-                    || !string.Equals(request.ScanCode, shipment.ScanCode, StringComparison.Ordinal)))
-                throw new InvalidOperationException(
-                    "Scan the shipment's printed label to confirm it before marking it shipped.");
+            if (carrier?.RequiresScanToShip ?? false)
+            {
+                var scanned = request.ScanCode?.Trim();
+                if (string.IsNullOrEmpty(scanned))
+                    throw new InvalidOperationException(
+                        "Scan the shipment's printed label to confirm it before marking it shipped.");
+
+                var expected = shipment.ScanCode ?? await ComputeScanCodeAsync(db, shipment, cancellationToken);
+                if (!string.Equals(scanned, expected, StringComparison.Ordinal))
+                    throw new InvalidOperationException(
+                        "The scanned label doesn't match this shipment. Scan the label printed for this shipment.");
+            }
         }
 
         var userId = int.TryParse(
@@ -104,5 +111,16 @@ public class ShipShipmentHandler(
         });
 
         await repo.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task<string> ComputeScanCodeAsync(
+        AppDbContext db, Shipment shipment, CancellationToken cancellationToken)
+    {
+        var lines = shipment.Lines.Count > 0
+            ? shipment.Lines.ToList()
+            : await db.ShipmentLines.AsNoTracking()
+                .Where(l => l.ShipmentId == shipment.Id)
+                .ToListAsync(cancellationToken);
+        return ShipmentScanCode.Compute(shipment.ShipmentNumber, lines);
     }
 }

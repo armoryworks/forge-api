@@ -137,11 +137,22 @@ public class BillOfLadingPdfDocument : IDocument
 
             col.Item().PaddingTop(8);
 
+            var hasHazmat = ShipmentLineHazmat.AnyHazmat(_shipment.Lines);
+            if (hasHazmat)
+            {
+                col.Item().Border(2).BorderColor(Colors.Red.Darken2).Padding(6)
+                    .Text("CONTAINS HAZARDOUS MATERIALS — lines marked X in the HM column are regulated; see the hazmat class under each.")
+                    .Bold().FontSize(9).FontColor(Colors.Red.Darken2);
+                col.Item().PaddingTop(6);
+            }
+
             // Items table
             col.Item().Table(table =>
             {
                 table.ColumnsDefinition(cols =>
                 {
+                    if (hasHazmat)
+                        cols.ConstantColumn(28);
                     cols.ConstantColumn(35);    // #
                     cols.RelativeColumn(3);     // Description
                     cols.ConstantColumn(90);    // Part #
@@ -154,6 +165,8 @@ public class BillOfLadingPdfDocument : IDocument
 
                 table.Header(header =>
                 {
+                    if (hasHazmat)
+                        header.Cell().Background(Colors.Black).Padding(5).Text("HM").Style(headerStyle);
                     header.Cell().Background(Colors.Black).Padding(5).Text("#").Style(headerStyle);
                     header.Cell().Background(Colors.Black).Padding(5).Text("DESCRIPTION OF ARTICLES").Style(headerStyle);
                     header.Cell().Background(Colors.Black).Padding(5).Text("PART #").Style(headerStyle);
@@ -169,9 +182,17 @@ public class BillOfLadingPdfDocument : IDocument
                     var bg = i % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
                     var description = line.SalesOrderLine?.Description ?? line.Part?.Description ?? "—";
                     var partNumber = line.SalesOrderLine?.Part?.PartNumber ?? line.Part?.PartNumber ?? "—";
+                    var hazmatClass = ShipmentLineHazmat.ClassFor(line);
 
+                    if (hasHazmat)
+                        table.Cell().Background(bg).Padding(5).AlignCenter().Text(hazmatClass is null ? "" : "X").Bold();
                     table.Cell().Background(bg).Padding(5).Text((i + 1).ToString());
-                    table.Cell().Background(bg).Padding(5).Text(description);
+                    table.Cell().Background(bg).Padding(5).Column(desc =>
+                    {
+                        desc.Item().Text(description);
+                        if (hazmatClass is not null)
+                            desc.Item().Text($"HAZMAT class {hazmatClass}").Bold().FontColor(Colors.Red.Darken2);
+                    });
                     table.Cell().Background(bg).Padding(5).Text(partNumber);
                     table.Cell().Background(bg).Padding(5).AlignRight().Text(line.Quantity.ToString());
                     table.Cell().Background(bg).Padding(5).AlignRight().Text("—");

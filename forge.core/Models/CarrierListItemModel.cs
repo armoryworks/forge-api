@@ -15,4 +15,5 @@ public record CarrierListItemModel(
     // see what's configured; CredentialsConfigured drives the "configured ✓" badge.
     bool CredentialsConfigured = false,
     string? CredentialClientId = null,
-    string? CredentialEnvironment = null);
+    string? CredentialEnvironment = null,
+    string? Notes = null);

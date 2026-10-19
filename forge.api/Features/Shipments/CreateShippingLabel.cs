@@ -94,7 +94,7 @@ public class CreateShippingLabelHandler(
 
         // Stash the raw carrier label PNG so the combined ship document can be (re)generated on demand —
         // the carrier returns the label only once, here at creation.
-        if (label.LabelBytes is { Length: > 0 } labelBytes)
+        if (label.LabelBytes is { Length: > 0 } labelBytes && ShipLabelStorage.IsPng(labelBytes))
         {
             await storage.EnsureBucketExistsAsync(ShipLabelStorage.Bucket, cancellationToken);
             using var ms = new MemoryStream(labelBytes);

@@ -137,9 +137,15 @@ public class PackingSlipPdfDocument : IDocument
                     var bg = i % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
                     var description = line.SalesOrderLine?.Description ?? line.Part?.Description ?? "—";
                     var partNumber = line.SalesOrderLine?.Part?.PartNumber ?? line.Part?.PartNumber ?? "—";
+                    var hazmatClass = ShipmentLineHazmat.ClassFor(line);
 
                     table.Cell().Background(bg).Padding(5).Text((i + 1).ToString());
-                    table.Cell().Background(bg).Padding(5).Text(description);
+                    table.Cell().Background(bg).Padding(5).Column(desc =>
+                    {
+                        desc.Item().Text(description);
+                        if (hazmatClass is not null)
+                            desc.Item().Text($"HAZMAT class {hazmatClass}").Bold().FontColor(Colors.Red.Darken2);
+                    });
                     table.Cell().Background(bg).Padding(5).Text(partNumber);
                     table.Cell().Background(bg).Padding(5).AlignRight().Text(line.Quantity.ToString());
                 }

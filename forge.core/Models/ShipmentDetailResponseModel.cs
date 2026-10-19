@@ -12,6 +12,7 @@ public record ShipmentDetailResponseModel(
     string? Carrier,
     int? CarrierId,
     bool CarrierIsApi,
+    bool CarrierRequiresScanToShip,
     string? TrackingNumber,
     string? ScanCode,
     DateTimeOffset? ShippedDate,

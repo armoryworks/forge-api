@@ -26,6 +26,8 @@ public class GenerateBillOfLadingPdfHandler(
             .Include(s => s.Lines)
                 .ThenInclude(l => l.SalesOrderLine!)
                     .ThenInclude(sol => sol.Part)
+            .Include(s => s.Lines)
+                .ThenInclude(l => l.Part)
             .Include(s => s.Packages)
             .FirstOrDefaultAsync(s => s.Id == request.Id, ct)
             ?? throw new KeyNotFoundException($"Shipment {request.Id} not found");

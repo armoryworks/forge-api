@@ -42,7 +42,8 @@ public class MockShippingService : IShippingService
 
         _logger.LogInformation("[MockShipping] CreateLabel via {Carrier} — tracking {Tracking}", carrierName, tracking);
 
-        var label = new ShippingLabel(tracking, $"mock:///labels/{tracking}.pdf", carrierName);
+        var label = new ShippingLabel(
+            tracking, $"mock:///labels/{tracking}.png", carrierName, MockShippingLabelImage.Render(tracking));
         return Task.FromResult(label);
     }
 

@@ -31,6 +31,16 @@ public class CarriersController(IMediator mediator) : ControllerBase
         return CreatedAtAction(nameof(GetCarriers), new { }, result);
     }
 
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<CarrierListItemModel>> UpdateCarrier(int id, UpdateCarrierRequestModel request)
+    {
+        var result = await mediator.Send(new UpdateCarrierCommand(
+            id, request.Name, request.Code, request.Scac, request.IntegrationKind,
+            request.DeliveryUpdateMode, request.IntegrationServiceId, request.RequiresScanToShip,
+            request.IsActive, request.SortOrder, request.Notes));
+        return Ok(result);
+    }
+
     [HttpPut("{id:int}/credentials")]
     public async Task<IActionResult> UpdateCredentials(int id, UpdateCarrierCredentialsRequestModel request)
     {

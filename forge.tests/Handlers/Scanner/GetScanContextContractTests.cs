@@ -169,6 +169,25 @@ public class GetScanContextContractTests : IDisposable
         line.GetProperty("shipmentNumber").GetString().Should().Be("SH-0001");
         line.GetProperty("salesOrderNumber").GetString().Should().Be("SO-0003");
         line.GetProperty("requiredQuantity").GetDecimal().Should().Be(6);
+        line.GetProperty("requiresScanToShip").GetBoolean().Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ShipContext_FlagsALineWhoseCarrierRequiresTheLabelScan()
+    {
+        await SeedAsync();
+        var carrier = new Carrier { Name = "Freight Co", RequiresScanToShip = true };
+        _db.Carriers.Add(carrier);
+        await _db.SaveChangesAsync();
+        var open = await _db.Shipments.SingleAsync(s => s.ShipmentNumber == "SH-0001");
+        open.CarrierId = carrier.Id;
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var ship = Action(await ContextJsonAsync(Caller("OfficeManager")), "Ship");
+
+        var line = ship.GetProperty("context").GetProperty("openShipmentLines").EnumerateArray().Single();
+        line.GetProperty("requiresScanToShip").GetBoolean().Should().BeTrue();
     }
 
     [Fact]

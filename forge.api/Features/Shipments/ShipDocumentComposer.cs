@@ -28,6 +28,15 @@ public class ShipDocumentComposer(AppDbContext db, IStorageService storage, ISys
             .FirstOrDefaultAsync(s => s.Id == shipmentId, ct)
             ?? throw new KeyNotFoundException($"Shipment {shipmentId} not found");
 
+        string? carrierKey = shipment.Carrier;
+        string? integrationServiceId = null;
+        if (shipment.CarrierId is int cid)
+        {
+            var carrier = await db.Carriers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == cid, ct);
+            integrationServiceId = carrier?.IntegrationServiceId;
+            carrierKey = carrier?.IntegrationServiceId ?? carrier?.Name ?? shipment.Carrier;
+        }
+
         // Raw carrier label PNG (stashed at label creation).
         byte[] labelPng;
         try
@@ -41,21 +50,15 @@ public class ShipDocumentComposer(AppDbContext db, IStorageService storage, ISys
         {
             // Distinguish "no label at all" from "label exists but its image wasn't captured" (a label
             // created before image storage, or by a carrier that only returns a hosted URL).
-            throw new InvalidOperationException(string.IsNullOrWhiteSpace(shipment.TrackingNumber)
-                ? "Create the shipping label first — there's nothing to wrap yet."
-                : "The carrier label image isn't stored for this shipment, so the ship document can't be built. Re-create the label to capture it.");
+            throw new InvalidOperationException(MissingLabelMessage(shipment.TrackingNumber, integrationServiceId));
         }
+
+        if (!ShipLabelStorage.IsPng(labelPng))
+            throw new InvalidOperationException(MissingLabelMessage(shipment.TrackingNumber, integrationServiceId));
 
         var companyName = (await settings.FindByKeyAsync("company_name", ct))?.Value ?? "Forge";
         var companyAddress = (await settings.FindByKeyAsync("company_address", ct))?.Value;
         var companyPhone = (await settings.FindByKeyAsync("company_phone", ct))?.Value;
-
-        string? carrierKey = shipment.Carrier;
-        if (shipment.CarrierId is int cid)
-        {
-            var carrier = await db.Carriers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == cid, ct);
-            carrierKey = carrier?.IntegrationServiceId ?? carrier?.Name ?? shipment.Carrier;
-        }
 
         var pdf = new ShipDocumentPdfDocument(
             shipment, labelPng, companyName, companyAddress, companyPhone, CarrierBadge.For(carrierKey)).GeneratePdf();
@@ -70,5 +73,15 @@ public class ShipDocumentComposer(AppDbContext db, IStorageService storage, ISys
 
         return new Composed(pdf, $"ship-document-{shipment.ShipmentNumber}.pdf",
             new DocumentLinkTarget("Shipment", shipmentId), links);
+    }
+
+    private static string MissingLabelMessage(string? trackingNumber, string? integrationServiceId)
+    {
+        if (string.IsNullOrWhiteSpace(trackingNumber))
+            return "Create the shipping label first — there's nothing to wrap yet.";
+        if (integrationServiceId is "usps" or "dhl")
+            return "This carrier returns its label as a PDF, which can't be wrapped into the ship document. " +
+                "Print the label the carrier returned when it was created.";
+        return "The carrier label image isn't stored for this shipment, so the ship document can't be built. Re-create the label to capture it.";
     }
 }
