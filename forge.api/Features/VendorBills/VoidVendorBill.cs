@@ -52,6 +52,11 @@ public class VoidVendorBillHandler(
             throw new InvalidOperationException(
                 "Cannot void a bill with payments applied; void the payment(s) first.");
 
+        if (bill.Provider == ConversionOpenItems.Provider)
+            throw new InvalidOperationException(
+                $"Bill {bill.BillNumber} carries an opening balance brought over at conversion, so voiding it "
+                + "would leave that balance on the payables account. Correct the opening balance with a journal entry instead.");
+
         // Only an Approved bill was posted + advanced BilledQuantity (the approval transition). A Draft void
         // is a pure cancel — no reversal, no quantity to restore.
         var wasPosted = bill.Status == VendorBillStatus.Approved;

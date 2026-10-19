@@ -46,6 +46,11 @@ public class VoidInvoiceHandler(
         if (invoice.PaymentApplications.Any())
             throw new InvalidOperationException("Cannot void an invoice with payments applied");
 
+        if (invoice.Provider == ConversionOpenItems.Provider)
+            throw new InvalidOperationException(
+                $"Invoice {invoice.InvoiceNumber} carries an opening balance brought over at conversion, so voiding it "
+                + "would leave that balance on the receivables account. Correct the opening balance with a journal entry instead.");
+
         invoice.Status = InvoiceStatus.Voided;
 
         await using var tx = db is not null

@@ -557,6 +557,23 @@ public class Phase2ApHandlerTests
     }
 
     [Fact]
+    public async Task VoidBill_ConversionOpeningBill_Throws()
+    {
+        var (db, vendorId) = await SeedAsync();
+        var h = new Harness(db, fullGlOn: true);
+        var bill = await h.CreateBill.Handle(BillCmd(vendorId), CancellationToken.None);
+        var stored = await db.VendorBills.SingleAsync(b => b.Id == bill.Id);
+        stored.Status = VendorBillStatus.Approved;
+        stored.Provider = ConversionOpenItems.Provider;
+        await db.SaveChangesAsync();
+
+        var act = async () => await h.Void.Handle(new VoidVendorBillCommand(bill.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*opening balance*");
+        (await db.VendorBills.SingleAsync(b => b.Id == bill.Id)).Status.Should().Be(VendorBillStatus.Approved);
+    }
+
+    [Fact]
     public async Task VoidBill_AlreadyVoid_Throws()
     {
         var (db, vendorId) = await SeedAsync();

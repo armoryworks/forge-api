@@ -122,4 +122,22 @@ public class VoidInvoiceHandlerTests
         await act.Should().ThrowAsync<InvalidOperationException>();
         posting.VerifyNoOtherCalls();
     }
+
+    [Fact]
+    public async Task Handle_ConversionInvoice_IsRefusedAndNeverReversed()
+    {
+        var invoice = InvoiceInStatus(InvoiceStatus.Sent);
+        invoice.InvoiceNumber = "INV-0001";
+        invoice.Provider = ConversionOpenItems.Provider;
+        _repo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(invoice);
+        var posting = new Mock<IInvoiceArPostingService>();
+        var handler = new VoidInvoiceHandler(_repo.Object, posting.Object);
+
+        var act = () => handler.Handle(new VoidInvoiceCommand(1), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*INV-0001*opening balance*");
+        invoice.Status.Should().Be(InvoiceStatus.Sent);
+        posting.VerifyNoOtherCalls();
+        _repo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
 }
