@@ -47,6 +47,21 @@ public class JobOperationTimerHandlerTests
     }
 
     [Fact]
+    public async Task Start_WhileClockedOut_IsRefusedAndTouchesNothing()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(10m);
+        var user = await _h.Timers.AddUserAsync();
+        await _h.Timers.AddClockEventAsync(user.Id, "ClockIn", _h.Timers.Now.AddHours(-3));
+        await _h.Timers.AddClockEventAsync(user.Id, "ClockOut", _h.Timers.Now.AddHours(-1));
+
+        var act = () => StartAsync(user.Id, job.Id, routing[0].Id);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("You're clocked out*");
+        (await _h.Timers.Db.TimeEntries.AnyAsync()).Should().BeFalse();
+        (await _h.Timers.Db.JobOperations.AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Start_Twice_ReturnsTheRunningTimerInsteadOfAConflict()
     {
         var (job, routing) = await _h.AddJobWithRoutingAsync(10m);

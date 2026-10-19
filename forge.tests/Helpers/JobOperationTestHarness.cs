@@ -45,7 +45,7 @@ public sealed class JobOperationTestHarness
 
     public StartJobOperationTimerHandler StartHandler(int userId) => new(
         Operations, Timers.Repo, Timers.Db, Timers.SignedIn(userId), Timers.TimerHub.Object,
-        BoardHub.Object, Timers.Mediator.Object, Timers.Clock.Object);
+        BoardHub.Object, Timers.Mediator.Object, Timers.Clock.Object, Timers.ClockEventTypes.Object);
 
     public StopJobOperationTimerHandler StopHandler(int userId) => new(
         Timers.Repo, Timers.Db, Timers.SignedIn(userId), Timers.Mediator.Object, Timers.Clock.Object);

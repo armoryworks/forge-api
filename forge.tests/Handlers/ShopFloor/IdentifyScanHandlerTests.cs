@@ -261,19 +261,44 @@ public class IdentifyScanHandlerTests
 
         var result = await ScanAsync(new Barcode { Value = "BC-BRK-100", EntityType = BarcodeEntityType.Part, PartId = part.Id });
 
-        result.Should().Be(new ScanIdentificationResult("part", part.Id, "BRK-100"));
+        result.Should().Be(new ScanIdentificationResult("part", part.Id, "BRK-100", "Bracket"));
     }
 
     [Fact]
     public async Task Handle_LotBarcode_ReturnsTheLotNumber()
     {
-        var lot = new LotRecord { LotNumber = "LOT-2026-001", PartId = 1 };
+        var part = new Part { PartNumber = "RES-7", Name = "Resin" };
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+        var lot = new LotRecord { LotNumber = "LOT-2026-001", PartId = part.Id };
         _db.LotRecords.Add(lot);
         await _db.SaveChangesAsync();
 
         var result = await ScanAsync(new Barcode { Value = "BC-LOT-1", EntityType = BarcodeEntityType.Lot, LotRecordId = lot.Id });
 
-        result.Should().Be(new ScanIdentificationResult("lot", lot.Id, "LOT-2026-001"));
+        result.Should().Be(new ScanIdentificationResult("lot", lot.Id, "LOT-2026-001", "RES-7"));
+    }
+
+    [Fact]
+    public async Task Handle_CompletedJobBarcode_ReturnsTheNumberAndTitleMarkedClosed()
+    {
+        var trackType = new TrackType { Name = "Production", Code = "PROD", IsActive = true };
+        _db.TrackTypes.Add(trackType);
+        await _db.SaveChangesAsync();
+        var stage = new JobStage { TrackTypeId = trackType.Id, Name = "Shipped", Code = "shipped", SortOrder = 9, IsActive = true };
+        _db.JobStages.Add(stage);
+        await _db.SaveChangesAsync();
+        var job = new Job
+        {
+            JobNumber = "J-0900", Title = "Brackets", TrackTypeId = trackType.Id, CurrentStageId = stage.Id,
+            CompletedDate = DateTimeOffset.UtcNow,
+        };
+        _db.Jobs.Add(job);
+        await _db.SaveChangesAsync();
+
+        var result = await ScanAsync(new Barcode { Value = "BC-J-900", EntityType = BarcodeEntityType.Job, JobId = job.Id });
+
+        result.Should().Be(new ScanIdentificationResult("job", job.Id, "J-0900", "Brackets", IsClosed: true));
     }
 
     [Fact]

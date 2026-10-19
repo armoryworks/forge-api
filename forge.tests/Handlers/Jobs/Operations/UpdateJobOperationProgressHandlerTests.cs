@@ -44,6 +44,56 @@ public class UpdateJobOperationProgressHandlerTests
     }
 
     [Fact]
+    public async Task FractionalQuantity_ForAWholeUnitPart_IsRefused()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
+        await SetStockUnitAsync(job.PartId!.Value, "EA", 0);
+        var user = await _h.Timers.AddUserAsync();
+
+        var act = () => PatchAsync(user.Id, job.Id, routing[1].Id, new(2.5m, null, null));
+
+        (await act.Should().ThrowAsync<ValidationException>())
+            .Which.Errors.Should().ContainSingle(e => e.PropertyName == "CompletedQuantity");
+        (await _h.Timers.Db.JobOperations.AnyAsync(r => r.CompletedQuantity > 0)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task FractionalQuantity_WithinTheStockUnitsDecimals_IsRecorded()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
+        await SetStockUnitAsync(job.PartId!.Value, "KG", 2);
+        var user = await _h.Timers.AddUserAsync();
+
+        var result = await PatchAsync(user.Id, job.Id, routing[1].Id, new(2.5m, 0.25m, null));
+
+        result.Operation.CompletedQuantity.Should().Be(2.5m);
+        (await _h.Operations.BuildAsync(job.Id, CancellationToken.None)).QuantityDecimalPlaces.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ScrapBeyondTheStockUnitsDecimals_IsRefused()
+    {
+        var (job, routing) = await _h.AddJobWithRoutingAsync(40m);
+        await SetStockUnitAsync(job.PartId!.Value, "KG", 2);
+        var user = await _h.Timers.AddUserAsync();
+
+        var act = () => PatchAsync(user.Id, job.Id, routing[1].Id, new(null, 0.125m, null));
+
+        (await act.Should().ThrowAsync<ValidationException>())
+            .Which.Errors.Should().ContainSingle(e => e.PropertyName == "ScrapQuantity");
+    }
+
+    private async Task SetStockUnitAsync(int partId, string code, int decimalPlaces)
+    {
+        var unit = new UnitOfMeasure { Code = code, Name = code, DecimalPlaces = decimalPlaces };
+        _h.Timers.Db.Add(unit);
+        await _h.Timers.Db.SaveChangesAsync();
+        var part = await _h.Timers.Db.Parts.SingleAsync(p => p.Id == partId);
+        part.StockUomId = unit.Id;
+        await _h.Timers.Db.SaveChangesAsync();
+    }
+
+    [Fact]
     public async Task Complete_WithoutQuantity_FillsTheRestAndStopsEveryTimerOnThatStepOnly()
     {
         var (job, routing) = await _h.AddJobWithRoutingAsync(40m);

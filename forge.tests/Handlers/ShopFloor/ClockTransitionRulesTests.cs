@@ -123,51 +123,88 @@ public class ClockTransitionRulesTests
         _h.ClockEventTypes.Object);
 
     [Fact]
-    public async Task StartTimer_RequiringClockIn_IsRefusedWhileClockedOut()
+    public async Task ClockOut_OfAShiftOlderThanTheBoardLookback_IsRecorded()
+    {
+        var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-(ClockStateRules.DefaultLookbackHours + 1)));
+
+        await Punch(user.Id, "ClockOut");
+
+        (await _h.Db.ClockEvents.CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task LunchStart_ThenLunchEnd_AreRecorded()
+    {
+        var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-4));
+
+        await Punch(user.Id, "LunchStart");
+        _h.Now = _h.Now.AddMinutes(30);
+        await Punch(user.Id, "LunchEnd");
+
+        (await _h.Db.ClockEvents.CountAsync()).Should().Be(3);
+    }
+
+    [Fact]
+    public async Task StartTimer_WhileClockedOut_IsRefused()
     {
         var user = await _h.AddUserAsync();
         await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-3));
         await _h.AddClockEventAsync(user.Id, "ClockOut", _h.Now.AddHours(-1));
 
         var act = () => TimerHandler(user.Id).Handle(
-            new StartTimerCommand(new StartTimerRequestModel(null, null, null, RequireClockedIn: true)),
+            new StartTimerCommand(new StartTimerRequestModel(null, null, null)),
             CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("Clock in before starting a timer.");
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("You're clocked out*");
         (await _h.Db.TimeEntries.AnyAsync()).Should().BeFalse();
     }
 
     [Fact]
-    public async Task StartTimer_RequiringClockIn_IsRefusedOnBreak()
-    {
-        var user = await _h.AddUserAsync();
-        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-3));
-        await _h.AddClockEventAsync(user.Id, "BreakStart", _h.Now.AddMinutes(-5));
-
-        var act = () => TimerHandler(user.Id).Handle(
-            new StartTimerCommand(new StartTimerRequestModel(null, null, null, RequireClockedIn: true)),
-            CancellationToken.None);
-
-        await act.Should().ThrowAsync<InvalidOperationException>();
-    }
-
-    [Fact]
-    public async Task StartTimer_RequiringClockIn_StartsWhenClockedIn()
+    public async Task StartTimer_WhenClockedIn_Starts()
     {
         var user = await _h.AddUserAsync();
         await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-1));
 
         await TimerHandler(user.Id).Handle(
-            new StartTimerCommand(new StartTimerRequestModel(null, null, null, RequireClockedIn: true)),
+            new StartTimerCommand(new StartTimerRequestModel(null, null, null)),
             CancellationToken.None);
 
         (await _h.Db.TimeEntries.CountAsync(t => t.UserId == user.Id)).Should().Be(1);
     }
 
     [Fact]
-    public async Task StartTimer_WithoutTheFlag_StillStartsWhileClockedOut()
+    public async Task StartTimer_OnBreak_Starts()
     {
         var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockIn", _h.Now.AddHours(-3));
+        await _h.AddClockEventAsync(user.Id, "BreakStart", _h.Now.AddMinutes(-5));
+
+        await TimerHandler(user.Id).Handle(
+            new StartTimerCommand(new StartTimerRequestModel(null, null, null)),
+            CancellationToken.None);
+
+        (await _h.Db.TimeEntries.CountAsync(t => t.UserId == user.Id)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task StartTimer_ForAUserWhoNeverClocks_Starts()
+    {
+        var user = await _h.AddUserAsync();
+
+        await TimerHandler(user.Id).Handle(
+            new StartTimerCommand(new StartTimerRequestModel(null, null, null)),
+            CancellationToken.None);
+
+        (await _h.Db.TimeEntries.CountAsync(t => t.UserId == user.Id)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task StartTimer_AfterAClockOutOlderThanTheBoardLookback_Starts()
+    {
+        var user = await _h.AddUserAsync();
+        await _h.AddClockEventAsync(user.Id, "ClockOut", _h.Now.AddHours(-(ClockStateRules.DefaultLookbackHours + 1)));
 
         await TimerHandler(user.Id).Handle(
             new StartTimerCommand(new StartTimerRequestModel(null, null, null)),

@@ -49,6 +49,9 @@ public class ExecuteScanCountHandler(
             .FirstOrDefaultAsync(cancellationToken)
             ?? throw new KeyNotFoundException($"Part {data.PartId} not found");
 
+        await StockQuantityPrecision.EnsureFitsStockUnitAsync(
+            db, part.Id, [(nameof(data.ActualCount), "Counted quantity", data.ActualCount)], cancellationToken);
+
         // Validate location exists
         var locationExists = await db.StorageLocations.AsNoTracking()
             .AnyAsync(sl => sl.Id == data.LocationId, cancellationToken);

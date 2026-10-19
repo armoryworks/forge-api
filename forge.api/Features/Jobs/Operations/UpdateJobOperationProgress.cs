@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Inventory;
 using Forge.Api.Hubs;
 using Forge.Api.Services;
 using Forge.Core.Entities;
@@ -54,6 +55,12 @@ public class UpdateJobOperationProgressHandler(
             throw new InvalidOperationException(JobOperationRules.TrackingOffMessage);
 
         var (job, operation) = await operations.FindRoutingStepAsync(request.JobId, request.OperationId, cancellationToken);
+        await StockQuantityPrecision.EnsureFitsStockUnitAsync(db, job.PartId,
+        [
+            (nameof(data.CompletedQuantity), "Completed quantity", data.CompletedQuantity),
+            (nameof(data.ScrapQuantity), "Scrap quantity", data.ScrapQuantity),
+            (nameof(data.ReworkQuantity), "Rework quantity", data.ReworkQuantity),
+        ], cancellationToken);
         var row = await operations.EnsureRowAsync(job, operation, cancellationToken);
         if (data.ExpectedVersion is uint expected && expected != row.Version)
             throw new InvalidOperationException(JobOperationRules.StaleMessage);

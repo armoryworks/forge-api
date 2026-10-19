@@ -126,20 +126,21 @@ public static class ClockStateRules
         ClockEvent? evt, IClockEventTypeService clockEventTypeService, CancellationToken ct = default)
         => ResolveStatus(evt, await clockEventTypeService.GetAllAsync(ct));
 
-    public static async Task<bool> IsClockedInAsync(
+    public static async Task EnsureNotClockedOutAsync(
         AppDbContext db,
         IClockEventTypeService clockEventTypeService,
         int userId,
         DateTimeOffset now,
         CancellationToken ct = default)
     {
-        var latest = await LatestEventAsync(db, userId, ct);
-        if (latest is null || now - latest.Timestamp >= TimeSpan.FromHours(DefaultLookbackHours))
-            return false;
+        var latest = (await LatestEventsAsync(db, [userId], now, ct: ct)).GetValueOrDefault(userId);
+        if (latest is null)
+            return;
 
         var code = string.IsNullOrEmpty(latest.EventTypeCode) ? latest.EventType.ToString() : latest.EventTypeCode;
         var definition = await clockEventTypeService.GetByCodeAsync(code, ct);
-        return definition?.StatusMapping == StatusIn;
+        if (definition?.StatusMapping == StatusOut)
+            throw new InvalidOperationException("You're clocked out. Clock in before starting a timer.");
     }
 
     public static async Task EnsureTransitionAllowedAsync(

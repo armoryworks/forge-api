@@ -120,6 +120,12 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
         var now = clock.UtcNow;
         var tracking = await IsTrackingEnabledAsync(ct);
         var quantity = OperationTimeMath.JobBuildQuantity(job);
+        var quantityDecimals = job.PartId is int partId
+            ? await db.Parts.AsNoTracking()
+                .Where(p => p.Id == partId && p.StockUom != null)
+                .Select(p => (int?)p.StockUom!.DecimalPlaces)
+                .FirstOrDefaultAsync(ct)
+            : null;
         var routing = (job.Part?.Operations ?? []).OrderBy(o => o.StepNumber).ThenBy(o => o.Id).ToList();
         var routingIds = routing.Select(o => o.Id).ToHashSet();
         var target = Math.Min(OperationTimeMath.JobTargetQuantity(job), quantity);
@@ -243,7 +249,7 @@ public class JobOperationService(AppDbContext db, ISettingsService settings, ICl
             ? 0m
             : routingRows.Count == 0 ? null : routingRows.Sum(o => o.RemainingMinutes);
 
-        return new JobOperationsResponseModel(jobId, quantity, tracking, allComplete, remaining, now, operations, target);
+        return new JobOperationsResponseModel(jobId, quantity, tracking, allComplete, remaining, now, operations, target, quantityDecimals);
     }
 
     public async Task<IReadOnlyDictionary<int, JobOperationSummaryResponseModel>> SummarizeAsync(

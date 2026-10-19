@@ -8,5 +8,4 @@ public record StartTimerRequestModel(
     string? Notes,
     int? OperationId = null,
     TimeEntryType EntryType = TimeEntryType.Run,
-    bool SwitchFromActive = false,
-    bool RequireClockedIn = false);
+    bool SwitchFromActive = false);
