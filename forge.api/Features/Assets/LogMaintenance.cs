@@ -20,6 +20,7 @@ public class LogMaintenanceHandler(AppDbContext db, IHttpContextAccessor httpCon
         LogMaintenanceCommand request, CancellationToken ct)
     {
         var schedule = await db.MaintenanceSchedules
+            .Include(s => s.Asset)
             .FirstOrDefaultAsync(s => s.Id == request.ScheduleId, ct)
             ?? throw new KeyNotFoundException($"Maintenance schedule {request.ScheduleId} not found");
 
@@ -35,7 +36,8 @@ public class LogMaintenanceHandler(AppDbContext db, IHttpContextAccessor httpCon
             MaintenanceScheduleId = schedule.Id,
             PerformedById = userId,
             PerformedAt = now,
-            HoursAtService = data.HoursAtService,
+            HoursAtService = data.HoursAtService ?? schedule.Asset.CurrentHours,
+            ShotCountAtService = data.ShotCountAtService ?? schedule.Asset.CurrentShotCount,
             Notes = data.Notes?.Trim(),
             Cost = data.Cost,
         };
@@ -56,6 +58,7 @@ public class LogMaintenanceHandler(AppDbContext db, IHttpContextAccessor httpCon
             log.PerformedAt,
             log.HoursAtService,
             log.Notes,
-            log.Cost);
+            log.Cost,
+            log.ShotCountAtService);
     }
 }

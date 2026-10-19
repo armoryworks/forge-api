@@ -7,4 +7,5 @@ public record MaintenanceLogResponseModel(
     DateTimeOffset PerformedAt,
     decimal? HoursAtService,
     string? Notes,
-    decimal? Cost);
+    decimal? Cost,
+    int? ShotCountAtService);

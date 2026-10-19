@@ -19,6 +19,8 @@ public class CreateMaintenanceScheduleCommandValidator : AbstractValidator<Creat
         RuleFor(x => x.Data.Title).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Data.IntervalDays).GreaterThan(0);
         RuleFor(x => x.Data.AssetId).GreaterThan(0);
+        RuleFor(x => x.Data.IntervalHours).GreaterThan(0).When(x => x.Data.IntervalHours.HasValue);
+        RuleFor(x => x.Data.IntervalShots).GreaterThan(0).When(x => x.Data.IntervalShots.HasValue);
     }
 }
 
@@ -42,6 +44,7 @@ public class CreateMaintenanceScheduleHandler(AppDbContext db)
             Description = data.Description?.Trim(),
             IntervalDays = data.IntervalDays,
             IntervalHours = data.IntervalHours,
+            IntervalShots = data.IntervalShots,
             NextDueAt = data.NextDueAt,
         };
 
@@ -56,9 +59,10 @@ public class CreateMaintenanceScheduleHandler(AppDbContext db)
             schedule.Description,
             schedule.IntervalDays,
             schedule.IntervalHours,
+            schedule.IntervalShots,
             schedule.LastPerformedAt,
             schedule.NextDueAt,
             schedule.IsActive,
-            schedule.NextDueAt < DateTimeOffset.UtcNow);
+            MaintenanceUsage.IsDue(schedule, asset, null, DateTimeOffset.UtcNow));
     }
 }
