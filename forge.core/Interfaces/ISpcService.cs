@@ -12,6 +12,8 @@ public interface ISpcService
     decimal CalculatePp(decimal usl, decimal lsl, decimal overallSigma);
     decimal CalculatePpk(decimal usl, decimal lsl, decimal mean, decimal overallSigma);
 
+    SpcCapabilityIndices CalculateCapability(SpcCharacteristic characteristic, IReadOnlyList<SpcMeasurement> measurements);
+
     IReadOnlyList<SpcOocEvent> EvaluateControlRules(SpcCharacteristic characteristic, SpcControlLimit limits, IReadOnlyList<SpcMeasurement> recentSubgroups);
 
     Task<SpcChartDataModel> GetXBarRChartDataAsync(int characteristicId, int? lastNSubgroups, CancellationToken ct);
@@ -20,3 +22,14 @@ public interface ISpcService
 }
 
 public record SpcConstants(decimal A2, decimal D3, decimal D4, decimal d2, decimal A3, decimal B3, decimal B4, decimal c4);
+
+public record SpcCapabilityIndices(
+    decimal GrandMean,
+    decimal AverageRange,
+    decimal WithinSigma,
+    decimal OverallMean,
+    decimal OverallSigma,
+    decimal Cp,
+    decimal Cpk,
+    decimal Pp,
+    decimal Ppk);

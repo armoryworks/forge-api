@@ -43,12 +43,16 @@ public class RecordSpcMeasurementsHandler(AppDbContext db, ISpcService spcServic
             .FirstOrDefaultAsync(c => c.Id == data.CharacteristicId, cancellationToken)
             ?? throw new KeyNotFoundException($"SPC Characteristic {data.CharacteristicId} not found.");
 
+        var now = DateTimeOffset.UtcNow;
+
+        if (characteristic.GageId is int gageId)
+            await GageUsability.EnsureUsableAsync(db, gageId, DateOnly.FromDateTime(now.UtcDateTime), cancellationToken);
+
         // Get next subgroup number
         var lastSubgroup = await db.SpcMeasurements
             .Where(m => m.CharacteristicId == data.CharacteristicId)
             .MaxAsync(m => (int?)m.SubgroupNumber, cancellationToken) ?? 0;
 
-        var now = DateTimeOffset.UtcNow;
         var measurements = new List<SpcMeasurement>();
 
         foreach (var subgroup in data.Subgroups)

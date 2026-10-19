@@ -132,6 +132,17 @@ public class BulkToggleCapabilitiesHandler(
             // Skip idempotent rows.
             if (rowByCode[item.Id].Enabled == item.Enabled) continue;
 
+            if (item.Enabled && !CapabilityCatalog.IsAvailable(item.Id))
+            {
+                violations.Add(new
+                {
+                    code = "capability-not-available",
+                    capability = item.Id,
+                    message = $"'{item.Id}' is not built yet",
+                });
+                continue;
+            }
+
             if (item.Enabled)
             {
                 var missing = CapabilityDependencyResolver.FindMissingDependencies(item.Id, candidate);
@@ -285,7 +296,8 @@ public class BulkToggleCapabilitiesHandler(
                 ConfigETag: null,
                 ConfigId: null,
                 Dependencies: Array.Empty<string>(),
-                Mutexes: Array.Empty<string>()))
+                Mutexes: Array.Empty<string>(),
+                IsAvailable: CapabilityCatalog.IsAvailable(r.Code)))
             .ToList();
     }
 }

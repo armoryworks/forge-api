@@ -46,6 +46,30 @@ public class CapabilityCatalogSeederTests
     }
 
     [Fact]
+    public async Task Seeder_Turns_Off_A_Capability_That_Is_Not_Built_Yet()
+    {
+        using var db = TestDbContextFactory.Create();
+        var seeder = new CapabilityCatalogSeeder(db, NullLogger<CapabilityCatalogSeeder>.Instance);
+        await seeder.SeedAsync();
+        db.Capabilities.First(c => c.Code == "CAP-QC-COA").Enabled = true;
+        db.Capabilities.First(c => c.Code == "CAP-EXT-CHAT").Enabled = true;
+        await db.SaveChangesAsync();
+
+        await seeder.SeedAsync();
+
+        Assert.False(db.Capabilities.First(c => c.Code == "CAP-QC-COA").Enabled);
+        Assert.True(db.Capabilities.First(c => c.Code == "CAP-EXT-CHAT").Enabled);
+    }
+
+    [Fact]
+    public void Capabilities_Not_Built_Yet_Are_Left_Out_Of_Every_Preset()
+    {
+        Assert.Contains("CAP-QC-COA", CapabilityCatalog.UnavailableCodes);
+        foreach (var preset in Forge.Api.Capabilities.Discovery.PresetCatalog.All)
+            Assert.DoesNotContain(preset.EnabledCapabilities, CapabilityCatalog.UnavailableCodes.Contains);
+    }
+
+    [Fact]
     public void Catalog_Contains_Ap_Split_Codes_With_Po_Matching_Defaults()
     {
         // AP capability split (owner-ratified 2026-06): vendor bills + vendor

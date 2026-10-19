@@ -215,7 +215,7 @@ public static class PresetCatalog
                 "CAP-PLAN-SAFETYSTOCK", "CAP-PLAN-CAPACITY",
                 "CAP-INV-RESERVE", "CAP-INV-LOTS",
                 "CAP-QC-INSPECTION", "CAP-QC-NCR", "CAP-QC-CAPA",
-                "CAP-QC-GAGE", "CAP-QC-RECALL", "CAP-QC-COA",
+                "CAP-QC-GAGE", "CAP-QC-RECALL",
                 "CAP-QC-COMPLIANCE-FORMS",
                 "CAP-MAINT-PM", "CAP-MAINT-BREAKDOWN",
                 "CAP-IDEN-AUTH-KIOSK", "CAP-EXT-SHOPFLOOR-KIOSK", "CAP-EXT-ANDON",

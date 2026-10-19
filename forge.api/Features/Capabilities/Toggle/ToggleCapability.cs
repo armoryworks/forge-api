@@ -103,6 +103,18 @@ public class ToggleCapabilityHandler(
         {
             var currentEnabled = snapshots.Current.EnabledByCode;
 
+            if (toState && !CapabilityCatalog.IsAvailable(request.Code))
+            {
+                throw new CapabilityMutationException(
+                    StatusCodes.Status409Conflict,
+                    "capability-not-available",
+                    $"Cannot enable '{request.Code}' — it is not built yet.",
+                    new Dictionary<string, object?>
+                    {
+                        ["capability"] = request.Code,
+                    });
+            }
+
             if (toState)
             {
                 // Enabling: check missing dependencies and enabled mutex peers.
@@ -239,7 +251,8 @@ public class ToggleCapabilityHandler(
             ConfigETag: null,
             ConfigId: null,
             Dependencies: BuildDeps(refreshed.Code),
-            Mutexes: BuildMutexes(refreshed.Code));
+            Mutexes: BuildMutexes(refreshed.Code),
+            IsAvailable: CapabilityCatalog.IsAvailable(refreshed.Code));
     }
 
     private static IReadOnlyList<string> BuildDeps(string code)

@@ -37,7 +37,8 @@ public record CapabilityDescriptorEntry(
     string? ConfigETag,
     int? ConfigId,
     IReadOnlyList<string> Dependencies,
-    IReadOnlyList<string> Mutexes);
+    IReadOnlyList<string> Mutexes,
+    bool IsAvailable = true);
 
 public class GetCapabilityDescriptorHandler(AppDbContext db, ICapabilitySnapshotProvider snapshots)
     : IRequestHandler<GetCapabilityDescriptorQuery, CapabilityDescriptorResponseModel>
@@ -117,7 +118,8 @@ public class GetCapabilityDescriptorHandler(AppDbContext db, ICapabilitySnapshot
                     ConfigETag: cfg is null ? null : $"W/\"{cfg.Version}\"",
                     ConfigId: cfg?.Id,
                     Dependencies: deps,
-                    Mutexes: muts);
+                    Mutexes: muts,
+                    IsAvailable: CapabilityCatalog.IsAvailable(r.Code));
             })
             .ToList();
 

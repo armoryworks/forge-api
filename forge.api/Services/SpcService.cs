@@ -66,6 +66,37 @@ public class SpcService(AppDbContext db) : ISpcService
     public decimal CalculatePpk(decimal usl, decimal lsl, decimal mean, decimal overallSigma)
         => overallSigma > 0 ? Math.Min((usl - mean) / (3m * overallSigma), (mean - lsl) / (3m * overallSigma)) : 0;
 
+    public SpcCapabilityIndices CalculateCapability(
+        SpcCharacteristic characteristic, IReadOnlyList<SpcMeasurement> measurements)
+    {
+        var constants = GetConstants(characteristic.SampleSize);
+
+        var xDoubleBar = measurements.Count > 0 ? measurements.Average(m => m.Mean) : 0m;
+        var rBar = measurements.Count > 0 ? measurements.Average(m => m.Range) : 0m;
+        var sigma = constants.d2 > 0 ? rBar / constants.d2 : 0;
+
+        var allValues = measurements
+            .SelectMany(m => ParseValues(m.ValuesJson))
+            .ToList();
+        var overallMean = allValues.Count > 0 ? allValues.Average() : xDoubleBar;
+        var overallSigma = allValues.Count > 1
+            ? (decimal)Math.Sqrt((double)allValues.Sum(v => (v - overallMean) * (v - overallMean)) / (allValues.Count - 1))
+            : sigma;
+
+        var usl = characteristic.UpperSpecLimit;
+        var lsl = characteristic.LowerSpecLimit;
+        return new SpcCapabilityIndices(
+            GrandMean: xDoubleBar,
+            AverageRange: rBar,
+            WithinSigma: sigma,
+            OverallMean: overallMean,
+            OverallSigma: overallSigma,
+            Cp: CalculateCp(usl, lsl, sigma),
+            Cpk: CalculateCpk(usl, lsl, xDoubleBar, sigma),
+            Pp: CalculatePp(usl, lsl, overallSigma),
+            Ppk: CalculatePpk(usl, lsl, overallMean, overallSigma));
+    }
+
     public async Task<SpcControlLimit> CalculateControlLimitsAsync(
         int characteristicId, int? fromSubgroup, int? toSubgroup, CancellationToken ct)
     {
@@ -91,31 +122,16 @@ public class SpcService(AppDbContext db) : ISpcService
             throw new InvalidOperationException("At least 2 subgroups are required to calculate control limits.");
 
         var constants = GetConstants(characteristic.SampleSize);
-
-        // X-bar and R calculations
-        var xBarValues = measurements.Select(m => m.Mean).ToList();
-        var rangeValues = measurements.Select(m => m.Range).ToList();
-
-        var xDoubleBar = xBarValues.Average(); // Grand mean
-        var rBar = rangeValues.Average();       // Average range
+        var capability = CalculateCapability(characteristic, measurements);
+        var xDoubleBar = capability.GrandMean;
+        var rBar = capability.AverageRange;
+        var sigma = capability.WithinSigma;
 
         // Control limits using A2, D3, D4
         var xBarUcl = xDoubleBar + constants.A2 * rBar;
         var xBarLcl = xDoubleBar - constants.A2 * rBar;
         var rangeUcl = constants.D4 * rBar;
         var rangeLcl = constants.D3 * rBar;
-
-        // Estimated sigma from R-bar/d2
-        var sigma = constants.d2 > 0 ? rBar / constants.d2 : 0;
-
-        // Overall sigma (from all individual values)
-        var allValues = measurements
-            .SelectMany(m => ParseValues(m.ValuesJson))
-            .ToList();
-        var overallMean = allValues.Count > 0 ? allValues.Average() : xDoubleBar;
-        var overallSigma = allValues.Count > 1
-            ? (decimal)Math.Sqrt((double)allValues.Sum(v => (v - overallMean) * (v - overallMean)) / (allValues.Count - 1))
-            : sigma;
 
         // S-chart limits (for sample sizes > 10)
         decimal? sUcl = null, sLcl = null, sCenterLine = null;
@@ -127,11 +143,6 @@ public class SpcService(AppDbContext db) : ISpcService
             sUcl = constants.B4 * sBar;
             sLcl = constants.B3 * sBar;
         }
-
-        var cp = CalculateCp(characteristic.UpperSpecLimit, characteristic.LowerSpecLimit, sigma);
-        var cpk = CalculateCpk(characteristic.UpperSpecLimit, characteristic.LowerSpecLimit, xDoubleBar, sigma);
-        var pp = CalculatePp(characteristic.UpperSpecLimit, characteristic.LowerSpecLimit, overallSigma);
-        var ppk = CalculatePpk(characteristic.UpperSpecLimit, characteristic.LowerSpecLimit, overallMean, overallSigma);
 
         // Deactivate existing active limits
         var existingActive = await db.SpcControlLimits
@@ -157,10 +168,10 @@ public class SpcService(AppDbContext db) : ISpcService
             SUcl = sUcl,
             SLcl = sLcl,
             SCenterLine = sCenterLine,
-            Cp = cp,
-            Cpk = cpk,
-            Pp = pp,
-            Ppk = ppk,
+            Cp = capability.Cp,
+            Cpk = capability.Cpk,
+            Pp = capability.Pp,
+            Ppk = capability.Ppk,
             ProcessSigma = sigma,
             IsActive = true,
         };

@@ -214,16 +214,91 @@ public class NcrLotHoldTests : IDisposable
             new[] { ("NonConformance", ncr.Id), ("Lot", _heldLotRecord.Id) });
     }
 
-    [Theory]
-    [InlineData(NcrDispositionCode.Scrap)]
-    [InlineData(NcrDispositionCode.ReturnToVendor)]
-    public async Task ScrapOrReturnToVendor_KeepsTheHold_UntilClose(NcrDispositionCode code)
+    [Fact]
+    public async Task Scrap_DrawsTheScrappedQuantityOutOfTheHeldLot_AndCloseReleasesOnlyTheRest()
+    {
+        await SeedAsync();
+        var first = await StockAsync(_binA, HeldLot, 6, daysAgo: 3);
+        var second = await StockAsync(_binB, HeldLot, 9, daysAgo: 1);
+        var ncr = await RaiseNcrAsync();
+
+        await DispositionAsync(ncr.Id, NcrDispositionCode.Scrap);
+
+        var firstRow = await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == first.Id);
+        firstRow.Quantity.Should().Be(0);
+        firstRow.RemovedAt.Should().Be(Now);
+        firstRow.RemovedBy.Should().Be(UserId);
+        var secondRow = await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == second.Id);
+        secondRow.Quantity.Should().Be(5);
+        secondRow.Status.Should().Be(BinContentStatus.QcHold);
+        var movements = await _db.BinMovements.AsNoTracking().OrderBy(m => m.Id).ToListAsync();
+        movements.Select(m => (m.FromLocationId, m.Quantity, m.LotNumber)).Should().Equal(
+            (_binA.Id, 6m, HeldLot), (_binB.Id, 4m, HeldLot));
+        (await _db.ActivityLogs.AsNoTracking().CountAsync(a => a.Action == "quality-scrap")).Should().Be(2);
+
+        await CloseAsync(ncr.Id);
+
+        (await StatusOf(second.Id)).Should().Be(BinContentStatus.Stored);
+        (await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == second.Id)).Quantity.Should().Be(5);
+        (await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == first.Id)).Quantity.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Scrap_UsesTheDefectiveQuantity_WhenOneIsRecorded()
+    {
+        await SeedAsync();
+        var row = await StockAsync(_binA, HeldLot, 10);
+        var ncr = await RaiseNcrAsync();
+        var entity = await _db.NonConformances.SingleAsync(n => n.Id == ncr.Id);
+        entity.DefectiveQuantity = 3;
+        await _db.SaveChangesAsync();
+
+        await DispositionAsync(ncr.Id, NcrDispositionCode.Scrap);
+
+        (await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == row.Id)).Quantity.Should().Be(7);
+    }
+
+    [Fact]
+    public async Task Scrap_WithoutALot_RemovesNothing_AndSaysSo()
+    {
+        await SeedAsync();
+        var row = await StockAsync(_binA, HeldLot, 10);
+        var ncr = await RaiseNcrAsync(lot: null);
+
+        await DispositionAsync(ncr.Id, NcrDispositionCode.Scrap);
+
+        (await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == row.Id)).Quantity.Should().Be(10);
+        (await _db.BinMovements.AnyAsync()).Should().BeFalse();
+        var log = await _db.ActivityLogs.AsNoTracking().SingleAsync(a => a.Action == "quality-scrap");
+        log.EntityId.Should().Be(ncr.Id);
+        log.Description.Should().Contain("nothing was removed from inventory");
+    }
+
+    [Fact]
+    public async Task ReturnToVendor_KeepsTheHold_ThroughClose()
     {
         await SeedAsync();
         var row = await StockAsync(_binA, HeldLot, 10);
         var ncr = await RaiseNcrAsync();
 
-        await DispositionAsync(ncr.Id, code);
+        await DispositionAsync(ncr.Id, NcrDispositionCode.ReturnToVendor);
+        (await StatusOf(row.Id)).Should().Be(BinContentStatus.QcHold);
+
+        await CloseAsync(ncr.Id);
+
+        (await StatusOf(row.Id)).Should().Be(BinContentStatus.QcHold);
+        (await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == row.Id)).Quantity.Should().Be(10);
+        (await _db.ActivityLogs.AnyAsync(a => a.Action == "quality-hold-released")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Reject_KeepsTheHold_UntilClose()
+    {
+        await SeedAsync();
+        var row = await StockAsync(_binA, HeldLot, 10);
+        var ncr = await RaiseNcrAsync();
+
+        await DispositionAsync(ncr.Id, NcrDispositionCode.Reject);
         (await StatusOf(row.Id)).Should().Be(BinContentStatus.QcHold);
 
         await CloseAsync(ncr.Id);
@@ -236,7 +311,7 @@ public class NcrLotHoldTests : IDisposable
         await SeedAsync();
         var row = await StockAsync(_binA, HeldLot, 10);
         var ncr = await RaiseNcrAsync();
-        await DispositionAsync(ncr.Id, NcrDispositionCode.Scrap);
+        await DispositionAsync(ncr.Id, NcrDispositionCode.Reject);
         await CloseAsync(ncr.Id);
         (await StatusOf(row.Id)).Should().Be(BinContentStatus.Stored);
 
@@ -252,6 +327,23 @@ public class NcrLotHoldTests : IDisposable
         var transfer = () => new TransferStockHandler(new InventoryRepository(_db), _accessor, _clock).Handle(
             new TransferStockCommand(new TransferStockRequestModel(row.Id, _binB.Id, 1, null)), CancellationToken.None);
         await transfer.Should().ThrowAsync<InvalidOperationException>().WithMessage(HoldMessage(ncr));
+    }
+
+    [Fact]
+    public async Task Reopen_OfAScrappedNcr_ReholdsOnlyWhatWasNotScrapped()
+    {
+        await SeedAsync();
+        var row = await StockAsync(_binA, HeldLot, 15);
+        var ncr = await RaiseNcrAsync();
+        await DispositionAsync(ncr.Id, NcrDispositionCode.Scrap);
+        await CloseAsync(ncr.Id);
+
+        await ReopenAsync(ncr.Id);
+
+        var reopened = await _db.BinContents.AsNoTracking().SingleAsync(b => b.Id == row.Id);
+        reopened.Status.Should().Be(BinContentStatus.QcHold);
+        reopened.Quantity.Should().Be(5);
+        (await _db.BinMovements.CountAsync()).Should().Be(1);
     }
 
     [Fact]
@@ -286,7 +378,7 @@ public class NcrLotHoldTests : IDisposable
         _db.Recalls.Add(recall);
         await _db.SaveChangesAsync();
 
-        await DispositionAsync(ncr.Id, NcrDispositionCode.Scrap);
+        await DispositionAsync(ncr.Id, NcrDispositionCode.Reject);
         await CloseAsync(ncr.Id);
 
         (await StatusOf(row.Id)).Should().Be(BinContentStatus.QcHold);

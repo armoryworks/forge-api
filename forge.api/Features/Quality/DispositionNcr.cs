@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Accounting;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -34,7 +35,8 @@ public class DispositionNcrValidator : AbstractValidator<DispositionNcrCommand>
 public class DispositionNcrHandler(
     AppDbContext db,
     IClock clock,
-    IHttpContextAccessor httpContextAccessor)
+    IHttpContextAccessor httpContextAccessor,
+    INcrScrapPostingService? scrapPosting = null)
     : IRequestHandler<DispositionNcrCommand>
 {
     public async Task Handle(DispositionNcrCommand command, CancellationToken cancellationToken)
@@ -64,6 +66,24 @@ public class DispositionNcrHandler(
         if (command.Request.Code is NcrDispositionCode.UseAsIs or NcrDispositionCode.Rework)
             await LotQualityHold.ReleaseAsync(db, ncr, cancellationToken);
 
+        if (command.Request.Code != NcrDispositionCode.Scrap)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        await using var tx = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
+        var scrapped = await LotQualityHold.ScrapHeldAsync(db, ncr, userId, ncr.DispositionAt.Value, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+
+        if (scrapPosting is not null && scrapped > 0)
+            await scrapPosting.PostScrapAsync(
+                ncr.Id, scrapped, DateOnly.FromDateTime(ncr.DispositionAt.Value.UtcDateTime), userId, cancellationToken);
+
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
     }
 }

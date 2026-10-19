@@ -12,13 +12,16 @@ namespace Forge.Api.Capabilities;
 /// <param name="Description">Catalog description.</param>
 /// <param name="IsDefaultOn">True = default-on for fresh installs.</param>
 /// <param name="RequiresRoles">Optional CSV list of roles allowed to manage this capability. Null = no restriction.</param>
+/// <param name="IsAvailable">False = listed in the catalog but not built yet. It cannot be turned on, presets
+/// leave it out, the seeder turns it off on installs that had it on, and the snapshot reads it as off.</param>
 public sealed record CapabilityDefinition(
     string Code,
     string Area,
     string Name,
     string Description,
     bool IsDefaultOn,
-    string? RequiresRoles = null);
+    string? RequiresRoles = null,
+    bool IsAvailable = true);
 
 /// <summary>
 /// Phase 4 Phase-C — Encodes the dependency / soft-mutex graph from the

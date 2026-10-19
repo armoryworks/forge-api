@@ -47,13 +47,9 @@ public class GetProcessCapabilityHandler(AppDbContext db, ISpcService spcService
             .SelectMany(m => JsonSerializer.Deserialize<decimal[]>(m.ValuesJson) ?? [])
             .ToList();
 
+        var capability = spcService.CalculateCapability(characteristic, measurements);
         var mean = allValues.Average();
-        var sigma = (decimal)Math.Sqrt((double)allValues.Sum(v => (v - mean) * (v - mean)) / (allValues.Count - 1));
-
-        var cp = spcService.CalculateCp(characteristic.UpperSpecLimit, characteristic.LowerSpecLimit, sigma);
-        var cpk = spcService.CalculateCpk(characteristic.UpperSpecLimit, characteristic.LowerSpecLimit, mean, sigma);
-        var pp = spcService.CalculatePp(characteristic.UpperSpecLimit, characteristic.LowerSpecLimit, sigma);
-        var ppk = spcService.CalculatePpk(characteristic.UpperSpecLimit, characteristic.LowerSpecLimit, mean, sigma);
+        var sigma = capability.OverallSigma;
 
         // Build histogram (20 buckets across data range with padding)
         var dataMin = allValues.Min();
@@ -93,10 +89,10 @@ public class GetProcessCapabilityHandler(AppDbContext db, ISpcService spcService
             Usl = characteristic.UpperSpecLimit,
             Lsl = characteristic.LowerSpecLimit,
             Nominal = characteristic.NominalValue,
-            Cp = cp,
-            Cpk = cpk,
-            Pp = pp,
-            Ppk = ppk,
+            Cp = capability.Cp,
+            Cpk = capability.Cpk,
+            Pp = capability.Pp,
+            Ppk = capability.Ppk,
             Mean = Math.Round(mean, 6),
             Sigma = Math.Round(sigma, 6),
             SampleCount = allValues.Count,

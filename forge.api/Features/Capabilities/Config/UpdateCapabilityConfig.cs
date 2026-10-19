@@ -152,6 +152,7 @@ public class UpdateCapabilityConfigHandler(
             ConfigETag: $"W/\"{config.Version}\"",
             ConfigId: config.Id,
             Dependencies: Array.Empty<string>(),
-            Mutexes: Array.Empty<string>());
+            Mutexes: Array.Empty<string>(),
+            IsAvailable: CapabilityCatalog.IsAvailable(capability.Code));
     }
 }

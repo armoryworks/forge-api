@@ -424,6 +424,7 @@ try
     builder.Services.AddScoped<IInventoryValuationService, Forge.Api.Features.Accounting.InventoryValuationService>();
     // Phase-2 STAGE E — material-issue WIP posting (relieves the valuation store at weighted-average).
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IMaterialIssuePostingService, Forge.Api.Features.Accounting.MaterialIssuePostingService>();
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.INcrScrapPostingService, Forge.Api.Features.Accounting.NcrScrapPostingService>();
     // Phase-2 STAGE E — production receipt (job-complete→FG): Dr INVENTORY_FG / Cr WIP at standard cost.
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IProductionReceiptPostingService, Forge.Api.Features.Accounting.ProductionReceiptPostingService>();
     // Phase-2 STAGE E — job-cost close: absorb labor+overhead into WIP, sweep WIP residual to PRODUCTION_VARIANCE.

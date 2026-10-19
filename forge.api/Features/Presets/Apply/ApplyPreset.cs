@@ -76,6 +76,7 @@ public class ApplyPresetHandler(
         //     (per 4B decision #5: Custom = catalog defaults, then user
         //     hand-picks).
         var targetSet = ResolveTargetSet(preset, request.IsCustomOverride, request.CustomOverrides);
+        targetSet.ExceptWith(CapabilityCatalog.UnavailableCodes);
 
         // Compute deltas vs current state.
         var snapshot = snapshots.Current;
