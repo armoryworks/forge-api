@@ -114,10 +114,12 @@ public class SendPurchaseOrderEmailTests
         _sent.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task A_cancelled_po_cannot_be_emailed()
+    [Theory]
+    [InlineData(PurchaseOrderStatus.Cancelled)]
+    [InlineData(PurchaseOrderStatus.Draft)]
+    public async Task A_cancelled_or_draft_po_cannot_be_emailed(PurchaseOrderStatus status)
     {
-        await SeedAsync(PurchaseOrderStatus.Cancelled);
+        await SeedAsync(status);
 
         var act = () => _handler.Handle(new SendPurchaseOrderEmailCommand(12, null, null, null), CancellationToken.None);
 
