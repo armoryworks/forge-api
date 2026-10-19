@@ -25,7 +25,9 @@ public class ReconcileConsignmentHandler(AppDbContext db, IClock clock) : IReque
             .ToListAsync(cancellationToken);
 
         var bookQuantity = transactions
-            .Where(t => t.Type == ConsignmentTransactionType.Receipt || t.Type == ConsignmentTransactionType.Adjustment)
+            .Where(t => t.Type == ConsignmentTransactionType.Receipt
+                || t.Type == ConsignmentTransactionType.Adjustment
+                || t.Type == ConsignmentTransactionType.Reconciliation)
             .Sum(t => t.Quantity)
             - transactions
             .Where(t => t.Type == ConsignmentTransactionType.Consumption || t.Type == ConsignmentTransactionType.Return)
