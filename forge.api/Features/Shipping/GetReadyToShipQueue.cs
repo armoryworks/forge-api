@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Shipments;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -30,12 +31,14 @@ public class GetReadyToShipQueueHandler(AppDbContext db)
             .AsNoTracking()
             .Include(so => so.Customer)
             .Include(so => so.Lines).ThenInclude(l => l.Part)
+            .Include(so => so.Shipments).ThenInclude(s => s.Lines)
             .Where(so => OpenStatuses.Contains(so.Status)
                 && so.Lines.Any(l => l.Quantity - l.ShippedQuantity > 0
                     && (l.Part == null || l.Part.InventoryClass != InventoryClass.Service)))
             .ToListAsync(ct);
 
         return orders
+            .Where(so => so.Lines.Any(l => l.ShipsGoods && SalesOrderShipping.OpenToShip(so, l) > 0))
             .OrderBy(so => so.RequestedDeliveryDate ?? DateTimeOffset.MaxValue)
             .Select(so => new ReadyToShipOrderModel(
                 so.Id,
@@ -46,7 +49,7 @@ public class GetReadyToShipQueueHandler(AppDbContext db)
                 so.RequestedDeliveryDate,
                 so.Status.ToString(),
                 so.Lines
-                    .Where(l => l.RemainingQuantity > 0 && l.ShipsGoods)
+                    .Where(l => l.ShipsGoods && SalesOrderShipping.OpenToShip(so, l) > 0)
                     .OrderBy(l => l.LineNumber)
                     .Select(l => new ReadyToShipLineModel(
                         l.Id,
@@ -56,7 +59,7 @@ public class GetReadyToShipQueueHandler(AppDbContext db)
                         l.Part?.PartNumber,
                         l.Quantity,
                         l.ShippedQuantity,
-                        l.RemainingQuantity))
+                        SalesOrderShipping.OpenToShip(so, l)))
                     .ToList()))
             .ToList();
     }

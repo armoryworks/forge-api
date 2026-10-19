@@ -16,14 +16,11 @@ using Forge.Tests.Helpers;
 namespace Forge.Tests.Handlers.Shipments;
 
 /// <summary>
-/// INV-SH1 regression: ShippedQuantity must increment exactly once per shipment.
+/// Shipped quantity moves when a shipment ships, never when it is created, and exactly once (INV-SH1).
 ///
-/// The existing CreateShipmentHandlerTests mock IMediator, so OnShipmentCreated_UpdateSalesOrder
-/// never runs and the double-count bug is invisible. This test exercises the real notification
-/// path by wiring a real IMediator with both handlers sharing one AppDbContext — the same
-/// isolation boundary as a live HTTP request.
-///
-/// Was red before the fix (double-count → ShippedQuantity == 2 × shipped); green after.
+/// The CreateShipmentHandlerTests mock IMediator, so OnShipmentCreated_UpdateSalesOrder never runs there.
+/// This test exercises the real notification path by wiring a real IMediator with the handlers sharing one
+/// AppDbContext — the same isolation boundary as a live HTTP request.
 /// </summary>
 public class CreateShipmentMediatorIntegrationTests : IDisposable
 {
@@ -63,10 +60,8 @@ public class CreateShipmentMediatorIntegrationTests : IDisposable
         _sp = services.BuildServiceProvider();
     }
 
-    [Fact]
-    public async Task CreateShipment_ShippedQuantityIncrementedExactlyOnce_NotDoubled()
+    private async Task<(SalesOrder Order, int LineId)> SeedOrderAsync(decimal quantity)
     {
-        // Arrange — seed minimal spine data (Customer → SalesOrder → Line)
         var customer = new Customer { Name = "INV-SH1 Test Customer" };
         _db.Customers.Add(customer);
         await _db.SaveChangesAsync();
@@ -81,7 +76,7 @@ public class CreateShipmentMediatorIntegrationTests : IDisposable
                 new SalesOrderLine
                 {
                     Description = "Test Part",
-                    Quantity = 20m,
+                    Quantity = quantity,
                     UnitPrice = 10m,
                     LineNumber = 1,
                     ShippedQuantity = 0m,
@@ -90,23 +85,68 @@ public class CreateShipmentMediatorIntegrationTests : IDisposable
         };
         _db.SalesOrders.Add(so);
         await _db.SaveChangesAsync();
+        return (so, so.Lines.First().Id);
+    }
 
-        var soLineId = so.Lines.First().Id;
-        const decimal shipQty = 5m;
+    [Fact]
+    public async Task CreateShipment_LeavesShippedQuantityAndOrderStatus_UntilTheShipmentShips()
+    {
+        var (so, soLineId) = await SeedOrderAsync(20m);
+        var mediator = _sp.GetRequiredService<IMediator>();
 
-        // Act — dispatched through the real mediator; OnShipmentCreated_UpdateSalesOrder fires.
+        var created = await mediator.Send(new CreateShipmentCommand(
+            so.Id, null, null, null, null, null, null,
+            [new CreateShipmentLineModel(soLineId, 5m, null)]));
+
+        _db.ChangeTracker.Clear();
+        (await _db.Set<SalesOrderLine>().FindAsync(soLineId))!.ShippedQuantity.Should().Be(0m);
+        (await _db.SalesOrders.FindAsync(so.Id))!.Status.Should().Be(SalesOrderStatus.Confirmed);
+
+        await mediator.Send(new ShipShipmentCommand(created.Id));
+
+        _db.ChangeTracker.Clear();
+        (await _db.Set<SalesOrderLine>().FindAsync(soLineId))!.ShippedQuantity.Should().Be(5m,
+            "ShippedQuantity must count the shipped shipment exactly once (INV-SH1)");
+        (await _db.SalesOrders.FindAsync(so.Id))!.Status.Should().Be(SalesOrderStatus.PartiallyShipped);
+    }
+
+    [Fact]
+    public async Task CreateShipment_CountsQuantityOnAPendingShipment_AsTaken()
+    {
+        var (so, soLineId) = await SeedOrderAsync(20m);
         var mediator = _sp.GetRequiredService<IMediator>();
         await mediator.Send(new CreateShipmentCommand(
             so.Id, null, null, null, null, null, null,
-            [new CreateShipmentLineModel(soLineId, shipQty, null)]));
-
-        // Assert — clear tracking so FindAsync hits the committed store, not the cache.
+            [new CreateShipmentLineModel(soLineId, 15m, null)]));
         _db.ChangeTracker.Clear();
-        var refreshedLine = await _db.Set<SalesOrderLine>().FindAsync(soLineId);
 
-        refreshedLine!.ShippedQuantity.Should().Be(shipQty,
-            "ShippedQuantity must be incremented exactly once (INV-SH1). " +
-            "A value of 2× indicates the handler double-counted.");
+        var act = () => mediator.Send(new CreateShipmentCommand(
+            so.Id, null, null, null, null, null, null,
+            [new CreateShipmentLineModel(soLineId, 10m, null)]));
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*only 5 remaining*");
+    }
+
+    [Fact]
+    public async Task ShipShipment_PendingShipmentInflatedAtCreate_CountsOnlyWhatShipped()
+    {
+        var (so, soLineId) = await SeedOrderAsync(20m);
+        var line = so.Lines.First();
+        var shipNow = new Shipment { ShipmentNumber = "SH-OLD-1", SalesOrderId = so.Id, Status = ShipmentStatus.Pending };
+        shipNow.Lines.Add(new ShipmentLine { SalesOrderLineId = soLineId, Quantity = 12m });
+        var shipLater = new Shipment { ShipmentNumber = "SH-OLD-2", SalesOrderId = so.Id, Status = ShipmentStatus.Pending };
+        shipLater.Lines.Add(new ShipmentLine { SalesOrderLineId = soLineId, Quantity = 8m });
+        _db.Shipments.AddRange(shipNow, shipLater);
+        line.ShippedQuantity = 20m;
+        so.Status = SalesOrderStatus.Shipped;
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        await _sp.GetRequiredService<IMediator>().Send(new ShipShipmentCommand(shipNow.Id));
+
+        _db.ChangeTracker.Clear();
+        (await _db.Set<SalesOrderLine>().FindAsync(soLineId))!.ShippedQuantity.Should().Be(12m);
+        (await _db.SalesOrders.FindAsync(so.Id))!.Status.Should().Be(SalesOrderStatus.PartiallyShipped);
     }
 
     public void Dispose() => _db.Dispose();

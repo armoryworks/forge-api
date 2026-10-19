@@ -99,6 +99,16 @@ public class ShipShipmentHandler(
         shipment.Status = ShipmentStatus.Shipped;
         shipment.ShippedDate = DateTimeOffset.UtcNow;
 
+        if (db is not null)
+        {
+            var order = await db.SalesOrders
+                .Include(o => o.Lines).ThenInclude(l => l.Part)
+                .Include(o => o.Shipments).ThenInclude(s => s.Lines)
+                .FirstOrDefaultAsync(o => o.Id == shipment.SalesOrderId, cancellationToken);
+            if (order is not null)
+                SalesOrderShipping.RecordShipped(order);
+        }
+
         // Transactional entity logs on itself (CLAUDE.md Activity-logging rules). Same scoped context as
         // the repo, so the row flushes with the status change below.
         db?.ActivityLogs.Add(new ActivityLog

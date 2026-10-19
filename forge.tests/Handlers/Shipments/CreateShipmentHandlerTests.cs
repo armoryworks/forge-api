@@ -203,7 +203,7 @@ public class CreateShipmentHandlerTests
     }
 
     [Fact]
-    public async Task Handle_FullyShipsAllLines_UpdatesOrderStatusToShipped()
+    public async Task Handle_FullyAllocatesAllLines_LeavesOrderStatusUntilItShips()
     {
         // Arrange
         var order = CreateConfirmedOrder(1, 10, 20);
@@ -219,11 +219,12 @@ public class CreateShipmentHandlerTests
         await _handler.Handle(command, CancellationToken.None);
 
         // Assert
-        order.Status.Should().Be(SalesOrderStatus.Shipped);
+        order.Status.Should().Be(SalesOrderStatus.Confirmed);
+        order.Lines.First().ShippedQuantity.Should().Be(0);
     }
 
     [Fact]
-    public async Task Handle_PartialShipment_UpdatesOrderStatusToPartiallyShipped()
+    public async Task Handle_PartialShipment_LeavesShippedQuantityUntilItShips()
     {
         // Arrange
         var order = CreateConfirmedOrder(1, 10, 20);
@@ -239,8 +240,8 @@ public class CreateShipmentHandlerTests
         await _handler.Handle(command, CancellationToken.None);
 
         // Assert
-        order.Status.Should().Be(SalesOrderStatus.PartiallyShipped);
-        order.Lines.First().ShippedQuantity.Should().Be(5);
+        order.Status.Should().Be(SalesOrderStatus.Confirmed);
+        order.Lines.First().ShippedQuantity.Should().Be(0);
     }
 
     [Fact]
@@ -425,7 +426,6 @@ public class CreateShipmentHandlerTests
             [new CreateShipmentLineModel(10, 5, null)]), CancellationToken.None);
 
         result.ShipmentNumber.Should().Be("SHP-0001");
-        order.Lines.First().ShippedQuantity.Should().Be(5);
         _shipmentRepo.Verify(r => r.AddAsync(It.IsAny<Shipment>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -500,21 +500,33 @@ public class CreateShipmentHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ShippingEveryGoodsLine_MarksTheOrderShippedWhileItsServiceLineAwaitsInvoicing()
+    public async Task Handle_QuantityAlreadyOnAPendingShipment_IsNotOpenToShipAgain()
     {
         var order = CreateConfirmedOrder(1, 10, 20);
-        order.Lines.Add(new SalesOrderLine
-        {
-            Id = 11, SalesOrderId = 1, PartId = 77, Description = "Tooling NRE", Quantity = 1, UnitPrice = 6800m, LineNumber = 2,
-            Part = new Part { Id = 77, PartNumber = "NRE-T112", Name = "Tooling NRE", InventoryClass = InventoryClass.Service },
-        });
+        var pending = new Shipment { Id = 3, SalesOrderId = 1, ShipmentNumber = "SHP-0000", Status = ShipmentStatus.Pending };
+        pending.Lines.Add(new ShipmentLine { SalesOrderLineId = 10, Quantity = 15 });
+        order.Shipments.Add(pending);
         _orderRepo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(order);
         _shipmentRepo.Setup(r => r.GenerateNextShipmentNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("SHP-0001");
 
-        await _handler.Handle(new CreateShipmentCommand(
+        var act = () => _handler.Handle(new CreateShipmentCommand(
             1, null, null, null, null, null, null,
-            [new CreateShipmentLineModel(10, 20, null)]), CancellationToken.None);
+            [new CreateShipmentLineModel(10, 6, null)]), CancellationToken.None);
 
-        order.Status.Should().Be(SalesOrderStatus.Shipped);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*only 5 remaining*");
+    }
+
+    [Fact]
+    public async Task Handle_TwoRequestLinesOnOneOrderLine_CannotTogetherExceedIt()
+    {
+        var order = CreateConfirmedOrder(1, 10, 20);
+        _orderRepo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        _shipmentRepo.Setup(r => r.GenerateNextShipmentNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync("SHP-0001");
+
+        var act = () => _handler.Handle(new CreateShipmentCommand(
+            1, null, null, null, null, null, null,
+            [new CreateShipmentLineModel(10, 15, null), new CreateShipmentLineModel(10, 6, null)]), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*only 5 remaining*");
     }
 }

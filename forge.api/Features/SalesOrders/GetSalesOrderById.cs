@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 using MediatR;
 
+using Forge.Api.Features.Shipments;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -88,7 +89,7 @@ public class GetSalesOrderByIdHandler(ISalesOrderRepository repo, AppDbContext d
                 l.Quantity * l.UnitPrice,
                 l.LineNumber,
                 l.ShippedQuantity,
-                l.RemainingQuantity,
+                SalesOrderShipping.OpenToShip(so, l),
                 l.IsFullyShipped,
                 l.Notes,
                 l.Jobs.Select(j => new SalesOrderLineJobModel(
