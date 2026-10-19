@@ -34,6 +34,7 @@ public class InvoiceVoidReversalTests
     private const int SalesTaxPayableId = 104;
     private const int CogsId = 105;
     private const int InventoryFgId = 106;
+    private const int InventorySubassemblyId = 107;
 
     private const int JanPeriodId = 1000;
     private const int FebPeriodId = 1001;
@@ -106,7 +107,8 @@ public class InvoiceVoidReversalTests
             new GlAccount { Id = DeferredRevenueId, BookId = BookId, AccountNumber = "24000", Name = "Deferred Revenue", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true },
             new GlAccount { Id = SalesTaxPayableId, BookId = BookId, AccountNumber = "23000", Name = "Sales Tax Payable", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsPostable = true, IsActive = true },
             new GlAccount { Id = CogsId, BookId = BookId, AccountNumber = "50000", Name = "Cost of Goods Sold", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsPostable = true, IsActive = true },
-            new GlAccount { Id = InventoryFgId, BookId = BookId, AccountNumber = "13300", Name = "Inventory — Finished Goods", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true });
+            new GlAccount { Id = InventoryFgId, BookId = BookId, AccountNumber = "13300", Name = "Inventory — Finished Goods", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true },
+            new GlAccount { Id = InventorySubassemblyId, BookId = BookId, AccountNumber = "13250", Name = "Inventory — Subassemblies", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsControlAccount = true, ControlType = ControlAccountType.Inventory, IsPostable = true, IsActive = true });
 
         db.Set<AccountDeterminationRule>().AddRange(
             new AccountDeterminationRule { BookId = BookId, Key = "AR_CONTROL", GlAccountId = ArControlId },
@@ -114,7 +116,8 @@ public class InvoiceVoidReversalTests
             new AccountDeterminationRule { BookId = BookId, Key = "DEFERRED_REVENUE", GlAccountId = DeferredRevenueId },
             new AccountDeterminationRule { BookId = BookId, Key = "SALES_TAX_PAYABLE", GlAccountId = SalesTaxPayableId },
             new AccountDeterminationRule { BookId = BookId, Key = "COGS", GlAccountId = CogsId },
-            new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_FG", GlAccountId = InventoryFgId });
+            new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_FG", GlAccountId = InventoryFgId },
+            new AccountDeterminationRule { BookId = BookId, Key = "INVENTORY_SUBASSEMBLY", GlAccountId = InventorySubassemblyId });
 
         await db.SaveChangesAsync();
         return db;
@@ -225,6 +228,30 @@ public class InvoiceVoidReversalTests
         (await db.ArOpenItems.IgnoreQueryFilters().SingleAsync()).Status.Should().Be(OpenItemStatus.Voided);
 
         store = await db.InventoryValuations.SingleAsync();
+        store.OnHandQuantity.Should().Be(10m);
+        store.TotalValue.Should().Be(300m);
+    }
+
+    [Fact]
+    public async Task Reverse_SubassemblySale_NetsTheSubassemblyAccountToZero_AndRestoresTheStore()
+    {
+        using var db = await SeedAsync();
+        var (invoice, part, _) = await AddInvoiceAsync(db);
+        part.InventoryClass = InventoryClass.Subassembly;
+        await db.SaveChangesAsync();
+        await AddStoreRowAsync(db, part.Id, qty: 10m, avg: 30m);
+        var service = CreateService(db);
+        await service.PostInvoiceFinalizedAsync(invoice.Id, 7);
+
+        (await NetByAccountAsync(db))[InventorySubassemblyId].Should().Be(-60m);
+        (await db.InventoryValuations.SingleAsync()).OnHandQuantity.Should().Be(8m);
+
+        await service.ReverseInvoiceFinalizedAsync(invoice.Id, VoidDate, 9);
+
+        var net = await NetByAccountAsync(db);
+        net.Values.Should().AllSatisfy(v => v.Should().Be(0m));
+        net.Keys.Should().NotContain(InventoryFgId);
+        var store = await db.InventoryValuations.SingleAsync();
         store.OnHandQuantity.Should().Be(10m);
         store.TotalValue.Should().Be(300m);
     }
