@@ -260,6 +260,7 @@ public class ApprovalService(AppDbContext db, ILogger<ApprovalService> logger) :
         var now = DateTimeOffset.UtcNow;
         var pendingRequests = await db.ApprovalRequests
             .Include(r => r.Workflow).ThenInclude(w => w.Steps)
+            .Include(r => r.Decisions)
             .Where(r => r.Status == ApprovalRequestStatus.Pending
                      || r.Status == ApprovalRequestStatus.Escalated)
             .ToListAsync(ct);
@@ -273,7 +274,7 @@ public class ApprovalService(AppDbContext db, ILogger<ApprovalService> logger) :
 
             if (currentStep?.EscalationHours == null) continue;
 
-            var deadline = request.EscalatedAt ?? request.RequestedAt;
+            var deadline = StepEnteredAt(request);
             if ((now - deadline).TotalHours < currentStep.EscalationHours.Value) continue;
 
             var nextStep = request.Workflow.Steps
@@ -306,6 +307,23 @@ public class ApprovalService(AppDbContext db, ILogger<ApprovalService> logger) :
 
         await db.SaveChangesAsync(ct);
         return escalated;
+    }
+
+    private static DateTimeOffset StepEnteredAt(ApprovalRequest request)
+    {
+        var enteredAt = request.EscalatedAt is { } escalatedAt && escalatedAt > request.RequestedAt
+            ? escalatedAt
+            : request.RequestedAt;
+
+        foreach (var decision in request.Decisions)
+        {
+            if (decision.StepNumber < request.CurrentStepNumber
+                && decision.Decision is ApprovalDecisionType.Approve or ApprovalDecisionType.Escalate
+                && decision.DecidedAt > enteredAt)
+                enteredAt = decision.DecidedAt;
+        }
+
+        return enteredAt;
     }
 
     private async Task<List<string>> GetUserRolesAsync(int userId, CancellationToken ct)

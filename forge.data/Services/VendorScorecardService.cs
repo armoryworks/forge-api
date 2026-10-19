@@ -251,6 +251,7 @@ public class VendorScorecardService(
             .Where(r => r.PurchaseOrder.VendorId == vendorId
                 && r.PurchaseOrder.IsBlanket
                 && r.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
+                && r.PurchaseOrder.Status != PurchaseOrderStatus.Draft
                 && r.Status != PurchaseOrderReleaseStatus.Cancelled)
             .Select(r => new
             {

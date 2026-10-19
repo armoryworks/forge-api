@@ -119,6 +119,27 @@ public class CheckApprovalEscalationsJobTests
     }
 
     [Fact]
+    public async Task A_step_reached_by_approval_gets_its_full_window_before_escalating()
+    {
+        var request = await SeedAsync(DateTimeOffset.UtcNow.AddDays(-3));
+        request.CurrentStepNumber = 2;
+        _db.ApprovalDecisions.Add(new ApprovalDecision
+        {
+            RequestId = request.Id, StepNumber = 1, DecidedById = ManagerId,
+            Decision = ApprovalDecisionType.Approve, DecidedAt = DateTimeOffset.UtcNow.AddHours(-1),
+        });
+        await _db.SaveChangesAsync();
+
+        await Job().ExecuteAsync(CancellationToken.None);
+
+        _db.ChangeTracker.Clear();
+        var stored = (await _db.ApprovalRequests.FindAsync(request.Id))!;
+        stored.Status.Should().Be(ApprovalRequestStatus.Pending);
+        stored.CurrentStepNumber.Should().Be(2);
+        _sent.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task A_request_inside_its_window_is_left_alone()
     {
         var request = await SeedAsync(DateTimeOffset.UtcNow.AddMinutes(-30));
