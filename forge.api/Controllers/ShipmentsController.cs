@@ -67,6 +67,13 @@ public class ShipmentsController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{id:int}/cancel")]
+    public async Task<IActionResult> CancelShipment(int id)
+    {
+        await mediator.Send(new CancelShipmentCommand(id));
+        return NoContent();
+    }
+
     [HttpGet("{id:int}/packing-slip")]
     public async Task<IActionResult> GetPackingSlip(int id)
     {
