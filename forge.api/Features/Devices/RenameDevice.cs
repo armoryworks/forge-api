@@ -5,6 +5,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Middleware;
 using Forge.Api.Services;
 using Forge.Data.Context;
 
@@ -37,7 +38,7 @@ public class RenameDeviceHandler(
             ?? throw new KeyNotFoundException($"Device {request.DeviceId} not found");
 
         if (!isAdmin && device.UserId != actorId)
-            throw new UnauthorizedAccessException("Not your device.");
+            throw new ForbiddenException("Not your device.");
 
         var oldName = device.Name;
         device.Name = request.Name;

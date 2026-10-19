@@ -58,12 +58,13 @@ public class CreateSystemApiKeyHandler(AppDbContext db, ISystemAuditWriter audit
         // quietly fall back to the user's full grant set.
         if (model.RoleTemplateId.HasValue)
         {
-            var templateActive = await db.RoleTemplates
-                .AnyAsync(t => t.Id == model.RoleTemplateId.Value
-                            && t.DeactivatedAt == null, cancellationToken);
-            if (!templateActive)
-                throw new KeyNotFoundException(
+            var template = await db.RoleTemplates.AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == model.RoleTemplateId.Value
+                            && t.DeactivatedAt == null, cancellationToken)
+                ?? throw new KeyNotFoundException(
                     $"RoleTemplate {model.RoleTemplateId.Value} not found or deactivated.");
+
+            await EnsureTemplateLeavesARoleAsync(model.UserId, template, cancellationToken);
         }
 
         var keyBytes = RandomNumberGenerator.GetBytes(32);
@@ -121,5 +122,30 @@ public class CreateSystemApiKeyHandler(AppDbContext db, ISystemAuditWriter audit
             UserId = apiKey.UserId,
             ExpiresAt = apiKey.ExpiresAt,
         };
+    }
+
+    private async Task EnsureTemplateLeavesARoleAsync(int userId, RoleTemplate template, CancellationToken ct)
+    {
+        List<string>? templateRoles;
+        try
+        {
+            templateRoles = JsonSerializer.Deserialize<List<string>>(template.IncludedRoleNamesJson);
+        }
+        catch (JsonException)
+        {
+            return;
+        }
+        if (templateRoles is null)
+            return;
+
+        var userRoles = await db.UserRoles
+            .Where(ur => ur.UserId == userId)
+            .Join(db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name!)
+            .ToListAsync(ct);
+
+        if (!userRoles.Intersect(templateRoles, StringComparer.OrdinalIgnoreCase).Any())
+            throw new InvalidOperationException(
+                $"RoleTemplate '{template.Name}' shares no role with the bound user, so a key scoped to it could not do anything. "
+                + "Pick a template that includes one of the user's roles, or issue the key without a template.");
     }
 }
