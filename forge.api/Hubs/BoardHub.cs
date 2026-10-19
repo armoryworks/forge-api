@@ -8,7 +8,7 @@ namespace Forge.Api.Hubs;
 [Authorize]
 public class BoardHub : Hub
 {
-    [Authorize(Roles = JobRoles.Read)]
+    [Authorize(Roles = JobRoles.BoardRead)]
     public async Task JoinBoard(int trackTypeId)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, $"board:{trackTypeId}");

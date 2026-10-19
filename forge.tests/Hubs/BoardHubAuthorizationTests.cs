@@ -1,7 +1,9 @@
 using System.Reflection;
+using System.Security.Claims;
 
 using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.DependencyInjection;
 
 using Forge.Api.Authorization;
 using Forge.Api.Controllers;
@@ -11,24 +13,27 @@ namespace Forge.Tests.Hubs;
 
 public class BoardHubAuthorizationTests
 {
-    [Theory]
-    [InlineData(nameof(BoardHub.JoinBoard))]
-    [InlineData(nameof(BoardHub.JoinJob))]
-    public void Joining_a_job_group_needs_the_same_roles_as_reading_a_job(string method)
-    {
-        var roles = typeof(BoardHub).GetMethod(method)!.GetCustomAttributes<AuthorizeAttribute>()
-            .Select(a => a.Roles).ToList();
+    private static string? RolesOn(MemberInfo member)
+        => member.GetCustomAttributes<AuthorizeAttribute>().Should().ContainSingle().Which.Roles;
 
-        roles.Should().Equal(JobRoles.Read);
-        typeof(JobsController).GetCustomAttributes<AuthorizeAttribute>()
-            .Select(a => a.Roles).Should().Contain(JobRoles.Read);
+    [Fact]
+    public void Joining_a_board_needs_the_same_roles_as_loading_the_board()
+    {
+        RolesOn(typeof(BoardHub).GetMethod(nameof(BoardHub.JoinBoard))!).Should().Be(JobRoles.BoardRead);
+        RolesOn(typeof(JobListController)).Should().Be(JobRoles.BoardRead);
+    }
+
+    [Fact]
+    public void Joining_a_job_needs_the_same_roles_as_reading_a_job()
+    {
+        RolesOn(typeof(BoardHub).GetMethod(nameof(BoardHub.JoinJob))!).Should().Be(JobRoles.Read);
+        RolesOn(typeof(JobsController)).Should().Be(JobRoles.Read);
     }
 
     [Fact]
     public void The_hub_itself_admits_every_signed_in_user_so_negotiate_never_403s()
     {
-        typeof(BoardHub).GetCustomAttributes<AuthorizeAttribute>()
-            .Should().ContainSingle().Which.Roles.Should().BeNull();
+        RolesOn(typeof(BoardHub)).Should().BeNull();
     }
 
     [Theory]
@@ -37,5 +42,27 @@ public class BoardHubAuthorizationTests
     public void Leaving_a_group_carries_no_role_gate(string method)
     {
         typeof(BoardHub).GetMethod(method)!.GetCustomAttributes<AuthorizeAttribute>().Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("Procurement", nameof(BoardHub.JoinBoard), true)]
+    [InlineData("Procurement", nameof(BoardHub.JoinJob), false)]
+    [InlineData("ProductionWorker", nameof(BoardHub.JoinJob), true)]
+    [InlineData("Engineer", nameof(BoardHub.JoinBoard), true)]
+    [InlineData("Controller", nameof(BoardHub.JoinBoard), false)]
+    [InlineData("Controller", nameof(BoardHub.JoinJob), false)]
+    public async Task A_join_is_allowed_only_for_roles_that_can_read_the_same_data(string role, string method, bool allowed)
+    {
+        var services = new ServiceCollection().AddLogging().AddAuthorization().BuildServiceProvider();
+        var policyProvider = services.GetRequiredService<IAuthorizationPolicyProvider>();
+        var authorization = services.GetRequiredService<IAuthorizationService>();
+        var attributes = typeof(BoardHub).GetCustomAttributes<AuthorizeAttribute>()
+            .Concat(typeof(BoardHub).GetMethod(method)!.GetCustomAttributes<AuthorizeAttribute>());
+        var policy = await AuthorizationPolicy.CombineAsync(policyProvider, attributes);
+        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Role, role)], "test"));
+
+        var result = await authorization.AuthorizeAsync(user, policy!);
+
+        result.Succeeded.Should().Be(allowed);
     }
 }
