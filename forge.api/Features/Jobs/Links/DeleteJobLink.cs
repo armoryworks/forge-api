@@ -22,7 +22,11 @@ public class DeleteJobLinkHandler(
 
         var otherJobId = link.SourceJobId == request.JobId ? link.TargetJobId : link.SourceJobId;
 
+        var twin = await repo.FindTwinAsync(link, cancellationToken);
+
         await repo.RemoveAsync(link, cancellationToken);
+        if (twin is not null)
+            await repo.RemoveAsync(twin, cancellationToken);
         await repo.SaveChangesAsync(cancellationToken);
 
         // Notify both jobs' subscribers

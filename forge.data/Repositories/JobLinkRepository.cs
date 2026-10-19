@@ -23,6 +23,12 @@ public class JobLinkRepository(AppDbContext db) : IJobLinkRepository
             var isSource = l.SourceJobId == jobId;
             var linkedJob = isSource ? l.TargetJob : l.SourceJob;
             var linkType = isSource ? l.LinkType : GetInverseType(l.LinkType);
+            return (Link: l, LinkedJob: linkedJob, LinkType: linkType);
+        })
+        .DistinctBy(x => (x.LinkedJob.Id, x.LinkType))
+        .Select(x =>
+        {
+            var (l, linkedJob, linkType) = x;
 
             return new JobLinkResponseModel(
                 l.Id,
@@ -57,6 +63,17 @@ public class JobLinkRepository(AppDbContext db) : IJobLinkRepository
             ct);
     }
 
+    public async Task<JobLink?> FindTwinAsync(JobLink link, CancellationToken ct)
+    {
+        var inverseType = GetInverseType(link.LinkType);
+        return await db.JobLinks.FirstOrDefaultAsync(l =>
+            l.Id != link.Id
+            && l.SourceJobId == link.TargetJobId
+            && l.TargetJobId == link.SourceJobId
+            && l.LinkType == inverseType,
+            ct);
+    }
+
     public Task AddAsync(JobLink link, CancellationToken ct)
     {
         db.JobLinks.Add(link);
@@ -80,6 +97,8 @@ public class JobLinkRepository(AppDbContext db) : IJobLinkRepository
         JobLinkType.BlockedBy => JobLinkType.Blocks,
         JobLinkType.Parent => JobLinkType.Child,
         JobLinkType.Child => JobLinkType.Parent,
+        JobLinkType.HandoffTo => JobLinkType.HandoffFrom,
+        JobLinkType.HandoffFrom => JobLinkType.HandoffTo,
         _ => type,
     };
 }
