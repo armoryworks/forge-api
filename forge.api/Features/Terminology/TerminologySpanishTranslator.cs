@@ -14,6 +14,7 @@ public partial class TerminologySpanishTranslator(AppDbContext db, II18nTranslat
 {
     private const string SourceLanguage = "en";
     private const string TargetLanguage = "es";
+    private const int MaxNounLength = 60;
     private static readonly CultureInfo TargetCulture = CultureInfo.GetCultureInfo(TargetLanguage);
     private bool _translatorUnavailable;
 
@@ -104,7 +105,7 @@ public partial class TerminologySpanishTranslator(AppDbContext db, II18nTranslat
             text = text[article.Length..].Trim();
         }
 
-        if (text.Length == 0 || text.Length > 200)
+        if (text.Length == 0 || text.Length > MaxNounLength || SentencePunctuation().IsMatch(text))
             return null;
 
         return new TranslatedNoun(char.ToUpper(text[0], TargetCulture) + text[1..], gender);
@@ -167,6 +168,9 @@ public partial class TerminologySpanishTranslator(AppDbContext db, II18nTranslat
 
     [GeneratedRegex(@"^(?<article>el|la|los|las)\s+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SpanishArticle();
+
+    [GeneratedRegex(@"[.!?;:\r\n]", RegexOptions.CultureInvariant)]
+    private static partial Regex SentencePunctuation();
 
     private sealed record TranslatedNoun(string Text, string? Gender);
 }
