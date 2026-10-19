@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.ShopFloor;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -127,6 +128,7 @@ public sealed class PaymentBatchService(
     {
         if (vendorPaymentIds.Count == 0)
             throw new InvalidOperationException("Select at least one payment for the batch.");
+        await EnsureEffectiveDateNotPastAsync(effectiveEntryDate, ct);
 
         var eligible = (await GetEligiblePaymentsAsync(ct)).ToDictionary(e => e.VendorPaymentId);
 
@@ -173,6 +175,7 @@ public sealed class PaymentBatchService(
     public async Task<PaymentBatchDetailModel> CreatePrenoteBatchAsync(
         DateOnly effectiveEntryDate, int userId, CancellationToken ct = default)
     {
+        await EnsureEffectiveDateNotPastAsync(effectiveEntryDate, ct);
         var accounts = await db.VendorBankAccounts
             .Where(a => a.Status == VendorBankAccountStatus.Approved)
             .OrderBy(a => a.Id)
@@ -460,4 +463,13 @@ public sealed class PaymentBatchService(
 
     private static DateTimeOffset ToOffset(DateOnly date)
         => new(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+
+    private async Task EnsureEffectiveDateNotPastAsync(DateOnly effectiveEntryDate, CancellationToken ct)
+    {
+        var zone = await ClockStateRules.ShopTimeZoneAsync(db, ct);
+        var today = DateOnly.FromDateTime(ClockStateRules.LocalToday(zone, clock.UtcNow));
+        if (effectiveEntryDate < today)
+            throw new InvalidOperationException(
+                $"The effective entry date {effectiveEntryDate:yyyy-MM-dd} is in the past; choose today or a later banking day.");
+    }
 }
