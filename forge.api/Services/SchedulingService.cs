@@ -6,6 +6,7 @@ using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Services;
 
 namespace Forge.Api.Services;
 
@@ -67,10 +68,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
             // 2. Get work centers with shifts and calendar overrides
             var workCenters = await db.WorkCenters
                 .AsNoTracking()
-                .Include(w => w.Shifts)
-                    .ThenInclude(ws => ws.Shift)
-                .Include(w => w.CalendarOverrides)
-                .Include(w => w.Location)
+                .WithCapacityData()
                 .Where(w => w.IsActive)
                 .ToListAsync(ct);
 
@@ -84,7 +82,7 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
             var wcMap = workCenters.ToDictionary(w => w.Id);
 
-            var capacityLookup = await BuildCapacityLookupAsync(workCenters, ct);
+            var capacityLookup = await WorkCenterCapacityLookup.BuildAsync(db, workCenters, ct);
 
             // 3. Track capacity usage per work center per date
             var capacityUsed = new Dictionary<(int WorkCenterId, DateOnly Date), decimal>();
@@ -94,6 +92,10 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                 .Where(so => so.IsLocked && so.Status != ScheduledOperationStatus.Cancelled)
                 .OrderBy(so => so.ScheduledStart)
                 .ToListAsync(ct);
+
+            var lockedByJobOperation = lockedOps
+                .GroupBy(so => (so.JobId, so.OperationId))
+                .ToDictionary(g => g.Key, g => g.Max(so => so.ScheduledEnd));
 
             foreach (var locked in lockedOps)
             {
@@ -121,11 +123,9 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                     .OrderBy(o => o.StepNumber)
                     .ToList();
 
-                DateTimeOffset cursor;
-                if (parameters.Direction == ScheduleDirection.Forward)
-                    cursor = new DateTimeOffset(parameters.ScheduleFrom.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
-                else
-                    cursor = new DateTimeOffset(parameters.ScheduleTo.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero);
+                DateTimeOffset? cursor = parameters.Direction == ScheduleDirection.Forward
+                    ? null
+                    : ScheduleToStart(parameters.ScheduleTo, capacityLookup, operations, workCenters[0].Id);
 
                 DateTimeOffset? previousEnd = null;
                 var quantity = OperationTimeMath.JobBuildQuantity(job);
@@ -133,6 +133,14 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                 for (int i = 0; i < operations.Count; i++)
                 {
                     var op = operations[i];
+
+                    if (lockedByJobOperation.TryGetValue((job.Id, op.Id), out var lockedEnd))
+                    {
+                        previousEnd = lockedEnd;
+                        cursor = cursor is { } c && c > lockedEnd ? c : lockedEnd;
+                        continue;
+                    }
+
                     int wcId = op.WorkCenterId ?? workCenters[0].Id;
 
                     if (!capacityLookup.ContainsKey(wcId))
@@ -164,17 +172,16 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
                     decimal totalHours = setupHours + runHours;
 
                     // Apply overlap from previous operation
-                    if (previousEnd.HasValue && i > 0 && operations[i - 1].OverlapPercent > 0)
+                    if (previousEnd.HasValue && cursor.HasValue && i > 0 && operations[i - 1].OverlapPercent > 0)
                     {
                         decimal overlapFraction = operations[i - 1].OverlapPercent / 100m;
-                        var prevDuration = previousEnd.Value - cursor;
-                        cursor = cursor.AddHours((double)(-(decimal)prevDuration.TotalHours * overlapFraction));
+                        var prevDuration = previousEnd.Value - cursor.Value;
+                        cursor = cursor.Value.AddHours((double)(-(decimal)prevDuration.TotalHours * overlapFraction));
                     }
 
-                    // Find available slot
+                    var earliest = cursor ?? capacity.MidnightUtc(parameters.ScheduleFrom);
                     var slot = FindAvailableSlot(
-                        wcId, cursor, totalHours, capacity, capacityUsed,
-                        parameters.Direction, parameters.ScheduleFrom, parameters.ScheduleTo);
+                        wcId, earliest, totalHours, capacity, capacityUsed, parameters.ScheduleTo);
 
                     if (slot is not (var start, var end, var allocations))
                     {
@@ -240,18 +247,26 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
         }
     }
 
+    private static DateTimeOffset ScheduleToStart(
+        DateOnly scheduleTo, Dictionary<int, WorkCenterCapacity> capacityLookup, List<Operation> operations, int fallbackWorkCenterId)
+    {
+        var firstWorkCenterId = operations.Select(o => o.WorkCenterId).FirstOrDefault() ?? fallbackWorkCenterId;
+        var capacity = capacityLookup.GetValueOrDefault(firstWorkCenterId)
+            ?? capacityLookup.GetValueOrDefault(fallbackWorkCenterId)
+            ?? WorkCenterCapacity.None;
+        return capacity.MidnightUtc(scheduleTo);
+    }
+
     private static (DateTimeOffset Start, DateTimeOffset End, List<(DateOnly Date, decimal Hours)> Allocations)? FindAvailableSlot(
         int workCenterId,
-        DateTimeOffset cursor,
+        DateTimeOffset earliest,
         decimal totalHours,
         WorkCenterCapacity capacity,
         Dictionary<(int, DateOnly), decimal> capacityUsed,
-        ScheduleDirection direction,
-        DateOnly scheduleFrom,
         DateOnly scheduleTo)
     {
-        var date = DateOnly.FromDateTime(cursor.UtcDateTime);
-        var maxDate = scheduleTo.AddDays(30); // Allow 30 days beyond horizon
+        var date = capacity.LocalDate(earliest);
+        var maxDate = scheduleTo.AddDays(30);
         var allocations = new List<(DateOnly Date, decimal Hours)>();
         var hoursLeft = totalHours;
         var start = DateTimeOffset.MinValue;
@@ -260,21 +275,30 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
         {
             decimal availableHours = capacity.MachineHoursOn(date);
             decimal usedHours = capacityUsed.GetValueOrDefault((workCenterId, date));
-            decimal remainingHours = availableHours - usedHours;
+            var dayStart = capacity.DayStartUtc(date);
+
+            decimal offsetHours = usedHours;
+            if (allocations.Count == 0)
+            {
+                var earliestOffset = (decimal)(earliest - dayStart).TotalHours;
+                if (earliestOffset > offsetHours)
+                    offsetHours = earliestOffset;
+            }
+
+            decimal remainingHours = availableHours - offsetHours;
 
             if (remainingHours > 0 || (totalHours <= 0 && remainingHours >= 0))
             {
-                var dayStart = new DateTimeOffset(date.ToDateTime(TimeOnly.FromTimeSpan(TimeSpan.FromHours(8))), TimeSpan.Zero);
                 var dayHours = Math.Min(remainingHours, hoursLeft);
 
                 if (allocations.Count == 0)
-                    start = dayStart.AddHours((double)usedHours);
+                    start = dayStart.AddHours((double)offsetHours);
 
-                allocations.Add((date, dayHours));
+                allocations.Add((date, offsetHours - usedHours + dayHours));
                 hoursLeft -= dayHours;
 
                 if (hoursLeft <= 0)
-                    return (start, dayStart.AddHours((double)(usedHours + dayHours)), allocations);
+                    return (start, dayStart.AddHours((double)(offsetHours + dayHours)), allocations);
             }
 
             date = date.AddDays(1);
@@ -288,8 +312,8 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
         WorkCenterCapacity capacity,
         Dictionary<(int, DateOnly), decimal> capacityUsed)
     {
-        var date = DateOnly.FromDateTime(op.ScheduledStart.UtcDateTime);
-        var lastDate = DateOnly.FromDateTime(op.ScheduledEnd.UtcDateTime);
+        var date = capacity.LocalDate(op.ScheduledStart);
+        var lastDate = capacity.LocalDate(op.ScheduledEnd);
         var hoursLeft = op.TotalHours;
 
         while (date < lastDate && hoursLeft > 0)
@@ -307,41 +331,6 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
 
         var key = (op.WorkCenterId, date);
         capacityUsed[key] = capacityUsed.GetValueOrDefault(key) + hoursLeft;
-    }
-
-    private async Task<Dictionary<int, WorkCenterCapacity>> BuildCapacityLookupAsync(
-        IReadOnlyCollection<WorkCenter> workCenters, CancellationToken ct)
-    {
-        var locationCalendarIds = workCenters
-            .Select(w => w.Location?.WorkingCalendarId)
-            .OfType<int>()
-            .Distinct()
-            .ToList();
-
-        var calendars = await db.WorkingCalendars
-            .AsNoTracking()
-            .Include(c => c.Holidays)
-            .Where(c => locationCalendarIds.Contains(c.Id) || (c.IsDefault && c.IsActive))
-            .ToListAsync(ct);
-
-        var defaultCalendar = calendars.FirstOrDefault(c => c.IsDefault && c.IsActive);
-
-        return workCenters.ToDictionary(w => w.Id, w =>
-        {
-            var calendarId = w.Location?.WorkingCalendarId;
-            var calendar = calendarId is null
-                ? defaultCalendar
-                : calendars.FirstOrDefault(c => c.Id == calendarId) ?? defaultCalendar;
-
-            return new WorkCenterCapacity(
-                w.Shifts.Select(ws => new WorkCenterShiftInfo(ws.Shift.NetHours, ws.DaysOfWeek)).ToList(),
-                w.CalendarOverrides.ToDictionary(c => c.Date, c => c.AvailableHours),
-                w.DailyCapacityHours,
-                calendar?.WorkingDaysMask ?? WorkCenterCapacity.MondayToFridayMask,
-                calendar?.Holidays.Select(h => h.ObservedDate ?? h.Date).ToHashSet() ?? [],
-                w.EfficiencyPercent / 100m,
-                w.NumberOfMachines);
-        });
     }
 
     private static List<Job> SortByPriorityRule(List<Job> jobs, string priorityRule)
@@ -374,20 +363,20 @@ public class SchedulingService(AppDbContext db, IClock clock, ILogger<Scheduling
     {
         var wc = await db.WorkCenters
             .AsNoTracking()
-            .Include(w => w.Shifts).ThenInclude(ws => ws.Shift)
-            .Include(w => w.CalendarOverrides)
-            .Include(w => w.Location)
+            .WithCapacityData()
             .FirstOrDefaultAsync(w => w.Id == workCenterId, ct)
             ?? throw new KeyNotFoundException($"Work center {workCenterId} not found.");
 
-        var capacity = (await BuildCapacityLookupAsync([wc], ct))[wc.Id];
+        var capacity = (await WorkCenterCapacityLookup.BuildAsync(db, [wc], ct))[wc.Id];
 
+        var rangeStart = capacity.MidnightUtc(from);
+        var rangeEnd = capacity.MidnightUtc(to.AddDays(1));
         var scheduledOps = await db.ScheduledOperations
             .AsNoTracking()
             .Where(so => so.WorkCenterId == workCenterId
                 && so.Status != ScheduledOperationStatus.Cancelled
-                && so.ScheduledStart >= new DateTimeOffset(from.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
-                && so.ScheduledStart <= new DateTimeOffset(to.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero))
+                && so.ScheduledStart >= rangeStart
+                && so.ScheduledStart < rangeEnd)
             .OrderBy(so => so.ScheduledStart)
             .ToListAsync(ct);
 

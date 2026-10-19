@@ -19,7 +19,7 @@ public class UpdateProductionRunHandlerTests : IDisposable
     public UpdateProductionRunHandlerTests()
     {
         _db = TestDbContextFactory.Create();
-        _handler = new UpdateProductionRunHandler(_db);
+        _handler = new UpdateProductionRunHandler(_db, new Forge.Integrations.SystemClock());
     }
 
     private async Task<ProductionRun> SeedRunAsync(int targetQty)

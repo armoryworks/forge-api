@@ -1,7 +1,7 @@
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 
-namespace Forge.Api.Services;
+namespace Forge.Data.Services;
 
 public sealed record WorkCenterCapacity(
     IReadOnlyList<WorkCenterShiftInfo> Shifts,
@@ -14,8 +14,14 @@ public sealed record WorkCenterCapacity(
 {
     public const int MondayToFridayMask = 62;
 
+    public static readonly TimeOnly DefaultDayStart = new(8, 0);
+
     public static readonly WorkCenterCapacity None =
         new([], new Dictionary<DateOnly, decimal>(), 0m, 0, new HashSet<DateOnly>(), 1m, 1);
+
+    public TimeZoneInfo TimeZone { get; init; } = TimeZoneInfo.Utc;
+
+    public TimeOnly DayStart { get; init; } = DefaultDayStart;
 
     public decimal HoursOn(DateOnly date)
     {
@@ -23,12 +29,25 @@ public sealed record WorkCenterCapacity(
             return overrideHours;
 
         if (Shifts.Count > 0)
-            return ShiftHoursOn(date);
+            return Holidays.Contains(date) ? 0m : ShiftHoursOn(date);
 
         return IsWorkingDay(date) ? DailyCapacityHours : 0m;
     }
 
     public decimal MachineHoursOn(DateOnly date) => HoursOn(date) * Machines;
+
+    public DateOnly LocalDate(DateTimeOffset instant) =>
+        DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, TimeZone).DateTime);
+
+    public DateTimeOffset LocalTimeUtc(DateOnly date, TimeOnly time)
+    {
+        var local = date.ToDateTime(time, DateTimeKind.Unspecified);
+        return new DateTimeOffset(local, TimeZone.GetUtcOffset(local)).ToUniversalTime();
+    }
+
+    public DateTimeOffset DayStartUtc(DateOnly date) => LocalTimeUtc(date, DayStart);
+
+    public DateTimeOffset MidnightUtc(DateOnly date) => LocalTimeUtc(date, TimeOnly.MinValue);
 
     private decimal ShiftHoursOn(DateOnly date)
     {

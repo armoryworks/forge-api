@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -42,7 +43,7 @@ public class UpdateProductionRunCommandValidator : AbstractValidator<UpdateProdu
     }
 }
 
-public class UpdateProductionRunHandler(AppDbContext db) : IRequestHandler<UpdateProductionRunCommand, ProductionRunResponseModel>
+public class UpdateProductionRunHandler(AppDbContext db, IClock clock) : IRequestHandler<UpdateProductionRunCommand, ProductionRunResponseModel>
 {
     public async Task<ProductionRunResponseModel> Handle(UpdateProductionRunCommand request, CancellationToken cancellationToken)
     {
@@ -65,10 +66,10 @@ public class UpdateProductionRunHandler(AppDbContext db) : IRequestHandler<Updat
         run.RunTimeMinutes = request.RunTimeMinutes;
 
         if (newStatus == ProductionRunStatus.InProgress && run.StartedAt is null)
-            run.StartedAt = DateTimeOffset.UtcNow;
+            run.StartedAt = clock.UtcNow;
 
         if (newStatus == ProductionRunStatus.Completed && run.CompletedAt is null)
-            run.CompletedAt = DateTimeOffset.UtcNow;
+            run.CompletedAt = clock.UtcNow;
 
         run.Status = newStatus;
 

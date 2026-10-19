@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -13,7 +14,8 @@ public record CreateProductionRunCommand(
     int PartId,
     int TargetQuantity,
     int? OperatorId,
-    string? Notes) : IRequest<ProductionRunResponseModel>;
+    string? Notes,
+    int? WorkCenterId = null) : IRequest<ProductionRunResponseModel>;
 
 public class CreateProductionRunCommandValidator : AbstractValidator<CreateProductionRunCommand>
 {
@@ -30,7 +32,7 @@ public class CreateProductionRunCommandValidator : AbstractValidator<CreateProdu
     }
 }
 
-public class CreateProductionRunHandler(AppDbContext db) : IRequestHandler<CreateProductionRunCommand, ProductionRunResponseModel>
+public class CreateProductionRunHandler(AppDbContext db, IClock clock) : IRequestHandler<CreateProductionRunCommand, ProductionRunResponseModel>
 {
     public async Task<ProductionRunResponseModel> Handle(CreateProductionRunCommand request, CancellationToken cancellationToken)
     {
@@ -40,7 +42,7 @@ public class CreateProductionRunHandler(AppDbContext db) : IRequestHandler<Creat
         var part = await db.Parts.FindAsync([request.PartId], cancellationToken)
             ?? throw new KeyNotFoundException($"Part with ID {request.PartId} not found.");
 
-        var datePrefix = ClockStateRules.LocalToday(await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), DateTimeOffset.UtcNow).ToString("yyyyMMdd");
+        var datePrefix = ClockStateRules.LocalToday(await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), clock.UtcNow).ToString("yyyyMMdd");
         var todayCount = await db.ProductionRuns
             .Where(pr => pr.RunNumber.StartsWith($"RUN-{datePrefix}-"))
             .CountAsync(cancellationToken);
@@ -55,8 +57,11 @@ public class CreateProductionRunHandler(AppDbContext db) : IRequestHandler<Creat
                 operatorName = $"{user.FirstName} {user.LastName}".Trim();
         }
 
+        var workCenterId = await ResolveWorkCenterIdAsync(request, cancellationToken);
+
         var productionRun = new ProductionRun
         {
+            WorkCenterId = workCenterId,
             JobId = request.JobId,
             PartId = request.PartId,
             OperatorId = request.OperatorId,
@@ -90,5 +95,26 @@ public class CreateProductionRunHandler(AppDbContext db) : IRequestHandler<Creat
             0m,
             productionRun.ReceivedQuantity,
             productionRun.ReceivedToStockAt);
+    }
+
+    private async Task<int?> ResolveWorkCenterIdAsync(CreateProductionRunCommand request, CancellationToken cancellationToken)
+    {
+        if (request.WorkCenterId is int requested)
+        {
+            var exists = await db.WorkCenters.AnyAsync(w => w.Id == requested, cancellationToken);
+            return exists ? requested : throw new KeyNotFoundException($"Work center {requested} not found.");
+        }
+
+        var next = await KioskWork.NextOperationsAsync(db, [request.JobId], tracking: true, cancellationToken);
+        if (next.TryGetValue(request.JobId, out var operation) && operation.WorkCenterId is int current)
+            return current;
+
+        return await db.Operations
+            .AsNoTracking()
+            .Where(o => o.PartId == request.PartId && o.WorkCenterId != null)
+            .OrderBy(o => o.StepNumber)
+            .ThenBy(o => o.Id)
+            .Select(o => o.WorkCenterId)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 }

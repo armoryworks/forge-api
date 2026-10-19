@@ -8,6 +8,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using Moq;
 
@@ -53,7 +54,7 @@ public class RaiseKioskAndonTests
         _mediator
             .Setup(m => m.Send(It.IsAny<CreateAndonAlertCommand>(), It.IsAny<CancellationToken>()))
             .Returns((CreateAndonAlertCommand command, CancellationToken ct) =>
-                new CreateAndonAlertHandler(_db, _clock.Object, _httpContext.Object, _alertsReader.Object).Handle(command, ct));
+                new CreateAndonAlertHandler(_db, _clock.Object, _httpContext.Object, _alertsReader.Object, NullLogger<CreateAndonAlertHandler>.Instance).Handle(command, ct));
     }
 
     [Fact]

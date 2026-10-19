@@ -340,4 +340,142 @@ public class SchedulingServiceTests
         scheduled.ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 6, 8, 0, 0, TimeSpan.Zero));
         scheduled.ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 10, 16, 0, 0, TimeSpan.Zero));
     }
+
+    [Fact]
+    public async Task Schedule_StartsOnTheCalendarsFirstShiftInItsTimeZone()
+    {
+        SeedDenverCalendar();
+        var wc = await SeedWorkCenterAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 60000);
+        await SeedJobAsync(part, 60m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var scheduled = await _db.ScheduledOperations.SingleAsync();
+        scheduled.ScheduledStart.Should().Be(new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero));
+        scheduled.ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 5, 13, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task Schedule_FollowsDaylightSavingTimeOnTheLocalShiftStart()
+    {
+        SeedDenverCalendar();
+        var wc = await SeedWorkCenterAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 60000);
+        await SeedJobAsync(part, 60m);
+        var from = new DateOnly(2026, 11, 2);
+
+        await _service.ScheduleAsync(Parameters() with { ScheduleFrom = from, ScheduleTo = from.AddDays(14) }, CancellationToken.None);
+
+        (await _db.ScheduledOperations.SingleAsync()).ScheduledStart
+            .Should().Be(new DateTimeOffset(2026, 11, 2, 13, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task Schedule_WorkCenterShiftStartBeatsTheCalendarShift()
+    {
+        SeedDenverCalendar();
+        var wc = new WorkCenter { Name = "Late press", Code = "LP" };
+        wc.Shifts.Add(new WorkCenterShift
+        {
+            Shift = new Shift { Name = "Second", StartTime = new TimeOnly(14, 0), EndTime = new TimeOnly(22, 30), NetHours = 8m },
+            DaysOfWeek = DaysOfWeek.Monday | DaysOfWeek.Tuesday | DaysOfWeek.Wednesday | DaysOfWeek.Thursday | DaysOfWeek.Friday,
+        });
+        _db.WorkCenters.Add(wc);
+        await _db.SaveChangesAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 60000);
+        await SeedJobAsync(part, 60m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        (await _db.ScheduledOperations.SingleAsync()).ScheduledStart
+            .Should().Be(new DateTimeOffset(2026, 10, 5, 20, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task Schedule_SuccessorNeverStartsBeforeItsPredecessorEnds()
+    {
+        var mill = await SeedWorkCenterAsync();
+        var lathe = await SeedWorkCenterAsync();
+        var (part, _) = await SeedPartAsync(mill, estimatedMs: 60000);
+        _db.Operations.Add(new Operation { PartId = part.Id, StepNumber = 20, Title = "Turn", WorkCenterId = lathe.Id, EstimatedMs = 60000 });
+        await _db.SaveChangesAsync();
+        await SeedJobAsync(part, 180m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var ops = await _db.ScheduledOperations.OrderBy(so => so.SequenceNumber).ToListAsync();
+        ops.Should().HaveCount(2);
+        ops[0].ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 5, 11, 0, 0, TimeSpan.Zero));
+        ops[1].ScheduledStart.Should().Be(ops[0].ScheduledEnd);
+        ops[1].ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 5, 14, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task Schedule_SuccessorPastTheEndOfTheShift_MovesToTheNextDay()
+    {
+        var mill = await SeedWorkCenterAsync();
+        var lathe = await SeedWorkCenterAsync();
+        var (part, _) = await SeedPartAsync(mill, estimatedMs: 60000);
+        _db.Operations.Add(new Operation { PartId = part.Id, StepNumber = 20, Title = "Turn", WorkCenterId = lathe.Id, EstimatedMs = 60000 });
+        await _db.SaveChangesAsync();
+        await SeedJobAsync(part, 450m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        var ops = await _db.ScheduledOperations.OrderBy(so => so.SequenceNumber).ToListAsync();
+        ops[0].ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 5, 15, 30, 0, TimeSpan.Zero));
+        ops[1].ScheduledStart.Should().Be(ops[0].ScheduledEnd);
+        ops[1].ScheduledEnd.Should().Be(new DateTimeOffset(2026, 10, 6, 15, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task Schedule_LockedOperation_IsNotScheduledAgain()
+    {
+        var wc = await SeedWorkCenterAsync();
+        var (part, op) = await SeedPartAsync(wc, estimatedMs: 60000);
+        var job = await SeedJobAsync(part, 60m);
+        _db.ScheduledOperations.Add(new ScheduledOperation
+        {
+            JobId = job.Id,
+            OperationId = op.Id,
+            WorkCenterId = wc.Id,
+            ScheduledStart = new DateTimeOffset(2026, 10, 7, 8, 0, 0, TimeSpan.Zero),
+            ScheduledEnd = new DateTimeOffset(2026, 10, 7, 9, 0, 0, TimeSpan.Zero),
+            RunHours = 1m,
+            TotalHours = 1m,
+            Status = ScheduledOperationStatus.Scheduled,
+            IsLocked = true,
+        });
+        await _db.SaveChangesAsync();
+
+        var result = await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        result.OperationsScheduled.Should().Be(0);
+        (await _db.ScheduledOperations.CountAsync(so => so.JobId == job.Id)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Schedule_WorkCenterWithShifts_SkipsCalendarHolidays()
+    {
+        var calendar = new WorkingCalendar { Name = "Plant", IsDefault = true };
+        calendar.Holidays.Add(new Holiday { Name = "Shutdown", Date = From });
+        _db.WorkingCalendars.Add(calendar);
+        var wc = await SeedWorkCenterAsync();
+        var (part, _) = await SeedPartAsync(wc, estimatedMs: 60000);
+        await SeedJobAsync(part, 60m);
+
+        await _service.ScheduleAsync(Parameters(), CancellationToken.None);
+
+        (await _db.ScheduledOperations.SingleAsync()).ScheduledStart
+            .Should().Be(new DateTimeOffset(2026, 10, 6, 8, 0, 0, TimeSpan.Zero));
+    }
+
+    private void SeedDenverCalendar()
+    {
+        var calendar = new WorkingCalendar { Name = "Plant", IsDefault = true, TimeZone = "America/Denver" };
+        calendar.Shifts.Add(new Shift { Name = "Night", StartTime = new TimeOnly(22, 0), EndTime = new TimeOnly(6, 0), NetHours = 8m });
+        calendar.Shifts.Add(new Shift { Name = "First", StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(14, 30), NetHours = 8m });
+        _db.WorkingCalendars.Add(calendar);
+    }
 }

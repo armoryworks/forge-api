@@ -29,6 +29,7 @@ public class ResolveAndonAlertHandler(AppDbContext db, IClock clock, IHttpContex
         alert.Status = AndonAlertStatus.Resolved;
         alert.ResolvedById = userId;
         alert.ResolvedAt = clock.UtcNow;
+        await AndonDowntime.CloseAsync(db, alert, alert.ResolvedAt.Value, cancellationToken);
 
         if (!string.IsNullOrEmpty(request.Notes))
             alert.Notes = string.IsNullOrEmpty(alert.Notes) ? request.Notes : $"{alert.Notes}\n{request.Notes}";
