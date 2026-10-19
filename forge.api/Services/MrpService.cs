@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
+using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -27,7 +28,8 @@ public class MrpService(
         if (existingRun)
             throw new InvalidOperationException("An MRP run is already in progress. Please wait for it to complete.");
 
-        var runNumber = $"MRP-{clock.UtcNow:yyyyMMdd-HHmmss}";
+        var shopNow = TimeZoneInfo.ConvertTime(clock.UtcNow, await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken));
+        var runNumber = $"MRP-{shopNow:yyyyMMdd-HHmmss}";
         var mrpRun = new MrpRun
         {
             RunNumber = runNumber,

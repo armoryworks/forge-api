@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using MediatR;
 
 using Microsoft.EntityFrameworkCore;
@@ -43,7 +45,7 @@ public class OnSalesOrderConfirmed_CreateDeliveryMilestones(
             db.Events.Add(new Event
             {
                 Title = title.Length > 200 ? title[..200] : title,
-                Description = $"Delivery milestone for Sales Order {so.OrderNumber}, Line {line.LineNumber}. Quantity: {line.Quantity}.",
+                Description = $"Delivery milestone for Sales Order {so.OrderNumber}, Line {line.LineNumber}. Quantity: {line.Quantity.ToString("#,0.####", CultureInfo.InvariantCulture)}.",
                 StartTime = deliveryDate,
                 EndTime = deliveryDate,
                 EventType = EventType.Other,

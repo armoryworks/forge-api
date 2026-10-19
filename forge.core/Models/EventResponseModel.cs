@@ -28,7 +28,8 @@ public record EventResponseModel(
     int? CompletedByUserId = null,
     DateTimeOffset? CompletedAt = null,
     string? EvidenceUrl = null,
-    int? EvidenceDocumentSetId = null);
+    int? EvidenceDocumentSetId = null,
+    bool IsAllDay = false);
 
 public record EventAttendeeResponseModel(
     int Id,
