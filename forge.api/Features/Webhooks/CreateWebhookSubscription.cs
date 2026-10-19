@@ -26,11 +26,32 @@ public class CreateWebhookSubscriptionCommandValidator : AbstractValidator<Creat
             .Must(url => Uri.TryCreate(url, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
             .WithMessage("URL must be a valid HTTP or HTTPS URL.");
 
+        RuleFor(x => x.EventTypesJson)
+            .Must(WebhookEventTypes.IsValidList)
+            .WithMessage($"EventTypesJson must be a JSON array of event types: {string.Join(", ", WebhookEventTypes.All.Order())} or \"{WebhookEventTypes.Wildcard}\".");
+
+        RuleFor(x => x.HeadersJson)
+            .Must(h => BeAHeaderObject(h!))
+            .When(x => !string.IsNullOrWhiteSpace(x.HeadersJson))
+            .WithMessage("HeadersJson must be a JSON object of header names to string values.");
+
         RuleFor(x => x.Secret)
             .NotEmpty().WithMessage("Secret is required.");
 
         RuleFor(x => x.MaxRetries)
             .InclusiveBetween(0, 20).WithMessage("MaxRetries must be between 0 and 20.");
+    }
+
+    private static bool BeAHeaderObject(string headersJson)
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(headersJson) is not null;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return false;
+        }
     }
 }
 

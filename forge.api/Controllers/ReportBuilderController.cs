@@ -128,9 +128,18 @@ public class ReportBuilderController(IMediator mediator) : ControllerBase
             request.CronExpression,
             request.RecipientEmailsJson,
             request.Format,
-            request.SubjectTemplate));
+            request.SubjectTemplate,
+            int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)));
 
         return CreatedAtAction(nameof(GetSchedules), new { }, result);
+    }
+
+    [HttpPost("schedules/{id:int}/run")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<ActionResult<ReportScheduleRunResponseModel>> RunScheduleNow(int id)
+    {
+        var recipients = await mediator.Send(new RunReportScheduleNowCommand(id));
+        return Ok(new ReportScheduleRunResponseModel(id, recipients));
     }
 
     [HttpDelete("schedules/{id:int}")]

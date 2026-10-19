@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.DomainEvents;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -21,7 +22,8 @@ public class CreateInvoiceFromJobValidator : AbstractValidator<CreateInvoiceFrom
 
 public class CreateInvoiceFromJobHandler(
     AppDbContext db,
-    IInvoiceRepository invoiceRepo)
+    IInvoiceRepository invoiceRepo,
+    IPublisher? publisher = null)
     : IRequestHandler<CreateInvoiceFromJobCommand, InvoiceListItemModel>
 {
     public async Task<InvoiceListItemModel> Handle(
@@ -67,6 +69,9 @@ public class CreateInvoiceFromJobHandler(
         await invoiceRepo.SaveChangesAsync(cancellationToken);
 
         var total = invoice.Lines.Sum(l => l.Quantity * l.UnitPrice) * (1 + invoice.TaxRate);
+
+        if (publisher is not null)
+            await publisher.Publish(new InvoiceCreatedEvent(invoice.Id, invoice.InvoiceNumber, invoice.CustomerId, total), cancellationToken);
 
         return new InvoiceListItemModel(
             invoice.Id,

@@ -8,4 +8,5 @@ public enum IntegrationProvider
     Shipping,
     Webhook,
     Sms,
+    Messaging,
 }

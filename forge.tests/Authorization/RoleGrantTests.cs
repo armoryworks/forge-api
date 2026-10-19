@@ -314,4 +314,11 @@ public sealed class RoleGrantTests
         EffectiveRoles(Single("GET", template))
             .Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager", "PM"]);
     }
+
+    [Fact]
+    public void Sending_a_report_schedule_now_is_limited_to_admins_and_managers()
+    {
+        EffectiveRoles(Single("POST", "api/v1/report-builder/schedules/{id:int}/run"))
+            .Should().BeEquivalentTo(["Admin", "Manager"]);
+    }
 }

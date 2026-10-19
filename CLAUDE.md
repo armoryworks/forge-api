@@ -755,6 +755,11 @@ Real: **Shopify**, **WooCommerce** (both storefronts — you are merchant of rec
 - **Docker:** API container uses Debian base (not Alpine) with Chromium installed. `PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium`
 - **Pattern detection:** Step sections, amount lines, filing status, signature blocks, form headers — all inferred from structural cues, no per-form hardcoding
 
+### Outbound events (webhooks, chat, report schedules) — all through the integration outbox
+- **Webhooks (`CAP-CROSS-WEBHOOKS`):** `OnDomainEvent_EnqueueWebhooks` maps domain events to the catalogue in `Features/Webhooks/WebhookEventTypes.cs` (subscriptions are validated against it; `"*"` = all) and `WebhookEventPublisher` queues one `IntegrationProvider.Webhook` outbox entry per matching active subscription. `WebhookDeliveryService` POSTs the pre-built body with `X-Forge-Event`, `X-Forge-Delivery` and `X-Forge-Signature: sha256=<HMAC of the body>`, writes a `WebhookDelivery` row per attempt and rethrows failures so outbox backoff/dead-letter applies. The `Webhooks` HttpClient refuses loopback/link-local/reserved targets at connect time (`WebhookTargetGuard`); private LAN addresses are allowed. A new webhook event = a catalogue constant + a handler interface on `OnDomainEvent_EnqueueWebhooks`.
+- **Chat (`CAP-EXT-CHAT-INTEGRATION`):** `NotificationChatFanOutInterceptor` (SaveChanges interceptor) queues an `IntegrationProvider.Messaging` outbox entry for every new `Notification` whose recipient has an active slack/teams/discord/google_chat integration. Write notifications normally; never call `IMessagingIntegrationService` directly. Under mock posture the dispatcher falls back to the single registered (mock) provider.
+- **Report schedules:** `ReportScheduleJob` (every 5 min, `CAP-RPT-DASHBOARDS`) e-mails due schedules via `ReportScheduleSender`; cron is evaluated with Cronos in the shop time zone and `NextRunAt` is set on create. `POST report-builder/schedules/{id}/run` sends now. System exports call `ExportReportQuery` with no `RequestingUserId`; HTTP callers always pass one (owner-or-shared rule).
+
 ---
 
 

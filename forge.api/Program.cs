@@ -105,7 +105,8 @@ try
             // GlChangeBroadcastInterceptor pushes "accountingChanged" so the GL screens auto-refresh.
             .AddInterceptors(
                 sp.GetRequiredService<Forge.Data.Interceptors.LedgerImmutabilityInterceptor>(),
-                sp.GetRequiredService<Forge.Api.Features.Accounting.GlChangeBroadcastInterceptor>())
+                sp.GetRequiredService<Forge.Api.Features.Accounting.GlChangeBroadcastInterceptor>(),
+                sp.GetRequiredService<Forge.Api.Features.Notifications.NotificationChatFanOutInterceptor>())
             // Suppress EF Core's "pending model changes" startup validation.
             // Schema is now owned by the declarative forge-db project (applied via
             // SchemaBootstrapper), not EF migrations — and forge-db's snake_case/FK
@@ -445,6 +446,7 @@ try
     // dirty state lives in a ConditionalWeakTable inside the interceptor. Pushes "accountingChanged" so the
     // dark accounting screens auto-refresh on any GL write.
     builder.Services.AddSingleton<Forge.Api.Features.Accounting.GlChangeBroadcastInterceptor>();
+    builder.Services.AddSingleton<Forge.Api.Features.Notifications.NotificationChatFanOutInterceptor>();
     // Phase-1 STAGE A — AR / revenue / tax posting wired INLINE into the invoice
     // finalize handler (SendInvoice). Self-gates on CAP-ACCT-FULLGL: a no-op
     // while the capability is OFF (the default), so the operational invoice flow
@@ -1121,6 +1123,15 @@ try
     // Integration outbox (always real — provides durable queue + idempotency for all outbound integrations)
     builder.Services.AddScoped<IIntegrationOutboxService, IntegrationOutboxService>();
     builder.Services.AddScoped<IntegrationOutboxDispatcherJob>();
+    builder.Services.AddScoped<Forge.Api.Features.Reports.ReportScheduleSender>();
+    builder.Services.AddScoped<Forge.Api.Features.Webhooks.IWebhookEventPublisher, Forge.Api.Features.Webhooks.WebhookEventPublisher>();
+    builder.Services.AddScoped<Forge.Api.Features.Webhooks.IWebhookDeliveryService, Forge.Api.Features.Webhooks.WebhookDeliveryService>();
+    builder.Services.AddHttpClient(Forge.Api.Features.Webhooks.WebhookDeliveryService.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(15))
+        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+        {
+            ConnectCallback = Forge.Api.Features.Webhooks.WebhookTargetGuard.ConnectAsync,
+            AllowAutoRedirect = false,
+        });
 
     // MFA service (always real — no mock needed)
     builder.Services.AddScoped<IMfaService, MfaService>();
@@ -1721,6 +1732,7 @@ try
                 ["QuoteExpiringCheckJob"]          = (typeof(QuoteExpiringCheckJob),          "Execute"),
                 ["CheckInventoryLevelsJob"]        = (typeof(CheckInventoryLevelsJob),        "Execute"),
                 ["CheckJobCostOverrunJob"]         = (typeof(CheckJobCostOverrunJob),         "Execute"),
+                ["ReportScheduleJob"]              = (typeof(ReportScheduleJob),              "RunDueAsync"),
             };
 
             if (!jobMap.TryGetValue(jobName, out var entry))
@@ -1876,6 +1888,10 @@ try
     // Opt-in health report to Armory Works. Always scheduled, does nothing unless the
     // operator accepted the agreement — so switching it on takes effect on the next
     // tick rather than needing a restart.
+    RecurringJob.AddOrUpdate<ReportScheduleJob>(
+        "report-schedules",
+        job => job.RunDueAsync(CancellationToken.None),
+        "*/5 * * * *");
     RecurringJob.AddOrUpdate<TelemetryHeartbeatJob>(
         "telemetry-heartbeat",
         job => job.ReportAsync(CancellationToken.None),

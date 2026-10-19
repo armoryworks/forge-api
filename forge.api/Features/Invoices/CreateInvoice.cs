@@ -4,6 +4,7 @@ using System.Text.Json;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.DomainEvents;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -64,7 +65,8 @@ public class CreateInvoiceHandler(
     // Optional / null-default (same reason): a manual-number override needs the setting repo, and the
     // identifier registry records the number for resolution/history. DI supplies both.
     ISystemSettingRepository? systemSettings = null,
-    IBusinessIdentifierService? identifiers = null)
+    IBusinessIdentifierService? identifiers = null,
+    IPublisher? publisher = null)
     : IRequestHandler<CreateInvoiceCommand, InvoiceListItemModel>
 {
     // System setting that gates caller-supplied invoice numbers. Stored as "true"/"false".
@@ -245,6 +247,9 @@ public class CreateInvoiceHandler(
             await syncQueue.EnqueueAsync("Invoice", invoice.Id, "CreateInvoice",
                 JsonSerializer.Serialize(document), cancellationToken);
         }
+
+        if (publisher is not null)
+            await publisher.Publish(new InvoiceCreatedEvent(invoice.Id, invoice.InvoiceNumber, invoice.CustomerId, total), cancellationToken);
 
         return new InvoiceListItemModel(
             invoice.Id, invoice.InvoiceNumber, invoice.CustomerId, customer.Name,
