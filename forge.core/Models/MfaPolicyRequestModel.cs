@@ -4,3 +4,8 @@ public record MfaPolicyRequestModel
 {
     public IReadOnlyList<string> RequiredRoles { get; init; } = [];
 }
+
+public record MfaPolicyResponseModel
+{
+    public IReadOnlyList<string> RequiredRoles { get; init; } = [];
+}

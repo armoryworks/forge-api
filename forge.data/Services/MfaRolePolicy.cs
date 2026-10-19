@@ -1,0 +1,77 @@
+using System.Text.Json;
+
+using Microsoft.EntityFrameworkCore;
+
+using Forge.Core.Entities;
+using Forge.Data.Context;
+
+namespace Forge.Data.Services;
+
+public static class MfaRolePolicy
+{
+    public const string SettingKey = "mfa.required_roles";
+
+    public static async Task<IReadOnlyList<string>?> GetRequiredRolesAsync(AppDbContext db, CancellationToken ct)
+    {
+        var raw = await db.SystemSettings.AsNoTracking()
+            .Where(s => s.Key == SettingKey)
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+        if (raw is null)
+            return null;
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(raw) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    public static async Task SetRequiredRolesAsync(AppDbContext db, IEnumerable<string> roles, CancellationToken ct)
+    {
+        var normalized = roles
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Select(r => r.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(r => r, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var value = JsonSerializer.Serialize(normalized);
+
+        var existing = await db.SystemSettings.FirstOrDefaultAsync(s => s.Key == SettingKey, ct);
+        if (existing is null)
+            db.SystemSettings.Add(new SystemSetting
+            {
+                Key = SettingKey,
+                Value = value,
+                Description = "Roles whose members must enrol in multi-factor authentication",
+            });
+        else
+            existing.Value = value;
+    }
+
+    public static async Task<bool> IsEnforcedAsync(AppDbContext db, ApplicationUser user, CancellationToken ct)
+    {
+        var required = await GetRequiredRolesAsync(db, ct);
+        if (required is null)
+            return user.MfaEnforcedByPolicy;
+        if (required.Count == 0)
+            return false;
+
+        var userRoles = await RoleNamesAsync(db, user.Id, ct);
+        return userRoles.Intersect(required, StringComparer.OrdinalIgnoreCase).Any();
+    }
+
+    public static bool AppliesTo(IReadOnlyList<string>? requiredRoles, ApplicationUser user, IEnumerable<string> userRoles)
+        => requiredRoles is null
+            ? user.MfaEnforcedByPolicy
+            : userRoles.Intersect(requiredRoles, StringComparer.OrdinalIgnoreCase).Any();
+
+    private static Task<List<string>> RoleNamesAsync(AppDbContext db, int userId, CancellationToken ct)
+        => db.UserRoles
+            .Where(ur => ur.UserId == userId)
+            .Join(db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name!)
+            .ToListAsync(ct);
+}

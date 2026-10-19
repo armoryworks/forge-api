@@ -511,6 +511,11 @@ public class AdminController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("mfa/policy")]
+    [RequiresCapability("CAP-IDEN-AUTH-MFA")]
+    public async Task<ActionResult<MfaPolicyResponseModel>> GetMfaPolicy(CancellationToken ct)
+        => Ok(await mediator.Send(new GetMfaPolicyQuery(), ct));
+
     [HttpPut("mfa/policy")]
     [RequiresCapability("CAP-IDEN-AUTH-MFA")]
     public async Task<IActionResult> SetMfaPolicy([FromBody] MfaPolicyRequestModel request, CancellationToken ct)

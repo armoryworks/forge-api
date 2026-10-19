@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Services;
 
 namespace Forge.Api.Features.Admin;
 
@@ -26,6 +27,8 @@ public class GetMfaPolicyStatusHandler(AppDbContext db, UserManager<ApplicationU
             .Select(g => new { UserId = g.Key, DeviceType = g.First().DeviceType })
             .ToDictionaryAsync(x => x.UserId, x => x.DeviceType, cancellationToken);
 
+        var requiredRoles = await MfaRolePolicy.GetRequiredRolesAsync(db, cancellationToken);
+
         var result = new List<MfaComplianceUserModel>();
         foreach (var user in users)
         {
@@ -40,7 +43,7 @@ public class GetMfaPolicyStatusHandler(AppDbContext db, UserManager<ApplicationU
                 Role = roles.FirstOrDefault() ?? "None",
                 MfaEnabled = user.MfaEnabled,
                 MfaDeviceType = user.MfaEnabled ? deviceType : null,
-                IsEnforcedByPolicy = user.MfaEnforcedByPolicy,
+                IsEnforcedByPolicy = MfaRolePolicy.AppliesTo(requiredRoles, user, roles),
             });
         }
 

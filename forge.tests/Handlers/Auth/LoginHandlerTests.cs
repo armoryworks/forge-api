@@ -103,6 +103,39 @@ public class LoginHandlerTests
     }
 
     [Fact]
+    public async Task Handle_UserInAnMfaRequiredRole_WithoutMfa_IsToldToEnrol()
+    {
+        var user = new ApplicationUser
+        {
+            UserName = "controller@forge.test",
+            Email = "controller@forge.test",
+            FirstName = "Con",
+            LastName = "Troller",
+            IsActive = true,
+        };
+        _db.Users.Add(user);
+        var role = new IdentityRole<int>("Controller") { NormalizedName = "CONTROLLER" };
+        _db.Roles.Add(role);
+        await _db.SaveChangesAsync();
+        _db.UserRoles.Add(new IdentityUserRole<int> { UserId = user.Id, RoleId = role.Id });
+        await Forge.Data.Services.MfaRolePolicy.SetRequiredRolesAsync(_db, ["Controller"], CancellationToken.None);
+        await _db.SaveChangesAsync();
+
+        _userManagerMock.Setup(x => x.FindByEmailAsync(user.Email)).ReturnsAsync(user);
+        _signInManagerMock.Setup(x => x.CheckPasswordSignInAsync(user, "ValidPassword1!", true))
+            .ReturnsAsync(SignInResult.Success);
+        _tokenServiceMock.Setup(x => x.GenerateToken(
+                It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<IList<string>>(), null, null))
+            .Returns(new TokenResult("jwt", "jti", DateTimeOffset.UtcNow.AddHours(1)));
+
+        var result = await _handler.Handle(new LoginCommand(user.Email, "ValidPassword1!"), CancellationToken.None);
+
+        result.Token.Should().Be("jwt");
+        result.MfaEnrollmentRequired.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Handle_InvalidEmail_ThrowsUnauthorized()
     {
         _userManagerMock.Setup(x => x.FindByEmailAsync(It.IsAny<string>()))

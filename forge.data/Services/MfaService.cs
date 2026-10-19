@@ -102,6 +102,9 @@ public class MfaService(
         var user = await db.Users.FindAsync([userId], ct)
             ?? throw new KeyNotFoundException("User not found");
 
+        if (await MfaRolePolicy.IsEnforcedAsync(db, user, ct))
+            throw new InvalidOperationException("MFA is required by policy for your role and cannot be turned off");
+
         // Remove all devices
         var devices = await db.UserMfaDevices
             .Where(d => d.UserId == userId)
@@ -138,7 +141,7 @@ public class MfaService(
 
         // Check if this is the last verified device and MFA is enforced
         var user = await db.Users.FindAsync([userId], ct);
-        if (user?.MfaEnforcedByPolicy == true)
+        if (user is not null && await MfaRolePolicy.IsEnforcedAsync(db, user, ct))
         {
             var otherVerified = await db.UserMfaDevices
                 .AnyAsync(d => d.UserId == userId && d.Id != deviceId && d.IsVerified, ct);
@@ -373,7 +376,7 @@ public class MfaService(
         return new MfaStatusResponseModel
         {
             IsEnabled = user?.MfaEnabled ?? false,
-            IsEnforcedByPolicy = user?.MfaEnforcedByPolicy ?? false,
+            IsEnforcedByPolicy = user is not null && await MfaRolePolicy.IsEnforcedAsync(db, user, ct),
             Devices = devices,
             RecoveryCodesRemaining = user?.MfaRecoveryCodesRemaining ?? 0,
         };
@@ -382,7 +385,7 @@ public class MfaService(
     public async Task<bool> IsMfaRequiredAsync(int userId, CancellationToken ct)
     {
         var user = await db.Users.FindAsync([userId], ct);
-        return user?.MfaEnabled == true || user?.MfaEnforcedByPolicy == true;
+        return user is not null && (user.MfaEnabled || await MfaRolePolicy.IsEnforcedAsync(db, user, ct));
     }
 
     // ── Helpers ─────────────────────────────────────────────
