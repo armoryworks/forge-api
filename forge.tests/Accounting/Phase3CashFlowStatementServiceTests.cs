@@ -166,6 +166,20 @@ public class Phase3CashFlowStatementServiceTests
     }
 
     [Fact]
+    public async Task DefaultWindow_StartsAtTheFiscalYearContainingTheEnd()
+    {
+        using var db = await SeedAsync();
+        await PostAsync(db, "CASH", "SALES_REVENUE", 1000m);
+
+        var r = await Service(db).GetCashFlowStatementAsync(BookId, toDate: To);
+
+        r.FromDate.Should().Be(From);
+        r.ToDate.Should().Be(To);
+        r.NetIncome.Should().Be(1000m);
+        r.IsReconciled.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task CreditSale_ReceivableIncrease_UsesCash_Reconciles()
     {
         using var db = await SeedAsync();

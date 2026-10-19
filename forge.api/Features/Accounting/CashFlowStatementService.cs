@@ -16,6 +16,12 @@ public sealed class CashFlowStatementService(AppDbContext db, IClock clock) : IC
         int bookId, DateOnly? fromDate = null, DateOnly? toDate = null, CancellationToken ct = default)
     {
         var asOf = toDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
+        fromDate ??= await db.FiscalYears
+            .IgnoreQueryFilters()
+            .Where(fy => fy.BookId == bookId && fy.StartDate <= asOf && fy.EndDate >= asOf)
+            .OrderByDescending(fy => fy.StartDate)
+            .Select(fy => (DateOnly?)fy.StartDate)
+            .FirstOrDefaultAsync(ct);
 
         var tolerance = await db.Books.AsNoTracking()
             .Where(b => b.Id == bookId).Select(b => (decimal?)b.RoundingTolerance).FirstOrDefaultAsync(ct) ?? 0.01m;
