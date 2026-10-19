@@ -89,8 +89,8 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db)
                 if (invoice.MarketplaceCollected)
                     continue;
 
-                taxableBase += invoice.TaxableSubtotal * invoice.FxRate;
-                liability += invoice.TaxableSubtotal * invoice.TaxRate * invoice.FxRate;
+                taxableBase += ToFunctional(invoice.TaxableSubtotal, invoice.FxRate);
+                liability += ToFunctional(invoice.TaxableSubtotal * invoice.TaxRate, invoice.FxRate);
             }
 
             rows.Add(new SalesTaxLiabilityJurisdictionRow
@@ -115,6 +115,9 @@ public class GetSalesTaxLiabilityHandler(AppDbContext db)
             TotalInvoiceCount = rows.Sum(r => r.InvoiceCount),
         };
     }
+
+    private static decimal ToFunctional(decimal amount, decimal fxRate) =>
+        fxRate == 1m ? amount : Math.Round(amount * fxRate, 2, MidpointRounding.AwayFromZero);
 
     private static string? NormalizeJurisdiction(InvoiceTaxRow row) =>
         string.IsNullOrWhiteSpace(row.State) ? null : row.State.Trim().ToUpperInvariant();

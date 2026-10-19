@@ -180,6 +180,19 @@ public class GetSalesTaxLiabilityHandlerTests : IDisposable
     }
 
     [Fact]
+    public async Task ForeignCurrencyInvoice_IsRoundedPerInvoiceLikeThePostedFunctionalAmount()
+    {
+        await SeedCustomerAsync();
+        await AddInvoiceAsync(await AddOrderAsync("WA"), 0.0725m, 33.33m, fxRate: 0.73m);
+        await AddInvoiceAsync(await AddOrderAsync("WA"), 0.0725m, 33.33m, fxRate: 0.73m);
+
+        var report = await _handler.Handle(new GetSalesTaxLiabilityQuery(), default);
+
+        report.TotalTaxableBase.Should().Be(48.66m);
+        report.TotalLiability.Should().Be(3.52m);
+    }
+
+    [Fact]
     public async Task DateFilter_UsesTheInvoiceDate()
     {
         await SeedCustomerAsync();
