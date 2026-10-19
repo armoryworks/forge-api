@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Forge.Api.Features.Shipments;
+using Forge.Api.Features.Webhooks;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -53,6 +54,9 @@ public class CreateShipmentMediatorIntegrationTests : IDisposable
         var httpCtx = new Mock<IHttpContextAccessor>();
         httpCtx.Setup(x => x.HttpContext).Returns(new DefaultHttpContext { User = claims });
         services.AddSingleton(httpCtx.Object);
+
+        services.AddSingleton(Mock.Of<IWebhookEventPublisher>());
+        services.AddSingleton(Mock.Of<IClock>());
 
         services.AddLogging();
 

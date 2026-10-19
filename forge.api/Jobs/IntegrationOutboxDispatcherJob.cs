@@ -2,6 +2,8 @@ using System.Text.Json;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Notifications;
+using Forge.Api.Features.Webhooks;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -14,7 +16,9 @@ public class IntegrationOutboxDispatcherJob(
     AppDbContext db,
     IEmailService emailService,
     IClock clock,
-    ILogger<IntegrationOutboxDispatcherJob> logger)
+    ILogger<IntegrationOutboxDispatcherJob> logger,
+    IWebhookDeliveryService webhookDelivery,
+    IEnumerable<IMessagingIntegrationService> messagingServices)
 {
     private const int BatchSize = 25;
     private static readonly TimeSpan[] BackoffSchedule =
@@ -108,10 +112,25 @@ public class IntegrationOutboxDispatcherJob(
                 await emailService.SendAsync(message, ct);
                 break;
 
+            case IntegrationProvider.Webhook:
+                await webhookDelivery.DeliverAsync(entry, ct);
+                break;
+
+            case IntegrationProvider.Messaging:
+                var chat = JsonSerializer.Deserialize<ChatNotificationOutboxPayload>(entry.Payload)
+                    ?? throw new InvalidOperationException($"Failed to deserialize chat payload for entry {entry.Id}");
+                var messaging = ResolveMessagingService(chat.ProviderId)
+                    ?? throw new InvalidOperationException($"No messaging provider '{chat.ProviderId}' is registered.");
+                await messaging.SendNotificationAsync(
+                    chat.UserId,
+                    chat.IntegrationId,
+                    new NotificationMessage(chat.Title, chat.Body, chat.Severity, chat.EntityType, chat.EntityId),
+                    ct);
+                break;
+
             case IntegrationProvider.DocuSeal:
             case IntegrationProvider.QuickBooks:
             case IntegrationProvider.Shipping:
-            case IntegrationProvider.Webhook:
             case IntegrationProvider.Sms:
                 throw new NotImplementedException(
                     $"Outbox dispatcher does not yet handle {entry.Provider}. " +
@@ -121,6 +140,13 @@ public class IntegrationOutboxDispatcherJob(
             default:
                 throw new InvalidOperationException($"Unknown provider {entry.Provider}");
         }
+    }
+
+    private IMessagingIntegrationService? ResolveMessagingService(string providerId)
+    {
+        var services = messagingServices.ToList();
+        return services.FirstOrDefault(s => string.Equals(s.ProviderId, providerId, StringComparison.OrdinalIgnoreCase))
+            ?? (services.Count == 1 ? services[0] : null);
     }
 
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max];

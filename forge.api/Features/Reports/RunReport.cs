@@ -248,10 +248,15 @@ public class RunReportHandler(AppDbContext context) : IRequestHandler<RunReportC
         var totalCount = await query.CountAsync(cancellationToken);
 
         // Apply sorting
+        var ordered = false;
         if (!string.IsNullOrEmpty(request.SortField))
         {
-            query = ApplySort(query, request.SortField, request.SortDirection ?? "asc");
+            var sorted = ApplySort(query, request.SortField, request.SortDirection ?? "asc");
+            ordered = !ReferenceEquals(sorted, query);
+            query = sorted;
         }
+
+        query = ApplyIdTiebreak(query, ordered);
 
         // Apply pagination
         query = query.Skip((page - 1) * pageSize).Take(pageSize);
@@ -548,6 +553,22 @@ public class RunReportHandler(AppDbContext context) : IRequestHandler<RunReportC
         var method = typeof(Queryable).GetMethods()
             .First(m => m.Name == methodName && m.GetParameters().Length == 2)
             .MakeGenericMethod(typeof(T), property.Type);
+
+        return (IQueryable<T>)method.Invoke(null, [query, lambda])!;
+    }
+
+    private static IQueryable<T> ApplyIdTiebreak<T>(IQueryable<T> query, bool ordered) where T : class
+    {
+        var idProperty = typeof(T).GetProperty("Id");
+        if (idProperty == null) return query;
+
+        var parameter = Expression.Parameter(typeof(T), "e");
+        var lambda = Expression.Lambda(Expression.Property(parameter, idProperty), parameter);
+        var methodName = ordered ? "ThenBy" : "OrderBy";
+
+        var method = typeof(Queryable).GetMethods()
+            .First(m => m.Name == methodName && m.GetParameters().Length == 2)
+            .MakeGenericMethod(typeof(T), idProperty.PropertyType);
 
         return (IQueryable<T>)method.Invoke(null, [query, lambda])!;
     }

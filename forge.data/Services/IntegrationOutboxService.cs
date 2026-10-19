@@ -82,7 +82,7 @@ public class IntegrationOutboxService(
         return entry;
     }
 
-    private static string BuildIdempotencyKey(IntegrationProvider provider, string operationKey)
+    public static string BuildIdempotencyKey(IntegrationProvider provider, string operationKey)
     {
         var raw = $"{provider}:{operationKey}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(raw));

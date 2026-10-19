@@ -87,21 +87,6 @@ public class ReportsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("my-work-history")]
-    public async Task<ActionResult<List<MyWorkHistoryReportItem>>> GetMyWorkHistory()
-    {
-        var result = await mediator.Send(new GetMyWorkHistoryQuery());
-        return Ok(result);
-    }
-
-    [HttpGet("my-time-log")]
-    public async Task<ActionResult<List<MyTimeLogReportItem>>> GetMyTimeLog(
-        [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end)
-    {
-        var result = await mediator.Send(new GetMyTimeLogQuery(start, InclusiveEnd(end)));
-        return Ok(result);
-    }
-
     // ─── Financial Reports ───
 
     [HttpGet("ar-aging")]
@@ -129,14 +114,6 @@ public class ReportsController(IMediator mediator) : ControllerBase
     }
 
     // ─── Additional Reports ───
-
-    [HttpGet("my-expense-history")]
-    public async Task<ActionResult<List<MyExpenseHistoryReportItem>>> GetMyExpenseHistory(
-        [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end)
-    {
-        var result = await mediator.Send(new GetMyExpenseHistoryQuery(start, InclusiveEnd(end)));
-        return Ok(result);
-    }
 
     [HttpGet("quote-to-close")]
     public async Task<ActionResult<List<QuoteToCloseReportItem>>> GetQuoteToClose(
@@ -236,13 +213,6 @@ public class ReportsController(IMediator mediator) : ControllerBase
 
     // ─── Batch 5 Reports ───
 
-    [HttpGet("my-cycle-summary")]
-    public async Task<ActionResult<List<MyCycleSummaryReportItem>>> GetMyCycleSummary()
-    {
-        var result = await mediator.Send(new GetMyCycleSummaryReportQuery());
-        return Ok(result);
-    }
-
     [HttpGet("lead-sales")]
     public async Task<ActionResult<LeadSalesReportItem>> GetLeadSales(
         [FromQuery] DateTimeOffset start, [FromQuery] DateTimeOffset end)
@@ -328,10 +298,10 @@ public class ReportsController(IMediator mediator) : ControllerBase
         return (resolvedStart, InclusiveEnd(resolvedEnd));
     }
 
-    private static DateTimeOffset? InclusiveEnd(DateTimeOffset? end)
+    internal static DateTimeOffset? InclusiveEnd(DateTimeOffset? end)
         => end.HasValue ? InclusiveEnd(end.Value) : null;
 
-    private static DateTimeOffset InclusiveEnd(DateTimeOffset end)
+    internal static DateTimeOffset InclusiveEnd(DateTimeOffset end)
     {
         if (end == DateTimeOffset.MinValue) return end;
         var utc = end.ToUniversalTime();

@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -13,7 +14,8 @@ public record CreateReportScheduleCommand(
     string CronExpression,
     string RecipientEmailsJson,
     ReportExportFormat Format,
-    string? SubjectTemplate) : IRequest<ReportScheduleResponseModel>;
+    string? SubjectTemplate,
+    int? RequestingUserId = null) : IRequest<ReportScheduleResponseModel>;
 
 public class CreateReportScheduleCommandValidator : AbstractValidator<CreateReportScheduleCommand>
 {
@@ -24,22 +26,30 @@ public class CreateReportScheduleCommandValidator : AbstractValidator<CreateRepo
 
         RuleFor(x => x.CronExpression)
             .NotEmpty().WithMessage("Cron expression is required.")
-            .MaximumLength(100).WithMessage("Cron expression must not exceed 100 characters.");
+            .MaximumLength(100).WithMessage("Cron expression must not exceed 100 characters.")
+            .Must(ReportScheduleCron.IsValid).WithMessage("Cron expression is not valid.");
 
         RuleFor(x => x.RecipientEmailsJson)
-            .NotEmpty().WithMessage("At least one recipient email is required.");
+            .NotEmpty().WithMessage("At least one recipient email is required.")
+            .Must(ReportScheduleRecipients.IsValid).WithMessage("Recipients must be a JSON array of e-mail addresses.");
 
         RuleFor(x => x.SubjectTemplate)
             .MaximumLength(500).When(x => x.SubjectTemplate is not null);
     }
 }
 
-public class CreateReportScheduleHandler(AppDbContext db) : IRequestHandler<CreateReportScheduleCommand, ReportScheduleResponseModel>
+public class CreateReportScheduleHandler(
+    AppDbContext db,
+    ReportScheduleSender sender,
+    IClock clock) : IRequestHandler<CreateReportScheduleCommand, ReportScheduleResponseModel>
 {
     public async Task<ReportScheduleResponseModel> Handle(CreateReportScheduleCommand request, CancellationToken cancellationToken)
     {
         var report = await db.SavedReports.FindAsync([request.SavedReportId], cancellationToken)
             ?? throw new KeyNotFoundException($"Saved report {request.SavedReportId} not found.");
+
+        if (request.RequestingUserId is { } userId && report.UserId != userId && !report.IsShared)
+            throw new KeyNotFoundException($"Saved report {request.SavedReportId} not found.");
 
         var schedule = new ReportSchedule
         {
@@ -49,6 +59,7 @@ public class CreateReportScheduleHandler(AppDbContext db) : IRequestHandler<Crea
             Format = request.Format,
             SubjectTemplate = request.SubjectTemplate,
             IsActive = true,
+            NextRunAt = await sender.NextRunAfterAsync(request.CronExpression, clock.UtcNow, cancellationToken),
         };
 
         db.ReportSchedules.Add(schedule);
