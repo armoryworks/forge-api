@@ -47,6 +47,13 @@ public class Customer : BaseAuditableEntity, IActiveAware
     // QBO AST inputs require current validity; an alert/background job checks this field against today.
     public DateOnly? ExemptionExpiryDate { get; set; }
 
+    /// <summary>
+    /// True when the customer is flagged exempt and the certificate has not lapsed on
+    /// <paramref name="date"/> (no expiry on file counts as valid).
+    /// </summary>
+    public bool IsTaxExemptOn(DateOnly date)
+        => IsTaxExempt && (ExemptionExpiryDate is null || ExemptionExpiryDate >= date);
+
     // Default tax + currency used when invoicing this customer if the line/header
     // does not specify otherwise. Both nullable so the tenant default applies.
     // Phase 3 F3 — captured at create-time to avoid a PATCH-after-create round trip.

@@ -21,9 +21,9 @@ public class SalesTaxController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
-    /// Returns the currently-effective tax rate for a customer based on their
-    /// default billing address state. Falls back to the system default rate.
-    /// Returns null (204) if no rate is configured.
+    /// Returns the currently-effective tax rate for a customer: their default tax
+    /// code, else the rate for their default billing address state, else the system
+    /// default rate. Returns null (204) if no rate is configured.
     /// </summary>
     [HttpGet("for-customer/{customerId:int}")]
     public async Task<ActionResult<SalesTaxRateResponseModel>> GetForCustomer(int customerId)
