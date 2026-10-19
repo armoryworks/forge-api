@@ -17,7 +17,7 @@ public class GenerateMilestoneInvoiceHandlerTests
     private static readonly DateTimeOffset Now = new(2026, 7, 7, 12, 0, 0, TimeSpan.Zero);
 
     private readonly Mock<IMediator> _mediator = new();
-    private readonly Mock<IAccountingService> _accounting = new();
+    private readonly Mock<IAccountingProviderFactory> _providers = new();
 
     private static IClock FixedClock()
     {
@@ -62,8 +62,9 @@ public class GenerateMilestoneInvoiceHandlerTests
         var (milestone, _) = await SeedLinkedMilestoneAsync(db);
 
         // ⚡ Accounting boundary: connected provider → the feature must refuse.
-        _accounting.Setup(a => a.TestConnectionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        var handler = new GenerateMilestoneInvoiceHandler(db, _mediator.Object, FixedClock(), _accounting.Object);
+        _providers.Setup(p => p.GetConnectedExternalProviderAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Mock.Of<IAccountingService>());
+        var handler = new GenerateMilestoneInvoiceHandler(db, _mediator.Object, FixedClock(), _providers.Object);
 
         var act = () => handler.Handle(new GenerateMilestoneInvoiceCommand(milestone.Id), CancellationToken.None);
 
@@ -79,8 +80,8 @@ public class GenerateMilestoneInvoiceHandlerTests
         using var db = TestDbContextFactory.Create();
         var (milestone, order) = await SeedLinkedMilestoneAsync(db);
 
-        // Standalone: the registered provider shim reports no live connection.
-        _accounting.Setup(a => a.TestConnectionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _providers.Setup(p => p.GetConnectedExternalProviderAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IAccountingService?)null);
         CreateInvoiceCommand? sent = null;
         _mediator
             .Setup(m => m.Send(It.IsAny<CreateInvoiceCommand>(), It.IsAny<CancellationToken>()))
@@ -89,7 +90,7 @@ public class GenerateMilestoneInvoiceHandlerTests
                 77, "INV-00077", order.CustomerId, "Acme Corp", "Draft",
                 Now, Now, 300m, 0m, 300m, Now));
 
-        var handler = new GenerateMilestoneInvoiceHandler(db, _mediator.Object, FixedClock(), _accounting.Object);
+        var handler = new GenerateMilestoneInvoiceHandler(db, _mediator.Object, FixedClock(), _providers.Object);
         var result = await handler.Handle(new GenerateMilestoneInvoiceCommand(milestone.Id), CancellationToken.None);
 
         result.Id.Should().Be(77);
@@ -110,7 +111,7 @@ public class GenerateMilestoneInvoiceHandlerTests
     }
 
     [Fact]
-    public async Task Handle_NullAccountingService_BehavesAsStandalone()
+    public async Task Handle_NoProviderFactory_BehavesAsStandalone()
     {
         using var db = TestDbContextFactory.Create();
         var (milestone, order) = await SeedLinkedMilestoneAsync(db);

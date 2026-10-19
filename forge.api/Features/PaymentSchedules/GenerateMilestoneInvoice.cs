@@ -35,13 +35,14 @@ public class GenerateMilestoneInvoiceHandler(
     IClock clock,
     // Optional / null-default so isolated unit-test constructions stay valid (same
     // pattern as CreateInvoiceHandler, AUDIT-21-S1); the DI path supplies it.
-    IAccountingService? accountingService = null)
+    IAccountingProviderFactory? accountingProviders = null)
     : IRequestHandler<GenerateMilestoneInvoiceCommand, InvoiceListItemModel>
 {
     public async Task<InvoiceListItemModel> Handle(GenerateMilestoneInvoiceCommand request, CancellationToken cancellationToken)
     {
         // ⚡ Accounting boundary: a connected provider owns invoicing.
-        if (accountingService is not null && await accountingService.TestConnectionAsync(cancellationToken))
+        if (accountingProviders is not null
+            && await accountingProviders.GetConnectedExternalProviderAsync(cancellationToken) is not null)
             throw new InvalidOperationException(
                 "Milestone invoices can only be generated in standalone mode — "
                 + "invoicing is managed by the connected accounting provider.");

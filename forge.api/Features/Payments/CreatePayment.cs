@@ -71,7 +71,7 @@ public class CreatePaymentHandler(
     IHttpContextAccessor? httpContextAccessor = null,
     // AUDIT-21-S1: same optional/null-default pattern — DI supplies both; the QBO enqueue self-gates
     // on a provider being connected.
-    IAccountingService? accountingService = null,
+    IAccountingProviderFactory? accountingProviders = null,
     ISyncQueueRepository? syncQueue = null,
     // Optional / null-default (same reason): a manual-number override needs the setting repo, and the
     // identifier registry records the number for resolution/history. DI supplies both.
@@ -250,8 +250,8 @@ public class CreatePaymentHandler(
         // AUDIT-21-S1 (BLOCKER): enqueue a QBO payment sync row so AR cash receipts reach the
         // accounting provider — before this only MoveJobStage enqueued, leaving payments invisible to
         // sync. Inside the open transaction so the sync row commits/rolls back with the payment.
-        if (accountingService is not null && syncQueue is not null
-            && await accountingService.TestConnectionAsync(cancellationToken))
+        if (accountingProviders is not null && syncQueue is not null
+            && await accountingProviders.GetConnectedExternalProviderAsync(cancellationToken) is not null)
         {
             var accountingPayment = new AccountingPayment(
                 ExternalId: customer.ExternalId ?? string.Empty,

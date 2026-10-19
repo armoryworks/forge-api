@@ -514,7 +514,7 @@ Some features duplicate functionality that an accounting system (QuickBooks, Xer
 
 ### Rules for Accounting-Bounded Code
 
-1. **Every accounting-bounded feature must check `IAccountingService.IsConfigured` (.NET) or `AccountingService.isStandalone` (Angular).** When a provider is connected, the feature becomes read-only or hidden.
+1. **Every accounting-bounded feature must check `IAccountingProviderFactory.GetConnectedExternalProviderAsync` (.NET) or `AccountingService.isStandalone` (Angular).** When a provider is connected, the feature becomes read-only or hidden. Never probe an injected `IAccountingService` directly: DI hands you `MockAccountingService` under MockIntegrations (always "connected") or the last real registration (Zoho), not the provider the install selected in `accounting_provider`.
 
 2. **Mark all accounting-bounded specs with `⚡ ACCOUNTING BOUNDARY`** in functional-decisions.md and other docs so they are easily searchable.
 
@@ -547,8 +547,8 @@ Some features duplicate functionality that an accounting system (QuickBooks, Xer
 ### Implementation Pattern
 ```csharp
 // .NET — Controller or handler checks mode
-if (_accountingService.IsConfigured)
-    return StatusCode(409, "Feature disabled — managed by accounting provider");
+if (await _accountingProviders.GetConnectedExternalProviderAsync(ct) is not null)
+    throw new InvalidOperationException("Feature disabled — managed by accounting provider");
 
 // Angular — Component hides/shows based on mode
 readonly isStandalone = this.accountingService.isStandalone;

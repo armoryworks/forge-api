@@ -12,6 +12,8 @@ public class AccountingProviderFactory : IAccountingProviderFactory
     private readonly ILogger<AccountingProviderFactory> _logger;
 
     private const string ActiveProviderKey = "accounting_provider";
+    private const string LocalProviderId = "local";
+    private const string MockProviderId = "mock";
 
     public AccountingProviderFactory(
         IEnumerable<IAccountingService> providers,
@@ -80,6 +82,22 @@ public class AccountingProviderFactory : IAccountingProviderFactory
         await _settings.SaveChangesAsync(ct);
 
         _logger.LogInformation("Active accounting provider set to '{ProviderId}'", providerId ?? "(standalone)");
+    }
+
+    public async Task<IAccountingService?> GetConnectedExternalProviderAsync(CancellationToken ct)
+    {
+        var providerId = await GetActiveProviderIdAsync(ct);
+        if (providerId is null || providerId == LocalProviderId || providerId == ForgeGlAccountingService.Id)
+            return null;
+
+        var provider = GetProvider(providerId) ?? GetProvider(MockProviderId);
+        if (provider is null)
+        {
+            _logger.LogWarning("Configured accounting provider '{ProviderId}' not found in registered providers", providerId);
+            return null;
+        }
+
+        return await provider.TestConnectionAsync(ct) ? provider : null;
     }
 
     public async Task<string?> GetActiveProviderIdAsync(CancellationToken ct)

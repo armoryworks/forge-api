@@ -41,7 +41,7 @@ public class MoveJobStageHandlerTests
             _actRepo.Object,
             Mock.Of<ICustomerRepository>(),
             _db,
-            Mock.Of<IAccountingService>(),
+            Mock.Of<IAccountingProviderFactory>(),
             Mock.Of<ISyncQueueRepository>(),
             Mock.Of<IWorkCenterContext>(),
             _mediator.Object,

@@ -59,7 +59,7 @@ public class CreateInvoiceHandler(
     AppDbContext db,
     // AUDIT-21-S1: optional / null-default so isolated unit-test constructions stay valid; the DI
     // path supplies both. The QBO enqueue self-gates on a provider being connected.
-    IAccountingService? accountingService = null,
+    IAccountingProviderFactory? accountingProviders = null,
     ISyncQueueRepository? syncQueue = null,
     // Optional / null-default (same reason): a manual-number override needs the setting repo, and the
     // identifier registry records the number for resolution/history. DI supplies both.
@@ -230,8 +230,8 @@ public class CreateInvoiceHandler(
         // sync. Only when a provider is actually connected (mirrors MoveJobStage); unlike the job path
         // we do NOT require the customer to be pre-synced — the sync worker upserts the customer, so a
         // first invoice for a brand-new customer still syncs.
-        if (accountingService is not null && syncQueue is not null
-            && await accountingService.TestConnectionAsync(cancellationToken))
+        if (accountingProviders is not null && syncQueue is not null
+            && await accountingProviders.GetConnectedExternalProviderAsync(cancellationToken) is not null)
         {
             var document = new AccountingDocument(
                 Type: AccountingDocumentType.Invoice,

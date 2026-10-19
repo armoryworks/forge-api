@@ -24,7 +24,7 @@ public class MoveJobStageHandler(
     IActivityLogRepository actRepo,
     ICustomerRepository customerRepo,
     AppDbContext db,
-    IAccountingService accountingService,
+    IAccountingProviderFactory accountingProviders,
     ISyncQueueRepository syncQueue,
     IWorkCenterContext workCenterContext,
     IMediator mediator,
@@ -164,8 +164,7 @@ public class MoveJobStageHandler(
         CancellationToken cancellationToken)
     {
         // Only enqueue when an accounting provider is actually connected
-        var isConnected = await accountingService.TestConnectionAsync(cancellationToken);
-        if (!isConnected)
+        if (await accountingProviders.GetConnectedExternalProviderAsync(cancellationToken) is null)
         {
             logger.LogDebug(
                 "Accounting provider not connected — skipping document queue for Job {JobId} moving to stage {StageName}.",

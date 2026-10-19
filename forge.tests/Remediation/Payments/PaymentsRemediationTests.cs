@@ -34,6 +34,16 @@ public class PaymentsRemediationTests
 
     private IServiceScope NewScope() => _factory.Services.CreateScope();
 
+    private async Task SetAccountingProviderAsync(string? providerId)
+    {
+        using var scope = NewScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.SystemSettings.RemoveRange(db.SystemSettings.Where(s => s.Key == "accounting_provider"));
+        if (providerId is not null)
+            db.SystemSettings.Add(new SystemSetting { Key = "accounting_provider", Value = providerId });
+        await db.SaveChangesAsync();
+    }
+
     private async Task<int> SeedPayment(decimal amount = 100m)
     {
         using var scope = NewScope();
@@ -75,11 +85,20 @@ public class PaymentsRemediationTests
             amount = 100m,
             paymentDate = DateTimeOffset.UtcNow,
         });
-        await AuthClient().PostAsync("/api/v1/payments", body);
+        await SetAccountingProviderAsync("mock");
+        try
+        {
+            await AuthClient().PostAsync("/api/v1/payments", body);
+        }
+        finally
+        {
+            await SetAccountingProviderAsync(null);
+        }
 
         using var verify = NewScope();
         var db2 = verify.ServiceProvider.GetRequiredService<AppDbContext>();
-        db2.SyncQueueEntries.Any(e => e.EntityType == "Payment").Should().BeTrue(
+        var paymentIds = db2.Payments.Where(p => p.CustomerId == customerId).Select(p => p.Id).ToList();
+        db2.SyncQueueEntries.Any(e => e.EntityType == "Payment" && paymentIds.Contains(e.EntityId)).Should().BeTrue(
             "an AR payment must enqueue a QBO sync row so accounting stays in sync (today nothing enqueues)");
     }
 
