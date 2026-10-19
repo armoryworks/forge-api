@@ -13,8 +13,11 @@ namespace Forge.Api.Features.Accounting;
 /// month). Actuals are read from <see cref="IFinancialStatementService"/> — the
 /// same filter-immune ledger projection the Profit &amp; Loss and trial balance use
 /// — so nothing re-implements the ledger query. Budgets come from the stored
-/// <c>acct_budgets</c> rows for the matching scope (month-null for a full year, the
-/// exact month otherwise). CAP-ACCT-FULLGL gated.
+/// <c>acct_budgets</c> rows: a full year reads the annual row (month null), or the sum
+/// of the account's monthly rows when it has no annual row; a month reads its own
+/// monthly row, else spreads what is left of the annual amount (after the explicit
+/// monthly rows) evenly over the fiscal periods without one, the rounding remainder on
+/// the last, so the months always add up to the year. CAP-ACCT-FULLGL gated.
 /// </summary>
 [RequiresCapability("CAP-ACCT-FULLGL")]
 public record GetBudgetVsActualQuery(int BookId, int FiscalYear, int? PeriodMonth = null)
@@ -35,16 +38,26 @@ public class GetBudgetVsActualHandler(AppDbContext db, IFinancialStatementServic
                 l => l.GlAccountId,
                 l => (l.AccountNumber, l.AccountName, l.Amount));
 
-        // Budgets for the requested scope: full-year rows (month null) or the exact
-        // month. Summed defensively though the unique index yields one row per slot.
         var budgetRows = await db.AcctBudgets.AsNoTracking()
-            .Where(b => b.BookId == request.BookId
-                     && b.FiscalYear == request.FiscalYear
-                     && b.PeriodMonth == request.PeriodMonth)
-            .GroupBy(b => b.GlAccountId)
-            .Select(g => new { GlAccountId = g.Key, Amount = g.Sum(x => x.Amount) })
+            .Where(b => b.BookId == request.BookId && b.FiscalYear == request.FiscalYear)
+            .Select(b => new { b.GlAccountId, b.PeriodMonth, b.Amount })
             .ToListAsync(ct);
-        var budgetByAccount = budgetRows.ToDictionary(b => b.GlAccountId, b => b.Amount);
+        var periodCount = request.PeriodMonth is null
+            ? 0
+            : await CountFiscalPeriodsAsync(request.BookId, request.FiscalYear, ct);
+        var budgetByAccount = budgetRows
+            .GroupBy(b => b.GlAccountId)
+            .ToDictionary(
+                g => g.Key,
+                g => ResolveBudget(
+                    g.Any(b => b.PeriodMonth is null) ? g.Where(b => b.PeriodMonth is null).Sum(b => b.Amount) : null,
+                    g.Where(b => b.PeriodMonth is not null)
+                        .GroupBy(b => b.PeriodMonth!.Value)
+                        .ToDictionary(m => m.Key, m => m.Sum(x => x.Amount)),
+                    request.PeriodMonth,
+                    periodCount))
+            .Where(kv => kv.Value is not null)
+            .ToDictionary(kv => kv.Key, kv => kv.Value!.Value);
 
         // Account number/name for budgeted accounts that had no ledger activity
         // (absent from the P&L lines) — one lookup, no per-row query.
@@ -88,6 +101,49 @@ public class GetBudgetVsActualHandler(AppDbContext db, IFinancialStatementServic
             TotalBudget = ordered.Sum(l => l.BudgetAmount),
             TotalActual = ordered.Sum(l => l.ActualAmount),
         };
+    }
+
+    /// <summary>
+    /// One account's budget for the scope, or null when it has no budget there. Monthly
+    /// rows beat the spread of the annual amount; with no annual row a month has only
+    /// its own row and the year is the sum of the monthly rows.
+    /// </summary>
+    internal static decimal? ResolveBudget(
+        decimal? annual, IReadOnlyDictionary<int, decimal> monthly, int? month, int periodCount)
+    {
+        if (month is null)
+            return annual ?? (monthly.Count > 0 ? monthly.Values.Sum() : null);
+
+        if (monthly.TryGetValue(month.Value, out var explicitAmount))
+            return explicitAmount;
+
+        if (annual is null || month.Value < 1 || month.Value > periodCount)
+            return null;
+
+        var open = Enumerable.Range(1, periodCount).Where(p => !monthly.ContainsKey(p)).ToList();
+        var residual = annual.Value - monthly.Where(m => m.Key >= 1 && m.Key <= periodCount).Sum(m => m.Value);
+        var share = Math.Round(residual / open.Count, 2);
+        return month.Value == open[^1] ? residual - share * (open.Count - 1) : share;
+    }
+
+    /// <summary>
+    /// Number of periods in the book's fiscal year (as matched by
+    /// <see cref="ResolveWindowAsync"/>), or 12 when the year has no period rows.
+    /// </summary>
+    private async Task<int> CountFiscalPeriodsAsync(int bookId, int fiscalYear, CancellationToken ct)
+    {
+        var fyId = await db.FiscalYears.AsNoTracking()
+            .Where(f => f.BookId == bookId
+                     && (f.StartDate.Year == fiscalYear || f.EndDate.Year == fiscalYear))
+            .OrderBy(f => f.StartDate.Year == fiscalYear ? 0 : 1)
+            .ThenByDescending(f => f.StartDate)
+            .Select(f => (int?)f.Id)
+            .FirstOrDefaultAsync(ct);
+
+        var count = fyId is null
+            ? 0
+            : await db.FiscalPeriods.AsNoTracking().CountAsync(p => p.FiscalYearId == fyId.Value, ct);
+        return count > 0 ? count : 12;
     }
 
     /// <summary>
