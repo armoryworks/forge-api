@@ -691,7 +691,9 @@ try
         sp => sp.GetRequiredService<Forge.Api.Workflows.CustomerWorkflowAdapter>());
     builder.Services.AddScoped<IClockEventTypeService, ClockEventTypeService>();
     builder.Services.AddScoped<IUserIntegrationService, UserIntegrationService>();
+    builder.Services.AddScoped<UserIntegrationConnectionTester>();
     builder.Services.AddScoped<IMrpService, MrpService>();
+    builder.Services.AddScoped<IKanbanReplenishmentService, KanbanReplenishmentService>();
     builder.Services.AddScoped<IPartSourcingResolver, PartSourcingResolver>();
     builder.Services.AddScoped<IPartPricingResolver, PartPricingResolver>();
     builder.Services.AddScoped<IVendorCostResolver, VendorCostResolver>();
@@ -949,7 +951,6 @@ try
         builder.Services.AddSingleton<IPickWaveService, MockPickWaveService>();
         builder.Services.AddSingleton<IDropShipService, MockDropShipService>();
         builder.Services.AddSingleton<IBackToBackService, MockBackToBackService>();
-        builder.Services.AddSingleton<IKanbanReplenishmentService, MockKanbanReplenishmentService>();
         builder.Services.AddSingleton<IProjectAccountingService, MockProjectAccountingService>();
         builder.Services.AddSingleton<ICopqService, MockCopqService>();
         builder.Services.AddSingleton<IPredictiveMaintenanceService, MockPredictiveMaintenanceService>();
@@ -1064,9 +1065,8 @@ try
         builder.Services.AddSingleton<IAbcClassificationService, MockAbcClassificationService>();
         builder.Services.AddSingleton<IPickWaveService, MockPickWaveService>();
         builder.Services.AddSingleton<IDropShipService, MockDropShipService>();
-        // Back-to-back, Kanban Replenishment, Project Accounting — mock for now until real engines built
+        // Back-to-back, Project Accounting — mock for now until real engines built
         builder.Services.AddSingleton<IBackToBackService, MockBackToBackService>();
-        builder.Services.AddSingleton<IKanbanReplenishmentService, MockKanbanReplenishmentService>();
         builder.Services.AddSingleton<IProjectAccountingService, MockProjectAccountingService>();
         // COPQ and Predictive Maintenance — mock for now until real engines built
         builder.Services.AddSingleton<ICopqService, MockCopqService>();
@@ -1602,8 +1602,7 @@ try
         }
     }
 
-    // Storage bucket/directory initialization (skip when using mock storage)
-    if (!useMocks)
+    // Storage bucket/directory initialization
     {
         using var scope = app.Services.CreateScope();
         var storageService = scope.ServiceProvider.GetRequiredService<IStorageService>();

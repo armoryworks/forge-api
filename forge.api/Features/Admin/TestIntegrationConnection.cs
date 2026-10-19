@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Core.Settings;
 
 namespace Forge.Api.Features.Admin;
 
@@ -29,9 +30,10 @@ public class TestIntegrationConnectionHandler(
                 "minio" => await TestMinio(ct),
                 "usps" => await TestUsps(ct),
                 "docuseal" => await TestDocuSeal(ct),
-                "ollama" => await TestOllama(ct),
+                "ai" or "ollama" => await TestOllama(ct),
                 "ups" or "fedex" or "dhl" => await TestShippingCarrier(request.Provider, ct),
-                "xero" or "freshbooks" or "sage" or "netsuite" or "wave" or "zoho" => await TestAccountingProvider(request.Provider, ct),
+                "quickbooks" or "xero" or "freshbooks" or "sage" or "netsuite" or "wave" or "zoho" => await TestAccountingProvider(request.Provider, ct),
+                "gdrive" or "twilio" or "gmail-oauth" or "microsoft-oauth" => NoConnectionTest(request.Provider),
                 _ => (false, $"Unknown integration provider: {request.Provider}")
             };
 
@@ -43,6 +45,12 @@ public class TestIntegrationConnectionHandler(
             logger.LogWarning(ex, "[Integration Test] {Provider} failed with exception", request.Provider);
             return new TestIntegrationResultModel(false, $"Connection test failed: {ex.Message}");
         }
+    }
+
+    private static (bool, string) NoConnectionTest(string provider)
+    {
+        var name = IntegrationDescriptorCatalog.FindByProvider(provider)?.Name ?? provider;
+        return (false, $"No connection test is available for {name} yet — settings are saved, but nothing was contacted");
     }
 
     private async Task<(bool, string)> TestSmtp(CancellationToken ct)

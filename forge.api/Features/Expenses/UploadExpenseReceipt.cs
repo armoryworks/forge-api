@@ -36,6 +36,7 @@ public class UploadExpenseReceiptHandler(
         var bucketName = minioOptions.Value.ReceiptsBucket;
         var objectKey = $"expenses/pending/{Guid.NewGuid():N}-{file.FileName}";
 
+        await storage.EnsureBucketExistsAsync(bucketName, cancellationToken);
         await using var stream = file.OpenReadStream();
         await storage.UploadAsync(bucketName, objectKey, stream, file.ContentType, cancellationToken);
 
