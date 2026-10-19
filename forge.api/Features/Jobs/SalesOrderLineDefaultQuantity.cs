@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Enums;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.Jobs;
@@ -14,7 +15,16 @@ public static class SalesOrderLineDefaultQuantity
     {
         var line = await db.SalesOrderLines
             .Where(l => l.Id == salesOrderLineId)
-            .Select(l => new { l.PartId, l.UomId, l.Quantity, l.ShippedQuantity })
+            .Select(l => new
+            {
+                l.PartId,
+                l.UomId,
+                l.Quantity,
+                l.ShippedQuantity,
+                OnLiveShipments = l.ShipmentLines
+                    .Where(sl => sl.Shipment.Status != ShipmentStatus.Cancelled)
+                    .Sum(sl => (decimal?)sl.Quantity) ?? 0m,
+            })
             .FirstAsync(ct);
 
         if (line.PartId is not null && line.PartId != partId)
@@ -37,7 +47,7 @@ public static class SalesOrderLineDefaultQuantity
 
         return Math.Max(1m, Remaining(
             line.Quantity,
-            line.ShippedQuantity,
+            Math.Max(line.ShippedQuantity, line.OnLiveShipments),
             onOpenJobs.Where(q => !q.Completed).Sum(q => q.Quantity),
             onOpenJobs.Where(q => q.Completed).Sum(q => q.Quantity)));
     }

@@ -120,8 +120,8 @@ public sealed class InventoryAdjustmentPostingService(
         {
             var unitCost = storeRow is { AverageUnitCost: > 0m } ? storeRow.AverageUnitCost : standard;
             amount = Math.Round(unitCost * quantity, 2, MidpointRounding.AwayFromZero);
-            if (amount > 0m && storeRow is not null)
-                await valuation!.ApplyReceiptAsync(book.Id, part.Id, quantity, amount, ct);
+            if (amount > 0m && valuation is not null)
+                await valuation.ApplyReceiptAsync(book.Id, part.Id, quantity, amount, ct);
         }
 
         if (amount <= 0m)
