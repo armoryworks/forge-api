@@ -73,8 +73,8 @@ public class ReceiveBackSubcontractOperationTests
             .SingleAsync(a => a.FieldName == "OperationStatus");
         log.Action.Should().Be(ActivityAction.OperationProgress);
         log.OperationId.Should().Be(operation.Id);
-        log.OldValue.Should().Be("NotStarted 0/10");
-        log.NewValue.Should().Be("InProgress 6/10 (1 scrap)");
+        log.OldValue.Should().Be("Not started 0/10");
+        log.NewValue.Should().Be("In progress 6/10 (1 scrap)");
         log.CreatedAt.Should().Be(_h.Timers.Now);
     }
 
@@ -125,7 +125,7 @@ public class ReceiveBackSubcontractOperationTests
         var log = await _h.Timers.Db.JobActivityLogs.AsNoTracking()
             .SingleAsync(a => a.FieldName == "OperationStatus");
         log.Action.Should().Be(ActivityAction.OperationCompleted);
-        log.OldValue.Should().Be("NotStarted 0/10");
+        log.OldValue.Should().Be("Not started 0/10");
     }
 
     [Fact]

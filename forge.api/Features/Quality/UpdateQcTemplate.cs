@@ -89,7 +89,7 @@ public class UpdateQcTemplateHandler(AppDbContext db)
         {
             db.LogActivityAt(
                 "updated",
-                $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}",
+                $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {ActivityChangeSummary.Fields(changedFields)}",
                 ("QcTemplate", template.Id));
             await db.SaveChangesAsync(cancellationToken);
         }

@@ -108,7 +108,7 @@ public class UpdateAccountHandler(AppDbContext db) : IRequestHandler<UpdateAccou
         if (r.Country?.Trim() != a.Country) { a.Country = r.Country?.Trim(); changed.Add("country"); }
         if (r.SizeBracket?.Trim() != a.SizeBracket) { a.SizeBracket = r.SizeBracket?.Trim(); changed.Add("sizeBracket"); }
         if (r.OwnerUserId != a.OwnerUserId) { a.OwnerUserId = r.OwnerUserId; changed.Add("ownerUserId"); }
-        if (changed.Count > 0) db.LogActivityAt("account-updated", $"Updated {changed.Count} fields: {string.Join(", ", changed)}", ("Account", a.Id));
+        if (changed.Count > 0) db.LogActivityAt("account-updated", $"Updated {changed.Count} fields: {ActivityChangeSummary.Fields(changed)}", ("Account", a.Id));
         await db.SaveChangesAsync(ct);
         var contactCount = await db.AccountContacts.AsNoTracking().CountAsync(c => c.AccountId == a.Id, ct);
         var leadCount = await db.Leads.AsNoTracking().CountAsync(l => l.AccountId == a.Id, ct);

@@ -129,7 +129,7 @@ public class UpdateNcrHandler(
 
         db.LogActivityAt(
             "updated",
-            $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}",
+            $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {ActivityChangeSummary.Fields(changedFields)}",
             ("NonConformance", ncr.Id));
 
         await db.SaveChangesAsync(cancellationToken);

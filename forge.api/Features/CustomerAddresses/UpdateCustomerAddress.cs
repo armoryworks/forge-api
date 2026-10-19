@@ -76,7 +76,7 @@ public class UpdateCustomerAddressHandler(ICustomerAddressRepository repo, AppDb
         {
             db.LogActivityAt(
                 "address-updated",
-                $"Updated address ({address.Label}) — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}{DefaultAddressRule.DescribeReplaced(demoted)}",
+                $"Updated address ({address.Label}) — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {ActivityChangeSummary.Fields(changedFields)}{DefaultAddressRule.DescribeReplaced(demoted)}",
                 ("Customer", address.CustomerId));
         }
 

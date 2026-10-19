@@ -173,7 +173,7 @@ public class PurchaseOrderVendorContactTests
         po.VendorAddressId.Should().Be(31);
         po.ShipToLocationId.Should().Be(50);
         _db.ActivityLogs.Local.Should().ContainSingle(a => a.EntityType == "PurchaseOrder" && a.Action == "updated"
-            && a.Description.Contains("vendorContact, vendorAddress, shipToLocation")
+            && a.Description.Contains("vendor contact, vendor address, ship to location")
             && a.Description.Contains("attn Sam Sales"));
     }
 

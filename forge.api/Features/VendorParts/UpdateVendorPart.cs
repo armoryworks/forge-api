@@ -182,7 +182,7 @@ public class UpdateVendorPartHandler(AppDbContext db)
         {
             db.LogActivityAt(
                 "vendor-source-updated",
-                $"Updated vendor source {vp.Vendor?.CompanyName ?? "(unknown)"}: {string.Join(", ", changedFields)}",
+                $"Updated vendor source {vp.Vendor?.CompanyName ?? "(unknown)"}: {ActivityChangeSummary.Fields(changedFields)}",
                 ("Part", vp.PartId),
                 ("Vendor", vp.VendorId));
         }

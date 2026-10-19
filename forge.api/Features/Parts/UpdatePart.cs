@@ -190,22 +190,9 @@ public class UpdatePartHandler(
             part.HtsCode = trimmed.Length == 0 ? null : trimmed;
         }
 
-        // Activity logging — rollup rule (one row per request, summarizing all
-        // fields the user touched). Walks the request DTO's non-null markers
-        // since they're already the "what the user explicitly set" signal:
-        // null = "leave alone", non-null = "user intends to change". A
-        // before/after compare on the entity would be more accurate but on
-        // an entity this wide it's not worth the per-field branching;
-        // request-driven granularity is fine for an audit summary.
-        var changedFields = CollectChangedFieldNames(data);
-        if (partNumberChanged) changedFields.Insert(0, "partNumber");
-        if (changedFields.Count > 0)
-        {
-            db.LogActivityAt(
-                "updated",
-                $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}",
-                ("Part", part.Id));
-        }
+        db.ChangeTracker.DetectChanges();
+        if (ActivityChangeSummary.Updated(ActivityChangeSummary.ChangedProperties(db.Entry(part))) is string summary)
+            db.LogActivityAt("updated", summary, ("Part", part.Id));
 
         await repo.SaveChangesAsync(cancellationToken);
 
@@ -238,65 +225,5 @@ public class UpdatePartHandler(
         }
 
         return (await repo.GetDetailAsync(part.Id, cancellationToken))!;
-    }
-
-    /// <summary>
-    /// Lists the request DTO's non-null members in camelCase. Used to build
-    /// the rollup activity description. Mirrors the camelCase that ASP.NET
-    /// Core's default JSON contract uses when these names appear in API
-    /// responses, so a future log reader can grep them against the wire
-    /// payload.
-    /// </summary>
-    private static List<string> CollectChangedFieldNames(UpdatePartRequestModel data)
-    {
-        var fields = new List<string>();
-        if (data.Name is not null) fields.Add("name");
-        if (data.Description is not null) fields.Add("description");
-        if (data.Revision is not null) fields.Add("revision");
-        if (data.Status.HasValue) fields.Add("status");
-        if (data.ProcurementSource.HasValue) fields.Add("procurementSource");
-        if (data.InventoryClass.HasValue) fields.Add("inventoryClass");
-        if (data.TraceabilityType.HasValue) fields.Add("traceabilityType");
-        if (data.AbcClass.HasValue) fields.Add("abcClass");
-        if (data.ToolingAssetId.HasValue) fields.Add("toolingAssetId");
-        if (data.PreferredVendorId.HasValue) fields.Add("preferredVendorId");
-        if (data.MinStockThreshold.HasValue) fields.Add("minStockThreshold");
-        if (data.ReorderPoint.HasValue) fields.Add("reorderPoint");
-        if (data.ReorderQuantity.HasValue) fields.Add("reorderQuantity");
-        if (data.SafetyStockDays.HasValue) fields.Add("safetyStockDays");
-        if (data.ManualCostOverride.HasValue) fields.Add("manualCostOverride");
-        if (data.StockUomId.HasValue) fields.Add("stockUomId");
-        if (data.PurchaseUomId.HasValue) fields.Add("purchaseUomId");
-        if (data.SalesUomId.HasValue) fields.Add("salesUomId");
-        if (data.IsMrpPlanned.HasValue) fields.Add("isMrpPlanned");
-        if (data.LotSizingRule.HasValue) fields.Add("lotSizingRule");
-        if (data.FixedOrderQuantity.HasValue) fields.Add("fixedOrderQuantity");
-        if (data.MinimumOrderQuantity.HasValue) fields.Add("minimumOrderQuantity");
-        if (data.OrderMultiple.HasValue) fields.Add("orderMultiple");
-        if (data.PlanningFenceDays.HasValue) fields.Add("planningFenceDays");
-        if (data.DemandFenceDays.HasValue) fields.Add("demandFenceDays");
-        if (data.RequiresReceivingInspection.HasValue) fields.Add("requiresReceivingInspection");
-        if (data.ReceivingInspectionTemplateId.HasValue) fields.Add("receivingInspectionTemplateId");
-        if (data.InspectionFrequency.HasValue) fields.Add("inspectionFrequency");
-        if (data.InspectionSkipAfterN.HasValue) fields.Add("inspectionSkipAfterN");
-        if (data.MaterialSpecId.HasValue) fields.Add("materialSpecId");
-        if (data.WeightEach.HasValue) fields.Add("weightEach");
-        if (data.WeightDisplayUnit is not null) fields.Add("weightDisplayUnit");
-        if (data.LengthMm.HasValue) fields.Add("lengthMm");
-        if (data.WidthMm.HasValue) fields.Add("widthMm");
-        if (data.HeightMm.HasValue) fields.Add("heightMm");
-        if (data.DimensionDisplayUnit is not null) fields.Add("dimensionDisplayUnit");
-        if (data.VolumeMl.HasValue) fields.Add("volumeMl");
-        if (data.VolumeDisplayUnit is not null) fields.Add("volumeDisplayUnit");
-        if (data.ValuationClassId.HasValue) fields.Add("valuationClassId");
-        if (data.HazmatClass is not null) fields.Add("hazmatClass");
-        if (data.ShelfLifeDays.HasValue) fields.Add("shelfLifeDays");
-        if (data.BackflushPolicy.HasValue) fields.Add("backflushPolicy");
-        if (data.IsKit.HasValue) fields.Add("isKit");
-        if (data.IsConfigurable.HasValue) fields.Add("isConfigurable");
-        if (data.DefaultBinId.HasValue) fields.Add("defaultBinId");
-        if (data.SourcePartId.HasValue) fields.Add("sourcePartId");
-        if (data.HtsCode is not null) fields.Add("htsCode");
-        return fields;
     }
 }

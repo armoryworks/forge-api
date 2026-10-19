@@ -85,7 +85,7 @@ public class UpdateVendorContactHandler(AppDbContext db)
         {
             db.LogActivityAt(
                 "contact-updated",
-                $"Contact updated: {VendorContactRules.DisplayName(contact)} — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}{VendorContactRules.DescribeReplaced(demoted)}",
+                $"Contact updated: {VendorContactRules.DisplayName(contact)} — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {ActivityChangeSummary.Fields(changedFields)}{VendorContactRules.DescribeReplaced(demoted)}",
                 ("Vendor", contact.VendorId));
             await db.SaveChangesAsync(cancellationToken);
         }

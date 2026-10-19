@@ -66,7 +66,7 @@ public class UpdateWorkCenterHandler(AppDbContext db) : IRequestHandler<UpdateWo
         {
             db.LogActivityAt(
                 "updated",
-                $"Updated work center {wc.Code} — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}",
+                $"Updated work center {wc.Code} — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {ActivityChangeSummary.Fields(changedFields)}",
                 ("WorkCenter", wc.Id));
         }
 

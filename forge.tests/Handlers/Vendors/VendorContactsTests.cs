@@ -98,7 +98,7 @@ public class VendorContactsTests
         var row = await db.ActivityLogs.SingleAsync(a => a.Action == "contact-updated");
         row.EntityType.Should().Be("Vendor");
         row.EntityId.Should().Be(vendor.Id);
-        row.Description.Should().Contain("3 fields: email, mobile, set-primary").And.Contain("replaces Old Primary as primary");
+        row.Description.Should().Contain("3 fields: email, mobile, set primary").And.Contain("replaces Old Primary as primary");
     }
 
     [Fact]

@@ -61,7 +61,7 @@ public class UpdateContactInteractionHandler(AppDbContext db)
         {
             db.LogActivityAt(
                 "interaction-updated",
-                $"Updated interaction ({interaction.Subject}) — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}",
+                $"Updated interaction ({interaction.Subject}) — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {ActivityChangeSummary.Fields(changedFields)}",
                 ("Customer", request.CustomerId),
                 ("Contact", interaction.ContactId!.Value));
         }

@@ -97,7 +97,7 @@ public class VendorAddressesTests
         var row = await db.ActivityLogs.SingleAsync(a => a.Action == "address-updated");
         row.EntityType.Should().Be("Vendor");
         row.Description.Should().StartWith("Remit-to address updated: Lockbox")
-            .And.Contain("3 fields: line1, city, set-default")
+            .And.Contain("3 fields: line 1, city, set default")
             .And.Contain("replaces Old remit as default");
     }
 

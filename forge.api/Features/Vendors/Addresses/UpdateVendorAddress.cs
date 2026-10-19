@@ -85,7 +85,7 @@ public class UpdateVendorAddressHandler(AppDbContext db)
         {
             db.LogActivityAt(
                 "address-updated",
-                $"{VendorAddressRules.Describe(address.AddressType)} address updated: {address.Label} — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}{VendorAddressRules.DescribeReplaced(demoted)}",
+                $"{VendorAddressRules.Describe(address.AddressType)} address updated: {address.Label} — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {ActivityChangeSummary.Fields(changedFields)}{VendorAddressRules.DescribeReplaced(demoted)}",
                 ("Vendor", address.VendorId));
             await db.SaveChangesAsync(cancellationToken);
         }

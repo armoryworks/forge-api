@@ -5,6 +5,7 @@ using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Jobs.Operations;
 
@@ -19,7 +20,7 @@ public static class JobOperationRules
 
     public static string Describe(JobOperation row, decimal jobQuantity)
     {
-        var text = $"{row.Status} {row.CompletedQuantity:0.##}/{jobQuantity:0.##}";
+        var text = $"{ActivityChangeSummary.SentenceLabel(row.Status.ToString())} {row.CompletedQuantity:0.##}/{jobQuantity:0.##}";
         return row.ScrapQuantity > 0m ? $"{text} ({row.ScrapQuantity:0.##} scrap)" : text;
     }
 

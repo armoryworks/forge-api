@@ -123,7 +123,7 @@ public class WorkCenterHandlerTests
         result.TeamId.Should().Be(team.Id);
         result.TeamName.Should().Be("Finishing");
         var log = await db.ActivityLogs.AsNoTracking().SingleAsync(a => a.EntityType == "WorkCenter" && a.Action == "updated");
-        log.Description.Should().Be("Updated work center WC-DB — 2 fields: name, teamId");
+        log.Description.Should().Be("Updated work center WC-DB — 2 fields: name, team ID");
     }
 
     [Fact]
@@ -191,7 +191,7 @@ public class WorkCenterHandlerTests
 
         updated.IdealCycleTimeSeconds.Should().Be(9m);
         (await db.WorkCenters.AsNoTracking().SingleAsync()).IdealCycleTimeSeconds.Should().Be(9m);
-        db.ActivityLogs.Should().Contain(a => a.Description.Contains("idealCycleTimeSeconds"));
+        db.ActivityLogs.Should().Contain(a => a.Description.Contains("ideal cycle time seconds"));
     }
 
     [Theory]

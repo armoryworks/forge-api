@@ -125,7 +125,7 @@ public class NcrTransitionTests
         saved.Status.Should().Be(NcrStatus.Dispositioned);
         var activity = await ActivityFor(ncr.Id);
         activity.Should().ContainSingle(a => a.Action == "updated")
-            .Which.Description.Should().Be("Updated 2 fields: materialCost, laborCost");
+            .Which.Description.Should().Be("Updated 2 fields: material cost, labor cost");
     }
 
     [Fact]

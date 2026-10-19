@@ -39,8 +39,8 @@ public class UpdateJobOperationProgressHandlerTests
         var log = await _h.Timers.Db.JobActivityLogs.AsNoTracking().SingleAsync();
         log.Action.Should().Be(ActivityAction.OperationProgress);
         log.OperationId.Should().Be(routing[1].Id);
-        log.OldValue.Should().Be("NotStarted 0/40");
-        log.NewValue.Should().Be("InProgress 20/40");
+        log.OldValue.Should().Be("Not started 0/40");
+        log.NewValue.Should().Be("In progress 20/40");
     }
 
     [Fact]

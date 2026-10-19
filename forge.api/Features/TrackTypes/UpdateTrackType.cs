@@ -155,7 +155,7 @@ public class UpdateTrackTypeHandler(
         if (shown.Count > 0)
             parts.Add($"Showed {string.Join(", ", shown.OrderBy(s => s.SortOrder).Select(s => s.Name))}");
         if (changedFields.Count > 0)
-            parts.Add($"Updated {string.Join(", ", changedFields)}");
+            parts.Add($"Updated {ActivityChangeSummary.Fields(changedFields)}");
 
         var action = hidden.Count > 0 || shown.Count > 0 ? "stage-visibility-changed" : "updated";
         return (action, $"{string.Join("; ", parts)}.");

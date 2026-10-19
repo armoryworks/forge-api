@@ -107,7 +107,7 @@ public class UpdateLeadSourceHandler(AppDbContext db) : IRequestHandler<UpdateLe
         if (changed.Count > 0)
         {
             db.LogActivityAt("lead-source-updated",
-                $"Updated {changed.Count} field(s): {string.Join(", ", changed)}",
+                $"Updated {changed.Count} field(s): {ActivityChangeSummary.Fields(changed)}",
                 ("LeadSource", s.Id));
         }
 

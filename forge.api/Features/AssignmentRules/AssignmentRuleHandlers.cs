@@ -98,7 +98,7 @@ public class UpdateAssignmentRuleHandler(AppDbContext db)
         if (changed.Count > 0)
         {
             db.LogActivityAt("assignment-rule-updated",
-                $"Updated {changed.Count} field(s): {string.Join(", ", changed)}",
+                $"Updated {changed.Count} field(s): {ActivityChangeSummary.Fields(changed)}",
                 ("AssignmentRule", rule.Id));
         }
 

@@ -104,7 +104,7 @@ public class UpdateContactHandler(AppDbContext db)
         {
             db.LogActivityAt(
                 "contact-updated",
-                $"Updated contact ({contact.LastName}, {contact.FirstName}) — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}",
+                $"Updated contact ({contact.LastName}, {contact.FirstName}) — {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {ActivityChangeSummary.Fields(changedFields)}",
                 ("Customer", request.CustomerId),
                 ("Contact", contact.Id));
         }

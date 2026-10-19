@@ -81,8 +81,8 @@ public class UpdateQcInspectionHandler(AppDbContext db, IMediator mediator, IHtt
         if (completing || changedFields.Count > 0)
         {
             var description = completing
-                ? $"Inspection QC #{inspection.Id} {data.Status!.ToLowerInvariant()}"
-                : $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {string.Join(", ", changedFields)}";
+                ? $"QC inspection #{inspection.Id} {ActivityChangeSummary.Label(data.Status!)}"
+                : $"Updated {changedFields.Count} field{(changedFields.Count == 1 ? "" : "s")}: {ActivityChangeSummary.Fields(changedFields)}";
             var action = completing ? $"inspection-{data.Status!.ToLowerInvariant()}" : "updated";
             var points = new List<(string, int)> { ("QcInspection", inspection.Id) };
             if (inspection.JobId is int jobId)

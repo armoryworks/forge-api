@@ -115,7 +115,7 @@ public class UpdatePurchaseOrderExpectedDateTests
         await _handler.Handle(new UpdatePurchaseOrderCommand(7, "new", Oct15), CancellationToken.None);
 
         po.Notes.Should().Be("new");
-        _db.ActivityLogs.Local.Should().ContainSingle(a => a.Description == "Updated 2 fields: notes, expectedDeliveryDate");
+        _db.ActivityLogs.Local.Should().ContainSingle(a => a.Description == "Updated 2 fields: notes, expected delivery date");
     }
 
     [Fact]
