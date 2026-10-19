@@ -262,12 +262,11 @@ public sealed class InvoiceArPostingService(
 
         // Per-line money. Subtotal/Tax/Total mirror the Invoice entity's own
         // computed accessors so the journal ties out to the document exactly.
-        var subtotal = invoice.Lines.Sum(l => l.LineTotal);
-
         // Sales tax accrues to SALES_TAX_PAYABLE — UNLESS the customer is
         // tax-exempt (resellers / gov / non-profit), which suppresses the tax
         // line on the document and therefore in the ledger too.
-        var taxAmount = invoice.Customer.IsTaxExempt ? 0m : subtotal * invoice.TaxRate;
+        var posted = ComputePostedAmounts(invoice);
+        var taxAmount = posted.TaxAmount;
 
         // ── Revenue recognition (§8.4). Default PointInTime = recognize at
         // control transfer. If the invoice is finalized BEFORE delivery we book
@@ -285,7 +284,7 @@ public sealed class InvoiceArPostingService(
 
         // Dr AR for the full invoice total (subtotal + tax). AR is a control
         // account → the engine requires the customer party on this line (§5.2).
-        var arTotal = subtotal + taxAmount;
+        var arTotal = posted.ArTotal;
         if (arTotal <= 0m)
         {
             // A zero/negative-total invoice (e.g. a fully-discounted or empty
@@ -311,11 +310,8 @@ public sealed class InvoiceArPostingService(
 
         // Cr Revenue (or Deferred Revenue) per line, so the sub-ledger carries
         // line-level detail (and a later reclass can target individual lines).
-        var lineNumber = 0;
-        foreach (var line in invoice.Lines.OrderBy(l => l.LineNumber))
+        foreach (var (line, amount) in posted.Lines)
         {
-            lineNumber++;
-            var amount = line.LineTotal;
             if (amount == 0m)
                 continue; // a 0-value line contributes nothing to the credit side
 
@@ -535,6 +531,38 @@ public sealed class InvoiceArPostingService(
 
         var entry = await postingEngine.PostAsSystemAsync(request, userId, ct);
         await TryAuditCogsAsync(invoice, entry, totalCogs, userId, ct);
+    }
+
+    /// <summary>
+    /// The amounts the AR origination posts, in the invoice's currency at 2 dp: each line's revenue
+    /// rounded half away from zero, with any rounding residual on the largest line so the lines sum to the
+    /// rounded subtotal; the AR total as <see cref="Invoice.BalanceDue"/> quantizes it (subtotal plus
+    /// non-exempt tax); and the tax as the difference, so the journal, the open item and the invoice's
+    /// balance agree to the cent.
+    /// </summary>
+    internal static (decimal ArTotal, decimal TaxAmount, IReadOnlyList<(InvoiceLine Line, decimal Amount)> Lines)
+        ComputePostedAmounts(Invoice invoice)
+    {
+        var ordered = invoice.Lines.OrderBy(l => l.LineNumber).ToList();
+        var amounts = ordered.Select(l => Math.Round(l.LineTotal, 2, MidpointRounding.AwayFromZero)).ToArray();
+        var subtotal = ordered.Sum(l => l.LineTotal);
+        var roundedSubtotal = Math.Round(subtotal, 2, MidpointRounding.AwayFromZero);
+
+        var residual = roundedSubtotal - amounts.Sum();
+        if (residual != 0m && amounts.Length > 0)
+        {
+            var largest = 0;
+            for (var i = 1; i < amounts.Length; i++)
+                if (Math.Abs(amounts[i]) > Math.Abs(amounts[largest]))
+                    largest = i;
+            amounts[largest] += residual;
+        }
+
+        var arTotal = invoice.Customer.IsTaxExempt
+            ? roundedSubtotal
+            : Math.Round(subtotal + subtotal * invoice.TaxRate, 2, MidpointRounding.AwayFromZero);
+
+        return (arTotal, arTotal - roundedSubtotal, ordered.Select((l, i) => (l, amounts[i])).ToList());
     }
 
     /// <summary>A line relieves finished-goods inventory iff it carries a Part that is a (non-phantom)

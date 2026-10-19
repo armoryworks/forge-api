@@ -20,6 +20,12 @@ public sealed class ConversionService(AppDbContext db, IPostingEngine postingEng
             .Where(b => b.Id == model.BookId).Select(b => (int?)b.FunctionalCurrencyId).FirstOrDefaultAsync(ct)
             ?? throw new PostingException("NO_POSTING_BOOK", $"Book {model.BookId} not found for conversion.");
 
+        var idempotencyKey = $"{JournalSource.Conversion}:OpeningBalance:{model.BookId}";
+        var alreadyPosted = await db.JournalEntries.IgnoreQueryFilters().AsNoTracking()
+            .AnyAsync(e => e.BookId == model.BookId && e.IdempotencyKey == idempotencyKey, ct);
+        if (!alreadyPosted)
+            await ConversionOpenItems.ValidateDocumentNumbersAsync(db, model.Lines, ct);
+
         var request = new PostingRequest
         {
             BookId = model.BookId,
@@ -30,7 +36,7 @@ public sealed class ConversionService(AppDbContext db, IPostingEngine postingEng
             CurrencyId = currencyId,
             Memo = $"Opening balances (conversion) as of {model.AsOfDate:yyyy-MM-dd}",
             // One opening journal per book — a re-run returns the existing entry (no double-load).
-            IdempotencyKey = $"{JournalSource.Conversion}:OpeningBalance:{model.BookId}",
+            IdempotencyKey = idempotencyKey,
             // The opening period may already be soft-closed at cutover; the opening post is audited.
             AllowSoftClosedOverride = true,
             Lines = model.Lines.Select(l => new PostingLine
@@ -48,6 +54,11 @@ public sealed class ConversionService(AppDbContext db, IPostingEngine postingEng
         // The engine enforces balance (UNBALANCED) and the control-line party requirement (so AR/AP open
         // items must name a customer/vendor) — opening balances can't post a lopsided or party-less control.
         var entry = await postingEngine.PostAsync(request, postedByUserId, ct);
+
+        var details = model.Lines.Select((l, i) => (LineNumber: i + 1, Line: l))
+            .ToDictionary(x => x.LineNumber, x => x.Line);
+        await ConversionOpenItems.EnsureForEntryAsync(db, entry.Id, alreadyPosted ? null : details, ct);
+
         return new OpeningBalanceResult(entry.Id, entry.EntryNumber, entry.Lines.Sum(l => l.Debit));
     }
 }

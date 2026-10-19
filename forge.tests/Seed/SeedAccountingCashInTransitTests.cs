@@ -92,8 +92,10 @@ public class SeedAccountingCashInTransitTests
         rule.GlAccountId.Should().Be(account.Id);
 
         // The pre-existing rows were not touched; no extra chart rows appeared.
-        (await db.GlAccounts.CountAsync()).Should().Be(2);
-        (await db.AccountDeterminationRules.CountAsync()).Should().Be(2);
+        var otherPatches = SeedData.PatchedDeterminationAccounts.Select(d => d.Number).ToArray();
+        var otherKeys = SeedData.PatchedDeterminationAccounts.Select(d => d.Key).ToArray();
+        (await db.GlAccounts.CountAsync(a => !otherPatches.Contains(a.AccountNumber))).Should().Be(2);
+        (await db.AccountDeterminationRules.CountAsync(r => !otherKeys.Contains(r.Key))).Should().Be(2);
     }
 
     [Fact]
