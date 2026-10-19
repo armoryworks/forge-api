@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 
 using Forge.Api.Features.VendorParts;
+using Forge.Api.Validation;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 
@@ -16,8 +17,8 @@ public class ReviewPriceOverrideQueryValidator : AbstractValidator<ReviewPriceOv
     {
         RuleFor(x => x.Data.VendorId).GreaterThan(0);
         RuleFor(x => x.Data.PartId).GreaterThan(0);
-        RuleFor(x => x.Data.Quantity).GreaterThan(0);
-        RuleFor(x => x.Data.EnteredUnitPrice).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Data.Quantity).GreaterThan(0).UnitScale();
+        RuleFor(x => x.Data.EnteredUnitPrice).GreaterThanOrEqualTo(0).UnitScale();
     }
 }
 

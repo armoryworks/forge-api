@@ -92,4 +92,14 @@ public class AmountPrecisionValidatorTests
         Errors(new UpdatePartCommandValidator(), Update(12.34567m))
             .Should().ContainSingle(e => e.EndsWith("at most 4 decimal places."));
     }
+
+    [Fact]
+    public void ReviewPriceOverride_FiveDecimalEnteredPrice_IsRejected()
+    {
+        static ReviewPriceOverrideQuery Review(decimal price) => new(new ReviewPriceOverrideRequestModel(1, 2, 10m, null, price, null));
+
+        Errors(new ReviewPriceOverrideQueryValidator(), Review(1.2345m)).Should().BeEmpty();
+        Errors(new ReviewPriceOverrideQueryValidator(), Review(1.23456m))
+            .Should().ContainSingle(e => e.EndsWith("at most 4 decimal places."));
+    }
 }
