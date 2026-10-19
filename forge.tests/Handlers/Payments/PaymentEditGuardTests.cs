@@ -109,6 +109,24 @@ public class PaymentEditGuardTests
     }
 
     [Theory]
+    [InlineData(null, true)]
+    [InlineData(PaymentsSettings.PolicyFull, true)]
+    [InlineData(PaymentsSettings.PolicyAmendOnly, false)]
+    [InlineData(PaymentsSettings.PolicyLocked, false)]
+    public async Task GetById_OffersVoidOnlyUnderTheFullPolicy(string? policy, bool canVoid)
+    {
+        var payment = await SeedPaymentAsync();
+        var settings = new Mock<ISettingsService>();
+        settings.Setup(s => s.GetStringAsync(PaymentsSettings.ModificationPolicyKey, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(policy);
+
+        var result = await new GetPaymentByIdHandler(new PaymentRepository(_db), settings.Object)
+            .Handle(new GetPaymentByIdQuery(payment.Id), CancellationToken.None);
+
+        result.CanVoid.Should().Be(canVoid);
+    }
+
+    [Theory]
     [InlineData(nameof(PaymentsController.UpdatePayment))]
     [InlineData(nameof(PaymentsController.DeletePayment))]
     public void Mutating_endpoints_check_IfMatch_against_the_payment_version(string action)

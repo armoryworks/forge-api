@@ -15,4 +15,5 @@ public record PaymentDetailResponseModel(
     List<PaymentApplicationResponseModel> Applications,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    uint RowVersion = 0);
+    uint RowVersion = 0,
+    bool CanVoid = false);
