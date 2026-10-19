@@ -58,4 +58,16 @@ END $$;");
         rows.Select(r => (r.PartNumber, r.OnHandQuantity, r.TotalValue))
             .Should().Equal(("AA-100", 4m, 10m), ("ZZ-200", 2m, 10m));
     }
+
+    [Fact]
+    public async Task ReconcileAsync_TranslatesOnPostgres_AndItemisesTheVariance()
+    {
+        await using var db = fixture.CreateContext();
+        await ResetAsync(db);
+        var jobId = await InventoryValuationReconciliationTests.SeedScenarioAsync(db, withOpeningJournal: true);
+
+        var recon = await new InventoryValuationService(db).ReconcileAsync(BookId);
+
+        InventoryValuationReconciliationTests.AssertItemised(recon, jobId);
+    }
 }
