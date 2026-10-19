@@ -17,6 +17,9 @@ public class CreateApprovalWorkflowValidator : AbstractValidator<CreateApprovalW
         RuleFor(x => x.Data.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Data.EntityType).NotEmpty().MaximumLength(50);
         RuleFor(x => x.Data.Steps).NotEmpty();
+        RuleFor(x => x.Data.ActivationConditionsJson)
+            .Must(ApprovalActivationConditions.IsValid)
+            .WithMessage("Activation conditions must be empty or {\"amountGreaterThan\": <amount of 0 or more>}.");
         RuleForEach(x => x.Data.Steps).ChildRules(step =>
         {
             step.RuleFor(s => s.Name).NotEmpty().MaximumLength(200);
