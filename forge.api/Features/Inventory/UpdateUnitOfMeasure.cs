@@ -30,16 +30,21 @@ public class UpdateUnitOfMeasureHandler(AppDbContext db)
             .FirstOrDefaultAsync(u => u.Id == request.Id, ct)
             ?? throw new KeyNotFoundException($"UOM {request.Id} not found.");
 
-        var duplicate = await db.UnitsOfMeasure
-            .AnyAsync(u => u.Code == request.Data.Code && u.Id != request.Id, ct);
+        var code = request.Data.Code.Trim();
+        if (!string.Equals(code, uom.Code, StringComparison.OrdinalIgnoreCase))
+        {
+            var codeKey = code.ToLowerInvariant();
+            var duplicate = await db.UnitsOfMeasure
+                .AnyAsync(u => u.Code.ToLower() == codeKey && u.Id != request.Id, ct);
 
-        if (duplicate)
-            throw new InvalidOperationException($"UOM code '{request.Data.Code}' already exists.");
+            if (duplicate)
+                throw new InvalidOperationException($"UOM code '{code}' already exists.");
+        }
 
         if (!Enum.TryParse<UomCategory>(request.Data.Category, true, out var category))
             throw new InvalidOperationException($"Invalid category '{request.Data.Category}'.");
 
-        uom.Code = request.Data.Code.Trim().ToUpperInvariant();
+        uom.Code = code;
         uom.Name = request.Data.Name.Trim();
         uom.Symbol = request.Data.Symbol?.Trim();
         uom.Category = category;

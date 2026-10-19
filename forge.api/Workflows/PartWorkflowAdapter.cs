@@ -390,17 +390,29 @@ public class PartWorkflowAdapter(AppDbContext db, IPartRepository repo, ISystemS
 
     /// <summary>
     /// Resolves a UoM code (e.g. 'ea' / 'kg' / 'mm') to its FK id, or
-    /// returns null when the code is null/empty/unknown. Used by the
+    /// returns null when the code is null/empty/unknown. An exact match wins;
+    /// otherwise the code is matched case-insensitively. Used by the
     /// UoM-cluster step components which emit codes (user-facing) — the
     /// adapter persists the FK.
     /// </summary>
     private async Task<int?> ResolveUomIdAsync(string? code, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(code)) return null;
-        var uom = await db.UnitsOfMeasure
+        var trimmed = code.Trim();
+        var exact = await db.UnitsOfMeasure
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Code == code, ct);
-        return uom?.Id;
+            .Where(u => u.Code == trimmed)
+            .Select(u => (int?)u.Id)
+            .FirstOrDefaultAsync(ct);
+        if (exact.HasValue) return exact;
+
+        var key = trimmed.ToLowerInvariant();
+        return await db.UnitsOfMeasure
+            .AsNoTracking()
+            .Where(u => u.Code.ToLower() == key)
+            .OrderBy(u => u.Id)
+            .Select(u => (int?)u.Id)
+            .FirstOrDefaultAsync(ct);
     }
 
     private static bool TryReadString(JsonElement root, string name, out string? value)

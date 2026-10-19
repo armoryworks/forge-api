@@ -149,6 +149,77 @@ public class PartWorkflowAdapterTests(CapabilityTestWebApplicationFactory factor
     }
 
     [Fact]
+    public async Task ApplyAsync_UomCode_ResolvesCaseInsensitivelyWhenNoExactMatch()
+    {
+        var partId = await CreateDraftPartAsync();
+        var code = $"u{Guid.NewGuid():N}"[..8];
+
+        int upperId;
+        using (var seed = factory.Services.CreateScope())
+        {
+            var db = seed.ServiceProvider.GetRequiredService<AppDbContext>();
+            var upper = new UnitOfMeasure { Code = code.ToUpperInvariant(), Name = "upper", IsActive = true };
+            db.UnitsOfMeasure.Add(upper);
+            await db.SaveChangesAsync();
+            upperId = upper.Id;
+        }
+
+        var fields = JsonDocument.Parse($$"""
+        {
+          "stockUomCode": "{{code}}"
+        }
+        """).RootElement;
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var adapter = ResolveAdapter(scope);
+            await adapter.ApplyAsync(partId, fields, default);
+        }
+
+        using var verify = factory.Services.CreateScope();
+        var ctx = verify.ServiceProvider.GetRequiredService<AppDbContext>();
+        var part = await ctx.Parts.AsNoTracking().FirstAsync(p => p.Id == partId);
+        part.StockUomId.Should().Be(upperId);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_UomCode_PrefersExactMatchOverCaseTwin()
+    {
+        var partId = await CreateDraftPartAsync();
+        var code = $"t{Guid.NewGuid():N}"[..8];
+
+        int lowerId;
+        using (var seed = factory.Services.CreateScope())
+        {
+            var db = seed.ServiceProvider.GetRequiredService<AppDbContext>();
+            var upper = new UnitOfMeasure { Code = code.ToUpperInvariant(), Name = "upper", IsActive = true };
+            db.UnitsOfMeasure.Add(upper);
+            await db.SaveChangesAsync();
+            var lower = new UnitOfMeasure { Code = code, Name = "lower", IsActive = true };
+            db.UnitsOfMeasure.Add(lower);
+            await db.SaveChangesAsync();
+            lowerId = lower.Id;
+        }
+
+        var fields = JsonDocument.Parse($$"""
+        {
+          "stockUomCode": "{{code}}"
+        }
+        """).RootElement;
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var adapter = ResolveAdapter(scope);
+            await adapter.ApplyAsync(partId, fields, default);
+        }
+
+        using var verify = factory.Services.CreateScope();
+        var ctx = verify.ServiceProvider.GetRequiredService<AppDbContext>();
+        var part = await ctx.Parts.AsNoTracking().FirstAsync(p => p.Id == partId);
+        part.StockUomId.Should().Be(lowerId);
+    }
+
+    [Fact]
     public async Task ApplyAsync_PersistsQualityClusterFields()
     {
         var partId = await CreateDraftPartAsync();
