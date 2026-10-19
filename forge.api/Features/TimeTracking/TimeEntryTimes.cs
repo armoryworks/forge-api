@@ -9,6 +9,8 @@ public static class TimeEntryTimes
 {
     public const string StartAfterEndMessage = "Start time must be before end time.";
     public const string FutureDayMessage = "Time can't be logged for a day that hasn't started yet.";
+    public const string SpanTooLongMessage = "A time entry can't be longer than 24 hours.";
+    public const int MaxMinutes = 1440;
 
     public static void EnsureNotFuture(DateOnly date, DateOnly shopToday)
     {
@@ -26,13 +28,17 @@ public static class TimeEntryTimes
             if (from >= to)
                 throw new ValidationException(
                     [new ValidationFailure(start.HasValue ? "Data.StartTime" : "Data.EndTime", StartAfterEndMessage)]);
-            entry.DurationMinutes = (int)Math.Round((to - from).TotalMinutes);
-        }
-        else if (durationMinutes is int minutes)
-        {
+            var minutes = (int)Math.Round((to - from).TotalMinutes);
+            if (minutes > MaxMinutes)
+                throw new ValidationException(
+                    [new ValidationFailure(end.HasValue ? "Data.EndTime" : "Data.StartTime", SpanTooLongMessage)]);
             entry.DurationMinutes = minutes;
+        }
+        else if (durationMinutes is int manualMinutes)
+        {
+            entry.DurationMinutes = manualMinutes;
             if (entry.TimerStart is { } timerStart && entry.TimerStop.HasValue)
-                entry.TimerStop = timerStart.AddMinutes(minutes);
+                entry.TimerStop = timerStart.AddMinutes(manualMinutes);
         }
     }
 }

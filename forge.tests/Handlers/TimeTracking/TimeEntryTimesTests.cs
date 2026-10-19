@@ -61,4 +61,26 @@ public class TimeEntryTimesTests
         entry.TimerStart.Should().BeNull();
         entry.TimerStop.Should().BeNull();
     }
+
+    [Fact]
+    public void An_end_time_on_a_running_timer_sets_the_duration()
+    {
+        var entry = new TimeEntry { TimerStart = Start, DurationMinutes = 0 };
+
+        TimeEntryTimes.Apply(entry, null, Start.AddMinutes(75), null);
+
+        entry.TimerStop.Should().Be(Start.AddMinutes(75));
+        entry.DurationMinutes.Should().Be(75);
+    }
+
+    [Fact]
+    public void A_span_longer_than_a_day_is_refused()
+    {
+        var entry = Timed();
+
+        var act = () => TimeEntryTimes.Apply(entry, null, Start.AddHours(25), null);
+
+        act.Should().Throw<ValidationException>()
+            .Which.Errors.Single().ErrorMessage.Should().Be(TimeEntryTimes.SpanTooLongMessage);
+    }
 }

@@ -29,7 +29,8 @@ public class CreateJobsForSalesOrderLinesHandler(
     IHubContext<BoardHub> boardHub,
     ISalesOrderAcceptanceGate acceptanceGate,
     IMediator mediator,
-    ICloudFolderAutoCreator folderAutoCreator)
+    ICloudFolderAutoCreator folderAutoCreator,
+    IStandardCostResolver? standardCost = null)
     : IRequestHandler<CreateJobsForSalesOrderLinesCommand, CreateJobsForSalesOrderLinesResponseModel>
 {
     private const int MaxTitleLength = 200;
@@ -147,6 +148,7 @@ public class CreateJobsForSalesOrderLinesHandler(
                 Quantity = quantity,
                 Notes = $"From {so.OrderNumber} line {line.LineNumber}",
             });
+            await JobEstimates.SnapshotAsync(db, standardCost, job, quantity, cancellationToken);
 
             job.ActivityLogs.Add(new JobActivityLog
             {
