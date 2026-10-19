@@ -34,7 +34,7 @@ public static partial class SeedData
         await EnsureCashInTransitAsync(db);
         await EnsureDeterminationAccountsAsync(db);
         await EnsureKeyedAccountAsync(db, "FIXED_ASSETS", "15000", "Machinery & Equipment",
-            AccountType.Asset, NormalBalance.Debit, [AccountType.Asset]);
+            AccountType.Asset, NormalBalance.Debit, [AccountType.Asset], CashFlowCategory.Investing);
         await EnsureKeyedAccountAsync(db, "GAIN_LOSS_ON_DISPOSAL", "91000", "Gain/Loss on Asset Disposal",
             AccountType.Income, NormalBalance.Credit, [AccountType.Income, AccountType.Expense]);
 
@@ -200,6 +200,7 @@ public static partial class SeedData
                 NormalBalance = d.Normal,
                 IsControlAccount = d.IsControl,
                 ControlType = d.Control,
+                CashFlowCategory = d.Key == "FIXED_ASSETS" ? CashFlowCategory.Investing : null,
                 IsPostable = true,
                 IsActive = true,
             };
@@ -715,6 +716,8 @@ public static partial class SeedData
     /// only when its type is one of <paramref name="reusableTypes"/>. When the number is taken by an account of
     /// another type the book is left without the key (logged), so postings ask for an account instead of hitting
     /// the wrong one. No-op on fresh installs (the run-once seed writes the account) and on patched books.
+    /// When <paramref name="cashFlowCategory"/> is given, the key's accounts that have no cash-flow category yet
+    /// are tagged with it; an explicit category is never overwritten.
     /// </summary>
     internal static async Task EnsureKeyedAccountAsync(
         AppDbContext db,
@@ -723,7 +726,8 @@ public static partial class SeedData
         string name,
         AccountType type,
         NormalBalance normalBalance,
-        IReadOnlyCollection<AccountType> reusableTypes)
+        IReadOnlyCollection<AccountType> reusableTypes,
+        CashFlowCategory? cashFlowCategory = null)
     {
         var books = await db.Books.Where(b => b.IsActive).ToListAsync();
         if (books.Count == 0)
@@ -775,6 +779,24 @@ public static partial class SeedData
             Log.Information(
                 "Backfilled GL account {Number} '{Name}' + {Key} determination rule for Book '{Book}' (additive chart patch for pre-seeded installs).",
                 account.AccountNumber, account.Name, key, book.Code);
+        }
+
+        if (cashFlowCategory is not null)
+        {
+            var untagged = await db.GlAccounts
+                .Where(a => a.CashFlowCategory == null
+                    && reusableTypes.Contains(a.AccountType)
+                    && db.AccountDeterminationRules.Any(r => r.Key == key && r.GlAccountId == a.Id))
+                .ToListAsync();
+            foreach (var tagged in untagged)
+                tagged.CashFlowCategory = cashFlowCategory;
+            if (untagged.Count > 0)
+            {
+                await db.SaveChangesAsync();
+                Log.Information(
+                    "Tagged {Count} {Key} GL account(s) with cash-flow category {Category}.",
+                    untagged.Count, key, cashFlowCategory);
+            }
         }
     }
 }

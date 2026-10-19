@@ -9,7 +9,8 @@ namespace Forge.Api.Features.Accounting;
 
 /// <summary>
 /// Annual 1099 report — every vendor flagged <see cref="Forge.Core.Entities.Vendor.Is1099"/>
-/// with the total cash paid to it in the calendar <paramref name="Year"/>, for
+/// with the total cash paid to it in the calendar <paramref name="Year"/> (flagged vendors paid
+/// nothing only when <paramref name="IncludeZeroPayments"/> is set), for
 /// preparing Form 1099-NEC filings. Sums <see cref="Forge.Core.Entities.VendorPayment.Amount"/>
 /// (cash actually disbursed — the reportable figure), grouped in the query so
 /// there is no per-vendor round-trip. Read-only; no <c>ActivityLog</c>.
@@ -18,13 +19,17 @@ namespace Forge.Api.Features.Accounting;
 /// aging reports on <see cref="Forge.Api.Controllers.AccountingGlController"/>.</para>
 /// </summary>
 [RequiresCapability("CAP-ACCT-GL-VIEW")]
-public record Get1099ReportQuery(int Year) : IRequest<Form1099Report>;
+public record Get1099ReportQuery(int Year, bool IncludeZeroPayments = false) : IRequest<Form1099Report>;
 
 public class Get1099ReportHandler(AppDbContext db)
     : IRequestHandler<Get1099ReportQuery, Form1099Report>
 {
-    /// <summary>IRS 1099-NEC reporting threshold — a vendor paid at least this in the year requires a filing.</summary>
-    private const decimal ReportingThreshold = 600m;
+    /// <summary>
+    /// IRS 1099-NEC/MISC reporting threshold for a tax year — a vendor paid at least this in the year
+    /// requires a filing: $600 through tax year 2025, $2,000 for payments from 2026-01-01. The amount
+    /// is inflation-indexed after 2026; later years use the 2026 figure until that is configured.
+    /// </summary>
+    internal static decimal ReportingThreshold(int year) => year <= 2025 ? 600m : 2000m;
 
     public async Task<Form1099Report> Handle(Get1099ReportQuery request, CancellationToken ct)
     {
@@ -45,7 +50,8 @@ public class Get1099ReportHandler(AppDbContext db)
                 .Select(g => new { VendorId = g.Key, Total = g.Sum(x => x.Amount) })
                 .ToDictionaryAsync(x => x.VendorId, x => x.Total, ct);
 
-        var rows = vendors
+        var threshold = ReportingThreshold(request.Year);
+        var allRows = vendors
             .Select(v =>
             {
                 var total = totalsByVendor.TryGetValue(v.Id, out var t) ? t : 0m;
@@ -56,9 +62,12 @@ public class Get1099ReportHandler(AppDbContext db)
                     VendorNumber = v.VendorNumber,
                     TaxId = v.TaxId,
                     TotalPayments = total,
-                    MeetsThreshold = total >= ReportingThreshold,
+                    MeetsThreshold = total >= threshold,
                 };
             })
+            .ToList();
+        var rows = allRows
+            .Where(r => request.IncludeZeroPayments || r.TotalPayments != 0m)
             .OrderByDescending(r => r.TotalPayments)
             .ThenBy(r => r.VendorName, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -66,10 +75,11 @@ public class Get1099ReportHandler(AppDbContext db)
         return new Form1099Report
         {
             Year = request.Year,
-            Threshold = ReportingThreshold,
+            Threshold = threshold,
             Vendors = rows,
             TotalPayments = rows.Sum(r => r.TotalPayments),
             ReportableVendorCount = rows.Count(r => r.MeetsThreshold),
+            ZeroPaymentVendorCount = allRows.Count(r => r.TotalPayments == 0m),
         };
     }
 }

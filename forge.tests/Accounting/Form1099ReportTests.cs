@@ -43,8 +43,8 @@ public class Form1099ReportTests
         await db.SaveChangesAsync();
     }
 
-    private static Task<Form1099Report> ReportAsync(AppDbContext db, int year)
-        => new Get1099ReportHandler(db).Handle(new Get1099ReportQuery(year), CancellationToken.None);
+    private static Task<Form1099Report> ReportAsync(AppDbContext db, int year, bool includeZero = false)
+        => new Get1099ReportHandler(db).Handle(new Get1099ReportQuery(year, includeZero), CancellationToken.None);
 
     [Fact]
     public async Task Report_IncludesOnly1099Vendors_AndSumsYearPayments()
@@ -91,16 +91,46 @@ public class Form1099ReportTests
     }
 
     [Fact]
-    public async Task Report_FlaggedVendorWithNoPayments_IsListedAtZero()
+    public async Task Report_FlaggedVendorWithNoPayments_IsHiddenByDefault_AndCounted()
     {
         using var db = await SeedAsync();
         await PayAsync(db, 1, 1000m, new DateOnly(2025, 4, 1));
 
         var report = await ReportAsync(db, 2025);
 
+        report.Vendors.Should().ContainSingle(v => v.VendorId == 1);
+        report.Vendors.Should().NotContain(v => v.VendorId == 2);
+        report.ZeroPaymentVendorCount.Should().Be(1);
+        report.TotalPayments.Should().Be(1000m);
+    }
+
+    [Fact]
+    public async Task Report_FlaggedVendorWithNoPayments_IsListedAtZero_WhenAsked()
+    {
+        using var db = await SeedAsync();
+        await PayAsync(db, 1, 1000m, new DateOnly(2025, 4, 1));
+
+        var report = await ReportAsync(db, 2025, includeZero: true);
+
         var b = report.Vendors.Single(v => v.VendorId == 2);
         b.TotalPayments.Should().Be(0m);
         b.MeetsThreshold.Should().BeFalse();
+        report.ZeroPaymentVendorCount.Should().Be(1);
         report.TotalPayments.Should().Be(1000m);
+    }
+
+    [Fact]
+    public async Task Report_From2026_UsesThe2000Threshold()
+    {
+        using var db = await SeedAsync();
+        await PayAsync(db, 1, 2000m, new DateOnly(2026, 4, 1));
+        await PayAsync(db, 2, 1999.99m, new DateOnly(2026, 4, 1));
+
+        var report = await ReportAsync(db, 2026);
+
+        report.Threshold.Should().Be(2000m);
+        report.Vendors.Single(v => v.VendorId == 1).MeetsThreshold.Should().BeTrue();
+        report.Vendors.Single(v => v.VendorId == 2).MeetsThreshold.Should().BeFalse();
+        report.ReportableVendorCount.Should().Be(1);
     }
 }

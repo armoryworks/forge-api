@@ -96,14 +96,14 @@ public class PayrollRegisterImportTests
     public void AgingBuckets_DefaultAndCustomAndMalformed()
     {
         AgingBuckets.Parse("30,60,90").Select(b => b.Label)
-            .Should().Equal("0-30", "31-60", "61-90", "91+");
+            .Should().Equal("Current", "1-30", "31-60", "61-90", "91+");
         AgingBuckets.Parse("45,90,135").Select(b => b.Label)
-            .Should().Equal("0-45", "46-90", "91-135", "136+");
+            .Should().Equal("Current", "1-45", "46-90", "91-135", "136+");
         AgingBuckets.Parse("15").Select(b => b.Label)
-            .Should().Equal("0-15", "16+");
+            .Should().Equal("Current", "1-15", "16+");
         // Malformed (descending / junk / empty) → the standard ladder, never an exception.
-        AgingBuckets.Parse("90,30").Select(b => b.Label).Should().Equal("0-30", "31-60", "61-90", "91+");
-        AgingBuckets.Parse("abc").Select(b => b.Label).Should().Equal("0-30", "31-60", "61-90", "91+");
-        AgingBuckets.Parse(null).Select(b => b.Label).Should().Equal("0-30", "31-60", "61-90", "91+");
+        AgingBuckets.Parse("90,30").Select(b => b.Label).Should().Equal("Current", "1-30", "31-60", "61-90", "91+");
+        AgingBuckets.Parse("abc").Select(b => b.Label).Should().Equal("Current", "1-30", "31-60", "61-90", "91+");
+        AgingBuckets.Parse(null).Select(b => b.Label).Should().Equal("Current", "1-30", "31-60", "61-90", "91+");
     }
 }

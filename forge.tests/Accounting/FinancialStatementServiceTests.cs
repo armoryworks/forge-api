@@ -483,31 +483,59 @@ public class FinancialStatementServiceTests
     }
 
     [Fact]
-    public async Task Pnl_Comparison_DerivesImmediatelyPrecedingEqualLengthPeriod()
+    public async Task Pnl_Comparison_DerivesThePrecedingWholeMonths()
     {
         using var db = await SeedAsync();
-        // Window chosen so the derived prior period + its just-before edge all fall
-        // inside the seeded FY2026 (the posting engine requires a fiscal period).
         var curFrom = new DateOnly(2026, 5, 1);
         var curTo = new DateOnly(2026, 6, 30);
-        // Same derivation the service uses: prior ends the day before current starts,
-        // same inclusive length.
-        var priorTo = curFrom.AddDays(-1);
-        var priorFrom = priorTo.AddDays(-(curTo.DayNumber - curFrom.DayNumber));
 
-        await PostAsync(db, RentExpenseId, CashId, 300m, curFrom, "Expense");            // current
-        await PostAsync(db, RentExpenseId, CashId, 120m, priorTo, "Expense");            // prior (edge)
-        await PostAsync(db, RentExpenseId, CashId, 80m, priorFrom, "Expense");           // prior (edge)
-        await PostAsync(db, RentExpenseId, CashId, 999m, priorFrom.AddDays(-1), "Expense"); // just before → excluded
+        await PostAsync(db, RentExpenseId, CashId, 300m, curFrom, "Expense");
+        await PostAsync(db, RentExpenseId, CashId, 120m, new DateOnly(2026, 4, 30), "Expense");
+        await PostAsync(db, RentExpenseId, CashId, 80m, new DateOnly(2026, 3, 1), "Expense");
+        await PostAsync(db, RentExpenseId, CashId, 999m, new DateOnly(2026, 2, 28), "Expense");
 
         var pnl = await Service(db).GetProfitAndLossAsync(
-            BookId, curFrom, curTo, compare: true); // no explicit compare range → derive
+            BookId, curFrom, curTo, compare: true);
 
         pnl.HasComparison.Should().BeTrue();
-        pnl.CompareFromDate.Should().Be(priorFrom);
-        pnl.CompareToDate.Should().Be(priorTo);
+        pnl.CompareFromDate.Should().Be(new DateOnly(2026, 3, 1));
+        pnl.CompareToDate.Should().Be(new DateOnly(2026, 4, 30));
         pnl.TotalExpense.Should().Be(300m);
-        pnl.PriorTotalExpense.Should().Be(200m); // 120 + 80, the 999 is out of window
+        pnl.PriorTotalExpense.Should().Be(200m);
+    }
+
+    [Theory]
+    [InlineData("2026-10-01", "2026-10-31", "2026-09-01", "2026-09-30")]
+    [InlineData("2026-03-01", "2026-03-31", "2026-02-01", "2026-02-28")]
+    [InlineData("2026-04-01", "2026-06-30", "2026-01-01", "2026-03-31")]
+    [InlineData("2026-01-01", "2026-12-31", "2025-01-01", "2025-12-31")]
+    [InlineData("2026-10-01", "2026-10-19", "2026-09-01", "2026-09-19")]
+    [InlineData("2026-01-01", "2026-10-19", "2025-01-01", "2025-10-19")]
+    [InlineData("2026-07-01", "2026-10-19", "2025-07-01", "2025-10-19")]
+    public void PriorPnlWindow_ShiftsByWholeMonths_OrOneYearForYearToDate(
+        string from, string to, string priorFrom, string priorTo)
+    {
+        var (pf, pt) = FinancialStatementService.ResolvePriorPnlWindow(
+            DateOnly.Parse(from), DateOnly.Parse(to), null, null);
+
+        pf.Should().Be(DateOnly.Parse(priorFrom));
+        pt.Should().Be(DateOnly.Parse(priorTo));
+    }
+
+    [Fact]
+    public async Task Pnl_DefaultWindow_IsFiscalYearToDate_WhetherOrNotComparing()
+    {
+        using var db = await SeedAsync();
+        await PostAsync(db, RentExpenseId, CashId, 100m, new DateOnly(2026, 2, 1), "Expense");
+
+        var plain = await Service(db).GetProfitAndLossAsync(BookId);
+        var compared = await Service(db).GetProfitAndLossAsync(BookId, compare: true);
+
+        plain.FromDate.Should().Be(compared.FromDate);
+        plain.ToDate.Should().Be(AsOf);
+        compared.ToDate.Should().Be(AsOf);
+        plain.TotalExpense.Should().Be(compared.TotalExpense);
+        plain.TotalExpense.Should().Be(100m);
     }
 
     [Fact]

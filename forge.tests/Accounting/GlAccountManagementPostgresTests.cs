@@ -10,8 +10,8 @@ namespace Forge.Tests.Accounting;
 
 /// <summary>
 /// Verifies the Chart-of-Accounts management handlers against real Postgres: create validation
-/// (normal-balance convention + unique number), safe-field edits, structural edits gated on
-/// no-postings, the has-postings lock, and the control-account guard.
+/// (contra normal balances allowed + unique number), safe-field edits (normal balance included),
+/// structural edits gated on no-postings, the has-postings lock, and the control-account guard.
 /// </summary>
 [Collection(PostgresCollection.Name)]
 public sealed class GlAccountManagementPostgresTests(PostgresFixture fixture)
@@ -29,7 +29,7 @@ public sealed class GlAccountManagementPostgresTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task Create_enforces_normal_balance_and_uniqueness_then_persists()
+    public async Task Create_allows_contra_normal_balance_and_enforces_uniqueness_then_persists()
     {
         var bookId = await SeedBookAsync(9101);
 
@@ -37,10 +37,8 @@ public sealed class GlAccountManagementPostgresTests(PostgresFixture fixture)
         {
             var handler = new CreateGlAccountHandler(db);
 
-            // Wrong normal balance for an Expense (should be Debit) → rejected.
-            var bad = new CreateGlAccountCommand(bookId, "60100", "Bad", AccountType.Expense, NormalBalance.Credit, null, false, false, null, null);
-            await FluentActions.Awaiting(() => handler.Handle(bad, CancellationToken.None))
-                .Should().ThrowAsync<InvalidOperationException>();
+            var contra = new CreateGlAccountCommand(bookId, "39000", "Owner Draws", AccountType.Equity, NormalBalance.Debit, null, false, false, null, null);
+            (await handler.Handle(contra, CancellationToken.None)).NormalBalance.Should().Be("Debit");
 
             // Valid create.
             var ok = new CreateGlAccountCommand(bookId, "60100", "Shop Supplies", AccountType.Expense, NormalBalance.Debit, null, false, false, CashFlowCategory.Operating, "Consumables");
@@ -103,6 +101,9 @@ public sealed class GlAccountManagementPostgresTests(PostgresFixture fixture)
             var ok = await handler.Handle(safe, CancellationToken.None);
             ok.Name.Should().Be("Freight & Duty");
             ok.HasPostings.Should().BeTrue();
+
+            var contra = new UpdateGlAccountCommand(accountId, "Freight & Duty", null, false, false, CashFlowCategory.Operating, "renamed", true, null, null, NormalBalance.Credit);
+            (await handler.Handle(contra, CancellationToken.None)).NormalBalance.Should().Be("Credit");
         }
     }
 

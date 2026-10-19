@@ -83,8 +83,9 @@ public static class AccountingSettings
         // ── Aging report ladder (AR / AP / GRNI) ──
         new(AgingBucketDaysKey, Group, "Aging Buckets (days)", SettingDataType.String,
             Description: "Comma-separated ascending bucket upper bounds for the AR/AP/GRNI aging "
-                + "reports; an open-ended final bucket is added automatically. The default 30,60,90 "
-                + "is the standard ladder (0-30 / 31-60 / 61-90 / 91+).",
+                + "reports; a leading Current (not yet due) bucket and an open-ended final bucket are "
+                + "added automatically. The default 30,60,90 is the standard ladder "
+                + "(Current / 1-30 / 31-60 / 61-90 / 91+).",
             DefaultValue: "30,60,90",
             ValidationPattern: @"^\d+(,\d+)*$",
             SortOrder: 800),

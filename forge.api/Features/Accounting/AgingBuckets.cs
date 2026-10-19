@@ -3,13 +3,16 @@ namespace Forge.Api.Features.Accounting;
 /// <summary>
 /// ⚡ ACCOUNTING BOUNDARY — the aging-bucket ladder for AR aging, AP aging, and GRNI aging,
 /// derived from the <c>accounting.aging.bucket-days</c> setting (default "30,60,90" → the
-/// industry-standard 0-30 / 31-60 / 61-90 / 91+). The setting is a comma-separated ascending
-/// list of inclusive upper bounds; the final open-ended bucket is added automatically. A
+/// industry-standard Current / 1-30 / 31-60 / 61-90 / 91+). The setting is a comma-separated
+/// ascending list of inclusive upper bounds; the leading <see cref="CurrentLabel"/> bucket (age 0
+/// or less, i.e. not yet due) and the final open-ended bucket are added automatically. A
 /// malformed value falls back to the standard ladder rather than breaking the reports.
 /// </summary>
 public static class AgingBuckets
 {
     public const string DefaultBucketDays = "30,60,90";
+
+    public const string CurrentLabel = "Current";
 
     public static readonly IReadOnlyList<(int From, int? To, string Label)> Standard = Parse(DefaultBucketDays);
 
@@ -31,8 +34,8 @@ public static class AgingBuckets
 
     private static List<(int From, int? To, string Label)> BuildLadder(IReadOnlyList<int> bounds)
     {
-        var buckets = new List<(int From, int? To, string Label)>(bounds.Count + 1);
-        var from = 0;
+        var buckets = new List<(int From, int? To, string Label)>(bounds.Count + 2) { (0, 0, CurrentLabel) };
+        var from = 1;
         foreach (var to in bounds)
         {
             buckets.Add((from, to, $"{from}-{to}"));

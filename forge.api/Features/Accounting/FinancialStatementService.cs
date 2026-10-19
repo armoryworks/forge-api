@@ -69,22 +69,11 @@ public sealed class FinancialStatementService(AppDbContext db, IClock clock) : I
         DateOnly? compareToDate = null,
         CancellationToken ct = default)
     {
-        if (!compare)
-            return await BuildProfitAndLossAsync(bookId, fromDate, toDate, ct);
-
-        // Comparison requested. Resolve the CURRENT window first: an explicit
-        // [fromDate, toDate] is used as-is; an open-ended default statement is
-        // scoped to the current fiscal year (start → today) so there is a bounded
-        // period to compare against — turning comparison on necessarily scopes an
-        // otherwise all-time P&L to a period, which is what a period-over-period
-        // report means. Both current and prior are built by the same core method.
         var (curFrom, curTo) = await ResolveCurrentPnlWindowAsync(bookId, fromDate, toDate, ct);
         var current = await BuildProfitAndLossAsync(bookId, curFrom, curTo, ct);
+        if (!compare)
+            return current;
 
-        // Resolve the PRIOR window: explicit compare bounds win; otherwise derive
-        // the immediately-preceding period of equal length. If neither is possible
-        // (current window not fully bounded), return the current statement with no
-        // comparison rather than inventing a range.
         var (priFrom, priTo) = ResolvePriorPnlWindow(curFrom, curTo, compareFromDate, compareToDate);
         if (priFrom is null || priTo is null)
             return current;
@@ -342,48 +331,55 @@ public sealed class FinancialStatementService(AppDbContext db, IClock clock) : I
     }
 
     /// <summary>
-    /// Resolves the CURRENT P&amp;L window for a comparison. Explicit bounds are used
-    /// verbatim; an open-ended default statement is scoped to the fiscal year that
-    /// contains today (start → today) so there is a bounded period to compare. When
-    /// no fiscal year covers today the bounds pass through unchanged (comparison is
-    /// then skipped upstream).
+    /// Resolves the CURRENT P&amp;L window. Explicit bounds are used verbatim; a missing
+    /// end defaults to today and a missing start to the start of the fiscal year that
+    /// contains the end, so the default statement is fiscal year-to-date. When no fiscal
+    /// year covers the end, the start stays open (from inception).
     /// </summary>
     private async Task<(DateOnly? From, DateOnly? To)> ResolveCurrentPnlWindowAsync(
         int bookId, DateOnly? fromDate, DateOnly? toDate, CancellationToken ct)
     {
-        if (fromDate is not null && toDate is not null)
-            return (fromDate, toDate);
+        var to = toDate ?? DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
+        if (fromDate is not null)
+            return (fromDate, to);
 
-        var today = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
         var fyStart = await db.FiscalYears
             .IgnoreQueryFilters()
-            .Where(fy => fy.BookId == bookId && fy.StartDate <= today && fy.EndDate >= today)
+            .Where(fy => fy.BookId == bookId && fy.StartDate <= to && fy.EndDate >= to)
             .OrderByDescending(fy => fy.StartDate)
             .Select(fy => (DateOnly?)fy.StartDate)
             .FirstOrDefaultAsync(ct);
 
-        return fyStart is null ? (fromDate, toDate) : (fyStart, today);
+        return (fyStart, to);
     }
 
     /// <summary>
-    /// Resolves the PRIOR P&amp;L window. Explicit compare bounds win; otherwise the
-    /// immediately-preceding period of equal (inclusive) length is derived: prior
-    /// ends the day before the current window starts and spans the same number of
-    /// days. Returns nulls when neither is possible (current window unbounded).
+    /// Resolves the PRIOR P&amp;L window. Explicit compare bounds win; otherwise it is
+    /// derived by whole calendar months, never by counting days: a window of whole
+    /// months compares with the same number of months just before it (October with
+    /// September, a quarter with the previous quarter); a partial window inside one
+    /// month compares with the same days of the previous month; any other partial
+    /// window (year-to-date) compares with the same dates one year earlier. Returns
+    /// nulls when the current window is unbounded.
     /// </summary>
-    private static (DateOnly? From, DateOnly? To) ResolvePriorPnlWindow(
+    internal static (DateOnly? From, DateOnly? To) ResolvePriorPnlWindow(
         DateOnly? curFrom, DateOnly? curTo, DateOnly? compareFrom, DateOnly? compareTo)
     {
         if (compareFrom is not null && compareTo is not null)
             return (compareFrom, compareTo);
 
-        if (curFrom is null || curTo is null)
+        if (curFrom is not DateOnly from || curTo is not DateOnly to)
             return (null, null);
 
-        var priorTo = curFrom.Value.AddDays(-1);
-        var lengthDays = curTo.Value.DayNumber - curFrom.Value.DayNumber; // inclusive span − 1
-        var priorFrom = priorTo.AddDays(-lengthDays);
-        return (priorFrom, priorTo);
+        var months = (to.Year * 12 + to.Month) - (from.Year * 12 + from.Month) + 1;
+        var wholeMonths = from.Day == 1 && to.AddDays(1).Day == 1;
+        if (wholeMonths)
+            return (from.AddMonths(-months), from.AddDays(-1));
+
+        if (months == 1)
+            return (from.AddMonths(-1), to.AddMonths(-1));
+
+        return (from.AddYears(-1), to.AddYears(-1));
     }
 
     /// <summary>

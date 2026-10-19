@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Accounting;
 using Forge.Core.Entities.Accounting;
@@ -142,6 +143,43 @@ public class GetLedgerRegisterHandlerTests
 
         var page2 = await handler.Handle(new GetLedgerRegisterQuery(BookId, Page: 2, PageSize: 2), default);
         page2.Data.Should().ContainSingle().Which.EntryNumber.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Drafts_are_left_out_by_default_and_listed_on_request()
+    {
+        await using var db = SeededDb();
+        db.JournalEntries.Add(Entry(1004, 4, new DateOnly(2026, 3, 25), JournalEntryStatus.Draft, "[Rejected] wrong account",
+            Line(7, CashId, debit: 10m), Line(8, RevenueId, credit: 10m)));
+        await db.SaveChangesAsync();
+        var handler = new GetLedgerRegisterHandler(db);
+
+        var all = await handler.Handle(new GetLedgerRegisterQuery(BookId), default);
+        all.TotalCount.Should().Be(3);
+        all.Data.Should().NotContain(e => e.Status == nameof(JournalEntryStatus.Draft));
+
+        var drafts = await handler.Handle(new GetLedgerRegisterQuery(BookId, Status: JournalEntryStatus.Draft), default);
+        drafts.Data.Should().ContainSingle().Which.EntryNumber.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task Reversal_links_carry_the_linked_entry_numbers()
+    {
+        await using var db = SeededDb();
+        var original = await db.JournalEntries.SingleAsync(e => e.Id == 1001);
+        original.Status = JournalEntryStatus.Reversed;
+        original.ReversedByEntryId = 1005;
+        var reversal = Entry(1005, 5, new DateOnly(2026, 1, 11), JournalEntryStatus.Posted, "Reversal",
+            Line(9, RevenueId, debit: 100m), Line(10, CashId, credit: 100m));
+        reversal.ReversalOfEntryId = 1001;
+        db.JournalEntries.Add(reversal);
+        await db.SaveChangesAsync();
+
+        var result = await new GetLedgerRegisterHandler(db).Handle(new GetLedgerRegisterQuery(BookId), default);
+
+        result.Data.Single(e => e.Id == 1001).ReversedByEntryNumber.Should().Be(5);
+        result.Data.Single(e => e.Id == 1005).ReversalOfEntryNumber.Should().Be(1);
+        result.Data.Single(e => e.Id == 1002).ReversedByEntryNumber.Should().BeNull();
     }
 
     [Fact]

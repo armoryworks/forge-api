@@ -120,6 +120,52 @@ public class Phase3CashFlowStatementServiceTests
     }
 
     [Fact]
+    public async Task ConversionOpeningBalances_AreNotCashActivity()
+    {
+        using var db = await SeedAsync();
+        await Engine(db).PostAsync(new PostingRequest
+        {
+            BookId = BookId, EntryDate = new DateOnly(2026, 1, 1),
+            Source = JournalSource.Conversion, SourceType = "OpeningBalance", SourceId = 1,
+            CurrencyId = UsdId, IdempotencyKey = $"cf:{_seq++}",
+            Lines =
+            [
+                new PostingLine { AccountKey = "CASH", Debit = 5000m, Description = "dr" },
+                new PostingLine { AccountKey = "OTHER_AR", Debit = 2000m, Description = "dr" },
+                new PostingLine { AccountKey = "COMMON_STOCK", Credit = 7000m, Description = "cr" },
+            ],
+        }, 7);
+        await PostAsync(db, "CASH", "SALES_REVENUE", 1000m);
+
+        var r = await Service(db).GetCashFlowStatementAsync(BookId, From, To);
+
+        r.NetIncome.Should().Be(1000m);
+        r.OperatingAdjustments.Should().BeEmpty();
+        r.Financing.Should().BeEmpty();
+        r.ActualCashChange.Should().Be(1000m);
+        r.NetChangeInCash.Should().Be(1000m);
+        r.IsReconciled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task FixedAssetPurchase_TaggedInvesting_LandsInInvesting()
+    {
+        using var db = await SeedAsync();
+        db.Set<GlAccount>().Add(new GlAccount { Id = 107, BookId = BookId, AccountNumber = "15000", Name = "Machinery", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, CashFlowCategory = CashFlowCategory.Investing, IsPostable = true, IsActive = true });
+        db.Set<AccountDeterminationRule>().Add(new AccountDeterminationRule { BookId = BookId, Key = "FIXED_ASSETS", GlAccountId = 107 });
+        await db.SaveChangesAsync();
+        await PostAsync(db, "CASH", "COMMON_STOCK", 3000m);
+        await PostAsync(db, "FIXED_ASSETS", "CASH", 2500m);
+
+        var r = await Service(db).GetCashFlowStatementAsync(BookId, From, To);
+
+        r.Investing.Single(l => l.GlAccountId == 107).Amount.Should().Be(-2500m);
+        r.OperatingAdjustments.Should().BeEmpty();
+        r.NetCashFromInvesting.Should().Be(-2500m);
+        r.IsReconciled.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task CreditSale_ReceivableIncrease_UsesCash_Reconciles()
     {
         using var db = await SeedAsync();

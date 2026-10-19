@@ -34,6 +34,7 @@ public sealed class CashFlowStatementService(AppDbContext db, IClock clock) : IC
              where entry.BookId == bookId
                  && (entry.Status == JournalEntryStatus.Posted || entry.Status == JournalEntryStatus.Reversed)
                  && entry.SourceType != "YearEndClose"
+                 && entry.Source != JournalSource.Conversion
                  && (fromDate == null || entry.EntryDate >= fromDate)
                  && entry.EntryDate <= asOf
              select new Row

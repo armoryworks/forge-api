@@ -48,7 +48,7 @@ namespace Forge.Api.Features.Accounting;
 /// </summary>
 public sealed class ArAgingService(AppDbContext db, IClock clock, Forge.Core.Settings.ISettingsService? settings = null) : IArAgingService
 {
-    // Standard 30-day aging ladder: 0-30, 31-60, 61-90, 91+. Each tuple is the
+    // Standard 30-day aging ladder: Current, 1-30, 31-60, 61-90, 91+. Each tuple is the
     // inclusive lower bound, inclusive upper bound (null = open-ended), label.
     // accounting.aging.bucket-days (admin-editable; default = the standard 30/60/90 ladder).
     // Loaded per call by LoadBucketsAsync; null settings (isolated tests) keep the standard ladder.

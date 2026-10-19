@@ -15,6 +15,9 @@ public sealed class BudgetVsActualLine
     public string AccountNumber { get; init; } = string.Empty;
     public string AccountName { get; init; } = string.Empty;
 
+    /// <summary><c>true</c> for an Income account, <c>false</c> for an Expense account.</summary>
+    public bool IsIncome { get; init; }
+
     public decimal BudgetAmount { get; init; }
     public decimal ActualAmount { get; init; }
 

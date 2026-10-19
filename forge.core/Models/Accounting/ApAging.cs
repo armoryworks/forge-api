@@ -26,7 +26,7 @@ public sealed class ApAgingVendorRow
     public IReadOnlyList<ApAgingBucket> Buckets { get; init; } = [];
 }
 
-/// <summary>An aging bucket (e.g. 0-30, 31-60, 61-90, 91+).</summary>
+/// <summary>An aging bucket (e.g. Current, 1-30, 31-60, 61-90, 91+).</summary>
 public sealed class ApAgingBucket
 {
     public int FromDays { get; init; }

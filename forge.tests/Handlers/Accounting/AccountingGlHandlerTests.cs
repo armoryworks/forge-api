@@ -271,6 +271,35 @@ public class AccountingGlHandlerTests
     }
 
     [Fact]
+    public async Task DiscardRejectedDraft_DeletesTheEntry_AndRefusesAPendingOne()
+    {
+        using var db = await SeedAsync();
+        var book = await db.Books.SingleAsync(b => b.Id == BookId);
+        book.MakerCheckerThreshold = 1000m;
+        await db.SaveChangesAsync();
+        var engine = CreateEngine(db);
+        var create = new CreateManualJournalEntryHandler(engine, HttpAccessorFor(PostingUserId), db);
+
+        var rejected = await create.Handle(BalancedCommand(5000m), CancellationToken.None);
+        await new RejectJournalEntryHandler(db)
+            .Handle(new RejectJournalEntryCommand(rejected.Id, "out of policy"), CancellationToken.None);
+        var pending = await create.Handle(BalancedCommand(6000m), CancellationToken.None);
+
+        var refuse = async () => await new DiscardJournalEntryHandler(db)
+            .Handle(new DiscardJournalEntryCommand(pending.Id), CancellationToken.None);
+        await refuse.Should().ThrowAsync<InvalidOperationException>();
+
+        await new DiscardJournalEntryHandler(db)
+            .Handle(new DiscardJournalEntryCommand(rejected.Id), CancellationToken.None);
+
+        (await db.JournalEntries.IgnoreQueryFilters().AnyAsync(e => e.Id == rejected.Id)).Should().BeFalse();
+        (await db.JournalLines.IgnoreQueryFilters().AnyAsync(l => l.JournalEntryId == rejected.Id)).Should().BeFalse();
+        (await db.JournalEntries.IgnoreQueryFilters().SingleAsync(e => e.Id == pending.Id))
+            .Status.Should().Be(JournalEntryStatus.PendingApproval);
+        (await db.LedgerBalances.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
     public async Task GetPendingJournalEntries_ReturnsOnlyPendingForBook()
     {
         using var db = await SeedAsync();
