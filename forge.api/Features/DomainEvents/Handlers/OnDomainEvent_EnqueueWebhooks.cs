@@ -46,7 +46,7 @@ public class OnDomainEvent_EnqueueWebhooks(IWebhookEventPublisher webhooks, IClo
 
     public Task Handle(PurchaseOrderReceivedEvent notification, CancellationToken ct) =>
         webhooks.PublishAsync(WebhookEventTypes.PurchaseOrderReceived, "PurchaseOrder", notification.PurchaseOrderId, notification,
-            notification.ReceivingRecordId.ToString(System.Globalization.CultureInfo.InvariantCulture), ct);
+            $"{notification.ReceivingRecordId}-{clock.UtcNow.UtcTicks}", ct);
 
     public Task Handle(QcInspectionFailedEvent notification, CancellationToken ct) =>
         webhooks.PublishAsync(WebhookEventTypes.QcInspectionFailed, "QcInspection", notification.InspectionId, notification, ct: ct);

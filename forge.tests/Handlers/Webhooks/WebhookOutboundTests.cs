@@ -107,6 +107,19 @@ public class WebhookOutboundTests
     }
 
     [Fact]
+    public async Task Each_receipt_against_a_purchase_order_queues_its_own_entry()
+    {
+        AddSubscription("""["purchaseorder.received"]""");
+        var handler = new OnDomainEvent_EnqueueWebhooks(Publisher(WebhookEventPublisher.CapabilityCode), _clock.Object);
+
+        await handler.Handle(new PurchaseOrderReceivedEvent(9, 0, 1), CancellationToken.None);
+        _clock.SetupGet(c => c.UtcNow).Returns(new DateTimeOffset(2026, 10, 20, 9, 0, 0, TimeSpan.Zero));
+        await handler.Handle(new PurchaseOrderReceivedEvent(9, 0, 1), CancellationToken.None);
+
+        _db.IntegrationOutboxEntries.Should().HaveCount(2);
+    }
+
+    [Fact]
     public async Task A_successful_delivery_is_signed_and_recorded()
     {
         var subscription = AddSubscription("""["invoice.created"]""", headersJson: """{"X-Tenant":"plant-1","X-Forge-Signature":"spoof"}""");

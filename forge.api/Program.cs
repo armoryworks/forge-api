@@ -1885,13 +1885,13 @@ try
         "integration-outbox-dispatcher",
         job => job.DispatchPendingAsync(CancellationToken.None),
         "* * * * *"); // Every 1 minute — drains pending email/integration queue
-    // Opt-in health report to Armory Works. Always scheduled, does nothing unless the
-    // operator accepted the agreement — so switching it on takes effect on the next
-    // tick rather than needing a restart.
     RecurringJob.AddOrUpdate<ReportScheduleJob>(
         "report-schedules",
         job => job.RunDueAsync(CancellationToken.None),
         "*/5 * * * *");
+    // Opt-in health report to Armory Works. Always scheduled, does nothing unless the
+    // operator accepted the agreement — so switching it on takes effect on the next
+    // tick rather than needing a restart.
     RecurringJob.AddOrUpdate<TelemetryHeartbeatJob>(
         "telemetry-heartbeat",
         job => job.ReportAsync(CancellationToken.None),
