@@ -9,7 +9,8 @@ namespace Forge.Api.Features.Accounting;
 /// comma, double-quote, CR or LF is wrapped in double-quotes with embedded quotes
 /// doubled. Amounts are invariant-culture 2dp (no currency symbol); dates are ISO
 /// <c>yyyy-MM-dd</c>. Shared by the three export handlers so the dialect can never
-/// drift between files the CPA loads side by side.
+/// drift between files the CPA loads side by side. Bytes are UTF-8 with a byte order
+/// mark so Excel opens the files as UTF-8.
 /// </summary>
 public sealed class CsvBuilder
 {
@@ -57,7 +58,7 @@ public sealed class CsvBuilder
         return $"{fromPart}_{toPart}";
     }
 
-    public byte[] ToUtf8Bytes() => Encoding.UTF8.GetBytes(_sb.ToString());
+    public byte[] ToUtf8Bytes() => [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(_sb.ToString())];
 
     private static string Escape(string? field)
     {

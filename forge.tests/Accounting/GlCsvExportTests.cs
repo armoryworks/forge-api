@@ -88,7 +88,16 @@ public class GlCsvExportTests
     }
 
     private static string[] Lines(byte[] content)
-        => Encoding.UTF8.GetString(content).Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+        => Encoding.UTF8.GetString(content).TrimStart('\uFEFF').Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+
+    [Fact]
+    public void CsvBuilder_StartsWithUtf8ByteOrderMark()
+    {
+        var bytes = new CsvBuilder().AppendRow("a", "Café").ToUtf8Bytes();
+
+        bytes.Take(3).Should().Equal(0xEF, 0xBB, 0xBF);
+        Encoding.UTF8.GetString(bytes[3..]).Should().Be("a,Café\r\n");
+    }
 
     // ── trial-balance.csv ──
 
@@ -192,7 +201,7 @@ public class GlCsvExportTests
         result.FileName.Should().Be("journal-summary-2026-06.csv");
 
         var lines = Lines(result.Content);
-        lines[0].Should().Be("accountNumber,accountName,totalDebit,totalCredit");
+        lines[0].Should().Be("accountNumber,accountName,netDebit,netCredit");
 
         // The one-JE shape: Cash net-debit 100, Revenue net-credit 100; the
         // zero-net Clearing account is omitted entirely.

@@ -32,7 +32,7 @@ public class ExportJournalSummaryCsvHandler(ITrialBalanceService trialBalanceSer
             request.BookId, request.FromDate, request.ToDate, cancellationToken);
 
         var csv = new CsvBuilder()
-            .AppendRow("accountNumber", "accountName", "totalDebit", "totalCredit");
+            .AppendRow("accountNumber", "accountName", "netDebit", "netCredit");
 
         foreach (var row in trialBalance.Rows)
         {
