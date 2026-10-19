@@ -187,4 +187,26 @@ public class CreateInvoiceFromJobHandlerTests
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*without a customer*");
     }
+
+    [Fact]
+    public async Task Voided_invoice_quantity_can_be_invoiced_again()
+    {
+        var customer = await AddCustomerAsync();
+        var part = new Part { PartNumber = "FG-3", Name = "Widget" };
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+        var line = await AddOrderLineAsync(customer.Id, part.Id, 2m, 25m);
+        var invoice = new Invoice
+        {
+            InvoiceNumber = "INV-3", CustomerId = customer.Id, SalesOrderId = line.SalesOrderId, Status = InvoiceStatus.Voided,
+        };
+        invoice.Lines.Add(new InvoiceLine { PartId = part.Id, Description = "Widget", Quantity = 2m, UnitPrice = 25m, LineNumber = 1 });
+        _db.Invoices.Add(invoice);
+        await _db.SaveChangesAsync();
+        var job = await AddJobAsync(customer.Id, j => j.SalesOrderLineId = line.Id);
+
+        await _handler.Handle(new CreateInvoiceFromJobCommand(job.Id), CancellationToken.None);
+
+        _sent!.Lines.Single().Quantity.Should().Be(2m);
+    }
 }

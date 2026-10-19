@@ -184,4 +184,27 @@ public class GetInvoiceSourcesHandlerTests
         result.SalesOrders.Should().ContainSingle().Which.TaxRate.Should().Be(0.0725m);
         result.Shipments.Single().Lines.Should().ContainSingle().Which.Taxable.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task A_voided_invoice_does_not_count_as_billing_the_order()
+    {
+        var customer = new Customer { Name = "Acme" };
+        var part = new Part { PartNumber = "PN-1", Name = "Bracket" };
+        _db.Customers.Add(customer);
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+
+        var order = await SeedOrderAsync(customer, "SO-1", SalesOrderStatus.Shipped);
+        await SeedShipmentAsync(order, "SHP-1", ShipmentStatus.Delivered, part, 5m);
+        _db.Invoices.Add(new Invoice
+        {
+            InvoiceNumber = "INV-1", CustomerId = customer.Id, SalesOrderId = order.Id, Status = InvoiceStatus.Voided,
+            Lines = [new InvoiceLine { PartId = part.Id, Description = "Bracket", Quantity = 5m, LineNumber = 1 }],
+        });
+        await _db.SaveChangesAsync();
+
+        var result = await new GetInvoiceSourcesHandler(_db).Handle(new GetInvoiceSourcesQuery(customer.Id), CancellationToken.None);
+
+        result.Shipments.Select(s => s.ShipmentNumber).Should().BeEquivalentTo(["SHP-1"]);
+    }
 }

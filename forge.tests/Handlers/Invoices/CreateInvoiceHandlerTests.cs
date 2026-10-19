@@ -327,6 +327,27 @@ public class CreateInvoiceHandlerTests
     }
 
     [Fact]
+    public async Task Handle_VoidedInvoiceQuantity_CanBeInvoicedAgain()
+    {
+        var (customer, order, part) = await SeedOrderAsync();
+        await SeedShipmentAsync(order, part, 5m, ShipmentStatus.Delivered);
+        _db.Invoices.Add(new Invoice
+        {
+            InvoiceNumber = "INV-0009",
+            CustomerId = customer.Id,
+            SalesOrderId = order.Id,
+            Status = InvoiceStatus.Voided,
+            Lines = [new InvoiceLine { PartId = part.Id, Description = "Bracket", Quantity = 5m, UnitPrice = 2m, LineNumber = 1 }],
+        });
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(
+            OrderCommand(customer.Id, order.Id, null, new CreateInvoiceLineModel(part.Id, "Bracket", 5m, 2m)), CancellationToken.None);
+
+        result.Total.Should().Be(10m);
+    }
+
+    [Fact]
     public async Task Handle_DeliveredShipmentCountsAsShipped()
     {
         var (customer, order, part) = await SeedOrderAsync();

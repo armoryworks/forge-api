@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.SalesTax;
 using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -110,7 +111,8 @@ public class CreateInvoiceFromJobHandler(AppDbContext db, IMediator mediator, IC
             .Where(l => l.SalesOrderId == orderLine.SalesOrderId && l.PartId == partId)
             .SumAsync(l => l.Quantity, ct);
         var invoicedForPart = await db.InvoiceLines
-            .Where(l => l.PartId == partId && l.Invoice.SalesOrderId == orderLine.SalesOrderId)
+            .Where(l => l.PartId == partId && l.Invoice.SalesOrderId == orderLine.SalesOrderId
+                && l.Invoice.Status != InvoiceStatus.Voided)
             .SumAsync(l => l.Quantity, ct);
 
         return Math.Min(orderLine.Quantity, orderedForPart - invoicedForPart);

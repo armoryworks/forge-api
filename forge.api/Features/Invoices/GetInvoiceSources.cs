@@ -81,6 +81,7 @@ public class GetInvoiceSourcesHandler(AppDbContext db)
         var invoiced = await db.InvoiceLines
             .Where(il => il.PartId != null
                 && il.Invoice.SalesOrderId != null
+                && il.Invoice.Status != InvoiceStatus.Voided
                 && salesOrderIds.Contains(il.Invoice.SalesOrderId.Value))
             .GroupBy(il => new { SalesOrderId = il.Invoice.SalesOrderId!.Value, PartId = il.PartId!.Value })
             .Select(g => new { g.Key.SalesOrderId, g.Key.PartId, Qty = g.Sum(x => x.Quantity) })

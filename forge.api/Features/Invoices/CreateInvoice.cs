@@ -150,7 +150,8 @@ public class CreateInvoiceHandler(
                 shippedByPart[partId] = ordered;
 
             var invoicedByPart = await db.InvoiceLines
-                .Where(il => il.PartId != null && il.Invoice.SalesOrderId == shippedSoId)
+                .Where(il => il.PartId != null && il.Invoice.SalesOrderId == shippedSoId
+                    && il.Invoice.Status != InvoiceStatus.Voided)
                 .GroupBy(il => il.PartId!.Value)
                 .Select(g => new { PartId = g.Key, Qty = g.Sum(x => x.Quantity) })
                 .ToDictionaryAsync(x => x.PartId, x => x.Qty, cancellationToken);
