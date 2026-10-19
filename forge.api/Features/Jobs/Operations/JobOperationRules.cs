@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 
+using Forge.Api.Extensions;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -19,7 +20,7 @@ public static class JobOperationRules
 
     public static string Describe(JobOperation row, decimal jobQuantity)
     {
-        var text = $"{row.Status} {row.CompletedQuantity:0.##}/{jobQuantity:0.##}";
+        var text = $"{row.Status.ToSentence()} {row.CompletedQuantity:0.##}/{jobQuantity:0.##}";
         return row.ScrapQuantity > 0m ? $"{text} ({row.ScrapQuantity:0.##} scrap)" : text;
     }
 

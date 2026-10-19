@@ -2,6 +2,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Terminology;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
@@ -10,6 +11,7 @@ namespace Forge.Api.Features.DomainEvents.Handlers;
 
 public class OnJobCreated_CreateDueDateEvent(
     AppDbContext db,
+    ITerminologyLabels terminology,
     ILogger<OnJobCreated_CreateDueDateEvent> logger)
     : INotificationHandler<JobCreatedEvent>
 {
@@ -31,12 +33,13 @@ public class OnJobCreated_CreateDueDateEvent(
             return;
         }
 
-        var title = $"Job Due: {job.JobNumber} - {job.Title}";
+        var jobTerm = (await terminology.GetAsync(ct)).Singular("job");
+        var title = $"{jobTerm} Due: {job.JobNumber} - {job.Title}";
 
         db.Events.Add(new Event
         {
             Title = title.Length > 200 ? title[..200] : title,
-            Description = $"Due date for Job {job.JobNumber}: {job.Title}.",
+            Description = $"Due date for {jobTerm} {job.JobNumber}: {job.Title}.",
             StartTime = job.DueDate.Value,
             EndTime = job.DueDate.Value,
             EventType = EventType.Other,

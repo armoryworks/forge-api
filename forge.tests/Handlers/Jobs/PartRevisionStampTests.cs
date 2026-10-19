@@ -12,6 +12,7 @@ using Forge.Api.Features.Lots;
 using Forge.Api.Features.Mrp;
 using Forge.Api.Features.SalesOrders;
 using Forge.Api.Features.SalesOrders.Acceptance;
+using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
 using Forge.Api.Services;
 using Forge.Core.Entities;
@@ -122,7 +123,8 @@ public class PartRevisionStampTests
             Mock.Of<ICloudFolderAutoCreator>(),
             Mock.Of<ISystemSettingRepository>(),
             Mock.Of<IBusinessIdentifierService>(),
-            StubCapabilitySnapshotProvider.Off);
+            StubCapabilitySnapshotProvider.Off,
+            new TerminologyLabels(_db));
 
         await handler.Handle(
             new CreateJobCommand("Clutch weights", null, TrackTypeId, null, null, null, null, PartId: PartId),
@@ -151,7 +153,7 @@ public class PartRevisionStampTests
         jobRepo.Setup(r => r.GenerateNextJobNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync(() => $"J-{next++}");
         var handler = new CreateJobsForSalesOrderLinesHandler(
             _db, jobRepo.Object, Mock.Of<IBarcodeService>(), Mock.Of<IBusinessIdentifierService>(),
-            BoardHub(), Mock.Of<ISalesOrderAcceptanceGate>(), Mock.Of<IMediator>(), Mock.Of<ICloudFolderAutoCreator>());
+            BoardHub(), Mock.Of<ISalesOrderAcceptanceGate>(), Mock.Of<IMediator>(), Mock.Of<ICloudFolderAutoCreator>(), new TerminologyLabels(_db));
 
         await handler.Handle(new CreateJobsForSalesOrderLinesCommand(501), CancellationToken.None);
 

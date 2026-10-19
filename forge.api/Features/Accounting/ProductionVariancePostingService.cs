@@ -6,6 +6,7 @@ using FluentValidation.Results;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Terminology;
 using Forge.Api.Services;
 using Forge.Core.Entities.Accounting;
 using Forge.Core.Enums.Accounting;
@@ -95,7 +96,8 @@ public sealed class ProductionVariancePostingService(
     ISystemAuditWriter? auditWriter = null,
     // Standard costing: when wired, the WIP residual is decomposed into named variances (material usage, labor
     // efficiency, overhead efficiency) using the part standard-cost elements; null → a single lumped sweep.
-    IStandardCostResolver? standardCost = null) : IProductionVariancePostingService
+    IStandardCostResolver? standardCost = null,
+    ITerminologyLabels? terminology = null) : IProductionVariancePostingService
 {
     private const string FullGlCapability = "CAP-ACCT-FULLGL";
     private const string KeyInventoryWip = "INVENTORY_WIP";
@@ -118,7 +120,8 @@ public sealed class ProductionVariancePostingService(
             return new JobProductionCostCloseResult(jobId, 0m, 0m, 0m, Posted: false);
 
         var book = await RequireBookAsync(ct);
-        var (laborStd, laborRateVar, laborActual, burden, subcontract) = await AbsorbAsync(book, jobId, entryDate, closedByUserId, asSystem: false, ct);
+        var jobLabel = await JobMemoLabel.ResolveAsync(db, terminology, jobId, ct);
+        var (laborStd, laborRateVar, laborActual, burden, subcontract) = await AbsorbAsync(book, jobId, jobLabel, entryDate, closedByUserId, asSystem: false, ct);
 
         // ── 2) Sweep the job's remaining GL WIP balance to PRODUCTION_VARIANCE (idempotent on the var key). ──
         var varKey = $"{JournalSource.Inventory}:Job:{jobId}:PRODVARIANCE";
@@ -169,22 +172,22 @@ public sealed class ProductionVariancePostingService(
             // residual is (laborActual − stdLab) = laborRateVar + laborEff, so both post here.
             catchall = Math.Round(residual - matUsage - laborRateVar - laborEff - ohEff, 2);
 
-            AddSignedVariance(lines, KeyMaterialUsageVariance, matUsage, jobId, "material usage");
-            AddSignedVariance(lines, KeyLaborRateVariance, laborRateVar, jobId, "labor rate");
-            AddSignedVariance(lines, KeyLaborEfficiencyVariance, laborEff, jobId, "labor efficiency");
-            AddSignedVariance(lines, KeyOverheadEfficiencyVariance, ohEff, jobId, "overhead efficiency");
-            AddSignedVariance(lines, KeyProductionVariance, catchall, jobId, "production (residual)");
+            AddSignedVariance(lines, KeyMaterialUsageVariance, matUsage, jobLabel, "material usage");
+            AddSignedVariance(lines, KeyLaborRateVariance, laborRateVar, jobLabel, "labor rate");
+            AddSignedVariance(lines, KeyLaborEfficiencyVariance, laborEff, jobLabel, "labor efficiency");
+            AddSignedVariance(lines, KeyOverheadEfficiencyVariance, ohEff, jobLabel, "overhead efficiency");
+            AddSignedVariance(lines, KeyProductionVariance, catchall, jobLabel, "production (residual)");
         }
         else
         {
-            AddSignedVariance(lines, KeyProductionVariance, residual, jobId, "production");
+            AddSignedVariance(lines, KeyProductionVariance, residual, jobLabel, "production");
         }
 
         // WIP offset clears the residual to zero (the variances above net to `residual`).
         if (residual > 0m)
-            lines.Add(new PostingLine { AccountKey = KeyInventoryWip, Credit = residual, JobId = jobId, Description = $"WIP clear — job {jobId}" });
+            lines.Add(new PostingLine { AccountKey = KeyInventoryWip, Credit = residual, JobId = jobId, Description = $"WIP clear — {jobLabel}" });
         else
-            lines.Add(new PostingLine { AccountKey = KeyInventoryWip, Debit = -residual, JobId = jobId, Description = $"WIP clear — job {jobId}" });
+            lines.Add(new PostingLine { AccountKey = KeyInventoryWip, Debit = -residual, JobId = jobId, Description = $"WIP clear — {jobLabel}" });
 
         var entry = await postingEngine.PostAsync(new PostingRequest
         {
@@ -194,12 +197,12 @@ public sealed class ProductionVariancePostingService(
             SourceType = "Job",
             SourceId = jobId,
             CurrencyId = book.FunctionalCurrencyId,
-            Memo = $"Production variance — job {jobId}",
+            Memo = $"Production variance — {jobLabel}",
             IdempotencyKey = varKey,
             Lines = lines,
         }, closedByUserId, ct);
 
-        await TryAuditAsync(jobId, entry, laborActual, burden, residual, closedByUserId, ct);
+        await TryAuditAsync(jobId, jobLabel, entry, laborActual, burden, residual, closedByUserId, ct);
 
         return new JobProductionCostCloseResult(jobId, laborActual, burden, residual, Posted: true)
         {
@@ -235,7 +238,8 @@ public sealed class ProductionVariancePostingService(
         var overhead = Delta(burden, absorbed.Overhead);
         var sub = Delta(subcontract, absorbed.Subcontract);
 
-        var request = AbsorptionRequest(book, jobId, runKey, entryDate, labor, overhead, sub);
+        var jobLabel = await JobMemoLabel.ResolveAsync(db, terminology, jobId, ct);
+        var request = AbsorptionRequest(book, jobId, jobLabel, runKey, entryDate, labor, overhead, sub);
         if (request is null)
             return 0m;
 
@@ -296,7 +300,7 @@ public sealed class ProductionVariancePostingService(
     }
 
     private static PostingRequest? AbsorptionRequest(
-        Book book, int jobId, string idempotencyKey, DateOnly entryDate, decimal labor, decimal overhead, decimal subcontract)
+        Book book, int jobId, string jobLabel, string idempotencyKey, DateOnly entryDate, decimal labor, decimal overhead, decimal subcontract)
     {
         var total = labor + overhead + subcontract;
         if (total <= 0m)
@@ -304,14 +308,14 @@ public sealed class ProductionVariancePostingService(
 
         var lines = new List<PostingLine>
         {
-            new() { AccountKey = KeyInventoryWip, Debit = total, JobId = jobId, Description = $"WIP — absorb labor + overhead + subcontract (job {jobId})" },
+            new() { AccountKey = KeyInventoryWip, Debit = total, JobId = jobId, Description = $"WIP — absorb labor + overhead + subcontract ({jobLabel})" },
         };
         if (labor > 0m)
-            lines.Add(new PostingLine { AccountKey = KeyLaborApplied, Credit = labor, Description = $"Labor absorbed — job {jobId}" });
+            lines.Add(new PostingLine { AccountKey = KeyLaborApplied, Credit = labor, Description = $"Labor absorbed — {jobLabel}" });
         if (overhead > 0m)
-            lines.Add(new PostingLine { AccountKey = KeyOverheadApplied, Credit = overhead, Description = $"Overhead absorbed — job {jobId}" });
+            lines.Add(new PostingLine { AccountKey = KeyOverheadApplied, Credit = overhead, Description = $"Overhead absorbed — {jobLabel}" });
         if (subcontract > 0m)
-            lines.Add(new PostingLine { AccountKey = KeySubcontractApplied, Credit = subcontract, Description = $"Subcontract absorbed — job {jobId}" });
+            lines.Add(new PostingLine { AccountKey = KeySubcontractApplied, Credit = subcontract, Description = $"Subcontract absorbed — {jobLabel}" });
 
         return new PostingRequest
         {
@@ -321,7 +325,7 @@ public sealed class ProductionVariancePostingService(
             SourceType = "Job",
             SourceId = jobId,
             CurrencyId = book.FunctionalCurrencyId,
-            Memo = $"WIP absorption — labor + overhead + subcontract, job {jobId}",
+            Memo = $"WIP absorption — labor + overhead + subcontract, {jobLabel}",
             IdempotencyKey = idempotencyKey,
             Lines = lines,
         };
@@ -341,7 +345,8 @@ public sealed class ProductionVariancePostingService(
         if (await db.JournalEntries.IgnoreQueryFilters().AnyAsync(e => e.BookId == book.Id && e.IdempotencyKey == capKey, ct))
             return new JobCapitalizationResult(jobId, 0m, 0m, 0m, 0m, null, Posted: false);
 
-        var (_, _, laborActual, burden, subcontract) = await AbsorbAsync(book, jobId, entryDate, capitalizedByUserId, asSystem: true, ct);
+        var jobLabel = await JobMemoLabel.ResolveAsync(db, terminology, jobId, ct);
+        var (_, _, laborActual, burden, subcontract) = await AbsorbAsync(book, jobId, jobLabel, entryDate, capitalizedByUserId, asSystem: true, ct);
         var absorbedAny = laborActual + burden + subcontract > 0m;
 
         var wipAccountId = await db.Set<AccountDeterminationRule>()
@@ -355,7 +360,7 @@ public sealed class ProductionVariancePostingService(
         var assetAccount = explicitAccount
             ?? await PostableGlAccountLookup.ResolveAsync(db, book.Id, null, KeyFixedAssets, "Data.AssetGlAccountId", CapitalAccountTypes, ct)
             ?? throw new ValidationException([new ValidationFailure("Data.AssetGlAccountId",
-                $"Job {jobId} carries {balance:N2} of work in process. Choose the fixed-asset GL account to capitalize it into.")]);
+                $"{jobLabel} carries {balance:N2} of work in process. Choose the fixed-asset GL account to capitalize it into.")]);
 
         await postingEngine.PostAsSystemAsync(new PostingRequest
         {
@@ -365,12 +370,12 @@ public sealed class ProductionVariancePostingService(
             SourceType = "Job",
             SourceId = jobId,
             CurrencyId = book.FunctionalCurrencyId,
-            Memo = $"Capitalize job {jobId} as a fixed asset",
+            Memo = $"Capitalize {jobLabel} as a fixed asset",
             IdempotencyKey = capKey,
             Lines =
             [
-                new PostingLine { GlAccountId = assetAccount.Id, Debit = balance, Description = $"Fixed asset — capitalized from job {jobId}" },
-                new PostingLine { AccountKey = KeyInventoryWip, Credit = balance, JobId = jobId, Description = $"WIP relieved — job {jobId} capitalized" },
+                new PostingLine { GlAccountId = assetAccount.Id, Debit = balance, Description = $"Fixed asset — capitalized from {jobLabel}" },
+                new PostingLine { AccountKey = KeyInventoryWip, Credit = balance, JobId = jobId, Description = $"WIP relieved — {jobLabel} capitalized" },
             ],
         }, capitalizedByUserId, ct);
 
@@ -384,7 +389,7 @@ public sealed class ProductionVariancePostingService(
             "CAP-ACCT-FULLGL is enabled but no active accounting Book is seeded to close job production cost into.");
 
     private async Task<(decimal LaborStd, decimal LaborRateVar, decimal LaborActual, decimal Burden, decimal Subcontract)> AbsorbAsync(
-        Book book, int jobId, DateOnly entryDate, int userId, bool asSystem, CancellationToken ct)
+        Book book, int jobId, string jobLabel, DateOnly entryDate, int userId, bool asSystem, CancellationToken ct)
     {
         // Labor at the STANDARD rate (efficiency basis) and at the ACTUAL rate (what's absorbed into WIP); the
         // difference is the labor RATE variance.
@@ -404,7 +409,7 @@ public sealed class ProductionVariancePostingService(
         {
             var absorbed = await AbsorbedToDateAsync(book.Id, jobId, ct);
             var request = AbsorptionRequest(
-                book, jobId, absorbKey, entryDate,
+                book, jobId, jobLabel, absorbKey, entryDate,
                 Delta(laborActual, absorbed.Labor), Delta(burden, absorbed.Overhead), Delta(subcontract, absorbed.Subcontract));
             if (request is not null)
             {
@@ -436,16 +441,16 @@ public sealed class ProductionVariancePostingService(
 
     /// <summary>Adds a variance line for a signed amount: positive = unfavorable (debit), negative = favorable
     /// (credit), zero = nothing. (Job dimension is carried only on the WIP offset, not the P&amp;L variance.)</summary>
-    private static void AddSignedVariance(List<PostingLine> lines, string accountKey, decimal amount, int jobId, string label)
+    private static void AddSignedVariance(List<PostingLine> lines, string accountKey, decimal amount, string jobLabel, string label)
     {
         if (amount > 0m)
-            lines.Add(new PostingLine { AccountKey = accountKey, Debit = amount, Description = $"{label} variance (unfavorable) — job {jobId}" });
+            lines.Add(new PostingLine { AccountKey = accountKey, Debit = amount, Description = $"{label} variance (unfavorable) — {jobLabel}" });
         else if (amount < 0m)
-            lines.Add(new PostingLine { AccountKey = accountKey, Credit = -amount, Description = $"{label} variance (favorable) — job {jobId}" });
+            lines.Add(new PostingLine { AccountKey = accountKey, Credit = -amount, Description = $"{label} variance (favorable) — {jobLabel}" });
     }
 
     private async Task TryAuditAsync(
-        int jobId, JournalEntry entry, decimal labor, decimal burden, decimal variance, int actorUserId, CancellationToken ct)
+        int jobId, string jobLabel, JournalEntry entry, decimal labor, decimal burden, decimal variance, int actorUserId, CancellationToken ct)
     {
         if (auditWriter is null)
             return;
@@ -465,7 +470,7 @@ public sealed class ProductionVariancePostingService(
                     overheadAbsorbed = burden.ToString(CultureInfo.InvariantCulture),
                     productionVariance = variance.ToString(CultureInfo.InvariantCulture),
                 },
-                reason = $"Job {jobId} production-cost close — labor/overhead absorbed, WIP residual swept to variance.",
+                reason = $"{jobLabel} production-cost close — labor/overhead absorbed, WIP residual swept to variance.",
             });
 
             await auditWriter.WriteAsync(

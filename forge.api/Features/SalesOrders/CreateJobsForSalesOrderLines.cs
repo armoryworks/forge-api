@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.SalesOrders.Acceptance;
+using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -28,7 +29,8 @@ public class CreateJobsForSalesOrderLinesHandler(
     IHubContext<BoardHub> boardHub,
     ISalesOrderAcceptanceGate acceptanceGate,
     IMediator mediator,
-    ICloudFolderAutoCreator folderAutoCreator)
+    ICloudFolderAutoCreator folderAutoCreator,
+    ITerminologyLabels terminology)
     : IRequestHandler<CreateJobsForSalesOrderLinesCommand, CreateJobsForSalesOrderLinesResponseModel>
 {
     private const int MaxTitleLength = 200;
@@ -116,6 +118,7 @@ public class CreateJobsForSalesOrderLinesHandler(
             .ToDictionaryAsync(p => p.Id, cancellationToken);
 
         var boardPosition = await jobRepo.GetMaxBoardPositionAsync(startStage.Id, cancellationToken);
+        var terms = await terminology.GetAsync(cancellationToken);
         var created = new List<Job>();
         foreach (var line in toCreate)
         {
@@ -150,7 +153,7 @@ public class CreateJobsForSalesOrderLinesHandler(
             job.ActivityLogs.Add(new JobActivityLog
             {
                 Action = ActivityAction.Created,
-                Description = $"Job {jobNumber} created from Sales Order {so.OrderNumber}, Line {line.LineNumber}.",
+                Description = $"{terms.Singular("job")} {jobNumber} created from {terms.Singular("sales_order")} {so.OrderNumber}, Line {line.LineNumber}.",
             });
 
             db.Jobs.Add(job);
@@ -160,7 +163,7 @@ public class CreateJobsForSalesOrderLinesHandler(
         if (created.Count > 0 || (request.FromConfirmation && skipped.Count > 0))
             db.LogActivityAt(
                 request.FromConfirmation ? "jobs_auto_created" : "jobs_created",
-                ActivityDescription(so.OrderNumber, created.Count, skipped), ("SalesOrder", so.Id));
+                ActivityDescription(terms, so.OrderNumber, created.Count, skipped), ("SalesOrder", so.Id));
 
         await db.SaveChangesAsync(cancellationToken);
 
@@ -226,9 +229,9 @@ public class CreateJobsForSalesOrderLinesHandler(
         quantity.ToString("0.####", CultureInfo.InvariantCulture);
 
     private static string ActivityDescription(
-        string orderNumber, int createdCount, List<SkippedSalesOrderLineResponseModel> skipped)
+        TermLabels terms, string orderNumber, int createdCount, List<SkippedSalesOrderLineResponseModel> skipped)
     {
-        var description = $"{createdCount} job(s) created for Sales Order {orderNumber}.";
+        var description = $"{createdCount} {TermLabels.Lower(terms.ForCount("job", createdCount))} created for {terms.Singular("sales_order")} {orderNumber}.";
         if (skipped.Count == 0)
             return description;
 

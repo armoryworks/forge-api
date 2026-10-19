@@ -2,6 +2,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Terminology;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
@@ -10,6 +11,7 @@ namespace Forge.Api.Features.DomainEvents.Handlers;
 
 public class OnPurchaseOrderCreated_CreateDeliveryEvent(
     AppDbContext db,
+    ITerminologyLabels terminology,
     ILogger<OnPurchaseOrderCreated_CreateDeliveryEvent> logger)
     : INotificationHandler<PurchaseOrderCreatedEvent>
 {
@@ -32,12 +34,13 @@ public class OnPurchaseOrderCreated_CreateDeliveryEvent(
             return;
         }
 
-        var title = $"PO-{po.PONumber} Expected Delivery from {po.Vendor.CompanyName}";
+        var terms = await terminology.GetAsync(ct);
+        var title = $"{po.PONumber} Expected Delivery from {po.Vendor.CompanyName}";
 
         db.Events.Add(new Event
         {
             Title = title.Length > 200 ? title[..200] : title,
-            Description = $"Expected delivery for Purchase Order {po.PONumber} from {po.Vendor.CompanyName}.",
+            Description = $"Expected delivery for {terms.Singular("purchase_order")} {po.PONumber} from {po.Vendor.CompanyName}.",
             StartTime = po.ExpectedDeliveryDate.Value,
             EndTime = po.ExpectedDeliveryDate.Value,
             EventType = EventType.Other,

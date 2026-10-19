@@ -7,6 +7,7 @@ using Moq;
 using Forge.Api.Features.Jobs;
 using Forge.Api.Features.Replenishment;
 using Forge.Api.Features.SalesOrders.Acceptance;
+using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
 using Forge.Api.Services;
 using Forge.Core.Entities;
@@ -59,7 +60,8 @@ public class ApproveMakeSuggestionTests
             Mock.Of<ICloudFolderAutoCreator>(),
             Mock.Of<ISystemSettingRepository>(),
             Mock.Of<IBusinessIdentifierService>(),
-            StubCapabilitySnapshotProvider.Off);
+            StubCapabilitySnapshotProvider.Off,
+            new TerminologyLabels(_db));
         var getSuggestions = new GetReorderSuggestionsHandler(_db, new PartSourcingResolver(_db), new FixedClock());
 
         _mediator.Setup(m => m.Send(It.IsAny<CreateJobCommand>(), It.IsAny<CancellationToken>()))

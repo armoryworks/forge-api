@@ -7,6 +7,7 @@ using Moq;
 using Forge.Api.Features.Jobs;
 using Forge.Api.Features.SalesOrders;
 using Forge.Api.Features.SalesOrders.Acceptance;
+using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -90,7 +91,8 @@ public sealed class CreateJobFromSalesOrderLinePostgresTests(PostgresFixture fix
             Mock.Of<ICloudFolderAutoCreator>(),
             Mock.Of<ISystemSettingRepository>(),
             Mock.Of<IBusinessIdentifierService>(),
-            StubCapabilitySnapshotProvider.Off);
+            StubCapabilitySnapshotProvider.Off,
+            new TerminologyLabels(db));
 
         var result = await handler.Handle(
             new CreateJobCommand("From the line", null, trackId, null, null, null, null, SalesOrderLineId: lineId),

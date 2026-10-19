@@ -1,5 +1,7 @@
 using System.Text;
 
+using Forge.Api.Features.Terminology;
+
 namespace Forge.Api.Jobs;
 
 public static class EmailTemplateBuilder
@@ -9,11 +11,13 @@ public static class EmailTemplateBuilder
         string userName,
         List<DigestJobItem> upcomingJobs,
         List<DigestJobItem> overdueJobs,
-        int completedYesterday)
+        int completedYesterday,
+        TermLabels? terms = null)
     {
+        terms ??= TermLabels.Defaults;
         var sb = new StringBuilder();
         sb.Append(WrapHtml(companyName, $"Daily Digest for {userName}", BuildDigestBody(
-            userName, upcomingJobs, overdueJobs, completedYesterday)));
+            userName, upcomingJobs, overdueJobs, completedYesterday, terms)));
         return sb.ToString();
     }
 
@@ -74,7 +78,8 @@ public static class EmailTemplateBuilder
         string userName,
         List<DigestJobItem> upcomingJobs,
         List<DigestJobItem> overdueJobs,
-        int completedYesterday)
+        int completedYesterday,
+        TermLabels terms)
     {
         var sb = new StringBuilder();
         sb.Append($"<p>Good morning, {Encode(userName)}! Here's your daily summary.</p>");
@@ -83,21 +88,21 @@ public static class EmailTemplateBuilder
         {
             sb.Append($"""
                 <div style="background:#ecfdf5;border-left:4px solid #10b981;padding:12px 16px;margin:16px 0;">
-                  <strong style="color:#059669;">{completedYesterday} job{(completedYesterday != 1 ? "s" : "")} completed yesterday</strong>
+                  <strong style="color:#059669;">{completedYesterday} {Encode(TermLabels.Lower(terms.ForCount("job", completedYesterday)))} completed yesterday</strong>
                 </div>
                 """);
         }
 
         if (overdueJobs.Count > 0)
         {
-            sb.Append("""<h3 style="color:#dc2626;margin:20px 0 8px;">⚠ Overdue Jobs</h3>""");
-            sb.Append(BuildJobTable(overdueJobs, isOverdue: true));
+            sb.Append($"""<h3 style="color:#dc2626;margin:20px 0 8px;">⚠ Overdue {Encode(terms.Plural("job"))}</h3>""");
+            sb.Append(BuildJobTable(overdueJobs, isOverdue: true, terms));
         }
 
         if (upcomingJobs.Count > 0)
         {
             sb.Append("""<h3 style="color:#333;margin:20px 0 8px;">Upcoming (Next 3 Days)</h3>""");
-            sb.Append(BuildJobTable(upcomingJobs, isOverdue: false));
+            sb.Append(BuildJobTable(upcomingJobs, isOverdue: false, terms));
         }
 
         if (overdueJobs.Count == 0 && upcomingJobs.Count == 0)
@@ -112,14 +117,14 @@ public static class EmailTemplateBuilder
         return sb.ToString();
     }
 
-    private static string BuildJobTable(List<DigestJobItem> jobs, bool isOverdue)
+    private static string BuildJobTable(List<DigestJobItem> jobs, bool isOverdue, TermLabels terms)
     {
         var borderColor = isOverdue ? "#fecaca" : "#e5e7eb";
         var sb = new StringBuilder();
         sb.Append($"""<table style="border-collapse:collapse;width:100%;margin:8px 0;">""");
         sb.Append($"""
             <tr style="background:#f9fafb;">
-              <th style="padding:8px 12px;border:1px solid {borderColor};text-align:left;font-size:11px;text-transform:uppercase;">Job #</th>
+              <th style="padding:8px 12px;border:1px solid {borderColor};text-align:left;font-size:11px;text-transform:uppercase;">{Encode(terms.Singular("job"))} #</th>
               <th style="padding:8px 12px;border:1px solid {borderColor};text-align:left;font-size:11px;text-transform:uppercase;">Title</th>
               <th style="padding:8px 12px;border:1px solid {borderColor};text-align:left;font-size:11px;text-transform:uppercase;">Due Date</th>
             </tr>

@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.Terminology;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -13,7 +14,8 @@ public class RunScheduledTaskHandler(
     AppDbContext db,
     IJobRepository jobRepo,
     IBusinessIdentifierService identifiers,
-    IClock clock) : IRequestHandler<RunScheduledTaskCommand, int>
+    IClock clock,
+    ITerminologyLabels terminology) : IRequestHandler<RunScheduledTaskCommand, int>
 {
     public async Task<int> Handle(RunScheduledTaskCommand request, CancellationToken ct)
     {
@@ -41,10 +43,11 @@ public class RunScheduledTaskHandler(
             IsInternal = true,
             InternalProjectTypeId = task.InternalProjectTypeId,
         };
+        var jobTerm = (await terminology.GetAsync(ct)).Singular("job");
         job.ActivityLogs.Add(new JobActivityLog
         {
             Action = ActivityAction.Created,
-            Description = $"Job {jobNumber} created from scheduled task {task.Name}.",
+            Description = $"{jobTerm} {jobNumber} created from scheduled task {task.Name}.",
         });
 
         db.Jobs.Add(job);

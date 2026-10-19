@@ -2,6 +2,7 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Extensions;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
@@ -45,7 +46,7 @@ public class OnShipmentCreated_UpdateSalesOrder(
             EntityId = so.Id,
             UserId = notification.UserId,
             Action = "shipment_created",
-            Description = $"Shipment {shipment.ShipmentNumber} created. SO status: {so.Status}.",
+            Description = $"Shipment {shipment.ShipmentNumber} created. SO status: {so.Status.ToSentence()}.",
         });
 
         await db.SaveChangesAsync(ct);

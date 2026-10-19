@@ -6,4 +6,5 @@ public record DashboardKPIsResponseModel(
     int OverdueCount,
     int OverdueChange,
     string TotalHours,
-    string HoursStatus);
+    string HoursStatus,
+    decimal TotalHoursValue = 0m);

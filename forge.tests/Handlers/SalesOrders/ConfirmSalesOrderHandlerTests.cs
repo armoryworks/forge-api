@@ -10,6 +10,7 @@ using Moq;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.SalesOrders;
 using Forge.Api.Features.SalesOrders.Acceptance;
+using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -135,7 +136,7 @@ public class ConfirmSalesOrderHandlerTests
         boardHub.SetupGet(h => h.Clients).Returns(hubClients.Object);
         var createJobs = new CreateJobsForSalesOrderLinesHandler(
             _db, jobRepo.Object, Mock.Of<IBarcodeService>(), Mock.Of<IBusinessIdentifierService>(),
-            boardHub.Object, _acceptanceGate.Object, Mock.Of<IMediator>(), Mock.Of<ICloudFolderAutoCreator>());
+            boardHub.Object, _acceptanceGate.Object, Mock.Of<IMediator>(), Mock.Of<ICloudFolderAutoCreator>(), new TerminologyLabels(_db));
         _mediator.Setup(m => m.Publish(It.IsAny<SalesOrderConfirmedEvent>(), It.IsAny<CancellationToken>()))
             .Returns<SalesOrderConfirmedEvent, CancellationToken>((e, ct) =>
                 createJobs.Handle(new CreateJobsForSalesOrderLinesCommand(e.SalesOrderId, FromConfirmation: true), ct));

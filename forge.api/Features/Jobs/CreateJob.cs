@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Features.Terminology;
 using Forge.Api.Hubs;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -66,7 +67,8 @@ public class CreateJobHandler(
     ICloudFolderAutoCreator folderAutoCreator,
     ISystemSettingRepository systemSettings,
     IBusinessIdentifierService identifiers,
-    ICapabilitySnapshotProvider capabilities) : IRequestHandler<CreateJobCommand, JobDetailResponseModel>
+    ICapabilitySnapshotProvider capabilities,
+    ITerminologyLabels terminology) : IRequestHandler<CreateJobCommand, JobDetailResponseModel>
 {
     // System setting that gates caller-supplied job numbers. Stored as "true"/"false".
     private const string AllowManualJobNumbersKey = "jobs.allow_manual_numbers";
@@ -163,12 +165,13 @@ public class CreateJobHandler(
             });
         }
 
+        var jobTerm = (await terminology.GetAsync(cancellationToken)).Singular("job");
         job.ActivityLogs.Add(new JobActivityLog
         {
             Action = ActivityAction.Created,
             Description = request.SalesOrderLineId is int linkedLineId
-                ? $"Job {jobNumber} created (linked to SO line #{linkedLineId})."
-                : $"Job {jobNumber} created.",
+                ? $"{jobTerm} {jobNumber} created (linked to SO line #{linkedLineId})."
+                : $"{jobTerm} {jobNumber} created.",
         });
 
         await jobRepo.AddAsync(job, cancellationToken);

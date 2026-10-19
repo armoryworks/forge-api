@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
+using Forge.Api.Features.Terminology;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Entities.Accounting;
@@ -54,7 +55,8 @@ public sealed class MaterialIssuePostingService(
     IPostingEngine postingEngine,
     ICapabilitySnapshotProvider capabilities,
     ISystemAuditWriter? auditWriter = null,
-    IInventoryValuationService? valuation = null) : IMaterialIssuePostingService
+    IInventoryValuationService? valuation = null,
+    ITerminologyLabels? terminology = null) : IMaterialIssuePostingService
 {
     private const string FullGlCapability = "CAP-ACCT-FULLGL";
 
@@ -143,7 +145,8 @@ public sealed class MaterialIssuePostingService(
 
         var partLabel = issue.Part?.PartNumber ?? $"part {issue.PartId}";
         var verb = issue.IssueType.ToString().ToLowerInvariant();
-        var desc = $"Material {verb} — job {issue.JobId} {partLabel} x{issue.Quantity}";
+        var jobLabel = await JobMemoLabel.ResolveAsync(db, terminology, issue.JobId, ct);
+        var desc = $"Material {verb} — {jobLabel} {partLabel} x{issue.Quantity.ToString("0.####", CultureInfo.InvariantCulture)}";
 
         var request = new PostingRequest
         {
@@ -153,7 +156,7 @@ public sealed class MaterialIssuePostingService(
             SourceType = "MaterialIssue",
             SourceId = issue.Id,
             CurrencyId = book.FunctionalCurrencyId,
-            Memo = $"Material {verb} — job {issue.JobId}, {partLabel}",
+            Memo = $"Material {verb} — {jobLabel}, {partLabel}",
             IdempotencyKey = idempotencyKey,
             Lines =
             [
@@ -165,7 +168,7 @@ public sealed class MaterialIssuePostingService(
         };
 
         var entry = await postingEngine.PostAsSystemAsync(request, issuedByUserId, ct);
-        await TryAuditAsync(issue, entry, amount, issuedByUserId, ct);
+        await TryAuditAsync(issue, jobLabel, entry, amount, issuedByUserId, ct);
     }
 
     /// <summary>True for perpetual-stocked inventory classes (the ones backed by an INVENTORY_* account).</summary>
@@ -183,7 +186,7 @@ public sealed class MaterialIssuePostingService(
     };
 
     private async Task TryAuditAsync(
-        MaterialIssue issue, JournalEntry entry, decimal amount, int actorUserId, CancellationToken ct)
+        MaterialIssue issue, string jobLabel, JournalEntry entry, decimal amount, int actorUserId, CancellationToken ct)
     {
         if (auditWriter is null)
             return;
@@ -205,7 +208,7 @@ public sealed class MaterialIssuePostingService(
                     quantity = issue.Quantity,
                     amount = amount.ToString(CultureInfo.InvariantCulture),
                 },
-                reason = $"Material {issue.IssueType.ToString().ToLowerInvariant()} — job {issue.JobId} WIP posting.",
+                reason = $"Material {issue.IssueType.ToString().ToLowerInvariant()} — {jobLabel} WIP posting.",
             });
 
             await auditWriter.WriteAsync(
