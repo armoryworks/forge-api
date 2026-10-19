@@ -225,7 +225,7 @@ public class TrainingController(IMediator mediator) : ControllerBase
         [FromBody] SubmitQuizRequestModel model,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new SubmitQuizCommand(GetUserId(), moduleId, model.Answers), ct);
+        var result = await mediator.Send(new SubmitQuizCommand(GetUserId(), moduleId, model.Answers, IsAdmin()), ct);
         return Ok(result);
     }
 

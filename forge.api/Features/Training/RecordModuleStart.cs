@@ -13,6 +13,9 @@ public class RecordModuleStartHandler(AppDbContext db) : IRequestHandler<RecordM
 {
     public async Task Handle(RecordModuleStartCommand request, CancellationToken ct)
     {
+        if (!await db.TrainingModules.AsNoTracking().AnyAsync(m => m.Id == request.ModuleId, ct))
+            throw new KeyNotFoundException($"Training module {request.ModuleId} not found.");
+
         var progress = await db.TrainingProgress
             .FirstOrDefaultAsync(p => p.UserId == request.UserId && p.ModuleId == request.ModuleId, ct);
 

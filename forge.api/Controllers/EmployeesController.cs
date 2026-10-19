@@ -17,6 +17,11 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-MD-EMPLOYEES")]
 public class EmployeesController(IMediator mediator) : ControllerBase
 {
+    private int CallerUserId => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+    private Task<bool> CanViewAsync(int userId, CancellationToken ct) =>
+        mediator.Send(new CanViewEmployeeQuery(userId, CallerUserId, User.IsInRole("Admin")), ct);
+
     /// <summary>
     /// Phase 3 F7-broad / WU-22 — standardised paged-list contract.
     ///
@@ -40,7 +45,7 @@ public class EmployeesController(IMediator mediator) : ControllerBase
         [FromQuery(Name = "search")] string? legacySearch,
         CancellationToken ct)
     {
-        var callerUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var callerUserId = CallerUserId;
         var callerIsAdmin = User.IsInRole("Admin");
 
         var effective = string.IsNullOrEmpty(query.Q) && !string.IsNullOrEmpty(legacySearch)
@@ -52,9 +57,9 @@ public class EmployeesController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<EmployeeDetailResponseModel>> GetEmployee(int id, [FromQuery] string? kind)
+    public async Task<ActionResult<EmployeeDetailResponseModel>> GetEmployee(int id, [FromQuery] string? kind, CancellationToken ct)
     {
-        var result = await mediator.Send(new GetEmployeeDetailQuery(id, kind));
+        var result = await mediator.Send(new GetEmployeeDetailQuery(id, kind, CallerUserId, User.IsInRole("Admin")), ct);
         if (result == null) return NotFound();
         return Ok(result);
     }
@@ -127,58 +132,66 @@ public class EmployeesController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{id:int}/stats")]
-    public async Task<ActionResult<EmployeeStatsResponseModel>> GetEmployeeStats(int id)
+    public async Task<ActionResult<EmployeeStatsResponseModel>> GetEmployeeStats(int id, CancellationToken ct)
     {
-        var result = await mediator.Send(new GetEmployeeStatsQuery(id));
+        if (!await CanViewAsync(id, ct)) return NotFound();
+        var result = await mediator.Send(new GetEmployeeStatsQuery(id), ct);
         return Ok(result);
     }
 
     [HttpGet("{id:int}/time-summary")]
-    public async Task<ActionResult<List<EmployeeTimeEntryItem>>> GetTimeSummary(int id, [FromQuery] string? period)
+    public async Task<ActionResult<List<EmployeeTimeEntryItem>>> GetTimeSummary(int id, [FromQuery] string? period, CancellationToken ct)
     {
-        var result = await mediator.Send(new GetEmployeeTimeSummaryQuery(id, period));
+        if (!await CanViewAsync(id, ct)) return NotFound();
+        var result = await mediator.Send(new GetEmployeeTimeSummaryQuery(id, period), ct);
         return Ok(result);
     }
 
     [HttpGet("{id:int}/pay-summary")]
-    public async Task<ActionResult<List<EmployeePayStubItem>>> GetPaySummary(int id)
+    public async Task<ActionResult<List<EmployeePayStubItem>>> GetPaySummary(int id, CancellationToken ct)
     {
-        var result = await mediator.Send(new GetEmployeePaySummaryQuery(id));
+        if (!await CanViewAsync(id, ct)) return NotFound();
+        var result = await mediator.Send(new GetEmployeePaySummaryQuery(id), ct);
         return Ok(result);
     }
 
     [HttpGet("{id:int}/jobs")]
-    public async Task<ActionResult<List<EmployeeJobItem>>> GetJobs(int id)
+    public async Task<ActionResult<List<EmployeeJobItem>>> GetJobs(int id, CancellationToken ct)
     {
-        var result = await mediator.Send(new GetEmployeeJobsQuery(id));
+        if (!await CanViewAsync(id, ct)) return NotFound();
+        var result = await mediator.Send(new GetEmployeeJobsQuery(id), ct);
         return Ok(result);
     }
 
     [HttpGet("{id:int}/expenses")]
-    public async Task<ActionResult<List<EmployeeExpenseItem>>> GetExpenses(int id)
+    public async Task<ActionResult<List<EmployeeExpenseItem>>> GetExpenses(int id, CancellationToken ct)
     {
-        var result = await mediator.Send(new GetEmployeeExpensesQuery(id));
+        if (!await CanViewAsync(id, ct)) return NotFound();
+        var result = await mediator.Send(new GetEmployeeExpensesQuery(id), ct);
         return Ok(result);
     }
 
     [HttpGet("{id:int}/training")]
-    public async Task<ActionResult<List<EmployeeTrainingItem>>> GetTraining(int id)
+    public async Task<ActionResult<List<EmployeeTrainingItem>>> GetTraining(int id, CancellationToken ct)
     {
-        var result = await mediator.Send(new GetEmployeeTrainingQuery(id));
+        if (!await CanViewAsync(id, ct)) return NotFound();
+        var result = await mediator.Send(new GetEmployeeTrainingQuery(id), ct);
         return Ok(result);
     }
 
     [HttpGet("{id:int}/compliance")]
-    public async Task<ActionResult<List<EmployeeComplianceItem>>> GetCompliance(int id)
+    public async Task<ActionResult<List<EmployeeComplianceItem>>> GetCompliance(int id, CancellationToken ct)
     {
-        var result = await mediator.Send(new GetEmployeeComplianceQuery(id));
+        if (!await CanViewAsync(id, ct)) return NotFound();
+        var result = await mediator.Send(new GetEmployeeComplianceQuery(id), ct);
         return Ok(result);
     }
 
     [HttpGet("{id:int}/activity")]
-    public async Task<ActionResult<List<ActivityEntryResponseModel>>> GetActivity(int id)
+    public async Task<ActionResult<List<ActivityEntryResponseModel>>> GetActivity(int id, CancellationToken ct)
     {
-        var result = await mediator.Send(new GetEntityActivityQuery("Employee", id));
+        if (!await CanViewAsync(id, ct)) return NotFound();
+        var result = await mediator.Send(new GetEntityActivityQuery("Employee", id), ct);
         return Ok(result);
     }
 }

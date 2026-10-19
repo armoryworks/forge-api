@@ -13,6 +13,15 @@ public class CompleteModuleHandler(AppDbContext db) : IRequestHandler<CompleteMo
 {
     public async Task Handle(CompleteModuleCommand request, CancellationToken ct)
     {
+        var contentType = await db.TrainingModules.AsNoTracking()
+            .Where(m => m.Id == request.ModuleId)
+            .Select(m => (TrainingContentType?)m.ContentType)
+            .FirstOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException($"Training module {request.ModuleId} not found.");
+
+        if (contentType == TrainingContentType.Quiz)
+            throw new InvalidOperationException("A quiz is completed by passing it, not by marking it complete.");
+
         var progress = await db.TrainingProgress
             .FirstOrDefaultAsync(p => p.UserId == request.UserId && p.ModuleId == request.ModuleId, ct);
 

@@ -44,20 +44,11 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
             users = users.Where(u => !serviceUserIds.Contains(u.Id));
 
         // Manager restriction: only see users in same team
-        var restrictedToTeam = false;
-        if (!request.CallerIsAdmin && request.CallerUserId.HasValue)
-        {
-            var callerTeamId = await db.Users
-                .Where(u => u.Id == request.CallerUserId.Value)
-                .Select(u => u.TeamId)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (callerTeamId.HasValue)
-            {
-                users = users.Where(u => u.TeamId == callerTeamId);
-                restrictedToTeam = true;
-            }
-        }
+        var callerTeamId = await EmployeeTeamScope.RestrictedTeamIdAsync(
+            db, request.CallerUserId, request.CallerIsAdmin, cancellationToken);
+        var restrictedToTeam = callerTeamId.HasValue;
+        if (restrictedToTeam)
+            users = users.Where(u => u.TeamId == callerTeamId);
 
         // — Filters (DB-side) —
         if (qry.IsActive.HasValue)
@@ -66,13 +57,15 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
         if (qry.TeamId.HasValue)
             users = users.Where(u => u.TeamId == qry.TeamId.Value);
 
-        if (!string.IsNullOrWhiteSpace(qry.Q))
+        foreach (var term in SearchTerms(qry.Q))
         {
-            var term = qry.Q.Trim().ToLower();
             users = users.Where(u =>
                 u.FirstName.ToLower().Contains(term) ||
                 u.LastName.ToLower().Contains(term) ||
-                u.Email!.ToLower().Contains(term));
+                u.Email!.ToLower().Contains(term) ||
+                db.EmployeeProfiles.Any(p => p.UserId == u.Id && p.DeletedAt == null &&
+                    ((p.JobTitle != null && p.JobTitle.ToLower().Contains(term)) ||
+                     (p.Department != null && p.Department.ToLower().Contains(term)))));
         }
 
         if (qry.DateFrom.HasValue)
@@ -167,13 +160,14 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
             .AsNoTracking()
             .Where(p => p.UserId == null && p.DeletedAt == null);
 
-        if (!string.IsNullOrWhiteSpace(qry.Q))
+        foreach (var term in SearchTerms(qry.Q))
         {
-            var term = qry.Q.Trim().ToLower();
             profiles = profiles.Where(p =>
                 (p.FirstName != null && p.FirstName.ToLower().Contains(term)) ||
                 (p.LastName != null && p.LastName.ToLower().Contains(term)) ||
-                (p.WorkEmail != null && p.WorkEmail.ToLower().Contains(term)));
+                (p.WorkEmail != null && p.WorkEmail.ToLower().Contains(term)) ||
+                (p.JobTitle != null && p.JobTitle.ToLower().Contains(term)) ||
+                (p.Department != null && p.Department.ToLower().Contains(term)));
         }
 
         if (qry.DateFrom.HasValue)
@@ -190,6 +184,11 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
 
         return await profiles.ToListAsync(cancellationToken);
     }
+
+    private static string[] SearchTerms(string? q) =>
+        string.IsNullOrWhiteSpace(q)
+            ? []
+            : q.ToLower().Split([' ', ',', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     private async Task<PagedResponse<EmployeeListItemResponseModel>> MergedPageAsync(
         EmployeeListQuery qry,
@@ -286,10 +285,10 @@ public class GetEmployeeListHandler(AppDbContext db, UserManager<ApplicationUser
         // Batch-load team names for the page slice
         var teamIds = usersList.Where(u => u.TeamId.HasValue).Select(u => u.TeamId!.Value).Distinct().ToList();
         var teams = teamIds.Count > 0
-            ? await db.ReferenceData
+            ? await db.Teams
                 .AsNoTracking()
-                .Where(r => teamIds.Contains(r.Id))
-                .ToDictionaryAsync(r => r.Id, r => r.Label, cancellationToken)
+                .Where(t => teamIds.Contains(t.Id))
+                .ToDictionaryAsync(t => t.Id, t => t.Name, cancellationToken)
             : new Dictionary<int, string>();
 
         var items = new List<EmployeeListItemResponseModel>();

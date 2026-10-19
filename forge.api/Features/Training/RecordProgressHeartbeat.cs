@@ -11,10 +11,17 @@ public record RecordProgressHeartbeatCommand(int UserId, int ModuleId, int Secon
 
 public class RecordProgressHeartbeatHandler(AppDbContext db) : IRequestHandler<RecordProgressHeartbeatCommand>
 {
+    public const int MaxSecondsPerHeartbeat = 60;
+
     public async Task Handle(RecordProgressHeartbeatCommand request, CancellationToken ct)
     {
+        if (!await db.TrainingModules.AsNoTracking().AnyAsync(m => m.Id == request.ModuleId, ct))
+            throw new KeyNotFoundException($"Training module {request.ModuleId} not found.");
+
         var progress = await db.TrainingProgress
             .FirstOrDefaultAsync(p => p.UserId == request.UserId && p.ModuleId == request.ModuleId, ct);
+
+        var seconds = Math.Clamp(request.Seconds, 0, MaxSecondsPerHeartbeat);
 
         if (progress is null)
         {
@@ -24,12 +31,12 @@ public class RecordProgressHeartbeatHandler(AppDbContext db) : IRequestHandler<R
                 ModuleId = request.ModuleId,
                 Status = TrainingProgressStatus.InProgress,
                 StartedAt = DateTimeOffset.UtcNow,
-                TimeSpentSeconds = Math.Max(0, request.Seconds),
+                TimeSpentSeconds = seconds,
             });
         }
         else if (progress.Status != TrainingProgressStatus.Completed)
         {
-            progress.TimeSpentSeconds += Math.Max(0, request.Seconds);
+            progress.TimeSpentSeconds += seconds;
         }
 
         await db.SaveChangesAsync(ct);
