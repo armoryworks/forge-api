@@ -25,13 +25,13 @@ public record UpdateWorkCenterCommand(
     int? CompanyLocationId,
     int SortOrder,
     int? TeamId = null,
-    decimal? IdealCycleTimeSeconds = null) : IRequest<WorkCenterResponseModel>;
+    decimal? IdealCycleTimeSeconds = null) : IRequest<WorkCenterResponseModel>, IWorkCenterFields;
 
 public class UpdateWorkCenterValidator : AbstractValidator<UpdateWorkCenterCommand>
 {
     public UpdateWorkCenterValidator()
     {
-        RuleFor(x => x.IdealCycleTimeSeconds).GreaterThan(0).When(x => x.IdealCycleTimeSeconds.HasValue);
+        Include(new WorkCenterFieldsValidator());
     }
 }
 
@@ -46,9 +46,11 @@ public class UpdateWorkCenterHandler(AppDbContext db) : IRequestHandler<UpdateWo
             ? await db.Teams.Where(t => t.Id == wc.TeamId).Select(t => t.Name).FirstOrDefaultAsync(cancellationToken)
             : await WorkCenterTeamGuard.ResolveTeamNameAsync(db, request.TeamId, cancellationToken);
 
+        var code = await WorkCenterCodeGuard.EnsureUniqueAsync(db, request.Code, wc.Id, cancellationToken);
+
         var changedFields = new List<string>();
         if (request.Name != wc.Name) { wc.Name = request.Name; changedFields.Add("name"); }
-        if (request.Code != wc.Code) { wc.Code = request.Code; changedFields.Add("code"); }
+        if (code != wc.Code) { wc.Code = code; changedFields.Add("code"); }
         if (request.Description != wc.Description) { wc.Description = request.Description; changedFields.Add("description"); }
         if (request.DailyCapacityHours != wc.DailyCapacityHours) { wc.DailyCapacityHours = request.DailyCapacityHours; changedFields.Add("dailyCapacityHours"); }
         if (request.EfficiencyPercent != wc.EfficiencyPercent) { wc.EfficiencyPercent = request.EfficiencyPercent; changedFields.Add("efficiencyPercent"); }

@@ -204,4 +204,58 @@ public class WorkCenterHandlerTests
         new UpdateWorkCenterValidator().Validate(new UpdateWorkCenterCommand(
             1, "Press", "WC-PR", null, 8m, 100m, 1, 40m, 20m, true, null, null, 1, IdealCycleTimeSeconds: seconds)).IsValid.Should().BeFalse();
     }
+
+    [Theory]
+    [InlineData(25, 100, 1, 0, 0)]
+    [InlineData(8, 0, 1, 0, 0)]
+    [InlineData(8, 100, 0, 0, 0)]
+    [InlineData(8, 100, 1, -1, 0)]
+    [InlineData(8, 100, 1, 0, -1)]
+    public void UpdateWorkCenterValidator_RejectsTheSameValuesAsCreate(
+        decimal dailyHours, decimal efficiency, int machines, decimal labor, decimal burden)
+    {
+        var update = new UpdateWorkCenterCommand(1, "Press", "PR", null, dailyHours, efficiency, machines, labor, burden, true, null, null, 0);
+        var create = new CreateWorkCenterCommand("Press", "PR", null, dailyHours, efficiency, machines, labor, burden, null, null, 0);
+
+        new UpdateWorkCenterValidator().Validate(update).IsValid.Should().BeFalse();
+        new CreateWorkCenterValidator().Validate(create).IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public void WorkCenterValidators_AcceptAFullDayPerMachine()
+    {
+        new UpdateWorkCenterValidator().Validate(new UpdateWorkCenterCommand(1, "Press", "PR", null, 24m, 100m, 3, 0m, 0m, true, null, null, 0))
+            .IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateWorkCenter_CodeTakenInAnotherCase_IsAConflict()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.WorkCenters.Add(new WorkCenter { Name = "Mill", Code = "WC-MILL", DailyCapacityHours = 8m, EfficiencyPercent = 100m, NumberOfMachines = 1 });
+        await db.SaveChangesAsync();
+
+        var act = () => new CreateWorkCenterHandler(db).Handle(new CreateWorkCenterCommand(
+            "Mill 2", " wc-mill ", null, 8m, 100m, 1, 0m, 0m, null, null, 0), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task UpdateWorkCenter_KeepsItsOwnCodeInAnotherCaseAndTrimsIt()
+    {
+        using var db = TestDbContextFactory.Create();
+        var wc = new WorkCenter { Name = "Mill", Code = "WC-MILL", DailyCapacityHours = 8m, EfficiencyPercent = 100m, NumberOfMachines = 1 };
+        var other = new WorkCenter { Name = "Lathe", Code = "WC-LATHE", DailyCapacityHours = 8m, EfficiencyPercent = 100m, NumberOfMachines = 1 };
+        db.WorkCenters.AddRange(wc, other);
+        await db.SaveChangesAsync();
+
+        var result = await new UpdateWorkCenterHandler(db).Handle(new UpdateWorkCenterCommand(
+            wc.Id, "Mill", " wc-mill ", null, 8m, 100m, 1, 0m, 0m, true, null, null, 0), CancellationToken.None);
+        var clash = () => new UpdateWorkCenterHandler(db).Handle(new UpdateWorkCenterCommand(
+            other.Id, "Lathe", "WC-MILL", null, 8m, 100m, 1, 0m, 0m, true, null, null, 0), CancellationToken.None);
+
+        result.Code.Should().Be("wc-mill");
+        await clash.Should().ThrowAsync<InvalidOperationException>();
+    }
 }
