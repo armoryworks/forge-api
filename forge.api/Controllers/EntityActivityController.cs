@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Forge.Api.Authorization;
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Activity;
 using Forge.Core.Models;
@@ -13,7 +14,7 @@ namespace Forge.Api.Controllers;
 [Route("api/v1/{entityType}/{entityId:int}")]
 [Authorize]
 [RequiresCapability("CAP-CROSS-ACTIVITY-LOG")]
-public class EntityActivityController(IMediator mediator) : ControllerBase
+public class EntityActivityController(IMediator mediator, IEntityAccessResolver access) : ControllerBase
 {
     private static readonly HashSet<string> AllowedEntityTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -29,6 +30,8 @@ public class EntityActivityController(IMediator mediator) : ControllerBase
     {
         if (!AllowedEntityTypes.Contains(entityType))
             return BadRequest($"Entity type '{entityType}' is not supported.");
+        if (!await CanAccess(entityType, entityId, forWrite: false))
+            return Forbid();
 
         var result = await mediator.Send(new GetEntityActivityQuery(entityType, entityId));
         return Ok(result);
@@ -40,6 +43,8 @@ public class EntityActivityController(IMediator mediator) : ControllerBase
     {
         if (!AllowedEntityTypes.Contains(entityType))
             return BadRequest($"Entity type '{entityType}' is not supported.");
+        if (!await CanAccess(entityType, entityId, forWrite: false))
+            return Forbid();
 
         var result = await mediator.Send(new GetEntityHistoryQuery(entityType, entityId));
         return Ok(result);
@@ -51,6 +56,8 @@ public class EntityActivityController(IMediator mediator) : ControllerBase
     {
         if (!AllowedEntityTypes.Contains(entityType))
             return BadRequest($"Entity type '{entityType}' is not supported.");
+        if (!await CanAccess(entityType, entityId, forWrite: false))
+            return Forbid();
 
         var result = await mediator.Send(new GetEntityNotesQuery(entityType, entityId));
         return Ok(result);
@@ -63,6 +70,8 @@ public class EntityActivityController(IMediator mediator) : ControllerBase
     {
         if (!AllowedEntityTypes.Contains(entityType))
             return BadRequest($"Entity type '{entityType}' is not supported.");
+        if (!await CanAccess(entityType, entityId, forWrite: true))
+            return Forbid();
 
         var result = await mediator.Send(new CreateEntityNoteCommand(
             entityType, entityId, request.Text, request.MentionedUserIds));
@@ -74,8 +83,10 @@ public class EntityActivityController(IMediator mediator) : ControllerBase
     {
         if (!AllowedEntityTypes.Contains(entityType))
             return BadRequest($"Entity type '{entityType}' is not supported.");
+        if (!await CanAccess(entityType, entityId, forWrite: true))
+            return Forbid();
 
-        await mediator.Send(new DeleteEntityNoteCommand(noteId));
+        await mediator.Send(new DeleteEntityNoteCommand(entityType, entityId, noteId));
         return NoContent();
     }
 
@@ -86,11 +97,16 @@ public class EntityActivityController(IMediator mediator) : ControllerBase
     {
         if (!AllowedEntityTypes.Contains(entityType))
             return BadRequest($"Entity type '{entityType}' is not supported.");
+        if (!await CanAccess(entityType, entityId, forWrite: true))
+            return Forbid();
 
         var result = await mediator.Send(new CreateEntityCommentCommand(
             entityType, entityId, request.Comment, request.MentionedUserIds));
         return Created($"api/v1/{entityType}/{entityId}/activity/{result.Id}", result);
     }
+
+    private Task<bool> CanAccess(string entityType, int entityId, bool forWrite) =>
+        access.CanAccessAsync(entityType, entityId, User, forWrite, HttpContext.RequestAborted);
 }
 
 public record CreateEntityNoteRequestModel(string Text, int[] MentionedUserIds);

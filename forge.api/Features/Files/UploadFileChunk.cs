@@ -5,6 +5,8 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Forge.Api.Authorization;
+using Forge.Api.Middleware;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -59,7 +61,8 @@ public class UploadFileChunkHandler(
     IFileRepository fileRepo,
     IHttpContextAccessor httpContext,
     IOptions<MinioOptions> minioOptions,
-    ILogger<UploadFileChunkHandler> logger) : IRequestHandler<UploadFileChunkCommand, ChunkedUploadResponseModel>
+    ILogger<UploadFileChunkHandler> logger,
+    IEntityAccessResolver access) : IRequestHandler<UploadFileChunkCommand, ChunkedUploadResponseModel>
 {
     private const string TempDirEnvKey = "CHUNK_UPLOAD_TEMP_PATH";
     private const string DefaultTempDir = "/tmp/forge-uploads";
@@ -68,6 +71,10 @@ public class UploadFileChunkHandler(
         UploadFileChunkCommand request,
         CancellationToken cancellationToken)
     {
+        if (!await access.CanAccessAsync(
+                request.EntityType, request.EntityId, httpContext.HttpContext?.User, forWrite: true, cancellationToken))
+            throw new ForbiddenException("You do not have permission to attach files to this record.");
+
         var tempDir = GetTempDirectory(request.UploadId);
         Directory.CreateDirectory(tempDir);
 

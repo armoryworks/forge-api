@@ -18,7 +18,7 @@ namespace Forge.Api.Controllers;
 [CapabilityBootstrap]
 public class EntityPreviewController(IMediator mediator) : ControllerBase
 {
-    /// <summary>Returns a lightweight, non-sensitive preview for a linked record, or 404 when the type is unsupported or the record is missing.</summary>
+    /// <summary>Returns a lightweight, non-sensitive preview for a linked record, or 404 when the type is unsupported, the record is missing or the caller's roles cannot see it.</summary>
     [HttpGet("{type}/{id:int}")]
     public async Task<ActionResult<EntityPreviewModel>> Get(string type, int id)
     {

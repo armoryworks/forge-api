@@ -1,6 +1,8 @@
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Authorization;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -8,19 +10,26 @@ namespace Forge.Api.Features.Preview;
 
 /// <summary>
 /// Loads a minimal, non-sensitive preview for a linked record. Returns null
-/// for unknown/unsupported types (the controller maps that to 404). Read-only:
+/// for unknown/unsupported types and for records the caller's roles cannot see
+/// (the controller maps that to 404). Read-only:
 /// AsNoTracking, no ActivityLog. Surfaces ONLY list-row-visible basics —
 /// identity, status, a date, a headline figure, and jump links — never costs,
 /// margins, tax ids, credit limits, bank details, or scan/security tokens.
 /// </summary>
 public record GetEntityPreviewQuery(string Type, int Id) : IRequest<EntityPreviewModel?>;
 
-public class GetEntityPreviewHandler(AppDbContext db)
+public class GetEntityPreviewHandler(
+    AppDbContext db,
+    IEntityAccessResolver access,
+    IHttpContextAccessor httpContext)
     : IRequestHandler<GetEntityPreviewQuery, EntityPreviewModel?>
 {
     public async Task<EntityPreviewModel?> Handle(GetEntityPreviewQuery request, CancellationToken ct)
     {
         var id = request.Id;
+        if (!await access.CanAccessAsync(request.Type ?? string.Empty, id, httpContext.HttpContext?.User, forWrite: false, ct))
+            return null;
+
         return request.Type?.Trim().ToLowerInvariant() switch
         {
             "customer" => await Customer(id, ct),

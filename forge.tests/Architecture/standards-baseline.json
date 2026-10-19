@@ -85,7 +85,6 @@
     "forge.api/Features/Expenses/DeleteExpense.cs": 1,
     "forge.api/Features/Expenses/DeleteRecurringExpense.cs": 1,
     "forge.api/Features/Expenses/GetUpcomingExpenses.cs": 1,
-    "forge.api/Features/Files/DeleteFile.cs": 1,
     "forge.api/Features/IcpRubrics/IcpRubricHandlers.cs": 1,
     "forge.api/Features/Inventory/AdjustStock.cs": 2,
     "forge.api/Features/Inventory/CreateCycleCount.cs": 1,
