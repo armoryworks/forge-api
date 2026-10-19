@@ -354,6 +354,33 @@ public class InvoiceArPostingServiceTests
     }
 
     [Fact]
+    public async Task SalesTaxLiabilityReport_TiesToTheSalesTaxPayableCredits()
+    {
+        using var db = await SeedAsync();
+        var taxed = await AddInvoiceAsync(db, taxRate: 0.08m);
+        var withFreight = await AddInvoiceAsync(db, taxRate: 0.0725m);
+        withFreight.Lines.Single(l => l.LineNumber == 2).TaxCode = InvoiceLine.NonTaxableCode;
+        var exempt = await AddInvoiceAsync(db, taxRate: 0m, taxExempt: true);
+        await db.SaveChangesAsync();
+        var service = CreateService(db, fullGlOn: true);
+
+        foreach (var invoice in new[] { taxed, withFreight, exempt })
+        {
+            await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+            invoice.Status = InvoiceStatus.Sent;
+        }
+        await db.SaveChangesAsync();
+
+        var report = await new GetSalesTaxLiabilityHandler(db).Handle(new GetSalesTaxLiabilityQuery(), default);
+        var credited = await db.JournalEntries.SelectMany(e => e.Lines)
+            .Where(l => l.GlAccountId == SalesTaxPayableId)
+            .SumAsync(l => l.Credit - l.Debit);
+
+        report.TotalLiability.Should().Be(credited);
+        report.TotalLiability.Should().Be(16m + 7.25m);
+    }
+
+    [Fact]
     public async Task Post_CalledTwice_IsIdempotent()
     {
         using var db = await SeedAsync();
