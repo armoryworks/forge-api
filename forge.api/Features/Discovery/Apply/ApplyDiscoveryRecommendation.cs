@@ -6,7 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Capabilities.Discovery;
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Capabilities.BulkToggle;
+using Forge.Api.Features.Capabilities.Validate;
 using Forge.Api.Features.Discovery.Preview;
 using Forge.Api.Services;
 using Forge.Core.Entities;
@@ -57,7 +59,8 @@ public class ApplyDiscoveryRecommendationHandler(
     ICapabilitySnapshotProvider snapshots,
     IMediator mediator,
     ISystemAuditWriter auditWriter,
-    IClock clock)
+    IClock clock,
+    IFullGlCapabilityGuard glGuard)
     : IRequestHandler<ApplyDiscoveryRecommendationCommand, DiscoveryRecommendationResponseModel>
 {
     public async Task<DiscoveryRecommendationResponseModel> Handle(
@@ -79,7 +82,29 @@ public class ApplyDiscoveryRecommendationHandler(
         // the recommended one).
         var snapshot = snapshots.Current;
         var deltas = DiscoveryRecommendationEngine.ComputeDeltas(
-            request.ChosenPresetId, snapshot.EnabledByCode, answerSet);
+            request.ChosenPresetId,
+            snapshot.EnabledByCode,
+            answerSet,
+            await glGuard.IsLedgerLiveAsync(snapshot.EnabledByCode, cancellationToken));
+
+        if (deltas.Count > 0)
+        {
+            var validation = await mediator.Send(
+                new ValidateCapabilityChangesCommand(
+                    deltas.Select(d => new ValidateChangeItem(d.Code, d.WillBeEnabled)).ToList()),
+                cancellationToken);
+            if (!validation.Valid)
+            {
+                throw new CapabilityMutationException(
+                    StatusCodes.Status409Conflict,
+                    "bulk-validation-failed",
+                    $"{validation.Violations.Count} constraint violation(s) in bulk toggle — none applied.",
+                    new Dictionary<string, object?>
+                    {
+                        ["violations"] = validation.Violations,
+                    });
+            }
+        }
 
         // Write the DiscoveryRun audit row FIRST so the bulk-toggle audit rows
         // can reference its id (via the system audit details payload).
@@ -150,8 +175,12 @@ public class ApplyDiscoveryRecommendationHandler(
 
         // Return the recommendation tuple decorated with the freshly-recomputed
         // deltas (now empty after apply) so the UI can render the success state.
+        var after = snapshots.Current.EnabledByCode;
         var freshDeltas = DiscoveryRecommendationEngine.ComputeDeltas(
-            request.ChosenPresetId, snapshots.Current.EnabledByCode, answerSet);
+            request.ChosenPresetId,
+            after,
+            answerSet,
+            await glGuard.IsLedgerLiveAsync(after, cancellationToken));
 
         return new DiscoveryRecommendationResponseModel(
             PresetId: request.ChosenPresetId,

@@ -57,7 +57,7 @@ public class ToggleCapabilityFullGlGateTests
         var hub = new Mock<IHubContext<NotificationHub>>();
         hub.SetupGet(h => h.Clients).Returns(clients.Object);
 
-        return new ToggleCapabilityHandler(db, new SnapshotStub(), audit.Object, hub.Object, new GlCapabilityGate(db));
+        return new ToggleCapabilityHandler(db, new SnapshotStub(), audit.Object, hub.Object, new FullGlCapabilityGuard(db, new GlCapabilityGate(db)));
     }
 
     private static AppDbContext SeededDb(bool withOpeningJournal)

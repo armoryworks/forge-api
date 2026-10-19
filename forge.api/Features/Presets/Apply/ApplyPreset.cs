@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Capabilities.Discovery;
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Capabilities.BulkToggle;
 using Forge.Api.Features.Presets.Apply.Layers;
 using Forge.Api.Features.Presets.Models;
@@ -57,7 +58,8 @@ public class ApplyPresetHandler(
     IMediator mediator,
     ISystemAuditWriter auditWriter,
     TerminologySpanishTranslator spanish,
-    IHubContext<NotificationHub> notificationHub)
+    IHubContext<NotificationHub> notificationHub,
+    IFullGlCapabilityGuard glGuard)
     : IRequestHandler<ApplyPresetCommand, PresetApplyResultResponseModel>
 {
     public async Task<PresetApplyResultResponseModel> Handle(
@@ -78,6 +80,13 @@ public class ApplyPresetHandler(
         // Compute deltas vs current state.
         var snapshot = snapshots.Current;
         var current = snapshot.EnabledByCode;
+        PresetCapabilityHolds.Apply(
+            targetSet,
+            current,
+            await glGuard.IsLedgerLiveAsync(current, cancellationToken),
+            preset.IsCustom || request.IsCustomOverride
+                ? request.CustomOverrides?.Select(o => o.Code).ToList()
+                : null);
         var deltas = new List<PresetCapabilityDeltaResponseModel>();
         foreach (var def in CapabilityCatalog.All)
         {

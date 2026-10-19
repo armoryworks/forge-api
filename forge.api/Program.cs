@@ -461,6 +461,8 @@ try
     // capability stays OFF; nothing calls EnsureCanEnableFullGlAsync yet.
     builder.Services.AddScoped<Forge.Api.Features.Accounting.IGlCapabilityGate,
                                Forge.Api.Features.Accounting.GlCapabilityGate>();
+    builder.Services.AddScoped<Forge.Api.Features.Accounting.IFullGlCapabilityGuard,
+                               Forge.Api.Features.Accounting.FullGlCapabilityGuard>();
     // Startup validator for the determination map (§5.2). Invoked once after the
     // capability snapshot hydrates; warns (FULLGL off / dark) or fails fast
     // (FULLGL on).

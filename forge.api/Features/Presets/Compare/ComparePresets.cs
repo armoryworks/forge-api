@@ -3,6 +3,7 @@ using MediatR;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Capabilities.Discovery;
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Presets.List;
 using Forge.Api.Features.Presets.Models;
 
@@ -36,14 +37,17 @@ public class ComparePresetsValidator : AbstractValidator<ComparePresetsQuery>
     }
 }
 
-public class ComparePresetsHandler(ICapabilitySnapshotProvider snapshots)
+public class ComparePresetsHandler(
+    ICapabilitySnapshotProvider snapshots,
+    IFullGlCapabilityGuard glGuard)
     : IRequestHandler<ComparePresetsQuery, PresetCompareResponseModel>
 {
-    public Task<PresetCompareResponseModel> Handle(
+    public async Task<PresetCompareResponseModel> Handle(
         ComparePresetsQuery request,
         CancellationToken cancellationToken)
     {
         var snapshot = snapshots.Current;
+        var ledgerLive = await glGuard.IsLedgerLiveAsync(snapshot.EnabledByCode, cancellationToken);
 
         // Resolve presets in the requested order. Unknown ids surface as
         // a not-found 404 via the controller (we throw here for the
@@ -74,7 +78,7 @@ public class ComparePresetsHandler(ICapabilitySnapshotProvider snapshots)
                     ? defaultsSet.Count
                     : p.EnabledCapabilities.Count,
                 IsCustom: p.IsCustom,
-                IsActive: !p.IsCustom && PresetStateComparer.MatchesCurrent(p, snapshot.EnabledByCode),
+                IsActive: !p.IsCustom && PresetStateComparer.MatchesCurrent(p, snapshot.EnabledByCode, ledgerLive),
                 RecommendedFor: PresetMetadata.GetRecommendedForTags(p.Id)))
             .ToList();
 
@@ -104,8 +108,8 @@ public class ComparePresetsHandler(ICapabilitySnapshotProvider snapshots)
             })
             .ToList();
 
-        return Task.FromResult(new PresetCompareResponseModel(
+        return new PresetCompareResponseModel(
             Presets: summaries,
-            Rows: rows));
+            Rows: rows);
     }
 }
