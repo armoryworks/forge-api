@@ -26,7 +26,8 @@ public record RfqDetailResponseModel(
     int? GeneratedPurchaseOrderId,
     string? Notes,
     DateTimeOffset CreatedAt,
-    List<RfqVendorResponseModel> VendorResponses);
+    List<RfqVendorResponseModel> VendorResponses,
+    string? GeneratedPurchaseOrderNumber = null);
 
 public class GetRfqByIdHandler(AppDbContext db)
     : IRequestHandler<GetRfqByIdQuery, RfqDetailResponseModel>
@@ -40,6 +41,13 @@ public class GetRfqByIdHandler(AppDbContext db)
                 .ThenInclude(v => v.Vendor)
             .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"RFQ {request.Id} not found");
+
+        var generatedPoNumber = rfq.GeneratedPurchaseOrderId is int poId
+            ? await db.PurchaseOrders.AsNoTracking()
+                .Where(p => p.Id == poId)
+                .Select(p => p.PONumber)
+                .FirstOrDefaultAsync(cancellationToken)
+            : null;
 
         return new RfqDetailResponseModel(
             rfq.Id,
@@ -74,6 +82,7 @@ public class GetRfqByIdHandler(AppDbContext db)
                 v.InvitedAt,
                 v.RespondedAt,
                 v.IsAwarded,
-                v.DeclineReason)).ToList());
+                v.DeclineReason)).ToList(),
+            generatedPoNumber);
     }
 }

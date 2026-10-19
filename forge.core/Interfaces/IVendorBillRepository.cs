@@ -14,7 +14,21 @@ public interface IVendorBillRepository
     Task<bool> ExistsForVendorInvoiceAsync(int vendorId, string vendorInvoiceNumber, CancellationToken ct);
     /// <summary>True when any of the given payments' LATEST bank transmission is Failed (UI triage flag).</summary>
     Task<bool> HasFailedTransmissionAsync(IReadOnlyCollection<int> vendorPaymentIds, CancellationToken ct);
+    /// <summary>
+    /// Display numbers for the purchase orders a bill references: PO number by PO id, and each PO line's
+    /// 1-based position within its order (lines ordered by id) together with that order's number.
+    /// </summary>
+    Task<VendorBillPurchaseOrderRefs> GetPurchaseOrderRefsAsync(
+        IReadOnlyCollection<int> purchaseOrderIds, CancellationToken ct);
     Task<string> GenerateNextBillNumberAsync(CancellationToken ct);
     Task AddAsync(VendorBill bill, CancellationToken ct);
     Task SaveChangesAsync(CancellationToken ct);
 }
+
+/// <summary>
+/// Purchase-order display references for a bill: <see cref="PoNumbers"/> keyed by PO id and
+/// <see cref="Lines"/> keyed by PO line id.
+/// </summary>
+public record VendorBillPurchaseOrderRefs(
+    IReadOnlyDictionary<int, string> PoNumbers,
+    IReadOnlyDictionary<int, (string PoNumber, int Position)> Lines);

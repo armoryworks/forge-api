@@ -60,6 +60,6 @@ public class StartSequenceInstanceHandler(AppDbContext db, ISequenceEvaluationSe
         await db.SaveChangesAsync(cancellationToken);
 
         var fresh = await db.SequenceInstances.WithGraph().FirstAsync(i => i.Id == instance.Id, cancellationToken);
-        return SequenceMapping.ToModel(fresh);
+        return await SequenceSubjectLabels.ToModelAsync(db, fresh, cancellationToken);
     }
 }

@@ -18,4 +18,5 @@ public record SequenceInstanceResponseModel(
     string? CancelReason,
     uint Version,
     IReadOnlyList<SequenceStepInstanceResponseModel> Steps,
-    IReadOnlyList<SequenceGateInstanceResponseModel> Gates);
+    IReadOnlyList<SequenceGateInstanceResponseModel> Gates,
+    string? SubjectLabel = null);

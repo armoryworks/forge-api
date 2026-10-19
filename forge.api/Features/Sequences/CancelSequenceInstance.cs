@@ -31,6 +31,6 @@ public class CancelSequenceInstanceHandler(AppDbContext db, IClock clock) : IReq
             payloadJson: $"{{\"reason\":\"{i.CancelReason.Replace("\"", "\\\"")}\"}}"));
         db.LogActivityAt("sequence-cancelled", $"Sequence {i.Definition!.Code} cancelled: {i.CancelReason}", SequenceQueries.IndexingPoints(i));
         await db.SaveChangesAsync(cancellationToken);
-        return SequenceMapping.ToModel(i);
+        return await SequenceSubjectLabels.ToModelAsync(db, i, cancellationToken);
     }
 }

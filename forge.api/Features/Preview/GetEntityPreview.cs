@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -5,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Forge.Api.Authorization;
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Extensions;
 
 namespace Forge.Api.Features.Preview;
 
@@ -51,7 +54,7 @@ public class GetEntityPreviewHandler(
         if (c is null) return null;
 
         var fields = new List<PreviewField>();
-        Add(fields, "Status", Active(c.IsActive));
+        AddEnum(fields, "Status", Active(c.IsActive));
 
         return new EntityPreviewModel("customer", c.Id, Display(c.CompanyName, c.Name),
             c.CustomerNumber, fields, []);
@@ -63,7 +66,7 @@ public class GetEntityPreviewHandler(
         if (v is null) return null;
 
         var fields = new List<PreviewField>();
-        Add(fields, "Status", Active(v.IsActive));
+        AddEnum(fields, "Status", Active(v.IsActive));
         Add(fields, "Contact", v.ContactName);
 
         return new EntityPreviewModel("vendor", v.Id, v.CompanyName, v.VendorNumber, fields, []);
@@ -78,7 +81,7 @@ public class GetEntityPreviewHandler(
 
         var fields = new List<PreviewField>();
         Add(fields, "Stage", j.CurrentStage?.Name);
-        Add(fields, "Priority", j.Priority.ToString());
+        AddEnum(fields, "Priority", j.Priority.ToString());
         Add(fields, "Due", Date(j.DueDate));
 
         var links = new List<PreviewLink>();
@@ -97,9 +100,9 @@ public class GetEntityPreviewHandler(
         if (so is null) return null;
 
         var fields = new List<PreviewField>();
-        Add(fields, "Status", so.Status.ToString());
+        AddEnum(fields, "Status", so.Status.ToString());
         Add(fields, "Requested delivery", Date(so.RequestedDeliveryDate));
-        Add(fields, "Total", Money(so.Total));
+        AddMoney(fields, "Total", so.Total, null);
 
         var links = new List<PreviewLink>();
         Link(links, "customer", so.CustomerId, "Customer");
@@ -117,7 +120,7 @@ public class GetEntityPreviewHandler(
         if (po is null) return null;
 
         var fields = new List<PreviewField>();
-        Add(fields, "Status", po.Status.ToString());
+        AddEnum(fields, "Status", po.Status.ToString());
         Add(fields, "Expected delivery", Date(po.ExpectedDeliveryDate));
 
         var links = new List<PreviewLink>();
@@ -132,15 +135,16 @@ public class GetEntityPreviewHandler(
     {
         var inv = await db.Invoices.AsNoTracking()
             .Include(x => x.Customer)
+            .Include(x => x.Currency)
             .Include(x => x.Lines)
             .FirstOrDefaultAsync(x => x.Id == id, ct);
         if (inv is null) return null;
 
         var fields = new List<PreviewField>();
-        Add(fields, "Status", inv.Status.ToString());
+        AddEnum(fields, "Status", inv.Status.ToString());
         Add(fields, "Invoice date", Date(inv.InvoiceDate));
         Add(fields, "Due", Date(inv.DueDate));
-        Add(fields, "Total", Money(inv.Total));
+        AddMoney(fields, "Total", inv.Total, inv.Currency?.Code);
 
         var links = new List<PreviewLink>();
         Link(links, "customer", inv.CustomerId, "Customer");
@@ -160,10 +164,10 @@ public class GetEntityPreviewHandler(
         if (q is null) return null;
 
         var fields = new List<PreviewField>();
-        Add(fields, "Type", q.Type.ToString());
-        Add(fields, "Status", q.Status.ToString());
+        AddEnum(fields, "Type", q.Type.ToString());
+        AddEnum(fields, "Status", q.Status.ToString());
         Add(fields, "Expires", Date(q.ExpirationDate));
-        Add(fields, "Total", Money(q.EstimatedAmount ?? q.Total));
+        AddMoney(fields, "Total", q.EstimatedAmount ?? q.Total, null);
 
         var links = new List<PreviewLink>();
         Link(links, "customer", q.CustomerId, "Customer");
@@ -179,7 +183,7 @@ public class GetEntityPreviewHandler(
         if (s is null) return null;
 
         var fields = new List<PreviewField>();
-        Add(fields, "Status", s.Status.ToString());
+        AddEnum(fields, "Status", s.Status.ToString());
         Add(fields, "Shipped", Date(s.ShippedDate));
         Add(fields, "Est. delivery", Date(s.EstimatedDeliveryDate));
 
@@ -195,7 +199,7 @@ public class GetEntityPreviewHandler(
         if (p is null) return null;
 
         var fields = new List<PreviewField>();
-        Add(fields, "Status", p.Status.ToString());
+        AddEnum(fields, "Status", p.Status.ToString());
         Add(fields, "Revision", p.Revision);
 
         var links = new List<PreviewLink>();
@@ -213,11 +217,29 @@ public class GetEntityPreviewHandler(
 
     private static string? Date(DateTimeOffset? d) => d?.ToString("yyyy-MM-dd");
 
-    private static string Money(decimal amount) => amount.ToString("N2");
-
     private static void Add(List<PreviewField> fields, string label, string? value)
     {
-        if (!string.IsNullOrWhiteSpace(value)) fields.Add(new PreviewField(label, value));
+        if (!string.IsNullOrWhiteSpace(value)) fields.Add(new PreviewField(label, value, Key(label)));
+    }
+
+    private static void AddEnum(List<PreviewField> fields, string label, string value) =>
+        fields.Add(new PreviewField(label, ActivityChangeSummary.SentenceLabel(value), Key(label), "enum", value));
+
+    private static void AddMoney(List<PreviewField> fields, string label, decimal amount, string? currency) =>
+        fields.Add(new PreviewField(
+            label,
+            currency is null ? amount.ToString("N2", CultureInfo.InvariantCulture) : $"{amount.ToString("N2", CultureInfo.InvariantCulture)} {currency}",
+            Key(label),
+            "money",
+            amount.ToString(CultureInfo.InvariantCulture),
+            currency));
+
+    private static string Key(string label)
+    {
+        var words = label.Split([' ', '.'], StringSplitOptions.RemoveEmptyEntries);
+        return string.Concat(words.Select((w, i) => i == 0
+            ? w.ToLowerInvariant()
+            : char.ToUpperInvariant(w[0]) + w[1..].ToLowerInvariant()));
     }
 
     private static void Link(List<PreviewLink> links, string type, int? id, string label)

@@ -52,7 +52,8 @@ public class GetShipmentByIdHandler(IShipmentRepository repo)
                 l.Quantity,
                 l.Notes)).ToList(),
             shipment.CreatedAt,
-            shipment.UpdatedAt);
+            shipment.UpdatedAt,
+            shipment.Invoice?.InvoiceNumber);
     }
 
     private static string FirstNonBlank(params string?[] values)

@@ -41,11 +41,14 @@ public class AddEcoAffectedItemHandler(AppDbContext db) : IRequestHandler<AddEco
         db.EcoAffectedItems.Add(item);
         await db.SaveChangesAsync(cancellationToken);
 
+        var itemLabels = await EcoAffectedItemLabels.ResolveAsync(db, [item], cancellationToken);
+
         return new EcoAffectedItemResponseModel
         {
             Id = item.Id,
             EntityType = item.EntityType,
             EntityId = item.EntityId,
+            EntityLabel = itemLabels.GetValueOrDefault((item.EntityType, item.EntityId)),
             ChangeDescription = item.ChangeDescription,
             OldValue = item.OldValue,
             NewValue = item.NewValue,

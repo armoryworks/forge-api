@@ -49,6 +49,6 @@ public class ReworkSequenceHandler(AppDbContext db, ISequenceEvaluationService e
         await db.SaveChangesAsync(cancellationToken);
         await evaluation.EvaluateAsync(i.Id, request.UserId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-        return SequenceMapping.ToModel(await db.SequenceInstances.WithGraph().FirstAsync(x => x.Id == i.Id, cancellationToken));
+        return await SequenceSubjectLabels.ToModelAsync(db, await db.SequenceInstances.WithGraph().FirstAsync(x => x.Id == i.Id, cancellationToken), cancellationToken);
     }
 }

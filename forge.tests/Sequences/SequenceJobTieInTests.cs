@@ -64,6 +64,7 @@ public class SequenceJobTieInTests
 
         var runs = await new GetSequenceInstancesHandler(f.Db).Handle(new GetSequenceInstancesQuery("Job", 100, null, null), default);
         runs.Should().ContainSingle();
+        runs[0].SubjectLabel.Should().Be("J-100");
         runs[0].Steps.First(s => s.StepKey == "prep").Status.Should().Be(SequenceStepStatus.Ready);
     }
 
