@@ -50,12 +50,15 @@ public class GetSavedReportsHandler(
         Converters = { new JsonStringEnumConverter() },
     };
 
+    internal static ReportFilterModel[] DeserializeFilters(string? filtersJson) =>
+        !string.IsNullOrEmpty(filtersJson)
+            ? JsonSerializer.Deserialize<ReportFilterModel[]>(filtersJson, FilterJsonOptions) ?? []
+            : [];
+
     internal static SavedReportResponseModel MapToResponse(SavedReport report, string? userName = null)
     {
         var columns = JsonSerializer.Deserialize<string[]>(report.ColumnsJson) ?? [];
-        var filters = !string.IsNullOrEmpty(report.FiltersJson)
-            ? JsonSerializer.Deserialize<ReportFilterModel[]>(report.FiltersJson, FilterJsonOptions) ?? []
-            : [];
+        var filters = DeserializeFilters(report.FiltersJson);
 
         return new SavedReportResponseModel(
             report.Id,

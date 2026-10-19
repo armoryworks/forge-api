@@ -407,9 +407,7 @@ public class ReportRepository(AppDbContext db) : IReportRepository
             .ToListAsync(ct);
 
         var totalRevenue = invoices.Sum(i => i.Subtotal);
-        var totalTax = invoices.Sum(i => i.TaxAmount);
         result.Add(new SimplePnlReportItem("Sales Revenue", "Revenue", totalRevenue));
-        result.Add(new SimplePnlReportItem("Sales Tax Collected", "Revenue", totalTax));
 
         // Expenses by category
         var rawExpenses = await db.Expenses

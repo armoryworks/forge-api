@@ -291,4 +291,27 @@ public sealed class RoleGrantTests
             EffectiveRoles(Single(verb, template)).Should().BeEquivalentTo(CustomersController.CommercialTermsRoles, template);
         }
     }
+
+    [Theory]
+    [InlineData("api/v1/reports/my-work-history")]
+    [InlineData("api/v1/reports/my-time-log")]
+    [InlineData("api/v1/reports/my-expense-history")]
+    [InlineData("api/v1/reports/my-cycle-summary")]
+    public void Self_service_reports_are_readable_by_every_role(string template)
+    {
+        var action = Single("GET", template);
+
+        EffectiveRoles(action).Should().BeEquivalentTo(AllRoles);
+        action.DeclaringType!.GetCustomAttribute<RequiresCapabilityAttribute>()!.Capability.Should().Be("CAP-RPT-OPERATIONAL");
+    }
+
+    [Theory]
+    [InlineData("api/v1/reports/time-by-user")]
+    [InlineData("api/v1/reports/simple-pnl")]
+    [InlineData("api/v1/reports/job-margin")]
+    public void Shop_wide_reports_stay_with_the_office_roles(string template)
+    {
+        EffectiveRoles(Single("GET", template))
+            .Should().BeEquivalentTo(["Admin", "Manager", "OfficeManager", "PM"]);
+    }
 }

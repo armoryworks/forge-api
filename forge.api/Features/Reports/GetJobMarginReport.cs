@@ -2,6 +2,8 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Core.Entities;
+using Forge.Core.Enums;
 using Forge.Core.Models;
 using Forge.Data.Context;
 
@@ -55,9 +57,13 @@ public class GetJobMarginReportHandler(AppDbContext db)
         {
             // Revenue: sum of invoice line totals linked via SalesOrder
             var revenue = 0m;
-            if (job.SalesOrderLine?.SalesOrder?.Invoices is { Count: > 0 } invoices)
+            if (job.SalesOrderLine is { SalesOrder.Invoices: { Count: > 0 } invoices } soLine)
             {
-                revenue = invoices.Sum(inv => inv.Lines.Sum(l => l.Quantity * l.UnitPrice));
+                revenue = invoices
+                    .Where(inv => inv.Status != InvoiceStatus.Voided && inv.Status != InvoiceStatus.Draft)
+                    .SelectMany(inv => inv.Lines)
+                    .Where(l => IsLineForSalesOrderLine(l, soLine))
+                    .Sum(l => l.Quantity * l.UnitPrice);
             }
 
             // Labor cost
@@ -91,6 +97,12 @@ public class GetJobMarginReportHandler(AppDbContext db)
 
         return results.OrderByDescending(r => r.Revenue).ToList();
     }
+
+    private static bool IsLineForSalesOrderLine(InvoiceLine invoiceLine, SalesOrderLine salesOrderLine) =>
+        salesOrderLine.PartId is { } partId
+            ? invoiceLine.PartId == partId
+            : invoiceLine.PartId is null
+                && string.Equals(invoiceLine.Description.Trim(), salesOrderLine.Description.Trim(), StringComparison.OrdinalIgnoreCase);
 
     private async Task<decimal> GetLaborRateAsync(CancellationToken ct)
     {

@@ -13,7 +13,7 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Features.Reports;
 
-public record ExportReportQuery(int ReportId, ReportExportFormat Format) : IRequest<ExportReportResult>;
+public record ExportReportQuery(int ReportId, ReportExportFormat Format, int? RequestingUserId = null) : IRequest<ExportReportResult>;
 
 public record ExportReportResult(byte[] Content, string ContentType, string FileName);
 
@@ -22,6 +22,9 @@ public class ExportReportHandler(
     IMediator mediator,
     IClock clock) : IRequestHandler<ExportReportQuery, ExportReportResult>
 {
+    internal const int ExportPageSize = 1000;
+    internal const int MaxExportRows = 50_000;
+
     public async Task<ExportReportResult> Handle(ExportReportQuery request, CancellationToken cancellationToken)
     {
         var report = await db.SavedReports
@@ -29,15 +32,40 @@ public class ExportReportHandler(
             .FirstOrDefaultAsync(r => r.Id == request.ReportId, cancellationToken)
             ?? throw new KeyNotFoundException($"Saved report {request.ReportId} not found.");
 
-        var runResult = await mediator.Send(new RunReportCommand(
-            report.EntitySource,
-            System.Text.Json.JsonSerializer.Deserialize<string[]>(report.ColumnsJson) ?? [],
-            null,
-            report.GroupByField,
-            report.SortField,
-            report.SortDirection,
-            1,
-            10000), cancellationToken);
+        if (request.RequestingUserId is { } userId && report.UserId != userId && !report.IsShared)
+            throw new KeyNotFoundException($"Saved report {request.ReportId} not found.");
+
+        var columns = System.Text.Json.JsonSerializer.Deserialize<string[]>(report.ColumnsJson) ?? [];
+        var filters = GetSavedReportsHandler.DeserializeFilters(report.FiltersJson);
+        var rows = new List<Dictionary<string, object?>>();
+        var page = 1;
+        var totalCount = 0;
+
+        while (rows.Count < MaxExportRows)
+        {
+            var pageResult = await mediator.Send(new RunReportCommand(
+                report.EntitySource,
+                columns,
+                filters,
+                null,
+                report.SortField,
+                report.SortDirection,
+                page,
+                ExportPageSize), cancellationToken);
+
+            totalCount = pageResult.TotalCount;
+            rows.AddRange(pageResult.Rows);
+
+            if (pageResult.Rows.Count < ExportPageSize || rows.Count >= totalCount)
+                break;
+
+            page++;
+        }
+
+        if (rows.Count > MaxExportRows)
+            rows.RemoveRange(MaxExportRows, rows.Count - MaxExportRows);
+
+        var runResult = new RunReportResponseModel(columns, rows, totalCount, null);
 
         return request.Format switch
         {
