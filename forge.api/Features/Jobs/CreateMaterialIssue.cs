@@ -156,24 +156,18 @@ public class CreateMaterialIssueHandler(
             if (bin.Quantity < request.Quantity)
                 throw new InvalidOperationException($"Insufficient quantity in bin. Available: {bin.Quantity}, Requested: {request.Quantity}");
             bin.Quantity -= request.Quantity;
+            if (bin.Quantity == 0 && bin.ReservedQuantity == 0)
+            {
+                bin.RemovedAt = now;
+                bin.RemovedBy = request.IssuedById;
+            }
         }
         else if (request.IssueType == MaterialIssueType.Return)
         {
             bin.Quantity += request.Quantity;
         }
 
-        // Record bin movement
-        db.BinMovements.Add(new BinMovement
-        {
-            EntityType = "part",
-            EntityId = request.PartId,
-            Quantity = request.IssueType == MaterialIssueType.Return ? request.Quantity : -request.Quantity,
-            LotNumber = bin.LotNumber,
-            FromLocationId = bin.LocationId,
-            Reason = BinMovementReason.Adjustment,
-            MovedBy = request.IssuedById,
-            MovedAt = now,
-        });
+        AddMovement(request, bin.LotNumber, request.Quantity, bin.LocationId, now);
 
         return [new StockDraw(bin.LotNumber ?? request.LotNumber, request.Quantity, bin.Id, null)];
     }
@@ -219,7 +213,7 @@ public class CreateMaterialIssueHandler(
 
         var drawn = BinContentDrawDown.Take(rows, request.Quantity, request.IssuedById, now);
         foreach (var (row, taken) in drawn)
-            AddMovement(request, row.LotNumber, -taken, locationId, now);
+            AddMovement(request, row.LotNumber, taken, locationId, now);
         foreach (var lot in drawn.Select(d => d.Row.LotNumber).OfType<string>().Distinct())
         {
             if (expiredLots.TryGetValue(lot, out var expiredOn))
@@ -295,18 +289,21 @@ public class CreateMaterialIssueHandler(
 
     private void AddMovement(
         CreateMaterialIssueCommand request, string? lotNumber, decimal quantity, int locationId, DateTimeOffset now)
-        => db.BinMovements.Add(new BinMovement
+    {
+        var isReturn = request.IssueType == MaterialIssueType.Return;
+        db.BinMovements.Add(new BinMovement
         {
             EntityType = "part",
             EntityId = request.PartId,
-            Quantity = quantity,
+            Quantity = Math.Abs(quantity),
             LotNumber = lotNumber,
-            FromLocationId = quantity < 0 ? locationId : null,
-            ToLocationId = quantity > 0 ? locationId : null,
-            Reason = BinMovementReason.Adjustment,
+            FromLocationId = isReturn ? null : locationId,
+            ToLocationId = isReturn ? locationId : null,
+            Reason = isReturn ? BinMovementReason.Return : BinMovementReason.Issue,
             MovedBy = request.IssuedById,
             MovedAt = now,
         });
+    }
 
     private sealed record StockDraw(string? LotNumber, decimal Quantity, int? BinContentId, BinContent? Row);
 }

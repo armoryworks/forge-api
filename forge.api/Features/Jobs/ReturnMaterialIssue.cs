@@ -138,7 +138,7 @@ public class ReturnMaterialIssueHandler(AppDbContext db, IMaterialIssuePostingSe
             Quantity = original.Quantity,
             LotNumber = row.LotNumber,
             ToLocationId = row.LocationId,
-            Reason = BinMovementReason.Adjustment,
+            Reason = BinMovementReason.Return,
             MovedBy = userId,
             MovedAt = now,
         });

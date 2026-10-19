@@ -150,7 +150,8 @@ public class ReturnMaterialIssueHandlerTests : IDisposable
         var returned = await _db.MaterialIssues.AsNoTracking().SingleAsync(m => m.Id == result.Id);
         returned.BinContentId.Should().Be(row.Id);
         var movement = await _db.BinMovements.AsNoTracking().SingleAsync();
-        (movement.Quantity, movement.ToLocationId, movement.LotNumber).Should().Be((5m, (int?)bin.Id, "HEAT-A"));
+        (movement.Quantity, movement.ToLocationId, movement.LotNumber, movement.Reason)
+            .Should().Be((5m, (int?)bin.Id, "HEAT-A", (BinMovementReason?)BinMovementReason.Return));
     }
 
     [Fact]
