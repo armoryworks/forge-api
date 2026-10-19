@@ -72,6 +72,20 @@ public interface IInvoiceArPostingService
     /// <param name="invoiceId">The invoice whose shipment was delivered.</param>
     /// <param name="deliveredByUserId">Server-trusted actor (recorded as PostedBy).</param>
     Task PostDeliveryReclassAsync(int invoiceId, int deliveredByUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reverses everything the invoice posted, for an invoice being voided: the AR / revenue / tax entry
+    /// (<c>:REVENUE</c>), the delivery reclass (<c>:REVENUE_RECLASS</c>) and the COGS / finished-goods relief
+    /// (<c>:COGS</c>), each by an equal-and-opposite entry, and flips the invoice's AR open item to Voided.
+    /// Finished goods relieved from the valuation store go back to it at the line's COGS value, only for parts
+    /// that still have a store row. Each entry reverses in its own period, or on <paramref name="voidDate"/>
+    /// when that period is hard-closed. A no-op while CAP-ACCT-FULLGL is off; entries that are not Posted
+    /// (never posted, or already reversed) are skipped, so a second call does nothing.
+    /// </summary>
+    /// <param name="invoiceId">The invoice being voided.</param>
+    /// <param name="voidDate">The void date in the shop's calendar, used when an original period is hard-closed.</param>
+    /// <param name="voidedByUserId">Server-trusted actor (recorded as PostedBy on the reversals).</param>
+    Task ReverseInvoiceFinalizedAsync(int invoiceId, DateOnly voidDate, int voidedByUserId, CancellationToken ct = default);
 }
 
 /// <inheritdoc />
@@ -133,6 +147,12 @@ public sealed class InvoiceArPostingService(
         if (invoice is null)
         {
             Log.Warning("Delivery reclass skipped: invoice {InvoiceId} not found (FULLGL on).", invoiceId);
+            return;
+        }
+
+        if (invoice.Status == InvoiceStatus.Voided)
+        {
+            Log.Information("Delivery reclass skipped: invoice {InvoiceId} is voided.", invoiceId);
             return;
         }
 
@@ -219,6 +239,102 @@ public sealed class InvoiceArPostingService(
         // Its own :COGS idempotency key makes this safe if it somehow already posted.
         await PostCogsAsync(invoice, book, deliveredByUserId, ct);
     }
+
+    public async Task ReverseInvoiceFinalizedAsync(
+        int invoiceId, DateOnly voidDate, int voidedByUserId, CancellationToken ct = default)
+    {
+        if (!capabilities.IsEnabled(FullGlCapability))
+            return;
+
+        var invoice = await db.Invoices
+            .Include(i => i.Lines).ThenInclude(l => l.Part)
+            .FirstOrDefaultAsync(i => i.Id == invoiceId, ct);
+        if (invoice is null)
+        {
+            Log.Warning("Invoice void reversal skipped: invoice {InvoiceId} not found (FULLGL on).", invoiceId);
+            return;
+        }
+
+        var book = await db.Books.AsNoTracking()
+            .Where(b => b.IsActive)
+            .OrderBy(b => b.Id)
+            .FirstOrDefaultAsync(ct);
+        if (book is null)
+            throw new PostingException(
+                "NO_POSTING_BOOK",
+                "CAP-ACCT-FULLGL is enabled but no active accounting Book is seeded to reverse the invoice in.");
+
+        var keys = new[]
+        {
+            $"{JournalSource.AR}:Invoice:{invoice.Id}:REVENUE",
+            $"{JournalSource.AR}:Invoice:{invoice.Id}:REVENUE_RECLASS",
+            $"{JournalSource.Inventory}:Invoice:{invoice.Id}:COGS",
+        };
+        var posted = await db.JournalEntries
+            .Include(e => e.Lines)
+            .Where(e => e.BookId == book.Id
+                && e.IdempotencyKey != null && keys.Contains(e.IdempotencyKey)
+                && e.Status == JournalEntryStatus.Posted)
+            .ToListAsync(ct);
+
+        var openItem = await db.ArOpenItems.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(i => i.SourceType == "Invoice" && i.SourceId == invoice.Id, ct);
+        if (openItem is not null)
+            openItem.Status = OpenItemStatus.Voided;
+
+        var cogsEntry = posted.FirstOrDefault(e => e.IdempotencyKey == keys[2]);
+        if (cogsEntry is not null)
+            await RestoreFinishedGoodsAsync(invoice, book, cogsEntry, ct);
+
+        if (posted.Count == 0)
+        {
+            await db.SaveChangesAsync(ct);
+            return;
+        }
+
+        var reason = $"Invoice {invoice.InvoiceNumber} voided";
+        foreach (var key in keys)
+        {
+            var entry = posted.FirstOrDefault(e => e.IdempotencyKey == key);
+            if (entry is null)
+                continue;
+
+            var reversalDate = await IsHardClosedAsync(book.Id, entry.EntryDate, ct) ? voidDate : entry.EntryDate;
+            await postingEngine.ReverseAsSystemAsync(entry.Id, reversalDate, reason, voidedByUserId, ct);
+        }
+    }
+
+    private async Task RestoreFinishedGoodsAsync(Invoice invoice, Book book, JournalEntry cogsEntry, CancellationToken ct)
+    {
+        if (valuation is null)
+            return;
+
+        foreach (var line in invoice.Lines.OrderBy(l => l.LineNumber))
+        {
+            if (!LineRelievesFinishedGoods(line))
+                continue;
+
+            var prefix = $"COGS — invoice {invoice.InvoiceNumber} line {line.LineNumber}:";
+            var lineCogs = cogsEntry.Lines
+                .Where(l => l.Debit > 0m && l.Description != null && l.Description.StartsWith(prefix, StringComparison.Ordinal))
+                .Sum(l => l.Debit);
+            if (lineCogs <= 0m)
+                continue;
+
+            var hasStoreRow = await db.InventoryValuations
+                .AnyAsync(v => v.BookId == book.Id && v.PartId == line.PartId, ct);
+            if (!hasStoreRow)
+                continue;
+
+            await valuation.ApplyReceiptAsync(book.Id, line.PartId!.Value, line.Quantity, lineCogs, ct);
+        }
+    }
+
+    private async Task<bool> IsHardClosedAsync(int bookId, DateOnly date, CancellationToken ct)
+        => await db.FiscalPeriods.AsNoTracking()
+            .AnyAsync(p => p.FiscalYear.BookId == bookId
+                && p.StartDate <= date && p.EndDate >= date
+                && p.Status == FiscalPeriodStatus.HardClosed, ct);
 
     private async Task PostCoreAsync(int invoiceId, int finalizedByUserId, CancellationToken ct)
     {

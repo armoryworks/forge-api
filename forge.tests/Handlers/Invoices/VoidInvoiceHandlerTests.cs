@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Moq;
 
+using Forge.Api.Features.Accounting;
 using Forge.Api.Features.Invoices;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -91,5 +92,34 @@ public class VoidInvoiceHandlerTests
         var act = () => _handler.Handle(new VoidInvoiceCommand(99), CancellationToken.None);
 
         await act.Should().ThrowAsync<KeyNotFoundException>();
+    }
+    [Fact]
+    public async Task Handle_Void_ReversesThePostingsOnTheVoidDate()
+    {
+        var invoice = InvoiceInStatus(InvoiceStatus.Sent);
+        _repo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(invoice);
+        var posting = new Mock<IInvoiceArPostingService>();
+        var clock = new Mock<IClock>();
+        clock.Setup(c => c.UtcNow).Returns(new DateTimeOffset(2026, 3, 4, 15, 0, 0, TimeSpan.Zero));
+        var handler = new VoidInvoiceHandler(_repo.Object, posting.Object, clock: clock.Object);
+
+        await handler.Handle(new VoidInvoiceCommand(1), CancellationToken.None);
+
+        invoice.Status.Should().Be(InvoiceStatus.Voided);
+        posting.Verify(p => p.ReverseInvoiceFinalizedAsync(1, new DateOnly(2026, 3, 4), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_BlockedVoid_NeverReverses()
+    {
+        _repo.Setup(r => r.FindWithDetailsAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(InvoiceInStatus(InvoiceStatus.Voided));
+        var posting = new Mock<IInvoiceArPostingService>();
+        var handler = new VoidInvoiceHandler(_repo.Object, posting.Object);
+
+        var act = () => handler.Handle(new VoidInvoiceCommand(1), CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        posting.VerifyNoOtherCalls();
     }
 }
