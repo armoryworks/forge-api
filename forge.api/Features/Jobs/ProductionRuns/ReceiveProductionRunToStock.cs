@@ -77,7 +77,7 @@ public class ReceiveProductionRunToStockHandler(
                 binName = location.Name;
 
                 var existing = await inventory.FindActiveBinContentByPartLocationLotAsync(
-                    run.PartId, locationId, null, cancellationToken);
+                    run.PartId, locationId, null, BinContentStatus.Stored, cancellationToken);
                 if (existing is not null)
                 {
                     existing.Quantity += goodQty;

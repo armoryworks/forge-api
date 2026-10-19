@@ -94,11 +94,13 @@ public class ExecuteScanReceiveHandler(
             ? data.Quantity * contentPerUnit.Value
             : data.Quantity;
 
+        var stockStatus = ReceivingStockHold.StockStatus(receivingRecord.InspectionStatus);
         var destContent = await db.BinContents
             .Where(bc => bc.EntityType == "part"
                 && bc.EntityId == data.PartId
                 && bc.LocationId == data.ToLocationId
                 && bc.LotNumber == null
+                && bc.Status == stockStatus
                 && bc.RemovedAt == null)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -114,6 +116,7 @@ public class ExecuteScanReceiveHandler(
                 EntityType = "part",
                 EntityId = data.PartId,
                 Quantity = baseQuantity,
+                Status = stockStatus,
                 PlacedBy = userId,
                 PlacedAt = now,
             };

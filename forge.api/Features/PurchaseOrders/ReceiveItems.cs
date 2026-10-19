@@ -7,6 +7,7 @@ using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
 using Forge.Api.Features.DomainEvents;
 using Forge.Api.Features.Inventory;
+using Forge.Api.Features.Lots;
 using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -58,7 +59,8 @@ public class ReceiveItemsHandler(
     // Operational stock-in: when supplied (production DI), receiving stocks the part into a bin (creates/
     // increments BinContent + a Receive movement). Null in mock-based handler tests → no stock movement.
     IInventoryRepository? inventory = null,
-    ICapabilitySnapshotProvider? capabilities = null)
+    ICapabilitySnapshotProvider? capabilities = null,
+    IBarcodeService? barcodes = null)
     : IRequestHandler<ReceiveItemsCommand>
 {
     public async Task Handle(ReceiveItemsCommand request, CancellationToken cancellationToken)
@@ -262,8 +264,9 @@ public class ReceiveItemsHandler(
                     locationId = fallbackBinId ??= await ResolveFallbackBinAsync(inventory, cancellationToken);
                 rec.StorageLocationId = locationId;
 
+                var stockStatus = ReceivingStockHold.StockStatus(rec.InspectionStatus);
                 var existing = await inventory.FindActiveBinContentByPartLocationLotAsync(
-                    stockPartId, locationId, lot, cancellationToken);
+                    stockPartId, locationId, lot, stockStatus, cancellationToken);
                 if (existing is not null)
                 {
                     existing.Quantity += baseQty;
@@ -277,7 +280,7 @@ public class ReceiveItemsHandler(
                         EntityId = stockPartId,
                         Quantity = baseQty,
                         LotNumber = lot,
-                        Status = BinContentStatus.Stored,
+                        Status = stockStatus,
                         PlacedBy = userId,
                         PlacedAt = clock.UtcNow,
                     }, cancellationToken);
@@ -295,6 +298,12 @@ public class ReceiveItemsHandler(
                     Reason = BinMovementReason.Receive,
                 }, cancellationToken);
             }
+        }
+
+        if (db is not null)
+        {
+            foreach (var (_, line, _, baseQty, lot) in newRecords)
+                await ReceiptLotRecords.EnsureAsync(db, barcodes, capabilities, line, lot, baseQty, cancellationToken);
         }
 
         // Inline inventory / GRNI posting (Phase-2 STAGE C). Runs AFTER the operational SaveChanges so the

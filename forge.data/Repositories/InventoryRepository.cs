@@ -200,10 +200,11 @@ public class InventoryRepository(AppDbContext db) : IInventoryRepository
             .ToListAsync(ct);
 
     public Task<BinContent?> FindActiveBinContentByPartLocationLotAsync(
-        int partId, int locationId, string? lotNumber, CancellationToken ct)
+        int partId, int locationId, string? lotNumber, BinContentStatus status, CancellationToken ct)
         => db.BinContents.Include(c => c.Location)
             .FirstOrDefaultAsync(c => c.EntityType == "part" && c.EntityId == partId
-                && c.LocationId == locationId && c.LotNumber == lotNumber && c.RemovedAt == null, ct);
+                && c.LocationId == locationId && c.LotNumber == lotNumber && c.Status == status
+                && c.RemovedAt == null, ct);
 
     public Task<string?> FindQualityHoldNcrNumberAsync(int partId, string? lotNumber, CancellationToken ct)
         => db.FindQualityHoldNcrNumberAsync(partId, lotNumber, ct);

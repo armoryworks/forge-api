@@ -75,6 +75,8 @@ public class RecordInspectionResultHandler(
         var record = await db.ReceivingRecords
             .Include(r => r.PurchaseOrderLine)
                 .ThenInclude(l => l.PurchaseOrder)
+            .Include(r => r.PurchaseOrderLine)
+                .ThenInclude(l => l.PurchaseUnit)
             .FirstOrDefaultAsync(r => r.Id == request.ReceivingRecordId, ct)
             ?? throw new KeyNotFoundException($"ReceivingRecord {request.ReceivingRecordId} not found.");
 
@@ -104,6 +106,8 @@ public class RecordInspectionResultHandler(
         var notes = string.IsNullOrWhiteSpace(data.Notes) ? null : data.Notes.Trim();
         var receiptRef = record.ReceiptNumber ?? $"receipt {record.Id}";
 
+        await ReceivingStockHold.ReleaseReceiptAsync(db, record, accepted, userId, now, ct);
+
         NonConformance? ncr = null;
         if (raiseNcr)
         {
@@ -113,6 +117,7 @@ public class RecordInspectionResultHandler(
                 Type = NcrType.Supplier,
                 PartId = line.PartId!.Value,
                 PurchaseOrderLineId = line.Id,
+                LotNumber = record.LotNumber,
                 VendorId = line.PurchaseOrder.VendorId,
                 QcInspectionId = data.QcInspectionId,
                 DetectedById = userId,
