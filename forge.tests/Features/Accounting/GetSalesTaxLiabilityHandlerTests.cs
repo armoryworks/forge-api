@@ -189,7 +189,7 @@ public class GetSalesTaxLiabilityHandlerTests : IDisposable
         var report = await _handler.Handle(new GetSalesTaxLiabilityQuery(), default);
 
         report.TotalTaxableBase.Should().Be(48.66m);
-        report.TotalLiability.Should().Be(3.52m);
+        report.TotalLiability.Should().Be(3.54m);
     }
 
     [Fact]
