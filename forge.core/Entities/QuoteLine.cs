@@ -15,7 +15,6 @@ public class QuoteLine : BaseEntity
 
     public decimal LineTotal => Quantity * UnitPrice;
 
-    /// <summary>The line total rounded to the cent, as shown and sent to the customer.</summary>
     public decimal RoundedLineTotal => Money.Round(LineTotal);
 
     public Quote Quote { get; set; } = null!;

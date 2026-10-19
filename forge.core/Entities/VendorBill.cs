@@ -67,6 +67,7 @@ public class VendorBill : BaseAuditableEntity, IConcurrencyVersioned
     public decimal Subtotal => Lines.Sum(l => l.LineTotal);
     public decimal Total => Subtotal + TaxAmount;
     public decimal AmountPaid => PaymentApplications.Sum(pa => pa.Amount);
+
     /// <summary>
     /// What is still owed, quantized to the cent (the AP mirror of <see cref="Invoice.BalanceDue"/>). The raw
     /// difference is rounded, not the total alone, so a legacy bill paid at its raw sub-cent total reads 0.
