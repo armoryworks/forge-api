@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using Moq;
 
+using Forge.Api.Authorization;
 using Forge.Api.Features.Files;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
@@ -25,6 +26,7 @@ public class UploadFileHandlerTests
     private readonly Mock<IStorageService> _storage = new();
     private readonly Mock<IFileRepository> _fileRepo = new();
     private readonly Mock<IHttpContextAccessor> _httpContextAccessor = new();
+    private readonly Mock<IEntityAccessResolver> _access = new();
     private readonly MinioOptions _minio = new()
     {
         JobFilesBucket = "forge-job-files",
@@ -51,8 +53,12 @@ public class UploadFileHandlerTests
                     et, id, 7, "Tester, QA", DateTimeOffset.UtcNow, null, null),
             ]);
 
+        _access.Setup(a => a.CanAccessAsync(
+                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<ClaimsPrincipal?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
         _handler = new UploadFileHandler(
-            _storage.Object, _fileRepo.Object, _httpContextAccessor.Object, Options.Create(_minio));
+            _storage.Object, _fileRepo.Object, _httpContextAccessor.Object, Options.Create(_minio), _access.Object);
     }
 
     private static IFormFile PngFile()

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 
+using Forge.Api.Authorization;
 using Forge.Api.Features.Files;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
@@ -20,6 +21,7 @@ public class UploadFileChunkHandlerTests : IDisposable
     private readonly Mock<IStorageService> _storageService = new();
     private readonly Mock<IFileRepository> _fileRepo = new();
     private readonly Mock<IHttpContextAccessor> _httpContextAccessor = new();
+    private readonly Mock<IEntityAccessResolver> _access = new();
     private readonly UploadFileChunkHandler _handler;
 
     private readonly Faker _faker = new();
@@ -47,12 +49,17 @@ public class UploadFileChunkHandlerTests : IDisposable
         _tempBasePath = Path.Combine(Path.GetTempPath(), $"qb-test-{Guid.NewGuid():N}");
         Environment.SetEnvironmentVariable("CHUNK_UPLOAD_TEMP_PATH", _tempBasePath);
 
+        _access.Setup(a => a.CanAccessAsync(
+                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<ClaimsPrincipal?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
         _handler = new UploadFileChunkHandler(
             _storageService.Object,
             _fileRepo.Object,
             _httpContextAccessor.Object,
             minioOptions,
-            NullLogger<UploadFileChunkHandler>.Instance);
+            NullLogger<UploadFileChunkHandler>.Instance,
+            _access.Object);
     }
 
     public void Dispose()

@@ -352,6 +352,7 @@ try
     builder.Services.AddScoped<IJobOperationService, JobOperationService>();
     builder.Services.AddScoped<IUserPreferenceRepository, UserPreferenceRepository>();
     builder.Services.AddScoped<IFileRepository, FileRepository>();
+    builder.Services.AddScoped<IEntityAccessResolver, EntityAccessResolver>();
     builder.Services.AddScoped<IJobLinkRepository, JobLinkRepository>();
     builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
     builder.Services.AddScoped<ITerminologyRepository, TerminologyRepository>();

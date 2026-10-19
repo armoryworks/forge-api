@@ -28,7 +28,7 @@ public class PlanningRemediationTests
         return client;
     }
 
-    [Fact] // P-F6 / G-38-MRP-3 GREEN — cycle mutations now require Admin/Manager
+    [Fact] // P-F6 / G-38-MRP-3 GREEN — cycle mutations now require Admin/Manager/PM
     public async Task Production_worker_cannot_create_a_planning_cycle()
     {
         // Precondition: CAP-PLAN-MRP is default-off, so enable it as Admin first; otherwise
@@ -46,6 +46,25 @@ public class PlanningRemediationTests
         var response = await AuthClient("ProductionWorker").PostAsync("/api/v1/planning-cycles", body);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden,
-            "creating/activating/completing a planning cycle must require Admin/Manager");
+            "creating/activating/completing a planning cycle must require Admin/Manager/PM");
+    }
+
+    [Fact]
+    public async Task Project_manager_can_create_a_planning_cycle()
+    {
+        await AuthClient("Admin").PutAsync("/api/v1/capabilities/CAP-PLAN-MRP/enabled",
+            JsonContent.Create(new { enabled = true }));
+
+        var body = JsonContent.Create(new
+        {
+            name = "PM-Cycle",
+            startDate = DateTimeOffset.UtcNow,
+            endDate = DateTimeOffset.UtcNow.AddDays(14),
+            durationDays = 14,
+        });
+        var response = await AuthClient("PM").PostAsync("/api/v1/planning-cycles", body);
+
+        response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden,
+            "planning cycles are a documented PM duty, and the planning screen offers PM the controls");
     }
 }

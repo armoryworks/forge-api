@@ -1,5 +1,9 @@
-using FluentAssertions;
+using System.Security.Claims;
 
+using FluentAssertions;
+using Microsoft.AspNetCore.Http;
+
+using Forge.Api.Authorization;
 using Forge.Api.Features.Preview;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -10,8 +14,8 @@ namespace Forge.Tests.Handlers.Preview;
 
 /// <summary>
 /// Covers the entity-preview resolver: non-sensitive basics for a customer and
-/// a sales-order, plus the unknown-type → null contract that the controller maps
-/// to 404.
+/// a sales-order, the unknown-type → null contract that the controller maps
+/// to 404, and the same null for a record the caller's roles cannot open.
 /// </summary>
 public class GetEntityPreviewHandlerTests
 {
@@ -20,7 +24,7 @@ public class GetEntityPreviewHandlerTests
 
     public GetEntityPreviewHandlerTests()
     {
-        _handler = new GetEntityPreviewHandler(_db);
+        _handler = HandlerFor("Admin");
     }
 
     [Fact]
@@ -71,5 +75,43 @@ public class GetEntityPreviewHandlerTests
         var result = await _handler.Handle(new GetEntityPreviewQuery("banana", 1), CancellationToken.None);
 
         result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SalesOrder_IsHidden_FromARoleThatCannotOpenSalesOrders()
+    {
+        var customer = new Customer { Name = "Acme Corp", CustomerNumber = "CUST-1", IsActive = true };
+        _db.Customers.Add(customer);
+        await _db.SaveChangesAsync();
+        var order = new SalesOrder { OrderNumber = "SO-2001", CustomerId = customer.Id, Status = SalesOrderStatus.Confirmed };
+        _db.SalesOrders.Add(order);
+        await _db.SaveChangesAsync();
+
+        var result = await HandlerFor("ProductionWorker")
+            .Handle(new GetEntityPreviewQuery("sales-order", order.Id), CancellationToken.None);
+
+        result.Should().BeNull("the preview carries the order total, which a shop-floor worker cannot open");
+    }
+
+    [Fact]
+    public async Task Part_StillPreviews_ForAShopFloorWorker()
+    {
+        var part = new Part { PartNumber = "P-100", Name = "Bracket" };
+        _db.Parts.Add(part);
+        await _db.SaveChangesAsync();
+
+        var result = await HandlerFor("ProductionWorker")
+            .Handle(new GetEntityPreviewQuery("part", part.Id), CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result!.Title.Should().Be("P-100");
+    }
+
+    private GetEntityPreviewHandler HandlerFor(string role)
+    {
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, "5"), new Claim(ClaimTypes.Role, role)], "Test"));
+        var accessor = new HttpContextAccessor { HttpContext = new DefaultHttpContext { User = principal } };
+        return new GetEntityPreviewHandler(_db, new EntityAccessResolver(_db), accessor);
     }
 }

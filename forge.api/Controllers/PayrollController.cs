@@ -39,7 +39,7 @@ public class PayrollController(IMediator mediator) : ControllerBase
         if (fileAttachmentId is null)
             return NotFound("No PDF attached to this pay stub.");
 
-        return Redirect($"/api/v1/files/{fileAttachmentId}");
+        return Redirect($"/api/v1/files/{fileAttachmentId}/download");
     }
 
     [HttpGet("tax-documents/me")]
@@ -58,7 +58,7 @@ public class PayrollController(IMediator mediator) : ControllerBase
         if (fileAttachmentId is null)
             return NotFound("No PDF attached to this tax document.");
 
-        return Redirect($"/api/v1/files/{fileAttachmentId}");
+        return Redirect($"/api/v1/files/{fileAttachmentId}/download");
     }
 
     // ─── Admin / Manager / Office Manager ───

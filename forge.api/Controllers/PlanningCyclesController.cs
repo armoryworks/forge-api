@@ -14,9 +14,9 @@ namespace Forge.Api.Controllers;
 public class PlanningCyclesController(IMediator mediator) : ControllerBase
 {
     // Reads stay open to the broader controller-level role set (workers view the cycle);
-    // P-F6: every mutation requires Admin/Manager (a worker must not create/activate/
+    // P-F6: every mutation requires Admin/Manager/PM (a worker must not create/activate/
     // complete cycles or commit/reorder/remove entries).
-    private const string MutateRoles = "Admin,Manager";
+    private const string MutateRoles = "Admin,Manager,PM";
 
     [HttpGet]
     public async Task<ActionResult<List<PlanningCycleListItemModel>>> GetPlanningCycles()

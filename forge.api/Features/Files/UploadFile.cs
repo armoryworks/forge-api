@@ -4,6 +4,8 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
+using Forge.Api.Authorization;
+using Forge.Api.Middleware;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -33,11 +35,16 @@ public class UploadFileHandler(
     IStorageService storage,
     IFileRepository fileRepo,
     IHttpContextAccessor httpContext,
-    IOptions<MinioOptions> minioOptions) : IRequestHandler<UploadFileCommand, FileAttachmentResponseModel>
+    IOptions<MinioOptions> minioOptions,
+    IEntityAccessResolver access) : IRequestHandler<UploadFileCommand, FileAttachmentResponseModel>
 {
     public async Task<FileAttachmentResponseModel> Handle(UploadFileCommand request, CancellationToken cancellationToken)
     {
-        var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var user = httpContext.HttpContext!.User;
+        if (!await access.CanAccessAsync(request.EntityType, request.EntityId, user, forWrite: true, cancellationToken))
+            throw new ForbiddenException("You do not have permission to attach files to this record.");
+
+        var userId = int.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var file = request.File;
 
         var bucketName = FileEntityTypes.ResolveBucket(request.EntityType, minioOptions.Value);

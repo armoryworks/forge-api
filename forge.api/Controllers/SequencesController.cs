@@ -18,6 +18,8 @@ namespace Forge.Api.Controllers;
 [RequiresCapability("CAP-CROSS-SEQUENCES")]
 public class SequencesController(IMediator mediator) : ControllerBase
 {
+    private const string DesignRoles = "Admin,Manager";
+
     // ----- definitions -----
 
     [HttpGet("definitions")]
@@ -29,6 +31,7 @@ public class SequencesController(IMediator mediator) : ControllerBase
         Ok(await mediator.Send(new GetSequenceDefinitionQuery(id), ct));
 
     [HttpPost("definitions")]
+    [Authorize(Roles = DesignRoles)]
     public async Task<IActionResult> CreateDefinition([FromBody] SequenceDefinitionRequestModel model, CancellationToken ct)
     {
         var result = await mediator.Send(new CreateSequenceDefinitionCommand(model), ct);
@@ -36,14 +39,17 @@ public class SequencesController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("definitions/{id:int}")]
+    [Authorize(Roles = DesignRoles)]
     public async Task<IActionResult> UpdateDefinition(int id, [FromBody] SequenceDefinitionRequestModel model, CancellationToken ct) =>
         Ok(await mediator.Send(new UpdateSequenceDefinitionCommand(id, model), ct));
 
     [HttpPost("definitions/{id:int}/publish")]
+    [Authorize(Roles = DesignRoles)]
     public async Task<IActionResult> PublishDefinition(int id, CancellationToken ct) =>
         Ok(await mediator.Send(new PublishSequenceDefinitionCommand(id, GetUserId()), ct));
 
     [HttpPost("definitions/{id:int}/new-version")]
+    [Authorize(Roles = DesignRoles)]
     public async Task<IActionResult> NewVersion(int id, CancellationToken ct)
     {
         var result = await mediator.Send(new NewSequenceDefinitionVersionCommand(id), ct);
@@ -51,6 +57,7 @@ public class SequencesController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("definitions/{id:int}")]
+    [Authorize(Roles = DesignRoles)]
     public async Task<IActionResult> RetireDefinition(int id, CancellationToken ct)
     {
         await mediator.Send(new RetireSequenceDefinitionCommand(id), ct);
@@ -118,10 +125,12 @@ public class SequencesController(IMediator mediator) : ControllerBase
         Ok(await mediator.Send(new GetSequenceResourceClocksQuery(resourceType, resourceId, includeFired), ct));
 
     [HttpPost("resource-clocks")]
+    [Authorize(Roles = DesignRoles)]
     public async Task<IActionResult> CreateResourceClock([FromBody] SequenceResourceClockRequestModel model, CancellationToken ct) =>
         Ok(await mediator.Send(new CreateSequenceResourceClockCommand(model), ct));
 
     [HttpDelete("resource-clocks/{id:int}")]
+    [Authorize(Roles = DesignRoles)]
     public async Task<IActionResult> DeleteResourceClock(int id, CancellationToken ct)
     {
         await mediator.Send(new DeleteSequenceResourceClockCommand(id), ct);
