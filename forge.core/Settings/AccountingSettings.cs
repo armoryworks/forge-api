@@ -93,9 +93,9 @@ public static class AccountingSettings
             SortOrder: 800),
 
         new(Form1099ThresholdKey, Group, "1099 Reporting Threshold", SettingDataType.String,
-            Description: "Overrides the IRS 1099-NEC/MISC reporting threshold for every tax year (e.g. once the "
-                + "IRS publishes an inflation-indexed amount). Leave blank for the built-in amounts: $600 through "
-                + "2025, $2,000 from 2026.",
+            Description: "Overrides the IRS 1099-NEC/MISC reporting threshold for tax years after 2026, once the "
+                + "IRS publishes an inflation-indexed amount. Earlier years always use the statutory amounts: $600 "
+                + "through 2025, $2,000 for 2026. Leave blank to keep $2,000.",
             ValidationPattern: @"^\d+(\.\d{1,2})?$",
             SortOrder: 810),
     ];

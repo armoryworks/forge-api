@@ -151,4 +151,20 @@ public class Form1099ReportTests
         report.Threshold.Should().Be(2200m);
         report.Vendors.Single(v => v.VendorId == 1).MeetsThreshold.Should().BeFalse();
     }
+
+    [Theory]
+    [InlineData(2025, 600)]
+    [InlineData(2026, 2000)]
+    public async Task Report_ThresholdSetting_LeavesStatutoryYearsAlone(int year, int expected)
+    {
+        using var db = await SeedAsync();
+        var settings = new Mock<ISettingsService>();
+        settings.Setup(s => s.GetStringAsync(AccountingSettings.Form1099ThresholdKey, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("2200");
+
+        var report = await new Get1099ReportHandler(db, settings.Object)
+            .Handle(new Get1099ReportQuery(year), CancellationToken.None);
+
+        report.Threshold.Should().Be(expected);
+    }
 }

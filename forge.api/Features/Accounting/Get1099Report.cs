@@ -32,6 +32,9 @@ public class Get1099ReportHandler(AppDbContext db, Forge.Core.Settings.ISettings
     /// </summary>
     internal static decimal ReportingThreshold(int year) => year <= 2025 ? 600m : 2000m;
 
+    /// <summary>The last tax year whose threshold is fixed by statute; the setting applies only to later years.</summary>
+    internal const int LastStatutoryYear = 2026;
+
     public async Task<Form1099Report> Handle(Get1099ReportQuery request, CancellationToken ct)
     {
         var vendors = await db.Vendors.AsNoTracking()
@@ -51,7 +54,7 @@ public class Get1099ReportHandler(AppDbContext db, Forge.Core.Settings.ISettings
                 .Select(g => new { VendorId = g.Key, Total = g.Sum(x => x.Amount) })
                 .ToDictionaryAsync(x => x.VendorId, x => x.Total, ct);
 
-        var configured = settings is null
+        var configured = settings is null || request.Year <= LastStatutoryYear
             ? null
             : await settings.GetStringAsync(Forge.Core.Settings.AccountingSettings.Form1099ThresholdKey, ct);
         var threshold = decimal.TryParse(configured, System.Globalization.NumberStyles.Number,

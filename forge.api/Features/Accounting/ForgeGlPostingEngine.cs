@@ -324,12 +324,6 @@ public sealed class ForgeGlPostingEngine(
     }
 
     /// <summary>
-    /// Builds a Posted journal entry header from resolved lines, allocates its
-    /// EntryNumber via the row-locked counter, adds it to the context (NOT yet
-    /// saved — the caller saves so the write joins their transaction), and
-    /// folds the lines into the incremental <see cref="LedgerBalance"/>.
-    /// </summary>
-    /// <summary>
     /// The §5.2 checks shared by every new posting and a resubmitted draft: resolves and validates each
     /// line's account and dimensions, requires Σdebit == Σcredit exactly, and resolves the fiscal period
     /// under a row lock (HardClosed rejected, SoftClosed only with the override).
@@ -474,6 +468,12 @@ public sealed class ForgeGlPostingEngine(
         return (lines, period);
     }
 
+    /// <summary>
+    /// Builds a Posted journal entry header from resolved lines, allocates its
+    /// EntryNumber via the row-locked counter, adds it to the context (NOT yet
+    /// saved — the caller saves so the write joins their transaction), and
+    /// folds the lines into the incremental <see cref="LedgerBalance"/>.
+    /// </summary>
     private async Task<JournalEntry> BuildAndAddEntryAsync(
         PostingRequest request,
         List<JournalLine> lines,
