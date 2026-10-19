@@ -4,6 +4,7 @@ using System.Text.Json;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Middleware;
 using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -37,7 +38,7 @@ public class RevokeDeviceHandler(
             ?? throw new KeyNotFoundException($"Device {request.DeviceId} not found");
 
         if (!isAdmin && device.UserId != actorId)
-            throw new UnauthorizedAccessException("Not your device.");
+            throw new ForbiddenException("Not your device.");
 
         var now = clock.UtcNow;
 

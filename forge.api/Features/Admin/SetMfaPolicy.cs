@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Models;
 using Forge.Data.Context;
+using Forge.Data.Services;
 
 namespace Forge.Api.Features.Admin;
 
@@ -13,12 +14,14 @@ public class SetMfaPolicyHandler(AppDbContext db, UserManager<ApplicationUser> u
 {
     public async Task Handle(SetMfaPolicyCommand request, CancellationToken cancellationToken)
     {
+        await MfaRolePolicy.SetRequiredRolesAsync(db, request.RequiredRoles, cancellationToken);
+
         var users = await db.Users.ToListAsync(cancellationToken);
 
         foreach (var user in users)
         {
             var roles = await userManager.GetRolesAsync(user);
-            var enforced = request.RequiredRoles.Any(r => roles.Contains(r));
+            var enforced = MfaRolePolicy.AppliesTo(request.RequiredRoles, user, roles);
             user.MfaEnforcedByPolicy = enforced;
         }
 

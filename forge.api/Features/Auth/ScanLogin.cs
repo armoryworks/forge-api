@@ -65,11 +65,16 @@ public class ScanLoginHandler(
             throw new InvalidOperationException("Invalid scan identifier or PIN.");
 
         // 4. Verify PIN
-        if (string.IsNullOrEmpty(user.PinHash))
-            throw new InvalidOperationException("PIN not configured. Contact your administrator.");
+        if (string.IsNullOrEmpty(user.PinHash) || await userManager.IsLockedOutAsync(user))
+            throw new InvalidOperationException("Invalid scan identifier or PIN.");
 
         if (!SetPinHandler.VerifyPin(request.Pin, user.PinHash))
+        {
+            await userManager.AccessFailedAsync(user);
             throw new InvalidOperationException("Invalid scan identifier or PIN.");
+        }
+
+        await userManager.ResetAccessFailedCountAsync(user);
 
         // 5. Generate JWT with auth tier claim
         // WU-06 / C1 — RoleTemplate expansion on scan login.

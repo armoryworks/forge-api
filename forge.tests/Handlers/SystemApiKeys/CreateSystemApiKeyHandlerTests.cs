@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.AspNetCore.Identity;
 using Moq;
 
 using Forge.Api.Features.SystemApiKeys;
@@ -135,11 +136,21 @@ public class CreateSystemApiKeyHandlerTests
         return template.Id;
     }
 
+    private static async Task GrantRoleAsync(AppDbContext db, int userId, string roleName)
+    {
+        var role = new IdentityRole<int>(roleName) { NormalizedName = roleName.ToUpperInvariant() };
+        db.Roles.Add(role);
+        await db.SaveChangesAsync();
+        db.UserRoles.Add(new IdentityUserRole<int> { UserId = userId, RoleId = role.Id });
+        await db.SaveChangesAsync();
+    }
+
     [Fact]
     public async Task Handle_WithRoleTemplateId_PersistsBinding()
     {
         using var db = TestDbContextFactory.Create();
         var userId = await SeedActiveUserAsync(db);
+        await GrantRoleAsync(db, userId, "OfficeManager");
         var templateId = await SeedActiveTemplateAsync(db, "TuyereCms", "OfficeManager", "LeadIntake");
         var handler = MakeHandler(db);
 
@@ -155,6 +166,28 @@ public class CreateSystemApiKeyHandlerTests
         var persisted = await db.SystemApiKeys.FindAsync(result.Id);
         persisted!.RoleTemplateId.Should().Be(templateId,
             "role-template binding must round-trip to the entity row");
+    }
+
+    [Fact]
+    public async Task Handle_RoleTemplateSharingNoRoleWithUser_IsRefused()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userId = await SeedActiveUserAsync(db);
+        await GrantRoleAsync(db, userId, "ProductionWorker");
+        var templateId = await SeedActiveTemplateAsync(db, "LeadsOnly", "OfficeManager", "LeadIntake");
+        var handler = MakeHandler(db);
+
+        var act = () => handler.Handle(
+            new CreateSystemApiKeyCommand(new CreateSystemApiKeyRequestModel
+            {
+                Name = "dead key",
+                UserId = userId,
+                RoleTemplateId = templateId,
+            }),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*LeadsOnly*");
+        db.SystemApiKeys.Should().BeEmpty();
     }
 
     [Fact]

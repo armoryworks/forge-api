@@ -10,6 +10,7 @@ using Forge.Api.Features.EmployeeProfile;
 using Forge.Api.Services;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
+using Forge.Data.Services;
 
 namespace Forge.Api.Features.Auth;
 
@@ -27,7 +28,7 @@ public record AuthUserResponseModel(
 
 public record LoginCommand(string Email, string Password, string? TrustedDeviceToken = null) : IRequest<LoginResponse>;
 
-public record LoginResponse(string Token, DateTimeOffset ExpiresAt, AuthUserResponseModel User, bool MfaRequired = false, string? MfaPendingToken = null);
+public record LoginResponse(string Token, DateTimeOffset ExpiresAt, AuthUserResponseModel User, bool MfaRequired = false, string? MfaPendingToken = null, bool MfaEnrollmentRequired = false);
 
 public class LoginValidator : AbstractValidator<LoginCommand>
 {
@@ -157,7 +158,9 @@ public class LoginHandler(
             roles.ToArray(),
             profileComplete);
 
-        return new LoginResponse(result.Token, result.ExpiresAt, userResponse);
+        var enrollmentRequired = !user.MfaEnabled && await MfaRolePolicy.IsEnforcedAsync(db, user, cancellationToken);
+
+        return new LoginResponse(result.Token, result.ExpiresAt, userResponse, MfaEnrollmentRequired: enrollmentRequired);
     }
 }
 

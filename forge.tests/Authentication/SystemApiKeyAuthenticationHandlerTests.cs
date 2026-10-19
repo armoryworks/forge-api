@@ -360,6 +360,14 @@ public class SystemApiKeyAuthenticationHandlerTests
         };
         db.RoleTemplates.Add(template);
         await db.SaveChangesAsync();
+        foreach (var roleName in templateRoles)
+        {
+            var role = new IdentityRole<int>(roleName) { NormalizedName = roleName.ToUpperInvariant() };
+            db.Roles.Add(role);
+            await db.SaveChangesAsync();
+            db.UserRoles.Add(new IdentityUserRole<int> { UserId = user.Id, RoleId = role.Id });
+        }
+        await db.SaveChangesAsync();
 
         var auditWriter = new Mock<ISystemAuditWriter>();
         var issued = await new CreateSystemApiKeyHandler(db, auditWriter.Object).Handle(

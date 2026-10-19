@@ -42,11 +42,16 @@ public class NfcKioskLoginHandler(
         if (user == null || !user.IsActive)
             throw new InvalidOperationException("Invalid scan identifier or PIN");
 
-        if (string.IsNullOrEmpty(user.PinHash))
-            throw new InvalidOperationException("PIN not configured. Contact admin.");
+        if (string.IsNullOrEmpty(user.PinHash) || await userManager.IsLockedOutAsync(user))
+            throw new InvalidOperationException("Invalid scan identifier or PIN");
 
         if (!SetPinHandler.VerifyPin(request.Pin, user.PinHash))
+        {
+            await userManager.AccessFailedAsync(user);
             throw new InvalidOperationException("Invalid scan identifier or PIN");
+        }
+
+        await userManager.ResetAccessFailedCountAsync(user);
 
         // WU-06 / C1 — RoleTemplate expansion on NFC kiosk login.
         var roles = await roleClaimsExpander.GetEffectiveRolesAsync(user, cancellationToken);

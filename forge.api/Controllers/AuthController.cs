@@ -254,6 +254,12 @@ public class AuthController(IMediator mediator, ISsoHandoffStore handoffStore) :
         var email = result.Principal?.FindFirst(ClaimTypes.Email)?.Value
             ?? throw new InvalidOperationException("No email found in SSO claims");
 
+        if (!SsoEmailVerification.IsTrusted(provider, result.Principal?.FindFirst(SsoEmailVerification.ClaimType)?.Value))
+        {
+            await HttpContext.SignOutAsync("SsoExternalCookie");
+            return Redirect("/sso/callback?error=email_unverified");
+        }
+
         try
         {
             var loginResponse = await mediator.Send(new SsoCallbackCommand(provider, externalId, email));

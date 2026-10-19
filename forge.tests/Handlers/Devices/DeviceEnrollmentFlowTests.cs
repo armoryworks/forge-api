@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 
 using Forge.Api.Features.Devices;
+using Forge.Api.Middleware;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
@@ -222,6 +223,24 @@ public sealed class DeviceEnrollmentFlowTests(PostgresFixture fixture)
             MockHttp(user.Id + 12345, isAdmin: false).Object, Mock.Of<ISystemAuditWriter>());
 
         var act = () => stranger.Handle(new RevokeDeviceCommand(device.Id), CancellationToken.None);
-        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        await act.Should().ThrowAsync<ForbiddenException>();
+    }
+
+    [Fact]
+    public async Task Non_owner_cannot_rename_someone_elses_device()
+    {
+        await using var db = fixture.CreateContext();
+        var (user, raw) = await SeedUserAndTokenAsync(db);
+        var uuid = Guid.NewGuid().ToString();
+        await EnrollHandler(db, user).Handle(
+            new EnrollDeviceCommand(raw, uuid, "Phone", "android", null, null),
+            CancellationToken.None);
+        var device = await db.UserDevices.SingleAsync(d => d.DeviceUuid == uuid);
+
+        var stranger = new RenameDeviceHandler(db,
+            MockHttp(user.Id + 12345, isAdmin: false).Object, Mock.Of<ISystemAuditWriter>());
+
+        var act = () => stranger.Handle(new RenameDeviceCommand(device.Id, "Mine now"), CancellationToken.None);
+        await act.Should().ThrowAsync<ForbiddenException>();
     }
 }
