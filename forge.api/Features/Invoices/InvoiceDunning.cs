@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using QuestPDF.Fluent;
 
+using Forge.Api.Features.Accounting;
 using Forge.Api.Services;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -18,12 +19,18 @@ namespace Forge.Api.Features.Invoices;
 /// and bucket (<c>due</c>, <c>30</c>, <c>60</c>, <c>90</c>): the outbox operation key
 /// <c>invoice-dunning:{id}:{bucket}</c> makes a daily re-check or a retry a no-op. Reminders go to the
 /// <see cref="InvoiceRecipientResolver"/> recipient and are skipped (logged) when there is none, when the
-/// company name is not set, or when nothing is owed any more.
+/// company name is not set, or when nothing is owed any more. A bucket reached more than
+/// <see cref="CatchUpDays"/> days ago is not reminded, so turning the capability on, or upgrading an install that
+/// already holds aged invoices, does not mail every customer at once. Conversion opening-balance documents are
+/// never reminded: they stand for invoices the customer received from the previous system.
 /// </summary>
 public static class InvoiceDunning
 {
     public const string Capability = "CAP-O2C-COLLECTIONS";
     public const string BucketDue = "due";
+
+    /// <summary>How many days after an invoice reaches a bucket its reminder may still go out.</summary>
+    public const int CatchUpDays = 7;
 
     public static string BucketFor(int daysOverdue) => daysOverdue switch
     {
@@ -35,12 +42,16 @@ public static class InvoiceDunning
 
     public static string OperationKey(int invoiceId, string bucket) => $"invoice-dunning:{invoiceId}:{bucket}";
 
+    /// <summary>The days overdue at which <paramref name="bucket"/> is reached.</summary>
+    public static int BucketStartDays(string bucket) => bucket == BucketDue ? 0 : int.Parse(bucket, System.Globalization.CultureInfo.InvariantCulture);
+
     /// <summary>Queues the reminder; returns false when it was skipped or had already been queued.</summary>
     public static async Task<bool> EnqueueReminderAsync(
         AppDbContext db,
         IIntegrationOutboxService outbox,
         int invoiceId,
         string bucket,
+        DateTimeOffset now,
         CancellationToken ct)
     {
         var operationKey = OperationKey(invoiceId, bucket);
@@ -58,6 +69,21 @@ public static class InvoiceDunning
             || invoice.Status is InvoiceStatus.Draft or InvoiceStatus.Paid or InvoiceStatus.Voided
             || invoice.BalanceDue <= 0m)
             return false;
+
+        if (invoice.Provider == ConversionOpenItems.Provider)
+        {
+            Log.Information("Payment reminder skipped: invoice {InvoiceNumber} is a conversion opening balance.", invoice.InvoiceNumber);
+            return false;
+        }
+
+        var daysOverdue = (int)Math.Floor((now - invoice.DueDate).TotalDays);
+        if (daysOverdue - BucketStartDays(bucket) > CatchUpDays)
+        {
+            Log.Information(
+                "Payment reminder skipped: invoice {InvoiceNumber} reached the {Bucket} bucket {Days} days ago, past the {CatchUp}-day catch-up.",
+                invoice.InvoiceNumber, bucket, daysOverdue - BucketStartDays(bucket), CatchUpDays);
+            return false;
+        }
 
         var recipient = (await InvoiceRecipientResolver.ResolveAsync(db, invoice.CustomerId, ct)).Email;
         if (string.IsNullOrWhiteSpace(recipient))
