@@ -19,7 +19,7 @@ public class UserIntegrationService(
         new("outlook_calendar", "calendar", "Microsoft Outlook/365", "oauth2", "Sync events with Outlook Calendar", "event"),
         new("apple_calendar", "calendar", "Apple iCloud Calendar", "app_password", "Sync events with Apple Calendar", "event"),
         new("caldav", "calendar", "CalDAV (Generic)", "basic", "Connect to any CalDAV-compatible calendar", "event"),
-        new("ics_feed", "calendar", "ICS Feed (Read-Only)", "none", "Subscribe to your QB Engineer calendar feed", "rss_feed"),
+        new("ics_feed", "calendar", "ICS Feed (Read-Only)", "none", "Subscribe to your Forge calendar feed", "rss_feed"),
 
         // Messaging
         new("slack", "messaging", "Slack", "webhook", "Send notifications to Slack channels", "chat"),

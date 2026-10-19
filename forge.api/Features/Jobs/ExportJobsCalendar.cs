@@ -30,7 +30,7 @@ public class ExportJobsCalendarHandler(AppDbContext db) : IRequestHandler<Export
         var sb = new StringBuilder();
         sb.AppendLine("BEGIN:VCALENDAR");
         sb.AppendLine("VERSION:2.0");
-        sb.AppendLine("PRODID:-//QB Engineer//Job Calendar//EN");
+        sb.AppendLine("PRODID:-//Forge//Job Calendar//EN");
         sb.AppendLine("CALSCALE:GREGORIAN");
         sb.AppendLine("METHOD:PUBLISH");
 
