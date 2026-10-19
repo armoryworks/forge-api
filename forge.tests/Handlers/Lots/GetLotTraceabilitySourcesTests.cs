@@ -208,4 +208,28 @@ public class GetLotTraceabilitySourcesTests
 
         result.ProducingJob!.JobNumber.Should().Be("J-CONS");
     }
+
+    [Fact]
+    public async Task Lot_issued_to_a_job_lists_that_job_and_the_issue_on_the_timeline()
+    {
+        var resin = await SeedPartAsync(111, "RESIN");
+        var other = await SeedPartAsync(112, "OTHER");
+        var job = await SeedJobAsync(311, "J-311");
+        var otherJob = await SeedJobAsync(312, "J-312");
+        _db.LotRecords.Add(new LotRecord { Id = 211, LotNumber = "R-26-117", PartId = resin.Id, Quantity = 330m });
+        var issuedAt = new DateTimeOffset(2026, 10, 9, 0, 0, 0, TimeSpan.Zero);
+        _db.MaterialIssues.AddRange(
+            new MaterialIssue { JobId = job.Id, PartId = resin.Id, Quantity = 12m, LotNumber = "R-26-117", IssuedAt = issuedAt },
+            new MaterialIssue { JobId = otherJob.Id, PartId = other.Id, Quantity = 3m, LotNumber = "R-26-117", IssuedAt = issuedAt });
+        await _db.SaveChangesAsync();
+
+        var result = await TraceAsync("R-26-117");
+
+        result.Jobs.Should().ContainSingle().Which.JobNumber.Should().Be("J-311");
+        var issue = result.Events.Should().ContainSingle(e => e.Type == "IssuedToJob").Subject;
+        issue.ReferenceNumber.Should().Be("J-311");
+        issue.Quantity.Should().Be(12m);
+        issue.Date.Should().Be(issuedAt);
+    }
 }
+
