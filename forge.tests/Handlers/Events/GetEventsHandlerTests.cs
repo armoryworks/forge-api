@@ -69,6 +69,21 @@ public class GetEventsHandlerTests
     }
 
     [Fact]
+    public async Task Handle_UntrackedEvent_ReturnsNullStatusAndTrackedEventReturnsItsStatus()
+    {
+        var user = await SeedUser();
+        await SeedEvent(user.Id, "Reminder", EventType.Meeting, DateTimeOffset.UtcNow.AddDays(1));
+        var tracked = await SeedEvent(user.Id, "Filing", EventType.Meeting, DateTimeOffset.UtcNow.AddDays(2));
+        tracked.Status = EventStatus.InProgress;
+        await _db.SaveChangesAsync();
+
+        var result = await _handler.Handle(new GetEventsQuery(null, null, null), CancellationToken.None);
+
+        result.Single(e => e.Title == "Reminder").Status.Should().BeNull();
+        result.Single(e => e.Title == "Filing").Status.Should().Be("InProgress");
+    }
+
+    [Fact]
     public async Task Handle_FiltersbyEventType()
     {
         var user = await SeedUser();
