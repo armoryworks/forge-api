@@ -3,13 +3,17 @@ using Forge.Core.Models;
 
 namespace Forge.Api.Features.Mobile;
 
-/// <summary>What a scanned code turned out to be. Kind is one of job, part, bin, lot, badge, salesOrder, purchaseOrder, asset, unknown.</summary>
+/// <summary>What a scanned code turned out to be. Kind is one of job, part, bin, lot, badge, salesOrder, purchaseOrder, asset, unknown. A lot also names its part.</summary>
 public record ScanResolveResponseModel(
     string Kind,
     int? Id,
     string Code,
     string Label,
-    string? Subtitle);
+    string? Subtitle)
+{
+    public int? PartId { get; init; }
+    public string? PartNumber { get; init; }
+}
 
 public record JobStatusResponseModel(
     int Id,

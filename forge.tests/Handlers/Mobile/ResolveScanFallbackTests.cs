@@ -326,4 +326,79 @@ public sealed class ResolveScanFallbackTests(PostgresFixture fixture)
         result.Kind.Should().Be("badge");
         result.Id.Should().Be(userId);
     }
+
+    private async Task<int> SeedBinAsync(string name, string? barcode = null, bool isActive = true)
+    {
+        await using var db = fixture.CreateContext();
+        var bin = new StorageLocation { Name = name, Barcode = barcode, LocationType = LocationType.Bin, IsActive = isActive };
+        db.StorageLocations.Add(bin);
+        await db.SaveChangesAsync();
+        return bin.Id;
+    }
+
+    [Fact]
+    public async Task Bin_name_typed_as_printed_resolves()
+    {
+        var name = $"Rack-{UniqueNumber()}";
+        var binId = await SeedBinAsync(name);
+
+        var result = await ResolveAsync(name.ToLowerInvariant());
+
+        result.Kind.Should().Be("bin");
+        result.Id.Should().Be(binId);
+        result.Label.Should().Be(name);
+    }
+
+    [Fact]
+    public async Task Bin_barcode_typed_as_printed_resolves()
+    {
+        var barcode = $"BIN-{UniqueNumber()}";
+        var binId = await SeedBinAsync($"Shelf {UniqueNumber()}", barcode);
+
+        var result = await ResolveAsync(barcode);
+
+        result.Kind.Should().Be("bin");
+        result.Id.Should().Be(binId);
+    }
+
+    [Fact]
+    public async Task Inactive_bin_is_not_resolved_by_name()
+    {
+        var name = $"Old-{UniqueNumber()}";
+        await SeedBinAsync(name, isActive: false);
+
+        (await ResolveAsync(name)).Kind.Should().Be("unknown");
+    }
+
+    [Fact]
+    public async Task Bin_name_shared_with_a_part_number_resolves_unknown()
+    {
+        var number = $"A{UniqueNumber()}";
+        await SeedBinAsync(number);
+        await SeedPartAsync(number);
+
+        var result = await ResolveAsync(number);
+
+        result.Kind.Should().Be("unknown");
+        result.Id.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Lot_names_the_part_it_belongs_to()
+    {
+        var number = $"QL-{UniqueNumber()}";
+        var partNumber = $"LP-{UniqueNumber()}";
+        var partId = await SeedPartAsync(partNumber);
+        await using (var db = fixture.CreateContext())
+        {
+            db.LotRecords.Add(new LotRecord { LotNumber = number, PartId = partId, Quantity = 3 });
+            await db.SaveChangesAsync();
+        }
+
+        var result = await ResolveAsync(number);
+
+        result.Kind.Should().Be("lot");
+        result.PartId.Should().Be(partId);
+        result.PartNumber.Should().Be(partNumber);
+    }
 }

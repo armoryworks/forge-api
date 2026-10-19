@@ -24,10 +24,11 @@ public class ResolveScanValidator : AbstractValidator<ResolveScanQuery>
 /// Turns a scanned value into an entity. Exact barcodes-table lookup first
 /// (internal, GS1, manual codes and the collision suffix all live there),
 /// then the natural-identifier fallback per docs labels.md, then the number
-/// exactly as printed (work order, part, lot, or a badge from the employee
-/// barcode or an active scan identifier) when only one record
-/// carries it. Unknown or ambiguous codes resolve to kind "unknown" — the app
-/// buzzes, never navigates.
+/// exactly as printed (work order, part, lot, active bin by barcode or name,
+/// purchase order, or a badge from the employee barcode or an active scan
+/// identifier) when exactly one record of exactly one kind carries it. Unknown
+/// or ambiguous codes, including a number two kinds share, resolve to kind
+/// "unknown" — the app buzzes, never navigates.
 /// </summary>
 public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
     : IRequestHandler<ResolveScanQuery, ScanResolveResponseModel>
@@ -99,8 +100,11 @@ public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
             if (id is not null) return await BadgeAsync(id.Value, code, ct);
         }
 
-        var purchaseOrderId = await FindPurchaseOrderAsync(code, upper, ct);
-        if (purchaseOrderId is not null) return await PurchaseOrderAsync(purchaseOrderId.Value, code, ct);
+        if (upper.StartsWith("PO-", StringComparison.Ordinal))
+        {
+            var purchaseOrderId = await FindPurchaseOrderAsync(code, upper, ct);
+            if (purchaseOrderId is not null) return await PurchaseOrderAsync(purchaseOrderId.Value, code, ct);
+        }
 
         return await FindByPrintedNumberAsync(code, ct) ?? Unknown(code);
     }
@@ -138,6 +142,21 @@ public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
             .GroupBy(b => b.Id)
             .Select(g => g.First())
             .ToList();
+        var binRows = await db.StorageLocations.AsNoTracking()
+            .Where(l => l.IsActive && l.LocationType == LocationType.Bin
+                && (EF.Functions.ILike(l.Name, pattern, LikeEscape)
+                    || (l.Barcode != null && EF.Functions.ILike(l.Barcode, pattern, LikeEscape))))
+            .Select(l => new { l.Id, l.Name, l.Barcode })
+            .Take(10)
+            .ToListAsync(ct);
+        var bins = binRows
+            .Select(l => (l.Id, Value: string.Equals(l.Barcode, code, StringComparison.OrdinalIgnoreCase) ? l.Barcode! : l.Name))
+            .ToList();
+        var purchaseOrders = await db.PurchaseOrders.AsNoTracking()
+            .Where(p => EF.Functions.ILike(p.PONumber, pattern, LikeEscape))
+            .Select(p => new { p.Id, Value = p.PONumber })
+            .Take(10)
+            .ToListAsync(ct);
 
         var hits = new[]
             {
@@ -145,6 +164,8 @@ public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
                 ("part", parts.Select(p => (p.Id, p.Value)).ToList()),
                 ("lot", lots.Select(l => (l.Id, l.Value)).ToList()),
                 ("badge", badges.Select(b => (b.Id, b.Value)).ToList()),
+                ("bin", bins),
+                ("purchaseOrder", purchaseOrders.Select(p => (p.Id, p.Value)).ToList()),
             }
             .Where(h => h.Item2.Count > 0)
             .Select(h => (Kind: h.Item1, Id: PickOne(h.Item2, code)))
@@ -157,6 +178,8 @@ public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
             "job" => await JobAsync(entityId, code, ct),
             "part" => await PartAsync(entityId, code, ct),
             "lot" => await LotAsync(entityId, code, ct),
+            "bin" => await BinAsync(entityId, code, ct),
+            "purchaseOrder" => await PurchaseOrderAsync(entityId, code, ct),
             _ => await BadgeAsync(entityId, code, ct),
         };
     }
@@ -271,8 +294,10 @@ public class ResolveScanHandler(AppDbContext db, IBarcodeService barcodes)
     private async Task<ScanResolveResponseModel> LotAsync(int id, string code, CancellationToken ct)
     {
         var lot = await db.LotRecords.AsNoTracking()
-            .Where(l => l.Id == id).Select(l => l.LotNumber).FirstAsync(ct);
-        return new("lot", id, code, lot, null);
+            .Where(l => l.Id == id)
+            .Select(l => new { l.LotNumber, l.PartId, l.Part.PartNumber })
+            .FirstAsync(ct);
+        return new("lot", id, code, lot.LotNumber, null) { PartId = lot.PartId, PartNumber = lot.PartNumber };
     }
 
     private async Task<ScanResolveResponseModel> PurchaseOrderAsync(int id, string code, CancellationToken ct)

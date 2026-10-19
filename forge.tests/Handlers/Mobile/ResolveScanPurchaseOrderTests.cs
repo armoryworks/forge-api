@@ -139,7 +139,7 @@ public sealed class ResolveScanPurchaseOrderTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task A_po_number_that_a_part_also_uses_still_resolves_to_the_po()
+    public async Task A_po_number_that_a_part_also_uses_resolves_unknown()
     {
         var number = $"V{UniqueNumber()}";
         var ids = await SeedPurchaseOrdersAsync(number);
@@ -151,7 +151,8 @@ public sealed class ResolveScanPurchaseOrderTests(PostgresFixture fixture)
 
         var result = await ResolveAsync(number);
 
-        result.Kind.Should().Be("purchaseOrder");
-        result.Id.Should().Be(ids[0]);
+        result.Kind.Should().Be("unknown");
+        result.Id.Should().BeNull();
+        ids.Should().ContainSingle();
     }
 }
