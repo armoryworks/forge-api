@@ -1,10 +1,13 @@
 using System.Text.Json;
 
+using FluentValidation;
 using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+using Forge.Api.Features.Banking;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -30,7 +33,18 @@ public record SaveOnboardingDataCommand(
     string UserName,
     OnboardingSubmitRequestModel Model) : IRequest<SaveOnboardingResultModel>;
 
-public class SaveOnboardingDataHandler(AppDbContext db, IConfiguration configuration)
+public class SaveOnboardingDataValidator : AbstractValidator<SaveOnboardingDataCommand>
+{
+    public SaveOnboardingDataValidator()
+    {
+        RuleFor(x => x.Model.RoutingNumber)
+            .Must(r => NachaFileGenerator.IsValidRoutingNumber(r!.Trim()))
+            .When(x => !string.IsNullOrWhiteSpace(x.Model.RoutingNumber))
+            .WithMessage("Routing number must be a valid 9-digit ABA routing number.");
+    }
+}
+
+public class SaveOnboardingDataHandler(AppDbContext db, IConfiguration configuration, IPiiProtector pii)
     : IRequestHandler<SaveOnboardingDataCommand, SaveOnboardingResultModel>
 {
     private bool IsMock => configuration.GetValue<bool>("MockIntegrations");
@@ -100,7 +114,7 @@ public class SaveOnboardingDataHandler(AppDbContext db, IConfiguration configura
         profile.ZipCode = m.ZipCode;
         profile.Country = "US";
 
-        if (!string.IsNullOrWhiteSpace(m.BankName) && !string.IsNullOrWhiteSpace(m.RoutingNumber))
+        if (OnboardingPiiMerge.HasCompleteDirectDeposit(profile, pii, m.BankName, m.RoutingNumber, m.AccountNumber))
             profile.DirectDepositCompletedAt ??= DateTimeOffset.UtcNow;
 
         await db.SaveChangesAsync(ct);

@@ -1,10 +1,12 @@
 using System.Text.Json;
 
+using FluentValidation;
 using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+using Forge.Api.Features.Banking;
 using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -29,6 +31,17 @@ public record SubmitOnboardingCommand(
     string UserEmail,
     string UserName,
     OnboardingSubmitRequestModel Model) : IRequest<OnboardingSubmitResultModel>;
+
+public class SubmitOnboardingValidator : AbstractValidator<SubmitOnboardingCommand>
+{
+    public SubmitOnboardingValidator()
+    {
+        RuleFor(x => x.Model.RoutingNumber)
+            .Must(r => NachaFileGenerator.IsValidRoutingNumber(r!.Trim()))
+            .When(x => !string.IsNullOrWhiteSpace(x.Model.RoutingNumber))
+            .WithMessage("Routing number must be a valid 9-digit ABA routing number.");
+    }
+}
 
 public class SubmitOnboardingHandler(
     AppDbContext db,
@@ -186,7 +199,7 @@ public class SubmitOnboardingHandler(
         profile.Country = "US";
 
         // Direct deposit completion
-        if (!string.IsNullOrWhiteSpace(m.BankName) && !string.IsNullOrWhiteSpace(m.RoutingNumber))
+        if (OnboardingPiiMerge.HasCompleteDirectDeposit(profile, pii, m.BankName, m.RoutingNumber, m.AccountNumber))
             profile.DirectDepositCompletedAt ??= DateTimeOffset.UtcNow;
 
         await db.SaveChangesAsync(ct);
