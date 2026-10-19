@@ -440,7 +440,7 @@ public class ReceiveItemsHandlerTests
         var po = GivenStockPo(10m, new Part { Id = 10, PartNumber = "P-10", DefaultBinId = 7 });
         GivenLocation(7);
         var heatA = new BinContent { Id = 1, LocationId = 7, EntityType = "part", EntityId = 10, Quantity = 5m, LotNumber = "HEAT-A" };
-        _inventory.Setup(i => i.FindActiveBinContentByPartLocationLotAsync(10, 7, "HEAT-A", It.IsAny<CancellationToken>()))
+        _inventory.Setup(i => i.FindActiveBinContentByPartLocationLotAsync(10, 7, "HEAT-A", BinContentStatus.Stored, It.IsAny<CancellationToken>()))
             .ReturnsAsync(heatA);
 
         await _stockingHandler.Handle(new ReceiveItemsCommand(
@@ -459,7 +459,7 @@ public class ReceiveItemsHandlerTests
         var po = GivenStockPo(10m, new Part { Id = 10, PartNumber = "P-10", DefaultBinId = 7 });
         GivenLocation(7);
         var heatA = new BinContent { Id = 1, LocationId = 7, EntityType = "part", EntityId = 10, Quantity = 5m, LotNumber = "HEAT-A" };
-        _inventory.Setup(i => i.FindActiveBinContentByPartLocationLotAsync(10, 7, "HEAT-A", It.IsAny<CancellationToken>()))
+        _inventory.Setup(i => i.FindActiveBinContentByPartLocationLotAsync(10, 7, "HEAT-A", BinContentStatus.Stored, It.IsAny<CancellationToken>()))
             .ReturnsAsync(heatA);
 
         await _stockingHandler.Handle(new ReceiveItemsCommand(

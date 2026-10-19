@@ -31,6 +31,7 @@ public class WaiveInspectionHandler(AppDbContext db, IHttpContextAccessor httpCo
 
         var record = await db.ReceivingRecords
             .Include(r => r.PurchaseOrderLine)
+                .ThenInclude(l => l.PurchaseUnit)
             .FirstOrDefaultAsync(r => r.Id == request.ReceivingRecordId, ct)
             ?? throw new KeyNotFoundException($"ReceivingRecord {request.ReceivingRecordId} not found.");
 
@@ -42,11 +43,14 @@ public class WaiveInspectionHandler(AppDbContext db, IHttpContextAccessor httpCo
 
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var reason = request.Reason.Trim();
+        var now = clock.UtcNow;
 
         record.InspectionStatus = ReceivingInspectionStatus.Waived;
         record.InspectedById = userId;
-        record.InspectedAt = clock.UtcNow;
+        record.InspectedAt = now;
         record.InspectionNotes = reason;
+
+        await ReceivingStockHold.ReleaseReceiptAsync(db, record, record.QuantityReceived, userId, now, ct);
 
         db.LogActivityAt(
             "inspection-waived",

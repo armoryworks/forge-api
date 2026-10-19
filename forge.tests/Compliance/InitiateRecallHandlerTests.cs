@@ -9,6 +9,7 @@ using Forge.Api.Features.Lots;
 using Forge.Api.Features.Quality;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
+using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
 using Forge.Tests.Helpers;
@@ -421,12 +422,189 @@ public sealed class InitiateRecallHandlerTests(PostgresFixture fixture)
         var raw = await SeedLotAsync(db, part.Id, 100);
         var created = await new InitiateRecallHandler(db, Http()).Handle(Recall(raw.Id), CancellationToken.None);
 
-        var resolved = await new ResolveRecallHandler(db)
+        var resolved = await new ResolveRecallHandler(db, new FixedRecallClock())
             .Handle(new ResolveRecallCommand(created.Id, new ResolveRecallRequestModel("Contained; scrapped affected lots")),
                 CancellationToken.None);
 
         resolved.Status.Should().Be(RecallStatus.Resolved);
         resolved.ResolvedAt.Should().NotBeNull();
         resolved.ResolutionNotes.Should().Be("Contained; scrapped affected lots");
+    }
+
+    private sealed class FixedRecallClock : IClock
+    {
+        public DateTimeOffset UtcNow { get; } = new(2026, 10, 18, 9, 0, 0, TimeSpan.Zero);
+    }
+
+    private static async Task<ApplicationUser> SeedUserAsync(AppDbContext db)
+    {
+        var tag = Guid.NewGuid().ToString("N")[..10];
+        var user = new ApplicationUser
+        {
+            UserName = $"recall-{tag}@test.com",
+            Email = $"recall-{tag}@test.com",
+            FirstName = "Recall",
+            LastName = "Tester",
+            Initials = "RT",
+            AvatarColor = "#94a3b8",
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        return user;
+    }
+
+    private static async Task<StorageLocation> SeedBinAsync(AppDbContext db)
+    {
+        var bin = new StorageLocation { Name = $"Bin {Guid.NewGuid():N}"[..12], LocationType = LocationType.Bin };
+        db.StorageLocations.Add(bin);
+        await db.SaveChangesAsync();
+        return bin;
+    }
+
+    private static async Task<BinContent> StockAsync(
+        AppDbContext db, int binId, int partId, string lotNumber, decimal qty, BinContentStatus status = BinContentStatus.Stored)
+    {
+        var row = new BinContent
+        {
+            LocationId = binId, EntityType = "part", EntityId = partId, Quantity = qty, LotNumber = lotNumber, Status = status,
+        };
+        db.BinContents.Add(row);
+        await db.SaveChangesAsync();
+        return row;
+    }
+
+    [Fact]
+    public async Task A_lot_issued_to_a_job_reaches_that_jobs_shipments_as_approximate()
+    {
+        await using var db = fixture.CreateContext();
+        var resin = await SeedPartAsync(db);
+        var user = await SeedUserAsync(db);
+        var raw = await SeedLotAsync(db, resin.Id, 100);
+        var shipped = await SeedShipmentAsync(db, "Housing Buyer", 25);
+        var job = await SeedJobAsync(db, shipped.SoLine.Id);
+        db.MaterialIssues.Add(new MaterialIssue
+        {
+            JobId = job.Id, PartId = resin.Id, Quantity = 12, LotNumber = raw.LotNumber,
+            IssuedById = user.Id, IssuedAt = DateTimeOffset.UtcNow, IssueType = MaterialIssueType.Issue,
+        });
+        await db.SaveChangesAsync();
+
+        var result = await new InitiateRecallHandler(db, Http()).Handle(Recall(raw.Id), CancellationToken.None);
+
+        var shp = result.AffectedShipments.Should().ContainSingle().Subject;
+        shp.CustomerId.Should().Be(shipped.Customer.Id);
+        shp.IsApproximate.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_lot_issued_to_a_sub_assembly_job_reaches_the_parent_jobs_shipments_as_approximate()
+    {
+        await using var db = fixture.CreateContext();
+        var bar = await SeedPartAsync(db);
+        var user = await SeedUserAsync(db);
+        var heat = await SeedLotAsync(db, bar.Id, 100);
+        var shipped = await SeedShipmentAsync(db, "Assembly Buyer", 4);
+        var parent = await SeedJobAsync(db, shipped.SoLine.Id);
+        var child = await SeedJobAsync(db, null);
+        child.ParentJobId = parent.Id;
+        db.MaterialIssues.Add(new MaterialIssue
+        {
+            JobId = child.Id, PartId = bar.Id, Quantity = 20, LotNumber = heat.LotNumber,
+            IssuedById = user.Id, IssuedAt = DateTimeOffset.UtcNow, IssueType = MaterialIssueType.Issue,
+        });
+        await db.SaveChangesAsync();
+
+        var result = await new InitiateRecallHandler(db, Http()).Handle(Recall(heat.Id), CancellationToken.None);
+
+        var shp = result.AffectedShipments.Should().ContainSingle().Subject;
+        shp.CustomerId.Should().Be(shipped.Customer.Id);
+        shp.IsApproximate.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Quarantine_skips_another_parts_stock_that_reuses_the_lot_string()
+    {
+        await using var db = fixture.CreateContext();
+        var part = await SeedPartAsync(db);
+        var otherPart = await SeedPartAsync(db);
+        var lot = await SeedLotAsync(db, part.Id, 50);
+        var bin = await SeedBinAsync(db);
+        var own = await StockAsync(db, bin.Id, part.Id, lot.LotNumber, 20);
+        var other = await StockAsync(db, bin.Id, otherPart.Id, lot.LotNumber, 7);
+
+        var result = await new InitiateRecallHandler(db, Http()).Handle(Recall(lot.Id), CancellationToken.None);
+
+        result.TotalQuarantinedQuantity.Should().Be(20);
+        await using var verify = fixture.CreateContext();
+        (await verify.BinContents.SingleAsync(b => b.Id == own.Id)).Status.Should().Be(BinContentStatus.QcHold);
+        (await verify.BinContents.SingleAsync(b => b.Id == other.Id)).Status.Should().Be(BinContentStatus.Stored);
+    }
+
+    [Fact]
+    public async Task A_resolved_recall_cannot_be_resolved_again()
+    {
+        await using var db = fixture.CreateContext();
+        var part = await SeedPartAsync(db);
+        var raw = await SeedLotAsync(db, part.Id, 100);
+        var created = await new InitiateRecallHandler(db, Http()).Handle(Recall(raw.Id), CancellationToken.None);
+        var handler = new ResolveRecallHandler(db, new FixedRecallClock());
+        var first = await handler.Handle(
+            new ResolveRecallCommand(created.Id, new ResolveRecallRequestModel("First")), CancellationToken.None);
+
+        var again = () => handler.Handle(
+            new ResolveRecallCommand(created.Id, new ResolveRecallRequestModel("Second")), CancellationToken.None);
+
+        await again.Should().ThrowAsync<InvalidOperationException>();
+        await using var verify = fixture.CreateContext();
+        var stored = await verify.Recalls.SingleAsync(r => r.Id == created.Id);
+        stored.ResolutionNotes.Should().Be("First");
+        stored.ResolvedAt.Should().Be(first.ResolvedAt);
+        stored.ResolvedAt.Should().Be(new FixedRecallClock().UtcNow);
+    }
+
+    [Fact]
+    public async Task Resolve_leaves_quarantined_stock_held_unless_asked_to_release_it()
+    {
+        await using var db = fixture.CreateContext();
+        var part = await SeedPartAsync(db);
+        var raw = await SeedLotAsync(db, part.Id, 100);
+        var bin = await SeedBinAsync(db);
+        var row = await StockAsync(db, bin.Id, part.Id, raw.LotNumber, 30);
+        var created = await new InitiateRecallHandler(db, Http()).Handle(Recall(raw.Id), CancellationToken.None);
+
+        await new ResolveRecallHandler(db, new FixedRecallClock()).Handle(
+            new ResolveRecallCommand(created.Id, new ResolveRecallRequestModel("Scrapped")), CancellationToken.None);
+
+        await using var verify = fixture.CreateContext();
+        (await verify.BinContents.SingleAsync(b => b.Id == row.Id)).Status.Should().Be(BinContentStatus.QcHold);
+    }
+
+    [Fact]
+    public async Task Resolve_with_release_returns_held_stock_no_ncr_holds()
+    {
+        await using var db = fixture.CreateContext();
+        var part = await SeedPartAsync(db);
+        var user = await SeedUserAsync(db);
+        var released = await SeedLotAsync(db, part.Id, 100);
+        var ncrHeld = await SeedLotAsync(db, part.Id, 40);
+        await Consume(db, ncrHeld.Id, released.Id, 40);
+        var bin = await SeedBinAsync(db);
+        var releasedRow = await StockAsync(db, bin.Id, part.Id, released.LotNumber, 30);
+        var heldRow = await StockAsync(db, bin.Id, part.Id, ncrHeld.LotNumber, 10);
+        var created = await new InitiateRecallHandler(db, Http()).Handle(Recall(released.Id), CancellationToken.None);
+        db.NonConformances.Add(new NonConformance
+        {
+            NcrNumber = $"NCR-{Guid.NewGuid():N}"[..16], Type = NcrType.Internal, PartId = part.Id, LotNumber = ncrHeld.LotNumber,
+            Status = NcrStatus.Open, Description = "Held", DetectedById = user.Id, DetectedAt = DateTimeOffset.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        await new ResolveRecallHandler(db, new FixedRecallClock()).Handle(
+            new ResolveRecallCommand(created.Id, new ResolveRecallRequestModel("Supplier cleared lot", ReleaseHeldStock: true)),
+            CancellationToken.None);
+
+        await using var verify = fixture.CreateContext();
+        (await verify.BinContents.SingleAsync(b => b.Id == releasedRow.Id)).Status.Should().Be(BinContentStatus.Stored);
+        (await verify.BinContents.SingleAsync(b => b.Id == heldRow.Id)).Status.Should().Be(BinContentStatus.QcHold);
     }
 }

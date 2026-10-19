@@ -76,6 +76,7 @@ public class UploadFileHandlerTests
     [InlineData("customers")]
     [InlineData("quotes")]
     [InlineData("purchase-orders")]
+    [InlineData("lots")]
     public void Validator_accepts_sales_and_purchasing_document_entity_types(string entityType)
     {
         var result = new UploadFileCommandValidator()
@@ -113,6 +114,7 @@ public class UploadFileHandlerTests
     [InlineData("customers", "forge-job-files")]
     [InlineData("quotes", "forge-job-files")]
     [InlineData("purchase-orders", "forge-job-files")]
+    [InlineData("lots", "forge-job-files")]
     [InlineData("expenses", "forge-receipts")]
     [InlineData("employee-docs", "forge-employee-docs")]
     public void Buckets_route_per_entity_type(string entityType, string expectedBucket)

@@ -9,8 +9,8 @@ namespace Forge.Tests.Handlers.Inventory;
 
 /// <summary>
 /// Lot-aware bin content lookups against real Postgres, where a null lot compares through SQL rather than
-/// C# equality: each lot (including no lot) finds only its own row, and the location list puts un-lotted
-/// stock first, then the oldest lot.
+/// C# equality: each lot (including no lot) finds only its own row in the requested status, and the location
+/// list puts un-lotted stock first, then the oldest lot.
 /// </summary>
 [Collection(PostgresCollection.Name)]
 public sealed class InventoryRepositoryLotLookupPostgresTests(PostgresFixture fixture)
@@ -46,13 +46,37 @@ public sealed class InventoryRepositoryLotLookupPostgresTests(PostgresFixture fi
         await using var db = fixture.CreateContext();
         var repo = new InventoryRepository(db);
 
-        (await repo.FindActiveBinContentByPartLocationLotAsync(partId, locationId, null, CancellationToken.None))!
+        (await repo.FindActiveBinContentByPartLocationLotAsync(partId, locationId, null, BinContentStatus.Stored, CancellationToken.None))!
             .Id.Should().Be(unlottedId);
-        (await repo.FindActiveBinContentByPartLocationLotAsync(partId, locationId, "HEAT-A", CancellationToken.None))!
+        (await repo.FindActiveBinContentByPartLocationLotAsync(partId, locationId, "HEAT-A", BinContentStatus.Stored, CancellationToken.None))!
             .Id.Should().Be(lotAId);
-        (await repo.FindActiveBinContentByPartLocationLotAsync(partId, locationId, "HEAT-B", CancellationToken.None))!
+        (await repo.FindActiveBinContentByPartLocationLotAsync(partId, locationId, "HEAT-B", BinContentStatus.Stored, CancellationToken.None))!
             .Id.Should().Be(lotBId);
-        (await repo.FindActiveBinContentByPartLocationLotAsync(partId, locationId, "HEAT-C", CancellationToken.None))
+        (await repo.FindActiveBinContentByPartLocationLotAsync(partId, locationId, "HEAT-C", BinContentStatus.Stored, CancellationToken.None))
+            .Should().BeNull();
+    }
+
+    [Fact]
+    public async Task FindActiveBinContentByPartLocationLotAsync_matchesOnlyTheRequestedStatus()
+    {
+        var (partId, locationId, _, lotAId, _) = await SeedAsync();
+        await using var seed = fixture.CreateContext();
+        var held = new BinContent
+        {
+            LocationId = locationId, EntityId = partId, Quantity = 10m, LotNumber = "HEAT-A",
+            Status = BinContentStatus.QcHold, PlacedAt = new DateTimeOffset(2026, 10, 5, 8, 0, 0, TimeSpan.Zero),
+        };
+        seed.BinContents.Add(held);
+        await seed.SaveChangesAsync();
+
+        await using var db = fixture.CreateContext();
+        var repo = new InventoryRepository(db);
+
+        (await repo.FindActiveBinContentByPartLocationLotAsync(partId, locationId, "HEAT-A", BinContentStatus.Stored, CancellationToken.None))!
+            .Id.Should().Be(lotAId);
+        (await repo.FindActiveBinContentByPartLocationLotAsync(partId, locationId, "HEAT-A", BinContentStatus.QcHold, CancellationToken.None))!
+            .Id.Should().Be(held.Id);
+        (await repo.FindActiveBinContentByPartLocationLotAsync(partId, locationId, null, BinContentStatus.QcHold, CancellationToken.None))
             .Should().BeNull();
     }
 

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Inventory;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Data.Context;
@@ -10,7 +11,8 @@ namespace Forge.Api.Features.Quality;
 /// <summary>
 /// The lot quality hold an NCR places on stock. Raising an NCR on a part and lot moves that lot's Stored part
 /// contents to QcHold; a Use As Is or Rework disposition, or closing the NCR, moves them back to Stored unless
-/// another NCR still holds the lot or an active recall covers it. Reopening a closed NCR whose disposition kept
+/// another NCR still holds the lot or an active recall covers it, and leave held what receipts still awaiting
+/// inspection put there. Reopening a closed NCR whose disposition kept
 /// the hold places it again. Stock-out paths refuse held stock with
 /// <see cref="Message"/>. Every hold and release is logged on the NCR and, when a lot record exists, the lot.
 /// </summary>
@@ -58,10 +60,11 @@ public static class LotQualityHold
         if (otherHold || await db.IsLotUnderActiveRecallAsync(ncr.LotNumber, ct))
             return 0;
 
-        foreach (var row in rows)
-            row.Status = BinContentStatus.Stored;
+        var quantity = await ReceivingStockHold.ReleaseHeldRowsAsync(
+            db, ncr.PartId, ncr.LotNumber, rows, ct);
+        if (quantity <= 0)
+            return 0;
 
-        var quantity = rows.Sum(r => r.Quantity);
         await LogAsync(db, ncr, "quality-hold-released",
             $"Lot {ncr.LotNumber} released from quality hold: {quantity:0.####} released by {ncr.NcrNumber}", ct);
         return quantity;

@@ -29,6 +29,12 @@ public class GetLotTraceabilityHandler(AppDbContext db)
             .Distinct()
             .ToListAsync(cancellationToken);
 
+        var issuedTo = await LotMaterialIssues.ForLotAsync(db, lot.PartId, lot.LotNumber, cancellationToken);
+        jobs.AddRange(issuedTo
+            .Where(i => jobs.All(j => j.Id != i.JobId))
+            .DistinctBy(i => i.JobId)
+            .Select(i => new LotTraceJobModel(i.JobId, i.JobNumber, i.JobTitle)));
+
         // Find all production runs linked to this lot
         var productionRuns = await db.LotRecords
             .AsNoTracking()
@@ -183,6 +189,8 @@ public class GetLotTraceabilityHandler(AppDbContext db)
             if (row.PoNumber != null)
                 events.Add(new LotTraceEventModel("PurchaseOrder", row.PoNumber, row.VendorName ?? string.Empty, row.CreatedAt, row.Quantity));
         }
+        events.AddRange(issuedTo.Select(i =>
+            new LotTraceEventModel("IssuedToJob", i.JobNumber, i.JobTitle, i.IssuedAt, i.Quantity)));
         events.AddRange(binRows.Select(b =>
             new LotTraceEventModel("BinLocation", b.Name, string.Empty, b.PlacedAt, b.Quantity)));
         events.AddRange(inspections.Select(i =>

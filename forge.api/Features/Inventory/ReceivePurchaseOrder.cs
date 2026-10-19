@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 
 using Forge.Api.Capabilities;
 using Forge.Api.Features.Accounting;
+using Forge.Api.Features.Lots;
 using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
@@ -45,7 +46,8 @@ public class ReceivePurchaseOrderHandler(
     // posting no-ops while CAP-ACCT-FULLGL is off.
     AppDbContext? db = null,
     IReceiptInventoryPostingService? receiptPosting = null,
-    ICapabilitySnapshotProvider? capabilities = null)
+    ICapabilitySnapshotProvider? capabilities = null,
+    IBarcodeService? barcodes = null)
     : IRequestHandler<ReceivePurchaseOrderCommand, ReceivingRecordResponseModel>
 {
     public async Task<ReceivingRecordResponseModel> Handle(
@@ -117,6 +119,7 @@ public class ReceivePurchaseOrderHandler(
                 EntityId = stockPartId,
                 Quantity = baseQuantityReceived,
                 LotNumber = lot,
+                Status = ReceivingStockHold.StockStatus(record.InspectionStatus),
                 PlacedBy = userId,
                 PlacedAt = clock.UtcNow,
                 Notes = data.Notes,
@@ -165,6 +168,9 @@ public class ReceivePurchaseOrderHandler(
             : null;
 
         await poRepo.SaveChangesAsync(cancellationToken);
+
+        if (db is not null)
+            await ReceiptLotRecords.EnsureAsync(db, barcodes, capabilities, line, lot, baseQuantityReceived, cancellationToken);
 
         // Inline inventory / GRNI posting (Phase-2 STAGE C parity for the inv-tab receive). Runs AFTER
         // the operational SaveChanges so the record is flushed and resolvable by ReceiptNumber; no-op

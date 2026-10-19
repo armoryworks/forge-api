@@ -8,8 +8,8 @@ namespace Forge.Api.Features.Files;
 /// carried duplicated copies of both — they drifted, and `sales-orders` missing
 /// from the whitelist rejected every file on the SO Documents tab (external QA
 /// report; the .png in the report was incidental). Sales and purchasing
-/// document types (sales orders, customers, quotes, purchase orders) share the
-/// job-files bucket.
+/// document types (sales orders, customers, quotes, purchase orders) and lot
+/// certificates share the job-files bucket.
 /// </summary>
 public static class FileEntityTypes
 {
@@ -19,6 +19,7 @@ public static class FileEntityTypes
         "identity-docs", "employee-docs", "compliance-templates",
         "pay-stubs", "tax-documents",
         "sales-orders", "customers", "quotes", "purchase-orders",
+        "lots",
     ];
 
     public static string ResolveBucket(string entityType, MinioOptions opts) => entityType switch

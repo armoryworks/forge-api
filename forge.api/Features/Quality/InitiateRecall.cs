@@ -16,11 +16,11 @@ namespace Forge.Api.Features.Quality;
 /// <summary>
 /// CAP-QC-RECALL — initiates a lot-based recall. Walks the lot_consumptions genealogy FORWARD
 /// from the recalled lot to every downstream produced lot, quarantines matching on-hand bin
-/// contents (Stored → QcHold), resolves the shipments/customers that received affected lots
-/// (from the lot-stamped Ship bin movements, unioned with the job → sales-order-line chain, flagged
-/// approximate, for every shipped line of that order line whose Ship movements carry no affected lot:
-/// unlotted, stamped with another lot by FIFO relief, or never relieved), and freezes it all as an
-/// immutable Recall snapshot.
+/// contents of the affected parts and lots (Stored → QcHold), resolves the shipments/customers that received
+/// affected lots (from the lot-stamped Ship bin movements, unioned with the job → sales-order-line chain of the
+/// jobs that produced an affected lot or were issued one (and their parent jobs), flagged approximate, for every shipped line of that
+/// order line whose Ship movements carry no affected lot: unlotted, stamped with another lot by FIFO relief, or
+/// never relieved), and freezes it all as an immutable Recall snapshot.
 /// </summary>
 public record InitiateRecallCommand(InitiateRecallRequestModel Data) : IRequest<RecallDetailResponseModel>;
 
@@ -63,12 +63,19 @@ public class InitiateRecallHandler(AppDbContext db, IHttpContextAccessor httpCon
             .ToDictionaryAsync(x => x.ProducedLotId, x => x.Qty, cancellationToken);
 
         var affectedLotNumbers = affectedLots.Select(l => l.LotNumber).ToList();
+        var affectedPartIds = affectedLots.Select(l => l.PartId).Distinct().ToList();
+        var affectedPartLots = affectedLots.Select(l => (l.PartId, l.LotNumber)).ToHashSet();
 
         // 2) Quarantine on-hand: matching part-stock bin contents currently Stored → QcHold.
-        var binContents = await db.BinContents
-            .Where(bc => bc.LotNumber != null && affectedLotNumbers.Contains(bc.LotNumber)
+        var binContents = (await db.BinContents
+            .Where(bc => bc.EntityType == "part"
+                      && affectedPartIds.Contains(bc.EntityId)
+                      && bc.LotNumber != null && affectedLotNumbers.Contains(bc.LotNumber)
+                      && bc.RemovedAt == null
                       && bc.Status == BinContentStatus.Stored)
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken))
+            .Where(bc => affectedPartLots.Contains((bc.EntityId, bc.LotNumber!)))
+            .ToList();
         foreach (var bc in binContents)
             bc.Status = BinContentStatus.QcHold;
 
@@ -78,7 +85,10 @@ public class InitiateRecallHandler(AppDbContext db, IHttpContextAccessor httpCon
 
         // 3) Resolve affected shipments/customers from lot-stamped Ship movements, unioned with the affected jobs' SO-line chain (approximate).
         var exactShipments = await LotShipmentResolver.ForLotsAsync(db, affectedLotNumbers, cancellationToken);
-        var soLineIds = await AffectedSalesOrderLineIdsAsync(db, affectedLots.Select(l => l.JobId), cancellationToken);
+        var issuedJobIds = await LotMaterialIssues.WithParentJobsAsync(
+            db, await LotMaterialIssues.JobIdsAsync(db, affectedPartLots, cancellationToken), cancellationToken);
+        var soLineIds = await AffectedSalesOrderLineIdsAsync(
+            db, affectedLots.Select(l => l.JobId).Concat(issuedJobIds.Select(id => (int?)id)), cancellationToken);
         var approximateShipments = await LotShipmentResolver.ForSalesOrderLinesAsync(
             db, soLineIds, affectedLotNumbers, cancellationToken);
 

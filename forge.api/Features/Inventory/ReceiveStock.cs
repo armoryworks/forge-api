@@ -63,7 +63,8 @@ public class ReceiveStockHandler(
         }
 
         var lot = string.IsNullOrWhiteSpace(data.LotNumber) ? null : data.LotNumber.Trim();
-        var existing = await repo.FindActiveBinContentByPartLocationLotAsync(data.PartId, locationId, lot, cancellationToken);
+        var existing = await repo.FindActiveBinContentByPartLocationLotAsync(
+            data.PartId, locationId, lot, BinContentStatus.Stored, cancellationToken);
         if (existing is null)
         {
             await repo.AddBinContentAsync(new BinContent
