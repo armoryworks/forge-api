@@ -120,7 +120,7 @@ public class QuickBooksAccountingService(
             {
                 Id = (i + 1).ToString(),
                 DetailType = "ItemBasedExpenseLineDetail",
-                Amount = li.Quantity * li.UnitPrice,
+                Amount = Math.Round(li.Quantity * li.UnitPrice, 2, MidpointRounding.AwayFromZero),
                 ItemBasedExpenseLineDetail = new
                 {
                     ItemRef = li.ItemExternalId is not null ? new { value = li.ItemExternalId } : null,
@@ -556,7 +556,7 @@ public class QuickBooksAccountingService(
             {
                 Id = (i + 1).ToString(),
                 DetailType = "SalesItemLineDetail",
-                Amount = li.Quantity * li.UnitPrice,
+                Amount = Math.Round(li.Quantity * li.UnitPrice, 2, MidpointRounding.AwayFromZero),
                 SalesItemLineDetail = new
                 {
                     ItemRef = li.ItemExternalId is not null ? new { value = li.ItemExternalId } : null,

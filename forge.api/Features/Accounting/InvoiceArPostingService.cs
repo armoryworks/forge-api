@@ -241,7 +241,7 @@ public sealed class InvoiceArPostingService(
 
         // COGS / finished-goods relief that waited for this same delivery trigger (STAGE B).
         // Its own :COGS idempotency key makes this safe if it somehow already posted.
-        await PostCogsAsync(invoice, book, deliveredByUserId, ct);
+        await PostCogsAsync(invoice, book, DateOnly.FromDateTime(deliveredAt.UtcDateTime), deliveredByUserId, ct);
     }
 
     public async Task ReverseInvoiceFinalizedAsync(
@@ -527,7 +527,7 @@ public sealed class InvoiceArPostingService(
         // inventory is NOT relieved yet — COGS waits for the same delivery trigger as the revenue
         // reclass (TODO below).
         if (controlTransferred)
-            await PostCogsAsync(invoice, book, finalizedByUserId, ct);
+            await PostCogsAsync(invoice, book, entryDate, finalizedByUserId, ct);
 
         // ── Deferred-revenue reclass on delivery (§8.4 / matrix row 2): handled by
         // PostDeliveryReclassAsync above, triggered by ShipmentDeliveredEvent via
@@ -538,13 +538,15 @@ public sealed class InvoiceArPostingService(
     /// Phase-2 STAGE B — COGS / inventory relief at the sale (§7 matrix row 1, §8.1). For each line of a
     /// stocked part (see <see cref="LineRelievesInventory"/>) with a resolvable standard cost, posts Dr COGS
     /// for the line cost and one aggregate credit per inventory account the sold parts are carried in
-    /// (<see cref="ReliefKeyFor"/>), as a separate journal entry (idempotency purpose :COGS). Lines with no
+    /// (<see cref="ReliefKeyFor"/>), as a separate journal entry (idempotency purpose :COGS) dated
+    /// <paramref name="entryDate"/> — the invoice date when revenue is recognized at finalize, the delivery
+    /// date when it is recognized by the delivery reclass, so revenue and its COGS land in the same period. Lines with no
     /// part, a non-stocked part, or no resolvable cost are skipped (the document still finalizes; gross
     /// margin understates for that line until a cost lands). The INVENTORY_* accounts are inventory control
     /// accounts reconciled by part via the valuation store (§8.1), so the credits post party-less (the
     /// engine requires a party only for AR/AP control accounts).
     /// </summary>
-    private async Task PostCogsAsync(Invoice invoice, Book book, int userId, CancellationToken ct)
+    private async Task PostCogsAsync(Invoice invoice, Book book, DateOnly entryDate, int userId, CancellationToken ct)
     {
         var idempotencyKey = $"{JournalSource.Inventory}:Invoice:{invoice.Id}:COGS";
 
@@ -647,7 +649,7 @@ public sealed class InvoiceArPostingService(
         var request = new PostingRequest
         {
             BookId = book.Id,
-            EntryDate = DateOnly.FromDateTime(invoice.InvoiceDate.UtcDateTime),
+            EntryDate = entryDate,
             Source = JournalSource.Inventory,
             SourceType = "Invoice",
             SourceId = invoice.Id,

@@ -209,6 +209,37 @@ public class Phase2DeliveryReclassTests
     }
 
     [Fact]
+    public async Task Reclass_DeliveryInLaterPeriod_DatesCogsOnTheDeliveryDateWithTheRevenue()
+    {
+        using var db = await SeedAsync();
+        db.Set<FiscalPeriod>().Add(new FiscalPeriod
+        {
+            Id = OpenPeriodId + 1, FiscalYearId = FiscalYearId, PeriodNumber = 2, Name = "Feb 2026",
+            StartDate = new DateOnly(2026, 2, 1), EndDate = new DateOnly(2026, 2, 28),
+            Status = FiscalPeriodStatus.Open,
+        });
+        await db.SaveChangesAsync();
+        var (invoice, shipment) = await AddDeferredInvoiceAsync(db);
+        var service = CreateService(db, fullGlOn: true);
+
+        await service.PostInvoiceFinalizedAsync(invoice.Id, finalizedByUserId: 7);
+        shipment.Status = ShipmentStatus.Delivered;
+        shipment.DeliveredDate = new DateTimeOffset(2026, 2, 3, 0, 0, 0, TimeSpan.Zero);
+        await db.SaveChangesAsync();
+        await service.PostDeliveryReclassAsync(invoice.Id, deliveredByUserId: 8);
+
+        var entries = await db.JournalEntries.IgnoreQueryFilters().ToListAsync();
+        var original = entries.Single(e => e.IdempotencyKey == $"{JournalSource.AR}:Invoice:{invoice.Id}:REVENUE");
+        var reclass = entries.Single(e => e.IdempotencyKey == $"{JournalSource.AR}:Invoice:{invoice.Id}:REVENUE_RECLASS");
+        var cogs = entries.Single(e => e.Source == JournalSource.Inventory);
+
+        original.EntryDate.Should().Be(new DateOnly(2026, 1, 15));
+        reclass.EntryDate.Should().Be(new DateOnly(2026, 2, 3));
+        cogs.EntryDate.Should().Be(reclass.EntryDate, "COGS is recognized with the revenue it matches, not on the invoice date");
+        cogs.FiscalPeriodId.Should().Be(reclass.FiscalPeriodId);
+    }
+
+    [Fact]
     public async Task Reclass_StraightRevenueInvoice_IsNoOp()
     {
         using var db = await SeedAsync();
