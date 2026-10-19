@@ -1571,8 +1571,7 @@ try
         }
     }
 
-    // Storage bucket/directory initialization (skip when using mock storage)
-    if (!useMocks)
+    // Storage bucket/directory initialization
     {
         using var scope = app.Services.CreateScope();
         var storageService = scope.ServiceProvider.GetRequiredService<IStorageService>();
