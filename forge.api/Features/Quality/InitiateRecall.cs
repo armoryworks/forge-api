@@ -18,7 +18,7 @@ namespace Forge.Api.Features.Quality;
 /// from the recalled lot to every downstream produced lot, quarantines matching on-hand bin
 /// contents of the affected parts and lots (Stored → QcHold), resolves the shipments/customers that received
 /// affected lots (from the lot-stamped Ship bin movements, unioned with the job → sales-order-line chain of the
-/// jobs that produced an affected lot or were issued one, flagged approximate, for every shipped line of that
+/// jobs that produced an affected lot or were issued one (and their parent jobs), flagged approximate, for every shipped line of that
 /// order line whose Ship movements carry no affected lot: unlotted, stamped with another lot by FIFO relief, or
 /// never relieved), and freezes it all as an immutable Recall snapshot.
 /// </summary>
@@ -85,7 +85,8 @@ public class InitiateRecallHandler(AppDbContext db, IHttpContextAccessor httpCon
 
         // 3) Resolve affected shipments/customers from lot-stamped Ship movements, unioned with the affected jobs' SO-line chain (approximate).
         var exactShipments = await LotShipmentResolver.ForLotsAsync(db, affectedLotNumbers, cancellationToken);
-        var issuedJobIds = await LotMaterialIssues.JobIdsAsync(db, affectedPartLots, cancellationToken);
+        var issuedJobIds = await LotMaterialIssues.WithParentJobsAsync(
+            db, await LotMaterialIssues.JobIdsAsync(db, affectedPartLots, cancellationToken), cancellationToken);
         var soLineIds = await AffectedSalesOrderLineIdsAsync(
             db, affectedLots.Select(l => l.JobId).Concat(issuedJobIds.Select(id => (int?)id)), cancellationToken);
         var approximateShipments = await LotShipmentResolver.ForSalesOrderLinesAsync(

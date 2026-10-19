@@ -46,4 +46,31 @@ public class GetSerialGenealogyLotsTests
             new { LotId = (int?)null, LotNumber = "R-26-117", PartNumber = "RS-PCABS-BLK", Source = "MaterialIssue", Quantity = (decimal?)4m },
         }, o => o.WithStrictOrdering());
     }
+
+    [Fact]
+    public async Task Genealogy_reaches_the_lots_issued_to_the_jobs_sub_assembly_jobs()
+    {
+        _db.TrackTypes.Add(new TrackType { Id = 5, Name = "Prod", Code = "prod", IsActive = true });
+        _db.JobStages.Add(new JobStage { Id = 51, TrackTypeId = 5, Name = "S1", Code = "s1", SortOrder = 1 });
+        var finished = new Part { Id = 1, PartNumber = "FG-400", Description = "Assembly" };
+        var plate = new Part { Id = 2, PartNumber = "SA-220", Description = "Plate" };
+        var bar = new Part { Id = 3, PartNumber = "RM-6061-B12", Description = "Bar" };
+        _db.Parts.AddRange(finished, plate, bar);
+        _db.Jobs.AddRange(
+            new Job { Id = 40, JobNumber = "J-400", Title = "Build FG-400", TrackTypeId = 5, CurrentStageId = 51, PartId = finished.Id },
+            new Job { Id = 41, JobNumber = "J-401", Title = "Plate", TrackTypeId = 5, CurrentStageId = 51, PartId = plate.Id, ParentJobId = 40 },
+            new Job { Id = 42, JobNumber = "J-402", Title = "Plate blank", TrackTypeId = 5, CurrentStageId = 51, PartId = bar.Id, ParentJobId = 41 },
+            new Job { Id = 43, JobNumber = "J-403", Title = "Other build", TrackTypeId = 5, CurrentStageId = 51, PartId = plate.Id });
+        var issuedAt = new DateTimeOffset(2026, 10, 9, 0, 0, 0, TimeSpan.Zero);
+        _db.MaterialIssues.AddRange(
+            new MaterialIssue { JobId = 42, PartId = bar.Id, Quantity = 5m, LotNumber = "H-55821", IssuedAt = issuedAt },
+            new MaterialIssue { JobId = 43, PartId = bar.Id, Quantity = 9m, LotNumber = "H-99999", IssuedAt = issuedAt });
+        _db.SerialNumbers.Add(new SerialNumber { Id = 9, PartId = finished.Id, SerialValue = "SN-0002", JobId = 40 });
+        await _db.SaveChangesAsync();
+
+        var tree = await new GetSerialGenealogyHandler(_db).Handle(new GetSerialGenealogyQuery("SN-0002"), CancellationToken.None);
+
+        tree.Lots.Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(new { LotNumber = "H-55821", PartNumber = "RM-6061-B12", Source = "MaterialIssue", Quantity = (decimal?)5m });
+    }
 }

@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Forge.Api.Features.Lots;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -75,8 +76,9 @@ public class GetSerialGenealogyHandler(AppDbContext db) : IRequestHandler<GetSer
 
         if (node.JobId is int jobId)
         {
+            var jobIds = await LotMaterialIssues.WithSubAssemblyJobsAsync(db, jobId, cancellationToken);
             var issued = await db.MaterialIssues.AsNoTracking()
-                .Where(mi => mi.JobId == jobId && mi.IssueType == MaterialIssueType.Issue && mi.LotNumber != null)
+                .Where(mi => jobIds.Contains(mi.JobId) && mi.IssueType == MaterialIssueType.Issue && mi.LotNumber != null)
                 .GroupBy(mi => new { mi.PartId, mi.Part.PartNumber, LotNumber = mi.LotNumber! })
                 .Select(g => new { g.Key.PartId, g.Key.PartNumber, g.Key.LotNumber, Quantity = g.Sum(mi => mi.Quantity) })
                 .ToListAsync(cancellationToken);

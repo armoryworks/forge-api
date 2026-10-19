@@ -497,6 +497,31 @@ public sealed class InitiateRecallHandlerTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task A_lot_issued_to_a_sub_assembly_job_reaches_the_parent_jobs_shipments_as_approximate()
+    {
+        await using var db = fixture.CreateContext();
+        var bar = await SeedPartAsync(db);
+        var user = await SeedUserAsync(db);
+        var heat = await SeedLotAsync(db, bar.Id, 100);
+        var shipped = await SeedShipmentAsync(db, "Assembly Buyer", 4);
+        var parent = await SeedJobAsync(db, shipped.SoLine.Id);
+        var child = await SeedJobAsync(db, null);
+        child.ParentJobId = parent.Id;
+        db.MaterialIssues.Add(new MaterialIssue
+        {
+            JobId = child.Id, PartId = bar.Id, Quantity = 20, LotNumber = heat.LotNumber,
+            IssuedById = user.Id, IssuedAt = DateTimeOffset.UtcNow, IssueType = MaterialIssueType.Issue,
+        });
+        await db.SaveChangesAsync();
+
+        var result = await new InitiateRecallHandler(db, Http()).Handle(Recall(heat.Id), CancellationToken.None);
+
+        var shp = result.AffectedShipments.Should().ContainSingle().Subject;
+        shp.CustomerId.Should().Be(shipped.Customer.Id);
+        shp.IsApproximate.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Quarantine_skips_another_parts_stock_that_reuses_the_lot_string()
     {
         await using var db = fixture.CreateContext();
