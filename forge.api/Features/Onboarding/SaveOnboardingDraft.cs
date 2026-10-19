@@ -27,7 +27,7 @@ public record SaveOnboardingDraftCommand(
     int UserId,
     SaveOnboardingDraftRequestModel Model) : IRequest<OnboardingDraftStatusModel>;
 
-public class SaveOnboardingDraftHandler(AppDbContext db, IPiiProtector pii)
+public class SaveOnboardingDraftHandler(AppDbContext db, IPiiProtector pii, ISystemAuditWriter auditWriter)
     : IRequestHandler<SaveOnboardingDraftCommand, OnboardingDraftStatusModel>
 {
     public async Task<OnboardingDraftStatusModel> Handle(
@@ -87,6 +87,9 @@ public class SaveOnboardingDraftHandler(AppDbContext db, IPiiProtector pii)
             profile.I9ForeignPassportProtected = pii.Protect(m.I9ForeignPassportNumber);
 
         // ── Step 6: Direct Deposit ──────────────────────────────────────────
+        var directDepositChanges = profile.DirectDepositCompletedAt is null
+            ? []
+            : DirectDepositChanges(profile, m);
         if (m.BankName    is not null) profile.BankName        = m.BankName;
         if (m.AccountType is not null) profile.BankAccountType = m.AccountType;
         if (!string.IsNullOrWhiteSpace(m.RoutingNumber))
@@ -94,7 +97,24 @@ public class SaveOnboardingDraftHandler(AppDbContext db, IPiiProtector pii)
         if (!string.IsNullOrWhiteSpace(m.AccountNumber))
             profile.BankAccountProtected = pii.Protect(m.AccountNumber);
 
+        if (directDepositChanges.Count > 0)
+            await NotifyDirectDepositChangedAsync(request.UserId, profile, directDepositChanges, ct);
+
         await db.SaveChangesAsync(ct);
+
+        if (directDepositChanges.Count > 0)
+        {
+            await auditWriter.WriteAsync("DirectDepositChanged", db.CurrentUserId ?? request.UserId,
+                entityType: "EmployeeProfile",
+                entityId: profile.Id,
+                details: System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    targetUserId = request.UserId,
+                    changedFields = directDepositChanges,
+                    accountLast4 = Last4(pii.Unprotect(profile.BankAccountProtected)),
+                }),
+                ct: ct);
+        }
 
         // ── Step 5: I-9 identity documents ──────────────────────────────────
         // One row per (UserId, DocumentType). Upsert by lookup; null fields
@@ -111,6 +131,71 @@ public class SaveOnboardingDraftHandler(AppDbContext db, IPiiProtector pii)
 
         return await GetOnboardingDraftStatusHandler.LoadStatusAsync(db, request.UserId, ct);
     }
+
+    private List<string> DirectDepositChanges(EmployeeProfileEntity profile, SaveOnboardingDraftRequestModel m)
+    {
+        var changes = new List<string>();
+        if (m.BankName is not null && m.BankName != profile.BankName)
+            changes.Add("bankName");
+        if (m.AccountType is not null && m.AccountType != profile.BankAccountType)
+            changes.Add("accountType");
+        if (!string.IsNullOrWhiteSpace(m.RoutingNumber) && m.RoutingNumber != pii.Unprotect(profile.BankRoutingProtected))
+            changes.Add("routingNumber");
+        if (!string.IsNullOrWhiteSpace(m.AccountNumber) && m.AccountNumber != pii.Unprotect(profile.BankAccountProtected))
+            changes.Add("accountNumber");
+        return changes;
+    }
+
+    private async Task NotifyDirectDepositChangedAsync(
+        int userId, EmployeeProfileEntity profile, List<string> changes, CancellationToken ct)
+    {
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId, ct);
+        var name = user is null
+            ? $"{profile.LastName}, {profile.FirstName}"
+            : $"{user.LastName}, {user.FirstName}";
+        var accountChanged = changes.Contains("routingNumber") || changes.Contains("accountNumber");
+
+        var payrollUserIds = await db.UserRoles
+            .Join(db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, r.Name })
+            .Where(x => (x.Name == "Admin" || x.Name == "OfficeManager")
+                && x.UserId != userId
+                && db.Users.Any(u => u.Id == x.UserId && u.IsActive))
+            .Select(x => x.UserId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        foreach (var recipientId in payrollUserIds)
+        {
+            db.Notifications.Add(new Notification
+            {
+                Type = "direct_deposit_changed",
+                Severity = "warning",
+                Source = "payroll",
+                Title = "Direct deposit changed",
+                Message = accountChanged
+                    ? $"{name} changed their direct deposit bank account. Confirm the change with them before the next payroll."
+                    : $"{name} changed their direct deposit details.",
+                EntityType = "employee_profiles",
+                EntityId = profile.Id,
+                UserId = recipientId,
+            });
+        }
+
+        db.Notifications.Add(new Notification
+        {
+            Type = "direct_deposit_changed",
+            Severity = "warning",
+            Source = "payroll",
+            Title = "Your direct deposit was changed",
+            Message = "Your direct deposit details were changed. If you did not make this change, contact payroll right away.",
+            EntityType = "employee_profiles",
+            EntityId = profile.Id,
+            UserId = userId,
+        });
+    }
+
+    private static string? Last4(string? value)
+        => string.IsNullOrEmpty(value) ? null : value.Length <= 4 ? value : value[^4..];
 
     private async Task UpsertIdentityDocAsync(
         int userId, IdentityDocumentType docType,
