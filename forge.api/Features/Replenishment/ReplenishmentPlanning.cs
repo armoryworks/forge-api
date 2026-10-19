@@ -54,7 +54,8 @@ public static class ReplenishmentPlanning
                 && partIds.Contains(j.PartId.Value)
                 && !j.IsArchived
                 && j.CompletedDate == null
-                && j.Disposition == null)
+                && j.Disposition == null
+                && !db.CustomerReturns.Any(r => r.ReworkJobId == j.Id))
             .ToListAsync(ct);
 
         return openJobs

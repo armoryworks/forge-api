@@ -24,6 +24,7 @@ public class UninvoicedJobNudgeJob(
         var uninvoicedCount = await db.Jobs
             .Where(j => j.CompletedDate != null && !j.IsArchived)
             .Where(j => j.CompletedDate <= cutoff)
+            .Where(j => !db.CustomerReturns.Any(r => r.ReworkJobId == j.Id))
             .Where(j =>
                 j.SalesOrderLineId == null ||
                 !j.SalesOrderLine!.SalesOrder.Invoices.Any(i => i.DeletedAt == null))

@@ -32,6 +32,7 @@ public class GetPaymentByIdHandler(IPaymentRepository repo)
                 a.Id, a.PaymentId, payment.PaymentNumber,
                 a.InvoiceId, a.Invoice.InvoiceNumber, a.Amount)).ToList(),
             payment.CreatedAt,
-            payment.UpdatedAt);
+            payment.UpdatedAt,
+            payment.Version);
     }
 }

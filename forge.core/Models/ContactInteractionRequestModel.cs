@@ -6,4 +6,5 @@ public record ContactInteractionRequestModel(
     string Subject,
     string? Body,
     DateTimeOffset InteractionDate,
-    int? DurationMinutes);
+    int? DurationMinutes,
+    DateTimeOffset? FollowUpDate = null);

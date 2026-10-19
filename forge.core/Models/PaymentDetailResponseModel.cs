@@ -14,4 +14,5 @@ public record PaymentDetailResponseModel(
     string? Notes,
     List<PaymentApplicationResponseModel> Applications,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    uint RowVersion = 0);

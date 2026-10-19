@@ -1,7 +1,9 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 using Forge.Core.Enums;
+using Forge.Core.Enums.Accounting;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Core.Settings;
@@ -80,6 +82,10 @@ public class UpdatePaymentHandler(
             }
         }
 
+        if (request.Data.Amount != payment.Amount && await HasPostedCashReceiptAsync(payment.Id, cancellationToken))
+            throw new InvalidOperationException(
+                "This payment's cash receipt is already posted to the general ledger, so its amount can't be changed. Void it and record it again.");
+
         payment.Method = Enum.Parse<PaymentMethod>(request.Data.Method, ignoreCase: true);
         payment.Amount = request.Data.Amount;
         payment.PaymentDate = request.Data.PaymentDate;
@@ -97,6 +103,15 @@ public class UpdatePaymentHandler(
             payment.Method.ToString(), payment.Amount, appliedTotal,
             payment.Amount - appliedTotal, payment.PaymentDate,
             payment.ReferenceNumber, payment.CreatedAt);
+    }
+
+    private Task<bool> HasPostedCashReceiptAsync(int paymentId, CancellationToken ct)
+    {
+        var key = $"{JournalSource.AR}:Payment:{paymentId}:PAYMENT";
+        return db.JournalEntries.IgnoreQueryFilters()
+            .AnyAsync(e => e.IdempotencyKey == key
+                           && e.Status == JournalEntryStatus.Posted
+                           && e.ReversedByEntryId == null, ct);
     }
 
     private async Task<bool> ManualPaymentNumbersAllowedAsync(CancellationToken ct)

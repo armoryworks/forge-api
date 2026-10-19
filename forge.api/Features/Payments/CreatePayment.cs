@@ -121,51 +121,8 @@ public class CreatePaymentHandler(
                 var invoice = await invoiceRepo.FindWithDetailsAsync(app.InvoiceId, cancellationToken)
                     ?? throw new KeyNotFoundException($"Invoice {app.InvoiceId} not found");
 
-                // Sub-ledger integrity: the payment's customer must own the invoice (parity with
-                // CreateVendorPayment — Phase-2 review).
-                if (invoice.CustomerId != request.CustomerId)
-                    throw new InvalidOperationException(
-                        $"Invoice {invoice.InvoiceNumber} belongs to a different customer");
-
-                // Only a finalized (AR-booked) invoice can be paid. A Draft invoice has not posted its AR
-                // debit (posting fires on SendInvoice), so paying it would Cr AR against a receivable the
-                // GL never recorded; Paid/Voided are terminal. Restrict to Sent / PartiallyPaid / Overdue.
-                if (invoice.Status is not (InvoiceStatus.Sent or InvoiceStatus.PartiallyPaid or InvoiceStatus.Overdue))
-                    throw new InvalidOperationException(
-                        $"Invoice {invoice.InvoiceNumber} is {invoice.Status}; only Sent, PartiallyPaid, or Overdue invoices can be paid");
-
-                // F-027: consume the canonical Invoice.BalanceDue rather than re-deriving the
-                // money formula here. The two were numerically equal only while
-                // InvoiceLine.LineTotal == Quantity * UnitPrice; a single source of truth keeps
-                // payment validation and the invoice's reported balance from drifting apart.
-                var balanceDue = invoice.BalanceDue;
-
-                if (app.Amount > balanceDue)
-                    throw new InvalidOperationException(
-                        $"Application amount {app.Amount:C} exceeds invoice {invoice.InvoiceNumber} balance of {balanceDue:C}");
-
-                payment.Applications.Add(new PaymentApplication
-                {
-                    InvoiceId = app.InvoiceId,
-                    Amount = app.Amount,
-                    SettlementFxRate = app.SettlementFxRate,
-                });
-
+                PaymentApplicationRules.ApplyToInvoice(db, payment, invoice, app, completionCandidateSoIds);
                 appliedTotal += app.Amount;
-
-                // Update invoice status
-                var newBalance = balanceDue - app.Amount;
-                if (newBalance <= 0)
-                {
-                    invoice.Status = InvoiceStatus.Paid;
-                    if (invoice.SalesOrderId is int paidSoId) completionCandidateSoIds.Add(paidSoId);
-                }
-                else if (invoice.Status == InvoiceStatus.Sent || invoice.Status == InvoiceStatus.Overdue)
-                    invoice.Status = InvoiceStatus.PartiallyPaid;
-
-                // F-026: force the concurrency token modified so a concurrent SaveChanges on
-                // the same invoice row collides and throws DbUpdateConcurrencyException.
-                db.Entry(invoice).Property(i => i.Version).IsModified = true;
             }
         }
 
@@ -207,24 +164,7 @@ public class CreatePaymentHandler(
         // (non-voided) invoices paid is done — advance it to Completed, the terminal
         // O2C state the prior pipeline never set (CreateShipment only reaches Shipped).
         // Runs after the invoice-Paid flush so the statuses checked here are committed.
-        if (completionCandidateSoIds.Count > 0)
-        {
-            var anyCompleted = false;
-            foreach (var soId in completionCandidateSoIds)
-            {
-                var so = await db.SalesOrders
-                    .Include(o => o.Lines)
-                    .Include(o => o.Invoices)
-                    .FirstOrDefaultAsync(o => o.Id == soId, cancellationToken);
-                if (so is null || so.Status != SalesOrderStatus.Shipped) continue;
-                if (so.Lines.Count == 0 || !so.Lines.All(l => l.IsFullyShipped)) continue;
-                var billable = so.Invoices.Where(i => i.Status != InvoiceStatus.Voided).ToList();
-                if (billable.Count == 0 || !billable.All(i => i.Status == InvoiceStatus.Paid)) continue;
-                so.Status = SalesOrderStatus.Completed;
-                anyCompleted = true;
-            }
-            if (anyCompleted) await db.SaveChangesAsync(cancellationToken);
-        }
+        await PaymentApplicationRules.CompletePaidSalesOrdersAsync(db, completionCandidateSoIds, cancellationToken);
 
         // ── Inline cash-receipt posting (Phase-1 STAGE B, §7 matrix row "Payment
         // applied"). Runs AFTER the operational SaveChanges (within the same open

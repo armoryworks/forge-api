@@ -224,4 +224,105 @@ public class CreateCustomerReturnHandlerTests
         result1.ReturnNumber.Should().Be("RMA-00001");
         result2.ReturnNumber.Should().Be("RMA-00002");
     }
+
+    private static async Task<Part> SeedPartOnJobAsync(Data.Context.AppDbContext db, Job job, decimal buildQuantity)
+    {
+        var part = new Part { PartNumber = "FG-310", Description = "Housing", Status = PartStatus.Active, Revision = "B" };
+        db.Parts.Add(part);
+        await db.SaveChangesAsync();
+        job.PartId = part.Id;
+        job.PartRevision = "B";
+        job.JobParts.Add(new JobPart { PartId = part.Id, Quantity = buildQuantity });
+        await db.SaveChangesAsync();
+        return part;
+    }
+
+    [Fact]
+    public async Task Handle_ReworkJob_CarriesThePartAndTheReturnedQuantity()
+    {
+        var (customer, job, db) = await SeedTestDataAsync();
+        using var _ = db;
+        var part = await SeedPartOnJobAsync(db, job, 40m);
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object, _identifiers.Object);
+
+        var result = await handler.Handle(new CreateCustomerReturnCommand(
+            customer.Id, job.Id, "Cracked", null, DateTime.UtcNow, true, 3m), CancellationToken.None);
+
+        var rework = await db.Jobs.Include(j => j.JobParts).SingleAsync(j => j.Id == result.ReworkJobId);
+        rework.PartId.Should().Be(part.Id);
+        rework.PartRevision.Should().Be("B");
+        rework.JobParts.Should().ContainSingle(jp => jp.PartId == part.Id && jp.Quantity == 3m);
+        rework.SalesOrderLineId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_ReworkJob_WithoutAQuantity_RebuildsTheOriginalQuantity()
+    {
+        var (customer, job, db) = await SeedTestDataAsync();
+        using var _ = db;
+        var part = await SeedPartOnJobAsync(db, job, 40m);
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object, _identifiers.Object);
+
+        var result = await handler.Handle(new CreateCustomerReturnCommand(
+            customer.Id, job.Id, "Cracked", null, DateTime.UtcNow, true), CancellationToken.None);
+
+        var rework = await db.Jobs.Include(j => j.JobParts).SingleAsync(j => j.Id == result.ReworkJobId);
+        rework.JobParts.Should().ContainSingle(jp => jp.PartId == part.Id && jp.Quantity == 40m);
+    }
+
+    [Fact]
+    public async Task Handle_ReworkJob_ForAJobWithoutAPart_RecordsTheQuantityInTheDescription()
+    {
+        var (customer, job, db) = await SeedTestDataAsync();
+        using var _ = db;
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object, _identifiers.Object);
+
+        var result = await handler.Handle(new CreateCustomerReturnCommand(
+            customer.Id, job.Id, "Cracked", null, DateTime.UtcNow, true, 3m), CancellationToken.None);
+
+        var rework = await db.Jobs.Include(j => j.JobParts).SingleAsync(j => j.Id == result.ReworkJobId);
+        rework.PartId.Should().BeNull();
+        rework.JobParts.Should().BeEmpty();
+        rework.Description.Should().Contain("Quantity returned: 3");
+    }
+
+    [Fact]
+    public async Task CompletedReworkJob_IsNotOfferedForInvoicing()
+    {
+        var (customer, job, db) = await SeedTestDataAsync();
+        using var _ = db;
+        await SeedPartOnJobAsync(db, job, 40m);
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object, _identifiers.Object);
+        var result = await handler.Handle(new CreateCustomerReturnCommand(
+            customer.Id, job.Id, "Cracked", null, DateTime.UtcNow, true, 3m), CancellationToken.None);
+
+        job.CompletedDate = DateTimeOffset.UtcNow.AddDays(-30);
+        var rework = await db.Jobs.SingleAsync(j => j.Id == result.ReworkJobId);
+        rework.CompletedDate = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync();
+
+        var uninvoiced = await new Forge.Api.Features.Invoices.GetUninvoicedJobsHandler(db)
+            .Handle(new Forge.Api.Features.Invoices.GetUninvoicedJobsQuery(), CancellationToken.None);
+
+        uninvoiced.Should().ContainSingle(u => u.JobId == job.Id);
+        uninvoiced.Should().NotContain(u => u.JobId == rework.Id);
+    }
+
+    [Fact]
+    public async Task OpenReworkJob_IsNotReplenishmentSupply()
+    {
+        var (customer, job, db) = await SeedTestDataAsync();
+        using var _ = db;
+        var part = await SeedPartOnJobAsync(db, job, 40m);
+        job.CompletedDate = DateTimeOffset.UtcNow.AddDays(-30);
+        await db.SaveChangesAsync();
+        var handler = new CreateCustomerReturnHandler(db, _mediator.Object, _httpContext, _jobRepo.Object, _identifiers.Object);
+        await handler.Handle(new CreateCustomerReturnCommand(
+            customer.Id, job.Id, "Cracked", null, DateTime.UtcNow, true, 3m), CancellationToken.None);
+
+        var supply = await Forge.Api.Features.Replenishment.ReplenishmentPlanning
+            .LoadOpenJobSupplyAsync(db, [part.Id], CancellationToken.None);
+
+        supply.Should().NotContainKey(part.Id);
+    }
 }

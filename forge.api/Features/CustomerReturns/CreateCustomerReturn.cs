@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.DomainEvents;
+using Forge.Api.Services;
 using Forge.Core.Entities;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -49,6 +50,8 @@ public class CreateCustomerReturnHandler(
         var originalJob = await db.Jobs
             .Include(j => j.TrackType)
             .ThenInclude(t => t.Stages)
+            .Include(j => j.JobParts)
+            .Include(j => j.SalesOrderLine)
             .FirstOrDefaultAsync(j => j.Id == request.OriginalJobId, ct)
             ?? throw new KeyNotFoundException($"Job {request.OriginalJobId} not found");
 
@@ -90,14 +93,26 @@ public class CreateCustomerReturnHandler(
             {
                 JobNumber = reworkJobNumber,
                 Title = $"[Rework] {originalJob.Title}",
-                Description = $"Rework for RMA {returnNumber}. Reason: {request.Reason}",
+                Description = request.Quantity is decimal returnedQuantity
+                    ? $"Rework for RMA {returnNumber}. Reason: {request.Reason}. Quantity returned: {returnedQuantity:0.####}"
+                    : $"Rework for RMA {returnNumber}. Reason: {request.Reason}",
                 TrackTypeId = originalJob.TrackTypeId,
                 CurrentStageId = firstStage.Id,
                 BoardPosition = maxPosition + 1,
                 CustomerId = request.CustomerId,
                 Priority = JobPriority.High,
                 AssigneeId = originalJob.AssigneeId,
+                PartId = originalJob.PartId,
+                PartRevision = originalJob.PartRevision,
             };
+            if (originalJob.PartId is int reworkPartId)
+            {
+                reworkJob.JobParts.Add(new JobPart
+                {
+                    PartId = reworkPartId,
+                    Quantity = request.Quantity ?? OperationTimeMath.JobBuildQuantity(originalJob),
+                });
+            }
             reworkJob.ActivityLogs.Add(new JobActivityLog
             {
                 Action = ActivityAction.Created,

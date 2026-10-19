@@ -745,6 +745,7 @@ public class MrpService(
                 && j.Disposition == null
                 && j.PartId != null
                 && partIds.Contains(j.PartId.Value)
+                && !db.CustomerReturns.Any(r => r.ReworkJobId == j.Id)
                 && !db.JobStages.Any(current => current.Id == j.CurrentStageId
                     && !db.JobStages.Any(s => s.TrackTypeId == j.TrackTypeId && s.IsActive && s.SortOrder > current.SortOrder)
                     && db.JobStages.Any(s => s.TrackTypeId == j.TrackTypeId && s.IsActive && s.SortOrder < current.SortOrder)))
