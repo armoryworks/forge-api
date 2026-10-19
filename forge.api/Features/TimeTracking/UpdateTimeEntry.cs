@@ -1,6 +1,10 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
+
+using Forge.Api.Authorization;
 using Forge.Api.Features.ShopFloor;
+using Forge.Api.Middleware;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
 using Forge.Data.Context;
@@ -20,12 +24,16 @@ public class UpdateTimeEntryCommandValidator : AbstractValidator<UpdateTimeEntry
     }
 }
 
-public class UpdateTimeEntryHandler(ITimeTrackingRepository repo, AppDbContext db, IClock clock) : IRequestHandler<UpdateTimeEntryCommand, TimeEntryResponseModel>
+public class UpdateTimeEntryHandler(ITimeTrackingRepository repo, AppDbContext db, IClock clock, IHttpContextAccessor http) : IRequestHandler<UpdateTimeEntryCommand, TimeEntryResponseModel>
 {
     public async Task<TimeEntryResponseModel> Handle(UpdateTimeEntryCommand request, CancellationToken cancellationToken)
     {
         var entry = await repo.FindTimeEntryAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Time entry {request.Id} not found.");
+
+        var user = http.HttpContext?.User;
+        if (entry.UserId != CallerAccess.UserId(user) && !CallerAccess.IsSupervisor(user))
+            throw new ForbiddenException("You can only edit your own time entries.");
 
         if (entry.IsLocked)
             throw new InvalidOperationException("This time entry is locked and cannot be edited.");
@@ -36,11 +44,15 @@ public class UpdateTimeEntryHandler(ITimeTrackingRepository repo, AppDbContext d
             throw new InvalidOperationException("Time entries from previous days cannot be edited.");
 
         var data = request.Data;
+        if (data.Date.HasValue && data.Date.Value != entry.Date)
+            await TimeLockBoundary.EnsureOpenAsync(db, data.Date.Value, cancellationToken);
+
         if (data.JobId.HasValue) entry.JobId = data.JobId;
         if (data.Date.HasValue) entry.Date = data.Date.Value;
         if (data.DurationMinutes.HasValue) entry.DurationMinutes = data.DurationMinutes.Value;
         if (data.Category is not null) entry.Category = data.Category.Trim();
         if (data.Notes is not null) entry.Notes = data.Notes.Trim();
+        if (data.IsBillable.HasValue) entry.IsBillable = data.IsBillable.Value;
 
         await repo.SaveChangesAsync(cancellationToken);
 

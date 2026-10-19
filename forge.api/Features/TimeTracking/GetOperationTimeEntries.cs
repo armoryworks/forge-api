@@ -31,6 +31,7 @@ public class GetOperationTimeEntriesHandler(AppDbContext db)
                 TimerStop = t.TimerStop,
                 IsManual = t.IsManual,
                 IsLocked = t.IsLocked,
+                IsBillable = t.IsBillable,
                 LaborCost = t.LaborCost,
                 BurdenCost = t.BurdenCost,
                 OperationId = t.OperationId,

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Middleware;
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
 using Forge.Data.Context;
@@ -18,6 +19,17 @@ public class DecideLeaveRequestHandler(AppDbContext db, IClock clock) : IRequest
 
         if (leaveRequest.Status != LeaveRequestStatus.Pending)
             throw new InvalidOperationException("Only pending requests can be approved or denied");
+
+        if (request.Approve)
+        {
+            if (leaveRequest.UserId == request.DecidedByUserId)
+                throw new ForbiddenException("You cannot approve your own leave request. Another manager must approve it.");
+
+            var policy = await db.LeavePolicies.FindAsync([leaveRequest.PolicyId], cancellationToken)
+                ?? throw new KeyNotFoundException($"Leave policy {leaveRequest.PolicyId} not found");
+            await LeaveBalanceRules.EnsureCoveredAsync(
+                db, policy, leaveRequest.UserId, leaveRequest.Hours, leaveRequest.Id, countPending: false, cancellationToken);
+        }
 
         leaveRequest.Status = request.Approve ? LeaveRequestStatus.Approved : LeaveRequestStatus.Denied;
         leaveRequest.ApprovedById = request.DecidedByUserId;

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
+using Forge.Data.Context;
 
 namespace Forge.Api.Features.TimeTracking;
 
@@ -20,12 +21,14 @@ public class CreateTimeEntryCommandValidator : AbstractValidator<CreateTimeEntry
     }
 }
 
-public class CreateTimeEntryHandler(ITimeTrackingRepository repo, IHttpContextAccessor httpContext) : IRequestHandler<CreateTimeEntryCommand, TimeEntryResponseModel>
+public class CreateTimeEntryHandler(ITimeTrackingRepository repo, IHttpContextAccessor httpContext, AppDbContext db) : IRequestHandler<CreateTimeEntryCommand, TimeEntryResponseModel>
 {
     public async Task<TimeEntryResponseModel> Handle(CreateTimeEntryCommand request, CancellationToken cancellationToken)
     {
         var data = request.Data;
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        await TimeLockBoundary.EnsureOpenAsync(db, data.Date, cancellationToken);
 
         var entry = new TimeEntry
         {
@@ -38,6 +41,7 @@ public class CreateTimeEntryHandler(ITimeTrackingRepository repo, IHttpContextAc
             IsManual = true,
             OperationId = data.OperationId,
             EntryType = data.EntryType,
+            IsBillable = data.IsBillable,
         };
 
         await repo.AddTimeEntryAsync(entry, cancellationToken);

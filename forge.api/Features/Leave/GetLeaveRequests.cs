@@ -1,5 +1,8 @@
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+
+using Forge.Api.Authorization;
 
 using Forge.Core.Enums;
 using Forge.Core.Models;
@@ -9,17 +12,20 @@ namespace Forge.Api.Features.Leave;
 
 public record GetLeaveRequestsQuery(int? UserId = null, LeaveRequestStatus? Status = null) : IRequest<List<LeaveRequestResponseModel>>;
 
-public class GetLeaveRequestsHandler(AppDbContext db) : IRequestHandler<GetLeaveRequestsQuery, List<LeaveRequestResponseModel>>
+public class GetLeaveRequestsHandler(AppDbContext db, IHttpContextAccessor http) : IRequestHandler<GetLeaveRequestsQuery, List<LeaveRequestResponseModel>>
 {
     public async Task<List<LeaveRequestResponseModel>> Handle(GetLeaveRequestsQuery request, CancellationToken cancellationToken)
     {
+        var userId = CallerAccess.ScopeToSelf(
+            http.HttpContext?.User, request.UserId, "You can only view your own leave requests.");
+
         var query = db.LeaveRequests.AsNoTracking()
             .Include(r => r.Policy)
             .Where(r => r.DeletedAt == null)
             .AsQueryable();
 
-        if (request.UserId.HasValue)
-            query = query.Where(r => r.UserId == request.UserId.Value);
+        if (userId.HasValue)
+            query = query.Where(r => r.UserId == userId.Value);
 
         if (request.Status.HasValue)
             query = query.Where(r => r.Status == request.Status.Value);

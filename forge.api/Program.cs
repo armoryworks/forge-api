@@ -741,6 +741,7 @@ try
     builder.Services.AddScoped<IVendorScorecardService, VendorScorecardService>();
     builder.Services.AddScoped<IRfqService, RfqService>();
     builder.Services.AddScoped<IOvertimeService, OvertimeService>();
+    builder.Services.AddScoped<IWorkedHoursService, WorkedHoursService>();
     builder.Services.AddScoped<PurchaseOrderGenerator>();
     builder.Services.AddHttpContextAccessor();
 

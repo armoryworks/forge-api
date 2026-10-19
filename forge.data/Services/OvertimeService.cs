@@ -7,7 +7,7 @@ using Forge.Data.Context;
 
 namespace Forge.Data.Services;
 
-public class OvertimeService(AppDbContext db) : IOvertimeService
+public class OvertimeService(AppDbContext db, IWorkedHoursService workedHours) : IOvertimeService
 {
     public async Task<OvertimeBreakdownResponseModel> CalculateOvertimeAsync(
         int userId, DateOnly weekStart, DateOnly weekEnd, CancellationToken ct)
@@ -15,15 +15,6 @@ public class OvertimeService(AppDbContext db) : IOvertimeService
         // Get the user's overtime rule (via employee profile or default)
         var rule = await GetOvertimeRuleForUserAsync(userId, ct)
             ?? GetDefaultRule();
-
-        // Get time entries for the week
-        var weekStartUtc = weekStart.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-        var weekEndUtc = weekEnd.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-
-        var entries = await db.TimeEntries.AsNoTracking()
-            .Where(t => t.UserId == userId && t.TimerStart >= weekStartUtc && t.TimerStart < weekEndUtc && t.TimerStop != null)
-            .OrderBy(t => t.TimerStart)
-            .ToListAsync(ct);
 
         // Get hourly rate from employee profile
         var hourlyRate = await db.Set<EmployeeProfile>().AsNoTracking()
@@ -40,14 +31,8 @@ public class OvertimeService(AppDbContext db) : IOvertimeService
 
         var effectiveRate = hourlyRate + shiftDiff;
 
-        // Group entries by date and calculate daily hours
-        var dailyHours = new Dictionary<DateOnly, decimal>();
-        foreach (var entry in entries)
-        {
-            var date = DateOnly.FromDateTime(entry.TimerStart!.Value.UtcDateTime);
-            var hours = (decimal)(entry.TimerStop!.Value - entry.TimerStart.Value).TotalHours;
-            dailyHours[date] = dailyHours.GetValueOrDefault(date) + hours;
-        }
+        var dailyHours = (await workedHours.DailyHoursAsync([userId], weekStart, weekEnd, ct))
+            .GetValueOrDefault(userId) ?? [];
 
         var dailyBreakdown = new List<DailyOvertimeDetailResponseModel>();
         decimal totalRegular = 0, totalOt = 0, totalDt = 0;

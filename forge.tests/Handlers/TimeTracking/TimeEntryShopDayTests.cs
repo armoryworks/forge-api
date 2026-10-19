@@ -31,9 +31,9 @@ public class TimeEntryShopDayTests
         return (user, await _h.Db.TimeEntries.SingleAsync(t => t.UserId == user.Id));
     }
 
-    private Task UpdateNotesAsync(int entryId) =>
-        new UpdateTimeEntryHandler(_h.Repo, _h.Db, _h.Clock.Object).Handle(
-            new UpdateTimeEntryCommand(entryId, new UpdateTimeEntryRequestModel(null, null, null, null, "Second shift")),
+    private Task UpdateNotesAsync(TimeEntry entry) =>
+        new UpdateTimeEntryHandler(_h.Repo, _h.Db, _h.Clock.Object, _h.SignedIn(entry.UserId)).Handle(
+            new UpdateTimeEntryCommand(entry.Id, new UpdateTimeEntryRequestModel(null, null, null, null, "Second shift")),
             CancellationToken.None);
 
     [Fact]
@@ -43,7 +43,7 @@ public class TimeEntryShopDayTests
         var (_, entry) = await StartTimerAsync(SevenPmMountain);
         _h.Now = SevenPmMountain.AddMinutes(30);
 
-        await UpdateNotesAsync(entry.Id);
+        await UpdateNotesAsync(entry);
 
         (await _h.Db.TimeEntries.AsNoTracking().SingleAsync(t => t.Id == entry.Id)).Notes.Should().Be("Second shift");
     }
@@ -69,7 +69,7 @@ public class TimeEntryShopDayTests
         var (_, entry) = await StartTimerAsync(SevenPmMountain);
         _h.Now = SevenPmMountain.AddHours(6);
 
-        var act = () => UpdateNotesAsync(entry.Id);
+        var act = () => UpdateNotesAsync(entry);
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Time entries from previous days cannot be edited.");

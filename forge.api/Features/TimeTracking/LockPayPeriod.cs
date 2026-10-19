@@ -2,6 +2,9 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 
+using Forge.Api.Features.Leave;
+using Forge.Api.Features.ShopFloor;
+using Forge.Core.Interfaces;
 using Forge.Data.Context;
 
 namespace Forge.Api.Features.TimeTracking;
@@ -10,20 +13,31 @@ public record LockPayPeriodCommand(DateTimeOffset LockThrough) : IRequest<LockPa
 
 public record LockPayPeriodResult(int LockedCount);
 
-public class LockPayPeriodHandler(AppDbContext db) : IRequestHandler<LockPayPeriodCommand, LockPayPeriodResult>
+public class LockPayPeriodHandler(AppDbContext db, IClock clock) : IRequestHandler<LockPayPeriodCommand, LockPayPeriodResult>
 {
     public async Task<LockPayPeriodResult> Handle(LockPayPeriodCommand request, CancellationToken ct)
     {
-        var lockDate = request.LockThrough.Date;
+        var shopZone = await ClockStateRules.ShopTimeZoneAsync(db, ct);
+        var lockDate = request.LockThrough.TimeOfDay == TimeSpan.Zero
+            ? DateOnly.FromDateTime(request.LockThrough.DateTime)
+            : DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(request.LockThrough, shopZone).DateTime);
+        var shopToday = DateOnly.FromDateTime(ClockStateRules.LocalToday(shopZone, clock.UtcNow));
+
+        if (lockDate >= shopToday)
+            throw new InvalidOperationException(
+                $"A pay period can only be locked through a finished day. Choose {shopToday.AddDays(-1):yyyy-MM-dd} or earlier.");
 
         var entries = await db.TimeEntries
             .Where(e => e.DeletedAt == null
                 && !e.IsLocked
-                && e.Date <= DateOnly.FromDateTime(lockDate))
+                && e.Date <= lockDate)
             .ToListAsync(ct);
 
         foreach (var entry in entries)
             entry.IsLocked = true;
+
+        var boundary = await TimeLockBoundary.AdvanceAsync(db, lockDate, ct);
+        await LeaveAccrual.AccrueThroughAsync(db, boundary, ct);
 
         await db.SaveChangesAsync(ct);
 

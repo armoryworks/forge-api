@@ -1,5 +1,9 @@
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+
+using Forge.Api.Authorization;
+using Forge.Api.Middleware;
 
 using Forge.Core.Enums;
 using Forge.Core.Interfaces;
@@ -18,7 +22,7 @@ public record UpdatePerformanceReviewCommand(
     string? ImprovementComments,
     string? EmployeeSelfAssessment) : IRequest<PerformanceReviewResponseModel>;
 
-public class UpdatePerformanceReviewHandler(AppDbContext db, IClock clock) : IRequestHandler<UpdatePerformanceReviewCommand, PerformanceReviewResponseModel>
+public class UpdatePerformanceReviewHandler(AppDbContext db, IClock clock, IHttpContextAccessor http) : IRequestHandler<UpdatePerformanceReviewCommand, PerformanceReviewResponseModel>
 {
     public async Task<PerformanceReviewResponseModel> Handle(UpdatePerformanceReviewCommand request, CancellationToken cancellationToken)
     {
@@ -26,6 +30,8 @@ public class UpdatePerformanceReviewHandler(AppDbContext db, IClock clock) : IRe
             .Include(r => r.Cycle)
             .FirstOrDefaultAsync(r => r.Id == request.Id && r.DeletedAt == null, cancellationToken)
             ?? throw new KeyNotFoundException($"Performance review {request.Id} not found");
+
+        EnsureCallerMayWrite(review.EmployeeId, review.ReviewerId, request);
 
         if (request.Status.HasValue) review.Status = request.Status.Value;
         if (request.OverallRating.HasValue) review.OverallRating = request.OverallRating.Value;
@@ -54,5 +60,29 @@ public class UpdatePerformanceReviewHandler(AppDbContext db, IClock clock) : IRe
             review.StrengthsComments, review.ImprovementComments,
             review.EmployeeSelfAssessment,
             review.CompletedAt, review.AcknowledgedAt);
+    }
+
+    private void EnsureCallerMayWrite(int employeeId, int reviewerId, UpdatePerformanceReviewCommand request)
+    {
+        var user = http.HttpContext?.User;
+        var callerId = CallerAccess.UserId(user);
+        var isAdmin = user?.IsInRole("Admin") == true;
+        var isSubject = employeeId == callerId;
+        var isReviewer = reviewerId == callerId && !isSubject;
+
+        if (!isAdmin && !isSubject && !isReviewer)
+            throw new ForbiddenException("Only the employee, the assigned reviewer or an administrator can update this review.");
+
+        var writesReviewerFields = request.Status.HasValue
+            || request.OverallRating.HasValue
+            || request.GoalsJson != null
+            || request.CompetenciesJson != null
+            || request.StrengthsComments != null
+            || request.ImprovementComments != null;
+        if (writesReviewerFields && !isAdmin && !isReviewer)
+            throw new ForbiddenException("Only the assigned reviewer or an administrator can set the status, rating, goals or comments.");
+
+        if (request.EmployeeSelfAssessment != null && !isAdmin && !isSubject)
+            throw new ForbiddenException("Only the employee can write the self-assessment.");
     }
 }
