@@ -705,13 +705,7 @@ public sealed class InvoiceArPostingService(
     /// <summary>The inventory determination key a sold part is relieved from, matching where its class is
     /// carried: Raw and Component in INVENTORY_RAW, Subassembly in INVENTORY_SUBASSEMBLY, FinishedGood in
     /// INVENTORY_FG. Only called for parts that pass <see cref="LineRelievesInventory"/>.</summary>
-    private static string ReliefKeyFor(Part part) => part.InventoryClass switch
-    {
-        InventoryClass.Raw or InventoryClass.Component => KeyInventoryRaw,
-        InventoryClass.Subassembly => KeyInventorySubassembly,
-        InventoryClass.FinishedGood => KeyInventoryFg,
-        _ => throw new InvalidOperationException($"Part {part.PartNumber} ({part.InventoryClass}) is not a stocked inventory class."),
-    };
+    private static string ReliefKeyFor(Part part) => InventoryValuationService.StoreKeyFor(part.InventoryClass);
 
     private static readonly (string Key, string Label)[] ReliefAccounts =
     [

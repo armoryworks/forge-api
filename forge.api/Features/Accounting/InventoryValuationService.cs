@@ -193,7 +193,7 @@ public sealed class InventoryValuationService(AppDbContext db) : IInventoryValua
 
     private static bool FeedsStore(string? sourceType) => sourceType is not null && StoreFedSourceTypes.Contains(sourceType);
 
-    private static string StoreKeyFor(InventoryClass inventoryClass) => inventoryClass switch
+    internal static string StoreKeyFor(InventoryClass inventoryClass) => inventoryClass switch
     {
         InventoryClass.Subassembly => KeyInventorySubassembly,
         InventoryClass.FinishedGood => KeyInventoryFg,
