@@ -32,7 +32,7 @@ public class RecordClockPunchHandler(IMediator mediator, IHttpContextAccessor ht
     public async Task<ClockPunchResponseModel> Handle(RecordClockPunchCommand request, CancellationToken ct)
     {
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var punch = await mediator.Send(new ClockInOutCommand(userId, request.EventType), ct);
+        var punch = await mediator.Send(new ClockInOutCommand(userId, request.EventType, "mobile"), ct);
 
         var state = await mediator.Send(new GetClockStateQuery(userId), ct);
         return new ClockPunchResponseModel(punch.ClockEventId, state, punch.StoppedJobNumber);

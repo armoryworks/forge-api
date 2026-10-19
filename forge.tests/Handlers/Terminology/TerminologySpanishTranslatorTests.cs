@@ -75,4 +75,25 @@ public class TerminologySpanishTranslatorTests
         Label("label_customers:es").Should().Be("Compañías");
         Label("gender_customer:es").Should().Be("f");
     }
+
+    [Theory]
+    [InlineData("Canned assistant answer. This response is fixed for testing")]
+    [InlineData("Here is the translation: el Compromiso")]
+    [InlineData("el Compromiso que se usa en las órdenes de trabajo de la planta principal")]
+    public async Task A_reply_that_is_not_a_noun_is_left_untranslated(string reply)
+    {
+        _db.TerminologyEntries.AddRange(
+            new TerminologyEntry { Key = "entity_job", Label = "Engagement", IsAdminEdited = true },
+            new TerminologyEntry { Key = "label_jobs", Label = "Engagements", IsAdminEdited = true });
+        await _db.SaveChangesAsync();
+        Translates("Engagement", reply);
+        Translates("Engagements", "los Compromisos");
+
+        var untranslated = await new TerminologySpanishTranslator(_db, _translator.Object)
+            .TranslateChangedTermsAsync(["entity_job", "label_jobs"], CancellationToken.None);
+
+        untranslated.Should().Contain("job");
+        Label("entity_job:es").Should().BeNullOrEmpty();
+        Label("label_jobs:es").Should().BeNullOrEmpty();
+    }
 }
