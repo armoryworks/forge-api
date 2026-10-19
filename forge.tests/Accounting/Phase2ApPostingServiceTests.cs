@@ -810,8 +810,6 @@ public class Phase2ApPostingServiceTests
         (await db.ApOpenItems.SingleAsync()).AppliedTxnAmount.Should().Be(80m);
     }
 
-    // ─────────────────────────── Explicit line GL account ───────────────────────────
-
     private const int OfficeSuppliesId = 220;
 
     private static async Task AddOfficeSuppliesAccountAsync(AppDbContext db, bool isActive = true)
