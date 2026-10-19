@@ -13,11 +13,12 @@ public class GetConversationsHandler(AppDbContext db)
     public async Task<List<ChatConversationResponseModel>> Handle(GetConversationsQuery request, CancellationToken ct)
     {
         var messages = await db.ChatMessages
-            .Where(m => m.SenderId == request.UserId || m.RecipientId == request.UserId)
+            .Where(m => m.ChatRoomId == null
+                && (m.SenderId == request.UserId || m.RecipientId == request.UserId))
             .ToListAsync(ct);
 
         var userIds = messages
-            .SelectMany(m => new[] { m.SenderId, m.RecipientId })
+            .SelectMany(m => new[] { m.SenderId, m.RecipientId ?? 0 })
             .Where(id => id != request.UserId)
             .Distinct()
             .ToList();

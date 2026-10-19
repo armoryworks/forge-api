@@ -1973,7 +1973,7 @@ ALTER TABLE ONLY public.chat_message_mentions
 CREATE TABLE public.chat_messages (
     id integer NOT NULL,
     sender_id integer NOT NULL,
-    recipient_id integer NOT NULL,
+    recipient_id integer,
     content text NOT NULL,
     is_read boolean NOT NULL,
     read_at timestamp with time zone,

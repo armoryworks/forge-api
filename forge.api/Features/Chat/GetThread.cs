@@ -14,6 +14,7 @@ public class GetThreadHandler(AppDbContext db)
     {
         var parent = await db.ChatMessages.FindAsync([request.ParentMessageId], ct)
             ?? throw new KeyNotFoundException($"Message {request.ParentMessageId} not found");
+        await ChatMessageAccess.EnsureVisibleAsync(db, parent, request.UserId, ct);
 
         var replies = await db.ChatMessages
             .AsNoTracking()
@@ -26,7 +27,7 @@ public class GetThreadHandler(AppDbContext db)
                 (x.Sender.FirstName + " " + x.Sender.LastName).Trim(),
                 x.Sender.Initials ?? "??",
                 x.Sender.AvatarColor ?? "#94a3b8",
-                x.Message.RecipientId,
+                x.Message.RecipientId ?? 0,
                 x.Message.Content,
                 x.Message.IsRead,
                 x.Message.CreatedAt,

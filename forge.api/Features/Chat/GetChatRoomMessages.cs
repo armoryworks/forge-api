@@ -31,7 +31,7 @@ public class GetChatRoomMessagesHandler(AppDbContext db) : IRequestHandler<GetCh
                 (x.u.FirstName + " " + x.u.LastName).Trim(),
                 x.u.Initials ?? "??",
                 x.u.AvatarColor ?? "#94a3b8",
-                x.m.RecipientId,
+                x.m.RecipientId ?? 0,
                 x.m.Content,
                 x.m.IsRead,
                 x.m.CreatedAt,
