@@ -119,4 +119,24 @@ public class InventoryValuationReconciliationTests
         var item = recon.ReconcilingItems.Should().ContainSingle().Subject;
         (item.Kind, item.AccountNumber, item.Amount).Should().Be(("Unexplained", "13300", 12.5m));
     }
+
+    [Fact]
+    public async Task NcrScrap_ThroughTheStore_Reconciles()
+    {
+        using var db = TestDbContextFactory.Create();
+        await SeedScenarioAsync(db, withOpeningJournal: false);
+        await PostAsync(db, "NonConformance", JournalSource.Inventory, "n1",
+            new PostingLine { AccountKey = "INVENTORY_WRITEDOWN", Debit = 10m },
+            new PostingLine { AccountKey = "INVENTORY_RAW", Credit = 10m });
+        var rawRow = db.Set<InventoryValuation>().Single(v => v.TotalValue == 20m);
+        rawRow.OnHandQuantity = 2m;
+        rawRow.TotalValue = 10m;
+        await db.SaveChangesAsync();
+
+        var recon = await new InventoryValuationService(db).ReconcileAsync(BookId);
+
+        recon.Variance.Should().Be(0m);
+        recon.IsReconciled.Should().BeTrue();
+        recon.ReconcilingItems.Should().BeEmpty();
+    }
 }

@@ -188,6 +188,7 @@ public sealed class InventoryValuationService(AppDbContext db) : IInventoryValua
     private static readonly HashSet<string> StoreFedSourceTypes = new(StringComparer.Ordinal)
     {
         "Receipt", "ProductionRun", "MaterialIssue", "Invoice", "CycleCountLine", "ScanCount", "ScanCountReversal", "InterPlantTransferLine",
+        "NonConformance",
     };
 
     private static bool FeedsStore(string? sourceType) => sourceType is not null && StoreFedSourceTypes.Contains(sourceType);
