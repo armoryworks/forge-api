@@ -112,7 +112,7 @@ public class GetTimeByOperationReportHandler(AppDbContext db)
                     AvgRunMinutesPerPiece = jobCount > 0 ? runEntries.Sum(e => (decimal)e.DurationMinutes) / jobCount : 0,
                     TotalHours = totalHours,
                     EstimatedHours = estHours,
-                    VariancePercent = estHours > 0 ? (totalHours - estHours) / estHours * 100 : 0,
+                    VariancePercent = estHours > 0 ? (totalHours - estHours) / estHours * 100 : null,
                 };
             })
             .OrderBy(r => r.PartNumber)

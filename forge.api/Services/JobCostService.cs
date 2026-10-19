@@ -11,7 +11,8 @@ using Forge.Data.Context;
 
 namespace Forge.Api.Services;
 
-public class JobCostService(AppDbContext db, ICapabilitySnapshotProvider? capabilities = null) : IJobCostService
+public class JobCostService(
+    AppDbContext db, ICapabilitySnapshotProvider? capabilities = null, IStandardCostResolver? standardCost = null) : IJobCostService
 {
     public async Task<JobCostSummaryModel> GetCostSummaryAsync(int jobId, CancellationToken ct)
     {
@@ -27,9 +28,16 @@ public class JobCostService(AppDbContext db, ICapabilitySnapshotProvider? capabi
                 j.EstimatedLaborCost,
                 j.EstimatedBurdenCost,
                 j.EstimatedSubcontractCost,
+                j.PartId,
+                BuildQuantity = j.JobParts.Where(jp => jp.PartId == j.PartId).Sum(jp => (decimal?)jp.Quantity) ?? 0m,
             })
             .FirstOrDefaultAsync(ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found");
+
+        var estimate = new JobEstimate(
+            job.EstimatedMaterialCost, job.EstimatedLaborCost, job.EstimatedBurdenCost, job.EstimatedSubcontractCost);
+        if (standardCost is not null && JobEstimates.IsUnset(estimate.Material, estimate.Labor, estimate.Burden, estimate.Subcontract))
+            estimate = await JobEstimates.ComputeAsync(db, standardCost, job.PartId, job.BuildQuantity, ct);
 
         var materialActual = await GetActualMaterialCostAsync(jobId, ct);
         var laborActual = await GetActualLaborCostAsync(jobId, ct);
@@ -42,13 +50,13 @@ public class JobCostService(AppDbContext db, ICapabilitySnapshotProvider? capabi
             JobId = job.Id,
             JobNumber = job.JobNumber,
             QuotedPrice = prices.GetValueOrDefault(jobId, job.QuotedPrice),
-            MaterialEstimated = job.EstimatedMaterialCost,
+            MaterialEstimated = estimate.Material,
             MaterialActual = materialActual,
-            LaborEstimated = job.EstimatedLaborCost,
+            LaborEstimated = estimate.Labor,
             LaborActual = laborActual,
-            BurdenEstimated = job.EstimatedBurdenCost,
+            BurdenEstimated = estimate.Burden,
             BurdenActual = burdenActual,
-            SubcontractEstimated = job.EstimatedSubcontractCost,
+            SubcontractEstimated = estimate.Subcontract,
             SubcontractActual = subcontractActual,
         };
     }

@@ -11,5 +11,5 @@ public record TimeByOperationReportRow
     public decimal AvgRunMinutesPerPiece { get; init; }
     public decimal TotalHours { get; init; }
     public decimal EstimatedHours { get; init; }
-    public decimal VariancePercent { get; init; }
+    public decimal? VariancePercent { get; init; }
 }

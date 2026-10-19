@@ -21,6 +21,6 @@ public class JobPartConfiguration : IEntityTypeConfiguration<JobPart>
         builder.HasIndex(jp => new { jp.JobId, jp.PartId }).IsUnique();
 
         builder.Property(jp => jp.Notes).HasMaxLength(500);
-        builder.Property(jp => jp.Quantity).HasPrecision(10, 2);
+        builder.Property(jp => jp.Quantity).HasPrecision(18, 4);
     }
 }

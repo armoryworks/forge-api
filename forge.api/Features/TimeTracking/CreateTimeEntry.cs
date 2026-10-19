@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Forge.Api.Features.ShopFloor;
 using Forge.Core.Entities;
 using Forge.Core.Interfaces;
 using Forge.Core.Models;
@@ -22,13 +23,18 @@ public class CreateTimeEntryCommandValidator : AbstractValidator<CreateTimeEntry
 }
 
 public class CreateTimeEntryHandler(
-    ITimeTrackingRepository repo, IHttpContextAccessor httpContext, AppDbContext db, IJobCostService? jobCost = null)
+    ITimeTrackingRepository repo, IHttpContextAccessor httpContext, AppDbContext db, IJobCostService? jobCost = null,
+    IClock? clock = null)
     : IRequestHandler<CreateTimeEntryCommand, TimeEntryResponseModel>
 {
     public async Task<TimeEntryResponseModel> Handle(CreateTimeEntryCommand request, CancellationToken cancellationToken)
     {
         var data = request.Data;
         var userId = int.Parse(httpContext.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        if (clock is not null)
+            TimeEntryTimes.EnsureNotFuture(data.Date, DateOnly.FromDateTime(ClockStateRules.LocalToday(
+                await ClockStateRules.ShopTimeZoneAsync(db, cancellationToken), clock.UtcNow)));
 
         await TimeLockBoundary.EnsureOpenAsync(db, data.Date, cancellationToken);
 

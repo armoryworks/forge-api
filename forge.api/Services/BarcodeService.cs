@@ -52,13 +52,20 @@ public class BarcodeService(AppDbContext db, IHttpContextAccessor httpContextAcc
         if (identityType == BarcodeIdentityType.Internal)
             value = await FreeValueAsync(value, entityId, cancellationToken);
 
-        var barcode = new Barcode
+        var retired = identityType == BarcodeIdentityType.Gs1
+            ? await db.Barcodes.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(b => b.Value == value && b.PartId == entityId, cancellationToken)
+            : null;
+
+        var barcode = retired ?? new Barcode
         {
             Value = value,
             EntityType = entityType,
             IsActive = true,
             IdentityType = identityType,
         };
+        barcode.IsActive = true;
+        barcode.DeletedAt = null;
 
         // Set the appropriate FK
         switch (entityType)
@@ -89,7 +96,8 @@ public class BarcodeService(AppDbContext db, IHttpContextAccessor httpContextAcc
                 break;
         }
 
-        db.Barcodes.Add(barcode);
+        if (retired is null)
+            db.Barcodes.Add(barcode);
 
         // Log barcode generation on the parent entity's activity history
         var parentEntityType = entityType switch

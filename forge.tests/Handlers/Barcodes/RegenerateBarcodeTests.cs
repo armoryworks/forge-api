@@ -60,4 +60,22 @@ public class RegenerateBarcodeTests
         var result = await Handler(db, TestCaller.As(6, "Manager")).Handle(command, default);
         result.Value.Should().Be("JOB-J-REGEN");
     }
+
+    [Fact]
+    public async Task Regenerate_a_gtin_part_reuses_its_retired_gtin_barcode()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var part = new Part { PartNumber = "P-GTIN", Name = "Widget", Description = "Widget", Gtin = "00012345678905" };
+        db.Parts.Add(part);
+        await db.SaveChangesAsync();
+        await new BarcodeService(db, new HttpContextAccessor()).CreateBarcodeAsync(BarcodeEntityType.Part, part.Id, part.PartNumber);
+
+        await Handler(db).Handle(new RegenerateBarcodeCommand(BarcodeEntityType.Part, part.Id, part.PartNumber), default);
+        var second = await Handler(db).Handle(new RegenerateBarcodeCommand(BarcodeEntityType.Part, part.Id, part.PartNumber), default);
+
+        var all = await db.Barcodes.IgnoreQueryFilters().Where(b => b.PartId == part.Id).ToListAsync();
+        all.Should().ContainSingle();
+        all[0].Should().Match<Barcode>(b => b.Value == part.Gtin && b.IsActive && b.DeletedAt == null);
+        second.Value.Should().Be(part.Gtin);
+    }
 }

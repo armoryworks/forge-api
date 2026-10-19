@@ -12,6 +12,6 @@ public record OperationTimeAnalysisModel
     public decimal ActualTotalMinutes { get; init; }
     public decimal SetupVarianceMinutes { get; init; }
     public decimal RunVarianceMinutes { get; init; }
-    public decimal EfficiencyPercent { get; init; }
+    public decimal? EfficiencyPercent { get; init; }
     public int EntryCount { get; init; }
 }

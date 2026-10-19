@@ -109,4 +109,21 @@ public class TimeEntryShopDayTests
         (await _h.Db.TimeEntries.AsNoTracking().SingleAsync(t => t.Id == resumed.Id)).Date
             .Should().Be(new DateOnly(2026, 10, 7));
     }
+
+    [Fact]
+    public async Task Time_for_the_next_shop_day_is_refused_but_the_shop_day_in_progress_is_allowed()
+    {
+        await UseShopTimeZoneAsync("America/Denver");
+        _h.Now = SevenPmMountain;
+        var user = await _h.AddUserAsync();
+        var handler = new CreateTimeEntryHandler(_h.Repo, _h.SignedIn(user.Id), _h.Db, clock: _h.Clock.Object);
+        Task<TimeEntryResponseModel> Create(DateOnly date) => handler.Handle(
+            new CreateTimeEntryCommand(new CreateTimeEntryRequestModel(null, date, 60, "Cleanup", null)), CancellationToken.None);
+
+        await Create(new DateOnly(2026, 10, 7));
+        var tomorrow = () => Create(new DateOnly(2026, 10, 8));
+
+        (await tomorrow.Should().ThrowAsync<FluentValidation.ValidationException>())
+            .Which.Errors.Should().Contain(e => e.ErrorMessage == TimeEntryTimes.FutureDayMessage);
+    }
 }

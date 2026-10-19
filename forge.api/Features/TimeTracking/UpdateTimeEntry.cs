@@ -46,6 +46,8 @@ public class UpdateTimeEntryHandler(
             throw new InvalidOperationException("Time entries from previous days cannot be edited.");
 
         var data = request.Data;
+        if (data.Date.HasValue)
+            TimeEntryTimes.EnsureNotFuture(data.Date.Value, shopToday);
         if (data.Date.HasValue && data.Date.Value != entry.Date)
             await TimeLockBoundary.EnsureOpenAsync(db, data.Date.Value, cancellationToken);
 

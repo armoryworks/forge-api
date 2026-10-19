@@ -16,7 +16,6 @@ public class BackwardSchedulingService(
     private const int QcBufferDays = 1;
     private const int DefaultProductionDays = 5;
     private const int DefaultLeadTimeDays = 7;
-    private const int HoursPerDay = 8;
 
     public async Task<BackwardSchedule> CalculateSchedule(int salesOrderLineId, CancellationToken ct)
     {
@@ -33,14 +32,15 @@ public class BackwardSchedulingService(
         var shipBy = deliveryDate.AddDays(-ShippingBufferDays);
         var qcCompleteBy = shipBy.AddDays(-QcBufferDays);
 
-        var productionDays = await CalculateProductionDaysAsync(soLine.PartId, ct);
+        var buildQuantity = soLine.RemainingQuantity > 0m ? soLine.RemainingQuantity : soLine.Quantity;
         var productionCompleteBy = qcCompleteBy;
+        var productionDays = await CalculateProductionDaysAsync(
+            soLine.PartId, buildQuantity, ShopCalendar.DateOf(productionCompleteBy), ct);
         var productionStartBy = productionCompleteBy.AddDays(-productionDays);
         var materialsNeededBy = productionStartBy;
 
         var maxLeadTimeDays = await CalculateMaxLeadTimeDaysAsync(
-            soLine.PartId, soLine.RemainingQuantity > 0m ? soLine.RemainingQuantity : soLine.Quantity,
-            ShopCalendar.DateOf(materialsNeededBy), ct);
+            soLine.PartId, buildQuantity, ShopCalendar.DateOf(materialsNeededBy), ct);
         var poOrderBy = materialsNeededBy.AddDays(-maxLeadTimeDays);
 
         return new BackwardSchedule(
@@ -70,28 +70,32 @@ public class BackwardSchedulingService(
         ];
     }
 
-    private async Task<int> CalculateProductionDaysAsync(int? partId, CancellationToken ct)
+    private async Task<int> CalculateProductionDaysAsync(
+        int? partId, decimal quantity, DateOnly productionCompleteBy, CancellationToken ct)
     {
         if (!partId.HasValue)
             return DefaultProductionDays;
 
-        // EstimatedMs is canonical milliseconds; SetupMinutes stays minutes. Sum each column
-        // separately (both translate to a plain SQL SUM) and combine into minutes in memory —
-        // a mixed ms/minutes expression inside SumAsync would not translate.
-        var totalEstimatedMs = await db.Operations
+        var routing = await db.Operations
+            .AsNoTracking()
             .Where(o => o.PartId == partId.Value)
-            .SumAsync(o => o.EstimatedMs ?? 0L, ct);
-        var totalSetupMinutes = await db.Operations
-            .Where(o => o.PartId == partId.Value)
-            .SumAsync(o => o.SetupMinutes, ct);
+            .Select(o => new Operation
+            {
+                PartId = o.PartId,
+                SetupMinutes = o.SetupMinutes,
+                RunMinutesLot = o.RunMinutesLot,
+                RunMinutesEach = o.RunMinutesEach,
+                EstimatedMs = o.EstimatedMs,
+                IsSubcontract = o.IsSubcontract,
+                SubcontractTurnTimeDays = o.SubcontractTurnTimeDays,
+            })
+            .ToListAsync(ct);
 
-        var totalMinutes = (totalEstimatedMs / 60000.0) + (double)totalSetupMinutes;
-
-        if (totalMinutes <= 0)
+        if (routing.Count == 0)
             return DefaultProductionDays;
 
-        var totalHours = totalMinutes / 60.0;
-        var days = (int)Math.Ceiling(totalHours / HoursPerDay);
+        var calendar = await ShopCalendar.LoadDefaultAsync(db, ct);
+        var days = OperationTimeMath.MakeLeadTimeDaysBefore(routing, quantity, calendar, productionCompleteBy);
         return Math.Max(days, DefaultProductionDays);
     }
 

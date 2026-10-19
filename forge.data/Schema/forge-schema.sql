@@ -4716,7 +4716,7 @@ CREATE TABLE public.job_operation_events (
     id integer NOT NULL,
     job_operation_id integer NOT NULL,
     kind character varying(20) NOT NULL,
-    quantity numeric(10,2) NOT NULL,
+    quantity numeric(18,4) NOT NULL,
     reason_code character varying(50),
     user_id integer NOT NULL,
     occurred_at timestamp with time zone NOT NULL,
@@ -4749,8 +4749,8 @@ CREATE TABLE public.job_operations (
     step_number integer NOT NULL,
     title character varying(200) NOT NULL,
     status integer DEFAULT 0 NOT NULL,
-    completed_quantity numeric(10,2) DEFAULT 0.0 NOT NULL,
-    scrap_quantity numeric(10,2) DEFAULT 0.0 NOT NULL,
+    completed_quantity numeric(18,4) DEFAULT 0.0 NOT NULL,
+    scrap_quantity numeric(18,4) DEFAULT 0.0 NOT NULL,
     est_setup_minutes numeric(10,2) DEFAULT 0.0 NOT NULL,
     est_run_minutes_each numeric(14,6) DEFAULT 0.0 NOT NULL,
     est_run_minutes_lot numeric(10,2) DEFAULT 0.0 NOT NULL,
@@ -4782,7 +4782,7 @@ CREATE TABLE public.job_parts (
     id integer NOT NULL,
     job_id integer NOT NULL,
     part_id integer NOT NULL,
-    quantity numeric(10,2) NOT NULL,
+    quantity numeric(18,4) NOT NULL,
     notes character varying(500),
     job_id1 integer
 );

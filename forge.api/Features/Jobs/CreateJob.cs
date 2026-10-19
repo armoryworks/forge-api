@@ -67,7 +67,8 @@ public class CreateJobHandler(
     ICloudFolderAutoCreator folderAutoCreator,
     ISystemSettingRepository systemSettings,
     IBusinessIdentifierService identifiers,
-    ICapabilitySnapshotProvider capabilities) : IRequestHandler<CreateJobCommand, JobDetailResponseModel>
+    ICapabilitySnapshotProvider capabilities,
+    IStandardCostResolver? standardCost = null) : IRequestHandler<CreateJobCommand, JobDetailResponseModel>
 {
     // System setting that gates caller-supplied job numbers. Stored as "true"/"false".
     private const string AllowManualJobNumbersKey = "jobs.allow_manual_numbers";
@@ -162,6 +163,7 @@ public class CreateJobHandler(
                 PartId = jobPartId,
                 Quantity = quantity ?? 1m,
             });
+            await JobEstimates.SnapshotAsync(db, standardCost, job, quantity ?? 1m, cancellationToken);
         }
 
         job.ActivityLogs.Add(new JobActivityLog

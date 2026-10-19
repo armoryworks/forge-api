@@ -2,9 +2,11 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
 using Forge.Api.Features.Jobs;
+using Forge.Api.Features.Jobs.Operations;
 using Forge.Api.Features.Jobs.Parts;
 using Forge.Api.Middleware;
 using Forge.Core.Entities;
+using Forge.Core.Models;
 using Forge.Tests.Helpers;
 
 namespace Forge.Tests.Handlers.Jobs;
@@ -12,8 +14,8 @@ namespace Forge.Tests.Handlers.Jobs;
 public class JobQuantityLimitTests
 {
     [Theory]
-    [InlineData(100_000_000, JobQuantityRules.TooLargeMessage)]
-    [InlineData(1.234, JobQuantityRules.ScaleMessage)]
+    [InlineData(1_000_000_000, JobQuantityRules.TooLargeMessage)]
+    [InlineData(1.23456, JobQuantityRules.ScaleMessage)]
     public void Job_quantities_must_fit_the_stored_precision(double quantity, string message)
     {
         var value = (decimal)quantity;
@@ -24,6 +26,16 @@ public class JobQuantityLimitTests
             .Errors.Should().Contain(e => e.ErrorMessage == message);
         new AddJobPartValidator().Validate(new AddJobPartCommand(1, 1, value))
             .Errors.Should().Contain(e => e.ErrorMessage == message);
+        new UpdateJobOperationProgressValidator().Validate(new UpdateJobOperationProgressCommand(1, 1,
+                new UpdateJobOperationProgressRequestModel(value, null, null)))
+            .Errors.Should().Contain(e => e.ErrorMessage == message);
+    }
+
+    [Fact]
+    public void Four_decimal_places_are_accepted()
+    {
+        new UpdateJobPartValidator().Validate(new UpdateJobPartCommand(1, 1, 1.2345m, null))
+            .IsValid.Should().BeTrue();
     }
 
     [Fact]
@@ -36,7 +48,7 @@ public class JobQuantityLimitTests
     [Fact]
     public void A_defaulted_quantity_is_rounded_up_to_the_stored_scale()
     {
-        JobQuantityRules.Fit(2.3333m).Should().Be(2.34m);
+        JobQuantityRules.Fit(2.333333m).Should().Be(2.3334m);
         JobQuantityRules.Fit(5m).Should().Be(5m);
     }
 

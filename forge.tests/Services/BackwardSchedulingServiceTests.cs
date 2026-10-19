@@ -109,4 +109,36 @@ public class BackwardSchedulingServiceTests
         var leadDays = (schedule.MaterialsNeededBy - schedule.PoOrderBy).TotalDays;
         leadDays.Should().BeApproximately(21d, precision: 0.001d);
     }
+
+    [Fact]
+    public async Task Production_days_use_the_per_piece_estimate_times_the_order_quantity()
+    {
+        using var db = TestDbContextFactory.Create();
+        var part = NewPart("MADE");
+        part.ProcurementSource = ProcurementSource.Make;
+        db.Parts.Add(part);
+        var customer = new Customer { Name = "Buyer" };
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        db.Operations.Add(new Operation { PartId = part.Id, StepNumber = 10, Title = "Mill", EstimatedMs = 6 * 60_000L });
+        var so = new SalesOrder
+        {
+            OrderNumber = "SO-2",
+            CustomerId = customer.Id,
+            Status = SalesOrderStatus.Confirmed,
+            RequestedDeliveryDate = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
+        };
+        db.SalesOrders.Add(so);
+        await db.SaveChangesAsync();
+        var line = new SalesOrderLine { SalesOrderId = so.Id, PartId = part.Id, Quantity = 800, UnitPrice = 1m, LineNumber = 1 };
+        db.SalesOrderLines.Add(line);
+        await db.SaveChangesAsync();
+
+        var schedule = await new BackwardSchedulingService(db, new SystemClock(), new PartSourcingResolver(db))
+            .CalculateSchedule(line.Id, CancellationToken.None);
+
+        var productionDays = (schedule.ProductionCompleteBy - schedule.ProductionStartBy).TotalDays;
+        productionDays.Should().BeGreaterThanOrEqualTo(10d).And.BeLessThan(20d);
+    }
 }

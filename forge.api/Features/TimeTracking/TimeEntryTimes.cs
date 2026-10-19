@@ -8,6 +8,13 @@ namespace Forge.Api.Features.TimeTracking;
 public static class TimeEntryTimes
 {
     public const string StartAfterEndMessage = "Start time must be before end time.";
+    public const string FutureDayMessage = "Time can't be logged for a day that hasn't started yet.";
+
+    public static void EnsureNotFuture(DateOnly date, DateOnly shopToday)
+    {
+        if (date > shopToday)
+            throw new ValidationException([new ValidationFailure("Data.Date", FutureDayMessage)]);
+    }
 
     public static void Apply(TimeEntry entry, DateTimeOffset? start, DateTimeOffset? end, int? durationMinutes)
     {
