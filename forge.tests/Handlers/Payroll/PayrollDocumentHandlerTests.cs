@@ -65,6 +65,40 @@ public class PayrollDocumentHandlerTests
         _db.PayStubs.Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData("tax-documents", 32)]
+    [InlineData("pay-stubs", 77)]
+    public async Task UploadPayStub_FileFromAnotherRecord_ThrowsValidationException(string entityType, int entityId)
+    {
+        var (userId, _) = await SeedAsync();
+        var other = new FileAttachment
+        {
+            FileName = "other.pdf", ContentType = "application/pdf", BucketName = "b", ObjectKey = "k2",
+            EntityType = entityType, EntityId = entityId, UploadedById = 32,
+        };
+        _db.FileAttachments.Add(other);
+        await _db.SaveChangesAsync();
+
+        var act = () => new UploadPayStubHandler(_db).Handle(Stub(userId, 500m, 400m, other.Id), CancellationToken.None);
+
+        var ex = await act.Should().ThrowAsync<ValidationException>();
+        ex.Which.Errors.Select(e => e.PropertyName).Should().BeEquivalentTo("FileAttachmentId");
+        _db.PayStubs.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task UploadTaxDocument_PayStubFile_ThrowsValidationException()
+    {
+        var (userId, payStubFileId) = await SeedAsync();
+
+        var act = () => new UploadTaxDocumentHandler(_db).Handle(
+            new UploadTaxDocumentCommand(userId, new UploadTaxDocumentRequestModel(TaxDocumentType.W2, 2025, payStubFileId)),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<ValidationException>();
+        _db.TaxDocuments.Should().BeEmpty();
+    }
+
     [Fact]
     public void UploadPayStubValidator_RejectsImpossibleValues()
     {

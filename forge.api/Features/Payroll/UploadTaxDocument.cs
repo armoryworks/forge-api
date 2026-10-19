@@ -39,8 +39,9 @@ public class UploadTaxDocumentHandler(AppDbContext db)
         var failures = new List<ValidationFailure>();
         if (!await db.Users.AnyAsync(u => u.Id == request.UserId, ct))
             failures.Add(new ValidationFailure(nameof(request.UserId), $"User {request.UserId} does not exist."));
-        if (!await db.FileAttachments.AnyAsync(f => f.Id == data.FileAttachmentId, ct))
-            failures.Add(new ValidationFailure(nameof(data.FileAttachmentId), $"File {data.FileAttachmentId} does not exist."));
+        if (!await db.FileAttachments.AnyAsync(f => f.Id == data.FileAttachmentId
+                && f.EntityType == "tax-documents" && f.EntityId == request.UserId, ct))
+            failures.Add(new ValidationFailure(nameof(data.FileAttachmentId), $"File {data.FileAttachmentId} is not a tax document uploaded for this user."));
         if (failures.Count > 0)
             throw new ValidationException(failures);
 

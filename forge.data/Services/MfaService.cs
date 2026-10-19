@@ -275,6 +275,12 @@ public class MfaService(
 
     public async Task<MfaRecoveryCodesResponseModel> GenerateRecoveryCodesAsync(int userId, CancellationToken ct)
     {
+        var user = await db.Users.FindAsync([userId], ct)
+            ?? throw new KeyNotFoundException("User not found");
+
+        if (!user.MfaEnabled)
+            throw new InvalidOperationException("Turn on two-factor authentication before generating recovery codes");
+
         // Soft-delete existing codes
         var existing = await db.MfaRecoveryCodes
             .Where(c => c.UserId == userId)
@@ -296,9 +302,7 @@ public class MfaService(
             });
         }
 
-        var user = await db.Users.FindAsync([userId], ct);
-        if (user is not null)
-            user.MfaRecoveryCodesRemaining = RecoveryCodeCount;
+        user.MfaRecoveryCodesRemaining = RecoveryCodeCount;
 
         await db.SaveChangesAsync(ct);
 

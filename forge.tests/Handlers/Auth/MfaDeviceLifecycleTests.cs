@@ -105,4 +105,28 @@ public class MfaDeviceLifecycleTests
         reloaded.MfaRecoveryCodesRemaining.Should().Be(0);
         (await _db.MfaRecoveryCodes.AnyAsync(c => c.UserId == user.Id)).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task GenerateRecoveryCodes_WhenMfaIsOff_IsRefusedAndKeepsExistingCodes()
+    {
+        var user = await SeedUserAsync(mfaEnabled: false);
+        _db.MfaRecoveryCodes.Add(new MfaRecoveryCode { UserId = user.Id, CodeHash = "h" });
+        await _db.SaveChangesAsync();
+
+        var act = () => Mfa().GenerateRecoveryCodesAsync(user.Id, CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        (await _db.MfaRecoveryCodes.CountAsync(c => c.UserId == user.Id)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GenerateRecoveryCodes_WhenMfaIsOn_IssuesAFullSet()
+    {
+        var user = await SeedUserAsync(mfaEnabled: true);
+
+        var result = await Mfa().GenerateRecoveryCodesAsync(user.Id, CancellationToken.None);
+
+        result.Codes.Should().HaveCount(10);
+        (await _db.Users.SingleAsync(u => u.Id == user.Id)).MfaRecoveryCodesRemaining.Should().Be(10);
+    }
 }
